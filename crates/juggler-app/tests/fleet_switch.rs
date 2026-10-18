@@ -768,3 +768,126 @@ fn keep_mine_resumes_the_diverged_original_and_a_running_original_is_refused() {
         "{args}"
     );
 }
+
+// ------------------------------------------------ AJ-E710 guardrails
+
+/// Every file under `dir` (recursively), skipping `skip` subtrees.
+fn files_under(dir: &Path, skip: &[PathBuf]) -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    let mut stack = vec![dir.to_path_buf()];
+    while let Some(next) = stack.pop() {
+        if skip.iter().any(|skipped| next.starts_with(skipped)) {
+            continue;
+        }
+        let Ok(entries) = std::fs::read_dir(&next) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                stack.push(path);
+            } else {
+                out.push(path);
+            }
+        }
+    }
+    out
+}
+
+fn contains(haystack: &[u8], needle: &[u8]) -> bool {
+    !needle.is_empty()
+        && haystack
+            .windows(needle.len())
+            .any(|window| window == needle)
+}
+
+#[test]
+fn no_credential_or_secret_reaches_the_other_mac_or_any_log() {
+    // T2 is blocked by the version, so this exercises the T3 path, the
+    // one that sends conversation TEXT across, with Strip chosen.
+    let pair = setup_both("2.0.9", true, Permission::Control, Permission::Control);
+    // A vendor credential on the laptop, next to the Account's sessions.
+    let credentials = pair
+        .laptop
+        .accounts_dir()
+        .join(CLAUDE_CODE_ID)
+        .join(&pair.laptop_account)
+        .join(".credentials.json");
+    std::fs::write(
+        &credentials,
+        r#"{"claudeAiOauth":{"accessToken":"sk-ant-oat01-CREDENTIALSECRETCREDENTIALSECRET"}}"#,
+    )
+    .unwrap();
+    let _ = target(&pair, "t2_blocked");
+    let mut replay = request(&pair, "replay");
+    replay.redaction_choice = Some("strip".to_owned());
+    let outcome = execute(&pair, replay).0.unwrap();
+    assert!(outcome.accepted, "{outcome:?}");
+    // Let a few telemetry ticks and the catalog flow both ways.
+    std::thread::sleep(Duration::from_secs(3));
+
+    let credential: &[u8] = b"CREDENTIALSECRET";
+    let transcript_secret: &[u8] = b"SECRETSECRETSECRET";
+    // Nothing of the laptop's credential or its stripped secret exists
+    // ANYWHERE on the desktop — its sessions, database, logs.
+    for file in files_under(&pair.desktop.data_dir, &[]) {
+        let bytes = std::fs::read(&file).unwrap_or_default();
+        assert!(
+            !contains(&bytes, credential),
+            "credential egressed into {file:?}"
+        );
+        assert!(
+            !contains(&bytes, transcript_secret),
+            "secret egressed into {file:?}"
+        );
+    }
+    // No log or database on either machine holds a secret, a credential
+    // or the identity private key (account folders legitimately hold
+    // the vendor's own files and are excluded).
+    for state in [&pair.laptop, &pair.desktop] {
+        let key =
+            std::fs::read(state.data_dir.join("fleet").join("identity.key")).unwrap_or_default();
+        let accounts = state.accounts_dir();
+        let identity_dir = state.data_dir.join("fleet").join("identity.key");
+        for file in files_under(&state.data_dir, &[accounts, identity_dir.clone()]) {
+            if file == identity_dir {
+                continue;
+            }
+            let bytes = std::fs::read(&file).unwrap_or_default();
+            assert!(!contains(&bytes, credential), "credential in {file:?}");
+            assert!(!contains(&bytes, transcript_secret), "secret in {file:?}");
+            assert!(!contains(&bytes, &key), "identity key bytes in {file:?}");
+        }
+    }
+}
+
+#[test]
+fn link_off_returns_both_macs_to_fully_local_behaviour() {
+    // AJ-E710 Req.6, tested: after real fleet use, Link off leaves no
+    // fleet residue blocking a LOCAL switch or a local Clean.
+    let pair = setup_both("2.1.0", true, Permission::Control, Permission::Control);
+    let _ = switched_and_worked(&pair);
+    link::link_set_enabled_impl(&pair.laptop, false).unwrap();
+    link::link_set_enabled_impl(&pair.desktop, false).unwrap();
+    assert!(
+        crossmachine::fleet_switch_targets_impl(&pair.laptop, &pair.source)
+            .unwrap()
+            .iter()
+            .all(|row| row.readiness == "unavailable"),
+        "no machine is offered as a destination while Link is off"
+    );
+    // A local switch on the laptop still runs: a second Account there.
+    let other = commands::create_account(&pair.laptop, CLAUDE_CODE_ID, "Side", None).unwrap();
+    let side = commands::create_profile(&pair.laptop, &other.id, "Main", None, None).unwrap();
+    let local =
+        commands::launch_profile(&pair.laptop, &side.id, Some(pair.laptop_cwd.clone())).unwrap();
+    let targets = commands::switch_targets_impl(&pair.laptop, &local.session_id).unwrap();
+    assert!(!targets.is_empty(), "local destinations still listed");
+    // A local Clean is never refused for fleet reasons: nothing on this
+    // Mac is marked diverged.
+    assert!(!crossmachine::switch_back::is_diverged(
+        &pair.laptop,
+        &local.session_id
+    ));
+    assert!(crossmachine::switch_back::fleet_divergences_impl(&pair.laptop).is_empty());
+}
