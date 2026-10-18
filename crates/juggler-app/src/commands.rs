@@ -3828,6 +3828,31 @@ pub fn sessions_list(state: tauri::State<'_, Arc<AppState>>) -> AppResult<Vec<In
     session_infos(&storage, &live, &labels, &adopted)
 }
 
+/// The read model with the LAST sampled live stats (no extra collector
+/// refresh, so the 2 s sampler's CPU deltas stay honest) — what this
+/// Mac shares with paired consoles over the Fleet link (AJ-E705).
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] message on storage failures.
+pub fn instances_shared_snapshot(state: &Arc<AppState>) -> AppResult<Vec<InstanceInfo>> {
+    let live: LiveStatsMap = state
+        .resources
+        .lock()
+        .map(|collector| {
+            collector
+                .stats_snapshot()
+                .into_iter()
+                .map(|(session, stats)| (session.to_string(), stats))
+                .collect()
+        })
+        .unwrap_or_default();
+    let labels = desktop_isolation_labels(&state.registry);
+    let adopted = state.supervisor.alive_adopted_sessions();
+    let storage = lock_storage_arc(state)?;
+    session_infos(&storage, &live, &labels, &adopted)
+}
+
 /// Stops a session via the supervisor ladder (grace, then kill).
 #[tauri::command]
 ///

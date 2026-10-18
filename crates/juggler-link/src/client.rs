@@ -138,6 +138,43 @@ pub async fn connect_with_version(
     Ok(LinkPeer { client, hello })
 }
 
+/// Sends one control command over `peer`'s connection and waits for
+/// the node's verdict. The node re-checks everything (permission,
+/// replay, expiry, that the record exists) and answers in its own words.
+///
+/// # Errors
+///
+/// Returns [`ConnectError`] when the command couldn't be delivered.
+pub async fn send_command(
+    peer: &LinkPeer,
+    console_machine_id: &str,
+    sequence: u64,
+    action: proto::control_command::Action,
+) -> Result<proto::CommandResult, ConnectError> {
+    let mut nonce = [0_u8; 16];
+    getrandom::fill(&mut nonce).map_err(|e| ConnectError::Config(e.to_string()))?;
+    let command = proto::ControlCommand {
+        console_machine_id: console_machine_id.to_owned(),
+        nonce: nonce.to_vec(),
+        sequence,
+        issued_at_ms: now_ms(),
+        action: Some(action),
+    };
+    let mut client = peer.client.clone();
+    let mut results = client
+        .command(tokio_stream::iter(vec![command]))
+        .await
+        .map_err(|status| ConnectError::Connect(status.message().to_owned()))?
+        .into_inner();
+    match results.message().await {
+        Ok(Some(result)) => Ok(result),
+        Ok(None) => Err(ConnectError::Connect(
+            "the node closed the stream".to_owned(),
+        )),
+        Err(status) => Err(ConnectError::Connect(status.message().to_owned())),
+    }
+}
+
 fn describe(error: &tonic::transport::Error) -> String {
     use std::error::Error as _;
     let mut text = error.to_string();

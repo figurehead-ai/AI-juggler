@@ -18,8 +18,13 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use juggler_adapter::AdapterRegistry;
+use juggler_app::remote;
 use juggler_app::state::AppState;
 use juggler_app::{fleet, link};
+use juggler_core::model::{
+    Account, AccountId, InstanceKind, InstanceRecord, LaunchRecipe, MachineId, ProfileId,
+    SessionId, SessionStatus, Timestamp,
+};
 use juggler_link::Permission;
 
 fn app_state(dir: &Path) -> Arc<AppState> {
@@ -260,4 +265,161 @@ fn five_wrong_codes_lock_pairing_and_the_lock_survives_a_restart() {
     );
     link::link_set_enabled_impl(&a, false).unwrap();
     link::link_set_enabled_impl(&b, false).unwrap();
+}
+
+/// Pairs `a` (host) and `b` (joiner) by address; `a` grants `b`
+/// `grant_b`, `b` grants `a` View only.
+fn pair(a: &Arc<AppState>, b: &Arc<AppState>, grant_b: Permission) {
+    let code = link::pairing_host_open_impl(a).unwrap().code.unwrap();
+    link::pairing_join_start_impl(b, None, Some(&address_of(a)), &code).unwrap();
+    wait_for("joiner confirm", || join_phase(b, "confirm"));
+    wait_for("host confirm", || host_phase(a, "confirm"));
+    link::pairing_join_decide_impl(b, true, Permission::View).unwrap();
+    link::pairing_host_decide_impl(a, true, grant_b).unwrap();
+    wait_for("paired", || {
+        (join_phase(b, "paired").is_some() && host_phase(a, "paired").is_some()).then_some(())
+    });
+}
+
+/// One Instance on `state` (storage only; nothing is spawned).
+fn seed_instance(state: &Arc<AppState>, dir: &Path) {
+    let storage = state.storage.lock().unwrap();
+    storage
+        .accounts()
+        .insert(&Account {
+            id: AccountId::new("acc-work"),
+            harness: juggler_core::model::HarnessId::new("claude-code"),
+            label: "Work Max".into(),
+            plan: None,
+            state_dir: dir.join("state-work"),
+            cleanup_opt_in: false,
+            renewal_date: None,
+            preview_opt_in: false,
+            import_source_path: None,
+            import_origin: None,
+            imported_at: None,
+        })
+        .unwrap();
+    storage
+        .profiles()
+        .insert(&LaunchRecipe {
+            id: ProfileId::new("rec-work"),
+            name: "Work".into(),
+            account: AccountId::new("acc-work"),
+            settings_overlay: Default::default(),
+            default_cwd: None,
+        })
+        .unwrap();
+    storage
+        .sessions()
+        .insert(&InstanceRecord {
+            id: SessionId::new("inst-remote-1"),
+            conversation: None,
+            profile: ProfileId::new("rec-work"),
+            machine: MachineId::new("this-mac"),
+            kind: InstanceKind::Terminal,
+            project: None,
+            cwd: dir.join("web-shop"),
+            status: SessionStatus::Running,
+            started_at: Timestamp::now(),
+            last_activity: Some(Timestamp::now()),
+            usage: Default::default(),
+            attention: None,
+            running: None,
+            transcript_ref: None,
+            window: None,
+        })
+        .unwrap();
+}
+
+#[test]
+fn a_console_sees_the_other_macs_instances_live_and_its_commands_go_through_the_node() {
+    let work = tempfile::tempdir().unwrap();
+    let a = app_state(&work.path().join("a"));
+    let b = app_state(&work.path().join("b"));
+    fleet::fleet_set_label_impl(&a, "Mac mini").unwrap();
+    seed_instance(&a, work.path());
+    link::link_set_enabled_impl(&a, true).unwrap();
+    link::link_set_enabled_impl(&b, true).unwrap();
+    pair(&a, &b, Permission::View);
+
+    // B (the console) sees A's resources and Instance, source-labelled
+    // and live — never a path, only the project folder's name.
+    let machine = wait_for("A reported to B", || {
+        remote::fleet_remote_impl(&b)
+            .unwrap()
+            .into_iter()
+            .find(|m| m.freshness == "live" && m.resources.is_some() && !m.instances.is_empty())
+    });
+    assert_eq!(machine.label, "Mac mini");
+    assert_eq!(
+        machine.permission.as_deref(),
+        Some("view"),
+        "what A lets B do"
+    );
+    let instance = &machine.instances[0];
+    assert_eq!(instance.id, "inst-remote-1");
+    assert_eq!(instance.account_label, "Work Max");
+    assert_eq!(
+        instance.status, "running",
+        "the status word, not a debug string"
+    );
+    assert_eq!(instance.project_name.as_deref(), Some("web-shop"));
+    assert!(instance.measured_at_ms > 0);
+
+    // View only: the console never even sends a stop.
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let refused = runtime
+        .block_on(remote::fleet_remote_stop_impl(
+            Arc::clone(&b),
+            machine.machine_id.clone(),
+            "inst-remote-1".into(),
+        ))
+        .unwrap();
+    assert!(!refused.accepted);
+    assert_eq!(refused.reason_code.as_deref(), Some("permission_denied"));
+
+    // Re-pair with View + control: now the node decides — an Instance it
+    // doesn't have is refused in its own words, through the full
+    // nonce/sequence/expiry pipeline.
+    pair(&a, &b, Permission::Control);
+    let machine = wait_for("control granted", || {
+        remote::fleet_remote_impl(&b)
+            .unwrap()
+            .into_iter()
+            .find(|m| m.permission.as_deref() == Some("control") && m.freshness == "live")
+    });
+    let unknown = wait_for("the node's verdict", || {
+        let outcome = runtime
+            .block_on(remote::fleet_remote_stop_impl(
+                Arc::clone(&b),
+                machine.machine_id.clone(),
+                "no-such-instance".into(),
+            ))
+            .unwrap();
+        // The first command may race the first heartbeat's clock offset.
+        (outcome.reason_code.as_deref() != Some("clock_unmeasured")).then_some(outcome)
+    });
+    assert!(!unknown.accepted);
+    assert_eq!(
+        unknown.reason_code.as_deref(),
+        Some("unknown_record"),
+        "{unknown:?}"
+    );
+    let entries = fleet::verify_audit(&a).unwrap();
+    assert!(
+        entries
+            .iter()
+            .any(|e| e["kind"] == "command_rejected" && e["reason"] == "unknown_record")
+    );
+
+    // Link off on the console: the cache is cleared, the machine offline.
+    link::link_set_enabled_impl(&b, false).unwrap();
+    let after = remote::fleet_remote_impl(&b).unwrap();
+    assert!(
+        after
+            .iter()
+            .all(|m| m.freshness == "offline" && m.instances.is_empty())
+    );
+    link::link_set_enabled_impl(&a, false).unwrap();
 }

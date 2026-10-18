@@ -137,6 +137,12 @@ pub struct LinkManager {
     join: Arc<Mutex<JoinPhase>>,
     telemetry: OnceLock<tokio::sync::broadcast::Sender<proto::TelemetryDelta>>,
     last_error: Mutex<Option<String>>,
+    /// This node's telemetry sequence (AJ-E705).
+    sequence: Arc<std::sync::atomic::AtomicU64>,
+    /// What paired machines report, as this console last heard it.
+    pub(crate) remote: crate::remote::RemoteCache,
+    /// Peers to reconnect at once (a re-pair changed what they grant).
+    reconnect: Arc<Mutex<std::collections::HashSet<String>>>,
     /// Test seam: skip mDNS (tests must not advertise on a real LAN).
     no_discovery: std::sync::atomic::AtomicBool,
 }
@@ -148,7 +154,7 @@ impl std::fmt::Debug for LinkManager {
 }
 
 impl LinkManager {
-    fn runtime(&self) -> AppResult<&tokio::runtime::Runtime> {
+    pub(crate) fn runtime(&self) -> AppResult<&tokio::runtime::Runtime> {
         if let Some(runtime) = self.runtime.get() {
             return Ok(runtime);
         }
@@ -276,6 +282,70 @@ impl PeerDirectory for AppDirectory {
 struct AppNode {
     state: Weak<AppState>,
     live: tokio::sync::broadcast::Sender<proto::TelemetryDelta>,
+    sequence: Arc<std::sync::atomic::AtomicU64>,
+}
+
+/// The per-node telemetry sequence: seeded from the wall clock at start
+/// (so it keeps rising across restarts), then strictly increasing.
+fn next_sequence(sequence: &std::sync::atomic::AtomicU64) -> u64 {
+    let seed = u64::try_from(now_ms()).unwrap_or(0).saturating_mul(1000);
+    let _ = sequence.fetch_max(seed, std::sync::atomic::Ordering::Relaxed);
+    sequence.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1
+}
+
+fn delta(
+    origin: &str,
+    sequence: u64,
+    payload: proto::telemetry_delta::Payload,
+) -> proto::TelemetryDelta {
+    proto::TelemetryDelta {
+        origin_machine_id: origin.to_owned(),
+        sequence,
+        hlc_ms: now_ms(),
+        hlc_counter: 0,
+        payload: Some(payload),
+    }
+}
+
+/// This Mac's Instances as session deltas — only what the link contract
+/// allows: ids, Provider, Account label, status, model, the project
+/// folder's name (never a path) and live process numbers.
+fn session_deltas(
+    state: &Arc<AppState>,
+    sequence: &std::sync::atomic::AtomicU64,
+) -> Vec<proto::TelemetryDelta> {
+    let origin = crate::commands::local_machine_id(state).to_string();
+    let Ok(rows) = crate::commands::instances_shared_snapshot(state) else {
+        return Vec::new();
+    };
+    let now = now_ms();
+    rows.into_iter()
+        .map(|row| {
+            let project_name = std::path::Path::new(&row.cwd)
+                .file_name()
+                .map(|name| name.to_string_lossy().into_owned())
+                .filter(|name| !name.is_empty());
+            delta(
+                &origin,
+                next_sequence(sequence),
+                proto::telemetry_delta::Payload::Session(proto::SessionDelta {
+                    instance_id: row.id,
+                    provider_id: row.provider,
+                    account_label: row.account_label,
+                    status: row.status,
+                    updated_at_ms: now,
+                    model: row.model,
+                    model_source: row.model_source,
+                    project_name,
+                    started_at_ms: row.started_at_ms,
+                    last_activity_ms: row.last_activity_ms,
+                    cpu_percent: row.cpu_pct,
+                    rss_bytes: row.rss_bytes,
+                    process_count: row.child_count.map(|children| children + 1),
+                }),
+            )
+        })
+        .collect()
 }
 
 impl NodeHandler for AppNode {
@@ -288,35 +358,11 @@ impl NodeHandler for AppNode {
 
     fn telemetry_since(&self, _since: u64) -> Vec<proto::TelemetryDelta> {
         // v1 backlog = the current snapshot of this node's Instances
-        // (full delta sync arrives with AJ-E708).
-        let Some(state) = self.state.upgrade() else {
-            return Vec::new();
-        };
-        let origin = crate::commands::local_machine_id(&state).to_string();
-        let Ok(storage) = state.storage.lock() else {
-            return Vec::new();
-        };
-        let Ok(rows) = crate::commands::session_infos_snapshot(&storage) else {
-            return Vec::new();
-        };
-        rows.into_iter()
-            .enumerate()
-            .map(|(index, row)| proto::TelemetryDelta {
-                origin_machine_id: origin.clone(),
-                sequence: u64::try_from(index + 1).unwrap_or(u64::MAX),
-                hlc_ms: now_ms(),
-                hlc_counter: 0,
-                payload: Some(proto::telemetry_delta::Payload::Session(
-                    proto::SessionDelta {
-                        instance_id: row.id,
-                        provider_id: row.provider,
-                        account_label: row.account_label,
-                        status: format!("{:?}", row.status).to_ascii_lowercase(),
-                        updated_at_ms: now_ms(),
-                    },
-                )),
-            })
-            .collect()
+        // (sequence-vector catch-up arrives with AJ-E708).
+        self.state
+            .upgrade()
+            .map(|state| session_deltas(&state, &self.sequence))
+            .unwrap_or_default()
     }
 
     fn telemetry_live(&self) -> tokio::sync::broadcast::Receiver<proto::TelemetryDelta> {
@@ -485,6 +531,7 @@ impl PairingHost for AppPairing {
         if let Some(state) = self.state.upgrade() {
             let _ = crate::fleet::pin_candidate(&state, candidate, permission);
             SettingsReplayStore(self.state.clone()).reset(&candidate.machine_id);
+            mark_reconnect(&state, &candidate.machine_id);
             if let Some(reach) = candidate.reach {
                 remember_address(&state, &candidate.machine_id, reach);
             }
@@ -667,6 +714,7 @@ fn start(state: &Arc<AppState>) -> AppResult<()> {
             Arc::new(AppNode {
                 state: weak.clone(),
                 live: live.clone(),
+                sequence: manager.sequence.clone(),
             }),
             Arc::new(AppDirectory(weak.clone())),
             Arc::new(SettingsReplayStore(weak.clone())),
@@ -681,37 +729,16 @@ fn start(state: &Arc<AppState>) -> AppResult<()> {
         context: "Fleet discovery",
         message: e.to_string(),
     })?;
-    // Discovery is a convenience, never a requirement: without mDNS the
-    // node still serves pinned peers and pairing by address.
-    let discovery = if manager
-        .no_discovery
-        .load(std::sync::atomic::Ordering::Relaxed)
-    {
-        Err(juggler_link::discovery::DiscoveryError::Daemon(
-            "discovery is off for this test".to_owned(),
-        ))
-    } else {
-        Advertiser::start(port, &key, &instance_id).and_then(|advertiser| {
-            Browser::start(&instance_id).map(|browser| (advertiser, browser))
-        })
-    };
-    let (advertiser, browser, discovery_error) = match discovery {
-        Ok((advertiser, browser)) => (Some(advertiser), Some(Arc::new(browser)), None),
-        Err(error) => (
-            None,
-            None,
-            Some(format!(
-                "{error} — machines on this network won't be listed; pair by address instead."
-            )),
-        ),
-    };
+    let (advertiser, browser, discovery_error) = start_discovery(manager, port, &key, &instance_id);
     let reconcile = runtime.spawn(reconcile_loop(
         weak.clone(),
         browser.clone(),
         certificate,
         manager.peers.clone(),
+        manager.remote.clone(),
+        manager.reconnect.clone(),
     ));
-    let ticker = runtime.spawn(resource_ticker(weak, live));
+    let ticker = runtime.spawn(resource_ticker(weak, live, manager.sequence.clone()));
     if let Ok(mut last) = manager.last_error.lock() {
         *last = discovery_error;
     }
@@ -727,6 +754,38 @@ fn start(state: &Arc<AppState>) -> AppResult<()> {
         ticker,
     });
     Ok(())
+}
+
+/// Starts mDNS advertising + browsing. Discovery is a convenience,
+/// never a requirement: on failure the node still serves pinned peers
+/// and pairing by address, and the reason is returned for the UI.
+fn start_discovery(
+    manager: &LinkManager,
+    port: u16,
+    key: &[u8; 32],
+    instance_id: &str,
+) -> (Option<Advertiser>, Option<Arc<Browser>>, Option<String>) {
+    let discovery = if manager
+        .no_discovery
+        .load(std::sync::atomic::Ordering::Relaxed)
+    {
+        Err(juggler_link::discovery::DiscoveryError::Daemon(
+            "discovery is off for this test".to_owned(),
+        ))
+    } else {
+        Advertiser::start(port, key, instance_id)
+            .and_then(|advertiser| Browser::start(instance_id).map(|browser| (advertiser, browser)))
+    };
+    match discovery {
+        Ok((advertiser, browser)) => (Some(advertiser), Some(Arc::new(browser)), None),
+        Err(error) => (
+            None,
+            None,
+            Some(format!(
+                "{error} — machines on this network won't be listed; pair by address instead."
+            )),
+        ),
+    }
 }
 
 fn stop(state: &Arc<AppState>) {
@@ -755,6 +814,7 @@ fn stop(state: &Arc<AppState>) {
     if let Ok(mut peers) = manager.peers.lock() {
         peers.clear();
     }
+    crate::remote::clear(&manager.remote);
     if let Ok(mut last) = manager.last_error.lock() {
         *last = None;
     }
@@ -768,8 +828,11 @@ fn stop(state: &Arc<AppState>) {
     }
 }
 
+/// A live connection: its heartbeat watch, the heartbeat task, and the
+/// telemetry subscription.
 type Watch = (
     tokio::sync::watch::Receiver<juggler_link::client::Liveness>,
+    tokio::task::JoinHandle<()>,
     tokio::task::JoinHandle<()>,
 );
 
@@ -781,9 +844,13 @@ async fn reconcile_loop(
     browser: Option<Arc<Browser>>,
     certificate: NodeCertificate,
     peers: Arc<Mutex<HashMap<String, PeerLink>>>,
+    remote: crate::remote::RemoteCache,
+    reconnect: Arc<Mutex<std::collections::HashSet<String>>>,
 ) {
     let mut live: HashMap<String, Watch> = HashMap::new();
+    let mut tick = 0_u64;
     loop {
+        tick = tick.wrapping_add(1);
         let Some(app) = state.upgrade() else {
             return;
         };
@@ -791,13 +858,26 @@ async fn reconcile_loop(
         let pinned = crate::fleet::pinned_keys(&app);
         let remembered = remembered_addresses(&app);
         drop(app);
-        live.retain(|machine_id, (_, task)| {
+        live.retain(|machine_id, (_, heartbeat, telemetry)| {
             let keep = pinned.iter().any(|(id, _)| id == machine_id);
             if !keep {
-                task.abort();
+                heartbeat.abort();
+                telemetry.abort();
             }
             keep
         });
+        crate::remote::retain(&remote, &pinned);
+        let fresh: Vec<String> = reconnect
+            .lock()
+            .map(|mut set| set.drain().collect())
+            .unwrap_or_default();
+        for machine_id in fresh {
+            if let Some((_, heartbeat, telemetry)) = live.remove(&machine_id) {
+                heartbeat.abort();
+                telemetry.abort();
+                crate::remote::disconnected(&remote, &machine_id);
+            }
+        }
         if let Ok(mut peers) = peers.lock() {
             peers.retain(|machine_id, _| pinned.iter().any(|(id, _)| id == machine_id));
         }
@@ -806,14 +886,20 @@ async fn reconcile_loop(
             .map(|browser| browser.nodes())
             .unwrap_or_default();
         for (machine_id, key) in pinned {
-            let alive = live
-                .get(&machine_id)
-                .is_some_and(|(watch, _)| *watch.borrow() == juggler_link::client::Liveness::Live);
+            let alive = live.get(&machine_id).is_some_and(|(watch, _, _)| {
+                *watch.borrow() == juggler_link::client::Liveness::Live
+            });
             if alive {
+                // Every ~30 s, re-check what that machine grants.
+                if tick.is_multiple_of(10) {
+                    crate::remote::refresh_permission(&remote, &machine_id, &own).await;
+                }
                 continue;
             }
-            if let Some((_, task)) = live.remove(&machine_id) {
-                task.abort();
+            if let Some((_, heartbeat, telemetry)) = live.remove(&machine_id) {
+                heartbeat.abort();
+                telemetry.abort();
+                crate::remote::disconnected(&remote, &machine_id);
                 set_peer(
                     &peers,
                     &machine_id,
@@ -847,30 +933,44 @@ async fn reconcile_loop(
             let outcome = connect_any(&addresses, &certificate, key, &own).await;
             match outcome {
                 Ok((address, peer)) => {
-                    let degraded = peer.hello.service_level == "degraded";
-                    let version = peer.hello.version.unwrap_or_default();
-                    set_peer(
-                        &peers,
-                        &machine_id,
-                        if degraded { "degraded" } else { "connected" },
-                        Some(format!("v{}.{}", version.major, version.minor)),
-                        degraded.then(|| peer.hello.degraded_reason.clone()),
-                        Some(address),
-                    );
-                    live.insert(
-                        machine_id.clone(),
-                        juggler_link::client::watch_liveness(peer.client.clone()),
-                    );
-                    if let Some(app) = state.upgrade() {
-                        crate::fleet::touch_peer(&app, &machine_id, now_ms());
-                        remember_address(&app, &machine_id, address);
-                    }
+                    let watch =
+                        adopt_connection(&state, &peers, &remote, &machine_id, address, &peer);
+                    live.insert(machine_id.clone(), watch);
                 }
                 Err(detail) => set_peer(&peers, &machine_id, "offline", None, Some(detail), None),
             }
         }
         tokio::time::sleep(RECONCILE_EVERY).await;
     }
+}
+
+/// A fresh connection: record its state, start heartbeats and the
+/// telemetry subscription, remember where it was reached.
+fn adopt_connection(
+    state: &Weak<AppState>,
+    peers: &Arc<Mutex<HashMap<String, PeerLink>>>,
+    remote: &crate::remote::RemoteCache,
+    machine_id: &str,
+    address: SocketAddr,
+    peer: &juggler_link::client::LinkPeer,
+) -> Watch {
+    let degraded = peer.hello.service_level == "degraded";
+    let version = peer.hello.version.unwrap_or_default();
+    set_peer(
+        peers,
+        machine_id,
+        if degraded { "degraded" } else { "connected" },
+        Some(format!("v{}.{}", version.major, version.minor)),
+        degraded.then(|| peer.hello.degraded_reason.clone()),
+        Some(address),
+    );
+    let (watch, heartbeat) = juggler_link::client::watch_liveness(peer.client.clone());
+    let telemetry = crate::remote::subscribe(remote, machine_id, peer);
+    if let Some(app) = state.upgrade() {
+        crate::fleet::touch_peer(&app, machine_id, now_ms());
+        remember_address(&app, machine_id, address);
+    }
+    (watch, heartbeat, telemetry)
 }
 
 /// Tries each address in turn; a refusal (reachable, but it said no)
@@ -894,6 +994,13 @@ async fn connect_any(
         }
     }
     Err("couldn't reach it".to_owned())
+}
+
+/// A (re-)pair changed what `machine_id` grants: reconnect now.
+fn mark_reconnect(state: &Arc<AppState>, machine_id: &str) {
+    if let Ok(mut set) = state.link.reconnect.lock() {
+        set.insert(machine_id.to_owned());
+    }
 }
 
 /// Where each pinned peer was last reached.
@@ -953,36 +1060,36 @@ fn set_peer(
     }
 }
 
-/// Publishes this Mac's resource numbers every 2 s while Link is on.
+/// Publishes this Mac's resource numbers and Instance rows every 2 s
+/// while Link is on.
 async fn resource_ticker(
     state: Weak<AppState>,
     live: tokio::sync::broadcast::Sender<proto::TelemetryDelta>,
+    sequence: Arc<std::sync::atomic::AtomicU64>,
 ) {
     let mut system = sysinfo::System::new();
-    let mut sequence = 1_000_000_u64;
     loop {
         tokio::time::sleep(Duration::from_secs(2)).await;
         let Some(app) = state.upgrade() else {
             return;
         };
         let origin = crate::commands::local_machine_id(&app).to_string();
+        let sessions = session_deltas(&app, &sequence);
         drop(app);
         system.refresh_cpu_usage();
         system.refresh_memory();
-        sequence += 1;
-        let _ = live.send(proto::TelemetryDelta {
-            origin_machine_id: origin,
-            sequence,
-            hlc_ms: now_ms(),
-            hlc_counter: 0,
-            payload: Some(proto::telemetry_delta::Payload::Resources(
-                proto::MachineResources {
-                    cpu_percent: f64::from(system.global_cpu_usage()),
-                    memory_used_bytes: system.used_memory(),
-                    memory_total_bytes: system.total_memory(),
-                },
-            )),
-        });
+        let _ = live.send(delta(
+            &origin,
+            next_sequence(&sequence),
+            proto::telemetry_delta::Payload::Resources(proto::MachineResources {
+                cpu_percent: f64::from(system.global_cpu_usage()),
+                memory_used_bytes: system.used_memory(),
+                memory_total_bytes: system.total_memory(),
+            }),
+        ));
+        for session in sessions {
+            let _ = live.send(session);
+        }
     }
 }
 
@@ -1279,6 +1386,7 @@ pub fn pairing_join_start_impl(
                             crate::fleet::pin_candidate(&app, &joined.candidate, joined.permission);
                         SettingsReplayStore(weak.clone()).reset(&joined.candidate.machine_id);
                         remember_address(&app, &joined.candidate.machine_id, address);
+                        mark_reconnect(&app, &joined.candidate.machine_id);
                     }
                     if let Ok(mut phase) = join.lock() {
                         *phase = JoinPhase::Paired {
