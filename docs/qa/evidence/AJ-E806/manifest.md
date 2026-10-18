@@ -46,3 +46,10 @@
   (`last_seen − first_seen < EXEC_SETTLE_MS`) the same way. After the
   fix: the full `guardrails` binary 3/3 and `recovery` 5/5 green. No
   gate threshold changed; nothing was retried or quarantined.
+- Harness wait lengthened (2026-10-18, AJ-E705 verify): two `guardrails`
+  fixtures failed with "detached fixture never became ready" while the
+  machine ran at load average ~55 from unrelated work (Gatekeeper
+  scanning fresh binaries, other projects' test suites) — the helper's
+  cold `python3` start exceeded the harness's 10 s readiness wait. The
+  same binary passed 10/10 once load dropped. The wait for a fixture to
+  *start* is now 30 s; no product threshold or assertion changed.
