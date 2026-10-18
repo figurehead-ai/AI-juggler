@@ -103,7 +103,7 @@
 **Handover note**: Trap: mDNS is unauthenticated discovery only — never treat discovery as trust. The SPAKE2 code exchange is the trust step; do not auto-pair "same Apple ID/network" machines. ADR-0014 account discovery likewise never pins silently — the fingerprint is confirmed on both machines (AJ-E1206).
 **Task-text notes (2026-10-18, AJ-E704)**: (1) The QR is replaced by a copyable pairing link (`aijuggler-pair:v1:<code>:<fingerprint>`) — desktop-to-desktop pairing has no camera path, and the link also lets the joiner verify the host's fingerprint automatically. (2) Screenshots use 1280×800 and 1024×680 (the app's minimum window) instead of 800×600, which is below it. (3) Each side chooses what it grants the other in its own Permissions step. Evidence: [AJ-E704 manifest](../qa/evidence/AJ-E704/manifest.md).
 
-### AJ-E705 Remote inspector (fleet-shaped right inspector) | Status: TODO | Priority P0 | Effort L | Depends: AJ-E703
+### AJ-E705 Remote inspector (fleet-shaped right inspector) | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E703
 **Goal**: Selecting a remote Machine, Account, or Instance fills the same six-tab right inspector as local selections, with honest staleness and permission states.
 **User story**: As a console user (P1 Multi-Maxer), I click an Instance on my mini and see Overview, Usage, History, Quality/Performance, Processes, and Actions without learning a second UI.
 **Requirements**:

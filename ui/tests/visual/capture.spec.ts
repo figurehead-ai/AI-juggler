@@ -40,7 +40,7 @@ function noteNotCaptured(screen: string, state: string, reason: string) {
 
 test.beforeAll(() => {
   mkdirSync(GALLERY, { recursive: true });
-  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "16-onboarding-detect", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "34-wizard", "35-candidates", "36-recommend", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings"]) {
+  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "16-onboarding-detect", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "34-wizard", "35-candidates", "36-recommend", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings", "45-remote"]) {
     mkdirSync(resolve(GALLERY, screen), { recursive: true });
   }
   writeFileSync(NOT_CAPTURETED, "# Not captured (explicit omissions)\n\n| Screen | State | Reason |\n|---|---|---|\n");
@@ -5174,6 +5174,99 @@ for (const theme of THEMES) {
       await page.getByRole("button", { name: "Settings" }).first().click();
       await expect(page.getByTestId("cloud-notice")).toBeVisible();
       await shot44(page, "unlinked", vp, theme);
+    });
+  }
+}
+// ---------------------------------------------------------------------
+// AJ-E705 — 45-remote: a paired machine in the SAME six-tab inspector —
+// Instance Overview / Processes (live, stale, offline, view-only), the
+// machine overview — at 1440×900 and 1024×768, light/dark.
+// ---------------------------------------------------------------------
+
+const REMOTE_VP = [
+  { name: "1440x900", width: 1440, height: 900 },
+  { name: "1024x768", width: 1024, height: 768 },
+] as const;
+
+const remoteMachine = (over: Record<string, unknown> = {}) => ({
+  machine_id: "machine-mini",
+  label: "Mac mini",
+  connection: "connected",
+  freshness: "live",
+  last_heard_ms: T0 - 1_000,
+  permission: "control",
+  resources: { cpu_percent: 23.4, memory_used_bytes: 12 * 1024 ** 3, memory_total_bytes: 32 * 1024 ** 3, measured_at_ms: T0 - 1_000 },
+  instances: [
+    {
+      id: "inst-1", provider: "claude-code", account_label: "Work Max", status: "running",
+      model: "claude-opus-4", model_source: "transcript", project_name: "web-shop",
+      started_at_ms: T0 - 3_600_000, last_activity_ms: T0 - 60_000,
+      cpu_percent: 4.2, rss_bytes: 420 * 1024 ** 2, process_count: 3, measured_at_ms: T0 - 1_000,
+    },
+    {
+      id: "inst-2", provider: "codex", account_label: "Personal", status: "waiting_user",
+      model: null, model_source: "unknown", project_name: "api",
+      started_at_ms: T0 - 7_200_000, last_activity_ms: null,
+      cpu_percent: null, rss_bytes: null, process_count: null, measured_at_ms: T0 - 1_000,
+    },
+  ],
+  ...over,
+});
+
+const remotePeer = {
+  ...FLEET_PEER,
+  machine_id: "machine-mini",
+};
+
+const openRemote = async (
+  page: import("@playwright/test").Page,
+  theme: string,
+  vp: { width: number; height: number },
+  machine: Record<string, unknown>,
+) => {
+  await openFleet(page, theme, vp, {
+    __AIJ_FLEET_PEERS__: [remotePeer],
+    __AIJ_LINK__: { enabled: true, port: 47821, error: null },
+    __AIJ_FLEET_REMOTE__: [machine],
+  });
+};
+
+for (const theme of THEMES) {
+  for (const vp of REMOTE_VP) {
+    test(`45 remote — live instance, all tabs — ${vp.name} — ${theme}`, async ({ page }) => {
+      await openRemote(page, theme, vp, remoteMachine());
+      await page.getByTestId("fleet-remote-instance").first().click();
+      await expect(page.getByTestId("remote-freshness")).toHaveAttribute("data-freshness", "live");
+      await page.screenshot({ path: resolve(GALLERY, `45-remote/instance-overview-live-${vp.name}-${theme}.png`) });
+      await page.getByRole("tab", { name: "Processes" }).click();
+      await expect(page.getByTestId("remote-processes")).toBeVisible();
+      await page.screenshot({ path: resolve(GALLERY, `45-remote/instance-processes-${vp.name}-${theme}.png`) });
+      await page.getByRole("tab", { name: "Usage" }).click();
+      await expect(page.getByTestId("remote-unavailable").first()).toBeVisible();
+      await page.getByRole("tab", { name: "Overview" }).click();
+    });
+
+    test(`45 remote — stale, offline, view-only — ${vp.name} — ${theme}`, async ({ page }) => {
+      await openRemote(page, theme, vp, remoteMachine({ freshness: "stale", last_heard_ms: T0 - 40_000 }));
+      await page.getByTestId("fleet-remote-instance").first().click();
+      await expect(page.getByTestId("remote-freshness")).toHaveAttribute("data-freshness", "stale");
+      await page.screenshot({ path: resolve(GALLERY, `45-remote/instance-overview-stale-${vp.name}-${theme}.png`) });
+      await page.evaluate(() => {
+        const w = window as unknown as { __AIJ_FLEET_REMOTE__: Array<Record<string, unknown>> };
+        w.__AIJ_FLEET_REMOTE__ = w.__AIJ_FLEET_REMOTE__.map((m) => ({ ...m, connection: "offline", freshness: "offline", permission: "view" }));
+      });
+      await expect(page.getByTestId("remote-freshness")).toHaveAttribute("data-freshness", "offline");
+      await page.screenshot({ path: resolve(GALLERY, `45-remote/instance-overview-offline-${vp.name}-${theme}.png`) });
+      await page.getByRole("tab", { name: "Actions" }).click();
+      await expect(page.getByTestId("remote-stop")).toBeDisabled();
+      await page.screenshot({ path: resolve(GALLERY, `45-remote/instance-actions-view-only-${vp.name}-${theme}.png`) });
+    });
+
+    test(`45 remote — machine overview — ${vp.name} — ${theme}`, async ({ page }) => {
+      await openRemote(page, theme, vp, remoteMachine());
+      await page.getByTestId("fleet-inspect").click();
+      await expect(page.getByTestId("remote-machine-overview")).toBeVisible();
+      await page.screenshot({ path: resolve(GALLERY, `45-remote/machine-overview-${vp.name}-${theme}.png`) });
     });
   }
 }

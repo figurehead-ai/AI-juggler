@@ -5,8 +5,10 @@ import { PairingWizard, type PairingMode } from "./PairingWizard";
 import {
   errorText,
   fleetPeers,
+  fleetRemote,
   linkSetEnabled,
   linkStatus,
+  type RemoteMachineInfo,
   type LinkStatusInfo,
   fleetResetIdentity,
   fleetResetTrust,
@@ -28,7 +30,14 @@ import {
  * machine" shows a pairing code and "Join a machine" enters one
  * (`PairingWizard`).
  */
-export function FleetScreen({ onOpenCloud }: { onOpenCloud?: () => void } = {}): JSX.Element {
+export function FleetScreen({
+  onOpenCloud,
+  onInspectRemote,
+}: {
+  onOpenCloud?: () => void;
+  /** AJ-E705: open a paired machine (or an Instance on it) in the inspector. */
+  onInspectRemote?: (machineId: string, instanceId: string | null) => void;
+} = {}): JSX.Element {
   const [self, setSelf] = useState<FleetSelfInfo | null>(null);
   const [peers, setPeers] = useState<FleetPeerInfo[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -42,6 +51,7 @@ export function FleetScreen({ onOpenCloud }: { onOpenCloud?: () => void } = {}):
   const [link, setLink] = useState<LinkStatusInfo | null>(null);
   const [linkBusy, setLinkBusy] = useState(false);
   const [wizard, setWizard] = useState<PairingMode | null>(null);
+  const [remote, setRemote] = useState<RemoteMachineInfo[]>([]);
 
   const refresh = useCallback(async () => {
     try {
@@ -50,6 +60,7 @@ export function FleetScreen({ onOpenCloud }: { onOpenCloud?: () => void } = {}):
       setPeers(list);
       setLink(status);
       setError(null);
+      setRemote(status.enabled ? await fleetRemote().catch(() => []) : []);
     } catch (cause) {
       setError(errorText(cause));
     }
@@ -297,6 +308,17 @@ export function FleetScreen({ onOpenCloud }: { onOpenCloud?: () => void } = {}):
                     ? "Not seen yet"
                     : `Last seen ${new Date(peer.last_seen_ms).toLocaleString()}`}
                 </span>
+                {onInspectRemote && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => onInspectRemote(peer.machine_id, null)}
+                    aria-label={`Inspect ${peer.label}`}
+                    data-testid="fleet-inspect"
+                  >
+                    Inspect
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   variant="secondary"
@@ -306,6 +328,10 @@ export function FleetScreen({ onOpenCloud }: { onOpenCloud?: () => void } = {}):
                 >
                   Unpair…
                 </Button>
+                <RemoteInstances
+                  machine={remote.find((entry) => entry.machine_id === peer.machine_id) ?? null}
+                  onInspect={(instanceId) => onInspectRemote?.(peer.machine_id, instanceId)}
+                />
               </li>
             ))}
           </ul>
@@ -566,3 +592,36 @@ function ConnectionChip({ peer }: { peer: FleetPeerInfo }): JSX.Element {
   );
 }
 
+
+/** AJ-E705: a connected machine's Instances, one click from the
+ * inspector. Nothing is shown for a machine that hasn't reported. */
+function RemoteInstances({
+  machine,
+  onInspect,
+}: {
+  machine: RemoteMachineInfo | null;
+  onInspect: (instanceId: string) => void;
+}): JSX.Element | null {
+  if (!machine || machine.instances.length === 0) return null;
+  return (
+    <ul className="flex w-full flex-col gap-1 pl-1" aria-label={`Instances on ${machine.label}`} data-testid="fleet-remote-instances">
+      {machine.instances.map((row) => (
+        <li key={row.id}>
+          <button
+            type="button"
+            className="flex w-full flex-wrap items-center gap-2 rounded-lg border border-hairline px-2.5 py-1.5 text-left text-xs hover:border-accent/40"
+            onClick={() => onInspect(row.id)}
+            data-testid="fleet-remote-instance"
+          >
+            <span className="font-medium">{row.account_label}</span>
+            <span className="text-muted">{row.provider}</span>
+            {row.project_name && <span className="text-muted">· {row.project_name}</span>}
+            {row.model && <span className="text-muted">· {row.model}</span>}
+            <span className="flex-1" />
+            <Chip tone="neutral">{row.status.replace(/_/g, " ")}</Chip>
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}

@@ -2027,3 +2027,51 @@ for (const theme of ["dark", "light"] as const) {
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
   });
 }
+
+/** AJ-E705 a11y (both themes): the remote inspector — breadcrumb,
+ * polite freshness line, the six tabs and the disabled-with-reason
+ * Stop — scans axe-clean. */
+for (const theme of ["dark", "light"] as const) {
+  test(`fleet — remote inspector — axe 0 — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ fixture, theme: t }) => {
+        const now = Date.now();
+        const w = window as unknown as Record<string, unknown>;
+        w.__AIJ_FIXTURE__ = fixture;
+        w.__AIJ_LINK__ = { enabled: true, port: 47821, error: null };
+        w.__AIJ_FLEET_PEERS__ = [{
+          machine_id: "machine-mini", label: "Mac mini", fingerprint: "11AA 22BB 33CC 44DD 55EE 66FF 7788 99AA",
+          permission: "view", permission_label: "View only", ask_each_time: false, paired_via: "code",
+          paired_at_ms: now, last_seen_ms: now, connection: "connected", protocol: "v1.0", connection_detail: null,
+        }];
+        w.__AIJ_FLEET_REMOTE__ = [{
+          machine_id: "machine-mini", label: "Mac mini", connection: "connected", freshness: "stale",
+          last_heard_ms: now - 40_000, permission: "view",
+          resources: { cpu_percent: 12, memory_used_bytes: 1e9, memory_total_bytes: 8e9, measured_at_ms: now },
+          instances: [{
+            id: "inst-1", provider: "claude-code", account_label: "Work Max", status: "running",
+            model: "claude-opus-4", model_source: "transcript", project_name: "web-shop", started_at_ms: now - 60_000,
+            last_activity_ms: now, cpu_percent: 3.1, rss_bytes: 3e8, process_count: 2, measured_at_ms: now,
+          }],
+        }];
+        localStorage.setItem("aij.theme", t);
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        sessionStorage.setItem("aij.ready.skipped", "1");
+      },
+      { fixture: allStatuses, theme },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Fleet" }).first().click();
+    await page.getByTestId("fleet-remote-instance").click();
+    await expect(page.getByRole("navigation", { name: "Breadcrumb" })).toBeVisible();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+    await page.getByRole("tab", { name: "Actions" }).click();
+    await expect(page.getByTestId("remote-stop")).toBeDisabled();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+    await page.getByRole("navigation", { name: "Breadcrumb" }).getByRole("button", { name: "Mac mini" }).click();
+    await expect(page.getByTestId("remote-machine-overview")).toBeVisible();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+  });
+}

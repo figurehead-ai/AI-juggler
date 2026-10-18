@@ -28,6 +28,7 @@ import { accountSetFee, quotaDisplay, switchTargets, type QuotaDisplayData, type
 import { formatBytes, stateChip } from "./indicator";
 import { SwitchGraph } from "./SwitchGraph";
 import { SwitchTargetRows } from "./SwitchTargetRows";
+import { RemoteTabBody, freshnessText, type RemoteContext } from "./RemoteTabs";
 
 /**
  * RightInspector (AJ-E406, D-06): the one stable right-hand home. Six
@@ -40,7 +41,7 @@ import { SwitchTargetRows } from "./SwitchTargetRows";
  * `hidden`, they do not remount).
  */
 
-export type InspectorKind = "instance" | "session" | "provider" | "account" | "project";
+export type InspectorKind = "instance" | "session" | "provider" | "account" | "project" | "machine";
 
 export type InspectorSelection =
   | { kind: "none" }
@@ -131,6 +132,8 @@ function KindIcon({ kind }: { kind: InspectorKind }) {
       return <IconProfiles {...props} />;
     case "project":
       return <IconProjects {...props} />;
+    case "machine":
+      return <IconFleet {...props} />;
   }
 }
 
@@ -140,6 +143,7 @@ export const KIND_LABELS: Record<InspectorKind, string> = {
   provider: "Provider",
   account: "Account",
   project: "Project",
+  machine: "Machine",
 };
 
 /** One resolved selection (the caller owns lookup). */
@@ -149,6 +153,9 @@ export type InspectorData = {
   account?: AccountInfo | null;
   provider?: { id: string; name: string } | null;
   machineId?: string | null;
+  /** AJ-E705: a paired machine's selection (the same shell, remote
+   * tab bodies; every value source-labelled). */
+  remote?: RemoteContext | null;
 };
 
 export function RightInspector({
@@ -172,6 +179,9 @@ export function RightInspector({
   onNew,
   processesBridge = defaultProcessesBridge,
   focusBridge = defaultFocusBridge,
+  onRemoteBack,
+  onRemoteSelect,
+  onRemoteActionDone,
 }: {
   selection: InspectorSelection;
   data: InspectorData;
@@ -196,8 +206,15 @@ export function RightInspector({
   onNew: () => void;
   processesBridge?: ProcessesBridge;
   focusBridge?: FocusBridge;
+  /** AJ-E705: back to Fleet from a remote selection (⌘[). */
+  onRemoteBack?: () => void;
+  /** AJ-E705: select an Instance on the same machine (null = the machine). */
+  onRemoteSelect?: (instanceId: string | null) => void;
+  /** AJ-E705: a remote action was accepted. */
+  onRemoteActionDone?: () => void;
 }) {
   const kind: InspectorKind | "none" | "login" = selection.kind;
+  const remote = data.remote ?? null;
   const [tab, setTab] = useState<InspectorTab>(() =>
     kind === "none" || kind === "login" ? "overview" : readTab(kind),
   );
@@ -250,8 +267,9 @@ export function RightInspector({
     return () => window.removeEventListener("keydown", onKey);
   });
 
-  const headerName =
-    kind === "instance"
+  const headerName = remote
+    ? (remote.instance?.account_label ?? remote.machine.label)
+    : kind === "instance"
       ? (data.instance?.account_label ?? "Instance")
       : kind === "session"
         ? "Conversation"
@@ -262,8 +280,11 @@ export function RightInspector({
             : kind === "project"
               ? (data.project?.name ?? "Project")
               : "Fleet";
-  const stateChipNode =
-    kind === "instance" && data.instance ? (
+  const stateChipNode = remote ? (
+    remote.instance ? (
+      <Chip tone={statusTone(remote.instance.status).tone}>{statusTone(remote.instance.status).label}</Chip>
+    ) : null
+  ) : kind === "instance" && data.instance ? (
       (() => {
         const view = statusTone(data.instance.status);
         return (
@@ -281,12 +302,50 @@ export function RightInspector({
       })()
     ) : null;
 
+  useEffect(() => {
+    if (!remote || !onRemoteBack) return;
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === "[") {
+        event.preventDefault();
+        onRemoteBack();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [remote, onRemoteBack]);
+
   if (kind === "none") {
     return <FleetAtAGlance sessions={sessions} accounts={accounts} now={now} onNew={onNew} />;
   }
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3" data-testid="right-inspector" data-inspector-kind={kind}>
+      {remote && (
+        <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted" data-testid="remote-breadcrumb">
+          <button type="button" className="hover:text-ink" onClick={onRemoteBack}>
+            Fleet
+          </button>
+          <span aria-hidden="true">/</span>
+          {remote.instance ? (
+            <button type="button" className="hover:text-ink" onClick={() => onRemoteSelect?.(null)}>
+              {remote.machine.label}
+            </button>
+          ) : (
+            <span aria-current="page" className="text-ink">
+              {remote.machine.label}
+            </span>
+          )}
+          {remote.instance && (
+            <>
+              <span aria-hidden="true">/</span>
+              <span aria-current="page" className="text-ink">
+                Instance
+              </span>
+            </>
+          )}
+          <span className="ml-1">(⌘[ back)</span>
+        </nav>
+      )}
       {/* Header: type icon, name, I-04 state chip, primary action (Req.1). */}
       <header className="flex flex-wrap items-center gap-3">
         <span className="text-accent-hi" title={KIND_LABELS[kind as InspectorKind]}>
@@ -295,14 +354,36 @@ export function RightInspector({
         <h2 className="text-lg font-semibold tracking-tight">{headerName}</h2>
         {stateChipNode}
         {/* Fleet-shaped (Req.7): remote selections carry a machine chip. */}
-        {data.machineId && data.machineId !== "this-mac" && (
-          <Chip tone="accent">
-            <IconFleet width={10} height={10} /> {data.machineId}
-          </Chip>
+        {remote ? (
+          <span data-testid="remote-machine-chip">
+            <Chip tone="accent">
+              <IconFleet width={10} height={10} /> {remote.machine.label}
+            </Chip>
+          </span>
+        ) : (
+          data.machineId &&
+          data.machineId !== "this-mac" && (
+            <Chip tone="accent">
+              <IconFleet width={10} height={10} /> {data.machineId}
+            </Chip>
+          )
         )}
         <div className="ml-auto flex items-center gap-2">{primaryAction ?? null}</div>
       </header>
 
+      {remote && (
+        <p
+          className={
+            "text-[11px] " +
+            (remote.machine.freshness === "live" ? "text-muted" : "text-warning")
+          }
+          aria-live="polite"
+          data-testid="remote-freshness"
+          data-freshness={remote.machine.freshness}
+        >
+          {freshnessText(remote.machine, now)}
+        </p>
+      )}
       {/* The fixed six tabs (D-06): never hidden, never reordered. */}
       <div ref={tabsRef} role="tablist" aria-label={`${KIND_LABELS[kind as InspectorKind]} inspector tabs`} className="flex flex-wrap gap-1 border-b border-hairline pb-2">
         {INSPECTOR_TABS.map((entry, index) => (
@@ -348,6 +429,15 @@ export function RightInspector({
             hidden={tab !== entry.id}
             className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto"
           >
+            {remote ? (
+              <RemoteTabBody
+                tab={entry.id}
+                remote={remote}
+                now={now}
+                onSelectInstance={(id) => onRemoteSelect?.(id)}
+                onActionDone={() => onRemoteActionDone?.()}
+              />
+            ) : (
             <InspectorPanel
               tab={entry.id}
               kind={kind as InspectorKind}
@@ -373,13 +463,23 @@ export function RightInspector({
               focusBridge={focusBridge}
               visible={tab === entry.id}
             />
+            )}
             {/* Footer: updated-ago + the field's REAL source (Req.5). */}
             <footer className="mt-auto flex items-center gap-1.5 border-t border-hairline/60 pt-2 text-[10px] text-faint">
               <span>
-                Updated {since(freshness[data.instance?.id ?? ""]?.resources ?? now, now)} ago
+                Updated{" "}
+                {since(
+                  remote
+                    ? (remote.machine.last_heard_ms ?? now)
+                    : (freshness[data.instance?.id ?? ""]?.resources ?? now),
+                  now,
+                )}{" "}
+                ago
               </span>
               <span aria-hidden="true">·</span>
-              <span>source: {TAB_SOURCES[entry.id]}</span>
+              <span>
+                source: {remote ? `${remote.machine.label} over the Fleet link` : TAB_SOURCES[entry.id]}
+              </span>
             </footer>
           </section>
         ))}
