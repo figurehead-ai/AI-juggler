@@ -2684,6 +2684,7 @@ function mockPin(label: string, fingerprint: string, permission: PairPermission)
     connection: mockLink().enabled ? "connected" : "link_off",
     protocol: mockLink().enabled ? "v1.0" : null,
     connection_detail: null,
+    queued_changes: null,
   };
   seams.__AIJ_FLEET_PEERS__ = [
     ...(seams.__AIJ_FLEET_PEERS__ ?? []).filter((existing) => existing.machine_id !== id),

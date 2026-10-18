@@ -363,7 +363,10 @@ fn with_delivered<T>(state: &Arc<AppState>, body: impl FnOnce(&mut Delivered) ->
             .and_then(|storage| storage.app_settings().get(DELIVERED_KEY).ok().flatten())
             .and_then(|raw| serde_json::from_str(&raw).ok())
             .unwrap_or_default();
-        *cell = Some(Delivered { marks, dirty: false });
+        *cell = Some(Delivered {
+            marks,
+            dirty: false,
+        });
     }
     cell.as_mut().map(body)
 }
@@ -388,8 +391,8 @@ fn save_delivered(state: &Arc<AppState>) {
 /// How many durable changes wait for `console` on this Mac (what it
 /// will receive on reconnect).
 pub(crate) fn queued_for(state: &Arc<AppState>, console: &str) -> Option<u64> {
-    let mark = with_delivered(state, |delivered| delivered.marks.get(console).copied())?
-        .unwrap_or(0);
+    let mark =
+        with_delivered(state, |delivered| delivered.marks.get(console).copied())?.unwrap_or(0);
     let storage = state.storage.lock().ok()?;
     storage.fleet_sync().outbox_count_since(mark).ok()
 }
@@ -489,13 +492,22 @@ fn sync_instances(
     };
     let mut changed = Vec::new();
     let mut live = Vec::new();
-    let mut synced = state.link.synced.lock().map(|map| map.clone()).unwrap_or_default();
+    let mut synced = state
+        .link
+        .synced
+        .lock()
+        .map(|map| map.clone())
+        .unwrap_or_default();
     for row in &rows {
         let durable = durable_delta(row);
         let bytes = durable.encode_to_vec();
         if synced.get(&row.id) != Some(&bytes) {
             if let Some(seq) = record_change(state, &row.id, &bytes) {
-                changed.push(delta(&origin, seq, proto::telemetry_delta::Payload::Session(durable)));
+                changed.push(delta(
+                    &origin,
+                    seq,
+                    proto::telemetry_delta::Payload::Session(durable),
+                ));
             }
             synced.insert(row.id.clone(), bytes);
         }
@@ -544,9 +556,15 @@ fn outbox_deltas(state: &Arc<AppState>, since: u64) -> Vec<proto::TelemetryDelta
     entries
         .into_iter()
         .filter_map(|entry| {
-            proto::SessionDelta::decode(entry.payload.as_slice()).ok().map(|session| {
-                delta(&origin, entry.seq, proto::telemetry_delta::Payload::Session(session))
-            })
+            proto::SessionDelta::decode(entry.payload.as_slice())
+                .ok()
+                .map(|session| {
+                    delta(
+                        &origin,
+                        entry.seq,
+                        proto::telemetry_delta::Payload::Session(session),
+                    )
+                })
         })
         .collect()
 }
@@ -560,7 +578,10 @@ impl NodeHandler for AppNode {
     }
 
     fn sync_epoch(&self) -> String {
-        self.state.upgrade().map(|state| sync_epoch(&state)).unwrap_or_default()
+        self.state
+            .upgrade()
+            .map(|state| sync_epoch(&state))
+            .unwrap_or_default()
     }
 
     fn caught_up_from(&self, peer: &str, since: u64) {

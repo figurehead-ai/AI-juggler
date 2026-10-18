@@ -41,6 +41,8 @@ const machine = (over: Partial<RemoteMachineInfo> = {}): RemoteMachineInfo => ({
   ],
   alerts: [],
   processes: [],
+  clock_skew_ms: 0,
+  synced_at_ms: NOW - 1_000,
   ...over,
 });
 

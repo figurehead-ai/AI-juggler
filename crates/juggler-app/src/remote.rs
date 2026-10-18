@@ -186,7 +186,9 @@ fn apply(
                     .unsynced
                     .insert(session.instance_id.clone(), (session, now));
             } else {
-                entry.live.insert(session.instance_id.clone(), (session, now));
+                entry
+                    .live
+                    .insert(session.instance_id.clone(), (session, now));
             }
         }
         Some(proto::telemetry_delta::Payload::Cleanup(cleanup)) => {
@@ -499,7 +501,9 @@ pub fn fleet_remote_impl(state: &Arc<AppState>) -> AppResult<Vec<RemoteMachineIn
         .into_iter()
         .map(|peer| {
             let entry = map.get(&peer.machine_id);
-            let replica = replicas.get(&peer.machine_id).map_or(&[][..], Vec::as_slice);
+            let replica = replicas
+                .get(&peer.machine_id)
+                .map_or(&[][..], Vec::as_slice);
             machine_info(peer, entry, replica, now)
         })
         .collect())

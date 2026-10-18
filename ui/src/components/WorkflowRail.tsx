@@ -1481,7 +1481,11 @@ function RemoteBoardSection({
   onSelect: (instanceId: string) => void;
 }): JSX.Element {
   const state =
-    machine.freshness === "live" ? "● live" : machine.freshness === "stale" ? "◐ stale" : "○ offline";
+    machine.freshness === "live"
+      ? "● live"
+      : machine.freshness === "stale"
+        ? "◐ stale · last known"
+        : "○ offline · last known";
   return (
     <div className="mt-1 flex flex-col gap-0.5" data-testid="board-machine" data-machine={machine.machine_id}>
       <p className="flex items-baseline gap-1.5 px-3 pb-0.5 pt-1 text-[10px] font-medium uppercase tracking-[0.08em] text-muted">
@@ -1495,7 +1499,9 @@ function RemoteBoardSection({
       ) : (
         rows.map((row) => {
           const active = selected?.machineId === machine.machine_id && selected.instanceId === row.id;
-          const status = row.status.replace(/_/g, " ");
+          // AJ-E708: an away machine's rows are its last known state.
+          const lastKnown = machine.freshness !== "live";
+          const status = (lastKnown ? "was " : "") + row.status.replace(/_/g, " ");
           return (
             <button
               key={row.id}
@@ -1515,7 +1521,13 @@ function RemoteBoardSection({
                 <span
                   className={
                     "size-1.5 shrink-0 rounded-full " +
-                    (row.status === "running" ? "bg-live" : row.status === "waiting_user" ? "bg-warning" : "bg-faint")
+                    (lastKnown
+                      ? "bg-faint"
+                      : row.status === "running"
+                        ? "bg-live"
+                        : row.status === "waiting_user"
+                          ? "bg-warning"
+                          : "bg-faint")
                   }
                   aria-hidden="true"
                 />

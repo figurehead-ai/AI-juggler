@@ -181,7 +181,11 @@ fn an_offline_console_catches_up_with_only_what_it_missed_and_keeps_last_known_r
         for n in 0..10 {
             storage
                 .sessions()
-                .insert(&instance(&format!("inst-{n}"), work.path(), SessionStatus::Running))
+                .insert(&instance(
+                    &format!("inst-{n}"),
+                    work.path(),
+                    SessionStatus::Running,
+                ))
                 .unwrap();
         }
     }
@@ -209,7 +213,10 @@ fn an_offline_console_catches_up_with_only_what_it_missed_and_keeps_last_known_r
         "last-known rows stay while offline"
     );
     assert!(
-        offline.instances.iter().all(|row| row.cpu_percent.is_none()),
+        offline
+            .instances
+            .iter()
+            .all(|row| row.cpu_percent.is_none()),
         "live numbers are never shown as if current"
     );
     let (_, high_water) = outbox_latest(&a);
@@ -221,7 +228,10 @@ fn an_offline_console_catches_up_with_only_what_it_missed_and_keeps_last_known_r
     for round in 0..40_i64 {
         let storage = a.storage.lock().unwrap();
         for n in 0..3 {
-            let mut row = storage.sessions().get(&SessionId::new(format!("inst-{n}"))).unwrap();
+            let mut row = storage
+                .sessions()
+                .get(&SessionId::new(format!("inst-{n}")))
+                .unwrap();
             row.status = if round % 2 == 0 {
                 SessionStatus::WaitingUser
             } else {
@@ -245,7 +255,10 @@ fn an_offline_console_catches_up_with_only_what_it_missed_and_keeps_last_known_r
         }
         for n in 0..2 {
             let storage = a.storage.lock().unwrap();
-            if let Ok(mut row) = storage.sessions().get(&SessionId::new(format!("inst-new-{}", n + 1))) {
+            if let Ok(mut row) = storage
+                .sessions()
+                .get(&SessionId::new(format!("inst-new-{}", n + 1)))
+            {
                 row.last_activity = Some(Timestamp::from_millis(2_000_000 + round * 10 + n as i64));
                 storage.sessions().update(&row).unwrap();
             }
@@ -270,7 +283,11 @@ fn an_offline_console_catches_up_with_only_what_it_missed_and_keeps_last_known_r
         .into_iter()
         .find(|peer| peer.machine_id == console)
         .unwrap();
-    assert_eq!(waiting.queued_changes, Some(missing), "Offline — 5 changes queued");
+    assert_eq!(
+        waiting.queued_changes,
+        Some(missing),
+        "Offline — 5 changes queued"
+    );
 
     // Back home: the console catches up from its high-water mark with
     // exactly the missing changes — never a full transfer.
@@ -278,9 +295,16 @@ fn an_offline_console_catches_up_with_only_what_it_missed_and_keeps_last_known_r
     wait_for("caught up", || converged(&a, &b, &origin));
     let log = catch_ups(&a);
     let resumed = log[catch_ups_before..].first().copied().unwrap();
-    assert!(resumed.0 > 0 && resumed.0 <= high_water && resumed.0 < top, "{log:?}");
+    assert!(
+        resumed.0 > 0 && resumed.0 <= high_water && resumed.0 < top,
+        "{log:?}"
+    );
     assert_eq!(resumed.1, missing, "only the missing changes: {log:?}");
-    assert_eq!(replica(&b, &origin), latest, "zero silent overwrites or losses");
+    assert_eq!(
+        replica(&b, &origin),
+        latest,
+        "zero silent overwrites or losses"
+    );
     wait_for("nothing queued", || {
         let peer = fleet::fleet_peers_impl(&a)
             .unwrap()
@@ -311,7 +335,10 @@ fn an_offline_console_catches_up_with_only_what_it_missed_and_keeps_last_known_r
     });
     assert_eq!(machine.instances.len(), 12);
     let skew = machine.clock_skew_ms.expect("measured from its Hello");
-    assert!(skew.abs() < remote::CLOCK_SKEW_FLAG_MS, "same clock: {skew}");
+    assert!(
+        skew.abs() < remote::CLOCK_SKEW_FLAG_MS,
+        "same clock: {skew}"
+    );
     link::link_set_enabled_impl(&a, false).unwrap();
     link::link_set_enabled_impl(&b, false).unwrap();
 }
@@ -326,7 +353,11 @@ fn a_console_restarted_mid_sync_resumes_from_its_durable_high_water_mark() {
         let storage = a.storage.lock().unwrap();
         storage
             .sessions()
-            .insert(&instance("inst-durable", work.path(), SessionStatus::Running))
+            .insert(&instance(
+                "inst-durable",
+                work.path(),
+                SessionStatus::Running,
+            ))
             .unwrap();
     }
     link::link_set_enabled_impl(&a, true).unwrap();
@@ -351,7 +382,10 @@ fn a_console_restarted_mid_sync_resumes_from_its_durable_high_water_mark() {
     // Meanwhile the node changed; the console resumes, not restarts.
     {
         let storage = a.storage.lock().unwrap();
-        let mut row = storage.sessions().get(&SessionId::new("inst-durable")).unwrap();
+        let mut row = storage
+            .sessions()
+            .get(&SessionId::new("inst-durable"))
+            .unwrap();
         row.status = SessionStatus::WaitingUser;
         storage.sessions().update(&row).unwrap();
     }
@@ -417,7 +451,11 @@ fn a_reset_node_gets_a_new_sync_epoch_and_the_console_starts_it_afresh() {
         let rows = replica(&b, &origin);
         (!rows.contains_key("ghost") && rows.contains_key("inst-kept")).then_some(())
     });
-    assert_eq!(catch_ups(&a).last().unwrap().0, 0, "a new epoch asks from 0");
+    assert_eq!(
+        catch_ups(&a).last().unwrap().0,
+        0,
+        "a new epoch asks from 0"
+    );
     link::link_set_enabled_impl(&a, false).unwrap();
     link::link_set_enabled_impl(&b, false).unwrap();
 }
@@ -464,7 +502,11 @@ fn a_thousand_queued_changes_catch_up_inside_three_seconds() {
     eprintln!("catch-up of 1,000 changes (incl. reconnect): {took:?}");
     assert!(took < Duration::from_secs(3), "{took:?}");
     let shown = remote::fleet_remote_impl(&b).unwrap();
-    assert_eq!(shown[0].instances.len(), 50, "the board shows the newest 50");
+    assert_eq!(
+        shown[0].instances.len(),
+        50,
+        "the board shows the newest 50"
+    );
     link::link_set_enabled_impl(&a, false).unwrap();
     link::link_set_enabled_impl(&b, false).unwrap();
 }
