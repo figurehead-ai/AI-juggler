@@ -21,6 +21,8 @@ import type { RemoteMachineInfo } from "../types/generated/RemoteMachineInfo";
 import type { IdentityCheckInfo } from "../types/generated/IdentityCheckInfo";
 import type { IsolationOfferInfo } from "../types/generated/IsolationOfferInfo";
 import type { ParkedInfo } from "../types/generated/ParkedInfo";
+import type { OvernightSummaryInfo } from "../types/generated/OvernightSummaryInfo";
+import type { SummaryRowInfo } from "../types/generated/SummaryRowInfo";
 import type { ParkedOfferInfo } from "../types/generated/ParkedOfferInfo";
 import type { WorktreeRemovalInfo } from "../types/generated/WorktreeRemovalInfo";
 import type { GitStatusInfo } from "../types/generated/GitStatusInfo";
@@ -89,6 +91,8 @@ export type {
   IsolationOfferInfo,
   ParkedInfo,
   ParkedOfferInfo,
+  OvernightSummaryInfo,
+  SummaryRowInfo,
   WorktreeRemovalInfo,
   GitStatusInfo,
   RemoteSwitchTargetInfo,
@@ -198,7 +202,7 @@ const MOCK_QUALITY: Record<string, QualitySignalsInfo> = {
     session_cost_usd: 0.19,
     priced_model: "opus",
     quota_forecast: "not burning",
-    stuck: { rule: "stuck_no_output", inputs: ["no output 8m", "cpu 0.3%", "transcript stale 8m"], since_ms: Date.now() - 8 * 60_000 },
+    stuck: { rule: "stuck_no_output", inputs: ["no output 8m", "threshold 5m", "cpu 0.3%", "transcript stale 8m"], since_ms: Date.now() - 8 * 60_000 },
   },
   "sess-2": {
     tokens_bars: [420, 510, 380, 600, 540],
@@ -3848,4 +3852,26 @@ export async function parkedResume(sessionId: string): Promise<{ session_id: str
     return null;
   }
   return invoke<{ session_id: string; pid: number }>("parked_resume", { sessionId });
+}
+
+// --- AJ-E1004: the morning summary ------------------------------------------
+
+/** What happened since the user last looked (severity-ordered). */
+export async function overnightSummary(): Promise<OvernightSummaryInfo> {
+  if (!hasBackend) {
+    const seeded = (window as unknown as { __AIJ_SUMMARY__?: OvernightSummaryInfo }).__AIJ_SUMMARY__;
+    return seeded ?? { since_ms: Date.now(), generated_ms: Date.now(), rows: [], counts: {}, leftovers: 0 };
+  }
+  return invoke<OvernightSummaryInfo>("overnight_summary", { sinceMs: null });
+}
+
+/** The user looked: the next summary starts from now. */
+export async function overnightSummarySeen(): Promise<void> {
+  if (!hasBackend) {
+    const w = window as unknown as { __AIJ_SUMMARY__?: OvernightSummaryInfo; __AIJ_SUMMARY_SEEN__?: number };
+    w.__AIJ_SUMMARY_SEEN__ = (w.__AIJ_SUMMARY_SEEN__ ?? 0) + 1;
+    delete w.__AIJ_SUMMARY__;
+    return;
+  }
+  return invoke<void>("overnight_summary_seen");
 }

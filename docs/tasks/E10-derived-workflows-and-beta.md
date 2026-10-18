@@ -61,7 +61,7 @@
 **Research basis**: pass2/07 W1/W3; deep/10 reset-queue proposal; decision-log D-05.
 **Handover note**: Passive invariant: notification + user click only. Auto-resume on reset is explicitly rejected scope; do not add it as a convenience.
 
-### AJ-E1004 Overnight and unattended run supervision | Status: TODO | Priority P1 | Effort M | Depends: AJ-E1003
+### AJ-E1004 Overnight and unattended run supervision | Status: DONE-EVIDENCED | Priority P1 | Effort M | Depends: AJ-E1003
 **Goal**: Make long unattended runs observable and safely interruptible without babysitting a terminal.
 **User story**: As a developer starting an evening run, I want a morning summary of what finished, what got stuck and what it cost, instead of scrolling a dead terminal.
 **Requirements**:

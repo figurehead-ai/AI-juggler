@@ -40,7 +40,7 @@ function noteNotCaptured(screen: string, state: string, reason: string) {
 
 test.beforeAll(() => {
   mkdirSync(GALLERY, { recursive: true });
-  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "16-onboarding-detect", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "34-wizard", "35-candidates", "36-recommend", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings", "45-remote", "46-fleet-board", "47-remote-focus", "48-remote-cleanup", "49-fleet-sync", "50-cross-switch", "51-identity", "52-worktree", "53-parked"]) {
+  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "16-onboarding-detect", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "34-wizard", "35-candidates", "36-recommend", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings", "45-remote", "46-fleet-board", "47-remote-focus", "48-remote-cleanup", "49-fleet-sync", "50-cross-switch", "51-identity", "52-worktree", "53-parked", "54-summary"]) {
     mkdirSync(resolve(GALLERY, screen), { recursive: true });
   }
   writeFileSync(NOT_CAPTURETED, "# Not captured (explicit omissions)\n\n| Screen | State | Reason |\n|---|---|---|\n");
@@ -5831,4 +5831,67 @@ for (const theme of THEMES) {
     await expect(page.getByTestId("park-state")).toContainText("Parked until the quota resets");
     await page.screenshot({ path: resolve(GALLERY, `53-parked/inspector-1280x800-${theme}.png`) });
   });
+}
+
+// ---------------------------------------------------------------------
+// AJ-E1004 — 54-summary: the morning summary on the home view —
+// severity-ordered groups with words and an icon, a row opening its
+// Instance, the rail's needs-you badge alongside — 1440×900 and
+// 1024×680, light/dark.
+// ---------------------------------------------------------------------
+
+const summaryRow = (id: string, label: string, group: string, status: string, words: string, over: Record<string, unknown> = {}) => ({
+  session_id: id, account_label: label, provider: "claude-code", project: "ai-juggler", group, status, words,
+  transitions: [
+    { from: null, to: "starting", at_ms: T0 - 8 * 3_600_000 },
+    { from: "starting", to: "running", at_ms: T0 - 8 * 3_600_000 + 4_000 },
+    { from: "running", to: status, at_ms: T0 - 2 * 3_600_000 },
+  ],
+  tokens: null, leftovers: 0, ...over,
+});
+
+const morningSummary = {
+  since_ms: T0 - 9 * 3_600_000,
+  generated_ms: T0,
+  rows: [
+    summaryRow("sess-8", "Work Max", "crashed", "failed", "Crashed", { leftovers: 2 }),
+    summaryRow("sess-3", "Personal", "needs_you", "waiting_user", "Needs you — waiting for an answer"),
+    summaryRow("sess-4", "Work Max", "needs_you", "stuck", "Needs you — no output for a while"),
+    summaryRow("sess-5", "Personal", "needs_you", "quota_blocked", "Needs you — quota reached"),
+    summaryRow("sess-2", "Work Max", "running", "running", "Still running", { tokens: 19_134 }),
+    summaryRow("sess-6", "Work Max", "finished", "finished", "Finished"),
+    summaryRow("sess-7", "Personal", "ended", "stopped", "Ended"),
+  ],
+  counts: { crashed: 1, needs_you: 3, running: 1, finished: 1, ended: 1 },
+  leftovers: 2,
+};
+
+for (const theme of THEMES) {
+  for (const vp of [
+    { name: "1440x900", width: 1440, height: 900 },
+    { name: "1024x680", width: 1024, height: 680 },
+  ] as const) {
+    test(`54 summary — home view and a row into its Instance — ${vp.name} — ${theme}`, async ({ page }) => {
+      await page.addInitScript(
+        ({ fixture, t, t0, summary }) => {
+          const w = window as unknown as Record<string, unknown>;
+          w.__AIJ_FIXTURE__ = fixture;
+          w.__AIJ_SUMMARY__ = summary;
+          localStorage.setItem("aij.theme", t);
+          localStorage.setItem("aij.onboarding.dismissed", "1");
+          sessionStorage.setItem("aij.ready.skipped", "1");
+          Date.now = () => t0;
+        },
+        { fixture: allStatuses, t: theme, t0: T0, summary: morningSummary },
+      );
+      await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      await page.goto("/");
+      await expect(page.getByTestId("summary-headline")).toContainText("1 crashed · 3 needs you");
+      await page.screenshot({ path: resolve(GALLERY, `54-summary/home-${vp.name}-${theme}.png`) });
+      await page.getByTestId("summary-row").first().click();
+      await expect(page.getByRole("tab", { name: "Quality / Performance" })).toBeVisible();
+      await page.screenshot({ path: resolve(GALLERY, `54-summary/opened-${vp.name}-${theme}.png`) });
+    });
+  }
 }

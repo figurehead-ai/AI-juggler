@@ -99,6 +99,10 @@ fn every_state_lands_in_its_group_and_a_restart_loses_nothing() {
     walk(&state, "s-stopped", &[Running, Stopped], work.path());
 
     let summary = overnight::overnight_summary_impl(&state, None).unwrap();
+    eprintln!(
+        "[summary] {}",
+        serde_json::to_string_pretty(&summary).unwrap()
+    );
     let order: Vec<(&str, &str)> = summary
         .rows
         .iter()
@@ -135,6 +139,10 @@ fn every_state_lands_in_its_group_and_a_restart_loses_nothing() {
     drop(state);
     let state = app_state(&data);
     let again = overnight::overnight_summary_impl(&state, Some(since)).unwrap();
+    eprintln!(
+        "[replay] after restart: {}",
+        serde_json::to_string_pretty(&again).unwrap()
+    );
     for before in &summary.rows {
         let after = again
             .rows
@@ -157,7 +165,10 @@ fn every_state_lands_in_its_group_and_a_restart_loses_nothing() {
         .unwrap();
     assert_eq!(running.transitions.last().unwrap().to, "stopped");
 
-    // Seen: only what changes from now on (plus what still runs).
+    // Seen: only what changes from now on (plus what still runs). The
+    // user looks after the events (the journal is millisecond-grained:
+    // a look in the very millisecond of a change still counts it).
+    std::thread::sleep(Duration::from_millis(5));
     overnight::overnight_summary_seen_impl(&state).unwrap();
     std::thread::sleep(Duration::from_millis(5));
     let fresh = overnight::overnight_summary_impl(&state, None).unwrap();

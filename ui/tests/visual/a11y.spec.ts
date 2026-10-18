@@ -2464,3 +2464,42 @@ for (const theme of ["dark", "light"] as const) {
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
   });
 }
+
+/** AJ-E1004 a11y (both themes): the morning summary — a labelled
+ * region, one button per row, severity in words — scans axe-clean and
+ * every row is reachable by keyboard. */
+for (const theme of ["dark", "light"] as const) {
+  test(`morning summary — axe 0 — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ fixture, theme: t }) => {
+        const w = window as unknown as Record<string, unknown>;
+        w.__AIJ_FIXTURE__ = fixture;
+        const tr = [{ from: "running", to: "failed", at_ms: Date.now() - 3_600_000 }];
+        w.__AIJ_SUMMARY__ = {
+          since_ms: Date.now() - 9 * 3_600_000,
+          generated_ms: Date.now(),
+          rows: [
+            { session_id: "sess-8", account_label: "Work Max", provider: "claude-code", project: "ai-juggler", group: "crashed", status: "failed", words: "Crashed", transitions: tr, tokens: null, leftovers: 1 },
+            { session_id: "sess-3", account_label: "Personal", provider: "claude-code", project: null, group: "needs_you", status: "waiting_user", words: "Needs you — waiting for an answer", transitions: tr, tokens: 1200, leftovers: 0 },
+          ],
+          counts: { crashed: 1, needs_you: 1 },
+          leftovers: 1,
+        };
+        localStorage.setItem("aij.theme", t);
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        sessionStorage.setItem("aij.ready.skipped", "1");
+      },
+      { fixture: allStatuses, theme },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await expect(page.getByRole("region", { name: "Since you were away" })).toBeVisible();
+    await page.getByTestId("summary-seen").focus();
+    await page.keyboard.press("Tab");
+    await expect(page.getByTestId("summary-row").first()).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(page.getByTestId("summary-row").nth(1)).toBeFocused();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+  });
+}

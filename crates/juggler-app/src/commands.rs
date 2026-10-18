@@ -4034,6 +4034,20 @@ pub fn heuristic_tick(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResul
     let mut changed = false;
     {
         let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
+        // AJ-E1004 Req.1: each Instance is judged against its Provider's
+        // own no-output threshold when one is configured.
+        let harness_of: std::collections::BTreeMap<String, String> =
+            if state.provider_stuck_secs.is_empty() {
+                std::collections::BTreeMap::new()
+            } else {
+                let mut map = std::collections::BTreeMap::new();
+                for account in storage.accounts().list()? {
+                    for recipe in storage.profiles().list_by_account(&account.id)? {
+                        map.insert(recipe.id.to_string(), account.harness.to_string());
+                    }
+                }
+                map
+            };
         for record in storage.sessions().list(None)? {
             if !is_active(record.status) {
                 engine.forget(&record.id);
@@ -4060,7 +4074,12 @@ pub fn heuristic_tick(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResul
                 prompt_alive: juggler_supervisor::prompt_alive(&tail),
                 now_ms: now,
             };
-            if let Some(transition) = engine.evaluate(&record.id, &inputs) {
+            let provider_stuck_secs = harness_of
+                .get(record.profile.as_str())
+                .and_then(|harness| state.provider_stuck_secs.get(harness))
+                .copied();
+            if let Some(transition) = engine.evaluate_for(&record.id, &inputs, provider_stuck_secs)
+            {
                 apply_attention_transition(&storage, &record.id, &transition);
                 changed = true;
             }

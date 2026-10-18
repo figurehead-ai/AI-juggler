@@ -1,3 +1,4 @@
+import { MorningSummary } from "./MorningSummary";
 import { ParkCard } from "./ParkCard";
 import { WorktreeGit } from "./WorktreeGit";
 import { identityWords } from "../lib/identity";
@@ -329,7 +330,9 @@ export function RightInspector({
   }, [remote, onRemoteBack]);
 
   if (kind === "none") {
-    return <FleetAtAGlance sessions={sessions} accounts={accounts} now={now} onNew={onNew} />;
+    return (
+      <FleetAtAGlance sessions={sessions} accounts={accounts} now={now} onNew={onNew} onOpenSession={onOpenSession} />
+    );
   }
 
   return (
@@ -1277,11 +1280,13 @@ function FleetAtAGlance({
   accounts,
   now,
   onNew,
+  onOpenSession,
 }: {
   sessions: InstanceInfo[];
   accounts: AccountInfo[];
   now: number;
   onNew: () => void;
+  onOpenSession: (id: string) => void;
 }) {
   const counts = new Map<string, number>();
   for (const row of sessions) counts.set(row.status, (counts.get(row.status) ?? 0) + 1);
@@ -1300,7 +1305,12 @@ function FleetAtAGlance({
   const ramSum = live.reduce((sum, row) => sum + (row.rss_bytes ?? 0), 0);
 
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-5" data-testid="fleet-at-a-glance">
+    // Centred when it fits; when the morning summary makes it taller than
+    // the pane it scrolls from the top (justify-center would clip the
+    // top under the header, out of reach).
+    <div className="flex h-full flex-col overflow-y-auto" data-testid="fleet-at-a-glance">
+      <div className="my-auto flex w-full flex-col items-center gap-5 py-2">
+      <MorningSummary onOpenSession={onOpenSession} />
       <div className="text-center">
         <p className="text-sm font-medium">Nothing selected — the fleet at a glance</p>
         <p className="mt-1 text-xs text-muted">
@@ -1368,6 +1378,7 @@ function FleetAtAGlance({
       <p className="text-[10px] text-muted">
         Updated {since(now, now)} ago · source: supervisor
       </p>
+      </div>
     </div>
   );
 }

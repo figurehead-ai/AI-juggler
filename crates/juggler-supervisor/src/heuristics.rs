@@ -152,7 +152,7 @@ impl HeuristicEngine {
         self.thresholds
     }
 
-    fn stuck_rule(&self, inputs: &HeuristicInputs) -> bool {
+    fn stuck_rule(&self, inputs: &HeuristicInputs, stuck_secs: u64) -> bool {
         if inputs.prompt_alive {
             return false; // an alive prompt is WaitingUser territory —
             // accusing it of Stuck would erode badge trust
@@ -161,7 +161,7 @@ impl HeuristicEngine {
             return false; // never produced output — Starting, not Stuck
         };
         let no_output_secs = (inputs.now_ms - last_output) / 1000;
-        if no_output_secs < self.thresholds.stuck_no_output_secs.cast_signed() {
+        if no_output_secs < stuck_secs.cast_signed() {
             return false;
         }
         // CPU above the threshold means it is working, not stuck; an
@@ -203,12 +203,24 @@ impl HeuristicEngine {
         session: &SessionId,
         inputs: &HeuristicInputs,
     ) -> Option<AttentionTransition> {
+        self.evaluate_for(session, inputs, None)
+    }
+
+    /// [`evaluate`](Self::evaluate) with the Instance's Provider's own
+    /// no-output threshold (AJ-E1004 Req.1); `None` uses the global one.
+    pub fn evaluate_for(
+        &self,
+        session: &SessionId,
+        inputs: &HeuristicInputs,
+        provider_stuck_secs: Option<u64>,
+    ) -> Option<AttentionTransition> {
         use std::sync::MutexGuard;
+        let stuck_secs = provider_stuck_secs.unwrap_or(self.thresholds.stuck_no_output_secs);
         let mut states: MutexGuard<'_, HashMap<SessionId, DebounceState>> =
             self.states.lock().ok()?;
         let state = states.entry(session.clone()).or_default();
 
-        let candidate: Option<AttentionTransition> = if self.stuck_rule(inputs) {
+        let candidate: Option<AttentionTransition> = if self.stuck_rule(inputs, stuck_secs) {
             Some(AttentionTransition {
                 status: SessionStatus::Stuck,
                 reason: AttentionReason {
@@ -218,6 +230,9 @@ impl HeuristicEngine {
                             "no output {}m",
                             (inputs.now_ms - inputs.last_output_ms.unwrap_or_default()) / 60_000
                         ),
+                        // AJ-E1004 Req.1: the threshold it was judged
+                        // against, shown with the reason.
+                        format!("threshold {}m", stuck_secs / 60),
                         format!(
                             "cpu {}%",
                             inputs
@@ -411,6 +426,49 @@ mod tests {
                 .inputs
                 .iter()
                 .any(|input| input.contains("cpu 0.3%"))
+        );
+        // AJ-E1004: the threshold is shown with the reason.
+        assert!(
+            transition
+                .reason
+                .inputs
+                .iter()
+                .any(|input| input == "threshold 5m")
+        );
+    }
+
+    #[test]
+    fn a_provider_threshold_overrides_the_global_one_and_is_shown() {
+        let engine = engine();
+        let session = SessionId::new("s-slow-provider");
+        // 400 s silent: Stuck under the global 5 min, not under a
+        // Provider configured for 15 min.
+        let inputs = stuck_inputs(400, Some(0.3), 400);
+        for at in [0, 31_000] {
+            let probe = HeuristicInputs {
+                now_ms: T0 + at,
+                ..inputs
+            };
+            assert!(engine.evaluate_for(&session, &probe, Some(900)).is_none());
+        }
+        let inputs = stuck_inputs(1_000, Some(0.3), 1_000);
+        assert!(engine.evaluate_for(&session, &inputs, Some(900)).is_none());
+        let transition = engine
+            .evaluate_for(
+                &session,
+                &HeuristicInputs {
+                    now_ms: T0 + 31_000,
+                    ..inputs
+                },
+                Some(900),
+            )
+            .expect("confirmed past the Provider's threshold");
+        assert!(
+            transition
+                .reason
+                .inputs
+                .iter()
+                .any(|input| input == "threshold 15m")
         );
     }
 
