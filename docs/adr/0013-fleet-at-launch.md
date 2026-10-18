@@ -106,10 +106,16 @@ nothing below.
   command carries a binary path, arguments, environment, or an
   arbitrary working directory — a Control peer can never run code the
   node's user did not set up.
-- **Handover pack fetch** (the only transcript-bearing message)
-  requires Control **and**, by default, a local confirmation on the
-  node ("Allow <machine> to take this work?"); the node — not the
-  console — decides, because a console's click is not verifiable.
+- **Handover pack transfer** (the only transcript-bearing message)
+  requires Control and, when that peer is set to "Ask each time", a
+  local confirmation on the node. *Amended at AJ-E706:* the pack is
+  **pushed by the machine that holds the work, and only after its own
+  user clicked Switch** — never pulled. A peer therefore can never ask
+  for a transcript; it can only receive one its owner sent. The
+  receiving node still decides: it re-runs every command check,
+  verifies the bundle's sha256, re-checks the permission after the
+  transfer, and re-checks that every id it names exists there (and,
+  for T2, that the harness version still matches).
 
 ### Transport and wire format
 
@@ -200,17 +206,26 @@ nothing below.
 ### Sync, offline and conflicts
 
 - Each node stamps syncable records with origin `MachineId`, a
-  per-node monotonic sequence (for delta exchange) and a **hybrid
-  logical clock** timestamp (for ordering across machines); wall-clock
-  time is display-only, and skew > 5 min is flagged.
+  per-node monotonic sequence (for delta exchange) and a wall-clock
+  timestamp. *Amended at AJ-E708:* every synced record has exactly one
+  writer — the machine that owns it — so ordering is that origin's own
+  sequence (newest wins); no cross-machine clock is needed. Wall-clock
+  time is display-only, and skew > 5 min is flagged. A node's outbox
+  lives under a random **sync epoch**; a new epoch (reset machine)
+  makes consoles drop that origin's replica and start afresh.
 - Reconnect exchanges sequence vectors and sends only missing deltas
   (full state only on first pair). Delivery is idempotent. Outbound
   deltas sit in a durable SQLite outbox.
-- Conflict classes: telemetry — newest hybrid-logical-clock value
-  wins; labels/settings — last writer by hybrid logical clock wins,
-  loser kept in History; lineage and session records — **never
-  merged**, shown as `Diverged` and blocking destructive actions until
-  the user picks Keep mine / Keep theirs / Keep both (D-05).
+- Conflict classes: telemetry — newest sequence of its single writer
+  wins; labels/settings — none are synced in v1 (each machine names
+  itself; permissions are set only on the node); lineage and session
+  records — **never merged**, shown as `Diverged` and blocking
+  destructive actions (switch-back, Clean) until the user picks Keep
+  mine / Keep theirs / Keep both (D-05). *Amended at AJ-E706/E708:* a
+  cross-machine edge records the original transcript's length and
+  sha256 when the work left; switch-back is refused as diverged when
+  the original's bytes up to then changed or turns were appended
+  since, with counts and times only (never content).
 - Freshness on every remote value: `Live` (< 5 s), `Stale`,
   `Offline — last seen <time>`.
 - Process rows are keyed by `session_id + machine_id + boot_id`
@@ -227,8 +242,9 @@ nothing below.
 ### What never crosses the link
 
 Vendor credentials, keychain contents, the identity private key, the
-ADR-0014 device token and vault key, and transcript text — except the
-explicit, user-clicked handover pack fetch.
+ADR-0014 device token and vault key, paths, and transcript text —
+except the explicit, user-clicked handover push (a project root
+travels only as a digest that matches the same canonical path).
 
 ### Options considered
 
@@ -252,7 +268,7 @@ explicit, user-clicked handover pack fetch.
 | Protocol downgrade | Tampering | Node minimum version; degraded modes keep every security check | AJ-E703 downgrade-matrix test |
 | Replayed or delayed command | Tampering / Repudiation | Ordered command stream; persisted per-console high-water sequence; nonce cache; 30 s expiry on the node's clock with measured offset; console id = TLS peer | AJ-E703 replay, reorder, expired and wrong-console tests |
 | Control peer runs arbitrary code | Elevation | Commands reference only node-existing ids (Launch settings, project roots, Instances, ledger processes); no binary/args/env/cwd fields | AJ-E709 forged free-form-launch test |
-| Malicious peer pulls transcripts | Info disclosure | Pack fetch needs Control and, by default, a confirmation on the node; payload allowlist | AJ-E706 zero-pre-click-bytes + node-refusal tests |
+| Malicious peer pulls transcripts | Info disclosure | No pull exists: the holder pushes only after its own user's click; the receiver needs Control (+ Ask each time when set); field allowlist forbids transcript/path fields elsewhere | AJ-E706 `fleet_switch` (no handover before the click; view-only refused), `transport` handover negatives, `proto_contract` |
 | Spoofed delta origin | Tampering | Deltas accepted only with origin = authenticated peer | AJ-E708 origin-spoof test |
 | Account-directory key substitution | Spoofing | Account peers never pin silently: fingerprint confirmed on both machines; start at View | AJ-E1206 substitution test |
 | Tampered or rolled-back registry | Tampering | Signed with the identity key; generation mirrored in the app DB; fail closed | AJ-E702 tamper + rollback tests |
@@ -261,7 +277,7 @@ explicit, user-clicked handover pack fetch.
 | Secrets in logs | Info disclosure | Codes, keys, tokens, pack contents never logged; key-log off in release | AJ-E710 log-scan test |
 | Malicious pack contents (prompt injection) | Tampering | Packs are untrusted data: previewed, redacted, passed as data | AJ-E706 |
 | Console kills the wrong process | Tampering | Owning node re-verifies identity (pid + start time + exe + owning Instance); unverifiable = never touched | AJ-E707 PID-reuse + unverifiable tests |
-| Clock manipulation reorders history | Tampering | Hybrid logical clocks; wall clock display-only; skew flagged | AJ-E708 skew test |
+| Clock manipulation reorders history | Tampering | Single-writer sequences; wall clock display-only; skew flagged | AJ-E708 `a_skewed_clock_never_reorders` (±10 min) |
 | Repudiation of remote actions | Repudiation | Hash-chained audit on node and console | AJ-E707 / AJ-E709 audit-chain tests |
 
 No row is open: each threat has a mitigation and a named negative test;

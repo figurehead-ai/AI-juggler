@@ -289,6 +289,13 @@ fn t2_at_the_same_path_switches_to_the_other_mac_with_shared_lineage() {
         Some(pair.desktop_project.as_str())
     );
 
+    // Target list with preconditions: in-memory (published catalogs +
+    // the cached version probe) — far inside the 1 s budget.
+    let started = Instant::now();
+    let _ = crossmachine::fleet_switch_targets_impl(&pair.laptop, &pair.source).unwrap();
+    let took = started.elapsed();
+    eprintln!("[perf] cross-machine target list with preconditions: {took:?}");
+    assert!(took < Duration::from_millis(500), "{took:?}");
     // Browsing targets moved nothing: no handover on either side.
     assert!(
         !audit_kinds(&pair.desktop)
@@ -643,7 +650,11 @@ fn a_diverged_original_blocks_switch_back_until_the_user_chooses() {
     let _ = back_plan(&pair, &away);
     clear_args(&pair.laptop, &pair.laptop_account);
 
+    let started = Instant::now();
     let refused = switch_back(&pair, &away, "");
+    let took = started.elapsed();
+    eprintln!("[perf] diverged refusal round trip (detect + report): {took:?}");
+    assert!(took < Duration::from_secs(2), "{took:?}");
     assert!(!refused.accepted);
     assert_eq!(refused.reason_code.as_deref(), Some("diverged"));
     let divergence = refused.divergence.unwrap();

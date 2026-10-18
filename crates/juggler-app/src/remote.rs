@@ -126,12 +126,18 @@ pub(crate) fn subscribe(
         };
         let mut stream = response.into_inner();
         while let Ok(Some(delta)) = stream.message().await {
-            // v1 never relays: a delta about another machine is dropped.
-            if delta.origin_machine_id == id {
+            if from_connected_origin(&delta, &id) {
                 apply(&state, &cache, &id, durable, delta);
             }
         }
     })
+}
+
+/// v1 never relays: a delta is accepted only when its origin is the
+/// authenticated machine on this connection (a spoofed origin is
+/// dropped — ADR-0013 "Spoofed delta origin").
+fn from_connected_origin(delta: &proto::TelemetryDelta, connected: &str) -> bool {
+    delta.origin_machine_id == connected
 }
 
 /// Applies one delta. A sequenced Instance row from a node with a sync
@@ -921,5 +927,19 @@ mod tests {
         assert_eq!(freshness("degraded", Some(now - 1_000), now), "live");
         assert_eq!(freshness("offline", Some(now - 1_000), now), "offline");
         assert_eq!(freshness("link_off", Some(now), now), "offline");
+    }
+
+    #[test]
+    fn a_delta_naming_another_machine_is_never_applied() {
+        let delta = |origin: &str| proto::TelemetryDelta {
+            origin_machine_id: origin.to_owned(),
+            ..proto::TelemetryDelta::default()
+        };
+        assert!(from_connected_origin(&delta("mac-a"), "mac-a"));
+        assert!(
+            !from_connected_origin(&delta("mac-b"), "mac-a"),
+            "a relayed / spoofed origin"
+        );
+        assert!(!from_connected_origin(&delta(""), "mac-a"));
     }
 }
