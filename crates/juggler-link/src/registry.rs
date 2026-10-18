@@ -55,6 +55,12 @@ pub enum PairedVia {
     Account,
 }
 
+/// AJ-E1206: the machine-id prefix of a peer pinned from the account
+/// directory before it has said Hello. Its real `MachineId` is bound
+/// once, on its first TLS-authenticated Hello (which proves it holds
+/// the pinned key).
+pub const PROVISIONAL_PREFIX: &str = "acct-";
+
 /// One pinned peer.
 #[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -296,6 +302,44 @@ impl PeerRegistry {
             peer.permission = permission;
             peer.ask_each_time = ask_each_time;
         })
+    }
+
+    /// AJ-E1206: binds the real `MachineId` of an account-discovered
+    /// peer — only for a peer pinned via the account directory whose id
+    /// is still provisional, holding `key`, and only once. Returns the
+    /// updated peer, or `None` when nothing may be bound (code-paired,
+    /// already bound, invalid id, or an id another peer already uses).
+    ///
+    /// # Errors
+    ///
+    /// Returns a storage error, or [`RegistryError::TrustBroken`].
+    pub fn bind_account_peer(
+        &mut self,
+        identity: &MachineIdentity,
+        key: &PublicIdentity,
+        machine_id: &str,
+    ) -> Result<Option<Peer>, RegistryError> {
+        self.require_trusted()?;
+        let valid = !machine_id.is_empty()
+            && machine_id.len() <= 128
+            && !machine_id.starts_with(PROVISIONAL_PREFIX)
+            && !self.peers.iter().any(|peer| peer.machine_id == machine_id);
+        if !valid {
+            return Ok(None);
+        }
+        let wanted = key.to_base64();
+        let Some(peer) = self.peers.iter_mut().find(|peer| {
+            peer.public_key == wanted
+                && peer.paired_via == PairedVia::Account
+                && peer.machine_id.starts_with(PROVISIONAL_PREFIX)
+        }) else {
+            return Ok(None);
+        };
+        machine_id.clone_into(&mut peer.machine_id);
+        let bound = peer.clone();
+        self.peers.sort_by(|a, b| a.machine_id.cmp(&b.machine_id));
+        self.save(identity)?;
+        Ok(Some(bound))
     }
 
     /// Renames a peer locally (never changes its id or key).

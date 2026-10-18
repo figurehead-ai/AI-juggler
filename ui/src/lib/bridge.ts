@@ -22,6 +22,8 @@ import type { IdentityCheckInfo } from "../types/generated/IdentityCheckInfo";
 import type { IsolationOfferInfo } from "../types/generated/IsolationOfferInfo";
 import type { ParkedInfo } from "../types/generated/ParkedInfo";
 import type { OvernightSummaryInfo } from "../types/generated/OvernightSummaryInfo";
+import type { AccountMacsInfo } from "../types/generated/AccountMacsInfo";
+import type { AccountMacInfo } from "../types/generated/AccountMacInfo";
 import type { CloudBackupStatusInfo } from "../types/generated/CloudBackupStatusInfo";
 import type { CloudBackupInfo } from "../types/generated/CloudBackupInfo";
 import type { LastBackupInfo } from "../types/generated/LastBackupInfo";
@@ -109,6 +111,8 @@ export type {
   ParkedInfo,
   ParkedOfferInfo,
   OvernightSummaryInfo,
+  AccountMacsInfo,
+  AccountMacInfo,
   CloudBackupStatusInfo,
   CloudBackupInfo,
   LastBackupInfo,
@@ -4434,4 +4438,36 @@ export async function cloudBackupPrepareRestore(id: string, recoveryCode: string
     throw new Error("No backend in this preview");
   }
   return invoke<RestorePlanInfo>("cloud_backup_prepare_restore", { id, recoveryCode });
+}
+
+// --- AJ-E1206: Fleet discovery via account ------------------------------------
+
+interface AccountMacSeams {
+  __AIJ_ACCOUNT_MACS__?: AccountMacsInfo;
+  __AIJ_ACCOUNT_MACS_CALLS__?: string[];
+}
+const accountMacSeams = () => window as unknown as AccountMacSeams;
+
+/** Your other linked Macs (Fleet discovery on; at most one read a minute). */
+export async function fleetAccountMacs(): Promise<AccountMacsInfo> {
+  if (!hasBackend) {
+    const seams = accountMacSeams();
+    seams.__AIJ_ACCOUNT_MACS_CALLS__ = [...(seams.__AIJ_ACCOUNT_MACS_CALLS__ ?? []), "list"];
+    const seeded = seams.__AIJ_ACCOUNT_MACS__;
+    if (seeded) return { ...seeded, macs: seeded.macs.map((mac) => ({ ...mac })) };
+    throw new Error("Fleet discovery is off");
+  }
+  return invoke<AccountMacsInfo>("fleet_account_macs");
+}
+
+/** Pins a listed Mac after its fingerprint was confirmed here. */
+export async function fleetAccountPin(deviceId: string, fingerprint: string): Promise<void> {
+  if (!hasBackend) {
+    const seams = accountMacSeams();
+    seams.__AIJ_ACCOUNT_MACS_CALLS__ = [...(seams.__AIJ_ACCOUNT_MACS_CALLS__ ?? []), `pin:${deviceId}:${fingerprint}`];
+    const mac = seams.__AIJ_ACCOUNT_MACS__?.macs.find((row) => row.device_id === deviceId);
+    if (mac) mac.state = "waiting";
+    return;
+  }
+  return invoke<void>("fleet_account_pin", { deviceId, fingerprint });
 }

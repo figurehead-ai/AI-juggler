@@ -36,4 +36,6 @@ pub mod proto {
 }
 
 pub use identity::{IdentityError, MachineIdentity, PublicIdentity, fingerprint_of};
-pub use registry::{PairedVia, Peer, PeerRegistry, Permission, RegistryError, TrustState};
+pub use registry::{
+    PROVISIONAL_PREFIX, PairedVia, Peer, PeerRegistry, Permission, RegistryError, TrustState,
+};

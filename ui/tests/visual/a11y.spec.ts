@@ -2694,3 +2694,41 @@ for (const theme of ["dark", "light"] as const) {
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
   });
 }
+
+/** AJ-E1206 a11y (both themes): Your Macs on Figurehead and the
+ * fingerprint comparison scan axe-clean; "Pair" stays disabled until the
+ * match is confirmed; Escape closes without pairing. */
+for (const theme of ["dark", "light"] as const) {
+  test(`account macs and compare — axe 0 — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ fixture, theme: t }) => {
+        const w = window as unknown as Record<string, unknown>;
+        w.__AIJ_FIXTURE__ = fixture;
+        w.__AIJ_FIGUREHEAD__ = {
+          state: "linked", email: "you@example.com", plan: "Free", device_name: "Studio",
+          features: [{ key: "fleetDiscovery", access: "included", tier: "free", on: true }],
+          link: null, refreshed_at_ms: Date.now(), offline: false, notice: null, consent_version: 1, consent_current: 1,
+        };
+        w.__AIJ_ACCOUNT_MACS__ = {
+          this_fingerprint: "7Q3K-M9XA-R2PD-W8HN", read_at_ms: Date.now(),
+          macs: [{ device_id: "dev_mini", name: "Mac mini", platform: "macos", fingerprint: "C4TJ-V6LE-Y1QZ-B5SF", state: "not_paired", last_seen_at: null }],
+        };
+        localStorage.setItem("aij.theme", t);
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        sessionStorage.setItem("aij.ready.skipped", "1");
+      },
+      { fixture: allStatuses, theme },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Fleet" }).click();
+    await expect(page.getByTestId("account-mac")).toHaveCount(1);
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+    await page.getByTestId("account-mac-compare").click();
+    await expect(page.getByTestId("compare-pair")).toBeDisabled();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("account-compare")).toHaveCount(0);
+  });
+}
