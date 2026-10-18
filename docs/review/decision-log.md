@@ -204,8 +204,45 @@
   Info.plist key shipped with the parked subset). Any future `unsafe`
   request requires its own recorded decision.
 
+### D-18 Optional Figurehead account: two paths (desktop / cloud) — SETTLED (2026-10-17)
+
+- Decision, in the maintainer's words: "What we have to do is always
+  offer two paths: some features are available only on desktop, some
+  on cloud, and some in both. If a user wants things easily managed
+  via cloud, then they select that and they agree to it. Those that
+  don't just don't create the account or log in, but they might miss
+  out on some features." · "AI Juggler will have an optional account.
+  The original rule is stale and will be updated." · "Let's only
+  launch with free features."
+- What it means:
+  1. **The desktop path is complete on its own.** With no account, AI
+     Juggler does everything it does today, and nothing it already
+     does ever moves behind an account. With no account it makes
+     **zero** calls to figurehead.ai.
+  2. **The cloud path is an explicit choice.** The user connects an
+     account and sees exactly which cloud features will run and what
+     each one sends; every data-sharing feature has its own toggle.
+  3. **Content is end-to-end encrypted.** Backups (and, later, config
+     and transcripts) are encrypted on the Mac; the server stores
+     ciphertext it cannot read. Vendor credentials and logins never
+     leave the Mac, whatever the setting.
+  4. **The automation policy still holds.** The app prepares; the
+     user executes. Cloud features never perform a state-changing
+     action without a click; uploading data the user turned on is not
+     a state change.
+  5. **Every cloud feature launches free.** Paid options may be
+     considered later. The app reads the account's plan and limits
+     from the server and never hard-codes which features are free or
+     paid; no payment code goes in the app, and the app stays MIT.
+- Consequences: ADR-0014 records the architecture and partly
+  supersedes ADR-0004's "cloud relay / vendor backend — rejected
+  outright" (account-based discovery is allowed; a relay stays out of
+  scope until a separate decision). The "no cloud, no account" rules
+  in README, PROPOSAL, SECURITY and SPEC §1/§8/§11 are updated in the
+  same change. Work lives in epic E12 (`docs/tasks/E12-optional-account.md`).
+
 ## Unresolved (in discussion order)
 
 - None. D-01..D-15 were marked Final on maintainer instruction
   (2026-10-13); D-16 and D-17 were settled by maintainer instruction
-  on 2026-10-13 and follow the same law.
+  on 2026-10-13, and D-18 on 2026-10-17; all follow the same law.

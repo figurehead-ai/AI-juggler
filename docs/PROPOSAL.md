@@ -64,7 +64,7 @@ AI Juggler's differentiator includes being **the most conservative tool in this 
   3. **No login automation.** Vendors' own `login` flows are triggered and nothing more.
   4. **No traffic interception.** Usage is computed from local session files (the ccusage pattern); the app never proxies or MITMs vendor traffic.
   5. **Spawn real, unmodified CLIs** with per-recipe environment isolation. No client misrepresentation.
-  6. **Local-first.** No cloud, no account, telemetry strictly opt-in.
+  6. **Local-first, account optional.** Everything works offline with no account; an optional Figurehead account adds cloud features the user turns on one by one (end-to-end encrypted backup, Fleet discovery), and usage statistics are strictly opt-in (D-18, ADR-0014).
   7. **Terms surfaced in-product** when an account is added, with a pointer to each vendor's team plans for capacity needs.
 - Residual risk is disclosed honestly: multi-account use is *tolerated-but-unaddressed* by vendors today; policy can change. The app is architected so that every feature degrades gracefully if a vendor tightens terms (e.g., usage dashboards remain valuable for a single account).
 

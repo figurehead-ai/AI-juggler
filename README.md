@@ -55,8 +55,9 @@ hacks. AI Juggler replaces that pile with one app.
 - **Compliant by design.** It manages only accounts you own, never
   automates sign-in, never shares credentials, and respects each vendor's
   per-account limits and terms. See the [proposal](./docs/PROPOSAL.md).
-- **Local-first and private.** Configs, transcripts and usage data stay on
-  your machine. Anything that leaves it is opt-in and documented.
+- **Local-first and private.** Works fully offline with no account. An
+  optional Figurehead account adds cloud features you choose to turn on
+  — each one says what it sends, and content is end-to-end encrypted.
 - **Honest UI.** Unknown values say "unknown"; estimates say "estimate";
   nothing is dressed up as measured.
 

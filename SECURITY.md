@@ -32,6 +32,8 @@ In scope:
 - Context packs: secret redaction that doesn't honour the user's policy
 - Fleet: pairing, transport security, and remote control between machines
 - The update channel: signature checks, downgrade protection
+- The optional Figurehead account client: device-token handling,
+  backup encryption, and anything that sends data the user didn't turn on
 
 Out of scope: vulnerabilities in the vendor CLIs themselves (report those
 to the vendor), and issues that need an already-compromised machine.
@@ -48,8 +50,11 @@ and the [decision log](./docs/review/decision-log.md)):
   unmodified CLIs.
 - **No writes outside AI Juggler's own managed folders.** Imports are
   byte copies; originals are never modified.
-- **Local-first.** Transcripts, usage data and indexes stay on your
-  machine; anything that leaves it is opt-in and documented.
+- **Local-first, account optional.** With no account, AI Juggler makes
+  no calls to figurehead.ai. An optional Figurehead account adds cloud
+  features the user turns on one by one; backups are encrypted on the
+  Mac and the server stores only ciphertext. Transcripts and vendor
+  credentials never leave the Mac.
 - **Signed updates only**, verified before installation.
 - **Fleet links** use mutual TLS with per-machine identity keys and a
   user-verified pairing code; vendor credentials never travel over them.

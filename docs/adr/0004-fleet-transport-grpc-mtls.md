@@ -16,7 +16,7 @@ gRPC over TLS 1.3 with **mutual certificate authentication** (`tonic` + `rustls`
 
 - **libp2p** — powerful peer networking but heavyweight and exotic for a LAN fleet; harder to audit.
 - **Plain WebSocket + JSON** — simpler, but no standard schema/versioning story and weaker tooling for streaming contracts.
-- **Cloud relay / vendor backend** — violates the local-first/privacy posture and adds a trust target; rejected outright.
+- **Cloud relay / vendor backend** — violates the local-first/privacy posture and adds a trust target; rejected outright. *(Partly superseded by [ADR-0014](./0014-optional-figurehead-account.md): an optional account may act as a discovery directory for the user's own Macs; a relay remains out of scope.)*
 
 ## Consequences
 
