@@ -19,6 +19,7 @@ pub mod fleet;
 pub mod focus;
 pub mod identity;
 pub mod link;
+pub mod overnight;
 pub mod parked;
 pub mod preview;
 pub mod remote;
@@ -175,6 +176,8 @@ pub fn run() {
             remote::fleet_remote_stop,
             remote::fleet_remote_focus,
             remote::fleet_remote_clean,
+            overnight::overnight_summary,
+            overnight::overnight_summary_seen,
             parked::instance_park,
             parked::parked_list,
             parked::parked_offers,

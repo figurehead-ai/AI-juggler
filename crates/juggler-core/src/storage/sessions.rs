@@ -67,7 +67,55 @@ impl SessionsRepo<'_> {
                 serde_json::to_string(&session.window).ok(),
             ],
         )?;
+        self.journal(session.id.as_str(), None, session.status.as_str())?;
         Ok(())
+    }
+
+    /// AJ-E1004: appends one status transition to the journal (the single
+    /// source the overnight summary reads; never rewritten).
+    fn journal(&self, id: &str, from: Option<&str>, to: &str) -> Result<(), CoreError> {
+        self.conn.execute(
+            "INSERT INTO instance_transitions (session_id, from_status, to_status, at_ms)
+             VALUES (?1, ?2, ?3, ?4)",
+            params![id, from, to, Timestamp::now().millis()],
+        )?;
+        Ok(())
+    }
+
+    /// AJ-E1004: every status transition of `id`, oldest first:
+    /// `(from, to, at_ms)` — `from` is `None` for the first one.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn transitions(
+        &self,
+        id: &SessionId,
+    ) -> Result<Vec<(Option<String>, String, i64)>, CoreError> {
+        let mut statement = self.conn.prepare(
+            "SELECT from_status, to_status, at_ms FROM instance_transitions
+             WHERE session_id = ?1 ORDER BY rowid",
+        )?;
+        let rows = statement.query_map(params![id.as_str()], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+        })?;
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(CoreError::Storage)
+    }
+
+    /// AJ-E1004: the Instances that changed status since `since_ms`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn changed_since(&self, since_ms: i64) -> Result<Vec<SessionId>, CoreError> {
+        let mut statement = self
+            .conn
+            .prepare("SELECT DISTINCT session_id FROM instance_transitions WHERE at_ms >= ?1")?;
+        let rows = statement.query_map(params![since_ms], |row| row.get::<_, String>(0))?;
+        rows.map(|row| row.map(SessionId::new))
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(CoreError::Storage)
     }
 
     /// Updates an existing session record by id.
@@ -78,6 +126,14 @@ impl SessionsRepo<'_> {
     /// [`CoreError::Storage`] on SQLite failures, or
     /// [`CoreError::Serialization`] for values that cannot be stored.
     pub fn update(&self, session: &InstanceRecord) -> Result<(), CoreError> {
+        let before: Option<String> = self
+            .conn
+            .query_row(
+                "SELECT status FROM instances WHERE id = ?1",
+                params![session.id.as_str()],
+                |row| row.get(0),
+            )
+            .optional()?;
         let changed = self.conn.execute(
             "UPDATE instances SET
                  conversation_id = ?2, status = ?3, last_activity = ?4,
@@ -105,7 +161,13 @@ impl SessionsRepo<'_> {
                 serde_json::to_string(&session.window).ok(),
             ],
         )?;
-        super::accounts::require_changed(changed, "session", session.id.as_str())
+        super::accounts::require_changed(changed, "session", session.id.as_str())?;
+        if let Some(before) = before
+            && before != session.status.as_str()
+        {
+            self.journal(session.id.as_str(), Some(&before), session.status.as_str())?;
+        }
+        Ok(())
     }
 
     /// Fetches one session by id.
