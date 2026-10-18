@@ -68,8 +68,8 @@ fn phase(info: link::PairingStateInfo, phase: &str) -> Option<()> {
 }
 
 /// `host` grants `joiner` `grant` (the joiner then acts as a console of
-/// the host).
-fn pair(host: &Arc<AppState>, joiner: &Arc<AppState>, grant: Permission) {
+/// the host) and the joiner grants the host `back`.
+fn pair(host: &Arc<AppState>, joiner: &Arc<AppState>, grant: Permission, back: Permission) {
     let code = link::pairing_host_open_impl(host).unwrap().code.unwrap();
     let address = format!("127.0.0.1:{}", link::link_status_impl(host).port.unwrap());
     link::pairing_join_start_impl(joiner, None, Some(&address), &code).unwrap();
@@ -79,7 +79,7 @@ fn pair(host: &Arc<AppState>, joiner: &Arc<AppState>, grant: Permission) {
     wait_for("host confirm", || {
         phase(link::pairing_host_state_impl(host).unwrap(), "confirm")
     });
-    link::pairing_join_decide_impl(joiner, true, Permission::View).unwrap();
+    link::pairing_join_decide_impl(joiner, true, back).unwrap();
     link::pairing_host_decide_impl(host, true, grant).unwrap();
     wait_for("paired", || {
         (phase(link::pairing_join_state_impl(joiner).unwrap(), "paired").is_some()
@@ -114,10 +114,15 @@ struct Pair {
     desktop_project: String,
     desktop_root: PathBuf,
     desktop_account: String,
+    laptop_account: String,
     laptop_cwd: String,
 }
 
 fn setup(desktop_version: &str, same_path: bool, grant: Permission) -> Pair {
+    setup_both(desktop_version, same_path, grant, Permission::View)
+}
+
+fn setup_both(desktop_version: &str, same_path: bool, grant: Permission, back: Permission) -> Pair {
     let work = tempfile::tempdir().unwrap();
     let laptop = app_state(&work.path().join("laptop"), "2.1.0");
     let desktop = app_state(&work.path().join("desktop"), desktop_version);
@@ -192,7 +197,7 @@ fn setup(desktop_version: &str, same_path: bool, grant: Permission) -> Pair {
     link::link_set_enabled_impl(&laptop, true).unwrap();
     link::link_set_enabled_impl(&desktop, true).unwrap();
     // The desktop grants the laptop `grant` (the laptop is its console).
-    pair(&desktop, &laptop, grant);
+    pair(&desktop, &laptop, grant, back);
     Pair {
         _work: work,
         laptop,
@@ -203,6 +208,7 @@ fn setup(desktop_version: &str, same_path: bool, grant: Permission) -> Pair {
         desktop_project,
         desktop_root,
         desktop_account: desktop_account.id,
+        laptop_account: account.id,
         laptop_cwd: cwd,
     }
 }
@@ -260,7 +266,9 @@ fn last_args(state: &Arc<AppState>, account: &str) -> String {
         .join(CLAUDE_CODE_ID)
         .join(account)
         .join("last-args");
-    wait_for("the destination launched", || std::fs::read_to_string(&path).ok())
+    wait_for("the destination launched", || {
+        std::fs::read_to_string(&path).ok()
+    })
 }
 
 fn sha(path: &Path) -> String {
@@ -276,11 +284,22 @@ fn t2_at_the_same_path_switches_to_the_other_mac_with_shared_lineage() {
     assert_eq!(row.mechanism, "transplant");
     assert!(row.badge.ends_with("· Unvalidated"), "{}", row.badge);
     assert!(!row.validated);
-    assert_eq!(row.same_path_project.as_deref(), Some(pair.desktop_project.as_str()));
+    assert_eq!(
+        row.same_path_project.as_deref(),
+        Some(pair.desktop_project.as_str())
+    );
 
     // Browsing targets moved nothing: no handover on either side.
-    assert!(!audit_kinds(&pair.desktop).iter().any(|k| k.starts_with("handover")));
-    assert!(!audit_kinds(&pair.laptop).iter().any(|k| k.starts_with("handover")));
+    assert!(
+        !audit_kinds(&pair.desktop)
+            .iter()
+            .any(|k| k.starts_with("handover"))
+    );
+    assert!(
+        !audit_kinds(&pair.laptop)
+            .iter()
+            .any(|k| k.starts_with("handover"))
+    );
     let before = sha(&pair.source_transcript);
 
     let (outcome, progress) = execute(&pair, request(&pair, "transplant"));
@@ -293,7 +312,10 @@ fn t2_at_the_same_path_switches_to_the_other_mac_with_shared_lineage() {
 
     // The desktop resumed the transplanted native session in its project.
     let args = last_args(&pair.desktop, &pair.desktop_account);
-    assert!(args.contains("--resume") && args.contains("native-5"), "{args}");
+    assert!(
+        args.contains("--resume") && args.contains("native-5"),
+        "{args}"
+    );
     let desktop_row = {
         let storage = pair.desktop.storage.lock().unwrap();
         storage
@@ -342,7 +364,10 @@ fn t2_at_the_same_path_switches_to_the_other_mac_with_shared_lineage() {
             .sessions()
             .get(&juggler_core::model::SessionId::new(pair.source.clone()))
             .unwrap();
-        assert_eq!(source.status, juggler_core::model::SessionStatus::HandedOver);
+        assert_eq!(
+            source.status,
+            juggler_core::model::SessionStatus::HandedOver
+        );
     }
     // Audited on both machines.
     assert!(audit_kinds(&pair.laptop).contains(&"handover_sent".to_owned()));
@@ -353,13 +378,20 @@ fn t2_at_the_same_path_switches_to_the_other_mac_with_shared_lineage() {
 fn another_checkout_path_needs_a_confirmed_mapping_and_the_session_is_remapped() {
     let pair = setup("2.1.0", false, Permission::Control);
     let row = target(&pair, "needs_mapping");
-    assert!(row.blockers[0].contains("isn't at the same path"), "{:?}", row.blockers);
+    assert!(
+        row.blockers[0].contains("isn't at the same path"),
+        "{:?}",
+        row.blockers
+    );
     let copy = row
         .projects
         .iter()
         .find(|project| project.project_id == pair.desktop_project)
         .unwrap();
-    assert!(copy.same_name && !copy.same_path, "a suggestion, never assumed");
+    assert!(
+        copy.same_name && !copy.same_path,
+        "a suggestion, never assumed"
+    );
 
     // Unmapped: T2 is blocked with an explanation.
     let (refused, _) = execute(&pair, request(&pair, "transplant"));
@@ -368,7 +400,11 @@ fn another_checkout_path_needs_a_confirmed_mapping_and_the_session_is_remapped()
     let mut unconfirmed = request(&pair, "transplant");
     unconfirmed.project_id = Some(pair.desktop_project.clone());
     assert!(execute(&pair, unconfirmed).0.is_err());
-    assert!(!audit_kinds(&pair.desktop).iter().any(|k| k.starts_with("handover")));
+    assert!(
+        !audit_kinds(&pair.desktop)
+            .iter()
+            .any(|k| k.starts_with("handover"))
+    );
 
     let mut confirmed = request(&pair, "transplant");
     confirmed.project_id = Some(pair.desktop_project.clone());
@@ -389,7 +425,10 @@ fn another_checkout_path_needs_a_confirmed_mapping_and_the_session_is_remapped()
     };
     let text = std::fs::read_to_string(installed).unwrap();
     let target_root = pair.desktop_root.to_string_lossy().into_owned();
-    assert!(text.contains(&format!("\"cwd\":\"{target_root}\"")), "{text}");
+    assert!(
+        text.contains(&format!("\"cwd\":\"{target_root}\"")),
+        "{text}"
+    );
     assert!(
         !text.contains(&format!("\"cwd\":\"{}\"", pair.laptop_cwd)),
         "every working directory follows the mapping"
@@ -419,7 +458,10 @@ fn a_version_mismatch_blocks_t2_offers_t3_and_never_downgrades_silently() {
     let outcome = execute(&pair, replay).0.unwrap();
     assert!(outcome.accepted, "{outcome:?}");
     let args = last_args(&pair.desktop, &pair.desktop_account);
-    assert!(args.contains("add the checkout page"), "primed with the turns: {args}");
+    assert!(
+        args.contains("add the checkout page"),
+        "primed with the turns: {args}"
+    );
     assert!(
         !args.contains("SECRETSECRET"),
         "the secret never reached the other Mac: {args}"
@@ -438,7 +480,11 @@ fn a_view_only_pairing_lists_the_machine_but_cannot_switch_to_it() {
         row.blockers
     );
     assert!(execute(&pair, request(&pair, "transplant")).0.is_err());
-    assert!(!audit_kinds(&pair.desktop).iter().any(|k| k.starts_with("handover")));
+    assert!(
+        !audit_kinds(&pair.desktop)
+            .iter()
+            .any(|k| k.starts_with("handover"))
+    );
 }
 
 #[test]
@@ -466,5 +512,228 @@ fn the_destination_rechecks_at_execution_and_the_edge_records_the_failure() {
         .sessions()
         .get(&juggler_core::model::SessionId::new(pair.source.clone()))
         .unwrap();
-    assert_ne!(source.status, juggler_core::model::SessionStatus::HandedOver);
+    assert_ne!(
+        source.status,
+        juggler_core::model::SessionStatus::HandedOver
+    );
+}
+
+// ------------------------------------------------- switch-back (D-05)
+
+/// A → B by T2, then the away session on B gains two turns.
+fn switched_and_worked(pair: &Pair) -> String {
+    let _ = target(pair, "t2_ready");
+    let outcome = execute(pair, request(pair, "transplant")).0.unwrap();
+    assert!(outcome.accepted, "{outcome:?}");
+    let away = outcome.instance_id.unwrap();
+    let installed = {
+        let storage = pair.desktop.storage.lock().unwrap();
+        storage
+            .sessions()
+            .get(&juggler_core::model::SessionId::new(away.clone()))
+            .unwrap()
+            .transcript_ref
+            .unwrap()
+            .path
+    };
+    let cwd = pair.desktop_root.to_string_lossy().into_owned();
+    append_turn(&installed, "u3", "user", "now the payment form", &cwd);
+    append_turn(&installed, "u4", "assistant", "payment form added", &cwd);
+    away
+}
+
+fn back_plan(pair: &Pair, away: &str) -> crossmachine::switch_back::FleetSwitchBackPlanInfo {
+    wait_for("a switch-back plan", || {
+        crossmachine::switch_back::fleet_switch_back_plan_impl(&pair.desktop, away)
+            .unwrap()
+            .filter(|plan| plan.blockers.is_empty())
+    })
+}
+
+fn switch_back(pair: &Pair, away: &str, choice: &str) -> crossmachine::FleetSwitchOutcomeInfo {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    runtime
+        .block_on(crossmachine::switch_back::fleet_switch_back_execute_impl(
+            Arc::clone(&pair.desktop),
+            away.to_owned(),
+            choice.to_owned(),
+            false,
+            |_| {},
+        ))
+        .unwrap()
+}
+
+fn clear_args(state: &Arc<AppState>, account: &str) {
+    let _ = std::fs::remove_file(
+        state
+            .accounts_dir()
+            .join(CLAUDE_CODE_ID)
+            .join(account)
+            .join("last-args"),
+    );
+}
+
+#[test]
+fn switching_back_resumes_the_original_with_one_delta_turn_and_never_copies_back() {
+    let pair = setup_both("2.1.0", true, Permission::Control, Permission::Control);
+    let away = switched_and_worked(&pair);
+    let original_before = sha(&pair.source_transcript);
+    let plan = back_plan(&pair, &away);
+    assert_eq!(plan.original_machine_label, "Laptop");
+    assert_eq!(plan.new_turns, 2, "only the turns added while away");
+    assert!(
+        plan.delta_preview.contains("payment form"),
+        "{}",
+        plan.delta_preview
+    );
+    assert!(
+        !plan.delta_preview.contains("add the checkout page"),
+        "turns the original already has are never re-sent"
+    );
+    clear_args(&pair.laptop, &pair.laptop_account);
+    let outcome = switch_back(&pair, &away, "");
+    assert!(outcome.accepted, "{outcome:?}");
+    // The laptop resumed the ORIGINAL native session with the one turn.
+    let args = last_args(&pair.laptop, &pair.laptop_account);
+    assert!(
+        args.contains("--resume") && args.contains("native-5"),
+        "{args}"
+    );
+    assert!(args.contains("While you were away"), "{args}");
+    // The copy-back ban: the original's bytes never changed.
+    assert_eq!(sha(&pair.source_transcript), original_before);
+    // The same switch-back edge on both machines, confirmed.
+    let edge = juggler_core::model::SwitchEdgeId::new(outcome.edge_id.unwrap());
+    for state in [&pair.laptop, &pair.desktop] {
+        let storage = state.storage.lock().unwrap();
+        let found = storage.switch_graph().edge(&edge).unwrap();
+        assert!(matches!(
+            found.state,
+            juggler_core::model::EdgeState::Confirmed
+        ));
+        assert_eq!(
+            found.mechanism,
+            juggler_core::model::SwitchMechanism::NativeResume
+        );
+    }
+    let storage = pair.desktop.storage.lock().unwrap();
+    let away_row = storage
+        .sessions()
+        .get(&juggler_core::model::SessionId::new(away))
+        .unwrap();
+    assert_eq!(
+        away_row.status,
+        juggler_core::model::SessionStatus::HandedOver
+    );
+}
+
+#[test]
+fn a_diverged_original_blocks_switch_back_until_the_user_chooses() {
+    let pair = setup_both("2.1.0", true, Permission::Control, Permission::Control);
+    let away = switched_and_worked(&pair);
+    // Meanwhile the laptop's original moved on too.
+    append_turn(
+        &pair.source_transcript,
+        "u9",
+        "user",
+        "quick fix on the laptop",
+        &pair.laptop_cwd,
+    );
+    let original_after = sha(&pair.source_transcript);
+    let _ = back_plan(&pair, &away);
+    clear_args(&pair.laptop, &pair.laptop_account);
+
+    let refused = switch_back(&pair, &away, "");
+    assert!(!refused.accepted);
+    assert_eq!(refused.reason_code.as_deref(), Some("diverged"));
+    let divergence = refused.divergence.unwrap();
+    assert_eq!(divergence.turns_since, 1, "the exact count, never 'some'");
+    assert!(divergence.last_activity_ms.is_some());
+    std::thread::sleep(Duration::from_millis(300));
+    assert!(
+        !pair
+            .laptop
+            .accounts_dir()
+            .join(CLAUDE_CODE_ID)
+            .join(&pair.laptop_account)
+            .join("last-args")
+            .exists(),
+        "nothing ran on the laptop"
+    );
+    {
+        let storage = pair.desktop.storage.lock().unwrap();
+        let edge = storage
+            .switch_graph()
+            .edge(&juggler_core::model::SwitchEdgeId::new(
+                refused.edge_id.unwrap(),
+            ))
+            .unwrap();
+        assert!(matches!(
+            edge.state,
+            juggler_core::model::EdgeState::Failed { .. }
+        ));
+    }
+
+    // Keep both: a copy of the original resumes; the original stays.
+    let both = switch_back(&pair, &away, "keep_both");
+    assert!(both.accepted, "{both:?}");
+    let args = last_args(&pair.laptop, &pair.laptop_account);
+    assert!(
+        args.contains("--resume") && !args.contains("native-5"),
+        "a fork id: {args}"
+    );
+    assert_eq!(
+        sha(&pair.source_transcript),
+        original_after,
+        "the original is untouched"
+    );
+    let forks: Vec<_> = std::fs::read_dir(pair.source_transcript.parent().unwrap())
+        .unwrap()
+        .filter_map(Result::ok)
+        .filter(|entry| entry.file_name().to_string_lossy().ends_with(".jsonl"))
+        .collect();
+    assert_eq!(forks.len(), 2, "the original plus its fork");
+}
+
+#[test]
+fn keep_mine_resumes_the_diverged_original_and_a_running_original_is_refused() {
+    let pair = setup_both("2.1.0", true, Permission::Control, Permission::Control);
+    let away = switched_and_worked(&pair);
+    append_turn(
+        &pair.source_transcript,
+        "u9",
+        "user",
+        "quick fix on the laptop",
+        &pair.laptop_cwd,
+    );
+    let _ = back_plan(&pair, &away);
+    // While the original runs on the laptop, nothing may resume it.
+    {
+        let storage = pair.laptop.storage.lock().unwrap();
+        let mut row = storage
+            .sessions()
+            .get(&juggler_core::model::SessionId::new(pair.source.clone()))
+            .unwrap();
+        row.status = juggler_core::model::SessionStatus::Running;
+        storage.sessions().update(&row).unwrap();
+    }
+    let busy = switch_back(&pair, &away, "keep_mine");
+    assert_eq!(busy.reason_code.as_deref(), Some("busy"));
+    {
+        let storage = pair.laptop.storage.lock().unwrap();
+        let mut row = storage
+            .sessions()
+            .get(&juggler_core::model::SessionId::new(pair.source.clone()))
+            .unwrap();
+        row.status = juggler_core::model::SessionStatus::HandedOver;
+        storage.sessions().update(&row).unwrap();
+    }
+    clear_args(&pair.laptop, &pair.laptop_account);
+    let mine = switch_back(&pair, &away, "keep_mine");
+    assert!(mine.accepted, "{mine:?}");
+    let args = last_args(&pair.laptop, &pair.laptop_account);
+    assert!(
+        args.contains("native-5") && args.contains("While you were away"),
+        "{args}"
+    );
 }

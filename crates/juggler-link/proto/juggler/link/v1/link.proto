@@ -299,7 +299,8 @@ message SwitchBack {
   string new_epoch_id = 4;
   string work_id = 5;
   uint64 bundle_bytes = 6;
-  // "" = refuse if diverged; "keep_theirs" = resume the original anyway;
+  // "" = refuse if the original diverged; "keep_mine" = resume the
+  // original anyway (its newer turns stay, the delta follows them);
   // "keep_both" = fork the original and resume the fork.
   string divergence_choice = 7;
   string from_provider_id = 8;

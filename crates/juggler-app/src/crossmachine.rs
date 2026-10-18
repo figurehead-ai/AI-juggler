@@ -779,17 +779,38 @@ pub async fn fleet_switch_execute_impl(
         total_bytes: total,
     });
     let ids = stage_edge(&state, &request, &planned, &bundle.native_id)?;
-    let (outcome, sequence) = match push(
+    record_origin(&state, &request, &ids);
+    let (_, account, _, _) = source_of(&state, &request.session_id)?;
+    let take = proto::TakeHandover {
+        recipe_id: request.recipe_id.clone(),
+        project_id: planned.project_id.clone(),
+        mechanism: request.mechanism.clone(),
+        bundle_bytes: 0,
+        work_id: ids.work.to_string(),
+        from_epoch_id: ids.from_epoch.to_string(),
+        edge_id: ids.edge.to_string(),
+        to_epoch_id: ids.to_epoch.to_string(),
+        from_provider_id: account.harness.to_string(),
+        from_account_label: account.label,
+        from_native_id: bundle.native_id.clone(),
+        fidelity_shown: planned.target.fidelity.clone(),
+    };
+    let build = move |total| {
+        proto::control_command::Action::TakeHandover(proto::TakeHandover {
+            bundle_bytes: total,
+            ..take
+        })
+    };
+    let pushed = push(
         &state,
-        &request,
-        &planned,
-        &bundle,
+        &request.machine_id,
+        &planned.target.machine_label,
+        build,
         bytes,
-        &ids,
         &mut on_progress,
     )
-    .await
-    {
+    .await;
+    let (outcome, sequence) = match pushed {
         Ok(pushed) => pushed,
         Err(error) => {
             mark_failed(&state, &ids, &error.wire().user_message);
@@ -801,6 +822,44 @@ pub async fn fleet_switch_execute_impl(
     )
 }
 
+/// The original transcript as it was when the work left (name, sha256,
+/// length) — what switch-back compares against to tell whether the
+/// original moved on here meanwhile (AJ-E708 Req.4: lineage is never
+/// auto-merged).
+fn record_origin(state: &Arc<AppState>, request: &FleetSwitchRequest, ids: &PushIds) {
+    let Ok((source, _, _, _)) = source_of(state, &request.session_id) else {
+        return;
+    };
+    let Some(reference) = source.transcript_ref else {
+        return;
+    };
+    record_transcript_row(state, &ids.edge, &reference.path);
+}
+
+/// Appends one transcript row (name, sha256, length) to `edge`'s
+/// manifest.
+fn record_transcript_row(state: &Arc<AppState>, edge: &SwitchEdgeId, path: &Path) {
+    let Ok(bytes) = std::fs::read(path) else {
+        return;
+    };
+    let name = path
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    if let Ok(storage) = state.storage.lock() {
+        let _ = storage.switch_graph().append_manifest(
+            edge,
+            &[juggler_core::model::ManifestEntry {
+                rel_path: name,
+                sha256: juggler_adapter::handover::sha256_hex(&bytes),
+                bytes: bytes.len() as u64,
+                kind: "transcript".to_owned(),
+                disposition: "copy".to_owned(),
+            }],
+        );
+    }
+}
+
 fn mark_failed(state: &Arc<AppState>, ids: &PushIds, reason: &str) {
     if let Ok(storage) = state.storage.lock() {
         let _ = storage
@@ -809,58 +868,41 @@ fn mark_failed(state: &Arc<AppState>, ids: &PushIds, reason: &str) {
     }
 }
 
-/// Pushes the bundle to the destination (cancellable through
+/// Pushes `bytes` with `action` to `machine_id` (cancellable through
 /// [`fleet_switch_cancel_impl`]); returns its final word and the command
 /// sequence used.
-async fn push(
+pub(crate) async fn push(
     state: &Arc<AppState>,
-    request: &FleetSwitchRequest,
-    planned: &Planned,
-    bundle: &proto::HandoverBundle,
+    machine_id: &str,
+    machine_label: &str,
+    build: impl FnOnce(u64) -> proto::control_command::Action,
     bytes: Vec<u8>,
-    ids: &PushIds,
     on_progress: &mut (impl FnMut(FleetSwitchProgressInfo) + Send),
 ) -> AppResult<(proto::HandoverProgress, u64)> {
-    let machine = request.machine_id.clone();
     let total = bytes.len() as u64;
     let peer = crate::remote::target_views(&state.link.remote)
         .into_iter()
-        .find(|(id, _)| id == &machine)
+        .find(|(id, _)| id == machine_id)
         .and_then(|(_, view)| view.peer)
         .ok_or_else(|| AppError::Io {
             context: "hand over",
-            message: format!("{} went offline", planned.target.machine_label),
+            message: format!("{machine_label} went offline"),
         })?;
-    let sequence = crate::remote::next_command_sequence(state, &machine)?;
+    let sequence = crate::remote::next_command_sequence(state, machine_id)?;
     let own = crate::commands::local_machine_id(state).to_string();
-    let (_, account, _, _) = source_of(state, &request.session_id)?;
-    let action = proto::control_command::Action::TakeHandover(proto::TakeHandover {
-        recipe_id: request.recipe_id.clone(),
-        project_id: planned.project_id.clone(),
-        mechanism: request.mechanism.clone(),
-        bundle_bytes: total,
-        work_id: ids.work.to_string(),
-        from_epoch_id: ids.from_epoch.to_string(),
-        edge_id: ids.edge.to_string(),
-        to_epoch_id: ids.to_epoch.to_string(),
-        from_provider_id: account.harness.to_string(),
-        from_account_label: account.label,
-        from_native_id: bundle.native_id.clone(),
-        fidelity_shown: planned.target.fidelity.clone(),
-    });
     let (cancel, watch) = tokio::sync::watch::channel(false);
     if let Ok(mut map) = state.link.handover_cancel.lock() {
-        map.insert(machine.clone(), cancel);
+        map.insert(machine_id.to_owned(), cancel);
     }
     let pushed = juggler_link::client::push_handover(
         &peer,
         &own,
         sequence,
-        action,
+        build(total),
         bytes,
         |update| {
             on_progress(FleetSwitchProgressInfo {
-                machine_id: machine.clone(),
+                machine_id: machine_id.to_owned(),
                 phase: update.phase.clone(),
                 received_bytes: update.received_bytes,
                 total_bytes: total,
@@ -870,7 +912,7 @@ async fn push(
     )
     .await;
     if let Ok(mut map) = state.link.handover_cancel.lock() {
-        map.remove(&machine);
+        map.remove(machine_id);
     }
     let outcome = pushed.map_err(|error| AppError::Io {
         context: "hand over",
@@ -939,7 +981,7 @@ fn conclude(
     })
 }
 
-fn divergence_info(divergence: proto::Divergence) -> DivergenceInfo {
+pub(crate) fn divergence_info(divergence: proto::Divergence) -> DivergenceInfo {
     DivergenceInfo {
         turns_since: divergence.turns_since,
         last_activity_ms: Some(divergence.last_activity_ms).filter(|at| *at > 0),
@@ -996,7 +1038,7 @@ pub fn fleet_switch_cancel_impl(state: &Arc<AppState>, machine_id: &str) -> bool
 
 // --------------------------------------------------------------- the node
 
-fn refuse(code: &str, message: impl Into<String>) -> HandoverRejection {
+pub(crate) fn refuse(code: &str, message: impl Into<String>) -> HandoverRejection {
     HandoverRejection {
         reason_code: code.to_owned(),
         message: message.into(),
@@ -1064,6 +1106,7 @@ fn take_work(
     use juggler_adapter::LaunchMode;
 
     let (profile, account, project) = resolve_here(state, &take.recipe_id, &take.project_id)?;
+    let mut base_path = None;
     let (mode, transcript, native_id, mechanism) = match take.mechanism.as_str() {
         "transplant" => {
             if bundle.provider_id != account.harness.as_str() {
@@ -1087,6 +1130,7 @@ fn take_work(
             }
             let install = install_transplant(state, &account, &project.root, bundle)?;
             let native = install.reference.native_id.clone().unwrap_or_default();
+            base_path = Some(install.reference.path.clone());
             (
                 LaunchMode::Resume {
                     session_id: native.clone(),
@@ -1123,6 +1167,11 @@ fn take_work(
         mechanism,
     )
     .map_err(|e| refuse("internal", e.wire().user_message))?;
+    // The away copy as installed (its base): switch-back renders only
+    // the turns added after it.
+    if let Some(path) = base_path {
+        record_transcript_row(state, &SwitchEdgeId::new(take.edge_id.clone()), &path);
+    }
     Ok(HandoverAccepted {
         message: format!("Continuing under {} in {}", account.label, project.name),
         instance_id: session.to_string(),
