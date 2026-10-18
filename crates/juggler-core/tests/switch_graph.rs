@@ -294,7 +294,10 @@ fn migration_up_from_earlier_schema_preserves_rows() {
         storage
             .raw_conn()
             .execute_batch(
-                "DROP TABLE instance_lifecycle;
+                "DROP TABLE transcript_fts;
+                 DROP TABLE transcript_lines;
+                 DROP TABLE transcript_index_state;
+                 DROP TABLE instance_lifecycle;
                  DROP TABLE instance_transitions;
                  DROP TABLE identity_assertions;
                  DROP TABLE fleet_replica_hw;

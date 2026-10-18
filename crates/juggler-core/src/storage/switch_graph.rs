@@ -368,6 +368,35 @@ impl SwitchGraphRepo<'_> {
         Ok(out)
     }
 
+    /// AJ-E1007: every edge an Instance took part in, oldest first, with
+    /// `true` when the work left from it (its epoch is the edge's source)
+    /// and `false` when the work arrived at it.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn edges_for_session(
+        &self,
+        session_ref: &str,
+    ) -> Result<Vec<(SwitchEdge, bool)>, CoreError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT e.*, (e.from_epoch IN (SELECT id FROM epochs WHERE session_ref = ?1)) AS outgoing
+               FROM switch_edges e
+              WHERE e.from_epoch IN (SELECT id FROM epochs WHERE session_ref = ?1)
+                 OR e.to_epoch IN (SELECT id FROM epochs WHERE session_ref = ?1)
+              ORDER BY e.rowid",
+        )?;
+        let rows = stmt.query_map(params![session_ref], |row| {
+            let outgoing: bool = row.get("outgoing")?;
+            Ok((map_edge(row)?, outgoing))
+        })?;
+        let mut out = Vec::new();
+        for row in rows {
+            out.push(row?);
+        }
+        Ok(out)
+    }
+
     /// Appends an edge's artifact manifest rows (INSERT only).
     ///
     /// # Errors

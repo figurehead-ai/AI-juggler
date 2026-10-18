@@ -19,6 +19,7 @@ mod process_ledger;
 mod projects;
 mod settings;
 mod switch_graph;
+mod transcript_index;
 mod usage;
 
 use std::path::Path;
@@ -42,6 +43,9 @@ pub use projects::ProjectsRepo;
 pub use sessions::SessionsRepo;
 pub use settings::AppSettingsRepo;
 pub use switch_graph::{SwitchGraphRepo, WorkGraph};
+pub use transcript_index::{
+    IndexState, IndexedLine, TranscriptIndexRepo, fts_expression, line_text,
+};
 pub use usage::{UsageRepo, anchor_settings_key, cap_settings_key};
 
 use crate::error::CoreError;
@@ -178,6 +182,32 @@ CREATE TABLE instance_lifecycle (
     at_ms      INTEGER NOT NULL
 );
 CREATE INDEX idx_instance_lifecycle_session ON instance_lifecycle(session_id);
+";
+
+/// Schema version 27 (AJ-E1007): the local transcript search index. A
+/// contentless FTS5 table holds the search terms only, never a second
+/// copy of the conversation; each row points back at a line of the
+/// original transcript (`transcript_lines`), and `transcript_index_state`
+/// records how much of each transcript is indexed (incremental).
+const V27: &str = "
+CREATE VIRTUAL TABLE transcript_fts USING fts5(
+    body,
+    content = '',
+    contentless_delete = 1,
+    tokenize = 'unicode61 remove_diacritics 2'
+);
+CREATE TABLE transcript_lines (
+    rowid      INTEGER PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    offset     INTEGER NOT NULL,
+    len        INTEGER NOT NULL
+);
+CREATE INDEX idx_transcript_lines_session ON transcript_lines(session_id);
+CREATE TABLE transcript_index_state (
+    session_id    TEXT PRIMARY KEY,
+    path          TEXT NOT NULL,
+    indexed_bytes INTEGER NOT NULL
+);
 ";
 
 /// Ordered, forward-only migrations; index + 1 is the schema version.
@@ -457,7 +487,7 @@ CREATE TABLE artifact_manifests (
 
 const MIGRATIONS: &[&str] = &[
     V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21,
-    V22, V23, V24, V25, V26,
+    V22, V23, V24, V25, V26, V27,
 ];
 
 /// An opened AI Juggler database with typed repositories.
@@ -575,6 +605,13 @@ impl Storage {
     #[must_use]
     pub fn switch_graph(&self) -> SwitchGraphRepo<'_> {
         SwitchGraphRepo::new(&self.conn)
+    }
+
+    /// Repository for the local transcript search index (schema v27,
+    /// AJ-E1007).
+    #[must_use]
+    pub fn transcript_index(&self) -> TranscriptIndexRepo<'_> {
+        TranscriptIndexRepo::new(&self.conn)
     }
 
     /// Repository for per-Instance identity assertions (schema v24,
