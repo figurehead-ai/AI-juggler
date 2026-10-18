@@ -34,6 +34,9 @@ use crate::verify::{Expected, ServerKeyVerifier, provider};
 
 type Outbound = tokio::sync::mpsc::Sender<Result<proto::PairMessage, Status>>;
 
+/// The server key and TLS exporter a pairing connection actually used.
+type SeenSession = ([u8; 32], [u8; 32]);
+
 fn window() -> Duration {
     Duration::from_millis(u64::try_from(PAIRING_WINDOW_MS).unwrap_or(120_000))
 }
@@ -294,27 +297,14 @@ pub struct JoinedHost {
     pub permission: Permission,
 }
 
-/// Joins the host at `addr` with `input`. `confirm` shows the host's
-/// label + fingerprint to this Mac's user and resolves to the permission
-/// to grant, or `None` for Cancel.
-///
-/// # Errors
-///
-/// Returns [`JoinError`] naming the failure.
-pub async fn pair_with<F, Fut>(
+/// Opens the pairing connection: TLS 1.3 with an UNPINNED verifier,
+/// returning the channel plus the server key and exporter this session
+/// actually used (what the transcript must bind).
+async fn connect_unpinned(
     addr: SocketAddr,
     certificate: &NodeCertificate,
-    own_key: [u8; 32],
-    own_machine_id: &str,
-    own_label: &str,
-    input: &PairingInput,
-    confirm: F,
-) -> Result<JoinedHost, JoinError>
-where
-    F: FnOnce(PairCandidate) -> Fut,
-    Fut: std::future::Future<Output = Option<Permission>>,
-{
-    let seen: Arc<Mutex<Option<([u8; 32], [u8; 32])>>> = Arc::default();
+) -> Result<(tonic::transport::Channel, [u8; 32], [u8; 32]), JoinError> {
+    let seen: Arc<Mutex<Option<SeenSession>>> = Arc::default();
     let mut config = rustls::ClientConfig::builder_with_provider(provider())
         .with_protocol_versions(&[&rustls::version::TLS13])
         .map_err(|e| JoinError::Connect(e.to_string()))?
@@ -358,6 +348,30 @@ where
         .ok()
         .and_then(|slot| *slot)
         .ok_or_else(|| JoinError::Connect("no TLS session".to_owned()))?;
+    Ok((channel, host_key, exporter))
+}
+
+/// Joins the host at `addr` with `input`. `confirm` shows the host's
+/// label + fingerprint to this Mac's user and resolves to the permission
+/// to grant, or `None` for Cancel.
+///
+/// # Errors
+///
+/// Returns [`JoinError`] naming the failure.
+pub async fn pair_with<F, Fut>(
+    addr: SocketAddr,
+    certificate: &NodeCertificate,
+    own_key: [u8; 32],
+    own_machine_id: &str,
+    own_label: &str,
+    input: &PairingInput,
+    confirm: F,
+) -> Result<JoinedHost, JoinError>
+where
+    F: FnOnce(PairCandidate) -> Fut,
+    Fut: std::future::Future<Output = Option<Permission>>,
+{
+    let (channel, host_key, exporter) = connect_unpinned(addr, certificate).await?;
     if let Some(expected) = &input.expected_fingerprint
         && fingerprint_of(&host_key).replace(' ', "") != *expected
     {

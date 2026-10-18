@@ -13,6 +13,7 @@
 
 pub mod cert;
 pub mod client;
+pub mod discovery;
 pub mod identity;
 pub mod node;
 pub mod pairing;

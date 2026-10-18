@@ -329,3 +329,45 @@ async fn a_pairing_link_with_another_fingerprint_is_refused_before_any_guess() {
     let good = PairingInput::link(&code, &w.host_identity.public().fingerprint());
     assert!(w.join(&good, Some(Permission::View)).await.is_ok());
 }
+
+/// Live mDNS on this machine's network (multicast is often unavailable
+/// on CI runners, so this runs explicitly):
+/// `cargo test -p juggler-link --test pairing -- --ignored mdns`
+#[test]
+#[ignore = "needs a multicast-capable network interface"]
+fn mdns_advertise_browse_and_withdraw() {
+    use juggler_link::discovery::{Advertiser, Browser, new_instance_id};
+    let key = [9_u8; 32];
+    let instance = new_instance_id().unwrap();
+    let browser = Browser::start("someone-else").unwrap();
+    let advertiser = Advertiser::start(47_999, &key, &instance).unwrap();
+    let deadline = Instant::now() + Duration::from_secs(5);
+    let found = loop {
+        if let Some(node) = browser
+            .nodes()
+            .into_iter()
+            .find(|n| n.instance_id == instance)
+        {
+            break node;
+        }
+        assert!(Instant::now() < deadline, "not discovered within 5 s");
+        std::thread::sleep(Duration::from_millis(100));
+    };
+    assert!(found.is(&key), "the keyed hint matches the pinned key");
+    assert_eq!(found.version, "1.0");
+    assert!(found.addresses.iter().all(|a| a.port() == 47_999));
+    let withdrawn_at = Instant::now();
+    advertiser.stop();
+    loop {
+        if !browser.nodes().iter().any(|n| n.instance_id == instance) {
+            break;
+        }
+        assert!(
+            withdrawn_at.elapsed() < Duration::from_secs(5),
+            "withdrawn within 5 s"
+        );
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    println!("[perf] withdrawn after {:?}", withdrawn_at.elapsed());
+    browser.stop();
+}

@@ -694,66 +694,8 @@ impl LinkNode {
         let (shutdown, on_shutdown) = tokio::sync::oneshot::channel::<()>();
         let (incoming_tx, incoming_rx) =
             tokio::sync::mpsc::channel::<Result<LinkStream, std::io::Error>>(8);
-        let handshakes = Arc::new(tokio::sync::Semaphore::new(MAX_HANDSHAKES));
-        let open = Arc::new(AtomicUsize::new(0));
-        let next_id = Arc::new(AtomicU64::new(1));
 
-        let accept_loop = tokio::spawn(async move {
-            loop {
-                let Ok((tcp, peer_addr)) = listener.accept().await else {
-                    continue;
-                };
-                if open.load(Ordering::SeqCst) >= MAX_CONNECTIONS {
-                    drop(tcp);
-                    continue;
-                }
-                let Ok(permit) = handshakes.clone().try_acquire_owned() else {
-                    // Too many handshakes in flight: drop before TLS work.
-                    drop(tcp);
-                    continue;
-                };
-                let acceptor = acceptor.clone();
-                let tx = incoming_tx.clone();
-                let sessions = sessions.clone();
-                let open = open.clone();
-                let conn_id = next_id.fetch_add(1, Ordering::SeqCst);
-                tokio::spawn(async move {
-                    let handshake =
-                        tokio::time::timeout(HANDSHAKE_TIMEOUT, acceptor.accept(tcp)).await;
-                    drop(permit);
-                    let Ok(Ok(tls)) = handshake else {
-                        return;
-                    };
-                    let connection = tls.get_ref().1;
-                    let Some(peer_key) = connection
-                        .peer_certificates()
-                        .and_then(|certs| certs.first())
-                        .and_then(|cert| ed25519_key_of(cert).ok())
-                    else {
-                        return;
-                    };
-                    let Ok(exporter) =
-                        connection.export_keying_material([0_u8; 32], EXPORTER_LABEL, None)
-                    else {
-                        return;
-                    };
-                    open.fetch_add(1, Ordering::SeqCst);
-                    let stream = LinkStream {
-                        inner: tls,
-                        info: LinkConnInfo {
-                            conn_id,
-                            peer_key,
-                            addr: peer_addr,
-                            exporter,
-                        },
-                        sessions,
-                        open,
-                    };
-                    let _ = tx.send(Ok(stream)).await;
-                });
-            }
-        });
-
+        let accept_loop = tokio::spawn(accept_loop(listener, acceptor, incoming_tx, sessions));
         let server = tonic::transport::Server::builder()
             .max_concurrent_streams(MAX_STREAMS)
             .http2_max_pending_accept_reset_streams(Some(16))
@@ -777,5 +719,69 @@ impl LinkNode {
             shutdown: Some(shutdown),
             task,
         })
+    }
+}
+
+/// Accepts TCP connections, applies the pre-auth caps, runs the TLS
+/// handshake with a timeout, and hands authenticated streams to tonic.
+async fn accept_loop(
+    listener: TcpListener,
+    acceptor: tokio_rustls::TlsAcceptor,
+    incoming_tx: tokio::sync::mpsc::Sender<Result<LinkStream, std::io::Error>>,
+    sessions: Arc<Mutex<HashMap<u64, Session>>>,
+) {
+    let handshakes = Arc::new(tokio::sync::Semaphore::new(MAX_HANDSHAKES));
+    let open = Arc::new(AtomicUsize::new(0));
+    let next_id = Arc::new(AtomicU64::new(1));
+    loop {
+        let Ok((tcp, peer_addr)) = listener.accept().await else {
+            continue;
+        };
+        if open.load(Ordering::SeqCst) >= MAX_CONNECTIONS {
+            drop(tcp);
+            continue;
+        }
+        let Ok(permit) = handshakes.clone().try_acquire_owned() else {
+            // Too many handshakes in flight: drop before TLS work.
+            drop(tcp);
+            continue;
+        };
+        let acceptor = acceptor.clone();
+        let tx = incoming_tx.clone();
+        let sessions = sessions.clone();
+        let open = open.clone();
+        let conn_id = next_id.fetch_add(1, Ordering::SeqCst);
+        tokio::spawn(async move {
+            let handshake = tokio::time::timeout(HANDSHAKE_TIMEOUT, acceptor.accept(tcp)).await;
+            drop(permit);
+            let Ok(Ok(tls)) = handshake else {
+                return;
+            };
+            let connection = tls.get_ref().1;
+            let Some(peer_key) = connection
+                .peer_certificates()
+                .and_then(|certs| certs.first())
+                .and_then(|cert| ed25519_key_of(cert).ok())
+            else {
+                return;
+            };
+            let Ok(exporter) = connection.export_keying_material([0_u8; 32], EXPORTER_LABEL, None)
+            else {
+                return;
+            };
+            open.fetch_add(1, Ordering::SeqCst);
+            let stream = LinkStream {
+                inner: tls,
+                info: LinkConnInfo {
+                    conn_id,
+                    peer_key,
+                    addr: peer_addr,
+                    exporter,
+                },
+                sessions,
+                open,
+            };
+            let _ = tx.send(Ok(stream)).await;
+        });
     }
 }
