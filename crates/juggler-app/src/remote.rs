@@ -15,7 +15,7 @@
 #![allow(clippy::needless_pass_by_value)]
 
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, Weak};
 use std::time::Duration;
 
 use juggler_link::client::LinkPeer;
@@ -26,8 +26,16 @@ use crate::state::AppState;
 
 /// A machine's values are `live` while heard within this window.
 const LIVE_WITHIN_MS: i64 = 5_000;
-/// An Instance a machine stopped reporting is dropped after this long.
-const FORGET_INSTANCE_AFTER_MS: i64 = 10_000;
+/// An Instance's live numbers (CPU, memory) are dropped after this long
+/// without an update; its durable row stays (AJ-E708).
+const FORGET_LIVE_AFTER_MS: i64 = 10_000;
+/// The replica kind for Instance rows.
+const INSTANCE_KIND: &str = "instance";
+/// At most this many of a machine's Instances are shown (newest first).
+const SHOW_INSTANCES: usize = 50;
+/// A clock difference past this is flagged (ordering uses sequences, so
+/// it is only a display caveat).
+pub const CLOCK_SKEW_FLAG_MS: i64 = 5 * 60 * 1000;
 /// The app setting holding this console's command sequence per peer.
 const SEQUENCE_KEY: &str = "fleet_console_sequence";
 /// How long a remote command may take end to end (the node may wait up
@@ -48,8 +56,16 @@ pub struct RemoteMachine {
     peer: Option<LinkPeer>,
     /// Latest machine resources and when they arrived.
     resources: Option<(proto::MachineResources, i64)>,
-    /// Latest row per Instance and when it arrived.
-    instances: HashMap<String, (proto::SessionDelta, i64)>,
+    /// Latest live numbers per Instance and when they arrived (the
+    /// durable rows live in the replica, AJ-E708).
+    live: HashMap<String, (proto::SessionDelta, i64)>,
+    /// Durable rows for a node without a sync epoch (an older build):
+    /// kept in memory only, as before AJ-E708.
+    unsynced: HashMap<String, (proto::SessionDelta, i64)>,
+    /// That machine's clock minus this Mac's, from its Hello.
+    clock_skew_ms: Option<i64>,
+    /// When a durable change from it was last applied.
+    synced_at_ms: Option<i64>,
     /// When anything last arrived.
     last_heard_ms: Option<i64>,
     /// The machine's recent alerts (newest first, at most 10).
@@ -61,23 +77,47 @@ pub struct RemoteMachine {
 /// The cache, shared by the reconcile loop and the commands.
 pub type RemoteCache = Arc<Mutex<HashMap<String, RemoteMachine>>>;
 
-/// Subscribes to `machine_id`'s telemetry on a fresh connection.
+/// Subscribes to `machine_id`'s telemetry on a fresh connection,
+/// catching up from this Mac's durable replica of it (AJ-E708): only the
+/// changes after its high-water mark are sent, and a new sync epoch
+/// (that machine was reset) starts the replica afresh.
 pub(crate) fn subscribe(
+    state: &Weak<AppState>,
     cache: &RemoteCache,
     machine_id: &str,
     peer: &LinkPeer,
 ) -> tokio::task::JoinHandle<()> {
+    let now = now_ms();
+    let epoch = peer.hello.sync_epoch.clone();
     if let Ok(mut map) = cache.lock() {
         let entry = map.entry(machine_id.to_owned()).or_default();
         entry.permission = Some(peer.hello.permission.clone());
         entry.peer = Some(peer.clone());
+        entry.clock_skew_ms = (peer.hello.sent_at_ms > 0).then(|| peer.hello.sent_at_ms - now);
     }
+    let since = if epoch.is_empty() {
+        0
+    } else {
+        state
+            .upgrade()
+            .and_then(|app| {
+                let storage = app.storage.lock().ok()?;
+                let sync = storage.fleet_sync();
+                sync.replica_set_epoch(machine_id, &epoch).ok()?;
+                sync.replica_high_water(machine_id, &epoch).ok()
+            })
+            .unwrap_or(0)
+    };
+    let durable = !epoch.is_empty();
+    let state = state.clone();
     let cache = cache.clone();
     let id = machine_id.to_owned();
     let mut client = peer.client.clone();
     tokio::spawn(async move {
         let Ok(response) = client
-            .telemetry(proto::TelemetryRequest { since_sequence: 0 })
+            .telemetry(proto::TelemetryRequest {
+                since_sequence: since,
+            })
             .await
         else {
             return;
@@ -86,27 +126,68 @@ pub(crate) fn subscribe(
         while let Ok(Some(delta)) = stream.message().await {
             // v1 never relays: a delta about another machine is dropped.
             if delta.origin_machine_id == id {
-                apply(&cache, &id, delta);
+                apply(&state, &cache, &id, durable, delta);
             }
         }
     })
 }
 
-fn apply(cache: &RemoteCache, machine_id: &str, delta: proto::TelemetryDelta) {
+/// Applies one delta. A sequenced Instance row from a node with a sync
+/// epoch goes to the durable replica (newest sequence wins, so repeats
+/// and reordering are harmless); everything else is live, in memory.
+fn apply(
+    state: &Weak<AppState>,
+    cache: &RemoteCache,
+    machine_id: &str,
+    durable: bool,
+    delta: proto::TelemetryDelta,
+) {
+    use prost::Message as _;
     let now = now_ms();
+    let mut synced = false;
+    if durable
+        && delta.sequence > 0
+        && let Some(proto::telemetry_delta::Payload::Session(session)) = &delta.payload
+    {
+        // Storage first, alone — never under the cache lock.
+        synced = state.upgrade().is_some_and(|app| {
+            app.storage.lock().is_ok_and(|storage| {
+                let entry = juggler_core::storage::SyncEntry {
+                    seq: delta.sequence,
+                    kind: INSTANCE_KIND.to_owned(),
+                    record_id: session.instance_id.clone(),
+                    payload: session.encode_to_vec(),
+                    wall_ms: session.updated_at_ms,
+                };
+                storage
+                    .fleet_sync()
+                    .replica_apply(machine_id, &entry, now)
+                    .is_ok()
+            })
+        });
+    }
     let Ok(mut map) = cache.lock() else {
         return;
     };
     let entry = map.entry(machine_id.to_owned()).or_default();
     entry.last_heard_ms = Some(now);
+    if synced {
+        entry.synced_at_ms = Some(now);
+        return;
+    }
     match delta.payload {
         Some(proto::telemetry_delta::Payload::Resources(resources)) => {
             entry.resources = Some((resources, now));
         }
         Some(proto::telemetry_delta::Payload::Session(session)) => {
-            entry
-                .instances
-                .insert(session.instance_id.clone(), (session, now));
+            if delta.sequence > 0 {
+                // A node without a sync epoch (older build).
+                entry
+                    .unsynced
+                    .insert(session.instance_id.clone(), (session, now));
+            } else {
+                entry.live.insert(session.instance_id.clone(), (session, now));
+            }
         }
         Some(proto::telemetry_delta::Payload::Cleanup(cleanup)) => {
             entry.cleanup = Some((cleanup, now));
@@ -125,8 +206,31 @@ fn apply(cache: &RemoteCache, machine_id: &str, delta: proto::TelemetryDelta) {
         None => {}
     }
     entry
-        .instances
-        .retain(|_, (_, at)| now - *at <= FORGET_INSTANCE_AFTER_MS);
+        .live
+        .retain(|_, (_, at)| now - *at <= FORGET_LIVE_AFTER_MS);
+    entry
+        .unsynced
+        .retain(|_, (_, at)| now - *at <= FORGET_LIVE_AFTER_MS);
+}
+
+/// Resubscribes to a connected machine whose telemetry stream ended (it
+/// lagged, or its permission came back) — `None` when there is no live
+/// connection or it grants nothing.
+pub(crate) fn resubscribe(
+    state: &Weak<AppState>,
+    cache: &RemoteCache,
+    machine_id: &str,
+) -> Option<tokio::task::JoinHandle<()>> {
+    let peer = cache.lock().ok().and_then(|map| {
+        map.get(machine_id).and_then(|entry| {
+            let grants = entry
+                .permission
+                .as_deref()
+                .is_some_and(|permission| permission == "view" || permission == "control");
+            entry.peer.clone().filter(|_| grants)
+        })
+    })?;
+    Some(subscribe(state, cache, machine_id, &peer))
 }
 
 /// Re-asks `machine_id` what it lets this Mac do (a permission changed
@@ -327,6 +431,14 @@ pub struct RemoteMachineInfo {
     pub alerts: Vec<RemoteAlertInfo>,
     /// Its managed processes (AJ-E707), when reported.
     pub processes: Vec<RemoteProcessInfo>,
+    /// Its clock minus this Mac's, ms (from its last Hello). Order never
+    /// depends on it — sync uses that machine's sequence — but a large
+    /// difference makes its times misleading, so the UI says so.
+    #[ts(type = "number | null")]
+    pub clock_skew_ms: Option<i64>,
+    /// When a durable change from it was last applied here, epoch ms.
+    #[ts(type = "number | null")]
+    pub synced_at_ms: Option<i64>,
 }
 
 /// The outcome of a remote command, in the node's words.
@@ -359,6 +471,25 @@ pub fn fleet_remote_impl(state: &Arc<AppState>) -> AppResult<Vec<RemoteMachineIn
     // Registry + link state first; the cache lock is taken alone.
     let peers = crate::fleet::fleet_peers_impl(state)?;
     let now = now_ms();
+    let replicas: HashMap<String, Vec<(proto::SessionDelta, i64)>> = {
+        use prost::Message as _;
+        let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
+        let sync = storage.fleet_sync();
+        let mut replicas = HashMap::new();
+        for peer in &peers {
+            let rows = sync
+                .replica_list(&peer.machine_id, INSTANCE_KIND)?
+                .into_iter()
+                .filter_map(|(entry, received)| {
+                    proto::SessionDelta::decode(entry.payload.as_slice())
+                        .ok()
+                        .map(|row| (row, received))
+                })
+                .collect();
+            replicas.insert(peer.machine_id.clone(), rows);
+        }
+        replicas
+    };
     let map = state
         .link
         .remote
@@ -368,7 +499,8 @@ pub fn fleet_remote_impl(state: &Arc<AppState>) -> AppResult<Vec<RemoteMachineIn
         .into_iter()
         .map(|peer| {
             let entry = map.get(&peer.machine_id);
-            machine_info(peer, entry, now)
+            let replica = replicas.get(&peer.machine_id).map_or(&[][..], Vec::as_slice);
+            machine_info(peer, entry, replica, now)
         })
         .collect())
 }
@@ -376,6 +508,7 @@ pub fn fleet_remote_impl(state: &Arc<AppState>) -> AppResult<Vec<RemoteMachineIn
 fn machine_info(
     peer: crate::fleet::FleetPeerInfo,
     entry: Option<&RemoteMachine>,
+    replica: &[(proto::SessionDelta, i64)],
     now: i64,
 ) -> RemoteMachineInfo {
     let last_heard_ms = entry.and_then(|entry| entry.last_heard_ms);
@@ -400,7 +533,9 @@ fn machine_info(
         freshness: freshness.to_owned(),
         alerts,
         processes: entry.map(processes_of).unwrap_or_default(),
-        instances: entry.map(instances_of).unwrap_or_default(),
+        instances: instances_of(entry, replica, now),
+        clock_skew_ms: entry.and_then(|entry| entry.clock_skew_ms),
+        synced_at_ms: entry.and_then(|entry| entry.synced_at_ms),
         permission: entry.and_then(|entry| entry.permission.clone()),
         resources: entry.and_then(|entry| {
             entry
@@ -420,32 +555,56 @@ fn machine_info(
     }
 }
 
-fn instances_of(entry: &RemoteMachine) -> Vec<RemoteInstanceInfo> {
-    let mut instances: Vec<RemoteInstanceInfo> = entry
-        .instances
-        .values()
-        .map(|(row, at)| RemoteInstanceInfo {
-            id: row.instance_id.clone(),
-            provider: row.provider_id.clone(),
-            account_label: row.account_label.clone(),
-            status: row.status.clone(),
-            model: row.model.clone(),
-            model_source: if row.model_source.is_empty() {
-                "unknown".to_owned()
-            } else {
-                row.model_source.clone()
-            },
-            project_name: row.project_name.clone(),
-            started_at_ms: row.started_at_ms,
-            last_activity_ms: row.last_activity_ms,
-            cpu_percent: row.cpu_percent,
-            rss_bytes: row.rss_bytes,
-            process_count: row.process_count,
-            kind: row.kind.clone(),
-            measured_at_ms: *at,
+/// A machine's Instances: the durable replica (last known, kept while
+/// offline and across restarts) merged with the live numbers still fresh.
+fn instances_of(
+    entry: Option<&RemoteMachine>,
+    replica: &[(proto::SessionDelta, i64)],
+    now: i64,
+) -> Vec<RemoteInstanceInfo> {
+    let fresh = |at: i64| now - at <= FORGET_LIVE_AFTER_MS;
+    let mut rows: HashMap<&str, (&proto::SessionDelta, i64)> = replica
+        .iter()
+        .map(|(row, at)| (row.instance_id.as_str(), (row, *at)))
+        .collect();
+    if let Some(entry) = entry {
+        for (id, (row, at)) in &entry.unsynced {
+            if fresh(*at) {
+                rows.insert(id.as_str(), (row, *at));
+            }
+        }
+    }
+    let mut instances: Vec<RemoteInstanceInfo> = rows
+        .into_iter()
+        .map(|(id, (row, received))| {
+            let live = entry
+                .and_then(|entry| entry.live.get(id))
+                .filter(|(_, at)| fresh(*at));
+            let numbers = live.map_or(row, |(numbers, _)| numbers);
+            RemoteInstanceInfo {
+                id: row.instance_id.clone(),
+                provider: row.provider_id.clone(),
+                account_label: row.account_label.clone(),
+                status: row.status.clone(),
+                model: row.model.clone(),
+                model_source: if row.model_source.is_empty() {
+                    "unknown".to_owned()
+                } else {
+                    row.model_source.clone()
+                },
+                project_name: row.project_name.clone(),
+                started_at_ms: row.started_at_ms,
+                last_activity_ms: row.last_activity_ms,
+                cpu_percent: numbers.cpu_percent,
+                rss_bytes: numbers.rss_bytes,
+                process_count: numbers.process_count,
+                kind: row.kind.clone(),
+                measured_at_ms: live.map_or(received, |(_, at)| (*at).max(received)),
+            }
         })
         .collect();
     instances.sort_by_key(|row| std::cmp::Reverse(row.started_at_ms));
+    instances.truncate(SHOW_INSTANCES);
     instances
 }
 

@@ -137,8 +137,6 @@ pub struct LinkManager {
     join: Arc<Mutex<JoinPhase>>,
     telemetry: OnceLock<tokio::sync::broadcast::Sender<proto::TelemetryDelta>>,
     last_error: Mutex<Option<String>>,
-    /// This node's telemetry sequence (AJ-E705).
-    sequence: Arc<std::sync::atomic::AtomicU64>,
     /// What paired machines report, as this console last heard it.
     pub(crate) remote: crate::remote::RemoteCache,
     /// "Ask each time" commands waiting for this Mac's user.
@@ -284,7 +282,6 @@ impl PeerDirectory for AppDirectory {
 struct AppNode {
     state: Weak<AppState>,
     live: tokio::sync::broadcast::Sender<proto::TelemetryDelta>,
-    sequence: Arc<std::sync::atomic::AtomicU64>,
     prompts: Prompts,
 }
 
@@ -336,13 +333,11 @@ impl Prompts {
     }
 }
 
-/// The per-node telemetry sequence: seeded from the wall clock at start
-/// (so it keeps rising across restarts), then strictly increasing.
-fn next_sequence(sequence: &std::sync::atomic::AtomicU64) -> u64 {
-    let seed = u64::try_from(now_ms()).unwrap_or(0).saturating_mul(1000);
-    let _ = sequence.fetch_max(seed, std::sync::atomic::Ordering::Relaxed);
-    sequence.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1
-}
+/// Live values carry no sequence (AJ-E708: only durable record changes
+/// are sequenced, through the outbox).
+const UNSEQUENCED: u64 = 0;
+/// The app setting holding this node's sync epoch.
+const SYNC_EPOCH_KEY: &str = "fleet_sync_epoch";
 
 fn delta(
     origin: &str,
@@ -358,44 +353,129 @@ fn delta(
     }
 }
 
-/// This Mac's Instances as session deltas — only what the link contract
-/// allows: ids, Provider, Account label, status, model, the project
-/// folder's name (never a path) and live process numbers.
-fn session_deltas(
+/// The durable part of an Instance row — what changes rarely (status,
+/// model, project, …) and is synced through the outbox. Only what the link
+/// contract allows: ids, Provider, Account label, status, model and the
+/// project folder's name (never a path). Live numbers (CPU, memory,
+/// processes) travel separately, unsequenced.
+fn durable_delta(row: &crate::commands::InstanceInfo) -> proto::SessionDelta {
+    let project_name = std::path::Path::new(&row.cwd)
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .filter(|name| !name.is_empty());
+    proto::SessionDelta {
+        instance_id: row.id.clone(),
+        provider_id: row.provider.clone(),
+        account_label: row.account_label.clone(),
+        status: row.status.clone(),
+        updated_at_ms: row.last_activity_ms.unwrap_or(row.started_at_ms),
+        model: row.model.clone(),
+        model_source: row.model_source.clone(),
+        project_name,
+        started_at_ms: row.started_at_ms,
+        last_activity_ms: row.last_activity_ms,
+        cpu_percent: None,
+        rss_bytes: None,
+        process_count: None,
+        kind: row.kind.clone(),
+    }
+}
+
+/// An Instance's live numbers only (unsequenced).
+fn live_delta(row: &crate::commands::InstanceInfo) -> Option<proto::SessionDelta> {
+    (row.cpu_pct.is_some() || row.rss_bytes.is_some()).then(|| proto::SessionDelta {
+        instance_id: row.id.clone(),
+        cpu_percent: row.cpu_pct,
+        rss_bytes: row.rss_bytes,
+        process_count: row.child_count.map(|children| children + 1),
+        ..proto::SessionDelta::default()
+    })
+}
+
+/// This node's sync epoch: generated once, kept with its database (a
+/// reset machine gets a new one, so consoles never trust old sequences).
+fn sync_epoch(state: &Arc<AppState>) -> String {
+    let Ok(storage) = state.storage.lock() else {
+        return String::new();
+    };
+    if let Ok(Some(epoch)) = storage.app_settings().get(SYNC_EPOCH_KEY)
+        && !epoch.is_empty()
+    {
+        return epoch;
+    }
+    let mut bytes = [0_u8; 8];
+    if getrandom::fill(&mut bytes).is_err() {
+        return String::new();
+    }
+    let epoch = bytes.iter().fold(String::new(), |mut out, byte| {
+        use std::fmt::Write as _;
+        let _ = write!(out, "{byte:02x}");
+        out
+    });
+    let _ = storage.app_settings().set(SYNC_EPOCH_KEY, &epoch);
+    epoch
+}
+
+/// One sync pass: every Instance whose durable state changed is appended
+/// to the outbox (and returned, sequenced); live numbers are returned
+/// unsequenced.
+fn sync_instances(
     state: &Arc<AppState>,
-    sequence: &std::sync::atomic::AtomicU64,
-) -> Vec<proto::TelemetryDelta> {
+) -> (Vec<proto::TelemetryDelta>, Vec<proto::TelemetryDelta>) {
+    use prost::Message as _;
     let origin = crate::commands::local_machine_id(state).to_string();
     let Ok(rows) = crate::commands::instances_shared_snapshot(state) else {
-        return Vec::new();
+        return (Vec::new(), Vec::new());
     };
-    let now = now_ms();
-    rows.into_iter()
-        .map(|row| {
-            let project_name = std::path::Path::new(&row.cwd)
-                .file_name()
-                .map(|name| name.to_string_lossy().into_owned())
-                .filter(|name| !name.is_empty());
-            delta(
+    let mut changed = Vec::new();
+    let mut live = Vec::new();
+    for row in &rows {
+        let durable = durable_delta(row);
+        let bytes = durable.encode_to_vec();
+        let appended = state.storage.lock().ok().and_then(|storage| {
+            let sync = storage.fleet_sync();
+            let same = sync
+                .outbox_latest("instance", &row.id)
+                .ok()
+                .flatten()
+                .is_some_and(|latest| latest.payload == bytes);
+            if same {
+                None
+            } else {
+                sync.outbox_append("instance", &row.id, &bytes, now_ms()).ok()
+            }
+        });
+        if let Some(seq) = appended {
+            changed.push(delta(&origin, seq, proto::telemetry_delta::Payload::Session(durable)));
+        }
+        if let Some(numbers) = live_delta(row) {
+            live.push(delta(
                 &origin,
-                next_sequence(sequence),
-                proto::telemetry_delta::Payload::Session(proto::SessionDelta {
-                    instance_id: row.id,
-                    provider_id: row.provider,
-                    account_label: row.account_label,
-                    status: row.status,
-                    updated_at_ms: now,
-                    model: row.model,
-                    model_source: row.model_source,
-                    project_name,
-                    started_at_ms: row.started_at_ms,
-                    last_activity_ms: row.last_activity_ms,
-                    cpu_percent: row.cpu_pct,
-                    rss_bytes: row.rss_bytes,
-                    process_count: row.child_count.map(|children| children + 1),
-                    kind: row.kind,
-                }),
-            )
+                UNSEQUENCED,
+                proto::telemetry_delta::Payload::Session(numbers),
+            ));
+        }
+    }
+    (changed, live)
+}
+
+/// The outbox after `since` as deltas — a reconnecting console's
+/// catch-up: only what it doesn't have yet.
+fn outbox_deltas(state: &Arc<AppState>, since: u64) -> Vec<proto::TelemetryDelta> {
+    use prost::Message as _;
+    let origin = crate::commands::local_machine_id(state).to_string();
+    let entries = state
+        .storage
+        .lock()
+        .ok()
+        .and_then(|storage| storage.fleet_sync().outbox_since(since, 10_000).ok())
+        .unwrap_or_default();
+    entries
+        .into_iter()
+        .filter_map(|entry| {
+            proto::SessionDelta::decode(entry.payload.as_slice()).ok().map(|session| {
+                delta(&origin, entry.seq, proto::telemetry_delta::Payload::Session(session))
+            })
         })
         .collect()
 }
@@ -408,22 +488,26 @@ impl NodeHandler for AppNode {
             .unwrap_or_default()
     }
 
-    fn telemetry_since(&self, _since: u64) -> Vec<proto::TelemetryDelta> {
-        // v1 backlog = the current snapshot of this node's Instances
-        // (sequence-vector catch-up arrives with AJ-E708).
-        self.state
-            .upgrade()
-            .map(|state| {
-                let mut backlog = session_deltas(&state, &self.sequence);
-                let origin = crate::commands::local_machine_id(&state).to_string();
-                backlog.push(delta(
-                    &origin,
-                    next_sequence(&self.sequence),
-                    proto::telemetry_delta::Payload::Cleanup(cleanup_delta(&state)),
-                ));
-                backlog
-            })
-            .unwrap_or_default()
+    fn sync_epoch(&self) -> String {
+        self.state.upgrade().map(|state| sync_epoch(&state)).unwrap_or_default()
+    }
+
+    fn telemetry_since(&self, since: u64) -> Vec<proto::TelemetryDelta> {
+        // AJ-E708: bring the outbox up to date, then send only what the
+        // console doesn't have, plus the current live values.
+        let Some(state) = self.state.upgrade() else {
+            return Vec::new();
+        };
+        let (_, live) = sync_instances(&state);
+        let origin = crate::commands::local_machine_id(&state).to_string();
+        let mut backlog = outbox_deltas(&state, since);
+        backlog.extend(live);
+        backlog.push(delta(
+            &origin,
+            UNSEQUENCED,
+            proto::telemetry_delta::Payload::Cleanup(cleanup_delta(&state)),
+        ));
+        backlog
     }
 
     fn telemetry_live(&self) -> tokio::sync::broadcast::Receiver<proto::TelemetryDelta> {
@@ -983,7 +1067,6 @@ fn start(state: &Arc<AppState>) -> AppResult<()> {
             Arc::new(AppNode {
                 state: weak.clone(),
                 live: live.clone(),
-                sequence: manager.sequence.clone(),
                 prompts: manager.prompts.clone(),
             }),
             Arc::new(AppDirectory(weak.clone())),
@@ -1008,7 +1091,7 @@ fn start(state: &Arc<AppState>) -> AppResult<()> {
         manager.remote.clone(),
         manager.reconnect.clone(),
     ));
-    let ticker = runtime.spawn(resource_ticker(weak, live, manager.sequence.clone()));
+    let ticker = runtime.spawn(resource_ticker(weak, live));
     if let Ok(mut last) = manager.last_error.lock() {
         *last = discovery_error;
     }
@@ -1160,10 +1243,7 @@ async fn reconcile_loop(
                 *watch.borrow() == juggler_link::client::Liveness::Live
             });
             if alive {
-                // Every ~30 s, re-check what that machine grants.
-                if tick.is_multiple_of(10) {
-                    crate::remote::refresh_permission(&remote, &machine_id, &own).await;
-                }
+                tend_live(&state, &remote, &mut live, &machine_id, &own, tick).await;
                 continue;
             }
             if let Some((_, heartbeat, telemetry)) = live.remove(&machine_id) {
@@ -1214,6 +1294,28 @@ async fn reconcile_loop(
     }
 }
 
+/// Upkeep for a live connection: every ~30 s re-check what that machine
+/// grants; a telemetry stream that ended (lagged, or access came back)
+/// resumes from the replica's high-water mark.
+async fn tend_live(
+    state: &Weak<AppState>,
+    remote: &crate::remote::RemoteCache,
+    live: &mut HashMap<String, Watch>,
+    machine_id: &str,
+    own: &str,
+    tick: u64,
+) {
+    if tick.is_multiple_of(10) {
+        crate::remote::refresh_permission(remote, machine_id, own).await;
+    }
+    if let Some((_, _, telemetry)) = live.get_mut(machine_id)
+        && telemetry.is_finished()
+        && let Some(resumed) = crate::remote::resubscribe(state, remote, machine_id)
+    {
+        *telemetry = resumed;
+    }
+}
+
 /// A fresh connection: record its state, start heartbeats and the
 /// telemetry subscription, remember where it was reached.
 fn adopt_connection(
@@ -1235,7 +1337,7 @@ fn adopt_connection(
         Some(address),
     );
     let (watch, heartbeat) = juggler_link::client::watch_liveness(peer.client.clone());
-    let telemetry = crate::remote::subscribe(remote, machine_id, peer);
+    let telemetry = crate::remote::subscribe(state, remote, machine_id, peer);
     if let Some(app) = state.upgrade() {
         crate::fleet::touch_peer(&app, machine_id, now_ms());
         remember_address(&app, machine_id, address);
@@ -1341,7 +1443,7 @@ pub fn publish_alerts(state: &Arc<AppState>, events: &[crate::commands::AlertEve
     for event in events {
         let _ = live.send(delta(
             &origin,
-            next_sequence(&state.link.sequence),
+            UNSEQUENCED,
             proto::telemetry_delta::Payload::Alert(proto::AlertDelta {
                 kind: event.kind.clone(),
                 account_label: event.account.clone(),
@@ -1357,7 +1459,6 @@ pub fn publish_alerts(state: &Arc<AppState>, events: &[crate::commands::AlertEve
 async fn resource_ticker(
     state: Weak<AppState>,
     live: tokio::sync::broadcast::Sender<proto::TelemetryDelta>,
-    sequence: Arc<std::sync::atomic::AtomicU64>,
 ) {
     let mut system = sysinfo::System::new();
     let mut tick = 0_u64;
@@ -1368,14 +1469,14 @@ async fn resource_ticker(
             return;
         };
         let origin = crate::commands::local_machine_id(&app).to_string();
-        let sessions = session_deltas(&app, &sequence);
+        let (changed, live_numbers) = sync_instances(&app);
         // Processes every ~6 s: orphans reach consoles within 10 s.
         let cleanup = tick.is_multiple_of(3).then(|| cleanup_delta(&app));
         drop(app);
         if let Some(cleanup) = cleanup {
             let _ = live.send(delta(
                 &origin,
-                next_sequence(&sequence),
+                UNSEQUENCED,
                 proto::telemetry_delta::Payload::Cleanup(cleanup),
             ));
         }
@@ -1383,14 +1484,14 @@ async fn resource_ticker(
         system.refresh_memory();
         let _ = live.send(delta(
             &origin,
-            next_sequence(&sequence),
+            UNSEQUENCED,
             proto::telemetry_delta::Payload::Resources(proto::MachineResources {
                 cpu_percent: f64::from(system.global_cpu_usage()),
                 memory_used_bytes: system.used_memory(),
                 memory_total_bytes: system.total_memory(),
             }),
         ));
-        for session in sessions {
+        for session in changed.into_iter().chain(live_numbers) {
             let _ = live.send(session);
         }
     }

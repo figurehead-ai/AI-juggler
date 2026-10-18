@@ -98,6 +98,9 @@ message HelloResponse {
   // What the node grants the caller: "no_access" | "view" | "control".
   string permission = 5;
   int64 sent_at_ms = 6;
+  // AJ-E708: this node's sync epoch — a random id for its outbox; a new
+  // epoch (reset or reinstalled machine) tells consoles to start afresh.
+  string sync_epoch = 7;
 }
 
 message Ping {
@@ -117,6 +120,8 @@ message TelemetryRequest {
 message TelemetryDelta {
   // Origin MachineId — always the serving node in v1 (no relaying).
   string origin_machine_id = 1;
+  // The origin's outbox sequence for durable record changes (AJ-E708);
+  // 0 = an unsequenced live value (resources, live numbers, alerts).
   uint64 sequence = 2;
   // Hybrid logical clock: physical ms + logical counter.
   int64 hlc_ms = 3;

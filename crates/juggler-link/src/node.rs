@@ -95,6 +95,10 @@ pub struct LinkAuditEvent {
 pub trait NodeHandler: Send + Sync + 'static {
     /// This node's `MachineId`.
     fn local_machine_id(&self) -> String;
+    /// This node's sync epoch (AJ-E708); empty = no durable outbox.
+    fn sync_epoch(&self) -> String {
+        String::new()
+    }
     /// Telemetry deltas after `since` (the backlog).
     fn telemetry_since(&self, since: u64) -> Vec<proto::TelemetryDelta>;
     /// Live telemetry after the backlog.
@@ -551,6 +555,7 @@ impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore, P: PairingHost> proto::li
             }
             .to_owned(),
             sent_at_ms: now_ms(),
+            sync_epoch: self.handler.sync_epoch(),
         }))
     }
 
@@ -582,9 +587,15 @@ impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore, P: PairingHost> proto::li
         let conn = Self::conn(&request)?;
         self.authorize(&conn)?;
         let since = request.into_inner().since_sequence;
-        let backlog = self.handler.telemetry_since(since);
+        // Subscribe before reading the backlog, so nothing appended in
+        // between is missed (a repeat is harmless: applying is
+        // idempotent). A lagged receiver ends the stream instead of
+        // skipping: the console reconnects and catches up from its
+        // high-water mark, so a sequenced change is never silently lost.
         let live = tokio_stream::wrappers::BroadcastStream::new(self.handler.telemetry_live())
+            .take_while(Result::is_ok)
             .filter_map(Result::ok);
+        let backlog = self.handler.telemetry_since(since);
         let directory = self.directory.clone();
         let key = conn.peer_key;
         // Per-item permission re-check: an unpair or NoAccess ends the

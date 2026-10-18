@@ -256,7 +256,12 @@ pub fn fleet_unpair_impl(state: &Arc<AppState>, machine_id: &str) -> AppResult<(
                 id: machine_id.to_owned(),
             })
         }
-    })
+    })?;
+    // AJ-E708: what was replicated from it goes too (after the fleet
+    // lock is released — storage is never taken under it).
+    let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
+    storage.fleet_sync().replica_forget(machine_id)?;
+    Ok(())
 }
 
 /// Core implementation shared with tests.
