@@ -974,8 +974,20 @@ fn hog_is_never_auto_signalled_and_alerts_with_exact_copy() {
     // eligible (a verified DevServer, opted in, past grace) — but it
     // is a hog: ZERO signals, still alive.
     let root_exit = wait_orphans(&state, &a);
+    // However long after the tree froze the sweep runs, it is still a
+    // hog (its ring stops at root death — the window must not age out).
+    assert!(
+        commands::hog_sessions_at_for_test(&state, now_ms() + 10 * 60_000)
+            .iter()
+            .any(|session| session == a.as_str()),
+        "a frozen hog tree stays a hog"
+    );
     commands::auto_cleanup_sweep(&state, root_exit + 61_000);
-    assert!(alive(vite_pid), "a hog is never auto-signalled");
+    assert!(
+        alive(vite_pid),
+        "a hog is never auto-signalled (signals: {:?})",
+        kit.get("vite").signals()
+    );
     assert_eq!(
         kit.get("vite").signals(),
         Vec::<String>::new(),
