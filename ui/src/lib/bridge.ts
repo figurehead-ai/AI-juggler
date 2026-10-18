@@ -22,6 +22,8 @@ import type { IdentityCheckInfo } from "../types/generated/IdentityCheckInfo";
 import type { IsolationOfferInfo } from "../types/generated/IsolationOfferInfo";
 import type { ParkedInfo } from "../types/generated/ParkedInfo";
 import type { OvernightSummaryInfo } from "../types/generated/OvernightSummaryInfo";
+import type { UpdateStatusInfo } from "../types/generated/UpdateStatusInfo";
+import type { AnnouncedInfo } from "../types/generated/AnnouncedInfo";
 import type { BackupExportInfo } from "../types/generated/BackupExportInfo";
 import type { RestorePlanInfo } from "../types/generated/RestorePlanInfo";
 import type { RestoreResultInfo } from "../types/generated/RestoreResultInfo";
@@ -102,6 +104,8 @@ export type {
   ParkedInfo,
   ParkedOfferInfo,
   OvernightSummaryInfo,
+  UpdateStatusInfo,
+  AnnouncedInfo,
   BackupExportInfo,
   RestorePlanInfo,
   RestoreResultInfo,
@@ -162,6 +166,8 @@ export const EVENTS = {
   fleetSwitchProgress: "fleet://switch-progress",
   /** Backup export progress (AJ-E1009): at least every 1 %. */
   backupProgress: "backup://progress",
+  /** Update status changes (AJ-E1010). */
+  updateStatus: "update://status",
 } as const;
 
 const hasBackend =
@@ -4169,4 +4175,99 @@ export async function backupRestore(path: string, token: string): Promise<Restor
     throw new Error("No backend in this preview");
   }
   return invoke<RestoreResultInfo>("backup_restore", { path, token });
+}
+
+// --- AJ-E1010: updates ---------------------------------------------------------
+
+interface UpdateSeams {
+  __AIJ_UPDATE_STATUS__?: UpdateStatusInfo;
+  __AIJ_UPDATE_CALLS__?: string[];
+  __AIJ_UPDATE_AFTER_CHECK__?: UpdateStatusInfo;
+  __AIJ_UPDATE_AFTER_INSTALL__?: UpdateStatusInfo;
+  __AIJ_UPDATE_RESTART_ERROR__?: string;
+}
+const updateSeams = () => window as unknown as UpdateSeams;
+const updateCall = (call: string) => {
+  const seams = updateSeams();
+  seams.__AIJ_UPDATE_CALLS__ = [...(seams.__AIJ_UPDATE_CALLS__ ?? []), call];
+};
+const mockUpdateStatus = (): UpdateStatusInfo =>
+  updateSeams().__AIJ_UPDATE_STATUS__ ?? {
+    current_version: "0.0.1",
+    channel: "beta",
+    configured: false,
+    check_on_launch: true,
+    state: "idle",
+    available: null,
+    progress: null,
+    error: null,
+    backup_path: null,
+    checked_at_ms: null,
+  };
+
+/** Where updating stands. */
+export async function updateStatus(): Promise<UpdateStatusInfo> {
+  if (!hasBackend) return { ...mockUpdateStatus() };
+  return invoke<UpdateStatusInfo>("update_status");
+}
+
+/** Turns "check when AI Juggler starts" on or off. */
+export async function updateSetCheckOnLaunch(enabled: boolean): Promise<UpdateStatusInfo> {
+  if (!hasBackend) {
+    updateCall(`check-on-launch:${enabled}`);
+    const next = { ...mockUpdateStatus(), check_on_launch: enabled };
+    updateSeams().__AIJ_UPDATE_STATUS__ = next;
+    return next;
+  }
+  return invoke<UpdateStatusInfo>("update_set_check_on_launch", { enabled });
+}
+
+/** Checks for a newer version now (never installs). */
+export async function updateCheck(): Promise<UpdateStatusInfo> {
+  if (!hasBackend) {
+    updateCall("check");
+    const next = updateSeams().__AIJ_UPDATE_AFTER_CHECK__ ?? mockUpdateStatus();
+    updateSeams().__AIJ_UPDATE_STATUS__ = next;
+    return { ...next };
+  }
+  return invoke<UpdateStatusInfo>("update_check");
+}
+
+/** Installs the announced update: backup, download, verify, install. */
+export async function updateInstall(): Promise<UpdateStatusInfo> {
+  if (!hasBackend) {
+    updateCall("install");
+    const next = updateSeams().__AIJ_UPDATE_AFTER_INSTALL__ ?? mockUpdateStatus();
+    updateSeams().__AIJ_UPDATE_STATUS__ = next;
+    return { ...next };
+  }
+  return invoke<UpdateStatusInfo>("update_install");
+}
+
+/** Restarts into the installed version (refused while Instances run). */
+export async function updateRestart(): Promise<void> {
+  if (!hasBackend) {
+    updateCall("restart");
+    const error = updateSeams().__AIJ_UPDATE_RESTART_ERROR__;
+    if (error) throw new Error(error);
+    return;
+  }
+  return invoke<void>("update_restart");
+}
+
+/** Update status changes pushed by the backend. */
+export function onUpdateStatus(handler: (status: UpdateStatusInfo) => void): () => void {
+  if (!hasBackend) return () => {};
+  let unlisten: (() => void) | null = null;
+  let disposed = false;
+  listen<UpdateStatusInfo>(EVENTS.updateStatus, (event) => handler(event.payload))
+    .then((stop) => {
+      if (disposed) stop();
+      else unlisten = stop;
+    })
+    .catch(() => {});
+  return () => {
+    disposed = true;
+    unlisten?.();
+  };
 }

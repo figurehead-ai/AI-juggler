@@ -1,0 +1,44 @@
+# AJ-E1010: when the maintainer publishes a release, point the beta
+# channel at it. The app's updater reads
+# releases/download/beta-channel/latest.json, so a draft is never offered
+# to users, and rolling the channel back is re-running this workflow for
+# the previous release (docs/RELEASING.md § Rollback).
+name: Release channel
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Published release to point the beta channel at (vX.Y.Z)"
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-channel
+  cancel-in-progress: false
+
+jobs:
+  beta-channel:
+    name: beta-channel
+    runs-on: ubuntu-latest
+    steps:
+      - name: Move the beta channel
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ github.event.inputs.tag || github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/channel" && mkdir -p "$work" && cd "$work"
+          gh release download "$TAG" --repo "$REPO" --pattern latest.json
+          python3 -c 'import json,sys; d=json.load(open("latest.json")); assert d["version"] and d["platforms"], "bad feed"; print("feed", d["version"])'
+          if ! gh release view beta-channel --repo "$REPO" >/dev/null 2>&1; then
+            gh release create beta-channel --repo "$REPO" --prerelease \
+              --title "Beta channel (update feed)" \
+              --notes "The update feed AI Juggler's beta builds read. Not a release: download the newest release above."
+          fi
+          gh release upload beta-channel latest.json --repo "$REPO" --clobber

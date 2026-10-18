@@ -54,6 +54,9 @@ pub struct AppState {
     /// harness id, from `heuristics.json`'s `providers` map; a Provider
     /// without one uses the global threshold.
     pub provider_stuck_secs: std::collections::BTreeMap<String, u64>,
+    /// AJ-E1010: where updating stands (in memory; the launch-check
+    /// setting lives in app settings).
+    pub updates: crate::updates::UpdateManager,
     /// Terminal ids with a live output forwarder (dedup: one forwarder per
     /// terminal no matter how often the UI re-attaches).
     pub terminal_taps: Mutex<std::collections::HashSet<String>>,
@@ -187,6 +190,7 @@ impl AppState {
             model_offsets: Mutex::new(std::collections::HashMap::new()),
             heuristics: HeuristicEngine::new(load_thresholds(&data_dir)),
             provider_stuck_secs: load_provider_thresholds(&data_dir),
+            updates: crate::updates::UpdateManager::default(),
             terminal_taps: Mutex::new(std::collections::HashSet::new()),
             kill_cancels: Mutex::new(std::collections::HashMap::new()),
             fleet: Mutex::new(None),

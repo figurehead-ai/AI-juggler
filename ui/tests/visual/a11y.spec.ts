@@ -2594,3 +2594,34 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("restore-plan")).toHaveCount(0);
   });
 }
+
+/** AJ-E1010 a11y (both themes): About & updates with an update
+ * available scans axe-clean; Install and Check now are reachable by
+ * keyboard; no modal traps focus. */
+for (const theme of ["dark", "light"] as const) {
+  test(`updates card — axe 0 — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ fixture, theme: t }) => {
+        const w = window as unknown as Record<string, unknown>;
+        w.__AIJ_FIXTURE__ = fixture;
+        w.__AIJ_UPDATE_STATUS__ = {
+          current_version: "0.1.0", channel: "beta", configured: true, check_on_launch: true, state: "available",
+          available: { version: "0.2.0", notes: "## New\n- History", date_ms: null },
+          progress: null, error: null, backup_path: null, checked_at_ms: null,
+        };
+        localStorage.setItem("aij.theme", t);
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        sessionStorage.setItem("aij.ready.skipped", "1");
+      },
+      { fixture: allStatuses, theme },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Settings" }).click();
+    await page.getByTestId("update-install").focus();
+    await page.keyboard.press("Tab");
+    await expect(page.getByTestId("update-check")).toBeFocused();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+  });
+}

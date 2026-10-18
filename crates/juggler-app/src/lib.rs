@@ -28,6 +28,7 @@ pub mod preview;
 pub mod remote;
 pub mod state;
 pub mod terminal;
+pub mod updates;
 pub mod usage_pipeline;
 pub mod worktree;
 
@@ -90,6 +91,7 @@ pub fn run() {
     let pipeline_state = Arc::clone(&app_state);
     let link_state = Arc::clone(&app_state);
     let figurehead_state = Arc::clone(&app_state);
+    let update_state = Arc::clone(&app_state);
 
     tauri::Builder::default()
         // Registered first: a second launch defers to the running app
@@ -104,6 +106,10 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        // AJ-E1010: registering the updater makes no request. The feed is
+        // only built in release builds that carry the signing key, and
+        // the webview gets no updater permission.
+        .plugin(tauri_plugin_updater::Builder::new().build())
         // The global "Go to instance…" hotkey (AJ-E414 Req.4): the
         // registration itself happens in setup (stored binding or the
         // default); a conflict there logs and leaves the in-app ⌘K path.
@@ -183,6 +189,11 @@ pub fn run() {
             overnight::overnight_summary_seen,
             parked::instance_park,
             lifecycle::instance_mark_reviewed,
+            updates::update_status,
+            updates::update_set_check_on_launch,
+            updates::update_check,
+            updates::update_install,
+            updates::update_restart,
             backup::backup_export,
             backup::backup_verify,
             backup::backup_restore,
@@ -312,6 +323,9 @@ pub fn run() {
             // AJ-E1202: refresh the Figurehead account only if linked —
             // signed out, nothing runs and nothing is sent.
             figurehead::resume_if_linked(figurehead_state);
+            // AJ-E1010: release builds check for an update in the
+            // background, if the user left that on; never installs.
+            updates::spawn_launch_check(app.handle().clone(), update_state);
             Ok(())
         })
         .run(tauri::generate_context!())

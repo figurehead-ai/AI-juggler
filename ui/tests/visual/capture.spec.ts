@@ -40,7 +40,7 @@ function noteNotCaptured(screen: string, state: string, reason: string) {
 
 test.beforeAll(() => {
   mkdirSync(GALLERY, { recursive: true });
-  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "16-onboarding-detect", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "34-wizard", "35-candidates", "36-recommend", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings", "45-remote", "46-fleet-board", "47-remote-focus", "48-remote-cleanup", "49-fleet-sync", "50-cross-switch", "51-identity", "52-worktree", "53-parked", "54-summary", "55-triage", "56-history", "57-backup"]) {
+  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "16-onboarding-detect", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "34-wizard", "35-candidates", "36-recommend", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings", "45-remote", "46-fleet-board", "47-remote-focus", "48-remote-cleanup", "49-fleet-sync", "50-cross-switch", "51-identity", "52-worktree", "53-parked", "54-summary", "55-triage", "56-history", "57-backup", "58-updates"]) {
     mkdirSync(resolve(GALLERY, screen), { recursive: true });
   }
   writeFileSync(NOT_CAPTURETED, "# Not captured (explicit omissions)\n\n| Screen | State | Reason |\n|---|---|---|\n");
@@ -6124,6 +6124,58 @@ for (const theme of THEMES) {
         await expect(page.getByTestId(state === "plan" ? "restore-other-machine" : "backup-failed")).toBeVisible();
       }
       await page.screenshot({ path: resolve(GALLERY, `57-backup/${state}-1280x800-${theme}.png`) });
+    });
+  }
+}
+
+// ---------------------------------------------------------------------
+// AJ-E1010 — 58-updates: Settings › About & updates — update available
+// (version + changes before installing), downloading, failed (version
+// untouched, Retry), up to date, and a development build — 1280×800,
+// light/dark. The Beta label is on every state.
+// ---------------------------------------------------------------------
+
+const updateBase = {
+  current_version: "0.1.0", channel: "beta", configured: true, check_on_launch: true,
+  available: null, progress: null, error: null, backup_path: null, checked_at_ms: T0 - 60_000,
+};
+const updateAvailable = {
+  version: "0.2.0",
+  date_ms: T0 - 86_400_000,
+  notes: "Morning triage, History and backups.\n\n## New\n- **Triage**: one sorted view of what needs you, across every project.\n- **History**: search any past session, replay it read-only, archive it.\n- **Backup & restore**: one file to move AI Juggler to a new Mac.\n\n## Fixed\n- The home view no longer hides its top under the header on small windows.",
+};
+const updateStates: Record<string, Record<string, unknown>> = {
+  available: { ...updateBase, state: "available", available: updateAvailable },
+  downloading: { ...updateBase, state: "downloading", available: updateAvailable, progress: 64, backup_path: "/Users/dev/Library/Application Support/AI Juggler/backups/before-update-0.1.0-to-0.2.0.ajbackup" },
+  failed: {
+    ...updateBase, state: "failed", available: updateAvailable,
+    error: "The download didn't finish or didn't verify: signature verification failed. Your current version is untouched.",
+  },
+  "up-to-date": { ...updateBase, state: "up_to_date" },
+  development: { ...updateBase, configured: false, state: "idle" },
+};
+
+for (const theme of THEMES) {
+  for (const [name, status] of Object.entries(updateStates)) {
+    test(`58 updates — ${name} — ${theme}`, async ({ page }) => {
+      await page.addInitScript(
+        ({ fixture, t, t0, seeded }) => {
+          const w = window as unknown as Record<string, unknown>;
+          w.__AIJ_FIXTURE__ = fixture;
+          w.__AIJ_UPDATE_STATUS__ = seeded;
+          localStorage.setItem("aij.theme", t);
+          localStorage.setItem("aij.onboarding.dismissed", "1");
+          sessionStorage.setItem("aij.ready.skipped", "1");
+          Date.now = () => t0;
+        },
+        { fixture: allStatuses, t: theme, t0: T0, seeded: status },
+      );
+      await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+      await page.setViewportSize({ width: 1280, height: 800 });
+      await page.goto("/");
+      await page.getByRole("button", { name: "Settings" }).click();
+      await expect(page.getByTestId("beta-label")).toBeVisible();
+      await page.screenshot({ path: resolve(GALLERY, `58-updates/${name}-1280x800-${theme}.png`) });
     });
   }
 }
