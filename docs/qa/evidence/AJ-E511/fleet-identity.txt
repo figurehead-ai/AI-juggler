@@ -1,0 +1,10 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.15s
+     Running tests/fleet_identity.rs (target/debug/deps/fleet_identity-317913b4c1b8cbb8)
+
+running 3 tests
+test wrong_machine_is_typed_and_names_both_machines ... ok
+test candidates_are_machine_scoped ... ok
+test composite_key_two_machines_same_session_stay_disjoint ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

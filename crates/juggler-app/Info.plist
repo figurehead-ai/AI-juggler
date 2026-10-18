@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- AJ-E415: the Screen Recording TCC prompt's usage description.
+         macOS terminates apps that trigger the prompt without one. -->
+    <key>NSScreenCaptureUsageDescription</key>
+    <string>AI Juggler mirrors a desktop instance's window inside its panel so you can supervise it without switching apps. Capture is read-only; nothing is recorded or sent anywhere.</string>
+</dict>
+</plist>

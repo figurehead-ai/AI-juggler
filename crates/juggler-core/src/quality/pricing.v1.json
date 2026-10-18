@@ -1,0 +1,9 @@
+{
+  "version": "v1",
+  "source": "https://www.anthropic.com/pricing",
+  "captured": "2026-10-13",
+  "rows": [
+    { "provider": "claude-code", "model": "opus", "input_per_1k": 0.015, "output_per_1k": 0.075 },
+    { "provider": "claude-code", "model": "sonnet", "input_per_1k": 0.003, "output_per_1k": 0.015 }
+  ]
+}

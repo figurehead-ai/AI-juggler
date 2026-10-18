@@ -1,0 +1,56 @@
+name: 🐛 Bug report
+description: Something is broken or behaving incorrectly
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! AI Juggler is pre-release —
+        if the bug is about the *design* rather than running software, consider
+        the design-feedback template instead.
+
+        **This issue is public.** Before pasting logs or screenshots, remove
+        account names, e-mail addresses, home-folder paths and tokens. Never
+        share vendor credentials. Security problems: use private reporting
+        (see SECURITY.md), not an issue.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug, and what you expected to happen instead.
+      placeholder: |
+        Steps to reproduce:
+        1. …
+        2. …
+
+        Expected: …
+        Actual: …
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: AI Juggler version
+      placeholder: e.g. v0.1.0 (or commit / "built from main")
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+        - Windows
+        - Linux (X11)
+        - Linux (Wayland)
+    validations:
+      required: true
+  - type: textarea
+    id: harnesses
+    attributes:
+      label: Involved harness(es) and versions
+      description: Which tool(s) were being managed when the bug occurred (Claude Code / Codex / ZCode / other) and their versions.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / screenshots
+      description: Anything relevant — app logs, console output, screenshots. Redact tokens and account emails!

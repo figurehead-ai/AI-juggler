@@ -1,0 +1,12 @@
+   Compiling juggler-supervisor v0.0.1 (crates/juggler-supervisor)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.35s
+     Running tests/collateral.rs (target/debug/deps/collateral-bd453ddf17332009)
+
+running 1 test
+kill: 56741: No such process
+kill: 56750: No such process
+kill: 56744: No such process
+test stop_signals_only_the_own_group_and_kills_survivors_after_grace ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.19s
+

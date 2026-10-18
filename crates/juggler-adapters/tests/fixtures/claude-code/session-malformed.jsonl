@@ -1,0 +1,6 @@
+{"parentUuid":null,"sessionId":"e5-0004","version":"2.1.296","type":"user","message":{"role":"user","content":"valid line"},"uuid":"k-0001","timestamp":"2026-10-12T08:00:00.000Z"}
+this line is not json at all
+{"type":"user"}
+{"parentUuid":"k-0001","sessionId":"e5-0004","type":"assistant","message":{"role":"assistant","content":"still fine"},"uuid":"k-0002","timestamp":"2026-10-12T08:00:02.000Z"}
+{"type":"ass
+{"type":"system","subtype":"compact_boundary","content":"history compacted"}

@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Juggler — Visual Wireframes for Review</title>
+<style>
+  :root{
+    --ink:#1c2321; --mut:#5c6663; --line:#c9d1ce; --line2:#e3e9e6;
+    --bg:#eef1f0; --panel:#ffffff; --wf:#f7f9f8; --wf2:#eef3f1;
+    --acc:#0f766e; --accsoft:#d9ebe8; --warn:#9a6a00; --warnbg:#fbf0d3;
+    --bad:#a4262c; --badbg:#f9e0e1; --ok:#1f7a3d; --okbg:#e2f2e6;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,monospace;
+    --sans:-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;font-family:var(--sans);color:var(--ink);background:var(--bg);font-size:14px;line-height:1.45}
+  a{color:var(--acc)}
+  /* ---------- page layout ---------- */
+  .topbar{position:sticky;top:0;z-index:50;background:#17201e;color:#e8efed;padding:10px 18px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+  .topbar b{font-size:15px;letter-spacing:.2px}
+  .topbar span{color:#aebcb8;font-size:12.5px}
+  .topbar .grow{flex:1}
+  .topbar button,.topbar select{background:#24322f;color:#e8efed;border:1px solid #3a4a46;border-radius:6px;padding:6px 10px;font-size:12.5px;cursor:pointer}
+  .layout{display:flex;align-items:flex-start;max-width:1560px;margin:0 auto}
+  nav.side{position:sticky;top:52px;width:248px;flex:0 0 248px;max-height:calc(100vh - 52px);overflow:auto;padding:14px 10px 30px;border-right:1px solid var(--line)}
+  nav.side h3{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);margin:16px 8px 6px}
+  nav.side a{display:block;color:var(--ink);text-decoration:none;padding:5px 8px;border-radius:6px;font-size:13px}
+  nav.side a:hover{background:var(--wf2)}
+  nav.side a small{color:var(--mut);font-family:var(--mono);font-size:10.5px;display:block}
+  nav.side a.approved{border-left:3px solid var(--ok)}
+  nav.side a.changes{border-left:3px solid var(--bad)}
+  main{flex:1;min-width:0;padding:18px 22px 80px}
+  .intro{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:22px}
+  .intro h1{margin:0 0 6px;font-size:20px}
+  .intro p{margin:6px 0;color:#33403d}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:12.5px;color:var(--mut)}
+  .legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+  /* ---------- screen card ---------- */
+  section.screen{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 16px 14px;margin:0 0 26px;scroll-margin-top:64px}
+  section.screen>h2{margin:0;font-size:17px}
+  section.screen>h2 .sid{font-family:var(--mono);font-size:11px;color:#fff;background:#33413e;border-radius:5px;padding:2px 7px;vertical-align:2px;margin-right:8px}
+  .tasks{font-family:var(--mono);font-size:11px;color:var(--mut);margin:3px 0 10px}
+  .cols{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:14px}
+  @media(max-width:1050px){.cols{grid-template-columns:1fr} nav.side{display:none}}
+  .notes{border:1px solid var(--line2);border-radius:8px;padding:10px 12px;background:#fcfdfd;font-size:12.5px}
+  .notes h4{margin:8px 0 4px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#33413e}
+  .notes h4:first-child{margin-top:0}
+  .notes ul{margin:4px 0 8px;padding-left:17px}
+  .notes li{margin:2px 0}
+  .notes code{font-family:var(--mono);font-size:11px;background:var(--wf2);padding:0 4px;border-radius:3px}
+  .verdict{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
+  .verdict button{border:1px solid var(--line);background:#fff;border-radius:6px;padding:7px 12px;cursor:pointer;font-size:12.5px}
+  .verdict button.on-ok{background:var(--okbg);border-color:var(--ok);color:var(--ok);font-weight:600}
+  .verdict button.on-no{background:var(--badbg);border-color:var(--bad);color:var(--bad);font-weight:600}
+  .verdict textarea{flex:1;min-width:180px;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-family:var(--sans);font-size:12.5px}
+  /* ---------- wireframe primitives ---------- */
+  .wf{border:1.5px solid #9fb0ab;border-radius:10px;background:var(--wf);overflow:hidden;font-size:12px}
+  .wf *{box-sizing:border-box}
+  .titlebar{display:flex;align-items:center;gap:6px;background:#dfe7e4;border-bottom:1px solid var(--line);padding:6px 10px;color:#43514e;font-size:11px}
+  .dot{width:9px;height:9px;border-radius:50%;background:#b7c4c0;display:inline-block}
+  .winbody{display:grid;grid-template-columns:196px 1fr 252px;min-height:340px}
+  .winbody.two{grid-template-columns:196px 1fr}
+  .winbody.one{grid-template-columns:1fr}
+  .rail{background:#eef3f1;border-right:1px solid var(--line);padding:8px}
+  .maincol{padding:10px;min-width:0}
+  .insp{background:#f3f7f5;border-left:1px solid var(--line);padding:9px}
+  .rsec{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--mut);margin:8px 2px 4px}
+  .rsec:first-child{margin-top:0}
+  .row{display:flex;gap:6px;align-items:center;padding:5px 6px;border-radius:6px}
+  .row.sel{background:var(--accsoft);outline:1px solid var(--acc)}
+  .row:hover{background:#e7efec}
+  .row .grow{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row small{color:var(--mut)}
+  .badge{display:inline-block;border:1px solid var(--line);border-radius:20px;padding:0 7px;font-size:10px;background:#fff;white-space:nowrap}
+  .badge.acc{border-color:var(--acc);color:var(--acc);background:var(--accsoft)}
+  .badge.warn{border-color:var(--warn);color:var(--warn);background:var(--warnbg)}
+  .badge.bad{border-color:var(--bad);color:var(--bad);background:var(--badbg)}
+  .badge.ok{border-color:var(--ok);color:var(--ok);background:var(--okbg)}
+  .badge.beta{border-style:dashed}
+  .bar{height:7px;border-radius:4px;background:#dde5e2;overflow:hidden;min-width:52px}
+  .bar i{display:block;height:100%;background:var(--acc)}
+  .bar.warn i{background:#d3a008}.bar.bad i{background:var(--bad)}
+  .btn{display:inline-block;border:1.2px solid #7d908a;background:#fff;border-radius:6px;padding:4px 10px;font-size:11.5px;cursor:pointer;white-space:nowrap}
+  .btn.pri{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+  .btn.dng{border-color:var(--bad);color:var(--bad)}
+  .btn:disabled,.btn.dis{opacity:.45;cursor:not-allowed}
+  .btnrow{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+  .tabs{display:flex;gap:2px;border-bottom:1.5px solid var(--line);margin-bottom:9px;flex-wrap:wrap}
+  .tabs span{padding:5px 9px;font-size:11.5px;border:1px solid transparent;border-bottom:none;border-radius:6px 6px 0 0;color:var(--mut)}
+  .tabs span.on{background:#fff;border-color:var(--line);color:var(--ink);font-weight:600;margin-bottom:-1.5px}
+  table.wft{width:100%;border-collapse:collapse;font-size:11.5px}
+  table.wft th,table.wft td{border-bottom:1px solid var(--line2);padding:5px 6px;text-align:left;vertical-align:top}
+  table.wft th{color:var(--mut);font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em}
+  .card{border:1px solid var(--line);border-radius:8px;background:#fff;padding:9px 10px;margin:0 0 8px}
+  .card h5{margin:0 0 5px;font-size:12px}
+  .kv{display:flex;justify-content:space-between;gap:8px;padding:2.5px 0;border-bottom:1px dotted var(--line2)}
+  .kv:last-child{border-bottom:none}
+  .kv b{font-weight:600;text-align:right}
+  .kv span{color:var(--mut)}
+  .term{background:#18201e;color:#cfe0da;border-radius:8px;padding:9px 11px;font-family:var(--mono);font-size:11px;line-height:1.55;white-space:pre-wrap;min-height:150px}
+  .term .dim{color:#7d918a}.term .acc{color:#7fd1c5}
+  .field{border:1px solid var(--line);border-radius:6px;background:#fff;padding:6px 8px;margin:0 0 7px}
+  .field label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);margin-bottom:2px}
+  .chk{font-family:var(--mono);font-size:11px;color:#41504c}
+  .note-strip{border:1px dashed var(--warn);background:var(--warnbg);border-radius:6px;padding:6px 9px;font-size:11.5px;margin:7px 0}
+  .ok-strip{border:1px dashed var(--ok);background:var(--okbg);border-radius:6px;padding:6px 9px;font-size:11.5px;margin:7px 0}
+  .bad-strip{border:1px dashed var(--bad);background:var(--badbg);border-radius:6px;padding:6px 9px;font-size:11.5px;margin:7px 0}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px}
+  @media(max-width:900px){.grid2,.grid3{grid-template-columns:1fr}}
+  .spark{font-family:var(--mono);color:var(--acc);font-size:11px;letter-spacing:-1px}
+  .modal-wrap{padding:16px;background:repeating-linear-gradient(45deg,#e8eeec,#e8eeec 10px,#e2eae7 10px,#e2eae7 20px)}
+  .modal{max-width:520px;margin:0 auto;background:#fff;border:1.5px solid #9fb0ab;border-radius:10px;padding:14px 16px;box-shadow:0 8px 24px rgba(20,30,28,.18)}
+  .modal h3{margin:0 0 8px;font-size:14px}
+  .kbd{font-family:var(--mono);font-size:10px;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 4px;background:#fff}
+  .foot{color:var(--mut);font-size:11px;margin-top:7px}
+  .approval-summary{background:#17201e;color:#e8efed;border-radius:10px;padding:14px 16px}
+  .approval-summary table{width:100%;border-collapse:collapse;font-size:12.5px}
+  .approval-summary td,.approval-summary th{border-bottom:1px solid #33413e;padding:5px 6px;text-align:left}
+  @media print{nav.side,.topbar .noprint{display:none} main{padding:0} section.screen{break-inside:avoid}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <b>AI Juggler — Visual Wireframes</b><span>All proposed changes · for maintainer approval + agent implementation reference</span>
+  <span class="grow"></span>
+  <button class="noprint" onclick="window.print()">Print / PDF</button>
+  <button class="noprint" onclick="exportApprovals()">Export approvals (JSON)</button>
+  <button class="noprint" onclick="if(confirm('Clear all approvals and notes?')){localStorage.removeItem('aj-wf');location.reload()}">Reset</button>
+</div>
+<div class="layout">
+<nav class="side" id="sidenav">
+  <h3>Start</h3>
+  <a href="#howto">How to review<small>read first</small></a>
+  <h3>Shell &amp; daily loop</h3>
+  <a href="#s01" data-sid="s01">01 App shell + rail<small>E4 · AJ-E401-E404</small></a>
+  <a href="#s02" data-sid="s02">02 Morning triage / Needs me<small>E10 · AJ-E1004-E1005</small></a>
+  <a href="#s03" data-sid="s03">03 Projects<small>E4 · AJ-E408</small></a>
+  <a href="#s04" data-sid="s04">04 Instances<small>E1/E4 · AJ-E104</small></a>
+  <a href="#s05" data-sid="s05">05 Session + terminal<small>E4 · AJ-E407</small></a>
+  <h3>Right Inspector (6 tabs)</h3>
+  <a href="#s06" data-sid="s06">06 Inspector: Overview<small>AJ-E406-E408</small></a>
+  <a href="#s07" data-sid="s07">07 Inspector: Usage + Quality<small>AJ-E409-E411</small></a>
+  <a href="#s08" data-sid="s08">08 Inspector: Processes<small>AJ-E410 · E5</small></a>
+  <a href="#s09" data-sid="s09">09 Inspector: History + Actions<small>AJ-E406</small></a>
+  <h3>Launch &amp; switching</h3>
+  <a href="#s10" data-sid="s10">10 Launch sheet + Launch settings<small>AJ-E105 · D-10</small></a>
+  <a href="#s11" data-sid="s11">11 Switch: 1-click (proven)<small>AJ-E206 · D-03</small></a>
+  <a href="#s12" data-sid="s12">12 Switch wizard (lossy/cross-Provider)<small>AJ-E206 · D-11</small></a>
+  <a href="#s13" data-sid="s13">13 Switch-back + divergence<small>AJ-E207 · D-05</small></a>
+  <a href="#s14" data-sid="s14">14 Context pack + redaction policy<small>AJ-E202/E208 · D-14</small></a>
+  <a href="#s15" data-sid="s15">15 Switch Graph / lineage<small>AJ-E201/E209</small></a>
+  <h3>Onboarding</h3>
+  <a href="#s16" data-sid="s16">16 Onboarding: scan results<small>AJ-E301-E303</small></a>
+  <a href="#s17" data-sid="s17">17 Onboarding: recommended set<small>AJ-E304-E305</small></a>
+  <a href="#s18" data-sid="s18">18 Add Provider / Account / Instance<small>AJ-E306-E308</small></a>
+  <h3>Quota, cost, cleanup</h3>
+  <a href="#s19" data-sid="s19">19 Usage: two clocks + forecast<small>AJ-E606-E610</small></a>
+  <a href="#s20" data-sid="s20">20 Cost ledger<small>AJ-E609</small></a>
+  <a href="#s21" data-sid="s21">21 Cleanup Centre<small>AJ-E506-E508 · D-08</small></a>
+  <a href="#s22" data-sid="s22">22 Verify-before-kill sheet<small>AJ-E507</small></a>
+  <h3>Fleet, library, system</h3>
+  <a href="#s23" data-sid="s23">23 Fleet: machines + pairing<small>AJ-E701-E704 · D-13</small></a>
+  <a href="#s24" data-sid="s24">24 Fleet: remote inspector<small>AJ-E705-E709</small></a>
+  <a href="#s25" data-sid="s25">25 Search / Archive / Replay<small>AJ-E1007</small></a>
+  <a href="#s26" data-sid="s26">26 Settings<small>D-08/D-12/D-14</small></a>
+  <a href="#s27" data-sid="s27">27 Command palette + notifications<small>E4/E10</small></a>
+  <h3>Close</h3>
+  <a href="#summary">Approval summary<small>exportable</small></a>
+</nav>
+<main>
+<div class="intro" id="howto">
+  <h1>How to review this document</h1>
+  <p>Each numbered screen below is a <b>wireframe</b> of a proposed change, drawn at desktop size with the real
+  layout the implementation must follow: left rail, main column, and (where settled) the Right Inspector.
+  Beside every wireframe you will find the controls list, the states that must exist, and the task IDs from
+  <code>docs/tasks/</code> that own the work. Your verdict per screen is stored in this browser only.</p>
+  <p><b>To approve:</b> open this file, work top to bottom, and click <b>Approve</b> or <b>Changes requested</b>
+  (with a note) under each screen. Then use <b>Export approvals (JSON)</b> in the top bar and hand the file back —
+  agents will treat it as the approval record. Nothing here is built until the corresponding tasks move under
+  the Stage-1 approval in the decision log.</p>
+  <div class="legend">
+    <span><i style="background:var(--accsoft);border:1px solid var(--acc)"></i>Selected / primary</span>
+    <span><i style="background:var(--warnbg);border:1px solid var(--warn)"></i>Warning / estimated</span>
+    <span><i style="background:var(--badbg);border:1px solid var(--bad)"></i>Blocked / destructive</span>
+    <span><i style="background:var(--okbg);border:1px solid var(--ok)"></i>Verified / proven</span>
+    <span><i style="background:#fff;border:1px dashed #7d908a"></i>Beta / unvalidated</span>
+  </div>
+  <p class="foot">Vocabulary throughout: Provider (the tool), Account (a subscription/login), Instance (the tool running),
+  Session (the conversation inside an Instance), Launch settings (formerly Profile). Decisions D-01…D-15 in
+  <code>docs/review/decision-log.md</code> govern every screen; where a wireframe and a decision disagree, the decision wins and the wireframe must be fixed.</p>
+</div>
+
+<section class="screen" id="s01">
+<h2><span class="sid">01</span>App shell + Workflow Rail with indicators</h2>
+<p class="tasks">Tasks: AJ-E401, AJ-E402, AJ-E403, AJ-E404 · Epic E4 · Decisions D-01, D-02, D-06</p>
+<div class="cols"><div class="wf"><div class="titlebar"><span class="dot"></span><span class="dot"></span><span class="dot"></span> AI Juggler — studio-mac <span style="margin-left:auto">◄▐ Rail ⌘B &nbsp; ▌► Inspector ⌘⇧I &nbsp; ⌘K Search &nbsp; ● Fleet: 2 machines</span></div>
+<div class="winbody">
+<div class="rail"><div class="btnrow" style="gap:4px;margin-bottom:6px"><button class="btn" style="flex:0 0 auto;padding:2px 8px;background:#7c7cf4;color:#fff;border-color:#7c7cf4">All</button><button class="btn" style="flex:0 0 auto;padding:2px 8px">Projects</button><button class="btn" style="flex:0 0 auto;padding:2px 8px">Instances</button><button class="btn" style="flex:0 0 auto;padding:2px 8px">Sessions</button></div>
+<div class="foot" style="margin:0 0 6px">Show: All / one type — the rail keeps its layout, other sections hide. ⌘\ cycles.</div>
+<div style="border:1px solid #333a4a;border-radius:6px;padding:4px 8px;margin-bottom:6px;color:#8b93a7">🔍 Search projects, instances, sessions… <span style="float:right;opacity:.6">⌘F</span></div>
+<div class="rsec">Projects ⌘1</div>
+<div class="row sel"><span class="grow">▸ AIJuggler</span><span class="badge bad">2 need you</span></div>
+<div class="row"><span class="grow">▸ client-api</span><span class="badge">3 running</span></div>
+<div class="row"><span class="grow">▸ dotfiles</span><span class="badge warn">1 parked</span></div>
+<div class="rsec">Instances ⌘2</div>
+<div class="row sel"><span class="grow">⬢ Claude · Work <small>Opus</small></span></div>
+<div class="row"><span class="grow">⬢ Claude · Personal <small>Sonnet</small></span><span class="badge bad">Quota</span></div>
+<div class="row"><span class="grow">⬢ Codex · Work <small>GPT</small></span><span class="badge ok">Running</span></div>
+<div class="rsec">Sessions ⌘3</div>
+<div class="row"><span class="grow">fix-auth-tests</span><span class="badge bad">Stuck?</span></div>
+<div class="row"><span class="grow">refactor-rail</span><span class="badge acc">Waiting</span></div>
+<div class="row"><span class="grow">docs-pass</span><span class="badge ok">Done</span></div>
+<div class="btnrow"><button class="btn pri">＋ New session ⌘N</button></div><div class="foot">Density: Comfortable ▾ · Legend (?) · ⌘B collapses this rail to icons (state dots + type icons remain; width remembered)</div></div>
+<div class="maincol"><div class="tabs"><span class="on">Needs me (2)</span><span>Running</span><span>Parked</span><span>Finished</span></div>
+<div class="card"><h5>⬢ fix-auth-tests — Claude · Work · Opus <span class="badge bad">STUCK? no output 6m</span></h5><div class="kv"><span>Project / branch</span><b>AIJuggler · juggler/fix-auth</b></div><div class="kv"><span>Quota (5h window)</span><b>▰▰▰▰▱ 78% · resets 14:20</b></div><div class="kv"><span>CPU / RAM · children</span><b>12% · 410 MB · 3 processes</b></div><div class="btnrow"><button class="btn pri">Open session</button><button class="btn">Switch account…</button><button class="btn">Park until reset</button></div></div>
+<div class="card"><h5>⬢ refactor-rail — Claude · Personal · Sonnet <span class="badge acc">WAITING FOR YOU</span></h5><div class="kv"><span>Last question</span><b>“Apply the new rail layout?”</b></div><div class="kv"><span>Waiting</span><b>12 minutes</b></div><div class="btnrow"><button class="btn pri">Answer</button><button class="btn">Open</button></div></div>
+<div class="note-strip">Indicators are never colour-only: every state also has a text label. Data shown only when measured; otherwise “Unavailable — reason”.</div></div>
+<div class="insp"><b>Right Inspector</b><div class="foot">Select anything on the left → its full snapshot appears here. See screens 06–09. ⌘⇧I collapses to an edge tab (label + attention count stay visible).</div><div class="tabs"><span class="on">Overview</span><span>Usage</span><span>History</span></div><div class="kv"><span>Selection</span><b>Instance: Claude·Work</b></div><div class="kv"><span>Status</span><b>Running · 2 sessions</b></div><div class="kv"><span>Identity check</span><b><span class="badge ok">Verified</span></b></div></div>
+</div></div>
+<aside class="notes"><h4>Purpose</h4><p>The daily home (D-01: See). One glance answers “who needs me, what is running, where is quota going”.</p>
+<h4>Controls</h4><ul><li>Rail sections Projects / Instances / Sessions with <code>⌘1..⌘3</code>, arrow-key navigation</li>
+<li><b>Focus filter</b> at the rail top: All / Projects / Instances / Sessions — keeps the combined view you like, hides the other sections when you want focus (<code>⌘\</code> cycles; ⌘1..⌘3 jump straight to a type)</li>
+<li><b>Rail search</b>: type to filter rows across all three sections (matches project names, instance accounts/models, session titles); ⌘F focuses it; Esc clears</li><li>Every row: Provider icon, Account, model, state text, quota bar, child-process count</li><li>Tabs: Needs me / Running / Parked / Finished; density switch; legend</li><li>New session <code>⌘N</code>; global palette <code>⌘K</code></li>
+<li><b>Collapse-anywhere (every screen):</b> <code>⌘B</code> toggles the left rail to an icon strip (state dots and per-type icons stay; selection preserved; width remembered per window); <code>⌘⇧I</code> collapses the Right Inspector to a slim edge tab showing the selection's label + attention badge — content keeps updating, one click/hover restores. Terminal-maximize (screen 05) is the extreme case of the same pattern. Applies to ALL 27 screens, including pop-out windows</li></ul>
+<h4>States that must exist</h4><ul><li>Populated, empty (per section), loading skeleton, stale (“stale — 2m”), error banner with data retained</li></ul>
+<h4>Approve if</h4><ul><li>Row information and tab grouping match how you triage</li></ul>
+<div class="verdict" data-verdict></div></aside></div></section>
+
+<section class="screen" id="s02">
+<h2><span class="sid">02</span>Morning triage — “Needs me” board</h2>
+<p class="tasks">Tasks: AJ-E1004, AJ-E1005 · Epic E10 · Decisions D-01, D-06</p>
+<div class="cols"><div class="wf"><div class="titlebar"><span class="dot"></span><span class="dot"></span><span class="dot"></span> Morning triage — Tuesday 09:02 · overnight summary</div>
+<div class="winbody two"><div class="rail"><div class="rsec">Triage</div><div class="row sel"><span class="grow">Needs me</span><span class="badge bad">3</span></div><div class="row"><span class="grow">Parked · resets soon</span><span class="badge warn">2</span></div><div class="row"><span class="grow">Running</span><span class="badge">4</span></div><div class="row"><span class="grow">Finished · unreviewed</span><span class="badge">5</span></div><div class="rsec">Overnight</div><div class="kv"><span>Finished</span><b>4</b></div><div class="kv"><span>Crashed</span><b>1</b></div><div class="kv"><span>Cost (measured)</span><b>$6.40</b></div><div class="kv"><span>Leftovers</span><b>2 processes</b></div></div>
+<div class="maincol"><table class="wft"><tr><th>Instance / Session</th><th>Why it needs you</th><th>Waiting</th><th>Primary action</th></tr>
+<tr><td>⬢ Claude·Work — fix-auth-tests</td><td><span class="badge bad">Stuck?</span> no output 6m</td><td>6m</td><td><button class="btn pri">Open</button> <button class="btn">Switch…</button></td></tr>
+<tr><td>⬢ Claude·Personal — refactor-rail</td><td><span class="badge acc">Question</span> “Apply layout?”</td><td>12m</td><td><button class="btn pri">Answer</button></td></tr>
+<tr><td>⬢ Codex·Work — api-client</td><td><span class="badge bad">Crashed</span> exit 137 · leftovers</td><td>2h</td><td><button class="btn pri">Inspect</button> <button class="btn">Cleanup</button></td></tr>
+<tr><td>⬢ Claude·Work — docs-pass</td><td><span class="badge warn">Parked</span> resets 10:40</td><td>—</td><td><button class="btn">Resume at reset</button></td></tr></table>
+<div class="btnrow"><button class="btn">Mark all finished as reviewed</button><button class="btn">Open Cleanup Centre (2)</button></div>
+<div class="foot">Keyboard: ↑/↓ move · Enter open · S switch · P park · A archive. Sorted by waiting time, oldest first.</div></div></div></div>
+<aside class="notes"><h4>Purpose</h4><p>Two-minute start-of-day (W3). Grouped by the action you must take, not by tool.</p><h4>Controls</h4><ul><li>Groups: Needs me / Parked / Running / Finished-unreviewed</li><li>One primary action per row without opening another screen</li><li>Overnight summary with cost and leftovers, linking to Cleanup</li></ul><h4>States</h4><ul><li>All-clear empty state (“Nothing needs you”), overnight vs live mode</li></ul><div class="verdict" data-verdict></div></aside></div></section>
+
+<section class="screen" id="s03">
+<h2><span class="sid">03</span>Projects — list and project detail</h2>
+<p class="tasks">Tasks: AJ-E408, AJ-E1002 · Epics E4/E10 · Worktree isolation</p>
+<div class="cols"><div class="wf"><div class="titlebar"><span class="dot"></span><span class="dot"></span><span class="dot"></span> Projects</div>
+<div class="winbody"><div class="rail"><div class="rsec">Projects</div><div class="row sel"><span class="grow">AIJuggler</span><span class="badge bad">2</span></div><div class="row"><span class="grow">client-api</span></div><div class="row"><span class="grow">dotfiles</span></div><div class="btnrow"><button class="btn">＋ Add project…</button></div><div class="foot">Add = folder picker or drag-drop. Never type a path.</div></div>
+<div class="maincol"><h3 style="margin:2px 0 8px">AIJuggler <small style="color:var(--mut)">~/Dev/AIJuggler · git · main ↓0 ↑2</small></h3>
+<table class="wft"><tr><th>Instance</th><th>Branch / worktree</th><th>State</th><th>Quota</th></tr>
+<tr><td>⬢ Claude·Work — fix-auth-tests</td><td>juggler/fix-auth · dirty 3</td><td><span class="badge bad">Stuck?</span></td><td>78%</td></tr>
+<tr><td>⬢ Codex·Work — api-review</td><td>juggler/api-review · clean</td><td><span class="badge ok">Running</span></td><td>41%</td></tr>
+<tr><td>⬢ Claude·Personal — docs</td><td>shared checkout ⚠</td><td><span class="badge warn">Parked</span></td><td>reset 10:40</td></tr></table>
+<div class="note-strip">Two Instances share the main checkout. New parallel Instances get their own worktree by default (AJ-E1002).</div>
+<div class="btnrow"><button class="btn pri">＋ New Instance on this project</button><button class="btn">Open in Finder</button><button class="btn">Project history</button></div></div>
+<div class="insp"><b>Inspector · Project</b><div class="tabs"><span class="on">Overview</span><span>Usage</span><span>History</span></div><div class="kv"><span>Sessions ever</span><b>48</b></div><div class="kv"><span>Accounts used</span><b>3</b></div><div class="kv"><span>Cost this week</span><b>$18.20 measured</b></div><div class="kv"><span>Worktrees</span><b>3 · 1 shared ⚠</b></div></div></div></div>
+<aside class="notes"><h4>Purpose</h4><p>A project shows every Account that touched it, its branches/worktrees and its cost — the anti-silo view.</p><h4>Controls</h4><ul><li>Add project (picker/drag-drop only), New Instance, history across accounts</li><li>Worktree warning with one-click “give it its own worktree”</li></ul><h4>States</h4><ul><li>Non-git project: isolation shows “Unavailable — not a git project”</li></ul><div class="verdict" data-verdict></div></aside></div></section>
+
+<section class="screen" id="s04">
+<h2><span class="sid">04</span>Instances — the tool running, per Account</h2>
+<p class="tasks">Tasks: AJ-E104, AJ-E401 · Epics E1/E4 · Decision D-02 (Instance is a real entity)</p>
+<div class="cols"><div class="wf"><div class="titlebar"><span class="dot"></span><span class="dot"></span><span class="dot"></span> Instances</div>
+<div class="winbody two"><div class="rail"><div class="rsec">Instances ⌘2</div><div class="row sel"><span class="grow">⬢ Claude · Work</span><span class="badge ok">Verified</span></div><div class="row"><span class="grow">⬢ Claude · Personal</span><span class="badge bad">Quota blocked</span></div><div class="row"><span class="grow">⬢ Codex · Work</span><span class="badge ok">Running</span></div><div class="row"><span class="grow">⬢ ZCode · Trial</span><span class="badge beta">Beta</span></div><div class="btnrow"><button class="btn">＋ Add Instance</button></div></div>
+<div class="maincol"><table class="wft"><tr><th>Instance</th><th>Running model</th><th>Sessions</th><th>Resources</th><th>Identity</th></tr>
+<tr><td>⬢ Claude Code · Work account</td><td>Opus 4.x (actual, not launch)</td><td>2 active</td><td>12% CPU · 410 MB · 3 child</td><td><span class="badge ok">Verified</span></td></tr>
+<tr><td>⬢ Claude Code · Personal</td><td>— (blocked)</td><td>1 parked</td><td>0%</td><td><span class="badge ok">Verified</span></td></tr>
+<tr><td>⬢ Codex · Work</td><td>GPT-5.x</td><td>1 active</td><td>4% · 220 MB · 1 child</td><td><span class="badge warn">Unverified</span></td></tr></table>
+<div class="bad-strip">Identity unverified on Codex·Work: no metadata probe yet for this Provider. Juggler shows this honestly instead of pretending (AJ-E1001).</div>
+<div class="btnrow"><button class="btn pri">＋ New session on selected</button><button class="btn">Start / Stop</button><button class="btn">Launch settings…</button></div></div></div></div>
+<aside class="notes"><h4>Purpose</h4><p>Instance = a Provider running under one Account on this machine. This screen reverses the old Instances=Sessions collapse.</p><h4>Controls</h4><ul><li>Actual running model, resources, child count, identity verification per Instance</li><li>Start/Stop, Launch settings (D-10), New session</li></ul><h4>States</h4><ul><li>Unverified identity shown as a warning, never hidden</li></ul><div class="verdict" data-verdict></div></aside></div></section>
+
+<section class="screen" id="s05">
+<h2><span class="sid">05</span>Session view — live terminal with supervision header</h2>
+<p class="tasks">Tasks: AJ-E407, AJ-E1001 · Epic E4</p>
+<div class="cols"><div class="wf"><div class="titlebar"><span class="dot"></span><span class="dot"></span><span class="dot"></span> fix-auth-tests — AIJuggler</div>
+<div class="winbody"><div class="rail"><div class="rsec">Session</div><div class="kv"><span>Provider</span><b>Claude Code</b></div><div class="kv"><span>Account</span><b>Work</b></div><div class="kv"><span>Model (actual)</span><b>Opus 4.x</b></div><div class="kv"><span>State</span><b>Running</b></div><div class="kv"><span>Context</span><b>61%</b></div><div class="bar"><i style="width:61%"></i></div><div class="kv"><span>Branch</span><b>juggler/fix-auth</b></div><div class="btnrow"><button class="btn pri">Switch account… ⌘⇧S</button><button class="btn">Park</button><button class="btn">Stop ■</button></div></div>
+<div class="maincol"><div class="btnrow" style="margin:0 0 6px"><span class="foot" style="flex:1;margin:0">Terminal — fix-auth-tests</span><button class="btn" style="flex:0 0 auto;padding:2px 8px">⤢ Maximize ⌥⤢</button><button class="btn" style="flex:0 0 auto;padding:2px 8px">⧉ Open in window ⇧⧉</button><span class="foot" style="flex:0 0 auto;margin:0">Maximize: terminal fills the app window (header/inspector collapse to a strip; Esc restores). Pop-out: a real OS window on any display — same session, same scrollback, stays live when the main window closes.</span></div>
+<div class="term"><span class="dim">$ claude  (CLAUDE_CONFIG_DIR=…/accounts/work)</span>
+✻ Fixing the three failing auth tests…
+<span class="acc">●</span> Edit src/auth/session.test.ts
+<span class="dim">  ⎿ Updated 3 tests, running suite…</span>
+<span class="acc">●</span> Bash(npm test 2>&amp;1 | tail -20)
+<span class="dim">  ⎿ waiting for output…</span></div>
+<div class="btnrow"><button class="btn">⌘F Find in terminal</button><button class="btn">Copy</button><button class="btn">Links: on</button><span class="foot">Terminal: search, copy, clickable links, reconnect keeps scrollback.</span></div></div>
+<div class="insp"><b>Inspector · Session</b><div class="tabs"><span class="on">Overview</span><span>Usage</span><span>Processes</span></div><div class="kv"><span>Tokens in/out</span><b>84k / 12k</b></div><div class="kv"><span>Cost</span><b>$1.84 measured</b></div><div class="kv"><span>Subtasks</span><b>2 sub-agents</b></div><div class="kv"><span>Children</span><b>npm test (running)</b></div></div></div></div>
+<aside class="notes"><h4>Purpose</h4><p>The real, unmodified Provider CLI in an embedded terminal — Juggler supervises, never middlemans.</p><h4>Controls</h4><ul><li>Header always shows Provider/Account/model/state/context — wrong-account guard (AJ-E1001)</li><li>Switch <code>⌘⇧S</code>, Park, Stop ladder; terminal Find/Copy/Links</li>
+<li><b>Maximize</b> <code>⌥⤢</code> — terminal takes the whole app window (rail/inspector collapse to a hover strip; Esc or repeat to restore)</li>
+<li><b>Open in window</b> <code>⇧⧉</code> — detaches the terminal into its own OS window for multi-monitor setups: same PTY, same scrollback, live in both places, closing either keeps the session running; a popped-out window can itself maximize to its display. Rail shows a ↗ badge on sessions living in external windows</li></ul><h4>States</h4><ul><li>Reconnect after app restart restores scrollback; crashed shows exit + leftovers link</li></ul><div class="verdict" data-verdict></div></aside></div></section>
+
+<section class="screen" id="s06">
+<h2><span class="sid">06</span>Right Inspector — Overview tab (any selection)</h2>
+<p class="tasks">Tasks: AJ-E406, AJ-E407, AJ-E408 · Epic E4 · Decision D-06 (full inspector, honest fields)</p>
+<div class="cols"><div class="wf"><div class="titlebar"><span class="dot"></span><span class="dot"></span><span class="dot"></span> Inspector — appears for Session / Provider / Account / Instance / Project</div>
+<div class="winbody two"><div class="rail"><div class="rsec">You selected</div><div class="row sel"><span class="grow">⬢ Instance: Claude · Work</span></div><div class="foot">Try other selections: the Inspector keeps the same 6 tabs, contents change. This is the settled pattern for every selection type.</div></div>
+<div class="maincol"><div class="tabs"><span class="on">Overview</span><span>Usage</span><span>History</span><span>Quality</span><span>Processes</span><span>Actions</span></div>
+<div class="grid2"><div class="card"><h5>Status</h5><div class="kv"><span>State</span><b>Running · 2 sessions</b></div><div class="kv"><span>Identity</span><b><span class="badge ok">Verified</span> Work account</b></div><div class="kv"><span>Running model</span><b>Opus 4.x (actual)</b></div><div class="kv"><span>Machine</span><b>This Mac · local</b></div></div>
+<div class="card"><h5>Quota snapshot</h5><div class="kv"><span>5h window</span><b>78% · resets 14:20</b></div><div class="bar warn"><i style="width:78%"></i></div><div class="kv"><span>Weekly</span><b>54% · resets Mon</b></div><div class="kv"><span>Subscription</span><b>Renews 1 Nov (you entered)</b></div></div></div>
+<div class="card"><h5>Attention</h5><div class="kv"><span>Stuck / waiting</span><b>1 session waiting for you</b></div><div class="kv"><span>Leftovers</span><b>None</b></div><div class="kv"><span>Last error</span><b>None today</b></div></div>
+<div class="note-strip">Unavailable example: “Cost per task — Unavailable: Provider does not expose task boundaries.” Honest fields only (D-06).</div></div></div></div>
+<aside class="notes"><h4>Purpose</h4><p>Your workflow sentence, literally: select anything, the whole right section becomes its snapshot.</p><h4>Controls</h4><ul><li>Same 6 tabs for all 5 selection types; contents adapt, layout does not</li><li>Overview = status, identity, quota snapshot, attention</li></ul><h4>States</h4><ul><li>Every unmeasured field renders “Unavailable — reason”, never a guess</li></ul><div class="verdict" data-verdict></div></aside></div></section>
+
+<section class="screen" id="s07">
+<h2><span class="sid">07</span>Right Inspector — Usage + Quality tabs</h2>
+<p class="tasks">Tasks: AJ-E409, AJ-E410, AJ-E411, AJ-E412 · Epic E4/E6 · Decisions D-07, D-12</p>
+<div class="cols"><div class="wf"><div class="titlebar"><span class="dot"></span><span class="dot"></span><span class="dot"></span> Inspector · Account: Claude · Work</div>
+<div class="winbody one"><div class="maincol"><div class="tabs"><span>Overview</span><span class="on">Usage</span><span>History</span><span class="on">Quality</span><span>Processes</span><span>Actions</span></div>
+<div class="grid2"><div class="card"><h5>Usage — two clocks</h5><div class="kv"><span>5h window</span><b>78% used · resets 14:20 (2h 10m)</b></div><div class="bar warn"><i style="width:78%"></i></div><div class="kv"><span>Weekly window</span><b>54% · resets Mon 00:00</b></div><div class="bar"><i style="width:54%"></i></div><div class="kv"><span>Burn rate</span><b>≈9%/h · empty ≈16:40 <span class="badge warn">Estimated</span></b></div><div class="kv"><span>Subscription clock</span><b>Renews 1 Nov · date entered by you</b></div><div class="kv"><span>Data source</span><b>Statusline · Measured</b></div></div>
+<div class="card"><h5>Quality — signals, no score (D-07)</h5><table class="wft"><tr><th>Signal</th><th>Value</th><th>Source</th></tr><tr><td>Error / retry rate</td><td>3% (7d)</td><td>transcript</td></tr><tr><td>Stuck episodes</td><td>2 (7d)</td><td>supervisor</td></tr><tr><td>Context at finish</td><td>avg 71%</td><td>transcript</td></tr><tr><td>Tokens / completed task</td><td>96k avg</td><td>measured</td></tr><tr><td>Composite score</td><td>Unavailable — by design</td><td>D-07</td></tr></table></div></div>
+<div class="ok-strip">Confidence is labelled per value: Measured / Computed / Estimated. Estimated values always carry the badge and the reason.</div></div></div></div>
+<aside class="notes"><h4>Purpose</h4><p>Quota tells you when to switch; quality signals tell you which account is actually performing.</p><h4>Controls</h4><ul><li>Two clocks side by side: quota window vs subscription renewal (D-12)</li><li>Manual renewal-date entry lives here and in Settings (screen 26)</li></ul><h4>States</h4><ul><li>No renewal date → “Unknown — add a date” action, never inferred</li></ul><div class="verdict" data-verdict></div></aside></div></section>
+
+<section class="screen" id="s08">
+<h2><span class="sid">08</span>Right Inspector — Processes tab</h2>
+<p class="tasks">Tasks: AJ-E410 · Epic E4; data from E5 AJ-E501-E506 · Decision D-08</p>
+<div class="cols"><div class="wf"><div class="titlebar"><span class="dot"></span><span class="dot"></span><span class="dot"></span> Inspector · Processes — Instance Claude·Work</div>
+<div class="winbody one"><div class="maincol"><div class="tabs"><span>Overview</span><span>Usage</span><span>History</span><span>Quality</span><span class="on">Processes</span><span>Actions</span></div>
+<table class="wft"><tr><th>Process tree (spawned by this Instance)</th><th>CPU</th><th>RAM</th><th>Port</th><th>Ownership</th></tr>
+<tr><td>⬢ claude (root) <span class="spark">▁▃▅▃▂</span></td><td>11%</td><td>380 MB</td><td>—</td><td><span class="badge ok">Verified owned</span></td></tr>
+<tr><td>└ npm test</td><td>38%</td><td>210 MB</td><td>—</td><td><span class="badge ok">Verified owned</span></td></tr>
+<tr><td>└ node vite dev</td><td>2%</td><td>140 MB</td><td>5173</td><td><span class="badge ok">Verified owned</span></td></tr>
+<tr><td>└ mcp-server-filesystem</td><td>0%</td><td>48 MB</td><td>—</td><td><span class="badge ok">Verified owned</span></td></tr></table>
+<div class="kv"><span>Sub-agents / subtasks</span><b>2 running (shown in tree, tracked like processes)</b></div>
+<div class="btnrow"><button class="btn">Open Cleanup Centre</button><button class="btn">Export process snapshot</button></div>
+<div class="foot">Processes Juggler did not spawn are never listed as killable. They may appear greyed as “not owned” for context only.</div></div></div></div>
+<aside class="notes"><h4>Purpose</h4><p>Your requirement: show CPU/RAM, subtasks and subprocesses per session, and track them.</p><h4>Controls</h4><ul><li>Live tree with sparklines, ports, ownership proof per node</li><li>Jump to Cleanup Centre (screen 21) for leftovers after close</li></ul><h4>States</h4><ul><li>After Instance closes, surviving children move to Leftover Inventory</li></ul><div class="verdict" data-verdict></div></aside></div></section>
+
+<section class="screen" id="s09">
+<h2><span class="sid">09</span>Right Inspector — History + Actions tabs</h2>
+<p class="tasks">Tasks: AJ-E406 · Epic E4; lineage from AJ-E201</p>
+<div class="cols"><div class="wf"><div class="titlebar"><span class="dot"></span><span class="dot"></span><span class="dot"></span> Inspector · Session fix-auth-tests</div>
+<div class="winbody one"><div class="maincol"><div class="tabs"><span>Overview</span><span>Usage</span><span class="on">History</span><span>Quality</span><span>Processes</span><span class="on">Actions</span></div>
+<div class="grid2"><div class="card"><h5>History &amp; lineage</h5><table class="wft"><tr><th>When</th><th>Event</th></tr><tr><td>09:12</td><td>Started on Claude·Work (Opus)</td></tr><tr><td>11:03</td><td>Switched → Claude·Personal (quota)</td></tr><tr><td>13:40</td><td>Switched back → Claude·Work (resume+delta)</td></tr><tr><td>14:02</td><td>Parked → resumed at reset</td></tr></table><div class="btnrow"><button class="btn">View Switch Graph</button><button class="btn">Replay (read-only)</button></div></div>
+<div class="card"><h5>Actions (selection-aware)</h5><div class="btnrow"><button class="btn pri">Switch account / provider… ⌘⇧S</button></div><div class="btnrow"><button class="btn">Park until reset</button><button class="btn">Duplicate session</button><button class="btn">Export context pack…</button></div><div class="btnrow"><button class="btn">Archive</button><button class="btn dng">Stop Instance ■</button></div><div class="foot">Destructive actions always confirm and name the consequence. Nothing here auto-executes.</div></div></div></div></div></div>
+<aside class="notes"><h4>Purpose</h4><p>History makes switching auditable; Actions puts every management operation one click from any selection.</p><h4>Controls</h4><ul><li>Lineage events link to Switch Graph (screen 15) and Replay</li><li>Actions adapt to selection type; destructive = confirm + named consequence</li></ul><div class="verdict" data-verdict></div></aside></div></section>
+
+<section class="screen" id="s10">
+<h2><span class="sid">10</span>Launch sheet + Launch settings (formerly Profile)</h2>
+<p class="tasks">Tasks: AJ-E105, AJ-E306 · Epics E1/E3 · Decision D-10</p>
+<div class="cols"><div class="wf"><div class="modal-wrap"><div class="modal"><h3>New session</h3>
+<div class="field"><label>Project</label>AIJuggler — ~/Dev/AIJuggler <span class="foot">(recent / picker / drag-drop)</span></div>
+<div class="field"><label>Provider → Account</label>Claude Code ▾ → Work account ▾ <span class="badge ok">Quota OK 22%</span></div>
+<div class="field"><label>Launch settings (saved per Account)</label>Default work settings ▾ &nbsp;<button class="btn">Edit…</button></div>
+<div class="grid2"><div class="field"><label>Model</label>Opus ▾</div><div class="field"><label>Isolation</label>Own worktree ✓ (default)</div></div>
+<div class="field"><label>Start from</label>○ Fresh &nbsp; ○ Resume recent &nbsp; ○ From context pack…</div>
+<div class="ok-strip">Identity will be verified at launch: expected Work account. Mismatch pauses launch (AJ-E1001).</div>
+<div class="btnrow"><button class="btn pri">Start session ⏎</button><button class="btn">Cancel Esc</button><span class="foot">Target: ≤3 clicks from ⌘N to running.</span></div></div></div></div>
+<aside class="notes"><h4>Purpose</h4><p>Starting work must need no manual configuration (expected-workflow: the tool figures it out).</p><h4>Controls</h4><ul><li>Provider→Account cascade with quota hint before you commit</li><li>“Launch settings” replaces Profile — never a rail noun (D-10)</li><li>Worktree isolation default-on; identity pre-flight stated</li></ul><h4>States</h4><ul><li>Account quota-blocked → Start disabled with reason + “Switch suggestion” instead</li></ul><div class="verdict" data-verdict></div></aside></div></section>
+
+<section class="screen" id="s11">
+<h2><span class="sid">11</span>Switch — the 1-click proven path (same Provider)</h2>
+<p class="tasks">Tasks: AJ-E206 · Epic E2 · Decision D-03 (hybrid door)</p>
+<div class="cols"><div class="wf"><div class="modal-wrap"><div class="modal"><h3>Quota reached on Work — keep going?</h3>
+<p>fix-auth-tests can continue on <b>Claude · Personal</b> right now. This switch is <span class="badge ok">Proven</span> for Claude → Claude: chat, rules, todos and worktree carry over.</p>
+<div class="kv"><span>Destination quota</span><b>Personal · 18% used · resets 19:05</b></div>
+<div class="kv"><span>What carries</span><b>Everything (validated pair)</b></div>
+<div class="kv"><span>Estimated time</span><b>&lt; 5 seconds</b></div>
+<div class="btnrow"><button class="btn pri">Continue on Personal ⏎</button><button class="btn">Choose another…</button><button class="btn">Park until reset</button></div>
+<div class="foot">After switching: 10-second Undo. Your original session stays resumable — switch back any time (screen 13).</div></div></div></div>
+<aside class="notes"><h4>Purpose</h4><p>The quota-wall moment must take one click, not a project (D-03).</p><h4>Controls</h4><ul><li>Single primary action; alternatives are secondary, never equal weight</li><li>Undo window; Park as the safe alternative</li></ul><h4>Gate to appear</h4><ul><li>Only when the pair is validated in the fidelity matrix (AJ-E808); otherwise screen 12</li></ul><div class="verdict" data-verdict></div></aside></div></section>
+
+<section class="screen" id="s12">
+<h2><span class="sid">12</span>Switch wizard — cross-Provider / lossy switch</h2>
+<p class="tasks">Tasks: AJ-E206, AJ-E203 · Epic E2 · Decisions D-03, D-11 (labelled beta)</p>
+<div class="cols"><div class="wf"><div class="modal-wrap"><div class="modal" style="max-width:600px"><h3>Switch to Codex · Work <span class="badge beta">Beta — unvalidated pair</span></h3>
+<div class="tabs"><span class="on">1 Destination</span><span class="on">2 What carries</span><span>3 Confirm</span></div>
+<table class="wft"><tr><th>Context</th><th>On Codex</th></tr>
+<tr><td>Chat history</td><td><span class="badge acc">Translate</span> via context pack summary</td></tr>
+<tr><td>Rules (CLAUDE.md → AGENTS.md)</td><td><span class="badge acc">Translate</span> shown as diff</td></tr>
+<tr><td>Todos / plan</td><td><span class="badge acc">Translate</span> into pack state</td></tr>
+<tr><td>Sub-agent sidechains</td><td><span class="badge bad">Drop</span> listed, not hidden</td></tr>
+<tr><td>MCP servers</td><td><span class="badge warn">Regenerate</span> matching names only</td></tr>
+<tr><td>Git worktree + dirty files</td><td><span class="badge ok">Copy</span> unchanged (same repo)</td></tr></table>
+<div class="note-strip">Secrets policy for this destination: <b>Your choice — Withhold (Provider override: Codex)</b>. 2 items withheld, listed in the pack manifest. Change in Settings (screen 26).</div>
+<div class="btnrow"><button class="btn">← Back</button><button class="btn pri">Continue — I understand the drop list</button><button class="btn">Cancel</button></div></div></div></div>
+<aside class="notes"><h4>Purpose</h4><p>Cross-Provider switches are powerful and lossy; the wizard makes the loss explicit before it happens (D-03/D-11).</p><h4>Controls</h4><ul><li>Copy / Translate / Regenerate / Drop per item — never a single vague “continue”</li><li>Active redaction policy for the destination shown pre-switch (D-14)</li></ul><h4>States</h4><ul><li>Drop list non-empty → primary button names the understanding, no pre-ticked consent</li></ul><div class="verdict" data-verdict></div></aside></div></section>
+
+<section class="screen" id="s13">
+<h2><span class="sid">13</span>Switch-back — quota reset, return to original</h2>
+<p class="tasks">Tasks: AJ-E207 · Epic E2 · Decision D-05 (resume + delta, never copy-back)</p>
+<div class="cols"><div class="wf"><div class="modal-wrap"><div class="modal" style="max-width:560px"><h3>Work account has quota again — switch back?</h3>
+<p>Your original session on <b>Claude · Work</b> will <b>resume where it left off</b>. Work done meanwhile on Personal arrives as one summary turn:</p>
+<div class="card"><h5>Delta from Personal (2h 05m)</h5><ul style="margin:4px 0;padding-left:17px"><li>Fixed 2 of 3 auth tests (session.test.ts)</li><li>Left 1 failing: token-refresh race — note added to todos</li><li>Worktree: juggler/fix-auth, 4 files changed, uncommitted</li></ul></div>
+<div class="kv"><span>Original history</span><b>Preserved — nothing overwritten</b></div>
+<div class="kv"><span>If both sides progressed</span><b>Divergence shown, never merged silently</b></div>
+<div class="btnrow"><button class="btn pri">Resume on Work + add delta</button><button class="btn">Stay on Personal</button><button class="btn">View full pack…</button></div></div></div></div>
+<aside class="notes"><h4>Purpose</h4><p>Switching is a loop (expected-workflow: “back and forth as many times as I want”), so coming home must be as designed as leaving.</p><h4>Controls</h4><ul><li>Resume-original primary; delta preview expandable to full pack</li><li>Diverged case routes to a compare view, never an auto-merge</li></ul><div class="verdict" data-verdict></div></aside></div></section>
+
+<section class="screen" id="s14">
+<h2><span class="sid">14</span>Context pack — preview, manifest and redaction policy</h2>
+<p class="tasks">Tasks: AJ-E202, AJ-E208 · Epic E2 · Decision D-14 (user's remembered choice)</p>
+<div class="cols"><div class="wf"><div class="titlebar"><span class="dot"></span><span class="dot"></span><span class="dot"></span> Context pack — fix-auth-tests → Codex·Work</div>
+<div class="winbody two"><div class="rail"><div class="rsec">Pack contents</div><div class="row sel"><span class="grow">state.json (canonical)</span></div><div class="row"><span class="grow">chat-summary.md</span></div><div class="row"><span class="grow">rules.diff</span></div><div class="row"><span class="grow">todos.json</span></div><div class="row"><span class="grow">manifest.json</span></div><div class="rsec">Policy in effect</div><div class="kv"><span>Global</span><b>Withhold secrets</b></div><div class="kv"><span>Codex override</span><b>Withhold secrets</b></div><div class="kv"><span>Claude override</span><b>Ask each time</b></div></div>
+<div class="maincol"><table class="wft"><tr><th>Detected item</th><th>Treatment</th><th>Why</th></tr>
+<tr><td>OPENAI_API_KEY in chat turn 41</td><td><span class="badge warn">Withheld</span></td><td>Matches your Codex policy</td></tr>
+<tr><td>DB password in rules file</td><td><span class="badge warn">Withheld</span></td><td>Matches your Codex policy</td></tr>
+<tr><td>Project path /Users/…</td><td><span class="badge acc">Included</span></td><td>Needed to resume worktree</td></tr></table>
+<div class="btnrow"><button class="btn">Change policy for this pack…</button><button class="btn">Open Settings → Redaction</button></div>
+<div class="foot">The policy is always the user's choice, remembered globally with per-Provider override (D-14). Juggler shows the treatment before any switch runs.</div></div></div></div>
+<aside class="notes"><h4>Purpose</h4><p>The pack is the portable unit of work; its manifest is where trust is won or lost.</p><h4>Controls</h4><ul><li>Per-item treatment with reason; policy visible and changeable in context</li><li>First-run forces an explicit global choice (Settings screen 26)</li></ul><div class="verdict" data-verdict></div></aside></div></section>
+
+<section class="screen" id="s15">
+<h2><span class="sid">15</span>Switch Graph — lineage of a piece of work</h2>
+<p class="tasks">Tasks: AJ-E201, AJ-E209 · Epic E2</p>
+<div class="cols"><div class="wf"><div class="titlebar"><span class="dot"></span><span class="dot"></span><span class="dot"></span> Switch Graph — “fix-auth-tests” (Work)</div>
+<div class="winbody one"><div class="maincol"><div class="term" style="min-height:170px"><span class="dim">Work “fix-auth-tests”</span>
+  [Epoch 1] Claude·Work ──09:12 start
+        │ 11:03 quota wall ──switch (proven)──▶ [Epoch 2] Claude·Personal
+        │                                              │ 13:40 reset
+        │◀──────── switch-back (resume+delta) ─────────┘
+  [Epoch 3] Claude·Work ──14:02 park──▶ ⏸ reset 14:20 ──▶ resumed
+        │
+        └──15:10 fork──▶ [Epoch 4] Codex·Work (review copy) <span class="badge beta">beta</span></div>
+<div class="btnrow"><button class="btn">Open epoch…</button><button class="btn">Replay any epoch (read-only)</button><button class="btn">Export graph</button></div>
+<div class="foot">Cycles, forks and merges are first-class. Every edge records fidelity, pack ID and who clicked it.</div></div></div></div>
+<aside class="notes"><h4>Purpose</h4><p>Unlimited back-and-forth needs a map, not a list: which account did what, in what order, with what fidelity.</p><h4>Controls</h4><ul><li>Epoch nodes open the session; edges show switch kind + fidelity badge</li><li>Fork (review copy) distinct from switch (continuation)</li></ul><div class="verdict" data-verdict></div></aside></div></section>
+
+<section class="screen" id="s16">
+<h2><span class="sid">16</span>Onboarding — smart scan results (Found / Likely / Guessed)</h2>
+<p class="tasks">Tasks: AJ-E301, AJ-E302, AJ-E303 · Epic E3</p>
+<div class="cols"><div class="wf"><div class="titlebar"><span class="dot"></span><span class="dot"></span><span class="dot"></span> Welcome to AI Juggler — Step 1 of 4: What we found</div>
+<div class="winbody one"><div class="maincol"><p style="margin:4px 0">We scanned this Mac (metadata only — no credentials were read). Confidence is shown per item:</p>
+<table class="wft"><tr><th>Found</th><th>Confidence</th><th>Source</th><th>Use it?</th></tr>
+<tr><td>⬢ Claude Code installed (v2.1.x)</td><td><span class="badge ok">Found</span></td><td>PATH + version</td><td>☑</td></tr>
+<tr><td>Claude account “Work” (3 projects)</td><td><span class="badge ok">Found</span></td><td>t3.codes profiles (copy-import)</td><td>☑</td></tr>
+<tr><td>Claude account “Personal”</td><td><span class="badge ok">Found</span></td><td>~/.claude metadata</td><td>☑</td></tr>
+<tr><td>Codex installed, 1 account</td><td><span class="badge acc">Likely</span></td><td>~/.codex + alias `cx`</td><td>☑</td></tr>
+<tr><td>Shell alias `cc2` → second Claude</td><td><span class="badge acc">Likely</span></td><td>.zshrc</td><td>☐ Review</td></tr>
+<tr><td>ZCode</td><td><span class="badge warn">Guessed</span> not installed</td><td>—</td><td>— <button class="btn">Install guide</button></td></tr></table>
+<div class="btnrow"><button class="btn pri">Continue with selected →</button><button class="btn">Rescan</button><button class="btn">Start empty instead</button></div>
+<div class="foot">Nothing is modified. Imports are verified copies into Juggler's own directory; your existing setups stay untouched.</div></div></div></div>
+<aside class="notes"><h4>Purpose</h4><p>Zero-knowledge onboarding: the tool figures out the machine so the user never configures profiles by hand.</p><h4>Controls</h4><ul><li>Found/Likely/Guessed per item with source — inference is never silent</li><li>Per-item opt-in; Start-empty escape hatch for experts</li></ul><h4>States</h4><ul><li>Nothing found → guided install path, same wizard, no dead end</li></ul><div class="verdict" data-verdict></div></aside></div></section>
+
+<section class="screen" id="s17">
+<h2><span class="sid">17</span>Onboarding — recommended juggling set (1-click accept)</h2>
+<p class="tasks">Tasks: AJ-E304, AJ-E305, AJ-E309 · Epic E3</p>
+<div class="cols"><div class="wf"><div class="titlebar"><span class="dot"></span><span class="dot"></span><span class="dot"></span> Step 3 of 4: Your recommended set</div>
+<div class="winbody one"><div class="maincol"><div class="card"><h5>Recommended: 3 Accounts, ready to juggle</h5>
+<div class="kv"><span>⬢ Claude Code · Work</span><b>Primary · 3 recent projects</b></div>
+<div class="kv"><span>⬢ Claude Code · Personal</span><b>Switch target when Work hits quota</b></div>
+<div class="kv"><span>⬢ Codex · Work</span><b>Cross-Provider target <span class="badge beta">Beta switches</span></b></div></div>
+<div class="field"><label>Secrets in context packs — your choice (required)</label>○ Withhold secrets (you can change this per Provider) &nbsp; ○ Ask me each time &nbsp; ○ Include (not recommended)</div>
+<div class="field"><label>Subscription renewal dates (optional, powers expiry warnings)</label>Work: [ 1 Nov ] &nbsp; Personal: [ skip ] &nbsp; Codex: [ skip ]</div>
+<div class="btnrow"><button class="btn pri">Accept set &amp; finish (1 click)</button><button class="btn">Adjust…</button></div>
+<div class="foot">Sign-in, where needed, happens next in each Provider's own terminal — Juggler never handles your password.</div></div></div></div>
+<aside class="notes"><h4>Purpose</h4><p>The wizard proposes a whole working set, not a form: accept once, then sign in with the vendor's own flow.</p><h4>Controls</h4><ul><li>Required first-run redaction choice (D-14) and optional renewal dates (D-12) collected here, once</li><li>Adjust opens per-item editing; Accept is the happy path</li></ul><div class="verdict" data-verdict></div></aside></div></section>
+
+<section class="screen" id="s18">
+<h2><span class="sid">18</span>Add Provider / Add Account / Add Instance (day-2 flows)</h2>
+<p class="tasks">Tasks: AJ-E306, AJ-E307, AJ-E308 · Epic E3</p>
+<div class="cols"><div class="wf"><div class="titlebar"><span class="dot"></span><span class="dot"></span><span class="dot"></span> Add to your set — same wizard, three entry points</div>
+<div class="winbody one"><div class="maincol"><div class="tabs"><span class="on">Add Account</span><span>Add Provider</span><span>Add Instance</span><span>Import</span></div>
+<div class="grid2"><div class="card"><h5>Add Account to Claude Code</h5><div class="field"><label>How will you sign in?</label>○ Provider sign-in (opens Claude's own login)<br>○ Import existing setup (verified copy)<br>○ Point at a config folder I manage</div><div class="field"><label>Label</label>Client B</div><div class="btnrow"><button class="btn pri">Continue → sign in with Claude</button></div><div class="foot">Isolation is verified after sign-in: separate config dir, probe shows this account only.</div></div>
+<div class="card"><h5>What each entry point means</h5><table class="wft"><tr><th>Add…</th><th>You get</th><th>Clicks target</th></tr><tr><td>Provider</td><td>A new tool (e.g. ZCode) + first Account</td><td>≤5 + vendor login</td></tr><tr><td>Account</td><td>Another subscription on same tool</td><td>≤3 + vendor login</td></tr><tr><td>Instance</td><td>Tool running on a project/machine</td><td>≤3</td></tr><tr><td>Import</td><td>Competitor/manual setup, copied + verified</td><td>≤4</td></tr></table></div></div></div></div></div>
+<aside class="notes"><h4>Purpose</h4><p>Growing the set later must feel identical to day one — same wizard, no new concepts, no typed paths.</p><h4>Controls</h4><ul><li>Three nouns, three entry points (Provider/Account/Instance per D-02)</li><li>Sign-in always the Provider's own; isolation verified and shown</li></ul><div class="verdict" data-verdict></div></aside></div></section>
+
+<section class="screen" id="s19">
+<h2><span class="sid">19</span>Usage — two clocks, burn forecast, per-Account</h2>
+<p class="tasks">Tasks: AJ-E606, AJ-E607, AJ-E608, AJ-E610 · Epic E6 · Decisions D-01 (quota = trigger), D-12</p>
+<div class="cols"><div class="wf"><div class="titlebar"><span class="dot"></span><span class="dot"></span><span class="dot"></span> Usage</div>
+<div class="winbody two"><div class="rail"><div class="rsec">Accounts</div><div class="row sel"><span class="grow">Claude · Work</span><span class="badge warn">78%</span></div><div class="row"><span class="grow">Claude · Personal</span><span class="badge">18%</span></div><div class="row"><span class="grow">Codex · Work</span><span class="badge">41%</span></div><div class="rsec">Smart suggestion</div><div class="ok-strip">At your current pace Work empties ≈16:40. Personal is freshest — switching at the wall will be 1-click (proven pair).</div></div>
+<div class="maincol"><div class="grid2"><div class="card"><h5>Window clock (quota)</h5><div class="kv"><span>5h</span><b>78% · reset 14:20</b></div><div class="bar warn"><i style="width:78%"></i></div><div class="kv"><span>Weekly</span><b>54% · reset Monday</b></div><div class="bar"><i style="width:54%"></i></div><div class="kv"><span>Burn / forecast</span><b>9%/h · empty ≈16:40 <span class="badge warn">Estimated</span></b></div></div>
+<div class="card"><h5>Subscription clock (plan)</h5><div class="kv"><span>Plan</span><b>Max (you told us)</b></div><div class="kv"><span>Renews</span><b>1 Nov · in 19 days</b></div><div class="kv"><span>Source</span><b>Entered by you · Edit</b></div><div class="note-strip">No renewal date on Personal: warnings off for that account. <button class="btn">Add date</button></div></div></div>
+<table class="wft"><tr><th>Model</th><th>Tokens</th><th>Share</th><th>Trend</th></tr><tr><td>Opus</td><td>1.9M</td><td>72%</td><td><span class="spark">▂▄▅▆▇</span></td></tr><tr><td>Sonnet</td><td>0.7M</td><td>28%</td><td><span class="spark">▃▃▄▂▃</span></td></tr></table></div></div></div>
+<aside class="notes"><h4>Purpose</h4><p>Quota exists to feed switching decisions, not to be a dashboard for its own sake (D-01).</p><h4>Controls</h4><ul><li>Window vs subscription clocks never merged into one bar</li><li>Suggestion names the freshest switch target and its fidelity</li></ul><h4>States</h4><ul><li>Estimated forecasts badged; unknown renewal stays unknown (D-12)</li></ul><div class="verdict" data-verdict></div></aside></div></section>
+
+<section class="screen" id="s20">
+<h2><span class="sid">20</span>Cost ledger — what each Account and project actually cost</h2>
+<p class="tasks">Tasks: AJ-E609, AJ-E611 · Epic E6</p>
+<div class="cols"><div class="wf"><div class="titlebar"><span class="dot"></span><span class="dot"></span><span class="dot"></span> Cost — October</div>
+<div class="winbody one"><div class="maincol"><div class="grid3"><div class="card"><h5>This month</h5><b style="font-size:18px">$84.10</b><div class="foot">Measured from transcripts</div></div><div class="card"><h5>Per finished task</h5><b style="font-size:18px">$1.92 avg</b><div class="foot">44 tasks · measured</div></div><div class="card"><h5>Wasted (crashed/stuck)</h5><b style="font-size:18px">$6.30</b><div class="foot">Links to those sessions</div></div></div>
+<table class="wft"><tr><th>Account</th><th>Tokens</th><th>Cost</th><th>Top project</th><th>Confidence</th></tr>
+<tr><td>Claude · Work</td><td>2.6M</td><td>$48.00</td><td>AIJuggler</td><td><span class="badge ok">Measured</span></td></tr>
+<tr><td>Claude · Personal</td><td>1.4M</td><td>$24.60</td><td>dotfiles</td><td><span class="badge ok">Measured</span></td></tr>
+<tr><td>Codex · Work</td><td>0.9M</td><td>$11.50</td><td>client-api</td><td><span class="badge warn">Estimated pricing</span></td></tr></table>
+<div class="btnrow"><button class="btn">Export CSV</button><button class="btn">Weekly cost review</button></div>
+<div class="foot">Subscription fees you enter (screen 26) can be shown beside usage cost — never mixed into it.</div></div></div></div>
+<aside class="notes"><h4>Purpose</h4><p>“Am I getting value from three subscriptions?” answered with measured numbers, exportable for expenses.</p><h4>Controls</h4><ul><li>Per-Account / per-project / per-task cuts; wasted-spend row links to evidence</li><li>Pricing confidence labelled; subscription fees kept separate</li></ul><div class="verdict" data-verdict></div></aside></div></section>
+
+<section class="screen" id="s21">
+<h2><span class="sid">21</span>Cleanup Centre — leftovers, ports, hogs</h2>
+<p class="tasks">Tasks: AJ-E506, AJ-E508, AJ-E512 · Epic E5 · Decision D-08 (notify default, opt-in per Account)</p>
+<div class="cols"><div class="wf"><div class="titlebar"><span class="dot"></span><span class="dot"></span><span class="dot"></span> Cleanup Centre</div>
+<div class="winbody two"><div class="rail"><div class="rsec">Leftovers (2)</div><div class="row sel"><span class="grow">vite dev · port 5173</span><span class="badge warn">Orphan</span></div><div class="row"><span class="grow">mcp-server · no port</span><span class="badge warn">Orphan</span></div><div class="rsec">Policy</div><div class="kv"><span>Default</span><b>Notify only</b></div><div class="kv"><span>Work account</span><b>Clean-safe ON</b></div><div class="kv"><span>Personal</span><b>Notify only</b></div><div class="foot">Auto-clean applies only to verified-owned processes, only where you opted in (D-08).</div></div>
+<div class="maincol"><div class="card"><h5>node vite dev — left behind by “api-client” (closed 2h ago)</h5><div class="kv"><span>Spawned by</span><b>Codex·Work instance · 09:41 (ledger #4812)</b></div><div class="kv"><span>Ownership</span><b><span class="badge ok">Verified</span> start-time + cmdline match</b></div><div class="kv"><span>Using</span><b>Port 5173 · 140 MB · CPU 2%</b></div><div class="kv"><span>Blocks</span><b>Your new vite start on client-api would fail (port busy)</b></div>
+<div class="btnrow"><button class="btn pri">Verify &amp; clean…</button><button class="btn">Keep (not a leftover)</button><button class="btn">Remind me later</button></div></div>
+<div class="card"><h5>mcp-server-filesystem — owner exited</h5><div class="kv"><span>Ownership</span><b><span class="badge ok">Verified</span></b></div><div class="btnrow"><button class="btn pri">Verify &amp; clean…</button><button class="btn">Keep</button></div></div>
+<div class="foot">Everything Juggler did not spawn is listed only as “not owned” context and can never be cleaned here.</div></div></div></div>
+<aside class="notes"><h4>Purpose</h4><p>Your zombie requirement as a product: owned processes are tracked until verifiably gone.</p><h4>Controls</h4><ul><li>Per-leftover proof (ledger, start-time, cmdline) before any action</li><li>Keep / remind / clean; policy per Account visible and editable</li></ul><h4>States</h4><ul><li>Empty state is a success message (“Nothing left behind”), hog alert when RAM/port impact is high</li></ul><div class="verdict" data-verdict></div></aside></div></section>
+
+<section class="screen" id="s22">
+<h2><span class="sid">22</span>Verify-before-kill sheet — the safety moment</h2>
+<p class="tasks">Tasks: AJ-E507, AJ-E503 · Epic E5</p>
+<div class="cols"><div class="wf"><div class="modal-wrap"><div class="modal" style="max-width:560px"><h3>Clean this leftover?</h3>
+<table class="wft"><tr><th>Check</th><th>Result</th></tr>
+<tr><td>Spawned by Juggler for Codex·Work</td><td><span class="badge ok">Ledger #4812 ✓</span></td></tr>
+<tr><td>Same process (start time + command line)</td><td><span class="badge ok">Match ✓</span></td></tr>
+<tr><td>Parent Instance still running?</td><td><span class="badge ok">No — closed 2h ago ✓</span></td></tr>
+<tr><td>Unsent work / listening user service?</td><td><span class="badge warn">Dev server — restartable, no state</span></td></tr></table>
+<p style="font-size:12.5px">Juggler will ask it to stop politely (TERM), wait 5s, then force (KILL) only if needed. This is recorded in the audit log. It will <b>never</b> clean a process it cannot verify.</p>
+<div class="btnrow"><button class="btn dng">Clean verified process</button><button class="btn">Cancel Esc</button></div>
+<div class="foot">If any check fails, this sheet becomes “Cannot verify — will not clean” with the reason. Fail-closed by design.</div></div></div></div>
+<aside class="notes"><h4>Purpose</h4><p>One false kill destroys trust; this sheet is the evidence the user sees before trusting Clean.</p><h4>Controls</h4><ul><li>Four named checks, TERM→KILL ladder explained, audit-log promise</li><li>Fail-closed: failed check disables Clean and says why</li></ul><div class="verdict" data-verdict></div></aside></div></section>
+
+<section class="screen" id="s23">
+<h2><span class="sid">23</span>Fleet — machines at launch, pairing</h2>
+<p class="tasks">Tasks: AJ-E701, AJ-E702, AJ-E703, AJ-E704 · Epic E7 · Decision D-13 (Fleet at launch)</p>
+<div class="cols"><div class="wf"><div class="titlebar"><span class="dot"></span><span class="dot"></span><span class="dot"></span> Fleet</div>
+<div class="winbody two"><div class="rail"><div class="rsec">Machines</div><div class="row sel"><span class="grow">● studio-mac (this)</span></div><div class="row"><span class="grow">● studio-mini</span><span class="badge ok">Online</span></div><div class="row"><span class="grow">○ travel-laptop</span><span class="badge">Offline 2d</span></div><div class="btnrow"><button class="btn">＋ Pair a machine…</button></div></div>
+<div class="maincol"><div class="modal" style="box-shadow:none;max-width:480px"><h3>Pair studio-mini</h3><p style="font-size:12.5px">On studio-mini, open AI Juggler → Fleet → “Show pairing code”. Codes expire in 10 minutes. Fleet shares session state and commands between <b>your</b> machines only — never credentials or Provider logins.</p>
+<div class="field"><label>Pairing code from studio-mini</label><span class="chk">4 8 2 — 9 1 6</span></div>
+<div class="kv"><span>Trust</span><b>Mutual confirmation on both machines</b></div>
+<div class="kv"><span>Transport</span><b>Encrypted (mTLS) · local network / relay you choose</b></div>
+<div class="btnrow"><button class="btn pri">Pair this machine</button><button class="btn">Cancel</button></div></div>
+<table class="wft"><tr><th>Machine</th><th>Instances</th><th>Needs you</th><th>Leftovers</th></tr><tr><td>studio-mac</td><td>3 running</td><td>2</td><td>1</td></tr><tr><td>studio-mini</td><td>2 running</td><td>0</td><td>0</td></tr><tr><td>travel-laptop</td><td>— offline</td><td>—</td><td>—</td></tr></table></div></div></div>
+<aside class="notes"><h4>Purpose</h4><p>Fleet is launch scope (D-13): identities and trust are designed in from the first release, not bolted on.</p><h4>Controls</h4><ul><li>Pairing by short-lived code + mutual confirm; no account, no cloud login</li><li>Offline machines shown honestly with last-seen, never as live</li></ul><h4>States</h4><ul><li>Expired code, rejected pairing, and offline detail states required</li></ul><div class="verdict" data-verdict></div></aside></div></section>
+
+<section class="screen" id="s24">
+<h2><span class="sid">24</span>Fleet — remote Inspector on another machine</h2>
+<p class="tasks">Tasks: AJ-E705, AJ-E706, AJ-E707, AJ-E709 · Epic E7</p>
+<div class="cols"><div class="wf"><div class="titlebar"><span class="dot"></span><span class="dot"></span><span class="dot"></span> studio-mini · remote — same Inspector, fleet-shaped</div>
+<div class="winbody"><div class="rail"><div class="rsec">studio-mini</div><div class="row sel"><span class="grow">⬢ Claude·Work — render-fix</span></div><div class="row"><span class="grow">⬢ Codex·Work — idle</span></div><div class="foot">Remote actions ask the user on that surface; nothing executes silently across machines.</div></div>
+<div class="maincol"><div class="tabs"><span class="on">Overview</span><span>Usage</span><span>History</span><span>Quality</span><span>Processes</span><span>Actions</span></div>
+<div class="kv"><span>Machine</span><b>studio-mini · online · 120 ms</b></div><div class="kv"><span>Session</span><b>render-fix · Running · Opus</b></div><div class="kv"><span>Processes</span><b>3 owned · 1 leftover (vite :5174)</b></div>
+<div class="btnrow"><button class="btn pri">Open remote session</button><button class="btn">Switch on that machine…</button><button class="btn">Clean verified leftover…</button></div>
+<div class="note-strip">Remote cleanup uses the identical verify-before-kill sheet (screen 22), executed and audit-logged on studio-mini.</div></div>
+<div class="insp"><b>Permissions</b><div class="kv"><span>View</span><b>All paired machines</b></div><div class="kv"><span>Act remotely</span><b>Ask each time ▾</b></div><div class="kv"><span>Auto-clean remote</span><b>Off (per Account opt-in still applies)</b></div></div></div></div>
+<aside class="notes"><h4>Purpose</h4><p>One supervision model everywhere: the Inspector you learned locally works remotely, permissions explicit.</p><h4>Controls</h4><ul><li>Remote switch/cleanup reuse local flows and confirmations verbatim</li><li>Permission tiers per machine: view / ask-to-act / (never) silent act</li></ul><div class="verdict" data-verdict></div></aside></div></section>
+
+<section class="screen" id="s25">
+<h2><span class="sid">25</span>Search, Archive, Replay, Retention</h2>
+<p class="tasks">Tasks: AJ-E1007 · Epic E10</p>
+<div class="cols"><div class="wf"><div class="titlebar"><span class="dot"></span><span class="dot"></span><span class="dot"></span> Search — “token refresh race”</div>
+<div class="winbody one"><div class="maincol"><div class="field"><label>Search sessions, projects, accounts, transcript text (local only)</label>token refresh race <span class="foot">· 6 results in 0.2s · 1,024 sessions indexed</span></div>
+<table class="wft"><tr><th>Session</th><th>Where</th><th>Match</th><th>State</th></tr>
+<tr><td>fix-auth-tests</td><td>AIJuggler · Claude·Work</td><td>“…left failing: <b>token-refresh race</b>…”</td><td>Active · <button class="btn">Open</button></td></tr>
+<tr><td>auth-spike (3 weeks ago)</td><td>client-api · Codex·Work</td><td>“…refresh race in interceptor…”</td><td>Archived · <button class="btn">Replay</button> <button class="btn">Unarchive</button></td></tr></table>
+<div class="grid2"><div class="card"><h5>Replay (read-only)</h5><div class="foot">Archived sessions open read-only with history, lineage and process record. You can fork a new session from any point — the archive never changes.</div></div>
+<div class="card"><h5>Retention</h5><div class="kv"><span>Work account stores</span><b>1.2 GB · keep forever ▾</b></div><div class="kv"><span>Bulk cleanup</span><b>Dry-run preview before anything is deleted</b></div></div></div></div></div></div>
+<aside class="notes"><h4>Purpose</h4><p>Months of juggling stay findable; the rail stays usable; nothing vanishes without a preview.</p><h4>Controls</h4><ul><li>Snippet search across transcripts (local index), archive/unarchive, read-only replay + fork</li><li>Delete is separate, confirmed, and names what will be destroyed</li></ul><div class="verdict" data-verdict></div></aside></div></section>
+
+<section class="screen" id="s26">
+<h2><span class="sid">26</span>Settings — policies the user owns</h2>
+<p class="tasks">Tasks: AJ-E208, AJ-E508, AJ-E610 · Decisions D-08, D-12, D-14</p>
+<div class="cols"><div class="wf"><div class="titlebar"><span class="dot"></span><span class="dot"></span><span class="dot"></span> Settings</div>
+<div class="winbody two"><div class="rail"><div class="rsec">Settings</div><div class="row sel"><span class="grow">Context packs &amp; secrets</span></div><div class="row"><span class="grow">Cleanup</span></div><div class="row"><span class="grow">Accounts &amp; renewal dates</span></div><div class="row"><span class="grow">Notifications</span></div><div class="row"><span class="grow">Fleet permissions</span></div><div class="row"><span class="grow">Data: backup / retention</span></div></div>
+<div class="maincol"><h3 style="margin:2px 0">Context packs &amp; secrets — your choice, remembered</h3>
+<div class="field"><label>Global policy</label>○ Withhold detected secrets &nbsp; ○ Ask me each time &nbsp; ○ Include detected secrets</div>
+<table class="wft"><tr><th>Provider override</th><th>Policy</th></tr><tr><td>Claude Code</td><td>Ask each time ▾</td></tr><tr><td>Codex</td><td>Withhold ▾</td></tr><tr><td>ZCode</td><td>Use global ▾</td></tr></table>
+<h3 style="margin:12px 0 4px">Cleanup</h3><div class="kv"><span>Default for new Accounts</span><b>Notify only ▾</b></div><div class="kv"><span>Work account auto-clean</span><b>On — verified-owned only · audit logged</b></div>
+<h3 style="margin:12px 0 4px">Accounts &amp; renewal</h3><div class="kv"><span>Claude·Work renews</span><b>[1 Nov] · warn 7 days before</b></div><div class="kv"><span>Claude·Personal</span><b>[not set — warnings off]</b></div>
+<div class="foot">Juggler never guesses a renewal date and never imposes a secrets policy: both are yours, remembered, and shown before they take effect.</div></div></div></div>
+<aside class="notes"><h4>Purpose</h4><p>Every “whose choice is it?” decision from the discussion lives here, visible and reversible.</p><h4>Controls</h4><ul><li><b>Appearance:</b> Theme — Light · Dark · System (D-16; Dark default; ⌘⇧L cycles everywhere; both themes WCAG-checked)</li><li>Redaction: global + per-Provider override (D-14); Cleanup opt-in per Account (D-08)</li><li>Renewal dates manual-only (D-12); notifications anti-fatigue defaults</li></ul><div class="verdict" data-verdict></div></aside></div></section>
+
+<section class="screen" id="s27">
+<h2><span class="sid">27</span>Command palette, notifications, parked/resume moments</h2>
+<p class="tasks">Tasks: AJ-E404, AJ-E1003, AJ-E1004 · Epics E4/E10</p>
+<div class="cols"><div class="wf"><div class="winbody one"><div class="maincol"><div class="modal" style="box-shadow:none;max-width:560px"><h3>⌘K — do anything</h3><div class="field"><label>Type to search sessions, accounts, projects, actions</label>switch fix-auth…</div>
+<div class="row sel"><span class="grow">⇄ Switch “fix-auth-tests” to Claude·Personal (proven)</span><span class="kbd">⏎</span></div>
+<div class="row"><span class="grow">⏸ Park “fix-auth-tests” until reset 14:20</span></div>
+<div class="row"><span class="grow">✕ Open Cleanup Centre (2 leftovers)</span></div>
+<div class="row"><span class="grow">⬢ Open Inspector: Claude·Work Usage</span></div><div class="foot">Every palette action also exists as a visible button somewhere — palette is a shortcut, never the only path.</div></div>
+<div class="ok-strip" style="margin-top:10px"><b>Notification (batched, once):</b> Claude·Work quota reset — “fix-auth-tests” can switch back. [Resume on Work] [Stay] [Snooze once] · No repeat nagging.</div>
+<div class="note-strip"><b>Parked card:</b> docs-pass · parked until 10:40 · pack staged ✓ · [Resume now] [View pack]</div></div></div></div>
+<aside class="notes"><h4>Purpose</h4><p>Keyboard-first speed for power users, and notifications that arrive once, at the actionable moment.</p><h4>Controls</h4><ul><li>Palette covers switch/park/clean/inspect; fully keyboard operable, Esc returns focus</li><li>Reset notification offers D-05 switch-back; snooze-once anti-fatigue rule</li></ul><div class="verdict" data-verdict></div></aside></div></section>
+
+<section class="screen" id="summary">
+<h2><span class="sid">✓</span>Approval summary</h2>
+<div class="approval-summary"><p style="margin-top:0">Verdicts are stored in this browser (localStorage). Export to hand them back as the approval record.</p>
+<table id="summary-table"><tr><th>Screen</th><th>Verdict</th><th>Note</th></tr></table>
+<p class="foot" style="color:#aebcb8">Approving a wireframe approves the layout, controls and states shown. It does not authorise code: implementation stages still follow the decision log (D-15). Screens needing changes should name the exact element and the wanted behaviour.</p></div>
+</section>
+</main></div>
+<script>
+(function(){
+  var KEY='aj-wf', data={};
+  try{ data=JSON.parse(localStorage.getItem(KEY)||'{}'); }catch(e){ data={}; }
+  function save(){ localStorage.setItem(KEY, JSON.stringify(data)); renderSummary(); markNav(); }
+  function sectionOf(el){ var s=el; while(s && !s.id) s=s.parentElement; return s; }
+  document.querySelectorAll('[data-verdict]').forEach(function(box){
+    var sec=box.closest('section'), sid=sec.id;
+    box.innerHTML='<button data-v="approved">Approve</button><button data-v="changes">Changes requested</button><textarea rows="1" placeholder="Note for agents (optional) — exact element + wanted behaviour"></textarea>';
+    var ta=box.querySelector('textarea');
+    if(data[sid]){ ta.value=data[sid].note||''; }
+    function paint(){ box.querySelectorAll('button').forEach(function(b){ b.className = data[sid] && data[sid].v===b.dataset.v ? (b.dataset.v==='approved'?'on-ok':'on-no') : ''; }); }
+    box.querySelectorAll('button').forEach(function(b){ b.addEventListener('click', function(){ data[sid]=data[sid]||{}; data[sid].v = data[sid].v===b.dataset.v ? '' : b.dataset.v; data[sid].note=ta.value; paint(); save(); }); });
+    ta.addEventListener('input', function(){ data[sid]=data[sid]||{}; data[sid].note=ta.value; save(); });
+    paint();
+  });
+  function markNav(){ document.querySelectorAll('#sidenav a[data-sid]').forEach(function(a){ var d=data[a.dataset.sid]; a.classList.toggle('approved', !!d && d.v==='approved'); a.classList.toggle('changes', !!d && d.v==='changes'); }); }
+  function renderSummary(){
+    var t=document.getElementById('summary-table'); if(!t) return;
+    var rows='<tr><th>Screen</th><th>Verdict</th><th>Note</th></tr>';
+    document.querySelectorAll('section.screen[id^="s"]').forEach(function(sec){
+      var title=sec.querySelector('h2').textContent.replace(/\s+/g,' ').trim();
+      var d=data[sec.id]||{};
+      rows+='<tr><td>'+title+'</td><td>'+(d.v||'— not reviewed')+'</td><td>'+((d.note||'').replace(/</g,'&lt;'))+'</td></tr>';
+    });
+    t.innerHTML=rows; markNav();
+  }
+  window.exportApprovals=function(){
+    var out={exported:new Date().toISOString(), source:'docs/wireframes/index.html', verdicts:data};
+    var blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'});
+    var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='wireframe-approvals.json'; a.click(); URL.revokeObjectURL(a.href);
+  };
+  renderSummary();
+})();
+</script>
+</body>
+</html>
+
+
+
+

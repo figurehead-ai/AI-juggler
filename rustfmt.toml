@@ -1,0 +1,5 @@
+# Formatting is non-negotiable and machine-owned (docs/plan/QUALITY.md §3).
+# Deliberately minimal: stable-channel options only.
+edition = "2024"
+max_width = 100
+use_field_init_shorthand = true

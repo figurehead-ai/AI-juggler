@@ -1,0 +1,44 @@
+[package]
+name = "juggler-app"
+description = "Tauri application shell: commands, events, updater wiring, and the desktop entry point."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+base64 = "0.22"
+dirs = "7.0.0"
+juggler-adapter = { version = "0.0.1", path = "../juggler-adapter" }
+juggler-adapters = { version = "0.0.1", path = "../juggler-adapters" }
+juggler-core = { version = "0.0.1", path = "../juggler-core" }
+juggler-handover = { version = "0.0.1", path = "../juggler-handover" }
+juggler-supervisor = { version = "0.0.1", path = "../juggler-supervisor" }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+tauri = { version = "2.12.3", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-single-instance = "2"
+thiserror = "2.0.21"
+ts-rs = { version = "12.0.1", features = ["serde-json-impl", "no-serde-warnings"] }
+
+[build-dependencies]
+tauri-build = { version = "2.7.2", features = [] }
+
+[dev-dependencies]
+juggler-handover = { version = "0.0.1", path = "../juggler-handover" }
+tempfile = "3.27.0"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# AJ-E415: ScreenCaptureKit mirror — macOS-only; the preview driver
+# (state machine, pause/teardown) is platform-independent and tested
+# everywhere against a scripted capture source.
+screencapturekit = { version = "11.0.0", features = ["macos_14_0"] }
+# D-17: the audited init shim (one unsafe call, isolated crate).
+juggler-scap-init = { version = "0.0.1", path = "../juggler-scap-init" }

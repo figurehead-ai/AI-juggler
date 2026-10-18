@@ -1,0 +1,38 @@
+   Compiling juggler-app v0.0.1 (crates/juggler-app)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.32s
+     Running tests/kill_sheet.rs (target/debug/deps/kill_sheet-1a4d4d9d25ac8431)
+
+running 5 tests
+kill: 41904: No such process
+test guardrail_stale_identity_refuses_with_zero_signals ... ok
+test guardrail_no_audit_means_no_signal ... ok
+[escapee-fixture] root gone, :56839 still held by pid 41920
+[vite-fixture] port 56838 freed; audit: AuditOutcomeInfo {
+    id: 1,
+    at_ms: 1792064322617,
+    actor: "user:kill_sheet",
+    automatic: false,
+    pid: 41917,
+    cmdline_trunc: "Python",
+    session_id: "sess-vite",
+    provider: "claude-code",
+    account_id: Some(
+        "acc-kill",
+    ),
+    machine_id: "machine-322617267000",
+    outcome: "pid 41917: exited on TERM",
+    ports_before: Some(
+        "56838",
+    ),
+    ports_after: None,
+}
+test vite_like_helper_frees_its_port_on_term ... ok
+kill: 41920: No such process
+[escapee-fixture] re-offer done, :56839 free
+test setsid_escapee_is_reported_still_holding_then_reoffered ... ok
+kill: 41905: No such process
+[ignorer-fixture] witness log: "term\n"; members: [KillMemberOutcome { pid: 41905, outcome: "needed KILL" }]
+test term_ignoring_helper_is_killed_after_grace ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.15s
+

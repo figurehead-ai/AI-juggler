@@ -1,0 +1,4 @@
+{"type": "assistant", "turn": 1, "at": 1728799940000, "usage": {"input_tokens": 1000, "output_tokens": 2000}}
+{"type": "assistant", "turn": 2, "at": 1728799880000, "usage": {"input_tokens": 1000, "output_tokens": 2000}}
+{"type": "assistant", "turn": 3, "at": 1728799820000, "usage": {"input_tokens": 1000, "output_tokens": 2000}}
+{"type": "assistant", "turn": 4, "at": 1728799760000, "usage": {"input_tokens": 1000, "output_tokens": 2000}}

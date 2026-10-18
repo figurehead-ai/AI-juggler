@@ -1,0 +1,1 @@
+{"default":{"identifier":"default","description":"Default window capability: core access only, no shell/fs/http permissions.","local":true,"windows":["main"],"permissions":["core:default","dialog:allow-open","core:window:allow-start-dragging"]}}

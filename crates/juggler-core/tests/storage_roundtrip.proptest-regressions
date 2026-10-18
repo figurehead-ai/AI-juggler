@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 0c8157db3e029bddbb87121aa8325f15f8adad0779e43d0e5b01116ef2d93597 # shrinks to session = SessionRecord { id: SessionId(a), native_id: None, profile: ProfileId(seed-profile), machine: MachineId(a), cwd: "/tmp/ai-juggler/a", status: Starting, started_at: Timestamp(0), last_activity: None, usage: UsageSnapshot { tokens: TokenCounts { input: 0, output: 0, cache_read: 0, cache_write: 0, reasoning: 0 }, window: Some(QuotaWindow { used_percentage: 94.18892425368345, resets_at: None }), confidence: Measured }, transcript_ref: None }

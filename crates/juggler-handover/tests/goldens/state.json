@@ -1,0 +1,68 @@
+{
+  "format_version": 1,
+  "pack_id": "01936657-6c2e-7a30-9a1f-3f2a11e9d000",
+  "created_at": 1792094400000,
+  "work_id": "work-000123",
+  "edge_id": "edge-000045",
+  "source": {
+    "provider": "claude-code",
+    "account_label": "Work Max",
+    "profile_name": "deep-work",
+    "native_session_id": "b2632f0e-9c1d-4a17-9f6f-0f1d2e3b4c5d",
+    "harness_version": "2.1.277",
+    "epoch_id": "ep-000001"
+  },
+  "target_hint": null,
+  "project": {
+    "root": "/Users/dev/ai-juggler",
+    "project_id": "proj-000007"
+  },
+  "git": {
+    "branch": "main",
+    "head_sha": "9f8e7d6c5b4a39281706f5e4d3c2b1a0f9e8d7c6",
+    "dirty": true,
+    "diff_stat": "3 files changed, 42 insertions(+), 7 deletions(-)",
+    "worktree_path": null
+  },
+  "conversation": {
+    "turn_count": 3,
+    "message_uuids_sha256": "3813db64aedc368c74b8db0a50ee423a68ec581e0bb3eab370f57eb6e04ec000",
+    "compacted": false,
+    "first_turn_at": 1792000000000,
+    "last_turn_at": 1792000120000,
+    "replay_tokens_est": 460
+  },
+  "artifacts": {
+    "rules": [
+      "AGENTS.md"
+    ],
+    "mcp": [
+      "filesystem"
+    ],
+    "skills": [],
+    "todos": [],
+    "drops": [
+      {
+        "artifact": "session todos",
+        "reason": "in-session todos are unverified — treat as Drop"
+      }
+    ]
+  },
+  "fidelity": {
+    "level": "F1",
+    "score": 0.86,
+    "caps_applied": [
+      "unvalidated-pair"
+    ]
+  },
+  "quota_at_creation": {
+    "account": "Work Max",
+    "used_pct": 55.0,
+    "confidence": "measured"
+  },
+  "lineage": {
+    "parent_pack_ids": [],
+    "parent_edge_ids": []
+  },
+  "redactions": []
+}

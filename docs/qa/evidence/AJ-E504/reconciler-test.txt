@@ -1,0 +1,5 @@
+running 3 tests
+[soak] instances=50 ticks=20 avg_tick=12ms max_tick=25ms system_constructions=0 (gate: <=1 per tick, observed total 0)
+[soak] evicted_handles observed (identity+pgid lookups): 50
+[soak] self cpu over soak: 0.34%
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.69s

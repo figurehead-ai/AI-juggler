@@ -1,0 +1,21 @@
+# Weekly dependency update PRs (grouped to keep the queue reviewable).
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      rust-minor-patch:
+        update-types: ["minor", "patch"]
+  - package-ecosystem: npm
+    directory: "/ui"
+    schedule:
+      interval: weekly
+    groups:
+      ui-minor-patch:
+        update-types: ["minor", "patch"]
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly

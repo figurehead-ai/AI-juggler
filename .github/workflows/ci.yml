@@ -1,0 +1,140 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: short
+
+jobs:
+  # The full quality gate (docs/plan/QUALITY.md). Mirrors `just verify` plus
+  # cargo-deny and coverage; its name is a required status check on main.
+  verify:
+    name: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Tauri system dependencies (Linux)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
+            librsvg2-dev libxdo-dev libssl-dev
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+      - name: Add llvm-tools
+        run: rustup component add llvm-tools-preview
+      - name: Format
+        run: cargo fmt --all --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Tests
+        run: cargo test --workspace
+      - name: Docs
+        env:
+          RUSTDOCFLAGS: -D warnings
+        run: cargo doc --workspace --no-deps
+      - name: Evidence store (AJ-E801 gate)
+        run: ./scripts/evidence_check.sh
+      - name: Terminology (AJ-E108 gate)
+        run: ./scripts/terminology_lint.sh
+      - name: Dependency policy (cargo-deny)
+        uses: EmbarkStudios/cargo-deny-action@v2
+      # Coverage artifact. Best-effort in edge cases (zero-test workspaces);
+      # strictness is enforced at gates via the local llvm-cov numbers.
+      - name: Coverage (baseline artifact)
+        continue-on-error: true
+        run: cargo llvm-cov --workspace --lcov --output-path lcov.info
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-lcov
+          path: lcov.info
+
+  # Frontend quality gate: typecheck + production build of the webview UI.
+  ui:
+    name: ui
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: ui/pnpm-lock.yaml
+      - name: Install
+        working-directory: ui
+        run: pnpm install --frozen-lockfile
+      - name: Component tests (AJ-E402 SessionRow fixtures)
+        working-directory: ui
+        run: pnpm test
+      - name: Build (typecheck + bundle)
+        working-directory: ui
+        run: pnpm build
+
+  # Cross-platform build matrix (spec §1: cross-platform core from day one).
+  build-macos:
+    name: build-macos
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - name: Add x86_64 target
+        run: rustup target add x86_64-apple-darwin
+      - name: Build (native arm64)
+        run: cargo build --workspace
+      - name: Build (x86_64 cross-check)
+        run: cargo build --workspace --target x86_64-apple-darwin
+      # AJ-E512: the collateral suite is a REQUIRED gate on macOS too
+      # (Linux runs it via `verify`'s workspace tests) — zero-signal
+      # assertions on real processes with trap logs, never UI state.
+      - name: Collateral suite (AJ-E512)
+        run: |
+          cargo test -p juggler-supervisor --test collateral
+          # The app test binary links the Swift bridge; the runner has
+          # no libswift_Concurrency.dylib anywhere (toolchain, SDK, dyld
+          # cache). scripts/ensure_swift_runtime.sh's approach applies:
+          # an empty stub with the right install name in target/debug
+          # (already on the binary's rpath). These suites never CALL
+          # the bridge — the stub only satisfies the dyld load.
+          mkdir -p target/debug
+          echo "" | clang -dynamiclib -o target/debug/libswift_Concurrency.dylib \
+            -install_name @rpath/libswift_Concurrency.dylib -x c -
+          cargo test -p juggler-app --test guardrails
+
+  build-linux:
+    name: build-linux
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Tauri system dependencies (Linux)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
+            librsvg2-dev libxdo-dev libssl-dev
+      - uses: Swatinem/rust-cache@v2
+      - name: Build
+        run: cargo build --workspace
+
+  build-windows:
+    name: build-windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - name: Build
+        run: cargo build --workspace

@@ -1,0 +1,55 @@
+# --- Rust ---
+/target
+**/*.rs.bk
+
+# --- Node / UI (Tauri frontend) ---
+node_modules/
+dist/
+dist-ssr/
+*.local
+.pnpm-store/
+
+# --- Tauri ---
+/src-tauri/target/
+/src-tauri/gen/schemas/
+
+# --- Env & secrets ---
+.env
+.env.*
+*.pem
+*.key
+!*.pub.key
+
+# --- Databases & local state ---
+*.sqlite
+*.sqlite3
+*.db
+
+# --- macOS ---
+.DS_Store
+.AppleDouble
+
+._*
+
+# --- Editors ---
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*.swo
+*~
+
+# --- Logs & scratch ---
+*.log
+tmp/
+scratch/
+
+# TypeScript incremental build state
+ui/tsconfig.tsbuildinfo
+
+# --- Local agent / tool settings ---
+.claude/
+
+# --- UI test output ---
+ui/test-results/
+ui/playwright-report/

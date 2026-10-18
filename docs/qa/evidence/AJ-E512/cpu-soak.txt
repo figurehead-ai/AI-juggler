@@ -1,0 +1,34 @@
+   Compiling libc v0.2.190
+   Compiling memchr v2.8.3
+   Compiling regex-syntax v0.8.11
+   Compiling bitflags v2.13.2
+   Compiling clang-sys v1.9.1
+   Compiling syn v2.0.119
+   Compiling syn v1.0.109
+   Compiling juggler-core v0.0.1 (crates/juggler-core)
+   Compiling nom v7.1.3
+   Compiling bindgen v0.72.1
+   Compiling regex-automata v0.4.18
+   Compiling num-derive v0.3.3
+   Compiling prettyplease v0.2.37
+   Compiling cexpr v0.6.0
+   Compiling thiserror-impl v1.0.69
+   Compiling regex v1.13.1
+   Compiling juggler-adapter v0.0.1 (crates/juggler-adapter)
+   Compiling thiserror v1.0.69
+   Compiling filedescriptor v0.8.3
+   Compiling portable-pty v0.9.0
+   Compiling netstat2 v0.11.2
+   Compiling juggler-supervisor v0.0.1 (crates/juggler-supervisor)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 13.42s
+     Running tests/reconciler.rs (target/debug/deps/reconciler-dae2409c9935bb65)
+
+running 1 test
+ai-juggler: pid 91915 failed re-verification — flipped unverifiable
+[soak] instances=50 ticks=20 avg_tick=15ms p95=37ms max=38ms system_constructions=0 loadavg={ 9.31 11.33 13.19 }
+[soak] evicted_handles observed (identity+pgid lookups): 50
+[soak] self cpu over soak: 0.03%
+test fifty_instance_soak_and_construction_regression ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 4.74s
+

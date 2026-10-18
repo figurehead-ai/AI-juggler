@@ -1,0 +1,15 @@
+[ledger] root spawned pid=12906
+[groups] root pid=12905 pgid=Some(12905)
+[ledger] pid=Some(12906) pgid=Some(12906) escaped=false role=root state=running depth=0 exe=/bin/sh acct=Some("acc-evidence") proj=Some("proj-evidence") machine=machine-evidence started=Some(1792004760) exit=None
+[ledger] pid=Some(12907) pgid=Some(12906) escaped=false role=helper state=running depth=1 exe=sleep acct=Some("acc-evidence") proj=Some("proj-evidence") machine=machine-evidence started=Some(1792004764) exit=None
+[ledger] pid=Some(12909) pgid=Some(12906) escaped=false role=helper state=running depth=1 exe=sleep acct=Some("acc-evidence") proj=Some("proj-evidence") machine=machine-evidence started=Some(1792004764) exit=None
+[ledger] pid=Some(12911) pgid=Some(12906) escaped=false role=helper state=running depth=1 exe=sleep acct=Some("acc-evidence") proj=Some("proj-evidence") machine=machine-evidence started=Some(1792004764) exit=None
+[ledger] pid=Some(12905) pgid=Some(12905) escaped=false role=root state=running depth=0 exe=/bin/sh acct=Some("acc-evidence") proj=Some("proj-evidence") machine=machine-evidence started=Some(1792004760) exit=None
+[ledger] pid=Some(12908) pgid=Some(12905) escaped=false role=helper state=running depth=1 exe=bash acct=Some("acc-evidence") proj=Some("proj-evidence") machine=machine-evidence started=Some(1792004764) exit=None
+[ledger] pid=Some(12910) pgid=Some(12910) escaped=true role=helper state=running depth=1 exe=sleep acct=Some("acc-evidence") proj=Some("proj-evidence") machine=machine-evidence started=Some(1792004764) exit=None
+[ledger] pid=Some(12912) pgid=Some(12905) escaped=false role=helper state=running depth=1 exe=sleep acct=Some("acc-evidence") proj=Some("proj-evidence") machine=machine-evidence started=Some(1792004764) exit=None
+[ledger] pid=Some(12906) pgid=Some(12906) escaped=false role=root state=exited depth=0 exe=/bin/sh acct=Some("acc-evidence") proj=Some("proj-evidence") machine=machine-evidence started=Some(1792004760) exit=Some("signal:15")
+[ledger] pid=Some(12907) pgid=Some(12906) escaped=false role=helper state=running depth=1 exe=sleep acct=Some("acc-evidence") proj=Some("proj-evidence") machine=machine-evidence started=Some(1792004764) exit=None
+[ledger] pid=Some(12909) pgid=Some(12906) escaped=false role=helper state=running depth=1 exe=sleep acct=Some("acc-evidence") proj=Some("proj-evidence") machine=machine-evidence started=Some(1792004764) exit=None
+[ledger] pid=Some(12911) pgid=Some(12906) escaped=false role=helper state=running depth=1 exe=sleep acct=Some("acc-evidence") proj=Some("proj-evidence") machine=machine-evidence started=Some(1792004764) exit=None
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s

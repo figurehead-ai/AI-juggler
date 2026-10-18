@@ -1,0 +1,11 @@
+
+ RUN  v5.0.4 ui
+
+ ✓ src/components/cleanup-centre.test.tsx (9 tests) 109ms
+ ✓ src/components/kill-sheet.test.tsx (9 tests) 141ms
+
+ Test Files  2 passed (2)
+      Tests  18 passed (18)
+   Start at  07:25:59
+   Duration  653ms (environment 63%, tests 23%, import 13%, transform 1%)
+

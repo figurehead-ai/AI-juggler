@@ -1,0 +1,6 @@
+test ports::tests::hints_label_but_never_identify ... ok
+test ports::tests::unmanaged_and_recycled_pids_never_gain_attribution ... ok
+test ports::tests::newest_row_wins_a_pid ... ok
+test ports::tests::unsupported_probe_is_honest ... ok
+test ports::tests::four_classifications_exactly ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 23 filtered out; finished in 0.00s

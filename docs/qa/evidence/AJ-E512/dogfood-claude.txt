@@ -1,0 +1,19 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on build directory
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.16s
+     Running tests/dogfood_e5.rs (target/debug/deps/dogfood_e5-4bc257bce2f9e5d7)
+
+running 1 test
+[dogfood-e5] real claude root pid=3358
+[dogfood-e5] streamed 1764 bytes of real UI
+[dogfood-e5] ledger: 1 rows (0 helpers) — real attribution Some(("claude-code", "/Users/you/.local/bin/claude"))
+[dogfood-e5] verify: verified=true members=1
+[dogfood-e5] ladder: KillExecuteInfo { refusal: None, members: [KillMemberOutcome { pid: 3358, outcome: "exited on TERM" }], cancelled: false, all_succeeded: true, still_holding: [], reoffer_pid: None }
+[dogfood-e5] final row: pid=Some(3358) role=root state=exited exit=Some("code:143")
+[dogfood-e5] PASS — real instance, real tree, verified cleanup, audited
+test real_claude_instance_real_helpers_verified_cleanup ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 31.10s
+

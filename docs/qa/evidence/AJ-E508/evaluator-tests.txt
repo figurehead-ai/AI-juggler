@@ -1,0 +1,14 @@
+   Compiling juggler-core v0.0.1 (crates/juggler-core)
+   Compiling juggler-adapter v0.0.1 (crates/juggler-adapter)
+   Compiling juggler-supervisor v0.0.1 (crates/juggler-supervisor)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.55s
+     Running unittests src/lib.rs (target/debug/deps/juggler_supervisor-5339f480e30030b5)
+
+running 4 tests
+test tree::tier_tests::watcher_is_the_only_other_eligible_role ... ok
+test tree::tier_tests::clean_exit_dev_server_with_tier1_is_eligible ... ok
+test tree::tier_tests::crash_exit_needs_the_separate_tier2_consent ... ok
+test tree::tier_tests::hard_exclusions_apply_at_every_tier ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.00s
+

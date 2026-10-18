@@ -1,0 +1,35 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/juggler-adapter",
+    "crates/juggler-adapters",
+    "crates/juggler-app",
+    "crates/juggler-core",
+    "crates/juggler-handover",
+    "crates/juggler-link",
+    # D-17 carve-out: the ONLY crate not inheriting the workspace lint
+    # baseline (one audited unsafe call — see its Cargo.toml/lib.rs).
+    "crates/juggler-scap-init",
+    "crates/juggler-supervisor",
+]
+
+[workspace.package]
+version = "0.0.1"
+edition = "2024"
+rust-version = "1.99"
+license = "MIT"
+repository = "https://github.com/figurehead-ai/AI-juggler"
+
+# Workspace-wide lint baseline — every member inherits these via `[lints] workspace = true`.
+# CI promotes warnings to errors with `-D warnings` (see docs/plan/QUALITY.md §3).
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "deny"
+
+[workspace.lints.clippy]
+pedantic = { level = "warn" }
+unwrap_used = "warn"
+expect_used = "warn"
+panic = "warn"
+todo = "warn"
+unimplemented = "warn"

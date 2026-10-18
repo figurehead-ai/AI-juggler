@@ -1,0 +1,2 @@
+34579|root|exited|/bin/sh|claude-code|acc-reconciler|proj-reconciler|machine-reconciler|signal:15
+34586|helper|orphaned|/bin/sleep|claude-code|acc-reconciler|proj-reconciler|machine-reconciler|

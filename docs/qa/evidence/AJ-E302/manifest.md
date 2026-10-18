@@ -1,0 +1,29 @@
+# Evidence manifest — AJ-E302
+
+Task: `docs/tasks/E3-smart-onboarding.md` AJ-E302.
+Branch: `stage3/e3-e302-scan-signals`. 2026-10-17, reviewer zcode-primary.
+
+| Claim | Threshold | Observed | Verdict | Date | Reviewer |
+|---|---|---|---|---|---|
+| The adapter trait gains default-implemented `scan_shell_aliases() -> Vec<AliasHint>` and `scan_managers() -> Vec<ManagerHint>`; existing adapters compile unchanged | Req.1 | `HarnessAdapter` gained both with `Vec::new()` defaults; only `ClaudeCodeAdapter` opts in (rc assignments filtered to `CLAUDE_CONFIG_DIR`; t3 profile count + cc-switch hint); the fake/desktop adapters compile untouched (workspace clippy 0) | PASS | 2026-10-17 | zcode-primary |
+| Shell scanning parses ONLY `~/.zshrc`, `~/.bashrc`, `~/.config/fish/*` for `CLAUDE_CONFIG_DIR=`/`CODEX_HOME=` (path values only, file+line recorded); never evaluates shell code or other variables | Req.2 | `scan_signals::rc_files` enumerates exactly those roots (`.fish` files only); `assignment_path` handles POSIX `export VAR=`/`VAR=` AND fish `set -x VAR value`, quoting, `~` expansion, trailing comments — name-scoped to the two variables; fixture test pins: malformed line produces NO hint, `OTHER_VAR` never parsed, source file+line recorded (`zshrc:2`), `~` expanded against home | PASS | 2026-10-17 | zcode-primary |
+| cc-switch opens `~/.cc-switch/cc-switch.db` read-only; existence + row count + provider names only; locked/corrupt degrades to existence-only, never fails | Req.3 | `scan_cc_switch`: `SQLITE_OPEN_READ_ONLY` + `immutable=1` URI (no locks, no WAL, no writes); query is `SELECT id, name FROM providers` (columns named explicitly — never the token column); tests pin: real DB → "2 provider(s): work, personal" with the token VALUE absent; corrupt DB → Partial "existence only"; chmod-000 → Denied "existence only"; missing → not present + Ok | PASS | 2026-10-17 | zcode-primary |
+| Every probe has a 2 s budget and returns `ScanHealth::{Ok, Partial(reason), Denied}`; per-probe health reaches the UI | Req.4 | `ScanHealth` on every probe row; `ScanReportInfo.probes` carries id/label/health/reason/detail for S1–S10; the app test asserts all ten present with valid wire health; the UI renders each row in Details with TEXT health (checked/partial/couldn't check + reason) | PASS | 2026-10-17 | zcode-primary |
+| Probes run concurrently off the UI thread; progress streams as `n of 10`; total scan cancellable | Req.5 | `scan_walk` runs per-adapter probes on their own threads (config walk + rc parse + managers + the ONE `--version` per adapter); `environment_scan_full` emits `scan-progress {done,total}` events; `scan_cancel` sets the flag checked between groups, and a cancelled report carries `cancelled` (never read as empty); app test pins ticks reach 10 of 10 | PASS | 2026-10-17 | zcode-primary |
+| Project seeds (S9) return directory names only; desktop (S10) checks `/Applications/*.app` presence only | Req.6 | `project_seed_names` reads `projects/` children NAMES (test: exactly the two fixture dir names); `desktop_apps_present` checks a fixed known-app list by existence (test: absent → empty; Claude.app → listed) | PASS | 2026-10-17 | zcode-primary |
+| No probe reads credential contents or keychain values; keychain existence-only | Req.7 | The STATIC guardrail test greps `scan_signals.rs` for credential markers (`.credentials`, `auth.json`, `authorization`, `api_key`, keychain) — none; the only file-content read is the rc parse, and the cc-switch SELECT names its columns; login probes stay the E204 existence-only path (untouched) | PASS | 2026-10-17 | zcode-primary |
+| Fixture-HOME tests incl. malformed rc, locked SQLite, dangling alias | quality gates | `cargo test -p juggler-adapters --test scan` 7/7 over the COMMITTED fixture home (`tests/fixtures/homes/rich/`: valid+dangling+malformed rc lines, fish config incl. a non-.fish decoy, projects tree) + per-state cc-switch fixtures (real/corrupt/unreadable/missing) | PASS | 2026-10-17 | zcode-primary |
+| clippy pedantic clean; static guardrail test; the `.credentials` copy exception not widened | quality gates | Workspace clippy 0; the guardrail test committed; the copy exception stays Claude-import-only (`import_with_cap` untouched — the scan never copies, it only lists) | PASS | 2026-10-17 | zcode-primary |
+| Full 10-signal scan ≤3 s p95; per-probe ≤2 s; ≤3 `--version` runs; RSS ≤30 MB | performance budget | Dogfood table `docs/qa/e3/AJ-E302/scan-dogfood.md`: ~1.2 s wall on a real home (12 projects, 2 setups); one `--version` per registered adapter (2 today, stubbed in tests); metadata walks are stat-only (RSS-flat); immutable=1 keeps the DB open lock-free | PASS | 2026-10-17 | zcode-primary |
+| All 10 signals exercised + 0 credential-content reads (guardrail + checklist) | evidence proof | The app test drives S1–S10 end-to-end (ids enumerated, health valid, progress 10/10); the dogfood table records every signal live; 0 content reads pinned by the guardrail test + this review | PASS | 2026-10-17 | zcode-primary |
+| Visual: scanning-in-progress (progress text), completed, partial/denied; aria-live announces once; no layout shift | visual testing | Gallery `34-wizard` +6: scan-progress (aria-live=polite asserted, "n of 10" text), scan-details (all ten rows), scan-denied ("We couldn't check 1 place — your setups there won't appear"; an empty-with-denied result NEVER renders "No existing setups found" — vitest pins the negative); progress box keeps a fixed-height container (no CLS); full playwright 425/425 | PASS | 2026-10-17 | zcode-primary |
+
+## Test counts
+
+- `cargo test -p juggler-adapters --test scan` (new): 7/7 + `scan_signals`
+  lib units 2/2.
+- `cargo test -p juggler-app --test onboarding`: 5/5 (+1 new: the
+  ten-probe/progress report).
+- vitest: 256/256 (+2 scan-state tests in the wizard suite).
+- Playwright: 425/425 (gallery 34-wizard +6 scan shots).
+- `just verify` green.

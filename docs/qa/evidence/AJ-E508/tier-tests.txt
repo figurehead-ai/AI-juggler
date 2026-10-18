@@ -1,0 +1,64 @@
+   Compiling juggler-core v0.0.1 (crates/juggler-core)
+   Compiling juggler-adapter v0.0.1 (crates/juggler-adapter)
+   Compiling juggler-supervisor v0.0.1 (crates/juggler-supervisor)
+   Compiling juggler-adapters v0.0.1 (crates/juggler-adapters)
+   Compiling juggler-app v0.0.1 (crates/juggler-app)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.14s
+     Running tests/tiers.rs (target/debug/deps/tiers-506357fd9ac9f76f)
+
+running 8 tests
+test tier_toggles_persist_independently ... ok
+kill: 32511: No such process
+test verification_failure_demotes_to_tier0_with_audit_note ... ok
+kill: 32515: No such process
+kill: 32507: No such process
+test default_install_signals_nothing ... ok
+test crash_suspension_blocks_until_reconfirmed ... ok
+test account_isolation_only_cleans_the_opted_in_account ... ok
+kill: 32510: No such process
+[tier1-drill] dev 32510 gone, mcp 32517 alive; audit: AuditOutcomeInfo {
+    id: 1,
+    at_ms: 1792069668684,
+    actor: "auto:tier-1",
+    automatic: true,
+kill: 32516: No such process
+    pid: 32510,
+    cmdline_trunc: "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python -m http.server 57726 --bind 127.0.0.1",
+    session_id: "sess-drill",
+    provider: "claude-code",
+    account_id: Some(
+        "acc-t1",
+    ),
+    machine_id: "machine-662108013000",
+    outcome: "pid 32510: exited on TERM",
+    ports_before: Some(
+        "57726",
+    ),
+    ports_after: None,
+}
+test pause_blocks_every_signal ... ok
+test tier1_drill_kills_only_the_dev_server ... ok
+kill: 33411: No such process
+[tier2-lapse] dev 33411 gone after the window; audit: AuditOutcomeInfo {
+    id: 1,
+    at_ms: 1792069675082,
+    actor: "auto:tier-2",
+    automatic: true,
+    pid: 33411,
+    cmdline_trunc: "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python -m http.server 57774 --bind 127.0.0.1",
+    session_id: "sess-lapse",
+    provider: "claude-code",
+    account_id: Some(
+        "acc-t1",
+    ),
+    machine_id: "machine-668659662000",
+    outcome: "pid 33411: exited on TERM",
+    ports_before: Some(
+        "57774",
+    ),
+    ports_after: None,
+}
+test tier2_crash_flow_notification_undo_and_lapse ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.16s
+

@@ -1,0 +1,603 @@
+[
+  {
+    "pair": "claude-code→claude-code",
+    "score": 0.9000000000000001,
+    "label": "F1",
+    "caps": [
+      {
+        "cap": "unvalidated-pair",
+        "capped_at": "F1"
+      }
+    ],
+    "carry_list": [
+      {
+        "artifact": "Chat",
+        "word": "carried",
+        "reason": "carried"
+      },
+      {
+        "artifact": "Rules",
+        "word": "carried",
+        "reason": "carried"
+      },
+      {
+        "artifact": "GitDiff",
+        "word": "carried",
+        "reason": "carried"
+      },
+      {
+        "artifact": "Todos",
+        "word": "stays",
+        "reason": "stays"
+      },
+      {
+        "artifact": "Mcp",
+        "word": "carried",
+        "reason": "carried"
+      },
+      {
+        "artifact": "Skills",
+        "word": "carried",
+        "reason": "carried"
+      },
+      {
+        "artifact": "EnvModel",
+        "word": "carried",
+        "reason": "carried"
+      },
+      {
+        "artifact": "Subagents",
+        "word": "carried",
+        "reason": "carried"
+      }
+    ]
+  },
+  {
+    "pair": "codex→codex",
+    "score": 0.8500000000000001,
+    "label": "F1",
+    "caps": [
+      {
+        "cap": "unvalidated-pair",
+        "capped_at": "F1"
+      }
+    ],
+    "carry_list": [
+      {
+        "artifact": "Chat",
+        "word": "carried",
+        "reason": "carried"
+      },
+      {
+        "artifact": "Rules",
+        "word": "carried",
+        "reason": "carried"
+      },
+      {
+        "artifact": "GitDiff",
+        "word": "carried",
+        "reason": "carried"
+      },
+      {
+        "artifact": "Todos",
+        "word": "stays",
+        "reason": "stays"
+      },
+      {
+        "artifact": "Mcp",
+        "word": "carried",
+        "reason": "carried"
+      },
+      {
+        "artifact": "Skills",
+        "word": "carried",
+        "reason": "carried"
+      },
+      {
+        "artifact": "EnvModel",
+        "word": "carried",
+        "reason": "carried"
+      },
+      {
+        "artifact": "Subagents",
+        "word": "stays",
+        "reason": "stays"
+      }
+    ]
+  },
+  {
+    "pair": "zcode→zcode",
+    "score": 0.5,
+    "label": "F0",
+    "caps": [
+      {
+        "cap": "zcode-target",
+        "capped_at": "F0"
+      }
+    ],
+    "carry_list": [
+      {
+        "artifact": "Chat",
+        "word": "stays",
+        "reason": "stays"
+      },
+      {
+        "artifact": "Rules",
+        "word": "carried",
+        "reason": "carried"
+      },
+      {
+        "artifact": "GitDiff",
+        "word": "carried",
+        "reason": "carried"
+      },
+      {
+        "artifact": "Todos",
+        "word": "stays",
+        "reason": "stays"
+      },
+      {
+        "artifact": "Mcp",
+        "word": "carried",
+        "reason": "carried"
+      },
+      {
+        "artifact": "Skills",
+        "word": "carried",
+        "reason": "carried"
+      },
+      {
+        "artifact": "EnvModel",
+        "word": "carried",
+        "reason": "carried"
+      },
+      {
+        "artifact": "Subagents",
+        "word": "stays",
+        "reason": "stays"
+      }
+    ]
+  },
+  {
+    "pair": "claude-code→codex",
+    "score": 0.6699999999999999,
+    "label": "F1",
+    "caps": [],
+    "carry_list": [
+      {
+        "artifact": "Chat",
+        "word": "translated",
+        "reason": "translated"
+      },
+      {
+        "artifact": "Rules",
+        "word": "translated",
+        "reason": "translated"
+      },
+      {
+        "artifact": "GitDiff",
+        "word": "carried",
+        "reason": "carried"
+      },
+      {
+        "artifact": "Todos",
+        "word": "stays",
+        "reason": "stays"
+      },
+      {
+        "artifact": "Mcp",
+        "word": "translated",
+        "reason": "translated"
+      },
+      {
+        "artifact": "Skills",
+        "word": "stays (no written mapping)",
+        "reason": "no written mapping"
+      },
+      {
+        "artifact": "EnvModel",
+        "word": "translated",
+        "reason": "translated"
+      },
+      {
+        "artifact": "Subagents",
+        "word": "stays",
+        "reason": "stays"
+      }
+    ]
+  },
+  {
+    "pair": "codex→claude-code",
+    "score": 0.6699999999999999,
+    "label": "F1",
+    "caps": [],
+    "carry_list": [
+      {
+        "artifact": "Chat",
+        "word": "translated",
+        "reason": "translated"
+      },
+      {
+        "artifact": "Rules",
+        "word": "translated",
+        "reason": "translated"
+      },
+      {
+        "artifact": "GitDiff",
+        "word": "carried",
+        "reason": "carried"
+      },
+      {
+        "artifact": "Todos",
+        "word": "stays",
+        "reason": "stays"
+      },
+      {
+        "artifact": "Mcp",
+        "word": "translated",
+        "reason": "translated"
+      },
+      {
+        "artifact": "Skills",
+        "word": "stays (no written mapping)",
+        "reason": "no written mapping"
+      },
+      {
+        "artifact": "EnvModel",
+        "word": "translated",
+        "reason": "translated"
+      },
+      {
+        "artifact": "Subagents",
+        "word": "stays",
+        "reason": "stays"
+      }
+    ]
+  },
+  {
+    "pair": "claude-code→zcode",
+    "score": 0.72,
+    "label": "F0",
+    "caps": [
+      {
+        "cap": "zcode-target",
+        "capped_at": "F0"
+      }
+    ],
+    "carry_list": [
+      {
+        "artifact": "Chat",
+        "word": "translated",
+        "reason": "translated"
+      },
+      {
+        "artifact": "Rules",
+        "word": "translated",
+        "reason": "translated"
+      },
+      {
+        "artifact": "GitDiff",
+        "word": "carried",
+        "reason": "carried"
+      },
+      {
+        "artifact": "Todos",
+        "word": "stays",
+        "reason": "stays"
+      },
+      {
+        "artifact": "Mcp",
+        "word": "translated",
+        "reason": "translated"
+      },
+      {
+        "artifact": "Skills",
+        "word": "carried",
+        "reason": "carried"
+      },
+      {
+        "artifact": "EnvModel",
+        "word": "translated",
+        "reason": "translated"
+      },
+      {
+        "artifact": "Subagents",
+        "word": "stays",
+        "reason": "stays"
+      }
+    ]
+  },
+  {
+    "pair": "zcode→claude-code",
+    "score": 0.6699999999999999,
+    "label": "F1",
+    "caps": [],
+    "carry_list": [
+      {
+        "artifact": "Chat",
+        "word": "translated",
+        "reason": "translated"
+      },
+      {
+        "artifact": "Rules",
+        "word": "translated",
+        "reason": "translated"
+      },
+      {
+        "artifact": "GitDiff",
+        "word": "carried",
+        "reason": "carried"
+      },
+      {
+        "artifact": "Todos",
+        "word": "stays",
+        "reason": "stays"
+      },
+      {
+        "artifact": "Mcp",
+        "word": "translated",
+        "reason": "translated"
+      },
+      {
+        "artifact": "Skills",
+        "word": "stays",
+        "reason": "stays"
+      },
+      {
+        "artifact": "EnvModel",
+        "word": "translated",
+        "reason": "translated"
+      },
+      {
+        "artifact": "Subagents",
+        "word": "stays",
+        "reason": "stays"
+      }
+    ]
+  },
+  {
+    "pair": "codex→zcode",
+    "score": 0.7,
+    "label": "F0",
+    "caps": [
+      {
+        "cap": "zcode-target",
+        "capped_at": "F0"
+      }
+    ],
+    "carry_list": [
+      {
+        "artifact": "Chat",
+        "word": "translated",
+        "reason": "translated"
+      },
+      {
+        "artifact": "Rules",
+        "word": "carried",
+        "reason": "carried"
+      },
+      {
+        "artifact": "GitDiff",
+        "word": "carried",
+        "reason": "carried"
+      },
+      {
+        "artifact": "Todos",
+        "word": "stays",
+        "reason": "stays"
+      },
+      {
+        "artifact": "Mcp",
+        "word": "translated",
+        "reason": "translated"
+      },
+      {
+        "artifact": "Skills",
+        "word": "stays",
+        "reason": "stays"
+      },
+      {
+        "artifact": "EnvModel",
+        "word": "translated",
+        "reason": "translated"
+      },
+      {
+        "artifact": "Subagents",
+        "word": "stays",
+        "reason": "stays"
+      }
+    ]
+  },
+  {
+    "pair": "zcode→codex",
+    "score": 0.6699999999999999,
+    "label": "F1",
+    "caps": [],
+    "carry_list": [
+      {
+        "artifact": "Chat",
+        "word": "translated",
+        "reason": "translated"
+      },
+      {
+        "artifact": "Rules",
+        "word": "translated",
+        "reason": "translated"
+      },
+      {
+        "artifact": "GitDiff",
+        "word": "carried",
+        "reason": "carried"
+      },
+      {
+        "artifact": "Todos",
+        "word": "stays",
+        "reason": "stays"
+      },
+      {
+        "artifact": "Mcp",
+        "word": "translated",
+        "reason": "translated"
+      },
+      {
+        "artifact": "Skills",
+        "word": "stays",
+        "reason": "stays"
+      },
+      {
+        "artifact": "EnvModel",
+        "word": "translated",
+        "reason": "translated"
+      },
+      {
+        "artifact": "Subagents",
+        "word": "stays",
+        "reason": "stays"
+      }
+    ]
+  },
+  {
+    "pair": "claude-code→gemini",
+    "score": 0.27,
+    "label": "F0",
+    "caps": [],
+    "carry_list": [
+      {
+        "artifact": "Chat",
+        "word": "stays",
+        "reason": "stays"
+      },
+      {
+        "artifact": "Rules",
+        "word": "translated",
+        "reason": "translated"
+      },
+      {
+        "artifact": "GitDiff",
+        "word": "carried",
+        "reason": "carried"
+      },
+      {
+        "artifact": "Todos",
+        "word": "stays",
+        "reason": "stays"
+      },
+      {
+        "artifact": "Mcp",
+        "word": "stays",
+        "reason": "stays"
+      },
+      {
+        "artifact": "Skills",
+        "word": "stays",
+        "reason": "stays"
+      },
+      {
+        "artifact": "EnvModel",
+        "word": "stays",
+        "reason": "stays"
+      },
+      {
+        "artifact": "Subagents",
+        "word": "stays",
+        "reason": "stays"
+      }
+    ]
+  },
+  {
+    "pair": "codex→gemini",
+    "score": 0.27,
+    "label": "F0",
+    "caps": [],
+    "carry_list": [
+      {
+        "artifact": "Chat",
+        "word": "stays",
+        "reason": "stays"
+      },
+      {
+        "artifact": "Rules",
+        "word": "translated",
+        "reason": "translated"
+      },
+      {
+        "artifact": "GitDiff",
+        "word": "carried",
+        "reason": "carried"
+      },
+      {
+        "artifact": "Todos",
+        "word": "stays",
+        "reason": "stays"
+      },
+      {
+        "artifact": "Mcp",
+        "word": "stays",
+        "reason": "stays"
+      },
+      {
+        "artifact": "Skills",
+        "word": "stays",
+        "reason": "stays"
+      },
+      {
+        "artifact": "EnvModel",
+        "word": "stays",
+        "reason": "stays"
+      },
+      {
+        "artifact": "Subagents",
+        "word": "stays",
+        "reason": "stays"
+      }
+    ]
+  },
+  {
+    "pair": "zcode→gemini",
+    "score": 0.27,
+    "label": "F0",
+    "caps": [],
+    "carry_list": [
+      {
+        "artifact": "Chat",
+        "word": "stays",
+        "reason": "stays"
+      },
+      {
+        "artifact": "Rules",
+        "word": "translated",
+        "reason": "translated"
+      },
+      {
+        "artifact": "GitDiff",
+        "word": "carried",
+        "reason": "carried"
+      },
+      {
+        "artifact": "Todos",
+        "word": "stays",
+        "reason": "stays"
+      },
+      {
+        "artifact": "Mcp",
+        "word": "stays",
+        "reason": "stays"
+      },
+      {
+        "artifact": "Skills",
+        "word": "stays",
+        "reason": "stays"
+      },
+      {
+        "artifact": "EnvModel",
+        "word": "stays",
+        "reason": "stays"
+      },
+      {
+        "artifact": "Subagents",
+        "word": "stays",
+        "reason": "stays"
+      }
+    ]
+  }
+]

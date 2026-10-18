@@ -1,0 +1,210 @@
+{
+  "record": "wireframe-approvals",
+  "date": "2026-10-13",
+  "maintainer_source": "Conversation instruction, 2026-10-13: 'All approved' following three pre-approval change requests (screen 01 filter+search; screen 05 maximize+pop-out; global rail/inspector collapse on every screen) which were incorporated into the wireframes before approval.",
+  "global_conventions_included": [
+    "Left rail collapsible on every screen (\u2318B)",
+    "Right Inspector collapsible on every screen (\u2318\u21e7I, live edge tab)",
+    "Dual theme: Light + Dark (D-16)"
+  ],
+  "screens": [
+    {
+      "screen": "01",
+      "title": "App shell + rail indicators (incl. focus filter + rail search)",
+      "verdict": "approved",
+      "date": "2026-10-13",
+      "source": "maintainer instruction (conversation): 'All approved'",
+      "change_requests_incorporated": [
+        "focus filter All/Projects/Instances/Sessions (\u2318\\)",
+        "rail search (\u2318F)"
+      ]
+    },
+    {
+      "screen": "02",
+      "title": "Morning triage / Needs me",
+      "verdict": "approved",
+      "date": "2026-10-13",
+      "source": "maintainer instruction (conversation): 'All approved'"
+    },
+    {
+      "screen": "03",
+      "title": "Projects + worktrees",
+      "verdict": "approved",
+      "date": "2026-10-13",
+      "source": "maintainer instruction (conversation): 'All approved'"
+    },
+    {
+      "screen": "04",
+      "title": "Instances (real entity; desktop = Focus window)",
+      "verdict": "approved",
+      "date": "2026-10-13",
+      "source": "maintainer instruction (conversation): 'All approved'"
+    },
+    {
+      "screen": "05",
+      "title": "Session + terminal (incl. maximize + pop-out)",
+      "verdict": "approved",
+      "date": "2026-10-13",
+      "source": "maintainer instruction (conversation): 'All approved'",
+      "change_requests_incorporated": [
+        "terminal maximize (\u2325\u2922)",
+        "pop-out to own OS window (\u21e7\u29c9)"
+      ]
+    },
+    {
+      "screen": "06",
+      "title": "Inspector Overview",
+      "verdict": "approved",
+      "date": "2026-10-13",
+      "source": "maintainer instruction (conversation): 'All approved'"
+    },
+    {
+      "screen": "07",
+      "title": "Inspector Usage + Quality",
+      "verdict": "approved",
+      "date": "2026-10-13",
+      "source": "maintainer instruction (conversation): 'All approved'"
+    },
+    {
+      "screen": "08",
+      "title": "Inspector Processes",
+      "verdict": "approved",
+      "date": "2026-10-13",
+      "source": "maintainer instruction (conversation): 'All approved'"
+    },
+    {
+      "screen": "09",
+      "title": "Inspector History + Actions",
+      "verdict": "approved",
+      "date": "2026-10-13",
+      "source": "maintainer instruction (conversation): 'All approved'"
+    },
+    {
+      "screen": "10",
+      "title": "Launch sheet + Launch settings",
+      "verdict": "approved",
+      "date": "2026-10-13",
+      "source": "maintainer instruction (conversation): 'All approved'"
+    },
+    {
+      "screen": "11",
+      "title": "Switch 1-click",
+      "verdict": "approved",
+      "date": "2026-10-13",
+      "source": "maintainer instruction (conversation): 'All approved'"
+    },
+    {
+      "screen": "12",
+      "title": "Switch wizard (lossy)",
+      "verdict": "approved",
+      "date": "2026-10-13",
+      "source": "maintainer instruction (conversation): 'All approved'"
+    },
+    {
+      "screen": "13",
+      "title": "Switch-back + divergence",
+      "verdict": "approved",
+      "date": "2026-10-13",
+      "source": "maintainer instruction (conversation): 'All approved'"
+    },
+    {
+      "screen": "14",
+      "title": "Context pack + redaction",
+      "verdict": "approved",
+      "date": "2026-10-13",
+      "source": "maintainer instruction (conversation): 'All approved'"
+    },
+    {
+      "screen": "15",
+      "title": "Switch Graph",
+      "verdict": "approved",
+      "date": "2026-10-13",
+      "source": "maintainer instruction (conversation): 'All approved'"
+    },
+    {
+      "screen": "16",
+      "title": "Onboarding scan",
+      "verdict": "approved",
+      "date": "2026-10-13",
+      "source": "maintainer instruction (conversation): 'All approved'"
+    },
+    {
+      "screen": "17",
+      "title": "Onboarding recommended set",
+      "verdict": "approved",
+      "date": "2026-10-13",
+      "source": "maintainer instruction (conversation): 'All approved'"
+    },
+    {
+      "screen": "18",
+      "title": "Add Provider/Account/Instance",
+      "verdict": "approved",
+      "date": "2026-10-13",
+      "source": "maintainer instruction (conversation): 'All approved'"
+    },
+    {
+      "screen": "19",
+      "title": "Usage two clocks",
+      "verdict": "approved",
+      "date": "2026-10-13",
+      "source": "maintainer instruction (conversation): 'All approved'"
+    },
+    {
+      "screen": "20",
+      "title": "Cost ledger",
+      "verdict": "approved",
+      "date": "2026-10-13",
+      "source": "maintainer instruction (conversation): 'All approved'"
+    },
+    {
+      "screen": "21",
+      "title": "Cleanup Centre",
+      "verdict": "approved",
+      "date": "2026-10-13",
+      "source": "maintainer instruction (conversation): 'All approved'"
+    },
+    {
+      "screen": "22",
+      "title": "Verify-before-kill",
+      "verdict": "approved",
+      "date": "2026-10-13",
+      "source": "maintainer instruction (conversation): 'All approved'"
+    },
+    {
+      "screen": "23",
+      "title": "Fleet pairing",
+      "verdict": "approved",
+      "date": "2026-10-13",
+      "source": "maintainer instruction (conversation): 'All approved'"
+    },
+    {
+      "screen": "24",
+      "title": "Fleet remote Inspector",
+      "verdict": "approved",
+      "date": "2026-10-13",
+      "source": "maintainer instruction (conversation): 'All approved'"
+    },
+    {
+      "screen": "25",
+      "title": "Search / Archive / Replay",
+      "verdict": "approved",
+      "date": "2026-10-13",
+      "source": "maintainer instruction (conversation): 'All approved'"
+    },
+    {
+      "screen": "26",
+      "title": "Settings",
+      "verdict": "approved",
+      "date": "2026-10-13",
+      "source": "maintainer instruction (conversation): 'All approved'"
+    },
+    {
+      "screen": "27",
+      "title": "Beta fidelity status",
+      "verdict": "approved",
+      "date": "2026-10-13",
+      "source": "maintainer instruction (conversation): 'All approved'"
+    }
+  ],
+  "note": "Approval covers screens/layout/controls only; code authorisation is Stage-2 approval per D-15."
+}

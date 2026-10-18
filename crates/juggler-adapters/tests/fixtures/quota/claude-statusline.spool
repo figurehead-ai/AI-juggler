@@ -1,0 +1,4 @@
+1760000000000	{"session_id":"sess-a","model":{"id":"claude-opus-4"},"rate_limits":{"five_hour":{"used_percentage":42.5,"resets_at":1760006000000},"seven_day":{"used_percentage":11.2,"resets_at":1760500000000}}}
+1760000300000	{"session_id":"sess-a","model":{"id":"claude-opus-4"},"rate_limits":{"five_hour":{"used_percentage":50.0,"resets_at":1760006000000},"seven_day":{"used_percentage":12.0,"resets_at":1760500000000}}}
+1760000600000	{"session_id":"sess-b","model":{"id":"claude-sonnet-4"},"cost":{"total_cost_usd":0.42}}
+1760000900000	{"session_id":"sess-b" no rate limits and malformed json

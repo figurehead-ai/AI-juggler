@@ -1,0 +1,19 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.15s
+     Running tests/recovery.rs (target/debug/deps/recovery-1eb274d5126021a6)
+
+running 1 test
+[pre-crash] A root: pid=Some(8600) started_at=Some(1792088356) exe=/bin/sh boot=1790105131 | verify=Unverifiable start_time_only=Verified
+kill: 8604: No such process
+kill: 8604: No such process
+kill: 8604: No such process
+[restart] C row: pid=Some(8604) role=root state=exited started_at=Some(1792088356) exe=/bin/sh alive=false
+[restart] C row: pid=Some(8605) role=helper state=orphaned started_at=Some(1792088356) exe=/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python alive=true
+[recovery] RecoverySummaryInfo { summary: "2 Instances re-adopted, 1 helpers left behind, 1 processes could not be verified and were left alone.", adopted: 2, left_behind: 1, unverifiable: 1 }
+kill: 8602: No such process
+kill: 8600: No such process
+[recovery] left-behind: CleanupRow { pid: 8605, pgid: Some(8604), role: "helper", state: "orphaned", state_label: "left behind while Juggler was closed", down_period: true, role_guess: "Python (guess)", exe_path: "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python", cmdline: "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python -m http.server 58936 --bind 127.0.0.1", age_ms: Some(6328), rss_bytes: Some(16629760), cpu_pct: Some(0.0), ports: Some("58936"), hog: false, hog_rules: [], evidence: EvidenceChain { root_pid: Some(8604), parent_pid: Some(8604), pgid: Some(8604), escaped_group: false, verification: VerificationBadge { verdict: "unknown", detail: "not in the current process table" }, first_seen: 1792088357232, last_seen: 1792088357279 } }
+kill: 8604: No such process
+test crash_drill_readopts_verifies_and_reports ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.74s
+

@@ -1,0 +1,37 @@
+[
+  {
+    "rel_path": "PACK.md",
+    "sha256": "53bcd473de666b3dda821880a8e96af1eab3cd98c90cc44d8005c81e68f2ba11",
+    "bytes": 488,
+    "kind": "brief",
+    "disposition": "regenerate"
+  },
+  {
+    "rel_path": "conversation.md",
+    "sha256": "ce7542e50988f137e94803016fe8a49bf2a43adef511d0158598fe0e0f20068c",
+    "bytes": 145,
+    "kind": "conversation",
+    "disposition": "copy"
+  },
+  {
+    "rel_path": "state.json",
+    "sha256": "54b36abef02e929e706a8f54957b6fd6490b052ec9ddb0e9fae97505d3700db8",
+    "bytes": 1592,
+    "kind": "state",
+    "disposition": "copy"
+  },
+  {
+    "rel_path": "diffs/uncommitted.patch",
+    "sha256": "76e11e104d08bbd30e38b42f01f1e58614ab7a4f7f975926eea87fda5dfe6805",
+    "bytes": 34,
+    "kind": "diffs",
+    "disposition": "copy"
+  },
+  {
+    "rel_path": "drops/session-todos",
+    "sha256": "fef9a58c04b280997bb8057127736cec9724e229150ee98bc96a106fcec91a71",
+    "bytes": 49,
+    "kind": "drop",
+    "disposition": "drop"
+  }
+]

@@ -1,0 +1,32 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/supervisor.rs (target/debug/deps/supervisor-5ed8f0f4744d6304)
+
+running 1 test
+kill: 58483: No such process
+kill: 58482: No such process
+kill: 58481: No such process
+kill: 58483: No such process
+kill: 58482: No such process
+kill: 58481: No such process
+test process_tree_descendants_are_tracked ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.53s
+
+   Compiling juggler-app v0.0.1 (crates/juggler-app)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 12.54s
+     Running tests/desktop.rs (target/debug/deps/desktop-ec7717a3a2757078)
+
+running 10 tests
+test real_desktop_launch_record_textedit ... ignored, launches a real GUI app; local evidence run only
+test providers_without_a_desktop_app_are_refused_by_name ... ok
+test desktop_focus_on_a_ended_instance_reports_not_running_without_scripts ... ok
+test desktop_focus_refuses_terminal_instances_by_name ... ok
+test desktop_focus_without_recorded_identity_redisovers_by_bundle ... ok
+test desktop_focus_permission_denial_degrades_with_flag ... ok
+test desktop_focus_runs_tiers_and_persists_first_sight_identity ... ok
+test restart_reconciler_closes_dead_desktop_rows_never_fake_live ... ok
+test desktop_launch_tracks_in_the_same_ledger_without_a_pty ... ok
+test desktop_crash_surfaces_as_failed_state ... ok
+
+test result: ok. 9 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.20s
+

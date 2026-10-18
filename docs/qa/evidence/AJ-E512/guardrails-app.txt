@@ -1,0 +1,52 @@
+   Compiling juggler-app v0.0.1 (crates/juggler-app)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 18.23s
+     Running tests/guardrails.rs (target/debug/deps/guardrails-c90369156e7ed3c0)
+
+running 8 tests
+kill: 57654: No such process
+kill: 57656: No such process
+kill: 57658: No such process
+kill: 57660: No such process
+kill: 57661: No such process
+kill: 57664: No such process
+kill: 57666: No such process
+test crash_recovery_signals_nothing_and_stop_stays_scoped ... ok
+kill: 58060: No such process
+test idle_nudge_fires_exactly_once_per_orphan ... ok
+kill: 58903: No such process
+kill: 58903: No such process
+kill: 58906: No such process
+kill: 58904: No such process
+kill: 58907: No such process
+test hog_is_never_auto_signalled_and_alerts_with_exact_copy ... ok
+kill: 59838: No such process
+kill: 59838: No such process
+test tier2_crash_flow_spares_every_collateral_fixture ... ok
+test manual_pgid_scope_is_warned_and_confined_to_the_group has been running for over 60 seconds
+test manual_pid_scope_signals_only_the_verified_pid has been running for over 60 seconds
+test term_ignorer_gets_term_then_kill_only_after_grace has been running for over 60 seconds
+test tier1_sweep_spares_every_collateral_fixture has been running for over 60 seconds
+kill: 60101: No such process
+kill: 60107: No such process
+kill: 60109: No such process
+kill: 60102: No such process
+kill: 60101: No such process
+kill: 60107: No such process
+kill: 60102: No such process
+kill: 60109: No such process
+test manual_pgid_scope_is_warned_and_confined_to_the_group ... ok
+kill: 60840: No such process
+kill: 60840: No such process
+kill: 60844: No such process
+kill: 60842: No such process
+kill: 60845: No such process
+test manual_pid_scope_signals_only_the_verified_pid ... ok
+kill: 61335: No such process
+kill: 61335: No such process
+test term_ignorer_gets_term_then_kill_only_after_grace ... ok
+kill: 62201: No such process
+kill: 62201: No such process
+test tier1_sweep_spares_every_collateral_fixture ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 98.90s
+

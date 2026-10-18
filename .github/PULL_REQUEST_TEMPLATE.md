@@ -1,0 +1,23 @@
+## What & why
+
+<!-- What does this PR change, and why? Link the issue it addresses ("Closes #123"). -->
+
+## Definition of Done ([docs/plan/QUALITY.md](../docs/plan/QUALITY.md) — required for every PR)
+
+- [ ] Acceptance criteria from the issue demonstrably pass
+- [ ] `just verify` clean (fmt, clippy `-D warnings`, tests, docs) — zero warnings
+- [ ] Public APIs documented; typed errors; no `unwrap`/`expect`/`panic!` in production paths
+- [ ] Tests added (unit + integration/fixtures for new flows; corpus grown if parsers touched)
+- [ ] Architecture layering respected (QUALITY.md §4); no new `unsafe`; `cargo-deny` clean
+- [ ] CHANGELOG updated; spec/docs updated if behavior changed; ADR if a decision was made
+- [ ] UI changes: both themes captured in the gallery, a11y scan added, `pnpm --dir ui exec playwright test` green
+- [ ] Evidence stored under `docs/qa/evidence/<task-id>/` when this closes a task
+- [ ] **Nothing personal or secret**: no real account names, e-mails, home paths, hostnames, tokens, or screenshots of a real desktop
+
+## Reviewer checklist
+
+Structure & naming · layering · error handling · test quality · docs · CHANGELOG · no secrets · bench impact on hot paths
+
+## Notes for reviewers
+
+<!-- Anything non-obvious, tradeoffs made, or things you want a second opinion on. -->

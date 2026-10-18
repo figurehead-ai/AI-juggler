@@ -1,0 +1,3 @@
+running 2 tests
+[identity] recorded pid=56105 pgid=Some(56105) start_time=1792006778 exe="/bin/bash" boot=1790105131
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.66s

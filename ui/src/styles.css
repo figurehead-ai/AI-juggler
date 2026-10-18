@@ -1,0 +1,245 @@
+@import "tailwindcss";
+
+/*
+ * AI Juggler design tokens — dark-first developer aesthetic.
+ * Single source of truth for color/shape/typography; components consume
+ * semantic names only (bg-canvas, text-muted, border-hairline, ...).
+ *
+ * Iteration 2 (design review): depth (ambient gradients, glass, layered
+ * shadows), motion (consistent 150ms micro-transitions, live pulse), and
+ * glow accents — same palette, more polish.
+ */
+@theme {
+  /* Surfaces: deep space neutrals, layered elevation */
+  --color-canvas: #0a0d13;
+  --color-canvas-hi: #0d1119;
+  --color-surface: #10141c;
+  --color-surface-2: #161b26;
+  --color-surface-3: #1d2331;
+  --color-hairline: #232a38;
+
+  /* Text */
+  --color-ink: #e8ecf3;
+  --color-muted: #8b95a7;
+  --color-faint: #5b6474;
+
+  /* Identity: electric violet primary, cyan for live data */
+  --color-accent: #7c7cf4;
+  --color-accent-hi: #9d9dfb;
+  --color-accent-soft: #7c7cf41f;
+  --color-live: #22d3ee;
+  --color-live-soft: #22d3ee1f;
+
+  /* Semantics */
+  --color-success: #34d399;
+  --color-success-soft: #34d3991a;
+  --color-warning: #fbbf24;
+  --color-warning-soft: #fbbf241a;
+  --color-danger: #f87171;
+  --color-danger-soft: #f871711a;
+
+  /* Type: native stack, mono for identifiers */
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI",
+    Roboto, sans-serif;
+  --font-mono:
+    ui-monospace, "SF Mono", "JetBrains Mono", "Fira Code", Menlo, monospace;
+
+  /* Shape */
+  --radius-card: 0.875rem;
+
+  /* Motion */
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Depth */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -16px rgba(0, 0, 0, 0.5);
+  --shadow-glow-accent: 0 0 24px -6px #7c7cf459;
+  --shadow-glow-live: 0 0 24px -6px #22d3ee59;
+}
+
+/* Ambient canvas: layered wash instead of flat black. */
+body {
+  @apply bg-canvas text-ink font-sans antialiased;
+  overscroll-behavior: none;
+  background-image:
+    radial-gradient(1100px 700px at 12% -12%, #7c7cf40d, transparent 60%),
+    radial-gradient(900px 600px at 95% 8%, #22d3ee08, transparent 55%),
+    linear-gradient(180deg, var(--color-canvas-hi), var(--color-canvas) 40%);
+  background-attachment: fixed;
+}
+
+/*
+ * D-16 dual theme (Light + Dark). Dark is the default; the token names
+ * never change — only their values. [data-theme] is set on <html> by
+ * the theme controller (System/Light/Dark, ⌘⇧L cycles, persisted).
+ */
+[data-theme="light"] {
+  --color-canvas: #f7f8fb;
+  --color-canvas-hi: #eef0f6;
+  --color-surface: #ffffff;
+  --color-surface-2: #f2f4f9;
+  --color-surface-3: #e7eaf2;
+  --color-hairline: #d8dde8;
+
+  --color-ink: #171c26;
+  --color-muted: #57607a;
+  --color-faint: #8a92a6;
+
+  --color-accent: #5b5bf0;
+  --color-accent-hi: #4646e0;
+  --color-accent-soft: #5b5bf016;
+  --color-live: #0891b2;
+  --color-live-soft: #0891b216;
+
+  /* AJ-E303: darkened (from #059669) so success chips on their soft
+     background clear WCAG AA in the light theme. */
+  --color-success: #065f46;
+  --color-success-soft: #065f461a;
+  --color-warning: #b45309;
+  --color-warning-soft: #b4530914;
+  --color-danger: #dc2626;
+  --color-danger-soft: #dc262614;
+}
+
+[data-theme="light"] body {
+  background-image:
+    radial-gradient(1100px 700px at 12% -12%, #5b5bf00a, transparent 60%),
+    radial-gradient(900px 600px at 95% 8%, #0891b206, transparent 55%),
+    linear-gradient(180deg, var(--color-canvas-hi), var(--color-canvas) 40%);
+}
+
+::selection {
+  background: var(--color-accent-soft);
+}
+
+/* Focus ring: consistent, keyboard-first */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Scrollbars: quiet, overlay-style where supported */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-hairline) transparent;
+}
+
+/* ---- Motion utilities (iteration 2) ---- */
+
+/* Live status pulse: breathing dot for running things. */
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 var(--pulse-color, #22d3ee66);
+  }
+  50% {
+    opacity: 0.75;
+    box-shadow: 0 0 0 4px transparent;
+  }
+}
+
+.dot-live {
+  animation: breathe 2.4s var(--ease-out-soft) infinite;
+}
+
+/*
+ * I-02 account disc (AJ-E402): per-Account hue derived from a stable
+ * hash of the account id (data, not a palette choice); saturation and
+ * lightness stay fixed per theme so contrast holds in both (D-16 —
+ * the token layer stays the single source of colour rules).
+ */
+.acct-disc {
+  background: hsl(var(--acct-hue, 255) 55% 55% / 0.2);
+  border: 1px solid hsl(var(--acct-hue, 255) 55% 60% / 0.45);
+  color: hsl(var(--acct-hue, 255) 75% 74%);
+}
+/*
+ * I-10 attention count badge (AJ-E404): amber is semantic, the TEXT is
+ * achromatic per theme so contrast clears 4.5:1 in both (D-16).
+ */
+.attn-badge {
+  background: var(--color-warning);
+  color: #141414;
+}
+[data-theme="light"] .attn-badge {
+  color: #ffffff;
+}
+
+[data-theme="light"] .acct-disc {
+  background: hsl(var(--acct-hue, 255) 55% 42% / 0.12);
+  border: 1px solid hsl(var(--acct-hue, 255) 50% 38% / 0.4);
+  color: hsl(var(--acct-hue, 255) 60% 30%);
+}
+
+/* Numerals with a quiet violet→ink gradient: modern without noise. */
+.numeral {
+  background: linear-gradient(160deg, #ffffff 20%, #9d9dfb 120%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Card sheen: 1px top light edge — the "material" read. */
+.sheen {
+  position: relative;
+}
+.sheen::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.07) 20%,
+    rgba(255, 255, 255, 0.07) 80%,
+    transparent
+  );
+  pointer-events: none;
+}
+
+/* Thin, overlay-style scrollbars (Linear/Arc-grade rail + lists) */
+.rail-scroll::-webkit-scrollbar,
+main ::-webkit-scrollbar,
+main::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.rail-scroll::-webkit-scrollbar-thumb,
+main ::-webkit-scrollbar-thumb,
+main::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--color-muted) 25%, transparent);
+  border-radius: 999px;
+}
+.rail-scroll::-webkit-scrollbar-thumb:hover,
+main ::-webkit-scrollbar-thumb:hover,
+main::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklab, var(--color-muted) 45%, transparent);
+}
+.rail-scroll::-webkit-scrollbar-track,
+main ::-webkit-scrollbar-track,
+main::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+
+/* Reduced motion: freeze micro-transitions and the live pulse —
+   accessibility (WCAG 2.3.3) and deterministic visual captures.
+   Transitions are switched OFF, not shortened: the CSS default
+   `transition-property` is `all`, so a tiny global duration made EVERY
+   element transition every property — inherited text colour included
+   — and right after boot the light theme briefly rendered dark-theme
+   ink until the next frames ran (the recorded "light-theme first-scan
+   contrast flash", AJ-E806). Nothing listens for transitionend. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition: none !important;
+  }
+  .dot-live, .animate-breathe {
+    animation: none !important;
+  }
+}

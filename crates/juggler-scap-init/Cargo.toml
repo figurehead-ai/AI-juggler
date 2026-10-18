@@ -1,0 +1,18 @@
+[package]
+name = "juggler-scap-init"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Vendored, audited ScreenCaptureKit init shim (D-17) — the one unsafe call the capture path needs"
+
+# D-17 (2026-10-13): this crate is the SINGLE carve-out from the
+# workspace lint baseline. By NOT inheriting `[lints] workspace =
+# true`, `unsafe_code = "forbid"` does not apply here — everything
+# else in the workspace keeps the absolute law. The crate contains
+# exactly ONE unsafe block, audited in D-17 and pinned below.
+# macOS-only: the binding does not build elsewhere; the crate itself
+# is an empty lib on non-macOS (see lib.rs cfg).
+[target.'cfg(target_os = "macos")'.dependencies]
+screencapturekit = { version = "11.0.0", features = ["macos_14_0"] }

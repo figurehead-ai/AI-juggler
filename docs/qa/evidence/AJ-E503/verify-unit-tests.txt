@@ -1,0 +1,7 @@
+test tree::verify_tests::empty_or_partial_identity_sets_do_not_verify ... ok
+test tree::verify_tests::exe_mismatch_is_unverifiable ... ok
+test tree::verify_tests::start_time_mismatch_is_unverifiable ... ok
+test tree::verify_tests::boot_id_mismatch_is_unverifiable ... ok
+test tree::verify_tests::all_three_facts_agree_verifies ... ok
+test tree::verify_tests::probe_error_is_unverifiable_never_verified ... ok
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.00s

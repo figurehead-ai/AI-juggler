@@ -1,0 +1,24 @@
+[package]
+name = "juggler-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.juggler-adapters]
+path = "../crates/juggler-adapters"
+
+# Fuzz targets live outside the workspace on purpose (cargo-fuzz manages
+# its own build under nightly); see fuzz/README.md.
+
+[[bin]]
+name = "transcript_parse"
+path = "fuzz_targets/transcript_parse.rs"
+test = false
+doc = false
+bench = false

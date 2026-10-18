@@ -1,0 +1,4 @@
+{"type":"assistant","turn":1,"usage":{"input_tokens":100,"output_tokens":50},"message":{"role":"assistant","model":"opus-4.8","usage":{"input_tokens":100,"output_tokens":50}}}
+{"type":"user","turn":2,"message":{"role":"user","content":"/model sonnet-5"}}
+{"type":"assistant","turn":2,"usage":{"input_tokens":80,"output_tokens":40},"message":{"role":"assistant","model":"sonnet-5","usage":{"input_tokens":80,"output_tokens":40}}}
+{"type":"assistant","turn":3,"usage":{"input_tokens":90,"output_tokens":45},"message":{"role":"assistant","model":"sonnet-5","usage":{"input_tokens":90,"output_tokens":45}}}

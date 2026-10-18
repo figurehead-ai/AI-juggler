@@ -1,0 +1,14 @@
+   Compiling juggler-app v0.0.1 (crates/juggler-app)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.16s
+     Running tests/guardrails.rs (target/debug/deps/guardrails-c90369156e7ed3c0)
+
+running 1 test
+[fleet] foreign 81583 refused + zero signals + listed display-only; local tree actionable
+kill: 81574: No such process
+kill: 81577: No such process
+kill: 81575: No such process
+kill: 81578: No such process
+test foreign_machine_row_is_refused_with_zero_signals_and_listed_display_only ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 3.49s
+

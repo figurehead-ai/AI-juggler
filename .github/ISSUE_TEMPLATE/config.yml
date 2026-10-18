@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Discussions & questions
+    url: https://github.com/figurehead-ai/AI-juggler/discussions
+    about: Ask questions and discuss the design (once Discussions are enabled) — otherwise open a "design feedback" issue.
+  - name: 📄 Product proposal & spec
+    url: https://github.com/figurehead-ai/AI-juggler/blob/main/docs/PROPOSAL.md
+    about: Read the proposal before opening feature requests — your idea may already be in scope (or deliberately out of it).
