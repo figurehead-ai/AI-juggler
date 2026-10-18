@@ -208,7 +208,8 @@ impl AccountClient {
         Err(Self::common(&response))
     }
 
-    /// One poll of a browser link (never retried; see [`Self::send`]).
+    /// One poll of a browser link (never retried: the token is delivered
+    /// once, so a lost answer means a fresh link).
     ///
     /// # Errors
     ///
