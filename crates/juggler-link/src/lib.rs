@@ -15,6 +15,8 @@ pub mod cert;
 pub mod client;
 pub mod identity;
 pub mod node;
+pub mod pairing;
+pub mod pairing_rpc;
 pub mod protocol;
 pub mod registry;
 pub mod verify;

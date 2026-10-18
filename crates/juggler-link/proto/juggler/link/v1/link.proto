@@ -4,7 +4,9 @@
 // test in `tests/proto_contract.rs`):
 //   * never renumber or remove a field — reserve it instead;
 //   * new fields are optional by construction (proto3);
-//   * a new command or message bumps PROTOCOL_MINOR in `src/protocol.rs`;
+//   * once released, a new command or message bumps PROTOCOL_MINOR in
+//     `src/protocol.rs` (v1.0 is unreleased; additions before the first
+//     release ship as part of v1.0);
 //   * nothing here may carry vendor credentials, keychain material,
 //     the identity private key, account tokens, or transcript text
 //     (the one exception is the handover pack fetch, AJ-E706).
@@ -22,6 +24,51 @@ service Link {
   rpc Telemetry(TelemetryRequest) returns (stream TelemetryDelta);
   // The ordered control-command stream (one per connection).
   rpc Command(stream ControlCommand) returns (stream CommandResult);
+  // Pairing (AJ-E704): the ONLY call an unpinned key may make. SPAKE2
+  // over the host's 6-digit code, key confirmation bound to this TLS
+  // session, then both users confirm before either side pins.
+  rpc Pair(stream PairMessage) returns (stream PairMessage);
+}
+
+message PairMessage {
+  oneof step {
+    PairStart start = 1;
+    PairChallenge challenge = 2;
+    PairConfirm confirm = 3;
+    PairDecision decision = 4;
+    PairFailure failure = 5;
+  }
+}
+
+// Joiner → host.
+message PairStart {
+  string machine_id = 1;
+  string label = 2;
+  bytes spake_message = 3;
+  ProtocolVersion version = 4;
+}
+
+// Host → joiner.
+message PairChallenge {
+  string machine_id = 1;
+  string label = 2;
+  bytes spake_message = 3;
+}
+
+// Both directions: HMAC over the transcript (role-separated).
+message PairConfirm {
+  bytes mac = 1;
+}
+
+// Both directions, after each user's own Confirm / Cancel.
+message PairDecision {
+  bool commit = 1;
+}
+
+// Host → joiner: why pairing stopped (plain words + a stable code).
+message PairFailure {
+  string reason_code = 1;
+  string message = 2;
 }
 
 message ProtocolVersion {

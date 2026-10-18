@@ -17,9 +17,10 @@ use std::time::{Duration, Instant};
 use juggler_link::cert::{NodeCertificate, node_certificate};
 use juggler_link::client::{self, ConnectError, Liveness};
 use juggler_link::node::{
-    CommandRejection, LinkAuditEvent, LinkNode, MemoryReplayStore, NodeHandler, PeerAccess,
-    PeerDirectory,
+    CommandRejection, LinkAuditEvent, LinkNode, MemoryReplayStore, NodeHandler, PairCandidate,
+    PairingHost, PeerAccess, PeerDirectory,
 };
+use juggler_link::pairing::{PairingCode, PairingError};
 use juggler_link::protocol::{PROTOCOL_MAJOR, PROTOCOL_MINOR};
 use juggler_link::{MachineIdentity, Permission, proto};
 
@@ -110,6 +111,30 @@ impl NodeHandler for Handler {
     }
 }
 
+/// Transport tests never open a pairing window.
+struct NoPairing;
+
+impl PairingHost for NoPairing {
+    fn begin(&self) -> Result<PairingCode, PairingError> {
+        Err(PairingError::NotOpen)
+    }
+    fn failed(&self) {}
+    fn released(&self) {}
+    fn local_label(&self) -> String {
+        "Node A".into()
+    }
+    fn local_key(&self) -> [u8; 32] {
+        [0; 32]
+    }
+    fn confirm(
+        &self,
+        _candidate: PairCandidate,
+    ) -> tokio::sync::oneshot::Receiver<Option<Permission>> {
+        tokio::sync::oneshot::channel().1
+    }
+    fn succeeded(&self, _candidate: &PairCandidate, _permission: Permission) {}
+}
+
 struct Fixture {
     _dir: tempfile::TempDir,
     node: LinkNode,
@@ -138,6 +163,7 @@ async fn fixture(permission: Permission) -> Fixture {
         handler.clone(),
         directory.clone(),
         Arc::new(MemoryReplayStore::default()),
+        Arc::new(NoPairing),
     )
     .unwrap();
     Fixture {

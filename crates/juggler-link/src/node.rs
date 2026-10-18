@@ -28,6 +28,7 @@ use tokio_stream::{Stream, StreamExt};
 use tonic::{Request, Response, Status, Streaming};
 
 use crate::cert::{NodeCertificate, ed25519_key_of};
+use crate::pairing::{EXPORTER_LABEL, PairingCode, PairingError};
 use crate::proto;
 use crate::protocol::{PROTOCOL_MAJOR, PROTOCOL_MINOR, ServiceLevel, negotiate};
 use crate::registry::Permission;
@@ -147,6 +148,50 @@ pub struct LinkConnInfo {
     pub peer_key: [u8; 32],
     /// The peer's address.
     pub addr: SocketAddr,
+    /// This TLS session's exporter value ([`EXPORTER_LABEL`]) — what
+    /// pairing binds its confirmation to.
+    pub exporter: [u8; 32],
+}
+
+/// A machine that finished the code exchange and awaits the users'
+/// confirmation (shown with its label and fingerprint).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PairCandidate {
+    /// Its `MachineId`.
+    pub machine_id: String,
+    /// The label it reported.
+    pub label: String,
+    /// The key seen in THIS TLS session (what gets pinned).
+    pub key: [u8; 32],
+    /// That key's fingerprint.
+    pub fingerprint: String,
+}
+
+/// The host side of pairing — implemented by the app (the window, the
+/// guard, the user's confirmation, and the pin).
+pub trait PairingHost: Send + Sync + 'static {
+    /// Admits one session (window open, not busy, not locked out).
+    ///
+    /// # Errors
+    ///
+    /// Returns why pairing can't start.
+    fn begin(&self) -> Result<PairingCode, PairingError>;
+    /// A session failed (wrong code, malformed): count it and rotate.
+    fn failed(&self);
+    /// A session ended without a failure (cancel, timeout).
+    fn released(&self);
+    /// This Mac's label for the other screen.
+    fn local_label(&self) -> String;
+    /// This Mac's identity key.
+    fn local_key(&self) -> [u8; 32];
+    /// Asks this Mac's user to confirm `candidate`; resolves to the
+    /// permission to grant, or `None` for Cancel.
+    fn confirm(
+        &self,
+        candidate: PairCandidate,
+    ) -> tokio::sync::oneshot::Receiver<Option<Permission>>;
+    /// Both users confirmed: pin `candidate` with `permission`.
+    fn succeeded(&self, candidate: &PairCandidate, permission: Permission);
 }
 
 /// The server-side TLS stream, carrying its connection info.
@@ -230,16 +275,17 @@ fn now_ms() -> i64 {
 }
 
 /// The gRPC service implementation.
-struct LinkService<H, D, R> {
+struct LinkService<H, D, R, P> {
     handler: Arc<H>,
     directory: Arc<D>,
     replay: Arc<R>,
+    pairing: Arc<P>,
     sessions: Arc<Mutex<HashMap<u64, Session>>>,
     buckets: Arc<Mutex<HashMap<String, Bucket>>>,
     nonces: Arc<Mutex<NonceCache>>,
 }
 
-impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore> LinkService<H, D, R> {
+impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore, P: PairingHost> LinkService<H, D, R, P> {
     fn conn<T>(request: &Request<T>) -> Result<LinkConnInfo, Status> {
         request
             .extensions()
@@ -407,8 +453,8 @@ impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore> LinkService<H, D, R> {
 type BoxStream<T> = Pin<Box<dyn Stream<Item = Result<T, Status>> + Send>>;
 
 #[tonic::async_trait]
-impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore> proto::link_server::Link
-    for LinkService<H, D, R>
+impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore, P: PairingHost> proto::link_server::Link
+    for LinkService<H, D, R, P>
 {
     async fn hello(
         &self,
@@ -536,6 +582,7 @@ impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore> proto::link_server::Link
             handler: self.handler.clone(),
             directory: self.directory.clone(),
             replay: self.replay.clone(),
+            pairing: self.pairing.clone(),
             sessions: self.sessions.clone(),
             buckets: self.buckets.clone(),
             nonces: self.nonces.clone(),
@@ -558,6 +605,26 @@ impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore> proto::link_server::Link
                 }
             }
         });
+        Ok(Response::new(Box::pin(
+            tokio_stream::wrappers::ReceiverStream::new(receiver),
+        )))
+    }
+
+    type PairStream = BoxStream<proto::PairMessage>;
+
+    async fn pair(
+        &self,
+        request: Request<Streaming<proto::PairMessage>>,
+    ) -> Result<Response<Self::PairStream>, Status> {
+        // The one call an unpinned key may make: it grants nothing until
+        // both codes match AND both users confirm.
+        let conn = Self::conn(&request)?;
+        let receiver = crate::pairing_rpc::serve(
+            conn,
+            request.into_inner(),
+            self.pairing.clone(),
+            self.handler.clone(),
+        );
         Ok(Response::new(Box::pin(
             tokio_stream::wrappers::ReceiverStream::new(receiver),
         )))
@@ -592,12 +659,13 @@ impl LinkNode {
     ///
     /// Returns an error string when the TLS configuration cannot be
     /// built.
-    pub fn start<H: NodeHandler, D: PeerDirectory, R: ReplayStore>(
+    pub fn start<H: NodeHandler, D: PeerDirectory, R: ReplayStore, P: PairingHost>(
         listener: TcpListener,
         certificate: &NodeCertificate,
         handler: Arc<H>,
         directory: Arc<D>,
         replay: Arc<R>,
+        pairing: Arc<P>,
     ) -> Result<Self, String> {
         let addr = listener.local_addr().map_err(|e| e.to_string())?;
         let mut config = rustls::ServerConfig::builder_with_provider(provider())
@@ -618,6 +686,7 @@ impl LinkNode {
             handler,
             directory,
             replay,
+            pairing,
             sessions: sessions.clone(),
             buckets: Arc::default(),
             nonces: Arc::default(),
@@ -655,12 +724,16 @@ impl LinkNode {
                     let Ok(Ok(tls)) = handshake else {
                         return;
                     };
-                    let Some(peer_key) = tls
-                        .get_ref()
-                        .1
+                    let connection = tls.get_ref().1;
+                    let Some(peer_key) = connection
                         .peer_certificates()
                         .and_then(|certs| certs.first())
                         .and_then(|cert| ed25519_key_of(cert).ok())
+                    else {
+                        return;
+                    };
+                    let Ok(exporter) =
+                        connection.export_keying_material([0_u8; 32], EXPORTER_LABEL, None)
                     else {
                         return;
                     };
@@ -671,6 +744,7 @@ impl LinkNode {
                             conn_id,
                             peer_key,
                             addr: peer_addr,
+                            exporter,
                         },
                         sessions,
                         open,
