@@ -299,6 +299,42 @@ async fn a_node_presenting_an_unpinned_key_is_refused_at_tls() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn a_rogue_peer_skipping_hello_receives_zero_deltas() {
+    // AJ-E708 security: a machine that found the node (discovery is
+    // public) but isn't pinned gets nothing, even calling Telemetry
+    // directly with no Hello — and asking from sequence 0 changes nothing.
+    let f = fixture(Permission::Control).await;
+    let dir = tempfile::tempdir().unwrap();
+    let stranger = node_certificate(&MachineIdentity::load_or_create(dir.path()).unwrap()).unwrap();
+    let mut raw = client::open_channel(f.node.addr(), &stranger, f.node_key)
+        .await
+        .unwrap();
+    let result = raw
+        .telemetry(proto::TelemetryRequest { since_sequence: 0 })
+        .await;
+    let status = match result {
+        Ok(response) => {
+            // Even if a stream opened, it must yield nothing.
+            let mut stream = response.into_inner();
+            let first = stream.message().await;
+            assert!(
+                !matches!(first, Ok(Some(_))),
+                "a rogue peer received a delta"
+            );
+            return;
+        }
+        Err(status) => status,
+    };
+    assert!(
+        matches!(
+            status.code(),
+            tonic::Code::PermissionDenied | tonic::Code::Unauthenticated
+        ),
+        "{status:?}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn an_unpaired_console_and_a_machine_id_mismatch_are_refused() {
     let f = fixture(Permission::Control).await;
     let dir = tempfile::tempdir().unwrap();

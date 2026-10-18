@@ -99,6 +99,21 @@ impl FleetSyncRepo<'_> {
             .map_err(CoreError::Storage)
     }
 
+    /// How many outbox entries are after `since` (what a console holding
+    /// `since` has yet to receive).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn outbox_count_since(&self, since: u64) -> Result<u64, CoreError> {
+        let count: i64 = self.conn.query_row(
+            "SELECT COUNT(*) FROM fleet_outbox WHERE seq > ?1",
+            params![to_i64(since)],
+            |row| row.get(0),
+        )?;
+        Ok(to_u64(count))
+    }
+
     /// Outbox entries after `since` (oldest first, at most `limit`).
     ///
     /// # Errors

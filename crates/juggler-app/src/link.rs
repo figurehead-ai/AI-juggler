@@ -139,6 +139,12 @@ pub struct LinkManager {
     last_error: Mutex<Option<String>>,
     /// What paired machines report, as this console last heard it.
     pub(crate) remote: crate::remote::RemoteCache,
+    /// The last durable row synced per Instance (AJ-E708), so a sync
+    /// pass only touches the outbox for what changed.
+    synced: Mutex<HashMap<String, Vec<u8>>>,
+    /// Per console: the outbox sequence it holds (AJ-E708), so this Mac
+    /// can say how many changes wait for it. Saved by the ticker.
+    delivered: Mutex<Option<Delivered>>,
     /// "Ask each time" commands waiting for this Mac's user.
     prompts: Prompts,
     /// Peers to reconnect at once (a re-pair changed what they grant).
@@ -169,7 +175,7 @@ impl LinkManager {
 
     fn telemetry(&self) -> tokio::sync::broadcast::Sender<proto::TelemetryDelta> {
         self.telemetry
-            .get_or_init(|| tokio::sync::broadcast::channel(64).0)
+            .get_or_init(|| tokio::sync::broadcast::channel(1024).0)
             .clone()
     }
 
@@ -336,6 +342,60 @@ impl Prompts {
 /// Live values carry no sequence (AJ-E708: only durable record changes
 /// are sequenced, through the outbox).
 const UNSEQUENCED: u64 = 0;
+/// The app setting holding each console's delivery mark.
+const DELIVERED_KEY: &str = "fleet_delivered";
+
+/// Per-console delivery marks and whether they changed since saved.
+#[derive(Debug, Default)]
+struct Delivered {
+    marks: HashMap<String, u64>,
+    dirty: bool,
+}
+
+/// Runs `body` on the delivery marks, loading them on first use.
+fn with_delivered<T>(state: &Arc<AppState>, body: impl FnOnce(&mut Delivered) -> T) -> Option<T> {
+    let mut cell = state.link.delivered.lock().ok()?;
+    if cell.is_none() {
+        let marks = state
+            .storage
+            .lock()
+            .ok()
+            .and_then(|storage| storage.app_settings().get(DELIVERED_KEY).ok().flatten())
+            .and_then(|raw| serde_json::from_str(&raw).ok())
+            .unwrap_or_default();
+        *cell = Some(Delivered { marks, dirty: false });
+    }
+    cell.as_mut().map(body)
+}
+
+/// Saves the delivery marks when they changed.
+fn save_delivered(state: &Arc<AppState>) {
+    let Some(Some(raw)) = with_delivered(state, |delivered| {
+        let raw = delivered
+            .dirty
+            .then(|| serde_json::to_string(&delivered.marks).ok())
+            .flatten();
+        delivered.dirty = false;
+        raw
+    }) else {
+        return;
+    };
+    if let Ok(storage) = state.storage.lock() {
+        let _ = storage.app_settings().set(DELIVERED_KEY, &raw);
+    }
+}
+
+/// How many durable changes wait for `console` on this Mac (what it
+/// will receive on reconnect).
+pub(crate) fn queued_for(state: &Arc<AppState>, console: &str) -> Option<u64> {
+    let mark = with_delivered(state, |delivered| delivered.marks.get(console).copied())?
+        .unwrap_or(0);
+    let storage = state.storage.lock().ok()?;
+    storage.fleet_sync().outbox_count_since(mark).ok()
+}
+
+/// The app setting holding the port this node last listened on.
+const LAST_PORT_KEY: &str = "fleet_link_last_port";
 /// The app setting holding this node's sync epoch.
 const SYNC_EPOCH_KEY: &str = "fleet_sync_epoch";
 
@@ -429,24 +489,15 @@ fn sync_instances(
     };
     let mut changed = Vec::new();
     let mut live = Vec::new();
+    let mut synced = state.link.synced.lock().map(|map| map.clone()).unwrap_or_default();
     for row in &rows {
         let durable = durable_delta(row);
         let bytes = durable.encode_to_vec();
-        let appended = state.storage.lock().ok().and_then(|storage| {
-            let sync = storage.fleet_sync();
-            let same = sync
-                .outbox_latest("instance", &row.id)
-                .ok()
-                .flatten()
-                .is_some_and(|latest| latest.payload == bytes);
-            if same {
-                None
-            } else {
-                sync.outbox_append("instance", &row.id, &bytes, now_ms()).ok()
+        if synced.get(&row.id) != Some(&bytes) {
+            if let Some(seq) = record_change(state, &row.id, &bytes) {
+                changed.push(delta(&origin, seq, proto::telemetry_delta::Payload::Session(durable)));
             }
-        });
-        if let Some(seq) = appended {
-            changed.push(delta(&origin, seq, proto::telemetry_delta::Payload::Session(durable)));
+            synced.insert(row.id.clone(), bytes);
         }
         if let Some(numbers) = live_delta(row) {
             live.push(delta(
@@ -456,7 +507,27 @@ fn sync_instances(
             ));
         }
     }
+    if let Ok(mut map) = state.link.synced.lock() {
+        *map = synced;
+    }
     (changed, live)
+}
+
+/// Appends an Instance's durable row to the outbox unless it is already
+/// the latest there (a restart re-reads the outbox, never re-sends);
+/// returns the new sequence.
+fn record_change(state: &Arc<AppState>, id: &str, bytes: &[u8]) -> Option<u64> {
+    let storage = state.storage.lock().ok()?;
+    let sync = storage.fleet_sync();
+    let same = sync
+        .outbox_latest("instance", id)
+        .ok()
+        .flatten()
+        .is_some_and(|latest| latest.payload == bytes);
+    if same {
+        return None;
+    }
+    sync.outbox_append("instance", id, bytes, now_ms()).ok()
 }
 
 /// The outbox after `since` as deltas — a reconnecting console's
@@ -490,6 +561,27 @@ impl NodeHandler for AppNode {
 
     fn sync_epoch(&self) -> String {
         self.state.upgrade().map(|state| sync_epoch(&state)).unwrap_or_default()
+    }
+
+    fn caught_up_from(&self, peer: &str, since: u64) {
+        if let Some(state) = self.state.upgrade() {
+            with_delivered(&state, |delivered| {
+                delivered.marks.insert(peer.to_owned(), since);
+                delivered.dirty = true;
+            });
+        }
+    }
+
+    fn delivered(&self, peer: &str, sequence: u64) {
+        if let Some(state) = self.state.upgrade() {
+            with_delivered(&state, |delivered| {
+                let mark = delivered.marks.entry(peer.to_owned()).or_default();
+                if sequence > *mark {
+                    *mark = sequence;
+                    delivered.dirty = true;
+                }
+            });
+        }
     }
 
     fn telemetry_since(&self, since: u64) -> Vec<proto::TelemetryDelta> {
@@ -1040,18 +1132,37 @@ fn start(state: &Arc<AppState>) -> AppResult<()> {
     let key = crate::fleet::local_public_key(state)?;
     let weak = Arc::downgrade(state);
     let live = manager.telemetry();
+    // The port this Mac used last (peers paired by address — no
+    // discovery — still find it after a restart), else the preferred
+    // one, else any free one.
+    let last_port: Option<u16> = state.storage.lock().ok().and_then(|storage| {
+        storage
+            .app_settings()
+            .get(LAST_PORT_KEY)
+            .ok()
+            .flatten()
+            .and_then(|raw| raw.parse().ok())
+    });
     let listener = runtime
         .block_on(async {
-            match tokio::net::TcpListener::bind(("0.0.0.0", PREFERRED_PORT)).await {
-                Ok(listener) => Ok(listener),
-                Err(_) => tokio::net::TcpListener::bind(("0.0.0.0", 0)).await,
+            if let Some(port) = last_port.filter(|port| *port != 0)
+                && let Ok(listener) = tokio::net::TcpListener::bind(("0.0.0.0", port)).await
+            {
+                return Ok(listener);
             }
+            if let Ok(listener) = tokio::net::TcpListener::bind(("0.0.0.0", PREFERRED_PORT)).await {
+                return Ok(listener);
+            }
+            tokio::net::TcpListener::bind(("0.0.0.0", 0)).await
         })
         .map_err(|e| AppError::io("open the Fleet link port", &e))?;
     let port = listener
         .local_addr()
         .map_err(|e| AppError::io("Fleet link port", &e))?
         .port();
+    if let Ok(storage) = state.storage.lock() {
+        let _ = storage.app_settings().set(LAST_PORT_KEY, &port.to_string());
+    }
     let pairing = Arc::new(AppPairing {
         state: weak.clone(),
         guard: manager.guard.clone(),
@@ -1470,6 +1581,7 @@ async fn resource_ticker(
         };
         let origin = crate::commands::local_machine_id(&app).to_string();
         let (changed, live_numbers) = sync_instances(&app);
+        save_delivered(&app);
         // Processes every ~6 s: orphans reach consoles within 10 s.
         let cleanup = tick.is_multiple_of(3).then(|| cleanup_delta(&app));
         drop(app);
@@ -1495,6 +1607,13 @@ async fn resource_ticker(
             let _ = live.send(session);
         }
     }
+}
+
+/// Test seam: one sync pass now (instead of waiting for the 2 s tick);
+/// returns how many durable changes it appended to the outbox.
+#[doc(hidden)]
+pub fn link_sync_now_for_test(state: &Arc<AppState>) -> usize {
+    sync_instances(state).0.len()
 }
 
 /// Core: discovered, unpaired machines.

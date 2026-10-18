@@ -749,6 +749,7 @@ async fn send_action(
                 .clone()
                 .unwrap_or_else(|| "accepted".to_owned()),
             sequence: Some(sequence),
+            count: None,
         },
     );
     Ok(outcome)

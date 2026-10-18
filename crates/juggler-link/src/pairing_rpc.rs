@@ -111,6 +111,7 @@ pub(crate) fn serve<P: PairingHost, H: NodeHandler>(
             kind: "pairing".to_owned(),
             reason_code: reason,
             sequence: None,
+            count: None,
         });
     });
     receiver

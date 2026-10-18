@@ -94,6 +94,10 @@ pub struct FleetPeerInfo {
     pub protocol: Option<String>,
     /// Plain words for degraded/offline (the banner text).
     pub connection_detail: Option<String>,
+    /// Durable changes on THIS Mac waiting for that machine (AJ-E708) —
+    /// what it receives when it reconnects.
+    #[ts(type = "number | null")]
+    pub queued_changes: Option<u64>,
 }
 
 fn link_error(error: impl std::fmt::Display) -> AppError {
@@ -224,6 +228,7 @@ pub fn fleet_peers_impl(state: &Arc<AppState>) -> AppResult<Vec<FleetPeerInfo>> 
                 connection: "link_off".to_owned(),
                 protocol: None,
                 connection_detail: None,
+                queued_changes: None,
             })
             .collect::<Vec<_>>())
     })?;
@@ -232,6 +237,7 @@ pub fn fleet_peers_impl(state: &Arc<AppState>) -> AppResult<Vec<FleetPeerInfo>> 
         peer.connection = link.state;
         peer.protocol = link.protocol;
         peer.connection_detail = link.detail;
+        peer.queued_changes = crate::link::queued_for(state, &peer.machine_id);
     }
     Ok(peers)
 }
@@ -589,6 +595,7 @@ pub fn append_audit(state: &Arc<AppState>, event: &LinkAuditEvent) {
         "kind": event.kind,
         "reason": event.reason_code,
         "sequence": event.sequence,
+        "count": event.count,
         "prev": previous,
     });
     let body = body.to_string();

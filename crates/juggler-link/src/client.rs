@@ -91,6 +91,38 @@ pub async fn connect_with_version(
     major: u32,
     minor: u32,
 ) -> Result<LinkPeer, ConnectError> {
+    let mut client = open_channel(addr, certificate, expected).await?;
+    let hello = client
+        .hello(proto::HelloRequest {
+            version: Some(proto::ProtocolVersion { major, minor }),
+            machine_id: machine_id.to_owned(),
+            sent_at_ms: now_ms(),
+        })
+        .await
+        .map_err(|status| match status.code() {
+            tonic::Code::Unavailable | tonic::Code::Unknown => {
+                ConnectError::Connect(status.message().to_owned())
+            }
+            _ => ConnectError::Refused(status.message().to_owned()),
+        })?
+        .into_inner();
+    Ok(LinkPeer { client, hello })
+}
+
+/// The mutually-authenticated TLS 1.3 channel to a node pinned to
+/// `expected`, without the Hello. The node authorizes every RPC on its
+/// own (an unpaired caller gets nothing), so this is safe to expose; it
+/// exists for diagnostics and the negative tests.
+///
+/// # Errors
+///
+/// Returns [`ConnectError`] when the node can't be reached or its key
+/// isn't the pinned one.
+pub async fn open_channel(
+    addr: SocketAddr,
+    certificate: &NodeCertificate,
+    expected: [u8; 32],
+) -> Result<proto::link_client::LinkClient<tonic::transport::Channel>, ConnectError> {
     let mut config = rustls::ClientConfig::builder_with_provider(provider())
         .with_protocol_versions(&[&rustls::version::TLS13])
         .map_err(|e| ConnectError::Config(e.to_string()))?
@@ -118,24 +150,9 @@ pub async fn connect_with_version(
         }))
         .await
         .map_err(|e| ConnectError::Connect(describe(&e)))?;
-    let mut client = proto::link_client::LinkClient::new(channel)
+    Ok(proto::link_client::LinkClient::new(channel)
         .max_decoding_message_size(crate::node::MAX_MESSAGE_BYTES)
-        .max_encoding_message_size(crate::node::MAX_MESSAGE_BYTES);
-    let hello = client
-        .hello(proto::HelloRequest {
-            version: Some(proto::ProtocolVersion { major, minor }),
-            machine_id: machine_id.to_owned(),
-            sent_at_ms: now_ms(),
-        })
-        .await
-        .map_err(|status| match status.code() {
-            tonic::Code::Unavailable | tonic::Code::Unknown => {
-                ConnectError::Connect(status.message().to_owned())
-            }
-            _ => ConnectError::Refused(status.message().to_owned()),
-        })?
-        .into_inner();
-    Ok(LinkPeer { client, hello })
+        .max_encoding_message_size(crate::node::MAX_MESSAGE_BYTES))
 }
 
 /// Sends one control command over `peer`'s connection and waits for

@@ -413,14 +413,14 @@ fn a_console_sees_the_other_macs_instances_live_and_its_commands_go_through_the_
             .any(|e| e["kind"] == "command_rejected" && e["reason"] == "unknown_record")
     );
 
-    // Link off on the console: the cache is cleared, the machine offline.
+    // Link off on the console: the live cache is cleared and the machine
+    // offline; its rows stay as last known (AJ-E708), with no live
+    // numbers shown as if current.
     link::link_set_enabled_impl(&b, false).unwrap();
     let after = remote::fleet_remote_impl(&b).unwrap();
-    assert!(
-        after
-            .iter()
-            .all(|m| m.freshness == "offline" && m.instances.is_empty())
-    );
+    assert!(after.iter().all(|m| m.freshness == "offline"
+        && m.resources.is_none()
+        && m.instances.iter().all(|row| row.cpu_percent.is_none())));
     link::link_set_enabled_impl(&a, false).unwrap();
 }
 
