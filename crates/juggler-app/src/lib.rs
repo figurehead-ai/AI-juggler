@@ -170,6 +170,7 @@ pub fn run() {
             fleet::fleet_set_permission,
             remote::fleet_remote_stop,
             remote::fleet_remote_focus,
+            remote::fleet_remote_clean,
             commands::funnel_export,
             commands::funnel_event,
             commands::expert_setup_info,
