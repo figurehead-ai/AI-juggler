@@ -19,7 +19,7 @@
 | Switching, usage clocks, cleanup, onboarding, the Inspector | ✅ always | never needs an account |
 | Backups | ✅ local export and restore (AJ-E1009) | ✅ encrypted upload; restore on any linked Mac (AJ-E1204/E1205) |
 | Usage statistics | ✅ local view; optional anonymous sharing (E11) | ✅ personal history across Macs on the dashboard (E11 personal sync) |
-| Fleet | ✅ LAN / own-VPN pairing with a code (E7) | ✅ your linked Macs found and pinned automatically (AJ-E1206) |
+| Fleet | ✅ LAN / own-VPN pairing with a code (E7) | ✅ your linked Macs listed automatically; pinned after you confirm the fingerprint on both (AJ-E1206) |
 | Alerts | ✅ in-app, notifications, tray | later (seam only) |
 | Config / rules sync | — | later, end-to-end encrypted (seam only) |
 | Transcript vault | ✅ local archive (AJ-E1007) | later, needs its own decision (seam only) |
@@ -90,7 +90,7 @@ from the account's entitlements, never from code.
 **User story**: As a user, I save one recovery code and know that Figurehead can never read my backups.
 **Requirements**:
 1. Turning on cloud backup the first time SHALL generate a 32-byte random vault key stored in the Keychain (service `ai.figurehead.juggler.vault`) and show a **recovery code** once (base32, groups of 4, Copy and Save), requiring "I've saved my recovery code" before the first upload, with the plain warning "Without this code, a new Mac can't open your backups. We can't recover it for you."
-2. The container SHALL be: zstd-compressed tar of the AJ-E1009 backup set, encrypted with XChaCha20-Poly1305 (RustCrypto `chacha20poly1305`), prefixed by the magic `FHB1` and a version byte, with `aad = "figurehead-backup-v1"`; the format SHALL be documented in `docs/` (an ADR if non-trivial).
+2. The container SHALL be: zstd-compressed tar of the AJ-E1009 backup set (which never includes the Fleet `fleet/` folder — identity keys and peer pins stay on the Mac), encrypted with XChaCha20-Poly1305 (RustCrypto `chacha20poly1305`), prefixed by the magic `FHB1` and a version byte, with `aad = "figurehead-backup-v1"`; the format SHALL be documented in `docs/` (an ADR if non-trivial).
 3. Decryption SHALL accept the Keychain key or the recovery code and SHALL reject a wrong key, a wrong magic/version, or tampered ciphertext with a named reason.
 **UI/UX reasoning**: Apple HIG for irreversible information: the recovery code is shown once with explicit confirmation; Nielsen #5 error prevention.
 **Performance budget**: Encrypt/decrypt ≥ 100 MB/s; a 25 MB container in < 1 s.
@@ -120,19 +120,20 @@ from the account's entitlements, never from code.
 
 ### AJ-E1206 Fleet discovery via account | Status: TODO | Priority P1 | Effort M | Depends: AJ-E1202, AJ-E704
 **Goal**: Your own linked Macs find each other without a pairing code.
-**User story**: As a user with a laptop and a Mac mini on the same account, I open Fleet and both are already there, identities pinned.
+**User story**: As a user with a laptop and a Mac mini on the same account, I open Fleet and both are already listed; I confirm the fingerprint on each and they are paired — no code to type.
 **Requirements**:
-1. With Fleet discovery on, Fleet SHALL list peers from `GET /api/v1/devices` and pin each peer's `ed25519` key from `publicKey`; with it off, no `/devices` call SHALL be made.
-2. The connection SHALL stay machine-to-machine (LAN or the user's VPN) over mutual TLS (ADR-0004); there is no relay.
-3. Unlinked, Fleet SHALL pair with the 6-digit code or QR exactly as E7 specifies.
+1. With Fleet discovery on, Fleet SHALL list peers from `GET /api/v1/devices`; with it off, no `/devices` call SHALL be made.
+2. A listed peer SHALL be pinned **only after the user confirms its fingerprint on both machines** (each shows the other's fingerprint from the directory's `publicKey`), never silently; such peers SHALL start at View and be labelled "via your Figurehead account"; the TLS handshake SHALL still prove possession of the pinned key (ADR-0013 architecture contract).
+3. The connection SHALL stay machine-to-machine (LAN or the user's VPN) over mutual TLS (ADR-0004); there is no relay.
+4. Unlinked, Fleet SHALL pair with the 6-digit code or QR exactly as E7 specifies.
 **UI/UX reasoning**: Nielsen #6 recognition over recall: linked Macs appear by name with "via your Figurehead account".
 **Performance budget**: Directory refresh ≤ 1 s; no polling faster than once a minute.
-**Quality gates**: Mock directory test; pin-mismatch rejection test.
+**Quality gates**: Mock directory test; **substitution test** (a directory entry carrying an attacker key is never pinned without the two-sided confirmation, and a confirmed pin whose TLS key differs is rejected); discovery-off zero-call test.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1206/manifest.md` with the two-node loopback run.
 **Visual testing**: Fleet list with account-discovered peers, 1280×800 both themes.
 **Files to touch**: `crates/juggler-link/`, `crates/juggler-account/`, Fleet UI.
 **Research basis**: ADR-0014; SPEC §11; E7.
-**Handover note**: A peer's key from the directory is a pin, not a credential — the TLS handshake still proves possession.
+**Handover note**: A key from the directory is a candidate, not trust — a compromised account can offer a key, so the two-sided fingerprint confirmation is the trust step, and the TLS handshake still proves possession.
 
 ### AJ-E1207 Guardrail tests and visual captures | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1202, AJ-E1203, AJ-E1205
 **Goal**: Prove the two-path law in tests.

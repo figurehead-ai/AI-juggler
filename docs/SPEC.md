@@ -611,7 +611,7 @@ AI Juggler instances link over the network so one console can see — and manage
 ### 11.1 Topology & roles
 
 - One binary, two roles: every instance is a **node** (serves its local state); any instance can act as a **console** (view/control the fleet). In practice one machine is "your" console; multiple consoles are allowed.
-- **LAN-first, zero config:** discovery via mDNS/Bonjour (`mdns-sd`). Remote machines join through the user's own VPN (Tailscale/WireGuard) — AI Juggler never operates an internet relay. With an optional Figurehead account (ADR-0014), the user's own linked Macs can also be listed from the account and their Ed25519 keys pinned without a pairing code; the connection itself stays machine-to-machine over mutual TLS.
+- **LAN-first, zero config:** discovery via mDNS/Bonjour (`mdns-sd`). Remote machines join through the user's own VPN (Tailscale/WireGuard) — AI Juggler never operates an internet relay. With an optional Figurehead account (ADR-0014), the user's own linked Macs can also be listed from the account; a listed Mac is pinned only after the user confirms its fingerprint on both machines (no code to type, never a silent pin), and the connection itself stays machine-to-machine over mutual TLS.
 
 ### 11.2 Transport & security
 

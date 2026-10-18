@@ -30,7 +30,7 @@ Phase 1 cloud features:
 | Feature | What leaves the Mac |
 | --- | --- |
 | Encrypted cloud backup and restore | A backup file encrypted on the Mac (XChaCha20-Poly1305, key in the macOS Keychain, recoverable only with the user's recovery code). Figurehead stores ciphertext it cannot read. |
-| Fleet discovery | Device metadata (name, platform, app version, public identity keys) so the user's own linked Macs can find and pin each other. Traffic stays machine-to-machine (ADR-0004); there is no relay. |
+| Fleet discovery | Device metadata (name, platform, app version, public identity keys) so the user's own linked Macs can find each other; a Mac is pinned only after the user confirms its fingerprint on both machines. Traffic stays machine-to-machine (ADR-0004); there is no relay. |
 | Usage stats sync (with E11) | The opt-in weekly usage report, attributed to the account instead of sent anonymously. |
 
 Architecture:
@@ -74,5 +74,6 @@ Architecture:
   the Keychain, `401` cleanup, entitlements drive the UI).
 - README, PROPOSAL, SECURITY and SPEC now describe the optional,
   end-to-end encrypted cloud path instead of "no cloud".
-- Fleet (E7) gains account-based discovery and key pinning as an
-  alternative to the pairing code, never a replacement for it.
+- Fleet (E7) gains account-based discovery as an alternative to typing
+  the pairing code — pinned only after a two-sided fingerprint
+  confirmation — never a replacement for code pairing.
