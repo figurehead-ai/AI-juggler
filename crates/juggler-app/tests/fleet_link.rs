@@ -768,7 +768,10 @@ fn a_console_cleans_only_what_the_node_verifies_and_hears_each_outcome() {
         )
         .unwrap();
     // One sampler tick publishes the process table (the app ticks every 2 s).
-    a.resources.lock().unwrap().tick(&a.supervisor, Timestamp::now().millis());
+    a.resources
+        .lock()
+        .unwrap()
+        .tick(&a.supervisor, Timestamp::now().millis());
     link::link_set_enabled_impl(&a, true).unwrap();
     link::link_set_enabled_impl(&b, true).unwrap();
     pair(&a, &b, Permission::Control);
