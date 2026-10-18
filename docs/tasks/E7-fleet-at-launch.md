@@ -83,7 +83,7 @@
 **Research basis**: SPEC.md:373-377,391-394; ADR-0004:13-25; SPEC.md:440 (loopback fleet tests); Tailscale tradeoff table in epic header.
 **Handover note**: Trap: do not add a JSON-RPC fallback to "move faster" — SPEC.md:476 open item is closed by AJ-E701. Certificates pin identity from AJ-E702; regenerating identity must force re-pair.
 
-### AJ-E704 Discovery and pairing wizard (mDNS + code/QR) | Status: TODO | Priority P0 | Effort M | Depends: AJ-E702, AJ-E703
+### AJ-E704 Discovery and pairing wizard (mDNS + code/QR) | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E702, AJ-E703
 **Goal**: A new machine joins in under 60 seconds via mDNS discovery plus a 6-digit code or QR, with per-machine permissions chosen at pair time.
 **User story**: As a developer adding a second machine, I open Fleet, tap Add a machine, compare a code, and I am paired — no config files.
 **Requirements**:
@@ -101,6 +101,7 @@
 **Files to touch**: [App.tsx](../../ui/src/App.tsx#L340), [lib.rs](../../crates/juggler-link/src/lib.rs), [bridge.ts](../../ui/src/lib/bridge.ts), [SPEC.md S11.4](../SPEC.md#L385)
 **Research basis**: SPEC.md:369,375,387; EPICS M6-2/M6-3; pass2/08 §4 Gate V6 criteria moved to launch by D-13.
 **Handover note**: Trap: mDNS is unauthenticated discovery only — never treat discovery as trust. The SPAKE2 code exchange is the trust step; do not auto-pair "same Apple ID/network" machines. ADR-0014 account discovery likewise never pins silently — the fingerprint is confirmed on both machines (AJ-E1206).
+**Task-text notes (2026-10-18, AJ-E704)**: (1) The QR is replaced by a copyable pairing link (`aijuggler-pair:v1:<code>:<fingerprint>`) — desktop-to-desktop pairing has no camera path, and the link also lets the joiner verify the host's fingerprint automatically. (2) Screenshots use 1280×800 and 1024×680 (the app's minimum window) instead of 800×600, which is below it. (3) Each side chooses what it grants the other in its own Permissions step. Evidence: [AJ-E704 manifest](../qa/evidence/AJ-E704/manifest.md).
 
 ### AJ-E705 Remote inspector (fleet-shaped right inspector) | Status: TODO | Priority P0 | Effort L | Depends: AJ-E703
 **Goal**: Selecting a remote Machine, Account, or Instance fills the same six-tab right inspector as local selections, with honest staleness and permission states.

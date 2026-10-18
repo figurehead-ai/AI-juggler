@@ -42,16 +42,7 @@ fn window() -> Duration {
 }
 
 fn failure_code(error: &PairingError) -> &'static str {
-    match error {
-        PairingError::NotOpen => "not_open",
-        PairingError::Expired => "expired",
-        PairingError::Busy => "busy",
-        PairingError::LockedOut => "locked_out",
-        PairingError::Disabled => "disabled",
-        PairingError::Mismatch => "mismatch",
-        PairingError::Malformed => "malformed",
-        PairingError::Random => "internal",
-    }
+    error.code()
 }
 
 fn message(step: Step) -> proto::PairMessage {
@@ -221,7 +212,10 @@ async fn host<P: PairingHost>(
 
 async fn joiner_next(inbound: &mut Streaming<proto::PairMessage>) -> Result<Step, JoinError> {
     match next_step(inbound).await {
-        Some(Step::Failure(failed)) => Err(JoinError::Host(failed.message)),
+        Some(Step::Failure(failed)) => Err(JoinError::Host {
+            reason_code: failed.reason_code,
+            message: failed.message,
+        }),
         Some(step) => Ok(step),
         None => Err(JoinError::Cancelled),
     }
@@ -286,11 +280,31 @@ pub enum JoinError {
     #[error("{0}")]
     Pairing(PairingError),
     /// The host reported a failure.
-    #[error("{0}")]
-    Host(String),
+    #[error("{message}")]
+    Host {
+        /// The host's reason code (see [`PairingError::code`]).
+        reason_code: String,
+        /// The host's plain-words message.
+        message: String,
+    },
     /// A user cancelled on either side.
     #[error("Pairing was cancelled.")]
     Cancelled,
+}
+
+impl JoinError {
+    /// A stable reason code for the UI: `unreachable`, `fingerprint`,
+    /// `cancelled`, or the host's [`PairingError::code`].
+    #[must_use]
+    pub fn reason_code(&self) -> &str {
+        match self {
+            Self::Connect(_) => "unreachable",
+            Self::FingerprintMismatch => "fingerprint",
+            Self::Pairing(error) => error.code(),
+            Self::Host { reason_code, .. } => reason_code,
+            Self::Cancelled => "cancelled",
+        }
+    }
 }
 
 /// A host the joiner may pin (after both users committed).

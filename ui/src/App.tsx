@@ -460,6 +460,11 @@ export default function App() {
         event.preventDefault();
         setGoToOpen((openNow) => !openNow);
       }
+      // AJ-E704: ⌘⇧F opens Fleet from anywhere.
+      if ((event.metaKey || event.ctrlKey) && event.shiftKey && !event.altKey && event.key.toLowerCase() === "f") {
+        event.preventDefault();
+        setGlobal("fleet");
+      }
       // AJ-E506: ⌘⇧C opens the Cleanup Centre; ⌘F focuses its filter.
       if ((event.metaKey || event.ctrlKey) && event.shiftKey && !event.altKey && event.key.toLowerCase() === "c") {
         event.preventDefault();

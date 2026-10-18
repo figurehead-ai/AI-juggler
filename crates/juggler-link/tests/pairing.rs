@@ -235,7 +235,7 @@ async fn a_wrong_code_fails_rotates_and_never_logs_the_code() {
     };
     let error = w.join(wrong, Some(Permission::View)).await.unwrap_err();
     assert!(
-        matches!(&error, JoinError::Host(m) if m.contains("didn't match")),
+        matches!(&error, JoinError::Host { message: m, .. } if m.contains("didn't match")),
         "{error}"
     );
     let rotated = w.host.guard.lock().unwrap().current_code(now()).unwrap();
@@ -252,7 +252,7 @@ async fn pairing_is_refused_when_no_window_is_open() {
     let w = world(Some(Permission::View)).await;
     let error = w.join("123456", Some(Permission::View)).await.unwrap_err();
     assert!(
-        matches!(&error, JoinError::Host(m) if m.contains("isn't open")),
+        matches!(&error, JoinError::Host { message: m, .. } if m.contains("isn't open")),
         "{error}"
     );
 }
@@ -273,7 +273,7 @@ async fn only_one_session_runs_at_a_time() {
         .await
         .unwrap_err();
     assert!(
-        matches!(&second, JoinError::Host(m) if m.contains("Another Mac")),
+        matches!(&second, JoinError::Host { message: m, .. } if m.contains("Another Mac")),
         "{second}"
     );
     // The host's user cancelled → the first session ends, nothing pinned.
@@ -296,7 +296,7 @@ async fn five_wrong_codes_lock_pairing() {
     }
     let error = w.join("000000", Some(Permission::View)).await.unwrap_err();
     assert!(
-        matches!(&error, JoinError::Host(m) if m.contains("paused")),
+        matches!(&error, JoinError::Host { message: m, .. } if m.contains("paused")),
         "{error}"
     );
 }

@@ -31,4 +31,10 @@ peer_fingerprint: string | null,
 /**
  * Plain words (a failed code, a refusal, why it closed).
  */
-message: string | null, };
+message: string | null, 
+/**
+ * Why, as a stable code: `mismatch` | `cancelled` | `expired` |
+ * `locked_out` | `disabled` | `busy` | `not_open` | `unreachable` |
+ * `fingerprint` | `not_found` | …
+ */
+reason: string | null, };

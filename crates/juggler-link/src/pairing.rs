@@ -59,6 +59,23 @@ pub enum PairingError {
     Random,
 }
 
+impl PairingError {
+    /// The stable reason code (the wire value and the UI's switch).
+    #[must_use]
+    pub fn code(&self) -> &'static str {
+        match self {
+            Self::NotOpen => "not_open",
+            Self::Expired => "expired",
+            Self::Busy => "busy",
+            Self::LockedOut => "locked_out",
+            Self::Disabled => "disabled",
+            Self::Mismatch => "mismatch",
+            Self::Malformed => "malformed",
+            Self::Random => "internal",
+        }
+    }
+}
+
 /// A single-use 6-digit code.
 #[derive(Clone, PartialEq, Eq)]
 pub struct PairingCode(String);

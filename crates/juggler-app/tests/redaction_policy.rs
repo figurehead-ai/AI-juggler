@@ -50,7 +50,7 @@ fn config_dir_of(state: &Arc<AppState>, account_id: &str) -> PathBuf {
 /// Seeds a session whose transcript carries a canary key (the
 /// preflight's detection input) and returns its id + the B recipe.
 fn seeded_session(state: &Arc<AppState>, work: &Path) -> (String, String) {
-    let project_dir = work.join("booknyx");
+    let project_dir = work.join("storefront");
     std::fs::create_dir_all(&project_dir).unwrap();
     let cwd = project_dir.to_string_lossy().into_owned();
     let account_a = commands::create_account(state, CLAUDE_CODE_ID, "Work Max", None).unwrap();

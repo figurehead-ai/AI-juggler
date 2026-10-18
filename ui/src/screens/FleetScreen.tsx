@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Card, Chip } from "../components/primitives";
 import { IconFleet } from "../components/icons";
+import { PairingWizard, type PairingMode } from "./PairingWizard";
 import {
   errorText,
   fleetPeers,
+  linkSetEnabled,
+  linkStatus,
+  type LinkStatusInfo,
   fleetResetIdentity,
   fleetResetTrust,
   fleetSelf,
@@ -17,9 +21,12 @@ import {
  * Fleet (beta) — AJ-E702: this Mac's machine identity and the machines
  * paired with it (ADR-0013 architecture contract). The fingerprint is
  * what you compare when pairing; Unpair and Reset identity are
- * confirmed in a sheet that names what changes. Pairing itself arrives
- * with the next Fleet build — the screen says so instead of offering a
- * button that does nothing.
+ * confirmed in a sheet that names what changes.
+ *
+ * AJ-E704: Link is off by default — while off this Mac is neither
+ * visible to nor reachable from other machines. With Link on, "Add a
+ * machine" shows a pairing code and "Join a machine" enters one
+ * (`PairingWizard`).
  */
 export function FleetScreen(): JSX.Element {
   const [self, setSelf] = useState<FleetSelfInfo | null>(null);
@@ -32,12 +39,16 @@ export function FleetScreen(): JSX.Element {
     | null
   >(null);
   const [busy, setBusy] = useState(false);
+  const [link, setLink] = useState<LinkStatusInfo | null>(null);
+  const [linkBusy, setLinkBusy] = useState(false);
+  const [wizard, setWizard] = useState<PairingMode | null>(null);
 
   const refresh = useCallback(async () => {
     try {
-      const [info, list] = await Promise.all([fleetSelf(), fleetPeers()]);
+      const [info, list, status] = await Promise.all([fleetSelf(), fleetPeers(), linkStatus()]);
       setSelf(info);
       setPeers(list);
+      setLink(status);
       setError(null);
     } catch (cause) {
       setError(errorText(cause));
@@ -47,6 +58,26 @@ export function FleetScreen(): JSX.Element {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  // Connection chips stay honest while Link is on.
+  useEffect(() => {
+    if (!link?.enabled) return;
+    const timer = window.setInterval(() => void refresh(), 3000);
+    return () => window.clearInterval(timer);
+  }, [link?.enabled, refresh]);
+
+  const toggleLink = async () => {
+    setLinkBusy(true);
+    try {
+      setLink(await linkSetEnabled(!link?.enabled));
+      await refresh();
+    } catch (cause) {
+      setError(errorText(cause));
+    } finally {
+      setLinkBusy(false);
+    }
+  };
+  const onPaired = useCallback(() => void refresh(), [refresh]);
 
   const run = async (action: () => Promise<unknown>) => {
     setBusy(true);
@@ -74,7 +105,67 @@ export function FleetScreen(): JSX.Element {
             your network. No relay, and vendor credentials never leave a machine.
           </p>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={!link?.enabled || self?.trust === "broken"}
+            onClick={() => setWizard("join")}
+            data-testid="fleet-join"
+          >
+            Join a machine…
+          </Button>
+          <Button
+            size="sm"
+            variant="primary"
+            disabled={!link?.enabled || self?.trust === "broken"}
+            onClick={() => setWizard("host")}
+            data-testid="fleet-add"
+          >
+            Add a machine…
+          </Button>
+        </div>
       </header>
+
+      <Card className="flex flex-wrap items-center gap-3 p-4" data-testid="fleet-link">
+        <button
+          type="button"
+          role="switch"
+          aria-checked={link?.enabled ?? false}
+          aria-labelledby="fleet-link-label"
+          aria-describedby="fleet-link-detail"
+          disabled={link === null || linkBusy}
+          onClick={() => void toggleLink()}
+          className={
+            "relative h-5 w-9 shrink-0 rounded-full border transition-colors disabled:opacity-40 " +
+            (link?.enabled ? "border-accent bg-accent" : "border-hairline bg-surface-2")
+          }
+          data-testid="fleet-link-switch"
+        >
+          <span
+            aria-hidden="true"
+            className={
+              "absolute top-0.5 h-3.5 w-3.5 rounded-full bg-white shadow transition-all " +
+              (link?.enabled ? "left-[18px]" : "left-0.5")
+            }
+          />
+        </button>
+        <div className="min-w-0 flex-1">
+          <p id="fleet-link-label" className="text-sm font-medium">
+            Link {link?.enabled ? "on" : "off"}
+          </p>
+          <p id="fleet-link-detail" className="text-[11px] leading-relaxed text-muted" data-testid="fleet-link-detail">
+            {link?.enabled
+              ? `Paired machines can connect to this Mac (port ${link.port ?? "—"}); machines on this network see an unnamed entry until you pair.`
+              : "This Mac isn't visible to, or reachable from, other machines. Turn Link on to pair or connect."}
+          </p>
+          {link?.error && (
+            <p className="mt-1 text-[11px] text-warning" role="status" data-testid="fleet-link-error">
+              {link.error}
+            </p>
+          )}
+        </div>
+      </Card>
 
       {error && (
         <Card className="border-danger/30 bg-danger-soft p-3 text-xs text-danger" role="alert">
@@ -130,9 +221,10 @@ export function FleetScreen(): JSX.Element {
           <div className="flex flex-col gap-1" data-testid="fleet-peers-empty">
             <p className="text-xs text-muted">No paired machines yet.</p>
             <p className="text-[11px] leading-relaxed text-muted">
-              Pairing arrives in an upcoming beta build: you'll open Fleet on both
-              machines, enter a 6-digit code, and compare each machine's fingerprint.
-              This Mac's identity is ready for it.
+              Turn Link on here and on the other machine. Then choose Add a machine on one
+              and Join a machine on the other, enter the 6-digit code, and compare
+              fingerprints. Machines elsewhere? Connect them with Tailscale or WireGuard
+              first, then pair by address.
             </p>
           </div>
         ) : (
@@ -209,6 +301,19 @@ export function FleetScreen(): JSX.Element {
           </>
         )}
       </Card>
+
+      {wizard !== null && self !== null && (
+        <PairingWizard
+          mode={wizard}
+          selfLabel={self.label}
+          selfFingerprint={self.fingerprint}
+          onPaired={onPaired}
+          onClose={() => {
+            setWizard(null);
+            void refresh();
+          }}
+        />
+      )}
 
       {confirm !== null && (
         <ConfirmSheet

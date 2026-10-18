@@ -23,8 +23,9 @@ use juggler_app::{fleet, link};
 use juggler_link::Permission;
 
 fn app_state(dir: &Path) -> Arc<AppState> {
-    let state =
-        Arc::new(AppState::init_with_registry(dir.join("app-data"), AdapterRegistry::new()).unwrap());
+    let state = Arc::new(
+        AppState::init_with_registry(dir.join("app-data"), AdapterRegistry::new()).unwrap(),
+    );
     link::link_disable_discovery_for_test(&state);
     state
 }
@@ -138,18 +139,25 @@ fn the_right_code_and_both_confirmations_pair_and_connect_both_macs() {
 
     // The attempt log names the outcome and never the code.
     let entries = fleet::verify_audit(&a).expect("the attempt log chain verifies");
-    assert!(entries.iter().any(|entry| entry["kind"] == "pairing" && entry["reason"] == "paired"));
-    let raw = std::fs::read_to_string(work.path().join("a/app-data/fleet/link-audit.jsonl")).unwrap();
+    assert!(
+        entries
+            .iter()
+            .any(|entry| entry["kind"] == "pairing" && entry["reason"] == "paired")
+    );
+    let raw =
+        std::fs::read_to_string(work.path().join("a/app-data/fleet/link-audit.jsonl")).unwrap();
     let digits: String = code.chars().filter(char::is_ascii_digit).collect();
     assert!(!raw.contains(&digits), "the code must never be logged");
 
     // Link off: every peer reads link_off again.
     link::link_set_enabled_impl(&a, false).unwrap();
     assert!(!link::link_status_impl(&a).enabled);
-    assert!(fleet::fleet_peers_impl(&a)
-        .unwrap()
-        .iter()
-        .all(|peer| peer.connection == "link_off"));
+    assert!(
+        fleet::fleet_peers_impl(&a)
+            .unwrap()
+            .iter()
+            .all(|peer| peer.connection == "link_off")
+    );
     link::link_set_enabled_impl(&b, false).unwrap();
 }
 
@@ -164,6 +172,7 @@ fn a_wrong_code_aborts_rotates_the_code_and_pins_nothing() {
 
     link::pairing_join_start_impl(&b, None, Some(&address_of(&a)), &wrong(&code)).unwrap();
     let failed = wait_for("the joiner's failure", || join_phase(&b, "failed"));
+    assert_eq!(failed.reason.as_deref(), Some("mismatch"));
     assert!(failed.message.is_some());
     let after = wait_for("the code to rotate", || {
         link::pairing_host_state_impl(&a)
@@ -174,10 +183,35 @@ fn a_wrong_code_aborts_rotates_the_code_and_pins_nothing() {
     assert_ne!(after, code, "a failed attempt rotates the code");
     assert!(fleet::fleet_peers_impl(&a).unwrap().is_empty());
     assert!(fleet::fleet_peers_impl(&b).unwrap().is_empty());
-    let entries = fleet::verify_audit(&a).unwrap();
-    assert!(entries
-        .iter()
-        .any(|entry| entry["kind"] == "pairing" && entry["reason"] != "paired"));
+    // An unpaired machine that skips pairing and just connects is
+    // refused at Hello — and that attempt is logged too.
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let refused = runtime.block_on(juggler_link::client::connect(
+        address_of(&a).parse().unwrap(),
+        &fleet::node_certificate(&b).unwrap(),
+        fleet::local_public_key(&a).unwrap(),
+        "an-unpaired-machine",
+    ));
+    assert!(refused.is_err(), "an unpaired machine is never served");
+
+    let entries = fleet::verify_audit(&a).expect("the attempt log chain verifies");
+    assert!(
+        entries
+            .iter()
+            .any(|entry| entry["kind"] == "pairing" && entry["reason"] == "mismatch")
+    );
+    assert!(
+        entries
+            .iter()
+            .any(|entry| entry["kind"] == "hello_rejected" && entry["reason"] == "not_paired")
+    );
+    let raw =
+        std::fs::read_to_string(work.path().join("a/app-data/fleet/link-audit.jsonl")).unwrap();
+    let digits: String = code.chars().filter(char::is_ascii_digit).collect();
+    assert!(!raw.contains(&digits), "the code must never be logged");
+    if std::env::var_os("AIJ_PRINT_AUDIT").is_some() {
+        eprintln!("--- link-audit.jsonl ---\n{raw}");
+    }
 
     link::link_set_enabled_impl(&a, false).unwrap();
     link::link_set_enabled_impl(&b, false).unwrap();
@@ -208,16 +242,20 @@ fn five_wrong_codes_lock_pairing_and_the_lock_survives_a_restart() {
     }
     // Locked: a new window can't open.
     link::pairing_host_close_impl(&a);
-    let locked = link::pairing_host_open_impl(&a).unwrap_err();
-    assert!(locked.to_string().to_lowercase().contains("lock") || locked.to_string().contains("minute"));
+    let locked = link::pairing_host_open_impl(&a).unwrap();
+    assert_eq!(locked.phase, "failed");
+    assert_eq!(locked.reason.as_deref(), Some("locked_out"));
+    assert!(locked.code.is_none(), "no code while locked");
 
     // "Restart": a fresh app state over the same data dir.
     link::link_set_enabled_impl(&a, false).unwrap();
     drop(a);
     let a = app_state(&a_dir);
     link::link_set_enabled_impl(&a, true).unwrap();
-    assert!(
-        link::pairing_host_open_impl(&a).is_err(),
+    let still = link::pairing_host_open_impl(&a).unwrap();
+    assert_eq!(
+        still.reason.as_deref(),
+        Some("locked_out"),
         "the lockout is persisted"
     );
     link::link_set_enabled_impl(&a, false).unwrap();

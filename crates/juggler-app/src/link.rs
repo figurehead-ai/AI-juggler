@@ -87,6 +87,11 @@ enum HostPhase {
     Paired {
         label: String,
     },
+    /// Couldn't open (locked / disabled).
+    Failed {
+        reason: String,
+        message: String,
+    },
 }
 
 /// The joiner-side pairing phase the UI shows.
@@ -103,6 +108,7 @@ enum JoinPhase {
         label: String,
     },
     Failed {
+        reason: String,
         message: String,
     },
 }
@@ -125,7 +131,8 @@ pub struct LinkManager {
     running: Mutex<Option<Running>>,
     peers: Arc<Mutex<HashMap<String, PeerLink>>>,
     host: Arc<Mutex<HostPhase>>,
-    host_message: Arc<Mutex<Option<String>>>,
+    /// The last notice for the host: (reason code, plain words).
+    host_message: Arc<Mutex<Option<(String, String)>>>,
     guard: Arc<Mutex<Option<PairingGuard<SettingsGuardStore>>>>,
     join: Arc<Mutex<JoinPhase>>,
     telemetry: OnceLock<tokio::sync::broadcast::Sender<proto::TelemetryDelta>>,
@@ -395,7 +402,7 @@ struct AppPairing {
     state: Weak<AppState>,
     guard: Arc<Mutex<Option<PairingGuard<SettingsGuardStore>>>>,
     phase: Arc<Mutex<HostPhase>>,
-    message: Arc<Mutex<Option<String>>>,
+    message: Arc<Mutex<Option<(String, String)>>>,
     key: [u8; 32],
 }
 
@@ -420,7 +427,10 @@ impl PairingHost for AppPairing {
     fn failed(&self) {
         let _ = self.with_guard(|guard| guard.fail(now_ms()));
         if let Ok(mut message) = self.message.lock() {
-            *message = Some("That code didn't match — here's a new one.".to_owned());
+            *message = Some((
+                "mismatch".to_owned(),
+                "That code didn't match — here's a new one.".to_owned(),
+            ));
         }
         if let Ok(mut phase) = self.phase.lock()
             && matches!(*phase, HostPhase::Confirm { .. } | HostPhase::Waiting)
@@ -436,10 +446,11 @@ impl PairingHost for AppPairing {
         {
             *phase = HostPhase::Waiting;
             if let Ok(mut message) = self.message.lock() {
-                *message = Some(
+                *message = Some((
+                    "cancelled".to_owned(),
                     "Pairing was cancelled on one of the machines — the code still works."
                         .to_owned(),
-                );
+                ));
             }
         }
     }
@@ -531,6 +542,10 @@ pub struct PairingStateInfo {
     pub peer_fingerprint: Option<String>,
     /// Plain words (a failed code, a refusal, why it closed).
     pub message: Option<String>,
+    /// Why, as a stable code: `mismatch` | `cancelled` | `expired` |
+    /// `locked_out` | `disabled` | `busy` | `not_open` | `unreachable` |
+    /// `fingerprint` | `not_found` | …
+    pub reason: Option<String>,
 }
 
 impl PairingStateInfo {
@@ -543,6 +558,7 @@ impl PairingStateInfo {
             peer_label: None,
             peer_fingerprint: None,
             message: None,
+            reason: None,
         }
     }
 }
@@ -1009,14 +1025,18 @@ pub fn pairing_host_open_impl(state: &Arc<AppState>) -> AppResult<PairingStateIn
         });
     }
     let manager = &state.link;
-    {
+    let opened = {
         let mut guard = manager.guard.lock().map_err(|_| AppError::StatePoisoned)?;
-        let guard = guard
-            .get_or_insert_with(|| PairingGuard::new(SettingsGuardStore(Arc::downgrade(state))));
-        guard.open(now_ms()).map_err(|error| AppError::Validation {
-            subject: "pairing",
+        guard
+            .get_or_insert_with(|| PairingGuard::new(SettingsGuardStore(Arc::downgrade(state))))
+            .open(now_ms())
+    };
+    if let Err(error) = opened {
+        *manager.host.lock().map_err(|_| AppError::StatePoisoned)? = HostPhase::Failed {
+            reason: error.code().to_owned(),
             message: error.to_string(),
-        })?;
+        };
+        return pairing_host_state_impl(state);
     }
     if let Ok(mut message) = manager.host_message.lock() {
         *message = None;
@@ -1042,9 +1062,17 @@ pub fn pairing_host_state_impl(state: &Arc<AppState>) -> AppResult<PairingStateI
         .unwrap_or_default();
     let phase = manager.host.lock().map_err(|_| AppError::StatePoisoned)?;
     let mut info = PairingStateInfo::idle();
-    info.message = message;
+    if let Some((reason, message)) = message {
+        info.reason = Some(reason);
+        info.message = Some(message);
+    }
     match &*phase {
         HostPhase::Idle => {}
+        HostPhase::Failed { reason, message } => {
+            info.phase = String::from("failed");
+            info.reason = Some(reason.clone());
+            info.message = Some(message.clone());
+        }
         HostPhase::Waiting => {
             let (code, opened) = manager
                 .guard
@@ -1063,7 +1091,8 @@ pub fn pairing_host_state_impl(state: &Arc<AppState>) -> AppResult<PairingStateI
                 info.expires_at_ms = opened.flatten().map(|at| at + PAIRING_WINDOW_MS);
             } else {
                 info.phase = String::from("failed");
-                info.message = Some("The pairing window closed — start again.".to_owned());
+                info.reason = Some("expired".to_owned());
+                info.message = Some("The pairing window closed after 2 minutes.".to_owned());
             }
         }
         HostPhase::Confirm { candidate, .. } => {
@@ -1267,6 +1296,7 @@ pub fn pairing_join_start_impl(
         }
         if let Ok(mut phase) = join.lock() {
             *phase = JoinPhase::Failed {
+                reason: last.reason_code().to_owned(),
                 message: last.to_string(),
             };
         }
@@ -1298,8 +1328,9 @@ pub fn pairing_join_state_impl(state: &Arc<AppState>) -> AppResult<PairingStateI
             info.phase = String::from("paired");
             info.peer_label = Some(label.clone());
         }
-        JoinPhase::Failed { message } => {
+        JoinPhase::Failed { reason, message } => {
             info.phase = String::from("failed");
+            info.reason = Some(reason.clone());
             info.message = Some(message.clone());
         }
     }
