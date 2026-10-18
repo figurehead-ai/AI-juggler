@@ -414,6 +414,14 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         })
     }
 
+    /// AJ-E1001: reads ONLY the `oauthAccount` object of the state
+    /// dir's `.claude.json` — the account id, email and organisation
+    /// name Claude Code records there. Credentials live elsewhere (the
+    /// Keychain or `.credentials.json`) and are never opened.
+    fn probe_identity(&self, account: &Account) -> juggler_adapter::IdentityProbe {
+        probe_claude_identity(&account.state_dir)
+    }
+
     fn watcher(&self, transcript_root: &Path) -> Result<Box<dyn SessionWatcher>, AdapterError> {
         ClaudeTranscriptWatcher::new(transcript_root)
             .map(|watcher| Box::new(watcher) as Box<dyn SessionWatcher>)
@@ -802,4 +810,41 @@ pub fn write_settings_overlay(
             message: error.to_string(),
         }
     })
+}
+
+/// AJ-E1001: Claude Code's sign-in metadata for a config dir (see
+/// [`ClaudeCodeAdapter::probe_identity`]).
+#[must_use]
+pub fn probe_claude_identity(state_dir: &Path) -> juggler_adapter::IdentityProbe {
+    use juggler_adapter::IdentityProbe;
+    let Ok(raw) = std::fs::read(state_dir.join(".claude.json")) else {
+        return IdentityProbe::SignedOut;
+    };
+    let Ok(value) = serde_json::from_slice::<serde_json::Value>(&raw) else {
+        return IdentityProbe::Unverifiable {
+            reason: "Claude Code's state file couldn't be read".into(),
+        };
+    };
+    let Some(oauth) = value.get("oauthAccount").filter(|v| v.is_object()) else {
+        return IdentityProbe::SignedOut;
+    };
+    let text = |key: &str| {
+        oauth
+            .get(key)
+            .and_then(serde_json::Value::as_str)
+            .filter(|v| !v.is_empty())
+            .map(str::to_owned)
+    };
+    let email = text("emailAddress");
+    let Some(subject) = text("accountUuid").or_else(|| email.clone()) else {
+        return IdentityProbe::SignedOut;
+    };
+    let mut label = email.as_deref().map_or_else(
+        || "signed in".to_owned(),
+        juggler_adapter::identity::mask_email,
+    );
+    if let Some(org) = text("organizationName") {
+        label = format!("{label} · {org}");
+    }
+    IdentityProbe::SignedIn { subject, label }
 }

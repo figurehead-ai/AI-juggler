@@ -90,6 +90,17 @@ pub trait HarnessAdapter: Send + Sync {
         None
     }
 
+    /// AJ-E1001: who this Account's state dir is signed in as —
+    /// metadata only (a stable account id and a masked label), never
+    /// credential content. Default: `Unverifiable` (the Instance shows
+    /// `Identity unverified`, never a pretended check).
+    fn probe_identity(&self, account: &Account) -> crate::identity::IdentityProbe {
+        let _ = account;
+        crate::identity::IdentityProbe::Unverifiable {
+            reason: "this Provider exposes no account metadata".into(),
+        }
+    }
+
     /// Creates a watcher over the account's transcript root.
     ///
     /// # Errors

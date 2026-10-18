@@ -14,6 +14,7 @@ mod sessions;
 mod cleanup_audit;
 mod cleanup_settings;
 mod fleet_sync;
+mod identity;
 mod process_ledger;
 mod projects;
 mod settings;
@@ -31,6 +32,7 @@ pub use cleanup_audit::{
 };
 pub use cleanup_settings::{CleanupSettingsRepo, CleanupTierSettings};
 pub use fleet_sync::{FleetSyncRepo, SyncEntry};
+pub use identity::{IdentityAssertion, IdentityRepo};
 pub use process_ledger::{
     EXEC_SETTLE_MS, LedgerRow, ProcessLedgerRepo, ROLE_HELPER, ROLE_LOGIN, ROLE_ROOT, STATE_EXITED,
     STATE_ORPHANED, STATE_RUNNING, STATE_STARTING, STATE_UNVERIFIABLE,
@@ -136,6 +138,20 @@ CREATE TABLE fleet_replica_hw (
 const V23: &str = "
 ALTER TABLE epochs ADD COLUMN machine_id TEXT;
 ALTER TABLE switch_edges ADD COLUMN to_machine TEXT;
+";
+
+/// Schema version 24 (AJ-E1001): per-Instance identity assertions —
+/// who each Instance ran as, at launch, resume and switch (append-only).
+const V24: &str = "
+CREATE TABLE identity_assertions (
+    session_id TEXT NOT NULL,
+    account_id TEXT NOT NULL,
+    state      TEXT NOT NULL,
+    label      TEXT,
+    at_ms      INTEGER NOT NULL,
+    moment     TEXT NOT NULL
+);
+CREATE INDEX idx_identity_assertions_session ON identity_assertions(session_id);
 ";
 
 /// Ordered, forward-only migrations; index + 1 is the schema version.
@@ -415,7 +431,7 @@ CREATE TABLE artifact_manifests (
 
 const MIGRATIONS: &[&str] = &[
     V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21,
-    V22, V23,
+    V22, V23, V24,
 ];
 
 /// An opened AI Juggler database with typed repositories.
@@ -533,6 +549,13 @@ impl Storage {
     #[must_use]
     pub fn switch_graph(&self) -> SwitchGraphRepo<'_> {
         SwitchGraphRepo::new(&self.conn)
+    }
+
+    /// Repository for per-Instance identity assertions (schema v24,
+    /// AJ-E1001).
+    #[must_use]
+    pub fn identity(&self) -> IdentityRepo<'_> {
+        IdentityRepo::new(&self.conn)
     }
 
     /// Repository for Fleet sync (schema v22, AJ-E708): the outbox and

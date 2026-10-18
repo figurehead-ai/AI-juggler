@@ -17,6 +17,7 @@ pub mod error;
 pub mod figurehead;
 pub mod fleet;
 pub mod focus;
+pub mod identity;
 pub mod link;
 pub mod preview;
 pub mod remote;
@@ -172,6 +173,8 @@ pub fn run() {
             remote::fleet_remote_stop,
             remote::fleet_remote_focus,
             remote::fleet_remote_clean,
+            identity::identity_check,
+            identity::account_forget_identity,
             crossmachine::fleet_switch_targets,
             crossmachine::fleet_switch_execute,
             crossmachine::fleet_switch_cancel,

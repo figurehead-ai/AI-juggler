@@ -549,8 +549,8 @@ fn v4_database_upgrades_in_place_to_v5_with_identical_values() {
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
     assert_eq!(
-        version, 23,
-        "v4 → current (v23, AJ-E706 machine-aware lineage) exactly once, on open"
+        version, 24,
+        "v4 → current (v24, AJ-E1001 identity assertions) exactly once, on open"
     );
 
     let account = storage.accounts().get(&AccountId::new("acc-1")).unwrap();
@@ -577,7 +577,7 @@ fn v4_database_upgrades_in_place_to_v5_with_identical_values() {
         .raw_conn()
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(version, 23);
+    assert_eq!(version, 24);
     assert!(storage.sessions().get(&SessionId::new("sess-1")).is_ok());
 }
 
@@ -1072,8 +1072,8 @@ fn v12_ledger_upgrades_in_place_to_v13() {
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
     assert_eq!(
-        version, 23,
-        "v12 → current (v23, AJ-E706) exactly once, on open"
+        version, 24,
+        "v12 → current (v24, AJ-E1001) exactly once, on open"
     );
     drop(storage);
 

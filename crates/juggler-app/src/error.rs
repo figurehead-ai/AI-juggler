@@ -52,6 +52,17 @@ pub enum AppError {
     /// State lock poisoned (a previous panic while holding it).
     #[error("internal state unavailable")]
     StatePoisoned,
+    /// AJ-E1001: the Account's state dir is signed in as someone else —
+    /// nothing launched (no silent continuation exists).
+    #[error("«{account}» is signed in as {detected} here, not {expected} — nothing was launched")]
+    IdentityMismatch {
+        /// The Account's label.
+        account: String,
+        /// Its remembered identity (masked).
+        expected: String,
+        /// The identity detected now (masked).
+        detected: String,
+    },
     /// AJ-E307 Req.2: the source is already imported under another
     /// Account — the duplicate-import hole, closed at the command.
     #[error("Already imported as «{label}» — open it from Accounts instead of importing again")]
@@ -102,6 +113,7 @@ impl AppError {
             Self::Io { .. } => ("io".to_owned(), true),
             Self::StatePoisoned => ("state_poisoned".to_owned(), true),
             Self::AlreadyImported { .. } => ("already_imported".to_owned(), false),
+            Self::IdentityMismatch { .. } => ("identity_mismatch".to_owned(), false),
         };
         ErrorWire {
             code,

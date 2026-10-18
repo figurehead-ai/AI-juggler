@@ -1663,6 +1663,14 @@ pub struct InstanceInfo {
     /// cannot isolate` for single-account apps); `null` for terminal
     /// Instances and when the provider's adapter is not registered.
     pub isolation_label: Option<String>,
+    /// AJ-E1001: the latest identity assertion — `verified` |
+    /// `first_seen` | `signed_out` | `unverified` (absent before any
+    /// check, e.g. adopted after a crash).
+    #[ts(optional)]
+    pub identity_state: Option<String>,
+    /// The identity it ran as (masked), when known.
+    #[ts(optional)]
+    pub identity_label: Option<String>,
 }
 
 /// Deprecated alias (one version). AJ-E107.
@@ -3170,6 +3178,8 @@ pub fn launch_profile(
                 .map(|p| p.to_string_lossy().into_owned())
         })
         .map_or_else(std::env::temp_dir, std::path::PathBuf::from);
+    // AJ-E1001: who this Account is signed in as — before anything runs.
+    let assertion = crate::identity::assert_identity(state, &account)?;
     let spec = adapter.launch_spec(&account, &profile, &effective_cwd, &LaunchMode::Interactive)?;
     let session_id = SessionId::new(format!("sess-{}", unique_suffix()));
     // The juggling anchor: this launch's cwd becomes (or refreshes) the
@@ -3215,6 +3225,7 @@ pub fn launch_profile(
             transcript_ref: None,
         })?;
     };
+    crate::identity::record(state, &session_id, &account, &assertion, "launch");
     Ok(LaunchResult {
         session_id: session_id.to_string(),
         pid: spawned.pid,
@@ -4680,6 +4691,7 @@ fn session_infos(
     adopted_ids: &[juggler_core::model::SessionId],
 ) -> AppResult<Vec<InstanceInfo>> {
     let (account_index, recipe_index) = session_join_indexes(storage)?;
+    let identities = storage.identity().latest_by_session().unwrap_or_default();
     Ok(storage
         .sessions()
         .list(None)?
@@ -4759,6 +4771,12 @@ fn session_infos(
                     .map(std::string::ToString::to_string),
                 conversation_id: record.conversation.as_ref().map(|c| c.as_str().to_string()),
                 isolation_label,
+                identity_state: identities
+                    .get(record.id.as_str())
+                    .map(|assertion| assertion.state.clone()),
+                identity_label: identities
+                    .get(record.id.as_str())
+                    .and_then(|assertion| assertion.label.clone()),
             }
         })
         .collect())
@@ -5403,6 +5421,10 @@ pub fn switch_execute_impl(
             ),
         })?;
 
+    // AJ-E1001: the target Account must be who it was, before anything
+    // moves.
+    let assertion = crate::identity::assert_identity(state, &account_b)?;
+
     // Record (E201): the Staged edge exists BEFORE anything moves;
     // failures transition it, history is never rewritten.
     let (work_id, from_epoch, edge_id) =
@@ -5454,6 +5476,8 @@ pub fn switch_execute_impl(
             session: new_session.clone(),
         },
     )?;
+
+    crate::identity::record(state, &new_session, &account_b, &assertion, "switch");
 
     // AJ-E208: the switch's redaction decision rides the edge.
     record_redaction_decision(
@@ -10618,6 +10642,8 @@ fn resume_original_with_delta(
         .registry
         .get(&account_a.harness)
         .ok_or_else(|| AppError::UnknownHarness(account_a.harness.to_string()))?;
+    // AJ-E1001: the original Account must still be who it was.
+    let assertion = crate::identity::assert_identity(state, &account_a)?;
     let new_session = SessionId::new(format!("sess-{}", unique_suffix()));
     let spec = adapter.launch_spec(&account_a, &profile_a, &original_session.cwd, &mode)?;
     let spawned = state.supervisor.spawn(
@@ -10642,6 +10668,7 @@ fn resume_original_with_delta(
         fresh,
         actions,
     )?;
+    crate::identity::record(state, &new_session, &account_a, &assertion, "switch_back");
 
     Ok(LaunchResult {
         session_id: new_session.to_string(),
