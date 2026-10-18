@@ -1500,6 +1500,9 @@ for (const theme of ["dark", "light"] as const) {
     await page.goto("/");
     await expect(page.getByRole("tab", { name: "Sessions" })).toBeVisible();
     // Summon by keyboard alone.
+    // The ⌘N handler mounts with the shell — wait for it (AJ-E806:
+    // pressing during the first frames after load is a test race).
+    await expect(page.getByRole("button", { name: "New project" }).first()).toBeVisible();
     await page.keyboard.press("Meta+n");
     await expect(page.getByRole("heading", { name: "New project" })).toBeVisible();
     const confirmed = await scanSeriousWithConfirm(page);
