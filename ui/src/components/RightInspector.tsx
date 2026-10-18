@@ -1,3 +1,7 @@
+import { MorningSummary } from "./MorningSummary";
+import { ParkCard } from "./ParkCard";
+import { WorktreeGit } from "./WorktreeGit";
+import { identityWords } from "../lib/identity";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button, Card, Chip, type ChipTone } from "./primitives";
 import { TerminalView } from "./TerminalView";
@@ -326,7 +330,9 @@ export function RightInspector({
   }, [remote, onRemoteBack]);
 
   if (kind === "none") {
-    return <FleetAtAGlance sessions={sessions} accounts={accounts} now={now} onNew={onNew} />;
+    return (
+      <FleetAtAGlance sessions={sessions} accounts={accounts} now={now} onNew={onNew} onOpenSession={onOpenSession} />
+    );
   }
 
   return (
@@ -756,6 +762,13 @@ function InstanceOverview(props: PanelProps) {
               {props.profiles.find((r) => r.id === session.launch_recipe_id)?.name ?? "launch settings"}
             </Chip>
             <Chip tone="accent">{session.model ?? "default model"}</Chip>
+            {identityWords(session) && (
+              <span data-testid="instance-identity" data-state={identityWords(session)!.state}>
+                <Chip tone={identityWords(session)!.state === "verified" ? "success" : "neutral"}>
+                  {identityWords(session)!.text}
+                </Chip>
+              </span>
+            )}
             {session.model_source === "launch" && session.launch_model !== null && (
               <Chip tone="warning">not verified live</Chip>
             )}
@@ -790,6 +803,8 @@ function InstanceOverview(props: PanelProps) {
               <CopyField testId="instance-project" label="project" value={project.name} onOpen={() => props.onOpenProject(project.id)} />
             ) : null}
             <CopyField testId="instance-cwd" label="cwd" value={session.cwd} mono />
+            <WorktreeGit sessionId={session.id} live={live} />
+            <ParkCard session={session} now={props.now} />
             <span data-testid="instance-native-id">
               native session:{" "}
               <span className="font-mono text-ink">
@@ -1265,11 +1280,13 @@ function FleetAtAGlance({
   accounts,
   now,
   onNew,
+  onOpenSession,
 }: {
   sessions: InstanceInfo[];
   accounts: AccountInfo[];
   now: number;
   onNew: () => void;
+  onOpenSession: (id: string) => void;
 }) {
   const counts = new Map<string, number>();
   for (const row of sessions) counts.set(row.status, (counts.get(row.status) ?? 0) + 1);
@@ -1288,7 +1305,12 @@ function FleetAtAGlance({
   const ramSum = live.reduce((sum, row) => sum + (row.rss_bytes ?? 0), 0);
 
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-5" data-testid="fleet-at-a-glance">
+    // Centred when it fits; when the morning summary makes it taller than
+    // the pane it scrolls from the top (justify-center would clip the
+    // top under the header, out of reach).
+    <div className="flex h-full flex-col overflow-y-auto" data-testid="fleet-at-a-glance">
+      <div className="my-auto flex w-full flex-col items-center gap-5 py-2">
+      <MorningSummary onOpenSession={onOpenSession} />
       <div className="text-center">
         <p className="text-sm font-medium">Nothing selected — the fleet at a glance</p>
         <p className="mt-1 text-xs text-muted">
@@ -1356,6 +1378,7 @@ function FleetAtAGlance({
       <p className="text-[10px] text-muted">
         Updated {since(now, now)} ago · source: supervisor
       </p>
+      </div>
     </div>
   );
 }

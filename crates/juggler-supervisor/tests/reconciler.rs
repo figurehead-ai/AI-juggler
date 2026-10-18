@@ -23,6 +23,18 @@ use juggler_supervisor::{
     LifecycleEvent, LiveStatsCollector, Supervisor, system_construction_count,
 };
 
+/// The tests in this binary each spawn real process trees and tick the
+/// reconciler; run in parallel they contend with each other and the
+/// soak's wall-time budget measures that, not the reconciler (AJ-E806
+/// flake record, 2026-10-18). One at a time.
+static SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+fn serial() -> std::sync::MutexGuard<'static, ()> {
+    SERIAL
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
 fn ctx() -> SpawnContext {
     SpawnContext {
         provider: "claude-code".into(),
@@ -84,6 +96,7 @@ fn tick_until<F: FnMut() -> bool>(
 /// `Orphaned` at grace+2 ticks, with the full attribution columns.
 #[test]
 fn orphan_surfaces_only_after_grace_and_two_ticks() {
+    let _serial = serial();
     let dir = tempfile::tempdir().unwrap();
     let db = std::env::var("AIJ_E504_DB")
         .map(std::path::PathBuf::from)
@@ -188,6 +201,7 @@ fn orphan_surfaces_only_after_grace_and_two_ticks() {
 /// grace journals as a normal exit — it never surfaces as an orphan.
 #[test]
 fn helper_exiting_inside_grace_never_surfaces() {
+    let _serial = serial();
     let dir = tempfile::tempdir().unwrap();
     let repo = ProcessLedgerRepo::open(&dir.path().join("reconciler-b.sqlite")).unwrap();
     let store = Arc::new(CoreLedgerStore::new(repo));
@@ -234,6 +248,7 @@ fn helper_exiting_inside_grace_never_surfaces() {
 /// the gate allows at most one).
 #[test]
 fn fifty_instance_soak_and_construction_regression() {
+    let _serial = serial();
     let dir = tempfile::tempdir().unwrap();
     let repo = ProcessLedgerRepo::open(&dir.path().join("reconciler-soak.sqlite")).unwrap();
     let store = Arc::new(CoreLedgerStore::new(repo));

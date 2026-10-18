@@ -77,7 +77,7 @@ const mk = (n: number, status: InstanceInfo["status"], label: string): InstanceI
               attention === "waiting_user"
                 ? ["prompt alive", `no output ${n}m`]
                 : attention === "stuck"
-                  ? [`no output ${n}m`, "cpu 0.3%", `transcript stale ${n}m`]
+                  ? [`no output ${n}m`, "threshold 5m", "cpu 0.3%", `transcript stale ${n}m`]
                   : ["exit code 1", "rate-limit signature in output"],
             since_ms: T0 - n * 3_500_000,
           },

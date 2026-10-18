@@ -1,3 +1,5 @@
+import { identityWords } from "../lib/identity";
+import { parkedWords } from "../lib/parked";
 import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { IconProjects, IconSessions, IconTerminal } from "./icons";
 import type { AccountInfo, InstanceInfo, ProjectInfo, RemoteInstanceInfo, RemoteMachineInfo } from "../lib/bridge";
@@ -1152,6 +1154,18 @@ export function SessionRow({
           <span className="truncate">{mark.abbrev}</span>
         </span>
         <AccountDisc accountId={session.account_id} label={session.account_label} />
+        {identityWords(session) && (
+          <span
+            title={identityWords(session)!.text}
+            aria-label={identityWords(session)!.text}
+            tabIndex={0}
+            data-testid="rail-identity"
+            data-state={identityWords(session)!.state}
+            className="shrink-0 rounded-full border border-hairline px-1 text-[9.5px] font-medium text-muted outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
+          >
+            {identityWords(session)!.glyph}
+          </span>
+        )}
         {session.kind === "desktop" && (
           <span
             title="desktop app instance"
@@ -1176,7 +1190,17 @@ export function SessionRow({
           </span>
         )}
         <span className="ml-auto inline-flex shrink-0 items-center gap-1">
-          {badge ? (
+          {parkedWords(session, now) ? (
+            <span
+              title={parkedWords(session, now)!.long}
+              aria-label={parkedWords(session, now)!.long}
+              data-testid="rail-parked"
+              className="inline-flex items-center gap-1 rounded-full border border-hairline px-1.5 py-px text-[10px] font-medium text-ink"
+            >
+              <span aria-hidden="true">⏸</span>
+              {parkedWords(session, now)!.chip}
+            </span>
+          ) : badge ? (
             <span
               title={attentionTooltip(session)}
               className={

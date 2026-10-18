@@ -50,6 +50,10 @@ pub struct AppState {
     /// Stuck/waiting/quota heuristics (AJ-E405); thresholds user-tunable
     /// via `heuristics.json`.
     pub heuristics: HeuristicEngine,
+    /// AJ-E1004 Req.1: per-Provider no-output thresholds (seconds) by
+    /// harness id, from `heuristics.json`'s `providers` map; a Provider
+    /// without one uses the global threshold.
+    pub provider_stuck_secs: std::collections::BTreeMap<String, u64>,
     /// Terminal ids with a live output forwarder (dedup: one forwarder per
     /// terminal no matter how often the UI re-attaches).
     pub terminal_taps: Mutex<std::collections::HashSet<String>>,
@@ -182,6 +186,7 @@ impl AppState {
             orphans: OrphanTracker::new(),
             model_offsets: Mutex::new(std::collections::HashMap::new()),
             heuristics: HeuristicEngine::new(load_thresholds(&data_dir)),
+            provider_stuck_secs: load_provider_thresholds(&data_dir),
             terminal_taps: Mutex::new(std::collections::HashSet::new()),
             kill_cancels: Mutex::new(std::collections::HashMap::new()),
             fleet: Mutex::new(None),
@@ -365,4 +370,49 @@ fn load_thresholds(data_dir: &Path) -> HeuristicThresholds {
         .ok()
         .and_then(|raw| serde_json::from_str(&raw).ok())
         .unwrap_or_default()
+}
+
+/// AJ-E1004 Req.1: `heuristics.json`'s optional per-Provider overrides,
+/// `{"providers": {"codex": {"stuck_no_output_secs": 900}}}`. A missing
+/// or malformed map is empty: every Provider uses the global threshold.
+fn load_provider_thresholds(data_dir: &Path) -> std::collections::BTreeMap<String, u64> {
+    #[derive(serde::Deserialize)]
+    struct Override {
+        stuck_no_output_secs: u64,
+    }
+    #[derive(serde::Deserialize)]
+    struct File {
+        #[serde(default)]
+        providers: std::collections::BTreeMap<String, Override>,
+    }
+    std::fs::read_to_string(data_dir.join("heuristics.json"))
+        .ok()
+        .and_then(|raw| serde_json::from_str::<File>(&raw).ok())
+        .map(|file| {
+            file.providers
+                .into_iter()
+                .map(|(harness, row)| (harness, row.stuck_no_output_secs))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used)]
+
+    use super::{load_provider_thresholds, load_thresholds};
+
+    #[test]
+    fn provider_thresholds_ride_alongside_the_global_ones() {
+        let dir = tempfile::tempdir().unwrap();
+        assert!(load_provider_thresholds(dir.path()).is_empty());
+        std::fs::write(
+            dir.path().join("heuristics.json"),
+            r#"{"stuck_no_output_secs":300,"stuck_cpu_max_pct":5.0,"stuck_transcript_stale_secs":300,"waiting_prompt_secs":120,"providers":{"codex":{"stuck_no_output_secs":900}}}"#,
+        )
+        .unwrap();
+        assert_eq!(load_provider_thresholds(dir.path())["codex"], 900);
+        assert_eq!(load_thresholds(dir.path()).stuck_no_output_secs, 300);
+    }
 }

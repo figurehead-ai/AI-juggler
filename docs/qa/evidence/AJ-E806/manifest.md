@@ -9,6 +9,19 @@
 | Evidence in CI | `.github/workflows/ci.yml` verify job | evidence step present, no new job | step added inside verify | PASS | (this PR) | 2026-10-13 | zcode-primary |
 
 ## Notes
+
+- **Flake record, 2026-10-18 (fixed).** `juggler-supervisor --test
+  reconciler :: fifty_instance_soak_and_construction_regression` failed
+  under the full `just verify` on the E10 branch: p95 tick 1,360 ms
+  against the 100 ms budget, avg 202 ms, load 7.4/9.8/12.7 on 30 cores.
+  The box was busy with Spotlight, a VM and unrelated work, and the
+  binary's three tests were also running in parallel, all spawning real
+  process trees. Alone, the soak passes at p95 33 ms. This is the second
+  occurrence of this known class (the first is in `gate-M3.md`). Fix: the
+  binary's tests now run one at a time (a shared lock), so the budget
+  measures the reconciler, not its siblings. The 100 ms budget and the
+  load quarantine are unchanged. Verified 3/3 standalone and in the
+  full gate re-run; CI stays the arbiter.
 - a11y seeded failure is recorded DEFERRED with owning task AJ-E804 —
   the gate is named in QUALITY.md vocabulary now; its absence is
   explicit, never a silent pass (per the quarantine/deferral rule).

@@ -146,4 +146,46 @@ conversation_id: string | null,
  * cannot isolate` for single-account apps); `null` for terminal
  * Instances and when the provider's adapter is not registered.
  */
-isolation_label: string | null, };
+isolation_label: string | null, 
+/**
+ * AJ-E1001: the latest identity assertion — `verified` |
+ * `first_seen` | `signed_out` | `unverified` (absent before any
+ * check, e.g. adopted after a crash).
+ */
+identity_state?: string, 
+/**
+ * The identity it ran as (masked), when known.
+ */
+identity_label?: string, 
+/**
+ * AJ-E1002: commits ahead of the upstream (cached `git status`,
+ * at most every 30 s; absent = unknown).
+ */
+git_ahead?: number, 
+/**
+ * Commits behind the upstream.
+ */
+git_behind?: number, 
+/**
+ * It runs in a linked git worktree.
+ */
+git_worktree?: boolean, 
+/**
+ * AJ-E1003: parked until its quota resets — the reset's
+ * confidence (`measured` | `estimated` | `unknown`); absent when not
+ * parked.
+ */
+parked?: string, 
+/**
+ * The reset it waits for, epoch ms (countdown only when measured).
+ */
+parked_resets_at_ms?: number, 
+/**
+ * AJ-E1005/AJ-E1007: its latest lifecycle step (`reviewed`), absent
+ * when it has none.
+ */
+lifecycle?: string, 
+/**
+ * When that step was taken, epoch ms.
+ */
+lifecycle_at_ms?: number, };

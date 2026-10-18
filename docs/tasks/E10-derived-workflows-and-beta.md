@@ -9,7 +9,7 @@
 > dogfood or interview evidence (AJ-E809 consumes the results).
 > Vocabulary: Provider / Account / Instance / Launch settings.
 
-### AJ-E1001 Per-Instance identity assertion (wrong-account billing guard) | Status: TODO | Priority P0 | Effort M | Depends: —
+### AJ-E1001 Per-Instance identity assertion (wrong-account billing guard) | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: —
 **Goal**: Prove, before and during launch, that an Instance is actually running under its intended Account, so work is never silently billed to the machine-default account.
 **User story**: As a developer with several subscriptions, I want Juggler to warn me immediately if a session is running under the wrong account, before it burns the wrong quota.
 **Requirements**:
@@ -26,7 +26,7 @@
 **Research basis**: pass2/06 §4 (verified wrong-account billing, claude-code issues cited there); SPEC §8 metadata-only rule.
 **Handover note**: This is a P0 trust feature promoted from external evidence, not a nice-to-have. If a Provider offers no metadata probe, the Instance SHALL show `Identity unverified` rather than pretending.
 
-### AJ-E1002 Git worktree isolation for parallel Instances | Status: TODO | Priority P0 | Effort L | Depends: AJ-E1001
+### AJ-E1002 Git worktree isolation for parallel Instances | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E1001
 **Goal**: Give each parallel Instance on the same project an isolated worktree/branch by default so accounts never silently overwrite each other's files.
 **User story**: As a developer running three accounts on one repo, I want each Instance in its own worktree with a named branch, so parallel work cannot collide silently.
 **Requirements**:
@@ -44,7 +44,7 @@
 **Research basis**: pass2/06 §7 (verified collision evidence, promoted to P0); first-report F1.1; SPEC pack branch field.
 **Handover note**: Earlier reports marked collisions `[inferred]`; pass2/06 upgraded the evidence. Do not downgrade without reading that section.
 
-### AJ-E1003 Quota reset queue and parked continuation | Status: TODO | Priority P1 | Effort M | Depends: AJ-E1001
+### AJ-E1003 Quota reset queue and parked continuation | Status: DONE-EVIDENCED | Priority P1 | Effort M | Depends: AJ-E1001
 **Goal**: Let a quota-blocked Instance be parked with its context pack staged, and surface it for one-click continuation the moment its window resets.
 **User story**: As a developer blocked at 11pm, I want my work parked safely and offered back to me at reset, on the original account, without reconstructing anything.
 **Requirements**:
@@ -61,7 +61,7 @@
 **Research basis**: pass2/07 W1/W3; deep/10 reset-queue proposal; decision-log D-05.
 **Handover note**: Passive invariant: notification + user click only. Auto-resume on reset is explicitly rejected scope; do not add it as a convenience.
 
-### AJ-E1004 Overnight and unattended run supervision | Status: TODO | Priority P1 | Effort M | Depends: AJ-E1003
+### AJ-E1004 Overnight and unattended run supervision | Status: DONE-EVIDENCED | Priority P1 | Effort M | Depends: AJ-E1003
 **Goal**: Make long unattended runs observable and safely interruptible without babysitting a terminal.
 **User story**: As a developer starting an evening run, I want a morning summary of what finished, what got stuck and what it cost, instead of scrolling a dead terminal.
 **Requirements**:
@@ -78,7 +78,7 @@
 **Research basis**: pass2/07 W1; first-report F2.5/F5.2 (states modelled but never emitted — this task closes that at the workflow layer; E4 owns the read-model).
 **Handover note**: Coordinate state emission with E4/E5 owners to avoid two competing state machines; supervisor journal is the single source.
 
-### AJ-E1005 Morning triage and multi-project day board | Status: TODO | Priority P1 | Effort M | Depends: AJ-E1004
+### AJ-E1005 Morning triage and multi-project day board | Status: DONE-EVIDENCED | Priority P1 | Effort M | Depends: AJ-E1004
 **Goal**: Give the start of day one sorted view: what needs me, what is parked, what is running, across all projects.
 **User story**: As a consultant with five client projects, I want to triage fifteen sessions in two minutes each morning, oldest blocker first.
 **Requirements**:

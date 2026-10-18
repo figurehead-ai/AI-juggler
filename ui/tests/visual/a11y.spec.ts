@@ -2329,3 +2329,204 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("conflict-apply")).toBeEnabled();
   });
 }
+
+/** AJ-E1001 a11y (both themes): the rail's identity marker (focusable,
+ * named in words) and the wrong-account pause (alertdialog, actions in
+ * order, Esc cancels) scan axe-clean. */
+for (const theme of ["dark", "light"] as const) {
+  test(`identity — rail marker and wrong-account pause — axe 0 — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ fixture, theme: t }) => {
+        const w = window as unknown as Record<string, unknown>;
+        const base = fixture as { sessions: Array<Record<string, unknown>> };
+        w.__AIJ_FIXTURE__ = {
+          ...base,
+          sessions: base.sessions.map((s, i) => ({
+            ...s,
+            identity_state: ["verified", "first_seen", "unverified", "signed_out"][i % 4],
+            identity_label: "o…@work.example · Acme",
+          })),
+        };
+        w.__AIJ_IDENTITY_CHECK__ = {
+          "p-1": {
+            state: "mismatch", provider: "claude-code", account_id: "claude-work", account_label: "Work Max",
+            model: "opus", expected: "o…@work.example · Acme", detected: "o…@home.example", reason: null,
+            alternatives: [{ recipe_id: "p-2", recipe_name: "Main", account_label: "Personal" }],
+          },
+        };
+        localStorage.setItem("aij.theme", t);
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        sessionStorage.setItem("aij.ready.skipped", "1");
+      },
+      { fixture: allStatuses, theme },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await page.getByRole("tab", { name: "Sessions" }).click();
+    await expect(page.getByTestId("rail-identity").first()).toHaveAttribute("aria-label", /verified|first seen|unverified|Not signed in/);
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+    await page.getByRole("button", { name: /Work Max/ }).first().click();
+    await page.getByRole("tab", { name: "Actions" }).click();
+    await page.getByRole("button", { name: /Resume|Relaunch/ }).first().click();
+    await expect(page.getByTestId("identity-mismatch")).toBeVisible();
+    await expect(page.getByTestId("identity-switch")).toBeFocused();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+    await page.keyboard.press("Tab");
+    await expect(page.getByTestId("identity-recheck")).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("identity-mismatch")).toHaveCount(0);
+  });
+}
+
+/** AJ-E1002 a11y (both themes): the git badge in words, the worktree
+ * offer (radio group, default focus on the safe choice) and the dirty
+ * removal dialog (typed confirmation) scan axe-clean. */
+for (const theme of ["dark", "light"] as const) {
+  test(`worktree — offer and removal — axe 0 — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ fixture, theme: t }) => {
+        const w = window as unknown as Record<string, unknown>;
+        const base = fixture as { sessions: Array<Record<string, unknown>> };
+        w.__AIJ_FIXTURE__ = {
+          ...base,
+          sessions: base.sessions.map((s) => ({ ...s, git_branch: "juggler/a1b2c3", git_dirty_count: 3, git_ahead: 1, git_worktree: true, cwd: "/Users/dev/ai-juggler" })),
+        };
+        w.__AIJ_GIT_STATUS__ = Object.fromEntries(
+          base.sessions.map((s) => [s.id as string, {
+            branch: "juggler/a1b2c3", changed: 2, untracked: 1, ahead: 1, behind: 0, worktree: true,
+            created_by_juggler: true, path: "/Users/dev/ai-juggler.juggler/a1b2c3",
+          }]),
+        );
+        w.__AIJ_ISOLATION_OFFER__ = {
+          project_name: "ai-juggler", in_use_by: ["Personal"], available: true, unavailable_reason: null,
+          proposed_path: "/Users/dev/ai-juggler.juggler/a1b2c3", proposed_branch: "juggler/a1b2c3", base_branch: "main",
+        };
+        w.__AIJ_WORKTREE_REMOVAL__ = {
+          path: "/Users/dev/ai-juggler.juggler/a1b2c3", folder: "a1b2c3", branch: "juggler/a1b2c3",
+          changed: 2, untracked: 1, needs_confirmation: true, in_use: false, summary: "Discards 2 changed and 1 untracked files.",
+        };
+        localStorage.setItem("aij.theme", t);
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        sessionStorage.setItem("aij.ready.skipped", "1");
+      },
+      { fixture: allStatuses, theme },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await page.getByRole("tab", { name: "Sessions" }).click();
+    await expect(page.getByTestId("git-badge").first()).toHaveAttribute("title", /3 uncommitted files/);
+    await page.getByRole("button", { name: /Work Max/ }).first().click();
+    await page.getByTestId("worktree-remove").click();
+    await expect(page.getByTestId("worktree-remove-confirm")).toBeFocused();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+    await page.keyboard.press("Escape");
+    await page.getByRole("tab", { name: "Actions" }).click();
+    await page.getByRole("button", { name: /Resume|Relaunch/ }).first().click();
+    await expect(page.getByTestId("isolation-worktree")).toBeFocused();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+  });
+}
+
+/** AJ-E1003 a11y (both themes): the parked row (countdown as text) and
+ * the reset offer (Resume and a distinct snooze, both keyboard
+ * reachable) scan axe-clean. */
+for (const theme of ["dark", "light"] as const) {
+  test(`parked — row and reset offer — axe 0 — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ fixture, theme: t }) => {
+        const w = window as unknown as Record<string, unknown>;
+        const base = fixture as { sessions: Array<Record<string, unknown>> };
+        w.__AIJ_FIXTURE__ = {
+          ...base,
+          sessions: base.sessions.map((s) =>
+            s.status === "quota_blocked" ? { ...s, parked: "estimated", parked_resets_at_ms: Date.now() + 3_600_000 } : s,
+          ),
+        };
+        w.__AIJ_PARKED_OFFERS__ = [
+          { session_id: "x", account_label: "Personal", text: "Personal has reset. Resume the work you parked.", last: false },
+        ];
+        localStorage.setItem("aij.theme", t);
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        sessionStorage.setItem("aij.ready.skipped", "1");
+      },
+      { fixture: allStatuses, theme },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await page.getByRole("tab", { name: "Sessions" }).click();
+    await expect(page.getByTestId("rail-parked").first()).toContainText("Parked (est.)");
+    await page.getByTestId("parked-offer-resume").focus();
+    await page.keyboard.press("Tab");
+    await expect(page.getByTestId("parked-offer-snooze")).toBeFocused();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+  });
+}
+
+/** AJ-E1004 a11y (both themes): the morning summary — a labelled
+ * region, one button per row, severity in words — scans axe-clean and
+ * every row is reachable by keyboard. */
+for (const theme of ["dark", "light"] as const) {
+  test(`morning summary — axe 0 — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ fixture, theme: t }) => {
+        const w = window as unknown as Record<string, unknown>;
+        w.__AIJ_FIXTURE__ = fixture;
+        const tr = [{ from: "running", to: "failed", at_ms: Date.now() - 3_600_000 }];
+        w.__AIJ_SUMMARY__ = {
+          since_ms: Date.now() - 9 * 3_600_000,
+          generated_ms: Date.now(),
+          rows: [
+            { session_id: "sess-8", account_label: "Work Max", provider: "claude-code", project: "ai-juggler", group: "crashed", status: "failed", words: "Crashed", transitions: tr, tokens: null, leftovers: 1 },
+            { session_id: "sess-3", account_label: "Personal", provider: "claude-code", project: null, group: "needs_you", status: "waiting_user", words: "Needs you — waiting for an answer", transitions: tr, tokens: 1200, leftovers: 0 },
+          ],
+          counts: { crashed: 1, needs_you: 1 },
+          leftovers: 1,
+        };
+        localStorage.setItem("aij.theme", t);
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        sessionStorage.setItem("aij.ready.skipped", "1");
+      },
+      { fixture: allStatuses, theme },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await expect(page.getByRole("region", { name: "Since you were away" })).toBeVisible();
+    await page.getByTestId("summary-seen").focus();
+    await page.keyboard.press("Tab");
+    await expect(page.getByTestId("summary-row").first()).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(page.getByTestId("summary-row").nth(1)).toBeFocused();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+  });
+}
+
+/** AJ-E1005 a11y (both themes): the triage view — labelled groups, the
+ * action named on each row with its shortcut — scans axe-clean and
+ * needs no mouse: j moves, A runs the action. */
+for (const theme of ["dark", "light"] as const) {
+  test(`triage — axe 0 and keyboard only — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ fixture, theme: t }) => {
+        const w = window as unknown as Record<string, unknown>;
+        w.__AIJ_FIXTURE__ = fixture;
+        localStorage.setItem("aij.theme", t);
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        sessionStorage.setItem("aij.ready.skipped", "1");
+      },
+      { fixture: allStatuses, theme },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Triage" }).click();
+    await expect(page.getByRole("region", { name: /Needs you/ })).toBeVisible();
+    await page.getByTestId("triage-row").first().locator("button").first().focus();
+    await page.keyboard.press("j");
+    await expect(page.getByTestId("triage-row").nth(1).locator("button").first()).toBeFocused();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+  });
+}

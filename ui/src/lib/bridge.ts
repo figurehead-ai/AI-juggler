@@ -18,6 +18,15 @@ import type { PairingStateInfo } from "../types/generated/PairingStateInfo";
 import type { FigureheadStatusInfo } from "../types/generated/FigureheadStatusInfo";
 import type { CloudFeatureInfo } from "../types/generated/CloudFeatureInfo";
 import type { RemoteMachineInfo } from "../types/generated/RemoteMachineInfo";
+import type { IdentityCheckInfo } from "../types/generated/IdentityCheckInfo";
+import type { IsolationOfferInfo } from "../types/generated/IsolationOfferInfo";
+import type { ParkedInfo } from "../types/generated/ParkedInfo";
+import type { OvernightSummaryInfo } from "../types/generated/OvernightSummaryInfo";
+import type { SummaryRowInfo } from "../types/generated/SummaryRowInfo";
+import type { ParkedOfferInfo } from "../types/generated/ParkedOfferInfo";
+import type { WorktreeRemovalInfo } from "../types/generated/WorktreeRemovalInfo";
+import type { GitStatusInfo } from "../types/generated/GitStatusInfo";
+import type { IdentityAlternativeInfo } from "../types/generated/IdentityAlternativeInfo";
 import type { RemoteSwitchTargetInfo } from "../types/generated/RemoteSwitchTargetInfo";
 import type { RemoteProjectOption } from "../types/generated/RemoteProjectOption";
 import type { FleetSwitchRequest } from "../types/generated/FleetSwitchRequest";
@@ -77,6 +86,15 @@ export type {
   FigureheadStatusInfo,
   CloudFeatureInfo,
   RemoteMachineInfo,
+  IdentityCheckInfo,
+  IdentityAlternativeInfo,
+  IsolationOfferInfo,
+  ParkedInfo,
+  ParkedOfferInfo,
+  OvernightSummaryInfo,
+  SummaryRowInfo,
+  WorktreeRemovalInfo,
+  GitStatusInfo,
   RemoteSwitchTargetInfo,
   RemoteProjectOption,
   FleetSwitchRequest,
@@ -184,7 +202,7 @@ const MOCK_QUALITY: Record<string, QualitySignalsInfo> = {
     session_cost_usd: 0.19,
     priced_model: "opus",
     quota_forecast: "not burning",
-    stuck: { rule: "stuck_no_output", inputs: ["no output 8m", "cpu 0.3%", "transcript stale 8m"], since_ms: Date.now() - 8 * 60_000 },
+    stuck: { rule: "stuck_no_output", inputs: ["no output 8m", "threshold 5m", "cpu 0.3%", "transcript stale 8m"], since_ms: Date.now() - 8 * 60_000 },
   },
   "sess-2": {
     tokens_bars: [420, 510, 380, 600, 540],
@@ -665,17 +683,174 @@ export async function deleteProfile(profileId: string): Promise<void> {
   await invoke("profile_delete", { profileId });
 }
 
+/** AJ-E1001: who a Launch setting's Account is signed in as — checked
+ * before anything launches (read-only). */
+export async function identityCheck(recipeId: string): Promise<IdentityCheckInfo> {
+  if (!hasBackend) {
+    const seams = window as unknown as { __AIJ_IDENTITY_CHECK__?: Record<string, IdentityCheckInfo> };
+    const seeded = seams.__AIJ_IDENTITY_CHECK__?.[recipeId];
+    if (seeded) return seeded;
+    return {
+      state: "verified",
+      provider: "claude-code",
+      account_id: "",
+      account_label: "",
+      model: null,
+      expected: null,
+      detected: null,
+      reason: null,
+      alternatives: [],
+    };
+  }
+  return invoke<IdentityCheckInfo>("identity_check", { recipeId });
+}
+
+/** What the user chose in the identity-mismatch dialog. */
+export type IdentityDecision = { kind: "switch"; recipeId: string } | { kind: "recheck" } | { kind: "cancel" };
+
+/** The event the app's identity dialog listens for (one dialog serves
+ * every launch entry point). */
+export const IDENTITY_MISMATCH_EVENT = "aij:identity-mismatch";
+
+export type IdentityMismatchRequest = {
+  check: IdentityCheckInfo;
+  resolve: (decision: IdentityDecision) => void;
+};
+
+/** Asks the user (through the app's dialog) what to do about a mismatch. */
+function askIdentityDecision(check: IdentityCheckInfo): Promise<IdentityDecision> {
+  return new Promise((resolve) => {
+    const detail: IdentityMismatchRequest = { check, resolve };
+    const delivered = window.dispatchEvent(new CustomEvent(IDENTITY_MISMATCH_EVENT, { detail, cancelable: true }));
+    // No dialog mounted (a test, a detached view): never continue silently.
+    if (delivered) {
+      window.setTimeout(() => {
+        if (!(detail as { claimed?: boolean }).claimed) resolve({ kind: "cancel" });
+      }, 0);
+    }
+  });
+}
+
+/** AJ-E1002: the worktree offer for launching into `cwd` (`null` when
+ * nobody else works there). */
+export async function isolationOffer(cwd: string): Promise<IsolationOfferInfo | null> {
+  if (!hasBackend) {
+    const seams = window as unknown as { __AIJ_ISOLATION_OFFER__?: IsolationOfferInfo | null };
+    return seams.__AIJ_ISOLATION_OFFER__ ?? null;
+  }
+  return invoke<IsolationOfferInfo | null>("isolation_offer", { cwd });
+}
+
+/** AJ-E1002: creates the worktree the user confirmed; returns its path. */
+export async function worktreeCreate(cwd: string, path: string, branch: string): Promise<string> {
+  if (!hasBackend) {
+    const seams = window as unknown as { __AIJ_LAUNCH_CALLS__?: string[] };
+    seams.__AIJ_LAUNCH_CALLS__ = [...(seams.__AIJ_LAUNCH_CALLS__ ?? []), `worktree:${branch}:${path}`];
+    return path;
+  }
+  return invoke<string>("worktree_create", { cwd, path, branch });
+}
+
+/** AJ-E1002: what removing a worktree would discard. */
+export async function worktreeRemovalPreview(path: string): Promise<WorktreeRemovalInfo> {
+  if (!hasBackend) {
+    const seams = window as unknown as { __AIJ_WORKTREE_REMOVAL__?: WorktreeRemovalInfo };
+    if (seams.__AIJ_WORKTREE_REMOVAL__) return seams.__AIJ_WORKTREE_REMOVAL__;
+    throw new Error("no worktree here");
+  }
+  return invoke<WorktreeRemovalInfo>("worktree_removal_preview", { path });
+}
+
+/** AJ-E1002: removes a worktree AI Juggler created (typed confirmation
+ * when uncommitted work would be discarded). */
+export async function worktreeRemove(path: string, confirm: string | null): Promise<void> {
+  if (!hasBackend) {
+    const seams = window as unknown as { __AIJ_LAUNCH_CALLS__?: string[] };
+    seams.__AIJ_LAUNCH_CALLS__ = [...(seams.__AIJ_LAUNCH_CALLS__ ?? []), `worktree-remove:${path}:${confirm ?? ""}`];
+    return;
+  }
+  return invoke<void>("worktree_remove", { path, confirm });
+}
+
+/** AJ-E1002: an Instance's git status, read now (on focus). */
+export async function gitStatusRefresh(sessionId: string): Promise<GitStatusInfo | null> {
+  if (!hasBackend) {
+    const seams = window as unknown as { __AIJ_GIT_STATUS__?: Record<string, GitStatusInfo> };
+    return seams.__AIJ_GIT_STATUS__?.[sessionId] ?? null;
+  }
+  return invoke<GitStatusInfo | null>("git_status_refresh", { sessionId });
+}
+
+/** What the user chose in the isolation offer. */
+export type IsolationDecision =
+  | { kind: "worktree"; path: string; branch: string }
+  | { kind: "shared" }
+  | { kind: "cancel" };
+
+export const ISOLATION_OFFER_EVENT = "aij:isolation-offer";
+
+export type IsolationOfferRequest = {
+  offer: IsolationOfferInfo;
+  resolve: (decision: IsolationDecision) => void;
+};
+
+function askIsolation(offer: IsolationOfferInfo): Promise<IsolationDecision> {
+  return new Promise((resolve) => {
+    const detail: IsolationOfferRequest & { claimed?: boolean } = { offer, resolve };
+    window.dispatchEvent(new CustomEvent(ISOLATION_OFFER_EVENT, { detail }));
+    // No dialog mounted: launch nothing rather than share silently.
+    window.setTimeout(() => {
+      if (!detail.claimed) resolve({ kind: "cancel" });
+    }, 0);
+  });
+}
+
+/** Launches a session — after the AJ-E1001 identity check. A mismatch
+ * pauses for the user (switch selection / check again / cancel); there
+ * is no "continue anyway", and the backend refuses one regardless. */
 export async function launchSession(
   profileId: string,
   cwd: string | null,
 ): Promise<{ session_id: string; pid: number } | null> {
+  let recipe = profileId;
+  for (;;) {
+    const check = await identityCheck(recipe);
+    if (check.state !== "mismatch") break;
+    const decision = await askIdentityDecision(check);
+    if (decision.kind === "cancel") {
+      throw new Error(
+        `Not launched — «${check.account_label}» is signed in as ${check.detected ?? "someone else"}, not ${check.expected ?? "its account"}.`,
+      );
+    }
+    if (decision.kind === "switch") recipe = decision.recipeId;
+  }
+  // AJ-E1002: another Instance already works here — offer its own
+  // worktree (the default), created only once the user confirms.
+  let directory = cwd;
+  if (directory) {
+    const offer = await isolationOffer(directory);
+    if (offer) {
+      const decision = await askIsolation(offer);
+      if (decision.kind === "cancel") throw new Error("Not launched — cancelled.");
+      if (decision.kind === "worktree") directory = await worktreeCreate(directory, decision.path, decision.branch);
+    }
+  }
   if (!hasBackend) {
+    const seams = window as unknown as { __AIJ_LAUNCH_CALLS__?: string[] };
+    seams.__AIJ_LAUNCH_CALLS__ = [...(seams.__AIJ_LAUNCH_CALLS__ ?? []), recipe];
     return null; // preview mode: nothing really launches
   }
   return invoke<{ session_id: string; pid: number }>("launch_session", {
-    profileId,
-    cwd,
+    profileId: recipe,
+    cwd: directory,
   });
+}
+
+/** AJ-E1001: forgets an Account's remembered identity (learned again at
+ * its next launch, shown as "first seen"). */
+export async function accountForgetIdentity(accountId: string): Promise<void> {
+  if (!hasBackend) return;
+  return invoke<void>("account_forget_identity", { accountId });
 }
 
 /** Tracked projects — the juggling anchor (which instance is on each directory). */
@@ -3609,4 +3784,113 @@ export async function fleetDivergenceKeepTheirs(sessionId: string): Promise<void
     return;
   }
   return invoke<void>("fleet_divergence_keep_theirs", { sessionId });
+}
+
+// --- AJ-E1003: park until reset --------------------------------------------
+
+type ParkSeams = {
+  __AIJ_PARKED_OFFERS__?: ParkedOfferInfo[];
+  __AIJ_PARK_CALLS__?: string[];
+  __AIJ_PARKED_CHECK__?: ParkedInfo;
+};
+const parkSeams = () => window as unknown as ParkSeams;
+const parkCall = (call: string) => {
+  const seams = parkSeams();
+  seams.__AIJ_PARK_CALLS__ = [...(seams.__AIJ_PARK_CALLS__ ?? []), call];
+};
+
+/** Parks a quota-blocked Instance until its window resets (pack staged). */
+export async function instancePark(sessionId: string): Promise<ParkedInfo> {
+  if (!hasBackend) {
+    parkCall(`park:${sessionId}`);
+    return {
+      session_id: sessionId,
+      account_label: "Work Max",
+      parked_at_ms: Date.now(),
+      resets_at_ms: Date.now() + 2 * 3_600_000,
+      confidence: "measured",
+      due: false,
+      pack_dir: "",
+    };
+  }
+  return invoke<ParkedInfo>("instance_park", { sessionId });
+}
+
+/** The resume offers due now (polled with the alerts — never a timer of
+ * its own). */
+export async function parkedOffers(): Promise<ParkedOfferInfo[]> {
+  if (!hasBackend) return [...(parkSeams().__AIJ_PARKED_OFFERS__ ?? [])];
+  return invoke<ParkedOfferInfo[]>("parked_offers");
+}
+
+/** "Not now": snoozes once, then stays parked quietly. */
+export async function parkedDismiss(sessionId: string): Promise<void> {
+  if (!hasBackend) {
+    parkCall(`dismiss:${sessionId}`);
+    const seams = parkSeams();
+    seams.__AIJ_PARKED_OFFERS__ = (seams.__AIJ_PARKED_OFFERS__ ?? []).filter((row) => row.session_id !== sessionId);
+    return;
+  }
+  return invoke<void>("parked_dismiss", { sessionId });
+}
+
+/** Re-reads an Estimated reset ("check now"). */
+export async function parkedCheckNow(sessionId: string): Promise<ParkedInfo> {
+  if (!hasBackend) {
+    parkCall(`check:${sessionId}`);
+    const seeded = parkSeams().__AIJ_PARKED_CHECK__;
+    if (seeded) return seeded;
+    throw new Error("still estimated");
+  }
+  return invoke<ParkedInfo>("parked_check_now", { sessionId });
+}
+
+/** Resumes a parked Instance — the original session, on its Account. */
+export async function parkedResume(sessionId: string): Promise<{ session_id: string; pid: number } | null> {
+  if (!hasBackend) {
+    parkCall(`resume:${sessionId}`);
+    return null;
+  }
+  return invoke<{ session_id: string; pid: number }>("parked_resume", { sessionId });
+}
+
+// --- AJ-E1004: the morning summary ------------------------------------------
+
+/** What happened since the user last looked (severity-ordered). */
+export async function overnightSummary(): Promise<OvernightSummaryInfo> {
+  if (!hasBackend) {
+    const seeded = (window as unknown as { __AIJ_SUMMARY__?: OvernightSummaryInfo }).__AIJ_SUMMARY__;
+    return seeded ?? { since_ms: Date.now(), generated_ms: Date.now(), rows: [], counts: {}, leftovers: 0 };
+  }
+  return invoke<OvernightSummaryInfo>("overnight_summary", { sinceMs: null });
+}
+
+/** The user looked: the next summary starts from now. */
+export async function overnightSummarySeen(): Promise<void> {
+  if (!hasBackend) {
+    const w = window as unknown as { __AIJ_SUMMARY__?: OvernightSummaryInfo; __AIJ_SUMMARY_SEEN__?: number };
+    w.__AIJ_SUMMARY_SEEN__ = (w.__AIJ_SUMMARY_SEEN__ ?? 0) + 1;
+    delete w.__AIJ_SUMMARY__;
+    return;
+  }
+  return invoke<void>("overnight_summary_seen");
+}
+
+// --- AJ-E1005: morning triage ----------------------------------------------
+
+/** Marks an ended Instance reviewed: it leaves the triage's finished
+ * list, and the step is kept in its history. */
+export async function instanceMarkReviewed(sessionId: string): Promise<number> {
+  if (!hasBackend) {
+    const w = window as unknown as { __AIJ_TRIAGE_CALLS__?: string[] };
+    w.__AIJ_TRIAGE_CALLS__ = [...(w.__AIJ_TRIAGE_CALLS__ ?? []), `reviewed:${sessionId}`];
+    const row = MOCK_SESSIONS.find((session) => session.id === sessionId);
+    const at = Date.now();
+    if (row) {
+      row.lifecycle = "reviewed";
+      row.lifecycle_at_ms = at;
+    }
+    return at;
+  }
+  return invoke<number>("instance_mark_reviewed", { sessionId });
 }

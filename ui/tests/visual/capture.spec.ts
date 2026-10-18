@@ -40,7 +40,7 @@ function noteNotCaptured(screen: string, state: string, reason: string) {
 
 test.beforeAll(() => {
   mkdirSync(GALLERY, { recursive: true });
-  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "16-onboarding-detect", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "34-wizard", "35-candidates", "36-recommend", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings", "45-remote", "46-fleet-board", "47-remote-focus", "48-remote-cleanup", "49-fleet-sync", "50-cross-switch"]) {
+  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "16-onboarding-detect", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "34-wizard", "35-candidates", "36-recommend", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings", "45-remote", "46-fleet-board", "47-remote-focus", "48-remote-cleanup", "49-fleet-sync", "50-cross-switch", "51-identity", "52-worktree", "53-parked", "54-summary", "55-triage"]) {
     mkdirSync(resolve(GALLERY, screen), { recursive: true });
   }
   writeFileSync(NOT_CAPTURETED, "# Not captured (explicit omissions)\n\n| Screen | State | Reason |\n|---|---|---|\n");
@@ -5645,4 +5645,309 @@ for (const theme of THEMES) {
     await expect(page.getByTestId("cross-back-done")).toBeVisible();
     await page.screenshot({ path: resolve(GALLERY, `50-cross-switch/resolved-1280x800-${theme}.png`) });
   });
+}
+
+// ---------------------------------------------------------------------
+// AJ-E1001 — 51-identity: the identity marker on Instance rows and the
+// inspector chip, and the wrong-account pause (expected vs detected,
+// switch / check again / cancel) — 1280×800 and 1024×680, light/dark.
+// ---------------------------------------------------------------------
+
+const IDENTITY_VP = [
+  { name: "1280x800", width: 1280, height: 800 },
+  { name: "1024x680", width: 1024, height: 680 },
+] as const;
+
+const identityFixture = {
+  ...allStatuses,
+  sessions: allStatuses.sessions.map((session, index) => ({
+    ...session,
+    identity_state: ["verified", "first_seen", "unverified", "signed_out"][index % 4],
+    identity_label: session.account_label === "Personal" ? "o…@home.example" : "o…@work.example · Acme",
+  })),
+};
+
+for (const theme of THEMES) {
+  for (const vp of IDENTITY_VP) {
+    test(`51 identity — rail marker, inspector chip, wrong-account pause — ${vp.name} — ${theme}`, async ({ page }) => {
+      await page.addInitScript(
+        ({ fixture, t, t0 }) => {
+          const w = window as unknown as Record<string, unknown>;
+          w.__AIJ_FIXTURE__ = fixture;
+          w.__AIJ_IDENTITY_CHECK__ = {
+            "p-1": {
+              state: "mismatch", provider: "claude-code", account_id: "claude-work", account_label: "Work Max",
+              model: "opus", expected: "o…@work.example · Acme", detected: "o…@home.example",
+              reason: null, alternatives: [{ recipe_id: "p-2", recipe_name: "Main", account_label: "Personal" }],
+            },
+          };
+          localStorage.setItem("aij.theme", t);
+          localStorage.setItem("aij.onboarding.dismissed", "1");
+          sessionStorage.setItem("aij.ready.skipped", "1");
+          Date.now = () => t0;
+        },
+        { fixture: identityFixture, t: theme, t0: T0 },
+      );
+      await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      await page.goto("/");
+      await page.getByRole("tab", { name: "Sessions" }).click();
+      await expect(page.getByTestId("rail-identity").first()).toBeVisible();
+      await page.getByRole("button", { name: /Work Max/ }).first().click();
+      await expect(page.getByTestId("instance-identity")).toBeVisible();
+      await page.screenshot({ path: resolve(GALLERY, `51-identity/rail-and-chip-${vp.name}-${theme}.png`) });
+      await page.getByRole("tab", { name: "Actions" }).click();
+      await page.getByRole("button", { name: /Resume|Relaunch/ }).first().click();
+      await expect(page.getByTestId("identity-mismatch")).toBeVisible();
+      await expect(page.getByTestId("identity-detected")).toHaveText("o…@home.example");
+      await page.screenshot({ path: resolve(GALLERY, `51-identity/wrong-account-${vp.name}-${theme}.png`) });
+    });
+  }
+}
+
+// ---------------------------------------------------------------------
+// AJ-E1002 — 52-worktree: branch / uncommitted / ahead chips on the rail
+// and the inspector's git line, the worktree offer for a second launch,
+// and the dirty-removal dialog — 1280×800 both themes; the removal
+// dialog also at 1024×680.
+// ---------------------------------------------------------------------
+
+const worktreeFixture = {
+  ...allStatuses,
+  sessions: allStatuses.sessions.map((session, index) => ({
+    ...session,
+    git_branch: index % 2 === 0 ? `juggler/${(index * 4111).toString(16).slice(0, 6)}` : "main",
+    git_dirty_count: index % 3 === 0 ? 3 : 0,
+    git_ahead: index % 2 === 0 ? 2 : 0,
+    git_behind: 0,
+    git_worktree: index % 2 === 0 ? true : undefined,
+    cwd: "/Users/dev/ai-juggler",
+  })),
+};
+
+const gitStatusFor = Object.fromEntries(
+  allStatuses.sessions.map((session) => [
+    session.id,
+    {
+      branch: "juggler/a1b2c3", changed: 2, untracked: 1, ahead: 2, behind: 0, worktree: true,
+      created_by_juggler: true, path: "/Users/dev/ai-juggler.juggler/a1b2c3",
+    },
+  ]),
+);
+
+for (const theme of THEMES) {
+  for (const vp of [
+    { name: "1280x800", width: 1280, height: 800 },
+    { name: "1024x680", width: 1024, height: 680 },
+  ] as const) {
+    test(`52 worktree — chips, offer, dirty removal — ${vp.name} — ${theme}`, async ({ page }) => {
+      await page.addInitScript(
+        ({ fixture, t, t0, git }) => {
+          const w = window as unknown as Record<string, unknown>;
+          w.__AIJ_FIXTURE__ = fixture;
+          w.__AIJ_GIT_STATUS__ = git;
+          w.__AIJ_ISOLATION_OFFER__ = {
+            project_name: "ai-juggler", in_use_by: ["Personal"], available: true, unavailable_reason: null,
+            proposed_path: "/Users/dev/ai-juggler.juggler/a1b2c3", proposed_branch: "juggler/a1b2c3", base_branch: "main",
+          };
+          w.__AIJ_WORKTREE_REMOVAL__ = {
+            path: "/Users/dev/ai-juggler.juggler/a1b2c3", folder: "a1b2c3", branch: "juggler/a1b2c3",
+            changed: 2, untracked: 1, needs_confirmation: true, in_use: false,
+            summary: "Discards 2 changed and 1 untracked files — they are not committed anywhere. The branch juggler/a1b2c3 stays with its commits.",
+          };
+          localStorage.setItem("aij.theme", t);
+          localStorage.setItem("aij.onboarding.dismissed", "1");
+          sessionStorage.setItem("aij.ready.skipped", "1");
+          Date.now = () => t0;
+        },
+        { fixture: worktreeFixture, t: theme, t0: T0, git: gitStatusFor },
+      );
+      await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      await page.goto("/");
+      await page.getByRole("tab", { name: "Sessions" }).click();
+      await expect(page.getByTestId("git-badge").first()).toBeVisible();
+      await page.getByRole("button", { name: /Work Max/ }).first().click();
+      await expect(page.getByTestId("instance-git")).toContainText("3 uncommitted files");
+      if (vp.name === "1280x800") {
+        await page.screenshot({ path: resolve(GALLERY, `52-worktree/chips-1280x800-${theme}.png`) });
+      }
+      await page.getByTestId("worktree-remove").click();
+      await expect(page.getByTestId("worktree-remove-summary")).toContainText("Discards 2 changed");
+      await page.screenshot({ path: resolve(GALLERY, `52-worktree/dirty-removal-${vp.name}-${theme}.png`) });
+      await page.keyboard.press("Escape");
+      if (vp.name === "1280x800") {
+        await page.getByRole("tab", { name: "Actions" }).click();
+        await page.getByRole("button", { name: /Resume|Relaunch/ }).first().click();
+        await expect(page.getByTestId("isolation-offer")).toBeVisible();
+        await page.screenshot({ path: resolve(GALLERY, `52-worktree/offer-1280x800-${theme}.png`) });
+      }
+    });
+  }
+}
+
+// ---------------------------------------------------------------------
+// AJ-E1003 — 53-parked: a parked row with its countdown as text, the
+// inspector's park card, and the one reset offer (Resume / Remind me in
+// 30 min) — 1280×800, light/dark.
+// ---------------------------------------------------------------------
+
+const parkedFixture = {
+  ...allStatuses,
+  sessions: allStatuses.sessions.map((session) =>
+    session.status === "quota_blocked"
+      ? { ...session, parked: "measured", parked_resets_at_ms: T0 + 2 * 3_600_000 + 13 * 60_000 }
+      : session,
+  ),
+};
+
+for (const theme of THEMES) {
+  test(`53 parked — row, card and the reset offer — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ fixture, t, t0 }) => {
+        const w = window as unknown as Record<string, unknown>;
+        w.__AIJ_FIXTURE__ = fixture;
+        w.__AIJ_PARKED_OFFERS__ = [
+          {
+            session_id: "sess-other", account_label: "Personal",
+            text: "Personal has reset. Resume the work you parked — the same conversation, on the same Account.", last: false,
+          },
+        ];
+        localStorage.setItem("aij.theme", t);
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        sessionStorage.setItem("aij.ready.skipped", "1");
+        Date.now = () => t0;
+      },
+      { fixture: parkedFixture, t: theme, t0: T0 },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await page.getByRole("tab", { name: "Sessions" }).click();
+    await expect(page.getByTestId("rail-parked").first()).toContainText("Parked 2h 13m");
+    await expect(page.getByTestId("parked-offer")).toBeVisible();
+    await page.screenshot({ path: resolve(GALLERY, `53-parked/rail-and-offer-1280x800-${theme}.png`) });
+    await page.getByTestId("rail-parked").first().click();
+    await expect(page.getByTestId("park-state")).toContainText("Parked until the quota resets");
+    await page.screenshot({ path: resolve(GALLERY, `53-parked/inspector-1280x800-${theme}.png`) });
+  });
+}
+
+// ---------------------------------------------------------------------
+// AJ-E1004 — 54-summary: the morning summary on the home view —
+// severity-ordered groups with words and an icon, a row opening its
+// Instance, the rail's needs-you badge alongside — 1440×900 and
+// 1024×680, light/dark.
+// ---------------------------------------------------------------------
+
+const summaryRow = (id: string, label: string, group: string, status: string, words: string, over: Record<string, unknown> = {}) => ({
+  session_id: id, account_label: label, provider: "claude-code", project: "ai-juggler", group, status, words,
+  transitions: [
+    { from: null, to: "starting", at_ms: T0 - 8 * 3_600_000 },
+    { from: "starting", to: "running", at_ms: T0 - 8 * 3_600_000 + 4_000 },
+    { from: "running", to: status, at_ms: T0 - 2 * 3_600_000 },
+  ],
+  tokens: null, leftovers: 0, ...over,
+});
+
+const morningSummary = {
+  since_ms: T0 - 9 * 3_600_000,
+  generated_ms: T0,
+  rows: [
+    summaryRow("sess-8", "Work Max", "crashed", "failed", "Crashed", { leftovers: 2 }),
+    summaryRow("sess-3", "Personal", "needs_you", "waiting_user", "Needs you — waiting for an answer"),
+    summaryRow("sess-4", "Work Max", "needs_you", "stuck", "Needs you — no output for a while"),
+    summaryRow("sess-5", "Personal", "needs_you", "quota_blocked", "Needs you — quota reached"),
+    summaryRow("sess-2", "Work Max", "running", "running", "Still running", { tokens: 19_134 }),
+    summaryRow("sess-6", "Work Max", "finished", "finished", "Finished"),
+    summaryRow("sess-7", "Personal", "ended", "stopped", "Ended"),
+  ],
+  counts: { crashed: 1, needs_you: 3, running: 1, finished: 1, ended: 1 },
+  leftovers: 2,
+};
+
+for (const theme of THEMES) {
+  for (const vp of [
+    { name: "1440x900", width: 1440, height: 900 },
+    { name: "1024x680", width: 1024, height: 680 },
+  ] as const) {
+    test(`54 summary — home view and a row into its Instance — ${vp.name} — ${theme}`, async ({ page }) => {
+      await page.addInitScript(
+        ({ fixture, t, t0, summary }) => {
+          const w = window as unknown as Record<string, unknown>;
+          w.__AIJ_FIXTURE__ = fixture;
+          w.__AIJ_SUMMARY__ = summary;
+          localStorage.setItem("aij.theme", t);
+          localStorage.setItem("aij.onboarding.dismissed", "1");
+          sessionStorage.setItem("aij.ready.skipped", "1");
+          Date.now = () => t0;
+        },
+        { fixture: allStatuses, t: theme, t0: T0, summary: morningSummary },
+      );
+      await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      await page.goto("/");
+      await expect(page.getByTestId("summary-headline")).toContainText("1 crashed · 3 needs you");
+      await page.screenshot({ path: resolve(GALLERY, `54-summary/home-${vp.name}-${theme}.png`) });
+      await page.getByTestId("summary-row").first().click();
+      await expect(page.getByRole("tab", { name: "Quality / Performance" })).toBeVisible();
+      await page.screenshot({ path: resolve(GALLERY, `54-summary/opened-${vp.name}-${theme}.png`) });
+    });
+  }
+}
+
+// ---------------------------------------------------------------------
+// AJ-E1005 — 55-triage: the morning triage populated (needs you, parked,
+// running, finished — not reviewed) and empty, at 1440×900 and 1024×680,
+// light/dark, comfortable and compact.
+// ---------------------------------------------------------------------
+
+for (const theme of THEMES) {
+  for (const vp of [
+    { name: "1440x900", width: 1440, height: 900 },
+    { name: "1024x680", width: 1024, height: 680 },
+  ] as const) {
+    for (const density of ["comfortable", "compact"] as const) {
+      test(`55 triage — populated — ${vp.name} — ${density} — ${theme}`, async ({ page }) => {
+        await page.addInitScript(
+          ({ fixture, t, t0, d }) => {
+            const w = window as unknown as Record<string, unknown>;
+            w.__AIJ_FIXTURE__ = fixture;
+            localStorage.setItem("aij.theme", t);
+            localStorage.setItem("aij.density", d);
+            localStorage.setItem("aij.onboarding.dismissed", "1");
+            sessionStorage.setItem("aij.ready.skipped", "1");
+            Date.now = () => t0;
+          },
+          { fixture: parkedFixture, t: theme, t0: T0, d: density },
+        );
+        await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+        await page.setViewportSize({ width: vp.width, height: vp.height });
+        await page.goto("/");
+        await page.getByRole("button", { name: "Triage" }).click();
+        await expect(page.getByTestId("triage-group-parked")).toContainText("2h 13m");
+        await expect(page.getByTestId("triage-action").first()).toBeVisible();
+        await page.screenshot({ path: resolve(GALLERY, `55-triage/populated-${vp.name}-${density}-${theme}.png`) });
+      });
+    }
+    test(`55 triage — empty — ${vp.name} — ${theme}`, async ({ page }) => {
+      await page.addInitScript(
+        ({ fixture, t, t0 }) => {
+          const w = window as unknown as Record<string, unknown>;
+          w.__AIJ_FIXTURE__ = fixture;
+          localStorage.setItem("aij.theme", t);
+          localStorage.setItem("aij.onboarding.dismissed", "1");
+          sessionStorage.setItem("aij.ready.skipped", "1");
+          Date.now = () => t0;
+        },
+        { fixture: { ...allStatuses, sessions: [] }, t: theme, t0: T0 },
+      );
+      await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      await page.goto("/");
+      await page.getByRole("button", { name: "Triage" }).click();
+      await expect(page.getByTestId("triage-empty")).toBeVisible();
+      await page.screenshot({ path: resolve(GALLERY, `55-triage/empty-${vp.name}-${theme}.png`) });
+    });
+  }
 }

@@ -61,3 +61,8 @@ within the window+46 s end-to-end budget asserted by the test.
 - Thresholds: SPEC §5.1 defaults (300 s / 5% / 300 s / 120 s),
   user-tunable via `heuristics.json` in the app data dir; the Settings
   screen UI lands with its own task and writes the same file.
+- Per-Provider no-output threshold (AJ-E1004): an optional `providers`
+  map in the same file, for example
+  `{"providers": {"codex": {"stuck_no_output_secs": 900}}}`, overrides
+  the global value for that Provider's Instances. The Stuck reason
+  always names the threshold it was judged against (`threshold 15m`).

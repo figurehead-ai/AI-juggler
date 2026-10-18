@@ -757,8 +757,9 @@ pub(crate) fn switch_back_here(
             delta_prompt: Some(bundle.delta_turn.clone()).filter(|text| !text.is_empty()),
         },
         Some(resume_ref),
+        "switch_back",
     )
-    .map_err(|e| refuse("launch_failed", e.wire().user_message))?;
+    .map_err(super::launch_refusal)?;
     record_back(state, peer, back, &original, &account, &instance, resume_id)
         .map_err(|e| refuse("internal", e.wire().user_message))?;
     Ok(HandoverAccepted {

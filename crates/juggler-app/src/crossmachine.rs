@@ -1154,8 +1154,10 @@ fn take_work(
         ),
         _ => return Err(refuse("malformed", "Unknown handover mechanism.")),
     };
-    let (session, _pid) = launch_here(state, &profile, &account, &project, &mode, transcript)
-        .map_err(|e| refuse("launch_failed", e.wire().user_message))?;
+    let (session, _pid) = launch_here(
+        state, &profile, &account, &project, &mode, transcript, "handover",
+    )
+    .map_err(launch_refusal)?;
     record_taken(
         state,
         peer,
@@ -1176,6 +1178,18 @@ fn take_work(
         message: format!("Continuing under {} in {}", account.label, project.name),
         instance_id: session.to_string(),
     })
+}
+
+/// A launch failure in the node's words (an identity mismatch keeps its
+/// own code — the console says "signed in as someone else there").
+pub(crate) fn launch_refusal(error: AppError) -> HandoverRejection {
+    let wire = error.wire();
+    let code = if wire.code == "identity_mismatch" {
+        "identity_mismatch"
+    } else {
+        "launch_failed"
+    };
+    refuse(code, wire.user_message)
 }
 
 /// Installs a T2 bundle under `account`, with the source's working
@@ -1279,6 +1293,7 @@ pub(crate) fn launch_here(
     project: &juggler_core::model::ProjectRecord,
     mode: &juggler_adapter::LaunchMode,
     transcript: Option<TranscriptRef>,
+    moment: &str,
 ) -> AppResult<(SessionId, u32)> {
     if profile.settings_overlay.model.is_some()
         && account.harness.as_str() == juggler_adapters::CLAUDE_CODE_ID
@@ -1292,6 +1307,8 @@ pub(crate) fn launch_here(
         .registry
         .get(&account.harness)
         .ok_or_else(|| AppError::UnknownHarness(account.harness.to_string()))?;
+    // AJ-E1001: the receiving Account must be who it was here too.
+    let assertion = crate::identity::assert_identity(state, account)?;
     let spec = adapter.launch_spec(account, profile, &project.root, mode)?;
     let session = SessionId::new(format!("sess-{}", crate::commands::unique_suffix()));
     let spawned = state.supervisor.spawn(
@@ -1322,6 +1339,8 @@ pub(crate) fn launch_here(
         window: None,
         transcript_ref: transcript,
     })?;
+    drop(storage);
+    crate::identity::record(state, &session, account, &assertion, moment);
     Ok((session, spawned.pid))
 }
 

@@ -1663,6 +1663,39 @@ pub struct InstanceInfo {
     /// cannot isolate` for single-account apps); `null` for terminal
     /// Instances and when the provider's adapter is not registered.
     pub isolation_label: Option<String>,
+    /// AJ-E1001: the latest identity assertion — `verified` |
+    /// `first_seen` | `signed_out` | `unverified` (absent before any
+    /// check, e.g. adopted after a crash).
+    #[ts(optional)]
+    pub identity_state: Option<String>,
+    /// The identity it ran as (masked), when known.
+    #[ts(optional)]
+    pub identity_label: Option<String>,
+    /// AJ-E1002: commits ahead of the upstream (cached `git status`,
+    /// at most every 30 s; absent = unknown).
+    #[ts(optional, type = "number")]
+    pub git_ahead: Option<u64>,
+    /// Commits behind the upstream.
+    #[ts(optional, type = "number")]
+    pub git_behind: Option<u64>,
+    /// It runs in a linked git worktree.
+    #[ts(optional)]
+    pub git_worktree: Option<bool>,
+    /// AJ-E1003: parked until its quota resets — the reset's
+    /// confidence (`measured` | `estimated` | `unknown`); absent when not
+    /// parked.
+    #[ts(optional)]
+    pub parked: Option<String>,
+    /// The reset it waits for, epoch ms (countdown only when measured).
+    #[ts(optional, type = "number")]
+    pub parked_resets_at_ms: Option<i64>,
+    /// AJ-E1005/AJ-E1007: its latest lifecycle step (`reviewed`), absent
+    /// when it has none.
+    #[ts(optional)]
+    pub lifecycle: Option<String>,
+    /// When that step was taken, epoch ms.
+    #[ts(optional, type = "number")]
+    pub lifecycle_at_ms: Option<i64>,
 }
 
 /// Deprecated alias (one version). AJ-E107.
@@ -3170,6 +3203,8 @@ pub fn launch_profile(
                 .map(|p| p.to_string_lossy().into_owned())
         })
         .map_or_else(std::env::temp_dir, std::path::PathBuf::from);
+    // AJ-E1001: who this Account is signed in as — before anything runs.
+    let assertion = crate::identity::assert_identity(state, &account)?;
     let spec = adapter.launch_spec(&account, &profile, &effective_cwd, &LaunchMode::Interactive)?;
     let session_id = SessionId::new(format!("sess-{}", unique_suffix()));
     // The juggling anchor: this launch's cwd becomes (or refreshes) the
@@ -3215,6 +3250,7 @@ pub fn launch_profile(
             transcript_ref: None,
         })?;
     };
+    crate::identity::record(state, &session_id, &account, &assertion, "launch");
     Ok(LaunchResult {
         session_id: session_id.to_string(),
         pid: spawned.pid,
@@ -4005,6 +4041,20 @@ pub fn heuristic_tick(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResul
     let mut changed = false;
     {
         let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
+        // AJ-E1004 Req.1: each Instance is judged against its Provider's
+        // own no-output threshold when one is configured.
+        let harness_of: std::collections::BTreeMap<String, String> =
+            if state.provider_stuck_secs.is_empty() {
+                std::collections::BTreeMap::new()
+            } else {
+                let mut map = std::collections::BTreeMap::new();
+                for account in storage.accounts().list()? {
+                    for recipe in storage.profiles().list_by_account(&account.id)? {
+                        map.insert(recipe.id.to_string(), account.harness.to_string());
+                    }
+                }
+                map
+            };
         for record in storage.sessions().list(None)? {
             if !is_active(record.status) {
                 engine.forget(&record.id);
@@ -4031,7 +4081,12 @@ pub fn heuristic_tick(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResul
                 prompt_alive: juggler_supervisor::prompt_alive(&tail),
                 now_ms: now,
             };
-            if let Some(transition) = engine.evaluate(&record.id, &inputs) {
+            let provider_stuck_secs = harness_of
+                .get(record.profile.as_str())
+                .and_then(|harness| state.provider_stuck_secs.get(harness))
+                .copied();
+            if let Some(transition) = engine.evaluate_for(&record.id, &inputs, provider_stuck_secs)
+            {
                 apply_attention_transition(&storage, &record.id, &transition);
                 changed = true;
             }
@@ -4519,19 +4574,8 @@ fn needs_attention_of(status: SessionStatus) -> Option<NeedsAttention> {
     }
 }
 
-/// I-09: branch name read from `<cwd>/.git/HEAD` — one file read, never a
-/// `git` subprocess on the hot path (AJ-E401 performance budget). Detached
-/// heads and worktree/gitfile layouts return `None`: unknown, not guessed.
-fn git_branch_of(cwd: &std::path::Path) -> Option<String> {
-    let head = std::fs::read_to_string(cwd.join(".git").join("HEAD")).ok()?;
-    head.trim()
-        .strip_prefix("ref: refs/heads/")
-        .filter(|name| !name.is_empty())
-        .map(ToString::to_string)
-}
-
 /// A terminal status: the process is gone, so nothing about it is live.
-fn is_terminal(status: SessionStatus) -> bool {
+pub(crate) fn is_terminal(status: SessionStatus) -> bool {
     matches!(
         status,
         SessionStatus::Finished
@@ -4673,6 +4717,17 @@ fn session_join_indexes(storage: &Storage) -> AppResult<(AccountIndex, RecipeInd
     Ok((account_index, recipe_index))
 }
 
+/// Measured token counts for the wire; all-zero means unmeasured (null).
+fn tokens_info(t: juggler_core::model::TokenCounts) -> Option<TokenCountsInfo> {
+    (t != juggler_core::model::TokenCounts::default()).then_some(TokenCountsInfo {
+        input: t.input,
+        output: t.output,
+        cache_read: t.cache_read,
+        cache_write: t.cache_write,
+        reasoning: t.reasoning,
+    })
+}
+
 fn session_infos(
     storage: &Storage,
     live: &LiveStatsMap,
@@ -4680,6 +4735,9 @@ fn session_infos(
     adopted_ids: &[juggler_core::model::SessionId],
 ) -> AppResult<Vec<InstanceInfo>> {
     let (account_index, recipe_index) = session_join_indexes(storage)?;
+    let identities = storage.identity().latest_by_session().unwrap_or_default();
+    let parked = crate::parked::parked_index(storage);
+    let lifecycle = storage.sessions().lifecycle_latest().unwrap_or_default();
     Ok(storage
         .sessions()
         .list(None)?
@@ -4695,6 +4753,11 @@ fn session_infos(
             let (model, model_source) =
                 display_model(record.running.as_ref(), launch_model.as_ref());
             let terminal = is_terminal(record.status);
+            let git = if terminal {
+                None
+            } else {
+                crate::worktree::cached_status(&record.cwd)
+            };
             let stats = if terminal {
                 None
             } else {
@@ -4716,18 +4779,7 @@ fn session_infos(
                 model_source,
                 status: record.status.as_str().to_string(),
                 quota: quota_snapshot_of(&record.usage),
-                tokens: if record.usage.tokens == juggler_core::model::TokenCounts::default() {
-                    None
-                } else {
-                    let t = record.usage.tokens;
-                    Some(TokenCountsInfo {
-                        input: t.input,
-                        output: t.output,
-                        cache_read: t.cache_read,
-                        cache_write: t.cache_write,
-                        reasoning: t.reasoning,
-                    })
-                },
+                tokens: tokens_info(record.usage.tokens),
                 cpu_pct: stats.and_then(|s| s.cpu_pct),
                 rss_bytes: stats.map(|s| s.rss_bytes),
                 child_count: if terminal {
@@ -4738,10 +4790,16 @@ fn session_infos(
                 // No transcript-derived source exists yet (AJ-E409) —
                 // shipped nullable, never backfilled with a guess.
                 subtask_count: None,
-                git_branch: git_branch_of(&record.cwd),
-                // No subprocess-free dirty-count source; collector lands
-                // with the E4 signals work. Null = unavailable, not 0.
-                git_dirty_count: None,
+                git_branch: crate::worktree::branch_of(&record.cwd),
+                // AJ-E1002: changed + untracked from the cached git
+                // status (refreshed in the background, at most every
+                // 30 s; live Instances only). Null = not read yet / not
+                // git — never 0.
+                git_dirty_count: git.as_ref().map(|status| status.changed + status.untracked),
+                git_ahead: git.as_ref().and_then(|status| status.ahead),
+                git_behind: git.as_ref().and_then(|status| status.behind),
+                git_worktree: Some(crate::worktree::is_linked_worktree(&record.cwd))
+                    .filter(|linked| *linked),
                 needs_attention: needs_attention_of(record.status),
                 attention: record.attention.as_ref().map(|reason| AttentionInfo {
                     rule: reason.rule.clone(),
@@ -4759,6 +4817,20 @@ fn session_infos(
                     .map(std::string::ToString::to_string),
                 conversation_id: record.conversation.as_ref().map(|c| c.as_str().to_string()),
                 isolation_label,
+                identity_state: identities
+                    .get(record.id.as_str())
+                    .map(|assertion| assertion.state.clone()),
+                identity_label: identities
+                    .get(record.id.as_str())
+                    .and_then(|assertion| assertion.label.clone()),
+                parked: parked
+                    .get(record.id.as_str())
+                    .map(|(_, confidence)| confidence.clone()),
+                parked_resets_at_ms: parked.get(record.id.as_str()).and_then(|(at, _)| *at),
+                lifecycle: lifecycle
+                    .get(record.id.as_str())
+                    .map(|(event, _)| event.clone()),
+                lifecycle_at_ms: lifecycle.get(record.id.as_str()).map(|(_, at)| *at),
             }
         })
         .collect())
@@ -5403,6 +5475,10 @@ pub fn switch_execute_impl(
             ),
         })?;
 
+    // AJ-E1001: the target Account must be who it was, before anything
+    // moves.
+    let assertion = crate::identity::assert_identity(state, &account_b)?;
+
     // Record (E201): the Staged edge exists BEFORE anything moves;
     // failures transition it, history is never rewritten.
     let (work_id, from_epoch, edge_id) =
@@ -5454,6 +5530,8 @@ pub fn switch_execute_impl(
             session: new_session.clone(),
         },
     )?;
+
+    crate::identity::record(state, &new_session, &account_b, &assertion, "switch");
 
     // AJ-E208: the switch's redaction decision rides the edge.
     record_redaction_decision(
@@ -9379,7 +9457,7 @@ fn persist_running_model(
 mod tests {
     use super::{
         AppInfo, InstanceInfo, LiveStatsMap, NeedsAttention, QuotaSnapshotInfo, TokenCountsInfo,
-        git_branch_of, needs_attention_of, session_infos,
+        needs_attention_of, session_infos,
     };
     use juggler_core::model::{
         Account, AccountId, Confidence, InstanceKind, InstanceRecord, LaunchRecipe, MachineId,
@@ -9822,8 +9900,8 @@ mod tests {
     #[test]
     fn git_branch_parses_refs_only() {
         let cwd = git_cwd("main");
-        assert_eq!(git_branch_of(&cwd), Some("main".to_string()));
-        assert_eq!(git_branch_of(&std::env::temp_dir()), None);
+        assert_eq!(crate::worktree::branch_of(&cwd), Some("main".to_string()));
+        assert_eq!(crate::worktree::branch_of(&std::env::temp_dir()), None);
         let detached =
             std::env::temp_dir().join(format!("aij-e401-{}-detached", std::process::id()));
         std::fs::create_dir_all(detached.join(".git")).expect("fixture");
@@ -9832,7 +9910,7 @@ mod tests {
             "0123456789abcdef0123456789abcdef01234567\n",
         )
         .expect("fixture");
-        assert_eq!(git_branch_of(&detached), None);
+        assert_eq!(crate::worktree::branch_of(&detached), None);
         std::fs::remove_dir_all(detached).ok();
         std::fs::remove_dir_all(cwd.join(".git")).ok();
     }
@@ -10618,6 +10696,8 @@ fn resume_original_with_delta(
         .registry
         .get(&account_a.harness)
         .ok_or_else(|| AppError::UnknownHarness(account_a.harness.to_string()))?;
+    // AJ-E1001: the original Account must still be who it was.
+    let assertion = crate::identity::assert_identity(state, &account_a)?;
     let new_session = SessionId::new(format!("sess-{}", unique_suffix()));
     let spec = adapter.launch_spec(&account_a, &profile_a, &original_session.cwd, &mode)?;
     let spawned = state.supervisor.spawn(
@@ -10642,6 +10722,7 @@ fn resume_original_with_delta(
         fresh,
         actions,
     )?;
+    crate::identity::record(state, &new_session, &account_a, &assertion, "switch_back");
 
     Ok(LaunchResult {
         session_id: new_session.to_string(),
@@ -11750,12 +11831,50 @@ pub fn pack_export(state: tauri::State<'_, Arc<AppState>>, epoch_id: String) -> 
 ///
 /// Returns the typed [`AppError`] per the command docs.
 pub fn pack_export_impl(state: &Arc<AppState>, epoch_id: &str) -> AppResult<String> {
+    let (epoch, session_row, account) = find_epoch_with_session(state, epoch_id)?;
+    let dir = state
+        .data_dir
+        .join("exports")
+        .join(format!("pack-{}", unique_suffix()));
+    stage_session_pack(
+        state,
+        &session_row,
+        &account,
+        &PackIds {
+            work: epoch.work.to_string(),
+            epoch: epoch.id.to_string(),
+            native: epoch.native_id.clone().unwrap_or_default(),
+        },
+        &dir,
+    )?;
+    Ok(dir.to_string_lossy().into_owned())
+}
+
+/// The lineage ids a staged pack carries.
+pub(crate) struct PackIds {
+    pub work: String,
+    pub epoch: String,
+    pub native: String,
+}
+
+/// Writes the redacted portable pack for one Instance into `dir` — the
+/// shared body of a standalone export and of parking (AJ-E1003). The
+/// GLOBAL redaction policy governs (unset blocks — no default applied).
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] when the policy is unset, the session
+/// has no transcript, or the pack can't be written.
+pub(crate) fn stage_session_pack(
+    state: &Arc<AppState>,
+    session_row: &juggler_core::model::InstanceRecord,
+    account: &Account,
+    ids: &PackIds,
+    dir: &std::path::Path,
+) -> AppResult<()> {
     use juggler_handover::pack::{ConversationMode, IrTurn, PackInput, PackSource};
     use juggler_handover::redaction::{RedactionApply, RedactionPolicy, redacted_pack};
 
-    let (epoch, session_row, account) = find_epoch_with_session(state, epoch_id)?;
-    // The GLOBAL redaction policy governs standalone exports
-    // (unset blocks, exactly like switches — no default is applied).
     let policy = {
         let storage = lock_storage_arc(state)?;
         juggler_handover::redaction::resolve_policy(redaction_global_of(&storage), None)
@@ -11778,15 +11897,15 @@ pub fn pack_export_impl(state: &Arc<AppState>, epoch_id: &str) -> AppResult<Stri
     let input = PackInput {
         pack_id: format!("pack-{}", unique_suffix()),
         created_at_ms: Timestamp::now().millis(),
-        work_id: epoch.work.to_string(),
+        work_id: ids.work.clone(),
         edge_id: None,
         source: PackSource {
             provider: account.harness.to_string(),
             account_label: account.label.clone(),
             profile_name: None,
-            native_session_id: epoch.native_id.clone().unwrap_or_default(),
+            native_session_id: ids.native.clone(),
             harness_version: None,
-            epoch_id: epoch.id.to_string(),
+            epoch_id: ids.epoch.clone(),
         },
         target_hint: None,
         project: juggler_handover::pack::PackProject {
@@ -11797,12 +11916,17 @@ pub fn pack_export_impl(state: &Arc<AppState>, epoch_id: &str) -> AppResult<Stri
                 .map(ToString::to_string)
                 .unwrap_or_default(),
         },
+        // AJ-E1002: the pack records the branch and, for a linked
+        // worktree, its path (switches keep the binding).
         git: juggler_handover::pack::PackGit {
-            branch: "unknown".to_owned(),
+            branch: crate::worktree::branch_of(&session_row.cwd)
+                .unwrap_or_else(|| "unknown".to_owned()),
             head_sha: None,
-            dirty: false,
+            dirty: crate::worktree::read_status(&session_row.cwd)
+                .is_some_and(|status| status.changed + status.untracked > 0),
             diff_stat: None,
-            worktree_path: None,
+            worktree_path: crate::worktree::is_linked_worktree(&session_row.cwd)
+                .then(|| session_row.cwd.to_string_lossy().into_owned()),
         },
         turns,
         compacted: false,
@@ -11821,19 +11945,15 @@ pub fn pack_export_impl(state: &Arc<AppState>, epoch_id: &str) -> AppResult<Stri
         keep: std::collections::BTreeSet::new(),
     };
     let pack = redacted_pack(&input, ConversationMode::Distilled { last_n: 12 }, &apply);
-    let dir = state
-        .data_dir
-        .join("exports")
-        .join(format!("pack-{}", unique_suffix()));
-    std::fs::create_dir_all(&dir).map_err(|error| AppError::Io {
+    std::fs::create_dir_all(dir).map_err(|error| AppError::Io {
         context: "export pack",
         message: format!("could not create {}: {error}", dir.display()),
     })?;
-    juggler_handover::pack::write_pack(&dir, &pack).map_err(|error| AppError::Io {
+    juggler_handover::pack::write_pack(dir, &pack).map_err(|error| AppError::Io {
         context: "export pack",
         message: error.to_string(),
     })?;
-    Ok(dir.to_string_lossy().into_owned())
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------

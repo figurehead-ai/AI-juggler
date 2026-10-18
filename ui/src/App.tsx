@@ -29,12 +29,15 @@ import {
 } from "./lib/bridge";
 import { isHandoverShortcut, isStopShortcut } from "./lib/shortcuts";
 import { ProfilesScreen } from "./screens/Profiles";
+import { Triage } from "./screens/Triage";
 import { OnboardingWizard } from "./screens/OnboardingWizard";
 import { NewSessionModal } from "./screens/NewSession";
 import { NewProjectSheet } from "./screens/NewProjectSheet";
 import { FleetScreen } from "./screens/FleetScreen";
 import { SettingsScreen } from "./screens/Settings";
 import { FleetPromptDialog } from "./components/FleetPromptDialog";
+import { IdentityMismatchDialog } from "./components/IdentityMismatchDialog";
+import { IsolationOfferDialog } from "./components/IsolationOfferDialog";
 import { funnelEvent } from "./lib/funnel";
 import { ReadyHome } from "./screens/ReadyHome";
 import { SessionPanel } from "./screens/WorkPanels";
@@ -81,6 +84,8 @@ import {
  */
 
 const GLOBAL_NAV = [
+  // AJ-E1005: the morning question first — who needs me?
+  { id: "triage", label: "Triage" },
   { id: "overview", label: "Overview" },
   { id: "accounts", label: "Accounts" },
   { id: "usage", label: "Usage" },
@@ -734,6 +739,16 @@ export default function App() {
                 }}
               />
             </div>
+          ) : global === "triage" ? (
+            <div className="h-full overflow-y-auto">
+              <Triage
+                sessions={sessions}
+                projects={projects}
+                density={density}
+                onOpenSession={selectSession}
+                onChanged={() => void refresh()}
+              />
+            </div>
           ) : global === "overview" ? (
             <div className="h-full overflow-y-auto">
               <Overview
@@ -952,6 +967,8 @@ export default function App() {
 
       {/* AJ-E709: "Ask each time" — a paired machine waits for this Mac's user. */}
       <FleetPromptDialog />
+      <IdentityMismatchDialog />
+      <IsolationOfferDialog />
       <GoToPalette
         open={goToOpen}
         onClose={() => setGoToOpen(false)}

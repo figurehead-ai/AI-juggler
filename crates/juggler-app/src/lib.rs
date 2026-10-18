@@ -17,12 +17,17 @@ pub mod error;
 pub mod figurehead;
 pub mod fleet;
 pub mod focus;
+pub mod identity;
+pub mod lifecycle;
 pub mod link;
+pub mod overnight;
+pub mod parked;
 pub mod preview;
 pub mod remote;
 pub mod state;
 pub mod terminal;
 pub mod usage_pipeline;
+pub mod worktree;
 
 use std::sync::Arc;
 
@@ -172,6 +177,22 @@ pub fn run() {
             remote::fleet_remote_stop,
             remote::fleet_remote_focus,
             remote::fleet_remote_clean,
+            overnight::overnight_summary,
+            overnight::overnight_summary_seen,
+            parked::instance_park,
+            lifecycle::instance_mark_reviewed,
+            parked::parked_list,
+            parked::parked_offers,
+            parked::parked_dismiss,
+            parked::parked_check_now,
+            parked::parked_resume,
+            worktree::isolation_offer,
+            worktree::worktree_create,
+            worktree::worktree_removal_preview,
+            worktree::worktree_remove,
+            worktree::git_status_refresh,
+            identity::identity_check,
+            identity::account_forget_identity,
             crossmachine::fleet_switch_targets,
             crossmachine::fleet_switch_execute,
             crossmachine::fleet_switch_cancel,
