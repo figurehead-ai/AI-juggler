@@ -1,3 +1,4 @@
+import { identityWords } from "../lib/identity";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button, Card, Chip, type ChipTone } from "./primitives";
 import { TerminalView } from "./TerminalView";
@@ -756,6 +757,13 @@ function InstanceOverview(props: PanelProps) {
               {props.profiles.find((r) => r.id === session.launch_recipe_id)?.name ?? "launch settings"}
             </Chip>
             <Chip tone="accent">{session.model ?? "default model"}</Chip>
+            {identityWords(session) && (
+              <span data-testid="instance-identity" data-state={identityWords(session)!.state}>
+                <Chip tone={identityWords(session)!.state === "verified" ? "success" : "neutral"}>
+                  {identityWords(session)!.text}
+                </Chip>
+              </span>
+            )}
             {session.model_source === "launch" && session.launch_model !== null && (
               <Chip tone="warning">not verified live</Chip>
             )}

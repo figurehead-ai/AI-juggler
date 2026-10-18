@@ -2329,3 +2329,52 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("conflict-apply")).toBeEnabled();
   });
 }
+
+/** AJ-E1001 a11y (both themes): the rail's identity marker (focusable,
+ * named in words) and the wrong-account pause (alertdialog, actions in
+ * order, Esc cancels) scan axe-clean. */
+for (const theme of ["dark", "light"] as const) {
+  test(`identity — rail marker and wrong-account pause — axe 0 — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ fixture, theme: t }) => {
+        const w = window as unknown as Record<string, unknown>;
+        const base = fixture as { sessions: Array<Record<string, unknown>> };
+        w.__AIJ_FIXTURE__ = {
+          ...base,
+          sessions: base.sessions.map((s, i) => ({
+            ...s,
+            identity_state: ["verified", "first_seen", "unverified", "signed_out"][i % 4],
+            identity_label: "o…@work.example · Acme",
+          })),
+        };
+        w.__AIJ_IDENTITY_CHECK__ = {
+          "p-1": {
+            state: "mismatch", provider: "claude-code", account_id: "claude-work", account_label: "Work Max",
+            model: "opus", expected: "o…@work.example · Acme", detected: "o…@home.example", reason: null,
+            alternatives: [{ recipe_id: "p-2", recipe_name: "Main", account_label: "Personal" }],
+          },
+        };
+        localStorage.setItem("aij.theme", t);
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        sessionStorage.setItem("aij.ready.skipped", "1");
+      },
+      { fixture: allStatuses, theme },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await page.getByRole("tab", { name: "Sessions" }).click();
+    await expect(page.getByTestId("rail-identity").first()).toHaveAttribute("aria-label", /verified|first seen|unverified|Not signed in/);
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+    await page.getByRole("button", { name: /Work Max/ }).first().click();
+    await page.getByRole("tab", { name: "Actions" }).click();
+    await page.getByRole("button", { name: /Resume|Relaunch/ }).first().click();
+    await expect(page.getByTestId("identity-mismatch")).toBeVisible();
+    await expect(page.getByTestId("identity-switch")).toBeFocused();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+    await page.keyboard.press("Tab");
+    await expect(page.getByTestId("identity-recheck")).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("identity-mismatch")).toHaveCount(0);
+  });
+}

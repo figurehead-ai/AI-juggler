@@ -146,4 +146,14 @@ conversation_id: string | null,
  * cannot isolate` for single-account apps); `null` for terminal
  * Instances and when the provider's adapter is not registered.
  */
-isolation_label: string | null, };
+isolation_label: string | null, 
+/**
+ * AJ-E1001: the latest identity assertion — `verified` |
+ * `first_seen` | `signed_out` | `unverified` (absent before any
+ * check, e.g. adopted after a crash).
+ */
+identity_state?: string, 
+/**
+ * The identity it ran as (masked), when known.
+ */
+identity_label?: string, };

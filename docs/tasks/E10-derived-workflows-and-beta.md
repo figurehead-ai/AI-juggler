@@ -9,7 +9,7 @@
 > dogfood or interview evidence (AJ-E809 consumes the results).
 > Vocabulary: Provider / Account / Instance / Launch settings.
 
-### AJ-E1001 Per-Instance identity assertion (wrong-account billing guard) | Status: TODO | Priority P0 | Effort M | Depends: —
+### AJ-E1001 Per-Instance identity assertion (wrong-account billing guard) | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: —
 **Goal**: Prove, before and during launch, that an Instance is actually running under its intended Account, so work is never silently billed to the machine-default account.
 **User story**: As a developer with several subscriptions, I want Juggler to warn me immediately if a session is running under the wrong account, before it burns the wrong quota.
 **Requirements**:

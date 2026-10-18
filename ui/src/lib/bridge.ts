@@ -18,6 +18,8 @@ import type { PairingStateInfo } from "../types/generated/PairingStateInfo";
 import type { FigureheadStatusInfo } from "../types/generated/FigureheadStatusInfo";
 import type { CloudFeatureInfo } from "../types/generated/CloudFeatureInfo";
 import type { RemoteMachineInfo } from "../types/generated/RemoteMachineInfo";
+import type { IdentityCheckInfo } from "../types/generated/IdentityCheckInfo";
+import type { IdentityAlternativeInfo } from "../types/generated/IdentityAlternativeInfo";
 import type { RemoteSwitchTargetInfo } from "../types/generated/RemoteSwitchTargetInfo";
 import type { RemoteProjectOption } from "../types/generated/RemoteProjectOption";
 import type { FleetSwitchRequest } from "../types/generated/FleetSwitchRequest";
@@ -77,6 +79,8 @@ export type {
   FigureheadStatusInfo,
   CloudFeatureInfo,
   RemoteMachineInfo,
+  IdentityCheckInfo,
+  IdentityAlternativeInfo,
   RemoteSwitchTargetInfo,
   RemoteProjectOption,
   FleetSwitchRequest,
@@ -665,17 +669,89 @@ export async function deleteProfile(profileId: string): Promise<void> {
   await invoke("profile_delete", { profileId });
 }
 
+/** AJ-E1001: who a Launch setting's Account is signed in as — checked
+ * before anything launches (read-only). */
+export async function identityCheck(recipeId: string): Promise<IdentityCheckInfo> {
+  if (!hasBackend) {
+    const seams = window as unknown as { __AIJ_IDENTITY_CHECK__?: Record<string, IdentityCheckInfo> };
+    const seeded = seams.__AIJ_IDENTITY_CHECK__?.[recipeId];
+    if (seeded) return seeded;
+    return {
+      state: "verified",
+      provider: "claude-code",
+      account_id: "",
+      account_label: "",
+      model: null,
+      expected: null,
+      detected: null,
+      reason: null,
+      alternatives: [],
+    };
+  }
+  return invoke<IdentityCheckInfo>("identity_check", { recipeId });
+}
+
+/** What the user chose in the identity-mismatch dialog. */
+export type IdentityDecision = { kind: "switch"; recipeId: string } | { kind: "recheck" } | { kind: "cancel" };
+
+/** The event the app's identity dialog listens for (one dialog serves
+ * every launch entry point). */
+export const IDENTITY_MISMATCH_EVENT = "aij:identity-mismatch";
+
+export type IdentityMismatchRequest = {
+  check: IdentityCheckInfo;
+  resolve: (decision: IdentityDecision) => void;
+};
+
+/** Asks the user (through the app's dialog) what to do about a mismatch. */
+function askIdentityDecision(check: IdentityCheckInfo): Promise<IdentityDecision> {
+  return new Promise((resolve) => {
+    const detail: IdentityMismatchRequest = { check, resolve };
+    const delivered = window.dispatchEvent(new CustomEvent(IDENTITY_MISMATCH_EVENT, { detail, cancelable: true }));
+    // No dialog mounted (a test, a detached view): never continue silently.
+    if (delivered) {
+      window.setTimeout(() => {
+        if (!(detail as { claimed?: boolean }).claimed) resolve({ kind: "cancel" });
+      }, 0);
+    }
+  });
+}
+
+/** Launches a session — after the AJ-E1001 identity check. A mismatch
+ * pauses for the user (switch selection / check again / cancel); there
+ * is no "continue anyway", and the backend refuses one regardless. */
 export async function launchSession(
   profileId: string,
   cwd: string | null,
 ): Promise<{ session_id: string; pid: number } | null> {
+  let recipe = profileId;
+  for (;;) {
+    const check = await identityCheck(recipe);
+    if (check.state !== "mismatch") break;
+    const decision = await askIdentityDecision(check);
+    if (decision.kind === "cancel") {
+      throw new Error(
+        `Not launched — «${check.account_label}» is signed in as ${check.detected ?? "someone else"}, not ${check.expected ?? "its account"}.`,
+      );
+    }
+    if (decision.kind === "switch") recipe = decision.recipeId;
+  }
   if (!hasBackend) {
+    const seams = window as unknown as { __AIJ_LAUNCH_CALLS__?: string[] };
+    seams.__AIJ_LAUNCH_CALLS__ = [...(seams.__AIJ_LAUNCH_CALLS__ ?? []), recipe];
     return null; // preview mode: nothing really launches
   }
   return invoke<{ session_id: string; pid: number }>("launch_session", {
-    profileId,
+    profileId: recipe,
     cwd,
   });
+}
+
+/** AJ-E1001: forgets an Account's remembered identity (learned again at
+ * its next launch, shown as "first seen"). */
+export async function accountForgetIdentity(accountId: string): Promise<void> {
+  if (!hasBackend) return;
+  return invoke<void>("account_forget_identity", { accountId });
 }
 
 /** Tracked projects — the juggling anchor (which instance is on each directory). */

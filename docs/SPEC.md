@@ -284,6 +284,7 @@ pub trait HarnessAdapter: Send + Sync {
 - Adapters are *read-only* toward native state except for their own managed dirs, and `prepare_account` is the only writer.
 - Every parser is versioned: adapters declare `verified_against: ["2.1.296"]`-style ranges; `discover()` warns on drift and capability-probes at runtime (never assumes).
 - Session IR is a versioned, neutral schema (`Transcript { meta, messages[], usage[] }`) with per-Provider converters — this is what switching and the indexer share.
+- **Identity probe (AJ-E1001):** `probe_identity(account) -> SignedIn { subject, label } | SignedOut | Unverifiable { reason }` says who an Account's state dir is signed in as — metadata only (a stable vendor account id, compared; a masked label, shown), never a token or any credential file's content. It runs before every launch, resume, switch and switch-back; a different identity than the Account was first seen with refuses the launch (no "continue anyway"). The default is `Unverifiable` — the Instance then says `Identity unverified`, never a pretended check. Each adapter documents what its probe reads (below).
 
 ### 4.1 Adapter: Claude Code (reference implementation)
 
@@ -294,6 +295,7 @@ pub trait HarnessAdapter: Send + Sync {
   - *Tokens:* transcript `usage` objects per assistant message → **Measured**.
   - *Exhaustion:* `system/api_retry` rate_limit events (headless), `StopFailure` hook, and transcript pattern matching for "hit your session/weekly limit" (installed as a managed hook in account dirs) → session status transitions + notifications.
 - **Resume:** `claude --resume <id>` / `--continue`; transcript-path resume for cross-dir portability.
+- **Identity probe:** reads only the `oauthAccount` object of `<config_dir>/.claude.json` — `accountUuid` (the subject), `emailAddress` (masked to `o…@domain`) and `organizationName`. The Keychain item and `.credentials.json` are never opened.
 - **Prime (handover-in):** launch with the context pack as initial user turn (headless or interactive), or `--settings` overlay for per-session config.
 
 ### 4.2 Adapter: Codex
@@ -303,6 +305,7 @@ pub trait HarnessAdapter: Send + Sync {
 - **Sessions:** watch `~/.codex… <home>/sessions/**/rollout-*.jsonl`; index from `session_meta` without full replay; `token_usage_record` lines → **Measured** tokens.
 - **Usage/quota:** no public API (research §5) — token burn is Measured; plan-credit correlation is **Estimated** (window reconstruction from token timestamps; calibrated as the user observes real resets) and labeled as such in the UI.
 - **Resume:** `codex resume` (interactive) / `codex exec resume <id>`.
+- **Identity probe:** not implemented yet — Codex Instances show `Identity unverified` until a metadata-only source is verified.
 
 ### 4.3 Adapter: ZCode
 
