@@ -4896,6 +4896,9 @@ const FLEET_PEER = {
   paired_via: "code",
   paired_at_ms: T0,
   last_seen_ms: T0 + 60_000,
+  connection: "connected",
+  protocol: "v1.0",
+  connection_detail: null,
 };
 
 const openFleet = async (
@@ -4945,6 +4948,17 @@ for (const theme of THEMES) {
       await page.getByTestId("fleet-unpair").click();
       await expect(page.getByTestId("fleet-confirm")).toContainText("Unpair Mac mini?");
       await page.screenshot({ path: resolve(GALLERY, `42-fleet/unpair-confirm-${vp.name}-${theme}.png`), fullPage: true });
+    });
+
+    test(`42 fleet — degraded and offline banners — ${vp.name} — ${theme}`, async ({ page }) => {
+      await openFleet(page, theme, vp, {
+        __AIJ_FLEET_PEERS__: [
+          { ...FLEET_PEER, connection: "degraded", protocol: "v1.1", connection_detail: "Peer v1.1, this Mac v1.0 — telemetry only until both are updated" },
+          { ...FLEET_PEER, machine_id: "m3", label: "Office iMac", connection: "offline" },
+        ],
+      });
+      await expect(page.getByTestId("fleet-connection-banner")).toHaveCount(2);
+      await page.screenshot({ path: resolve(GALLERY, `42-fleet/connection-banners-${vp.name}-${theme}.png`), fullPage: true });
     });
 
     test(`42 fleet — trust broken — ${vp.name} — ${theme}`, async ({ page }) => {

@@ -13,12 +13,25 @@ libfuzzer-sys = "0.4"
 [dependencies.juggler-adapters]
 path = "../crates/juggler-adapters"
 
+[dependencies.juggler-link]
+path = "../crates/juggler-link"
+
+[dependencies.prost]
+version = "0.14"
+
 # Fuzz targets live outside the workspace on purpose (cargo-fuzz manages
 # its own build under nightly); see fuzz/README.md.
 
 [[bin]]
 name = "transcript_parse"
 path = "fuzz_targets/transcript_parse.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "link_frame_decode"
+path = "fuzz_targets/link_frame_decode.rs"
 test = false
 doc = false
 bench = false

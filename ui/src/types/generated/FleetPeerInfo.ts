@@ -39,4 +39,18 @@ paired_at_ms: number,
 /**
  * Last heard from, epoch ms.
  */
-last_seen_ms: number | null, };
+last_seen_ms: number | null, 
+/**
+ * The link state (AJ-E703): `link_off` | `connecting` | `connected`
+ * | `degraded` | `offline`. `link_off` until Link is turned on
+ * (AJ-E704) — never a guessed state.
+ */
+connection: string, 
+/**
+ * The negotiated protocol (`v1.0`) when connected or degraded.
+ */
+protocol: string | null, 
+/**
+ * Plain words for degraded/offline (the banner text).
+ */
+connection_detail: string | null, };

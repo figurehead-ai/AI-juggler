@@ -136,6 +136,43 @@ export function FleetScreen(): JSX.Element {
             </p>
           </div>
         ) : (
+          <>
+          {peers
+            .filter((peer) => peer.connection === "degraded" || peer.connection === "offline")
+            .map((peer) => (
+              <div
+                key={`banner-${peer.machine_id}`}
+                className={
+                  "flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 text-xs " +
+                  (peer.connection === "degraded" ? "border-warning/40" : "border-hairline")
+                }
+                role="status"
+                data-testid="fleet-connection-banner"
+                data-state={peer.connection}
+              >
+                <span aria-hidden="true">{peer.connection === "degraded" ? "◐" : "○"}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="font-medium">{peer.label}</span>
+                  {" — "}
+                  {peer.connection === "degraded"
+                    ? (peer.connection_detail ?? "telemetry only until both Macs are updated")
+                    : peer.last_seen_ms !== null
+                      ? `offline, last seen ${new Date(peer.last_seen_ms).toLocaleString()}`
+                      : "offline"}
+                </span>
+                <Button size="sm" variant="secondary" onClick={() => void refresh()}>
+                  Retry
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setConfirm({ kind: "unpair", peer })}
+                  aria-label={`Unpair ${peer.label}`}
+                >
+                  Unpair…
+                </Button>
+              </div>
+            ))}
           <ul className="flex flex-col divide-y divide-hairline">
             {peers.map((peer) => (
               <li
@@ -147,6 +184,7 @@ export function FleetScreen(): JSX.Element {
                   <p className="text-sm font-medium">{peer.label}</p>
                   <p className="font-mono text-[11px] text-muted">{peer.fingerprint}</p>
                 </div>
+                <ConnectionChip peer={peer} />
                 <Chip tone="neutral">{peer.permission_label}</Chip>
                 {peer.paired_via === "account" && (
                   <span className="text-[11px] text-muted">via your Figurehead account</span>
@@ -168,6 +206,7 @@ export function FleetScreen(): JSX.Element {
               </li>
             ))}
           </ul>
+          </>
         )}
       </Card>
 
@@ -383,3 +422,31 @@ function ConfirmSheet({
     </div>
   );
 }
+
+/** AJ-E703: the link state as words + a shape (never colour alone):
+ * `Connected · mTLS · v1.0`, `Degraded — …`, `Offline — last seen …`,
+ * `Connecting…`, `Link off`. */
+function ConnectionChip({ peer }: { peer: FleetPeerInfo }): JSX.Element {
+  const label =
+    peer.connection === "connected"
+      ? `● Connected · mTLS · ${peer.protocol ?? "v1"}`
+      : peer.connection === "degraded"
+        ? `◐ Degraded · ${peer.protocol ?? "older version"}`
+        : peer.connection === "connecting"
+          ? "◌ Connecting…"
+          : peer.connection === "offline"
+            ? "○ Offline"
+            : "○ Link off";
+  const tone =
+    peer.connection === "connected"
+      ? "success"
+      : peer.connection === "degraded"
+        ? "warning"
+        : "neutral";
+  return (
+    <span data-testid="fleet-connection" data-state={peer.connection}>
+      <Chip tone={tone}>{label}</Chip>
+    </span>
+  );
+}
+

@@ -74,6 +74,14 @@ pub struct FleetPeerInfo {
     /// Last heard from, epoch ms.
     #[ts(type = "number | null")]
     pub last_seen_ms: Option<i64>,
+    /// The link state (AJ-E703): `link_off` | `connecting` | `connected`
+    /// | `degraded` | `offline`. `link_off` until Link is turned on
+    /// (AJ-E704) — never a guessed state.
+    pub connection: String,
+    /// The negotiated protocol (`v1.0`) when connected or degraded.
+    pub protocol: Option<String>,
+    /// Plain words for degraded/offline (the banner text).
+    pub connection_detail: Option<String>,
 }
 
 fn link_error(error: impl std::fmt::Display) -> AppError {
@@ -199,6 +207,11 @@ pub fn fleet_peers_impl(state: &Arc<AppState>) -> AppResult<Vec<FleetPeerInfo>> 
                 },
                 paired_at_ms: peer.paired_at_ms,
                 last_seen_ms: peer.last_seen_ms,
+                // The link manager arrives with AJ-E704 (Link on/off,
+                // discovery); until then nothing is connected.
+                connection: "link_off".to_owned(),
+                protocol: None,
+                connection_detail: None,
             })
             .collect())
     })

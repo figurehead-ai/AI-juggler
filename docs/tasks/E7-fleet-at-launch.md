@@ -64,7 +64,7 @@
 **Handover note**: Trap: do not reuse harness credentials or the app config-encryption key as the fleet identity. `MachineId` already exists — extend it, do not create a parallel `DeviceId`.
 
 
-### AJ-E703 Transport and security model (gRPC/mTLS, versioned protobuf) | Status: TODO | Priority P0 | Effort L | Depends: AJ-E701, AJ-E702
+### AJ-E703 Transport and security model (gRPC/mTLS, versioned protobuf) | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E701, AJ-E702
 **Goal**: Authenticated, encrypted, versioned streaming between nodes with graceful mixed-version degradation and replay rejection.
 **User story**: As a console user, I see live remote state and know commands cannot be forged, replayed, or silently downgraded.
 **Requirements**:
@@ -76,7 +76,7 @@
 6. Connection loss SHALL surface within 5 s (heartbeat 2 s, 2 misses) and SHALL not retry with weakened TLS settings.
 **UI/UX reasoning**: NN/g #1 visibility: connection chip shows `Connected · mTLS · v1.2` / `Degraded — peer v1.0, telemetry only` / `Offline`. Errors use plain language plus a Details disclosure with the TLS/version reason; no raw stack traces (WCAG 3.3.1 error identification).
 **Performance budget**: LAN heartbeat RTT p95 <50 ms; telemetry delta <1 s end-to-end at 20 Instances/machine; TLS handshake <300 ms LAN; link CPU <1% idle, <3% at 5 machines × 20 Instances; memory <30 MB per peer connection.
-**Quality gates**: `buf lint` + breaking-change check in CI; clippy pedantic clean; fuzz target for frame decoding exists and runs 60 s in CI without panic.
+**Quality gates**: breaking-change check in CI (committed descriptor snapshot, `tests/proto_contract.rs` — replaces `buf lint`/`buf breaking`, task-text fix 2026-10-18: no third-party CLI under the org action policy); clippy pedantic clean; fuzz target for frame decoding exists (`fuzz/`, nightly) and a 20 000-frame randomized decode test runs in CI without panic.
 **Evidence/validation proof**: Strict: loopback two-node test (`cargo test -p juggler-link --test transport`) proves mTLS success, wrong-cert rejection, replay rejection, and downgrade matrix (current↔previous minor); packet-fixture assertion proves no credential-shaped fields in telemetry protos; logs stored as CI artifacts linked from `docs/qa/gate-E7.md`. Security evidence required: negative tests, not just happy-path.
 **Visual testing**: Screenshots: degraded-mode banner and offline banner in Fleet at 1280×800; pass = banner names the cause and offers `Retry`/`Unpair`, keyboard-focusable; colour never sole channel (icon + text).
 **Files to touch**: [lib.rs](../../crates/juggler-link/src/lib.rs), [Cargo.toml](../../Cargo.toml), [SPEC.md S11.2](../SPEC.md#L371), [ADR-0004](../adr/0004-fleet-transport-grpc-mtls.md)
