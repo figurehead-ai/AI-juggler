@@ -44,6 +44,11 @@ test:
 e2-gate:
     ./scripts/e2_gate_report.sh > docs/qa/gate-E2-validation.md
 
+# AJ-E710: the Fleet gate's automated portion, filed as evidence.
+gate-e7:
+    mkdir -p docs/qa/evidence/AJ-E710
+    ./scripts/gate_e7.sh > docs/qa/evidence/AJ-E710/automated-$(date +%Y-%m-%d).md
+
 doc:
     RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
 

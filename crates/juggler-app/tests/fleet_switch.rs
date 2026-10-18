@@ -891,3 +891,55 @@ fn link_off_returns_both_macs_to_fully_local_behaviour() {
     ));
     assert!(crossmachine::switch_back::fleet_divergences_impl(&pair.laptop).is_empty());
 }
+
+#[test]
+fn forged_free_form_launches_are_refused_by_the_node() {
+    // ADR-0013: a Control peer can only name what already exists on the
+    // node — never a binary, a path or a working directory.
+    let pair = setup_both("2.1.0", true, Permission::Control, Permission::Control);
+    let _ = target(&pair, "t2_ready");
+    let desktop_id = fleet::fleet_self_impl(&pair.desktop).unwrap().machine_id;
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let forged = [
+        juggler_link::proto::LaunchRecipe {
+            recipe_id: "/bin/sh".into(),
+            project_id: String::new(),
+        },
+        juggler_link::proto::LaunchRecipe {
+            recipe_id: pair.desktop_recipe.clone(),
+            project_id: "/tmp".into(),
+        },
+        juggler_link::proto::LaunchRecipe {
+            recipe_id: "rec-; rm -rf ~".into(),
+            project_id: "../../etc".into(),
+        },
+    ];
+    for launch in forged {
+        let outcome = wait_for("the node's verdict", || {
+            let outcome = runtime
+                .block_on(juggler_app::remote::send_action_for_test(
+                    Arc::clone(&pair.laptop),
+                    desktop_id.clone(),
+                    juggler_link::proto::control_command::Action::LaunchRecipe(launch.clone()),
+                ))
+                .unwrap();
+            (outcome.reason_code.as_deref() != Some("clock_unmeasured")).then_some(outcome)
+        });
+        assert!(!outcome.accepted, "{launch:?} → {outcome:?}");
+        assert_eq!(
+            outcome.reason_code.as_deref(),
+            Some("unknown_record"),
+            "{launch:?}"
+        );
+    }
+    // Nothing ran on the desktop.
+    assert!(
+        !pair
+            .desktop
+            .accounts_dir()
+            .join(CLAUDE_CODE_ID)
+            .join(&pair.desktop_account)
+            .join("last-args")
+            .exists()
+    );
+}

@@ -499,7 +499,7 @@ fn a_thousand_queued_changes_catch_up_inside_three_seconds() {
         (replica(&b, &origin).len() >= 1_000).then_some(())
     });
     let took = started.elapsed();
-    eprintln!("catch-up of 1,000 changes (incl. reconnect): {took:?}");
+    eprintln!("[perf] catch-up of 1,000 changes (incl. reconnect): {took:?}");
     assert!(took < Duration::from_secs(3), "{took:?}");
     let shown = remote::fleet_remote_impl(&b).unwrap();
     assert_eq!(

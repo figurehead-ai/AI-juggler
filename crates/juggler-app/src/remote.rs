@@ -721,6 +721,21 @@ pub(crate) fn next_command_sequence(state: &Arc<AppState>, machine_id: &str) -> 
 /// Sends one control action to `machine_id` and returns the node's
 /// verdict. Logged on THIS Mac too (who was asked, the outcome), so a
 /// remote action is audited on both machines.
+/// Test seam: sends any control action as a console would (the node's
+/// checks are the thing under test — forged actions must be refused).
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] per the console command path.
+#[doc(hidden)]
+pub async fn send_action_for_test(
+    state: Arc<AppState>,
+    machine_id: String,
+    action: proto::control_command::Action,
+) -> AppResult<RemoteCommandOutcomeInfo> {
+    send_action(state, machine_id, action).await
+}
+
 async fn send_action(
     state: Arc<AppState>,
     machine_id: String,
