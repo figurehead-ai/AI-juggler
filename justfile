@@ -14,7 +14,7 @@ verify:
     cargo fmt --all --check
     cargo clippy --workspace --all-targets -- -D warnings
     cargo test --workspace
-    cargo doc --workspace --no-deps
+    RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
     just evidence
     just terminology
 
@@ -45,7 +45,7 @@ e2-gate:
     ./scripts/e2_gate_report.sh > docs/qa/gate-E2-validation.md
 
 doc:
-    cargo doc --workspace --no-deps
+    RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
 
 # Run the desktop app in dev mode (UI hot-reload + Rust rebuild on change).
 dev:

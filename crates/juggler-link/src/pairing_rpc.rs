@@ -1,6 +1,6 @@
 //! The pairing exchange over the link (AJ-E704; ADR-0013 contract).
 //!
-//! Host (node) side: [`serve`] runs one session behind the `Pair` RPC.
+//! Host (node) side: `serve` runs one session behind the `Pair` RPC.
 //! Joiner (client) side: [`pair_with`] connects with an UNPINNED
 //! verifier, records the key and TLS exporter it actually saw, runs the
 //! SPAKE2 exchange, checks the host's confirmation, asks its own user,
