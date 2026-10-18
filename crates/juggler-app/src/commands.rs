@@ -11787,12 +11787,50 @@ pub fn pack_export(state: tauri::State<'_, Arc<AppState>>, epoch_id: String) -> 
 ///
 /// Returns the typed [`AppError`] per the command docs.
 pub fn pack_export_impl(state: &Arc<AppState>, epoch_id: &str) -> AppResult<String> {
+    let (epoch, session_row, account) = find_epoch_with_session(state, epoch_id)?;
+    let dir = state
+        .data_dir
+        .join("exports")
+        .join(format!("pack-{}", unique_suffix()));
+    stage_session_pack(
+        state,
+        &session_row,
+        &account,
+        &PackIds {
+            work: epoch.work.to_string(),
+            epoch: epoch.id.to_string(),
+            native: epoch.native_id.clone().unwrap_or_default(),
+        },
+        &dir,
+    )?;
+    Ok(dir.to_string_lossy().into_owned())
+}
+
+/// The lineage ids a staged pack carries.
+pub(crate) struct PackIds {
+    pub work: String,
+    pub epoch: String,
+    pub native: String,
+}
+
+/// Writes the redacted portable pack for one Instance into `dir` — the
+/// shared body of a standalone export and of parking (AJ-E1003). The
+/// GLOBAL redaction policy governs (unset blocks — no default applied).
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] when the policy is unset, the session
+/// has no transcript, or the pack can't be written.
+pub(crate) fn stage_session_pack(
+    state: &Arc<AppState>,
+    session_row: &juggler_core::model::InstanceRecord,
+    account: &Account,
+    ids: &PackIds,
+    dir: &std::path::Path,
+) -> AppResult<()> {
     use juggler_handover::pack::{ConversationMode, IrTurn, PackInput, PackSource};
     use juggler_handover::redaction::{RedactionApply, RedactionPolicy, redacted_pack};
 
-    let (epoch, session_row, account) = find_epoch_with_session(state, epoch_id)?;
-    // The GLOBAL redaction policy governs standalone exports
-    // (unset blocks, exactly like switches — no default is applied).
     let policy = {
         let storage = lock_storage_arc(state)?;
         juggler_handover::redaction::resolve_policy(redaction_global_of(&storage), None)
@@ -11815,15 +11853,15 @@ pub fn pack_export_impl(state: &Arc<AppState>, epoch_id: &str) -> AppResult<Stri
     let input = PackInput {
         pack_id: format!("pack-{}", unique_suffix()),
         created_at_ms: Timestamp::now().millis(),
-        work_id: epoch.work.to_string(),
+        work_id: ids.work.clone(),
         edge_id: None,
         source: PackSource {
             provider: account.harness.to_string(),
             account_label: account.label.clone(),
             profile_name: None,
-            native_session_id: epoch.native_id.clone().unwrap_or_default(),
+            native_session_id: ids.native.clone(),
             harness_version: None,
-            epoch_id: epoch.id.to_string(),
+            epoch_id: ids.epoch.clone(),
         },
         target_hint: None,
         project: juggler_handover::pack::PackProject {
@@ -11863,19 +11901,15 @@ pub fn pack_export_impl(state: &Arc<AppState>, epoch_id: &str) -> AppResult<Stri
         keep: std::collections::BTreeSet::new(),
     };
     let pack = redacted_pack(&input, ConversationMode::Distilled { last_n: 12 }, &apply);
-    let dir = state
-        .data_dir
-        .join("exports")
-        .join(format!("pack-{}", unique_suffix()));
-    std::fs::create_dir_all(&dir).map_err(|error| AppError::Io {
+    std::fs::create_dir_all(dir).map_err(|error| AppError::Io {
         context: "export pack",
         message: format!("could not create {}: {error}", dir.display()),
     })?;
-    juggler_handover::pack::write_pack(&dir, &pack).map_err(|error| AppError::Io {
+    juggler_handover::pack::write_pack(dir, &pack).map_err(|error| AppError::Io {
         context: "export pack",
         message: error.to_string(),
     })?;
-    Ok(dir.to_string_lossy().into_owned())
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------

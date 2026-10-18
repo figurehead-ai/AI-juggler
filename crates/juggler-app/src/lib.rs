@@ -19,6 +19,7 @@ pub mod fleet;
 pub mod focus;
 pub mod identity;
 pub mod link;
+pub mod parked;
 pub mod preview;
 pub mod remote;
 pub mod state;
@@ -174,6 +175,12 @@ pub fn run() {
             remote::fleet_remote_stop,
             remote::fleet_remote_focus,
             remote::fleet_remote_clean,
+            parked::instance_park,
+            parked::parked_list,
+            parked::parked_offers,
+            parked::parked_dismiss,
+            parked::parked_check_now,
+            parked::parked_resume,
             worktree::isolation_offer,
             worktree::worktree_create,
             worktree::worktree_removal_preview,
