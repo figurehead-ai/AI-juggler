@@ -78,7 +78,7 @@
 **Research basis**: pass2/07 W1; first-report F2.5/F5.2 (states modelled but never emitted — this task closes that at the workflow layer; E4 owns the read-model).
 **Handover note**: Coordinate state emission with E4/E5 owners to avoid two competing state machines; supervisor journal is the single source.
 
-### AJ-E1005 Morning triage and multi-project day board | Status: TODO | Priority P1 | Effort M | Depends: AJ-E1004
+### AJ-E1005 Morning triage and multi-project day board | Status: DONE-EVIDENCED | Priority P1 | Effort M | Depends: AJ-E1004
 **Goal**: Give the start of day one sorted view: what needs me, what is parked, what is running, across all projects.
 **User story**: As a consultant with five client projects, I want to triage fifteen sessions in two minutes each morning, oldest blocker first.
 **Requirements**:

@@ -167,6 +167,19 @@ CREATE INDEX idx_instance_transitions_session ON instance_transitions(session_id
 CREATE INDEX idx_instance_transitions_at ON instance_transitions(at_ms);
 ";
 
+/// Schema version 26 (AJ-E1005/AJ-E1007): the Instance lifecycle journal
+/// — `reviewed`, `archived`, `unarchived` — each one an appended,
+/// timestamped event (history, never rewritten). The latest event per
+/// Instance is its lifecycle state; the data itself is never touched.
+const V26: &str = "
+CREATE TABLE instance_lifecycle (
+    session_id TEXT NOT NULL,
+    event      TEXT NOT NULL,
+    at_ms      INTEGER NOT NULL
+);
+CREATE INDEX idx_instance_lifecycle_session ON instance_lifecycle(session_id);
+";
+
 /// Ordered, forward-only migrations; index + 1 is the schema version.
 /// Schema version 4: imported-history enrichment on projects (which
 /// accounts worked there before AI Juggler, from imported transcripts).
@@ -444,7 +457,7 @@ CREATE TABLE artifact_manifests (
 
 const MIGRATIONS: &[&str] = &[
     V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21,
-    V22, V23, V24, V25,
+    V22, V23, V24, V25, V26,
 ];
 
 /// An opened AI Juggler database with typed repositories.

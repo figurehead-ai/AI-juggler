@@ -29,6 +29,7 @@ import {
 } from "./lib/bridge";
 import { isHandoverShortcut, isStopShortcut } from "./lib/shortcuts";
 import { ProfilesScreen } from "./screens/Profiles";
+import { Triage } from "./screens/Triage";
 import { OnboardingWizard } from "./screens/OnboardingWizard";
 import { NewSessionModal } from "./screens/NewSession";
 import { NewProjectSheet } from "./screens/NewProjectSheet";
@@ -83,6 +84,8 @@ import {
  */
 
 const GLOBAL_NAV = [
+  // AJ-E1005: the morning question first — who needs me?
+  { id: "triage", label: "Triage" },
   { id: "overview", label: "Overview" },
   { id: "accounts", label: "Accounts" },
   { id: "usage", label: "Usage" },
@@ -734,6 +737,16 @@ export default function App() {
                   setGlobal(null);
                   setSelection({ kind: "account", id });
                 }}
+              />
+            </div>
+          ) : global === "triage" ? (
+            <div className="h-full overflow-y-auto">
+              <Triage
+                sessions={sessions}
+                projects={projects}
+                density={density}
+                onOpenSession={selectSession}
+                onChanged={() => void refresh()}
               />
             </div>
           ) : global === "overview" ? (

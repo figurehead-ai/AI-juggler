@@ -179,4 +179,13 @@ parked?: string,
 /**
  * The reset it waits for, epoch ms (countdown only when measured).
  */
-parked_resets_at_ms?: number, };
+parked_resets_at_ms?: number, 
+/**
+ * AJ-E1005/AJ-E1007: its latest lifecycle step (`reviewed`), absent
+ * when it has none.
+ */
+lifecycle?: string, 
+/**
+ * When that step was taken, epoch ms.
+ */
+lifecycle_at_ms?: number, };

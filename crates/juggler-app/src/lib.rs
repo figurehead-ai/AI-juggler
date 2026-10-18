@@ -18,6 +18,7 @@ pub mod figurehead;
 pub mod fleet;
 pub mod focus;
 pub mod identity;
+pub mod lifecycle;
 pub mod link;
 pub mod overnight;
 pub mod parked;
@@ -179,6 +180,7 @@ pub fn run() {
             overnight::overnight_summary,
             overnight::overnight_summary_seen,
             parked::instance_park,
+            lifecycle::instance_mark_reviewed,
             parked::parked_list,
             parked::parked_offers,
             parked::parked_dismiss,

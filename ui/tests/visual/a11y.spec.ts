@@ -2503,3 +2503,30 @@ for (const theme of ["dark", "light"] as const) {
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
   });
 }
+
+/** AJ-E1005 a11y (both themes): the triage view — labelled groups, the
+ * action named on each row with its shortcut — scans axe-clean and
+ * needs no mouse: j moves, A runs the action. */
+for (const theme of ["dark", "light"] as const) {
+  test(`triage — axe 0 and keyboard only — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ fixture, theme: t }) => {
+        const w = window as unknown as Record<string, unknown>;
+        w.__AIJ_FIXTURE__ = fixture;
+        localStorage.setItem("aij.theme", t);
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        sessionStorage.setItem("aij.ready.skipped", "1");
+      },
+      { fixture: allStatuses, theme },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Triage" }).click();
+    await expect(page.getByRole("region", { name: /Needs you/ })).toBeVisible();
+    await page.getByTestId("triage-row").first().locator("button").first().focus();
+    await page.keyboard.press("j");
+    await expect(page.getByTestId("triage-row").nth(1).locator("button").first()).toBeFocused();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+  });
+}

@@ -3875,3 +3875,22 @@ export async function overnightSummarySeen(): Promise<void> {
   }
   return invoke<void>("overnight_summary_seen");
 }
+
+// --- AJ-E1005: morning triage ----------------------------------------------
+
+/** Marks an ended Instance reviewed: it leaves the triage's finished
+ * list, and the step is kept in its history. */
+export async function instanceMarkReviewed(sessionId: string): Promise<number> {
+  if (!hasBackend) {
+    const w = window as unknown as { __AIJ_TRIAGE_CALLS__?: string[] };
+    w.__AIJ_TRIAGE_CALLS__ = [...(w.__AIJ_TRIAGE_CALLS__ ?? []), `reviewed:${sessionId}`];
+    const row = MOCK_SESSIONS.find((session) => session.id === sessionId);
+    const at = Date.now();
+    if (row) {
+      row.lifecycle = "reviewed";
+      row.lifecycle_at_ms = at;
+    }
+    return at;
+  }
+  return invoke<number>("instance_mark_reviewed", { sessionId });
+}

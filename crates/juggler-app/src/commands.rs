@@ -1689,6 +1689,13 @@ pub struct InstanceInfo {
     /// The reset it waits for, epoch ms (countdown only when measured).
     #[ts(optional, type = "number")]
     pub parked_resets_at_ms: Option<i64>,
+    /// AJ-E1005/AJ-E1007: its latest lifecycle step (`reviewed`), absent
+    /// when it has none.
+    #[ts(optional)]
+    pub lifecycle: Option<String>,
+    /// When that step was taken, epoch ms.
+    #[ts(optional, type = "number")]
+    pub lifecycle_at_ms: Option<i64>,
 }
 
 /// Deprecated alias (one version). AJ-E107.
@@ -4568,7 +4575,7 @@ fn needs_attention_of(status: SessionStatus) -> Option<NeedsAttention> {
 }
 
 /// A terminal status: the process is gone, so nothing about it is live.
-fn is_terminal(status: SessionStatus) -> bool {
+pub(crate) fn is_terminal(status: SessionStatus) -> bool {
     matches!(
         status,
         SessionStatus::Finished
@@ -4710,6 +4717,17 @@ fn session_join_indexes(storage: &Storage) -> AppResult<(AccountIndex, RecipeInd
     Ok((account_index, recipe_index))
 }
 
+/// Measured token counts for the wire; all-zero means unmeasured (null).
+fn tokens_info(t: juggler_core::model::TokenCounts) -> Option<TokenCountsInfo> {
+    (t != juggler_core::model::TokenCounts::default()).then_some(TokenCountsInfo {
+        input: t.input,
+        output: t.output,
+        cache_read: t.cache_read,
+        cache_write: t.cache_write,
+        reasoning: t.reasoning,
+    })
+}
+
 fn session_infos(
     storage: &Storage,
     live: &LiveStatsMap,
@@ -4719,6 +4737,7 @@ fn session_infos(
     let (account_index, recipe_index) = session_join_indexes(storage)?;
     let identities = storage.identity().latest_by_session().unwrap_or_default();
     let parked = crate::parked::parked_index(storage);
+    let lifecycle = storage.sessions().lifecycle_latest().unwrap_or_default();
     Ok(storage
         .sessions()
         .list(None)?
@@ -4760,18 +4779,7 @@ fn session_infos(
                 model_source,
                 status: record.status.as_str().to_string(),
                 quota: quota_snapshot_of(&record.usage),
-                tokens: if record.usage.tokens == juggler_core::model::TokenCounts::default() {
-                    None
-                } else {
-                    let t = record.usage.tokens;
-                    Some(TokenCountsInfo {
-                        input: t.input,
-                        output: t.output,
-                        cache_read: t.cache_read,
-                        cache_write: t.cache_write,
-                        reasoning: t.reasoning,
-                    })
-                },
+                tokens: tokens_info(record.usage.tokens),
                 cpu_pct: stats.and_then(|s| s.cpu_pct),
                 rss_bytes: stats.map(|s| s.rss_bytes),
                 child_count: if terminal {
@@ -4819,6 +4827,10 @@ fn session_infos(
                     .get(record.id.as_str())
                     .map(|(_, confidence)| confidence.clone()),
                 parked_resets_at_ms: parked.get(record.id.as_str()).and_then(|(at, _)| *at),
+                lifecycle: lifecycle
+                    .get(record.id.as_str())
+                    .map(|(event, _)| event.clone()),
+                lifecycle_at_ms: lifecycle.get(record.id.as_str()).map(|(_, at)| *at),
             }
         })
         .collect())

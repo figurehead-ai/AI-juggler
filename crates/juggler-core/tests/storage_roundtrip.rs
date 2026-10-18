@@ -549,8 +549,8 @@ fn v4_database_upgrades_in_place_to_v5_with_identical_values() {
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
     assert_eq!(
-        version, 25,
-        "v4 → current (v25, AJ-E1004 transition journal) exactly once, on open"
+        version, 26,
+        "v4 → current (v26, AJ-E1005 lifecycle journal) exactly once, on open"
     );
 
     let account = storage.accounts().get(&AccountId::new("acc-1")).unwrap();
@@ -577,7 +577,7 @@ fn v4_database_upgrades_in_place_to_v5_with_identical_values() {
         .raw_conn()
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(version, 25);
+    assert_eq!(version, 26);
     assert!(storage.sessions().get(&SessionId::new("sess-1")).is_ok());
 }
 
@@ -1072,8 +1072,8 @@ fn v12_ledger_upgrades_in_place_to_v13() {
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
     assert_eq!(
-        version, 25,
-        "v12 → current (v25, AJ-E1004) exactly once, on open"
+        version, 26,
+        "v12 → current (v26, AJ-E1005) exactly once, on open"
     );
     drop(storage);
 
@@ -1196,4 +1196,67 @@ fn status_transitions_are_journalled_and_survive_a_reopen() {
     );
     assert!(journal.iter().all(|(_, _, at)| *at > 0), "timestamped");
     assert_eq!(storage.sessions().changed_since(0).unwrap(), [id]);
+}
+
+/// AJ-E1005/AJ-E1007: lifecycle events append (history kept); the
+/// latest per Instance is its state; an unknown Instance is refused;
+/// it all survives a reopen.
+#[test]
+fn lifecycle_events_append_and_the_latest_wins() {
+    use juggler_core::model::{
+        InstanceKind, InstanceRecord, MachineId, ProfileId, SessionStatus, Timestamp,
+    };
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("lifecycle.db");
+    let id = SessionId::new("sess-done");
+    {
+        let storage = Storage::open(&path).unwrap();
+        seed_chain(&storage);
+        storage
+            .sessions()
+            .insert(&InstanceRecord {
+                id: id.clone(),
+                conversation: None,
+                profile: ProfileId::new("seed-profile"),
+                machine: MachineId::new("this-mac"),
+                kind: InstanceKind::Terminal,
+                project: None,
+                cwd: PathBuf::from("/tmp/done"),
+                status: SessionStatus::Finished,
+                started_at: Timestamp::from_millis(1),
+                last_activity: None,
+                usage: Default::default(),
+                transcript_ref: None,
+                attention: None,
+                running: None,
+                window: None,
+            })
+            .unwrap();
+        storage
+            .sessions()
+            .record_lifecycle(&id, "reviewed")
+            .unwrap();
+        storage
+            .sessions()
+            .record_lifecycle(&id, "archived")
+            .unwrap();
+        assert!(
+            storage
+                .sessions()
+                .record_lifecycle(&SessionId::new("nope"), "reviewed")
+                .is_err()
+        );
+    }
+    let storage = Storage::open(&path).unwrap();
+    let latest = storage.sessions().lifecycle_latest().unwrap();
+    assert_eq!(latest[id.as_str()].0, "archived");
+    let events: i64 = storage
+        .raw_conn()
+        .query_row(
+            "SELECT COUNT(*) FROM instance_lifecycle WHERE session_id = ?1",
+            [id.as_str()],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(events, 2, "history is appended, never rewritten");
 }

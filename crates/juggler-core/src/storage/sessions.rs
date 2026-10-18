@@ -82,6 +82,50 @@ impl SessionsRepo<'_> {
         Ok(())
     }
 
+    /// AJ-E1005/AJ-E1007: appends one lifecycle event (`reviewed`,
+    /// `archived`, `unarchived`) for `id`, timestamped now.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::NotFound`] for an unknown Instance, or
+    /// [`CoreError::Storage`] on SQLite failures.
+    pub fn record_lifecycle(&self, id: &SessionId, event: &str) -> Result<i64, CoreError> {
+        self.get(id)?; // NotFound for an unknown Instance
+        let at = Timestamp::now().millis();
+        self.conn.execute(
+            "INSERT INTO instance_lifecycle (session_id, event, at_ms) VALUES (?1, ?2, ?3)",
+            params![id.as_str(), event, at],
+        )?;
+        Ok(at)
+    }
+
+    /// AJ-E1005/AJ-E1007: the latest lifecycle event per Instance,
+    /// `session id → (event, at_ms)`; Instances without one are absent.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn lifecycle_latest(
+        &self,
+    ) -> Result<std::collections::BTreeMap<String, (String, i64)>, CoreError> {
+        let mut statement = self
+            .conn
+            .prepare("SELECT session_id, event, at_ms FROM instance_lifecycle ORDER BY rowid")?;
+        let rows = statement.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, i64>(2)?,
+            ))
+        })?;
+        let mut latest = std::collections::BTreeMap::new();
+        for row in rows {
+            let (id, event, at) = row?;
+            latest.insert(id, (event, at));
+        }
+        Ok(latest)
+    }
+
     /// AJ-E1004: every status transition of `id`, oldest first:
     /// `(from, to, at_ms)` — `from` is `None` for the first one.
     ///
