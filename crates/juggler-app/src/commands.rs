@@ -7436,6 +7436,24 @@ pub const KILL_REFUSAL_COPY: &str =
 pub const KILL_WRONG_MACHINE_COPY: &str =
     "This process record belongs to another machine — Juggler will not touch it.";
 
+/// A Clean refused before any signal, with its copy.
+fn refused_kill(pid: u32, copy: &str) -> KillExecuteInfo {
+    KillExecuteInfo {
+        refusal: Some(copy.to_string()),
+        members: vec![KillMemberOutcome {
+            pid,
+            outcome: "refused".into(),
+        }],
+        cancelled: false,
+        all_succeeded: false,
+        still_holding: Vec::new(),
+        reoffer_pid: None,
+    }
+}
+
+/// AJ-E708 Req.5: the refusal while an Instance's lineage diverged.
+pub const KILL_DIVERGED_COPY: &str = "This work diverged across machines — choose what to keep (Keep mine, Keep theirs or Keep both) first. Nothing was signalled.";
+
 /// The exact unsaved-state warning copy (Req.5).
 fn unsaved_state_copy(role: &str) -> String {
     format!("Includes a {role} that may hold unsaved state.")
@@ -7950,17 +7968,12 @@ pub fn kill_execute_as(
     // any identity probe (which would misleadingly read as a
     // PID-reuse refusal).
     if row.machine_id != local_machine_id(state).as_str() {
-        return Ok(KillExecuteInfo {
-            refusal: Some(KILL_WRONG_MACHINE_COPY.to_string()),
-            members: vec![KillMemberOutcome {
-                pid,
-                outcome: "refused".into(),
-            }],
-            cancelled: false,
-            all_succeeded: false,
-            still_holding: Vec::new(),
-            reoffer_pid: None,
-        });
+        return Ok(refused_kill(pid, KILL_WRONG_MACHINE_COPY));
+    }
+    // AJ-E708 Req.5: a diverged Instance takes no destructive action
+    // until the user picks what to keep.
+    if crate::crossmachine::switch_back::is_diverged(state, session_id) {
+        return Ok(refused_kill(pid, KILL_DIVERGED_COPY));
     }
     // Guardrail 1 — SAME-TICK re-verification (E503 against the
     // kernel NOW, not the sheet's earlier verdict; the SAME shared

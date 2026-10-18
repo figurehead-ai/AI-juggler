@@ -177,6 +177,8 @@ pub fn run() {
             crossmachine::fleet_switch_cancel,
             crossmachine::switch_back::fleet_switch_back_plan,
             crossmachine::switch_back::fleet_switch_back_execute,
+            crossmachine::switch_back::fleet_divergences,
+            crossmachine::switch_back::fleet_divergence_keep_theirs,
             commands::funnel_export,
             commands::funnel_event,
             commands::expert_setup_info,

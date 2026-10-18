@@ -407,6 +407,26 @@ fn conclude_back(
             count: None,
         },
     );
+    if !accepted && result.reason_code == "diverged" {
+        let divergence = outcome.divergence.clone().unwrap_or_default();
+        let label = crate::fleet::peer_label(state, lineage.original_machine.as_str())
+            .unwrap_or_else(|| lineage.original_machine.to_string());
+        remember_divergence(
+            state,
+            DivergenceRecordInfo {
+                session_id: session_id.to_owned(),
+                machine_id: lineage.original_machine.to_string(),
+                machine_label: label,
+                turns_since: divergence.turns_since,
+                last_activity_ms: Some(divergence.last_activity_ms).filter(|at| *at > 0),
+                summary: divergence.summary,
+                at_ms: Timestamp::now().millis(),
+            },
+        );
+    }
+    if accepted {
+        forget_divergence(state, session_id);
+    }
     if !accepted {
         let reason = if outcome.phase == "cancelled" {
             "cancelled".to_owned()
@@ -467,6 +487,115 @@ fn record_returned(
     })?;
     graph.mark_launched(edge, new_epoch)?;
     graph.mark_confirmed(edge)?;
+    Ok(())
+}
+
+// --------------------------------------------------- pending divergences
+
+/// The app setting holding unresolved divergences by away Instance.
+const DIVERGENCES_KEY: &str = "fleet_divergences";
+
+/// One unresolved divergence: a switch-back the original's machine
+/// refused because both sides moved on (AJ-E708 Req.4–5). It stays —
+/// and blocks destructive actions on the Instance — until the user picks.
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct DivergenceRecordInfo {
+    /// The away Instance here.
+    pub session_id: String,
+    /// The machine holding the original.
+    pub machine_id: String,
+    /// Its label.
+    pub machine_label: String,
+    /// Turns the original gained there since the work left.
+    pub turns_since: u32,
+    /// Its last activity there, epoch ms (that machine's clock).
+    #[ts(type = "number | null")]
+    pub last_activity_ms: Option<i64>,
+    /// Plain words.
+    pub summary: String,
+    /// When this Mac learned of it, epoch ms.
+    #[ts(type = "number")]
+    pub at_ms: i64,
+}
+
+fn divergences(state: &Arc<AppState>) -> Vec<DivergenceRecordInfo> {
+    state
+        .storage
+        .lock()
+        .ok()
+        .and_then(|storage| storage.app_settings().get(DIVERGENCES_KEY).ok().flatten())
+        .and_then(|raw| serde_json::from_str(&raw).ok())
+        .unwrap_or_default()
+}
+
+fn save_divergences(state: &Arc<AppState>, rows: &[DivergenceRecordInfo]) -> AppResult<()> {
+    let raw = serde_json::to_string(rows).map_err(|e| AppError::Io {
+        context: "fleet divergences",
+        message: e.to_string(),
+    })?;
+    crate::commands::lock_storage_arc(state)?
+        .app_settings()
+        .set(DIVERGENCES_KEY, &raw)?;
+    Ok(())
+}
+
+fn remember_divergence(state: &Arc<AppState>, row: DivergenceRecordInfo) {
+    let mut rows = divergences(state);
+    rows.retain(|existing| existing.session_id != row.session_id);
+    rows.push(row);
+    let _ = save_divergences(state, &rows);
+}
+
+fn forget_divergence(state: &Arc<AppState>, session_id: &str) {
+    let mut rows = divergences(state);
+    let before = rows.len();
+    rows.retain(|existing| existing.session_id != session_id);
+    if rows.len() != before {
+        let _ = save_divergences(state, &rows);
+    }
+}
+
+/// Whether `session_id` has an unresolved divergence.
+#[must_use]
+pub fn is_diverged(state: &Arc<AppState>, session_id: &str) -> bool {
+    divergences(state)
+        .iter()
+        .any(|row| row.session_id == session_id)
+}
+
+/// Core: every unresolved divergence (the sync chip's "Diverged — N
+/// needs you").
+#[must_use]
+pub fn fleet_divergences_impl(state: &Arc<AppState>) -> Vec<DivergenceRecordInfo> {
+    divergences(state)
+}
+
+/// Core: "Keep theirs" — leave both sides as they are; nothing is sent.
+/// The choice is recorded (audited) and the block lifts.
+///
+/// # Errors
+///
+/// Returns [`AppError::NotFound`] when there is no such divergence.
+pub fn fleet_divergence_keep_theirs_impl(state: &Arc<AppState>, session_id: &str) -> AppResult<()> {
+    let row = divergences(state)
+        .into_iter()
+        .find(|row| row.session_id == session_id)
+        .ok_or_else(|| AppError::NotFound {
+            entity: "divergence",
+            id: session_id.to_owned(),
+        })?;
+    forget_divergence(state, session_id);
+    crate::fleet::append_audit(
+        state,
+        &juggler_link::node::LinkAuditEvent {
+            peer: row.machine_id,
+            kind: "divergence_kept_theirs".to_owned(),
+            reason_code: String::new(),
+            sequence: None,
+            count: Some(u64::from(row.turns_since)),
+        },
+    );
     Ok(())
 }
 
@@ -766,6 +895,26 @@ pub fn fleet_switch_back_plan(
     session_id: String,
 ) -> AppResult<Option<FleetSwitchBackPlanInfo>> {
     fleet_switch_back_plan_impl(state.inner(), &session_id)
+}
+
+/// AJ-E708: every unresolved divergence.
+#[tauri::command]
+#[must_use]
+pub fn fleet_divergences(state: tauri::State<'_, Arc<AppState>>) -> Vec<DivergenceRecordInfo> {
+    fleet_divergences_impl(state.inner())
+}
+
+/// AJ-E708: "Keep theirs" for one divergence (nothing is sent).
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] per [`fleet_divergence_keep_theirs_impl`].
+#[tauri::command]
+pub fn fleet_divergence_keep_theirs(
+    state: tauri::State<'_, Arc<AppState>>,
+    session_id: String,
+) -> AppResult<()> {
+    fleet_divergence_keep_theirs_impl(state.inner(), &session_id)
 }
 
 /// AJ-E706: switches an away Instance back to its original machine.

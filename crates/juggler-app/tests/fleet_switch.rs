@@ -649,6 +649,12 @@ fn a_diverged_original_blocks_switch_back_until_the_user_chooses() {
     let divergence = refused.divergence.unwrap();
     assert_eq!(divergence.turns_since, 1, "the exact count, never 'some'");
     assert!(divergence.last_activity_ms.is_some());
+    // The divergence waits for the user (the sync chip's "needs you"),
+    // and blocks destructive actions on the Instance meanwhile.
+    let pending = crossmachine::switch_back::fleet_divergences_impl(&pair.desktop);
+    assert_eq!(pending.len(), 1);
+    assert_eq!(pending[0].machine_label, "Laptop");
+    assert!(crossmachine::switch_back::is_diverged(&pair.desktop, &away));
     std::thread::sleep(Duration::from_millis(300));
     assert!(
         !pair
@@ -677,6 +683,10 @@ fn a_diverged_original_blocks_switch_back_until_the_user_chooses() {
     // Keep both: a copy of the original resumes; the original stays.
     let both = switch_back(&pair, &away, "keep_both");
     assert!(both.accepted, "{both:?}");
+    assert!(
+        crossmachine::switch_back::fleet_divergences_impl(&pair.desktop).is_empty(),
+        "resolved by the choice"
+    );
     let args = last_args(&pair.laptop, &pair.laptop_account);
     assert!(
         args.contains("--resume") && !args.contains("native-5"),
@@ -707,6 +717,16 @@ fn keep_mine_resumes_the_diverged_original_and_a_running_original_is_refused() {
         &pair.laptop_cwd,
     );
     let _ = back_plan(&pair, &away);
+    // A plain switch-back records the divergence; Keep theirs lifts it
+    // without sending anything.
+    let refused = switch_back(&pair, &away, "");
+    assert_eq!(refused.reason_code.as_deref(), Some("diverged"));
+    crossmachine::switch_back::fleet_divergence_keep_theirs_impl(&pair.desktop, &away).unwrap();
+    assert!(!crossmachine::switch_back::is_diverged(
+        &pair.desktop,
+        &away
+    ));
+    assert!(audit_kinds(&pair.desktop).contains(&"divergence_kept_theirs".to_owned()));
     // While the original runs on the laptop, nothing may resume it.
     {
         let storage = pair.laptop.storage.lock().unwrap();
