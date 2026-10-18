@@ -150,10 +150,10 @@
 **Goal**: Let users export and restore Juggler's database, packs and settings so a new machine or a corrupt store never costs them their history.
 **User story**: As a user moving laptops, I want one export file I can carry over and restore, with proof the restore matches.
 **Requirements**:
-1. Export SHALL produce a single archive (DB snapshot, packs, settings, lineage) with a manifest and checksums; credentials and provider login material SHALL be excluded by construction and the exclusion verified by the AJ-E801 redaction check.
+1. Export SHALL produce a single archive (DB snapshot, packs, settings, lineage) with a manifest and checksums; credentials, provider login material, and the Fleet `fleet/` folder (machine identity keys and peer pins — AJ-E701 contract) SHALL be excluded by construction and the exclusion verified by the AJ-E801 redaction check and a test.
 2. Restore SHALL verify checksums and schema version, refuse incompatible versions with a named reason, and restore into a clean managed directory without touching pre-existing vendor installs (invariant).
 3. A restore rehearsal SHALL run in CI on a fixture archive: restore, launch read-model, assert counts and lineage integrity match the manifest.
-4. Fleet machines SHALL each keep independent backups; restoring one machine's backup onto another requires an explicit machine-identity warning (E7 identity).
+4. Fleet machines SHALL each keep independent backups; restoring one machine's backup onto another SHALL warn that it carries that machine's data, never its identity: the restored Mac keeps its own identity key and must pair again (E7 identity).
 **UI/UX reasoning**: NN-g #5/#9: destructive-adjacent flows state scope, verify first, and report in plain language; progress and completion are visible, never silent (visibility of status).
 **Performance budget**: Export <60 s for 1 GB store (streaming, progress shown); restore verification <30 s; no background upload anywhere (local file only).
 **Quality gates**: Fixture restore test green in `just verify`; credential-pattern scan of a real export structure passes (patterns only, no real secrets).

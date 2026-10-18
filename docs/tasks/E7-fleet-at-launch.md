@@ -6,7 +6,9 @@
 > alone). Normative sources: `docs/SPEC.md` S11 (§11, lines 362–394),
 > `docs/adr/0004-fleet-transport-grpc-mtls.md`, `docs/review/pass2/08-proposal-delta-and-plan-updates.md`
 > §2.2 D-2 (superseded by D-13), `docs/review/decision-log.md:126-137`.
-> Current state (verified): `crates/juggler-link/src/lib.rs` is a doc-only
+> Section references: SPEC "§11 Fleet" (cite by section, not line).
+> Architecture contract: ADR-0013 "Architecture contract (AJ-E701)".
+> Current state at writing: `crates/juggler-link/src/lib.rs` was a doc-only
 > stub; `ui/src/App.tsx:340` renders `<ComingSoon screen="Fleet" />`;
 > `SessionRecord.machine: MachineId` already exists
 > (`crates/juggler-core/src/model.rs:389-398`). Fleet SHALL ship in beta
@@ -46,10 +48,10 @@
 **Goal**: Each install generates a durable Ed25519 machine identity; paired peers are pinned in a tamper-evident registry under `fleet/`.
 **User story**: As a developer with a laptop and a Mac mini, I pair once and trust that no other machine can impersonate either.
 **Requirements**:
-1. First run SHALL generate an Ed25519 keypair; private key SHALL be stored 0600 (keychain where available) and SHALL never be exported over the link or logged.
+1. First run SHALL generate an Ed25519 keypair; private key SHALL be stored in a 0600 file inside a 0700 `fleet/` folder and SHALL never be exported over the link, logged, or included in backups. *(Task-text fix 2026-10-18, AJ-E701 contract: a Keychain-held key is a later hardening; same-user code is an accepted risk either way.)*
 2. The self-signed TLS certificate SHALL be derived from the identity; fingerprint SHALL be shown as grouped hex during pairing.
-3. The paired-peer registry (`fleet/peers.json` via atomic write) SHALL record `MachineId`, label, fingerprint, permissions, paired-at, last-seen, and schema version.
-4. Registry tamper (bad signature/checksum/missing fields) SHALL fail closed: peer shown `Trust broken — re-pair required`, no connection attempted.
+3. The paired-peer registry (`fleet/peers.json` via atomic write) SHALL record `MachineId`, label, fingerprint, permissions, paired-at, last-seen, schema version, and a monotonic generation mirrored in the app database (rollback detection).
+4. Registry tamper (bad signature/checksum/missing fields) or rollback (generation older than the recorded one) SHALL fail closed: peer shown `Trust broken — re-pair required`, no connection attempted.
 5. Unpair SHALL delete the pin, revoke live sessions within 2 s, and require re-pairing for any future connection.
 6. Machine rename SHALL be local-label-only and SHALL not change `MachineId` or fingerprint.
 **UI/UX reasoning**: Apple HIG (identity/verification): show fingerprint in monospace groups of 4 with a Copy button; destructive Unpair uses a confirmation sheet naming the machine. Nielsen #1: pairing state (`Unpaired/Pairing/P aired/Trust broken`) always visible in Fleet header.
@@ -86,10 +88,10 @@
 **User story**: As a developer adding a second machine, I open Fleet, tap Add a machine, compare a code, and I am paired — no config files.
 **Requirements**:
 1. Nodes SHALL advertise via mDNS/Bonjour (`mdns-sd`) only when Link is enabled; disabling Link SHALL withdraw advertisement within 5 s.
-2. The wizard SHALL list discovered unpaired machines (label, platform, fingerprint short-form) and SHALL drop unpaired/anonymous connections (SPEC.md:375).
-3. Pairing SHALL require code comparison or QR scan on both ends; mismatched code SHALL abort, rate-limit (5 attempts, then 60 s lockout), and log the attempt.
+2. The wizard SHALL list discovered unpaired machines as "Unnamed machine (<instance id>)" — labels, platform and fingerprint are revealed only inside the pairing exchange, never from mDNS (AJ-E701 minimal TXT record) — and SHALL drop unpaired/anonymous connections.
+3. Pairing SHALL be user-initiated on both machines inside a 2-minute window: the console shows a single-use 6-digit code (or QR) that the new machine enters as the SPAKE2 password, followed by a label + fingerprint Confirm on both screens; a wrong code SHALL abort, rotate the code, rate-limit (5 attempts → 60 s lockout; 20 in 24 h → pairing disabled until re-enabled; persisted), and log the attempt without the entered code. *(Task-text fix 2026-10-18, AJ-E701 contract.)*
 4. The final step SHALL set permissions (`View only` default, or `View + control`) and SHALL explain in one sentence what control allows.
-5. Pairing SHALL complete in <60 s on a LAN fixture; failure states (no machines found, code mismatch, peer rejected, timeout at 60 s) SHALL each have distinct copy and a next action.
+5. Pairing SHALL complete in <60 s on a LAN fixture; failure states (no machines found, code mismatch, peer rejected, pairing window closed after 2 min) SHALL each have distinct copy and a next action.
 6. Remote (non-LAN) joining SHALL be documented as "connect your machines with Tailscale/WireGuard first, then pair" — the app SHALL not offer a relay or public-internet pairing path.
 **UI/UX reasoning**: Nielsen #5 error prevention + Apple HIG progressive disclosure: 3 steps max (`Find → Verify → Permissions`), Back always available, code input auto-advances per digit and supports paste. Shortcut: `⌘⇧F` opens Fleet from anywhere. Empty state copy: "No machines found. Check both machines are on the same network with Link on."
 **Performance budget**: Discovery list populated <5 s on LAN; browse CPU <1%; wizard step transition <200 ms; lockout timer survives app restart (persisted).
@@ -98,7 +100,7 @@
 **Visual testing**: Screenshots for all 3 steps + 4 failure states at 1280×800 and 800×600, light/dark; QR fallback shown when camera unavailable; a11y: full keyboard pairing without camera/mouse, VoiceOver labels on code fields; pass = task completable keyboard-only.
 **Files to touch**: [App.tsx](../../ui/src/App.tsx#L340), [lib.rs](../../crates/juggler-link/src/lib.rs), [bridge.ts](../../ui/src/lib/bridge.ts), [SPEC.md S11.4](../SPEC.md#L385)
 **Research basis**: SPEC.md:369,375,387; EPICS M6-2/M6-3; pass2/08 §4 Gate V6 criteria moved to launch by D-13.
-**Handover note**: Trap: mDNS is unauthenticated discovery only — never treat discovery as trust. The code comparison is the trust step; do not auto-pair "same Apple ID/network" machines.
+**Handover note**: Trap: mDNS is unauthenticated discovery only — never treat discovery as trust. The SPAKE2 code exchange is the trust step; do not auto-pair "same Apple ID/network" machines. ADR-0014 account discovery likewise never pins silently — the fingerprint is confirmed on both machines (AJ-E1206).
 
 ### AJ-E705 Remote inspector (fleet-shaped right inspector) | Status: TODO | Priority P0 | Effort L | Depends: AJ-E703
 **Goal**: Selecting a remote Machine, Account, or Instance fills the same six-tab right inspector as local selections, with honest staleness and permission states.
@@ -309,8 +311,10 @@ and never wonder which laptop a row belongs to.
    rejected with `PermissionDenied` and audit-logged, even
    from a modified client.
 5. Changing a peer's permission SHALL require confirmation
-   on the node machine (local prompt or pre-authorised
-   console), never silently from one console alone.
+   on the node machine itself (a local prompt), never
+   silently from a console. *(Task-text fix 2026-10-18:
+   the AJ-E701 contract removed the "pre-authorised console"
+   path — a console can never raise its own access.)*
 6. Tray SHALL aggregate fleet state (worst quota, orphan
    count, offline machines) using the same indicator grammar;
    colour SHALL never be the sole channel (icon + text).
@@ -365,9 +369,14 @@ and what still carries an `Unvalidated` badge.
    2 sufficed); cross-machine A→B→A switch with continuity
    checklist; remote orphan cleanup with zero collateral.
 2. Security checklist SHALL be filed per task: identity
-   tamper rejected, anonymous dropped, replay rejected,
-   view-only forged command rejected, credential-shaped
-   payload absent from telemetry, pre-click pack bytes = 0.
+   tamper and registry rollback rejected, anonymous dropped,
+   pairing brute-force / parallel-session / restart lockout
+   held, TLS 1.2 and wrong-MachineId rejected, replay
+   rejected, view-only and free-form-launch forged commands
+   rejected, pre-auth flood bounded, credential-shaped
+   payload absent from telemetry, no secrets in logs,
+   pre-click pack bytes = 0 — one negative test per STRIDE
+   row of the ADR-0013 architecture contract.
 3. Any Provider pair or path not live-dogfooded SHALL ship
    labelled `Unvalidated` in the wizard (D-04); the gate
    file SHALL list every unvalidated combination by name.
@@ -427,7 +436,7 @@ never a silent Coming Soon.
 **User story**: As a user at my laptop, I want to jump to a desktop agent's window on my studio machine and have that machine bring the exact window forward, with the outcome reported back to me.
 **Requirements**:
 1. A remote focus request SHALL be sent over the E7 transport (AJ-E703) to the owning machine, which SHALL execute the identical AJ-E414 tiered focus locally (activate, un-minimise, AXRaise) using that machine's Accessibility permission state; the requesting machine SHALL never inject input into the remote desktop directly.
-2. The request SHALL require the AJ-E709 permission tier `Act remotely: Ask each time` or stronger on the target machine; `View only` machines SHALL reject focus with a named reason returned to the requester.
+2. The request SHALL require the AJ-E709 permission tier `Act remotely: Ask each time` (= Control with Ask each time, AJ-E701 contract) or stronger on the target machine; `View only` machines SHALL reject focus with a named reason returned to the requester.
 3. Outcomes SHALL round-trip as the same honest classifications as local focus (`Focused window`, `App opened — window not found`, `App not running`, `Permission needed on <machine>`) and render as text in the remote Inspector (AJ-E705) and the palette result.
 4. Each remote focus SHALL be audit-logged on both machines (requester, target instance, outcome, timestamp); no focus SHALL execute while the target machine's user has an active "do not disturb / locked" state, which SHALL be reported instead.
 5. Where AJ-E415 preview exists for the remote instance, the palette SHALL offer `Preview` and `Focus on <machine>` as distinct actions; preview SHALL NOT be used to fake focus success.
@@ -479,8 +488,11 @@ AJ-E701 (ADR/threat model)
 
 ## Out of scope for this epic (do not build here)
 
-- Any cloud relay, vendor account system, or internet pairing
-  service (rejected in ADR-0004; D-13 does not reopen it).
+- Any cloud relay or internet pairing service (rejected in
+  ADR-0004; D-13 does not reopen it). The optional Figurehead
+  account (D-18, ADR-0014) may act only as a discovery
+  directory for the user's own Macs — built in AJ-E1206, never
+  a relay and never a silent pin.
 - Windows/Linux fleet packaging (CI core builds only; SPEC
   platform sequencing is unchanged).
 - Auto-switching or auto-cleanup without the D-08 per-Account
