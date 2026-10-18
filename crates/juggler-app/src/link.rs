@@ -393,6 +393,7 @@ fn session_deltas(
                     cpu_percent: row.cpu_pct,
                     rss_bytes: row.rss_bytes,
                     process_count: row.child_count.map(|children| children + 1),
+                    kind: row.kind,
                 }),
             )
         })
@@ -488,6 +489,9 @@ impl NodeHandler for AppNode {
                     })?;
                 Ok(format!("Started {}", launched.session_id))
             }
+            proto::control_command::Action::FocusInstance(focus) => {
+                focus_here(&state, &focus.instance_id)
+            }
         }
     }
 
@@ -514,7 +518,72 @@ fn describe_action(state: &Arc<AppState>, action: &proto::control_command::Actio
         proto::control_command::Action::LaunchRecipe(_) => {
             "start a session from your Launch settings".to_owned()
         }
+        proto::control_command::Action::FocusInstance(focus) => {
+            let label = state
+                .storage
+                .lock()
+                .ok()
+                .and_then(|storage| crate::commands::session_infos_snapshot(&storage).ok())
+                .and_then(|rows| rows.into_iter().find(|row| row.id == focus.instance_id))
+                .map(|row| format!("{} ({})", row.account_label, row.provider));
+            format!(
+                "bring {}'s window to the front",
+                label.unwrap_or_else(|| "an Instance".to_owned())
+            )
+        }
     }
+}
+
+/// AJ-E711: runs the SAME tiered focus as a local click (AJ-E414), on
+/// this Mac, with this Mac's Accessibility permission — never on a
+/// locked screen, and never anything but the honest outcome words.
+fn focus_here(state: &Arc<AppState>, instance_id: &str) -> Result<String, CommandRejection> {
+    let reject = |code: &str, message: String| CommandRejection {
+        reason_code: code.to_owned(),
+        message,
+    };
+    let here = crate::fleet::fleet_self_impl(state)
+        .map_or_else(|_| "this Mac".to_owned(), |info| info.label);
+    let known = state
+        .storage
+        .lock()
+        .ok()
+        .and_then(|storage| crate::commands::session_infos_snapshot(&storage).ok())
+        .is_some_and(|rows| rows.iter().any(|row| row.id == instance_id));
+    if !known {
+        return Err(reject(
+            "unknown_record",
+            "No such Instance on this Mac.".to_owned(),
+        ));
+    }
+    match crate::focus::screen_locked() {
+        Ok(false) => {}
+        Ok(true) => {
+            return Err(reject(
+                "screen_locked",
+                format!("{here} is locked — nothing was focused."),
+            ));
+        }
+        Err(_) => {
+            return Err(reject(
+                "lock_unknown",
+                format!("Couldn't tell whether {here} is locked — nothing was focused."),
+            ));
+        }
+    }
+    let outcome =
+        crate::commands::desktop_focus_with(state, instance_id, crate::focus::link_runner())
+            .map_err(|error| match error {
+                AppError::Validation { .. } => reject(
+                    "not_desktop",
+                    "That Instance runs in a terminal — there's no window to focus.".to_owned(),
+                ),
+                other => reject("focus_failed", other.wire().user_message),
+            })?;
+    if outcome.permission_missing {
+        return Ok(format!("Permission needed on {here}"));
+    }
+    Ok(outcome.outcome)
 }
 
 /// The host side of pairing, driven by the UI.

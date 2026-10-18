@@ -7041,11 +7041,19 @@ fn hog_facts(state: &Arc<AppState>, now_ms: i64) -> Vec<HogFactInfo> {
         let Some(tree_stats) = stats.get(session) else {
             continue;
         };
-        // Sustained = every ring sample in the window breaches.
+        // Sustained = every ring sample in the window breaches. The
+        // window is the last minute of samples the tree HAS: a finished
+        // tree's ring stops at root death (its rows freeze), and
+        // anchoring at the wall clock would age a hog out after a
+        // minute and let the sweep signal it (AJ-E512: never). A live
+        // tree's newest sample is ~now, so nothing changes for it.
         let ring = collector.ring(session);
+        let anchor = ring
+            .last()
+            .map_or(now_ms, |sample| sample.at_ms.min(now_ms));
         let in_window: Vec<_> = ring
             .iter()
-            .filter(|sample| now_ms - sample.at_ms <= HOG_WINDOW_MS)
+            .filter(|sample| anchor - sample.at_ms <= HOG_WINDOW_MS)
             .collect();
         if in_window.len() < 2 {
             continue; // not enough samples to call anything sustained
@@ -7102,6 +7110,17 @@ fn hog_facts(state: &Arc<AppState>, now_ms: i64) -> Vec<HogFactInfo> {
         }
     }
     facts
+}
+
+/// Test seam: the hog facts as of `now_ms` (AJ-E512 regression: a
+/// finished tree stays a hog however long after it froze).
+#[doc(hidden)]
+#[must_use]
+pub fn hog_sessions_at_for_test(state: &Arc<AppState>, now_ms: i64) -> Vec<String> {
+    hog_facts(state, now_ms)
+        .into_iter()
+        .map(|hog| hog.session)
+        .collect()
 }
 
 /// `launch_port_warning` sans-Tauri: the learned expected ports of

@@ -3071,6 +3071,17 @@ export async function fleetRemote(): Promise<RemoteMachineInfo[]> {
   return invoke<RemoteMachineInfo[]>("fleet_remote");
 }
 
+/** AJ-E711: asks a paired machine to bring one of its desktop windows
+ * forward — executed there, with its permissions. */
+export async function fleetRemoteFocus(machineId: string, instanceId: string): Promise<RemoteCommandOutcomeInfo> {
+  if (!hasBackend) {
+    const seams = remoteSeams() as RemoteSeams & { __AIJ_REMOTE_FOCUS__?: RemoteCommandOutcomeInfo };
+    seams.__AIJ_FLEET_CALLS__ = [...(seams.__AIJ_FLEET_CALLS__ ?? []), `remote-focus:${machineId}:${instanceId}`];
+    return seams.__AIJ_REMOTE_FOCUS__ ?? { accepted: true, reason_code: null, message: "Focused window" };
+  }
+  return invoke<RemoteCommandOutcomeInfo>("fleet_remote_focus", { machineId, instanceId });
+}
+
 /** Asks a paired machine to stop one of its Instances; the node decides. */
 export async function fleetRemoteStop(machineId: string, instanceId: string): Promise<RemoteCommandOutcomeInfo> {
   if (!hasBackend) {

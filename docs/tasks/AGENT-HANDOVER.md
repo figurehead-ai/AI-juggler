@@ -32,10 +32,10 @@ Updated 2026-10-18. Re-verify with `git log --oneline -20` and
 - Decision log: D-01..D-18. D-16 dual themes, D-17 screen-capture
   shim, D-18 optional Figurehead account (two paths; ADR-0014).
 - Stage 2 (implementation) is approved and running.
-- Progress: 87/114 DONE-EVIDENCED — E1, E2, E3, E4, E5, E6, E9
-  complete; E7 6/11 (AJ-E701..E705, AJ-E709); E8 3/10; E10 not started; E12 3/7
+- Progress: 88/114 DONE-EVIDENCED — E1, E2, E3, E4, E5, E6, E9
+  complete; E7 7/11 (AJ-E701..E705, AJ-E709, AJ-E711); E8 3/10; E10 not started; E12 3/7
   (AJ-E1201..E1203: decision, account client, Settings).
-- Execution order from here: the rest of E7 (AJ-E706, E707, E708, E711, then the E710 gate) → E10 →
+- Execution order from here: the rest of E7 (AJ-E706, E707, E708, then the E710 gate) → E10 →
   AJ-E1204/E1205/E1206/E1207 → usage statistics (E11, its own decision
   D-19 / ADR-0015) → E8 tail.
 - CI: 5 required checks (`verify`, `ui`, `build-macos`, `build-linux`,
@@ -43,7 +43,7 @@ Updated 2026-10-18. Re-verify with `git log --oneline -20` and
   linear history). The org allows only GitHub-owned or verified
   actions pinned to full SHAs.
 - Gates: `just verify`, `pnpm --dir ui test`, `pnpm --dir ui build`,
-  and the full Playwright suite for UI changes (679 tests after AJ-E705).
+  and the full Playwright suite for UI changes (696 tests after AJ-E711).
   Local macOS gotchas: cargo needs the Swift shim RUSTFLAGS (see
   CONTRIBUTING.md); the `ports` test binds :5173 and :8000, so stop
   any dev server on those ports before `just verify`.

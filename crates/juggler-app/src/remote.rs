@@ -30,8 +30,9 @@ const LIVE_WITHIN_MS: i64 = 5_000;
 const FORGET_INSTANCE_AFTER_MS: i64 = 10_000;
 /// The app setting holding this console's command sequence per peer.
 const SEQUENCE_KEY: &str = "fleet_console_sequence";
-/// How long a remote command may take end to end.
-const COMMAND_TIMEOUT: Duration = Duration::from_secs(5);
+/// How long a remote command may take end to end (the node may wait up
+/// to 20 s for its user to Allow an "Ask each time" request).
+const COMMAND_TIMEOUT: Duration = Duration::from_secs(25);
 
 fn now_ms() -> i64 {
     juggler_core::model::Timestamp::now().millis()
@@ -229,6 +230,8 @@ pub struct RemoteInstanceInfo {
     pub rss_bytes: Option<u64>,
     /// Processes in its tree.
     pub process_count: Option<u32>,
+    /// `terminal` | `desktop` (empty = not reported).
+    pub kind: String,
     /// When this console received the row, epoch ms.
     #[ts(type = "number")]
     pub measured_at_ms: i64,
@@ -342,6 +345,7 @@ pub fn fleet_remote_impl(state: &Arc<AppState>) -> AppResult<Vec<RemoteMachineIn
                             cpu_percent: row.cpu_percent,
                             rss_bytes: row.rss_bytes,
                             process_count: row.process_count,
+                            kind: row.kind.clone(),
                             measured_at_ms: *at,
                         })
                         .collect()
@@ -426,17 +430,13 @@ fn next_command_sequence(state: &Arc<AppState>, machine_id: &str) -> AppResult<u
     Ok(next)
 }
 
-/// Core: asks `machine_id` to stop one of its Instances. The node
-/// re-checks everything (permission, replay, expiry, that the Instance
-/// exists) and answers in its own words.
-///
-/// # Errors
-///
-/// Returns [`AppError::Validation`] when that machine isn't connected.
-pub async fn fleet_remote_stop_impl(
+/// Sends one control action to `machine_id` and returns the node's
+/// verdict. Logged on THIS Mac too (who was asked, the outcome), so a
+/// remote action is audited on both machines.
+async fn send_action(
     state: Arc<AppState>,
     machine_id: String,
-    instance_id: String,
+    action: proto::control_command::Action,
 ) -> AppResult<RemoteCommandOutcomeInfo> {
     let (peer, permission) = {
         let map = state
@@ -466,8 +466,8 @@ pub async fn fleet_remote_stop_impl(
     }
     let console = crate::commands::local_machine_id(&state).to_string();
     let sequence = next_command_sequence(&state, &machine_id)?;
-    let action = proto::control_command::Action::StopInstance(proto::StopInstance { instance_id });
     let runtime = state.link.runtime()?;
+    // The node may wait for its user ("Ask each time"), up to 20 s.
     let task = runtime.spawn(async move {
         tokio::time::timeout(
             COMMAND_TIMEOUT,
@@ -479,23 +479,76 @@ pub async fn fleet_remote_stop_impl(
         context: "remote action",
         message: e.to_string(),
     })?;
-    match result {
-        Err(_) => Ok(RemoteCommandOutcomeInfo {
+    let outcome = match result {
+        Err(_) => RemoteCommandOutcomeInfo {
             accepted: false,
             reason_code: Some("timeout".to_owned()),
             message: "That machine didn't answer in time — nothing was confirmed.".to_owned(),
-        }),
-        Ok(Err(error)) => Ok(RemoteCommandOutcomeInfo {
+        },
+        Ok(Err(error)) => RemoteCommandOutcomeInfo {
             accepted: false,
             reason_code: Some("unreachable".to_owned()),
             message: error.to_string(),
-        }),
-        Ok(Ok(result)) => Ok(RemoteCommandOutcomeInfo {
+        },
+        Ok(Ok(result)) => RemoteCommandOutcomeInfo {
             accepted: result.outcome == "accepted",
             reason_code: (!result.reason_code.is_empty()).then_some(result.reason_code),
             message: result.message,
-        }),
-    }
+        },
+    };
+    crate::fleet::append_audit(
+        &state,
+        &juggler_link::node::LinkAuditEvent {
+            peer: machine_id,
+            kind: "command_sent".to_owned(),
+            reason_code: outcome
+                .reason_code
+                .clone()
+                .unwrap_or_else(|| "accepted".to_owned()),
+            sequence: Some(sequence),
+        },
+    );
+    Ok(outcome)
+}
+
+/// Core: asks `machine_id` to stop one of its Instances. The node
+/// re-checks everything (permission, replay, expiry, that the Instance
+/// exists) and answers in its own words.
+///
+/// # Errors
+///
+/// Returns [`AppError::Validation`] when that machine isn't connected.
+pub async fn fleet_remote_stop_impl(
+    state: Arc<AppState>,
+    machine_id: String,
+    instance_id: String,
+) -> AppResult<RemoteCommandOutcomeInfo> {
+    send_action(
+        state,
+        machine_id,
+        proto::control_command::Action::StopInstance(proto::StopInstance { instance_id }),
+    )
+    .await
+}
+
+/// Core (AJ-E711): asks `machine_id` to bring one of its desktop
+/// Instances' windows forward — executed there, with its permissions;
+/// the answer is that machine's honest focus outcome.
+///
+/// # Errors
+///
+/// Returns [`AppError::Validation`] when that machine isn't connected.
+pub async fn fleet_remote_focus_impl(
+    state: Arc<AppState>,
+    machine_id: String,
+    instance_id: String,
+) -> AppResult<RemoteCommandOutcomeInfo> {
+    send_action(
+        state,
+        machine_id,
+        proto::control_command::Action::FocusInstance(proto::FocusInstance { instance_id }),
+    )
+    .await
 }
 
 /// AJ-E705: every paired machine with what it last reported.
@@ -506,6 +559,20 @@ pub async fn fleet_remote_stop_impl(
 #[tauri::command]
 pub fn fleet_remote(state: tauri::State<'_, Arc<AppState>>) -> AppResult<Vec<RemoteMachineInfo>> {
     fleet_remote_impl(state.inner())
+}
+
+/// AJ-E711: asks a paired machine to focus one of its desktop windows.
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] per [`fleet_remote_focus_impl`].
+#[tauri::command]
+pub async fn fleet_remote_focus(
+    state: tauri::State<'_, Arc<AppState>>,
+    machine_id: String,
+    instance_id: String,
+) -> AppResult<RemoteCommandOutcomeInfo> {
+    fleet_remote_focus_impl(Arc::clone(state.inner()), machine_id, instance_id).await
 }
 
 /// AJ-E705: asks a paired machine to stop one of its Instances.

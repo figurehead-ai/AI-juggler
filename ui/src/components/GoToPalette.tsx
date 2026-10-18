@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Card, Chip } from "./primitives";
-import type { InstanceInfo } from "../lib/bridge";
+import type { InstanceInfo, RemoteInstanceInfo, RemoteMachineInfo } from "../lib/bridge";
 import { errorText } from "../lib/bridge";
 
 /**
@@ -48,6 +48,9 @@ export function GoToPalette({
   onOpenSession,
   hotkey,
   onHotkeyChange,
+  remoteMachines = [],
+  onFocusRemote,
+  onOpenRemote,
 }: {
   open: boolean;
   onClose: () => void;
@@ -56,6 +59,10 @@ export function GoToPalette({
   onOpenSession: (id: string) => void;
   hotkey: string;
   onHotkeyChange: (combo: string) => Promise<void>;
+  /** AJ-E711: paired machines' live Instances (from cached Fleet state). */
+  remoteMachines?: RemoteMachineInfo[];
+  onFocusRemote?: (machineId: string, instanceId: string) => void;
+  onOpenRemote?: (machineId: string, instanceId: string) => void;
 }) {
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
@@ -63,19 +70,37 @@ export function GoToPalette({
   const [captureError, setCaptureError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  const rows = useMemo(() => {
-    const live = sessions.filter((s) => isLive(s.status));
-    const haystack = (s: InstanceInfo) =>
-      `${s.account_label} ${s.provider} ${s.kind}`.toLowerCase();
-    const filtered = query.trim()
-      ? live.filter((s) => haystack(s).includes(query.trim().toLowerCase()))
-      : live;
-    // Desktop first (they own windows — the hotkey's reason to exist).
+  const rows = useMemo<PaletteRow[]>(() => {
+    const needle = query.trim().toLowerCase();
+    const local: PaletteRow[] = sessions
+      .filter((s) => isLive(s.status))
+      .filter((s) => !needle || `${s.account_label} ${s.provider} ${s.kind}`.toLowerCase().includes(needle))
+      .map((row) => ({ where: "local", row, id: row.id, desktop: row.kind === "desktop" }));
+    const remote: PaletteRow[] = remoteMachines.flatMap((machine) =>
+      machine.instances
+        .filter((row) => isLive(row.status) || row.status === "waiting_user")
+        .filter(
+          (row) =>
+            !needle ||
+            `${row.account_label} ${row.provider} ${row.kind} ${machine.label}`.toLowerCase().includes(needle),
+        )
+        .map((row) => ({
+          where: "remote" as const,
+          machine,
+          row,
+          id: `${machine.machine_id}::${row.id}`,
+          desktop: row.kind === "desktop",
+        })),
+    );
+    // Desktop first (they own windows — the hotkey's reason to exist),
+    // this Mac before paired machines.
     return [
-      ...filtered.filter((s) => s.kind === "desktop"),
-      ...filtered.filter((s) => s.kind !== "desktop"),
+      ...local.filter((r) => r.desktop),
+      ...remote.filter((r) => r.desktop),
+      ...local.filter((r) => !r.desktop),
+      ...remote.filter((r) => !r.desktop),
     ];
-  }, [sessions, query]);
+  }, [sessions, remoteMachines, query]);
 
   useEffect(() => {
     if (open) {
@@ -95,11 +120,14 @@ export function GoToPalette({
     return null;
   }
 
-  const choose = (row: InstanceInfo) => {
-    if (row.kind === "desktop") {
-      onFocusWindow(row);
+  const choose = (entry: PaletteRow) => {
+    if (entry.where === "local") {
+      if (entry.desktop) onFocusWindow(entry.row);
+      else onOpenSession(entry.row.id);
+    } else if (entry.desktop && canFocusRemote(entry.machine)) {
+      onFocusRemote?.(entry.machine.machine_id, entry.row.id);
     } else {
-      onOpenSession(row.id);
+      onOpenRemote?.(entry.machine.machine_id, entry.row.id);
     }
     onClose();
   };
@@ -153,7 +181,7 @@ export function GoToPalette({
             role="combobox"
             aria-expanded="true"
             aria-controls="goto-listbox"
-            aria-activedescendant={rows[active] ? `goto-option-${rows[active]!.id}` : undefined}
+            aria-activedescendant={rows[active] ? `goto-option-${domId(rows[active]!.id)}` : undefined}
             aria-label="Go to instance"
             value={query}
             placeholder={capturing ? "Press the new combo (Esc cancels)…" : "Go to instance…"}
@@ -169,37 +197,48 @@ export function GoToPalette({
           className="max-h-72 overflow-y-auto p-1.5"
         >
           {rows.length === 0 && (
-            <li className="px-2.5 py-3 text-[11.5px] text-faint">
+            <li className="px-2.5 py-3 text-[11.5px] text-muted">
               No live instances — start one from the rail.
             </li>
           )}
-          {rows.map((row, index) => (
-            <li key={row.id} id={`goto-option-${row.id}`} role="option" aria-selected={index === active}>
-              <button
-                type="button"
-                data-testid={`goto-row-${row.id}`}
-                onClick={() => choose(row)}
-                onMouseEnter={() => setActive(index)}
-                className={
-                  "flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-[11.5px] transition-colors " +
-                  (index === active ? "bg-accent-soft text-accent-hi" : "text-ink hover:bg-surface")
-                }
-              >
-                {row.kind === "desktop" ? (
-                  <Chip tone="accent">app</Chip>
-                ) : (
-                  <Chip tone="neutral">term</Chip>
+          {rows.map((entry, index) => (
+            // The option itself is the target: keyboard goes through the
+            // combobox (aria-activedescendant), so no nested button.
+            <li
+              key={entry.id}
+              id={`goto-option-${domId(entry.id)}`}
+              role="option"
+              aria-selected={index === active}
+              data-testid={`goto-row-${entry.where === "local" ? entry.id : `remote-${entry.row.id}`}`}
+              onClick={() => choose(entry)}
+              onMouseEnter={() => setActive(index)}
+              className={
+                "flex w-full cursor-default items-center gap-2 rounded-md px-2.5 py-2 text-left text-[11.5px] transition-colors " +
+                (index === active ? "bg-accent-soft text-accent-hi" : "text-ink hover:bg-surface")
+              }
+            >
+                {entry.desktop ? <Chip tone="accent">app</Chip> : <Chip tone="neutral">term</Chip>}
+                <span className="min-w-0 shrink truncate">{entry.row.account_label}</span>
+                <span className="min-w-0 shrink truncate text-muted">{entry.row.provider}</span>
+                {entry.where === "remote" && (
+                  <span className="shrink-0 text-muted" data-testid="goto-remote-machine">
+                    on {entry.machine.label} ·{" "}
+                    {entry.machine.freshness === "live" ? "● live" : entry.machine.freshness === "stale" ? "◐ stale" : "○ offline"}
+                  </span>
                 )}
-                <span className="min-w-0 shrink truncate">{row.account_label}</span>
-                <span className="min-w-0 shrink truncate text-faint">{row.provider}</span>
-                <span className="ml-auto shrink-0 text-faint">
-                  {row.kind === "desktop" ? "focus window" : "open panel"}
+                <span className="ml-auto shrink-0 text-muted">
+                  {entry.where === "local"
+                    ? entry.desktop
+                      ? "focus window"
+                      : "open panel"
+                    : entry.desktop && canFocusRemote(entry.machine)
+                      ? `Focus on ${entry.machine.label}`
+                      : "inspect"}
                 </span>
-              </button>
             </li>
           ))}
         </ul>
-        <div className="flex items-center gap-3 border-t border-hairline px-3 py-2 text-[10.5px] text-faint">
+        <div className="flex items-center gap-3 border-t border-hairline px-3 py-2 text-[10.5px] text-muted">
           <span>↑↓ navigate · Enter go · Esc close</span>
           <Button
             size="sm"
@@ -218,4 +257,19 @@ export function GoToPalette({
       </Card>
     </div>
   );
+}
+
+type PaletteRow =
+  | { where: "local"; row: InstanceInfo; id: string; desktop: boolean }
+  | { where: "remote"; machine: RemoteMachineInfo; row: RemoteInstanceInfo; id: string; desktop: boolean };
+
+/** A remote focus is offered only where that machine allows control and
+ * is connected now (it decides again when the request arrives). */
+function canFocusRemote(machine: RemoteMachineInfo): boolean {
+  return machine.permission === "control" && machine.connection === "connected";
+}
+
+/** Option ids must be valid DOM ids. */
+function domId(id: string): string {
+  return id.replace(/[^A-Za-z0-9_-]/g, "_");
 }

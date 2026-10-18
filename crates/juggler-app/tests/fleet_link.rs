@@ -534,3 +534,156 @@ fn alerts_on_one_mac_reach_its_paired_console_named_by_machine() {
     link::link_set_enabled_impl(&a, false).unwrap();
     link::link_set_enabled_impl(&b, false).unwrap();
 }
+
+/// A scripted focus runner on the node: one window, every AX call works.
+struct OneWindow;
+
+impl juggler_app::focus::ScriptRunner for OneWindow {
+    fn osascript(&self, source: &str) -> Result<String, String> {
+        if source.contains("get name of every window") {
+            return Ok("notes-a".into());
+        }
+        Ok(String::new())
+    }
+    fn activate(&self, _bundle_id: &str) -> Result<(), String> {
+        Ok(())
+    }
+}
+
+fn seed_desktop(state: &Arc<AppState>, dir: &Path) {
+    let storage = state.storage.lock().unwrap();
+    storage
+        .accounts()
+        .insert(&Account {
+            id: AccountId::new("acc-desk"),
+            harness: juggler_core::model::HarnessId::new("claude-code"),
+            label: "Desk".into(),
+            plan: None,
+            state_dir: dir.join("state-desk"),
+            cleanup_opt_in: false,
+            renewal_date: None,
+            preview_opt_in: false,
+            import_source_path: None,
+            import_origin: None,
+            imported_at: None,
+        })
+        .unwrap();
+    storage
+        .profiles()
+        .insert(&LaunchRecipe {
+            id: ProfileId::new("rec-desk"),
+            name: "Desk".into(),
+            account: AccountId::new("acc-desk"),
+            settings_overlay: Default::default(),
+            default_cwd: None,
+        })
+        .unwrap();
+    storage
+        .sessions()
+        .insert(&InstanceRecord {
+            id: SessionId::new("inst-desk"),
+            conversation: None,
+            profile: ProfileId::new("rec-desk"),
+            machine: MachineId::new("this-mac"),
+            kind: InstanceKind::Desktop,
+            project: None,
+            cwd: dir.to_path_buf(),
+            status: SessionStatus::Running,
+            started_at: Timestamp::now(),
+            last_activity: Some(Timestamp::now()),
+            usage: Default::default(),
+            attention: None,
+            running: None,
+            transcript_ref: None,
+            window: Some(juggler_core::model::WindowIdentity {
+                pid: 4242,
+                bundle_id: Some("com.example.notes".into()),
+                title: None,
+                cgwindow_id: None,
+            }),
+        })
+        .unwrap();
+}
+
+#[test]
+fn a_remote_focus_runs_on_the_owning_mac_and_reports_its_honest_outcome() {
+    let work = tempfile::tempdir().unwrap();
+    let a = app_state(&work.path().join("a"));
+    let b = app_state(&work.path().join("b"));
+    fleet::fleet_set_label_impl(&a, "Studio Mac").unwrap();
+    seed_desktop(&a, work.path());
+    seed_instance(&a, work.path()); // a terminal Instance too
+    juggler_app::focus::set_link_runner_for_test(Some(Arc::new(OneWindow)));
+    juggler_app::focus::set_screen_locked_for_test(Some(false));
+    link::link_set_enabled_impl(&a, true).unwrap();
+    link::link_set_enabled_impl(&b, true).unwrap();
+    pair(&a, &b, Permission::Control);
+    let machine = wait_for("A reported its desktop Instance", || {
+        remote::fleet_remote_impl(&b)
+            .unwrap()
+            .into_iter()
+            .find(|m| {
+                m.permission.as_deref() == Some("control")
+                    && m.instances
+                        .iter()
+                        .any(|i| i.id == "inst-desk" && i.kind == "desktop")
+            })
+    });
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let focus = |instance: &str| {
+        wait_for("a verdict", || {
+            let outcome = runtime
+                .block_on(remote::fleet_remote_focus_impl(
+                    Arc::clone(&b),
+                    machine.machine_id.clone(),
+                    instance.to_owned(),
+                ))
+                .unwrap();
+            (outcome.reason_code.as_deref() != Some("clock_unmeasured")).then_some(outcome)
+        })
+    };
+
+    let focused = focus("inst-desk");
+    assert!(focused.accepted, "{focused:?}");
+    assert_eq!(
+        focused.message, "Focused window",
+        "the node's own outcome words"
+    );
+
+    let terminal = focus("inst-remote-1");
+    assert!(!terminal.accepted);
+    assert_eq!(terminal.reason_code.as_deref(), Some("not_desktop"));
+
+    juggler_app::focus::set_screen_locked_for_test(Some(true));
+    let locked = focus("inst-desk");
+    assert!(!locked.accepted);
+    assert_eq!(locked.reason_code.as_deref(), Some("screen_locked"));
+    assert_eq!(
+        locked.message,
+        "Studio Mac is locked — nothing was focused."
+    );
+
+    // Audited on both machines.
+    let node = fleet::verify_audit(&a).unwrap();
+    assert!(node.iter().any(|e| e["kind"] == "command_accepted"));
+    assert!(
+        node.iter()
+            .any(|e| e["kind"] == "command_rejected" && e["reason"] == "screen_locked")
+    );
+    let console = fleet::verify_audit(&b).unwrap();
+    assert!(
+        console
+            .iter()
+            .any(|e| e["kind"] == "command_sent" && e["reason"] == "accepted")
+    );
+    assert!(
+        console
+            .iter()
+            .any(|e| e["kind"] == "command_sent" && e["reason"] == "screen_locked")
+    );
+
+    juggler_app::focus::set_screen_locked_for_test(None);
+    juggler_app::focus::set_link_runner_for_test(None);
+    link::link_set_enabled_impl(&a, false).unwrap();
+    link::link_set_enabled_impl(&b, false).unwrap();
+}

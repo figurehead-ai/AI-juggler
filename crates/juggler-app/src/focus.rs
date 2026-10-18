@@ -594,3 +594,87 @@ mod tests {
         }
     }
 }
+
+/// AJ-E711 test seam: the runner the Fleet link uses, and a forced
+/// screen-lock answer (production: the real runner and the real probe).
+static LINK_RUNNER: std::sync::Mutex<Option<Arc<dyn ScriptRunner + Send + Sync>>> =
+    std::sync::Mutex::new(None);
+static LOCK_OVERRIDE: std::sync::Mutex<Option<bool>> = std::sync::Mutex::new(None);
+
+/// The runner a remote focus request uses on this Mac.
+#[must_use]
+pub fn link_runner() -> Arc<dyn ScriptRunner> {
+    LINK_RUNNER
+        .lock()
+        .ok()
+        .and_then(|slot| slot.clone())
+        .map_or_else(
+            || Arc::new(OsascriptRunner) as Arc<dyn ScriptRunner>,
+            |runner| runner as Arc<dyn ScriptRunner>,
+        )
+}
+
+/// Test seam: a scripted runner for remote focus (None = the real one).
+#[doc(hidden)]
+pub fn set_link_runner_for_test(runner: Option<Arc<dyn ScriptRunner + Send + Sync>>) {
+    if let Ok(mut slot) = LINK_RUNNER.lock() {
+        *slot = runner;
+    }
+}
+
+/// Test seam: force the screen-lock answer (None = probe for real).
+#[doc(hidden)]
+pub fn set_screen_locked_for_test(locked: Option<bool>) {
+    if let Ok(mut slot) = LOCK_OVERRIDE.lock() {
+        *slot = locked;
+    }
+}
+
+/// Whether this Mac's screen is locked (AJ-E711: a remote focus never
+/// runs on a locked screen — it is reported instead). Reads the console
+/// session's `CGSSessionScreenIsLocked` flag from `ioreg`.
+///
+/// # Errors
+///
+/// Returns the reason when the state can't be read (the caller refuses
+/// rather than guess).
+pub fn screen_locked() -> Result<bool, String> {
+    if let Some(forced) = LOCK_OVERRIDE.lock().ok().and_then(|slot| *slot) {
+        return Ok(forced);
+    }
+    if !cfg!(target_os = "macos") {
+        return Err("screen-lock state is only readable on macOS".to_owned());
+    }
+    let out = std::process::Command::new("/usr/sbin/ioreg")
+        .args(["-n", "Root", "-d1", "-a"])
+        .output()
+        .map_err(|e| e.to_string())?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).trim().to_owned());
+    }
+    Ok(plist_screen_locked(&String::from_utf8_lossy(&out.stdout)))
+}
+
+/// `true` when the plist carries `CGSSessionScreenIsLocked` = true.
+fn plist_screen_locked(plist: &str) -> bool {
+    plist
+        .split("<key>CGSSessionScreenIsLocked</key>")
+        .skip(1)
+        .any(|rest| rest.trim_start().starts_with("<true/>"))
+}
+
+#[cfg(test)]
+mod lock_tests {
+    use super::plist_screen_locked;
+
+    #[test]
+    fn the_lock_flag_is_read_from_the_session_plist() {
+        let locked = "<dict><key>CGSSessionScreenIsLocked</key>\n\t<true/><key>x</key></dict>";
+        let open = "<dict><key>CGSSessionScreenIsLocked</key><false/></dict>";
+        assert!(plist_screen_locked(locked));
+        assert!(!plist_screen_locked(open));
+        assert!(!plist_screen_locked(
+            "<dict><key>kCGSSessionOnConsoleKey</key><true/></dict>"
+        ));
+    }
+}

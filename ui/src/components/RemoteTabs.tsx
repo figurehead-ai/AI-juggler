@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button, Card, Chip } from "./primitives";
 import {
   errorText,
+  fleetRemoteFocus,
   fleetRemoteStop,
   type RemoteCommandOutcomeInfo,
   type RemoteInstanceInfo,
@@ -13,6 +14,9 @@ import {
 export type RemoteContext = {
   machine: RemoteMachineInfo;
   instance: RemoteInstanceInfo | null;
+  /** AJ-E711: the last remote focus outcome for this Instance, when the
+   * palette started one. */
+  lastOutcome?: RemoteCommandOutcomeInfo | null;
 };
 
 type Tab = "overview" | "usage" | "history" | "quality" | "processes" | "actions";
@@ -66,7 +70,14 @@ export function RemoteTabBody({
     case "processes":
       return <InstanceProcesses machine={machine} instance={instance} now={now} />;
     case "actions":
-      return <InstanceActions machine={machine} instance={instance} onDone={onActionDone} />;
+      return (
+        <InstanceActions
+          machine={machine}
+          instance={instance}
+          onDone={onActionDone}
+          initialOutcome={remote.lastOutcome ?? null}
+        />
+      );
     default:
       return <Unavailable machine={machine} what={WHAT[tab]} />;
   }
@@ -254,13 +265,18 @@ function InstanceActions({
   machine,
   instance,
   onDone,
+  initialOutcome,
 }: {
   machine: RemoteMachineInfo;
   instance: RemoteInstanceInfo;
   onDone: () => void;
+  initialOutcome: RemoteCommandOutcomeInfo | null;
 }): JSX.Element {
   const [busy, setBusy] = useState(false);
-  const [outcome, setOutcome] = useState<RemoteCommandOutcomeInfo | null>(null);
+  const [outcome, setOutcome] = useState<RemoteCommandOutcomeInfo | null>(initialOutcome);
+  useEffect(() => {
+    if (initialOutcome) setOutcome(initialOutcome);
+  }, [initialOutcome]);
   const [error, setError] = useState<string | null>(null);
   const canControl = machine.permission === "control";
   const connected = machine.connection === "connected";
@@ -299,6 +315,30 @@ function InstanceActions({
             Stop on {machine.label}
           </Button>
         </span>
+        {instance.kind === "desktop" && (
+          <span title={reason ?? undefined}>
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={reason !== null || busy}
+              aria-describedby={reason ? "remote-stop-reason" : undefined}
+              onClick={async () => {
+                setBusy(true);
+                setError(null);
+                try {
+                  setOutcome(await fleetRemoteFocus(machine.machine_id, instance.id));
+                } catch (cause) {
+                  setError(errorText(cause));
+                } finally {
+                  setBusy(false);
+                }
+              }}
+              data-testid="remote-focus"
+            >
+              Focus on {machine.label}
+            </Button>
+          </span>
+        )}
         {reason && (
           <span id="remote-stop-reason" className="text-[11px] text-muted" data-testid="remote-stop-reason">
             {reason}

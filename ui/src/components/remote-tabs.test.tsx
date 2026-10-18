@@ -35,6 +35,7 @@ const machine = (over: Partial<RemoteMachineInfo> = {}): RemoteMachineInfo => ({
       cpu_percent: null,
       rss_bytes: null,
       process_count: null,
+      kind: "desktop",
       measured_at_ms: NOW - 2_000,
     },
   ],
@@ -45,6 +46,7 @@ const machine = (over: Partial<RemoteMachineInfo> = {}): RemoteMachineInfo => ({
 afterEach(cleanup);
 beforeEach(() => {
   delete w().__AIJ_REMOTE_STOP__;
+  delete w().__AIJ_REMOTE_FOCUS__;
   delete w().__AIJ_FLEET_CALLS__;
 });
 
@@ -87,6 +89,16 @@ describe("RemoteTabBody", () => {
     const view = body("actions", machine({ connection: "offline", freshness: "offline" }));
     expect((view.getByTestId("remote-stop") as HTMLButtonElement).disabled).toBe(true);
     expect(view.getByTestId("remote-stop-reason").textContent).toContain("isn't connected");
+  });
+
+  it("Focus on <machine> shows that machine's own outcome", async () => {
+    w().__AIJ_REMOTE_FOCUS__ = { accepted: false, reason_code: "screen_locked", message: "Mac mini is locked — nothing was focused." };
+    const view = body("actions");
+    await act(async () => {
+      fireEvent.click(view.getByTestId("remote-focus"));
+    });
+    expect(view.getByTestId("remote-outcome").textContent).toContain("Mac mini refused: Mac mini is locked — nothing was focused.");
+    expect(w().__AIJ_FLEET_CALLS__).toContain("remote-focus:machine-mini:inst-1");
   });
 
   it("Stop shows the node's own verdict", async () => {

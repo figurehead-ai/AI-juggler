@@ -53,3 +53,14 @@
   cold `python3` start exceeded the harness's 10 s readiness wait. The
   same binary passed 10/10 once load dropped. The wait for a fixture to
   *start* is now 30 s; no product threshold or assertion changed.
+- Real bug found through a CI failure (2026-10-18, PR #21 `verify` on
+  ubuntu): `guardrails :: hog_is_never_auto_signalled…` saw the hog
+  helper dead before its assertion. Cause (AJ-E512): hog sustained-ness
+  = "every ring sample within 60 s of now breaches", but a finished
+  tree's ring stops at root death; when more than a minute passed
+  between the freeze and the sweep (a slow runner), the hog aged out,
+  the single-helper RSS rule was skipped with it, and the sweep could
+  auto-signal the hog. Now the window is the last minute of samples the
+  tree has (a live tree's newest sample is ~now — unchanged for it).
+  Regression: the same test asserts the frozen tree is still a hog ten
+  minutes later (fails before the fix). No threshold changed.
