@@ -141,6 +141,8 @@ pub struct LinkManager {
     sequence: Arc<std::sync::atomic::AtomicU64>,
     /// What paired machines report, as this console last heard it.
     pub(crate) remote: crate::remote::RemoteCache,
+    /// "Ask each time" commands waiting for this Mac's user.
+    prompts: Prompts,
     /// Peers to reconnect at once (a re-pair changed what they grant).
     reconnect: Arc<Mutex<std::collections::HashSet<String>>>,
     /// Test seam: skip mDNS (tests must not advertise on a real LAN).
@@ -283,6 +285,55 @@ struct AppNode {
     state: Weak<AppState>,
     live: tokio::sync::broadcast::Sender<proto::TelemetryDelta>,
     sequence: Arc<std::sync::atomic::AtomicU64>,
+    prompts: Prompts,
+}
+
+/// How long an "Ask each time" command waits for this Mac's user (well
+/// inside the 30 s command expiry).
+pub const PROMPT_TIMEOUT: Duration = Duration::from_secs(20);
+
+/// A control command from an "Ask each time" machine, waiting for this
+/// Mac's user to Allow or Deny it.
+#[derive(Debug)]
+struct PendingPrompt {
+    id: u64,
+    peer_label: String,
+    action: String,
+    expires_at_ms: i64,
+    respond: std::sync::mpsc::Sender<bool>,
+}
+
+/// The waiting prompts, and the next prompt id.
+#[derive(Debug, Default, Clone)]
+struct Prompts {
+    pending: Arc<Mutex<Vec<PendingPrompt>>>,
+    next: Arc<std::sync::atomic::AtomicU64>,
+}
+
+impl Prompts {
+    /// Asks this Mac's user; blocks the command (never the runtime) for
+    /// at most [`PROMPT_TIMEOUT`]. Anything but an explicit Allow is a
+    /// Deny.
+    fn ask(&self, peer_label: &str, action: &str) -> bool {
+        let (respond, decision) = std::sync::mpsc::channel();
+        let id = self.next.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+        if let Ok(mut pending) = self.pending.lock() {
+            pending.push(PendingPrompt {
+                id,
+                peer_label: peer_label.to_owned(),
+                action: action.to_owned(),
+                expires_at_ms: now_ms()
+                    + i64::try_from(PROMPT_TIMEOUT.as_millis()).unwrap_or(20_000),
+                respond,
+            });
+        }
+        let allowed =
+            tokio::task::block_in_place(|| decision.recv_timeout(PROMPT_TIMEOUT)).unwrap_or(false);
+        if let Ok(mut pending) = self.pending.lock() {
+            pending.retain(|prompt| prompt.id != id);
+        }
+        allowed
+    }
 }
 
 /// The per-node telemetry sequence: seeded from the wall clock at start
@@ -383,12 +434,16 @@ impl NodeHandler for AppNode {
             .upgrade()
             .ok_or_else(|| reject("unavailable", "This Mac is shutting down."))?;
         if crate::fleet::peer_asks_each_time(&state, &peer.machine_id) {
-            // The local confirmation prompt arrives with AJ-E709; until
-            // then an "Ask each time" peer is refused, never auto-run.
-            return Err(reject(
-                "needs_local_confirmation",
-                "This Mac asks before acting for that machine — confirm it here.",
-            ));
+            // "Ask each time": this Mac's user decides, on this Mac.
+            let label = crate::fleet::peer_label(&state, &peer.machine_id)
+                .unwrap_or_else(|| "A paired machine".to_owned());
+            let what = describe_action(&state, action);
+            if !self.prompts.ask(&label, &what) {
+                return Err(reject(
+                    "not_confirmed",
+                    "Not allowed on that Mac — nothing ran.",
+                ));
+            }
         }
         match action {
             proto::control_command::Action::StopInstance(stop) => {
@@ -439,6 +494,25 @@ impl NodeHandler for AppNode {
     fn audit(&self, event: LinkAuditEvent) {
         if let Some(state) = self.state.upgrade() {
             crate::fleet::append_audit(&state, &event);
+        }
+    }
+}
+
+/// Plain words for a command, as the prompt shows it.
+fn describe_action(state: &Arc<AppState>, action: &proto::control_command::Action) -> String {
+    match action {
+        proto::control_command::Action::StopInstance(stop) => {
+            let label = state
+                .storage
+                .lock()
+                .ok()
+                .and_then(|storage| crate::commands::session_infos_snapshot(&storage).ok())
+                .and_then(|rows| rows.into_iter().find(|row| row.id == stop.instance_id))
+                .map(|row| format!("{} ({})", row.account_label, row.provider));
+            format!("stop {}", label.unwrap_or_else(|| "an Instance".to_owned()))
+        }
+        proto::control_command::Action::LaunchRecipe(_) => {
+            "start a session from your Launch settings".to_owned()
         }
     }
 }
@@ -715,6 +789,7 @@ fn start(state: &Arc<AppState>) -> AppResult<()> {
                 state: weak.clone(),
                 live: live.clone(),
                 sequence: manager.sequence.clone(),
+                prompts: manager.prompts.clone(),
             }),
             Arc::new(AppDirectory(weak.clone())),
             Arc::new(SettingsReplayStore(weak.clone())),
@@ -1057,6 +1132,28 @@ fn set_peer(
                 address,
             },
         );
+    }
+}
+
+/// Routes alerts this Mac's alert engine emitted to its paired consoles
+/// (nothing is sent while Link is off — no subscriber exists).
+pub fn publish_alerts(state: &Arc<AppState>, events: &[crate::commands::AlertEventInfo]) {
+    if events.is_empty() || !link_status_impl(state).enabled {
+        return;
+    }
+    let origin = crate::commands::local_machine_id(state).to_string();
+    let live = state.link.telemetry();
+    for event in events {
+        let _ = live.send(delta(
+            &origin,
+            next_sequence(&state.link.sequence),
+            proto::telemetry_delta::Payload::Alert(proto::AlertDelta {
+                kind: event.kind.clone(),
+                account_label: event.account.clone(),
+                text: event.text.clone(),
+                at_ms: event.at_ms,
+            }),
+        ));
     }
 }
 
@@ -1623,4 +1720,84 @@ pub fn link_disable_discovery_for_test(state: &Arc<AppState>) {
         .link
         .no_discovery
         .store(true, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// A command waiting for this Mac's user.
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct FleetPromptInfo {
+    /// The prompt id.
+    #[ts(type = "number")]
+    pub id: u64,
+    /// Which machine asks.
+    pub peer_label: String,
+    /// What it asks for, in plain words ("stop Work Max (claude-code)").
+    pub action: String,
+    /// When it is denied by default, epoch ms.
+    #[ts(type = "number")]
+    pub expires_at_ms: i64,
+}
+
+/// Core: the waiting prompts (oldest first).
+#[must_use]
+pub fn prompts_impl(state: &Arc<AppState>) -> Vec<FleetPromptInfo> {
+    state
+        .link
+        .prompts
+        .pending
+        .lock()
+        .map(|pending| {
+            pending
+                .iter()
+                .map(|prompt| FleetPromptInfo {
+                    id: prompt.id,
+                    peer_label: prompt.peer_label.clone(),
+                    action: prompt.action.clone(),
+                    expires_at_ms: prompt.expires_at_ms,
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Core: this Mac's user allows or denies a waiting command.
+pub fn prompt_decide_impl(state: &Arc<AppState>, id: u64, allow: bool) {
+    if let Ok(pending) = state.link.prompts.pending.lock()
+        && let Some(prompt) = pending.iter().find(|prompt| prompt.id == id)
+    {
+        let _ = prompt.respond.send(allow);
+    }
+}
+
+/// AJ-E709: control commands waiting for this Mac's user.
+#[tauri::command]
+#[must_use]
+pub fn fleet_prompts(state: tauri::State<'_, Arc<AppState>>) -> Vec<FleetPromptInfo> {
+    prompts_impl(state.inner())
+}
+
+/// AJ-E709: Allow or Deny a waiting command.
+#[tauri::command]
+pub fn fleet_prompt_decide(state: tauri::State<'_, Arc<AppState>>, id: u64, allow: bool) {
+    prompt_decide_impl(state.inner(), id, allow);
+}
+
+/// Test seam: re-asks every connected peer what it grants this Mac now
+/// (production does this every ~30 s).
+#[doc(hidden)]
+pub fn refresh_permissions_for_test(state: &Arc<AppState>) {
+    let own = crate::commands::local_machine_id(state).to_string();
+    let ids: Vec<String> = state
+        .link
+        .remote
+        .lock()
+        .map(|map| map.keys().cloned().collect())
+        .unwrap_or_default();
+    if let Ok(runtime) = state.link.runtime() {
+        runtime.block_on(async {
+            for id in ids {
+                crate::remote::refresh_permission(&state.link.remote, &id, &own).await;
+            }
+        });
+    }
 }

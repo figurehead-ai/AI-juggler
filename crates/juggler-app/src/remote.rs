@@ -51,6 +51,8 @@ pub struct RemoteMachine {
     instances: HashMap<String, (proto::SessionDelta, i64)>,
     /// When anything last arrived.
     last_heard_ms: Option<i64>,
+    /// The machine's recent alerts (newest first, at most 10).
+    alerts: Vec<proto::AlertDelta>,
 }
 
 /// The cache, shared by the reconcile loop and the commands.
@@ -102,6 +104,17 @@ fn apply(cache: &RemoteCache, machine_id: &str, delta: proto::TelemetryDelta) {
             entry
                 .instances
                 .insert(session.instance_id.clone(), (session, now));
+        }
+        Some(proto::telemetry_delta::Payload::Alert(alert)) => {
+            let duplicate = entry.alerts.iter().any(|seen| {
+                seen.at_ms == alert.at_ms
+                    && seen.kind == alert.kind
+                    && seen.account_label == alert.account_label
+            });
+            if !duplicate {
+                entry.alerts.insert(0, alert);
+                entry.alerts.truncate(10);
+            }
         }
         None => {}
     }
@@ -221,6 +234,24 @@ pub struct RemoteInstanceInfo {
     pub measured_at_ms: i64,
 }
 
+/// An alert from (or about) a paired machine.
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct RemoteAlertInfo {
+    /// The alert kind (as local alerts, plus `peer-offline`).
+    pub kind: String,
+    /// The Account it is about (empty for machine-level alerts).
+    pub account: String,
+    /// Plain words.
+    pub text: String,
+    /// When, epoch ms.
+    #[ts(type = "number")]
+    pub at_ms: i64,
+}
+
+/// A paired machine is flagged after this long without a word.
+const OFFLINE_ALERT_AFTER_MS: i64 = 10 * 60 * 1000;
+
 /// One paired machine, as this console sees it.
 #[derive(Clone, PartialEq, Debug, serde::Serialize, ts_rs::TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
@@ -244,6 +275,9 @@ pub struct RemoteMachineInfo {
     pub resources: Option<RemoteResourcesInfo>,
     /// Its Instances.
     pub instances: Vec<RemoteInstanceInfo>,
+    /// Its recent alerts, newest first (plus "offline for over 10
+    /// minutes" when that holds).
+    pub alerts: Vec<RemoteAlertInfo>,
 }
 
 /// The outcome of a remote command, in the node's words.
@@ -314,8 +348,39 @@ pub fn fleet_remote_impl(state: &Arc<AppState>) -> AppResult<Vec<RemoteMachineIn
                 })
                 .unwrap_or_default();
             instances.sort_by_key(|row| std::cmp::Reverse(row.started_at_ms));
+            let freshness = freshness(&peer.connection, last_heard_ms, now);
+            let mut alerts: Vec<RemoteAlertInfo> = entry
+                .map(|entry| {
+                    entry
+                        .alerts
+                        .iter()
+                        .map(|alert| RemoteAlertInfo {
+                            kind: alert.kind.clone(),
+                            account: alert.account_label.clone(),
+                            text: alert.text.clone(),
+                            at_ms: alert.at_ms,
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+            let quiet_since = last_heard_ms.or(peer.last_seen_ms);
+            if peer.connection != "link_off"
+                && freshness == "offline"
+                && quiet_since.is_some_and(|at| now - at > OFFLINE_ALERT_AFTER_MS)
+            {
+                alerts.insert(
+                    0,
+                    RemoteAlertInfo {
+                        kind: "peer-offline".to_owned(),
+                        account: String::new(),
+                        text: format!("{} has been offline for over 10 minutes.", peer.label),
+                        at_ms: quiet_since.unwrap_or(now),
+                    },
+                );
+            }
             RemoteMachineInfo {
-                freshness: freshness(&peer.connection, last_heard_ms, now).to_owned(),
+                freshness: freshness.to_owned(),
+                alerts,
                 machine_id: peer.machine_id,
                 label: peer.label,
                 connection: peer.connection,

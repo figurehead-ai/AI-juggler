@@ -40,7 +40,7 @@ function noteNotCaptured(screen: string, state: string, reason: string) {
 
 test.beforeAll(() => {
   mkdirSync(GALLERY, { recursive: true });
-  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "16-onboarding-detect", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "34-wizard", "35-candidates", "36-recommend", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings", "45-remote"]) {
+  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "16-onboarding-detect", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "34-wizard", "35-candidates", "36-recommend", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings", "45-remote", "46-fleet-board"]) {
     mkdirSync(resolve(GALLERY, screen), { recursive: true });
   }
   writeFileSync(NOT_CAPTURETED, "# Not captured (explicit omissions)\n\n| Screen | State | Reason |\n|---|---|---|\n");
@@ -5267,6 +5267,49 @@ for (const theme of THEMES) {
       await page.getByTestId("fleet-inspect").click();
       await expect(page.getByTestId("remote-machine-overview")).toBeVisible();
       await page.screenshot({ path: resolve(GALLERY, `45-remote/machine-overview-${vp.name}-${theme}.png`) });
+    });
+  }
+}
+
+// ---------------------------------------------------------------------
+// AJ-E709 — 46-fleet-board: the board in All machines and a single-
+// machine filter, a Fleet alert, the Access sheet and the "Ask each
+// time" prompt — 1440×900 and 1024×768, light/dark.
+// ---------------------------------------------------------------------
+
+for (const theme of THEMES) {
+  for (const vp of REMOTE_VP) {
+    test(`46 fleet board — all machines, one machine, alert — ${vp.name} — ${theme}`, async ({ page }) => {
+      await openRemote(page, theme, vp, {
+        ...remoteMachine(),
+        alerts: [{ kind: "exhausted", account: "Work Max", text: "Work Max hit its 5-hour limit — resets at 14:00.", at_ms: T0 - 30_000 }],
+      });
+      // Back to the home view (the board + the alert region).
+      await page.reload();
+      await page.getByRole("tab", { name: "Sessions" }).click();
+      await expect(page.getByTestId("board-machine")).toBeVisible();
+      await page.screenshot({ path: resolve(GALLERY, `46-fleet-board/all-machines-${vp.name}-${theme}.png`) });
+      await page.getByLabel("Filter by machine").selectOption("machine-mini");
+      await expect(page.getByTestId("board-machine-local")).toHaveCount(0);
+      await page.screenshot({ path: resolve(GALLERY, `46-fleet-board/one-machine-${vp.name}-${theme}.png`) });
+      await page.getByLabel("Filter by machine").selectOption("all");
+      await expect(page.getByTestId("remote-alert-exhausted")).toBeVisible();
+      await page.screenshot({ path: resolve(GALLERY, `46-fleet-board/alert-${vp.name}-${theme}.png`) });
+    });
+
+    test(`46 fleet board — access sheet and ask-each-time prompt — ${vp.name} — ${theme}`, async ({ page }) => {
+      await openRemote(page, theme, vp, remoteMachine());
+      await page.getByTestId("fleet-access").click();
+      await expect(page.getByTestId("fleet-access-sheet")).toBeVisible();
+      await page.screenshot({ path: resolve(GALLERY, `46-fleet-board/access-sheet-${vp.name}-${theme}.png`) });
+      await page.keyboard.press("Escape");
+      await page.evaluate((t0) => {
+        (window as unknown as Record<string, unknown>).__AIJ_FLEET_PROMPTS__ = [
+          { id: 1, peer_label: "Mac mini", action: "stop Work Max (claude-code)", expires_at_ms: t0 + 18_000 },
+        ];
+      }, T0);
+      await expect(page.getByTestId("fleet-prompt")).toBeVisible({ timeout: 8000 });
+      await page.screenshot({ path: resolve(GALLERY, `46-fleet-board/ask-each-time-${vp.name}-${theme}.png`) });
     });
   }
 }

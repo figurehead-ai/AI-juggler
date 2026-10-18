@@ -1,6 +1,6 @@
 import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { IconProjects, IconSessions, IconTerminal } from "./icons";
-import type { AccountInfo, InstanceInfo, ProjectInfo } from "../lib/bridge";
+import type { AccountInfo, InstanceInfo, ProjectInfo, RemoteInstanceInfo, RemoteMachineInfo } from "../lib/bridge";
 import type { Density } from "../lib/density";
 import { REFRESH_INTERVALS, staleCaption } from "../lib/density";
 import {
@@ -93,6 +93,9 @@ export function WorkflowRail({
   footer,
   freshness = {},
   now = Date.now(),
+  remoteMachines = [],
+  selectedRemote = null,
+  onSelectRemote,
 }: {
   tab: WorkTab;
   onTab: (tab: WorkTab) => void;
@@ -113,6 +116,10 @@ export function WorkflowRail({
   footer: (minimal: boolean) => ReactNode;
   freshness?: Freshness;
   now?: number;
+  /** AJ-E709: paired machines' Instances on the board. */
+  remoteMachines?: RemoteMachineInfo[];
+  selectedRemote?: { machineId: string; instanceId: string | null } | null;
+  onSelectRemote?: (machineId: string, instanceId: string) => void;
 }) {
   const minimal = density === "minimal";
   // Snooze/mute state (AJ-E404 Req.6): rail-owned, persisted; the tab
@@ -253,6 +260,9 @@ export function WorkflowRail({
             projects={projects}
             snooze={snooze}
             onSnooze={updateSnooze}
+            remoteMachines={remoteMachines}
+            selectedRemote={selectedRemote}
+            onSelectRemote={onSelectRemote}
           />
         )}
       </div>
@@ -395,9 +405,15 @@ export function InstanceBoard({
   accounts = [],
   snooze,
   onSnooze,
+  remoteMachines = [],
+  selectedRemote = null,
+  onSelectRemote,
 }: {
   /** AJ-E411 Req.5: account expiry feeds the Needs-me tie-break. */
   accounts?: AccountInfo[];
+  remoteMachines?: RemoteMachineInfo[];
+  selectedRemote?: { machineId: string; instanceId: string | null } | null;
+  onSelectRemote?: (machineId: string, instanceId: string) => void;
   sessions: InstanceInfo[];
   loginTerminals: { id: string; title: string; ended: boolean }[];
   selectedId: string | null;
@@ -413,6 +429,34 @@ export function InstanceBoard({
   const [group, setGroup] = useState<GroupBy>("none");
   const [filters, setFilters] = useState<ChipFilters>(NO_CHIP_FILTERS);
   const [query, setQuery] = useState("");
+  // AJ-E709 Req.2: machines filter the board; "All machines" is the
+  // default and the choice persists across restarts.
+  const [machineFilter, setMachineFilter] = useState<string>(() => {
+    try {
+      return localStorage.getItem(MACHINE_FILTER_KEY) ?? "all";
+    } catch {
+      return "all";
+    }
+  });
+  const chooseMachine = (value: string) => {
+    setMachineFilter(value);
+    try {
+      localStorage.setItem(MACHINE_FILTER_KEY, value);
+    } catch {
+      // Not persisted this time; the filter still applies.
+    }
+  };
+  const hasRemote = remoteMachines.length > 0;
+  const machineChoice =
+    machineFilter === "all" ||
+    machineFilter === "this-mac" ||
+    remoteMachines.some((machine) => machine.machine_id === machineFilter)
+      ? machineFilter
+      : "all";
+  const showLocal = !hasRemote || machineChoice === "all" || machineChoice === "this-mac";
+  const remoteShown = hasRemote
+    ? remoteMachines.filter((machine) => machineChoice === "all" || machineChoice === machine.machine_id)
+    : [];
   const [menu, setMenu] = useState<{ row: InstanceInfo; x: number; y: number } | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -535,6 +579,18 @@ export function InstanceBoard({
             onChange={(value) => setFilters((current) => ({ ...current, account: value || null }))}
             options={[{ value: "", label: "Account: all" }, ...unique(sessions, (row) => row.account_id).map((value) => ({ value, label: accountLabelOf(sessions, value) }))]}
           />
+          {hasRemote && (
+            <Select
+              ariaLabel="Filter by machine"
+              value={machineChoice}
+              onChange={chooseMachine}
+              options={[
+                { value: "all", label: "Machine: all" },
+                { value: "this-mac", label: "This Mac" },
+                ...remoteMachines.map((machine) => ({ value: machine.machine_id, label: machine.label })),
+              ]}
+            />
+          )}
           <Select
             ariaLabel="Filter by project"
             value={filters.project ?? ""}
@@ -572,7 +628,12 @@ export function InstanceBoard({
         className="rail-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden"
         onScroll={(event) => setScrollTop((event.target as HTMLDivElement).scrollTop)}
       >
-        {sorted.length === 0 ? (
+        {hasRemote && showLocal && (
+          <p className="px-3 pb-0.5 pt-1 text-[10px] font-medium uppercase tracking-[0.08em] text-muted" data-testid="board-machine-local">
+            This Mac
+          </p>
+        )}
+        {!showLocal ? null : sorted.length === 0 ? (
           sessions.length === 0 ? (
             /* Nothing exists at all — the All-clear explainer (legend
                surface 3). */
@@ -639,6 +700,15 @@ export function InstanceBoard({
             </div>
           ))
         )}
+        {remoteShown.map((machine) => (
+          <RemoteBoardSection
+            key={machine.machine_id}
+            machine={machine}
+            rows={filterRemote(machine.instances, filters, query)}
+            selected={selectedRemote}
+            onSelect={(instanceId) => onSelectRemote?.(machine.machine_id, instanceId)}
+          />
+        ))}
       </div>
 
       {menu && (
@@ -1376,5 +1446,92 @@ export function SessionCard({ session, onSelect }: { session: InstanceInfo; onSe
         </span>
       </span>
     </button>
+  );
+}
+
+const MACHINE_FILTER_KEY = "aij.machine.filter";
+
+/** The board's chip filters and search, applied to a peer's rows. */
+function filterRemote(rows: RemoteInstanceInfo[], filters: ChipFilters, query: string): RemoteInstanceInfo[] {
+  const needle = query.trim().toLowerCase();
+  return rows.filter((row) => {
+    if (filters.provider && row.provider !== filters.provider) return false;
+    if (filters.chips.includes("needs") && row.status !== "waiting_user") return false;
+    if (filters.chips.includes("running") && row.status !== "running") return false;
+    if (filters.chips.includes("ended") && !["exited", "ended", "stopped"].includes(row.status)) return false;
+    if (!needle) return true;
+    return [row.account_label, row.provider, row.project_name ?? "", row.model ?? ""].some((field) =>
+      field.toLowerCase().includes(needle),
+    );
+  });
+}
+
+/** AJ-E709: one paired machine's Instances on the board — the machine is
+ * named on every row (text, never colour alone), quota is "unknown" until
+ * that machine shares it (D-12: never inferred). */
+function RemoteBoardSection({
+  machine,
+  rows,
+  selected,
+  onSelect,
+}: {
+  machine: RemoteMachineInfo;
+  rows: RemoteInstanceInfo[];
+  selected: { machineId: string; instanceId: string | null } | null;
+  onSelect: (instanceId: string) => void;
+}): JSX.Element {
+  const state =
+    machine.freshness === "live" ? "● live" : machine.freshness === "stale" ? "◐ stale" : "○ offline";
+  return (
+    <div className="mt-1 flex flex-col gap-0.5" data-testid="board-machine" data-machine={machine.machine_id}>
+      <p className="flex items-baseline gap-1.5 px-3 pb-0.5 pt-1 text-[10px] font-medium uppercase tracking-[0.08em] text-muted">
+        <span className="truncate normal-case tracking-normal">{machine.label}</span>
+        <span className="shrink-0 font-normal normal-case tracking-normal">{state}</span>
+      </p>
+      {rows.length === 0 ? (
+        <p className="px-3 py-1 text-[11px] text-muted">
+          {machine.freshness === "offline" ? "Offline — nothing to show." : "No Instances match."}
+        </p>
+      ) : (
+        rows.map((row) => {
+          const active = selected?.machineId === machine.machine_id && selected.instanceId === row.id;
+          const status = row.status.replace(/_/g, " ");
+          return (
+            <button
+              key={row.id}
+              type="button"
+              onClick={() => onSelect(row.id)}
+              className={
+                "relative flex w-full min-w-0 flex-col gap-0.5 rounded-lg py-1.5 pl-3 pr-2.5 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
+                (active ? "bg-surface" : "hover:bg-surface/60")
+              }
+              aria-label={`${row.account_label} on ${machine.label} — ${status}`}
+              data-testid="board-remote-row"
+            >
+              {active && (
+                <span className="absolute left-0.5 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-full bg-accent" />
+              )}
+              <span className="flex min-w-0 items-center gap-1.5">
+                <span
+                  className={
+                    "size-1.5 shrink-0 rounded-full " +
+                    (row.status === "running" ? "bg-live" : row.status === "waiting_user" ? "bg-warning" : "bg-faint")
+                  }
+                  aria-hidden="true"
+                />
+                <span className="min-w-0 flex-1 truncate text-[12.5px]">{row.account_label}</span>
+                <span className="shrink-0 rounded border border-hairline px-1 text-[9.5px] text-muted">{machine.label}</span>
+              </span>
+              <span className="flex min-w-0 gap-1 truncate pl-3 text-[10.5px] text-muted">
+                <span>{row.provider}</span>
+                <span>· {row.model ?? "model unknown"}</span>
+                <span>· {status}</span>
+                <span>· quota unknown</span>
+              </span>
+            </button>
+          );
+        })
+      )}
+    </div>
   );
 }

@@ -1170,7 +1170,10 @@ pub fn alerts_tick(
     state: tauri::State<'_, std::sync::Arc<crate::state::AppState>>,
     local_hour: Option<u32>,
 ) -> Vec<AlertEventInfo> {
-    alerts_tick_inner(&state, local_hour)
+    let events = alerts_tick_inner(&state, local_hour);
+    // AJ-E709: route them to paired consoles too (a no-op with Link off).
+    crate::link::publish_alerts(state.inner(), &events);
+    events
 }
 
 /// AJ-E611: one reset-queue row.

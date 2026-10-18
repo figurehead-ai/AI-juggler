@@ -423,3 +423,114 @@ fn a_console_sees_the_other_macs_instances_live_and_its_commands_go_through_the_
     );
     link::link_set_enabled_impl(&a, false).unwrap();
 }
+
+#[test]
+fn ask_each_time_holds_a_command_until_this_macs_user_decides() {
+    let work = tempfile::tempdir().unwrap();
+    let a = app_state(&work.path().join("a"));
+    let b = app_state(&work.path().join("b"));
+    fleet::fleet_set_label_impl(&b, "Laptop").unwrap();
+    link::link_set_enabled_impl(&a, true).unwrap();
+    link::link_set_enabled_impl(&b, true).unwrap();
+    pair(&a, &b, Permission::View);
+    let b_on_a = fleet::fleet_peers_impl(&a).unwrap()[0].machine_id.clone();
+    let a_on_b = fleet::fleet_peers_impl(&b).unwrap()[0].machine_id.clone();
+
+    // The change is made ON A (the node) — a console can't raise its own access.
+    let peers = fleet::fleet_set_permission_impl(&a, &b_on_a, "control", true).unwrap();
+    assert_eq!(peers[0].permission, "control");
+    assert!(peers[0].ask_each_time);
+    wait_for("B connected to A", || {
+        remote::fleet_remote_impl(&b)
+            .unwrap()
+            .into_iter()
+            .find(|m| m.freshness == "live")
+    });
+    link::refresh_permissions_for_test(&b);
+    assert_eq!(
+        remote::fleet_remote_impl(&b).unwrap()[0]
+            .permission
+            .as_deref(),
+        Some("control")
+    );
+
+    let send = |instance: &str| {
+        let b = Arc::clone(&b);
+        let id = a_on_b.clone();
+        let instance = instance.to_owned();
+        std::thread::spawn(move || {
+            tokio::runtime::Runtime::new()
+                .unwrap()
+                .block_on(remote::fleet_remote_stop_impl(b, id, instance))
+                .unwrap()
+        })
+    };
+    // Deny: nothing runs, and the console hears why.
+    let pending = send("no-such-instance");
+    let prompt = wait_for("A's prompt", || link::prompts_impl(&a).into_iter().next());
+    assert_eq!(prompt.peer_label, "Laptop");
+    assert!(prompt.action.starts_with("stop "), "{}", prompt.action);
+    link::prompt_decide_impl(&a, prompt.id, false);
+    let denied = pending.join().unwrap();
+    assert_eq!(
+        denied.reason_code.as_deref(),
+        Some("not_confirmed"),
+        "{denied:?}"
+    );
+    assert!(link::prompts_impl(&a).is_empty());
+
+    // Allow: the node goes on to its own checks (no such Instance here).
+    let pending = send("no-such-instance");
+    let prompt = wait_for("A's second prompt", || {
+        link::prompts_impl(&a).into_iter().next()
+    });
+    link::prompt_decide_impl(&a, prompt.id, true);
+    let allowed = pending.join().unwrap();
+    assert_eq!(
+        allowed.reason_code.as_deref(),
+        Some("unknown_record"),
+        "{allowed:?}"
+    );
+
+    link::link_set_enabled_impl(&a, false).unwrap();
+    link::link_set_enabled_impl(&b, false).unwrap();
+}
+
+#[test]
+fn alerts_on_one_mac_reach_its_paired_console_named_by_machine() {
+    let work = tempfile::tempdir().unwrap();
+    let a = app_state(&work.path().join("a"));
+    let b = app_state(&work.path().join("b"));
+    fleet::fleet_set_label_impl(&a, "Mac mini").unwrap();
+    link::link_set_enabled_impl(&a, true).unwrap();
+    link::link_set_enabled_impl(&b, true).unwrap();
+    pair(&a, &b, Permission::View);
+    wait_for("B subscribed to A", || {
+        remote::fleet_remote_impl(&b)
+            .unwrap()
+            .into_iter()
+            .find(|m| m.freshness == "live")
+    });
+    let event = juggler_app::commands::AlertEventInfo {
+        kind: "exhausted".into(),
+        account: "Work Max".into(),
+        text: "Work Max hit its 5-hour limit — resets at 14:00.".into(),
+        at_ms: 1_800_000_000_000,
+    };
+    // Twice: a re-delivered alert is shown once.
+    link::publish_alerts(&a, std::slice::from_ref(&event));
+    link::publish_alerts(&a, std::slice::from_ref(&event));
+    let machine = wait_for("the alert on B", || {
+        remote::fleet_remote_impl(&b)
+            .unwrap()
+            .into_iter()
+            .find(|m| !m.alerts.is_empty())
+    });
+    assert_eq!(machine.label, "Mac mini");
+    assert_eq!(machine.alerts.len(), 1, "deduplicated");
+    assert_eq!(machine.alerts[0].kind, "exhausted");
+    assert_eq!(machine.alerts[0].account, "Work Max");
+    assert!(machine.alerts[0].text.contains("5-hour limit"));
+    link::link_set_enabled_impl(&a, false).unwrap();
+    link::link_set_enabled_impl(&b, false).unwrap();
+}

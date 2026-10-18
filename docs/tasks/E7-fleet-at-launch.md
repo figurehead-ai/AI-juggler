@@ -285,7 +285,7 @@ silent overwrite. Wall-clock last-writer-wins across machines
 without the skew flag is the classic fleet data-loss bug.
 
 
-### AJ-E709 Fleet indicators, permissions, and alert routing | Status: TODO | Priority P1 | Effort M | Depends: AJ-E704, AJ-E705
+### AJ-E709 Fleet indicators, permissions, and alert routing | Status: DONE-EVIDENCED | Priority P1 | Effort M | Depends: AJ-E704, AJ-E705
 **Goal**:
 Every board, tray, and inspector surface answers "which
 Provider/Account/model is running where, and does it need me"
@@ -353,6 +353,7 @@ Trap: UI-hidden buttons are not permission enforcement —
 reviewers must check the node-side rejection test, not the
 disabled state. Quota `Unknown` for remote peers without a
 feed is correct behaviour, not a bug to "fix" with estimates.
+**Task-text notes (2026-10-18, AJ-E709)**: (1) There is no menu-bar tray in this build, so Req.6 waits for one. (2) `⌘1..⌘5` is not bound for machines — `⌘1–⌘6` already switch inspector tabs (D-06); the board's Machine filter is the control. (3) Overview and Usage stay this-Mac-only until usage data travels the link (AJ-E708). Evidence: [AJ-E709 manifest](../qa/evidence/AJ-E709/manifest.md).
 
 ### AJ-E710 Fleet beta gate, dogfood, and security evidence pack | Status: TODO | Priority P0 | Effort M | Depends: AJ-E702, AJ-E703, AJ-E704, AJ-E705, AJ-E706, AJ-E707, AJ-E708, AJ-E709
 **Goal**:

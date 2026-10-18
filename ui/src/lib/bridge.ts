@@ -21,6 +21,7 @@ import type { RemoteMachineInfo } from "../types/generated/RemoteMachineInfo";
 import type { RemoteInstanceInfo } from "../types/generated/RemoteInstanceInfo";
 import type { RemoteResourcesInfo } from "../types/generated/RemoteResourcesInfo";
 import type { RemoteCommandOutcomeInfo } from "../types/generated/RemoteCommandOutcomeInfo";
+import type { FleetPromptInfo } from "../types/generated/FleetPromptInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { InstanceQuotaInfo } from "../types/generated/InstanceQuotaInfo";
 import type { InstanceResourcesInfo } from "../types/generated/InstanceResourcesInfo";
@@ -70,6 +71,7 @@ export type {
   RemoteInstanceInfo,
   RemoteResourcesInfo,
   RemoteCommandOutcomeInfo,
+  FleetPromptInfo,
   LaunchRecipeInfo,
   LaunchResult,
   NeedsAttention,
@@ -3079,6 +3081,56 @@ export async function fleetRemoteStop(machineId: string, instanceId: string): Pr
     );
   }
   return invoke<RemoteCommandOutcomeInfo>("fleet_remote_stop", { machineId, instanceId });
+}
+
+// --- AJ-E709: permissions changed on this Mac; "Ask each time" prompts ---
+
+type PromptSeams = {
+  __AIJ_FLEET_PROMPTS__?: FleetPromptInfo[];
+  __AIJ_FLEET_CALLS__?: string[];
+  __AIJ_FLEET_PEERS__?: FleetPeerInfo[];
+};
+const promptSeams = () => window as unknown as PromptSeams;
+
+/** Changes what a paired machine may do on THIS Mac (only ever here). */
+export async function fleetSetPermission(
+  machineId: string,
+  permission: "view" | "control",
+  askEachTime: boolean,
+): Promise<FleetPeerInfo[]> {
+  if (!hasBackend) {
+    const seams = promptSeams();
+    seams.__AIJ_FLEET_CALLS__ = [...(seams.__AIJ_FLEET_CALLS__ ?? []), `permission:${machineId}:${permission}:${askEachTime}`];
+    seams.__AIJ_FLEET_PEERS__ = (seams.__AIJ_FLEET_PEERS__ ?? []).map((peer) =>
+      peer.machine_id === machineId
+        ? {
+            ...peer,
+            permission,
+            permission_label: permission === "control" ? "View + control" : "View only",
+            ask_each_time: permission === "control" && askEachTime,
+          }
+        : peer,
+    );
+    return [...(seams.__AIJ_FLEET_PEERS__ ?? [])];
+  }
+  return invoke<FleetPeerInfo[]>("fleet_set_permission", { machineId, permission, askEachTime });
+}
+
+/** Control commands waiting for this Mac's user ("Ask each time"). */
+export async function fleetPrompts(): Promise<FleetPromptInfo[]> {
+  if (!hasBackend) return [...(promptSeams().__AIJ_FLEET_PROMPTS__ ?? [])];
+  return invoke<FleetPromptInfo[]>("fleet_prompts");
+}
+
+/** Allows or denies a waiting command. */
+export async function fleetPromptDecide(id: number, allow: boolean): Promise<void> {
+  if (!hasBackend) {
+    const seams = promptSeams();
+    seams.__AIJ_FLEET_CALLS__ = [...(seams.__AIJ_FLEET_CALLS__ ?? []), `prompt:${id}:${allow ? "allow" : "deny"}`];
+    seams.__AIJ_FLEET_PROMPTS__ = (seams.__AIJ_FLEET_PROMPTS__ ?? []).filter((p) => p.id !== id);
+    return;
+  }
+  return invoke<void>("fleet_prompt_decide", { id, allow });
 }
 
 /** AJ-E308 Req.7: one named isolation-checklist row. */
