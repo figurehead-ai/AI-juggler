@@ -12,10 +12,10 @@
 1. [AGENT-HANDOVER.md](AGENT-HANDOVER.md) — state snapshot, invariants,
    claiming protocol, compaction-recovery steps.
 2. [../review/decision-log.md](../review/decision-log.md) — settled
-   decisions D-01..D-15. Do not re-litigate them; supersede only via a
+   decisions D-01..D-18. Do not re-litigate them; supersede only via a
    new recorded decision.
 3. [TASK-CATALOG.md](TASK-CATALOG.md) — every task ID, epic, priority.
-4. The epic file for the task you claim (E1-E10 below).
+4. The epic file for the task you claim (E1-E12 below).
 5. Source research cited inside that task (pass2/deep reports, SPEC,
    code at the cited lines) — read before editing anything.
 
@@ -33,6 +33,7 @@
 | [E8-validation-visual-performance-quality.md](E8-validation-visual-performance-quality.md) | Evidence, visual, a11y, perf, gates | AJ-E801-E810 |
 | [E9-docs-adrs-and-plan-rewrite.md](E9-docs-adrs-and-plan-rewrite.md) | Stage-1 docs, ADRs, plan rewrite | AJ-E901-E910 |
 | [E10-derived-workflows-and-beta.md](E10-derived-workflows-and-beta.md) | Derived workflows, safety nets, beta ops | AJ-E1001-E1011 |
+| [E12-optional-account.md](E12-optional-account.md) | Optional Figurehead account (two paths) | AJ-E1201-E1207 |
 | [CRITIC-CHECKS.md](CRITIC-CHECKS.md) | Cross-epic audit of this system | — |
 
 ## Task format (every task, no exceptions)
@@ -80,14 +81,16 @@ delete a task; supersede it with a new ID and a forward link.
 - D-14 Pack secret handling: user's remembered choice, global with
   per-Provider override; never a hidden product default.
 - D-15 Stage 1 is documents only; code needs separate approval.
+- D-16 Two themes, Light and Dark (System offered); toggle in Settings.
+- D-17 Screen capture permitted through one vendored, audited init shim.
+- D-18 Optional Figurehead account: two paths (desktop / cloud); with no
+  account, zero calls to figurehead.ai; every cloud feature free at launch.
 
 ## Stage boundary (read before starting anything)
 
-D-15 limits the current approved stage to documents (E9) and research
-records (E6/E909 logs). Implementation epics (E1-E8, E10) are fully
-specified now so no reasoning is lost, but executing them requires a
-separate maintainer approval per stage. Specifying a task here is not
-authorisation to build it.
+Stage 1 (documents, D-15) is complete. Stage 2 (implementation of every
+epic) was approved by the maintainer on 2026-10-13 and is running; see
+AGENT-HANDOVER.md for the current snapshot.
 
 ## Evidence root
 

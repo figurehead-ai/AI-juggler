@@ -17,5 +17,6 @@ ADRs capture the *why* behind non-obvious decisions: context, decision, alternat
 | [0011](./0011-switch-graph-and-lineage.md) | Switch Graph; hybrid door; switch-back resume+delta | Accepted |
 | [0012](./0012-two-clock-quota-model.md) | Two-clock quota model; user-entered expiry | Accepted |
 | [0013](./0013-fleet-at-launch.md) | Fleet at launch (beta); per-machine permissions | Accepted |
+| [0014](./0014-optional-figurehead-account.md) | Optional Figurehead account and cloud services (two paths) | Accepted |
 
 To add one: copy `0000-template.md`, number sequentially, PR it with the change that implements the decision.

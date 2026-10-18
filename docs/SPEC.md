@@ -20,7 +20,7 @@ AI Juggler is a native desktop application that **supervises** AI coding harness
 | Footprint | < 150 MB RSS typical; UI at 60 fps with 20 live sessions |
 | Reliability | App crash never kills supervised sessions (children survive; state journaled); recovery on relaunch |
 | Resilience | All writes atomic (temp+rename); SQLite in WAL mode; Provider-format parse failures degrade, never crash |
-| Privacy | No network calls except: update feed check, and user-initiated actions in managed Providers. Telemetry opt-in only |
+| Privacy | No network calls except: the update feed check; user-initiated actions in managed Providers; opt-in usage statistics; and — only when the user has linked an optional Figurehead account — the account endpoints listed in §8, each for a feature the user turned on (D-18, ADR-0014). With no account, zero calls to figurehead.ai |
 | Resource monitoring | < 1% CPU overhead; launch-advisor projections within ±20% of observed session peaks after calibration |
 
 **Automation policy (product invariant).** The app *prepares*; the user *executes*. Automated behavior is strictly passive — monitoring, indexing, usage accounting, notifications, alerts, suggestions, and staging of actions. Every state-changing action (switching an account for new work, transplanting a session, priming a target, syncing project context) is bound to an explicit user click; there is no code path that performs one without it (asserted in `tests/guardrails.rs`). One deliberate, narrowly-scoped exception: an opt-in, per-Launch-settings *auto-restart on crash* (off by default) that relaunches a crashed process into the **same** recipe — it never changes accounts, conversation content, or anything else user-authored. Two further recorded amendments exist, no others may be invented: (1) **verified cleanup** — opt-in per-Account automatic kill of ledger-verified leftover processes only, audit-logged (ADR-0010, §5.2); (2) **pack secret policy** — the user's remembered redaction choice governs pack contents (ADR-0009, §3.3); it never silently decides, and is always shown before a switch executes.
@@ -510,7 +510,8 @@ session → any managed Provider) unchanged (T4).
 
 ## 8. Security & privacy
 
-- **Vendor credentials:** never read, copied, or stored by AI Juggler. They live wherever each harness keeps them inside the managed account dir (Claude: namespaced keychain; Codex: auth.json; ZCode: credentials.json). The app's keychain entries hold only AI Juggler's own config encryption key (if needed) — by default nothing.
+- **Vendor credentials:** never read, copied, or stored by AI Juggler. They live wherever each harness keeps them inside the managed account dir (Claude: namespaced keychain; Codex: auth.json; ZCode: credentials.json). AI Juggler's own keychain items hold only its own secrets: by default nothing; with an optional Figurehead account linked, the device token (service `ai.figurehead.juggler`) and, once cloud backup is on, the backup vault key (service `ai.figurehead.juggler.vault`). Neither ever appears in SQLite, settings files, logs, packs, backups or crash reports.
+- **Optional account (D-18, ADR-0014):** when linked, the app calls only these endpoints under `https://figurehead.ai/api/v1/`: `devices/link-requests`, `devices/claim`, `devices`, `devices/self`, `account`, `backups`, `stats/reports` — each only for a feature that is turned on, except `account` and `devices/self`. Every request carries `User-Agent: AIJuggler/<version>`; a `401` drops the token and turns every cloud feature off without touching local data. Backups are encrypted on the Mac before upload.
 - **Managed dirs** are 0700; the app runs with normal user privileges, no helpers, no agents.
 - **Supply chain:** lockfile-audited deps, `cargo deny`, minimal JS in the webview (no remote content, CSP locked to self).
 - **Updates:** Tauri updater, minisign-style signatures, verification cannot be disabled; OS notarization/signing from v0.1 (Apple Developer + Azure Trusted Signing, individual tier — budgeted).
@@ -610,7 +611,7 @@ AI Juggler instances link over the network so one console can see — and manage
 ### 11.1 Topology & roles
 
 - One binary, two roles: every instance is a **node** (serves its local state); any instance can act as a **console** (view/control the fleet). In practice one machine is "your" console; multiple consoles are allowed.
-- **LAN-first, zero config:** discovery via mDNS/Bonjour (`mdns-sd`). Remote machines join through the user's own VPN (Tailscale/WireGuard) — AI Juggler never operates an internet relay or cloud service (privacy posture; also keeps the compliance story purely local).
+- **LAN-first, zero config:** discovery via mDNS/Bonjour (`mdns-sd`). Remote machines join through the user's own VPN (Tailscale/WireGuard) — AI Juggler never operates an internet relay. With an optional Figurehead account (ADR-0014), the user's own linked Macs can also be listed from the account and their Ed25519 keys pinned without a pairing code; the connection itself stays machine-to-machine over mutual TLS.
 
 ### 11.2 Transport & security
 
@@ -673,7 +674,10 @@ generalizes beyond Claude-only to every registered Provider:
    sign-in queue with auto-detected state; isolation verified per
    account (state-dir containment check) before "ready".
 5. **First-run policy choice** — pack redaction policy (D-14) and
-   optional renewal dates (D-12) are asked once, explicitly.
+   optional renewal dates (D-12) are asked once, explicitly. An
+   optional, skippable "Connect a Figurehead account" step follows,
+   with **Connect account** and **Continue without an account** as
+   equal buttons (D-18); skipping is the default path.
 6. **Summary** — what was created, what was skipped, originals
    untouched.
 

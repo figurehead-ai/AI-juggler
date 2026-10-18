@@ -109,6 +109,13 @@
 | AJ-E1009 | Backup, restore and machine migration of Juggler's own data | E10-derived-workflows-and-beta.md | P1 | M | AJ-E1007 |
 | AJ-E1010 | Updates and release integrity for beta | E10-derived-workflows-and-beta.md | P1 | M | AJ-E1009 |
 | AJ-E1011 | Team pack export and colleague handoff | E10-derived-workflows-and-beta.md | P2 | M | AJ-E1007, AJ-E1009 |
+| AJ-E1201 | Decision D-18, ADR-0014, stale-rule updates | E12-optional-account.md | P0 | S | — |
+| AJ-E1202 | Account client: link (browser + code), Keychain token, 401/unlink, entitlements cache | E12-optional-account.md | P0 | L | AJ-E1201, AJ-E702 |
+| AJ-E1203 | Settings → Account & Cloud, onboarding step, Cloud chips, consent screen | E12-optional-account.md | P0 | L | AJ-E1202 |
+| AJ-E1204 | Vault key, recovery code, encrypted backup format | E12-optional-account.md | P0 | M | AJ-E1009 |
+| AJ-E1205 | Cloud backup upload, schedule, restore | E12-optional-account.md | P0 | M | AJ-E1202, AJ-E1204 |
+| AJ-E1206 | Fleet discovery via account | E12-optional-account.md | P1 | M | AJ-E1202, AJ-E704 |
+| AJ-E1207 | Guardrail tests and visual captures | E12-optional-account.md | P0 | M | AJ-E1202, AJ-E1203, AJ-E1205 |
 
-Total: 107 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+Total: 114 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

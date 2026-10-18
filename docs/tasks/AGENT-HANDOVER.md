@@ -8,7 +8,7 @@
 
 1. Read [README.md](README.md) in this directory (5 min).
 2. Read [../review/decision-log.md](../review/decision-log.md)
-   D-01..D-15 (10 min). These are settled with the maintainer. Do not
+   D-01..D-18 (10 min). These are settled with the maintainer. Do not
    re-ask, re-litigate or "improve" them; a change requires a new
    recorded decision with maintainer approval.
 3. Skim [TASK-CATALOG.md](TASK-CATALOG.md); note the epic of your task.
@@ -20,46 +20,37 @@
 
 ## Current state snapshot (verify, do not trust blindly)
 
-Updated 2026-10-13 by the Stage-2 implementing agent at the E1/E8
-boundary. Re-verify with `git log --oneline -20` and
+Updated 2026-10-18. Re-verify with `git log --oneline -20` and
 `grep -h "^### AJ-" docs/tasks/E*.md | grep -c "DONE-EVIDENCED"`.
 
-- Research complete and committed (review corpus above).
-- Decision log **Final** (maintainer instruction, 2026-10-13), now
-  D-01..D-16 — D-16 adds dual Light/Dark themes (implemented).
-- Stage status: Stage 1 (documents) merged as PR #46. **Stage 2
-  (implementation) is APPROVED and RUNNING** — maintainer instruction
-  2026-10-13 ("start Stage 2… autonomous… until 100% complete").
-- Progress: 21/107 tasks DONE-EVIDENCED — E9 (all 10), E8 partial
-  (AJ-E801/E802/E806: evidence store, visual harness, gates), E1
-  complete (AJ-E101..E108: terminology, Instance/Conversation split,
-  schema v5, bridge/TS renames, terminology lint gate).
-- Next in the execution order (IMPLEMENTATION-AGENT-PROMPT §6):
-  E4 (See: AJ-E401 read model → E402 indicator row → E406+ Inspector)
-  and E2 (Switch: AJ-E201 Switch Graph → E202 pack v2) — independent
-  tracks per their `Depends:` edges; then E5, E3, E6, E7, E10.
-- Wireframes: 27/27 APPROVED (docs/wireframes/wireframe-approvals.json)
-  including three maintainer amendments (01 focus filter + rail
-  search; 05 terminal maximize + pop-out window; global rail/inspector
-  collapse) and D-16 themes.
-- Working conventions proven in Stage 2: PR per task-group → 5 CI
-  checks → squash-merge → evidence manifest in the same change →
-  `scripts/evidence_index.sh` + both lint gates in `just verify`.
-  Baseline right now: 84 Rust tests green, 41 visual captures (both
-  themes), clean tree, main synced.
-- Live-machine facts (PR #37, docs/qa/gate-M1.md): five real t3.codes
-  accounts imported read-only (their originals under
-  `~/Library/Application Support/ClaudeCodeProfiles/` are NEVER to be
-  touched; copies live in the app data dir); login state of the
-  copies is logged-out pending the maintainer's one-click re-login;
-  `~/.claude` untouched. Handover v0 shipped (beta fidelity); its
-  one-file transplant limitation is documented for AJ-E204's rebuild.
-- Built product: Rust/Tauri engine, Claude Code adapter, supervisor
-  with embedded terminals (tabs in panels, pop-out pending AJ-E407
-  scope note), instance-centric UI with dual themes, smart onboarding
-  (scan incl. manager-tool roots, read-only import, guided sign-in),
-  handover v0. Usage/Fleet/Codex-ZCode adapters/signed releases not
-  yet built.
+- **Repository:** public, `figurehead-ai/AI-juggler` (MIT). It started
+  from a clean snapshot on 2026-10-18; issue/PR numbers in older docs
+  refer to the pre-public development repository. **Everything here is
+  public** — never commit personal data (real account names, e-mails,
+  home paths, hostnames, real-desktop screenshots, tokens) or server
+  internals of figurehead.ai (see CONTRIBUTING.md).
+- Decision log: D-01..D-18. D-16 dual themes, D-17 screen-capture
+  shim, D-18 optional Figurehead account (two paths; ADR-0014).
+- Stage 2 (implementation) is approved and running.
+- Progress: 79/114 DONE-EVIDENCED — E1, E2, E3, E4, E5, E6, E9
+  complete; E8 3/10; E7, E10 and E12 (except AJ-E1201) not started.
+- Execution order from here: E12 account client + Settings
+  (AJ-E1202/E1203, after AJ-E701/E702 for the identity key) → the rest
+  of E7 (Fleet) → E10 → AJ-E1204/E1205/E1206/E1207 → usage statistics
+  (E11, its own decision D-19 / ADR-0015) → E8 tail.
+- CI: 5 required checks (`verify`, `ui`, `build-macos`, `build-linux`,
+  `build-windows`) under a `main` ruleset (PR required, squash only,
+  linear history). The org allows only GitHub-owned or verified
+  actions pinned to full SHAs.
+- Gates: `just verify`, `pnpm --dir ui test`, `pnpm --dir ui build`,
+  and the full Playwright suite for UI changes (596 tests at the move).
+  Local macOS gotchas: cargo needs the Swift shim RUSTFLAGS (see
+  CONTRIBUTING.md); the `ports` test binds :5173 and :8000, so stop
+  any dev server on those ports before `just verify`.
+- Live-machine facts: imported copies of the maintainer's real
+  profiles live in the app data dir; originals under other managers'
+  roots and `~/.claude` are NEVER touched. Operational tests that read
+  the real machine are `#[ignore]`d and name-agnostic.
 
 ## Non-negotiable invariants (product + process)
 
