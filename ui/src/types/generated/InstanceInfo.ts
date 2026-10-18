@@ -169,4 +169,14 @@ git_behind?: number,
 /**
  * It runs in a linked git worktree.
  */
-git_worktree?: boolean, };
+git_worktree?: boolean, 
+/**
+ * AJ-E1003: parked until its quota resets — the reset's
+ * confidence (`measured` | `estimated` | `unknown`); absent when not
+ * parked.
+ */
+parked?: string, 
+/**
+ * The reset it waits for, epoch ms (countdown only when measured).
+ */
+parked_resets_at_ms?: number, };

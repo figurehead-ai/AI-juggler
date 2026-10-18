@@ -40,7 +40,7 @@ function noteNotCaptured(screen: string, state: string, reason: string) {
 
 test.beforeAll(() => {
   mkdirSync(GALLERY, { recursive: true });
-  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "16-onboarding-detect", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "34-wizard", "35-candidates", "36-recommend", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings", "45-remote", "46-fleet-board", "47-remote-focus", "48-remote-cleanup", "49-fleet-sync", "50-cross-switch", "51-identity", "52-worktree"]) {
+  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "16-onboarding-detect", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "34-wizard", "35-candidates", "36-recommend", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings", "45-remote", "46-fleet-board", "47-remote-focus", "48-remote-cleanup", "49-fleet-sync", "50-cross-switch", "51-identity", "52-worktree", "53-parked"]) {
     mkdirSync(resolve(GALLERY, screen), { recursive: true });
   }
   writeFileSync(NOT_CAPTURETED, "# Not captured (explicit omissions)\n\n| Screen | State | Reason |\n|---|---|---|\n");
@@ -5784,4 +5784,51 @@ for (const theme of THEMES) {
       }
     });
   }
+}
+
+// ---------------------------------------------------------------------
+// AJ-E1003 — 53-parked: a parked row with its countdown as text, the
+// inspector's park card, and the one reset offer (Resume / Remind me in
+// 30 min) — 1280×800, light/dark.
+// ---------------------------------------------------------------------
+
+const parkedFixture = {
+  ...allStatuses,
+  sessions: allStatuses.sessions.map((session) =>
+    session.status === "quota_blocked"
+      ? { ...session, parked: "measured", parked_resets_at_ms: T0 + 2 * 3_600_000 + 13 * 60_000 }
+      : session,
+  ),
+};
+
+for (const theme of THEMES) {
+  test(`53 parked — row, card and the reset offer — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ fixture, t, t0 }) => {
+        const w = window as unknown as Record<string, unknown>;
+        w.__AIJ_FIXTURE__ = fixture;
+        w.__AIJ_PARKED_OFFERS__ = [
+          {
+            session_id: "sess-other", account_label: "Personal",
+            text: "Personal has reset. Resume the work you parked — the same conversation, on the same Account.", last: false,
+          },
+        ];
+        localStorage.setItem("aij.theme", t);
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        sessionStorage.setItem("aij.ready.skipped", "1");
+        Date.now = () => t0;
+      },
+      { fixture: parkedFixture, t: theme, t0: T0 },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await page.getByRole("tab", { name: "Sessions" }).click();
+    await expect(page.getByTestId("rail-parked").first()).toContainText("Parked 2h 13m");
+    await expect(page.getByTestId("parked-offer")).toBeVisible();
+    await page.screenshot({ path: resolve(GALLERY, `53-parked/rail-and-offer-1280x800-${theme}.png`) });
+    await page.getByTestId("rail-parked").first().click();
+    await expect(page.getByTestId("park-state")).toContainText("Parked until the quota resets");
+    await page.screenshot({ path: resolve(GALLERY, `53-parked/inspector-1280x800-${theme}.png`) });
+  });
 }

@@ -1681,6 +1681,14 @@ pub struct InstanceInfo {
     /// It runs in a linked git worktree.
     #[ts(optional)]
     pub git_worktree: Option<bool>,
+    /// AJ-E1003: parked until its quota resets — the reset's
+    /// confidence (`measured` | `estimated` | `unknown`); absent when not
+    /// parked.
+    #[ts(optional)]
+    pub parked: Option<String>,
+    /// The reset it waits for, epoch ms (countdown only when measured).
+    #[ts(optional, type = "number")]
+    pub parked_resets_at_ms: Option<i64>,
 }
 
 /// Deprecated alias (one version). AJ-E107.
@@ -4691,6 +4699,7 @@ fn session_infos(
 ) -> AppResult<Vec<InstanceInfo>> {
     let (account_index, recipe_index) = session_join_indexes(storage)?;
     let identities = storage.identity().latest_by_session().unwrap_or_default();
+    let parked = crate::parked::parked_index(storage);
     Ok(storage
         .sessions()
         .list(None)?
@@ -4787,6 +4796,10 @@ fn session_infos(
                 identity_label: identities
                     .get(record.id.as_str())
                     .and_then(|assertion| assertion.label.clone()),
+                parked: parked
+                    .get(record.id.as_str())
+                    .map(|(_, confidence)| confidence.clone()),
+                parked_resets_at_ms: parked.get(record.id.as_str()).and_then(|(at, _)| *at),
             }
         })
         .collect())

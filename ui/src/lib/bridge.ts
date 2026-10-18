@@ -20,6 +20,8 @@ import type { CloudFeatureInfo } from "../types/generated/CloudFeatureInfo";
 import type { RemoteMachineInfo } from "../types/generated/RemoteMachineInfo";
 import type { IdentityCheckInfo } from "../types/generated/IdentityCheckInfo";
 import type { IsolationOfferInfo } from "../types/generated/IsolationOfferInfo";
+import type { ParkedInfo } from "../types/generated/ParkedInfo";
+import type { ParkedOfferInfo } from "../types/generated/ParkedOfferInfo";
 import type { WorktreeRemovalInfo } from "../types/generated/WorktreeRemovalInfo";
 import type { GitStatusInfo } from "../types/generated/GitStatusInfo";
 import type { IdentityAlternativeInfo } from "../types/generated/IdentityAlternativeInfo";
@@ -85,6 +87,8 @@ export type {
   IdentityCheckInfo,
   IdentityAlternativeInfo,
   IsolationOfferInfo,
+  ParkedInfo,
+  ParkedOfferInfo,
   WorktreeRemovalInfo,
   GitStatusInfo,
   RemoteSwitchTargetInfo,
@@ -3776,4 +3780,72 @@ export async function fleetDivergenceKeepTheirs(sessionId: string): Promise<void
     return;
   }
   return invoke<void>("fleet_divergence_keep_theirs", { sessionId });
+}
+
+// --- AJ-E1003: park until reset --------------------------------------------
+
+type ParkSeams = {
+  __AIJ_PARKED_OFFERS__?: ParkedOfferInfo[];
+  __AIJ_PARK_CALLS__?: string[];
+  __AIJ_PARKED_CHECK__?: ParkedInfo;
+};
+const parkSeams = () => window as unknown as ParkSeams;
+const parkCall = (call: string) => {
+  const seams = parkSeams();
+  seams.__AIJ_PARK_CALLS__ = [...(seams.__AIJ_PARK_CALLS__ ?? []), call];
+};
+
+/** Parks a quota-blocked Instance until its window resets (pack staged). */
+export async function instancePark(sessionId: string): Promise<ParkedInfo> {
+  if (!hasBackend) {
+    parkCall(`park:${sessionId}`);
+    return {
+      session_id: sessionId,
+      account_label: "Work Max",
+      parked_at_ms: Date.now(),
+      resets_at_ms: Date.now() + 2 * 3_600_000,
+      confidence: "measured",
+      due: false,
+      pack_dir: "",
+    };
+  }
+  return invoke<ParkedInfo>("instance_park", { sessionId });
+}
+
+/** The resume offers due now (polled with the alerts — never a timer of
+ * its own). */
+export async function parkedOffers(): Promise<ParkedOfferInfo[]> {
+  if (!hasBackend) return [...(parkSeams().__AIJ_PARKED_OFFERS__ ?? [])];
+  return invoke<ParkedOfferInfo[]>("parked_offers");
+}
+
+/** "Not now": snoozes once, then stays parked quietly. */
+export async function parkedDismiss(sessionId: string): Promise<void> {
+  if (!hasBackend) {
+    parkCall(`dismiss:${sessionId}`);
+    const seams = parkSeams();
+    seams.__AIJ_PARKED_OFFERS__ = (seams.__AIJ_PARKED_OFFERS__ ?? []).filter((row) => row.session_id !== sessionId);
+    return;
+  }
+  return invoke<void>("parked_dismiss", { sessionId });
+}
+
+/** Re-reads an Estimated reset ("check now"). */
+export async function parkedCheckNow(sessionId: string): Promise<ParkedInfo> {
+  if (!hasBackend) {
+    parkCall(`check:${sessionId}`);
+    const seeded = parkSeams().__AIJ_PARKED_CHECK__;
+    if (seeded) return seeded;
+    throw new Error("still estimated");
+  }
+  return invoke<ParkedInfo>("parked_check_now", { sessionId });
+}
+
+/** Resumes a parked Instance — the original session, on its Account. */
+export async function parkedResume(sessionId: string): Promise<{ session_id: string; pid: number } | null> {
+  if (!hasBackend) {
+    parkCall(`resume:${sessionId}`);
+    return null;
+  }
+  return invoke<{ session_id: string; pid: number }>("parked_resume", { sessionId });
 }

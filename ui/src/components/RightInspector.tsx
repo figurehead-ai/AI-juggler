@@ -1,3 +1,4 @@
+import { ParkCard } from "./ParkCard";
 import { WorktreeGit } from "./WorktreeGit";
 import { identityWords } from "../lib/identity";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -800,6 +801,7 @@ function InstanceOverview(props: PanelProps) {
             ) : null}
             <CopyField testId="instance-cwd" label="cwd" value={session.cwd} mono />
             <WorktreeGit sessionId={session.id} live={live} />
+            <ParkCard session={session} now={props.now} />
             <span data-testid="instance-native-id">
               native session:{" "}
               <span className="font-mono text-ink">

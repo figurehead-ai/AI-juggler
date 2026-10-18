@@ -1,4 +1,5 @@
 import { identityWords } from "../lib/identity";
+import { parkedWords } from "../lib/parked";
 import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { IconProjects, IconSessions, IconTerminal } from "./icons";
 import type { AccountInfo, InstanceInfo, ProjectInfo, RemoteInstanceInfo, RemoteMachineInfo } from "../lib/bridge";
@@ -1189,7 +1190,17 @@ export function SessionRow({
           </span>
         )}
         <span className="ml-auto inline-flex shrink-0 items-center gap-1">
-          {badge ? (
+          {parkedWords(session, now) ? (
+            <span
+              title={parkedWords(session, now)!.long}
+              aria-label={parkedWords(session, now)!.long}
+              data-testid="rail-parked"
+              className="inline-flex items-center gap-1 rounded-full border border-hairline px-1.5 py-px text-[10px] font-medium text-ink"
+            >
+              <span aria-hidden="true">⏸</span>
+              {parkedWords(session, now)!.chip}
+            </span>
+          ) : badge ? (
             <span
               title={attentionTooltip(session)}
               className={

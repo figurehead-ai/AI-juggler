@@ -2428,3 +2428,39 @@ for (const theme of ["dark", "light"] as const) {
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
   });
 }
+
+/** AJ-E1003 a11y (both themes): the parked row (countdown as text) and
+ * the reset offer (Resume and a distinct snooze, both keyboard
+ * reachable) scan axe-clean. */
+for (const theme of ["dark", "light"] as const) {
+  test(`parked — row and reset offer — axe 0 — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ fixture, theme: t }) => {
+        const w = window as unknown as Record<string, unknown>;
+        const base = fixture as { sessions: Array<Record<string, unknown>> };
+        w.__AIJ_FIXTURE__ = {
+          ...base,
+          sessions: base.sessions.map((s) =>
+            s.status === "quota_blocked" ? { ...s, parked: "estimated", parked_resets_at_ms: Date.now() + 3_600_000 } : s,
+          ),
+        };
+        w.__AIJ_PARKED_OFFERS__ = [
+          { session_id: "x", account_label: "Personal", text: "Personal has reset. Resume the work you parked.", last: false },
+        ];
+        localStorage.setItem("aij.theme", t);
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        sessionStorage.setItem("aij.ready.skipped", "1");
+      },
+      { fixture: allStatuses, theme },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await page.getByRole("tab", { name: "Sessions" }).click();
+    await expect(page.getByTestId("rail-parked").first()).toContainText("Parked (est.)");
+    await page.getByTestId("parked-offer-resume").focus();
+    await page.keyboard.press("Tab");
+    await expect(page.getByTestId("parked-offer-snooze")).toBeFocused();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+  });
+}

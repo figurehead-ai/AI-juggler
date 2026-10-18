@@ -67,6 +67,23 @@ fn save(state: &Arc<AppState>, parked: &BTreeMap<String, ParkedRow>) -> AppResul
     Ok(())
 }
 
+/// Parked Instances straight from storage (the read model's join):
+/// session id → (reset instant, confidence).
+pub(crate) fn parked_index(
+    storage: &juggler_core::storage::Storage,
+) -> BTreeMap<String, (Option<i64>, String)> {
+    storage
+        .app_settings()
+        .get(PARKED_KEY)
+        .ok()
+        .flatten()
+        .and_then(|raw| serde_json::from_str::<BTreeMap<String, ParkedRow>>(&raw).ok())
+        .unwrap_or_default()
+        .into_iter()
+        .map(|(id, row)| (id, (row.resets_at_ms, row.confidence)))
+        .collect()
+}
+
 /// A parked Instance, as the rail and inspector show it.
 #[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
@@ -409,7 +426,7 @@ pub fn parked_set_reset_for_test(state: &Arc<AppState>, session_id: &str, at_ms:
     let mut parked = load(state);
     if let Some(row) = parked.get_mut(session_id) {
         row.resets_at_ms = Some(at_ms);
-        row.confidence = "measured".to_owned();
+        "measured".clone_into(&mut row.confidence);
     }
     let _ = save(state, &parked);
 }

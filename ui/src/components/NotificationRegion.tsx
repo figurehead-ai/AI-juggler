@@ -9,6 +9,10 @@ import { useEffect, useState } from "react";
 import {
   alertsTick,
   fleetRemote,
+  parkedDismiss,
+  parkedOffers,
+  parkedResume,
+  type ParkedOfferInfo,
   resetQueueDismiss,
   resetQueueList,
   type AlertEventData,
@@ -28,6 +32,7 @@ export function NotificationRegion({
   const [queue, setQueue] = useState<ResetQueueRow[]>([]);
   const [remote, setRemote] = useState<RemoteMachineInfo[]>([]);
   const [dismissed, setDismissed] = useState<Set<string>>(() => new Set());
+  const [offers, setOffers] = useState<ParkedOfferInfo[]>([]);
 
   // AJ-E709 Req.3: Fleet alerts — a local read of what peers reported
   // (the link delivers within the second; this only paints it).
@@ -63,6 +68,13 @@ export function NotificationRegion({
       resetQueueList().then((rows) => {
         if (alive) setQueue(rows);
       });
+      // AJ-E1003: parked Instances whose quota reset — with the same
+      // poll as the alerts (no timer of its own).
+      parkedOffers()
+        .then((rows) => {
+          if (alive) setOffers(rows);
+        })
+        .catch(() => null);
     };
     poll();
     const timer = window.setInterval(poll, 30_000); // ≥30 s — never a busy loop
@@ -120,6 +132,39 @@ export function NotificationRegion({
             dismiss
           </button>
         </p>
+      ))}
+      {offers.map((offer) => (
+        <div
+          key={`parked-${offer.session_id}`}
+          data-testid="parked-offer"
+          className="flex flex-wrap items-center gap-2 rounded border border-accent/40 bg-accent-soft px-2 py-1.5 text-[11px] text-ink"
+        >
+          <span className="min-w-0 flex-1">{offer.text}</span>
+          <button
+            type="button"
+            className="rounded border border-accent/50 px-2 py-0.5 font-medium text-accent-hi focus:outline-none focus:ring-2 focus:ring-accent"
+            onClick={() =>
+              void parkedResume(offer.session_id).then(() =>
+                setOffers((rows) => rows.filter((row) => row.session_id !== offer.session_id)),
+              )
+            }
+            data-testid="parked-offer-resume"
+          >
+            Resume
+          </button>
+          <button
+            type="button"
+            className="text-ink underline focus:outline-none focus:ring-2 focus:ring-accent"
+            onClick={() =>
+              void parkedDismiss(offer.session_id).then(() =>
+                setOffers((rows) => rows.filter((row) => row.session_id !== offer.session_id)),
+              )
+            }
+            data-testid={offer.last ? "parked-offer-stop" : "parked-offer-snooze"}
+          >
+            {offer.last ? "Stop reminding me" : "Remind me in 30 min"}
+          </button>
+        </div>
       ))}
       {queue.map((row) => (
         <p key={row.id} data-testid={`queue-${row.state}`} className="flex items-center gap-2 rounded border border-hairline px-2 py-1 text-[11px]">

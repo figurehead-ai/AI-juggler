@@ -44,7 +44,7 @@
 **Research basis**: pass2/06 §7 (verified collision evidence, promoted to P0); first-report F1.1; SPEC pack branch field.
 **Handover note**: Earlier reports marked collisions `[inferred]`; pass2/06 upgraded the evidence. Do not downgrade without reading that section.
 
-### AJ-E1003 Quota reset queue and parked continuation | Status: TODO | Priority P1 | Effort M | Depends: AJ-E1001
+### AJ-E1003 Quota reset queue and parked continuation | Status: DONE-EVIDENCED | Priority P1 | Effort M | Depends: AJ-E1001
 **Goal**: Let a quota-blocked Instance be parked with its context pack staged, and surface it for one-click continuation the moment its window resets.
 **User story**: As a developer blocked at 11pm, I want my work parked safely and offered back to me at reset, on the original account, without reconstructing anything.
 **Requirements**:
