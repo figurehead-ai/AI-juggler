@@ -34,7 +34,7 @@
 **Visual testing**: None (no UI). Reviewer renders the ADR Markdown at 100-col terminal width; pass = no table wider than 4 columns, all links resolve (`markdown-link-check` or manual click).
 **Files to touch**: [do../adr/0008-terminology-charter.md](../adr/0008-terminology-charter.md) (new), [docs/adr/README.md](../adr/README.md) (index row).
 **Research basis**: [decision-log.md](../review/decision-log.md#L21) D-02/D-10; pass2/01 §4.1–4.2 rename map; pass2/08 §3.4 ADR table; [0007-instance-centric-information-architecture.md](../adr/0007-instance-centric-information-architecture.md#L38).
-**Handover note**: Next agent must not start AJ-E102 until this ADR is Accepted. Trap: pass2/01 once proposed "ADR-0014" — that numbering is superseded by pass2/08 §3.4 (0008); do not create 0014.
+**Handover note**: Next agent must not start AJ-E102 until this ADR is Accepted. Trap: pass2/01 once proposed "ADR-0014" — that numbering is superseded by pass2/08 §3.4 (0008); do not create 0014 for terminology. (ADR-0014 now exists for an unrelated decision — the optional Figurehead account, D-18; the terminology charter stays ADR-0008.)
 
 ### AJ-E102 Phase A — UI copy sweep to Provider/Account/Instance | Status: DONE-EVIDENCED (zcode-primary, 2026-10-13) | Priority P0 | Effort M | Depends: AJ-E101
 **Goal**: Every user-visible string says Provider/Account/Instance (and "Launch settings" for Profile), while routes, props, and IPC names stay aliased and working.

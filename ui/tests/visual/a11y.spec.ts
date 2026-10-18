@@ -1500,6 +1500,9 @@ for (const theme of ["dark", "light"] as const) {
     await page.goto("/");
     await expect(page.getByRole("tab", { name: "Sessions" })).toBeVisible();
     // Summon by keyboard alone.
+    // The ⌘N handler mounts with the shell — wait for it (AJ-E806:
+    // pressing during the first frames after load is a test race).
+    await expect(page.getByRole("button", { name: "New project" }).first()).toBeVisible();
     await page.keyboard.press("Meta+n");
     await expect(page.getByRole("heading", { name: "New project" })).toBeVisible();
     const confirmed = await scanSeriousWithConfirm(page);
@@ -1882,6 +1885,41 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByLabel("Variable name 1")).toHaveValue("CLAUDE_CODE_MAX_OUTPUT_TOKENS");
     await page.getByTestId("expert-hatch").first().click();
     await expect(page.getByTestId("expert-panel").first()).toBeVisible();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+  });
+}
+
+/** AJ-E702 a11y (both themes): the Fleet screen with peers, the
+ * labelled, keyboard-focusable fingerprint, and the Unpair
+ * confirmation (an alertdialog with Cancel focused) scan axe-clean. */
+for (const theme of ["dark", "light"] as const) {
+  test(`fleet — identity + unpair confirm — axe 0 — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ fixture, theme: t }) => {
+        const w = window as unknown as Record<string, unknown>;
+        w.__AIJ_FIXTURE__ = fixture;
+        w.__AIJ_FLEET_PEERS__ = [
+          { machine_id: "m1", label: "Mac mini", fingerprint: "11AA 22BB 33CC 44DD 55EE 66FF 7788 99AA", permission: "view", permission_label: "View only", ask_each_time: false, paired_via: "code", paired_at_ms: 1, last_seen_ms: null },
+        ];
+        localStorage.setItem("aij.theme", t);
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        sessionStorage.setItem("aij.ready.skipped", "1");
+      },
+      { fixture: allStatuses, theme },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Fleet" }).first().click();
+    const fingerprint = page.getByLabel("Machine fingerprint");
+    await expect(fingerprint).toBeVisible();
+    await fingerprint.focus();
+    await expect(fingerprint).toBeFocused();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+    await page.getByRole("button", { name: "Unpair Mac mini" }).click();
+    const sheet = page.getByRole("alertdialog", { name: "Unpair Mac mini?" });
+    await expect(sheet).toBeVisible();
+    await expect(sheet.getByRole("button", { name: "Cancel" })).toBeFocused();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
   });
 }

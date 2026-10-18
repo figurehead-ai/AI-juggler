@@ -17,9 +17,11 @@ juggler-adapter = { version = "0.0.1", path = "../juggler-adapter" }
 juggler-adapters = { version = "0.0.1", path = "../juggler-adapters" }
 juggler-core = { version = "0.0.1", path = "../juggler-core" }
 juggler-handover = { version = "0.0.1", path = "../juggler-handover" }
+juggler-link = { version = "0.0.1", path = "../juggler-link" }
 juggler-supervisor = { version = "0.0.1", path = "../juggler-supervisor" }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
+sysinfo = { version = "0.39.6", default-features = false, features = ["system"] }
 tauri = { version = "2.12.3", features = [] }
 tauri-plugin-dialog = "2"
 tauri-plugin-global-shortcut = "2"

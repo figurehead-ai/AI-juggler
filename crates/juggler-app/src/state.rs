@@ -58,6 +58,9 @@ pub struct AppState {
     /// ladder runs; flipped by `kill_cancel`.
     pub kill_cancels:
         Mutex<std::collections::HashMap<String, std::sync::Arc<std::sync::atomic::AtomicBool>>>,
+    /// Fleet identity + signed peer registry (AJ-E702), loaded on first
+    /// use. Lock ordering: never held together with `storage`.
+    pub fleet: crate::fleet::FleetCell,
 }
 
 impl AppState {
@@ -177,6 +180,7 @@ impl AppState {
             heuristics: HeuristicEngine::new(load_thresholds(&data_dir)),
             terminal_taps: Mutex::new(std::collections::HashSet::new()),
             kill_cancels: Mutex::new(std::collections::HashMap::new()),
+            fleet: Mutex::new(None),
             preview: Mutex::new(None),
             data_dir,
         })

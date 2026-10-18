@@ -9,3 +9,17 @@ repository.workspace = true
 
 [lints]
 workspace = true
+
+[dependencies]
+base64 = "0.22"
+ed25519-dalek = "2"
+getrandom = "0.3"
+juggler-core = { version = "0.0.1", path = "../juggler-core" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.11"
+thiserror = "2"
+x25519-dalek = { version = "2", features = ["static_secrets"] }
+
+[dev-dependencies]
+tempfile = "3.27.0"

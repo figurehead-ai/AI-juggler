@@ -35,7 +35,7 @@
 **Visual testing**: Render SPEC.md at 100-col terminal and GitHub preview, 1280×800; capture §3 tables/diagram; pass = no table >4 columns, mermaid renders, no overflow. A11y: headings sequential, alt text on diagram.
 **Files to touch**: [docs/SPEC.md](../SPEC.md#L86) (§3 only), [docs/adr/0007-instance-centric-information-architecture.md](../adr/0007-instance-centric-information-architecture.md) (cite only).
 **Research basis**: [decision-log.md](../review/decision-log.md#L21) D-02/D-05/D-10; pass2/08 §3.1 item 1, §3.4; pass2/00 §3; pass2/02 §§2,6.
-**Handover note**: Do not rename Rust types here — E1 Phase B owns code aliases. Trap: pass2/01 `ADR-0014` numbering is dead; ADR-0008 is canonical (pass2/08 §3.4).
+**Handover note**: Do not rename Rust types here — E1 Phase B owns code aliases. Trap: pass2/01 `ADR-0014` numbering is dead for terminology; ADR-0008 is canonical (pass2/08 §3.4). ADR-0014 now holds the unrelated optional-account decision (D-18).
 
 ### AJ-E902 SPEC §5 supervisor/ledger + §6 two-clock usage rewrite | Status: DONE-EVIDENCED (zcode-primary, 2026-10-13) | Priority P0 | Effort M | Depends: AJ-E901
 **Goal**: Rewrite SPEC §5 (spawn ledger, verified cleanup tiers) and §6 (window vs subscription clocks) so Clean and quota-trigger match D-08/D-12.
@@ -138,7 +138,7 @@
 **Visual testing**: Render each ADR at 100-col; pass = no >4-col table, headings sequential, links live.
 **Files to touch**: `docs/adr/0008-*.md` through `docs/adr/0013-*.md` (new), `docs/adr/README.md`.
 **Research basis**: decision-log D-02..D-14; pass2/08 §3.4 (0008-0012) plus D-13 (0013 Fleet).
-**Handover note**: Numbering is fixed: do not revive pass2/01's ADR-0014 idea. If a decision changes, supersede with a new ADR; never edit an Accepted ADR's Decision section.
+**Handover note**: Numbering is fixed: do not revive pass2/01's terminology ADR-0014 idea (the number now belongs to D-18's optional-account ADR). If a decision changes, supersede with a new ADR; never edit an Accepted ADR's Decision section.
 
 ### AJ-E908 README truth fix + beta-exit criteria document | Status: DONE-EVIDENCED (zcode-primary, 2026-10-13) | Priority P1 | Effort S | Depends: AJ-E906
 **Goal**: Make the public front door and the beta-exit bar say only what is true today.

@@ -40,7 +40,7 @@ function noteNotCaptured(screen: string, state: string, reason: string) {
 
 test.beforeAll(() => {
   mkdirSync(GALLERY, { recursive: true });
-  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "16-onboarding-detect", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "34-wizard", "35-candidates", "36-recommend", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy"]) {
+  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "16-onboarding-detect", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "34-wizard", "35-candidates", "36-recommend", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet"]) {
     mkdirSync(resolve(GALLERY, screen), { recursive: true });
   }
   writeFileSync(NOT_CAPTURETED, "# Not captured (explicit omissions)\n\n| Screen | State | Reason |\n|---|---|---|\n");
@@ -4128,6 +4128,9 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await expect(page.getByRole("tab", { name: "Sessions" })).toBeVisible();
+      // The ⌘N handler mounts with the shell — wait for it (AJ-E806:
+      // pressing during the first frames after load is a test race).
+      await expect(page.getByRole("button", { name: "New project" }).first()).toBeVisible();
       await page.keyboard.press("Meta+n");
       await expect(page.getByRole("heading", { name: "New project" })).toBeVisible();
       // Step 1: the tiles.
@@ -4169,6 +4172,9 @@ for (const theme of THEMES) {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme as "dark" | "light" });
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
+      // The ⌘N handler mounts with the shell — wait for it (AJ-E806:
+      // pressing during the first frames after load is a test race).
+      await expect(page.getByRole("button", { name: "New project" }).first()).toBeVisible();
       await page.keyboard.press("Meta+n");
       await expect(page.getByRole("heading", { name: "New project" })).toBeVisible();
       await page.getByRole("button", { name: /Work in ai-juggler/ }).click();
@@ -4872,3 +4878,83 @@ for (const theme of THEMES) {
     });
   }
 }
+
+// ---------------------------------------------------------------------
+// AJ-E702 — 42-fleet: this Mac's identity (fingerprint sheet), the
+// paired list, the Unpair confirmation, and the fail-closed "Trust
+// broken" banner — 1280×800 and 1024×680 (the window minimum), both
+// themes.
+// ---------------------------------------------------------------------
+
+const FLEET_PEER = {
+  machine_id: "machine-mini",
+  label: "Mac mini",
+  fingerprint: "11AA 22BB 33CC 44DD 55EE 66FF 7788 99AA",
+  permission: "view",
+  permission_label: "View only",
+  ask_each_time: false,
+  paired_via: "code",
+  paired_at_ms: T0,
+  last_seen_ms: T0 + 60_000,
+};
+
+const openFleet = async (
+  page: import("@playwright/test").Page,
+  theme: string,
+  vp: { width: number; height: number },
+  seams: Record<string, unknown>,
+) => {
+  await page.addInitScript(
+    ({ fixture, t, extra, t0 }) => {
+      const w = window as unknown as Record<string, unknown>;
+      w.__AIJ_FIXTURE__ = fixture;
+      Object.assign(w, extra);
+      localStorage.setItem("aij.theme", t);
+      localStorage.setItem("aij.onboarding.dismissed", "1");
+      sessionStorage.setItem("aij.ready.skipped", "1");
+      Date.now = () => t0;
+    },
+    { fixture: allStatuses, t: theme, extra: seams, t0: T0 },
+  );
+  await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme as "dark" | "light" });
+  await page.setViewportSize({ width: vp.width, height: vp.height });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Fleet" }).first().click();
+  await expect(page.getByTestId("fleet-this-mac")).toBeVisible();
+};
+
+for (const theme of THEMES) {
+  for (const vp of ACCOUNTS_VP) {
+    test(`42 fleet — this Mac, no peers — ${vp.name} — ${theme}`, async ({ page }) => {
+      await openFleet(page, theme, vp, { __AIJ_FLEET_PEERS__: [] });
+      await expect(page.getByTestId("fleet-fingerprint")).toHaveAttribute("aria-label", "Machine fingerprint");
+      await expect(page.getByTestId("fleet-peers-empty")).toBeVisible();
+      await page.screenshot({ path: resolve(GALLERY, `42-fleet/this-mac-${vp.name}-${theme}.png`), fullPage: true });
+    });
+
+    test(`42 fleet — paired list — ${vp.name} — ${theme}`, async ({ page }) => {
+      await openFleet(page, theme, vp, {
+        __AIJ_FLEET_PEERS__: [FLEET_PEER, { ...FLEET_PEER, machine_id: "m2", label: "Office iMac", permission: "control", permission_label: "View + control", paired_via: "account", last_seen_ms: null }],
+      });
+      await expect(page.getByTestId("fleet-peer")).toHaveCount(2);
+      await page.screenshot({ path: resolve(GALLERY, `42-fleet/paired-${vp.name}-${theme}.png`), fullPage: true });
+    });
+
+    test(`42 fleet — unpair confirmation — ${vp.name} — ${theme}`, async ({ page }) => {
+      await openFleet(page, theme, vp, { __AIJ_FLEET_PEERS__: [FLEET_PEER] });
+      await page.getByTestId("fleet-unpair").click();
+      await expect(page.getByTestId("fleet-confirm")).toContainText("Unpair Mac mini?");
+      await page.screenshot({ path: resolve(GALLERY, `42-fleet/unpair-confirm-${vp.name}-${theme}.png`), fullPage: true });
+    });
+
+    test(`42 fleet — trust broken — ${vp.name} — ${theme}`, async ({ page }) => {
+      await openFleet(page, theme, vp, {
+        __AIJ_FLEET_PEERS__: [],
+        __AIJ_FLEET_SELF__: { trust: "broken", trust_reason: "an older copy of the registry was restored (rollback)" },
+      });
+      await expect(page.getByTestId("fleet-trust-broken")).toBeVisible();
+      await page.screenshot({ path: resolve(GALLERY, `42-fleet/trust-broken-${vp.name}-${theme}.png`), fullPage: true });
+    });
+  }
+}
+

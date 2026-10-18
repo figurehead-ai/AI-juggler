@@ -1,6 +1,6 @@
 # ADR-0004: Fleet transport — gRPC over mTLS with mDNS pairing
 
-**Status:** Accepted (wire-format detail protobuf vs JSON-RPC decided at the M5 spike)
+**Status:** Accepted (wire format: protobuf — closed by the ADR-0013 architecture contract, AJ-E701)
 **Date:** 2026-10-12
 **Deciders:** maintainer + spec review (round 3)
 

@@ -723,5 +723,5 @@ Task-level breakdown, live tracking, and the per-milestone validation-gate proce
 
 **Open (non-blocking):**
 
-1. Fleet wire format detail: protobuf-first vs JSON-RPC in the app-server style — decided at the M5 spike.
+1. ~~Fleet wire format detail: protobuf-first vs JSON-RPC~~ — **closed: protobuf** (ADR-0013 architecture contract, AJ-E701).
 2. Whether the stable update channel opens earlier than 1.0 — revisit at v0.3 based on beta feedback.

@@ -10,3 +10,9 @@
     test,
     allow(clippy::pedantic, clippy::unwrap_used, clippy::expect_used)
 )]
+
+pub mod identity;
+pub mod registry;
+
+pub use identity::{IdentityError, MachineIdentity, PublicIdentity, fingerprint_of};
+pub use registry::{PairedVia, Peer, PeerRegistry, Permission, RegistryError, TrustState};
