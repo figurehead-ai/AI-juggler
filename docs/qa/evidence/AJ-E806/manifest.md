@@ -79,3 +79,10 @@
   port (the old listener not yet released) and fell back to another,
   stranding peers paired by address. The node now retries its last port
   for up to 2 s before falling back.
+- A real latency bug found through a CI failure (2026-10-18, PR #24
+  `verify` on ubuntu): `transport :: a_cancelled_handover_is_discarded…`
+  missed its 1 s cancel budget. `push_handover` hashed the whole bundle
+  up front on the async thread, so the push could not even start, nor
+  see a cancel, until a 64 MB (debug-build) digest finished. The digest is
+  now computed chunk by chunk as the bundle is sent; the budget and the
+  assertion are unchanged.

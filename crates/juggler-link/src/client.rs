@@ -224,13 +224,6 @@ pub async fn push_handover(
         issued_at_ms: now_ms(),
         action: Some(action),
     };
-    let digest = Sha256::digest(&bundle)
-        .iter()
-        .fold(String::new(), |mut out, byte| {
-            use std::fmt::Write as _;
-            let _ = write!(out, "{byte:02x}");
-            out
-        });
     let (parts, outbound) = tokio::sync::mpsc::channel::<proto::HandoverPart>(4);
     let mut feeder_cancel = cancel.clone();
     let feeder = tokio::spawn(async move {
@@ -242,10 +235,14 @@ pub async fn push_handover(
         {
             return;
         }
+        // Hashed as it goes (never the whole bundle up front), so a
+        // cancel is seen between chunks even for a large pack.
+        let mut hasher = Sha256::new();
         for chunk in bundle.chunks(HANDOVER_CHUNK) {
             if *feeder_cancel.borrow_and_update() {
                 return; // dropping the sender ends the stream: cancelled
             }
+            hasher.update(chunk);
             if parts
                 .send(part(proto::handover_part::Part::Chunk(chunk.to_vec())))
                 .await
@@ -254,6 +251,14 @@ pub async fn push_handover(
                 return;
             }
         }
+        let digest = hasher
+            .finalize()
+            .iter()
+            .fold(String::new(), |mut out, byte| {
+                use std::fmt::Write as _;
+                let _ = write!(out, "{byte:02x}");
+                out
+            });
         let _ = parts
             .send(part(proto::handover_part::Part::End(proto::HandoverEnd {
                 sha256: digest,
