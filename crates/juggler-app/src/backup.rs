@@ -375,6 +375,17 @@ pub fn backup_export_impl(
     result
 }
 
+/// Every file an export opens comes from `sources` (scan, hash, write)
+/// or is the live database it snapshotted: recorded for the AJ-E1207
+/// credential guardrail.
+fn record_reads(state: &Arc<AppState>, sources: &[(String, PathBuf)]) {
+    if let Ok(mut reads) = state.export_reads.lock() {
+        *reads = std::iter::once(state.data_dir.join("juggler.sqlite"))
+            .chain(sources.iter().map(|(_, path)| path.clone()))
+            .collect();
+    }
+}
+
 fn export_from(
     state: &Arc<AppState>,
     dest: &Path,
@@ -387,6 +398,7 @@ fn export_from(
     let counts = counts(&Storage::open(&snapshot)?)?;
 
     let sources = sources(&state.data_dir, &snapshot);
+    record_reads(state, &sources);
     let mut findings = Vec::new();
     for (name, path) in &sources {
         for found in scan(path)? {
