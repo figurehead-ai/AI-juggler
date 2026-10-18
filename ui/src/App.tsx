@@ -27,6 +27,7 @@ import { ProfilesScreen } from "./screens/Profiles";
 import { OnboardingWizard } from "./screens/OnboardingWizard";
 import { NewSessionModal } from "./screens/NewSession";
 import { NewProjectSheet } from "./screens/NewProjectSheet";
+import { FleetScreen } from "./screens/FleetScreen";
 import { funnelEvent } from "./lib/funnel";
 import { ReadyHome } from "./screens/ReadyHome";
 import { SessionPanel } from "./screens/WorkPanels";
@@ -651,7 +652,9 @@ export default function App() {
           ) : global === "usage" ? (
             <ComingSoon screen="Usage" />
           ) : global === "fleet" ? (
-            <ComingSoon screen="Fleet" />
+            <div className="h-full overflow-y-auto">
+              <FleetScreen />
+            </div>
           ) : selectedLogin ? (
             <SessionPanel
               session={null}

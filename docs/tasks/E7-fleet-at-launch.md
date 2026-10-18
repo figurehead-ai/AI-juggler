@@ -26,7 +26,7 @@
 | Cloud relay (vendor backend) | Works anywhere | New trust target, credential risk | Rejected (ADR-0004:19) |
 | CRDT/full-state sync | Automatic merge | Overkill, silent-merge risk vs D-05 | Rejected; use seq + LWW-per-field + explicit conflict UI (AJ-E708) |
 
-### AJ-E701 Fleet architecture ADR and threat model | Status: TODO | Priority P0 | Effort M | Depends: none
+### AJ-E701 Fleet architecture ADR and threat model | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: none
 **Goal**: Freeze fleet identity, transport, sync, and offline contracts in an ADR so local switching, inspector, spawn-ledger, and cleanup are fleet-shaped from day one.
 **User story**: As a maintainer (P4 Operator), I need one signed-off fleet contract so three agents do not invent three incompatible sync models.
 **Requirements**:
@@ -44,7 +44,7 @@
 **Research basis**: decision-log.md:126-137 (D-13); SPEC.md:362-394; ADR-0004:13-25; pass2/08 §2.2 D-2 superseded.
 **Handover note**: Do not re-litigate D-13 or reintroduce a cloud relay. Trap: SPEC.md:476 still lists protobuf-vs-JSON-RPC as open — this ADR must close it (recommend protobuf per ADR-0004 versioning).
 
-### AJ-E702 Machine identity and pairing trust store | Status: TODO | Priority P0 | Effort M | Depends: AJ-E701
+### AJ-E702 Machine identity and pairing trust store | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E701
 **Goal**: Each install generates a durable Ed25519 machine identity; paired peers are pinned in a tamper-evident registry under `fleet/`.
 **User story**: As a developer with a laptop and a Mac mini, I pair once and trust that no other machine can impersonate either.
 **Requirements**:
@@ -58,7 +58,7 @@
 **Performance budget**: Keygen <200 ms; registry load <50 ms for 50 peers; unpair revocation <2 s; storage <5 KB per peer.
 **Quality gates**: Unit coverage ≥90% for `juggler-link` identity module; `cargo clippy -- -D warnings`; no private-key type implements `Serialize` for network DTOs.
 **Evidence/validation proof**: Strict: `cargo test -p juggler-link identity::` passes including tamper, unpair-revocation, and key-permission (0600) tests; `grep -rn "private_key" crates/juggler-link/src --include="*.rs"` shows no log/network sink; evidence pasted in PR and `docs/qa/gate-E7.md`. Security evidence required: negative test proves a modified fingerprint is rejected.
-**Visual testing**: Screenshots: fingerprint sheet at 1280×800 and 800×600, light/dark; a11y: fingerprint reachable by keyboard, `aria-label="Machine fingerprint"`; pass = no truncation, copy button focusable.
+**Visual testing**: Screenshots: fingerprint sheet at 1280×800 and 1024×680 (the window minimum; 800×600 is below it — task-text fix 2026-10-18), light/dark; a11y: fingerprint reachable by keyboard, `aria-label="Machine fingerprint"`; pass = no truncation, copy button focusable.
 **Files to touch**: [lib.rs](../../crates/juggler-link/src/lib.rs), [model.rs](../../crates/juggler-core/src/model.rs#L64), [storage/mod.rs](../../crates/juggler-core/src/storage/mod.rs), [SPEC.md storage](../SPEC.md#L395)
 **Research basis**: SPEC.md:374-375,402; EPICS M6-1 (`docs/plan/EPICS.md:130`); ADR-0004:13; deep/08 §1 (link stub).
 **Handover note**: Trap: do not reuse harness credentials or the app config-encryption key as the fleet identity. `MachineId` already exists — extend it, do not create a parallel `DeviceId`.

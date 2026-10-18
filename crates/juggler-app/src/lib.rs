@@ -13,6 +13,7 @@
 
 pub mod commands;
 pub mod error;
+pub mod fleet;
 pub mod focus;
 pub mod preview;
 pub mod state;
@@ -129,6 +130,12 @@ pub fn run() {
             commands::account_import,
             commands::source_inspect,
             commands::isolation_check,
+            fleet::fleet_self,
+            fleet::fleet_peers,
+            fleet::fleet_unpair,
+            fleet::fleet_set_label,
+            fleet::fleet_reset_trust,
+            fleet::fleet_reset_identity,
             commands::funnel_export,
             commands::funnel_event,
             commands::expert_setup_info,
