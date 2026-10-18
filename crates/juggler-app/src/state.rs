@@ -64,6 +64,9 @@ pub struct AppState {
     /// AJ-E1206: the account's Mac directory and when it was read (read
     /// at most once a minute).
     pub account_directory: Mutex<Option<(i64, juggler_account::DeviceDirectory)>>,
+    /// AJ-E1207: every file the last backup export opened (the guardrail
+    /// audit: never an Account folder or Provider credential).
+    pub export_reads: Mutex<Vec<std::path::PathBuf>>,
     /// Terminal ids with a live output forwarder (dedup: one forwarder per
     /// terminal no matter how often the UI re-attaches).
     pub terminal_taps: Mutex<std::collections::HashSet<String>>,
@@ -201,6 +204,7 @@ impl AppState {
             cloud_uploading: Mutex::new(()),
             indexing: Mutex::new(()),
             account_directory: Mutex::new(None),
+            export_reads: Mutex::new(Vec::new()),
             terminal_taps: Mutex::new(std::collections::HashSet::new()),
             kill_cancels: Mutex::new(std::collections::HashMap::new()),
             fleet: Mutex::new(None),

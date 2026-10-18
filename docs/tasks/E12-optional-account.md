@@ -135,7 +135,7 @@ from the account's entitlements, never from code.
 **Research basis**: ADR-0014; SPEC §11; E7.
 **Handover note**: A key from the directory is a candidate, not trust — a compromised account can offer a key, so the two-sided fingerprint confirmation is the trust step, and the TLS handshake still proves possession.
 
-### AJ-E1207 Guardrail tests and visual captures | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1202, AJ-E1203, AJ-E1205
+### AJ-E1207 Guardrail tests and visual captures | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E1202, AJ-E1203, AJ-E1205
 **Goal**: Prove the two-path law in tests.
 **User story**: As a maintainer, I can point to a test for every promise the cloud path makes.
 **Requirements**:
