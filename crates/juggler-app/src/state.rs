@@ -61,6 +61,9 @@ pub struct AppState {
     pub cloud_uploading: Mutex<()>,
     /// AJ-E1007: held for the length of a transcript-indexing pass.
     pub indexing: Mutex<()>,
+    /// AJ-E1206: the account's Mac directory and when it was read (read
+    /// at most once a minute).
+    pub account_directory: Mutex<Option<(i64, juggler_account::DeviceDirectory)>>,
     /// Terminal ids with a live output forwarder (dedup: one forwarder per
     /// terminal no matter how often the UI re-attaches).
     pub terminal_taps: Mutex<std::collections::HashSet<String>>,
@@ -197,6 +200,7 @@ impl AppState {
             updates: crate::updates::UpdateManager::default(),
             cloud_uploading: Mutex::new(()),
             indexing: Mutex::new(()),
+            account_directory: Mutex::new(None),
             terminal_taps: Mutex::new(std::collections::HashSet::new()),
             kill_cancels: Mutex::new(std::collections::HashMap::new()),
             fleet: Mutex::new(None),

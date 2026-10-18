@@ -287,6 +287,12 @@ impl PeerDirectory for AppDirectory {
         let identity = PublicIdentity::from_bytes(key).ok()?;
         crate::fleet::lookup_peer(&state, &identity)
     }
+
+    fn bind_account_peer(&self, key: &[u8; 32], machine_id: &str) -> Option<PeerAccess> {
+        let state = self.0.upgrade()?;
+        let identity = PublicIdentity::from_bytes(key).ok()?;
+        crate::fleet::bind_account_peer(&state, &identity, machine_id)
+    }
 }
 
 /// What this node serves and executes.
@@ -1481,6 +1487,7 @@ async fn reconcile_loop(
             let outcome = connect_any(&addresses, &certificate, key, &own).await;
             match outcome {
                 Ok((address, peer)) => {
+                    let machine_id = bound_machine_id(&state, machine_id, &key, &peer);
                     let watch =
                         adopt_connection(&state, &peers, &remote, &machine_id, address, &peer);
                     live.insert(machine_id.clone(), watch);
@@ -1543,6 +1550,26 @@ fn adopt_connection(
     (watch, heartbeat, telemetry)
 }
 
+/// AJ-E1206: an account-discovered node tells us its real id once (its
+/// Hello); mutual TLS already proved it holds the pinned key.
+fn bound_machine_id(
+    state: &Weak<AppState>,
+    machine_id: String,
+    key: &[u8; 32],
+    peer: &juggler_link::client::LinkPeer,
+) -> String {
+    if !machine_id.starts_with(juggler_link::PROVISIONAL_PREFIX) {
+        return machine_id;
+    }
+    state
+        .upgrade()
+        .and_then(|app| {
+            let identity = PublicIdentity::from_bytes(key).ok()?;
+            crate::fleet::bind_account_peer(&app, &identity, &peer.hello.machine_id)
+        })
+        .map_or(machine_id, |bound| bound.machine_id)
+}
+
 /// Tries each address in turn; a refusal (reachable, but it said no)
 /// stops the search.
 async fn connect_any(
@@ -1564,6 +1591,11 @@ async fn connect_any(
         }
     }
     Err("couldn't reach it".to_owned())
+}
+
+/// AJ-E1206: a newly pinned peer — try it on the next pass.
+pub(crate) fn reconnect_soon(state: &Arc<AppState>, machine_id: &str) {
+    mark_reconnect(state, machine_id);
 }
 
 /// A (re-)pair changed what `machine_id` grants: reconnect now.

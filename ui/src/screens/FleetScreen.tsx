@@ -1,3 +1,4 @@
+import { AccountMacsCard } from "../components/AccountMacsCard";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Card, Chip } from "../components/primitives";
 import { IconFleet } from "../components/icons";
@@ -42,6 +43,8 @@ export function FleetScreen({
   onInspectRemote?: (machineId: string, instanceId: string | null) => void;
 } = {}): JSX.Element {
   const [self, setSelf] = useState<FleetSelfInfo | null>(null);
+  // AJ-E1206: once your Macs are listed, the "find them" chip is redundant.
+  const [discoveryShown, setDiscoveryShown] = useState(false);
   const [peers, setPeers] = useState<FleetPeerInfo[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<
@@ -144,7 +147,7 @@ export function FleetScreen({
             Add a machine…
           </Button>
         </div>
-        {onOpenCloud && (
+        {onOpenCloud && !discoveryShown && (
           <button
             type="button"
             onClick={onOpenCloud}
@@ -196,6 +199,8 @@ export function FleetScreen({
           )}
         </div>
       </Card>
+
+      <AccountMacsCard onShown={setDiscoveryShown} />
 
       {error && (
         <Card className="border-danger/30 bg-danger-soft p-3 text-xs text-danger" role="alert">

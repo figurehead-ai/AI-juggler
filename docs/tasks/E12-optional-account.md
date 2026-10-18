@@ -118,7 +118,7 @@ from the account's entitlements, never from code.
 **Research basis**: ADR-0014; the Figurehead API contract (backups); AJ-E1009.
 **Handover note**: The server keeps at most a bounded number of backups; never rely on an old one being present.
 
-### AJ-E1206 Fleet discovery via account | Status: TODO | Priority P1 | Effort M | Depends: AJ-E1202, AJ-E704
+### AJ-E1206 Fleet discovery via account | Status: DONE-EVIDENCED | Priority P1 | Effort M | Depends: AJ-E1202, AJ-E704
 **Goal**: Your own linked Macs find each other without a pairing code.
 **User story**: As a user with a laptop and a Mac mini on the same account, I open Fleet and both are already listed; I confirm the fingerprint on each and they are paired — no code to type.
 **Requirements**:

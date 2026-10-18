@@ -67,6 +67,12 @@ pub trait PeerDirectory: Send + Sync + 'static {
     /// The access for a TLS-authenticated key, or `None` when unpinned
     /// (or trust is broken).
     fn lookup(&self, key: &[u8; 32]) -> Option<PeerAccess>;
+    /// AJ-E1206: binds the real `MachineId` of a peer pinned from the
+    /// account directory under a provisional id, on its first Hello. The
+    /// default binds nothing.
+    fn bind_account_peer(&self, _key: &[u8; 32], _machine_id: &str) -> Option<PeerAccess> {
+        None
+    }
 }
 
 /// Why the node's handler refused a command.
@@ -882,12 +888,31 @@ impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore, P: PairingHost> proto::li
     ) -> Result<Response<proto::HelloResponse>, Status> {
         let conn = Self::conn(&request)?;
         let hello = request.into_inner();
-        let Some(access) = self.directory.lookup(&conn.peer_key) else {
+        let Some(mut access) = self.directory.lookup(&conn.peer_key) else {
             self.reject("unpaired", "hello_rejected", "not_paired", None);
             return Err(Status::permission_denied(
                 "This Mac isn't paired with that one.",
             ));
         };
+        // AJ-E1206: an account-discovered peer says who it is once; TLS
+        // has already proved it holds the pinned key.
+        if hello.machine_id != access.machine_id
+            && access
+                .machine_id
+                .starts_with(crate::registry::PROVISIONAL_PREFIX)
+            && let Some(bound) = self
+                .directory
+                .bind_account_peer(&conn.peer_key, &hello.machine_id)
+        {
+            self.handler.audit(LinkAuditEvent {
+                peer: bound.machine_id.clone(),
+                kind: "account_peer_bound".to_owned(),
+                reason_code: String::new(),
+                sequence: None,
+                count: None,
+            });
+            access = bound;
+        }
         if hello.machine_id != access.machine_id {
             self.reject(
                 &access.machine_id,

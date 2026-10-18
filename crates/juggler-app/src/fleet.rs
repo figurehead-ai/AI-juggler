@@ -575,6 +575,46 @@ pub fn pin_candidate(
     })
 }
 
+/// AJ-E1206: pins a Mac from the account directory after the user
+/// confirmed its fingerprint (provisional id until its first Hello).
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] on broken trust or storage failure.
+pub fn pin_account_peer(state: &Arc<AppState>, peer: Peer) -> AppResult<()> {
+    let machine_id = peer.machine_id.clone();
+    with_fleet(state, |fleet| {
+        fleet
+            .registry
+            .pin(&fleet.identity, peer)
+            .map_err(link_error)
+    })?;
+    crate::link::reconnect_soon(state, &machine_id);
+    Ok(())
+}
+
+/// AJ-E1206: binds an account-discovered peer's real `MachineId` (its
+/// first TLS-authenticated Hello). `None` when nothing may be bound.
+#[must_use]
+pub fn bind_account_peer(
+    state: &Arc<AppState>,
+    key: &PublicIdentity,
+    machine_id: &str,
+) -> Option<PeerAccess> {
+    with_fleet(state, |fleet| {
+        fleet
+            .registry
+            .bind_account_peer(&fleet.identity, key, machine_id)
+            .map_err(link_error)
+    })
+    .ok()
+    .flatten()
+    .map(|peer| PeerAccess {
+        machine_id: peer.machine_id,
+        permission: peer.permission,
+    })
+}
+
 /// Records that a pinned peer answered.
 pub fn touch_peer(state: &Arc<AppState>, machine_id: &str, at_ms: i64) {
     let _ = with_fleet(state, |fleet| {

@@ -18,4 +18,5 @@ works through this list; each row links its task's manifest.
 | AJ-E1009 | With the owner's consent, back up one real store, restore it on a second Mac, and confirm the counts, the identity warning and the sign-in prompts; keep only the redacted manifest and counts | `docs/qa/evidence/AJ-E1009/` |
 | AJ-E1010 | Maintainer: set the signing secrets (`docs/RELEASING.md` § One-time setup), tag the first beta, verify the draft on a clean Mac, publish, then do the rollback rehearsal and keep the logs | `docs/qa/evidence/AJ-E1010/` |
 | AJ-E1205 | Maintainer: with the website running locally, link two data folders (or two Macs), turn on Cloud backup, back up on one, restore on the other with the recovery code; keep the request log (no bodies) | `docs/qa/evidence/AJ-E1205/` |
+| AJ-E1206 | Two real Macs linked to one Figurehead account, Link on both: compare fingerprints, pair from each side, and check the peer appears "via your Figurehead account" at View and connects; then turn discovery off and check no directory call is made | `docs/qa/evidence/AJ-E1206/` |
 | AJ-E704..E711 | The Fleet items listed under *Dogfood* in `docs/qa/gate-E7.md` | `docs/qa/gate-E7.md` |

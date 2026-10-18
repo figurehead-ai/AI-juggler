@@ -40,7 +40,7 @@ function noteNotCaptured(screen: string, state: string, reason: string) {
 
 test.beforeAll(() => {
   mkdirSync(GALLERY, { recursive: true });
-  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "16-onboarding-detect", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "34-wizard", "35-candidates", "36-recommend", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings", "45-remote", "46-fleet-board", "47-remote-focus", "48-remote-cleanup", "49-fleet-sync", "50-cross-switch", "51-identity", "52-worktree", "53-parked", "54-summary", "55-triage", "56-history", "57-backup", "58-updates", "59-vault", "60-cloud-backup"]) {
+  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "16-onboarding-detect", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "34-wizard", "35-candidates", "36-recommend", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings", "45-remote", "46-fleet-board", "47-remote-focus", "48-remote-cleanup", "49-fleet-sync", "50-cross-switch", "51-identity", "52-worktree", "53-parked", "54-summary", "55-triage", "56-history", "57-backup", "58-updates", "59-vault", "60-cloud-backup", "61-account-macs"]) {
     mkdirSync(resolve(GALLERY, screen), { recursive: true });
   }
   writeFileSync(NOT_CAPTURETED, "# Not captured (explicit omissions)\n\n| Screen | State | Reason |\n|---|---|---|\n");
@@ -6269,5 +6269,39 @@ for (const theme of THEMES) {
     await page.getByTestId("cloud-backup-pick").first().click();
     await expect(page.getByTestId("restore-plan")).toBeVisible();
     await page.screenshot({ path: resolve(GALLERY, `60-cloud-backup/restore-preview-1280x800-${theme}.png`) });
+  });
+}
+
+// ---------------------------------------------------------------------
+// AJ-E1206 — 61-account-macs: Fleet with your Macs found through your
+// Figurehead account (states in words), the fingerprint comparison
+// before pairing, and an account-paired peer labelled as such — 1280×800,
+// light/dark.
+// ---------------------------------------------------------------------
+
+const ACCOUNT_MACS = {
+  this_fingerprint: "3F2A 9C01 B7E4 55D0 12AF 8C3E 0D91 66B2",
+  read_at_ms: T0,
+  macs: [
+    { device_id: "dev_mini", name: "Mac mini", platform: "macos", fingerprint: "A71C 0E9B 44D2 F3A8 6B15 9C7E 2D40 E118", state: "not_paired", last_seen_at: null },
+    { device_id: "dev_air", name: "MacBook Air", platform: "macos", fingerprint: "5D3E 81AF C2B9 07E6 4F18 A9C3 6E2D 0B57", state: "waiting", last_seen_at: null },
+    { device_id: "dev_old", name: "Old laptop", platform: "macos", fingerprint: null, state: "no_key", last_seen_at: null },
+  ],
+};
+const FH_DISCOVERY = { ...FH_LINKED, features: FH_LINKED.features.map((f) => (f.key === "fleetDiscovery" ? { ...f, on: true } : f)) };
+
+for (const theme of THEMES) {
+  test(`61 account macs — list, compare, account-paired peer — ${theme}`, async ({ page }) => {
+    await openFleet(page, theme, { name: "1280x800", width: 1280, height: 800 }, {
+      __AIJ_FIGUREHEAD__: FH_DISCOVERY,
+      __AIJ_ACCOUNT_MACS__: ACCOUNT_MACS,
+      __AIJ_FLEET_PEERS__: [{ ...FLEET_PEER, machine_id: "studio-real", label: "Studio", permission: "view", permission_label: "View only", paired_via: "account" }],
+    });
+    await expect(page.getByTestId("account-mac")).toHaveCount(3);
+    await page.screenshot({ path: resolve(GALLERY, `61-account-macs/list-1280x800-${theme}.png`), fullPage: true });
+    await page.getByTestId("account-mac-compare").click();
+    await expect(page.getByTestId("compare-other")).toHaveText("A71C 0E9B 44D2 F3A8 6B15 9C7E 2D40 E118");
+    await page.getByTestId("compare-match").check();
+    await page.screenshot({ path: resolve(GALLERY, `61-account-macs/compare-1280x800-${theme}.png`) });
   });
 }

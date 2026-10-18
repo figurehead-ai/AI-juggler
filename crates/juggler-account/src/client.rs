@@ -79,6 +79,40 @@ pub struct BackupRecord {
     pub created_at: String,
 }
 
+/// One Mac in the account's directory (`GET devices`).
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeviceRecord {
+    /// The service's device id (`dev_…`).
+    pub id: String,
+    /// Its name.
+    #[serde(default)]
+    pub name: String,
+    /// Its platform.
+    #[serde(default)]
+    pub platform: Option<String>,
+    /// Its app version.
+    #[serde(default)]
+    pub app_version: Option<String>,
+    /// Its Fleet identity public key (standard base64): a candidate to
+    /// pin, never trust by itself.
+    #[serde(default)]
+    pub public_key: Option<String>,
+    /// When it was last seen (RFC 3339).
+    #[serde(default)]
+    pub last_seen_at: Option<String>,
+}
+
+/// The account's linked Macs.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize)]
+pub struct DeviceDirectory {
+    /// This Mac's own device id.
+    #[serde(rename = "self")]
+    pub self_id: String,
+    /// Every linked Mac, this one included.
+    pub devices: Vec<DeviceRecord>,
+}
+
 /// What an upload stored (`201`).
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -450,6 +484,23 @@ impl AccountClient {
             413 => Err(ApiError::TooLarge { limit_mb }),
             _ => Err(Self::common(&response)),
         }
+    }
+
+    /// The account's linked Macs (`GET devices`) — a directory of
+    /// candidates, not a relay.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ApiError`].
+    pub fn list_devices(&self, token: &DeviceToken) -> Result<DeviceDirectory, ApiError> {
+        let response = self.send(
+            &self.request("GET", "devices", Some(token.expose()), None),
+            true,
+        )?;
+        if response.status != 200 {
+            return Err(Self::common(&response));
+        }
+        serde_json::from_slice(&response.body).map_err(|e| ApiError::Malformed(e.to_string()))
     }
 
     /// Lists the account's backups, newest first (`GET backups`).
