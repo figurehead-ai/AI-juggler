@@ -39,5 +39,10 @@
   and start time (the PID-reuse signal) never wait, a probe error is
   still a refusal, and after the window all three facts must agree
   (`verify_tests::a_settling_helper_may_have_execd_but_never_changed_start_time_or_boot`).
-  After the fix: the full `guardrails` binary 3/3 green. No gate
-  threshold changed; nothing was retried or quarantined.
+  The same window bit startup recovery
+  (`recovery::crash_drill_readopts_verifies_and_reports` counted 2
+  unverifiable instead of 1 when the "crash" landed inside the window):
+  recovery now treats a helper never observed past the window
+  (`last_seen − first_seen < EXEC_SETTLE_MS`) the same way. After the
+  fix: the full `guardrails` binary 3/3 and `recovery` 5/5 green. No
+  gate threshold changed; nothing was retried or quarantined.
