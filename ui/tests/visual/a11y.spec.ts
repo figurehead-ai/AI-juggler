@@ -2378,3 +2378,53 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("identity-mismatch")).toHaveCount(0);
   });
 }
+
+/** AJ-E1002 a11y (both themes): the git badge in words, the worktree
+ * offer (radio group, default focus on the safe choice) and the dirty
+ * removal dialog (typed confirmation) scan axe-clean. */
+for (const theme of ["dark", "light"] as const) {
+  test(`worktree — offer and removal — axe 0 — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ fixture, theme: t }) => {
+        const w = window as unknown as Record<string, unknown>;
+        const base = fixture as { sessions: Array<Record<string, unknown>> };
+        w.__AIJ_FIXTURE__ = {
+          ...base,
+          sessions: base.sessions.map((s) => ({ ...s, git_branch: "juggler/a1b2c3", git_dirty_count: 3, git_ahead: 1, git_worktree: true, cwd: "/Users/dev/ai-juggler" })),
+        };
+        w.__AIJ_GIT_STATUS__ = Object.fromEntries(
+          base.sessions.map((s) => [s.id as string, {
+            branch: "juggler/a1b2c3", changed: 2, untracked: 1, ahead: 1, behind: 0, worktree: true,
+            created_by_juggler: true, path: "/Users/dev/ai-juggler.juggler/a1b2c3",
+          }]),
+        );
+        w.__AIJ_ISOLATION_OFFER__ = {
+          project_name: "ai-juggler", in_use_by: ["Personal"], available: true, unavailable_reason: null,
+          proposed_path: "/Users/dev/ai-juggler.juggler/a1b2c3", proposed_branch: "juggler/a1b2c3", base_branch: "main",
+        };
+        w.__AIJ_WORKTREE_REMOVAL__ = {
+          path: "/Users/dev/ai-juggler.juggler/a1b2c3", folder: "a1b2c3", branch: "juggler/a1b2c3",
+          changed: 2, untracked: 1, needs_confirmation: true, in_use: false, summary: "Discards 2 changed and 1 untracked files.",
+        };
+        localStorage.setItem("aij.theme", t);
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        sessionStorage.setItem("aij.ready.skipped", "1");
+      },
+      { fixture: allStatuses, theme },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await page.getByRole("tab", { name: "Sessions" }).click();
+    await expect(page.getByTestId("git-badge").first()).toHaveAttribute("title", /3 uncommitted files/);
+    await page.getByRole("button", { name: /Work Max/ }).first().click();
+    await page.getByTestId("worktree-remove").click();
+    await expect(page.getByTestId("worktree-remove-confirm")).toBeFocused();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+    await page.keyboard.press("Escape");
+    await page.getByRole("tab", { name: "Actions" }).click();
+    await page.getByRole("button", { name: /Resume|Relaunch/ }).first().click();
+    await expect(page.getByTestId("isolation-worktree")).toBeFocused();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+  });
+}

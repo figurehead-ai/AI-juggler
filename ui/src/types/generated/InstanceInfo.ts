@@ -156,4 +156,17 @@ identity_state?: string,
 /**
  * The identity it ran as (masked), when known.
  */
-identity_label?: string, };
+identity_label?: string, 
+/**
+ * AJ-E1002: commits ahead of the upstream (cached `git status`,
+ * at most every 30 s; absent = unknown).
+ */
+git_ahead?: number, 
+/**
+ * Commits behind the upstream.
+ */
+git_behind?: number, 
+/**
+ * It runs in a linked git worktree.
+ */
+git_worktree?: boolean, };

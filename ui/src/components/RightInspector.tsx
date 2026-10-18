@@ -1,3 +1,4 @@
+import { WorktreeGit } from "./WorktreeGit";
 import { identityWords } from "../lib/identity";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button, Card, Chip, type ChipTone } from "./primitives";
@@ -798,6 +799,7 @@ function InstanceOverview(props: PanelProps) {
               <CopyField testId="instance-project" label="project" value={project.name} onOpen={() => props.onOpenProject(project.id)} />
             ) : null}
             <CopyField testId="instance-cwd" label="cwd" value={session.cwd} mono />
+            <WorktreeGit sessionId={session.id} live={live} />
             <span data-testid="instance-native-id">
               native session:{" "}
               <span className="font-mono text-ink">

@@ -26,7 +26,7 @@
 **Research basis**: pass2/06 §4 (verified wrong-account billing, claude-code issues cited there); SPEC §8 metadata-only rule.
 **Handover note**: This is a P0 trust feature promoted from external evidence, not a nice-to-have. If a Provider offers no metadata probe, the Instance SHALL show `Identity unverified` rather than pretending.
 
-### AJ-E1002 Git worktree isolation for parallel Instances | Status: TODO | Priority P0 | Effort L | Depends: AJ-E1001
+### AJ-E1002 Git worktree isolation for parallel Instances | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E1001
 **Goal**: Give each parallel Instance on the same project an isolated worktree/branch by default so accounts never silently overwrite each other's files.
 **User story**: As a developer running three accounts on one repo, I want each Instance in its own worktree with a named branch, so parallel work cannot collide silently.
 **Requirements**:

@@ -36,6 +36,7 @@ import { FleetScreen } from "./screens/FleetScreen";
 import { SettingsScreen } from "./screens/Settings";
 import { FleetPromptDialog } from "./components/FleetPromptDialog";
 import { IdentityMismatchDialog } from "./components/IdentityMismatchDialog";
+import { IsolationOfferDialog } from "./components/IsolationOfferDialog";
 import { funnelEvent } from "./lib/funnel";
 import { ReadyHome } from "./screens/ReadyHome";
 import { SessionPanel } from "./screens/WorkPanels";
@@ -954,6 +955,7 @@ export default function App() {
       {/* AJ-E709: "Ask each time" — a paired machine waits for this Mac's user. */}
       <FleetPromptDialog />
       <IdentityMismatchDialog />
+      <IsolationOfferDialog />
       <GoToPalette
         open={goToOpen}
         onClose={() => setGoToOpen(false)}

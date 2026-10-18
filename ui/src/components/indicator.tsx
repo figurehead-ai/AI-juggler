@@ -278,7 +278,7 @@ export function ariaSummary(session: InstanceInfo, nowMs: number = Date.now()): 
   }
   if (session.child_count) parts.push(`${session.child_count} children`);
   if (session.subtask_count) parts.push(`${session.subtask_count} subtasks`);
-  if (session.git_branch) parts.push(`branch ${session.git_branch}`);
+  if (session.git_branch) parts.push(gitWords(session));
   parts.push(ageSummary(session.started_at_ms, session.last_activity_ms, nowMs));
   const suffix = attentionSuffix(session, nowMs);
   if (badge && suffix) parts.push(suffix);
@@ -346,15 +346,36 @@ export function ChildBadges({ session }: { session: InstanceInfo }): ReactNode {
   );
 }
 
-/** I-09 branch + dirty — omitted entirely for non-git cwds. */
+/** AJ-E1002: branch, uncommitted files, ahead/behind and worktree in
+ * words (the badge's title and the row's accessible summary). */
+export function gitWords(session: InstanceInfo): string {
+  const parts = [`branch ${session.git_branch ?? "detached"}`];
+  const dirty = session.git_dirty_count;
+  if (dirty) parts.push(`${dirty} uncommitted ${dirty === 1 ? "file" : "files"}`);
+  if (session.git_ahead) parts.push(`${session.git_ahead} ahead`);
+  if (session.git_behind) parts.push(`${session.git_behind} behind`);
+  if (session.git_worktree) parts.push("own worktree");
+  return parts.join(" · ");
+}
+
+/** I-09 branch + dirty — omitted entirely for non-git cwds. AJ-E1002:
+ * the dirty count is a number (never a colour alone) and ahead/behind
+ * and the worktree are named in the title. */
 export function GitBadge({ session }: { session: InstanceInfo }): ReactNode {
   if (!session.git_branch) return null;
   const dirty = session.git_dirty_count;
   return (
-    <span className="inline-flex min-w-0 items-center gap-0.5 text-[10px] text-muted" title={`branch ${session.git_branch}${dirty ? ` · ${dirty} dirty` : ""}`}>
+    <span
+      className="inline-flex min-w-0 items-center gap-0.5 text-[10px] text-muted"
+      title={gitWords(session)}
+      data-testid="git-badge"
+    >
       <IconGitBranch width={10} height={10} />
+      {session.git_worktree ? <span aria-hidden="true">⧉</span> : null}
       <span className="truncate">{session.git_branch}</span>
       {dirty ? <span className="shrink-0 text-warning">· {dirty}●</span> : null}
+      {session.git_ahead ? <span className="shrink-0">↑{session.git_ahead}</span> : null}
+      {session.git_behind ? <span className="shrink-0">↓{session.git_behind}</span> : null}
     </span>
   );
 }

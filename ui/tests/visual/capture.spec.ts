@@ -40,7 +40,7 @@ function noteNotCaptured(screen: string, state: string, reason: string) {
 
 test.beforeAll(() => {
   mkdirSync(GALLERY, { recursive: true });
-  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "16-onboarding-detect", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "34-wizard", "35-candidates", "36-recommend", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings", "45-remote", "46-fleet-board", "47-remote-focus", "48-remote-cleanup", "49-fleet-sync", "50-cross-switch", "51-identity"]) {
+  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "16-onboarding-detect", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "34-wizard", "35-candidates", "36-recommend", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings", "45-remote", "46-fleet-board", "47-remote-focus", "48-remote-cleanup", "49-fleet-sync", "50-cross-switch", "51-identity", "52-worktree"]) {
     mkdirSync(resolve(GALLERY, screen), { recursive: true });
   }
   writeFileSync(NOT_CAPTURETED, "# Not captured (explicit omissions)\n\n| Screen | State | Reason |\n|---|---|---|\n");
@@ -5701,6 +5701,87 @@ for (const theme of THEMES) {
       await expect(page.getByTestId("identity-mismatch")).toBeVisible();
       await expect(page.getByTestId("identity-detected")).toHaveText("o…@home.example");
       await page.screenshot({ path: resolve(GALLERY, `51-identity/wrong-account-${vp.name}-${theme}.png`) });
+    });
+  }
+}
+
+// ---------------------------------------------------------------------
+// AJ-E1002 — 52-worktree: branch / uncommitted / ahead chips on the rail
+// and the inspector's git line, the worktree offer for a second launch,
+// and the dirty-removal dialog — 1280×800 both themes; the removal
+// dialog also at 1024×680.
+// ---------------------------------------------------------------------
+
+const worktreeFixture = {
+  ...allStatuses,
+  sessions: allStatuses.sessions.map((session, index) => ({
+    ...session,
+    git_branch: index % 2 === 0 ? `juggler/${(index * 4111).toString(16).slice(0, 6)}` : "main",
+    git_dirty_count: index % 3 === 0 ? 3 : 0,
+    git_ahead: index % 2 === 0 ? 2 : 0,
+    git_behind: 0,
+    git_worktree: index % 2 === 0 ? true : undefined,
+    cwd: "/Users/dev/ai-juggler",
+  })),
+};
+
+const gitStatusFor = Object.fromEntries(
+  allStatuses.sessions.map((session) => [
+    session.id,
+    {
+      branch: "juggler/a1b2c3", changed: 2, untracked: 1, ahead: 2, behind: 0, worktree: true,
+      created_by_juggler: true, path: "/Users/dev/ai-juggler.juggler/a1b2c3",
+    },
+  ]),
+);
+
+for (const theme of THEMES) {
+  for (const vp of [
+    { name: "1280x800", width: 1280, height: 800 },
+    { name: "1024x680", width: 1024, height: 680 },
+  ] as const) {
+    test(`52 worktree — chips, offer, dirty removal — ${vp.name} — ${theme}`, async ({ page }) => {
+      await page.addInitScript(
+        ({ fixture, t, t0, git }) => {
+          const w = window as unknown as Record<string, unknown>;
+          w.__AIJ_FIXTURE__ = fixture;
+          w.__AIJ_GIT_STATUS__ = git;
+          w.__AIJ_ISOLATION_OFFER__ = {
+            project_name: "ai-juggler", in_use_by: ["Personal"], available: true, unavailable_reason: null,
+            proposed_path: "/Users/dev/ai-juggler.juggler/a1b2c3", proposed_branch: "juggler/a1b2c3", base_branch: "main",
+          };
+          w.__AIJ_WORKTREE_REMOVAL__ = {
+            path: "/Users/dev/ai-juggler.juggler/a1b2c3", folder: "a1b2c3", branch: "juggler/a1b2c3",
+            changed: 2, untracked: 1, needs_confirmation: true, in_use: false,
+            summary: "Discards 2 changed and 1 untracked files — they are not committed anywhere. The branch juggler/a1b2c3 stays with its commits.",
+          };
+          localStorage.setItem("aij.theme", t);
+          localStorage.setItem("aij.onboarding.dismissed", "1");
+          sessionStorage.setItem("aij.ready.skipped", "1");
+          Date.now = () => t0;
+        },
+        { fixture: worktreeFixture, t: theme, t0: T0, git: gitStatusFor },
+      );
+      await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      await page.goto("/");
+      await page.getByRole("tab", { name: "Sessions" }).click();
+      await expect(page.getByTestId("git-badge").first()).toBeVisible();
+      await page.getByRole("button", { name: /Work Max/ }).first().click();
+      await expect(page.getByTestId("instance-git")).toContainText("3 uncommitted files");
+      if (vp.name === "1280x800") {
+        await page.screenshot({ path: resolve(GALLERY, `52-worktree/chips-1280x800-${theme}.png`) });
+      }
+      await page.getByTestId("worktree-remove").click();
+      await expect(page.getByTestId("worktree-remove-summary")).toContainText("Discards 2 changed");
+      await page.screenshot({ path: resolve(GALLERY, `52-worktree/dirty-removal-${vp.name}-${theme}.png`) });
+      await page.keyboard.press("Escape");
+      if (vp.name === "1280x800") {
+        await page.getByRole("tab", { name: "Actions" }).click();
+        await page.getByRole("button", { name: /Resume|Relaunch/ }).first().click();
+        await expect(page.getByTestId("isolation-offer")).toBeVisible();
+        await page.screenshot({ path: resolve(GALLERY, `52-worktree/offer-1280x800-${theme}.png`) });
+      }
     });
   }
 }
