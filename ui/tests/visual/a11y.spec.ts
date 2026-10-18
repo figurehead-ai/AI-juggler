@@ -2127,3 +2127,48 @@ for (const theme of ["dark", "light"] as const) {
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
   });
 }
+
+/** AJ-E711 a11y (both themes): the palette listing a paired machine's
+ * desktop Instance and the remote Focus outcome scan axe-clean. */
+for (const theme of ["dark", "light"] as const) {
+  test(`fleet — remote focus palette + outcome — axe 0 — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ fixture, theme: t }) => {
+        const now = Date.now();
+        const w = window as unknown as Record<string, unknown>;
+        w.__AIJ_FIXTURE__ = fixture;
+        w.__AIJ_LINK__ = { enabled: true, port: 47821, error: null };
+        w.__AIJ_FLEET_PEERS__ = [{
+          machine_id: "machine-mini", label: "Mac mini", fingerprint: "11AA 22BB 33CC 44DD 55EE 66FF 7788 99AA",
+          permission: "view", permission_label: "View only", ask_each_time: false, paired_via: "code",
+          paired_at_ms: now, last_seen_ms: now, connection: "connected", protocol: "v1.0", connection_detail: null,
+        }];
+        w.__AIJ_FLEET_REMOTE__ = [{
+          machine_id: "machine-mini", label: "Mac mini", connection: "connected", freshness: "live",
+          last_heard_ms: now, permission: "control", resources: null, alerts: [],
+          instances: [{
+            id: "inst-desk", provider: "claude-code", account_label: "Desk", status: "running",
+            model: null, model_source: "unknown", project_name: "web-shop", started_at_ms: now,
+            last_activity_ms: now, cpu_percent: null, rss_bytes: null, process_count: null,
+            kind: "desktop", measured_at_ms: now,
+          }],
+        }];
+        localStorage.setItem("aij.theme", t);
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        sessionStorage.setItem("aij.ready.skipped", "1");
+      },
+      { fixture: allStatuses, theme },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await expect(page.getByRole("button", { name: "New project" }).first()).toBeVisible();
+    await page.keyboard.press("Meta+k");
+    await expect(page.getByTestId("goto-remote-machine").first()).toBeVisible();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+    await page.getByTestId("goto-row-remote-inst-desk").click();
+    await page.getByRole("tab", { name: "Actions" }).click();
+    await expect(page.getByTestId("remote-outcome")).toContainText("Focused window");
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+  });
+}

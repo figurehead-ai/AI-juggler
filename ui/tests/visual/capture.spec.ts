@@ -40,7 +40,7 @@ function noteNotCaptured(screen: string, state: string, reason: string) {
 
 test.beforeAll(() => {
   mkdirSync(GALLERY, { recursive: true });
-  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "16-onboarding-detect", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "34-wizard", "35-candidates", "36-recommend", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings", "45-remote", "46-fleet-board"]) {
+  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "16-onboarding-detect", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "34-wizard", "35-candidates", "36-recommend", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings", "45-remote", "46-fleet-board", "47-remote-focus"]) {
     mkdirSync(resolve(GALLERY, screen), { recursive: true });
   }
   writeFileSync(NOT_CAPTURETED, "# Not captured (explicit omissions)\n\n| Screen | State | Reason |\n|---|---|---|\n");
@@ -5312,4 +5312,63 @@ for (const theme of THEMES) {
       await page.screenshot({ path: resolve(GALLERY, `46-fleet-board/ask-each-time-${vp.name}-${theme}.png`) });
     });
   }
+}
+
+// ---------------------------------------------------------------------
+// AJ-E711 — 47-remote-focus: the four honest focus outcomes in the
+// remote inspector, the palette with mixed local/remote Instances, and
+// the View-only refusal — 1280×800, light/dark.
+// ---------------------------------------------------------------------
+
+const desktopMachine = (over: Record<string, unknown> = {}) =>
+  remoteMachine({
+    instances: [
+      {
+        id: "inst-desk", provider: "claude-code", account_label: "Desk", status: "running",
+        model: null, model_source: "unknown", project_name: "web-shop", started_at_ms: T0 - 600_000,
+        last_activity_ms: T0 - 10_000, cpu_percent: null, rss_bytes: null, process_count: null,
+        kind: "desktop", measured_at_ms: T0 - 1_000,
+      },
+    ],
+    alerts: [],
+    ...over,
+  });
+
+for (const theme of THEMES) {
+  test(`47 remote focus — the four outcomes — ${theme}`, async ({ page }) => {
+    await openRemote(page, theme, { width: 1280, height: 800 }, desktopMachine());
+    await page.getByTestId("fleet-remote-instance").first().click();
+    await page.getByRole("tab", { name: "Actions" }).click();
+    const outcomes: Array<[string, { accepted: boolean; reason_code: string | null; message: string }]> = [
+      ["focused", { accepted: true, reason_code: null, message: "Focused window" }],
+      ["window-not-found", { accepted: true, reason_code: null, message: "App opened — window not found" }],
+      ["not-running", { accepted: true, reason_code: null, message: "App not running — Relaunch?" }],
+      ["permission-needed", { accepted: true, reason_code: null, message: "Permission needed on Mac mini" }],
+    ];
+    for (const [name, outcome] of outcomes) {
+      await page.evaluate((o) => {
+        (window as unknown as Record<string, unknown>).__AIJ_REMOTE_FOCUS__ = o;
+      }, outcome);
+      await page.getByTestId("remote-focus").click();
+      await expect(page.getByTestId("remote-outcome")).toContainText(outcome.message);
+      await page.screenshot({ path: resolve(GALLERY, `47-remote-focus/outcome-${name}-1280x800-${theme}.png`) });
+    }
+  });
+
+  test(`47 remote focus — palette mixed + view-only — ${theme}`, async ({ page }) => {
+    await openRemote(page, theme, { width: 1280, height: 800 }, desktopMachine());
+    await expect(page.getByRole("button", { name: "New project" }).first()).toBeVisible();
+    await page.keyboard.press("Meta+k");
+    await expect(page.getByTestId("goto-remote-machine").first()).toContainText("on Mac mini");
+    await page.screenshot({ path: resolve(GALLERY, `47-remote-focus/palette-mixed-1280x800-${theme}.png`) });
+    await page.keyboard.press("Escape");
+    await page.evaluate(() => {
+      const w = window as unknown as { __AIJ_FLEET_REMOTE__: Array<Record<string, unknown>> };
+      w.__AIJ_FLEET_REMOTE__ = w.__AIJ_FLEET_REMOTE__.map((m) => ({ ...m, permission: "view" }));
+    });
+    await page.getByTestId("fleet-remote-instance").first().click();
+    await page.getByRole("tab", { name: "Actions" }).click();
+    await expect(page.getByTestId("remote-focus")).toBeDisabled();
+    await page.screenshot({ path: resolve(GALLERY, `47-remote-focus/view-only-1280x800-${theme}.png`) });
+  });
 }

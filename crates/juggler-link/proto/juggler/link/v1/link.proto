@@ -165,6 +165,8 @@ message SessionDelta {
   optional double cpu_percent = 11;
   optional uint64 rss_bytes = 12;
   optional uint32 process_count = 13;
+  // "terminal" | "desktop" (which Instances have a window to focus).
+  string kind = 14;
 }
 
 message ControlCommand {
@@ -182,7 +184,14 @@ message ControlCommand {
   oneof action {
     StopInstance stop_instance = 10;
     LaunchRecipe launch_recipe = 11;
+    // AJ-E711: bring a desktop Instance's window forward ON THE NODE
+    // (the node runs its own tiered focus; nothing is injected remotely).
+    FocusInstance focus_instance = 12;
   }
+}
+
+message FocusInstance {
+  string instance_id = 1;
 }
 
 message StopInstance {

@@ -17,7 +17,8 @@ security negative below is green.
 | AJ-E704 discovery + pairing wizard (mDNS, SPAKE2 code, lockouts, attempt log) | DONE-EVIDENCED | [manifest](evidence/AJ-E704/manifest.md) |
 | AJ-E705 remote inspector (same six tabs, source + freshness, permission-gated actions) | DONE-EVIDENCED | [manifest](evidence/AJ-E705/manifest.md) |
 | AJ-E709 indicators, permissions changed only on the node, "Ask each time" prompt, alert routing | DONE-EVIDENCED (Req.2 partial, Req.6 N/A) | [manifest](evidence/AJ-E709/manifest.md) |
-| AJ-E706, AJ-E707, AJ-E708, AJ-E710, AJ-E711 | TODO | — |
+| AJ-E711 remote Focus window (executed on the owning Mac, honest outcomes, locked → reported) | DONE-EVIDENCED | [manifest](evidence/AJ-E711/manifest.md) |
+| AJ-E706, AJ-E707, AJ-E708, AJ-E710 | TODO | — |
 
 ## Security negatives (STRIDE rows → tests)
 
@@ -47,11 +48,14 @@ security negative below is green.
 | Link off drops every connection (no lingering stream) | `transport :: stopping_a_node_never_waits_on_an_open_telemetry_stream` | ✅ green |
 | "Ask each time" command never runs without a local Allow | `fleet_link :: ask_each_time_holds_a_command_until_this_macs_user_decides` | ✅ green |
 | No link call can change a permission (console can't raise its own access) | no such RPC in `link.proto`; `fleet_set_permission` is a local Tauri command only | ✅ by construction |
+| Remote focus never runs on a locked screen; terminal Instances refused; audited both sides | `fleet_link :: a_remote_focus_runs_on_the_owning_mac_and_reports_its_honest_outcome` | ✅ green |
 | All others (free-form launch, logs, pack fetch, cleanup, offline sync, account substitution) | AJ-E706 … AJ-E708, AJ-E1206 | pending |
 
 ## Dogfood (to record at AJ-E710)
 
 - [ ] AJ-E704: pair two physical Macs on one LAN (screencast + timing,
       target < 60 s); repeat over Tailscale by address.
+- [ ] AJ-E711: from the laptop, focus a desktop agent's window on the
+      studio Mac (screen recording on the target); repeat locked.
 - [ ] AJ-E705: select a remote Instance, read Overview/Processes, time
       the render; Stop it from the console with View + control.

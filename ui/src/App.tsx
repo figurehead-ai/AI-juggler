@@ -20,7 +20,13 @@ import {
   storeDensity,
   type Density,
 } from "./lib/density";
-import { hasLiveBackend, fleetRemote, type RemoteMachineInfo } from "./lib/bridge";
+import {
+  hasLiveBackend,
+  fleetRemote,
+  fleetRemoteFocus,
+  type RemoteCommandOutcomeInfo,
+  type RemoteMachineInfo,
+} from "./lib/bridge";
 import { isHandoverShortcut, isStopShortcut } from "./lib/shortcuts";
 import { ProfilesScreen } from "./screens/Profiles";
 import { OnboardingWizard } from "./screens/OnboardingWizard";
@@ -396,6 +402,12 @@ export default function App() {
       window.clearInterval(timer);
     };
   }, [remoteSelected]);
+  // AJ-E711: the last palette-started remote focus, shown in Actions.
+  const [remoteFocusOutcome, setRemoteFocusOutcome] = useState<{
+    machineId: string;
+    instanceId: string;
+    outcome: RemoteCommandOutcomeInfo;
+  } | null>(null);
   const inspectRemote = (machineId: string, instanceId: string | null) => {
     setGlobal(null);
     setSelection({ kind: "remote", machineId, instanceId });
@@ -789,7 +801,18 @@ export default function App() {
                       ? { kind: "instance", id: instance.id }
                       : { kind: "machine", id: machine.machine_id }
                   }
-                  data={{ remote: { machine, instance } }}
+                  data={{
+                    remote: {
+                      machine,
+                      instance,
+                      lastOutcome:
+                        remoteFocusOutcome &&
+                        remoteFocusOutcome.machineId === machine.machine_id &&
+                        remoteFocusOutcome.instanceId === instance?.id
+                          ? remoteFocusOutcome.outcome
+                          : null,
+                    },
+                  }}
                   sessions={sessions}
                   projects={projects}
                   accounts={accounts}
@@ -940,6 +963,14 @@ export default function App() {
           });
         }}
         onOpenSession={selectSession}
+        remoteMachines={remoteMachines ?? []}
+        onFocusRemote={(machineId, instanceId) => {
+          void fleetRemoteFocus(machineId, instanceId).then((outcome) => {
+            setRemoteFocusOutcome({ machineId, instanceId, outcome });
+            inspectRemote(machineId, instanceId);
+          });
+        }}
+        onOpenRemote={inspectRemote}
         hotkey={goToHotkey}
         onHotkeyChange={async (combo) => {
           await goToHotkeySet(combo);

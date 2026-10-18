@@ -54,6 +54,10 @@ rss_bytes: number | null,
  */
 process_count: number | null, 
 /**
+ * `terminal` | `desktop` (empty = not reported).
+ */
+kind: string, 
+/**
  * When this console received the row, epoch ms.
  */
 measured_at_ms: number, };

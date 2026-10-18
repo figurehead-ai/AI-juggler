@@ -433,7 +433,7 @@ gate fails closed and fleet ships disabled-by-default with
 Fleet nav showing `Not available in this build — reason`,
 never a silent Coming Soon.
 
-### AJ-E711 Remote Focus Window — go to an instance's window on another machine | Status: TODO | Priority P1 | Effort M | Depends: AJ-E705, AJ-E414
+### AJ-E711 Remote Focus Window — go to an instance's window on another machine | Status: DONE-EVIDENCED | Priority P1 | Effort M | Depends: AJ-E705, AJ-E414
 **Goal**: Extend AJ-E414 so "Focus window" and the "Go to instance…" hotkey/palette work for desktop instances on paired fleet machines, executed on that machine with its own permissions.
 **User story**: As a user at my laptop, I want to jump to a desktop agent's window on my studio machine and have that machine bring the exact window forward, with the outcome reported back to me.
 **Requirements**:
