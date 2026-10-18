@@ -146,7 +146,7 @@ fn with_fleet<T>(
 
 /// This Mac's local label: the stored one, else the computer's name,
 /// else "This Mac".
-fn self_label(state: &Arc<AppState>) -> AppResult<String> {
+pub(crate) fn self_label(state: &Arc<AppState>) -> AppResult<String> {
     let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
     if let Some(label) = storage.app_settings().get(LABEL_KEY)?
         && !label.trim().is_empty()
@@ -600,6 +600,15 @@ pub fn verify_audit(state: &Arc<AppState>) -> Result<Vec<serde_json::Value>, usi
         entries.push(entry.clone());
     }
     Ok(entries)
+}
+
+/// The account-link `publicKey` (`ed25519:<b64>;x25519:<b64>`; ADR-0014).
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] when the identity cannot be loaded.
+pub fn link_public_key(state: &Arc<AppState>) -> AppResult<String> {
+    with_fleet(state, |fleet| Ok(fleet.identity.link_public_key()))
 }
 
 /// Test seam: pins a peer directly (pairing lands with AJ-E704).

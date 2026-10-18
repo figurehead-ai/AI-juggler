@@ -63,6 +63,8 @@ pub struct AppState {
     pub fleet: crate::fleet::FleetCell,
     /// The Fleet link (AJ-E704): off until the user turns it on.
     pub link: crate::link::LinkManager,
+    /// The optional Figurehead account (AJ-E1202): silent until linked.
+    pub figurehead: crate::figurehead::FigureheadManager,
 }
 
 impl AppState {
@@ -184,6 +186,7 @@ impl AppState {
             kill_cancels: Mutex::new(std::collections::HashMap::new()),
             fleet: Mutex::new(None),
             link: crate::link::LinkManager::default(),
+            figurehead: crate::figurehead::FigureheadManager::default(),
             preview: Mutex::new(None),
             data_dir,
         })

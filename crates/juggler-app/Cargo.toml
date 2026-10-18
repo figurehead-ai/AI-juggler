@@ -14,6 +14,7 @@ workspace = true
 base64 = "0.22"
 dirs = "7.0.0"
 juggler-adapter = { version = "0.0.1", path = "../juggler-adapter" }
+juggler-account = { version = "0.0.1", path = "../juggler-account" }
 juggler-adapters = { version = "0.0.1", path = "../juggler-adapters" }
 juggler-core = { version = "0.0.1", path = "../juggler-core" }
 juggler-handover = { version = "0.0.1", path = "../juggler-handover" }
