@@ -95,7 +95,7 @@
 **Research basis**: pass2/07 W3/W4; deep/07 consultant persona; E4 indicators.
 **Handover note**: This is a view over E4 data, not a second data model. If E4 fields are missing, triage shows Unavailable per D-06 rather than inventing layout filler.
 
-### AJ-E1006 Pair review and model arbitrage workflows [inferred — falsify first] | Status: TODO | Priority P2 | Effort M | Depends: AJ-E1005
+### AJ-E1006 Pair review and model arbitrage workflows [inferred — falsify first] | Status: IN-PROGRESS | Priority P2 | Effort M | Depends: AJ-E1005
 **Goal**: Test whether users actually want author-on-one-account/review-on-another and cheap-model-drafts/strong-model-finishes as built workflows, before building them.
 **User story**: As a power user, I want a second account to review what the first wrote, and cheap exploration before expensive execution — if these prove to be real habits.
 **Requirements**:
@@ -112,7 +112,7 @@
 **Research basis**: pass2/07 W5/W6 marked `[inferred]`; second-pass critic U-items (no competitor evidence); decision-log process rule.
 **Handover note**: Do not let enthusiasm substitute for evidence — the reports explicitly flagged these as unvalidated. A clean REJECTED is a successful outcome for this task.
 
-### AJ-E1007 Session lifecycle: search, archive, replay, retention | Status: TODO | Priority P1 | Effort M | Depends: AJ-E1005
+### AJ-E1007 Session lifecycle: search, archive, replay, retention | Status: DONE-EVIDENCED | Priority P1 | Effort M | Depends: AJ-E1005
 **Goal**: Give sessions a full lifecycle so months of work stay findable and the rail stays usable.
 **User story**: As a long-term user, I want to search, archive and replay any past session in seconds, and to control how long transcripts are kept.
 **Requirements**:
@@ -129,7 +129,7 @@
 **Research basis**: first-report F1.3; deep/10 session lifecycle; pass2/07 W10 cost-review dependency.
 **Handover note**: Retention cleanup interacts with E5's never-touch-unowned rule: retention deletes Juggler-managed data only, listed by the dry-run, never by age alone without user confirmation.
 
-### AJ-E1008 Provider outage failover day [inferred — falsify first] | Status: TODO | Priority P2 | Effort M | Depends: AJ-E1006
+### AJ-E1008 Provider outage failover day [inferred — falsify first] | Status: IN-PROGRESS | Priority P2 | Effort M | Depends: AJ-E1006
 **Goal**: Determine, from observed outage behaviour, whether whole-project failover to another Provider needs a built flow or is already served by switching.
 **User story**: As a developer whose provider is down, I want to move a whole project to a working provider without re-explaining context per session.
 **Requirements**:
@@ -146,7 +146,7 @@
 **Research basis**: pass2/07 W11 `[inferred]`; critic note requiring outage logging before building.
 **Handover note**: Same rule as AJ-E1006: an evidence-based REJECTED closes this task successfully. Do not build monitoring infrastructure for a hypothetical.
 
-### AJ-E1009 Backup, restore and machine migration of Juggler's own data | Status: TODO | Priority P1 | Effort M | Depends: AJ-E1007
+### AJ-E1009 Backup, restore and machine migration of Juggler's own data | Status: DONE-EVIDENCED | Priority P1 | Effort M | Depends: AJ-E1007
 **Goal**: Let users export and restore Juggler's database, packs and settings so a new machine or a corrupt store never costs them their history.
 **User story**: As a user moving laptops, I want one export file I can carry over and restore, with proof the restore matches.
 **Requirements**:

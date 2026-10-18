@@ -123,6 +123,16 @@ fn record_generation(state: &Arc<AppState>, generation: u64) -> AppResult<()> {
     Ok(())
 }
 
+/// AJ-E1009: this Mac's Fleet fingerprint (a backup records it to
+/// recognise where it came from; it never carries the key).
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] when the identity cannot be loaded.
+pub fn this_machine_fingerprint(state: &Arc<AppState>) -> AppResult<String> {
+    with_fleet(state, |fleet| Ok(fleet.identity.public().fingerprint()))
+}
+
 /// Runs `body` with the fleet state loaded (loading it on first use),
 /// then records the registry generation if it moved.
 fn with_fleet<T>(

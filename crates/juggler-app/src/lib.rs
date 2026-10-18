@@ -11,12 +11,14 @@
     allow(clippy::pedantic, clippy::unwrap_used, clippy::expect_used)
 )]
 
+pub mod backup;
 pub mod commands;
 pub mod crossmachine;
 pub mod error;
 pub mod figurehead;
 pub mod fleet;
 pub mod focus;
+pub mod history;
 pub mod identity;
 pub mod lifecycle;
 pub mod link;
@@ -181,6 +183,19 @@ pub fn run() {
             overnight::overnight_summary_seen,
             parked::instance_park,
             lifecycle::instance_mark_reviewed,
+            backup::backup_export,
+            backup::backup_verify,
+            backup::backup_restore,
+            history::instance_archive,
+            history::instance_unarchive,
+            history::instance_delete_preview,
+            history::instance_delete,
+            history::transcript_search,
+            history::instance_replay,
+            history::account_storage,
+            history::retention_set,
+            history::retention_preview,
+            history::retention_apply,
             parked::parked_list,
             parked::parked_offers,
             parked::parked_dismiss,
@@ -381,6 +396,7 @@ fn spawn_read_model_ticks(
     }
     let quota_app = app.clone();
     let processes_app = app.clone();
+    let index_state = quota_state.clone();
     std::thread::spawn(move || {
         loop {
             std::thread::sleep(std::time::Duration::from_secs(5));
@@ -403,6 +419,15 @@ fn spawn_read_model_ticks(
         loop {
             std::thread::sleep(std::time::Duration::from_secs(30));
             let _ = commands::emit_quota(&quota_app, &quota_state);
+        }
+    });
+    // AJ-E1007: the transcript search index, kept up to date in the
+    // background (incremental: unchanged transcripts cost one metadata
+    // read), so a search never waits for a first build.
+    std::thread::spawn(move || {
+        loop {
+            std::thread::sleep(std::time::Duration::from_secs(60));
+            let _ = history::index_transcripts(&index_state);
         }
     });
 }

@@ -18,5 +18,6 @@ ADRs capture the *why* behind non-obvious decisions: context, decision, alternat
 | [0012](./0012-two-clock-quota-model.md) | Two-clock quota model; user-entered expiry | Accepted |
 | [0013](./0013-fleet-at-launch.md) | Fleet at launch (beta); per-machine permissions | Accepted |
 | [0014](./0014-optional-figurehead-account.md) | Optional Figurehead account and cloud services (two paths) | Accepted |
+| [0016](./0016-backup-archive-format.md) | Backup archive format v1: allowlisted, scrubbed, verified before restore | Accepted |
 
 To add one: copy `0000-template.md`, number sequentially, PR it with the change that implements the decision.

@@ -549,8 +549,8 @@ fn v4_database_upgrades_in_place_to_v5_with_identical_values() {
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
     assert_eq!(
-        version, 26,
-        "v4 → current (v26, AJ-E1005 lifecycle journal) exactly once, on open"
+        version, 27,
+        "v4 → current (v27, AJ-E1007 transcript index) exactly once, on open"
     );
 
     let account = storage.accounts().get(&AccountId::new("acc-1")).unwrap();
@@ -577,7 +577,7 @@ fn v4_database_upgrades_in_place_to_v5_with_identical_values() {
         .raw_conn()
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(version, 26);
+    assert_eq!(version, 27);
     assert!(storage.sessions().get(&SessionId::new("sess-1")).is_ok());
 }
 
@@ -1072,8 +1072,8 @@ fn v12_ledger_upgrades_in_place_to_v13() {
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
     assert_eq!(
-        version, 26,
-        "v12 → current (v26, AJ-E1005) exactly once, on open"
+        version, 27,
+        "v12 → current (v27, AJ-E1007) exactly once, on open"
     );
     drop(storage);
 

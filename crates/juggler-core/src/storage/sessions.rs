@@ -126,6 +126,22 @@ impl SessionsRepo<'_> {
         Ok(latest)
     }
 
+    /// AJ-E1007: every lifecycle event of `id`, oldest first:
+    /// `(event, at_ms)`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn lifecycle_events(&self, id: &SessionId) -> Result<Vec<(String, i64)>, CoreError> {
+        let mut statement = self.conn.prepare(
+            "SELECT event, at_ms FROM instance_lifecycle WHERE session_id = ?1 ORDER BY rowid",
+        )?;
+        let rows =
+            statement.query_map(params![id.as_str()], |row| Ok((row.get(0)?, row.get(1)?)))?;
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(CoreError::Storage)
+    }
+
     /// AJ-E1004: every status transition of `id`, oldest first:
     /// `(from, to, at_ms)` — `from` is `None` for the first one.
     ///
