@@ -122,7 +122,7 @@
 **Research basis**: D-06/D-07 in decision-log.md:60-77; pass2/04 §§5-6; SPEC.md:350,385-389; expected-worfklow.md:14-15.
 **Handover note**: Depends on the local inspector existing — if E-inspector tasks slip, ship remote inspector read-model against the same DTO, do not fork a fleet-only panel. Trap: never hide staleness to look "real-time".
 
-### AJ-E706 Cross-machine switching implications | Status: TODO | Priority P0 | Effort L | Depends: AJ-E703, AJ-E705
+### AJ-E706 Cross-machine switching implications | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E703, AJ-E705
 **Goal**: The standard switch wizard works across machines, computing fidelity honestly and pre-validating path/binary constraints before the user commits.
 **User story**: As a developer who hit a quota wall on my laptop, I switch the same work to my desktop Account in the same wizard I use locally.
 **Requirements**:
@@ -214,7 +214,7 @@ PID reuse — AJ-E707 must land start-time identity before any
 remote kill ships. Remote kill without ledger ownership is a
 launch blocker, not a beta caveat.
 
-### AJ-E708 Offline and conflict behaviour | Status: IN-PROGRESS (claude-opus, 2026-10-18 — sync substrate evidenced; Req.4–5 land with AJ-E706) | Priority P0 | Effort L | Depends: AJ-E703
+### AJ-E708 Offline and conflict behaviour | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E703
 **Goal**:
 Machines work fully offline, reconnect without silent data
 loss, and surface conflicts explicitly instead of merging
@@ -355,7 +355,7 @@ disabled state. Quota `Unknown` for remote peers without a
 feed is correct behaviour, not a bug to "fix" with estimates.
 **Task-text notes (2026-10-18, AJ-E709)**: (1) There is no menu-bar tray in this build, so Req.6 waits for one. (2) `⌘1..⌘5` is not bound for machines — `⌘1–⌘6` already switch inspector tabs (D-06); the board's Machine filter is the control. (3) Overview and Usage stay this-Mac-only until usage data travels the link (AJ-E708). Evidence: [AJ-E709 manifest](../qa/evidence/AJ-E709/manifest.md).
 
-### AJ-E710 Fleet beta gate, dogfood, and security evidence pack | Status: TODO | Priority P0 | Effort M | Depends: AJ-E702, AJ-E703, AJ-E704, AJ-E705, AJ-E706, AJ-E707, AJ-E708, AJ-E709
+### AJ-E710 Fleet beta gate, dogfood, and security evidence pack | Status: IN-PROGRESS (claude-opus, 2026-10-18 — automated portion green via `just gate-e7`; two-Mac dogfood and tester sign-offs await the maintainer) | Priority P0 | Effort M | Depends: AJ-E702, AJ-E703, AJ-E704, AJ-E705, AJ-E706, AJ-E707, AJ-E708, AJ-E709
 **Goal**:
 Fleet exits internal alpha into launch beta only with a
 filed, reproducible evidence pack: pairing, switching,

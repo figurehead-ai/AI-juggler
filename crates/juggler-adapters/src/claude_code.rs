@@ -380,6 +380,9 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         );
         let (args, needs_pty) = match mode {
             LaunchMode::Interactive => (Vec::new(), true),
+            // `claude "<prompt>"` — an interactive session whose first
+            // turn is the prompt (AJ-E706 T3 replay).
+            LaunchMode::Primed { prompt } => (vec![prompt.clone()], true),
             LaunchMode::Headless { prompt } => (
                 vec![
                     "-p".into(),

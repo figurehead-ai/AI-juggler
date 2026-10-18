@@ -41,6 +41,7 @@ fn epoch(
         account: AccountId::new(account),
         provider: HarnessId::new("claude-code"),
         resumed_from_epoch: resumed_from.cloned(),
+        machine: None,
     }
 }
 
@@ -63,6 +64,7 @@ fn edge(work: &WorkItemId, id: &str, from: &EpochId, to_account: &str) -> Switch
         parent_edge_a: None,
         parent_edge_b: None,
         created_at: juggler_core::model::Timestamp::from_millis(1_792_094_400_000),
+        to_machine: None,
     }
 }
 

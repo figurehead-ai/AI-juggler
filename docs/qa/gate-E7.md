@@ -19,8 +19,9 @@ security negative below is green.
 | AJ-E709 indicators, permissions changed only on the node, "Ask each time" prompt, alert routing | DONE-EVIDENCED (Req.2 partial, Req.6 N/A) | [manifest](evidence/AJ-E709/manifest.md) |
 | AJ-E711 remote Focus window (executed on the owning Mac, honest outcomes, locked → reported) | DONE-EVIDENCED | [manifest](evidence/AJ-E711/manifest.md) |
 | AJ-E707 remote cleanup (node re-verifies, its own ladder, audited both sides, no command lines on the wire) | DONE-EVIDENCED | [manifest](evidence/AJ-E707/manifest.md) |
-| AJ-E708 offline and sync (durable outbox/replica, sequence-vector catch-up, epochs, skew flag, sync chip) | IN-PROGRESS — sync evidenced; `Diverged` + conflict sheet land with AJ-E706 | [manifest](evidence/AJ-E708/manifest.md) |
-| AJ-E706, AJ-E710 | TODO | — |
+| AJ-E708 offline and conflicts (durable outbox/replica, sequence-vector catch-up, epochs, skew flag, sync chip, `Diverged` + conflict sheet) | DONE-EVIDENCED (labels/settings N/A — none synced) | [manifest](evidence/AJ-E708/manifest.md) |
+| AJ-E706 cross-machine switching (catalog targets, T2 preconditions + T3 offered, click-time push, confirmed path mapping, shared lineage, switch-back) | DONE-EVIDENCED | [manifest](evidence/AJ-E706/manifest.md) |
+| AJ-E710 beta gate | TODO | — |
 
 ## Security negatives (STRIDE rows → tests)
 
@@ -55,7 +56,52 @@ security negative below is green.
 | No command line crosses the link | same test (only the executable name), `proto_contract` field allowlist | ✅ green |
 | A rogue peer (found by discovery, not pinned) receives zero deltas, even skipping Hello | `transport :: a_rogue_peer_skipping_hello_receives_zero_deltas` | ✅ green |
 | Offline catch-up loses nothing and overwrites nothing; replay changes nothing | `juggler-app --test fleet_sync` (4), `juggler-core --test fleet_sync_props` (3 properties) | ✅ green |
-| All others (free-form launch, logs, pack fetch, account substitution) | AJ-E706, AJ-E1206 | pending |
+| No transcript or pack byte crosses before the user's click; no pull exists | `fleet_switch :: t2_at_the_same_path…` (no handover event before the click), `proto_contract` (no path / cwd / transcript field) | ✅ green |
+| A received handover is verified, capped, one at a time; refused when access changed | `transport :: a_corrupt_short_or_oversized_handover_changes_nothing`, `a_view_only_console_gets_no_handover_taken`, `handovers_never_ride_the_command_stream…` | ✅ green |
+| T2 never runs on a version mismatch or an unconfirmed path (destination re-checks) | `fleet_switch :: a_version_mismatch…`, `another_checkout_path…`, `the_destination_rechecks…` | ✅ green |
+| A diverged original is never overwritten; destructive actions wait for the user's choice | `fleet_switch :: a_diverged_original…`, `keep_mine_…` | ✅ green |
+| Spoofed delta origin dropped | `remote::tests::a_delta_naming_another_machine_is_never_applied` | ✅ green |
+| All others (free-form launch, logs, account substitution) | AJ-E1206, AJ-E710 log scan | pending |
+
+## AJ-E710 — the gate, requirement by requirement
+
+The automated portion is one command: `just gate-e7` (script
+`scripts/gate_e7.sh`). It runs `juggler-link`, `juggler-supervisor`,
+`juggler-core` and every Fleet integration suite of the app, prints
+pass counts and every measured `[perf]` number, and exits non-zero —
+the gate fails closed — if anything is red. Each run is filed under
+`docs/qa/evidence/AJ-E710/automated-<date>.md`. The rows below that
+need two physical Macs or two testers stay open until the maintainer
+runs them; nothing here claims them.
+
+| # | Requirement | State | Evidence |
+|---|---|---|---|
+| 1a | Pair < 60 s on two physical Macs | PENDING — dogfood | Loopback: `fleet_link :: the_right_code_and_both_confirmations…` (seconds); physical run below |
+| 1b | One board across 3 machines (or a filed waiver) | PENDING — dogfood | Board: gallery `46-fleet-board`; 3-machine run below |
+| 1c | Cross-machine A→B→A with the continuity checklist | PENDING — dogfood | Loopback: `fleet_switch` (T2 there, one-delta switch-back here, original never overwritten) |
+| 1d | Remote orphan cleanup with zero collateral | PENDING — dogfood | Loopback: `fleet_link :: a_console_cleans_only_what_the_node_verifies…` (impostor untouched) |
+| 2 | Security checklist — one negative per STRIDE row | **PASS (automated)** | The *Security negatives* table above, all green, including the AJ-E710 additions: no credential or secret reaches the other Mac or any log (`fleet_switch :: no_credential_or_secret…`), forged free-form launches refused (`fleet_switch :: forged_free_form_launches…`), parallel pairing sessions refused (`pairing :: only_one_session_runs_at_a_time`) |
+| 3 | Every unvalidated Provider pair / path listed by name; `Unvalidated` at the point of action | **PASS** | List below; the wizard shows `F… · Unvalidated` on every cross-machine destination (gallery `50-cross-switch`) |
+| 4 | Measured performance vs budgets on the gate hardware | PARTIAL — loopback measured, gate hardware pending | Every run of `just gate-e7` files the numbers (heartbeat RTT, 1,000-delta catch-up, target list, handover throughput, divergence round trip); the two-Mac numbers come from the dogfood |
+| 5 | Mixed versions: current ↔ previous minor | PASS (in-process) / N/A (physical) | `transport :: the_mixed_version_matrix` (telemetry works, commands degrade with the banner, nothing crashes). Protocol v1.0 is unreleased, so no previous minor exists to run physically yet |
+| 6 | Link off returns the app to fully local behaviour, tested | **PASS** | `fleet_switch :: link_off_returns_both_macs_to_fully_local_behaviour` (after real fleet use: no destination offered, local switch targets listed, nothing marked diverged) |
+| 7 | No pass with a P0 security negative red | **PASS (by construction)** | `scripts/gate_e7.sh` exits non-zero on any red suite; beta labelling waives nothing |
+| — | Two tester sign-offs | PENDING | Maintainer |
+
+### Unvalidated combinations (D-04)
+
+Nothing cross-machine is validated yet — no live two-Mac cell exists.
+Every one of these ships labelled `Unvalidated` in the wizard:
+
+- Cross-machine T2 (transplant): claude-code → claude-code.
+- Cross-machine T3 (replay): every Provider pair the destination has
+  installed — today claude-code → claude-code (as replay); codex and
+  zcode pairs once their adapters land (see `gate-E2-validation.md`,
+  where they are already PENDING locally).
+- Path mapping: every mapped (non-identical) project path.
+- Remote cleanup, remote focus, remote stop: loopback only.
+
+Local validation status per pair stays in `gate-E2-validation.md`.
 
 ## Dogfood (to record at AJ-E710)
 
@@ -68,5 +114,13 @@ security negative below is green.
 - [ ] AJ-E708: take the laptop offline for a day of work, reconnect;
       keep the node's `sync_catch_up` log lines and the queued-changes
       chip before/after.
+- [ ] AJ-E706: laptop → desktop → laptop with the continuity checklist
+      and the delta-turn screenshot; a version-mismatch run (T2 blocked,
+      T3 offered); a network capture while browsing targets (zero
+      transcript bytes); flip the live per-pair cell only if it passes.
+- [ ] AJ-E710: three machines on one board (or file the waiver);
+      run `just gate-e7` on the gate build and file its report; record
+      the timing table on the gate hardware; keyboard-only pair, switch
+      and clean; two tester sign-offs.
 - [ ] AJ-E705: select a remote Instance, read Overview/Processes, time
       the render; Stop it from the console with View + control.

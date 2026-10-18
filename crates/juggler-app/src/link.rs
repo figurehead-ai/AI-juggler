@@ -145,6 +145,11 @@ pub struct LinkManager {
     /// Per console: the outbox sequence it holds (AJ-E708), so this Mac
     /// can say how many changes wait for it. Saved by the ticker.
     delivered: Mutex<Option<Delivered>>,
+    /// Harness versions installed here (AJ-E706), probed at most once a
+    /// minute (`--version` spawns a process).
+    pub(crate) versions: VersionCache,
+    /// Cancel switches for handovers this console is pushing, by target.
+    pub(crate) handover_cancel: Mutex<HashMap<String, tokio::sync::watch::Sender<bool>>>,
     /// "Ask each time" commands waiting for this Mac's user.
     prompts: Prompts,
     /// Peers to reconnect at once (a re-pair changed what they grant).
@@ -344,6 +349,9 @@ impl Prompts {
 const UNSEQUENCED: u64 = 0;
 /// The app setting holding each console's delivery mark.
 const DELIVERED_KEY: &str = "fleet_delivered";
+
+/// The cached harness-version probe: when, and `provider → version`.
+pub(crate) type VersionCache = Mutex<Option<(std::time::Instant, Vec<(String, String)>)>>;
 
 /// Per-console delivery marks and whether they changed since saved.
 #[derive(Debug, Default)]
@@ -620,6 +628,12 @@ impl NodeHandler for AppNode {
             UNSEQUENCED,
             proto::telemetry_delta::Payload::Cleanup(cleanup_delta(&state)),
         ));
+        // AJ-E706: what this Mac can take work into.
+        backlog.push(delta(
+            &origin,
+            UNSEQUENCED,
+            proto::telemetry_delta::Payload::Catalog(crate::crossmachine::catalog(&state)),
+        ));
         backlog
     }
 
@@ -701,7 +715,42 @@ impl NodeHandler for AppNode {
             proto::control_command::Action::CleanProcess(clean) => {
                 clean_here(&state, &peer.machine_id, &clean.instance_id, clean.pid)
             }
+            // The link only delivers these through Handover.
+            proto::control_command::Action::TakeHandover(_)
+            | proto::control_command::Action::SwitchBack(_) => Err(reject(
+                "malformed",
+                "Handovers go through the Handover call.",
+            )),
         }
+    }
+
+    fn take_handover(
+        &self,
+        peer: &PeerAccess,
+        action: &proto::control_command::Action,
+        bundle: &[u8],
+    ) -> Result<juggler_link::node::HandoverAccepted, juggler_link::node::HandoverRejection> {
+        let refuse = |code: &str, message: &str| juggler_link::node::HandoverRejection {
+            reason_code: code.to_owned(),
+            message: message.to_owned(),
+            divergence: None,
+        };
+        let state = self
+            .state
+            .upgrade()
+            .ok_or_else(|| refuse("unavailable", "This Mac is shutting down."))?;
+        if crate::fleet::peer_asks_each_time(&state, &peer.machine_id) {
+            let label = crate::fleet::peer_label(&state, &peer.machine_id)
+                .unwrap_or_else(|| "A paired machine".to_owned());
+            let what = describe_action(&state, action);
+            if !self.prompts.ask(&label, &what) {
+                return Err(refuse(
+                    "not_confirmed",
+                    "Not allowed on that Mac — nothing ran.",
+                ));
+            }
+        }
+        crate::crossmachine::take_handover_here(&state, peer, action, bundle)
     }
 
     fn audit(&self, event: LinkAuditEvent) {
@@ -840,6 +889,17 @@ fn describe_action(state: &Arc<AppState>, action: &proto::control_command::Actio
         }
         proto::control_command::Action::CleanProcess(clean) => {
             format!("clean up process {} of one of your Instances", clean.pid)
+        }
+        proto::control_command::Action::TakeHandover(take) => format!(
+            "take over work from {} — continue it here",
+            if take.from_account_label.is_empty() {
+                "another Account"
+            } else {
+                take.from_account_label.as_str()
+            }
+        ),
+        proto::control_command::Action::SwitchBack(_) => {
+            "bring work back to its original session here".to_owned()
         }
         proto::control_command::Action::FocusInstance(focus) => {
             let label = state
@@ -1611,7 +1671,18 @@ async fn resource_ticker(
         save_delivered(&app);
         // Processes every ~6 s: orphans reach consoles within 10 s.
         let cleanup = tick.is_multiple_of(3).then(|| cleanup_delta(&app));
+        // The catalog every ~30 s (Launch settings, versions, projects).
+        let catalog = tick
+            .is_multiple_of(15)
+            .then(|| crate::crossmachine::catalog(&app));
         drop(app);
+        if let Some(catalog) = catalog {
+            let _ = live.send(delta(
+                &origin,
+                UNSEQUENCED,
+                proto::telemetry_delta::Payload::Catalog(catalog),
+            ));
+        }
         if let Some(cleanup) = cleanup {
             let _ = live.send(delta(
                 &origin,

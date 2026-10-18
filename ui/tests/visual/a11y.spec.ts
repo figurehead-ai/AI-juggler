@@ -2263,3 +2263,69 @@ for (const theme of ["dark", "light"] as const) {
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
   });
 }
+
+/** AJ-E706 / AJ-E708 a11y (both themes): cross-machine destinations, the
+ * wizard (radio groups with descriptions, path mapping), and the conflict
+ * sheet (radio group, "Review later" focused) — axe-clean, keyboard-only
+ * completable. */
+for (const theme of ["dark", "light"] as const) {
+  test(`fleet — cross-machine switch and conflict sheet — axe 0 — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ fixture, theme: t }) => {
+        const w = window as unknown as Record<string, unknown>;
+        w.__AIJ_FIXTURE__ = fixture;
+        const base = {
+          machine_id: "machine-mini", machine_label: "Mac mini", recipe_id: "rec-mini", recipe_name: "Main",
+          account_label: "Team", provider: "claude-code", mechanism: "transplant", readiness: "needs_mapping",
+          blockers: ["ai-juggler isn't at the same path on Mac mini — pick its copy there (you confirm the mapping) or use T3."],
+          fidelity: "F3", badge: "F3 · Unvalidated", validated: false, carried: ["chat transcript"], regenerated: [],
+          dropped: ["todo list"], same_path_project: null,
+          projects: [{ project_id: "proj-m1", name: "ai-juggler", same_path: false, same_name: true }],
+          replay_available: true, version_here: "2.1.0", version_there: "2.1.0",
+        };
+        w.__AIJ_FLEET_SWITCH_TARGETS__ = [base];
+        w.__AIJ_FLEET_SWITCH_BACK_PLAN__ = {
+          original_machine_id: "machine-laptop", original_machine_label: "Laptop", original_account_label: "Work Max",
+          away_account_label: "Desktop Max", new_turns: 2, delta_preview: "While you were away on Desktop Max — 2 new turns",
+          blockers: [],
+        };
+        w.__AIJ_FLEET_SWITCH_BACK_OUTCOMES__ = [{
+          accepted: false, reason_code: "diverged", message: "moved on", instance_id: null, edge_id: "e",
+          divergence: { turns_since: 1, last_activity_ms: Date.now() - 60_000, summary: "1 new turns" },
+        }];
+        localStorage.setItem("aij.theme", t);
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        sessionStorage.setItem("aij.ready.skipped", "1");
+      },
+      { fixture: allStatuses, theme },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await page.getByRole("tab", { name: "Sessions" }).click();
+    await page.getByRole("button", { name: /Work Max/ }).first().click();
+    await expect(page.getByTestId("remote-switch-target")).toBeVisible();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+    // The wizard, keyboard-only: open, step, map, confirm.
+    await page.getByTestId("remote-switch-target").focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByTestId("cross-switch-flow")).toBeVisible();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+    await page.getByTestId("cross-switch-next").click();
+    await page.getByTestId("cross-switch-project-option").focus();
+    await page.keyboard.press("Space");
+    await page.getByTestId("cross-switch-confirm-mapping").focus();
+    await page.keyboard.press("Space");
+    await expect(page.getByTestId("cross-switch-next")).toBeEnabled();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+    await page.keyboard.press("Escape");
+    // The conflict sheet: "Review later" holds focus; a choice is a radio.
+    await page.getByTestId("cross-back-card").click();
+    await page.getByTestId("cross-back-go").click();
+    await expect(page.getByTestId("conflict-later")).toBeFocused();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+    await page.getByTestId("conflict-keep_mine").focus();
+    await page.keyboard.press("Space");
+    await expect(page.getByTestId("conflict-apply")).toBeEnabled();
+  });
+}

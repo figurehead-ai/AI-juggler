@@ -17,8 +17,8 @@ use std::time::{Duration, Instant};
 use juggler_link::cert::{NodeCertificate, node_certificate};
 use juggler_link::client::{self, ConnectError, Liveness};
 use juggler_link::node::{
-    CommandRejection, LinkAuditEvent, LinkNode, MemoryReplayStore, NodeHandler, PairCandidate,
-    PairingHost, PeerAccess, PeerDirectory,
+    CommandRejection, HandoverAccepted, HandoverRejection, LinkAuditEvent, LinkNode,
+    MemoryReplayStore, NodeHandler, PairCandidate, PairingHost, PeerAccess, PeerDirectory,
 };
 use juggler_link::pairing::{PairingCode, PairingError};
 use juggler_link::protocol::{PROTOCOL_MAJOR, PROTOCOL_MINOR};
@@ -52,6 +52,8 @@ struct Handler {
     live: tokio::sync::broadcast::Sender<proto::TelemetryDelta>,
     audit: Mutex<Vec<LinkAuditEvent>>,
     executed: Mutex<Vec<String>>,
+    /// Handovers the handler took (their bytes).
+    taken: Mutex<Vec<Vec<u8>>>,
 }
 
 impl Handler {
@@ -60,6 +62,7 @@ impl Handler {
             live: tokio::sync::broadcast::channel(16).0,
             audit: Mutex::default(),
             executed: Mutex::default(),
+            taken: Mutex::default(),
         }
     }
 }
@@ -103,6 +106,31 @@ impl NodeHandler for Handler {
             _ => Err(CommandRejection {
                 reason_code: "unknown_record".into(),
                 message: "No such Instance on this Mac.".into(),
+            }),
+        }
+    }
+    fn take_handover(
+        &self,
+        _peer: &PeerAccess,
+        action: &proto::control_command::Action,
+        bundle: &[u8],
+    ) -> Result<HandoverAccepted, HandoverRejection> {
+        match action {
+            proto::control_command::Action::TakeHandover(take) if take.recipe_id == "rec-1" => {
+                self.taken.lock().unwrap().push(bundle.to_vec());
+                Ok(HandoverAccepted {
+                    message: "Started under Work".into(),
+                    instance_id: "inst-new".into(),
+                })
+            }
+            _ => Err(HandoverRejection {
+                reason_code: "diverged".into(),
+                message: "Changed here since it left.".into(),
+                divergence: Some(proto::Divergence {
+                    turns_since: 3,
+                    last_activity_ms: 7,
+                    summary: "3 turns on Node A".into(),
+                }),
             }),
         }
     }
@@ -643,4 +671,165 @@ async fn stopping_a_node_never_waits_on_an_open_telemetry_stream() {
     })
     .await;
     assert!(ended.is_ok(), "the stream ends when the node stops");
+}
+
+// ---------------------------------------------------------------- AJ-E706
+
+fn take(recipe: &str, bytes: u64) -> proto::control_command::Action {
+    proto::control_command::Action::TakeHandover(proto::TakeHandover {
+        recipe_id: recipe.into(),
+        bundle_bytes: bytes,
+        mechanism: "transplant".into(),
+        ..Default::default()
+    })
+}
+
+async fn push(
+    peer: &client::LinkPeer,
+    sequence: u64,
+    action: proto::control_command::Action,
+    bundle: Vec<u8>,
+) -> proto::HandoverProgress {
+    let (_cancel, watch) = tokio::sync::watch::channel(false);
+    client::push_handover(peer, "console-b", sequence, action, bundle, |_| {}, watch)
+        .await
+        .unwrap()
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_handover_arrives_whole_and_verified_with_progress() {
+    let f = fixture(Permission::Control).await;
+    let mut peer = f.connect().await;
+    heartbeat(&mut peer).await;
+    // 5.5 MB: several chunks, so progress is reported along the way.
+    let bundle: Vec<u8> = (0..5_500_000_u32).map(|n| (n % 251) as u8).collect();
+    let (_cancel, watch) = tokio::sync::watch::channel(false);
+    let mut phases = Vec::new();
+    let started = Instant::now();
+    let done = client::push_handover(
+        &peer,
+        "console-b",
+        1,
+        take("rec-1", bundle.len() as u64),
+        bundle.clone(),
+        |update| phases.push((update.phase.clone(), update.received_bytes)),
+        watch,
+    )
+    .await
+    .unwrap();
+    println!(
+        "[perf] 5.5 MB handover over loopback: {:?}",
+        started.elapsed()
+    );
+    assert_eq!(done.phase, "done", "{done:?}");
+    assert_eq!(done.instance_id, "inst-new");
+    assert_eq!(*f.handler.taken.lock().unwrap(), vec![bundle], "byte-exact");
+    assert!(
+        phases
+            .iter()
+            .any(|(phase, bytes)| phase == "receiving" && *bytes > 0)
+    );
+    assert!(phases.iter().any(|(phase, _)| phase == "installing"));
+    assert!(
+        f.handler
+            .audit
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|event| event.kind == "handover_accepted")
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_view_only_console_gets_no_handover_taken() {
+    let f = fixture(Permission::View).await;
+    let mut peer = f.connect().await;
+    heartbeat(&mut peer).await;
+    let refused = push(&peer, 1, take("rec-1", 3), vec![1, 2, 3]).await;
+    assert_eq!(refused.phase, "rejected");
+    assert_eq!(refused.result.unwrap().reason_code, "permission_denied");
+    assert!(f.handler.taken.lock().unwrap().is_empty());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_corrupt_short_or_oversized_handover_changes_nothing() {
+    let f = fixture(Permission::Control).await;
+    let mut peer = f.connect().await;
+    heartbeat(&mut peer).await;
+    // Declares more than it sends: the closing hash can't match.
+    let short = push(&peer, 1, take("rec-1", 10), vec![1, 2, 3]).await;
+    assert_eq!(short.result.unwrap().reason_code, "corrupt");
+    // Sends more than it declared.
+    let long = push(&peer, 2, take("rec-1", 2), vec![1, 2, 3]).await;
+    assert_eq!(long.result.unwrap().reason_code, "malformed");
+    // Over the cap: refused before a byte is read.
+    let huge = push(
+        &peer,
+        3,
+        take("rec-1", juggler_link::node::MAX_HANDOVER_BYTES + 1),
+        Vec::new(),
+    )
+    .await;
+    assert_eq!(huge.result.unwrap().reason_code, "too_large");
+    assert!(f.handler.taken.lock().unwrap().is_empty());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_cancelled_handover_is_discarded_within_a_second() {
+    let f = fixture(Permission::Control).await;
+    let mut peer = f.connect().await;
+    heartbeat(&mut peer).await;
+    let bundle = vec![9_u8; 64 * 1024 * 1024];
+    let (cancel, watch) = tokio::sync::watch::channel(false);
+    let declared = bundle.len() as u64;
+    let push = tokio::spawn({
+        let peer = peer.clone();
+        async move {
+            client::push_handover(
+                &peer,
+                "console-b",
+                1,
+                take("rec-1", declared),
+                bundle,
+                |_| {},
+                watch,
+            )
+            .await
+            .unwrap()
+        }
+    });
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    let started = Instant::now();
+    cancel.send(true).unwrap();
+    let outcome = push.await.unwrap();
+    assert!(started.elapsed() < Duration::from_secs(1), "cancel budget");
+    assert_eq!(outcome.phase, "cancelled");
+    // The node noticed and discarded it; nothing was taken.
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while !f
+        .handler
+        .audit
+        .lock()
+        .unwrap()
+        .iter()
+        .any(|event| event.kind == "handover_cancelled")
+    {
+        assert!(Instant::now() < deadline, "the node never saw the cancel");
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    assert!(f.handler.taken.lock().unwrap().is_empty());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn handovers_never_ride_the_command_stream_and_refusals_carry_divergence() {
+    let f = fixture(Permission::Control).await;
+    let mut peer = f.connect().await;
+    heartbeat(&mut peer).await;
+    let result = client::send_command(&peer, "console-b", 1, take("rec-1", 0))
+        .await
+        .unwrap();
+    assert_eq!(result.reason_code, "malformed");
+    let refused = push(&peer, 2, take("other", 1), vec![1]).await;
+    assert_eq!(refused.result.unwrap().reason_code, "diverged");
+    assert_eq!(refused.divergence.unwrap().turns_since, 3);
 }

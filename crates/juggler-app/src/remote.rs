@@ -72,6 +72,8 @@ pub struct RemoteMachine {
     alerts: Vec<proto::AlertDelta>,
     /// Its managed processes and when they arrived (AJ-E707).
     cleanup: Option<(proto::CleanupDelta, i64)>,
+    /// What it can take work into (AJ-E706), as last heard.
+    catalog: Option<(proto::CatalogDelta, i64)>,
 }
 
 /// The cache, shared by the reconcile loop and the commands.
@@ -124,12 +126,18 @@ pub(crate) fn subscribe(
         };
         let mut stream = response.into_inner();
         while let Ok(Some(delta)) = stream.message().await {
-            // v1 never relays: a delta about another machine is dropped.
-            if delta.origin_machine_id == id {
+            if from_connected_origin(&delta, &id) {
                 apply(&state, &cache, &id, durable, delta);
             }
         }
     })
+}
+
+/// v1 never relays: a delta is accepted only when its origin is the
+/// authenticated machine on this connection (a spoofed origin is
+/// dropped — ADR-0013 "Spoofed delta origin").
+fn from_connected_origin(delta: &proto::TelemetryDelta, connected: &str) -> bool {
+    delta.origin_machine_id == connected
 }
 
 /// Applies one delta. A sequenced Instance row from a node with a sync
@@ -193,6 +201,9 @@ fn apply(
         }
         Some(proto::telemetry_delta::Payload::Cleanup(cleanup)) => {
             entry.cleanup = Some((cleanup, now));
+        }
+        Some(proto::telemetry_delta::Payload::Catalog(catalog)) => {
+            entry.catalog = Some((catalog, now));
         }
         Some(proto::telemetry_delta::Payload::Alert(alert)) => {
             let duplicate = entry.alerts.iter().any(|seen| {
@@ -264,6 +275,36 @@ pub(crate) async fn refresh_permission(cache: &RemoteCache, machine_id: &str, ow
             entry.permission = Some(permission);
         }
     }
+}
+
+/// AJ-E706: one paired machine as a switch target — its catalog, what
+/// it lets this Mac do, and its live connection (for the push).
+#[derive(Clone, Debug, Default)]
+pub(crate) struct TargetView {
+    pub catalog: Option<proto::CatalogDelta>,
+    pub permission: Option<String>,
+    pub peer: Option<LinkPeer>,
+}
+
+/// AJ-E706: every paired machine this console has heard from.
+pub(crate) fn target_views(cache: &RemoteCache) -> Vec<(String, TargetView)> {
+    cache
+        .lock()
+        .map(|map| {
+            map.iter()
+                .map(|(id, entry)| {
+                    (
+                        id.clone(),
+                        TargetView {
+                            catalog: entry.catalog.as_ref().map(|(catalog, _)| catalog.clone()),
+                            permission: entry.permission.clone(),
+                            peer: entry.peer.clone(),
+                        },
+                    )
+                })
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 /// Forgets machines that are no longer pinned.
@@ -657,7 +698,7 @@ fn processes_of(entry: &RemoteMachine) -> Vec<RemoteProcessInfo> {
 /// The next command sequence for `machine_id`: above both the stored
 /// one and a wall-clock seed, so a reset console never reuses one the
 /// node already saw.
-fn next_command_sequence(state: &Arc<AppState>, machine_id: &str) -> AppResult<u64> {
+pub(crate) fn next_command_sequence(state: &Arc<AppState>, machine_id: &str) -> AppResult<u64> {
     let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
     let mut map: HashMap<String, u64> = storage
         .app_settings()
@@ -680,6 +721,21 @@ fn next_command_sequence(state: &Arc<AppState>, machine_id: &str) -> AppResult<u
 /// Sends one control action to `machine_id` and returns the node's
 /// verdict. Logged on THIS Mac too (who was asked, the outcome), so a
 /// remote action is audited on both machines.
+/// Test seam: sends any control action as a console would (the node's
+/// checks are the thing under test — forged actions must be refused).
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] per the console command path.
+#[doc(hidden)]
+pub async fn send_action_for_test(
+    state: Arc<AppState>,
+    machine_id: String,
+    action: proto::control_command::Action,
+) -> AppResult<RemoteCommandOutcomeInfo> {
+    send_action(state, machine_id, action).await
+}
+
 async fn send_action(
     state: Arc<AppState>,
     machine_id: String,
@@ -886,5 +942,19 @@ mod tests {
         assert_eq!(freshness("degraded", Some(now - 1_000), now), "live");
         assert_eq!(freshness("offline", Some(now - 1_000), now), "offline");
         assert_eq!(freshness("link_off", Some(now), now), "offline");
+    }
+
+    #[test]
+    fn a_delta_naming_another_machine_is_never_applied() {
+        let delta = |origin: &str| proto::TelemetryDelta {
+            origin_machine_id: origin.to_owned(),
+            ..proto::TelemetryDelta::default()
+        };
+        assert!(from_connected_origin(&delta("mac-a"), "mac-a"));
+        assert!(
+            !from_connected_origin(&delta("mac-b"), "mac-a"),
+            "a relayed / spoofed origin"
+        );
+        assert!(!from_connected_origin(&delta(""), "mac-a"));
     }
 }

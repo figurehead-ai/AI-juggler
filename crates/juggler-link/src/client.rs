@@ -192,6 +192,128 @@ pub async fn send_command(
     }
 }
 
+/// The size of one handover chunk.
+const HANDOVER_CHUNK: usize = 1024 * 1024;
+
+/// AJ-E706: pushes a handover over `peer`'s connection — the command
+/// (with every command check on the node), the bundle in 1 MiB chunks,
+/// then its sha256 — and returns the node's final verdict (`done` or
+/// `rejected`). `on_progress` sees each update; setting `cancel` to
+/// true stops the transfer within one chunk (the node discards what it
+/// received and reports nothing — the result is `phase = "cancelled"`).
+///
+/// # Errors
+///
+/// Returns [`ConnectError`] when the handover couldn't be delivered.
+pub async fn push_handover(
+    peer: &LinkPeer,
+    console_machine_id: &str,
+    sequence: u64,
+    action: proto::control_command::Action,
+    bundle: Vec<u8>,
+    mut on_progress: impl FnMut(&proto::HandoverProgress) + Send,
+    mut cancel: tokio::sync::watch::Receiver<bool>,
+) -> Result<proto::HandoverProgress, ConnectError> {
+    use sha2::{Digest, Sha256};
+    let mut nonce = [0_u8; 16];
+    getrandom::fill(&mut nonce).map_err(|e| ConnectError::Config(e.to_string()))?;
+    let command = proto::ControlCommand {
+        console_machine_id: console_machine_id.to_owned(),
+        nonce: nonce.to_vec(),
+        sequence,
+        issued_at_ms: now_ms(),
+        action: Some(action),
+    };
+    let (parts, outbound) = tokio::sync::mpsc::channel::<proto::HandoverPart>(4);
+    let mut feeder_cancel = cancel.clone();
+    let feeder = tokio::spawn(async move {
+        let part = |part| proto::HandoverPart { part: Some(part) };
+        if parts
+            .send(part(proto::handover_part::Part::Command(command)))
+            .await
+            .is_err()
+        {
+            return;
+        }
+        // Hashed as it goes (never the whole bundle up front), so a
+        // cancel is seen between chunks even for a large pack.
+        let mut hasher = Sha256::new();
+        for chunk in bundle.chunks(HANDOVER_CHUNK) {
+            if *feeder_cancel.borrow_and_update() {
+                return; // dropping the sender ends the stream: cancelled
+            }
+            hasher.update(chunk);
+            if parts
+                .send(part(proto::handover_part::Part::Chunk(chunk.to_vec())))
+                .await
+                .is_err()
+            {
+                return;
+            }
+        }
+        let digest = hasher
+            .finalize()
+            .iter()
+            .fold(String::new(), |mut out, byte| {
+                use std::fmt::Write as _;
+                let _ = write!(out, "{byte:02x}");
+                out
+            });
+        let _ = parts
+            .send(part(proto::handover_part::Part::End(proto::HandoverEnd {
+                sha256: digest,
+            })))
+            .await;
+        // Keep the stream open until the node answers.
+        let _ = feeder_cancel.changed().await;
+    });
+    let mut client = peer.client.clone();
+    let response = client
+        .handover(tokio_stream::wrappers::ReceiverStream::new(outbound))
+        .await;
+    let mut updates = match response {
+        Ok(response) => response.into_inner(),
+        Err(status) => {
+            feeder.abort();
+            return Err(ConnectError::Connect(status.message().to_owned()));
+        }
+    };
+    let cancelled = proto::HandoverProgress {
+        phase: "cancelled".to_owned(),
+        ..proto::HandoverProgress::default()
+    };
+    loop {
+        tokio::select! {
+            next = updates.message() => match next {
+                Ok(Some(update)) => {
+                    on_progress(&update);
+                    if update.phase == "done" || update.phase == "rejected" {
+                        feeder.abort();
+                        return Ok(update);
+                    }
+                }
+                Ok(None) => {
+                    feeder.abort();
+                    if *cancel.borrow() {
+                        return Ok(cancelled);
+                    }
+                    return Err(ConnectError::Connect("the node closed the handover".to_owned()));
+                }
+                Err(status) => {
+                    feeder.abort();
+                    return Err(ConnectError::Connect(status.message().to_owned()));
+                }
+            },
+            changed = cancel.changed() => {
+                if changed.is_err() || *cancel.borrow() {
+                    feeder.abort();
+                    return Ok(cancelled);
+                }
+            }
+        }
+    }
+}
+
 fn describe(error: &tonic::transport::Error) -> String {
     use std::error::Error as _;
     let mut text = error.to_string();

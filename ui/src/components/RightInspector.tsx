@@ -28,6 +28,17 @@ import { accountSetFee, quotaDisplay, switchTargets, type QuotaDisplayData, type
 import { formatBytes, stateChip } from "./indicator";
 import { SwitchGraph } from "./SwitchGraph";
 import { SwitchTargetRows } from "./SwitchTargetRows";
+import { RemoteSwitchTargets } from "./RemoteSwitchTargets";
+import { CrossMachineSwitchFlow } from "./CrossMachineSwitchFlow";
+import { CrossMachineSwitchBack } from "./CrossMachineSwitchBack";
+import {
+  fleetDivergences,
+  fleetSwitchBackPlan,
+  fleetSwitchTargets,
+  type DivergenceRecordInfo,
+  type FleetSwitchBackPlanInfo,
+  type RemoteSwitchTargetInfo,
+} from "../lib/bridge";
 import { RemoteTabBody, freshnessText, type RemoteContext } from "./RemoteTabs";
 
 /**
@@ -465,7 +476,9 @@ export function RightInspector({
             />
             )}
             {/* Footer: updated-ago + the field's REAL source (Req.5). */}
-            <footer className="mt-auto flex items-center gap-1.5 border-t border-hairline/60 pt-2 text-[10px] text-faint">
+            {/* Sticky with a solid background: a long tab (many switch
+                destinations) scrolls under it, never draws over it. */}
+            <footer className="sticky bottom-0 z-10 mt-auto flex items-center gap-1.5 border-t border-hairline/60 bg-canvas pt-2 pb-1 text-[10px] text-muted">
               <span>
                 Updated{" "}
                 {since(
@@ -690,6 +703,31 @@ function InstanceOverview(props: PanelProps) {
       alive = false;
     };
   }, [instanceId, props.data.instance?.status]);
+  // AJ-E706: paired machines as destinations, and — for an Instance
+  // that came from another machine — the way back (with any divergence
+  // that waits for the user, AJ-E708).
+  const [remoteTargets, setRemoteTargets] = useState<RemoteSwitchTargetInfo[]>([]);
+  const [backPlan, setBackPlan] = useState<FleetSwitchBackPlanInfo | null>(null);
+  const [divergence, setDivergence] = useState<DivergenceRecordInfo | null>(null);
+  const [crossTarget, setCrossTarget] = useState<RemoteSwitchTargetInfo | null>(null);
+  const [backOpen, setBackOpen] = useState(false);
+  const [crossTick, setCrossTick] = useState(0);
+  useEffect(() => {
+    if (instanceId === null) return;
+    let alive = true;
+    fleetSwitchTargets(instanceId)
+      .then((rows) => alive && setRemoteTargets(rows))
+      .catch(() => alive && setRemoteTargets([]));
+    fleetSwitchBackPlan(instanceId)
+      .then((plan) => alive && setBackPlan(plan))
+      .catch(() => alive && setBackPlan(null));
+    fleetDivergences()
+      .then((rows) => alive && setDivergence(rows.find((row) => row.session_id === instanceId) ?? null))
+      .catch(() => alive && setDivergence(null));
+    return () => {
+      alive = false;
+    };
+  }, [instanceId, props.data.instance?.status, crossTick]);
   const { kind, data, sessions, accounts, profiles, terminalTitle } = props;
 
   if (kind === "instance" && data.instance) {
@@ -701,7 +739,9 @@ function InstanceOverview(props: PanelProps) {
     const live = session.status === "running" || session.status === "starting";
     const project = props.projects.find((p) => p.id === session.project_id) ?? null;
     return (
-      <div className="flex min-h-0 flex-1 flex-col gap-3">
+      // Grows with its content (the section scrolls): a long handover
+      // list never squashes the overview or the terminal.
+      <div className="flex flex-1 flex-col gap-3">
         {/* §5.1 Overview fields (every field honest: absent → named
             empty, never fabricated). Lineage is omitted entirely until
             the Switch Graph exists (E2) — no fabricated A→B links. */}
@@ -930,7 +970,7 @@ function InstanceOverview(props: PanelProps) {
             </p>
           </Card>
         ) : (
-          <Card className="min-h-0 flex-1 overflow-hidden bg-[#05070b] p-0">
+          <Card className="min-h-[280px] flex-1 overflow-hidden bg-[#05070b] p-0">
             <TerminalView id={terminalId} title={terminalTitle ?? session.account_label} />
           </Card>
         )}
@@ -967,6 +1007,37 @@ function InstanceOverview(props: PanelProps) {
               row carries its ordered-pair badge and Drop list
               (D-04/D-11). Suggest-only; the click opens the E205
               flow. */}
+          {backPlan && (
+            <button
+              type="button"
+              onClick={() => setBackOpen(true)}
+              data-testid={divergence ? "cross-back-diverged-card" : "cross-back-card"}
+              className={
+                "rounded-lg border px-2.5 py-2 text-left text-[11px] transition-colors " +
+                (divergence
+                  ? "border-warning/50 text-ink hover:border-warning"
+                  : "border-accent/40 bg-accent-soft text-accent-hi hover:border-accent/60")
+              }
+            >
+              <span className="block">
+                {divergence ? (
+                  <>
+                    <span aria-hidden="true">⚠ </span>Diverged — {divergence.turns_since} new{" "}
+                    {divergence.turns_since === 1 ? "turn" : "turns"} on {divergence.machine_label} since the work
+                    left. Choose what to keep.
+                  </>
+                ) : (
+                  <>
+                    Came from {backPlan.original_machine_label} ({backPlan.original_account_label}) —{" "}
+                    {backPlan.new_turns} new {backPlan.new_turns === 1 ? "turn" : "turns"} here.
+                  </>
+                )}
+              </span>
+              <span className="text-muted">
+                {divergence ? "Review the conflict ▸" : `Switch back to ${backPlan.original_machine_label} ▸`}
+              </span>
+            </button>
+          )}
           {switchTargets_ === null ? (
             <p className="text-[11px] text-faint" data-testid="handover-targets-loading">
               Ranking destinations…
@@ -983,7 +1054,45 @@ function InstanceOverview(props: PanelProps) {
               }
             />
           )}
+          {remoteTargets.length > 0 && (
+            <>
+              <p className="mt-1 text-[11px] uppercase tracking-wider text-muted">
+                Continue on another machine
+              </p>
+              <RemoteSwitchTargets targets={remoteTargets} onPick={setCrossTarget} />
+            </>
+          )}
         </div>
+        )}
+        {crossTarget && (
+          <CrossMachineSwitchFlow
+            sessionId={session.id}
+            target={crossTarget}
+            onClose={() => {
+              setCrossTarget(null);
+              setCrossTick((tick) => tick + 1);
+            }}
+          />
+        )}
+        {backOpen && backPlan && (
+          <CrossMachineSwitchBack
+            sessionId={session.id}
+            plan={backPlan}
+            divergence={
+              divergence
+                ? {
+                    turns_since: divergence.turns_since,
+                    last_activity_ms: divergence.last_activity_ms,
+                    summary: divergence.summary,
+                  }
+                : null
+            }
+            onClose={() => {
+              setBackOpen(false);
+              setCrossTick((tick) => tick + 1);
+            }}
+            onResolved={() => setCrossTick((tick) => tick + 1)}
+          />
         )}
       </div>
     );

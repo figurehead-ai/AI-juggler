@@ -529,6 +529,11 @@ pub struct Epoch {
     /// The original epoch this one resumes (`None` for first
     /// launch; set on native-resume after switch-back, Req.5).
     pub resumed_from_epoch: Option<EpochId>,
+    /// The machine this epoch ran on (AJ-E706). `None` = this Mac; a
+    /// paired machine's id marks a mirror of an epoch that lives there,
+    /// kept so lineage reads whole on either machine.
+    #[serde(default)]
+    pub machine: Option<MachineId>,
 }
 
 impl Epoch {
@@ -750,6 +755,11 @@ pub struct SwitchEdge {
     pub parent_edge_b: Option<SwitchEdgeId>,
     /// When the edge was created.
     pub created_at: Timestamp,
+    /// The machine the work moved to (AJ-E706); `None` = the same
+    /// machine as `from_epoch`. Known before launch (unlike
+    /// `to_epoch`), so a staged cross-machine edge names its target.
+    #[serde(default)]
+    pub to_machine: Option<MachineId>,
 }
 
 /// One artifact manifest row attached to an edge (AJ-E202): every

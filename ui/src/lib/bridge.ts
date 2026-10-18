@@ -18,6 +18,14 @@ import type { PairingStateInfo } from "../types/generated/PairingStateInfo";
 import type { FigureheadStatusInfo } from "../types/generated/FigureheadStatusInfo";
 import type { CloudFeatureInfo } from "../types/generated/CloudFeatureInfo";
 import type { RemoteMachineInfo } from "../types/generated/RemoteMachineInfo";
+import type { RemoteSwitchTargetInfo } from "../types/generated/RemoteSwitchTargetInfo";
+import type { RemoteProjectOption } from "../types/generated/RemoteProjectOption";
+import type { FleetSwitchRequest } from "../types/generated/FleetSwitchRequest";
+import type { FleetSwitchOutcomeInfo } from "../types/generated/FleetSwitchOutcomeInfo";
+import type { FleetSwitchProgressInfo } from "../types/generated/FleetSwitchProgressInfo";
+import type { FleetSwitchBackPlanInfo } from "../types/generated/FleetSwitchBackPlanInfo";
+import type { DivergenceInfo } from "../types/generated/DivergenceInfo";
+import type { DivergenceRecordInfo } from "../types/generated/DivergenceRecordInfo";
 import type { RemoteInstanceInfo } from "../types/generated/RemoteInstanceInfo";
 import type { RemoteResourcesInfo } from "../types/generated/RemoteResourcesInfo";
 import type { RemoteCommandOutcomeInfo } from "../types/generated/RemoteCommandOutcomeInfo";
@@ -69,6 +77,14 @@ export type {
   FigureheadStatusInfo,
   CloudFeatureInfo,
   RemoteMachineInfo,
+  RemoteSwitchTargetInfo,
+  RemoteProjectOption,
+  FleetSwitchRequest,
+  FleetSwitchOutcomeInfo,
+  FleetSwitchProgressInfo,
+  FleetSwitchBackPlanInfo,
+  DivergenceInfo,
+  DivergenceRecordInfo,
   RemoteInstanceInfo,
   RemoteResourcesInfo,
   RemoteCommandOutcomeInfo,
@@ -104,6 +120,8 @@ export const EVENTS = {
   previewFrame: "preview://frame",
   /** Live-preview phase change (AJ-E415). */
   previewState: "preview://state",
+  /** Cross-machine switch push progress (AJ-E706). */
+  fleetSwitchProgress: "fleet://switch-progress",
 } as const;
 
 const hasBackend =
@@ -3462,4 +3480,133 @@ export async function recommendationFor(): Promise<RecommendationData> {
     );
   }
   return invoke<RecommendationData>("recommendation_for");
+}
+
+// --- AJ-E706: cross-machine switching ------------------------------------
+
+type CrossSeams = {
+  __AIJ_FLEET_SWITCH_TARGETS__?: RemoteSwitchTargetInfo[];
+  __AIJ_FLEET_SWITCH_OUTCOME__?: FleetSwitchOutcomeInfo;
+  __AIJ_FLEET_SWITCH_BACK_PLAN__?: FleetSwitchBackPlanInfo | null;
+  __AIJ_FLEET_SWITCH_BACK_OUTCOMES__?: FleetSwitchOutcomeInfo[];
+  __AIJ_FLEET_DIVERGENCES__?: DivergenceRecordInfo[];
+  __AIJ_FLEET_CALLS__?: string[];
+  __AIJ_FLEET_SWITCH_PROGRESS__?: (update: FleetSwitchProgressInfo) => void;
+};
+
+const crossSeams = () => window as unknown as CrossSeams;
+const crossCall = (call: string) => {
+  const seams = crossSeams();
+  seams.__AIJ_FLEET_CALLS__ = [...(seams.__AIJ_FLEET_CALLS__ ?? []), call];
+};
+
+/** Paired machines as switch destinations for one source Instance —
+ * computed from what they published; no transcript moves to list them. */
+export async function fleetSwitchTargets(sessionId: string): Promise<RemoteSwitchTargetInfo[]> {
+  if (!hasBackend) return [...(crossSeams().__AIJ_FLEET_SWITCH_TARGETS__ ?? [])];
+  return invoke<RemoteSwitchTargetInfo[]>("fleet_switch_targets", { sessionId });
+}
+
+/** Runs one confirmed cross-machine switch (after the user's click). */
+export async function fleetSwitchExecute(request: FleetSwitchRequest): Promise<FleetSwitchOutcomeInfo> {
+  if (!hasBackend) {
+    crossCall(`switch:${request.machine_id}:${request.recipe_id}:${request.mechanism}:${request.project_id ?? ""}`);
+    const progress = crossSeams().__AIJ_FLEET_SWITCH_PROGRESS__;
+    progress?.({ machine_id: request.machine_id, phase: "receiving", received_bytes: 6_000_000, total_bytes: 12_000_000 });
+    return (
+      crossSeams().__AIJ_FLEET_SWITCH_OUTCOME__ ?? {
+        accepted: true,
+        reason_code: null,
+        message: "Continuing under Desktop Max in storefront",
+        instance_id: "sess-remote-new",
+        edge_id: "edge-x",
+        divergence: null,
+      }
+    );
+  }
+  return invoke<FleetSwitchOutcomeInfo>("fleet_switch_execute", { request });
+}
+
+/** Cancels the push to `machineId` (within one chunk). */
+export async function fleetSwitchCancel(machineId: string): Promise<boolean> {
+  if (!hasBackend) {
+    crossCall(`switch-cancel:${machineId}`);
+    return true;
+  }
+  return invoke<boolean>("fleet_switch_cancel", { machineId });
+}
+
+/** Push progress while a cross-machine switch runs. */
+export function onFleetSwitchProgress(handler: (update: FleetSwitchProgressInfo) => void): () => void {
+  if (!hasBackend) {
+    crossSeams().__AIJ_FLEET_SWITCH_PROGRESS__ = handler;
+    return () => {
+      delete crossSeams().__AIJ_FLEET_SWITCH_PROGRESS__;
+    };
+  }
+  let unlisten: (() => void) | null = null;
+  let disposed = false;
+  listen<FleetSwitchProgressInfo>(EVENTS.fleetSwitchProgress, (event) => handler(event.payload))
+    .then((stop) => {
+      if (disposed) stop();
+      else unlisten = stop;
+    })
+    .catch(() => {
+      /* backend gone */
+    });
+  return () => {
+    disposed = true;
+    unlisten?.();
+  };
+}
+
+/** The switch-back plan for an Instance that came from another machine
+ * (`null` for any other Instance). */
+export async function fleetSwitchBackPlan(sessionId: string): Promise<FleetSwitchBackPlanInfo | null> {
+  if (!hasBackend) return crossSeams().__AIJ_FLEET_SWITCH_BACK_PLAN__ ?? null;
+  return invoke<FleetSwitchBackPlanInfo | null>("fleet_switch_back_plan", { sessionId });
+}
+
+/** Switches an away Instance back to its original machine; `choice` is
+ * empty, or `keep_mine` / `keep_both` after a diverged refusal. */
+export async function fleetSwitchBackExecute(
+  sessionId: string,
+  choice: "" | "keep_mine" | "keep_both",
+  keepAwayRunning: boolean,
+): Promise<FleetSwitchOutcomeInfo> {
+  if (!hasBackend) {
+    crossCall(`switch-back:${sessionId}:${choice}`);
+    const queue = crossSeams().__AIJ_FLEET_SWITCH_BACK_OUTCOMES__ ?? [];
+    const next = queue.shift();
+    return (
+      next ?? {
+        accepted: true,
+        reason_code: null,
+        message: "Resumed the original under Work Max.",
+        instance_id: "sess-back",
+        edge_id: "edge-back",
+        divergence: null,
+      }
+    );
+  }
+  return invoke<FleetSwitchOutcomeInfo>("fleet_switch_back_execute", { sessionId, choice, keepAwayRunning });
+}
+
+/** Every unresolved divergence (the sync chip's "Diverged — N needs you"). */
+export async function fleetDivergences(): Promise<DivergenceRecordInfo[]> {
+  if (!hasBackend) return [...(crossSeams().__AIJ_FLEET_DIVERGENCES__ ?? [])];
+  return invoke<DivergenceRecordInfo[]>("fleet_divergences");
+}
+
+/** "Keep theirs": leave both sides as they are (nothing is sent). */
+export async function fleetDivergenceKeepTheirs(sessionId: string): Promise<void> {
+  if (!hasBackend) {
+    crossCall(`keep-theirs:${sessionId}`);
+    const seams = crossSeams();
+    seams.__AIJ_FLEET_DIVERGENCES__ = (seams.__AIJ_FLEET_DIVERGENCES__ ?? []).filter(
+      (row) => row.session_id !== sessionId,
+    );
+    return;
+  }
+  return invoke<void>("fleet_divergence_keep_theirs", { sessionId });
 }

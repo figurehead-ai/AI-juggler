@@ -64,3 +64,25 @@
   tree has (a live tree's newest sample is ~now — unchanged for it).
   Regression: the same test asserts the frozen tree is still a hog ten
   minutes later (fails before the fix). No threshold changed.
+- Two AJ-E708 test-design fixes (2026-10-18, AJ-E1001 verify under load):
+  `fleet_sync :: a_thousand_queued_changes…` asserted every one of 1,000
+  outbox writes under 10 ms and one write stalled by a loaded machine
+  failed it — the budget is now the p95 of those writes (still 10 ms;
+  measured well under 1 ms idle). `an_offline_console_catches_up…`
+  counted edits from the test's own sync passes while the 2 s background
+  tick sometimes recorded one first (199 of 200) — it now counts outbox
+  sequences, which every edit takes whichever pass records it. No
+  product code or budget changed.
+- A real bug found through a CI failure (2026-10-18, PR #23 `verify` on
+  ubuntu): `fleet_sync :: a_reset_node_gets_a_new_sync_epoch…` timed out
+  — a node restarted right after Link off could not rebind its last
+  port (the old listener not yet released) and fell back to another,
+  stranding peers paired by address. The node now retries its last port
+  for up to 2 s before falling back.
+- A real latency bug found through a CI failure (2026-10-18, PR #24
+  `verify` on ubuntu): `transport :: a_cancelled_handover_is_discarded…`
+  missed its 1 s cancel budget. `push_handover` hashed the whole bundle
+  up front on the async thread, so the push could not even start, nor
+  see a cancel, until a 64 MB (debug-build) digest finished. The digest is
+  now computed chunk by chunk as the bundle is sent; the budget and the
+  assertion are unchanged.

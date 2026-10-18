@@ -86,6 +86,12 @@ fn no_field_can_carry_a_secret_or_a_transcript() {
         "bearer",
         "api_key",
         "seed",
+        // AJ-E706: a path never crosses the link (project roots travel
+        // as digests; the one transcript-bearing message is the
+        // user-clicked handover bundle, whose files have flat names).
+        "path",
+        "cwd",
+        "dir",
     ];
     for line in current_fields() {
         let field = line

@@ -17,9 +17,9 @@ use rusqlite::{Connection, OptionalExtension, Row, params};
 
 use crate::error::CoreError;
 use crate::model::{
-    AccountId, EdgeActor, EdgeState, Epoch, EpochId, FailureStage, HarnessId, ManifestEntry,
-    PackId, ProjectId, SessionId, SwitchEdge, SwitchEdgeId, SwitchMechanism, Timestamp, WorkItem,
-    WorkItemId,
+    AccountId, EdgeActor, EdgeState, Epoch, EpochId, FailureStage, HarnessId, MachineId,
+    ManifestEntry, PackId, ProjectId, SessionId, SwitchEdge, SwitchEdgeId, SwitchMechanism,
+    Timestamp, WorkItem, WorkItemId,
 };
 
 /// Typed append-only access to the Switch Graph tables (schema v20).
@@ -60,6 +60,60 @@ impl SwitchGraphRepo<'_> {
             ],
         )?;
         Ok(record)
+    }
+
+    /// Adopts a work item another machine created (AJ-E706: the same
+    /// id on both machines, under THIS machine's project). Idempotent.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn adopt_work(
+        &self,
+        id: &WorkItemId,
+        project: &ProjectId,
+        title: &str,
+    ) -> Result<(), CoreError> {
+        self.conn.execute(
+            "INSERT OR IGNORE INTO work_items (id, project, title, created_at)
+             VALUES (?1, ?2, ?3, ?4)",
+            params![
+                id.as_str(),
+                project.as_str(),
+                title,
+                Timestamp::now().millis()
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// Records a mirror of an epoch that lives on another machine
+    /// (AJ-E706); a repeat is ignored (epochs are immutable).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn mirror_epoch(&self, epoch: &Epoch) -> Result<(), CoreError> {
+        if self.epoch(&epoch.id)?.is_some() {
+            return Ok(());
+        }
+        self.insert_epoch(epoch)
+    }
+
+    /// One epoch by id, when present.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn epoch(&self, id: &EpochId) -> Result<Option<Epoch>, CoreError> {
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT * FROM epochs WHERE id = ?1",
+                params![id.as_str()],
+                map_epoch,
+            )
+            .optional()?)
     }
 
     /// Fetches a work item by id.
@@ -105,8 +159,8 @@ impl SwitchGraphRepo<'_> {
     /// foreign-key violations for a missing work item).
     pub fn insert_epoch(&self, epoch: &Epoch) -> Result<(), CoreError> {
         self.conn.execute(
-            "INSERT INTO epochs (id, work_id, session_ref, native_id, account, provider, resumed_from_epoch)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            "INSERT INTO epochs (id, work_id, session_ref, native_id, account, provider, resumed_from_epoch, machine_id)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
             params![
                 epoch.id.as_str(),
                 epoch.work.as_str(),
@@ -115,6 +169,7 @@ impl SwitchGraphRepo<'_> {
                 epoch.account.as_str(),
                 epoch.provider.as_str(),
                 epoch.resumed_from_epoch.as_ref().map(EpochId::as_str),
+                epoch.machine.as_ref().map(MachineId::as_str),
             ],
         )?;
         Ok(())
@@ -153,9 +208,9 @@ impl SwitchGraphRepo<'_> {
                 from_account, to_account, from_provider, to_provider,
                 mechanism, pack_id, fidelity_shown, manifest_sha256,
                 state, fail_stage, fail_reason, actor,
-                parent_edge_a, parent_edge_b, created_at
+                parent_edge_a, parent_edge_b, created_at, to_machine
              ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12,
-                       ?13, ?14, ?15, ?16, ?17, ?18, ?19)",
+                       ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)",
             params![
                 edge.id.as_str(),
                 edge.work.as_str(),
@@ -176,6 +231,7 @@ impl SwitchGraphRepo<'_> {
                 edge.parent_edge_a.as_ref().map(SwitchEdgeId::as_str),
                 edge.parent_edge_b.as_ref().map(SwitchEdgeId::as_str),
                 edge.created_at.millis(),
+                edge.to_machine.as_ref().map(MachineId::as_str),
             ],
         )?;
         Ok(())
@@ -423,6 +479,9 @@ fn map_epoch(row: &Row<'_>) -> rusqlite::Result<Epoch> {
         resumed_from_epoch: row
             .get::<_, Option<String>>("resumed_from_epoch")?
             .map(EpochId::new),
+        machine: row
+            .get::<_, Option<String>>("machine_id")?
+            .map(MachineId::new),
     })
 }
 
@@ -480,6 +539,9 @@ fn map_edge(row: &Row<'_>) -> rusqlite::Result<SwitchEdge> {
             .get::<_, Option<String>>("parent_edge_b")?
             .map(SwitchEdgeId::new),
         created_at: Timestamp::from_millis(row.get("created_at")?),
+        to_machine: row
+            .get::<_, Option<String>>("to_machine")?
+            .map(MachineId::new),
     })
 }
 

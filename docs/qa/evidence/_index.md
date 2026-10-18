@@ -75,9 +75,11 @@
 | AJ-E703 | PASS10 | 2026-10-18 | [manifest](AJ-E703/manifest.md) |
 | AJ-E704 | PASS11 | 2026-10-18 | [manifest](AJ-E704/manifest.md) |
 | AJ-E705 | PASS9 | 2026-10-18 | [manifest](AJ-E705/manifest.md) |
+| AJ-E706 | PASS12 | 2026-10-18 | [manifest](AJ-E706/manifest.md) |
 | AJ-E707 | PASS9 | 2026-10-18 | [manifest](AJ-E707/manifest.md) |
-| AJ-E708 | PASS15 | 2026-10-18 | [manifest](AJ-E708/manifest.md) |
+| AJ-E708 | PASS19 | 2026-10-18 | [manifest](AJ-E708/manifest.md) |
 | AJ-E709 | PASS7 | 2026-10-18 | [manifest](AJ-E709/manifest.md) |
+| AJ-E710 | (directory without manifest — add one) | — | — |
 | AJ-E711 | PASS6 | 2026-10-18 | [manifest](AJ-E711/manifest.md) |
 | AJ-E801 | PASS5 | 2026-10-13 | [manifest](AJ-E801/manifest.md) |
 | AJ-E802 | PASS7 | 2026-10-13 | [manifest](AJ-E802/manifest.md) |

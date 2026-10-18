@@ -12,6 +12,7 @@
 )]
 
 pub mod commands;
+pub mod crossmachine;
 pub mod error;
 pub mod figurehead;
 pub mod fleet;
@@ -171,6 +172,13 @@ pub fn run() {
             remote::fleet_remote_stop,
             remote::fleet_remote_focus,
             remote::fleet_remote_clean,
+            crossmachine::fleet_switch_targets,
+            crossmachine::fleet_switch_execute,
+            crossmachine::fleet_switch_cancel,
+            crossmachine::switch_back::fleet_switch_back_plan,
+            crossmachine::switch_back::fleet_switch_back_execute,
+            crossmachine::switch_back::fleet_divergences,
+            crossmachine::switch_back::fleet_divergence_keep_theirs,
             commands::funnel_export,
             commands::funnel_event,
             commands::expert_setup_info,

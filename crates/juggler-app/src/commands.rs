@@ -1980,7 +1980,7 @@ pub fn local_machine_id(state: &Arc<AppState>) -> MachineId {
 }
 
 /// The ledger spawn context for an account launch (root role).
-fn ledger_ctx(
+pub(crate) fn ledger_ctx(
     state: &Arc<AppState>,
     account: &Account,
     project_id: Option<String>,
@@ -3015,7 +3015,7 @@ pub fn profile_delete(state: tauri::State<'_, Arc<AppState>>, profile_id: String
 /// honest zero (`window: None`, default confidence) — never an
 /// invented 0%. Errors degrade to the same honest zero (a broken
 /// quota read must never block launching).
-fn engine_usage_snapshot(
+pub(crate) fn engine_usage_snapshot(
     storage: &juggler_core::storage::Storage,
     profile: &juggler_core::model::ProfileId,
 ) -> juggler_core::model::UsageSnapshot {
@@ -4386,7 +4386,9 @@ pub fn emit_quota(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResult<()
 // ---------------------------------------------------------------------------
 // helpers
 
-fn lock_storage_arc(state: &Arc<AppState>) -> Result<std::sync::MutexGuard<'_, Storage>, AppError> {
+pub(crate) fn lock_storage_arc(
+    state: &Arc<AppState>,
+) -> Result<std::sync::MutexGuard<'_, Storage>, AppError> {
     state.storage.lock().map_err(|_| AppError::StatePoisoned)
 }
 
@@ -4891,7 +4893,7 @@ pub fn session_handover(
 ///
 /// Returns the typed [`AppError`] message when the source session or
 /// its account cannot be resolved.
-fn handover_source(
+pub(crate) fn handover_source(
     state: &Arc<AppState>,
     session_id: &str,
 ) -> AppResult<(juggler_core::model::InstanceRecord, Account)> {
@@ -5227,7 +5229,7 @@ fn usual_account_for_project(
 }
 
 /// Groups the pair's dispositions into the door's carry-list names.
-fn carry_lists_of(input: &juggler_handover::fidelity::FidelityInput) -> CarryListInfo {
+pub(crate) fn carry_lists_of(input: &juggler_handover::fidelity::FidelityInput) -> CarryListInfo {
     use juggler_handover::fidelity::{Disposition, FidelityInput};
     let FidelityInput { dispositions, .. } = input;
     let mut carry = CarryListInfo::default();
@@ -5726,6 +5728,7 @@ fn record_compensating_edge(
         account: edge.from_account.clone(),
         provider: edge.from_provider.clone(),
         resumed_from_epoch: Some(to_epoch.clone()),
+        machine: None,
     })?;
     let undo_edge_id = SwitchEdgeId::new(format!("edge-{}", unique_suffix()));
     graph.append_edge(&SwitchEdge {
@@ -5748,6 +5751,7 @@ fn record_compensating_edge(
         parent_edge_a: Some(edge.id.clone()),
         parent_edge_b: None,
         created_at: Timestamp::now(),
+        to_machine: None,
     })?;
     graph.mark_launched(&undo_edge_id, &epoch_undo)?;
     graph.mark_confirmed(&undo_edge_id)?;
@@ -5881,6 +5885,7 @@ fn record_edge_staged(
         account: account_a.id.clone(),
         provider: account_a.harness.clone(),
         resumed_from_epoch: None,
+        machine: None,
     };
     graph.insert_epoch(&from).map_err(|error| AppError::Io {
         context: "hand over",
@@ -5906,6 +5911,7 @@ fn record_edge_staged(
             parent_edge_a: None,
             parent_edge_b: None,
             created_at: Timestamp::now(),
+            to_machine: None,
         })
         .map_err(|error| AppError::Io {
             context: "hand over",
@@ -6001,6 +6007,7 @@ fn record_edge_succeeded(
         account: target.id.clone(),
         provider: target.harness.clone(),
         resumed_from_epoch: Some(ctx.from_epoch.clone()),
+        machine: None,
     })?;
     graph.mark_launched(&ctx.edge, &to_epoch)?;
     graph.mark_confirmed(&ctx.edge)?;
@@ -6103,7 +6110,7 @@ pub fn find_account_arc(state: &Arc<AppState>, account_id: &str) -> Result<Accou
         .map_err(|error| not_found_or_core(error, "account", account_id))
 }
 
-fn find_profile_with_account_arc(
+pub(crate) fn find_profile_with_account_arc(
     state: &Arc<AppState>,
     profile_id: &str,
 ) -> Result<(Profile, Account), AppError> {
@@ -7429,6 +7436,24 @@ pub const KILL_REFUSAL_COPY: &str =
 pub const KILL_WRONG_MACHINE_COPY: &str =
     "This process record belongs to another machine — Juggler will not touch it.";
 
+/// A Clean refused before any signal, with its copy.
+fn refused_kill(pid: u32, copy: &str) -> KillExecuteInfo {
+    KillExecuteInfo {
+        refusal: Some(copy.to_string()),
+        members: vec![KillMemberOutcome {
+            pid,
+            outcome: "refused".into(),
+        }],
+        cancelled: false,
+        all_succeeded: false,
+        still_holding: Vec::new(),
+        reoffer_pid: None,
+    }
+}
+
+/// AJ-E708 Req.5: the refusal while an Instance's lineage diverged.
+pub const KILL_DIVERGED_COPY: &str = "This work diverged across machines — choose what to keep (Keep mine, Keep theirs or Keep both) first. Nothing was signalled.";
+
 /// The exact unsaved-state warning copy (Req.5).
 fn unsaved_state_copy(role: &str) -> String {
     format!("Includes a {role} that may hold unsaved state.")
@@ -7943,17 +7968,12 @@ pub fn kill_execute_as(
     // any identity probe (which would misleadingly read as a
     // PID-reuse refusal).
     if row.machine_id != local_machine_id(state).as_str() {
-        return Ok(KillExecuteInfo {
-            refusal: Some(KILL_WRONG_MACHINE_COPY.to_string()),
-            members: vec![KillMemberOutcome {
-                pid,
-                outcome: "refused".into(),
-            }],
-            cancelled: false,
-            all_succeeded: false,
-            still_holding: Vec::new(),
-            reoffer_pid: None,
-        });
+        return Ok(refused_kill(pid, KILL_WRONG_MACHINE_COPY));
+    }
+    // AJ-E708 Req.5: a diverged Instance takes no destructive action
+    // until the user picks what to keep.
+    if crate::crossmachine::switch_back::is_diverged(state, session_id) {
+        return Ok(refused_kill(pid, KILL_DIVERGED_COPY));
     }
     // Guardrail 1 — SAME-TICK re-verification (E503 against the
     // kernel NOW, not the sheet's earlier verdict; the SAME shared
@@ -10687,6 +10707,7 @@ fn record_switch_back_edge(
         account: lineage.original_epoch.account.clone(),
         provider: lineage.original_epoch.provider.clone(),
         resumed_from_epoch: Some(lineage.original_epoch.id.clone()),
+        machine: None,
     })?;
     let edge_id = SwitchEdgeId::new(format!("edge-{}", unique_suffix()));
     graph.append_edge(&SwitchEdge {
@@ -10712,6 +10733,7 @@ fn record_switch_back_edge(
         parent_edge_a: Some(lineage.fork_edge.id.clone()),
         parent_edge_b: None,
         created_at: Timestamp::now(),
+        to_machine: None,
     })?;
     graph.mark_launched(&edge_id, &epoch_id)?;
     graph.mark_confirmed(&edge_id)?;
@@ -10928,7 +10950,9 @@ impl RedactionPolicyInfo {
 }
 
 /// The stored global choice.
-fn redaction_global_of(storage: &Storage) -> Option<juggler_handover::redaction::RedactionPolicy> {
+pub(crate) fn redaction_global_of(
+    storage: &Storage,
+) -> Option<juggler_handover::redaction::RedactionPolicy> {
     storage
         .app_settings()
         .get(REDACTION_GLOBAL_KEY)
@@ -10938,7 +10962,7 @@ fn redaction_global_of(storage: &Storage) -> Option<juggler_handover::redaction:
 }
 
 /// The stored override for one Provider.
-fn redaction_override_of(
+pub(crate) fn redaction_override_of(
     storage: &Storage,
     provider: &str,
 ) -> Option<juggler_handover::redaction::RedactionPolicy> {
