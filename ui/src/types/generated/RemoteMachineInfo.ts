@@ -50,4 +50,14 @@ alerts: Array<RemoteAlertInfo>,
 /**
  * Its managed processes (AJ-E707), when reported.
  */
-processes: Array<RemoteProcessInfo>, };
+processes: Array<RemoteProcessInfo>, 
+/**
+ * Its clock minus this Mac's, ms (from its last Hello). Order never
+ * depends on it — sync uses that machine's sequence — but a large
+ * difference makes its times misleading, so the UI says so.
+ */
+clock_skew_ms: number | null, 
+/**
+ * When a durable change from it was last applied here, epoch ms.
+ */
+synced_at_ms: number | null, };

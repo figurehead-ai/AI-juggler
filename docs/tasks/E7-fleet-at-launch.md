@@ -214,7 +214,7 @@ PID reuse — AJ-E707 must land start-time identity before any
 remote kill ships. Remote kill without ledger ownership is a
 launch blocker, not a beta caveat.
 
-### AJ-E708 Offline and conflict behaviour | Status: TODO | Priority P0 | Effort L | Depends: AJ-E703
+### AJ-E708 Offline and conflict behaviour | Status: IN-PROGRESS (claude-opus, 2026-10-18 — sync substrate evidenced; Req.4–5 land with AJ-E706) | Priority P0 | Effort L | Depends: AJ-E703
 **Goal**:
 Machines work fully offline, reconnect without silent data
 loss, and surface conflicts explicitly instead of merging

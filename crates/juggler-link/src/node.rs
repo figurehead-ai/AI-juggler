@@ -87,14 +87,26 @@ pub struct LinkAuditEvent {
     pub kind: String,
     /// The reason code for rejections.
     pub reason_code: String,
-    /// The command sequence, when one was involved.
+    /// The command sequence, when one was involved (for a sync
+    /// catch-up: the sequence the console asked from).
     pub sequence: Option<u64>,
+    /// How many durable changes a sync catch-up sent (AJ-E708).
+    pub count: Option<u64>,
 }
 
 /// What the node actually does — implemented by the app.
 pub trait NodeHandler: Send + Sync + 'static {
     /// This node's `MachineId`.
     fn local_machine_id(&self) -> String;
+    /// This node's sync epoch (AJ-E708); empty = no durable outbox.
+    fn sync_epoch(&self) -> String {
+        String::new()
+    }
+    /// A console caught up from `since`: it holds everything up to it
+    /// (AJ-E708 — the node's per-console delivery mark restarts there).
+    fn caught_up_from(&self, _peer: &str, _since: u64) {}
+    /// A sequenced delta was sent to a console.
+    fn delivered(&self, _peer: &str, _sequence: u64) {}
     /// Telemetry deltas after `since` (the backlog).
     fn telemetry_since(&self, since: u64) -> Vec<proto::TelemetryDelta>;
     /// Live telemetry after the backlog.
@@ -342,6 +354,7 @@ impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore, P: PairingHost> LinkServi
             kind: kind.to_owned(),
             reason_code: reason.to_owned(),
             sequence,
+            count: None,
         });
     }
 
@@ -460,6 +473,7 @@ impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore, P: PairingHost> LinkServi
                     kind: "command_accepted".to_owned(),
                     reason_code: String::new(),
                     sequence: Some(sequence),
+                    count: None,
                 });
                 proto::CommandResult {
                     sequence,
@@ -551,6 +565,7 @@ impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore, P: PairingHost> proto::li
             }
             .to_owned(),
             sent_at_ms: now_ms(),
+            sync_epoch: self.handler.sync_epoch(),
         }))
     }
 
@@ -580,13 +595,36 @@ impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore, P: PairingHost> proto::li
         request: Request<proto::TelemetryRequest>,
     ) -> Result<Response<Self::TelemetryStream>, Status> {
         let conn = Self::conn(&request)?;
-        self.authorize(&conn)?;
+        let (access, _) = self.authorize(&conn)?;
         let since = request.into_inner().since_sequence;
-        let backlog = self.handler.telemetry_since(since);
+        // Subscribe before reading the backlog, so nothing appended in
+        // between is missed (a repeat is harmless: applying is
+        // idempotent). A lagged receiver ends the stream instead of
+        // skipping: the console reconnects and catches up from its
+        // high-water mark, so a sequenced change is never silently lost.
         let live = tokio_stream::wrappers::BroadcastStream::new(self.handler.telemetry_live())
+            .take_while(Result::is_ok)
             .filter_map(Result::ok);
+        let backlog = self.handler.telemetry_since(since);
+        self.handler.caught_up_from(&access.machine_id, since);
+        // The outbox log (AJ-E708): who caught up from where, and how
+        // many durable changes that took — never their contents.
+        let sent = if access.permission == Permission::NoAccess {
+            0
+        } else {
+            backlog.iter().filter(|delta| delta.sequence > 0).count()
+        };
+        self.handler.audit(LinkAuditEvent {
+            peer: access.machine_id.clone(),
+            kind: "sync_catch_up".to_owned(),
+            reason_code: String::new(),
+            sequence: Some(since),
+            count: Some(u64::try_from(sent).unwrap_or(u64::MAX)),
+        });
         let directory = self.directory.clone();
         let key = conn.peer_key;
+        let handler = self.handler.clone();
+        let peer = access.machine_id;
         // Per-item permission re-check: an unpair or NoAccess ends the
         // stream at the next item.
         let stream = tokio_stream::iter(backlog)
@@ -596,7 +634,12 @@ impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore, P: PairingHost> proto::li
                     .lookup(&key)
                     .is_some_and(|access| access.permission != Permission::NoAccess)
             })
-            .map(Ok);
+            .map(move |delta| {
+                if delta.sequence > 0 {
+                    handler.delivered(&peer, delta.sequence);
+                }
+                Ok(delta)
+            });
         Ok(Response::new(Box::pin(stream)))
     }
 

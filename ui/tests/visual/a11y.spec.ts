@@ -2213,3 +2213,53 @@ for (const theme of ["dark", "light"] as const) {
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
   });
 }
+
+/** AJ-E708 a11y (both themes): an away machine — the sync chip with its
+ * queued count, the clock-skew note, last-known rows on Fleet and on the
+ * board — scans axe-clean; state is in words, never colour alone. */
+for (const theme of ["dark", "light"] as const) {
+  test(`fleet — sync chip, skew, last known — axe 0 — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ fixture, theme: t }) => {
+        const now = Date.now();
+        const w = window as unknown as Record<string, unknown>;
+        w.__AIJ_FIXTURE__ = fixture;
+        w.__AIJ_LINK__ = { enabled: true, port: 47821, error: null };
+        w.__AIJ_FLEET_PEERS__ = [{
+          machine_id: "machine-mini", label: "Mac mini", fingerprint: "11AA 22BB 33CC 44DD 55EE 66FF 7788 99AA",
+          permission: "view", permission_label: "View only", ask_each_time: false, paired_via: "code",
+          paired_at_ms: now, last_seen_ms: now - 3_600_000, connection: "offline", protocol: null,
+          connection_detail: null, queued_changes: 12,
+        }];
+        w.__AIJ_FLEET_REMOTE__ = [{
+          machine_id: "machine-mini", label: "Mac mini", connection: "offline", freshness: "offline",
+          last_heard_ms: now - 3_600_000, permission: "view", resources: null, alerts: [], processes: [],
+          clock_skew_ms: 12 * 60_000, synced_at_ms: now - 3_600_000,
+          instances: [{
+            id: "inst-1", provider: "claude-code", account_label: "Work Max", status: "running",
+            model: "claude-opus-4", model_source: "transcript", project_name: "web-shop", started_at_ms: now - 60_000,
+            last_activity_ms: now - 3_600_000, cpu_percent: null, rss_bytes: null, process_count: null,
+            kind: "terminal", measured_at_ms: now - 3_600_000,
+          }],
+        }];
+        localStorage.setItem("aij.theme", t);
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        sessionStorage.setItem("aij.ready.skipped", "1");
+      },
+      { fixture: allStatuses, theme },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Fleet" }).first().click();
+    await expect(page.getByTestId("fleet-sync")).toHaveText("⇡ 12 changes queued");
+    await expect(page.getByTestId("fleet-clock-skew")).toBeVisible();
+    await expect(page.getByTestId("fleet-last-known")).toBeVisible();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+    await page.reload();
+    await page.getByRole("tab", { name: "Sessions" }).click();
+    await page.getByLabel("Filter by machine").selectOption("machine-mini");
+    await expect(page.getByTestId("board-remote-row").first()).toContainText("was running");
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+  });
+}

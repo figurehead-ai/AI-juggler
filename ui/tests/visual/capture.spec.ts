@@ -40,11 +40,16 @@ function noteNotCaptured(screen: string, state: string, reason: string) {
 
 test.beforeAll(() => {
   mkdirSync(GALLERY, { recursive: true });
-  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "16-onboarding-detect", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "34-wizard", "35-candidates", "36-recommend", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings", "45-remote", "46-fleet-board", "47-remote-focus", "48-remote-cleanup"]) {
+  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "16-onboarding-detect", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "34-wizard", "35-candidates", "36-recommend", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings", "45-remote", "46-fleet-board", "47-remote-focus", "48-remote-cleanup", "49-fleet-sync"]) {
     mkdirSync(resolve(GALLERY, screen), { recursive: true });
   }
   writeFileSync(NOT_CAPTURETED, "# Not captured (explicit omissions)\n\n| Screen | State | Reason |\n|---|---|---|\n");
   // Loading/error states do not exist yet — recorded, not hidden.
+  noteNotCaptured(
+    "49-fleet-sync",
+    "conflict sheet (Keep mine / Keep theirs / Keep both)",
+    "lands with AJ-E706 — cross-machine lineage is the first record two Macs can change while apart",
+  );
   for (const screen of ["01-rail", "05-session-panel", "16-onboarding-detect"]) {
     noteNotCaptured(screen, "loading (skeleton)", "pending AJ-E405+ (state emission not yet implemented)");
     noteNotCaptured(screen, "error (banner + retained data)", "pending AJ-E405+ (error states not yet implemented)");
@@ -5415,4 +5420,79 @@ for (const theme of THEMES) {
       await page.screenshot({ path: resolve(GALLERY, `48-remote-cleanup/identity-changed-${vp.name}-${theme}.png`) });
     });
   }
+}
+
+// ---------------------------------------------------------------------
+// AJ-E708 — 49-fleet-sync: the sync chip (Synced / N changes queued),
+// an away machine's last-known rows on Fleet and on the board, and the
+// clock-skew note — 1280×800, light/dark.
+// ---------------------------------------------------------------------
+
+const SYNC_VP = { width: 1280, height: 800 };
+const awayMachine = () =>
+  remoteMachine({
+    connection: "offline",
+    freshness: "offline",
+    last_heard_ms: T0 - 3_600_000,
+    synced_at_ms: T0 - 3_600_000,
+    resources: null,
+    alerts: [],
+    processes: [],
+    clock_skew_ms: 0,
+    instances: (remoteMachine().instances as Array<Record<string, unknown>>).map((row) => ({
+      ...row,
+      cpu_percent: null,
+      rss_bytes: null,
+      process_count: null,
+      measured_at_ms: T0 - 3_600_000,
+    })),
+  });
+
+for (const theme of THEMES) {
+  test(`49 fleet sync — synced, queued, last known, skew — ${theme}`, async ({ page }) => {
+    await openFleet(page, theme, SYNC_VP, {
+      __AIJ_FLEET_PEERS__: [{ ...remotePeer, queued_changes: 0 }],
+      __AIJ_LINK__: { enabled: true, port: 47821, error: null },
+      __AIJ_FLEET_REMOTE__: [remoteMachine({ clock_skew_ms: 0, synced_at_ms: T0 - 1_000, alerts: [], processes: [] })],
+    });
+    await expect(page.getByTestId("fleet-sync")).toHaveAttribute("data-state", "synced");
+    await page.getByTestId("fleet-remote-instances").scrollIntoViewIfNeeded();
+    await page.screenshot({ path: resolve(GALLERY, `49-fleet-sync/synced-1280x800-${theme}.png`) });
+
+    await page.evaluate((t0) => {
+      const w = window as unknown as Record<string, Array<Record<string, unknown>>>;
+      w.__AIJ_FLEET_PEERS__ = w.__AIJ_FLEET_PEERS__.map((peer) => ({
+        ...peer, connection: "offline", protocol: null, last_seen_ms: t0 - 3_600_000, queued_changes: 12,
+      }));
+    }, T0);
+    await page.evaluate((machine) => {
+      (window as unknown as Record<string, unknown>).__AIJ_FLEET_REMOTE__ = [machine];
+    }, awayMachine());
+    await expect(page.getByTestId("fleet-sync")).toHaveText("⇡ 12 changes queued");
+    await expect(page.getByTestId("fleet-last-known")).toBeVisible();
+    await expect(page.getByTestId("fleet-remote-instance").first()).toContainText("was running");
+    await page.getByTestId("fleet-remote-instances").scrollIntoViewIfNeeded();
+    await page.screenshot({ path: resolve(GALLERY, `49-fleet-sync/offline-queued-1280x800-${theme}.png`) });
+
+    await page.evaluate((machine) => {
+      (window as unknown as Record<string, unknown>).__AIJ_FLEET_REMOTE__ = [{ ...machine, clock_skew_ms: 12 * 60_000 }];
+    }, awayMachine());
+    await expect(page.getByTestId("fleet-clock-skew")).toContainText("12 min ahead");
+    await page.getByTestId("fleet-remote-instances").scrollIntoViewIfNeeded();
+    await page.screenshot({ path: resolve(GALLERY, `49-fleet-sync/clock-skew-1280x800-${theme}.png`) });
+  });
+
+  test(`49 fleet sync — offline board — ${theme}`, async ({ page }) => {
+    await openFleet(page, theme, SYNC_VP, {
+      __AIJ_FLEET_PEERS__: [{ ...remotePeer, connection: "offline", protocol: null, queued_changes: 12 }],
+      __AIJ_LINK__: { enabled: true, port: 47821, error: null },
+      __AIJ_FLEET_REMOTE__: [awayMachine()],
+    });
+    await page.reload();
+    await page.getByRole("tab", { name: "Sessions" }).click();
+    await page.getByLabel("Filter by machine").selectOption("machine-mini");
+    await expect(page.getByTestId("board-machine")).toContainText("offline · last known");
+    await expect(page.getByTestId("board-remote-row").first()).toContainText("was running");
+    await page.screenshot({ path: resolve(GALLERY, `49-fleet-sync/offline-board-1280x800-${theme}.png`) });
+  });
 }

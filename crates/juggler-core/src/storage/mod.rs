@@ -13,6 +13,7 @@ mod sessions;
 
 mod cleanup_audit;
 mod cleanup_settings;
+mod fleet_sync;
 mod process_ledger;
 mod projects;
 mod settings;
@@ -29,6 +30,7 @@ pub use cleanup_audit::{
     CleanupAuditRepo, OUTCOME_PENDING,
 };
 pub use cleanup_settings::{CleanupSettingsRepo, CleanupTierSettings};
+pub use fleet_sync::{FleetSyncRepo, SyncEntry};
 pub use process_ledger::{
     EXEC_SETTLE_MS, LedgerRow, ProcessLedgerRepo, ROLE_HELPER, ROLE_LOGIN, ROLE_ROOT, STATE_EXITED,
     STATE_ORPHANED, STATE_RUNNING, STATE_STARTING, STATE_UNVERIFIABLE,
@@ -98,6 +100,35 @@ const V21: &str = "
 ALTER TABLE accounts ADD COLUMN import_source_path TEXT;
 ALTER TABLE accounts ADD COLUMN import_origin TEXT;
 ALTER TABLE accounts ADD COLUMN imported_at INTEGER;
+";
+
+/// Schema version 22 (AJ-E708): Fleet sync — the node's durable outbox
+/// (sequences never reused: AUTOINCREMENT) and the console's replica +
+/// per-origin high-water mark under the origin's sync epoch.
+const V22: &str = "
+CREATE TABLE fleet_outbox (
+    seq       INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind      TEXT NOT NULL,
+    record_id TEXT NOT NULL,
+    payload   BLOB NOT NULL,
+    wall_ms   INTEGER NOT NULL
+);
+CREATE INDEX idx_fleet_outbox_record ON fleet_outbox(kind, record_id);
+CREATE TABLE fleet_replica (
+    origin      TEXT NOT NULL,
+    kind        TEXT NOT NULL,
+    record_id   TEXT NOT NULL,
+    seq         INTEGER NOT NULL,
+    payload     BLOB NOT NULL,
+    wall_ms     INTEGER NOT NULL,
+    received_ms INTEGER NOT NULL,
+    PRIMARY KEY (origin, kind, record_id)
+);
+CREATE TABLE fleet_replica_hw (
+    origin TEXT PRIMARY KEY,
+    epoch  TEXT NOT NULL,
+    seq    INTEGER NOT NULL
+);
 ";
 
 /// Ordered, forward-only migrations; index + 1 is the schema version.
@@ -377,6 +408,7 @@ CREATE TABLE artifact_manifests (
 
 const MIGRATIONS: &[&str] = &[
     V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21,
+    V22,
 ];
 
 /// An opened AI Juggler database with typed repositories.
@@ -494,6 +526,13 @@ impl Storage {
     #[must_use]
     pub fn switch_graph(&self) -> SwitchGraphRepo<'_> {
         SwitchGraphRepo::new(&self.conn)
+    }
+
+    /// Repository for Fleet sync (schema v22, AJ-E708): the outbox and
+    /// the replica of paired machines' records.
+    #[must_use]
+    pub fn fleet_sync(&self) -> FleetSyncRepo<'_> {
+        FleetSyncRepo::new(&self.conn)
     }
 
     /// Raw connection access for migrations/fixture tooling (tests,

@@ -40,6 +40,7 @@ juggler.link.v1.HelloResponse.machine_id = 2:String
 juggler.link.v1.HelloResponse.permission = 5:String
 juggler.link.v1.HelloResponse.sent_at_ms = 6:Int64
 juggler.link.v1.HelloResponse.service_level = 3:String
+juggler.link.v1.HelloResponse.sync_epoch = 7:String
 juggler.link.v1.HelloResponse.version = 1:Message .juggler.link.v1.ProtocolVersion
 juggler.link.v1.LaunchRecipe.project_id = 2:String
 juggler.link.v1.LaunchRecipe.recipe_id = 1:String

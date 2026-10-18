@@ -62,7 +62,9 @@ export function FleetScreen({
       setPeers(list);
       setLink(status);
       setError(null);
-      setRemote(status.enabled ? await fleetRemote().catch(() => []) : []);
+      // Last-known rows are shown even with Link off (AJ-E708: kept in
+      // this Mac's replica, labelled as last known).
+      setRemote(await fleetRemote().catch(() => []));
     } catch (cause) {
       setError(errorText(cause));
     }
@@ -301,6 +303,7 @@ export function FleetScreen({
                   <p className="font-mono text-[11px] text-muted">{peer.fingerprint}</p>
                 </div>
                 <ConnectionChip peer={peer} />
+                <SyncChip peer={peer} />
                 <Chip tone="neutral">
                   {peer.permission === "control" && peer.ask_each_time
                     ? "View + control · asks each time"
@@ -343,6 +346,10 @@ export function FleetScreen({
                 >
                   Unpair…
                 </Button>
+                <ClockSkewNote
+                  label={peer.label}
+                  skewMs={remote.find((entry) => entry.machine_id === peer.machine_id)?.clock_skew_ms ?? null}
+                />
                 <RemoteInstances
                   machine={remote.find((entry) => entry.machine_id === peer.machine_id) ?? null}
                   onInspect={(instanceId) => onInspectRemote?.(peer.machine_id, instanceId)}
@@ -622,8 +629,52 @@ function ConnectionChip({ peer }: { peer: FleetPeerInfo }): JSX.Element {
 }
 
 
+/** AJ-E708: the sync state, in words + a shape (never colour alone):
+ * `✓ Synced` while connected, or — while that machine is away — how many
+ * changes on THIS Mac wait for it (`⇡ 12 changes queued`). */
+export function SyncChip({ peer }: { peer: FleetPeerInfo }): JSX.Element | null {
+  if (peer.connection === "link_off" && peer.queued_changes === null) return null;
+  const live = peer.connection === "connected" || peer.connection === "degraded";
+  const queued = peer.queued_changes ?? 0;
+  const label = live
+    ? "✓ Synced"
+    : peer.connection === "connecting"
+      ? "◌ Syncing…"
+      : queued > 0
+        ? `⇡ ${queued} ${queued === 1 ? "change" : "changes"} queued`
+        : "✓ Nothing queued";
+  const title = live
+    ? `${peer.label} receives this Mac's changes as they happen.`
+    : queued > 0
+      ? `${queued} ${queued === 1 ? "change" : "changes"} on this Mac will reach ${peer.label} when it reconnects — only those, nothing it already has.`
+      : `${peer.label} already has every change from this Mac.`;
+  return (
+    <span data-testid="fleet-sync" data-state={live ? "synced" : queued > 0 ? "queued" : "idle"} title={title}>
+      <Chip tone={live ? "success" : queued > 0 ? "warning" : "neutral"}>{label}</Chip>
+    </span>
+  );
+}
+
+/** AJ-E708: a peer clock more than 5 minutes off is flagged, never
+ * trusted for order — sync orders by that machine's sequence. */
+const SKEW_FLAG_MS = 5 * 60 * 1000;
+
+export function ClockSkewNote({ label, skewMs }: { label: string; skewMs: number | null }): JSX.Element | null {
+  if (skewMs === null || Math.abs(skewMs) <= SKEW_FLAG_MS) return null;
+  const minutes = Math.round(Math.abs(skewMs) / 60_000);
+  const direction = skewMs > 0 ? "ahead of" : "behind";
+  return (
+    <p className="w-full text-[11px] text-ink" role="note" data-testid="fleet-clock-skew">
+      <span aria-hidden="true">⚠ </span>
+      {label}'s clock is {minutes} min {direction} this Mac's — times it reports may look off. Order
+      always follows its own change sequence, never its clock.
+    </p>
+  );
+}
+
 /** AJ-E705: a connected machine's Instances, one click from the
- * inspector. Nothing is shown for a machine that hasn't reported. */
+ * inspector. Nothing is shown for a machine that hasn't reported. AJ-E708:
+ * a machine that is away keeps its last-known rows, labelled as such. */
 function RemoteInstances({
   machine,
   onInspect,
@@ -632,8 +683,16 @@ function RemoteInstances({
   onInspect: (instanceId: string) => void;
 }): JSX.Element | null {
   if (!machine || machine.instances.length === 0) return null;
+  const lastKnown = machine.freshness !== "live";
+  const asOf = machine.last_heard_ms ?? machine.synced_at_ms;
   return (
-    <ul className="flex w-full flex-col gap-1 pl-1" aria-label={`Instances on ${machine.label}`} data-testid="fleet-remote-instances">
+    <>
+    {lastKnown && (
+      <p className="w-full pl-1 text-[11px] text-muted" data-testid="fleet-last-known">
+        Last known{asOf !== null ? ` · as of ${new Date(asOf).toLocaleString()}` : ""} — may have changed since.
+      </p>
+    )}
+    <ul className="flex w-full flex-col gap-1 pl-1" aria-label={`Instances on ${machine.label}${lastKnown ? " (last known)" : ""}`} data-testid="fleet-remote-instances">
       {machine.instances.map((row) => (
         <li key={row.id}>
           <button
@@ -647,11 +706,12 @@ function RemoteInstances({
             {row.project_name && <span className="text-muted">· {row.project_name}</span>}
             {row.model && <span className="text-muted">· {row.model}</span>}
             <span className="flex-1" />
-            <Chip tone="neutral">{row.status.replace(/_/g, " ")}</Chip>
+            <Chip tone="neutral">{lastKnown ? `was ${row.status.replace(/_/g, " ")}` : row.status.replace(/_/g, " ")}</Chip>
           </button>
         </li>
       ))}
     </ul>
+    </>
   );
 }
 

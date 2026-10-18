@@ -19,7 +19,8 @@ security negative below is green.
 | AJ-E709 indicators, permissions changed only on the node, "Ask each time" prompt, alert routing | DONE-EVIDENCED (Req.2 partial, Req.6 N/A) | [manifest](evidence/AJ-E709/manifest.md) |
 | AJ-E711 remote Focus window (executed on the owning Mac, honest outcomes, locked → reported) | DONE-EVIDENCED | [manifest](evidence/AJ-E711/manifest.md) |
 | AJ-E707 remote cleanup (node re-verifies, its own ladder, audited both sides, no command lines on the wire) | DONE-EVIDENCED | [manifest](evidence/AJ-E707/manifest.md) |
-| AJ-E706, AJ-E708, AJ-E710 | TODO | — |
+| AJ-E708 offline and sync (durable outbox/replica, sequence-vector catch-up, epochs, skew flag, sync chip) | IN-PROGRESS — sync evidenced; `Diverged` + conflict sheet land with AJ-E706 | [manifest](evidence/AJ-E708/manifest.md) |
+| AJ-E706, AJ-E710 | TODO | — |
 
 ## Security negatives (STRIDE rows → tests)
 
@@ -52,7 +53,9 @@ security negative below is green.
 | Remote focus never runs on a locked screen; terminal Instances refused; audited both sides | `fleet_link :: a_remote_focus_runs_on_the_owning_mac_and_reports_its_honest_outcome` | ✅ green |
 | A remote Clean of an unverifiable process sends zero signals | `fleet_link :: a_console_cleans_only_what_the_node_verifies_and_hears_each_outcome` | ✅ green |
 | No command line crosses the link | same test (only the executable name), `proto_contract` field allowlist | ✅ green |
-| All others (free-form launch, logs, pack fetch, offline sync, account substitution) | AJ-E706, AJ-E708, AJ-E1206 | pending |
+| A rogue peer (found by discovery, not pinned) receives zero deltas, even skipping Hello | `transport :: a_rogue_peer_skipping_hello_receives_zero_deltas` | ✅ green |
+| Offline catch-up loses nothing and overwrites nothing; replay changes nothing | `juggler-app --test fleet_sync` (4), `juggler-core --test fleet_sync_props` (3 properties) | ✅ green |
+| All others (free-form launch, logs, pack fetch, account substitution) | AJ-E706, AJ-E1206 | pending |
 
 ## Dogfood (to record at AJ-E710)
 
@@ -62,5 +65,8 @@ security negative below is green.
       other; keep before/after `lsof` and the audit excerpt.
 - [ ] AJ-E711: from the laptop, focus a desktop agent's window on the
       studio Mac (screen recording on the target); repeat locked.
+- [ ] AJ-E708: take the laptop offline for a day of work, reconnect;
+      keep the node's `sync_catch_up` log lines and the queued-changes
+      chip before/after.
 - [ ] AJ-E705: select a remote Instance, read Overview/Processes, time
       the render; Stop it from the console with View + control.

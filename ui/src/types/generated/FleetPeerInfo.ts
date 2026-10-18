@@ -53,4 +53,9 @@ protocol: string | null,
 /**
  * Plain words for degraded/offline (the banner text).
  */
-connection_detail: string | null, };
+connection_detail: string | null, 
+/**
+ * Durable changes on THIS Mac waiting for that machine (AJ-E708) —
+ * what it receives when it reconnects.
+ */
+queued_changes: number | null, };
