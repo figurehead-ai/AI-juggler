@@ -45,4 +45,9 @@ notice: string | null,
 /**
  * The consent version the user last confirmed (0 = never).
  */
-consent_version: number, };
+consent_version: number, 
+/**
+ * The current consent version (show the consent screen while
+ * `consent_version` is below it).
+ */
+consent_current: number, };

@@ -161,6 +161,7 @@ pub fn run() {
             figurehead::figurehead_rename,
             figurehead::figurehead_unlink,
             figurehead::figurehead_dismiss_notice,
+            figurehead::figurehead_save_choices,
             figurehead::figurehead_open_page,
             commands::funnel_export,
             commands::funnel_event,

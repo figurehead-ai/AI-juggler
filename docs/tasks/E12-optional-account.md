@@ -66,7 +66,7 @@ from the account's entitlements, never from code.
 **Research basis**: ADR-0014; the Figurehead API contract (device linking, account, devices/self).
 **Handover note**: Trap: the poll token and the device token are different secrets — never log either. The token is returned once on approval; a lost response means a fresh link, never a retry of the same request.
 
-### AJ-E1203 Settings → Account & Cloud, onboarding step, Cloud chips, consent screen | Status: TODO | Priority P0 | Effort L | Depends: AJ-E1202
+### AJ-E1203 Settings → Account & Cloud, onboarding step, Cloud chips, consent screen | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E1202
 **Goal**: One home for everything account-related, a skippable onboarding step, and a consent screen that states exactly what each cloud feature sends.
 **User story**: As a privacy-conscious user, I can see every cloud feature, what it sends, and turn each one on or off — and if I never connect, the app never asks again.
 **Requirements**:

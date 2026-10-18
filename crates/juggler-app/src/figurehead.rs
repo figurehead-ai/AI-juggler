@@ -34,6 +34,12 @@ const REFRESHED_KEY: &str = "figurehead_account_refreshed_ms";
 const NOTICE_KEY: &str = "figurehead_notice";
 /// The cloud toggles + consent record (AJ-E1203 writes them).
 pub const CLOUD_KEY: &str = "figurehead_cloud";
+/// The consent screen's version: bump it when what a feature sends
+/// changes, and the "Turn on Cloud for this Mac" screen shows again.
+pub const CONSENT_VERSION: u32 = 1;
+/// Cloud features this build can't run yet: their choice is stored, but
+/// they stay off (usage sync arrives with usage statistics, E11).
+const NOT_YET_SWITCHABLE: [&str; 1] = ["usageSync"];
 /// How often the account is refreshed while linked.
 const REFRESH_EVERY_MS: i64 = 6 * 60 * 60 * 1000;
 
@@ -282,6 +288,9 @@ pub struct FigureheadStatusInfo {
     pub notice: Option<String>,
     /// The consent version the user last confirmed (0 = never).
     pub consent_version: u32,
+    /// The current consent version (show the consent screen while
+    /// `consent_version` is below it).
+    pub consent_current: u32,
 }
 
 /// The feature keys the app knows how to show, in display order.
@@ -371,6 +380,7 @@ pub fn status_impl(state: &Arc<AppState>) -> AppResult<FigureheadStatusInfo> {
             .is_ok_and(|offline| *offline),
         notice: setting(state, NOTICE_KEY),
         consent_version: choices.consent_version,
+        consent_current: CONSENT_VERSION,
     })
 }
 
@@ -611,6 +621,37 @@ pub fn unlink_impl(state: &Arc<AppState>) -> AppResult<FigureheadStatusInfo> {
     status_impl(state)
 }
 
+/// Core: stores the user's cloud choices (the consent screen's **Turn
+/// on selected**, or a toggle later). A feature the plan doesn't
+/// include, or this build can't run yet, is stored off.
+///
+/// # Errors
+///
+/// Returns [`AppError::Validation`] when not linked.
+pub fn save_choices_impl(
+    state: &Arc<AppState>,
+    features: &std::collections::BTreeMap<String, bool>,
+) -> AppResult<FigureheadStatusInfo> {
+    if device_id(state).is_none() {
+        return Err(AppError::Validation {
+            subject: "Figurehead account",
+            message: "Connect an account first.".to_owned(),
+        });
+    }
+    let account = cached_account(state);
+    let mut choices = cloud_choices(state);
+    for key in KNOWN_FEATURES {
+        let wanted = features.get(key).copied().unwrap_or(false);
+        let allowed = account.as_ref().is_some_and(|account| account.allows(key))
+            && !NOT_YET_SWITCHABLE.contains(&key);
+        choices.features.insert(key.to_owned(), wanted && allowed);
+    }
+    choices.consent_version = CONSENT_VERSION;
+    choices.consented_at_ms = Some(now_ms());
+    save_cloud_choices(state, &choices)?;
+    status_impl(state)
+}
+
 /// Core: dismisses the one-time notice.
 ///
 /// # Errors
@@ -836,6 +877,19 @@ pub async fn figurehead_unlink(
     state: tauri::State<'_, Arc<AppState>>,
 ) -> AppResult<FigureheadStatusInfo> {
     blocking(&state, unlink_impl).await
+}
+
+/// AJ-E1203: stores the cloud choices (consent screen / toggles).
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] per [`save_choices_impl`].
+#[tauri::command]
+pub fn figurehead_save_choices(
+    state: tauri::State<'_, Arc<AppState>>,
+    features: std::collections::BTreeMap<String, bool>,
+) -> AppResult<FigureheadStatusInfo> {
+    save_choices_impl(state.inner(), &features)
 }
 
 /// AJ-E1202: dismisses the one-time notice.

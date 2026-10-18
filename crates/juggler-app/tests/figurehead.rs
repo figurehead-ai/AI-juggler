@@ -51,7 +51,8 @@ struct Fixture {
 fn fixture() -> Fixture {
     let dir = tempfile::tempdir().unwrap();
     let data = dir.path().join("app-data");
-    let state = Arc::new(AppState::init_with_registry(data.clone(), AdapterRegistry::new()).unwrap());
+    let state =
+        Arc::new(AppState::init_with_registry(data.clone(), AdapterRegistry::new()).unwrap());
     let transport = Arc::new(RecordingTransport::default());
     let secrets = Arc::new(MemoryStore::default());
     figurehead::use_for_test(
@@ -75,8 +76,10 @@ fn link_by_browser(f: &Fixture) {
     assert_eq!(started.state, "linking");
     assert_eq!(started.link.as_ref().unwrap().user_code, "QVM3-GABM");
     figurehead::poll_now_for_test(&f.state);
-    f.transport
-        .respond(200, r#"{"status":"approved","deviceId":"dev_1","token":"fhd_devicesecret"}"#);
+    f.transport.respond(
+        200,
+        r#"{"status":"approved","deviceId":"dev_1","token":"fhd_devicesecret"}"#,
+    );
     f.transport.respond(200, ACCOUNT);
     let linked = figurehead::link_poll_impl(&f.state).unwrap();
     assert_eq!(linked.state, "linked", "{linked:?}");
@@ -109,7 +112,9 @@ fn walk(dir: &Path) -> Vec<std::path::PathBuf> {
 }
 
 fn contains(haystack: &[u8], needle: &str) -> bool {
-    haystack.windows(needle.len()).any(|w| w == needle.as_bytes())
+    haystack
+        .windows(needle.len())
+        .any(|w| w == needle.as_bytes())
 }
 
 #[test]
@@ -130,7 +135,11 @@ fn signed_out_is_silent() {
     for feature in figurehead::KNOWN_FEATURES {
         assert!(!figurehead::feature_on(&f.state, feature));
     }
-    assert_eq!(f.transport.count(), 0, "no request of any kind while signed out");
+    assert_eq!(
+        f.transport.count(),
+        0,
+        "no request of any kind while signed out"
+    );
 }
 
 #[test]
@@ -141,7 +150,11 @@ fn a_browser_link_stores_the_token_only_in_the_secret_store() {
     assert_eq!(status.email.as_deref(), Some("you@example.com"));
     assert_eq!(status.plan.as_deref(), Some("Free"));
     assert_eq!(status.device_name, "Studio Mac");
-    let keys: Vec<_> = status.features.iter().map(|f| (f.key.as_str(), f.access.as_str())).collect();
+    let keys: Vec<_> = status
+        .features
+        .iter()
+        .map(|f| (f.key.as_str(), f.access.as_str()))
+        .collect();
     assert_eq!(
         keys,
         vec![
@@ -152,17 +165,26 @@ fn a_browser_link_stores_the_token_only_in_the_secret_store() {
         ],
         "unavailable features (alerts) are hidden; paid-and-missing shows Upgrade"
     );
-    assert!(status.features.iter().all(|f| !f.on), "nothing is on before consent");
+    assert!(
+        status.features.iter().all(|f| !f.on),
+        "nothing is on before consent"
+    );
 
     assert_eq!(f.secrets.get("dev_1").as_deref(), Some("fhd_devicesecret"));
     let bytes = all_bytes(&f.data);
-    assert!(!contains(&bytes, "fhd_"), "the device token is never on disk outside the Keychain");
+    assert!(
+        !contains(&bytes, "fhd_"),
+        "the device token is never on disk outside the Keychain"
+    );
     assert!(!contains(&bytes, "fhp_"), "neither is the poll token");
 
     // The link request carried this Mac's identity keys, not a secret.
     let sent: serde_json::Value = serde_json::from_slice(&f.transport.requests()[0].body).unwrap();
     let key = sent["publicKey"].as_str().unwrap();
-    assert!(key.starts_with("ed25519:") && key.contains(";x25519:"), "{key}");
+    assert!(
+        key.starts_with("ed25519:") && key.contains(";x25519:"),
+        "{key}"
+    );
     assert_eq!(sent["name"], "Studio Mac");
     // The account call used the device token.
     let account = &f.transport.requests()[2];
@@ -178,22 +200,36 @@ fn polling_never_runs_faster_than_the_interval() {
     for _ in 0..5 {
         figurehead::link_poll_impl(&f.state).unwrap();
     }
-    assert_eq!(f.transport.count(), 1, "only the start: every early poll is answered locally");
+    assert_eq!(
+        f.transport.count(),
+        1,
+        "only the start: every early poll is answered locally"
+    );
     figurehead::poll_now_for_test(&f.state);
     f.transport.respond(410, r#"{"status":"denied"}"#);
     let denied = figurehead::link_poll_impl(&f.state).unwrap();
     assert_eq!(denied.link.unwrap().phase, "denied");
     figurehead::link_cancel_impl(&f.state);
-    assert_eq!(figurehead::status_impl(&f.state).unwrap().state, "signed_out");
+    assert_eq!(
+        figurehead::status_impl(&f.state).unwrap().state,
+        "signed_out"
+    );
 }
 
 #[test]
 fn a_pairing_code_links_and_a_wrong_one_says_so() {
     let f = fixture();
-    f.transport.respond(400, r#"{"error":"invalid_or_expired_code"}"#);
+    f.transport
+        .respond(400, r#"{"error":"invalid_or_expired_code"}"#);
     let error = figurehead::claim_impl(&f.state, "AAAA-BBBB", None).unwrap_err();
-    assert!(error.to_string().contains("pairing code is wrong or has expired"), "{error}");
-    f.transport.respond(201, r#"{"deviceId":"dev_9","token":"fhd_claimed"}"#);
+    assert!(
+        error
+            .to_string()
+            .contains("pairing code is wrong or has expired"),
+        "{error}"
+    );
+    f.transport
+        .respond(201, r#"{"deviceId":"dev_9","token":"fhd_claimed"}"#);
     f.transport.respond(404, r#"{"error":"not_found"}"#);
     let linked = figurehead::claim_impl(&f.state, "qvm3-gabm", Some("Mini")).unwrap();
     assert_eq!(linked.state, "linked");
@@ -220,7 +256,10 @@ fn a_401_unlinks_locally_and_keeps_local_data() {
     assert!(error.to_string().contains("unlinked"), "{error}");
     let status = figurehead::status_impl(&f.state).unwrap();
     assert_eq!(status.state, "signed_out");
-    assert_eq!(status.notice.as_deref(), Some("This Mac was unlinked from Figurehead."));
+    assert_eq!(
+        status.notice.as_deref(),
+        Some("This Mac was unlinked from Figurehead.")
+    );
     assert!(f.secrets.get("dev_1").is_none(), "the token is deleted");
     let after = figurehead::cloud_choices(&f.state);
     assert!(after.features.values().all(|on| !on), "every toggle is off");
@@ -245,9 +284,17 @@ fn unlink_cleans_up_even_offline() {
     }
     let status = figurehead::unlink_impl(&f.state).unwrap();
     assert_eq!(status.state, "signed_out");
-    assert!(status.notice.is_none(), "a deliberate unlink needs no notice");
+    assert!(
+        status.notice.is_none(),
+        "a deliberate unlink needs no notice"
+    );
     assert!(f.secrets.get("dev_1").is_none());
-    let delete = f.transport.requests().into_iter().find(|r| r.method == "DELETE").unwrap();
+    let delete = f
+        .transport
+        .requests()
+        .into_iter()
+        .find(|r| r.method == "DELETE")
+        .unwrap();
     assert_eq!(delete.url, format!("{BASE}/api/v1/devices/self"));
 }
 
@@ -255,7 +302,10 @@ fn unlink_cleans_up_even_offline() {
 fn a_feature_runs_only_when_entitled_and_turned_on() {
     let f = fixture();
     link_by_browser(&f);
-    assert!(!figurehead::feature_on(&f.state, "cloudBackup"), "entitled but not turned on");
+    assert!(
+        !figurehead::feature_on(&f.state, "cloudBackup"),
+        "entitled but not turned on"
+    );
     let mut choices = figurehead::cloud_choices(&f.state);
     choices.features.insert("cloudBackup".into(), true);
     choices.features.insert("transcriptVault".into(), true);
@@ -268,4 +318,53 @@ fn a_feature_runs_only_when_entitled_and_turned_on() {
     let before = f.transport.count();
     figurehead::status_impl(&f.state).unwrap();
     assert_eq!(f.transport.count(), before, "status and gates are local");
+}
+
+#[test]
+fn consent_stores_only_what_the_plan_and_this_build_allow() {
+    let f = fixture();
+    let before = figurehead::status_impl(&f.state).unwrap();
+    assert!(
+        figurehead::save_choices_impl(&f.state, &Default::default()).is_err(),
+        "signed out"
+    );
+    assert_eq!(before.consent_version, 0);
+    link_by_browser(&f);
+    let status = figurehead::status_impl(&f.state).unwrap();
+    assert!(
+        status.consent_version < status.consent_current,
+        "the consent screen is due"
+    );
+    let wanted: std::collections::BTreeMap<String, bool> = [
+        ("cloudBackup", true),
+        ("fleetDiscovery", true),
+        ("usageSync", true),
+        ("transcriptVault", true),
+    ]
+    .into_iter()
+    .map(|(k, v)| (k.to_owned(), v))
+    .collect();
+    let saved = figurehead::save_choices_impl(&f.state, &wanted).unwrap();
+    assert_eq!(saved.consent_version, saved.consent_current);
+    let on: Vec<_> = saved
+        .features
+        .iter()
+        .filter(|f| f.on)
+        .map(|f| f.key.as_str())
+        .collect();
+    assert_eq!(
+        on,
+        vec!["cloudBackup", "fleetDiscovery"],
+        "usage sync waits for usage statistics; a paid-missing feature stays off"
+    );
+    assert!(
+        figurehead::cloud_choices(&f.state)
+            .consented_at_ms
+            .is_some()
+    );
+    assert_eq!(
+        f.transport.count(),
+        3,
+        "consent is local: start + poll + account only"
+    );
 }

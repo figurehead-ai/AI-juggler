@@ -10,7 +10,6 @@ import {
   IconFleet,
   IconJuggler,
   IconTerminal,
-  IconUsage,
 } from "./components/icons";
 import { AttentionAnnouncer, IndicatorLegend, RenewalAnnouncer } from "./components/indicator";
 import {
@@ -28,6 +27,7 @@ import { OnboardingWizard } from "./screens/OnboardingWizard";
 import { NewSessionModal } from "./screens/NewSession";
 import { NewProjectSheet } from "./screens/NewProjectSheet";
 import { FleetScreen } from "./screens/FleetScreen";
+import { SettingsScreen } from "./screens/Settings";
 import { funnelEvent } from "./lib/funnel";
 import { ReadyHome } from "./screens/ReadyHome";
 import { SessionPanel } from "./screens/WorkPanels";
@@ -81,6 +81,8 @@ const GLOBAL_NAV = [
   // AJ-E506: the Cleanup Centre is a GLOBAL surface (ADR-0007) —
   // never a rail peer of Projects/Instances/Sessions.
   { id: "cleanup", label: "Cleanup" },
+  // AJ-E1203: Appearance + the optional Account & Cloud (⌘,).
+  { id: "settings", label: "Settings" },
 ] as const;
 
 type GlobalId = (typeof GLOBAL_NAV)[number]["id"];
@@ -139,6 +141,12 @@ export default function App() {
   }, []);
   const [selection, setSelection] = useState<Selection>({ kind: "none" });
   const [global, setGlobal] = useState<GlobalId | null>(null);
+  // AJ-E1203: a Cloud chip / the onboarding card land on Account & Cloud.
+  const [settingsFocusCloud, setSettingsFocusCloud] = useState(false);
+  const openCloudSettings = () => {
+    setSettingsFocusCloud(true);
+    setGlobal("settings");
+  };
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [projects, setProjects] = useState<ProjectInfo[]>([]);
   const [sessions, setSessions] = useState<InstanceInfo[]>([]);
@@ -465,6 +473,12 @@ export default function App() {
         event.preventDefault();
         setGlobal("fleet");
       }
+      // AJ-E1203: ⌘, opens Settings (the macOS convention).
+      if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && event.key === ",") {
+        event.preventDefault();
+        setSettingsFocusCloud(false);
+        setGlobal("settings");
+      }
       // AJ-E506: ⌘⇧C opens the Cleanup Centre; ⌘F focuses its filter.
       if ((event.metaKey || event.ctrlKey) && event.shiftKey && !event.altKey && event.key.toLowerCase() === "c") {
         event.preventDefault();
@@ -602,7 +616,10 @@ export default function App() {
               <button
                 key={item.id}
                 type="button"
-                onClick={() => setGlobal(item.id)}
+                onClick={() => {
+                  setSettingsFocusCloud(false);
+                  setGlobal(item.id);
+                }}
                 className={
                   "rounded-md px-2.5 py-1.5 text-[11px] font-medium transition-colors " +
                   (global === item.id
@@ -655,10 +672,24 @@ export default function App() {
               />
             </div>
           ) : global === "usage" ? (
-            <ComingSoon screen="Usage" />
+            <div className="h-full overflow-y-auto">
+              <div className="mx-auto flex w-full max-w-5xl flex-col gap-5" data-testid="usage-screen">
+                <header>
+                  <h2 className="text-lg font-semibold tracking-tight">Usage</h2>
+                  <p className="text-xs text-muted">
+                    What your Instances used, per session, model and day — measured on this Mac.
+                  </p>
+                </header>
+                <CostMatrix />
+              </div>
+            </div>
           ) : global === "fleet" ? (
             <div className="h-full overflow-y-auto">
-              <FleetScreen />
+              <FleetScreen onOpenCloud={openCloudSettings} />
+            </div>
+          ) : global === "settings" ? (
+            <div className="h-full overflow-y-auto">
+              <SettingsScreen focusCloud={settingsFocusCloud} />
             </div>
           ) : selectedLogin ? (
             <SessionPanel
@@ -687,12 +718,6 @@ export default function App() {
                   with an explicit Resume click (the click opens the
                   picker; nothing ever launches by itself). */}
               <NotificationRegion onQueueResume={() => setNewSession(true)} />
-              {/* AJ-E609: the Usage cost matrix — per-session model
-                  attribution, the dual subscription view, and the CSV
-                  export (rides above the inspector's content). */}
-              <div className="max-h-64 overflow-y-auto">
-                <CostMatrix />
-              </div>
               <RightInspector
               selection={
                 selection.kind === "session"
@@ -819,6 +844,7 @@ export default function App() {
             setWizard(false);
           }}
           onAccountCreated={() => void refresh()}
+          onConnectCloud={openCloudSettings}
           openLoginTerminal={openLoginTerminal}
           onLaunchFirstSession={(startHere) => {
             setWizard(false);
@@ -1093,18 +1119,3 @@ function Overview({
   );
 }
 
-function ComingSoon({ screen }: { screen: string }) {
-  return (
-    <Card className="flex h-full flex-col items-center justify-center gap-2 py-16">
-      <span className="text-sm font-medium">{screen}</span>
-      <span className="flex items-center gap-1.5 text-xs text-muted">
-        {screen === "Usage" ? (
-          <IconUsage width={13} height={13} />
-        ) : (
-          <IconFleet width={13} height={13} />
-        )}
-        This screen lands in the M2+ build-out — see docs/plan/EPICS.md
-      </span>
-    </Card>
-  );
-}
