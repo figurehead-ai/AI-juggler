@@ -54,6 +54,8 @@ pub struct RemoteMachine {
     last_heard_ms: Option<i64>,
     /// The machine's recent alerts (newest first, at most 10).
     alerts: Vec<proto::AlertDelta>,
+    /// Its managed processes and when they arrived (AJ-E707).
+    cleanup: Option<(proto::CleanupDelta, i64)>,
 }
 
 /// The cache, shared by the reconcile loop and the commands.
@@ -105,6 +107,9 @@ fn apply(cache: &RemoteCache, machine_id: &str, delta: proto::TelemetryDelta) {
             entry
                 .instances
                 .insert(session.instance_id.clone(), (session, now));
+        }
+        Some(proto::telemetry_delta::Payload::Cleanup(cleanup)) => {
+            entry.cleanup = Some((cleanup, now));
         }
         Some(proto::telemetry_delta::Payload::Alert(alert)) => {
             let duplicate = entry.alerts.iter().any(|seen| {
@@ -252,6 +257,45 @@ pub struct RemoteAlertInfo {
     pub at_ms: i64,
 }
 
+/// One managed process on a paired machine (AJ-E707), as its Cleanup
+/// Centre lists it — never a command line.
+#[derive(Clone, PartialEq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct RemoteProcessInfo {
+    /// The owning Instance.
+    pub instance_id: String,
+    /// Provider id of the owning Instance.
+    pub provider: String,
+    /// Account label of the owning Instance.
+    pub account_label: String,
+    /// OS process id on that machine.
+    pub pid: u32,
+    /// `root` | `helper`.
+    pub role: String,
+    /// `running` | `orphaned` | `unverifiable` | …
+    pub state: String,
+    /// The plain-words state.
+    pub state_label: String,
+    /// That machine verified it as owned (pid + start time + exe + boot)
+    /// and it may be cleaned; otherwise it is never touched.
+    pub verified: bool,
+    /// The executable's file name.
+    pub name: String,
+    /// Age, ms.
+    #[ts(type = "number | null")]
+    pub age_ms: Option<i64>,
+    /// Memory, bytes.
+    #[ts(type = "number | null")]
+    pub rss_bytes: Option<u64>,
+    /// CPU, percent.
+    pub cpu_percent: Option<f64>,
+    /// Listening ports, when any.
+    pub ports: String,
+    /// When this console received it, epoch ms.
+    #[ts(type = "number")]
+    pub measured_at_ms: i64,
+}
+
 /// A paired machine is flagged after this long without a word.
 const OFFLINE_ALERT_AFTER_MS: i64 = 10 * 60 * 1000;
 
@@ -281,6 +325,8 @@ pub struct RemoteMachineInfo {
     /// Its recent alerts, newest first (plus "offline for over 10
     /// minutes" when that holds).
     pub alerts: Vec<RemoteAlertInfo>,
+    /// Its managed processes (AJ-E707), when reported.
+    pub processes: Vec<RemoteProcessInfo>,
 }
 
 /// The outcome of a remote command, in the node's words.
@@ -322,89 +368,127 @@ pub fn fleet_remote_impl(state: &Arc<AppState>) -> AppResult<Vec<RemoteMachineIn
         .into_iter()
         .map(|peer| {
             let entry = map.get(&peer.machine_id);
-            let last_heard_ms = entry.and_then(|entry| entry.last_heard_ms);
-            let mut instances: Vec<RemoteInstanceInfo> = entry
-                .map(|entry| {
-                    entry
-                        .instances
-                        .values()
-                        .map(|(row, at)| RemoteInstanceInfo {
-                            id: row.instance_id.clone(),
-                            provider: row.provider_id.clone(),
-                            account_label: row.account_label.clone(),
-                            status: row.status.clone(),
-                            model: row.model.clone(),
-                            model_source: if row.model_source.is_empty() {
-                                "unknown".to_owned()
-                            } else {
-                                row.model_source.clone()
-                            },
-                            project_name: row.project_name.clone(),
-                            started_at_ms: row.started_at_ms,
-                            last_activity_ms: row.last_activity_ms,
-                            cpu_percent: row.cpu_percent,
-                            rss_bytes: row.rss_bytes,
-                            process_count: row.process_count,
-                            kind: row.kind.clone(),
-                            measured_at_ms: *at,
-                        })
-                        .collect()
-                })
-                .unwrap_or_default();
-            instances.sort_by_key(|row| std::cmp::Reverse(row.started_at_ms));
-            let freshness = freshness(&peer.connection, last_heard_ms, now);
-            let mut alerts: Vec<RemoteAlertInfo> = entry
-                .map(|entry| {
-                    entry
-                        .alerts
-                        .iter()
-                        .map(|alert| RemoteAlertInfo {
-                            kind: alert.kind.clone(),
-                            account: alert.account_label.clone(),
-                            text: alert.text.clone(),
-                            at_ms: alert.at_ms,
-                        })
-                        .collect()
-                })
-                .unwrap_or_default();
-            let quiet_since = last_heard_ms.or(peer.last_seen_ms);
-            if peer.connection != "link_off"
-                && freshness == "offline"
-                && quiet_since.is_some_and(|at| now - at > OFFLINE_ALERT_AFTER_MS)
-            {
-                alerts.insert(
-                    0,
-                    RemoteAlertInfo {
-                        kind: "peer-offline".to_owned(),
-                        account: String::new(),
-                        text: format!("{} has been offline for over 10 minutes.", peer.label),
-                        at_ms: quiet_since.unwrap_or(now),
-                    },
-                );
-            }
-            RemoteMachineInfo {
-                freshness: freshness.to_owned(),
-                alerts,
-                machine_id: peer.machine_id,
-                label: peer.label,
-                connection: peer.connection,
-                last_heard_ms,
-                permission: entry.and_then(|entry| entry.permission.clone()),
-                resources: entry.and_then(|entry| {
-                    entry
-                        .resources
-                        .as_ref()
-                        .map(|(resources, at)| RemoteResourcesInfo {
-                            cpu_percent: resources.cpu_percent,
-                            memory_used_bytes: resources.memory_used_bytes,
-                            memory_total_bytes: resources.memory_total_bytes,
-                            measured_at_ms: *at,
-                        })
-                }),
-                instances,
-            }
+            machine_info(peer, entry, now)
         })
         .collect())
+}
+
+fn machine_info(
+    peer: crate::fleet::FleetPeerInfo,
+    entry: Option<&RemoteMachine>,
+    now: i64,
+) -> RemoteMachineInfo {
+    let last_heard_ms = entry.and_then(|entry| entry.last_heard_ms);
+    let freshness = freshness(&peer.connection, last_heard_ms, now);
+    let mut alerts = entry.map(alerts_of).unwrap_or_default();
+    let quiet_since = last_heard_ms.or(peer.last_seen_ms);
+    if peer.connection != "link_off"
+        && freshness == "offline"
+        && quiet_since.is_some_and(|at| now - at > OFFLINE_ALERT_AFTER_MS)
+    {
+        alerts.insert(
+            0,
+            RemoteAlertInfo {
+                kind: "peer-offline".to_owned(),
+                account: String::new(),
+                text: format!("{} has been offline for over 10 minutes.", peer.label),
+                at_ms: quiet_since.unwrap_or(now),
+            },
+        );
+    }
+    RemoteMachineInfo {
+        freshness: freshness.to_owned(),
+        alerts,
+        processes: entry.map(processes_of).unwrap_or_default(),
+        instances: entry.map(instances_of).unwrap_or_default(),
+        permission: entry.and_then(|entry| entry.permission.clone()),
+        resources: entry.and_then(|entry| {
+            entry
+                .resources
+                .as_ref()
+                .map(|(resources, at)| RemoteResourcesInfo {
+                    cpu_percent: resources.cpu_percent,
+                    memory_used_bytes: resources.memory_used_bytes,
+                    memory_total_bytes: resources.memory_total_bytes,
+                    measured_at_ms: *at,
+                })
+        }),
+        machine_id: peer.machine_id,
+        label: peer.label,
+        connection: peer.connection,
+        last_heard_ms,
+    }
+}
+
+fn instances_of(entry: &RemoteMachine) -> Vec<RemoteInstanceInfo> {
+    let mut instances: Vec<RemoteInstanceInfo> = entry
+        .instances
+        .values()
+        .map(|(row, at)| RemoteInstanceInfo {
+            id: row.instance_id.clone(),
+            provider: row.provider_id.clone(),
+            account_label: row.account_label.clone(),
+            status: row.status.clone(),
+            model: row.model.clone(),
+            model_source: if row.model_source.is_empty() {
+                "unknown".to_owned()
+            } else {
+                row.model_source.clone()
+            },
+            project_name: row.project_name.clone(),
+            started_at_ms: row.started_at_ms,
+            last_activity_ms: row.last_activity_ms,
+            cpu_percent: row.cpu_percent,
+            rss_bytes: row.rss_bytes,
+            process_count: row.process_count,
+            kind: row.kind.clone(),
+            measured_at_ms: *at,
+        })
+        .collect();
+    instances.sort_by_key(|row| std::cmp::Reverse(row.started_at_ms));
+    instances
+}
+
+fn alerts_of(entry: &RemoteMachine) -> Vec<RemoteAlertInfo> {
+    entry
+        .alerts
+        .iter()
+        .map(|alert| RemoteAlertInfo {
+            kind: alert.kind.clone(),
+            account: alert.account_label.clone(),
+            text: alert.text.clone(),
+            at_ms: alert.at_ms,
+        })
+        .collect()
+}
+
+fn processes_of(entry: &RemoteMachine) -> Vec<RemoteProcessInfo> {
+    entry
+        .cleanup
+        .as_ref()
+        .map(|(cleanup, at)| {
+            cleanup
+                .processes
+                .iter()
+                .map(|row| RemoteProcessInfo {
+                    instance_id: row.instance_id.clone(),
+                    provider: row.provider.clone(),
+                    account_label: row.account_label.clone(),
+                    pid: row.pid,
+                    role: row.role.clone(),
+                    state: row.state.clone(),
+                    state_label: row.state_label.clone(),
+                    verified: row.verified,
+                    name: row.name.clone(),
+                    age_ms: row.age_ms,
+                    rss_bytes: row.rss_bytes,
+                    cpu_percent: row.cpu_percent,
+                    ports: row.ports.clone(),
+                    measured_at_ms: *at,
+                })
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 /// The next command sequence for `machine_id`: above both the stored
@@ -559,6 +643,42 @@ pub async fn fleet_remote_focus_impl(
 #[tauri::command]
 pub fn fleet_remote(state: tauri::State<'_, Arc<AppState>>) -> AppResult<Vec<RemoteMachineInfo>> {
     fleet_remote_impl(state.inner())
+}
+
+/// Core (AJ-E707): asks `machine_id` to clean one process it owns. That
+/// machine re-verifies ownership first and runs its own ladder; the
+/// answer lists each process's outcome in its words.
+///
+/// # Errors
+///
+/// Returns [`AppError::Validation`] when that machine isn't connected.
+pub async fn fleet_remote_clean_impl(
+    state: Arc<AppState>,
+    machine_id: String,
+    instance_id: String,
+    pid: u32,
+) -> AppResult<RemoteCommandOutcomeInfo> {
+    send_action(
+        state,
+        machine_id,
+        proto::control_command::Action::CleanProcess(proto::CleanProcess { instance_id, pid }),
+    )
+    .await
+}
+
+/// AJ-E707: asks a paired machine to clean one of its processes.
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] per [`fleet_remote_clean_impl`].
+#[tauri::command]
+pub async fn fleet_remote_clean(
+    state: tauri::State<'_, Arc<AppState>>,
+    machine_id: String,
+    instance_id: String,
+    pid: u32,
+) -> AppResult<RemoteCommandOutcomeInfo> {
+    fleet_remote_clean_impl(Arc::clone(state.inner()), machine_id, instance_id, pid).await
 }
 
 /// AJ-E711: asks a paired machine to focus one of its desktop windows.

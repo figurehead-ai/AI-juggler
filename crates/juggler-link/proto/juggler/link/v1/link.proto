@@ -125,7 +125,35 @@ message TelemetryDelta {
     MachineResources resources = 10;
     SessionDelta session = 11;
     AlertDelta alert = 12;
+    CleanupDelta cleanup = 13;
   }
+}
+
+// AJ-E707: this node's managed processes (its Cleanup Centre, read-only
+// shape). Never a command line — only the executable's name.
+message CleanupDelta {
+  repeated CleanupProcess processes = 1;
+  bool ledger_degraded = 2;
+}
+
+message CleanupProcess {
+  string instance_id = 1;
+  uint32 pid = 2;
+  // "root" | "helper"
+  string role = 3;
+  // "running" | "orphaned" | "unverifiable" | …
+  string state = 4;
+  string state_label = 5;
+  // The node's own identity check passed (pid + start time + exe + boot).
+  bool verified = 6;
+  // The executable's file name only.
+  string name = 7;
+  optional int64 age_ms = 8;
+  optional uint64 rss_bytes = 9;
+  optional double cpu_percent = 10;
+  string ports = 11;
+  string provider = 12;
+  string account_label = 13;
 }
 
 // AJ-E709: an alert this node's own alert engine emitted, routed to its
@@ -187,7 +215,15 @@ message ControlCommand {
     // AJ-E711: bring a desktop Instance's window forward ON THE NODE
     // (the node runs its own tiered focus; nothing is injected remotely).
     FocusInstance focus_instance = 12;
+    // AJ-E707: clean one process the node owns (it re-verifies first and
+    // runs its own TERM → grace → KILL ladder).
+    CleanProcess clean_process = 13;
   }
+}
+
+message CleanProcess {
+  string instance_id = 1;
+  uint32 pid = 2;
 }
 
 message FocusInstance {

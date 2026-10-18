@@ -687,3 +687,176 @@ fn a_remote_focus_runs_on_the_owning_mac_and_reports_its_honest_outcome() {
     link::link_set_enabled_impl(&a, false).unwrap();
     link::link_set_enabled_impl(&b, false).unwrap();
 }
+
+/// A `sleep` reparented to launchd (no zombie for the test to reap).
+fn detached_sleep() -> u32 {
+    let out = std::process::Command::new("/bin/sh")
+        .arg("-c")
+        .arg("/bin/sleep 120 >/dev/null 2>&1 & echo $!")
+        .output()
+        .unwrap();
+    String::from_utf8_lossy(&out.stdout).trim().parse().unwrap()
+}
+
+fn alive(pid: u32) -> bool {
+    std::process::Command::new("/bin/kill")
+        .args(["-0", &pid.to_string()])
+        .status()
+        .is_ok_and(|status| status.success())
+}
+
+fn helper_row(
+    state: &Arc<AppState>,
+    pid: u32,
+    started_at: i64,
+    exe: &str,
+) -> juggler_core::storage::LedgerRow {
+    juggler_core::storage::LedgerRow {
+        pid: Some(pid),
+        pgid: None,
+        started_at: Some(started_at),
+        exe_path: exe.into(),
+        cmdline_hash: "fleet-test".into(),
+        cmdline_trunc: "sleep 120".into(),
+        boot_id: state.ledger.boot_id().to_string(),
+        session_id: "inst-remote-1".into(),
+        instance_id: None,
+        provider: "claude-code".into(),
+        account_id: Some("acc-work".into()),
+        project_id: None,
+        machine_id: juggler_app::commands::local_machine_id(state)
+            .as_str()
+            .to_string(),
+        root_pid: None,
+        parent_pid: None,
+        depth: 1,
+        role: "helper".into(),
+        state: "orphaned".into(),
+        listens_on: None,
+        cwd: "/".into(),
+        peak_rss: None,
+        peak_cpu: None,
+        exit_kind: None,
+        reaped_by_us: None,
+        escaped_group: false,
+        down_period: false,
+        first_seen: Timestamp::now().millis() - 60_000,
+        last_seen: Timestamp::now().millis(),
+    }
+}
+
+#[test]
+fn a_console_cleans_only_what_the_node_verifies_and_hears_each_outcome() {
+    use juggler_supervisor::tree::{IdentityProbe as _, LedgerStore as _, OsIdentityProbe};
+    let work = tempfile::tempdir().unwrap();
+    let a = app_state(&work.path().join("a"));
+    let b = app_state(&work.path().join("b"));
+    fleet::fleet_set_label_impl(&b, "Laptop").unwrap();
+    seed_instance(&a, work.path());
+    let owned = detached_sleep();
+    let impostor = detached_sleep();
+    let facts = OsIdentityProbe.probe(owned).expect("probe the owned sleep");
+    let exe = facts.exe.to_string_lossy().into_owned();
+    a.ledger
+        .upsert_helpers(
+            &SessionId::new("inst-remote-1"),
+            &[
+                helper_row(&a, owned, facts.start_time, &exe),
+                // Recorded with the WRONG start time: never ours to touch.
+                helper_row(&a, impostor, 1, &exe),
+            ],
+        )
+        .unwrap();
+    // One sampler tick publishes the process table (the app ticks every 2 s).
+    a.resources
+        .lock()
+        .unwrap()
+        .tick(&a.supervisor, Timestamp::now().millis());
+    link::link_set_enabled_impl(&a, true).unwrap();
+    link::link_set_enabled_impl(&b, true).unwrap();
+    pair(&a, &b, Permission::Control);
+
+    // B sees A's processes, with A's own verification verdicts.
+    let machine = wait_for("A's processes on B", || {
+        remote::fleet_remote_impl(&b)
+            .unwrap()
+            .into_iter()
+            .find(|m| {
+                m.permission.as_deref() == Some("control")
+                    && m.processes.iter().any(|p| p.pid == impostor)
+            })
+    });
+    let verified = |pid: u32| {
+        machine
+            .processes
+            .iter()
+            .find(|p| p.pid == pid)
+            .unwrap()
+            .verified
+    };
+    assert!(verified(owned), "{:?}", machine.processes);
+    assert!(!verified(impostor), "{:?}", machine.processes);
+    assert!(
+        machine.processes.iter().all(|p| p.name == "sleep"),
+        "only the executable's name travels — never a command line"
+    );
+
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let clean = |pid: u32| {
+        wait_for("a verdict", || {
+            let outcome = runtime
+                .block_on(remote::fleet_remote_clean_impl(
+                    Arc::clone(&b),
+                    machine.machine_id.clone(),
+                    "inst-remote-1".into(),
+                    pid,
+                ))
+                .unwrap();
+            (outcome.reason_code.as_deref() != Some("clock_unmeasured")).then_some(outcome)
+        })
+    };
+
+    // The impostor: the node re-verifies, refuses, sends zero signals.
+    let refused = clean(impostor);
+    assert!(!refused.accepted, "{refused:?}");
+    assert_eq!(refused.reason_code.as_deref(), Some("refused"));
+    assert!(alive(impostor), "a refused process is never signalled");
+
+    // The owned one: cleaned by the node's own ladder, outcome in words.
+    let cleaned = clean(owned);
+    assert!(cleaned.accepted, "{cleaned:?}");
+    assert!(
+        cleaned.message.contains(&format!("Exited (pid {owned})"))
+            || cleaned
+                .message
+                .contains(&format!("Needed SIGKILL (pid {owned})")),
+        "{}",
+        cleaned.message
+    );
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while alive(owned) && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    assert!(!alive(owned));
+    // The node's cleanup audit names the console that asked.
+    assert!(
+        a.audit
+            .history(0)
+            .unwrap()
+            .iter()
+            .any(|row| row.pid == owned && row.actor == "fleet:Laptop"),
+        "audited on the node as fleet:<console>"
+    );
+    let console = fleet::verify_audit(&b).unwrap();
+    assert!(
+        console
+            .iter()
+            .any(|e| e["kind"] == "command_sent" && e["reason"] == "refused")
+    );
+
+    let _ = std::process::Command::new("/bin/kill")
+        .args(["-9", &impostor.to_string()])
+        .status();
+    link::link_set_enabled_impl(&a, false).unwrap();
+    link::link_set_enabled_impl(&b, false).unwrap();
+}

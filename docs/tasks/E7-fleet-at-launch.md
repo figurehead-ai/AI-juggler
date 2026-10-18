@@ -142,7 +142,7 @@
 **Handover note**: Trap: sessions store absolute paths (SPEC.md:388) — the #1 cross-machine failure. Do not promise T2 until the live-binary dogfood for that Provider pair passes; label `Unvalidated` until then.
 
 
-### AJ-E707 Remote process ownership and cleanup | Status: TODO | Priority P0 | Effort L | Depends: AJ-E703, AJ-E705
+### AJ-E707 Remote process ownership and cleanup | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E703, AJ-E705
 **Goal**:
 Remote Instances' spawned processes stay owned, visible, and
 verifiably cleanable from the console, with the same safety proof

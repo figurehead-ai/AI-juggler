@@ -2172,3 +2172,44 @@ for (const theme of ["dark", "light"] as const) {
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
   });
 }
+
+/** AJ-E707 a11y (both themes): paired machines in the Cleanup Centre and
+ * the Clean confirmation (alertdialog, Cancel focused). */
+for (const theme of ["dark", "light"] as const) {
+  test(`fleet — remote cleanup — axe 0 — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ fixture, theme: t }) => {
+        const now = Date.now();
+        const w = window as unknown as Record<string, unknown>;
+        w.__AIJ_FIXTURE__ = fixture;
+        w.__AIJ_LINK__ = { enabled: true, port: 47821, error: null };
+        w.__AIJ_FLEET_REMOTE__ = [{
+          machine_id: "machine-mini", label: "Mac mini", connection: "connected", freshness: "live",
+          last_heard_ms: now, permission: "control", resources: null, instances: [], alerts: [],
+          processes: [
+            { instance_id: "inst-1", provider: "claude-code", account_label: "Work Max", pid: 4242, role: "helper", state: "orphaned",
+              state_label: "Still running after its Instance closed", verified: true, name: "node", age_ms: 60000,
+              rss_bytes: null, cpu_percent: null, ports: "3000", measured_at_ms: now },
+            { instance_id: "inst-1", provider: "claude-code", account_label: "Work Max", pid: 4250, role: "helper", state: "unverifiable",
+              state_label: "Unverifiable — will not be touched", verified: false, name: "python3", age_ms: 60000,
+              rss_bytes: null, cpu_percent: null, ports: "", measured_at_ms: now },
+          ],
+        }];
+        localStorage.setItem("aij.theme", t);
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        sessionStorage.setItem("aij.ready.skipped", "1");
+      },
+      { fixture: allStatuses, theme },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Cleanup" }).first().click();
+    await page.getByLabel("Machine filter").selectOption("all");
+    await expect(page.getByTestId("remote-cleanup")).toBeVisible();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+    await page.getByTestId("remote-cleanup-clean").click();
+    await expect(page.getByRole("alertdialog", { name: "Clean node on Mac mini?" })).toBeVisible();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+  });
+}

@@ -413,7 +413,16 @@ impl NodeHandler for AppNode {
         // (sequence-vector catch-up arrives with AJ-E708).
         self.state
             .upgrade()
-            .map(|state| session_deltas(&state, &self.sequence))
+            .map(|state| {
+                let mut backlog = session_deltas(&state, &self.sequence);
+                let origin = crate::commands::local_machine_id(&state).to_string();
+                backlog.push(delta(
+                    &origin,
+                    next_sequence(&self.sequence),
+                    proto::telemetry_delta::Payload::Cleanup(cleanup_delta(&state)),
+                ));
+                backlog
+            })
             .unwrap_or_default()
     }
 
@@ -492,6 +501,9 @@ impl NodeHandler for AppNode {
             proto::control_command::Action::FocusInstance(focus) => {
                 focus_here(&state, &focus.instance_id)
             }
+            proto::control_command::Action::CleanProcess(clean) => {
+                clean_here(&state, &peer.machine_id, &clean.instance_id, clean.pid)
+            }
         }
     }
 
@@ -499,6 +511,117 @@ impl NodeHandler for AppNode {
         if let Some(state) = self.state.upgrade() {
             crate::fleet::append_audit(&state, &event);
         }
+    }
+}
+
+/// AJ-E707: a console asked to clean one process. The node re-verifies
+/// ownership NOW (pid + start time + exe + boot — the same check as a
+/// local Clean), runs its own TERM → grace → KILL ladder, and audits it
+/// as `fleet:<console>`. An unverifiable process is never signalled.
+fn clean_here(
+    state: &Arc<AppState>,
+    console: &str,
+    instance_id: &str,
+    pid: u32,
+) -> Result<String, CommandRejection> {
+    let reject = |code: &str, message: String| CommandRejection {
+        reason_code: code.to_owned(),
+        message,
+    };
+    let actor = format!(
+        "fleet:{}",
+        crate::fleet::peer_label(state, console).unwrap_or_else(|| console.to_owned())
+    );
+    let cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let result = tokio::task::block_in_place(|| {
+        crate::commands::kill_execute_as(
+            state,
+            state.audit.as_ref(),
+            &actor,
+            instance_id,
+            pid,
+            "pid",
+            &cancel,
+            None,
+        )
+    });
+    let info = result.map_err(|error| match error {
+        AppError::NotFound { .. } => reject(
+            "unknown_record",
+            "Not owned by that Instance on this Mac — never touched.".to_owned(),
+        ),
+        other => reject("clean_failed", other.wire().user_message),
+    })?;
+    if let Some(refusal) = info.refusal {
+        return Err(reject("refused", format!("Refused — {refusal}")));
+    }
+    Ok(info
+        .members
+        .iter()
+        .map(|member| format!("{} (pid {})", member_words(&member.outcome), member.pid))
+        .collect::<Vec<_>>()
+        .join(" · "))
+}
+
+/// The ladder's outcome in the console's words (AJ-E707 Req.7).
+fn member_words(outcome: &str) -> &str {
+    match outcome {
+        "exited on TERM" => "Exited",
+        "needed KILL" => "Needed SIGKILL",
+        "already gone" => "Already gone",
+        "refused" => "Refused — identity changed",
+        other => other,
+    }
+}
+
+/// This Mac's managed processes as a `CleanupDelta` (never a command
+/// line — the executable's file name only).
+fn cleanup_delta(state: &Arc<AppState>) -> proto::CleanupDelta {
+    let inventory = crate::commands::cleanup_inventory_inner(state, "all-managed", false);
+    let labels: HashMap<String, (String, String)> = state
+        .storage
+        .lock()
+        .ok()
+        .and_then(|storage| crate::commands::session_infos_snapshot(&storage).ok())
+        .map(|rows| {
+            rows.into_iter()
+                .map(|row| (row.id, (row.provider, row.account_label)))
+                .collect()
+        })
+        .unwrap_or_default();
+    let processes = inventory
+        .groups
+        .iter()
+        .flat_map(|group| {
+            let (provider, account_label) = labels
+                .get(&group.session)
+                .cloned()
+                .unwrap_or_else(|| (group.provider.clone(), String::new()));
+            group.rows.iter().map(move |row| proto::CleanupProcess {
+                instance_id: group.session.clone(),
+                pid: row.pid,
+                role: row.role.clone(),
+                state: row.state.clone(),
+                state_label: row.state_label.clone(),
+                verified: row.evidence.verification.verdict == "verified"
+                    && row.role != "root"
+                    && matches!(row.state.as_str(), "running" | "orphaned"),
+                name: std::path::Path::new(&row.exe_path)
+                    .file_name()
+                    .map(|name| name.to_string_lossy().into_owned())
+                    .unwrap_or_default(),
+                age_ms: row.age_ms,
+                rss_bytes: row.rss_bytes,
+                cpu_percent: row.cpu_pct,
+                ports: row.ports.clone().unwrap_or_default(),
+                provider: provider.clone(),
+                account_label: account_label.clone(),
+            })
+        })
+        .collect();
+    proto::CleanupDelta {
+        processes,
+        ledger_degraded: inventory.ledger_degraded,
     }
 }
 
@@ -517,6 +640,9 @@ fn describe_action(state: &Arc<AppState>, action: &proto::control_command::Actio
         }
         proto::control_command::Action::LaunchRecipe(_) => {
             "start a session from your Launch settings".to_owned()
+        }
+        proto::control_command::Action::CleanProcess(clean) => {
+            format!("clean up process {} of one of your Instances", clean.pid)
         }
         proto::control_command::Action::FocusInstance(focus) => {
             let label = state
@@ -1234,14 +1360,25 @@ async fn resource_ticker(
     sequence: Arc<std::sync::atomic::AtomicU64>,
 ) {
     let mut system = sysinfo::System::new();
+    let mut tick = 0_u64;
     loop {
         tokio::time::sleep(Duration::from_secs(2)).await;
+        tick = tick.wrapping_add(1);
         let Some(app) = state.upgrade() else {
             return;
         };
         let origin = crate::commands::local_machine_id(&app).to_string();
         let sessions = session_deltas(&app, &sequence);
+        // Processes every ~6 s: orphans reach consoles within 10 s.
+        let cleanup = tick.is_multiple_of(3).then(|| cleanup_delta(&app));
         drop(app);
+        if let Some(cleanup) = cleanup {
+            let _ = live.send(delta(
+                &origin,
+                next_sequence(&sequence),
+                proto::telemetry_delta::Payload::Cleanup(cleanup),
+            ));
+        }
         system.refresh_cpu_usage();
         system.refresh_memory();
         let _ = live.send(delta(
