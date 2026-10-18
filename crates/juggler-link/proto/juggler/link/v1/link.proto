@@ -140,6 +140,20 @@ message SessionDelta {
   // The Instance status word ("running", "waiting_user", …).
   string status = 4;
   int64 updated_at_ms = 5;
+  // AJ-E705 additions — unset means the node doesn't know (the console
+  // shows "Unavailable", never a guess).
+  // The display model, and how it is known ("launch" | "in-session" |
+  // "transcript" | "unknown").
+  optional string model = 6;
+  string model_source = 7;
+  // The project folder's NAME only — never a path.
+  optional string project_name = 8;
+  int64 started_at_ms = 9;
+  optional int64 last_activity_ms = 10;
+  // Live process numbers for the Instance's tree, when sampled.
+  optional double cpu_percent = 11;
+  optional uint64 rss_bytes = 12;
+  optional uint32 process_count = 13;
 }
 
 message ControlCommand {

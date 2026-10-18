@@ -580,3 +580,31 @@ async fn a_dead_node_is_reported_offline_within_five_seconds() {
         stopped_at.elapsed()
     );
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn stopping_a_node_never_waits_on_an_open_telemetry_stream() {
+    let f = fixture(Permission::View).await;
+    let peer = f.connect().await;
+    let mut client = peer.client.clone();
+    let mut stream = client
+        .telemetry(proto::TelemetryRequest { since_sequence: 0 })
+        .await
+        .unwrap()
+        .into_inner();
+    // The subscription is open and would stream forever.
+    let started = Instant::now();
+    tokio::time::timeout(Duration::from_secs(5), f.node.stop())
+        .await
+        .expect("Link off never hangs on a console's subscription");
+    assert!(
+        started.elapsed() < Duration::from_secs(4),
+        "{:?}",
+        started.elapsed()
+    );
+    // The console sees its stream end (or error) rather than hang.
+    let ended = tokio::time::timeout(Duration::from_secs(3), async {
+        while let Ok(Some(_)) = stream.message().await {}
+    })
+    .await;
+    assert!(ended.is_ok(), "the stream ends when the node stops");
+}

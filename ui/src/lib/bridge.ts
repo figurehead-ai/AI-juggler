@@ -17,6 +17,10 @@ import type { DiscoveredMachineInfo } from "../types/generated/DiscoveredMachine
 import type { PairingStateInfo } from "../types/generated/PairingStateInfo";
 import type { FigureheadStatusInfo } from "../types/generated/FigureheadStatusInfo";
 import type { CloudFeatureInfo } from "../types/generated/CloudFeatureInfo";
+import type { RemoteMachineInfo } from "../types/generated/RemoteMachineInfo";
+import type { RemoteInstanceInfo } from "../types/generated/RemoteInstanceInfo";
+import type { RemoteResourcesInfo } from "../types/generated/RemoteResourcesInfo";
+import type { RemoteCommandOutcomeInfo } from "../types/generated/RemoteCommandOutcomeInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { InstanceQuotaInfo } from "../types/generated/InstanceQuotaInfo";
 import type { InstanceResourcesInfo } from "../types/generated/InstanceResourcesInfo";
@@ -62,6 +66,10 @@ export type {
   PairingStateInfo,
   FigureheadStatusInfo,
   CloudFeatureInfo,
+  RemoteMachineInfo,
+  RemoteInstanceInfo,
+  RemoteResourcesInfo,
+  RemoteCommandOutcomeInfo,
   LaunchRecipeInfo,
   LaunchResult,
   NeedsAttention,
@@ -3043,6 +3051,34 @@ export async function figureheadOpenPage(target: "verify" | "dashboard" | "devic
     return;
   }
   return invoke<void>("figurehead_open_page", { target });
+}
+
+// --- AJ-E705: what paired machines report (remote inspector) -------------
+
+type RemoteSeams = {
+  __AIJ_FLEET_REMOTE__?: RemoteMachineInfo[];
+  __AIJ_REMOTE_STOP__?: RemoteCommandOutcomeInfo;
+  __AIJ_FLEET_CALLS__?: string[];
+};
+
+const remoteSeams = () => window as unknown as RemoteSeams;
+
+/** Every paired machine with what it last reported (source + freshness). */
+export async function fleetRemote(): Promise<RemoteMachineInfo[]> {
+  if (!hasBackend) return [...(remoteSeams().__AIJ_FLEET_REMOTE__ ?? [])];
+  return invoke<RemoteMachineInfo[]>("fleet_remote");
+}
+
+/** Asks a paired machine to stop one of its Instances; the node decides. */
+export async function fleetRemoteStop(machineId: string, instanceId: string): Promise<RemoteCommandOutcomeInfo> {
+  if (!hasBackend) {
+    const seams = remoteSeams();
+    seams.__AIJ_FLEET_CALLS__ = [...(seams.__AIJ_FLEET_CALLS__ ?? []), `remote-stop:${machineId}:${instanceId}`];
+    return (
+      seams.__AIJ_REMOTE_STOP__ ?? { accepted: true, reason_code: null, message: "Stopping" }
+    );
+  }
+  return invoke<RemoteCommandOutcomeInfo>("fleet_remote_stop", { machineId, instanceId });
 }
 
 /** AJ-E308 Req.7: one named isolation-checklist row. */

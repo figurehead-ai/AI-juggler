@@ -48,6 +48,8 @@ pub const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
 pub const MAX_CONNECTIONS: usize = 32;
 /// HTTP/2 concurrent streams per connection.
 pub const MAX_STREAMS: u32 = 32;
+/// How long [`LinkNode::stop`] lets in-flight calls finish.
+pub const STOP_GRACE: Duration = Duration::from_secs(2);
 /// Largest decoded message.
 pub const MAX_MESSAGE_BYTES: usize = 4 * 1024 * 1024;
 
@@ -203,6 +205,18 @@ pub struct LinkStream {
     info: LinkConnInfo,
     sessions: Arc<Mutex<HashMap<u64, Session>>>,
     open: Arc<AtomicUsize>,
+    /// Resolves when the node stops: reads then see EOF and writes
+    /// fail, so every connection really closes (hyper owns the
+    /// per-connection tasks; cutting the IO is how they end).
+    closed: Pin<Box<dyn std::future::Future<Output = ()> + Send>>,
+}
+
+fn closed_signal(
+    mut closing: tokio::sync::watch::Receiver<bool>,
+) -> Pin<Box<dyn std::future::Future<Output = ()> + Send>> {
+    Box::pin(async move {
+        let _ = closing.wait_for(|closed| *closed).await;
+    })
 }
 
 impl Drop for LinkStream {
@@ -228,6 +242,9 @@ impl AsyncRead for LinkStream {
         cx: &mut Context<'_>,
         buf: &mut ReadBuf<'_>,
     ) -> Poll<std::io::Result<()>> {
+        if self.closed.as_mut().poll(cx).is_ready() {
+            return Poll::Ready(Ok(())); // EOF: the node stopped
+        }
         Pin::new(&mut self.inner).poll_read(cx, buf)
     }
 }
@@ -238,6 +255,9 @@ impl AsyncWrite for LinkStream {
         cx: &mut Context<'_>,
         buf: &[u8],
     ) -> Poll<std::io::Result<usize>> {
+        if self.closed.as_mut().poll(cx).is_ready() {
+            return Poll::Ready(Err(std::io::Error::from(std::io::ErrorKind::BrokenPipe)));
+        }
         Pin::new(&mut self.inner).poll_write(cx, buf)
     }
 
@@ -496,17 +516,26 @@ impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore, P: PairingHost> proto::li
             ServiceLevel::Degraded { reason } => reason.clone(),
             _ => String::new(),
         };
-        self.sessions
-            .lock()
-            .map_err(|_| Status::internal("link state"))?
-            .insert(
+        {
+            let mut sessions = self
+                .sessions
+                .lock()
+                .map_err(|_| Status::internal("link state"))?;
+            // A repeated Hello on the same connection (a console
+            // re-checking its permission) keeps the measured offset.
+            let offset_ms = sessions
+                .get(&conn.conn_id)
+                .filter(|session| session.machine_id == access.machine_id)
+                .and_then(|session| session.offset_ms);
+            sessions.insert(
                 conn.conn_id,
                 Session {
                     machine_id: access.machine_id.clone(),
                     level: level.clone(),
-                    offset_ms: None,
+                    offset_ms,
                 },
             );
+        }
         Ok(Response::new(proto::HelloResponse {
             version: Some(proto::ProtocolVersion {
                 major: PROTOCOL_MAJOR,
@@ -638,6 +667,7 @@ impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore, P: PairingHost> proto::li
 pub struct LinkNode {
     addr: SocketAddr,
     shutdown: Option<tokio::sync::oneshot::Sender<()>>,
+    closing: tokio::sync::watch::Sender<bool>,
     task: tokio::task::JoinHandle<()>,
 }
 
@@ -648,12 +678,23 @@ impl LinkNode {
         self.addr
     }
 
-    /// Stops listening and drops every connection.
+    /// Stops listening and drops every connection. In-flight calls get
+    /// a short grace; long-lived streams (a console's telemetry
+    /// subscription never ends by itself) are then cut, so turning Link
+    /// off can never hang.
     pub async fn stop(mut self) {
         if let Some(shutdown) = self.shutdown.take() {
             let _ = shutdown.send(());
         }
-        let _ = (&mut self.task).await;
+        // Cut every open connection's IO (long-lived streams included).
+        let _ = self.closing.send(true);
+        if tokio::time::timeout(STOP_GRACE, &mut self.task)
+            .await
+            .is_err()
+        {
+            self.task.abort();
+            let _ = (&mut self.task).await;
+        }
     }
 
     /// Starts serving on `listener`.
@@ -698,7 +739,14 @@ impl LinkNode {
         let (incoming_tx, incoming_rx) =
             tokio::sync::mpsc::channel::<Result<LinkStream, std::io::Error>>(8);
 
-        let accept_loop = tokio::spawn(accept_loop(listener, acceptor, incoming_tx, sessions));
+        let (closing, closing_rx) = tokio::sync::watch::channel(false);
+        let accept_loop = tokio::spawn(accept_loop(
+            listener,
+            acceptor,
+            incoming_tx,
+            sessions,
+            closing_rx,
+        ));
         let server = tonic::transport::Server::builder()
             .max_concurrent_streams(MAX_STREAMS)
             .http2_max_pending_accept_reset_streams(Some(16))
@@ -720,6 +768,7 @@ impl LinkNode {
         Ok(Self {
             addr,
             shutdown: Some(shutdown),
+            closing,
             task,
         })
     }
@@ -732,6 +781,7 @@ async fn accept_loop(
     acceptor: tokio_rustls::TlsAcceptor,
     incoming_tx: tokio::sync::mpsc::Sender<Result<LinkStream, std::io::Error>>,
     sessions: Arc<Mutex<HashMap<u64, Session>>>,
+    closing: tokio::sync::watch::Receiver<bool>,
 ) {
     let handshakes = Arc::new(tokio::sync::Semaphore::new(MAX_HANDSHAKES));
     let open = Arc::new(AtomicUsize::new(0));
@@ -754,6 +804,7 @@ async fn accept_loop(
         let sessions = sessions.clone();
         let open = open.clone();
         let conn_id = next_id.fetch_add(1, Ordering::SeqCst);
+        let closing = closing.clone();
         tokio::spawn(async move {
             let handshake = tokio::time::timeout(HANDSHAKE_TIMEOUT, acceptor.accept(tcp)).await;
             drop(permit);
@@ -783,6 +834,7 @@ async fn accept_loop(
                 },
                 sessions,
                 open,
+                closed: closed_signal(closing),
             };
             let _ = tx.send(Ok(stream)).await;
         });

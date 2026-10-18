@@ -216,7 +216,9 @@ pub fn spawn_detached(helper: &Path, args: &[&str], trap: &Path, ready: &Path) -
         .spawn()
         .unwrap();
     let _ = outer.wait();
-    let deadline = Instant::now() + Duration::from_secs(10);
+    // A harness wait for the helper to START (not a product threshold):
+    // a cold `python3` under heavy machine load can take well over 10 s.
+    let deadline = Instant::now() + Duration::from_secs(30);
     while Instant::now() < deadline {
         if ready.exists() {
             break;

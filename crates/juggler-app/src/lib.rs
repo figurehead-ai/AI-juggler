@@ -18,6 +18,7 @@ pub mod fleet;
 pub mod focus;
 pub mod link;
 pub mod preview;
+pub mod remote;
 pub mod state;
 pub mod terminal;
 pub mod usage_pipeline;
@@ -163,6 +164,8 @@ pub fn run() {
             figurehead::figurehead_dismiss_notice,
             figurehead::figurehead_save_choices,
             figurehead::figurehead_open_page,
+            remote::fleet_remote,
+            remote::fleet_remote_stop,
             commands::funnel_export,
             commands::funnel_event,
             commands::expert_setup_info,

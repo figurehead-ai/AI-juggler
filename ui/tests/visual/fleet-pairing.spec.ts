@@ -137,3 +137,46 @@ test("a pasted pairing link fills the code and is sent whole", async ({ page }) 
   await expect(page.getByTestId("pairing-verify")).toBeVisible();
   expect(await calls(page)).toContain("pair-join:100.64.0.2");
 });
+
+// AJ-E705: a remote selection uses the same six tabs; an offline peer
+// shows its stale state without a spinner deadlock; ⌘[ goes back.
+test("a remote Instance fills the same six-tab inspector and offline never deadlocks", async ({ page }) => {
+  const now = Date.now();
+  const machine = {
+    machine_id: "machine-mini", label: "Mac mini", connection: "connected", freshness: "live",
+    last_heard_ms: now, permission: "view", resources: null,
+    instances: [{
+      id: "inst-1", provider: "claude-code", account_label: "Work Max", status: "running",
+      model: null, model_source: "unknown", project_name: "web-shop", started_at_ms: now - 60_000,
+      last_activity_ms: null, cpu_percent: null, rss_bytes: null, process_count: null, measured_at_ms: now,
+    }],
+  };
+  await openFleet(page, {
+    __AIJ_LINK__: { enabled: true, port: 47821, error: null },
+    __AIJ_FLEET_PEERS__: [{
+      machine_id: "machine-mini", label: "Mac mini", fingerprint: "11AA 22BB 33CC 44DD 55EE 66FF 7788 99AA",
+      permission: "view", permission_label: "View only", ask_each_time: false, paired_via: "code",
+      paired_at_ms: now, last_seen_ms: now, connection: "connected", protocol: "v1.0", connection_detail: null,
+    }],
+    __AIJ_FLEET_REMOTE__: [machine],
+  });
+  await page.getByTestId("fleet-remote-instance").click();
+  const tabs = page.getByRole("tablist", { name: /inspector tabs/ }).getByRole("tab");
+  await expect(tabs).toHaveText(["Overview", "Usage", "History", "Quality / Performance", "Processes", "Actions"]);
+  for (const name of ["Overview", "Usage", "History", "Quality / Performance", "Processes", "Actions"]) {
+    await page.getByRole("tab", { name }).click();
+    await expect(page.getByRole("tabpanel", { name })).toBeVisible();
+  }
+  await expect(page.getByTestId("remote-stop")).toBeDisabled();
+  await expect(page.getByTestId("remote-stop-reason")).toHaveText("View-only pairing — change in Fleet settings on Mac mini");
+  // The peer drops off: the same view shows Offline, no spinner, no hang.
+  await page.evaluate(() => {
+    const w = window as unknown as { __AIJ_FLEET_REMOTE__: Array<Record<string, unknown>> };
+    w.__AIJ_FLEET_REMOTE__ = w.__AIJ_FLEET_REMOTE__.map((m) => ({ ...m, connection: "offline", freshness: "offline" }));
+  });
+  await expect(page.getByTestId("remote-freshness")).toHaveAttribute("data-freshness", "offline", { timeout: 5000 });
+  await expect(page.getByTestId("remote-freshness")).toContainText("Offline — Mac mini last seen");
+  await expect(page.getByText("Loading…")).toHaveCount(0);
+  await page.keyboard.press("ControlOrMeta+BracketLeft");
+  await expect(page.getByTestId("fleet-screen")).toBeVisible();
+});

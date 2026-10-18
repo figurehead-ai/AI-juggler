@@ -20,7 +20,7 @@ import {
   storeDensity,
   type Density,
 } from "./lib/density";
-import { hasLiveBackend } from "./lib/bridge";
+import { hasLiveBackend, fleetRemote, type RemoteMachineInfo } from "./lib/bridge";
 import { isHandoverShortcut, isStopShortcut } from "./lib/shortcuts";
 import { ProfilesScreen } from "./screens/Profiles";
 import { OnboardingWizard } from "./screens/OnboardingWizard";
@@ -93,7 +93,9 @@ type Selection =
   | { kind: "session"; id: string }
   | { kind: "login"; id: string }
   | { kind: "account"; id: string }
-  | { kind: "provider"; id: string };
+  | { kind: "provider"; id: string }
+  // AJ-E705: a paired machine (instanceId null) or an Instance on it.
+  | { kind: "remote"; machineId: string; instanceId: string | null };
 
 export default function App() {
   const [tab, setTab] = useState<WorkTab>("projects");
@@ -360,6 +362,36 @@ export default function App() {
     setSelection({ kind: "login", id });
   }, []);
 
+  // AJ-E705: what paired machines report, polled while one is selected.
+  const [remoteMachines, setRemoteMachines] = useState<RemoteMachineInfo[] | null>(null);
+  const [remoteNow, setRemoteNow] = useState(() => Date.now());
+  const remoteSelected = selection.kind === "remote";
+  useEffect(() => {
+    if (!remoteSelected) return;
+    let alive = true;
+    const load = async () => {
+      try {
+        const list = await fleetRemote();
+        if (alive) {
+          setRemoteMachines(list);
+          setRemoteNow(Date.now());
+        }
+      } catch {
+        // A slow or offline peer never blocks the board.
+      }
+    };
+    void load();
+    const timer = window.setInterval(() => void load(), 2000);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+    };
+  }, [remoteSelected]);
+  const inspectRemote = (machineId: string, instanceId: string | null) => {
+    setGlobal(null);
+    setSelection({ kind: "remote", machineId, instanceId });
+  };
+
   const selectedSession = useMemo(
     () =>
       selection.kind === "session"
@@ -496,7 +528,9 @@ export default function App() {
   const contextTitle =
     global !== null
       ? (GLOBAL_NAV.find((g) => g.id === global)?.label ?? "")
-      : selection.kind === "project"
+      : selection.kind === "remote"
+        ? `Fleet · ${remoteMachines?.find((m) => m.machine_id === selection.machineId)?.label ?? "machine"}`
+        : selection.kind === "project"
         ? (selectedProject?.name ?? "Project")
         : selectedSession
           ? selectedSession.account_label
@@ -521,7 +555,7 @@ export default function App() {
         sessions={sessions}
         accounts={accounts}
         loginTerminals={loginTerminals}
-        selectedId={selection.kind === "none" ? null : selection.id}
+        selectedId={selection.kind === "none" || selection.kind === "remote" ? null : selection.id}
         onSelectSession={(id) =>
           loginTerminals.some((t) => t.id === id) ? selectLogin(id) : selectSession(id)
         }
@@ -685,7 +719,7 @@ export default function App() {
             </div>
           ) : global === "fleet" ? (
             <div className="h-full overflow-y-auto">
-              <FleetScreen onOpenCloud={openCloudSettings} />
+              <FleetScreen onOpenCloud={openCloudSettings} onInspectRemote={inspectRemote} />
             </div>
           ) : global === "settings" ? (
             <div className="h-full overflow-y-auto">
@@ -702,6 +736,50 @@ export default function App() {
               onStopped={() => void refresh()}
               onHandover={async () => {}}
             />
+          ) : selection.kind === "remote" ? (
+            (() => {
+              const machine =
+                remoteMachines?.find((entry) => entry.machine_id === selection.machineId) ?? null;
+              if (!machine) {
+                return (
+                  <Card className="flex flex-col items-start gap-2 p-5 text-xs" data-testid="remote-missing">
+                    <p>{remoteMachines === null ? "Loading…" : "That machine is no longer paired with this Mac."}</p>
+                    <Button size="sm" variant="secondary" onClick={() => setGlobal("fleet")}>
+                      Back to Fleet
+                    </Button>
+                  </Card>
+                );
+              }
+              const instance = selection.instanceId
+                ? (machine.instances.find((row) => row.id === selection.instanceId) ?? null)
+                : null;
+              return (
+                <RightInspector
+                  selection={
+                    instance
+                      ? { kind: "instance", id: instance.id }
+                      : { kind: "machine", id: machine.machine_id }
+                  }
+                  data={{ remote: { machine, instance } }}
+                  sessions={sessions}
+                  projects={projects}
+                  accounts={accounts}
+                  profiles={profiles}
+                  terminalTitle={null}
+                  freshness={freshness}
+                  now={remoteNow}
+                  onOpenProject={selectProject}
+                  onOpenSession={selectSession}
+                  onLaunch={() => {}}
+                  onStopped={() => void refresh()}
+                  onHandover={() => {}}
+                  onNew={() => setNewSession(true)}
+                  onRemoteBack={() => setGlobal("fleet")}
+                  onRemoteSelect={(instanceId) => inspectRemote(machine.machine_id, instanceId)}
+                  onRemoteActionDone={() => setRemoteNow(Date.now())}
+                />
+              );
+            })()
           ) : showReadyHome && selection.kind === "none" ? (
             <ReadyHome
               accounts={accounts}

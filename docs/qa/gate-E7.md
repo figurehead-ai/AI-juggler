@@ -15,7 +15,8 @@ security negative below is green.
 | AJ-E702 identity + signed trust store | DONE-EVIDENCED | [manifest](evidence/AJ-E702/manifest.md) |
 | AJ-E703 transport (mTLS, protobuf, replay, limits) | DONE-EVIDENCED | [manifest](evidence/AJ-E703/manifest.md) |
 | AJ-E704 discovery + pairing wizard (mDNS, SPAKE2 code, lockouts, attempt log) | DONE-EVIDENCED | [manifest](evidence/AJ-E704/manifest.md) |
-| AJ-E705 … AJ-E711 | TODO | — |
+| AJ-E705 remote inspector (same six tabs, source + freshness, permission-gated actions) | DONE-EVIDENCED | [manifest](evidence/AJ-E705/manifest.md) |
+| AJ-E706 … AJ-E711 | TODO | — |
 
 ## Security negatives (STRIDE rows → tests)
 
@@ -41,9 +42,13 @@ security negative below is green.
 | Pairing link fingerprint mismatch stops the join | `pairing :: a_pairing_link_with_another_fingerprint_is_refused_before_any_guess` | ✅ green |
 | Attempt log tamper-evident, never holds the code | `fleet_link` (chain verified; digits absent) | ✅ green |
 | Discovery never names the machine; Link off by default | `discovery::tests`, `fleet_link :: link_is_off_by_default_and_pairing_needs_it_on` | ✅ green |
-| All others (free-form launch, logs, pack fetch, cleanup, offline sync, account substitution) | AJ-E705 … AJ-E709, AJ-E1206 | pending |
+| View-only console can't stop a remote Instance (console + node) | `fleet_link :: a_console_sees_the_other_macs_instances_live_and_its_commands_go_through_the_node`, `transport :: view_only_peers_get_telemetry_but_no_commands` | ✅ green |
+| Link off drops every connection (no lingering stream) | `transport :: stopping_a_node_never_waits_on_an_open_telemetry_stream` | ✅ green |
+| All others (free-form launch, logs, pack fetch, cleanup, offline sync, account substitution) | AJ-E706 … AJ-E709, AJ-E1206 | pending |
 
 ## Dogfood (to record at AJ-E710)
 
 - [ ] AJ-E704: pair two physical Macs on one LAN (screencast + timing,
       target < 60 s); repeat over Tailscale by address.
+- [ ] AJ-E705: select a remote Instance, read Overview/Processes, time
+      the render; Stop it from the console with View + control.
