@@ -122,7 +122,7 @@
 **Research basis**: D-06/D-07 in decision-log.md:60-77; pass2/04 §§5-6; SPEC.md:350,385-389; expected-worfklow.md:14-15.
 **Handover note**: Depends on the local inspector existing — if E-inspector tasks slip, ship remote inspector read-model against the same DTO, do not fork a fleet-only panel. Trap: never hide staleness to look "real-time".
 
-### AJ-E706 Cross-machine switching implications | Status: TODO | Priority P0 | Effort L | Depends: AJ-E703, AJ-E705
+### AJ-E706 Cross-machine switching implications | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E703, AJ-E705
 **Goal**: The standard switch wizard works across machines, computing fidelity honestly and pre-validating path/binary constraints before the user commits.
 **User story**: As a developer who hit a quota wall on my laptop, I switch the same work to my desktop Account in the same wizard I use locally.
 **Requirements**:
@@ -214,7 +214,7 @@ PID reuse — AJ-E707 must land start-time identity before any
 remote kill ships. Remote kill without ledger ownership is a
 launch blocker, not a beta caveat.
 
-### AJ-E708 Offline and conflict behaviour | Status: IN-PROGRESS (claude-opus, 2026-10-18 — sync substrate evidenced; Req.4–5 land with AJ-E706) | Priority P0 | Effort L | Depends: AJ-E703
+### AJ-E708 Offline and conflict behaviour | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E703
 **Goal**:
 Machines work fully offline, reconnect without silent data
 loss, and surface conflicts explicitly instead of merging
