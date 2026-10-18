@@ -824,6 +824,8 @@ test("focus — permission explainer on the degraded tier", async ({ page }) => 
 
 test("focus — Go to instance… palette (dark 1280x800)", async ({ page }) => {
   await seedInspectorPage(page, { width: 1280, height: 800 });
+  // The ⌘K handler mounts with the shell — wait for it (AJ-E806).
+  await expect(page.getByRole("button", { name: "New project" }).first()).toBeVisible();
   await page.keyboard.press("Meta+k");
   const palette = page.getByTestId("goto-palette");
   await expect(palette).toBeVisible();
@@ -850,6 +852,7 @@ test("focus — Go to instance… palette (light 1024x680)", async ({ page }) =>
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "light" });
   await page.setViewportSize({ width: 1024, height: 680 });
   await page.goto("/");
+  await expect(page.getByRole("button", { name: "New project" }).first()).toBeVisible();
   await page.keyboard.press("Meta+k");
   const palette = page.getByTestId("goto-palette");
   await expect(palette).toBeVisible();
