@@ -40,7 +40,7 @@ function noteNotCaptured(screen: string, state: string, reason: string) {
 
 test.beforeAll(() => {
   mkdirSync(GALLERY, { recursive: true });
-  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "16-onboarding-detect", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "34-wizard", "35-candidates", "36-recommend", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet"]) {
+  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "16-onboarding-detect", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "34-wizard", "35-candidates", "36-recommend", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing"]) {
     mkdirSync(resolve(GALLERY, screen), { recursive: true });
   }
   writeFileSync(NOT_CAPTURETED, "# Not captured (explicit omissions)\n\n| Screen | State | Reason |\n|---|---|---|\n");
@@ -4896,6 +4896,9 @@ const FLEET_PEER = {
   paired_via: "code",
   paired_at_ms: T0,
   last_seen_ms: T0 + 60_000,
+  connection: "connected",
+  protocol: "v1.0",
+  connection_detail: null,
 };
 
 const openFleet = async (
@@ -4947,6 +4950,17 @@ for (const theme of THEMES) {
       await page.screenshot({ path: resolve(GALLERY, `42-fleet/unpair-confirm-${vp.name}-${theme}.png`), fullPage: true });
     });
 
+    test(`42 fleet — degraded and offline banners — ${vp.name} — ${theme}`, async ({ page }) => {
+      await openFleet(page, theme, vp, {
+        __AIJ_FLEET_PEERS__: [
+          { ...FLEET_PEER, connection: "degraded", protocol: "v1.1", connection_detail: "Peer v1.1, this Mac v1.0 — telemetry only until both are updated" },
+          { ...FLEET_PEER, machine_id: "m3", label: "Office iMac", connection: "offline" },
+        ],
+      });
+      await expect(page.getByTestId("fleet-connection-banner")).toHaveCount(2);
+      await page.screenshot({ path: resolve(GALLERY, `42-fleet/connection-banners-${vp.name}-${theme}.png`), fullPage: true });
+    });
+
     test(`42 fleet — trust broken — ${vp.name} — ${theme}`, async ({ page }) => {
       await openFleet(page, theme, vp, {
         __AIJ_FLEET_PEERS__: [],
@@ -4958,3 +4972,101 @@ for (const theme of THEMES) {
   }
 }
 
+
+// ---------------------------------------------------------------------
+// AJ-E704 — 43-pairing: the pairing wizard's three steps (Find → Verify
+// → Permissions), Done, and the distinct failure states (no machines
+// found, code mismatch, peer cancelled, window closed, paused, turned
+// off) — 1280×800 and 1024×680 (the window minimum), both themes.
+// ---------------------------------------------------------------------
+
+const LINK_ON = { enabled: true, port: 47821, error: null };
+const UNNAMED = [{ instance_id: "a1b2c3d4", label: "Unnamed machine (a1b2c3d4)", version: "1.0" }];
+const simulate = (page: import("@playwright/test").Page, event: string) =>
+  page.evaluate((e) => (window as unknown as { __AIJ_PAIR_SIMULATE__: (x: string) => void }).__AIJ_PAIR_SIMULATE__(e), event);
+const shot43 = (page: import("@playwright/test").Page, name: string, vp: { name: string }, theme: string) =>
+  page.screenshot({ path: resolve(GALLERY, `43-pairing/${name}-${vp.name}-${theme}.png`) });
+
+for (const theme of THEMES) {
+  for (const vp of ACCOUNTS_VP) {
+    test(`43 pairing — Link on, host steps — ${vp.name} — ${theme}`, async ({ page }) => {
+      await openFleet(page, theme, vp, { __AIJ_FLEET_PEERS__: [], __AIJ_LINK__: LINK_ON });
+      await page.screenshot({ path: resolve(GALLERY, `43-pairing/link-on-${vp.name}-${theme}.png`), fullPage: true });
+      await page.getByTestId("fleet-add").click();
+      await expect(page.getByTestId("pairing-code")).toHaveText("482 913");
+      await shot43(page, "1-host-find", vp, theme);
+      await simulate(page, "joiner");
+      await expect(page.getByTestId("pairing-verify")).toBeVisible();
+      await shot43(page, "2-verify", vp, theme);
+      await page.getByTestId("pairing-fingerprints-match").click();
+      await expect(page.getByTestId("pairing-permissions")).toBeVisible();
+      await shot43(page, "3-permissions", vp, theme);
+      await page.getByTestId("pairing-pair").click();
+      await expect(page.getByTestId("pairing-done")).toBeVisible();
+      await shot43(page, "4-done", vp, theme);
+    });
+
+    test(`43 pairing — join find + failures — ${vp.name} — ${theme}`, async ({ page }) => {
+      await openFleet(page, theme, vp, { __AIJ_FLEET_PEERS__: [], __AIJ_LINK__: LINK_ON, __AIJ_DISCOVERED__: UNNAMED });
+      await page.getByTestId("fleet-join").click();
+      await expect(page.getByTestId("pairing-machine")).toBeVisible();
+      await page.getByRole("textbox", { name: "Digit 1 of 6" }).focus();
+      await page.keyboard.type("482913");
+      await shot43(page, "1-join-find", vp, theme);
+      await page.getByRole("textbox", { name: "Digit 1 of 6" }).focus();
+      await page.keyboard.type("000000");
+      await page.getByTestId("pairing-connect").click();
+      await expect(page.getByTestId("pairing-failure")).toHaveAttribute("data-reason", "mismatch");
+      await shot43(page, "fail-mismatch", vp, theme);
+    });
+
+    test(`43 pairing — no machines found + by address — ${vp.name} — ${theme}`, async ({ page }) => {
+      await openFleet(page, theme, vp, { __AIJ_FLEET_PEERS__: [], __AIJ_LINK__: LINK_ON, __AIJ_DISCOVERED__: [] });
+      await page.getByTestId("fleet-join").click();
+      await expect(page.getByTestId("pairing-none-found")).toBeVisible();
+      await shot43(page, "fail-none-found", vp, theme);
+      await page.getByTestId("pairing-toggle-address").click();
+      await page.getByTestId("pairing-address").fill("100.64.0.2");
+      await shot43(page, "1-join-address", vp, theme);
+    });
+
+    test(`43 pairing — window closed, cancelled, wrong-code notice — ${vp.name} — ${theme}`, async ({ page }) => {
+      await openFleet(page, theme, vp, { __AIJ_FLEET_PEERS__: [], __AIJ_LINK__: LINK_ON });
+      await page.getByTestId("fleet-add").click();
+      await expect(page.getByTestId("pairing-code")).toBeVisible();
+      await simulate(page, "mismatch");
+      await expect(page.getByTestId("pairing-notice")).toHaveAttribute("data-reason", "mismatch");
+      await expect(page.getByTestId("pairing-code")).toHaveText("731 058");
+      await shot43(page, "host-new-code", vp, theme);
+      await simulate(page, "expire");
+      await expect(page.getByTestId("pairing-failure")).toHaveAttribute("data-reason", "expired");
+      await shot43(page, "fail-expired", vp, theme);
+    });
+
+    test(`43 pairing — peer cancelled (joiner) — ${vp.name} — ${theme}`, async ({ page }) => {
+      await openFleet(page, theme, vp, {
+        __AIJ_FLEET_PEERS__: [], __AIJ_LINK__: LINK_ON, __AIJ_DISCOVERED__: UNNAMED, __AIJ_PAIR_JOIN_FAIL__: "cancelled",
+      });
+      await page.getByTestId("fleet-join").click();
+      await page.getByRole("textbox", { name: "Digit 1 of 6" }).focus();
+      await page.keyboard.type("482913");
+      await page.getByTestId("pairing-connect").click();
+      await expect(page.getByTestId("pairing-failure")).toHaveAttribute("data-reason", "cancelled");
+      await shot43(page, "fail-cancelled", vp, theme);
+    });
+
+    test(`43 pairing — paused and turned off — ${vp.name} — ${theme}`, async ({ page }) => {
+      await openFleet(page, theme, vp, { __AIJ_FLEET_PEERS__: [], __AIJ_LINK__: LINK_ON, __AIJ_PAIR_LOCK__: "locked_out" });
+      await page.getByTestId("fleet-add").click();
+      await expect(page.getByTestId("pairing-failure")).toHaveAttribute("data-reason", "locked_out");
+      await shot43(page, "fail-locked", vp, theme);
+      await page.evaluate(() => {
+        (window as unknown as { __AIJ_PAIR_LOCK__: string }).__AIJ_PAIR_LOCK__ = "disabled";
+      });
+      await page.getByTestId("pairing-retry").click();
+      await expect(page.getByTestId("pairing-failure")).toHaveAttribute("data-reason", "disabled");
+      await expect(page.getByTestId("pairing-retry")).toHaveText("Turn pairing back on");
+      await shot43(page, "fail-disabled", vp, theme);
+    });
+  }
+}

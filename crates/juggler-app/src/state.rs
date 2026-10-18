@@ -61,6 +61,8 @@ pub struct AppState {
     /// Fleet identity + signed peer registry (AJ-E702), loaded on first
     /// use. Lock ordering: never held together with `storage`.
     pub fleet: crate::fleet::FleetCell,
+    /// The Fleet link (AJ-E704): off until the user turns it on.
+    pub link: crate::link::LinkManager,
 }
 
 impl AppState {
@@ -181,6 +183,7 @@ impl AppState {
             terminal_taps: Mutex::new(std::collections::HashSet::new()),
             kill_cancels: Mutex::new(std::collections::HashMap::new()),
             fleet: Mutex::new(None),
+            link: crate::link::LinkManager::default(),
             preview: Mutex::new(None),
             data_dir,
         })

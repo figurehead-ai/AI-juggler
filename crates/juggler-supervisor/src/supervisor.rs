@@ -2188,10 +2188,16 @@ impl Supervisor {
                 // later reads `/bin/bash`) — roots verify by
                 // boot + start time; helpers carry the kernel-true
                 // triple from the reconciler's table.
+                // A helper never observed past the exec-settle window
+                // (the app went down inside it) may still carry its
+                // pre-exec image: its exe leg waits, as at kill time
+                // (AJ-E508); boot + start time never wait.
                 let verified = if row.role == "root" {
                     crate::tree::verify_start_time(pid, &identity) == Verification::Verified
                 } else {
-                    crate::tree::verify(pid, &identity) == Verification::Verified
+                    let settling = row.last_seen.saturating_sub(row.first_seen)
+                        < juggler_core::storage::EXEC_SETTLE_MS;
+                    crate::tree::verify_settling(pid, &identity, settling) == Verification::Verified
                 };
                 if row.role == "root" {
                     if root_alive && verified {

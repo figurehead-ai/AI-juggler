@@ -1,0 +1,183 @@
+// AI Juggler Fleet link — protocol v1 (ADR-0013 architecture contract).
+//
+// Rules for changing this file (enforced by the descriptor snapshot
+// test in `tests/proto_contract.rs`):
+//   * never renumber or remove a field — reserve it instead;
+//   * new fields are optional by construction (proto3);
+//   * once released, a new command or message bumps PROTOCOL_MINOR in
+//     `src/protocol.rs` (v1.0 is unreleased; additions before the first
+//     release ship as part of v1.0);
+//   * nothing here may carry vendor credentials, keychain material,
+//     the identity private key, account tokens, or transcript text
+//     (the one exception is the handover pack fetch, AJ-E706).
+syntax = "proto3";
+
+package juggler.link.v1;
+
+service Link {
+  // Version negotiation and identity assertion. The first call on
+  // every connection; nothing else is served until it succeeds.
+  rpc Hello(HelloRequest) returns (HelloResponse);
+  // Liveness + clock-offset measurement (every 2 s).
+  rpc Heartbeat(Ping) returns (Pong);
+  // Core telemetry: heartbeats, machine resources, session deltas.
+  rpc Telemetry(TelemetryRequest) returns (stream TelemetryDelta);
+  // The ordered control-command stream (one per connection).
+  rpc Command(stream ControlCommand) returns (stream CommandResult);
+  // Pairing (AJ-E704): the ONLY call an unpinned key may make. SPAKE2
+  // over the host's 6-digit code, key confirmation bound to this TLS
+  // session, then both users confirm before either side pins.
+  rpc Pair(stream PairMessage) returns (stream PairMessage);
+}
+
+message PairMessage {
+  oneof step {
+    PairStart start = 1;
+    PairChallenge challenge = 2;
+    PairConfirm confirm = 3;
+    PairDecision decision = 4;
+    PairFailure failure = 5;
+  }
+}
+
+// Joiner → host.
+message PairStart {
+  string machine_id = 1;
+  string label = 2;
+  bytes spake_message = 3;
+  ProtocolVersion version = 4;
+  // The port the joiner's own node listens on (0 = not listening), so
+  // the host can reach it later at the address it connected from.
+  uint32 listen_port = 5;
+}
+
+// Host → joiner.
+message PairChallenge {
+  string machine_id = 1;
+  string label = 2;
+  bytes spake_message = 3;
+}
+
+// Both directions: HMAC over the transcript (role-separated).
+message PairConfirm {
+  bytes mac = 1;
+}
+
+// Both directions, after each user's own Confirm / Cancel.
+message PairDecision {
+  bool commit = 1;
+}
+
+// Host → joiner: why pairing stopped (plain words + a stable code).
+message PairFailure {
+  string reason_code = 1;
+  string message = 2;
+}
+
+message ProtocolVersion {
+  uint32 major = 1;
+  uint32 minor = 2;
+}
+
+message HelloRequest {
+  ProtocolVersion version = 1;
+  // The caller's MachineId; must equal the registry entry for the
+  // TLS-authenticated key.
+  string machine_id = 2;
+  // Caller's clock, epoch ms (display + offset seed only).
+  int64 sent_at_ms = 3;
+}
+
+message HelloResponse {
+  ProtocolVersion version = 1;
+  string machine_id = 2;
+  // "full" | "degraded" — what this node will serve this peer.
+  string service_level = 3;
+  // Why degraded (plain words), when it is.
+  string degraded_reason = 4;
+  // What the node grants the caller: "no_access" | "view" | "control".
+  string permission = 5;
+  int64 sent_at_ms = 6;
+}
+
+message Ping {
+  int64 sent_at_ms = 1;
+}
+
+message Pong {
+  int64 ping_sent_at_ms = 1;
+  int64 node_time_ms = 2;
+}
+
+message TelemetryRequest {
+  // Per-node sequence the caller already has (0 = from the start).
+  uint64 since_sequence = 1;
+}
+
+message TelemetryDelta {
+  // Origin MachineId — always the serving node in v1 (no relaying).
+  string origin_machine_id = 1;
+  uint64 sequence = 2;
+  // Hybrid logical clock: physical ms + logical counter.
+  int64 hlc_ms = 3;
+  uint32 hlc_counter = 4;
+  oneof payload {
+    MachineResources resources = 10;
+    SessionDelta session = 11;
+  }
+}
+
+message MachineResources {
+  double cpu_percent = 1;
+  uint64 memory_used_bytes = 2;
+  uint64 memory_total_bytes = 3;
+}
+
+message SessionDelta {
+  string instance_id = 1;
+  string provider_id = 2;
+  string account_label = 3;
+  // The Instance status word ("running", "waiting_user", …).
+  string status = 4;
+  int64 updated_at_ms = 5;
+}
+
+message ControlCommand {
+  // The console's MachineId; must equal the TLS peer.
+  string console_machine_id = 1;
+  // 128-bit random nonce.
+  bytes nonce = 2;
+  // Per-console monotonic sequence.
+  uint64 sequence = 3;
+  // Console clock at issue, epoch ms; the node converts with the
+  // measured offset and enforces a 30 s expiry on its own clock.
+  int64 issued_at_ms = 4;
+  // Commands reference only records that exist on the node — never a
+  // binary, arguments, environment, or an arbitrary working directory.
+  oneof action {
+    StopInstance stop_instance = 10;
+    LaunchRecipe launch_recipe = 11;
+  }
+}
+
+message StopInstance {
+  string instance_id = 1;
+}
+
+message LaunchRecipe {
+  // A Launch-settings id that exists on the node.
+  string recipe_id = 1;
+  // A project root the node already knows (empty = the recipe default).
+  string project_id = 2;
+}
+
+message CommandResult {
+  uint64 sequence = 1;
+  // "accepted" | "rejected"
+  string outcome = 2;
+  // Stable machine code when rejected ("replayed", "expired",
+  // "permission_denied", "unknown_record", …).
+  string reason_code = 3;
+  // Plain words for the console UI.
+  string message = 4;
+}

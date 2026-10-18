@@ -70,6 +70,8 @@
 | AJ-E611 | PASS12 | 2026-10-16 | [manifest](AJ-E611/manifest.md) |
 | AJ-E701 | PASS8 | 2026-10-18 | [manifest](AJ-E701/manifest.md) |
 | AJ-E702 | PASS10 | 2026-10-18 | [manifest](AJ-E702/manifest.md) |
+| AJ-E703 | PASS10 | 2026-10-18 | [manifest](AJ-E703/manifest.md) |
+| AJ-E704 | PASS11 | 2026-10-18 | [manifest](AJ-E704/manifest.md) |
 | AJ-E801 | PASS5 | 2026-10-13 | [manifest](AJ-E801/manifest.md) |
 | AJ-E802 | PASS7 | 2026-10-13 | [manifest](AJ-E802/manifest.md) |
 | AJ-E806 | PASS4 | 2026-10-18 | [manifest](AJ-E806/manifest.md) |

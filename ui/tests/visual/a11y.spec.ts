@@ -1508,10 +1508,10 @@ for (const theme of ["dark", "light"] as const) {
     const confirmed = await scanSeriousWithConfirm(page);
     expect(confirmed).toHaveLength(0);
     // Arrow keys move across the tiles with VISIBLE focus; Enter picks.
-    // Tile order (recency): ai-juggler, sacrificial, booknyx, Choose.
+    // Tile order (recency): ai-juggler, sacrificial, storefront, Choose.
     await page.getByRole("button", { name: /Choose folder/ }).focus();
     await page.keyboard.press("ArrowLeft");
-    await expect(page.getByRole("button", { name: /Work in booknyx/ })).toBeFocused();
+    await expect(page.getByRole("button", { name: /Work in storefront/ })).toBeFocused();
     await page.keyboard.press("ArrowLeft");
     await expect(page.getByRole("button", { name: /Work in sacrificial/ })).toBeFocused();
     await page.keyboard.press("ArrowLeft");
@@ -1924,3 +1924,50 @@ for (const theme of ["dark", "light"] as const) {
   });
 }
 
+
+/** AJ-E704 a11y (both themes): the Link switch and every pairing step —
+ * code, Verify, Permissions (radio group), a failure (alert) and the
+ * joiner's labelled 6-digit code group — scan axe-clean. */
+for (const theme of ["dark", "light"] as const) {
+  test(`fleet — pairing wizard — axe 0 — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ fixture, theme: t }) => {
+        const w = window as unknown as Record<string, unknown>;
+        w.__AIJ_FIXTURE__ = fixture;
+        w.__AIJ_FLEET_PEERS__ = [];
+        w.__AIJ_LINK__ = { enabled: true, port: 47821, error: null };
+        w.__AIJ_DISCOVERED__ = [{ instance_id: "a1b2c3d4", label: "Unnamed machine (a1b2c3d4)", version: "1.0" }];
+        localStorage.setItem("aij.theme", t);
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        sessionStorage.setItem("aij.ready.skipped", "1");
+      },
+      { fixture: allStatuses, theme },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Fleet" }).first().click();
+    await expect(page.getByRole("switch", { name: /Link on/ })).toBeVisible();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+
+    await page.getByTestId("fleet-add").click();
+    await expect(page.getByRole("dialog", { name: "Add a machine" })).toBeVisible();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+    await page.evaluate(() => (window as unknown as { __AIJ_PAIR_SIMULATE__: (e: string) => void }).__AIJ_PAIR_SIMULATE__("joiner"));
+    await expect(page.getByTestId("pairing-verify")).toBeVisible();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+    await page.getByTestId("pairing-fingerprints-match").click();
+    await expect(page.getByRole("radiogroup")).toBeVisible();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+    await page.keyboard.press("Escape");
+
+    await page.getByTestId("fleet-join").click();
+    await expect(page.getByRole("group", { name: "Pairing code" })).toBeVisible();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+    await page.getByRole("textbox", { name: "Digit 1 of 6" }).focus();
+    await page.keyboard.type("000000");
+    await page.getByTestId("pairing-connect").click();
+    await expect(page.getByRole("alert").filter({ hasText: "The code didn't match" })).toBeVisible();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+  });
+}

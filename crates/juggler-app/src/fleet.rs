@@ -10,9 +10,15 @@
 // Tauri command signatures take State/String by value (as in commands.rs).
 #![allow(clippy::needless_pass_by_value)]
 
+use std::io::Write as _;
 use std::sync::{Arc, Mutex};
 
-use juggler_link::{MachineIdentity, PeerRegistry, Permission, TrustState};
+use juggler_link::cert::NodeCertificate;
+use juggler_link::node::{LinkAuditEvent, PairCandidate, PeerAccess};
+use juggler_link::{
+    MachineIdentity, PairedVia, Peer, PeerRegistry, Permission, PublicIdentity, TrustState,
+};
+use sha2::{Digest, Sha256};
 
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
@@ -21,6 +27,12 @@ use crate::state::AppState;
 const GENERATION_KEY: &str = "fleet_registry_generation";
 /// The app setting holding this Mac's local display label.
 const LABEL_KEY: &str = "machine_label";
+/// The link attempt log (hash-chained JSON lines) in the fleet dir.
+const AUDIT_FILE: &str = "link-audit.jsonl";
+/// Rotate the attempt log past this size (one `.1` generation kept).
+const AUDIT_MAX_BYTES: u64 = 2 * 1024 * 1024;
+/// Serialises appends (the chain needs the previous line's hash).
+static AUDIT_LOCK: Mutex<()> = Mutex::new(());
 
 /// The loaded identity + registry.
 #[derive(Debug)]
@@ -74,6 +86,14 @@ pub struct FleetPeerInfo {
     /// Last heard from, epoch ms.
     #[ts(type = "number | null")]
     pub last_seen_ms: Option<i64>,
+    /// The link state (AJ-E703): `link_off` | `connecting` | `connected`
+    /// | `degraded` | `offline`. `link_off` until Link is turned on
+    /// (AJ-E704) — never a guessed state.
+    pub connection: String,
+    /// The negotiated protocol (`v1.0`) when connected or degraded.
+    pub protocol: Option<String>,
+    /// Plain words for degraded/offline (the banner text).
+    pub connection_detail: Option<String>,
 }
 
 fn link_error(error: impl std::fmt::Display) -> AppError {
@@ -181,7 +201,9 @@ pub fn fleet_self_impl(state: &Arc<AppState>) -> AppResult<FleetSelfInfo> {
 ///
 /// Returns the typed [`AppError`] when the identity cannot be loaded.
 pub fn fleet_peers_impl(state: &Arc<AppState>) -> AppResult<Vec<FleetPeerInfo>> {
-    with_fleet(state, |fleet| {
+    // Read the registry first, then the link state: the fleet lock is
+    // never held together with the link manager's locks.
+    let mut peers = with_fleet(state, |fleet| {
         Ok(fleet
             .registry
             .peers()
@@ -199,9 +221,19 @@ pub fn fleet_peers_impl(state: &Arc<AppState>) -> AppResult<Vec<FleetPeerInfo>> 
                 },
                 paired_at_ms: peer.paired_at_ms,
                 last_seen_ms: peer.last_seen_ms,
+                connection: "link_off".to_owned(),
+                protocol: None,
+                connection_detail: None,
             })
-            .collect())
-    })
+            .collect::<Vec<_>>())
+    })?;
+    for peer in &mut peers {
+        let link = state.link.peer_state(&peer.machine_id);
+        peer.connection = link.state;
+        peer.protocol = link.protocol;
+        peer.connection_detail = link.detail;
+    }
+    Ok(peers)
 }
 
 /// Core implementation shared with tests.
@@ -350,6 +382,224 @@ pub fn fleet_reset_trust(state: tauri::State<'_, Arc<AppState>>) -> AppResult<Fl
 #[tauri::command]
 pub fn fleet_reset_identity(state: tauri::State<'_, Arc<AppState>>) -> AppResult<FleetSelfInfo> {
     fleet_reset_identity_impl(state.inner())
+}
+
+/// The peer pinned with `key`, as the link node sees it (per request,
+/// so an unpair revokes on the next call).
+#[must_use]
+pub fn lookup_peer(state: &Arc<AppState>, key: &PublicIdentity) -> Option<PeerAccess> {
+    with_fleet(state, |fleet| {
+        Ok(fleet.registry.pinned(key).map(|peer| PeerAccess {
+            machine_id: peer.machine_id.clone(),
+            permission: peer.permission,
+        }))
+    })
+    .ok()
+    .flatten()
+}
+
+/// Whether control commands from `machine_id` also need a local
+/// confirmation (the "Ask each time" choice).
+#[must_use]
+pub fn peer_asks_each_time(state: &Arc<AppState>, machine_id: &str) -> bool {
+    with_fleet(state, |fleet| {
+        Ok(fleet
+            .registry
+            .peers()
+            .iter()
+            .any(|peer| peer.machine_id == machine_id && peer.ask_each_time))
+    })
+    .unwrap_or(true)
+}
+
+/// Every pinned peer's id and key (the link reconciles against these).
+#[must_use]
+pub fn pinned_keys(state: &Arc<AppState>) -> Vec<(String, [u8; 32])> {
+    with_fleet(state, |fleet| {
+        if *fleet.registry.trust() != TrustState::Trusted {
+            return Ok(Vec::new());
+        }
+        Ok(fleet
+            .registry
+            .peers()
+            .iter()
+            .filter_map(|peer| {
+                PublicIdentity::from_base64(&peer.public_key)
+                    .ok()
+                    .map(|key| (peer.machine_id.clone(), key.to_bytes()))
+            })
+            .collect())
+    })
+    .unwrap_or_default()
+}
+
+/// This Mac's TLS certificate (its identity key as the SPKI).
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] when the identity cannot be loaded.
+pub fn node_certificate(state: &Arc<AppState>) -> AppResult<NodeCertificate> {
+    with_fleet(state, |fleet| {
+        juggler_link::cert::node_certificate(&fleet.identity).map_err(link_error)
+    })
+}
+
+/// This Mac's identity public key.
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] when the identity cannot be loaded.
+pub fn local_public_key(state: &Arc<AppState>) -> AppResult<[u8; 32]> {
+    with_fleet(state, |fleet| Ok(fleet.identity.public().to_bytes()))
+}
+
+/// Pins a machine both users confirmed in the pairing exchange.
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] on broken trust or storage failure.
+pub fn pin_candidate(
+    state: &Arc<AppState>,
+    candidate: &PairCandidate,
+    permission: Permission,
+) -> AppResult<()> {
+    let key = PublicIdentity::from_bytes(&candidate.key).map_err(link_error)?;
+    let now = juggler_core::model::Timestamp::now().millis();
+    with_fleet(state, |fleet| {
+        fleet
+            .registry
+            .pin(
+                &fleet.identity,
+                Peer {
+                    machine_id: candidate.machine_id.clone(),
+                    label: candidate.label.clone(),
+                    public_key: key.to_base64(),
+                    fingerprint: key.fingerprint(),
+                    permission,
+                    ask_each_time: false,
+                    paired_via: PairedVia::Code,
+                    paired_at_ms: now,
+                    last_seen_ms: Some(now),
+                },
+            )
+            .map_err(link_error)
+    })
+}
+
+/// Records that a pinned peer answered.
+pub fn touch_peer(state: &Arc<AppState>, machine_id: &str, at_ms: i64) {
+    let _ = with_fleet(state, |fleet| {
+        fleet
+            .registry
+            .touch(&fleet.identity, machine_id, at_ms)
+            .map_err(link_error)
+    });
+}
+
+/// Appends one event to the link attempt log. Each line carries the
+/// hash of the previous one, so a deleted or edited line breaks the
+/// chain. Never holds a code, key, or command payload — only who, what
+/// kind, and the reason code.
+pub fn append_audit(state: &Arc<AppState>, event: &LinkAuditEvent) {
+    let Ok(_serial) = AUDIT_LOCK.lock() else {
+        return;
+    };
+    let dir = state.data_dir.join("fleet");
+    let path = dir.join(AUDIT_FILE);
+    let previous = last_audit_hash(&path);
+    if std::fs::metadata(&path).is_ok_and(|meta| meta.len() > AUDIT_MAX_BYTES) {
+        let _ = std::fs::rename(&path, dir.join(format!("{AUDIT_FILE}.1")));
+    }
+    let body = serde_json::json!({
+        "at_ms": juggler_core::model::Timestamp::now().millis(),
+        "peer": event.peer,
+        "kind": event.kind,
+        "reason": event.reason_code,
+        "sequence": event.sequence,
+        "prev": previous,
+    });
+    let body = body.to_string();
+    let hash = audit_hash(&previous, &body);
+    let line = format!("{{\"entry\":{body},\"hash\":\"{hash}\"}}\n");
+    let _ = std::fs::create_dir_all(&dir);
+    let mut options = std::fs::OpenOptions::new();
+    options.create(true).append(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt as _;
+        options.mode(0o600);
+    }
+    if let Ok(mut file) = options.open(&path) {
+        let _ = file.write_all(line.as_bytes());
+    }
+}
+
+fn audit_hash(previous: &str, body: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(previous.as_bytes());
+    hasher.update(body.as_bytes());
+    hasher
+        .finalize()
+        .iter()
+        .fold(String::with_capacity(64), |mut out, byte| {
+            use std::fmt::Write as _;
+            let _ = write!(out, "{byte:02x}");
+            out
+        })
+}
+
+/// The last line's hash (the rotated file's, after a rotation), or the
+/// all-zero genesis.
+fn last_audit_hash(path: &std::path::Path) -> String {
+    let rotated = path.with_extension("jsonl.1");
+    for candidate in [path, rotated.as_path()] {
+        if let Ok(text) = std::fs::read_to_string(candidate)
+            && let Some(line) = text.lines().rev().find(|line| !line.trim().is_empty())
+            && let Ok(value) = serde_json::from_str::<serde_json::Value>(line)
+            && let Some(hash) = value.get("hash").and_then(serde_json::Value::as_str)
+        {
+            return hash.to_owned();
+        }
+    }
+    "0".repeat(64)
+}
+
+/// Checks the attempt log's chain; returns the entries (oldest first)
+/// or the line number where the chain breaks.
+///
+/// # Errors
+///
+/// Returns the 1-based line number of the first broken link.
+pub fn verify_audit(state: &Arc<AppState>) -> Result<Vec<serde_json::Value>, usize> {
+    let path = state.data_dir.join("fleet").join(AUDIT_FILE);
+    let text = std::fs::read_to_string(path).unwrap_or_default();
+    let mut previous: Option<String> = None;
+    let mut entries = Vec::new();
+    for (index, line) in text
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .enumerate()
+    {
+        let value: serde_json::Value = serde_json::from_str(line).map_err(|_| index + 1)?;
+        let entry = value.get("entry").ok_or(index + 1)?;
+        let prev = entry
+            .get("prev")
+            .and_then(serde_json::Value::as_str)
+            .ok_or(index + 1)?;
+        if previous.as_deref().is_some_and(|expected| expected != prev) {
+            return Err(index + 1);
+        }
+        let hash = value
+            .get("hash")
+            .and_then(serde_json::Value::as_str)
+            .ok_or(index + 1)?;
+        if audit_hash(prev, &entry.to_string()) != hash {
+            return Err(index + 1);
+        }
+        previous = Some(hash.to_owned());
+        entries.push(entry.clone());
+    }
+    Ok(entries)
 }
 
 /// Test seam: pins a peer directly (pairing lands with AJ-E704).

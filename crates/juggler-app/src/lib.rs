@@ -15,6 +15,7 @@ pub mod commands;
 pub mod error;
 pub mod fleet;
 pub mod focus;
+pub mod link;
 pub mod preview;
 pub mod state;
 pub mod terminal;
@@ -77,6 +78,7 @@ pub fn run() {
     let processes_tick_state = Arc::clone(&app_state);
     let quota_tick_state = Arc::clone(&app_state);
     let pipeline_state = Arc::clone(&app_state);
+    let link_state = Arc::clone(&app_state);
 
     tauri::Builder::default()
         // Registered first: a second launch defers to the running app
@@ -136,6 +138,18 @@ pub fn run() {
             fleet::fleet_set_label,
             fleet::fleet_reset_trust,
             fleet::fleet_reset_identity,
+            link::link_status,
+            link::link_set_enabled,
+            link::fleet_discovered,
+            link::pairing_host_open,
+            link::pairing_host_state,
+            link::pairing_host_decide,
+            link::pairing_host_close,
+            link::pairing_re_enable,
+            link::pairing_join_start,
+            link::pairing_join_state,
+            link::pairing_join_decide,
+            link::pairing_join_reset,
             commands::funnel_export,
             commands::funnel_event,
             commands::expert_setup_info,
@@ -228,6 +242,8 @@ pub fn run() {
             // AJ-E607: the ingest pipeline — passive, single-writer,
             // 1 s spool cadence (event→engine ≤2 s budget).
             usage_pipeline::spawn(pipeline_state);
+            // AJ-E704: Link resumes only if the user left it on.
+            link::resume_if_enabled(link_state);
             Ok(())
         })
         .run(tauri::generate_context!())

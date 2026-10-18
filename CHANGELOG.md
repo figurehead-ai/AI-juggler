@@ -338,7 +338,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   imported transcript (cwd read from transcript content, never guessed
   from encoded dir names) and surfaces the user's actual project
   history with per-account attribution — schema v4 (`history_json`).
-  On this machine: 6 real projects (booknyx3/4, jive-code-graph, t3
+  On this machine: 6 real projects (two app repos, a code-graph tool, t3
   worktrees…) with account history, idempotent, run at startup.
 - **Get-ready home**: any account not signed in makes the app open on a
   checklist — one click per account opens Claude's own sign-in in an

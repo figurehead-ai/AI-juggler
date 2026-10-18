@@ -21,6 +21,7 @@ juggler-link = { version = "0.0.1", path = "../juggler-link" }
 juggler-supervisor = { version = "0.0.1", path = "../juggler-supervisor" }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
+sha2 = "0.11"
 sysinfo = { version = "0.39.6", default-features = false, features = ["system"] }
 tauri = { version = "2.12.3", features = [] }
 tauri-plugin-dialog = "2"
@@ -28,6 +29,7 @@ tauri-plugin-global-shortcut = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-single-instance = "2"
 thiserror = "2.0.21"
+tokio = { version = "1", features = ["rt-multi-thread", "net", "sync", "time"] }
 ts-rs = { version = "12.0.1", features = ["serde-json-impl", "no-serde-warnings"] }
 
 [build-dependencies]

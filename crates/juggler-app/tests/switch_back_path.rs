@@ -73,7 +73,7 @@ fn append_turn(path: &Path, uuid: &str, role: &str, text: &str, cwd: &str) {
 fn seed_transcript(path: &Path, cwd: &str) {
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();
     std::fs::write(path, String::new()).unwrap();
-    append_turn(path, "u1", "user", "start the booknyx work", cwd);
+    append_turn(path, "u1", "user", "start the storefront work", cwd);
     append_turn(path, "u2", "assistant", " scaffold laid out", cwd);
 }
 
@@ -90,7 +90,7 @@ struct RoundTrip {
 
 fn switch_a_to_b(work: &Path) -> RoundTrip {
     let state = app_state(work);
-    let project_dir = work.join("booknyx");
+    let project_dir = work.join("storefront");
     std::fs::create_dir_all(&project_dir).unwrap();
     let cwd = project_dir.to_string_lossy().into_owned();
 

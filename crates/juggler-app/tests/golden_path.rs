@@ -70,22 +70,22 @@ fn backfill_surfaces_real_project_history_from_transcripts() {
 
     let account = commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap();
     let config = config_dir_of(&state, &account.id);
-    seed_transcript(&config, "/Users/dev/booknyx", "sess-old-1");
-    seed_transcript(&config, "/Users/dev/booknyx", "sess-old-2");
+    seed_transcript(&config, "/Users/dev/storefront", "sess-old-1");
+    seed_transcript(&config, "/Users/dev/storefront", "sess-old-2");
     seed_transcript(&config, "/Users/dev/payments", "sess-old-3");
 
     let enriched = commands::projects_backfill_impl(&state).unwrap();
     assert_eq!(enriched, 2, "two distinct project cwds");
 
     let projects = commands::projects_list_impl(&state).unwrap();
-    let booknyx = projects
+    let storefront = projects
         .iter()
-        .find(|p| p.name == "booknyx")
+        .find(|p| p.name == "storefront")
         .expect("real project surfaced");
-    assert_eq!(booknyx.root, "/Users/dev/booknyx");
-    assert_eq!(booknyx.accounts_used, vec!["Work Max".to_string()]);
-    assert_eq!(booknyx.history_sessions, 2);
-    assert_eq!(booknyx.instance_count, 0, "no AI Juggler runs yet");
+    assert_eq!(storefront.root, "/Users/dev/storefront");
+    assert_eq!(storefront.accounts_used, vec!["Work Max".to_string()]);
+    assert_eq!(storefront.history_sessions, 2);
+    assert_eq!(storefront.instance_count, 0, "no AI Juggler runs yet");
 
     // Idempotent: re-running does not duplicate.
     assert_eq!(commands::projects_backfill_impl(&state).unwrap(), 2);
@@ -95,7 +95,7 @@ fn backfill_surfaces_real_project_history_from_transcripts() {
 fn handover_moves_context_to_another_account_and_resumes_it() {
     let work = tempfile::tempdir().unwrap();
     let state = app_state(work.path());
-    let project_dir = work.path().join("booknyx");
+    let project_dir = work.path().join("storefront");
     std::fs::create_dir_all(&project_dir).unwrap();
     let cwd = project_dir.to_string_lossy().into_owned();
 

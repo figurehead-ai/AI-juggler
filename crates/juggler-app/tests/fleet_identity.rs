@@ -59,6 +59,9 @@ fn identity_is_durable_and_pins_survive_a_restart() {
     assert_eq!(peers.len(), 1);
     assert_eq!(peers[0].permission, "view");
     assert_eq!(peers[0].permission_label, "View only");
+    // Link is off until AJ-E704 turns it on — never a guessed state.
+    assert_eq!(peers[0].connection, "link_off");
+    assert!(peers[0].protocol.is_none());
 
     fleet::fleet_unpair_impl(&reopened, "mini").unwrap();
     assert!(fleet::fleet_peers_impl(&reopened).unwrap().is_empty());

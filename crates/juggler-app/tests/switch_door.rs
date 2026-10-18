@@ -122,7 +122,7 @@ fn door_counters(state: &Arc<AppState>) -> std::collections::BTreeMap<String, u6
 fn preflight_opens_the_wizard_until_the_pair_is_proven() {
     let work = tempfile::tempdir().unwrap();
     let state = app_state(work.path());
-    let project_dir = work.path().join("booknyx");
+    let project_dir = work.path().join("storefront");
     std::fs::create_dir_all(&project_dir).unwrap();
     let cwd = project_dir.to_string_lossy().into_owned();
 
@@ -184,7 +184,7 @@ fn lossy_pair_is_never_reachable_in_one_click() {
     // door at the wizard until E210's fixtures flip the cell.
     let work = tempfile::tempdir().unwrap();
     let state = app_state(work.path());
-    let project_dir = work.path().join("booknyx");
+    let project_dir = work.path().join("storefront");
     std::fs::create_dir_all(&project_dir).unwrap();
     let cwd = project_dir.to_string_lossy().into_owned();
 
@@ -212,7 +212,7 @@ fn lossy_pair_is_never_reachable_in_one_click() {
 fn undo_stops_target_resumes_source_and_compensates_the_edge() {
     let work = tempfile::tempdir().unwrap();
     let state = app_state(work.path());
-    let project_dir = work.path().join("booknyx");
+    let project_dir = work.path().join("storefront");
     std::fs::create_dir_all(&project_dir).unwrap();
     let cwd = project_dir.to_string_lossy().into_owned();
 

@@ -20,6 +20,9 @@ const PEER = {
   paired_via: "code",
   paired_at_ms: 1,
   last_seen_ms: null,
+  connection: "link_off",
+  protocol: null,
+  connection_detail: null,
 };
 
 beforeEach(() => {
@@ -119,3 +122,28 @@ describe("AJ-E702 Fleet screen", () => {
     expect(w().__AIJ_FLEET_CALLS__).toEqual(["reset-trust"]);
   });
 });
+
+describe("AJ-E703 connection states", () => {
+  it("each state reads as words and a shape, never colour alone", async () => {
+    w().__AIJ_FLEET_PEERS__ = [
+      { ...PEER, machine_id: "a", label: "A", connection: "connected", protocol: "v1.0" },
+      { ...PEER, machine_id: "b", label: "B", connection: "degraded", protocol: "v1.1", connection_detail: "Peer v1.1, this Mac v1.0 — telemetry only until both are updated" },
+      { ...PEER, machine_id: "c", label: "C", connection: "offline", last_seen_ms: 1_700_000_000_000 },
+      { ...PEER, machine_id: "d", label: "D" },
+    ];
+    const { container } = render(<FleetScreen />);
+    await waitFor(() => expect(container.querySelectorAll("[data-testid='fleet-connection']").length).toBe(4));
+    const chips = Array.from(container.querySelectorAll("[data-testid='fleet-connection']")).map((c) => c.textContent);
+    expect(chips).toEqual(["● Connected · mTLS · v1.0", "◐ Degraded · v1.1", "○ Offline", "○ Link off"]);
+    const banners = Array.from(container.querySelectorAll("[data-testid='fleet-connection-banner']"));
+    expect(banners.map((b) => b.getAttribute("data-state"))).toEqual(["degraded", "offline"]);
+    expect(banners[0]!.textContent).toContain("telemetry only");
+    expect(banners[1]!.textContent).toContain("last seen");
+    for (const banner of banners) {
+      expect(banner.getAttribute("role")).toBe("status");
+      expect(banner.textContent).toContain("Retry");
+      expect(banner.textContent).toContain("Unpair");
+    }
+  });
+});
+
