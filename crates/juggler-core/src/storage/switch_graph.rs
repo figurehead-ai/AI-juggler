@@ -68,11 +68,21 @@ impl SwitchGraphRepo<'_> {
     /// # Errors
     ///
     /// Returns [`CoreError::Storage`] on SQLite failures.
-    pub fn adopt_work(&self, id: &WorkItemId, project: &ProjectId, title: &str) -> Result<(), CoreError> {
+    pub fn adopt_work(
+        &self,
+        id: &WorkItemId,
+        project: &ProjectId,
+        title: &str,
+    ) -> Result<(), CoreError> {
         self.conn.execute(
             "INSERT OR IGNORE INTO work_items (id, project, title, created_at)
              VALUES (?1, ?2, ?3, ?4)",
-            params![id.as_str(), project.as_str(), title, Timestamp::now().millis()],
+            params![
+                id.as_str(),
+                project.as_str(),
+                title,
+                Timestamp::now().millis()
+            ],
         )?;
         Ok(())
     }
