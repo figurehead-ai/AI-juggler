@@ -44,7 +44,7 @@ from the account's entitlements, never from code.
 **Research basis**: D-18 (maintainer instruction 2026-10-17); ADR-0004; SPEC §1/§8/§11/§12.1.
 **Handover note**: The usage-statistics spec gets its own decision (D-19) and ADR (ADR-0015) — don't fold it into D-18. Never copy server internals into this repo; write "the Figurehead API contract".
 
-### AJ-E1202 Account client: link (browser + code), Keychain token, 401/unlink, entitlements cache | Status: TODO | Priority P0 | Effort L | Depends: AJ-E1201, AJ-E702
+### AJ-E1202 Account client: link (browser + code), Keychain token, 401/unlink, entitlements cache | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E1201, AJ-E702
 **Goal**: A small, audited HTTP client that links this Mac to a Figurehead account, keeps the device token only in the Keychain, and keeps the account's entitlements current.
 **User story**: As a user with two Macs, I approve "Studio Mac" in my browser once and AI Juggler shows my account and plan — and if I unlink it on the website, the app notices and turns cloud off without losing anything.
 **Requirements**:
@@ -66,7 +66,7 @@ from the account's entitlements, never from code.
 **Research basis**: ADR-0014; the Figurehead API contract (device linking, account, devices/self).
 **Handover note**: Trap: the poll token and the device token are different secrets — never log either. The token is returned once on approval; a lost response means a fresh link, never a retry of the same request.
 
-### AJ-E1203 Settings → Account & Cloud, onboarding step, Cloud chips, consent screen | Status: TODO | Priority P0 | Effort L | Depends: AJ-E1202
+### AJ-E1203 Settings → Account & Cloud, onboarding step, Cloud chips, consent screen | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E1202
 **Goal**: One home for everything account-related, a skippable onboarding step, and a consent screen that states exactly what each cloud feature sends.
 **User story**: As a privacy-conscious user, I can see every cloud feature, what it sends, and turn each one on or off — and if I never connect, the app never asks again.
 **Requirements**:

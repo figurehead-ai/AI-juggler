@@ -13,6 +13,7 @@
 
 pub mod commands;
 pub mod error;
+pub mod figurehead;
 pub mod fleet;
 pub mod focus;
 pub mod link;
@@ -79,6 +80,7 @@ pub fn run() {
     let quota_tick_state = Arc::clone(&app_state);
     let pipeline_state = Arc::clone(&app_state);
     let link_state = Arc::clone(&app_state);
+    let figurehead_state = Arc::clone(&app_state);
 
     tauri::Builder::default()
         // Registered first: a second launch defers to the running app
@@ -150,6 +152,17 @@ pub fn run() {
             link::pairing_join_state,
             link::pairing_join_decide,
             link::pairing_join_reset,
+            figurehead::figurehead_status,
+            figurehead::figurehead_link_start,
+            figurehead::figurehead_link_poll,
+            figurehead::figurehead_link_cancel,
+            figurehead::figurehead_claim,
+            figurehead::figurehead_refresh,
+            figurehead::figurehead_rename,
+            figurehead::figurehead_unlink,
+            figurehead::figurehead_dismiss_notice,
+            figurehead::figurehead_save_choices,
+            figurehead::figurehead_open_page,
             commands::funnel_export,
             commands::funnel_event,
             commands::expert_setup_info,
@@ -244,6 +257,9 @@ pub fn run() {
             usage_pipeline::spawn(pipeline_state);
             // AJ-E704: Link resumes only if the user left it on.
             link::resume_if_enabled(link_state);
+            // AJ-E1202: refresh the Figurehead account only if linked —
+            // signed out, nothing runs and nothing is sent.
+            figurehead::resume_if_linked(figurehead_state);
             Ok(())
         })
         .run(tauri::generate_context!())

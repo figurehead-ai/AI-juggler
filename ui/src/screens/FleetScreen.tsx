@@ -28,7 +28,7 @@ import {
  * machine" shows a pairing code and "Join a machine" enters one
  * (`PairingWizard`).
  */
-export function FleetScreen(): JSX.Element {
+export function FleetScreen({ onOpenCloud }: { onOpenCloud?: () => void } = {}): JSX.Element {
   const [self, setSelf] = useState<FleetSelfInfo | null>(null);
   const [peers, setPeers] = useState<FleetPeerInfo[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -125,6 +125,17 @@ export function FleetScreen(): JSX.Element {
             Add a machine…
           </Button>
         </div>
+        {onOpenCloud && (
+          <button
+            type="button"
+            onClick={onOpenCloud}
+            className="flex items-center gap-2 rounded-lg border border-hairline px-2.5 py-1.5 text-[11px] text-muted hover:text-ink"
+            data-testid="fleet-cloud-chip"
+          >
+            Find your Macs through your Figurehead account
+            <Chip tone="accent">Cloud</Chip>
+          </button>
+        )}
       </header>
 
       <Card className="flex flex-wrap items-center gap-3 p-4" data-testid="fleet-link">

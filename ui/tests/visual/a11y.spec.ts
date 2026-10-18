@@ -1971,3 +1971,59 @@ for (const theme of ["dark", "light"] as const) {
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
   });
 }
+
+/** AJ-E1203 a11y (both themes): Settings in every Account & Cloud
+ * state — the Appearance radio group, the labelled feature switches,
+ * the consent screen and the Unlink alertdialog — scan axe-clean. */
+for (const theme of ["dark", "light"] as const) {
+  test(`settings — appearance + account & cloud — axe 0 — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ fixture, theme: t }) => {
+        const w = window as unknown as Record<string, unknown>;
+        w.__AIJ_FIXTURE__ = fixture;
+        localStorage.setItem("aij.theme", t);
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        sessionStorage.setItem("aij.ready.skipped", "1");
+      },
+      { fixture: allStatuses, theme },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    // Wait for the shell (its key listener) before the shortcut.
+    await expect(page.getByRole("button", { name: "Settings" }).first()).toBeVisible();
+    await page.keyboard.press("ControlOrMeta+Comma");
+    await expect(page.getByTestId("settings-screen")).toBeVisible();
+    await expect(page.getByRole("radiogroup", { name: "Appearance" })).toBeVisible();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+    await page.getByTestId("cloud-connect").click();
+    await expect(page.getByTestId("cloud-linking")).toBeVisible();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+    await page.evaluate(() => {
+      (window as unknown as Record<string, unknown>).__AIJ_FIGUREHEAD_APPROVE__ = "approved";
+    });
+    await expect(page.getByTestId("cloud-consent")).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole("switch", { name: "Cloud backup" })).toHaveAttribute("aria-checked", "true");
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+    await page.getByTestId("cloud-turn-on").click();
+    await page.getByTestId("cloud-unlink").click();
+    const sheet = page.getByRole("alertdialog", { name: "Unlink this Mac from Figurehead?" });
+    await expect(sheet.getByRole("button", { name: "Cancel" })).toBeFocused();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+    await page.keyboard.press("Escape");
+    // Offline + a paid-locked feature (warning text, disabled switch, Upgrade).
+    await page.evaluate(() => {
+      const w = window as unknown as { __AIJ_FIGUREHEAD__: Record<string, unknown> & { features: unknown[] } };
+      w.__AIJ_FIGUREHEAD__ = {
+        ...w.__AIJ_FIGUREHEAD__,
+        offline: true,
+        features: [...w.__AIJ_FIGUREHEAD__.features, { key: "transcriptVault", access: "upgrade", tier: "paid", on: false }],
+      };
+    });
+    await page.getByRole("button", { name: "Fleet" }).first().click();
+    await page.getByRole("button", { name: "Settings" }).first().click();
+    await expect(page.getByTestId("cloud-offline")).toBeVisible();
+    await expect(page.getByTestId("cloud-upgrade")).toBeVisible();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+  });
+}

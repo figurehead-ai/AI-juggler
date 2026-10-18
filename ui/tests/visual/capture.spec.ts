@@ -40,7 +40,7 @@ function noteNotCaptured(screen: string, state: string, reason: string) {
 
 test.beforeAll(() => {
   mkdirSync(GALLERY, { recursive: true });
-  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "16-onboarding-detect", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "34-wizard", "35-candidates", "36-recommend", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing"]) {
+  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "16-onboarding-detect", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "34-wizard", "35-candidates", "36-recommend", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings"]) {
     mkdirSync(resolve(GALLERY, screen), { recursive: true });
   }
   writeFileSync(NOT_CAPTURETED, "# Not captured (explicit omissions)\n\n| Screen | State | Reason |\n|---|---|---|\n");
@@ -824,6 +824,8 @@ test("focus — permission explainer on the degraded tier", async ({ page }) => 
 
 test("focus — Go to instance… palette (dark 1280x800)", async ({ page }) => {
   await seedInspectorPage(page, { width: 1280, height: 800 });
+  // The ⌘K handler mounts with the shell — wait for it (AJ-E806).
+  await expect(page.getByRole("button", { name: "New project" }).first()).toBeVisible();
   await page.keyboard.press("Meta+k");
   const palette = page.getByTestId("goto-palette");
   await expect(palette).toBeVisible();
@@ -850,6 +852,7 @@ test("focus — Go to instance… palette (light 1024x680)", async ({ page }) =>
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "light" });
   await page.setViewportSize({ width: 1024, height: 680 });
   await page.goto("/");
+  await expect(page.getByRole("button", { name: "New project" }).first()).toBeVisible();
   await page.keyboard.press("Meta+k");
   const palette = page.getByTestId("goto-palette");
   await expect(palette).toBeVisible();
@@ -2156,8 +2159,8 @@ for (const theme of THEMES) {
         await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
         await page.setViewportSize({ width: vp.width, height: vp.height });
         await page.goto("/");
-        // The matrix rides under the WorkPanels empty state (no
-        // sessions needed — it renders from the seam).
+        // The matrix lives on the Usage screen.
+        await page.getByRole("button", { name: "Usage" }).first().click();
         await expect(
           page.getByText("USD is Estimated — list pricing, not your subscription fee."),
         ).toBeVisible();
@@ -5067,6 +5070,110 @@ for (const theme of THEMES) {
       await expect(page.getByTestId("pairing-failure")).toHaveAttribute("data-reason", "disabled");
       await expect(page.getByTestId("pairing-retry")).toHaveText("Turn pairing back on");
       await shot43(page, "fail-disabled", vp, theme);
+    });
+  }
+}
+// ---------------------------------------------------------------------
+// AJ-E1203 — 44-settings: Settings → Appearance + Account & Cloud in
+// every state (signed out, pairing code, linking, consent, connected,
+// paid-locked, unlinked notice, offline) — 1280×800 and 1024×680 ×
+// light/dark.
+// ---------------------------------------------------------------------
+
+const FH_LINKED = {
+  state: "linked",
+  email: "you@example.com",
+  plan: "Free",
+  device_name: "Studio Mac",
+  features: [
+    { key: "cloudBackup", access: "included", tier: "free", on: true },
+    { key: "fleetDiscovery", access: "included", tier: "free", on: true },
+    { key: "usageSync", access: "included", tier: "free", on: false },
+  ],
+  link: null,
+  refreshed_at_ms: T0 - 3_600_000,
+  offline: false,
+  notice: null,
+  consent_version: 1,
+  consent_current: 1,
+};
+
+const openSettings = async (
+  page: import("@playwright/test").Page,
+  theme: string,
+  vp: { width: number; height: number },
+  seams: Record<string, unknown>,
+) => {
+  await page.addInitScript(
+    ({ fixture, t, extra, t0 }) => {
+      const w = window as unknown as Record<string, unknown>;
+      w.__AIJ_FIXTURE__ = fixture;
+      Object.assign(w, extra);
+      localStorage.setItem("aij.theme", t);
+      localStorage.setItem("aij.onboarding.dismissed", "1");
+      sessionStorage.setItem("aij.ready.skipped", "1");
+      Date.now = () => t0;
+    },
+    { fixture: allStatuses, t: theme, extra: seams, t0: T0 },
+  );
+  await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme as "dark" | "light" });
+  await page.setViewportSize({ width: vp.width, height: vp.height });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Settings" }).first().click();
+  await expect(page.getByTestId("account-cloud")).toBeVisible();
+};
+
+const shot44 = (page: import("@playwright/test").Page, name: string, vp: { name: string }, theme: string) =>
+  page.screenshot({ path: resolve(GALLERY, `44-settings/${name}-${vp.name}-${theme}.png`), fullPage: true });
+
+for (const theme of THEMES) {
+  for (const vp of ACCOUNTS_VP) {
+    test(`44 settings — signed out, code, linking — ${vp.name} — ${theme}`, async ({ page }) => {
+      await openSettings(page, theme, vp, {});
+      await expect(page.getByTestId("cloud-signed-out")).toBeVisible();
+      await shot44(page, "signed-out", vp, theme);
+      await page.getByTestId("cloud-use-code").click();
+      await shot44(page, "pairing-code", vp, theme);
+      await page.getByTestId("cloud-connect").click();
+      await expect(page.getByTestId("cloud-user-code")).toHaveText("QVM3-GABM");
+      await shot44(page, "linking", vp, theme);
+    });
+
+    test(`44 settings — consent, connected, paid-locked — ${vp.name} — ${theme}`, async ({ page }) => {
+      await openSettings(page, theme, vp, {
+        __AIJ_FIGUREHEAD__: { ...FH_LINKED, consent_version: 0, features: FH_LINKED.features.map((f) => ({ ...f, on: false })) },
+      });
+      await expect(page.getByTestId("cloud-consent")).toBeVisible();
+      await shot44(page, "consent", vp, theme);
+      await page.getByTestId("cloud-turn-on").click();
+      await expect(page.getByTestId("cloud-connected")).toBeVisible();
+      await shot44(page, "connected", vp, theme);
+    });
+
+    test(`44 settings — paid-locked, offline, unlinked — ${vp.name} — ${theme}`, async ({ page }) => {
+      await openSettings(page, theme, vp, {
+        __AIJ_FIGUREHEAD__: {
+          ...FH_LINKED,
+          offline: true,
+          features: [...FH_LINKED.features, { key: "transcriptVault", access: "upgrade", tier: "paid", on: false }],
+        },
+      });
+      await expect(page.getByTestId("cloud-upgrade")).toBeVisible();
+      await expect(page.getByTestId("cloud-offline")).toBeVisible();
+      await shot44(page, "paid-locked-offline", vp, theme);
+      await page.getByTestId("cloud-unlink").click();
+      await expect(page.getByTestId("cloud-unlink-confirm")).toBeVisible();
+      await page.screenshot({ path: resolve(GALLERY, `44-settings/unlink-confirm-${vp.name}-${theme}.png`) });
+      await page.getByTestId("cloud-unlink-yes").click();
+      await expect(page.getByTestId("cloud-signed-out")).toBeVisible();
+      await page.evaluate(() => {
+        const w = window as unknown as { __AIJ_FIGUREHEAD__: Record<string, unknown> };
+        w.__AIJ_FIGUREHEAD__ = { ...w.__AIJ_FIGUREHEAD__, notice: "This Mac was unlinked from Figurehead." };
+      });
+      await page.getByRole("button", { name: "Fleet" }).first().click();
+      await page.getByRole("button", { name: "Settings" }).first().click();
+      await expect(page.getByTestId("cloud-notice")).toBeVisible();
+      await shot44(page, "unlinked", vp, theme);
     });
   }
 }

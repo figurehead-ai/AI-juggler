@@ -581,6 +581,7 @@ export function OnboardingWizard({
   openLoginTerminal,
   onLaunchFirstSession,
   onAddAnother,
+  onConnectCloud,
 }: {
   /** The Provider this run sets up (AJ-E301 Req.1 — explicit at every
    * call site: first-run, Accounts → Add account, summary loop-back). */
@@ -597,6 +598,9 @@ export function OnboardingWizard({
   onLaunchFirstSession?: (startHere: string | null) => void;
   /** AJ-E305 Req.4: [Add another account] on the set Summary. */
   onAddAnother?: () => void;
+  /** AJ-E1203: the optional "Connect a Figurehead account" card —
+   * opens Settings → Account & Cloud. Absent = no card. */
+  onConnectCloud?: () => void;
 }) {
   const [step, setStep] = useState<Step>(locked ? "detect" : "install");
   const [installs, setInstalls] = useState<ProviderInstallData[] | null>(null);
@@ -2034,6 +2038,16 @@ export function OnboardingWizard({
                   — your most recent project.
                 </p>
               )}
+              {onConnectCloud && (
+                <CloudOptionalCard
+                  onConnect={() => {
+                    window.sessionStorage.removeItem(persistKey);
+                    onAccountCreated();
+                    onClose();
+                    onConnectCloud();
+                  }}
+                />
+              )}
               {/* AJ-E305 Req.4: the Summary exits — launch (with the
                   Start-here project preselected), keep going, or done. */}
               <div className="flex flex-wrap gap-2" data-testid="summary-exits">
@@ -2281,6 +2295,53 @@ export function OnboardingWizard({
           </Card>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * AJ-E1203 — the one optional, skippable account step (D-18): two
+ * equal buttons and one line on what Cloud adds. Skipping is the
+ * default path: the Summary's own exits work without touching it, so
+ * it adds no click to flow (a); "Continue without an account" only
+ * hides it, for good (never nag).
+ */
+function CloudOptionalCard({ onConnect }: { onConnect: () => void }): JSX.Element | null {
+  const [hidden, setHidden] = useState(() => {
+    try {
+      return localStorage.getItem("aij.cloud.onboarding") === "skipped";
+    } catch {
+      return false;
+    }
+  });
+  if (hidden) return null;
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-hairline p-3" data-testid="cloud-optional-step">
+      <p className="text-xs font-medium">Connect a Figurehead account (optional)</p>
+      <p className="text-[11px] leading-relaxed text-muted">
+        You can do everything without an account; Cloud adds encrypted backups and finding your
+        own Macs for Fleet.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" variant="secondary" onClick={onConnect} data-testid="cloud-optional-connect">
+          Connect account
+        </Button>
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => {
+            try {
+              localStorage.setItem("aij.cloud.onboarding", "skipped");
+            } catch {
+              // Storage unavailable: hiding for this session is enough.
+            }
+            setHidden(true);
+          }}
+          data-testid="cloud-optional-skip"
+        >
+          Continue without an account
+        </Button>
+      </div>
     </div>
   );
 }

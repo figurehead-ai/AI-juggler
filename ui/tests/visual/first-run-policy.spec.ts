@@ -168,3 +168,42 @@ test("funnel events are local and carry no paths, labels, or credentials", async
   }
   expect(JSON.stringify(events)).not.toMatch(/Users|Work|Side|claude-/);
 });
+
+// AJ-E1203: the one optional account step lives on the Summary — two
+// equal buttons, one line on what Cloud adds. The flow (a) test above is
+// unchanged: the card costs no click. Skipping hides it for good (never
+// nag); Connect lands on Settings → Account & Cloud.
+test("the optional Figurehead card: skippable for good, Connect opens Account & Cloud", async ({ page }) => {
+  await firstRun(page);
+  await page.getByTestId("install-continue").click();
+  await page.getByTestId("use-recommended").click();
+  await answerPolicy(page, "strip");
+  await page.getByTestId("accept-setup").click();
+  const card = page.getByTestId("cloud-optional-step");
+  await expect(card).toBeVisible();
+  await expect(card).toContainText("You can do everything without an account");
+  await expect(page.getByTestId("cloud-optional-connect")).toHaveText("Connect account");
+  await expect(page.getByTestId("cloud-optional-skip")).toHaveText("Continue without an account");
+  for (const [w, h] of [[1280, 800], [390, 844]] as const) {
+    await page.setViewportSize({ width: w, height: h });
+    await card.scrollIntoViewIfNeeded();
+    await page.screenshot({
+      path: `${process.cwd()}/../docs/qa/evidence/_gallery/44-settings/onboarding-card-${w}x${h}-dark.png`,
+    });
+  }
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.getByTestId("cloud-optional-connect").click();
+  await expect(page.getByTestId("settings-screen")).toBeVisible();
+  await expect(page.getByTestId("cloud-signed-out")).toBeVisible();
+});
+
+test("Continue without an account hides the card for good", async ({ page }) => {
+  await firstRun(page);
+  await page.getByTestId("install-continue").click();
+  await page.getByTestId("use-recommended").click();
+  await answerPolicy(page, "strip");
+  await page.getByTestId("accept-setup").click();
+  await page.getByTestId("cloud-optional-skip").click();
+  await expect(page.getByTestId("cloud-optional-step")).toHaveCount(0);
+  expect(await page.evaluate(() => localStorage.getItem("aij.cloud.onboarding"))).toBe("skipped");
+});

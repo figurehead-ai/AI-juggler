@@ -18,9 +18,13 @@ export function applyTheme(choice: ThemeChoice): void {
   document.documentElement.dataset.theme = effective;
 }
 
+/** Fired on every change (⌘⇧L or Settings) so every control agrees. */
+export const THEME_EVENT = "aij:theme-changed";
+
 export function setTheme(choice: ThemeChoice): void {
   localStorage.setItem(KEY, choice);
   applyTheme(choice);
+  window.dispatchEvent(new CustomEvent(THEME_EVENT, { detail: choice }));
 }
 
 export function cycleTheme(): ThemeChoice {
