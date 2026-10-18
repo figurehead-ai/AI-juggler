@@ -78,6 +78,31 @@ pub struct CommandRejection {
     pub message: String,
 }
 
+/// AJ-E706: a handover the node took.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct HandoverAccepted {
+    /// Plain words for the console.
+    pub message: String,
+    /// The new Instance on this node.
+    pub instance_id: String,
+}
+
+/// AJ-E706: why the node refused a handover.
+#[derive(Clone, PartialEq, Debug)]
+pub struct HandoverRejection {
+    /// Stable machine code (`unknown_record`, `diverged`, …).
+    pub reason_code: String,
+    /// Plain words.
+    pub message: String,
+    /// What changed here since the work left, when refused as diverged.
+    pub divergence: Option<proto::Divergence>,
+}
+
+/// The largest bundle a Handover may carry.
+pub const MAX_HANDOVER_BYTES: u64 = 512 * 1024 * 1024;
+/// Progress is reported at least every this many bytes.
+const PROGRESS_EVERY_BYTES: u64 = 1024 * 1024;
+
 /// An auditable link event (rejections and executed commands).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct LinkAuditEvent {
@@ -122,6 +147,25 @@ pub trait NodeHandler: Send + Sync + 'static {
         peer: &PeerAccess,
         action: &proto::control_command::Action,
     ) -> Result<String, CommandRejection>;
+    /// AJ-E706: takes work a console pushed (`TakeHandover` or
+    /// `SwitchBack`), after every command check passed and the bundle's
+    /// sha256 matched. Runs on a blocking thread; the default refuses.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`HandoverRejection`] naming why.
+    fn take_handover(
+        &self,
+        _peer: &PeerAccess,
+        _action: &proto::control_command::Action,
+        _bundle: &[u8],
+    ) -> Result<HandoverAccepted, HandoverRejection> {
+        Err(HandoverRejection {
+            reason_code: "unsupported".to_owned(),
+            message: "This Mac can't take work over the link.".to_owned(),
+            divergence: None,
+        })
+    }
     /// Records an audit event.
     fn audit(&self, event: LinkAuditEvent);
 }
@@ -221,6 +265,20 @@ pub struct LinkStream {
     /// fail, so every connection really closes (hyper owns the
     /// per-connection tasks; cutting the IO is how they end).
     closed: Pin<Box<dyn std::future::Future<Output = ()> + Send>>,
+    /// `closed` resolved — never poll it again (a finished `async`
+    /// block panics if resumed).
+    is_closed: bool,
+}
+
+impl LinkStream {
+    /// Whether the node stopped (polls the signal at most until it
+    /// resolves).
+    fn stopped(&mut self, cx: &mut Context<'_>) -> bool {
+        if !self.is_closed && self.closed.as_mut().poll(cx).is_ready() {
+            self.is_closed = true;
+        }
+        self.is_closed
+    }
 }
 
 fn closed_signal(
@@ -254,7 +312,7 @@ impl AsyncRead for LinkStream {
         cx: &mut Context<'_>,
         buf: &mut ReadBuf<'_>,
     ) -> Poll<std::io::Result<()>> {
-        if self.closed.as_mut().poll(cx).is_ready() {
+        if self.stopped(cx) {
             return Poll::Ready(Ok(())); // EOF: the node stopped
         }
         Pin::new(&mut self.inner).poll_read(cx, buf)
@@ -267,7 +325,7 @@ impl AsyncWrite for LinkStream {
         cx: &mut Context<'_>,
         buf: &[u8],
     ) -> Poll<std::io::Result<usize>> {
-        if self.closed.as_mut().poll(cx).is_ready() {
+        if self.stopped(cx) {
             return Poll::Ready(Err(std::io::Error::from(std::io::ErrorKind::BrokenPipe)));
         }
         Pin::new(&mut self.inner).poll_write(cx, buf)
@@ -318,6 +376,23 @@ struct LinkService<H, D, R, P> {
     sessions: Arc<Mutex<HashMap<u64, Session>>>,
     buckets: Arc<Mutex<HashMap<String, Bucket>>>,
     nonces: Arc<Mutex<NonceCache>>,
+    /// Consoles with a Handover in flight (one at a time each).
+    handovers: Arc<Mutex<std::collections::HashSet<String>>>,
+}
+
+impl<H, D, R, P> Clone for LinkService<H, D, R, P> {
+    fn clone(&self) -> Self {
+        Self {
+            handler: self.handler.clone(),
+            directory: self.directory.clone(),
+            replay: self.replay.clone(),
+            pairing: self.pairing.clone(),
+            sessions: self.sessions.clone(),
+            buckets: self.buckets.clone(),
+            nonces: self.nonces.clone(),
+            handovers: self.handovers.clone(),
+        }
+    }
 }
 
 impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore, P: PairingHost> LinkService<H, D, R, P> {
@@ -378,12 +453,14 @@ impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore, P: PairingHost> LinkServi
         }
     }
 
-    /// Runs every check on one command; returns the result to stream.
-    fn handle_command(
+    /// Every command check — identity, permission, service level, rate,
+    /// nonce, clock, expiry, replay. `Ok` = admitted (its sequence is
+    /// recorded); `Err` = the result to send back (already audited).
+    fn admit(
         &self,
         conn: &LinkConnInfo,
         command: &proto::ControlCommand,
-    ) -> proto::CommandResult {
+    ) -> Result<PeerAccess, proto::CommandResult> {
         let sequence = command.sequence;
         let rejected = |code: &str, message: &str| proto::CommandResult {
             sequence,
@@ -400,12 +477,12 @@ impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore, P: PairingHost> LinkServi
                     "not_authorised",
                     Some(sequence),
                 );
-                return rejected("not_authorised", status.message());
+                return Err(rejected("not_authorised", status.message()));
             }
         };
         let fail = |code: &str, message: &str| {
             self.reject(&access.machine_id, "command_rejected", code, Some(sequence));
-            rejected(code, message)
+            Err(rejected(code, message))
         };
         if command.console_machine_id != access.machine_id {
             return fail(
@@ -463,9 +540,42 @@ impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore, P: PairingHost> LinkServi
             seen.push_back((Instant::now(), nonce));
         }
         self.replay.record(&access.machine_id, sequence);
+        if command.action.is_none() {
+            return fail("malformed", "The command has no action.");
+        }
+        Ok(access)
+    }
+
+    /// Runs every check on one command; returns the result to stream.
+    fn handle_command(
+        &self,
+        conn: &LinkConnInfo,
+        command: &proto::ControlCommand,
+    ) -> proto::CommandResult {
+        let sequence = command.sequence;
+        let access = match self.admit(conn, command) {
+            Ok(access) => access,
+            Err(result) => return result,
+        };
+        let fail = |code: &str, message: &str| {
+            self.reject(&access.machine_id, "command_rejected", code, Some(sequence));
+            proto::CommandResult {
+                sequence,
+                outcome: "rejected".to_owned(),
+                reason_code: code.to_owned(),
+                message: message.to_owned(),
+            }
+        };
         let Some(action) = &command.action else {
             return fail("malformed", "The command has no action.");
         };
+        if matches!(
+            action,
+            proto::control_command::Action::TakeHandover(_)
+                | proto::control_command::Action::SwitchBack(_)
+        ) {
+            return fail("malformed", "Handovers go through the Handover call.");
+        }
         match self.handler.execute(&access, action) {
             Ok(message) => {
                 self.handler.audit(LinkAuditEvent {
@@ -485,6 +595,279 @@ impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore, P: PairingHost> LinkServi
             Err(rejection) => fail(&rejection.reason_code, &rejection.message),
         }
     }
+
+    /// AJ-E706: one Handover call — admit the header command, receive
+    /// the declared bytes (capped, progress reported), check the sha256,
+    /// re-check the permission, then let the handler take it.
+    async fn serve_handover(
+        &self,
+        conn: LinkConnInfo,
+        mut inbound: Streaming<proto::HandoverPart>,
+        sender: tokio::sync::mpsc::Sender<Result<proto::HandoverProgress, Status>>,
+    ) {
+        let (access, command, declared) = match self.handover_header(&conn, &mut inbound).await {
+            Ok(header) => header,
+            Err(refused) => {
+                let _ = sender.send(Ok(*refused)).await;
+                return;
+            }
+        };
+        let sequence = command.sequence;
+        let inserted = self
+            .handovers
+            .lock()
+            .is_ok_and(|mut set| set.insert(access.machine_id.clone()));
+        if !inserted {
+            let refused = self.refuse(
+                &access,
+                sequence,
+                "busy",
+                "Another handover from that Mac is still running.",
+            );
+            let _ = sender.send(Ok(refused)).await;
+            return;
+        }
+        let received = receive_bundle(&mut inbound, &sender, declared).await;
+        let outcome = match received {
+            Received::Bytes(bytes) => {
+                self.finish_handover(&conn, &access, command, declared, bytes)
+                    .await
+            }
+            Received::Refused(code, message) => Some(self.refuse(&access, sequence, code, message)),
+            Received::Cancelled => {
+                self.reject(
+                    &access.machine_id,
+                    "handover_cancelled",
+                    "cancelled",
+                    Some(sequence),
+                );
+                None
+            }
+        };
+        if let Ok(mut set) = self.handovers.lock() {
+            set.remove(&access.machine_id);
+        }
+        if let Some(outcome) = outcome {
+            let _ = sender.send(Ok(outcome)).await;
+        }
+    }
+
+    /// A refused handover, audited.
+    fn refuse(
+        &self,
+        access: &PeerAccess,
+        sequence: u64,
+        code: &str,
+        message: &str,
+    ) -> proto::HandoverProgress {
+        self.reject(&access.machine_id, "command_rejected", code, Some(sequence));
+        refused(sequence, code, message)
+    }
+
+    /// The first part: a command that passes every check and is a
+    /// handover action within the size cap.
+    async fn handover_header(
+        &self,
+        conn: &LinkConnInfo,
+        inbound: &mut Streaming<proto::HandoverPart>,
+    ) -> Result<(PeerAccess, proto::ControlCommand, u64), Box<proto::HandoverProgress>> {
+        let Some(Ok(proto::HandoverPart {
+            part: Some(proto::handover_part::Part::Command(command)),
+        })) = inbound.next().await
+        else {
+            return Err(Box::new(refused(
+                0,
+                "malformed",
+                "A handover starts with its command.",
+            )));
+        };
+        let sequence = command.sequence;
+        let access = self
+            .admit(conn, &command)
+            .map_err(|result| proto::HandoverProgress {
+                phase: "rejected".to_owned(),
+                result: Some(result),
+                ..proto::HandoverProgress::default()
+            })?;
+        let declared = match &command.action {
+            Some(proto::control_command::Action::TakeHandover(take)) => take.bundle_bytes,
+            Some(proto::control_command::Action::SwitchBack(back)) => back.bundle_bytes,
+            _ => {
+                return Err(Box::new(self.refuse(
+                    &access,
+                    sequence,
+                    "malformed",
+                    "That isn't a handover.",
+                )));
+            }
+        };
+        if declared > MAX_HANDOVER_BYTES {
+            return Err(Box::new(self.refuse(
+                &access,
+                sequence,
+                "too_large",
+                "That handover is larger than 512 MB.",
+            )));
+        }
+        Ok((access, command, declared))
+    }
+
+    /// After a verified transfer: re-check the permission, then run the
+    /// handler on a blocking thread and report its verdict.
+    async fn finish_handover(
+        &self,
+        conn: &LinkConnInfo,
+        access: &PeerAccess,
+        command: proto::ControlCommand,
+        declared: u64,
+        bytes: Vec<u8>,
+    ) -> Option<proto::HandoverProgress> {
+        let sequence = command.sequence;
+        // Per-item permission re-check: an unpair or downgrade during
+        // the transfer stops it here.
+        let still = self
+            .directory
+            .lookup(&conn.peer_key)
+            .is_some_and(|now| now.permission == Permission::Control);
+        if !still {
+            return Some(self.refuse(
+                access,
+                sequence,
+                "permission_denied",
+                "Access changed during the handover.",
+            ));
+        }
+        let action = command.action?;
+        let handler = self.handler.clone();
+        let peer = access.clone();
+        let outcome =
+            tokio::task::spawn_blocking(move || handler.take_handover(&peer, &action, &bytes))
+                .await;
+        Some(match outcome {
+            Ok(Ok(accepted)) => {
+                self.handler.audit(LinkAuditEvent {
+                    peer: access.machine_id.clone(),
+                    kind: "handover_accepted".to_owned(),
+                    reason_code: String::new(),
+                    sequence: Some(sequence),
+                    count: Some(declared),
+                });
+                proto::HandoverProgress {
+                    received_bytes: declared,
+                    phase: "done".to_owned(),
+                    result: Some(proto::CommandResult {
+                        sequence,
+                        outcome: "accepted".to_owned(),
+                        reason_code: String::new(),
+                        message: accepted.message,
+                    }),
+                    instance_id: accepted.instance_id,
+                    divergence: None,
+                }
+            }
+            Ok(Err(rejection)) => {
+                let mut refused =
+                    self.refuse(access, sequence, &rejection.reason_code, &rejection.message);
+                refused.divergence = rejection.divergence;
+                refused
+            }
+            Err(_) => self.refuse(
+                access,
+                sequence,
+                "internal",
+                "The handover failed on this Mac.",
+            ),
+        })
+    }
+}
+
+/// A handover refusal for the console.
+fn refused(sequence: u64, code: &str, message: &str) -> proto::HandoverProgress {
+    proto::HandoverProgress {
+        phase: "rejected".to_owned(),
+        result: Some(proto::CommandResult {
+            sequence,
+            outcome: "rejected".to_owned(),
+            reason_code: code.to_owned(),
+            message: message.to_owned(),
+        }),
+        ..proto::HandoverProgress::default()
+    }
+}
+
+/// What receiving a handover's chunks came to.
+enum Received {
+    Bytes(Vec<u8>),
+    Refused(&'static str, &'static str),
+    Cancelled,
+}
+
+/// Receives the chunks of a handover up to `declared` bytes, reporting
+/// progress, and checks the closing sha256.
+async fn receive_bundle(
+    inbound: &mut Streaming<proto::HandoverPart>,
+    sender: &tokio::sync::mpsc::Sender<Result<proto::HandoverProgress, Status>>,
+    declared: u64,
+) -> Received {
+    use sha2::{Digest, Sha256};
+    let mut bytes = Vec::with_capacity(usize::try_from(declared).unwrap_or(0).min(64 << 20));
+    let mut hasher = Sha256::new();
+    let mut reported = 0_u64;
+    let expected = loop {
+        match inbound.next().await {
+            Some(Ok(proto::HandoverPart {
+                part: Some(proto::handover_part::Part::Chunk(chunk)),
+            })) => {
+                hasher.update(&chunk);
+                bytes.extend_from_slice(&chunk);
+                let received = bytes.len() as u64;
+                if received > declared {
+                    return Received::Refused(
+                        "malformed",
+                        "More bytes than the handover declared.",
+                    );
+                }
+                if received - reported >= PROGRESS_EVERY_BYTES {
+                    reported = received;
+                    let update = proto::HandoverProgress {
+                        received_bytes: received,
+                        phase: "receiving".to_owned(),
+                        ..proto::HandoverProgress::default()
+                    };
+                    if sender.send(Ok(update)).await.is_err() {
+                        return Received::Cancelled;
+                    }
+                }
+            }
+            Some(Ok(proto::HandoverPart {
+                part: Some(proto::handover_part::Part::End(end)),
+            })) => break end.sha256,
+            // Cancelled (the console closed the stream) or broken.
+            _ => return Received::Cancelled,
+        }
+    };
+    let digest = hasher
+        .finalize()
+        .iter()
+        .fold(String::new(), |mut out, byte| {
+            use std::fmt::Write as _;
+            let _ = write!(out, "{byte:02x}");
+            out
+        });
+    if bytes.len() as u64 != declared || digest != expected {
+        return Received::Refused(
+            "corrupt",
+            "The handover arrived incomplete — nothing was changed.",
+        );
+    }
+    let _ = sender
+        .send(Ok(proto::HandoverProgress {
+            received_bytes: declared,
+            phase: "installing".to_owned(),
+            ..proto::HandoverProgress::default()
+        }))
+        .await;
+    Received::Bytes(bytes)
 }
 
 type BoxStream<T> = Pin<Box<dyn Stream<Item = Result<T, Status>> + Send>>;
@@ -653,15 +1036,7 @@ impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore, P: PairingHost> proto::li
         self.authorize(&conn)?;
         let mut inbound = request.into_inner();
         let (sender, receiver) = tokio::sync::mpsc::channel(16);
-        let service = Self {
-            handler: self.handler.clone(),
-            directory: self.directory.clone(),
-            replay: self.replay.clone(),
-            pairing: self.pairing.clone(),
-            sessions: self.sessions.clone(),
-            buckets: self.buckets.clone(),
-            nonces: self.nonces.clone(),
-        };
+        let service = self.clone();
         tokio::spawn(async move {
             while let Some(next) = inbound.next().await {
                 let command = match next {
@@ -679,6 +1054,25 @@ impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore, P: PairingHost> proto::li
                     break;
                 }
             }
+        });
+        Ok(Response::new(Box::pin(
+            tokio_stream::wrappers::ReceiverStream::new(receiver),
+        )))
+    }
+
+    type HandoverStream = BoxStream<proto::HandoverProgress>;
+
+    async fn handover(
+        &self,
+        request: Request<Streaming<proto::HandoverPart>>,
+    ) -> Result<Response<Self::HandoverStream>, Status> {
+        let conn = Self::conn(&request)?;
+        self.authorize(&conn)?;
+        let inbound = request.into_inner();
+        let (sender, receiver) = tokio::sync::mpsc::channel(16);
+        let service = self.clone();
+        tokio::spawn(async move {
+            service.serve_handover(conn, inbound, sender).await;
         });
         Ok(Response::new(Box::pin(
             tokio_stream::wrappers::ReceiverStream::new(receiver),
@@ -777,6 +1171,7 @@ impl LinkNode {
             sessions: sessions.clone(),
             buckets: Arc::default(),
             nonces: Arc::default(),
+            handovers: Arc::default(),
         };
         let (shutdown, on_shutdown) = tokio::sync::oneshot::channel::<()>();
         let (incoming_tx, incoming_rx) =
@@ -878,6 +1273,7 @@ async fn accept_loop(
                 sessions,
                 open,
                 closed: closed_signal(closing),
+                is_closed: false,
             };
             let _ = tx.send(Ok(stream)).await;
         });

@@ -5726,6 +5726,7 @@ fn record_compensating_edge(
         account: edge.from_account.clone(),
         provider: edge.from_provider.clone(),
         resumed_from_epoch: Some(to_epoch.clone()),
+        machine: None,
     })?;
     let undo_edge_id = SwitchEdgeId::new(format!("edge-{}", unique_suffix()));
     graph.append_edge(&SwitchEdge {
@@ -5748,6 +5749,7 @@ fn record_compensating_edge(
         parent_edge_a: Some(edge.id.clone()),
         parent_edge_b: None,
         created_at: Timestamp::now(),
+        to_machine: None,
     })?;
     graph.mark_launched(&undo_edge_id, &epoch_undo)?;
     graph.mark_confirmed(&undo_edge_id)?;
@@ -5881,6 +5883,7 @@ fn record_edge_staged(
         account: account_a.id.clone(),
         provider: account_a.harness.clone(),
         resumed_from_epoch: None,
+        machine: None,
     };
     graph.insert_epoch(&from).map_err(|error| AppError::Io {
         context: "hand over",
@@ -5906,6 +5909,7 @@ fn record_edge_staged(
             parent_edge_a: None,
             parent_edge_b: None,
             created_at: Timestamp::now(),
+            to_machine: None,
         })
         .map_err(|error| AppError::Io {
             context: "hand over",
@@ -6001,6 +6005,7 @@ fn record_edge_succeeded(
         account: target.id.clone(),
         provider: target.harness.clone(),
         resumed_from_epoch: Some(ctx.from_epoch.clone()),
+        machine: None,
     })?;
     graph.mark_launched(&ctx.edge, &to_epoch)?;
     graph.mark_confirmed(&ctx.edge)?;
@@ -10687,6 +10692,7 @@ fn record_switch_back_edge(
         account: lineage.original_epoch.account.clone(),
         provider: lineage.original_epoch.provider.clone(),
         resumed_from_epoch: Some(lineage.original_epoch.id.clone()),
+        machine: None,
     })?;
     let edge_id = SwitchEdgeId::new(format!("edge-{}", unique_suffix()));
     graph.append_edge(&SwitchEdge {
@@ -10712,6 +10718,7 @@ fn record_switch_back_edge(
         parent_edge_a: Some(lineage.fork_edge.id.clone()),
         parent_edge_b: None,
         created_at: Timestamp::now(),
+        to_machine: None,
     })?;
     graph.mark_launched(&edge_id, &epoch_id)?;
     graph.mark_confirmed(&edge_id)?;

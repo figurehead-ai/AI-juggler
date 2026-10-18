@@ -28,6 +28,12 @@ service Link {
   // over the host's 6-digit code, key confirmation bound to this TLS
   // session, then both users confirm before either side pins.
   rpc Pair(stream PairMessage) returns (stream PairMessage);
+  // AJ-E706: the machine holding the work pushes it — only after its own
+  // user clicked Switch (ADR-0013's single transcript-bearing exception).
+  // First part: a ControlCommand (TakeHandover or SwitchBack) with every
+  // command check; then the bundle in chunks; then its sha256. The node
+  // re-checks everything and decides; progress streams back.
+  rpc Handover(stream HandoverPart) returns (stream HandoverProgress);
 }
 
 message PairMessage {
@@ -131,7 +137,39 @@ message TelemetryDelta {
     SessionDelta session = 11;
     AlertDelta alert = 12;
     CleanupDelta cleanup = 13;
+    CatalogDelta catalog = 14;
   }
+}
+
+// AJ-E706: what this node can take work into — its Launch settings, the
+// harness versions installed here and the projects it knows. Never a
+// path: a project root travels only as a digest a console compares with
+// the digest of its own root (same digest = same checkout path).
+message CatalogDelta {
+  repeated CatalogRecipe recipes = 1;
+  repeated HarnessVersion harnesses = 2;
+  repeated CatalogProject projects = 3;
+}
+
+message CatalogRecipe {
+  string recipe_id = 1;
+  string name = 2;
+  string provider_id = 3;
+  string account_label = 4;
+}
+
+message HarnessVersion {
+  string provider_id = 1;
+  // As the harness reports it; empty = not installed on this node.
+  string version = 2;
+}
+
+message CatalogProject {
+  string project_id = 1;
+  // The folder's name (never a path).
+  string name = 2;
+  // Hex sha256 of "aij-project-root-v1\0" + the canonical root.
+  string root_digest = 3;
 }
 
 // AJ-E707: this node's managed processes (its Cleanup Centre, read-only
@@ -223,7 +261,105 @@ message ControlCommand {
     // AJ-E707: clean one process the node owns (it re-verifies first and
     // runs its own TERM → grace → KILL ladder).
     CleanProcess clean_process = 13;
+    // AJ-E706: only valid as the first part of a Handover call.
+    TakeHandover take_handover = 14;
+    SwitchBack switch_back = 15;
   }
+}
+
+// Take work from the console: run it under a Launch setting that exists
+// here, in a project this node knows. Ids are the console's lineage ids,
+// so both machines record the same Switch Graph edge.
+message TakeHandover {
+  string recipe_id = 1;
+  // The project on THIS node (same path, or the user's confirmed mapping).
+  string project_id = 2;
+  // "transplant" (T2: the native session set) | "replay" (T3: turns).
+  string mechanism = 3;
+  uint64 bundle_bytes = 4;
+  string work_id = 5;
+  string from_epoch_id = 6;
+  string edge_id = 7;
+  string to_epoch_id = 8;
+  string from_provider_id = 9;
+  string from_account_label = 10;
+  string from_native_id = 11;
+  // The F-label shown to the user when they clicked.
+  string fidelity_shown = 12;
+}
+
+// Resume the original native session on this node with one summarised
+// delta turn (D-05: never a copy-back over the original).
+message SwitchBack {
+  // The original epoch on THIS node.
+  string original_epoch_id = 1;
+  // The console's away epoch (mirrored here for lineage).
+  string from_epoch_id = 2;
+  string edge_id = 3;
+  string new_epoch_id = 4;
+  string work_id = 5;
+  uint64 bundle_bytes = 6;
+  // "" = refuse if diverged; "keep_theirs" = resume the original anyway;
+  // "keep_both" = fork the original and resume the fork.
+  string divergence_choice = 7;
+  string from_provider_id = 8;
+  string from_account_label = 9;
+}
+
+message HandoverPart {
+  oneof part {
+    ControlCommand command = 1;
+    bytes chunk = 2;
+    HandoverEnd end = 3;
+  }
+}
+
+message HandoverEnd {
+  // Hex sha256 of every chunk in order.
+  string sha256 = 1;
+}
+
+// What a Handover's chunks decode to (after the sha256 matches).
+message HandoverBundle {
+  string provider_id = 1;
+  string native_id = 2;
+  string harness_version = 3;
+  // T2: the native session set (flat file names).
+  repeated BundleFile files = 4;
+  // T3: the distilled turns to prime a fresh session with.
+  repeated ReplayTurn turns = 5;
+  // SwitchBack: the one summarised "while you were away" turn.
+  string delta_turn = 6;
+}
+
+message BundleFile {
+  string name = 1;
+  bytes content = 2;
+}
+
+message ReplayTurn {
+  string role = 1;
+  string text = 2;
+}
+
+message HandoverProgress {
+  uint64 received_bytes = 1;
+  // "receiving" | "installing" | "launching" | "done" | "rejected"
+  string phase = 2;
+  // Set on "done" and "rejected".
+  CommandResult result = 3;
+  // The new Instance on this node, on "done".
+  string instance_id = 4;
+  // Set when a SwitchBack was refused as diverged (AJ-E708 Req.5).
+  Divergence divergence = 5;
+}
+
+// What changed on this node since the work left — the conflict sheet's
+// preview. Counts and times only, never content.
+message Divergence {
+  uint32 turns_since = 1;
+  int64 last_activity_ms = 2;
+  string summary = 3;
 }
 
 message CleanProcess {

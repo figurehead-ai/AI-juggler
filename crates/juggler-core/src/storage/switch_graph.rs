@@ -17,7 +17,8 @@ use rusqlite::{Connection, OptionalExtension, Row, params};
 
 use crate::error::CoreError;
 use crate::model::{
-    AccountId, EdgeActor, EdgeState, Epoch, EpochId, FailureStage, HarnessId, ManifestEntry,
+    AccountId, EdgeActor, EdgeState, Epoch, EpochId, FailureStage, HarnessId, MachineId,
+    ManifestEntry,
     PackId, ProjectId, SessionId, SwitchEdge, SwitchEdgeId, SwitchMechanism, Timestamp, WorkItem,
     WorkItemId,
 };
@@ -105,8 +106,8 @@ impl SwitchGraphRepo<'_> {
     /// foreign-key violations for a missing work item).
     pub fn insert_epoch(&self, epoch: &Epoch) -> Result<(), CoreError> {
         self.conn.execute(
-            "INSERT INTO epochs (id, work_id, session_ref, native_id, account, provider, resumed_from_epoch)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            "INSERT INTO epochs (id, work_id, session_ref, native_id, account, provider, resumed_from_epoch, machine_id)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
             params![
                 epoch.id.as_str(),
                 epoch.work.as_str(),
@@ -115,6 +116,7 @@ impl SwitchGraphRepo<'_> {
                 epoch.account.as_str(),
                 epoch.provider.as_str(),
                 epoch.resumed_from_epoch.as_ref().map(EpochId::as_str),
+                epoch.machine.as_ref().map(MachineId::as_str),
             ],
         )?;
         Ok(())
@@ -153,9 +155,9 @@ impl SwitchGraphRepo<'_> {
                 from_account, to_account, from_provider, to_provider,
                 mechanism, pack_id, fidelity_shown, manifest_sha256,
                 state, fail_stage, fail_reason, actor,
-                parent_edge_a, parent_edge_b, created_at
+                parent_edge_a, parent_edge_b, created_at, to_machine
              ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12,
-                       ?13, ?14, ?15, ?16, ?17, ?18, ?19)",
+                       ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)",
             params![
                 edge.id.as_str(),
                 edge.work.as_str(),
@@ -176,6 +178,7 @@ impl SwitchGraphRepo<'_> {
                 edge.parent_edge_a.as_ref().map(SwitchEdgeId::as_str),
                 edge.parent_edge_b.as_ref().map(SwitchEdgeId::as_str),
                 edge.created_at.millis(),
+                edge.to_machine.as_ref().map(MachineId::as_str),
             ],
         )?;
         Ok(())
@@ -423,6 +426,9 @@ fn map_epoch(row: &Row<'_>) -> rusqlite::Result<Epoch> {
         resumed_from_epoch: row
             .get::<_, Option<String>>("resumed_from_epoch")?
             .map(EpochId::new),
+        machine: row
+            .get::<_, Option<String>>("machine_id")?
+            .map(MachineId::new),
     })
 }
 
@@ -480,6 +486,9 @@ fn map_edge(row: &Row<'_>) -> rusqlite::Result<SwitchEdge> {
             .get::<_, Option<String>>("parent_edge_b")?
             .map(SwitchEdgeId::new),
         created_at: Timestamp::from_millis(row.get("created_at")?),
+        to_machine: row
+            .get::<_, Option<String>>("to_machine")?
+            .map(MachineId::new),
     })
 }
 
