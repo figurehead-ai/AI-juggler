@@ -270,7 +270,11 @@ fn an_offline_console_catches_up_with_only_what_it_missed_and_keeps_last_known_r
     // the test's passes raced the tick).
     let (latest, top) = outbox_latest(&a);
     let _ = edits;
-    assert!(top - high_water >= 200, "{} durable changes queued", top - high_water);
+    assert!(
+        top - high_water >= 200,
+        "{} durable changes queued",
+        top - high_water
+    );
     let missing = {
         let storage = a.storage.lock().unwrap();
         storage
@@ -500,7 +504,10 @@ fn a_thousand_queued_changes_catch_up_inside_three_seconds() {
     writes.sort();
     let p95 = writes[writes.len() * 95 / 100];
     eprintln!("[perf] outbox write p95 over 1,000: {p95:?}");
-    assert!(p95 < Duration::from_millis(10), "outbox write budget: p95 {p95:?}");
+    assert!(
+        p95 < Duration::from_millis(10),
+        "outbox write budget: p95 {p95:?}"
+    );
     let started = Instant::now();
     link::link_set_enabled_impl(&b, true).unwrap();
     wait_for("1,000 caught up", || {
