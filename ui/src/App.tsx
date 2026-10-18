@@ -28,6 +28,7 @@ import { NewSessionModal } from "./screens/NewSession";
 import { NewProjectSheet } from "./screens/NewProjectSheet";
 import { FleetScreen } from "./screens/FleetScreen";
 import { SettingsScreen } from "./screens/Settings";
+import { FleetPromptDialog } from "./components/FleetPromptDialog";
 import { funnelEvent } from "./lib/funnel";
 import { ReadyHome } from "./screens/ReadyHome";
 import { SessionPanel } from "./screens/WorkPanels";
@@ -86,6 +87,14 @@ const GLOBAL_NAV = [
 ] as const;
 
 type GlobalId = (typeof GLOBAL_NAV)[number]["id"];
+
+/** Display names for the header's Provider chip. */
+const PROVIDER_NAMES: Record<string, string> = {
+  "claude-code": "Claude Code",
+  codex: "Codex",
+  "gemini-cli": "Gemini CLI",
+  zcode: "ZCode",
+};
 
 type Selection =
   | { kind: "none" }
@@ -367,7 +376,6 @@ export default function App() {
   const [remoteNow, setRemoteNow] = useState(() => Date.now());
   const remoteSelected = selection.kind === "remote";
   useEffect(() => {
-    if (!remoteSelected) return;
     let alive = true;
     const load = async () => {
       try {
@@ -381,7 +389,8 @@ export default function App() {
       }
     };
     void load();
-    const timer = window.setInterval(() => void load(), 2000);
+    // A local read of what peers reported: fast while one is open.
+    const timer = window.setInterval(() => void load(), remoteSelected ? 2000 : 5000);
     return () => {
       alive = false;
       window.clearInterval(timer);
@@ -525,6 +534,21 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, [global]);
 
+  // The Provider of what's selected — never a fixed label.
+  const remoteInstanceProvider =
+    selection.kind === "remote" && selection.instanceId
+      ? (remoteMachines
+          ?.find((machine) => machine.machine_id === selection.machineId)
+          ?.instances.find((row) => row.id === selection.instanceId)?.provider ?? null)
+      : null;
+  const contextProviderId =
+    global !== null
+      ? null
+      : (selectedSession?.provider ??
+        remoteInstanceProvider ??
+        (selection.kind === "provider" ? selection.id : null));
+  const contextProvider = contextProviderId ? (PROVIDER_NAMES[contextProviderId] ?? contextProviderId) : null;
+
   const contextTitle =
     global !== null
       ? (GLOBAL_NAV.find((g) => g.id === global)?.label ?? "")
@@ -564,6 +588,11 @@ export default function App() {
         onNewProject={() => setNewProjectDir((current) => current ?? "")}
         freshness={freshness}
         now={now}
+        remoteMachines={remoteMachines ?? []}
+        selectedRemote={
+          selection.kind === "remote" ? { machineId: selection.machineId, instanceId: selection.instanceId } : null
+        }
+        onSelectRemote={inspectRemote}
         header={(minimal) => (
           <div
             className={
@@ -617,10 +646,10 @@ export default function App() {
           data-tauri-drag-region
           className="flex h-14 shrink-0 items-center gap-3 border-b border-hairline bg-surface/50 px-5 backdrop-blur-xl"
         >
-          <h1 className="text-sm font-semibold capitalize tracking-wide">{contextTitle}</h1>
-          <Chip tone="accent">Claude Code</Chip>
+          <h1 className="min-w-0 truncate text-sm font-semibold capitalize tracking-wide">{contextTitle}</h1>
+          {contextProvider && <Chip tone="accent">{contextProvider}</Chip>}
 
-          <div className="ml-auto flex items-center gap-1.5" data-tauri-drag-region={false}>
+          <div className="ml-auto flex shrink-0 items-center gap-1 xl:gap-1.5" data-tauri-drag-region={false}>
             {/* Density segmented control (AJ-E403 Req.4). The inspector
                 and panels never change with density — only the rail. */}
             <div
@@ -655,7 +684,7 @@ export default function App() {
                   setGlobal(item.id);
                 }}
                 className={
-                  "rounded-md px-2.5 py-1.5 text-[11px] font-medium transition-colors " +
+                  "rounded-md px-2 py-1.5 text-[11px] font-medium transition-colors xl:px-2.5 " +
                   (global === item.id
                     ? "bg-surface text-ink sheen"
                     : "text-muted hover:bg-surface/60 hover:text-ink")
@@ -795,7 +824,10 @@ export default function App() {
                   live-region, badge-carrying copy, reset-queue rows
                   with an explicit Resume click (the click opens the
                   picker; nothing ever launches by itself). */}
-              <NotificationRegion onQueueResume={() => setNewSession(true)} />
+              <NotificationRegion
+                onQueueResume={() => setNewSession(true)}
+                onOpenRemote={(machineId) => inspectRemote(machineId, null)}
+              />
               <RightInspector
               selection={
                 selection.kind === "session"
@@ -895,6 +927,8 @@ export default function App() {
         />
       )}
 
+      {/* AJ-E709: "Ask each time" — a paired machine waits for this Mac's user. */}
+      <FleetPromptDialog />
       <GoToPalette
         open={goToOpen}
         onClose={() => setGoToOpen(false)}

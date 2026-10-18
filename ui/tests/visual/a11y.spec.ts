@@ -2075,3 +2075,55 @@ for (const theme of ["dark", "light"] as const) {
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
   });
 }
+
+/** AJ-E709 a11y (both themes): the board with a paired machine's rows,
+ * the Access sheet (radio group) and the "Ask each time" alertdialog. */
+for (const theme of ["dark", "light"] as const) {
+  test(`fleet — board machines, access, prompt — axe 0 — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ fixture, theme: t }) => {
+        const now = Date.now();
+        const w = window as unknown as Record<string, unknown>;
+        w.__AIJ_FIXTURE__ = fixture;
+        w.__AIJ_LINK__ = { enabled: true, port: 47821, error: null };
+        w.__AIJ_FLEET_PEERS__ = [{
+          machine_id: "machine-mini", label: "Mac mini", fingerprint: "11AA 22BB 33CC 44DD 55EE 66FF 7788 99AA",
+          permission: "control", permission_label: "View + control", ask_each_time: true, paired_via: "code",
+          paired_at_ms: now, last_seen_ms: now, connection: "connected", protocol: "v1.0", connection_detail: null,
+        }];
+        w.__AIJ_FLEET_REMOTE__ = [{
+          machine_id: "machine-mini", label: "Mac mini", connection: "connected", freshness: "live",
+          last_heard_ms: now, permission: "view", resources: null, alerts: [],
+          instances: [{
+            id: "inst-1", provider: "claude-code", account_label: "Work Max", status: "running",
+            model: "claude-opus-4", model_source: "transcript", project_name: "web-shop", started_at_ms: now,
+            last_activity_ms: now, cpu_percent: 1, rss_bytes: 1e8, process_count: 1, measured_at_ms: now,
+          }],
+        }];
+        localStorage.setItem("aij.theme", t);
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        sessionStorage.setItem("aij.ready.skipped", "1");
+      },
+      { fixture: allStatuses, theme },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await page.getByRole("tab", { name: "Sessions" }).click();
+    await expect(page.getByTestId("board-remote-row")).toBeVisible();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+    await page.getByRole("button", { name: "Fleet" }).first().click();
+    await page.getByTestId("fleet-access").click();
+    await expect(page.getByTestId("fleet-access-sheet")).toBeVisible();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+    await page.keyboard.press("Escape");
+    await page.evaluate(() => {
+      (window as unknown as Record<string, unknown>).__AIJ_FLEET_PROMPTS__ = [
+        { id: 1, peer_label: "Mac mini", action: "stop Work Max (claude-code)", expires_at_ms: Date.now() + 20_000 },
+      ];
+    });
+    await expect(page.getByRole("alertdialog", { name: "Mac mini asks to act on this Mac" })).toBeVisible({ timeout: 8000 });
+    await expect(page.getByTestId("fleet-prompt-deny")).toBeFocused();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+  });
+}

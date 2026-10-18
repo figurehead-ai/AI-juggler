@@ -38,6 +38,7 @@ const machine = (over: Partial<RemoteMachineInfo> = {}): RemoteMachineInfo => ({
       measured_at_ms: NOW - 2_000,
     },
   ],
+  alerts: [],
   ...over,
 });
 

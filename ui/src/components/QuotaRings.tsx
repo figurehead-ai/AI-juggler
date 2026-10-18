@@ -146,7 +146,7 @@ export function RenewalLine({
     renewal.state === "overdue"
       ? "text-danger"
       : renewal.state === "approaching"
-        ? "text-amber-500"
+        ? "text-warning"
         : "text-muted";
   return (
     <p className={`text-xs ${tone}`} data-testid="renewal-line" data-state={renewal.state}>

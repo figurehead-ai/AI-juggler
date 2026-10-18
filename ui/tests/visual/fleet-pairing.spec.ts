@@ -180,3 +180,49 @@ test("a remote Instance fills the same six-tab inspector and offline never deadl
   await page.keyboard.press("ControlOrMeta+BracketLeft");
   await expect(page.getByTestId("fleet-screen")).toBeVisible();
 });
+
+// AJ-E709: the machine filter persists across restarts; a Fleet alert
+// deep-links to that machine's inspector; access changes only on this Mac.
+test("machine filter persists, a Fleet alert opens its machine, access is changed here", async ({ page }) => {
+  const now = Date.now();
+  const peer = {
+    machine_id: "machine-mini", label: "Mac mini", fingerprint: "11AA 22BB 33CC 44DD 55EE 66FF 7788 99AA",
+    permission: "view", permission_label: "View only", ask_each_time: false, paired_via: "code",
+    paired_at_ms: now, last_seen_ms: now, connection: "connected", protocol: "v1.0", connection_detail: null,
+  };
+  const machine = {
+    machine_id: "machine-mini", label: "Mac mini", connection: "connected", freshness: "live",
+    last_heard_ms: now, permission: "view", resources: null,
+    instances: [{
+      id: "inst-1", provider: "claude-code", account_label: "Work Max", status: "waiting_user",
+      model: null, model_source: "unknown", project_name: "web-shop", started_at_ms: now - 60_000,
+      last_activity_ms: null, cpu_percent: null, rss_bytes: null, process_count: null, measured_at_ms: now,
+    }],
+    alerts: [{ kind: "exhausted", account: "Work Max", text: "Work Max hit its 5-hour limit.", at_ms: now }],
+  };
+  await openFleet(page, { __AIJ_LINK__: { enabled: true, port: 47821, error: null }, __AIJ_FLEET_PEERS__: [peer], __AIJ_FLEET_REMOTE__: [machine] });
+
+  // Access: changed in a sheet on this Mac (Cancel focused first).
+  await page.getByTestId("fleet-access").click();
+  await expect(page.getByRole("dialog", { name: "What may Mac mini do on this Mac?" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Cancel" })).toBeFocused();
+  await page.getByTestId("fleet-access-ask").click();
+  await page.getByTestId("fleet-access-save").click();
+  await expect(page.getByTestId("fleet-peer")).toContainText("asks each time");
+  expect(await calls(page)).toContain("permission:machine-mini:control:true");
+
+  // The board: All machines by default; filter to Mac mini; it persists.
+  await page.getByRole("button", { name: "Fleet" }).first().click();
+  await page.getByRole("tab", { name: "Sessions" }).click();
+  await expect(page.getByTestId("board-remote-row")).toHaveAccessibleName("Work Max on Mac mini — waiting user");
+  await page.getByLabel("Filter by machine").selectOption("machine-mini");
+  await page.reload();
+  await page.getByRole("tab", { name: "Sessions" }).click();
+  await expect(page.getByLabel("Filter by machine")).toHaveValue("machine-mini");
+  await expect(page.getByTestId("board-machine-local")).toHaveCount(0);
+
+  // The alert names the machine and opens its inspector.
+  await expect(page.getByTestId("remote-alert-exhausted")).toContainText("Mac mini");
+  await page.getByTestId("remote-alert-exhausted").getByRole("button", { name: "Open" }).click();
+  await expect(page.getByTestId("remote-machine-overview")).toBeVisible();
+});

@@ -384,6 +384,74 @@ pub fn fleet_reset_identity(state: tauri::State<'_, Arc<AppState>>) -> AppResult
     fleet_reset_identity_impl(state.inner())
 }
 
+/// A pinned peer's local label.
+#[must_use]
+pub fn peer_label(state: &Arc<AppState>, machine_id: &str) -> Option<String> {
+    with_fleet(state, |fleet| {
+        Ok(fleet
+            .registry
+            .peers()
+            .iter()
+            .find(|peer| peer.machine_id == machine_id)
+            .map(|peer| peer.label.clone()))
+    })
+    .ok()
+    .flatten()
+}
+
+/// Core: changes what `machine_id` may do on THIS Mac. Only ever called
+/// from this Mac's own UI (the confirmation is the user's click here);
+/// no link call can change a permission (ADR-0013).
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] for an unknown peer or broken trust.
+pub fn fleet_set_permission_impl(
+    state: &Arc<AppState>,
+    machine_id: &str,
+    permission: &str,
+    ask_each_time: bool,
+) -> AppResult<Vec<FleetPeerInfo>> {
+    let permission = match permission {
+        "view" => Permission::View,
+        "control" => Permission::Control,
+        "no_access" => Permission::NoAccess,
+        _ => {
+            return Err(AppError::Validation {
+                subject: "permission",
+                message: "Choose View only or View + control.".to_owned(),
+            });
+        }
+    };
+    with_fleet(state, |fleet| {
+        fleet
+            .registry
+            .set_permission(
+                &fleet.identity,
+                machine_id,
+                permission,
+                ask_each_time && permission == Permission::Control,
+            )
+            .map_err(link_error)
+    })?;
+    fleet_peers_impl(state)
+}
+
+/// AJ-E709: changes what a paired machine may do on this Mac.
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] per [`fleet_set_permission_impl`].
+#[tauri::command]
+pub fn fleet_set_permission(
+    state: tauri::State<'_, Arc<AppState>>,
+    machine_id: String,
+    permission: String,
+    ask_each_time: bool,
+) -> AppResult<Vec<FleetPeerInfo>> {
+    fleet_set_permission_impl(state.inner(), &machine_id, &permission, ask_each_time)
+}
+
 /// The peer pinned with `key`, as the link node sees it (per request,
 /// so an unpair revokes on the next call).
 #[must_use]

@@ -124,7 +124,18 @@ message TelemetryDelta {
   oneof payload {
     MachineResources resources = 10;
     SessionDelta session = 11;
+    AlertDelta alert = 12;
   }
+}
+
+// AJ-E709: an alert this node's own alert engine emitted, routed to its
+// paired consoles (the text is the same plain words the node shows).
+message AlertDelta {
+  // "tray-amber" | "actionable" | "exhausted" | "reset-reached" | "digest"
+  string kind = 1;
+  string account_label = 2;
+  string text = 3;
+  int64 at_ms = 4;
 }
 
 message MachineResources {

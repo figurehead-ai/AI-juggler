@@ -6,6 +6,7 @@ import {
   errorText,
   fleetPeers,
   fleetRemote,
+  fleetSetPermission,
   linkSetEnabled,
   linkStatus,
   type RemoteMachineInfo,
@@ -52,6 +53,7 @@ export function FleetScreen({
   const [linkBusy, setLinkBusy] = useState(false);
   const [wizard, setWizard] = useState<PairingMode | null>(null);
   const [remote, setRemote] = useState<RemoteMachineInfo[]>([]);
+  const [access, setAccess] = useState<FleetPeerInfo | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -299,7 +301,20 @@ export function FleetScreen({
                   <p className="font-mono text-[11px] text-muted">{peer.fingerprint}</p>
                 </div>
                 <ConnectionChip peer={peer} />
-                <Chip tone="neutral">{peer.permission_label}</Chip>
+                <Chip tone="neutral">
+                  {peer.permission === "control" && peer.ask_each_time
+                    ? "View + control · asks each time"
+                    : peer.permission_label}
+                </Chip>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setAccess(peer)}
+                  aria-label={`Change what ${peer.label} may do on this Mac`}
+                  data-testid="fleet-access"
+                >
+                  Access…
+                </Button>
                 {peer.paired_via === "account" && (
                   <span className="text-[11px] text-muted">via your Figurehead account</span>
                 )}
@@ -349,6 +364,20 @@ export function FleetScreen({
             setWizard(null);
             void refresh();
           }}
+        />
+      )}
+
+      {access !== null && (
+        <AccessSheet
+          peer={access}
+          busy={busy}
+          onCancel={() => setAccess(null)}
+          onSave={(permission, ask) =>
+            void run(async () => {
+              await fleetSetPermission(access.machine_id, permission, ask);
+              setAccess(null);
+            })
+          }
         />
       )}
 
@@ -623,5 +652,106 @@ function RemoteInstances({
         </li>
       ))}
     </ul>
+  );
+}
+
+/** AJ-E709: what a paired machine may do on THIS Mac. Changed only here
+ * — the click on this Mac is the confirmation; a console can never raise
+ * its own access (ADR-0013). */
+function AccessSheet({
+  peer,
+  busy,
+  onCancel,
+  onSave,
+}: {
+  peer: FleetPeerInfo;
+  busy: boolean;
+  onCancel: () => void;
+  onSave: (permission: "view" | "control", askEachTime: boolean) => void;
+}): JSX.Element {
+  const initial =
+    peer.permission === "control" ? (peer.ask_each_time ? "ask" : "control") : "view";
+  const [choice, setChoice] = useState<"view" | "ask" | "control">(initial);
+  const cancelRef = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    cancelRef.current?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onCancel();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      previous?.focus?.();
+    };
+  }, [onCancel]);
+  const options: Array<{ id: "view" | "ask" | "control"; title: string; body: string }> = [
+    { id: "view", title: "View only", body: `${peer.label} can see this Mac's accounts, Instances and usage — it can't change anything.` },
+    {
+      id: "ask",
+      title: "View + control, ask each time",
+      body: `${peer.label} can ask to start or stop work here; each request waits for you to Allow it on this Mac.`,
+    },
+    {
+      id: "control",
+      title: "View + control",
+      body: `${peer.label} can start and stop work here using Launch settings that already exist on this Mac — it can never read credentials.`,
+    },
+  ];
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
+      <Card
+        className="flex w-full max-w-md flex-col gap-3 p-5"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="fleet-access-title"
+        data-testid="fleet-access-sheet"
+      >
+        <p id="fleet-access-title" className="text-sm font-semibold">
+          What may {peer.label} do on this Mac?
+        </p>
+        <div role="radiogroup" aria-labelledby="fleet-access-title" className="flex flex-col gap-2">
+          {options.map((option) => (
+            <label
+              key={option.id}
+              className={
+                "flex items-start gap-2.5 rounded-lg border px-3 py-2.5 " +
+                (choice === option.id ? "border-accent/60 bg-accent-soft" : "border-hairline")
+              }
+              data-testid={`fleet-access-${option.id}`}
+            >
+              <input
+                type="radio"
+                name="fleet-access"
+                className="mt-0.5"
+                checked={choice === option.id}
+                onChange={() => setChoice(option.id)}
+              />
+              <span className="flex flex-col gap-0.5">
+                <span className="text-sm font-medium">{option.title}</span>
+                <span className="text-[11px] leading-relaxed text-muted">{option.body}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+        <p className="text-[11px] text-muted">
+          Only this Mac can change this. {peer.label} sees the change within half a minute.
+        </p>
+        <div className="flex justify-end gap-2">
+          <Button ref={cancelRef} size="sm" variant="secondary" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            variant="primary"
+            disabled={busy || choice === initial}
+            onClick={() => onSave(choice === "view" ? "view" : "control", choice === "ask")}
+            data-testid="fleet-access-save"
+          >
+            Change on this Mac
+          </Button>
+        </div>
+      </Card>
+    </div>
   );
 }

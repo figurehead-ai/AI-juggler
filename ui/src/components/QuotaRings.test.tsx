@@ -124,7 +124,7 @@ describe("RenewalLine states (Req.3, D-12)", () => {
     const approaching = render(
       <RenewalLine renewal={{ state: "approaching", label: "Renews in 6 days — check your plan", entered_by_user: true }} />,
     );
-    expect(approaching.getByTestId("renewal-line").className).toContain("text-amber-500");
+    expect(approaching.getByTestId("renewal-line").className).toContain("text-warning");
     approaching.unmount();
     const overdue = render(
       <RenewalLine renewal={{ state: "overdue", label: "Renewal date passed", entered_by_user: true }} />,

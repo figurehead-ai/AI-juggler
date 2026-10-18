@@ -16,7 +16,8 @@ security negative below is green.
 | AJ-E703 transport (mTLS, protobuf, replay, limits) | DONE-EVIDENCED | [manifest](evidence/AJ-E703/manifest.md) |
 | AJ-E704 discovery + pairing wizard (mDNS, SPAKE2 code, lockouts, attempt log) | DONE-EVIDENCED | [manifest](evidence/AJ-E704/manifest.md) |
 | AJ-E705 remote inspector (same six tabs, source + freshness, permission-gated actions) | DONE-EVIDENCED | [manifest](evidence/AJ-E705/manifest.md) |
-| AJ-E706 … AJ-E711 | TODO | — |
+| AJ-E709 indicators, permissions changed only on the node, "Ask each time" prompt, alert routing | DONE-EVIDENCED (Req.2 partial, Req.6 N/A) | [manifest](evidence/AJ-E709/manifest.md) |
+| AJ-E706, AJ-E707, AJ-E708, AJ-E710, AJ-E711 | TODO | — |
 
 ## Security negatives (STRIDE rows → tests)
 
@@ -44,7 +45,9 @@ security negative below is green.
 | Discovery never names the machine; Link off by default | `discovery::tests`, `fleet_link :: link_is_off_by_default_and_pairing_needs_it_on` | ✅ green |
 | View-only console can't stop a remote Instance (console + node) | `fleet_link :: a_console_sees_the_other_macs_instances_live_and_its_commands_go_through_the_node`, `transport :: view_only_peers_get_telemetry_but_no_commands` | ✅ green |
 | Link off drops every connection (no lingering stream) | `transport :: stopping_a_node_never_waits_on_an_open_telemetry_stream` | ✅ green |
-| All others (free-form launch, logs, pack fetch, cleanup, offline sync, account substitution) | AJ-E706 … AJ-E709, AJ-E1206 | pending |
+| "Ask each time" command never runs without a local Allow | `fleet_link :: ask_each_time_holds_a_command_until_this_macs_user_decides` | ✅ green |
+| No link call can change a permission (console can't raise its own access) | no such RPC in `link.proto`; `fleet_set_permission` is a local Tauri command only | ✅ by construction |
+| All others (free-form launch, logs, pack fetch, cleanup, offline sync, account substitution) | AJ-E706 … AJ-E708, AJ-E1206 | pending |
 
 ## Dogfood (to record at AJ-E710)
 

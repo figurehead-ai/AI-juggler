@@ -1177,7 +1177,6 @@ function FleetAtAGlance({
   const live = sessions.filter((s) => s.status === "running" || s.status === "starting");
   const cpuSum = live.reduce((sum, row) => sum + (row.cpu_pct ?? 0), 0);
   const ramSum = live.reduce((sum, row) => sum + (row.rss_bytes ?? 0), 0);
-  const machines = new Set(sessions.map((row) => row.machine_id));
 
   return (
     <div className="flex h-full flex-col items-center justify-center gap-5" data-testid="fleet-at-a-glance">
@@ -1219,7 +1218,7 @@ function FleetAtAGlance({
         </Card>
         <Card className="p-3">
           <p className="text-[10px] uppercase tracking-wider text-muted">
-            this-mac · {machines.size} machine{machines.size === 1 ? "" : "s"}
+            This Mac
           </p>
           <div className="mt-1.5 flex flex-col gap-0.5 text-[11px]">
             <span className="flex justify-between gap-2">
@@ -1234,7 +1233,7 @@ function FleetAtAGlance({
           <p className="mt-1 text-[9px] text-muted">
             {live.length === 0
               ? "gauges show — until instances report resources"
-              : `measured over ${live.length} live instance${live.length === 1 ? "" : "s"} (AJ-E405+ collector)`}
+              : `measured over ${live.length} live instance${live.length === 1 ? "" : "s"}`}
           </p>
         </Card>
         <Card className="flex flex-col items-start justify-center gap-2 p-3">

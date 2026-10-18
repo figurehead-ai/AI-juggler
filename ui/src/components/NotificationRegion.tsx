@@ -6,11 +6,53 @@
  * the ONLY action; nothing here launches by itself).
  */
 import { useEffect, useState } from "react";
-import { alertsTick, resetQueueDismiss, resetQueueList, type AlertEventData, type ResetQueueRow } from "../lib/bridge";
+import {
+  alertsTick,
+  fleetRemote,
+  resetQueueDismiss,
+  resetQueueList,
+  type AlertEventData,
+  type RemoteMachineInfo,
+  type ResetQueueRow,
+} from "../lib/bridge";
 
-export function NotificationRegion({ onQueueResume }: { onQueueResume?: (row: ResetQueueRow) => void }): JSX.Element {
+export function NotificationRegion({
+  onQueueResume,
+  onOpenRemote,
+}: {
+  onQueueResume?: (row: ResetQueueRow) => void;
+  /** AJ-E709: open the machine a Fleet alert came from. */
+  onOpenRemote?: (machineId: string) => void;
+}): JSX.Element {
   const [events, setEvents] = useState<AlertEventData[]>([]);
   const [queue, setQueue] = useState<ResetQueueRow[]>([]);
+  const [remote, setRemote] = useState<RemoteMachineInfo[]>([]);
+  const [dismissed, setDismissed] = useState<Set<string>>(() => new Set());
+
+  // AJ-E709 Req.3: Fleet alerts — a local read of what peers reported
+  // (the link delivers within the second; this only paints it).
+  useEffect(() => {
+    let alive = true;
+    const poll = () => {
+      fleetRemote()
+        .then((machines) => {
+          if (alive) setRemote(machines);
+        })
+        .catch(() => null);
+    };
+    poll();
+    const timer = window.setInterval(poll, 2_000);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+    };
+  }, []);
+  const remoteAlerts = remote.flatMap((machine) =>
+    (machine.alerts ?? [])
+      .map((alert) => ({ machine, alert, key: `${machine.machine_id}-${alert.kind}-${alert.at_ms}-${alert.account}` }))
+      .filter((entry) => !dismissed.has(entry.key))
+      .slice(0, 3),
+  );
 
   useEffect(() => {
     let alive = true;
@@ -38,7 +80,7 @@ export function NotificationRegion({ onQueueResume }: { onQueueResume?: (row: Re
           data-testid={`alert-${event.kind}`}
           className={`rounded border px-2 py-1 text-[11px] ${
             event.kind === "exhausted" || event.kind === "actionable"
-              ? "border-amber-500/50 text-amber-500"
+              ? "border-warning/50 text-warning"
               : event.kind === "digest"
                 ? "border-dashed border-hairline text-muted"
                 : "border-hairline text-muted"
@@ -46,6 +88,37 @@ export function NotificationRegion({ onQueueResume }: { onQueueResume?: (row: Re
         >
           {event.kind === "digest" ? "Digest · " : ""}
           {event.text}
+        </p>
+      ))}
+      {remoteAlerts.map(({ machine, alert, key }) => (
+        <p
+          key={key}
+          data-testid={`remote-alert-${alert.kind}`}
+          className={`flex flex-wrap items-center gap-2 rounded border px-2 py-1 text-[11px] ${
+            alert.kind === "exhausted" || alert.kind === "actionable" || alert.kind === "peer-offline"
+              ? "border-warning/50 text-warning"
+              : "border-hairline text-muted"
+          }`}
+        >
+          <span className="font-medium">{machine.label}</span>
+          <span>·</span>
+          <span className="min-w-0 flex-1">{alert.text}</span>
+          {onOpenRemote && (
+            <button
+              type="button"
+              className="underline focus:outline-none focus:ring-2 focus:ring-accent"
+              onClick={() => onOpenRemote(machine.machine_id)}
+            >
+              Open
+            </button>
+          )}
+          <button
+            type="button"
+            className="text-muted underline focus:outline-none focus:ring-2 focus:ring-accent"
+            onClick={() => setDismissed((prior) => new Set(prior).add(key))}
+          >
+            dismiss
+          </button>
         </p>
       ))}
       {queue.map((row) => (
