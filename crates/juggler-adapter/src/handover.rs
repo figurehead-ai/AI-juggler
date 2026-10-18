@@ -230,6 +230,41 @@ pub fn fork_session_id(bytes: &[u8], new_id: &str) -> Vec<u8> {
     out.into_bytes()
 }
 
+/// Rewrites every top-level `"cwd"` that is `from` (or inside it) to
+/// the same place under `to` (AJ-E706: the user-confirmed path mapping
+/// for a cross-machine transplant — never applied without that
+/// confirmation). Lines that fail to parse, and paths outside `from`,
+/// pass through byte-identical.
+#[must_use]
+pub fn remap_cwd(bytes: &[u8], from: &str, to: &str) -> Vec<u8> {
+    let from = from.trim_end_matches('/');
+    let to = to.trim_end_matches('/');
+    let text = String::from_utf8_lossy(bytes);
+    let mut out = String::with_capacity(text.len());
+    for line in text.lines() {
+        let remapped = serde_json::from_str::<serde_json::Value>(line)
+            .ok()
+            .and_then(|mut value| {
+                let cwd = value.get("cwd")?.as_str()?.to_owned();
+                let rest = if cwd == from {
+                    ""
+                } else if cwd.starts_with(&format!("{from}/")) {
+                    &cwd[from.len()..]
+                } else {
+                    return None;
+                };
+                value.as_object_mut()?.insert(
+                    "cwd".to_owned(),
+                    serde_json::Value::String(format!("{to}{rest}")),
+                );
+                Some(value.to_string())
+            });
+        out.push_str(remapped.as_deref().unwrap_or(line));
+        out.push('\n');
+    }
+    out.into_bytes()
+}
+
 /// The set of message `uuid`s in a transcript (the first-wins dedupe
 /// key — H2.1's cycle-safety).
 #[must_use]
@@ -269,6 +304,37 @@ mod tests {
             "message": {"role": "user", "content": "hi"},
         })
         .to_string()
+    }
+
+    #[test]
+    fn remap_cwd_moves_only_paths_inside_the_mapped_root() {
+        let body = format!(
+            "{}\n{}\n{}\nnot json\n",
+            line("u1", None, "s1", "/Users/a/Dev/shop"),
+            line("u2", Some("u1"), "s1", "/Users/a/Dev/shop/web"),
+            line("u3", Some("u2"), "s1", "/Users/a/Dev/shopping"),
+        );
+        let out = remap_cwd(body.as_bytes(), "/Users/a/Dev/shop", "/Volumes/work/shop/");
+        let text = String::from_utf8(out).unwrap();
+        let cwds: Vec<String> = text
+            .lines()
+            .filter_map(|l| serde_json::from_str::<serde_json::Value>(l).ok())
+            .map(|v| v["cwd"].as_str().unwrap().to_owned())
+            .collect();
+        assert_eq!(
+            cwds,
+            [
+                "/Volumes/work/shop",
+                "/Volumes/work/shop/web",
+                "/Users/a/Dev/shopping"
+            ],
+            "a sibling folder sharing the prefix is never moved"
+        );
+        assert!(
+            text.ends_with("not json\n"),
+            "unparseable lines pass through"
+        );
+        assert_eq!(uuid_set(text.as_bytes()).len(), 3, "the tree is kept");
     }
 
     #[test]

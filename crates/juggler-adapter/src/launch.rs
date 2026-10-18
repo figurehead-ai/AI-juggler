@@ -28,6 +28,13 @@ pub enum LaunchMode {
         /// pack attached; NEVER a copy-back over the transcript).
         delta_prompt: Option<String>,
     },
+    /// AJ-E706: a full interactive session whose first user turn is
+    /// `prompt` — T3 replay, priming a fresh session with the handover's
+    /// distilled turns (untrusted data, already previewed and redacted).
+    Primed {
+        /// The prime prompt.
+        prompt: String,
+    },
 }
 
 /// Everything needed to spawn one harness session. Produced by adapters;

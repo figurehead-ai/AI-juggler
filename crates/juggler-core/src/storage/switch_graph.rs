@@ -18,9 +18,8 @@ use rusqlite::{Connection, OptionalExtension, Row, params};
 use crate::error::CoreError;
 use crate::model::{
     AccountId, EdgeActor, EdgeState, Epoch, EpochId, FailureStage, HarnessId, MachineId,
-    ManifestEntry,
-    PackId, ProjectId, SessionId, SwitchEdge, SwitchEdgeId, SwitchMechanism, Timestamp, WorkItem,
-    WorkItemId,
+    ManifestEntry, PackId, ProjectId, SessionId, SwitchEdge, SwitchEdgeId, SwitchMechanism,
+    Timestamp, WorkItem, WorkItemId,
 };
 
 /// Typed append-only access to the Switch Graph tables (schema v20).
@@ -61,6 +60,50 @@ impl SwitchGraphRepo<'_> {
             ],
         )?;
         Ok(record)
+    }
+
+    /// Adopts a work item another machine created (AJ-E706: the same
+    /// id on both machines, under THIS machine's project). Idempotent.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn adopt_work(&self, id: &WorkItemId, project: &ProjectId, title: &str) -> Result<(), CoreError> {
+        self.conn.execute(
+            "INSERT OR IGNORE INTO work_items (id, project, title, created_at)
+             VALUES (?1, ?2, ?3, ?4)",
+            params![id.as_str(), project.as_str(), title, Timestamp::now().millis()],
+        )?;
+        Ok(())
+    }
+
+    /// Records a mirror of an epoch that lives on another machine
+    /// (AJ-E706); a repeat is ignored (epochs are immutable).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn mirror_epoch(&self, epoch: &Epoch) -> Result<(), CoreError> {
+        if self.epoch(&epoch.id)?.is_some() {
+            return Ok(());
+        }
+        self.insert_epoch(epoch)
+    }
+
+    /// One epoch by id, when present.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn epoch(&self, id: &EpochId) -> Result<Option<Epoch>, CoreError> {
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT * FROM epochs WHERE id = ?1",
+                params![id.as_str()],
+                map_epoch,
+            )
+            .optional()?)
     }
 
     /// Fetches a work item by id.

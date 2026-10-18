@@ -1980,7 +1980,7 @@ pub fn local_machine_id(state: &Arc<AppState>) -> MachineId {
 }
 
 /// The ledger spawn context for an account launch (root role).
-fn ledger_ctx(
+pub(crate) fn ledger_ctx(
     state: &Arc<AppState>,
     account: &Account,
     project_id: Option<String>,
@@ -3015,7 +3015,7 @@ pub fn profile_delete(state: tauri::State<'_, Arc<AppState>>, profile_id: String
 /// honest zero (`window: None`, default confidence) — never an
 /// invented 0%. Errors degrade to the same honest zero (a broken
 /// quota read must never block launching).
-fn engine_usage_snapshot(
+pub(crate) fn engine_usage_snapshot(
     storage: &juggler_core::storage::Storage,
     profile: &juggler_core::model::ProfileId,
 ) -> juggler_core::model::UsageSnapshot {
@@ -4386,7 +4386,9 @@ pub fn emit_quota(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResult<()
 // ---------------------------------------------------------------------------
 // helpers
 
-fn lock_storage_arc(state: &Arc<AppState>) -> Result<std::sync::MutexGuard<'_, Storage>, AppError> {
+pub(crate) fn lock_storage_arc(
+    state: &Arc<AppState>,
+) -> Result<std::sync::MutexGuard<'_, Storage>, AppError> {
     state.storage.lock().map_err(|_| AppError::StatePoisoned)
 }
 
@@ -4891,7 +4893,7 @@ pub fn session_handover(
 ///
 /// Returns the typed [`AppError`] message when the source session or
 /// its account cannot be resolved.
-fn handover_source(
+pub(crate) fn handover_source(
     state: &Arc<AppState>,
     session_id: &str,
 ) -> AppResult<(juggler_core::model::InstanceRecord, Account)> {
@@ -5227,7 +5229,7 @@ fn usual_account_for_project(
 }
 
 /// Groups the pair's dispositions into the door's carry-list names.
-fn carry_lists_of(input: &juggler_handover::fidelity::FidelityInput) -> CarryListInfo {
+pub(crate) fn carry_lists_of(input: &juggler_handover::fidelity::FidelityInput) -> CarryListInfo {
     use juggler_handover::fidelity::{Disposition, FidelityInput};
     let FidelityInput { dispositions, .. } = input;
     let mut carry = CarryListInfo::default();
@@ -6108,7 +6110,7 @@ pub fn find_account_arc(state: &Arc<AppState>, account_id: &str) -> Result<Accou
         .map_err(|error| not_found_or_core(error, "account", account_id))
 }
 
-fn find_profile_with_account_arc(
+pub(crate) fn find_profile_with_account_arc(
     state: &Arc<AppState>,
     profile_id: &str,
 ) -> Result<(Profile, Account), AppError> {
@@ -10935,7 +10937,9 @@ impl RedactionPolicyInfo {
 }
 
 /// The stored global choice.
-fn redaction_global_of(storage: &Storage) -> Option<juggler_handover::redaction::RedactionPolicy> {
+pub(crate) fn redaction_global_of(
+    storage: &Storage,
+) -> Option<juggler_handover::redaction::RedactionPolicy> {
     storage
         .app_settings()
         .get(REDACTION_GLOBAL_KEY)
@@ -10945,7 +10949,7 @@ fn redaction_global_of(storage: &Storage) -> Option<juggler_handover::redaction:
 }
 
 /// The stored override for one Provider.
-fn redaction_override_of(
+pub(crate) fn redaction_override_of(
     storage: &Storage,
     provider: &str,
 ) -> Option<juggler_handover::redaction::RedactionPolicy> {

@@ -72,6 +72,8 @@ pub struct RemoteMachine {
     alerts: Vec<proto::AlertDelta>,
     /// Its managed processes and when they arrived (AJ-E707).
     cleanup: Option<(proto::CleanupDelta, i64)>,
+    /// What it can take work into (AJ-E706), as last heard.
+    catalog: Option<(proto::CatalogDelta, i64)>,
 }
 
 /// The cache, shared by the reconcile loop and the commands.
@@ -194,6 +196,9 @@ fn apply(
         Some(proto::telemetry_delta::Payload::Cleanup(cleanup)) => {
             entry.cleanup = Some((cleanup, now));
         }
+        Some(proto::telemetry_delta::Payload::Catalog(catalog)) => {
+            entry.catalog = Some((catalog, now));
+        }
         Some(proto::telemetry_delta::Payload::Alert(alert)) => {
             let duplicate = entry.alerts.iter().any(|seen| {
                 seen.at_ms == alert.at_ms
@@ -264,6 +269,36 @@ pub(crate) async fn refresh_permission(cache: &RemoteCache, machine_id: &str, ow
             entry.permission = Some(permission);
         }
     }
+}
+
+/// AJ-E706: one paired machine as a switch target — its catalog, what
+/// it lets this Mac do, and its live connection (for the push).
+#[derive(Clone, Debug, Default)]
+pub(crate) struct TargetView {
+    pub catalog: Option<proto::CatalogDelta>,
+    pub permission: Option<String>,
+    pub peer: Option<LinkPeer>,
+}
+
+/// AJ-E706: every paired machine this console has heard from.
+pub(crate) fn target_views(cache: &RemoteCache) -> Vec<(String, TargetView)> {
+    cache
+        .lock()
+        .map(|map| {
+            map.iter()
+                .map(|(id, entry)| {
+                    (
+                        id.clone(),
+                        TargetView {
+                            catalog: entry.catalog.as_ref().map(|(catalog, _)| catalog.clone()),
+                            permission: entry.permission.clone(),
+                            peer: entry.peer.clone(),
+                        },
+                    )
+                })
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 /// Forgets machines that are no longer pinned.
@@ -657,7 +692,7 @@ fn processes_of(entry: &RemoteMachine) -> Vec<RemoteProcessInfo> {
 /// The next command sequence for `machine_id`: above both the stored
 /// one and a wall-clock seed, so a reset console never reuses one the
 /// node already saw.
-fn next_command_sequence(state: &Arc<AppState>, machine_id: &str) -> AppResult<u64> {
+pub(crate) fn next_command_sequence(state: &Arc<AppState>, machine_id: &str) -> AppResult<u64> {
     let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
     let mut map: HashMap<String, u64> = storage
         .app_settings()
