@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { RemoteCleanup } from "../components/RemoteCleanup";
 import { KillSheet, type KillBridge } from "../components/KillSheet";
 import { Button, CleanupEmpty, ProcessRow, type CleanupRowInfo } from "../components/ProcessRow";
 import { errorText } from "../lib/bridge";
@@ -503,6 +504,8 @@ export function CleanupCentre(props: {
             />
           ))}
         </div>
+        {/* AJ-E707: paired machines, under "All machines" only. */}
+        {machineScope === "all" && <RemoteCleanup />}
       </div>
 
       {killTarget !== null && (

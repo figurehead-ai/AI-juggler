@@ -22,6 +22,7 @@ import type { RemoteInstanceInfo } from "../types/generated/RemoteInstanceInfo";
 import type { RemoteResourcesInfo } from "../types/generated/RemoteResourcesInfo";
 import type { RemoteCommandOutcomeInfo } from "../types/generated/RemoteCommandOutcomeInfo";
 import type { FleetPromptInfo } from "../types/generated/FleetPromptInfo";
+import type { RemoteProcessInfo } from "../types/generated/RemoteProcessInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { InstanceQuotaInfo } from "../types/generated/InstanceQuotaInfo";
 import type { InstanceResourcesInfo } from "../types/generated/InstanceResourcesInfo";
@@ -72,6 +73,7 @@ export type {
   RemoteResourcesInfo,
   RemoteCommandOutcomeInfo,
   FleetPromptInfo,
+  RemoteProcessInfo,
   LaunchRecipeInfo,
   LaunchResult,
   NeedsAttention,
@@ -3069,6 +3071,21 @@ const remoteSeams = () => window as unknown as RemoteSeams;
 export async function fleetRemote(): Promise<RemoteMachineInfo[]> {
   if (!hasBackend) return [...(remoteSeams().__AIJ_FLEET_REMOTE__ ?? [])];
   return invoke<RemoteMachineInfo[]>("fleet_remote");
+}
+
+/** AJ-E707: asks a paired machine to clean one process it owns (it
+ * re-verifies and runs its own ladder). */
+export async function fleetRemoteClean(
+  machineId: string,
+  instanceId: string,
+  pid: number,
+): Promise<RemoteCommandOutcomeInfo> {
+  if (!hasBackend) {
+    const seams = remoteSeams() as RemoteSeams & { __AIJ_REMOTE_CLEAN__?: RemoteCommandOutcomeInfo };
+    seams.__AIJ_FLEET_CALLS__ = [...(seams.__AIJ_FLEET_CALLS__ ?? []), `remote-clean:${machineId}:${instanceId}:${pid}`];
+    return seams.__AIJ_REMOTE_CLEAN__ ?? { accepted: true, reason_code: null, message: `Exited (pid ${pid})` };
+  }
+  return invoke<RemoteCommandOutcomeInfo>("fleet_remote_clean", { machineId, instanceId, pid });
 }
 
 /** AJ-E711: asks a paired machine to bring one of its desktop windows

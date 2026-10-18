@@ -40,7 +40,7 @@ function noteNotCaptured(screen: string, state: string, reason: string) {
 
 test.beforeAll(() => {
   mkdirSync(GALLERY, { recursive: true });
-  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "16-onboarding-detect", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "34-wizard", "35-candidates", "36-recommend", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings", "45-remote", "46-fleet-board", "47-remote-focus"]) {
+  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "16-onboarding-detect", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "34-wizard", "35-candidates", "36-recommend", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings", "45-remote", "46-fleet-board", "47-remote-focus", "48-remote-cleanup"]) {
     mkdirSync(resolve(GALLERY, screen), { recursive: true });
   }
   writeFileSync(NOT_CAPTURETED, "# Not captured (explicit omissions)\n\n| Screen | State | Reason |\n|---|---|---|\n");
@@ -5371,4 +5371,48 @@ for (const theme of THEMES) {
     await expect(page.getByTestId("remote-focus")).toBeDisabled();
     await page.screenshot({ path: resolve(GALLERY, `47-remote-focus/view-only-1280x800-${theme}.png`) });
   });
+}
+
+// ---------------------------------------------------------------------
+// AJ-E707 — 48-remote-cleanup: the Cleanup Centre grouped by machine →
+// Instance with verified / not-owned rows, the confirmation and the
+// outcome — 1440×900 and 1024×768, light/dark.
+// ---------------------------------------------------------------------
+
+const cleanupMachine = (over: Record<string, unknown> = {}) =>
+  remoteMachine({
+    alerts: [],
+    processes: [
+      { instance_id: "inst-1", provider: "claude-code", account_label: "Work Max", pid: 4242, role: "helper", state: "orphaned",
+        state_label: "Still running after its Instance closed", verified: true, name: "node", age_ms: 3_600_000,
+        rss_bytes: 210 * 1024 ** 2, cpu_percent: 1.2, ports: "3000", measured_at_ms: T0 - 1_000 },
+      { instance_id: "inst-1", provider: "claude-code", account_label: "Work Max", pid: 4250, role: "helper", state: "unverifiable",
+        state_label: "Unverifiable — will not be touched", verified: false, name: "python3", age_ms: 7_200_000,
+        rss_bytes: null, cpu_percent: null, ports: "", measured_at_ms: T0 - 1_000 },
+    ],
+    ...over,
+  });
+
+for (const theme of THEMES) {
+  for (const vp of REMOTE_VP) {
+    test(`48 remote cleanup — grouped, confirm, outcome — ${vp.name} — ${theme}`, async ({ page }) => {
+      await openRemote(page, theme, vp, cleanupMachine());
+      await page.getByRole("button", { name: "Cleanup" }).first().click();
+      await page.getByLabel("Machine filter").selectOption("all");
+      await expect(page.getByTestId("remote-cleanup")).toBeVisible();
+      await expect(page.getByTestId("remote-cleanup-clean")).toHaveCount(1);
+      await page.screenshot({ path: resolve(GALLERY, `48-remote-cleanup/grouped-${vp.name}-${theme}.png`) });
+      await page.getByTestId("remote-cleanup-clean").click();
+      await expect(page.getByTestId("remote-cleanup-confirm")).toBeVisible();
+      await page.screenshot({ path: resolve(GALLERY, `48-remote-cleanup/confirm-${vp.name}-${theme}.png`) });
+      await page.evaluate(() => {
+        (window as unknown as Record<string, unknown>).__AIJ_REMOTE_CLEAN__ = {
+          accepted: false, reason_code: "refused", message: "Refused — identity changed: pid 4242 is no longer the recorded process",
+        };
+      });
+      await page.getByTestId("remote-cleanup-yes").click();
+      await expect(page.getByTestId("remote-cleanup-outcome")).toContainText("Refused");
+      await page.screenshot({ path: resolve(GALLERY, `48-remote-cleanup/identity-changed-${vp.name}-${theme}.png`) });
+    });
+  }
 }

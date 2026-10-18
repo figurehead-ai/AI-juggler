@@ -40,6 +40,7 @@ const machine = (over: Partial<RemoteMachineInfo> = {}): RemoteMachineInfo => ({
     },
   ],
   alerts: [],
+  processes: [],
   ...over,
 });
 
