@@ -189,11 +189,16 @@ async fn host<P: PairingHost>(
     if sender.send(Ok(message(confirm))).await.is_err() {
         return HostOutcome::Cancelled;
     }
+    let reach = u16::try_from(start.listen_port)
+        .ok()
+        .filter(|port| *port != 0)
+        .map(|port| std::net::SocketAddr::new(conn.addr.ip(), port));
     let candidate = PairCandidate {
         machine_id: start.machine_id,
         label: start.label,
         key: conn.peer_key,
         fingerprint: fingerprint_of(&conn.peer_key),
+        reach,
     };
     let ours = pairing.confirm(candidate.clone()).await.ok().flatten();
     let decision = Step::Decision(proto::PairDecision {
@@ -351,7 +356,23 @@ async fn connect_unpinned(
     Ok((channel, host_key, exporter))
 }
 
-/// Joins the host at `addr` with `input`. `confirm` shows the host's
+/// Who is joining: this node's certificate, key, id, label, and the
+/// port its own node listens on (0 = not listening).
+#[derive(Clone, Copy, Debug)]
+pub struct Joiner<'a> {
+    /// This node's TLS certificate.
+    pub certificate: &'a NodeCertificate,
+    /// This node's identity public key.
+    pub key: [u8; 32],
+    /// This node's `MachineId`.
+    pub machine_id: &'a str,
+    /// This node's label (shown on the host).
+    pub label: &'a str,
+    /// This node's listening port.
+    pub port: u16,
+}
+
+/// Joins the host at `addr` as `joiner` with `input`. `confirm` shows the host's
 /// label + fingerprint to this Mac's user and resolves to the permission
 /// to grant, or `None` for Cancel.
 ///
@@ -360,10 +381,7 @@ async fn connect_unpinned(
 /// Returns [`JoinError`] naming the failure.
 pub async fn pair_with<F, Fut>(
     addr: SocketAddr,
-    certificate: &NodeCertificate,
-    own_key: [u8; 32],
-    own_machine_id: &str,
-    own_label: &str,
+    joiner: Joiner<'_>,
     input: &PairingInput,
     confirm: F,
 ) -> Result<JoinedHost, JoinError>
@@ -371,6 +389,13 @@ where
     F: FnOnce(PairCandidate) -> Fut,
     Fut: std::future::Future<Output = Option<Permission>>,
 {
+    let Joiner {
+        certificate,
+        key: own_key,
+        machine_id: own_machine_id,
+        label: own_label,
+        port: own_port,
+    } = joiner;
     let (channel, host_key, exporter) = connect_unpinned(addr, certificate).await?;
     if let Some(expected) = &input.expected_fingerprint
         && fingerprint_of(&host_key).replace(' ', "") != *expected
@@ -390,6 +415,7 @@ where
                 major: PROTOCOL_MAJOR,
                 minor: PROTOCOL_MINOR,
             }),
+            listen_port: u32::from(own_port),
         })))
         .await
         .map_err(|_| JoinError::Cancelled)?;
@@ -430,6 +456,7 @@ where
             label: challenge.label,
             key: host_key,
             fingerprint: fingerprint_of(&host_key),
+            reach: Some(addr),
         };
         let ours = confirm(candidate.clone()).await;
         tx.send(message(Step::Decision(proto::PairDecision {

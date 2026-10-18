@@ -163,6 +163,9 @@ pub struct PairCandidate {
     pub label: String,
     /// The key seen in THIS TLS session (what gets pinned).
     pub key: [u8; 32],
+    /// Where its node can be reached (the address this exchange used,
+    /// with its listening port), when known.
+    pub reach: Option<std::net::SocketAddr>,
     /// That key's fingerprint.
     pub fingerprint: String,
 }

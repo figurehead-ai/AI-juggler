@@ -360,6 +360,12 @@ impl<S: GuardStore> PairingGuard<S> {
             .map(|window| window.code.clone())
     }
 
+    /// When the open window was opened, epoch ms.
+    #[must_use]
+    pub fn opened_at_ms(&self) -> Option<i64> {
+        self.window.as_ref().map(|window| window.opened_at_ms)
+    }
+
     /// Admits one joiner session; returns the code to run SPAKE2 with.
     ///
     /// # Errors

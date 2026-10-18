@@ -46,6 +46,9 @@ message PairStart {
   string label = 2;
   bytes spake_message = 3;
   ProtocolVersion version = 4;
+  // The port the joiner's own node listens on (0 = not listening), so
+  // the host can reach it later at the address it connected from.
+  uint32 listen_port = 5;
 }
 
 // Host → joiner.

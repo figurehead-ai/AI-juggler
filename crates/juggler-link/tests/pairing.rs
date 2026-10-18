@@ -165,10 +165,13 @@ impl World {
     ) -> Result<juggler_link::pairing_rpc::JoinedHost, JoinError> {
         pair_with(
             self.node.addr(),
-            &self.joiner_cert,
-            self.joiner_identity.public().to_bytes(),
-            "joiner-mid",
-            "Laptop",
+            juggler_link::pairing_rpc::Joiner {
+                certificate: &self.joiner_cert,
+                key: self.joiner_identity.public().to_bytes(),
+                machine_id: "joiner-mid",
+                label: "Laptop",
+                port: 0,
+            },
             &PairingInput::parse(typed).unwrap(),
             move |_| async move { decision },
         )
