@@ -269,7 +269,7 @@ export function QuotaBar({
         title="Quota: no data"
       >
         <span className="inline-block h-1.5 w-14 rounded-full border border-dashed border-faint/70" />
-        <span className="whitespace-nowrap text-[10px] text-faint">Quota: no data</span>
+        <span className="whitespace-nowrap text-[10px] text-muted">Quota: no data</span>
       </span>
     );
   }

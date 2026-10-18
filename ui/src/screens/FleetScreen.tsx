@@ -6,6 +6,8 @@ import {
   errorText,
   fleetPeers,
   fleetRemote,
+  fleetDivergences,
+  type DivergenceRecordInfo,
   fleetSetPermission,
   linkSetEnabled,
   linkStatus,
@@ -53,6 +55,7 @@ export function FleetScreen({
   const [linkBusy, setLinkBusy] = useState(false);
   const [wizard, setWizard] = useState<PairingMode | null>(null);
   const [remote, setRemote] = useState<RemoteMachineInfo[]>([]);
+  const [divergences, setDivergences] = useState<DivergenceRecordInfo[]>([]);
   const [access, setAccess] = useState<FleetPeerInfo | null>(null);
 
   const refresh = useCallback(async () => {
@@ -65,6 +68,7 @@ export function FleetScreen({
       // Last-known rows are shown even with Link off (AJ-E708: kept in
       // this Mac's replica, labelled as last known).
       setRemote(await fleetRemote().catch(() => []));
+      setDivergences(await fleetDivergences().catch(() => []));
     } catch (cause) {
       setError(errorText(cause));
     }
@@ -303,7 +307,10 @@ export function FleetScreen({
                   <p className="font-mono text-[11px] text-muted">{peer.fingerprint}</p>
                 </div>
                 <ConnectionChip peer={peer} />
-                <SyncChip peer={peer} />
+                <SyncChip
+                  peer={peer}
+                  diverged={divergences.filter((row) => row.machine_id === peer.machine_id).length}
+                />
                 <Chip tone="neutral">
                   {peer.permission === "control" && peer.ask_each_time
                     ? "View + control · asks each time"
@@ -632,7 +639,20 @@ function ConnectionChip({ peer }: { peer: FleetPeerInfo }): JSX.Element {
 /** AJ-E708: the sync state, in words + a shape (never colour alone):
  * `✓ Synced` while connected, or — while that machine is away — how many
  * changes on THIS Mac wait for it (`⇡ 12 changes queued`). */
-export function SyncChip({ peer }: { peer: FleetPeerInfo }): JSX.Element | null {
+export function SyncChip({ peer, diverged = 0 }: { peer: FleetPeerInfo; diverged?: number }): JSX.Element | null {
+  if (diverged > 0) {
+    // AJ-E708: a divergence waits for the user — it outranks every
+    // other sync state (and blocks switch-back / clean until chosen).
+    return (
+      <span
+        data-testid="fleet-sync"
+        data-state="diverged"
+        title={`Work that moved between this Mac and ${peer.label} changed on both — open the Instance to choose what to keep.`}
+      >
+        <Chip tone="warning">{`⚠ Diverged — ${diverged} ${diverged === 1 ? "needs" : "need"} you`}</Chip>
+      </span>
+    );
+  }
   if (peer.connection === "link_off" && peer.queued_changes === null) return null;
   const live = peer.connection === "connected" || peer.connection === "degraded";
   const queued = peer.queued_changes ?? 0;

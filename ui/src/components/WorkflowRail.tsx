@@ -1202,7 +1202,7 @@ export function SessionRow({
       </span>
       {/* I-10 suffix (wait duration / reset countdown) + I-09 I-11. The
           age text yields (truncate) before anything else clips. */}
-      <span className="flex min-w-0 items-center gap-1.5 overflow-hidden text-[10px] text-faint">
+      <span className="flex min-w-0 items-center gap-1.5 overflow-hidden text-[10px] text-muted">
         {badge && suffix ? (
           <span
             className={

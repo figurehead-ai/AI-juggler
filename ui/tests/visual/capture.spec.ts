@@ -40,16 +40,11 @@ function noteNotCaptured(screen: string, state: string, reason: string) {
 
 test.beforeAll(() => {
   mkdirSync(GALLERY, { recursive: true });
-  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "16-onboarding-detect", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "34-wizard", "35-candidates", "36-recommend", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings", "45-remote", "46-fleet-board", "47-remote-focus", "48-remote-cleanup", "49-fleet-sync"]) {
+  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "16-onboarding-detect", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "34-wizard", "35-candidates", "36-recommend", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings", "45-remote", "46-fleet-board", "47-remote-focus", "48-remote-cleanup", "49-fleet-sync", "50-cross-switch"]) {
     mkdirSync(resolve(GALLERY, screen), { recursive: true });
   }
   writeFileSync(NOT_CAPTURETED, "# Not captured (explicit omissions)\n\n| Screen | State | Reason |\n|---|---|---|\n");
   // Loading/error states do not exist yet — recorded, not hidden.
-  noteNotCaptured(
-    "49-fleet-sync",
-    "conflict sheet (Keep mine / Keep theirs / Keep both)",
-    "lands with AJ-E706 — cross-machine lineage is the first record two Macs can change while apart",
-  );
   for (const screen of ["01-rail", "05-session-panel", "16-onboarding-detect"]) {
     noteNotCaptured(screen, "loading (skeleton)", "pending AJ-E405+ (state emission not yet implemented)");
     noteNotCaptured(screen, "error (banner + retained data)", "pending AJ-E405+ (error states not yet implemented)");
@@ -5494,5 +5489,160 @@ for (const theme of THEMES) {
     await expect(page.getByTestId("board-machine")).toContainText("offline · last known");
     await expect(page.getByTestId("board-remote-row").first()).toContainText("was running");
     await page.screenshot({ path: resolve(GALLERY, `49-fleet-sync/offline-board-1280x800-${theme}.png`) });
+  });
+}
+
+// ---------------------------------------------------------------------
+// AJ-E706 — 50-cross-switch: paired machines in the switch targets
+// (T2 ready / T2 blocked → T3 / needs a project mapping), the wizard's
+// target and path-mapping steps, the push progress, the switch-back
+// preview and the divergence-on-return conflict sheet (AJ-E708) —
+// 1280×800, light/dark.
+// ---------------------------------------------------------------------
+
+const crossTarget = (over: Record<string, unknown> = {}) => ({
+  machine_id: "machine-studio",
+  machine_label: "Studio Mac",
+  recipe_id: "rec-desk",
+  recipe_name: "Main",
+  account_label: "Desktop Max",
+  provider: "claude-code",
+  mechanism: "transplant",
+  readiness: "t2_ready",
+  blockers: [],
+  fidelity: "F3",
+  badge: "F3 · Unvalidated",
+  validated: false,
+  carried: ["chat transcript", "rules & guidelines", "uncommitted git diff"],
+  regenerated: [],
+  dropped: ["todo list"],
+  same_path_project: "proj-1",
+  projects: [{ project_id: "proj-1", name: "ai-juggler", same_path: true, same_name: true }],
+  replay_available: true,
+  version_here: "2.1.0",
+  version_there: "2.1.0",
+  ...over,
+});
+
+const CROSS_TARGETS = [
+  crossTarget(),
+  crossTarget({
+    recipe_id: "rec-personal",
+    account_label: "Personal",
+    readiness: "t2_blocked",
+    mechanism: "replay",
+    blockers: ["claude-code 2.1.0 here, 2.0.9 on Studio Mac — T2 needs the same version."],
+    version_there: "2.0.9",
+    fidelity: "F1",
+    badge: "F1 · Unvalidated",
+  }),
+  crossTarget({
+    machine_id: "machine-mini",
+    machine_label: "Mac mini",
+    recipe_id: "rec-mini",
+    account_label: "Team",
+    readiness: "needs_mapping",
+    same_path_project: null,
+    blockers: ["ai-juggler isn't at the same path on Mac mini — pick its copy there (you confirm the mapping) or use T3."],
+    projects: [
+      { project_id: "proj-m1", name: "ai-juggler", same_path: false, same_name: true },
+      { project_id: "proj-m2", name: "storefront", same_path: false, same_name: false },
+    ],
+  }),
+];
+
+const CROSS_VP = { width: 1280, height: 800 };
+
+const openCross = async (
+  page: import("@playwright/test").Page,
+  theme: string,
+  seams: Record<string, unknown>,
+) => {
+  await page.addInitScript(
+    ({ fixture, t, extra, t0 }) => {
+      const w = window as unknown as Record<string, unknown>;
+      w.__AIJ_FIXTURE__ = fixture;
+      Object.assign(w, extra);
+      localStorage.setItem("aij.theme", t);
+      localStorage.setItem("aij.onboarding.dismissed", "1");
+      sessionStorage.setItem("aij.ready.skipped", "1");
+      Date.now = () => t0;
+    },
+    { fixture: allStatuses, t: theme, extra: seams, t0: T0 },
+  );
+  await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme as "dark" | "light" });
+  await page.setViewportSize(CROSS_VP);
+  await page.goto("/");
+  await page.getByRole("tab", { name: "Sessions" }).click();
+  await page.getByRole("button", { name: /Work Max/ }).first().click();
+  await expect(page.getByTestId("handover-section")).toBeVisible();
+};
+
+for (const theme of THEMES) {
+  test(`50 cross switch — targets, wizard, mapping, progress — ${theme}`, async ({ page }) => {
+    await openCross(page, theme, { __AIJ_FLEET_SWITCH_TARGETS__: CROSS_TARGETS });
+    await expect(page.getByTestId("remote-switch-target")).toHaveCount(3);
+    await page.getByTestId("remote-switch-targets").scrollIntoViewIfNeeded();
+    await page.screenshot({ path: resolve(GALLERY, `50-cross-switch/targets-1280x800-${theme}.png`) });
+
+    await page.getByTestId("remote-switch-target").nth(0).click();
+    await expect(page.getByTestId("cross-switch-preconditions")).toContainText("2.1.0 here, 2.1.0 on Studio Mac");
+    await page.screenshot({ path: resolve(GALLERY, `50-cross-switch/wizard-t2-ready-1280x800-${theme}.png`) });
+    await page.keyboard.press("Escape");
+
+    await page.getByTestId("remote-switch-target").nth(1).click();
+    await expect(page.getByTestId("cross-switch-t3")).toBeChecked();
+    await page.screenshot({ path: resolve(GALLERY, `50-cross-switch/wizard-t2-blocked-1280x800-${theme}.png`) });
+    await page.keyboard.press("Escape");
+
+    await page.getByTestId("remote-switch-target").nth(2).click();
+    await page.getByTestId("cross-switch-next").click();
+    await page.getByTestId("cross-switch-project-option").first().check();
+    await page.getByTestId("cross-switch-confirm-mapping").check();
+    await page.screenshot({ path: resolve(GALLERY, `50-cross-switch/path-mapping-1280x800-${theme}.png`) });
+    await page.getByTestId("cross-switch-next").click();
+    await expect(page.getByTestId("cross-switch-drops")).toContainText("todo list");
+    await page.screenshot({ path: resolve(GALLERY, `50-cross-switch/carried-1280x800-${theme}.png`) });
+    await page.getByTestId("cross-switch-next").click();
+    await expect(page.getByTestId("cross-switch-go")).toHaveText("Switch to Mac mini…");
+    await page.screenshot({ path: resolve(GALLERY, `50-cross-switch/confirm-1280x800-${theme}.png`) });
+  });
+
+  test(`50 cross switch — switch-back preview and the conflict sheet — ${theme}`, async ({ page }) => {
+    await openCross(page, theme, {
+      __AIJ_FLEET_SWITCH_BACK_PLAN__: {
+        original_machine_id: "machine-laptop",
+        original_machine_label: "Laptop",
+        original_account_label: "Work Max",
+        away_account_label: "Desktop Max",
+        new_turns: 4,
+        delta_preview:
+          "While you were away on Desktop Max — 4 new turns (12 shared before the switch).\n\n- [user] add the payment form\n- [assistant] payment form added with validation\n- [user] wire it to checkout\n- [assistant] checkout now posts the payment\n\nFull detail: the attached switch pack (not replayed).",
+        blockers: [],
+      },
+      __AIJ_FLEET_SWITCH_BACK_OUTCOMES__: [
+        {
+          accepted: false,
+          reason_code: "diverged",
+          message: "The original moved on here since the work left (2 new turns) — choose what to keep.",
+          instance_id: null,
+          edge_id: "edge-back",
+          divergence: { turns_since: 2, last_activity_ms: T0 - 1_800_000, summary: "2 new turns" },
+        },
+      ],
+    });
+    await expect(page.getByTestId("cross-back-card")).toBeVisible();
+    await page.getByTestId("cross-back-card").click();
+    await expect(page.getByTestId("cross-back-delta")).toContainText("While you were away");
+    await page.screenshot({ path: resolve(GALLERY, `50-cross-switch/switch-back-preview-1280x800-${theme}.png`) });
+    await page.getByTestId("cross-back-go").click();
+    await expect(page.getByTestId("conflict-choices")).toBeVisible();
+    await expect(page.getByTestId("conflict-later")).toBeFocused();
+    await page.screenshot({ path: resolve(GALLERY, `50-cross-switch/conflict-sheet-1280x800-${theme}.png`) });
+    await page.getByTestId("conflict-keep_both").check();
+    await page.screenshot({ path: resolve(GALLERY, `50-cross-switch/conflict-keep-both-1280x800-${theme}.png`) });
+    await page.getByTestId("conflict-apply").click();
+    await expect(page.getByTestId("cross-back-done")).toBeVisible();
+    await page.screenshot({ path: resolve(GALLERY, `50-cross-switch/resolved-1280x800-${theme}.png`) });
   });
 }
