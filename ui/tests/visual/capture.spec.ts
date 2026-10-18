@@ -40,7 +40,7 @@ function noteNotCaptured(screen: string, state: string, reason: string) {
 
 test.beforeAll(() => {
   mkdirSync(GALLERY, { recursive: true });
-  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "16-onboarding-detect", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "34-wizard", "35-candidates", "36-recommend", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings", "45-remote", "46-fleet-board", "47-remote-focus", "48-remote-cleanup", "49-fleet-sync", "50-cross-switch", "51-identity", "52-worktree", "53-parked", "54-summary", "55-triage", "56-history", "57-backup", "58-updates"]) {
+  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "16-onboarding-detect", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "34-wizard", "35-candidates", "36-recommend", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings", "45-remote", "46-fleet-board", "47-remote-focus", "48-remote-cleanup", "49-fleet-sync", "50-cross-switch", "51-identity", "52-worktree", "53-parked", "54-summary", "55-triage", "56-history", "57-backup", "58-updates", "59-vault"]) {
     mkdirSync(resolve(GALLERY, screen), { recursive: true });
   }
   writeFileSync(NOT_CAPTURETED, "# Not captured (explicit omissions)\n\n| Screen | State | Reason |\n|---|---|---|\n");
@@ -6178,4 +6178,29 @@ for (const theme of THEMES) {
       await page.screenshot({ path: resolve(GALLERY, `58-updates/${name}-1280x800-${theme}.png`) });
     });
   }
+}
+
+// ---------------------------------------------------------------------
+// AJ-E1204 — 59-vault: the recovery-code sheet the first time Cloud
+// backup is on (code as selectable text, Copy and Save, the warning,
+// confirm required), and the waiting row after "Later" — 1280×800,
+// light/dark.
+// ---------------------------------------------------------------------
+
+for (const theme of THEMES) {
+  test(`59 vault — recovery code sheet and waiting row — ${theme}`, async ({ page }) => {
+    await openSettings(page, theme, { width: 1280, height: 800 }, {
+      __AIJ_FIGUREHEAD__: FH_LINKED,
+      __AIJ_VAULT_STATUS__: { has_key: false, code_saved: false },
+      __AIJ_VAULT_CODE__: "MZXW-6YTB-OI3D-EZLM-NFXG-K4TU-OJSW-Y5DF-MFZG-K3TF-ON2G-K3DF-NZTW-Q2AB",
+    });
+    await expect(page.getByTestId("recovery-sheet")).toBeVisible();
+    await expect(page.getByTestId("recovery-code")).toContainText("MZXW-6YTB");
+    await page.screenshot({ path: resolve(GALLERY, `59-vault/recovery-code-1280x800-${theme}.png`) });
+    await page.getByTestId("recovery-confirm").check();
+    await page.screenshot({ path: resolve(GALLERY, `59-vault/confirmed-1280x800-${theme}.png`) });
+    await page.getByRole("button", { name: /Later/ }).click();
+    await page.getByTestId("vault-pending").scrollIntoViewIfNeeded();
+    await page.screenshot({ path: resolve(GALLERY, `59-vault/waiting-1280x800-${theme}.png`) });
+  });
 }

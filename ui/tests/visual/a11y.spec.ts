@@ -2625,3 +2625,39 @@ for (const theme of ["dark", "light"] as const) {
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
   });
 }
+
+/** AJ-E1204 a11y (both themes): the recovery-code sheet scans
+ * axe-clean; the code is focusable selectable text, Copy and Save are
+ * reachable by keyboard, and "Start backups" stays disabled until the
+ * confirmation is ticked. */
+for (const theme of ["dark", "light"] as const) {
+  test(`recovery code sheet — axe 0 — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ fixture, theme: t }) => {
+        const w = window as unknown as Record<string, unknown>;
+        w.__AIJ_FIXTURE__ = fixture;
+        w.__AIJ_FIGUREHEAD__ = {
+          state: "linked", email: "you@example.com", plan: "Free", device_name: "Studio Mac",
+          features: [{ key: "cloudBackup", access: "included", tier: "free", on: true }],
+          link: null, refreshed_at_ms: Date.now(), offline: false, notice: null, consent_version: 1, consent_current: 1,
+        };
+        w.__AIJ_VAULT_STATUS__ = { has_key: false, code_saved: false };
+        localStorage.setItem("aij.theme", t);
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        sessionStorage.setItem("aij.ready.skipped", "1");
+      },
+      { fixture: allStatuses, theme },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Settings" }).click();
+    await expect(page.getByTestId("recovery-code")).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(page.getByTestId("recovery-copy")).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(page.getByTestId("recovery-save")).toBeFocused();
+    await expect(page.getByTestId("recovery-done")).toBeDisabled();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+  });
+}

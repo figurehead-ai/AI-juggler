@@ -1,6 +1,7 @@
 import { StorageRetentionCard } from "../components/StorageRetentionCard";
 import { BackupRestoreCard } from "../components/BackupRestoreCard";
 import { UpdatesCard } from "../components/UpdatesCard";
+import { RecoveryCodeSheet } from "../components/RecoveryCodeSheet";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Card, Chip } from "../components/primitives";
 import {
@@ -17,6 +18,8 @@ import {
   figureheadUnlink,
   type CloudFeatureInfo,
   type FigureheadStatusInfo,
+  vaultStatus,
+  type VaultStatusInfo,
 } from "../lib/bridge";
 import { THEME_EVENT, setTheme, storedTheme, type ThemeChoice } from "../theme";
 
@@ -506,9 +509,41 @@ function Connected({
   const [confirmUnlink, setConfirmUnlink] = useState(false);
   useEffect(() => setName(status.device_name), [status.device_name]);
   const choices = Object.fromEntries(status.features.map((f) => [f.key, f.on]));
+  // AJ-E1204: Cloud backup on but the recovery code not saved yet — the
+  // sheet comes up (once per visit), and no backup uploads until it's done.
+  const backupOn = status.features.some((f) => f.key === "cloudBackup" && f.on && f.access === "included");
+  const [vault, setVault] = useState<VaultStatusInfo | null>(null);
+  const [showCode, setShowCode] = useState(false);
+  useEffect(() => {
+    if (!backupOn) return;
+    void vaultStatus().then((next) => {
+      setVault(next);
+      if (!next.code_saved) setShowCode(true);
+    });
+  }, [backupOn]);
   const renamed = name.trim() !== status.device_name && name.trim().length > 0 && name.trim().length <= 64;
   return (
     <div className="flex flex-col gap-4" data-testid="cloud-connected">
+      {backupOn && vault && !vault.code_saved && (
+        <p
+          className="flex flex-wrap items-center gap-2 rounded-lg border border-warning/40 bg-warning-soft px-3 py-2 text-[11px] text-ink"
+          data-testid="vault-pending"
+        >
+          <span aria-hidden="true">⚠</span>
+          <span className="flex-1">Cloud backup waits until you save your recovery code.</span>
+          <Button size="sm" variant="secondary" onClick={() => setShowCode(true)} data-testid="vault-show-code">
+            Show recovery code
+          </Button>
+        </p>
+      )}
+      {showCode && (
+        <RecoveryCodeSheet
+          onClose={(saved) => {
+            setShowCode(false);
+            if (saved) void vaultStatus().then(setVault);
+          }}
+        />
+      )}
       <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <dt className="text-[11px] text-muted">Account</dt>

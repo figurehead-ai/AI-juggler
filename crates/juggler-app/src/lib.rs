@@ -30,6 +30,7 @@ pub mod state;
 pub mod terminal;
 pub mod updates;
 pub mod usage_pipeline;
+pub mod vault;
 pub mod worktree;
 
 use std::sync::Arc;
@@ -189,6 +190,11 @@ pub fn run() {
             overnight::overnight_summary_seen,
             parked::instance_park,
             lifecycle::instance_mark_reviewed,
+            vault::vault_status,
+            vault::vault_setup,
+            vault::vault_confirm_saved,
+            vault::vault_save_code,
+            vault::vault_enter_code,
             updates::update_status,
             updates::update_set_check_on_launch,
             updates::update_check,
