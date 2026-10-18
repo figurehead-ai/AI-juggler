@@ -2661,3 +2661,36 @@ for (const theme of ["dark", "light"] as const) {
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
   });
 }
+
+/** AJ-E1205 a11y (both themes): the Cloud backup panel and its backup
+ * list (with the recovery-code field) scan axe-clean. */
+for (const theme of ["dark", "light"] as const) {
+  test(`cloud backup panel and list — axe 0 — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ fixture, theme: t }) => {
+        const w = window as unknown as Record<string, unknown>;
+        w.__AIJ_FIXTURE__ = fixture;
+        w.__AIJ_FIGUREHEAD__ = {
+          state: "linked", email: "you@example.com", plan: "Free", device_name: "Studio Mac",
+          features: [{ key: "cloudBackup", access: "included", tier: "free", on: true }],
+          link: null, refreshed_at_ms: Date.now(), offline: false, notice: null, consent_version: 1, consent_current: 1,
+        };
+        w.__AIJ_VAULT_STATUS__ = { has_key: false, code_saved: true };
+        w.__AIJ_CLOUD_BACKUPS__ = [
+          { id: "bak_1", label: "AI Juggler · Studio Mac", size_bytes: 400000, created_at: "2026-10-18T09:00:00Z", this_mac: false },
+        ];
+        localStorage.setItem("aij.theme", t);
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        sessionStorage.setItem("aij.ready.skipped", "1");
+      },
+      { fixture: allStatuses, theme },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Settings" }).click();
+    await page.getByTestId("cloud-backup-restore").click();
+    await expect(page.getByTestId("cloud-backup-code")).toBeVisible();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+  });
+}

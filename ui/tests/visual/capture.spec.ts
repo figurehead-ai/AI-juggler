@@ -40,7 +40,7 @@ function noteNotCaptured(screen: string, state: string, reason: string) {
 
 test.beforeAll(() => {
   mkdirSync(GALLERY, { recursive: true });
-  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "16-onboarding-detect", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "34-wizard", "35-candidates", "36-recommend", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings", "45-remote", "46-fleet-board", "47-remote-focus", "48-remote-cleanup", "49-fleet-sync", "50-cross-switch", "51-identity", "52-worktree", "53-parked", "54-summary", "55-triage", "56-history", "57-backup", "58-updates", "59-vault"]) {
+  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "16-onboarding-detect", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "34-wizard", "35-candidates", "36-recommend", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings", "45-remote", "46-fleet-board", "47-remote-focus", "48-remote-cleanup", "49-fleet-sync", "50-cross-switch", "51-identity", "52-worktree", "53-parked", "54-summary", "55-triage", "56-history", "57-backup", "58-updates", "59-vault", "60-cloud-backup"]) {
     mkdirSync(resolve(GALLERY, screen), { recursive: true });
   }
   writeFileSync(NOT_CAPTURETED, "# Not captured (explicit omissions)\n\n| Screen | State | Reason |\n|---|---|---|\n");
@@ -6202,5 +6202,72 @@ for (const theme of THEMES) {
     await page.getByRole("button", { name: /Later/ }).click();
     await page.getByTestId("vault-pending").scrollIntoViewIfNeeded();
     await page.screenshot({ path: resolve(GALLERY, `59-vault/waiting-1280x800-${theme}.png`) });
+  });
+}
+
+// ---------------------------------------------------------------------
+// AJ-E1205 — 60-cloud-backup: the Cloud backup panel (last backup,
+// schedule), an upload in progress, the backup list on a new Mac with
+// the recovery-code field, and the restore preview — the same dialog as
+// a local restore — 1280×800, light/dark.
+// ---------------------------------------------------------------------
+
+const cloudList = [
+  { id: "bak_3", label: "AI Juggler · Studio Mac", size_bytes: 418_000, created_at: "2026-10-18T09:00:00Z", this_mac: false },
+  { id: "bak_2", label: "AI Juggler · Studio Mac", size_bytes: 402_000, created_at: "2026-10-11T09:00:00Z", this_mac: false },
+  { id: "bak_1", label: "AI Juggler · MacBook Air", size_bytes: 388_000, created_at: "2026-10-04T09:00:00Z", this_mac: false },
+];
+const cloudPlan = {
+  path: "/data/from-cloud.ajbackup", token: "t", other_machine: true,
+  notes: [
+    "This backup comes from Studio Mac. It carries that Mac's data, never its identity: this Mac keeps its own and must pair again with your other Macs.",
+    "Restoring replaces AI Juggler's data on this Mac. What is here now is kept beside it, so it can be put back by hand.",
+    "Sign in to each Account again afterwards — sign-ins are never in a backup.",
+  ],
+  manifest: {
+    format: "ai-juggler-backup", format_version: 1, schema_version: 27, app_version: "0.1.0",
+    created_at_ms: T0 - 86_400_000, origin: { fingerprint: "studio", label: "Studio Mac" },
+    counts: { accounts: 3, launch_settings: 4, projects: 6, instances: 128, history_events: 912, switch_edges: 14, epochs: 22 },
+    files: [], withheld: [], excluded: [],
+  },
+};
+
+for (const theme of THEMES) {
+  test(`60 cloud backup — panel, uploading, list, restore preview — ${theme}`, async ({ page }) => {
+    await openSettings(page, theme, { width: 1280, height: 800 }, {
+      __AIJ_FIGUREHEAD__: FH_LINKED,
+      __AIJ_CLOUD_BACKUP__: {
+        enabled: true, code_saved: true, schedule: "weekly", uploading: false, limit_bytes: 25 * 1024 * 1024,
+        last: { at_ms: T0 - 2 * 3_600_000, ok: true, size_bytes: 418_000, error: null },
+      },
+      __AIJ_CLOUD_BACKUPS__: cloudList,
+      __AIJ_CLOUD_RESTORE_PLAN__: cloudPlan,
+      __AIJ_CLOUD_BACKUP_HOLD__: true,
+    });
+    const panel = page.getByTestId("cloud-backup-panel");
+    await panel.scrollIntoViewIfNeeded();
+    await expect(page.getByTestId("cloud-backup-last")).toContainText("Last backup");
+    await page.screenshot({ path: resolve(GALLERY, `60-cloud-backup/panel-1280x800-${theme}.png`) });
+    await page.getByTestId("cloud-backup-now").click();
+    await expect(page.getByTestId("cloud-backup-last")).toContainText("Backing up");
+    await page.screenshot({ path: resolve(GALLERY, `60-cloud-backup/uploading-1280x800-${theme}.png`) });
+  });
+
+  test(`60 cloud backup — restore on a new Mac — ${theme}`, async ({ page }) => {
+    await openSettings(page, theme, { width: 1280, height: 800 }, {
+      __AIJ_FIGUREHEAD__: FH_LINKED,
+      __AIJ_VAULT_STATUS__: { has_key: false, code_saved: true },
+      __AIJ_CLOUD_BACKUP__: { enabled: true, code_saved: true, schedule: "weekly", uploading: false, limit_bytes: 25 * 1024 * 1024, last: null },
+      __AIJ_CLOUD_BACKUPS__: cloudList,
+      __AIJ_CLOUD_RESTORE_PLAN__: cloudPlan,
+    });
+    await page.getByTestId("cloud-backup-panel").scrollIntoViewIfNeeded();
+    await page.getByTestId("cloud-backup-restore").click();
+    await page.getByTestId("cloud-backup-code").fill("MZXW-6YTB-OI3D-EZLM-NFXG-K4TU-OJSW-Y5DF-MFZG-K3TF-ON2G-K3DF-NZTW-Q2AB");
+    await page.getByTestId("cloud-backup-list").scrollIntoViewIfNeeded();
+    await page.screenshot({ path: resolve(GALLERY, `60-cloud-backup/list-1280x800-${theme}.png`) });
+    await page.getByTestId("cloud-backup-pick").first().click();
+    await expect(page.getByTestId("restore-plan")).toBeVisible();
+    await page.screenshot({ path: resolve(GALLERY, `60-cloud-backup/restore-preview-1280x800-${theme}.png`) });
   });
 }

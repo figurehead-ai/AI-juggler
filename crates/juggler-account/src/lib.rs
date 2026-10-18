@@ -24,7 +24,7 @@ pub mod secrets;
 pub mod transport;
 pub mod vault;
 
-pub use client::{AccountClient, ApiError};
+pub use client::{AccountClient, ApiError, BackupRecord, DEFAULT_BACKUP_LIMIT, UploadedBackup};
 pub use model::{
     AccountView, DeviceFields, Entitlement, LinkRequest, PHASE1_FEATURES, PollOutcome,
 };

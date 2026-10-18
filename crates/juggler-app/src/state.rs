@@ -57,6 +57,10 @@ pub struct AppState {
     /// AJ-E1010: where updating stands (in memory; the launch-check
     /// setting lives in app settings).
     pub updates: crate::updates::UpdateManager,
+    /// AJ-E1205: held while a Cloud backup uploads (one at a time).
+    pub cloud_uploading: Mutex<()>,
+    /// AJ-E1007: held for the length of a transcript-indexing pass.
+    pub indexing: Mutex<()>,
     /// Terminal ids with a live output forwarder (dedup: one forwarder per
     /// terminal no matter how often the UI re-attaches).
     pub terminal_taps: Mutex<std::collections::HashSet<String>>,
@@ -191,6 +195,8 @@ impl AppState {
             heuristics: HeuristicEngine::new(load_thresholds(&data_dir)),
             provider_stuck_secs: load_provider_thresholds(&data_dir),
             updates: crate::updates::UpdateManager::default(),
+            cloud_uploading: Mutex::new(()),
+            indexing: Mutex::new(()),
             terminal_taps: Mutex::new(std::collections::HashSet::new()),
             kill_cancels: Mutex::new(std::collections::HashMap::new()),
             fleet: Mutex::new(None),

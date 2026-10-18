@@ -64,6 +64,15 @@ export function BackupRestoreCard(): JSX.Element {
       ),
     [],
   );
+  // AJ-E1205: a Cloud restore lands here, in the same confirm step.
+  useEffect(() => {
+    const onPlan = (event: Event) => {
+      const plan = (event as CustomEvent<RestorePlanInfo>).detail;
+      if (plan) setPhase({ kind: "plan", plan });
+    };
+    window.addEventListener("aij:restore-plan", onPlan);
+    return () => window.removeEventListener("aij:restore-plan", onPlan);
+  }, []);
   useEffect(() => {
     if (phase.kind !== "plan") return;
     restoreRef.current?.focus();

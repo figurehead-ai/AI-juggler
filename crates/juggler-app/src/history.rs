@@ -36,8 +36,6 @@ const RETENTION_KEY: &str = "retention_days";
 const TOKEN_TTL_MS: i64 = 10 * 60 * 1000;
 /// Replay returns at most this much transcript text.
 const REPLAY_CAP_BYTES: u64 = 16 * 1024 * 1024;
-/// Held for the length of an indexing pass.
-static INDEXING: std::sync::Mutex<()> = std::sync::Mutex::new(());
 /// Transcript lines read per indexing step (bounded memory).
 const INDEX_CHUNK_BYTES: u64 = 8 * 1024 * 1024;
 
@@ -385,7 +383,8 @@ fn read_lines(path: &Path, start: u64, size: u64) -> std::io::Result<LineBatch> 
 pub fn index_transcripts(state: &Arc<AppState>) -> AppResult<IndexReportInfo> {
     // One pass at a time: the background pass and a search never index
     // the same transcript twice.
-    let _pass = INDEXING
+    let _pass = state
+        .indexing
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     let (targets, states) = {
@@ -480,7 +479,7 @@ pub fn transcript_search_impl(
 ) -> AppResult<Vec<TranscriptHitInfo>> {
     // Bring the index up to date unless the background pass is already
     // doing it; then search what is indexed now.
-    if INDEXING.try_lock().is_ok() {
+    if state.indexing.try_lock().is_ok() {
         index_transcripts(state)?;
     }
     let (hits, paths) = {

@@ -2,6 +2,7 @@ import { StorageRetentionCard } from "../components/StorageRetentionCard";
 import { BackupRestoreCard } from "../components/BackupRestoreCard";
 import { UpdatesCard } from "../components/UpdatesCard";
 import { RecoveryCodeSheet } from "../components/RecoveryCodeSheet";
+import { CloudBackupPanel } from "../components/CloudBackupPanel";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Card, Chip } from "../components/primitives";
 import {
@@ -104,7 +105,6 @@ const FEATURE_COPY: Record<string, { title: string; does: string; sends: string;
     title: "Cloud backup",
     does: "Back up AI Juggler's settings, Launch settings and history, and restore them on another Mac.",
     sends: "An encrypted backup file. Figurehead can't read it.",
-    note: "Arrives in an upcoming beta build — your choice is kept until then.",
   },
   fleetDiscovery: {
     title: "Find my Macs",
@@ -536,6 +536,7 @@ function Connected({
           </Button>
         </p>
       )}
+      {backupOn && vault?.code_saved && <CloudBackupPanel />}
       {showCode && (
         <RecoveryCodeSheet
           onClose={(saved) => {

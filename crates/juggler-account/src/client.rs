@@ -48,6 +48,61 @@ pub enum ApiError {
     /// A response that doesn't match the contract.
     #[error("Figurehead sent an unexpected answer.")]
     Malformed(String),
+    /// `413`, or larger than the plan's limit before sending.
+    #[error("This backup is larger than your plan allows ({limit_mb} MB) — nothing was uploaded.")]
+    TooLarge {
+        /// The limit, in whole MB.
+        limit_mb: u64,
+    },
+    /// The bytes don't match the checksum the service gave.
+    #[error("The backup changed on the way — nothing was restored. Try again.")]
+    ChecksumMismatch,
+}
+
+/// One backup the service holds (`GET backups`).
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BackupRecord {
+    /// The service's id (`bak_…`).
+    pub id: String,
+    /// The label sent with it, if any.
+    #[serde(default)]
+    pub label: Option<String>,
+    /// Its size.
+    pub size_bytes: u64,
+    /// sha256 of the ciphertext, as stored.
+    pub sha256: String,
+    /// The Mac that uploaded it.
+    #[serde(default)]
+    pub device_id: Option<String>,
+    /// When, as the service writes it (RFC 3339).
+    pub created_at: String,
+}
+
+/// What an upload stored (`201`).
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UploadedBackup {
+    /// The service's id.
+    pub id: String,
+    /// sha256 of what it stored.
+    pub sha256: String,
+    /// Its size.
+    pub size_bytes: u64,
+}
+
+/// The backup size limit when the plan names none: 25 MB.
+pub const DEFAULT_BACKUP_LIMIT: u64 = 25 * 1024 * 1024;
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    use sha2::Digest as _;
+    use std::fmt::Write as _;
+    sha2::Sha256::digest(bytes)
+        .iter()
+        .fold(String::new(), |mut out, byte| {
+            let _ = write!(out, "{byte:02x}");
+            out
+        })
 }
 
 #[derive(serde::Deserialize, Default)]
@@ -135,6 +190,7 @@ impl AccountClient {
             body: body
                 .map(|value| value.to_string().into_bytes())
                 .unwrap_or_default(),
+            long_transfer: false,
         }
     }
 
@@ -350,6 +406,105 @@ impl AccountClient {
         } else {
             Err(Self::common(&response))
         }
+    }
+
+    /// Uploads an encrypted backup (`POST backups`, octet-stream). Never
+    /// sends more than `limit_bytes`; checks the stored checksum.
+    ///
+    /// # Errors
+    ///
+    /// [`ApiError::TooLarge`] (before sending, or on `413`),
+    /// [`ApiError::UpgradeRequired`] on `402`, [`ApiError::Malformed`] when
+    /// the stored checksum differs, or another [`ApiError`].
+    pub fn upload_backup(
+        &self,
+        token: &DeviceToken,
+        label: Option<&str>,
+        ciphertext: &[u8],
+        limit_bytes: u64,
+    ) -> Result<UploadedBackup, ApiError> {
+        let limit_mb = limit_bytes / (1024 * 1024);
+        if ciphertext.len() as u64 > limit_bytes {
+            return Err(ApiError::TooLarge { limit_mb });
+        }
+        let mut request = self.request("POST", "backups", Some(token.expose()), None);
+        request.content_type = "application/octet-stream";
+        request.body = ciphertext.to_vec();
+        request.long_transfer = true;
+        if let Some(label) = label {
+            let label: String = label.chars().take(120).collect();
+            request.headers.push(("x-backup-label", label));
+        }
+        let response = self.send(&request, true)?;
+        match response.status {
+            200 | 201 => {
+                let stored: UploadedBackup = serde_json::from_slice(&response.body)
+                    .map_err(|e| ApiError::Malformed(e.to_string()))?;
+                if stored.sha256 != sha256_hex(ciphertext) {
+                    return Err(ApiError::Malformed(
+                        "the stored checksum doesn't match what was sent".to_owned(),
+                    ));
+                }
+                Ok(stored)
+            }
+            413 => Err(ApiError::TooLarge { limit_mb }),
+            _ => Err(Self::common(&response)),
+        }
+    }
+
+    /// Lists the account's backups, newest first (`GET backups`).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ApiError`].
+    pub fn list_backups(&self, token: &DeviceToken) -> Result<Vec<BackupRecord>, ApiError> {
+        #[derive(serde::Deserialize)]
+        struct Listed {
+            backups: Vec<BackupRecord>,
+        }
+        let response = self.send(
+            &self.request("GET", "backups", Some(token.expose()), None),
+            true,
+        )?;
+        if response.status != 200 {
+            return Err(Self::common(&response));
+        }
+        let mut listed: Listed = serde_json::from_slice(&response.body)
+            .map_err(|e| ApiError::Malformed(e.to_string()))?;
+        listed
+            .backups
+            .sort_by(|a, b| b.created_at.cmp(&a.created_at));
+        Ok(listed.backups)
+    }
+
+    /// Downloads one backup's ciphertext (`GET backups/{id}`) and checks
+    /// it against `X-Backup-Sha256`.
+    ///
+    /// # Errors
+    ///
+    /// [`ApiError::ChecksumMismatch`] when the bytes don't match, or
+    /// another [`ApiError`].
+    pub fn download_backup(&self, token: &DeviceToken, id: &str) -> Result<Vec<u8>, ApiError> {
+        if id.is_empty()
+            || !id
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+        {
+            return Err(ApiError::Malformed("an invalid backup id".to_owned()));
+        }
+        let mut request = self.request("GET", &format!("backups/{id}"), Some(token.expose()), None);
+        request.long_transfer = true;
+        let response = self.send(&request, true)?;
+        if response.status != 200 {
+            return Err(Self::common(&response));
+        }
+        let expected = response
+            .header("x-backup-sha256")
+            .ok_or_else(|| ApiError::Malformed("no X-Backup-Sha256".to_owned()))?;
+        if !expected.eq_ignore_ascii_case(&sha256_hex(&response.body)) {
+            return Err(ApiError::ChecksumMismatch);
+        }
+        Ok(response.body)
     }
 
     /// Unlinks this Mac (`DELETE devices/self`); the token stops working.

@@ -22,6 +22,9 @@ import type { IdentityCheckInfo } from "../types/generated/IdentityCheckInfo";
 import type { IsolationOfferInfo } from "../types/generated/IsolationOfferInfo";
 import type { ParkedInfo } from "../types/generated/ParkedInfo";
 import type { OvernightSummaryInfo } from "../types/generated/OvernightSummaryInfo";
+import type { CloudBackupStatusInfo } from "../types/generated/CloudBackupStatusInfo";
+import type { CloudBackupInfo } from "../types/generated/CloudBackupInfo";
+import type { LastBackupInfo } from "../types/generated/LastBackupInfo";
 import type { VaultStatusInfo } from "../types/generated/VaultStatusInfo";
 import type { RecoveryCodeInfo } from "../types/generated/RecoveryCodeInfo";
 import type { UpdateStatusInfo } from "../types/generated/UpdateStatusInfo";
@@ -106,6 +109,9 @@ export type {
   ParkedInfo,
   ParkedOfferInfo,
   OvernightSummaryInfo,
+  CloudBackupStatusInfo,
+  CloudBackupInfo,
+  LastBackupInfo,
   VaultStatusInfo,
   RecoveryCodeInfo,
   UpdateStatusInfo,
@@ -4350,4 +4356,82 @@ export async function vaultEnterCode(code: string): Promise<VaultStatusInfo> {
     return next;
   }
   return invoke<VaultStatusInfo>("vault_enter_code", { code });
+}
+
+// --- AJ-E1205: Cloud backup ----------------------------------------------------
+
+interface CloudBackupSeams {
+  __AIJ_CLOUD_BACKUP__?: CloudBackupStatusInfo;
+  __AIJ_CLOUD_BACKUPS__?: CloudBackupInfo[];
+  __AIJ_CLOUD_BACKUP_CALLS__?: string[];
+  __AIJ_CLOUD_BACKUP_ERROR__?: string;
+  __AIJ_CLOUD_RESTORE_PLAN__?: RestorePlanInfo;
+  __AIJ_CLOUD_RESTORE_ERROR__?: string;
+  __AIJ_CLOUD_BACKUP_HOLD__?: boolean;
+}
+const cloudSeams = () => window as unknown as CloudBackupSeams;
+const cloudCall = (call: string) => {
+  const seams = cloudSeams();
+  seams.__AIJ_CLOUD_BACKUP_CALLS__ = [...(seams.__AIJ_CLOUD_BACKUP_CALLS__ ?? []), call];
+};
+const mockCloud = (): CloudBackupStatusInfo =>
+  cloudSeams().__AIJ_CLOUD_BACKUP__ ?? {
+    enabled: true,
+    code_saved: true,
+    schedule: "weekly",
+    last: null,
+    uploading: false,
+    limit_bytes: 25 * 1024 * 1024,
+  };
+
+/** Where Cloud backup stands. */
+export async function cloudBackupStatus(): Promise<CloudBackupStatusInfo> {
+  if (!hasBackend) return { ...mockCloud() };
+  return invoke<CloudBackupStatusInfo>("cloud_backup_status");
+}
+
+/** Sets the schedule (off | daily | weekly). */
+export async function cloudBackupSetSchedule(schedule: string): Promise<CloudBackupStatusInfo> {
+  if (!hasBackend) {
+    cloudCall(`schedule:${schedule}`);
+    const next = { ...mockCloud(), schedule };
+    cloudSeams().__AIJ_CLOUD_BACKUP__ = next;
+    return next;
+  }
+  return invoke<CloudBackupStatusInfo>("cloud_backup_set_schedule", { schedule });
+}
+
+/** Backs up now (builds, seals and uploads). */
+export async function cloudBackupNow(): Promise<LastBackupInfo> {
+  if (!hasBackend) {
+    cloudCall("now");
+    const seams = cloudSeams();
+    if (seams.__AIJ_CLOUD_BACKUP_HOLD__) return new Promise<LastBackupInfo>(() => {});
+    if (seams.__AIJ_CLOUD_BACKUP_ERROR__) throw new Error(seams.__AIJ_CLOUD_BACKUP_ERROR__);
+    const last = { at_ms: Date.now(), ok: true, size_bytes: 412_000, error: null };
+    seams.__AIJ_CLOUD_BACKUP__ = { ...mockCloud(), last };
+    return last;
+  }
+  return invoke<LastBackupInfo>("cloud_backup_now");
+}
+
+/** The account's backups, newest first. */
+export async function cloudBackupList(): Promise<CloudBackupInfo[]> {
+  if (!hasBackend) {
+    cloudCall("list");
+    return [...(cloudSeams().__AIJ_CLOUD_BACKUPS__ ?? [])];
+  }
+  return invoke<CloudBackupInfo[]>("cloud_backup_list");
+}
+
+/** Downloads and opens one backup; returns the verified restore plan. */
+export async function cloudBackupPrepareRestore(id: string, recoveryCode: string | null): Promise<RestorePlanInfo> {
+  if (!hasBackend) {
+    cloudCall(`prepare:${id}:${recoveryCode ? "code" : "key"}`);
+    const seams = cloudSeams();
+    if (seams.__AIJ_CLOUD_RESTORE_ERROR__) throw new Error(seams.__AIJ_CLOUD_RESTORE_ERROR__);
+    if (seams.__AIJ_CLOUD_RESTORE_PLAN__) return seams.__AIJ_CLOUD_RESTORE_PLAN__;
+    throw new Error("No backend in this preview");
+  }
+  return invoke<RestorePlanInfo>("cloud_backup_prepare_restore", { id, recoveryCode });
 }

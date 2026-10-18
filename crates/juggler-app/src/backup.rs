@@ -39,12 +39,37 @@ pub const FORMAT_VERSION: u32 = 1;
 const STAGING_DIR: &str = "restore-staging";
 const TOKEN_KEY: &str = "restore_token";
 /// App settings that only mean something on the Mac that wrote them.
+/// App settings that only mean something on the Mac that wrote them:
+/// never in a backup, and on restore this Mac keeps its own. Exact keys…
 const MACHINE_ONLY_SETTINGS: &[&str] = &[
     "history_tokens",
     "restore_token",
-    "fleet_link_last_port",
-    "fleet_registry_generation",
+    "machine_label",
+    "usage_ingest_state",
+    "juggler_worktrees",
+    "vault_code_saved",
+    "update_check_on_launch",
 ];
+/// …and whole families: this Mac's Figurehead link and cloud choices,
+/// its Fleet state, its install telemetry, its Cloud backup schedule.
+const MACHINE_ONLY_PREFIXES: &[&str] = &["figurehead_", "fleet_", "funnel_", "cloud_backup_"];
+
+/// The SQL condition matching a machine-only setting key.
+fn machine_only_where(column: &str) -> String {
+    let exact = MACHINE_ONLY_SETTINGS
+        .iter()
+        .map(|key| format!("'{key}'"))
+        .collect::<Vec<_>>()
+        .join(",");
+    let families = MACHINE_ONLY_PREFIXES
+        .iter()
+        .fold(String::new(), |mut out, prefix| {
+            use std::fmt::Write as _;
+            let _ = write!(out, " OR {column} LIKE '{prefix}%'");
+            out
+        });
+    format!("({column} IN ({exact}){families})")
+}
 /// Tables whose rows only mean something on the Mac that wrote them.
 const MACHINE_ONLY_TABLES: &[&str] = &[
     "process_ledger",
@@ -206,10 +231,14 @@ fn scrub(snapshot: &Path) -> AppResult<Vec<String>> {
         conn.execute(&format!("DELETE FROM {table}"), [])
             .map_err(core)?;
     }
-    for key in MACHINE_ONLY_SETTINGS {
-        conn.execute("DELETE FROM app_settings WHERE key = ?1", [key])
-            .map_err(core)?;
-    }
+    conn.execute(
+        &format!(
+            "DELETE FROM app_settings WHERE {}",
+            machine_only_where("key")
+        ),
+        [],
+    )
+    .map_err(core)?;
     for sql in [
         "DELETE FROM transcript_fts",
         "DELETE FROM transcript_lines",
@@ -792,14 +821,13 @@ fn keep_this_macs_rows(storage: &Storage, before: &Path) -> AppResult<()> {
             "DELETE FROM main.{table}; INSERT INTO main.{table} SELECT * FROM prior.{table};"
         );
     }
-    let keys = MACHINE_ONLY_SETTINGS
-        .iter()
-        .map(|key| format!("'{key}'"))
-        .collect::<Vec<_>>()
-        .join(",");
+    // Whatever an older backup carried for these is dropped; this Mac's
+    // own values come back.
     let _ = write!(
         sql,
-        "INSERT OR REPLACE INTO main.app_settings SELECT * FROM prior.app_settings WHERE key IN ({keys});"
+        "DELETE FROM main.app_settings WHERE {cond};
+         INSERT OR REPLACE INTO main.app_settings SELECT * FROM prior.app_settings WHERE {cond};",
+        cond = machine_only_where("key")
     );
     let copied = conn.execute_batch(&sql).map_err(core);
     conn.execute("DETACH DATABASE prior", []).map_err(core)?;

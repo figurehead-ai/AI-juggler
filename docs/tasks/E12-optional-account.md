@@ -101,7 +101,7 @@ from the account's entitlements, never from code.
 **Research basis**: ADR-0014; AJ-E1009 backup set.
 **Handover note**: Never derive the vault key from the device token or the Fleet identity key.
 
-### AJ-E1205 Cloud backup upload, schedule, restore | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1202, AJ-E1204
+### AJ-E1205 Cloud backup upload, schedule, restore | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E1202, AJ-E1204
 **Goal**: Back up to Figurehead on demand or on a schedule, and restore on any linked Mac through AJ-E1009's verified restore path.
 **User story**: As a user replacing my laptop, I link the new Mac, enter my recovery code, and get my setup back.
 **Requirements**:

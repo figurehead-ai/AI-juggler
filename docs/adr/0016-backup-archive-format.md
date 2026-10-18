@@ -61,10 +61,19 @@ never read by the exporter.
 - Launch settings keep their environment variable names, but every
   value is blanked and listed under `withheld`, because values are often
   keys.
-- Rows that only mean something on the writing Mac are removed: the
-  process ledger (its pids belong to that Mac, and restoring them could
-  point cleanup at unrelated processes), Fleet sync state, one-time
-  confirmation tokens, and the remembered link port.
+- What only means something on the writing Mac is removed:
+  - the process ledger (its pids belong to that Mac, and restoring them
+    could point cleanup at unrelated processes);
+  - Fleet sync state and every `fleet_` setting;
+  - that Mac's Figurehead link and cloud choices (`figurehead_`), its
+    Cloud backup schedule (`cloud_backup_`) and its install telemetry
+    (`funnel_`);
+  - its usage-ingest offsets, worktree paths, machine label and
+    one-time confirmation tokens.
+
+  On restore, the Mac being restored keeps its own values for all of
+  these. A Mac that restores another Mac's backup stays linked as
+  itself. (Amended 2026-10-18, AJ-E1205.)
 - The transcript search index is dropped and rebuilt from the
   transcripts on the restored Mac.
 

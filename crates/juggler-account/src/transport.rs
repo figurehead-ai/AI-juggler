@@ -22,7 +22,13 @@ pub struct HttpRequest {
     pub headers: Vec<(&'static str, String)>,
     /// The body.
     pub body: Vec<u8>,
+    /// A large transfer (backup upload/download): allowed
+    /// [`LONG_TIMEOUT`] instead of [`TIMEOUT`].
+    pub long_transfer: bool,
 }
+
+/// The timeout for a backup upload or download (up to 25 MB).
+pub const LONG_TIMEOUT: Duration = Duration::from_secs(180);
 
 impl std::fmt::Debug for HttpRequest {
     // Never print the bearer or the body: either may be a secret.
@@ -137,10 +143,17 @@ impl Transport for UreqTransport {
         let http = builder
             .body(request.body.clone())
             .map_err(|e| NetworkError(e.to_string()))?;
-        let mut response = self
-            .agent
-            .run(http)
-            .map_err(|e| NetworkError(e.to_string()))?;
+        let mut response = if request.long_transfer {
+            let configured = self
+                .agent
+                .configure_request(http)
+                .timeout_global(Some(LONG_TIMEOUT))
+                .build();
+            self.agent.run(configured)
+        } else {
+            self.agent.run(http)
+        }
+        .map_err(|e| NetworkError(e.to_string()))?;
         let status = response.status().as_u16();
         let headers = response
             .headers()

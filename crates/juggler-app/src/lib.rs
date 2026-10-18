@@ -12,6 +12,7 @@
 )]
 
 pub mod backup;
+pub mod cloud_backup;
 pub mod commands;
 pub mod crossmachine;
 pub mod error;
@@ -93,6 +94,7 @@ pub fn run() {
     let link_state = Arc::clone(&app_state);
     let figurehead_state = Arc::clone(&app_state);
     let update_state = Arc::clone(&app_state);
+    let cloud_backup_state = Arc::clone(&app_state);
 
     tauri::Builder::default()
         // Registered first: a second launch defers to the running app
@@ -190,6 +192,11 @@ pub fn run() {
             overnight::overnight_summary_seen,
             parked::instance_park,
             lifecycle::instance_mark_reviewed,
+            cloud_backup::cloud_backup_status,
+            cloud_backup::cloud_backup_set_schedule,
+            cloud_backup::cloud_backup_now,
+            cloud_backup::cloud_backup_list,
+            cloud_backup::cloud_backup_prepare_restore,
             vault::vault_status,
             vault::vault_setup,
             vault::vault_confirm_saved,
@@ -332,6 +339,9 @@ pub fn run() {
             // AJ-E1010: release builds check for an update in the
             // background, if the user left that on; never installs.
             updates::spawn_launch_check(app.handle().clone(), update_state);
+            // AJ-E1205: the backup schedule (nothing runs while Cloud
+            // backup is off or the recovery code isn't saved).
+            cloud_backup::spawn_schedule(cloud_backup_state);
             Ok(())
         })
         .run(tauri::generate_context!())

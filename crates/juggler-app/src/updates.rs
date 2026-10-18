@@ -254,6 +254,16 @@ pub fn launch_check(state: &Arc<AppState>, feed: &dyn UpdateFeed) -> bool {
     true
 }
 
+/// A switch edge is still staged, verified or launched (recently): a
+/// switch is in flight.
+///
+/// # Errors
+///
+/// Returns the typed storage error.
+pub(crate) fn switch_in_flight(state: &Arc<AppState>) -> AppResult<bool> {
+    Ok(install_blocker(state)?.is_some())
+}
+
 /// Why installing has to wait, if it does.
 fn install_blocker(state: &Arc<AppState>) -> AppResult<Option<String>> {
     let storage = crate::commands::lock_storage_arc(state)?;
