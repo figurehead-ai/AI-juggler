@@ -34,7 +34,10 @@ fn link_approve_account_rename_unlink() {
     };
     let started = Instant::now();
     let link = client.start_link(&device).unwrap();
-    eprintln!("[e2e] approve {} (code {})", link.verify_url, link.user_code);
+    eprintln!(
+        "[e2e] approve {} (code {})",
+        link.verify_url, link.user_code
+    );
     let mut interval = link.interval_s;
     let (device_id, token) = loop {
         std::thread::sleep(Duration::from_secs(interval));
@@ -44,9 +47,15 @@ fn link_approve_account_rename_unlink() {
             PollOutcome::Approved { device_id, token } => break (device_id, token),
             other => panic!("link ended: {other:?}"),
         }
-        assert!(started.elapsed() < Duration::from_secs(120), "not approved in time");
+        assert!(
+            started.elapsed() < Duration::from_secs(120),
+            "not approved in time"
+        );
     };
-    eprintln!("[e2e] approved as {device_id} after {:?}", started.elapsed());
+    eprintln!(
+        "[e2e] approved as {device_id} after {:?}",
+        started.elapsed()
+    );
     let account = client.account(&token).unwrap();
     eprintln!(
         "[e2e] account: plan={:?} fallback={} features={:?}",
@@ -54,10 +63,16 @@ fn link_approve_account_rename_unlink() {
         account.fallback,
         account.entitlements.keys().collect::<Vec<_>>()
     );
-    client.rename(&token, "AIJ e2e Mac (renamed)", "0.0.1").unwrap();
+    client
+        .rename(&token, "AIJ e2e Mac (renamed)", "0.0.1")
+        .unwrap();
     let renamed = client.account(&token).unwrap();
     eprintln!("[e2e] device name now {:?}", renamed.device_name());
     client.unlink(&token).unwrap();
-    assert_eq!(client.account(&token), Err(ApiError::Unlinked), "the token stops working at once");
+    assert_eq!(
+        client.account(&token),
+        Err(ApiError::Unlinked),
+        "the token stops working at once"
+    );
     eprintln!("[e2e] unlinked; the old token now answers 401");
 }
