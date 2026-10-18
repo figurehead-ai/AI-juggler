@@ -1166,10 +1166,16 @@ fn start(state: &Arc<AppState>) -> AppResult<()> {
     });
     let listener = runtime
         .block_on(async {
-            if let Some(port) = last_port.filter(|port| *port != 0)
-                && let Ok(listener) = tokio::net::TcpListener::bind(("0.0.0.0", port)).await
-            {
-                return Ok(listener);
+            // Retried briefly: right after Link off the old listener may
+            // not be released yet, and falling back to another port
+            // would strand peers paired by address.
+            if let Some(port) = last_port.filter(|port| *port != 0) {
+                for _ in 0..10 {
+                    if let Ok(listener) = tokio::net::TcpListener::bind(("0.0.0.0", port)).await {
+                        return Ok(listener);
+                    }
+                    tokio::time::sleep(Duration::from_millis(200)).await;
+                }
             }
             if let Ok(listener) = tokio::net::TcpListener::bind(("0.0.0.0", PREFERRED_PORT)).await {
                 return Ok(listener);
