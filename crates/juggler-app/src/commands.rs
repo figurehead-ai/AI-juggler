@@ -7553,6 +7553,14 @@ fn verify_kill_target(
         return juggler_supervisor::tree::verify_start_time(pid, &identity)
             == juggler_supervisor::tree::Verification::Verified;
     }
+    // A helper young enough to still be settling (caught between fork
+    // and exec) is verified on boot + start time; its exe leg waits out
+    // the window, as the reconciler's listing verdict does (AJ-E508).
+    let settling = row.role == "helper"
+        && juggler_core::model::Timestamp::now()
+            .millis()
+            .saturating_sub(row.first_seen)
+            < juggler_core::storage::EXEC_SETTLE_MS;
     row.started_at.is_some_and(|start_time| {
         let identity = juggler_supervisor::tree::ProcessIdentity {
             pid,
@@ -7561,7 +7569,7 @@ fn verify_kill_target(
             exe: std::path::PathBuf::from(&row.exe_path),
             boot_id: row.boot_id.clone(),
         };
-        juggler_supervisor::tree::verify(pid, &identity)
+        juggler_supervisor::tree::verify_settling(pid, &identity, settling)
             == juggler_supervisor::tree::Verification::Verified
     })
 }

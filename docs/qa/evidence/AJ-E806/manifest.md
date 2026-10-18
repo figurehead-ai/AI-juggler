@@ -24,3 +24,20 @@
   first frame (evidence: `docs/qa/evidence/AJ-E309/manifest.md`). The
   re-scan guard stays; no gate threshold changed.
 
+- Flake root cause FIXED (2026-10-18, found while verifying AJ-E704):
+  `guardrails` intermittently refused a kill of the test's OWN helper
+  (`foreign_machine_row_…` "local rows verify normally";
+  `term_ignorer_gets_term_then_kill_only_after_grace` outcome
+  `refused`) — 2 failures in 4 full-binary runs, never alone. Cause:
+  discovery can record a helper between `fork` and `exec` (recorded exe
+  = the wrapper `/bin/sh`, live exe = `python3`); the ledger refines
+  the exe inside the 10 s exec-settle window, but upserts are throttled
+  to 2 s, so a kill clicked inside that window compared the stale exe
+  single-shot and refused. The reconciler's listing verdict already let
+  the exe leg wait during the window; kill-time verification did not.
+  Now `tree::verify_settling` applies the same rule at kill time — boot
+  and start time (the PID-reuse signal) never wait, a probe error is
+  still a refusal, and after the window all three facts must agree
+  (`verify_tests::a_settling_helper_may_have_execd_but_never_changed_start_time_or_boot`).
+  After the fix: the full `guardrails` binary 3/3 green. No gate
+  threshold changed; nothing was retried or quarantined.

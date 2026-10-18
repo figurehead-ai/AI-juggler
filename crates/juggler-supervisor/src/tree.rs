@@ -459,6 +459,38 @@ pub fn verify_with(probe: &dyn IdentityProbe, pid: u32, expect: &ProcessIdentity
     Verification::Verified
 }
 
+/// Kill-time verification of a ledger row (AJ-E503 + AJ-E508):
+/// boot, start time and exe must all agree — except that a helper still
+/// inside the exec-settle window (`settling`) may legitimately have
+/// changed image since discovery (caught between `fork` and `exec`: the
+/// recorded exe is the wrapper shell, the live one the real program).
+/// For a settling row the exe leg waits, exactly as the reconciler's
+/// listing verdict does; boot and start time — the PID-reuse signal —
+/// never wait. A probe error is still a refusal.
+#[must_use]
+pub fn verify_settling(pid: u32, expect: &ProcessIdentity, settling: bool) -> Verification {
+    verify_settling_with(&OsIdentityProbe, pid, expect, settling)
+}
+
+/// The injectable core of [`verify_settling`].
+pub fn verify_settling_with(
+    probe: &dyn IdentityProbe,
+    pid: u32,
+    expect: &ProcessIdentity,
+    settling: bool,
+) -> Verification {
+    if !settling {
+        return verify_with(probe, pid, expect);
+    }
+    if probe.boot_id() != expect.boot_id {
+        return Verification::Unverifiable;
+    }
+    match probe.probe(pid) {
+        Some(probed) if probed.start_time == expect.start_time => Verification::Verified,
+        _ => Verification::Unverifiable,
+    }
+}
+
 /// Boot + start-time verification WITHOUT the exe comparison — for
 /// settled root identities whose exe legitimately moved across
 /// `exec` (the E503/E504 aliasing rule: a `/bin/sh` launch records
@@ -887,7 +919,8 @@ pub fn pgid_members(pgid: u32) -> Vec<u32> {
 #[cfg(test)]
 mod verify_tests {
     use super::{
-        IdentityProbe, ProbedProcess, ProcessIdentity, Verification, verify_any, verify_with,
+        IdentityProbe, ProbedProcess, ProcessIdentity, Verification, verify_any,
+        verify_settling_with, verify_with,
     };
     use std::path::PathBuf;
 
@@ -948,6 +981,46 @@ mod verify_tests {
         assert_eq!(
             verify_with(&probe, 4242, &expect),
             Verification::Unverifiable
+        );
+    }
+
+    #[test]
+    fn a_settling_helper_may_have_execd_but_never_changed_start_time_or_boot() {
+        // Discovered between fork and exec: recorded the wrapper shell.
+        let probe = probe_with(Some(facts()), "1791999000");
+        let mut wrapper = recorded();
+        wrapper.exe = PathBuf::from("/bin/sh");
+        assert_eq!(
+            verify_settling_with(&probe, 4242, &wrapper, true),
+            Verification::Verified,
+            "inside the exec-settle window the exe leg waits"
+        );
+        assert_eq!(
+            verify_settling_with(&probe, 4242, &wrapper, false),
+            Verification::Unverifiable,
+            "after the window every fact must agree"
+        );
+        let mut reused = wrapper.clone();
+        reused.start_time += 1;
+        assert_eq!(
+            verify_settling_with(&probe, 4242, &reused, true),
+            Verification::Unverifiable,
+            "a different start time (PID reuse) never waits"
+        );
+        assert_eq!(
+            verify_settling_with(
+                &probe_with(Some(facts()), "other-boot"),
+                4242,
+                &wrapper,
+                true
+            ),
+            Verification::Unverifiable,
+            "a different boot never waits"
+        );
+        assert_eq!(
+            verify_settling_with(&probe_with(None, "1791999000"), 4242, &wrapper, true),
+            Verification::Unverifiable,
+            "a probe error is a refusal"
         );
     }
 
