@@ -24,6 +24,7 @@ pub mod remote;
 pub mod state;
 pub mod terminal;
 pub mod usage_pipeline;
+pub mod worktree;
 
 use std::sync::Arc;
 
@@ -173,6 +174,11 @@ pub fn run() {
             remote::fleet_remote_stop,
             remote::fleet_remote_focus,
             remote::fleet_remote_clean,
+            worktree::isolation_offer,
+            worktree::worktree_create,
+            worktree::worktree_removal_preview,
+            worktree::worktree_remove,
+            worktree::git_status_refresh,
             identity::identity_check,
             identity::account_forget_identity,
             crossmachine::fleet_switch_targets,

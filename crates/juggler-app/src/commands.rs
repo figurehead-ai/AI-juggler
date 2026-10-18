@@ -1671,6 +1671,16 @@ pub struct InstanceInfo {
     /// The identity it ran as (masked), when known.
     #[ts(optional)]
     pub identity_label: Option<String>,
+    /// AJ-E1002: commits ahead of the upstream (cached `git status`,
+    /// at most every 30 s; absent = unknown).
+    #[ts(optional, type = "number")]
+    pub git_ahead: Option<u64>,
+    /// Commits behind the upstream.
+    #[ts(optional, type = "number")]
+    pub git_behind: Option<u64>,
+    /// It runs in a linked git worktree.
+    #[ts(optional)]
+    pub git_worktree: Option<bool>,
 }
 
 /// Deprecated alias (one version). AJ-E107.
@@ -4530,17 +4540,6 @@ fn needs_attention_of(status: SessionStatus) -> Option<NeedsAttention> {
     }
 }
 
-/// I-09: branch name read from `<cwd>/.git/HEAD` — one file read, never a
-/// `git` subprocess on the hot path (AJ-E401 performance budget). Detached
-/// heads and worktree/gitfile layouts return `None`: unknown, not guessed.
-fn git_branch_of(cwd: &std::path::Path) -> Option<String> {
-    let head = std::fs::read_to_string(cwd.join(".git").join("HEAD")).ok()?;
-    head.trim()
-        .strip_prefix("ref: refs/heads/")
-        .filter(|name| !name.is_empty())
-        .map(ToString::to_string)
-}
-
 /// A terminal status: the process is gone, so nothing about it is live.
 fn is_terminal(status: SessionStatus) -> bool {
     matches!(
@@ -4707,6 +4706,11 @@ fn session_infos(
             let (model, model_source) =
                 display_model(record.running.as_ref(), launch_model.as_ref());
             let terminal = is_terminal(record.status);
+            let git = if terminal {
+                None
+            } else {
+                crate::worktree::cached_status(&record.cwd)
+            };
             let stats = if terminal {
                 None
             } else {
@@ -4750,10 +4754,16 @@ fn session_infos(
                 // No transcript-derived source exists yet (AJ-E409) —
                 // shipped nullable, never backfilled with a guess.
                 subtask_count: None,
-                git_branch: git_branch_of(&record.cwd),
-                // No subprocess-free dirty-count source; collector lands
-                // with the E4 signals work. Null = unavailable, not 0.
-                git_dirty_count: None,
+                git_branch: crate::worktree::branch_of(&record.cwd),
+                // AJ-E1002: changed + untracked from the cached git
+                // status (refreshed in the background, at most every
+                // 30 s; live Instances only). Null = not read yet / not
+                // git — never 0.
+                git_dirty_count: git.as_ref().map(|status| status.changed + status.untracked),
+                git_ahead: git.as_ref().and_then(|status| status.ahead),
+                git_behind: git.as_ref().and_then(|status| status.behind),
+                git_worktree: Some(crate::worktree::is_linked_worktree(&record.cwd))
+                    .filter(|linked| *linked),
                 needs_attention: needs_attention_of(record.status),
                 attention: record.attention.as_ref().map(|reason| AttentionInfo {
                     rule: reason.rule.clone(),
@@ -9403,7 +9413,7 @@ fn persist_running_model(
 mod tests {
     use super::{
         AppInfo, InstanceInfo, LiveStatsMap, NeedsAttention, QuotaSnapshotInfo, TokenCountsInfo,
-        git_branch_of, needs_attention_of, session_infos,
+        needs_attention_of, session_infos,
     };
     use juggler_core::model::{
         Account, AccountId, Confidence, InstanceKind, InstanceRecord, LaunchRecipe, MachineId,
@@ -9846,8 +9856,8 @@ mod tests {
     #[test]
     fn git_branch_parses_refs_only() {
         let cwd = git_cwd("main");
-        assert_eq!(git_branch_of(&cwd), Some("main".to_string()));
-        assert_eq!(git_branch_of(&std::env::temp_dir()), None);
+        assert_eq!(crate::worktree::branch_of(&cwd), Some("main".to_string()));
+        assert_eq!(crate::worktree::branch_of(&std::env::temp_dir()), None);
         let detached =
             std::env::temp_dir().join(format!("aij-e401-{}-detached", std::process::id()));
         std::fs::create_dir_all(detached.join(".git")).expect("fixture");
@@ -9856,7 +9866,7 @@ mod tests {
             "0123456789abcdef0123456789abcdef01234567\n",
         )
         .expect("fixture");
-        assert_eq!(git_branch_of(&detached), None);
+        assert_eq!(crate::worktree::branch_of(&detached), None);
         std::fs::remove_dir_all(detached).ok();
         std::fs::remove_dir_all(cwd.join(".git")).ok();
     }
@@ -11824,12 +11834,17 @@ pub fn pack_export_impl(state: &Arc<AppState>, epoch_id: &str) -> AppResult<Stri
                 .map(ToString::to_string)
                 .unwrap_or_default(),
         },
+        // AJ-E1002: the pack records the branch and, for a linked
+        // worktree, its path (switches keep the binding).
         git: juggler_handover::pack::PackGit {
-            branch: "unknown".to_owned(),
+            branch: crate::worktree::branch_of(&session_row.cwd)
+                .unwrap_or_else(|| "unknown".to_owned()),
             head_sha: None,
-            dirty: false,
+            dirty: crate::worktree::read_status(&session_row.cwd)
+                .is_some_and(|status| status.changed + status.untracked > 0),
             diff_stat: None,
-            worktree_path: None,
+            worktree_path: crate::worktree::is_linked_worktree(&session_row.cwd)
+                .then(|| session_row.cwd.to_string_lossy().into_owned()),
         },
         turns,
         compacted: false,
