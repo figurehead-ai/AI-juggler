@@ -3,7 +3,7 @@
 // and the degraded flag; provenance echoes on AccountInfo.
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
 import type { AppInfo } from "../types/generated/AppInfo";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { DiscoveredInfo } from "../types/generated/DiscoveredInfo";
@@ -22,6 +22,10 @@ import type { IdentityCheckInfo } from "../types/generated/IdentityCheckInfo";
 import type { IsolationOfferInfo } from "../types/generated/IsolationOfferInfo";
 import type { ParkedInfo } from "../types/generated/ParkedInfo";
 import type { OvernightSummaryInfo } from "../types/generated/OvernightSummaryInfo";
+import type { BackupExportInfo } from "../types/generated/BackupExportInfo";
+import type { RestorePlanInfo } from "../types/generated/RestorePlanInfo";
+import type { RestoreResultInfo } from "../types/generated/RestoreResultInfo";
+import type { BackupManifestInfo } from "../types/generated/BackupManifestInfo";
 import type { DeletePreviewInfo } from "../types/generated/DeletePreviewInfo";
 import type { TranscriptHitInfo } from "../types/generated/TranscriptHitInfo";
 import type { ReplayInfo } from "../types/generated/ReplayInfo";
@@ -98,6 +102,10 @@ export type {
   ParkedInfo,
   ParkedOfferInfo,
   OvernightSummaryInfo,
+  BackupExportInfo,
+  RestorePlanInfo,
+  RestoreResultInfo,
+  BackupManifestInfo,
   DeletePreviewInfo,
   TranscriptHitInfo,
   ReplayInfo,
@@ -152,6 +160,8 @@ export const EVENTS = {
   previewState: "preview://state",
   /** Cross-machine switch push progress (AJ-E706). */
   fleetSwitchProgress: "fleet://switch-progress",
+  /** Backup export progress (AJ-E1009): at least every 1 %. */
+  backupProgress: "backup://progress",
 } as const;
 
 const hasBackend =
@@ -4002,7 +4012,22 @@ export async function instanceReplay(sessionId: string): Promise<ReplayInfo> {
 
 /** Every Account's retention policy and storage used. */
 export async function accountStorage(): Promise<AccountStorageInfo[]> {
-  if (!hasBackend) return (historySeams().__AIJ_ACCOUNT_STORAGE__ ?? []).map((row) => ({ ...row }));
+  if (!hasBackend) {
+    const seeded = historySeams().__AIJ_ACCOUNT_STORAGE__;
+    if (seeded) return seeded.map((row) => ({ ...row }));
+    return MOCK_ACCOUNTS.map((account) => {
+      const rows = MOCK_SESSIONS.filter((session) => session.account_id === account.id);
+      return {
+        account_id: account.id,
+        label: account.label,
+        retention_days: null,
+        instances: rows.length,
+        history_events: rows.length * 3,
+        index_lines: 0,
+        transcript_bytes: 0,
+      };
+    });
+  }
   return invoke<AccountStorageInfo[]>("account_storage");
 }
 
@@ -4042,4 +4067,106 @@ export async function retentionApply(accountId: string, token: string): Promise<
     return historySeams().__AIJ_RETENTION_PREVIEW__?.deletes.length ?? 0;
   }
   return invoke<number>("retention_apply", { accountId, token });
+}
+
+// --- AJ-E1009: backup and restore -------------------------------------------
+
+interface BackupSeams {
+  __AIJ_BACKUP_CALLS__?: string[];
+  __AIJ_BACKUP_DEST__?: string | null;
+  __AIJ_BACKUP_FILE__?: string | null;
+  __AIJ_BACKUP_EXPORT__?: BackupExportInfo;
+  __AIJ_BACKUP_EXPORT_ERROR__?: string;
+  __AIJ_RESTORE_PLAN__?: RestorePlanInfo;
+  __AIJ_RESTORE_PLAN_ERROR__?: string;
+  __AIJ_RESTORE_RESULT__?: RestoreResultInfo;
+  __AIJ_BACKUP_PROGRESS__?: Array<[number, number]>;
+  __AIJ_BACKUP_HOLD__?: boolean;
+}
+const backupSeams = () => window as unknown as BackupSeams;
+const backupCall = (call: string) => {
+  const seams = backupSeams();
+  seams.__AIJ_BACKUP_CALLS__ = [...(seams.__AIJ_BACKUP_CALLS__ ?? []), call];
+};
+let mockProgress: ((done: number, total: number) => void) | null = null;
+
+/** Where to save a backup (native save sheet); null when cancelled. */
+export async function pickBackupDestination(): Promise<string | null> {
+  if (!hasBackend) return backupSeams().__AIJ_BACKUP_DEST__ ?? null;
+  const day = new Date().toISOString().slice(0, 10);
+  const chosen = await saveDialog({
+    defaultPath: `AI Juggler backup ${day}.ajbackup`,
+    filters: [{ name: "AI Juggler backup", extensions: ["ajbackup"] }],
+  });
+  return typeof chosen === "string" ? chosen : null;
+}
+
+/** Which backup to restore (native open sheet); null when cancelled. */
+export async function pickBackupFile(): Promise<string | null> {
+  if (!hasBackend) return backupSeams().__AIJ_BACKUP_FILE__ ?? null;
+  const chosen = await openDialog({
+    multiple: false,
+    directory: false,
+    filters: [{ name: "AI Juggler backup", extensions: ["ajbackup"] }],
+  });
+  return typeof chosen === "string" ? chosen : null;
+}
+
+/** Export progress (bytes done, bytes total). */
+export function onBackupProgress(handler: (done: number, total: number) => void): () => void {
+  if (!hasBackend) {
+    mockProgress = handler;
+    return () => {
+      if (mockProgress === handler) mockProgress = null;
+    };
+  }
+  let unlisten: (() => void) | null = null;
+  let disposed = false;
+  listen<{ done: number; total: number }>(EVENTS.backupProgress, (event) => handler(event.payload.done, event.payload.total))
+    .then((stop) => {
+      if (disposed) stop();
+      else unlisten = stop;
+    })
+    .catch(() => {});
+  return () => {
+    disposed = true;
+    unlisten?.();
+  };
+}
+
+/** Writes a backup of AI Juggler's own data to `dest`. */
+export async function backupExport(dest: string): Promise<BackupExportInfo> {
+  if (!hasBackend) {
+    backupCall(`export:${dest}`);
+    const seams = backupSeams();
+    for (const [done, total] of seams.__AIJ_BACKUP_PROGRESS__ ?? [[1, 1]]) mockProgress?.(done, total);
+    if (seams.__AIJ_BACKUP_HOLD__) return new Promise<BackupExportInfo>(() => {});
+    if (seams.__AIJ_BACKUP_EXPORT_ERROR__) throw new Error(seams.__AIJ_BACKUP_EXPORT_ERROR__);
+    if (seams.__AIJ_BACKUP_EXPORT__) return { ...seams.__AIJ_BACKUP_EXPORT__, path: dest };
+    throw new Error("No backend in this preview");
+  }
+  return invoke<BackupExportInfo>("backup_export", { dest });
+}
+
+/** Verifies a backup in full; returns the restore plan (nothing changes yet). */
+export async function backupVerify(path: string): Promise<RestorePlanInfo> {
+  if (!hasBackend) {
+    backupCall(`verify:${path}`);
+    const seams = backupSeams();
+    if (seams.__AIJ_RESTORE_PLAN_ERROR__) throw new Error(seams.__AIJ_RESTORE_PLAN_ERROR__);
+    if (seams.__AIJ_RESTORE_PLAN__) return { ...seams.__AIJ_RESTORE_PLAN__, path };
+    throw new Error("No backend in this preview");
+  }
+  return invoke<RestorePlanInfo>("backup_verify", { path });
+}
+
+/** Applies a verified restore (with its plan's token). */
+export async function backupRestore(path: string, token: string): Promise<RestoreResultInfo> {
+  if (!hasBackend) {
+    backupCall(`restore:${path}:${token}`);
+    const result = backupSeams().__AIJ_RESTORE_RESULT__;
+    if (result) return result;
+    throw new Error("No backend in this preview");
+  }
+  return invoke<RestoreResultInfo>("backup_restore", { path, token });
 }

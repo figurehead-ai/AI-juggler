@@ -1,4 +1,5 @@
 import { StorageRetentionCard } from "../components/StorageRetentionCard";
+import { BackupRestoreCard } from "../components/BackupRestoreCard";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Card, Chip } from "../components/primitives";
 import {
@@ -39,6 +40,7 @@ export function SettingsScreen({ focusCloud = false }: { focusCloud?: boolean })
       </header>
       <AppearanceCard />
       <StorageRetentionCard />
+      <BackupRestoreCard />
       <div ref={cloudRef}>
         <AccountCloudCard />
       </div>

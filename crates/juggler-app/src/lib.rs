@@ -11,6 +11,7 @@
     allow(clippy::pedantic, clippy::unwrap_used, clippy::expect_used)
 )]
 
+pub mod backup;
 pub mod commands;
 pub mod crossmachine;
 pub mod error;
@@ -182,6 +183,9 @@ pub fn run() {
             overnight::overnight_summary_seen,
             parked::instance_park,
             lifecycle::instance_mark_reviewed,
+            backup::backup_export,
+            backup::backup_verify,
+            backup::backup_restore,
             history::instance_archive,
             history::instance_unarchive,
             history::instance_delete_preview,

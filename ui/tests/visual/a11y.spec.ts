@@ -2558,3 +2558,39 @@ for (const theme of ["dark", "light"] as const) {
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
   });
 }
+
+/** AJ-E1009 a11y (both themes): the Backup & restore card and the
+ * restore plan dialog scan axe-clean; the plan opens with Restore
+ * focused and Escape closes it without restoring. */
+for (const theme of ["dark", "light"] as const) {
+  test(`backup and restore plan — axe 0 — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ fixture, theme: t }) => {
+        const w = window as unknown as Record<string, unknown>;
+        w.__AIJ_FIXTURE__ = fixture;
+        w.__AIJ_BACKUP_FILE__ = "/Users/dev/b.ajbackup";
+        w.__AIJ_RESTORE_PLAN__ = {
+          path: "", other_machine: true, token: "t", notes: ["Sign in to each Account again afterwards."],
+          manifest: {
+            format: "ai-juggler-backup", format_version: 1, schema_version: 27, app_version: "0.0.1", created_at_ms: Date.now(),
+            origin: { fingerprint: "x", label: "Studio Mac" }, counts: { instances: 3 }, files: [], withheld: [], excluded: [],
+          },
+        };
+        localStorage.setItem("aij.theme", t);
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        sessionStorage.setItem("aij.ready.skipped", "1");
+      },
+      { fixture: allStatuses, theme },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Settings" }).click();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+    await page.getByTestId("backup-restore").click();
+    await expect(page.getByTestId("restore-go")).toBeFocused();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("restore-plan")).toHaveCount(0);
+  });
+}

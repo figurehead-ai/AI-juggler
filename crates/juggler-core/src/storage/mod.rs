@@ -635,6 +635,55 @@ impl Storage {
         &self.conn
     }
 
+    /// The schema version this build writes (and the newest it opens).
+    #[must_use]
+    pub fn schema_version() -> i64 {
+        i64::try_from(MIGRATIONS.len()).unwrap_or(i64::MAX)
+    }
+
+    /// The schema version of this open database.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn user_version(&self) -> Result<i64, CoreError> {
+        Ok(self
+            .conn
+            .query_row("PRAGMA user_version", [], |row| row.get(0))?)
+    }
+
+    /// AJ-E1009: writes a consistent snapshot of the whole database to
+    /// `path` (`VACUUM INTO`; the file must not exist).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn snapshot_to(&self, path: &Path) -> Result<(), CoreError> {
+        self.conn
+            .execute("VACUUM INTO ?1", [path.to_string_lossy().as_ref()])?;
+        Ok(())
+    }
+
+    /// AJ-E1009: replaces this database's contents with the database at
+    /// `path` (SQLite's online backup API, page by page). The source is
+    /// opened — and migrated forward — first, so an older backup lands at
+    /// this build's schema.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::SchemaTooNew`] for a newer source, or
+    /// [`CoreError::Storage`] on SQLite failures.
+    pub fn restore_from(&mut self, path: &Path) -> Result<(), CoreError> {
+        drop(Self::open(path)?); // migrates the staged copy in place
+        self.conn.restore(
+            rusqlite::MAIN_DB,
+            path,
+            None::<fn(rusqlite::backup::Progress)>,
+        )?;
+        self.conn.pragma_update(None, "foreign_keys", "ON")?;
+        Ok(())
+    }
+
     /// The full forward-only migration list (diagnostics + upgrade
     /// tests build earlier schema states from it).
     #[must_use]

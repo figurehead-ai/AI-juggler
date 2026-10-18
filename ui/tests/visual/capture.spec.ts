@@ -40,7 +40,7 @@ function noteNotCaptured(screen: string, state: string, reason: string) {
 
 test.beforeAll(() => {
   mkdirSync(GALLERY, { recursive: true });
-  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "16-onboarding-detect", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "34-wizard", "35-candidates", "36-recommend", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings", "45-remote", "46-fleet-board", "47-remote-focus", "48-remote-cleanup", "49-fleet-sync", "50-cross-switch", "51-identity", "52-worktree", "53-parked", "54-summary", "55-triage", "56-history"]) {
+  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "16-onboarding-detect", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "34-wizard", "35-candidates", "36-recommend", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings", "45-remote", "46-fleet-board", "47-remote-focus", "48-remote-cleanup", "49-fleet-sync", "50-cross-switch", "51-identity", "52-worktree", "53-parked", "54-summary", "55-triage", "56-history", "57-backup"]) {
     mkdirSync(resolve(GALLERY, screen), { recursive: true });
   }
   writeFileSync(NOT_CAPTURETED, "# Not captured (explicit omissions)\n\n| Screen | State | Reason |\n|---|---|---|\n");
@@ -6055,6 +6055,75 @@ for (const theme of THEMES) {
       await page.getByTestId("storage-review").first().click();
       await expect(page.getByTestId("dry-run-deletes")).toBeVisible();
       await page.screenshot({ path: resolve(GALLERY, `56-history/dry-run-${vp.name}-${theme}.png`) });
+    });
+  }
+}
+
+// ---------------------------------------------------------------------
+// AJ-E1009 — 57-backup: Settings › Backup & restore — export in
+// progress, export done (what was written and withheld), the verified
+// restore plan with the other-Mac identity warning, and a refused
+// (damaged) backup naming the file and reason — 1280×800, light/dark.
+// ---------------------------------------------------------------------
+
+const backupManifest = {
+  format: "ai-juggler-backup", format_version: 1, schema_version: 27, app_version: "0.0.1",
+  created_at_ms: T0 - 2 * 86_400_000,
+  origin: { fingerprint: "studio", label: "Studio Mac" },
+  counts: { accounts: 3, launch_settings: 4, projects: 6, instances: 128, history_events: 912, switch_edges: 14, epochs: 22 },
+  files: [], excluded: [],
+  withheld: ["Environment values of the Launch settings “Main” (Work Max): ANTHROPIC_API_KEY"],
+};
+
+for (const theme of THEMES) {
+  for (const state of ["progress", "done", "plan", "refused"] as const) {
+    test(`57 backup — ${state} — ${theme}`, async ({ page }) => {
+      await page.addInitScript(
+        ({ fixture, t, t0, kind, manifest }) => {
+          const w = window as unknown as Record<string, unknown>;
+          w.__AIJ_FIXTURE__ = fixture;
+          w.__AIJ_BACKUP_DEST__ = "/Users/dev/Backups/AI Juggler backup 2026-10-18.ajbackup";
+          w.__AIJ_BACKUP_FILE__ = "/Users/dev/Backups/AI Juggler backup 2026-10-16.ajbackup";
+          if (kind === "progress") {
+            w.__AIJ_BACKUP_PROGRESS__ = [[0, 1000], [420, 1000]];
+            w.__AIJ_BACKUP_HOLD__ = true;
+          }
+          w.__AIJ_BACKUP_EXPORT__ = { path: "", bytes: 18_400_000, manifest };
+          w.__AIJ_RESTORE_PLAN__ = {
+            path: "", manifest, other_machine: true, token: "t",
+            notes: [
+              "This backup comes from Studio Mac. It carries that Mac's data, never its identity: this Mac keeps its own and must pair again with your other Macs.",
+              "Restoring replaces AI Juggler's data on this Mac. What is here now is kept beside it, so it can be put back by hand.",
+              "Sign in to each Account again afterwards — sign-ins are never in a backup.",
+              "Re-enter what was withheld: Environment values of the Launch settings “Main” (Work Max): ANTHROPIC_API_KEY.",
+            ],
+          };
+          if (kind === "refused") {
+            w.__AIJ_RESTORE_PLAN_ERROR__ =
+              "invalid restore: /Users/dev/Backups/AI Juggler backup 2026-10-16.ajbackup can't be restored: db/juggler.sqlite does not match its checksum — the file is damaged";
+          }
+          localStorage.setItem("aij.theme", t);
+          localStorage.setItem("aij.onboarding.dismissed", "1");
+          sessionStorage.setItem("aij.ready.skipped", "1");
+          Date.now = () => t0;
+        },
+        { fixture: allStatuses, t: theme, t0: T0, kind: state, manifest: backupManifest },
+      );
+      await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+      await page.setViewportSize({ width: 1280, height: 800 });
+      await page.goto("/");
+      await page.getByRole("button", { name: "Settings" }).click();
+      await page.getByTestId("settings-backup").scrollIntoViewIfNeeded();
+      if (state === "progress" || state === "done") {
+        await page.getByTestId("backup-export").click();
+        await expect(page.getByTestId(state === "progress" ? "backup-status" : "backup-done")).toContainText(
+          state === "progress" ? "42%" : "Backed up",
+        );
+      } else {
+        await page.getByTestId("backup-restore").click();
+        await expect(page.getByTestId(state === "plan" ? "restore-other-machine" : "backup-failed")).toBeVisible();
+      }
+      await page.screenshot({ path: resolve(GALLERY, `57-backup/${state}-1280x800-${theme}.png`) });
     });
   }
 }

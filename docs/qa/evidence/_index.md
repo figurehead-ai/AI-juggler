@@ -10,6 +10,7 @@
 | AJ-E1006 | (no claims yet) | 2026-10-18 | [manifest](AJ-E1006/manifest.md) |
 | AJ-E1007 | PASS7 | 2026-10-18 | [manifest](AJ-E1007/manifest.md) |
 | AJ-E1008 | PASS2 | 2026-10-18 | [manifest](AJ-E1008/manifest.md) |
+| AJ-E1009 | PASS7 | 2026-10-18 | [manifest](AJ-E1009/manifest.md) |
 | AJ-E101 | PASS2 | 2026-10-13 | [manifest](AJ-E101/manifest.md) |
 | AJ-E102 | PASS2 | 2026-10-13 | [manifest](AJ-E102/manifest.md) |
 | AJ-E103 | PASS2 | 2026-10-13 | [manifest](AJ-E103/manifest.md) |

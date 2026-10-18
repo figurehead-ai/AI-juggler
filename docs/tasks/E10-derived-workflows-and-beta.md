@@ -146,7 +146,7 @@
 **Research basis**: pass2/07 W11 `[inferred]`; critic note requiring outage logging before building.
 **Handover note**: Same rule as AJ-E1006: an evidence-based REJECTED closes this task successfully. Do not build monitoring infrastructure for a hypothetical.
 
-### AJ-E1009 Backup, restore and machine migration of Juggler's own data | Status: TODO | Priority P1 | Effort M | Depends: AJ-E1007
+### AJ-E1009 Backup, restore and machine migration of Juggler's own data | Status: DONE-EVIDENCED | Priority P1 | Effort M | Depends: AJ-E1007
 **Goal**: Let users export and restore Juggler's database, packs and settings so a new machine or a corrupt store never costs them their history.
 **User story**: As a user moving laptops, I want one export file I can carry over and restore, with proof the restore matches.
 **Requirements**:

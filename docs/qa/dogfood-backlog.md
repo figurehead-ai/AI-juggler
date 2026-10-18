@@ -15,4 +15,5 @@ works through this list; each row links its task's manifest.
 | AJ-E1007 | After three weeks of real use: ask the user to find a specific three-week-old session with no help (by what was said in it, or its project and date), archive it, replay it, and then preview (not apply) a 90-day cleanup; note how long it took and what they tried first | `docs/qa/evidence/AJ-E1007/` |
 | AJ-E1006 | The falsification round for pair review and model arbitrage (≥ 5 participants, two-week diary plus an interview) per `protocol.md`, ending in a decision-log entry | `docs/qa/evidence/AJ-E1006/` |
 | AJ-E1008 | Log every real Provider outage during beta in `outage-log.md`; decide (build or reject) once events are in | `docs/qa/evidence/AJ-E1008/` |
+| AJ-E1009 | With the owner's consent, back up one real store, restore it on a second Mac, and confirm the counts, the identity warning and the sign-in prompts; keep only the redacted manifest and counts | `docs/qa/evidence/AJ-E1009/` |
 | AJ-E704..E711 | The Fleet items listed under *Dogfood* in `docs/qa/gate-E7.md` | `docs/qa/gate-E7.md` |

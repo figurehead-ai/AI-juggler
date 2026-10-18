@@ -1,0 +1,46 @@
+{
+  "app_version": "0.0.1",
+  "counts": {
+    "accounts": 2,
+    "epochs": 2,
+    "history_events": 8,
+    "instances": 4,
+    "launch_settings": 2,
+    "projects": 1,
+    "switch_edges": 1
+  },
+  "created_at_ms": 1792000000000,
+  "excluded": [
+    "Sign-ins to Claude, Codex and other Providers (the Account folders) — sign in again after a restore",
+    "This Mac's Fleet identity and paired machines — a restored Mac keeps its own and pairs again",
+    "Process records — their process ids belong to the Mac that wrote them",
+    "The Providers' own transcripts — they stay where each Provider keeps them"
+  ],
+  "files": [
+    {
+      "bytes": 278528,
+      "path": "db/juggler.sqlite",
+      "sha256": "48f8ddeb7461edf0e0adb6f9f66d4953f857bf4dbed5d58709bb441da210a1eb"
+    },
+    {
+      "bytes": 112,
+      "path": "settings/heuristics.json",
+      "sha256": "be183f16c44a23376198416140414355452c5d273f2492badd4797f06ea27729"
+    },
+    {
+      "bytes": 52,
+      "path": "parked/s-quota/PACK.md",
+      "sha256": "14489249854cad0c4bfa5beb2d7ea56ef8cbefd72c479c675ae07b7bb729066b"
+    }
+  ],
+  "format": "ai-juggler-backup",
+  "format_version": 1,
+  "origin": {
+    "fingerprint": "fixture-mac",
+    "label": "Fixture Mac"
+  },
+  "schema_version": 27,
+  "withheld": [
+    "Environment values of the Launch settings “Main” (Work Max): ANTHROPIC_API_KEY"
+  ]
+}
