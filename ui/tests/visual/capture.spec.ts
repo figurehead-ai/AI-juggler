@@ -40,7 +40,7 @@ function noteNotCaptured(screen: string, state: string, reason: string) {
 
 test.beforeAll(() => {
   mkdirSync(GALLERY, { recursive: true });
-  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "16-onboarding-detect", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "34-wizard", "35-candidates", "36-recommend", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings", "45-remote", "46-fleet-board", "47-remote-focus", "48-remote-cleanup", "49-fleet-sync", "50-cross-switch", "51-identity", "52-worktree", "53-parked", "54-summary", "55-triage"]) {
+  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "16-onboarding-detect", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "34-wizard", "35-candidates", "36-recommend", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings", "45-remote", "46-fleet-board", "47-remote-focus", "48-remote-cleanup", "49-fleet-sync", "50-cross-switch", "51-identity", "52-worktree", "53-parked", "54-summary", "55-triage", "56-history"]) {
     mkdirSync(resolve(GALLERY, screen), { recursive: true });
   }
   writeFileSync(NOT_CAPTURETED, "# Not captured (explicit omissions)\n\n| Screen | State | Reason |\n|---|---|---|\n");
@@ -5948,6 +5948,113 @@ for (const theme of THEMES) {
       await page.getByRole("button", { name: "Triage" }).click();
       await expect(page.getByTestId("triage-empty")).toBeVisible();
       await page.screenshot({ path: resolve(GALLERY, `55-triage/empty-${vp.name}-${theme}.png`) });
+    });
+  }
+}
+
+// ---------------------------------------------------------------------
+// AJ-E1007 — 56-history: search results with a transcript snippet, the
+// Archived list, the read-only replay, the delete dialog's exact
+// consequence copy, and Settings › Storage & retention with its dry run —
+// 1280×800 and 1024×680, light/dark.
+// ---------------------------------------------------------------------
+
+const historyFixture = {
+  ...allStatuses,
+  sessions: allStatuses.sessions.map((session) =>
+    session.id === "sess-7" ? { ...session, lifecycle: "archived", lifecycle_at_ms: T0 - 3_600_000 } : session,
+  ),
+};
+
+const historySeeds = {
+  hits: [{ session_id: "sess-6", snippet: "…we traced the flaky Stripe webhook retry to clock skew on the queue worker…" }],
+  replay: {
+    session_id: "sess-6",
+    transcript_path: "/Users/dev/.claude/projects/storefront/sess-6.jsonl",
+    transcript: "",
+    truncated: false,
+    bytes: 48_213,
+    sha256: "9f2c1e7a4b3d8e6f0a1b2c3d4e5f60718293a4b5c6d7e8f9",
+    entries: [
+      { role: "user", text: "The Stripe webhook retries twice on every event. Find out why." },
+      { role: "assistant", text: "The queue worker's clock is 40 s behind, so the signature looks expired and the first delivery is rejected. Fixing the NTP config on the worker." },
+      { role: "user", text: "Ship it and add a test." },
+      { role: "assistant", text: "Done: worker clock synced, and a test that rejects a signature older than 5 minutes." },
+    ],
+    history: [
+      { kind: "status", what: "starting", at_ms: T0 - 6 * 3_600_000 },
+      { kind: "status", what: "running", at_ms: T0 - 6 * 3_600_000 + 4_000 },
+      { kind: "status", what: "finished", at_ms: T0 - 5 * 3_600_000 },
+      { kind: "lifecycle", what: "reviewed", at_ms: T0 - 4 * 3_600_000 },
+    ],
+    lineage: [{ direction: "in", other_account: "Personal", other_provider: "claude-code", state: "confirmed", fidelity: "F1" }],
+    processes: [
+      { pid: 48211, role: "root", state: "exited", exit_kind: "clean", first_seen_ms: T0 - 6 * 3_600_000, last_seen_ms: T0 - 5 * 3_600_000 },
+      { pid: 48230, role: "helper", state: "exited", exit_kind: "reaped", first_seen_ms: T0 - 6 * 3_600_000, last_seen_ms: T0 - 5 * 3_600_000 },
+    ],
+  },
+  storage: [
+    { account_id: "claude-work", label: "Work Max", retention_days: 90, instances: 42, history_events: 318, index_lines: 18_240, transcript_bytes: 212 * 1024 * 1024 },
+    { account_id: "claude-personal", label: "Personal", retention_days: null, instances: 17, history_events: 96, index_lines: 5_120, transcript_bytes: 64 * 1024 * 1024 },
+  ],
+  dryRun: {
+    account_id: "claude-work", retention_days: 90, token: "dry",
+    deletes: [
+      { session_id: "sess-2026-06-02-a1", project: "storefront", last_active_ms: T0 - 130 * 86_400_000, kept_because: null },
+      { session_id: "sess-2026-06-19-c4", project: "ai-juggler", last_active_ms: T0 - 112 * 86_400_000, kept_because: null },
+    ],
+    kept: [{ session_id: "sess-2026-05-30-b7", project: "storefront", last_active_ms: T0 - 140 * 86_400_000, kept_because: "It is part of a switch history — deleting it would break that lineage. Archive it instead." }],
+    keeps: ["The Provider's own transcript files", "The process and cleanup audit", "Usage in your usage totals"],
+  },
+};
+
+for (const theme of THEMES) {
+  for (const vp of [
+    { name: "1280x800", width: 1280, height: 800 },
+    { name: "1024x680", width: 1024, height: 680 },
+  ] as const) {
+    test(`56 history — search, archived, replay, delete, retention — ${vp.name} — ${theme}`, async ({ page }) => {
+      await page.addInitScript(
+        ({ fixture, t, t0, seeds }) => {
+          const w = window as unknown as Record<string, unknown>;
+          w.__AIJ_FIXTURE__ = fixture;
+          w.__AIJ_TRANSCRIPT_HITS__ = seeds.hits;
+          w.__AIJ_REPLAY__ = seeds.replay;
+          w.__AIJ_ACCOUNT_STORAGE__ = seeds.storage;
+          w.__AIJ_RETENTION_PREVIEW__ = seeds.dryRun;
+          localStorage.setItem("aij.theme", t);
+          localStorage.setItem("aij.onboarding.dismissed", "1");
+          sessionStorage.setItem("aij.ready.skipped", "1");
+          Date.now = () => t0;
+        },
+        { fixture: historyFixture, t: theme, t0: T0, seeds: historySeeds },
+      );
+      await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      await page.goto("/");
+      await page.getByRole("button", { name: "History" }).click();
+      await page.getByTestId("history-search").fill("stripe");
+      await expect(page.getByTestId("history-snippet")).toContainText("Stripe webhook");
+      await page.screenshot({ path: resolve(GALLERY, `56-history/search-${vp.name}-${theme}.png`) });
+      await page.getByTestId("history-search").fill("");
+      await page.getByTestId("history-tab-archived").click();
+      await expect(page.getByTestId("history-row")).toHaveCount(1);
+      await page.screenshot({ path: resolve(GALLERY, `56-history/archived-${vp.name}-${theme}.png`) });
+      await page.getByTestId("history-replay").first().click();
+      await expect(page.getByTestId("replay-process-list")).toContainText("root 48211");
+      await page.screenshot({ path: resolve(GALLERY, `56-history/replay-${vp.name}-${theme}.png`) });
+      await page.getByTestId("replay-close").click();
+      await page.getByTestId("history-tab-ended").click();
+      await page.getByTestId("history-delete").first().click();
+      await expect(page.getByTestId("delete-keeps")).toContainText("transcript file");
+      await page.screenshot({ path: resolve(GALLERY, `56-history/delete-${vp.name}-${theme}.png`) });
+      await page.keyboard.press("Escape");
+      await page.getByRole("button", { name: "Settings" }).click();
+      await page.getByTestId("settings-storage").scrollIntoViewIfNeeded();
+      await page.screenshot({ path: resolve(GALLERY, `56-history/retention-${vp.name}-${theme}.png`) });
+      await page.getByTestId("storage-review").first().click();
+      await expect(page.getByTestId("dry-run-deletes")).toBeVisible();
+      await page.screenshot({ path: resolve(GALLERY, `56-history/dry-run-${vp.name}-${theme}.png`) });
     });
   }
 }

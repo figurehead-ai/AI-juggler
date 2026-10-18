@@ -2530,3 +2530,31 @@ for (const theme of ["dark", "light"] as const) {
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
   });
 }
+
+/** AJ-E1007 a11y (both themes): History (search, tabs, row actions) and
+ * the delete dialog scan axe-clean; the delete button cannot be reached
+ * armed without typing the word. */
+for (const theme of ["dark", "light"] as const) {
+  test(`history and delete dialog — axe 0 — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ fixture, theme: t }) => {
+        const w = window as unknown as Record<string, unknown>;
+        w.__AIJ_FIXTURE__ = fixture;
+        localStorage.setItem("aij.theme", t);
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        sessionStorage.setItem("aij.ready.skipped", "1");
+      },
+      { fixture: allStatuses, theme },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await page.getByRole("button", { name: "History" }).click();
+    await expect(page.getByTestId("history-search")).toBeFocused();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+    await page.getByTestId("history-delete").first().click();
+    await expect(page.getByTestId("delete-confirm")).toBeFocused();
+    await expect(page.getByTestId("delete-go")).toBeDisabled();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+  });
+}

@@ -7,7 +7,7 @@ export type ProcessRecordInfo = {
 /**
  * Its pid.
  */
-pid: bigint | null, 
+pid: number | null, 
 /**
  * `root` | `helper` | …
  */

@@ -88,6 +88,7 @@ just verify     # every gate CI runs: fmt, clippy, tests, docs, evidence, termin
 
 ## Documentation
 
+- [User guide](./docs/guide/) — short how-tos (for example, what to do when a Provider is down)
 - [Product proposal](./docs/PROPOSAL.md) — the problem, users, landscape, risks, compliance
 - [Technical specification](./docs/SPEC.md) — architecture, adapters, data model
 - [Decision log](./docs/review/decision-log.md) — settled product decisions (D-01 …)

@@ -552,6 +552,7 @@ pub struct LineageStepInfo {
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct ProcessRecordInfo {
     /// Its pid.
+    #[ts(type = "number | null")]
     pub pid: Option<i64>,
     /// `root` | `helper` | …
     pub role: String,
@@ -903,6 +904,8 @@ pub fn retention_set_impl(
 pub struct RetentionRowInfo {
     /// The Instance.
     pub session_id: String,
+    /// Its project folder's name, when tracked.
+    pub project: Option<String>,
     /// When it was last active, epoch ms.
     #[ts(type = "number")]
     pub last_active_ms: i64,
@@ -941,6 +944,13 @@ fn retention_plan(
     let records = sessions_by_account(storage)?
         .remove(account_id)
         .unwrap_or_default();
+    let projects: BTreeMap<String, String> = storage
+        .projects()
+        .list()
+        .unwrap_or_default()
+        .into_iter()
+        .map(|project| (project.id.to_string(), project.name))
+        .collect();
     let mut deletes = Vec::new();
     let mut kept = Vec::new();
     for record in records {
@@ -953,6 +963,10 @@ fn retention_plan(
         }
         let row = |kept_because| RetentionRowInfo {
             session_id: record.id.to_string(),
+            project: record
+                .project
+                .as_ref()
+                .and_then(|id| projects.get(id.as_str()).cloned()),
             last_active_ms: last,
             kept_because,
         };

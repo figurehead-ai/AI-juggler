@@ -30,6 +30,7 @@ import {
 import { isHandoverShortcut, isStopShortcut } from "./lib/shortcuts";
 import { ProfilesScreen } from "./screens/Profiles";
 import { Triage } from "./screens/Triage";
+import { History } from "./screens/History";
 import { OnboardingWizard } from "./screens/OnboardingWizard";
 import { NewSessionModal } from "./screens/NewSession";
 import { NewProjectSheet } from "./screens/NewProjectSheet";
@@ -87,6 +88,8 @@ const GLOBAL_NAV = [
   // AJ-E1005: the morning question first — who needs me?
   { id: "triage", label: "Triage" },
   { id: "overview", label: "Overview" },
+  // AJ-E1007: every ended Instance — search, archive, replay.
+  { id: "history", label: "History" },
   { id: "accounts", label: "Accounts" },
   { id: "usage", label: "Usage" },
   { id: "fleet", label: "Fleet" },
@@ -172,6 +175,8 @@ export default function App() {
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [projects, setProjects] = useState<ProjectInfo[]>([]);
   const [sessions, setSessions] = useState<InstanceInfo[]>([]);
+  // AJ-E1007: archived Instances leave the rail (History keeps them).
+  const railSessions = useMemo(() => sessions.filter((row) => row.lifecycle !== "archived"), [sessions]);
   const [accounts, setAccounts] = useState<AccountInfo[]>([]);
   const [profiles, setProfiles] = useState<LaunchRecipeInfo[]>([]);
   const [readySkipped, setReadySkipped] = useState(
@@ -593,7 +598,7 @@ export default function App() {
         density={density}
         onCycleDensity={cycleDensity}
         projects={projects}
-        sessions={sessions}
+        sessions={railSessions}
         accounts={accounts}
         loginTerminals={loginTerminals}
         selectedId={selection.kind === "none" || selection.kind === "remote" ? null : selection.id}
@@ -666,7 +671,7 @@ export default function App() {
           <h1 className="min-w-0 truncate text-sm font-semibold capitalize tracking-wide">{contextTitle}</h1>
           {contextProvider && <Chip tone="accent">{contextProvider}</Chip>}
 
-          <div className="ml-auto flex shrink-0 items-center gap-1 xl:gap-1.5" data-tauri-drag-region={false}>
+          <div className="ml-auto flex shrink-0 items-center gap-0.5 xl:gap-1.5" data-tauri-drag-region={false}>
             {/* Density segmented control (AJ-E403 Req.4). The inspector
                 and panels never change with density — only the rail. */}
             <div
@@ -682,7 +687,7 @@ export default function App() {
                   onClick={() => setDensityAndStore(mode)}
                   title={`${mode} rail${mode === "minimal" ? " (Ctrl+D cycles)" : ""}`}
                   className={
-                    "rounded-md px-2 py-1 text-[10.5px] font-medium capitalize transition-colors outline-none focus-visible:ring-1 focus-visible:ring-accent/60 " +
+                    "rounded-md px-1.5 py-1 text-[10.5px] font-medium capitalize transition-colors outline-none xl:px-2 focus-visible:ring-1 focus-visible:ring-accent/60 " +
                     (density === mode
                       ? "bg-accent-soft text-accent-hi"
                       : "text-muted hover:bg-surface hover:text-ink")
@@ -701,7 +706,7 @@ export default function App() {
                   setGlobal(item.id);
                 }}
                 className={
-                  "rounded-md px-2 py-1.5 text-[11px] font-medium transition-colors xl:px-2.5 " +
+                  "rounded-md px-1.5 py-1.5 text-[11px] font-medium transition-colors xl:px-2.5 " +
                   (global === item.id
                     ? "bg-surface text-ink sheen"
                     : "text-muted hover:bg-surface/60 hover:text-ink")
@@ -748,6 +753,10 @@ export default function App() {
                 onOpenSession={selectSession}
                 onChanged={() => void refresh()}
               />
+            </div>
+          ) : global === "history" ? (
+            <div className="h-full overflow-y-auto">
+              <History sessions={sessions} projects={projects} onChanged={() => void refresh()} />
             </div>
           ) : global === "overview" ? (
             <div className="h-full overflow-y-auto">

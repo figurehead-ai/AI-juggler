@@ -9,6 +9,10 @@ export type RetentionRowInfo = {
  */
 session_id: string, 
 /**
+ * Its project folder's name, when tracked.
+ */
+project: string | null, 
+/**
  * When it was last active, epoch ms.
  */
 last_active_ms: number, 

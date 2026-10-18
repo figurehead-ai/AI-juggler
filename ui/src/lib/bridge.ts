@@ -22,6 +22,12 @@ import type { IdentityCheckInfo } from "../types/generated/IdentityCheckInfo";
 import type { IsolationOfferInfo } from "../types/generated/IsolationOfferInfo";
 import type { ParkedInfo } from "../types/generated/ParkedInfo";
 import type { OvernightSummaryInfo } from "../types/generated/OvernightSummaryInfo";
+import type { DeletePreviewInfo } from "../types/generated/DeletePreviewInfo";
+import type { TranscriptHitInfo } from "../types/generated/TranscriptHitInfo";
+import type { ReplayInfo } from "../types/generated/ReplayInfo";
+import type { ReplayEntryInfo } from "../types/generated/ReplayEntryInfo";
+import type { AccountStorageInfo } from "../types/generated/AccountStorageInfo";
+import type { RetentionPreviewInfo } from "../types/generated/RetentionPreviewInfo";
 import type { SummaryRowInfo } from "../types/generated/SummaryRowInfo";
 import type { ParkedOfferInfo } from "../types/generated/ParkedOfferInfo";
 import type { WorktreeRemovalInfo } from "../types/generated/WorktreeRemovalInfo";
@@ -92,6 +98,12 @@ export type {
   ParkedInfo,
   ParkedOfferInfo,
   OvernightSummaryInfo,
+  DeletePreviewInfo,
+  TranscriptHitInfo,
+  ReplayInfo,
+  ReplayEntryInfo,
+  AccountStorageInfo,
+  RetentionPreviewInfo,
   SummaryRowInfo,
   WorktreeRemovalInfo,
   GitStatusInfo,
@@ -3893,4 +3905,141 @@ export async function instanceMarkReviewed(sessionId: string): Promise<number> {
     return at;
   }
   return invoke<number>("instance_mark_reviewed", { sessionId });
+}
+
+// --- AJ-E1007: session lifecycle — search, archive, replay, retention ------
+
+interface HistorySeams {
+  __AIJ_HISTORY_CALLS__?: string[];
+  __AIJ_TRANSCRIPT_HITS__?: TranscriptHitInfo[];
+  __AIJ_REPLAY__?: ReplayInfo;
+  __AIJ_DELETE_PREVIEW__?: DeletePreviewInfo;
+  __AIJ_ACCOUNT_STORAGE__?: AccountStorageInfo[];
+  __AIJ_RETENTION_PREVIEW__?: RetentionPreviewInfo;
+}
+const historySeams = () => window as unknown as HistorySeams;
+const historyCall = (call: string) => {
+  const seams = historySeams();
+  seams.__AIJ_HISTORY_CALLS__ = [...(seams.__AIJ_HISTORY_CALLS__ ?? []), call];
+};
+const setMockLifecycle = (sessionId: string, event: string) => {
+  const row = MOCK_SESSIONS.find((session) => session.id === sessionId);
+  if (row) {
+    row.lifecycle = event;
+    row.lifecycle_at_ms = Date.now();
+  }
+};
+
+/** Archives an ended Instance: out of the active views, nothing deleted. */
+export async function instanceArchive(sessionId: string): Promise<number> {
+  if (!hasBackend) {
+    historyCall(`archive:${sessionId}`);
+    setMockLifecycle(sessionId, "archived");
+    return Date.now();
+  }
+  return invoke<number>("instance_archive", { sessionId });
+}
+
+/** Unarchives an Instance — back exactly as it was. */
+export async function instanceUnarchive(sessionId: string): Promise<number> {
+  if (!hasBackend) {
+    historyCall(`unarchive:${sessionId}`);
+    setMockLifecycle(sessionId, "unarchived");
+    return Date.now();
+  }
+  return invoke<number>("instance_unarchive", { sessionId });
+}
+
+/** What deleting an Instance would remove and keep (and its token). */
+export async function instanceDeletePreview(sessionId: string): Promise<DeletePreviewInfo> {
+  if (!hasBackend) {
+    historyCall(`delete-preview:${sessionId}`);
+    return (
+      historySeams().__AIJ_DELETE_PREVIEW__ ?? {
+        session_id: sessionId,
+        account_label: "Work Max",
+        refused: null,
+        removes: ["Its record in AI Juggler", "Its history: 4 events", "Its search index: 120 lines"],
+        keeps: ["The Provider's own transcript file", "The process and cleanup audit", "Its usage in your usage totals"],
+        token: "mock-token",
+      }
+    );
+  }
+  return invoke<DeletePreviewInfo>("instance_delete_preview", { sessionId });
+}
+
+/** Deletes an Instance's AI Juggler records (with its preview's token). */
+export async function instanceDelete(sessionId: string, token: string): Promise<void> {
+  if (!hasBackend) {
+    historyCall(`delete:${sessionId}:${token}`);
+    const at = MOCK_SESSIONS.findIndex((session) => session.id === sessionId);
+    if (at >= 0) MOCK_SESSIONS.splice(at, 1);
+    return;
+  }
+  return invoke<void>("instance_delete", { sessionId, token });
+}
+
+/** Transcript text search (local index). */
+export async function transcriptSearch(query: string): Promise<TranscriptHitInfo[]> {
+  if (!hasBackend) {
+    historyCall(`search:${query}`);
+    const needle = query.trim().toLowerCase();
+    return (historySeams().__AIJ_TRANSCRIPT_HITS__ ?? []).filter((hit) => hit.snippet.toLowerCase().includes(needle));
+  }
+  return invoke<TranscriptHitInfo[]>("transcript_search", { query });
+}
+
+/** The read-only replay of an ended or archived Instance. */
+export async function instanceReplay(sessionId: string): Promise<ReplayInfo> {
+  if (!hasBackend) {
+    historyCall(`replay:${sessionId}`);
+    const seeded = historySeams().__AIJ_REPLAY__;
+    if (seeded) return { ...seeded, session_id: sessionId };
+    throw new Error("No transcript recorded for this Instance");
+  }
+  return invoke<ReplayInfo>("instance_replay", { sessionId });
+}
+
+/** Every Account's retention policy and storage used. */
+export async function accountStorage(): Promise<AccountStorageInfo[]> {
+  if (!hasBackend) return (historySeams().__AIJ_ACCOUNT_STORAGE__ ?? []).map((row) => ({ ...row }));
+  return invoke<AccountStorageInfo[]>("account_storage");
+}
+
+/** Sets an Account's retention (null = keep forever). */
+export async function retentionSet(accountId: string, days: number | null): Promise<void> {
+  if (!hasBackend) {
+    historyCall(`retention:${accountId}:${days ?? "forever"}`);
+    const row = (historySeams().__AIJ_ACCOUNT_STORAGE__ ?? []).find((entry) => entry.account_id === accountId);
+    if (row) row.retention_days = days;
+    return;
+  }
+  return invoke<void>("retention_set", { accountId, days });
+}
+
+/** The retention dry run (nothing is deleted). */
+export async function retentionPreview(accountId: string): Promise<RetentionPreviewInfo> {
+  if (!hasBackend) {
+    historyCall(`retention-preview:${accountId}`);
+    return (
+      historySeams().__AIJ_RETENTION_PREVIEW__ ?? {
+        account_id: accountId,
+        retention_days: null,
+        deletes: [],
+        kept: [],
+        keeps: [],
+        token: null,
+      }
+    );
+  }
+  return invoke<RetentionPreviewInfo>("retention_preview", { accountId });
+}
+
+/** Applies the retention cleanup its dry run listed. */
+export async function retentionApply(accountId: string, token: string): Promise<number> {
+  if (!hasBackend) {
+    historyCall(`retention-apply:${accountId}:${token}`);
+    return historySeams().__AIJ_RETENTION_PREVIEW__?.deletes.length ?? 0;
+  }
+  return invoke<number>("retention_apply", { accountId, token });
 }
