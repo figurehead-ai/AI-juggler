@@ -140,17 +140,6 @@
   run saw a p95 of 19.9 ms; the test alone passes in 0.2 s. The p95 is
   now taken on the writing thread's CPU time, with wall time printed
   beside it; the 10 ms budget and the catch-up assertion are unchanged.
-- A test-hygiene leak fixed (2026-10-18): every `just verify` left
-  `trap_helper.py` fixtures running as orphans (four after a run), and
-  they accumulated across runs. The neighbour session's fixture kit in
-  the app guardrail suite includes a `setsid` escapee, which no
-  group-scoped stop reaches, and the cleanup killed only the first
-  session's helpers; a test that failed before its cleanup leaked its
-  whole kit. `FixtureSet` now kills every helper it started on drop,
-  matched by the kit's own trap-log path (unique per temp dir), so it
-  also runs while a failing test unwinds. After the collateral and
-  guardrail suites: zero `trap_helper.py` processes left. No assertion
-  changed.
 - A flaky test of my own, fixed before merge (2026-10-18, found by a
   verify run): `juggler-stats :: cycle::tests::leaving_share_skips_pending_reports`
   (and two others with the same shape) assembled a week an hour after
