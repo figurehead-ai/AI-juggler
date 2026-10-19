@@ -1,0 +1,25 @@
+# AJ-E803 visual gate runs, 2026-10-19 (pinned container mcr.microsoft.com/playwright:v1.64.0-noble, linux/amd64)
+
+## Clean tree, run 1
+  81 passed (3.1m)
+## Clean tree, run 2
+  81 passed (2.9m)
+## Self-test (every button shifted 2 px)
+  80 failed
+  1 passed (5.9m)
+   6 8166 pixels (ratio 0.01 of all image pixels) are different
+   6 8164 pixels (ratio 0.01 of all image pixels) are different
+   6 7646 pixels (ratio 0.02 of all image pixels) are different
+   6 6899 pixels (ratio 0.01 of all image pixels) are different
+   6 6150 pixels (ratio 0.01 of all image pixels) are different
+
+## The CI summary for the self-test
+### Visual gate
+- passed: 1
+- failed: 80
+- not captured: 0
+  - ✗ rail + home — dark-comfortable-1280x800 — see the visual-triptychs artifact
+  - ✗ inspector — Instance overview — dark-comfortable-1280x800 — see the visual-triptychs artifact
+
+## Earlier: baselines rendered on linux/arm64, compared on linux/amd64
+  41 passed (1.8m)

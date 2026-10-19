@@ -116,6 +116,55 @@ jobs:
         working-directory: ui
         run: pnpm build
 
+  # AJ-E803: the visual regression gate — on PRs that change the UI, the
+  # deterministic matrix is compared with the approved baselines in the
+  # pinned Playwright container (the same image `just visual-gate` uses).
+  visual:
+    name: visual
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.0-noble
+      options: --ipc=host
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      - name: Did this change touch the UI?
+        id: scope
+        shell: bash
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          base="${{ github.event.pull_request.base.sha || github.event.before }}"
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ] || git diff --name-only "$base" HEAD | grep -q '^ui/'; then
+            echo "ui=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ui=false" >> "$GITHUB_OUTPUT"
+            echo "Visual gate: no UI change — nothing to compare." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Baseline changes are explained
+        if: github.event_name == 'pull_request'
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: python3 scripts/check_baseline_notes.py "${{ github.event.pull_request.base.sha }}"
+      - name: Install
+        if: steps.scope.outputs.ui == 'true'
+        working-directory: ui
+        run: corepack enable && corepack prepare pnpm@10 --activate && pnpm install --frozen-lockfile
+      - name: Compare with the baselines
+        if: steps.scope.outputs.ui == 'true'
+        working-directory: ui
+        run: pnpm exec playwright test -c playwright.regression.config.ts
+      - name: Summary
+        if: always() && steps.scope.outputs.ui == 'true'
+        run: python3 scripts/visual_summary.py ui/test-results/visual-gate.json >> "$GITHUB_STEP_SUMMARY"
+      - name: Triptychs (baseline, current, diff)
+        if: failure() && steps.scope.outputs.ui == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: visual-triptychs
+          path: ui/test-results/
+          retention-days: 14
+
   # Cross-platform build matrix (spec §1: cross-platform core from day one).
   build-macos:
     name: build-macos
