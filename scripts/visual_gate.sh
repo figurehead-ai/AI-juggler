@@ -2,7 +2,9 @@
 # AJ-E803: runs the visual regression gate in the pinned Playwright
 # container — the same image CI uses — so baselines and comparisons
 # share one renderer. `--update` re-renders the baselines (each change
-# needs a per-screen note in the PR: scripts/check_baseline_notes.py);
+# needs a per-screen note in the PR: scripts/check_baseline_notes.py;
+# every baseline is re-rendered, so a change under the comparison
+# threshold still lands in the baseline);
 # `--selftest` seeds a 2 px button shift that must fail.
 set -euo pipefail
 cd "$(dirname "$0")/../ui"
@@ -11,7 +13,7 @@ ARGS=""
 ENV_SELFTEST=0
 for arg in "$@"; do
   case "$arg" in
-    --update) ARGS="--update-snapshots" ;;
+    --update) ARGS="--update-snapshots=all" ;;
     --selftest) ENV_SELFTEST=1 ;;
   esac
 done

@@ -153,7 +153,7 @@ export function RenewalLine({
       <span aria-hidden="true">📅 </span>
       {renewal.label}
       {renewal.state === "none" && onAddDate && (
-        <button type="button" className="ml-2 underline focus:outline-none focus:ring-2 focus:ring-accent" onClick={onAddDate}>
+        <button type="button" className="ml-2 py-1 underline focus:outline-none focus:ring-2 focus:ring-accent" onClick={onAddDate}>
           add date
         </button>
       )}

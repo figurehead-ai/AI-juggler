@@ -53,3 +53,5 @@ ui/tsconfig.tsbuildinfo
 # --- UI test output ---
 ui/test-results/
 ui/playwright-report/
+# AJ-E804: per-test axe scans; axe_summary.py commits the combined file.
+docs/qa/evidence/AJ-E804/axe/

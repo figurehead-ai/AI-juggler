@@ -1401,7 +1401,7 @@ function CopyField({ testId, label, value, mono, onOpen }: { testId: string; lab
     <span className="flex min-w-0 items-center gap-1.5" data-testid={testId}>
       <span className="shrink-0">{label}:</span>
       {onOpen ? (
-        <button type="button" onClick={onOpen} className="min-w-0 truncate text-ink underline decoration-hairline underline-offset-2 outline-none focus-visible:ring-1 focus-visible:ring-accent/60">
+        <button type="button" onClick={onOpen} className="min-w-0 truncate py-1 text-ink underline decoration-hairline underline-offset-2 outline-none focus-visible:ring-1 focus-visible:ring-accent/60">
           {value}
         </button>
       ) : (
@@ -1420,7 +1420,7 @@ function CopyField({ testId, label, value, mono, onOpen }: { testId: string; lab
             setCopied(false);
           }
         }}
-        className="shrink-0 rounded px-1 text-[9px] text-muted outline-none transition-colors hover:bg-surface hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+        className="shrink-0 rounded px-1 py-1.5 text-[9px] text-muted outline-none transition-colors hover:bg-surface hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
       >
         {copied ? "copied" : "copy"}
       </button>
@@ -1606,7 +1606,7 @@ function SessionOverview(props: PanelProps) {
             <button
               type="button"
               onClick={() => props.onOpenSession(instance.id)}
-              className="text-muted underline decoration-hairline underline-offset-2 outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
+              className="-my-1 py-1 text-muted underline decoration-hairline underline-offset-2 outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
             >
               owning Instance: {instance.account_label}
             </button>
@@ -2780,7 +2780,8 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
         )}
       </div>
 
-      <Card className="flex flex-col gap-1 overflow-x-auto p-3">
+      {/* AJ-E804: a scrollable region is reachable by keyboard. */}
+      <Card className="flex flex-col gap-1 overflow-x-auto p-3" tabIndex={0} role="region" aria-label="Process table">
         <table className="w-full min-w-[420px] text-left text-[11px]">
           <thead>
             <tr className="text-[10px] uppercase tracking-wider text-muted">

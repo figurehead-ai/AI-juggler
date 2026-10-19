@@ -92,6 +92,12 @@ app:
 visual-gate:
     ./scripts/visual_gate.sh
 
+# AJ-E804: the accessibility gate (per release candidate): axe on every
+# gallery state, the six keyboard flows, 200 % zoom / reduced motion,
+# the contrast table — evidence in docs/qa/evidence/AJ-E804/.
+a11y-gate:
+    ./scripts/a11y_gate.sh
+
 # Re-render the baselines after an intentional UI change; the PR then
 # needs a "## Visual baselines" note per changed screen.
 visual-baselines:

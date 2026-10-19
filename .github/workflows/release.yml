@@ -27,8 +27,60 @@ env:
   TAG: ${{ github.event.inputs.tag || github.ref_name }}
 
 jobs:
+  # AJ-E804: no release candidate ships with a critical or serious
+  # accessibility violation or a broken keyboard flow. The full scan is
+  # ~10 min on 30 cores, so it runs in four shards; `a11y` summarises.
+  a11y-shard:
+    name: a11y (${{ matrix.shard }}/4)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.0-noble
+      options: --ipc=host
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ env.TAG }}
+      - name: Install
+        working-directory: ui
+        run: corepack enable && corepack prepare pnpm@10 --activate && pnpm install --frozen-lockfile
+      - name: Accessibility gate, shard ${{ matrix.shard }}/4
+        env:
+          A11Y_SKIP_SUMMARY: "1"
+        run: ./scripts/a11y_gate.sh --shard=${{ matrix.shard }}/4
+      - name: Scans
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: a11y-shard-${{ matrix.shard }}
+          path: docs/qa/evidence/AJ-E804/
+          retention-days: 30
+
+  a11y:
+    name: a11y
+    needs: a11y-shard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: a11y-shard-*
+          path: docs/qa/evidence/AJ-E804/
+          merge-multiple: true
+      - name: Every gallery state, summarised (0 critical, 0 serious)
+        run: |
+          python3 scripts/axe_summary.py
+          cat docs/qa/evidence/AJ-E804/axe-summary.md >> "$GITHUB_STEP_SUMMARY"
+
   release-macos:
     name: release-macos
+    needs: a11y
     runs-on: macos-latest
     timeout-minutes: 90
     steps:

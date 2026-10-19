@@ -211,10 +211,15 @@ export function WorkflowRail({
               title={minimal || !showLabels ? item.label : undefined}
               onClick={() => onTab(item.id)}
               className={
-                "group/tab relative flex min-w-0 flex-1 items-center justify-center overflow-hidden rounded-lg text-[12px] font-medium outline-none transition-colors duration-100 " +
+                "group/tab relative flex min-w-0 items-center justify-center overflow-hidden rounded-lg text-[12px] font-medium outline-none transition-colors duration-100 " +
                 "focus-visible:ring-1 focus-visible:ring-accent/60 " +
+                // AJ-E804: no flex-1 in the minimal column — it squashed
+                // the tabs to 17 px, under the 24 px target minimum.
                 (minimal
-                  ? "size-9 "
+                  ? "size-9 shrink-0 "
+                  : "flex-1 ") +
+                (minimal
+                  ? ""
                   : showLabels
                     ? "gap-1.5 px-2 py-[7px] "
                     : "gap-0 px-0 py-[7px] ") +
@@ -689,7 +694,7 @@ export function InstanceBoard({
               {entry.label !== "" && (
                 <p className="flex items-baseline gap-1.5 px-3 pb-0.5 pt-1 text-[10px] font-medium uppercase tracking-[0.08em] text-faint">
                   <span className="truncate normal-case tracking-normal">{entry.label}</span>
-                  {entry.rollup && <span className="shrink-0 font-normal normal-case tracking-normal text-faint/80">· {entry.rollup}</span>}
+                  {entry.rollup && <span className="shrink-0 font-normal normal-case tracking-normal text-faint">· {entry.rollup}</span>}
                 </p>
               )}
               {entry.rows.map((row) => (
@@ -772,7 +777,8 @@ function BoardRow({
         now={now}
       />
       {/* The I-10 context menu trigger (Req.6): right-click the row, or
-          this ⋯ button for pointer-free access. */}
+          this ⋯ button for pointer-free access. 24 px square: the
+          WCAG 2.2 minimum target (AJ-E804). */}
       <button
         type="button"
         aria-label={`Row actions for ${row.account_label}`}
@@ -782,7 +788,7 @@ function BoardRow({
           event.preventDefault();
           onContextMenu(row, event.clientX, event.clientY);
         }}
-        className="absolute bottom-1 left-0.5 z-10 rounded px-0.5 text-[10px] text-faint opacity-0 transition-opacity outline-none hover:text-ink focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-accent/60 group-hover:opacity-100"
+        className="absolute bottom-0 left-0 z-10 flex size-6 items-center justify-center rounded text-[10px] text-faint opacity-0 transition-opacity outline-none hover:text-ink focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-accent/60 group-hover:opacity-100"
       >
         ⋯
       </button>

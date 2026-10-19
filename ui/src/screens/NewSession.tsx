@@ -68,7 +68,11 @@ export function NewSessionModal({
       if (focusables === undefined || focusables.length === 0) return;
       const first = focusables[0]!;
       const last = focusables[focusables.length - 1]!;
-      if (event.shiftKey && document.activeElement === first) {
+      // AJ-E804: focus that is not inside the sheet is pulled in.
+      if (!sheetRef.current?.contains(document.activeElement)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      } else if (event.shiftKey && document.activeElement === first) {
         event.preventDefault();
         last.focus();
       } else if (!event.shiftKey && document.activeElement === last) {
@@ -77,7 +81,16 @@ export function NewSessionModal({
       }
     };
     window.addEventListener("keydown", onKey);
+    // AJ-E804: opening the sheet moves focus into it (WCAG 2.4.3).
+    const frame = requestAnimationFrame(() => {
+      if (!sheetRef.current?.contains(document.activeElement)) {
+        sheetRef.current
+          ?.querySelector<HTMLElement>("button:not(:disabled), a[href], input, [tabindex]:not([tabindex='-1'])")
+          ?.focus();
+      }
+    });
     return () => {
+      cancelAnimationFrame(frame);
       window.removeEventListener("keydown", onKey);
       restoreFocusRef.current?.focus?.();
     };
@@ -360,7 +373,7 @@ export function NewSessionModal({
                     key={recipe.id}
                     className={
                       "flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-xs " +
-                      (ready ? "border-hairline" : "border-hairline/50 opacity-75")
+                      (ready ? "border-hairline" : "border-hairline/50") // AJ-E804: no opacity — text keeps 4.5:1
                     }
                   >
                     <IconTerminal width={13} height={13} />
