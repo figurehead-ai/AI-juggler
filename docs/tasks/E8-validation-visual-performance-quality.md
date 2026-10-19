@@ -162,7 +162,7 @@
 **Research basis**: pass2/02 §10 matrix; deep/09 handover test plan; decision-log D-04/D-11; SPEC §7 tiers.
 **Handover note**: This is the task earlier reports kept deferring as "needs live dogfood". It is now a named, owned workstream; do not let feature work mark it implied-done.
 
-### AJ-E809 Beta dogfood programme | Status: TODO | Priority P1 | Effort M | Depends: AJ-E807, AJ-E808
+### AJ-E809 Beta dogfood programme | Status: IN-PROGRESS (programme kit and report tooling evidenced; the four-week cohort is the maintainer's) | Priority P1 | Effort M | Depends: AJ-E807, AJ-E808
 **Goal**: Recruit and run beta users (including Vibe Kanban/Crystal refugees) through scripted real workflows with recorded outcomes.
 **User story**: As a maintainer, I want weekly evidence that real developers complete the Switch -> See -> Clean loop, so beta exit is based on behaviour not downloads.
 **Requirements**:
