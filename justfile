@@ -19,6 +19,20 @@ verify:
     just terminology
     just stats-doc
     just stats-events
+    just polling-audit
+
+# AJ-E805: the load proof on the reference Mac — SPEC budgets plus the
+# >10 % regression rule against ui/tests/visual/load-baseline.json;
+# writes docs/qa/evidence/AJ-E805/ui-load.json and the load captures.
+load-gate:
+    cd ui && AJ_LOAD_GATE=1 pnpm exec playwright test tests/visual/load.spec.ts
+    cargo test -p juggler-app --test load_budgets -- --nocapture
+    cargo test -p juggler-app --test load_budgets -- --ignored --test-threads=1 --nocapture
+    cargo test -p juggler-handover --test pack_load -- --nocapture
+
+# AJ-E805: every sub-second timer or sleep in shipped code says why.
+polling-audit:
+    python3 scripts/polling_audit.py > /dev/null
 
 # Usage-statistics doc gate (AJ-E1106): docs/usage-stats.md is generated
 # from stats/schema.v1.json and must not drift.

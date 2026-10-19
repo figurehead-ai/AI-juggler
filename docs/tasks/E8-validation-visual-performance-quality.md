@@ -92,7 +92,7 @@
 **Research basis**: pass2/04 §3 indicator redundancy rule; deep/11 §9 a11y spec; prior reports' unresolved contrast item (`styles.css` faint text) must be closed with measurements here.
 **Handover note**: Do not certify from code reading. The earlier reviews explicitly left contrast/focus unverified; this task exists to replace inference with measurement.
 
-### AJ-E805 Performance budgets and load proof (10 Accounts / 50 Instances) | Status: TODO | Priority P0 | Effort L | Depends: AJ-E801
+### AJ-E805 Performance budgets and load proof (10 Accounts / 50 Instances) | Status: IN-PROGRESS (automated proof evidenced; release-app cold start and 10 live Instances are maintainer steps) | Priority P0 | Effort L | Depends: AJ-E801
 **Goal**: Prove the app stays responsive at the scale the product promises, with budgets enforced as gates.
 **User story**: As a power user with 10 accounts and dozens of live sessions, I want the rail and inspector to stay instant so supervision never lags the work.
 **Requirements**:

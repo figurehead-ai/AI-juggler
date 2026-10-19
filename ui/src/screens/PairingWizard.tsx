@@ -81,6 +81,7 @@ export function PairingWizard({
   }, [mode]);
 
   useEffect(() => {
+    // poll: the pairing exchange is live only while this wizard is open
     const timer = window.setInterval(() => void poll(), 500);
     return () => window.clearInterval(timer);
   }, [poll]);

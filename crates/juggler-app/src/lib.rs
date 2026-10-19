@@ -438,6 +438,8 @@ fn spawn_read_model_ticks(
         let attention_app = app.clone();
         std::thread::spawn(move || {
             loop {
+                // poll: AJ-E405 Req.5 — recovery shows within 300 ms; an
+                // idle drain finds nothing and returns.
                 std::thread::sleep(std::time::Duration::from_millis(200));
                 let _ = commands::attention_recovery_drain(&attention_app, &attention_state);
             }

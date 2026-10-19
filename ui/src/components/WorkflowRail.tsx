@@ -203,6 +203,11 @@ export function WorkflowRail({
               type="button"
               role="tab"
               aria-selected={active}
+              aria-label={
+                item.id === "instances" && unsnoozedNeeds > 0
+                  ? `${item.label}, ${unsnoozedNeeds} need${unsnoozedNeeds === 1 ? "s" : ""} you`
+                  : item.label
+              }
               title={minimal || !showLabels ? item.label : undefined}
               onClick={() => onTab(item.id)}
               className={
@@ -228,6 +233,7 @@ export function WorkflowRail({
                   absolutely positioned so it never widens the tab. */}
               {item.id === "instances" && unsnoozedNeeds > 0 && (
                 <span
+                  aria-hidden="true"
                   className="attn-badge absolute right-0 top-0 flex items-center justify-center rounded-full px-1 text-[8.5px] font-bold leading-4 ring-1 ring-canvas"
                   title={`${unsnoozedNeeds} instance${unsnoozedNeeds === 1 ? "" : "s"} need you`}
                 >

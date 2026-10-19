@@ -65,6 +65,28 @@ juggler-core → (external crates only; knows nothing about app/UI)
 | Visual regression (AJ-E803) | The deterministic matrix (`ui/tests/visual/regression.spec.ts`: rail, inspector and main screens; both themes, both densities, 1280×800 and 1024×680) is compared with approved baselines rendered in the pinned Playwright container, the same image locally (`just visual-gate`) and in CI's `visual` job. Thresholds: ≤ 0.1 % differing pixels per screen; 0 pixels for text-bearing chrome (rail tabs, buttons, badges). A status shown by colour must also be in words or an accessible name (WCAG 1.4.1). A failure uploads the baseline/current/diff triptych and is linked from the PR, never dismissed in chat. Baseline changes need a "## Visual baselines" note per screen naming the task (`scripts/check_baseline_notes.py`) and maintainer approval. Raising a threshold is a quality-gate change that needs the maintainer's recorded approval |
 | Guardrails | The dedicated suite (writes confinement, no network outside allowlist, no account mutation without user command, automation policy) runs in CI on every PR and at every gate |
 
+### Performance budgets (AJ-E805)
+
+Measured on the reference Mac by `just load-gate` at the promised scale
+(10 Accounts, 50 Instances, 20 Projects, 500-turn transcripts). The
+gate quotes the measured values from
+`docs/qa/evidence/AJ-E805/manifest.md`, never these targets. A median
+more than 10 % slower than `ui/tests/visual/load-baseline.json` (5 ms
+floor) fails unless the baseline lists a waiver with a task ID and an
+expiry date. `just polling-audit` (part of `just verify`) fails any
+sub-second timer or sleep in shipped code without a `poll:` note.
+
+| Budget | Target |
+|---|---|
+| Cold start to interactive | < 2.5 s |
+| Rail render, 50 rows | < 300 ms |
+| Inspector selection to paint | < 200 ms |
+| Terminal input echo (local) | < 50 ms |
+| Switch pack assembly, 500 turns | < 5 s |
+| Orphan detection after the grace window | < 10 s |
+| Idle CPU, 10 live Instances | < 2 % |
+| Memory, excluding child processes | < 600 MB |
+
 ## 6. Security & supply chain
 
 - `#![forbid(unsafe_code)]` everywhere unless an ADR approves a specific exception.

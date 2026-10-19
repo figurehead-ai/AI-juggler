@@ -173,6 +173,9 @@ fn orphan_detected_after_grace_and_stopped_gone() {
         std::thread::sleep(Duration::from_millis(500));
     }
     let elapsed = started.elapsed();
+    eprintln!(
+        "[perf] orphan surfaced {elapsed:?} after the harness exited (grace {ORPHAN_GRACE_MS} ms)"
+    );
     assert_eq!(confirmed.len(), 1, "one orphan: the surviving sleep child");
     assert_eq!(confirmed[0].pid, child_pid);
     assert_eq!(confirmed[0].parent_label, "fake-harness");

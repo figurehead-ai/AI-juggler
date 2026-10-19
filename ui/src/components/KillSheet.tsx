@@ -235,6 +235,7 @@ export function KillSheet(props: {
         });
     };
     poll();
+    // poll: liveness ticks only while a stop runs; ends with the report
     const timer = setInterval(poll, 500);
     return () => {
       alive = false;

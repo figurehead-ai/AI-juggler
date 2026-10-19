@@ -225,3 +225,61 @@ export async function answerPolicy(
     .locator(`input[type='radio'][value='${value}']`)
     .check();
 }
+
+/**
+ * AJ-E805: the product's promised scale — 10 Accounts over three
+ * Providers, 50 Instances in every status, 20 Projects.
+ */
+export const atScale: FixtureSet = (() => {
+  const providers = ["claude-code", "codex", "zcode"] as const;
+  const accounts = Array.from({ length: 10 }, (_, i) => ({
+    id: `acct-${i}`,
+    provider: providers[i % 3],
+    label: `Account ${String(i).padStart(2, "0")}`,
+    plan: null,
+    login_state: "logged_in",
+  }));
+  const profiles = accounts.map((account, i) => ({
+    id: `p-${i}`,
+    name: "Main",
+    account_id: account.id,
+    account_label: account.label,
+    provider: account.provider,
+    model: null,
+    default_cwd: null,
+  }));
+  const statuses: InstanceInfo["status"][] = [
+    "running", "running", "running", "waiting_user", "stuck", "quota_blocked", "starting", "finished", "stopped", "failed",
+  ];
+  const sessions = Array.from({ length: 50 }, (_, n) => {
+    const account = accounts[n % 10]!;
+    const base = mk(n + 1, statuses[n % statuses.length]!, account.label);
+    return {
+      ...base,
+      id: `scale-${n}`,
+      launch_recipe_id: `p-${n % 10}`,
+      provider: account.provider,
+      account_id: account.id,
+      account_label: account.label,
+      project_id: `proj-${n % 20}`,
+      git_branch: `feat/task-${n}`,
+    };
+  });
+  const projects = Array.from({ length: 20 }, (_, i) => ({
+    id: `proj-${i}`,
+    root: `/Users/dev/project-${String(i).padStart(2, "0")}`,
+    name: `project-${String(i).padStart(2, "0")}`,
+    last_activity_ms: T0 - i * 600_000,
+    active_instance: null,
+    accounts_used: [accounts[i % 10]!.label],
+    instance_count: sessions.filter((s) => s.project_id === `proj-${i}`).length,
+    history_sessions: 10 + i,
+  }));
+  return {
+    accounts,
+    profiles,
+    sessions,
+    projects,
+    stats: { accounts: 10, profiles: 10, active_sessions: sessions.filter((s) => ["running", "starting", "waiting_user", "stuck", "quota_blocked"].includes(s.status)).length, ledger_degraded: false },
+  };
+})();

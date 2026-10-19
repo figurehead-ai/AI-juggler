@@ -1,0 +1,12 @@
+ok      500 ms  ui/src/components/KillSheet.tsx:239
+ok      500 ms  ui/src/screens/PairingWizard.tsx:85
+ok      200 ms  crates/juggler-app/src/lib.rs:443
+ok      200 ms  crates/juggler-app/src/link.rs:1246
+ok       20 ms  crates/juggler-supervisor/src/orphans.rs:290
+ok       20 ms  crates/juggler-supervisor/src/orphans.rs:300
+ok       20 ms  crates/juggler-supervisor/src/supervisor.rs:1292
+ok      250 ms  crates/juggler-supervisor/src/supervisor.rs:1332
+ok       10 ms  crates/juggler-supervisor/src/supervisor.rs:1864
+ok       50 ms  crates/juggler-supervisor/src/tree.rs:694
+ok       50 ms  crates/juggler-supervisor/src/tree.rs:733
+polling audit: 36 timers/sleeps, 11 under 1 s, 0 unexplained

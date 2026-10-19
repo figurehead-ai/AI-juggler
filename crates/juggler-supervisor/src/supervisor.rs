@@ -835,12 +835,19 @@ impl LiveStatsCollector {
     }
 
     /// Targeted refresh of specific pids (orphan liveness probes).
+    ///
+    /// Each pid is listed once: sysinfo drops a process it is asked to
+    /// refresh twice in one call (the second visit sees its "updated"
+    /// mark already consumed), and a root also appears among its own
+    /// tree's rows.
     pub fn refresh_pids(&mut self, pids: &[u32]) {
         use sysinfo::{ProcessRefreshKind, ProcessesToUpdate};
-        let targets: Vec<sysinfo::Pid> = pids
+        let mut targets: Vec<sysinfo::Pid> = pids
             .iter()
             .map(|pid| sysinfo::Pid::from_u32(*pid))
             .collect();
+        targets.sort_unstable();
+        targets.dedup();
         self.system.refresh_processes_specifics(
             ProcessesToUpdate::Some(&targets),
             true,
@@ -1281,6 +1288,7 @@ impl Supervisor {
                 return Some(facts);
             }
             if attempt < 4 {
+                // poll: 5 probe attempts, 80 ms at most
                 std::thread::sleep(Duration::from_millis(20));
             }
         }
@@ -1320,6 +1328,7 @@ impl Supervisor {
         let journal = self.journal.clone();
         let session = session.clone();
         std::thread::spawn(move || {
+            // poll: one-shot settle delay before the identity re-probe
             std::thread::sleep(Duration::from_millis(250));
             let Some(facts) = Self::os_probed(pid) else {
                 return;
@@ -1851,6 +1860,7 @@ impl Supervisor {
 
         let deadline = Instant::now() + grace;
         while Instant::now() < deadline && !handle.finished.load(Ordering::Acquire) {
+            // poll: waiting out the stop grace for the child to finish
             std::thread::sleep(Duration::from_millis(10));
         }
         if !handle.finished.load(Ordering::Acquire) {
