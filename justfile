@@ -20,6 +20,14 @@ verify:
     just stats-doc
     just stats-events
     just polling-audit
+    just release-selftest
+
+# D-20 / D-24: the release scripts' self-tests (versions, nightly notes,
+# channel requirements). A release only runs them for real once a night.
+release-selftest:
+    python3 scripts/release_version.py --selftest
+    python3 scripts/nightly_notes.py --selftest
+    python3 scripts/promotion_rules.py --selftest
 
 # AJ-E809: the weekly dogfood report from runs.csv (exit 1 until beta-exit is met).
 dogfood-report:
