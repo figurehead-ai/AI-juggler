@@ -107,6 +107,7 @@
 | AJ-E801 | PASS5 | 2026-10-13 | [manifest](AJ-E801/manifest.md) |
 | AJ-E802 | PASS7 | 2026-10-13 | [manifest](AJ-E802/manifest.md) |
 | AJ-E806 | PASS4 | 2026-10-18 | [manifest](AJ-E806/manifest.md) |
+| AJ-E810 | PASS5 | 2026-10-18 | [manifest](AJ-E810/manifest.md) |
 | AJ-E901 | (no claims yet) | 2026-10-13 | [manifest](AJ-E901/manifest.md) |
 | AJ-E902 | (no claims yet) | 2026-10-13 | [manifest](AJ-E902/manifest.md) |
 | AJ-E903 | (no claims yet) | 2026-10-13 | [manifest](AJ-E903/manifest.md) |

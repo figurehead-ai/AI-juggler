@@ -180,7 +180,7 @@
 **Research basis**: deep/07 validation plan; pass2/07 §13 falsification; pass2/12 dogfood programme; decision-log D-04.
 **Handover note**: Personas are composites, not interview data; this programme is where they earn or lose their claims. Update persona files only from recorded evidence.
 
-### AJ-E810 External research evidence standard | Status: TODO | Priority P1 | Effort S | Depends: AJ-E801
+### AJ-E810 External research evidence standard | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: AJ-E801
 **Goal**: Set the proof bar for external claims (Provider APIs/SDKs, competitor facts) so research tasks produce reusable, checkable evidence.
 **User story**: As an agent picking up a research task cold, I want a standard for what counts as proven so I do not re-derive or over-claim.
 **Requirements**:
