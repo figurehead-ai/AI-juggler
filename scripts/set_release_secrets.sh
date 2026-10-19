@@ -12,12 +12,18 @@
 # separately.
 set -euo pipefail
 repo="figurehead-ai/AI-juggler"
-p12="${1:-$HOME/Desktop/DeveloperID.p12}"
+# The exported .p12: the argument, else the usual places it's saved.
+p12="${1:-}"
+if [ -z "$p12" ]; then
+  for f in "$HOME/Desktop/DeveloperID.p12" "$HOME/Downloads/Certificates.p12" "$HOME/Downloads/DeveloperID.p12"; do
+    [ -f "$f" ] && { p12="$f"; break; }
+  done
+fi
 key="$HOME/.tauri/ai-juggler-updater.key"
 ui="$(cd "$(dirname "$0")/../ui" && pwd)"
 
 command -v gh >/dev/null || { echo "Install the GitHub CLI first: brew install gh"; exit 1; }
-[ -f "$p12" ] || { echo "No $p12 — export the Developer ID certificate as .p12 first (step 3b)."; exit 1; }
+[ -n "$p12" ] && [ -f "$p12" ] || { echo "No .p12 found — export the Developer ID certificate as .p12 (step 3b), then: $0 path/to/file.p12"; exit 1; }
 
 echo "1/7  Developer ID certificate → APPLE_CERTIFICATE (from $p12)"
 base64 -i "$p12" | gh secret set APPLE_CERTIFICATE --repo "$repo"
@@ -52,4 +58,4 @@ gh secret list --repo "$repo"
 gh variable list --repo "$repo"
 echo
 echo "Back up $key and its password, and the .p12 and its password, in your password manager."
-echo "Then delete the .p12 from the Desktop: the certificate stays in your keychain."
+echo "Then delete $p12: the certificate stays in your keychain."
