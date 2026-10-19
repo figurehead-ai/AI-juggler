@@ -22,4 +22,6 @@ counts as one) leaves no room for a second required answer. So the
 consent is shown on the same step with equal weight and nothing
 pre-selected, but doesn't block Continue; not answering keeps stats off,
 as AJ-E1105 Req.1 says. If a required answer is wanted, flow (a)'s
-budget has to grow to 6, which is the maintainer's call.
+budget has to grow to 6, which is the maintainer's call. **Resolved
+2026-10-19 (decision D-22):** keep it as built: shown, not required,
+no answer keeps statistics off.

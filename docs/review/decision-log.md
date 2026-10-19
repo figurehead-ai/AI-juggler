@@ -287,8 +287,59 @@
   status sync between paired Macs); this feature is "usage statistics".
   Work lives in epic E11 (`docs/tasks/E11-usage-statistics.md`).
 
+### D-20 Three release channels: nightly → beta → stable — SETTLED (2026-10-19)
+
+- Decision: AI Juggler ships on three update channels, and every change
+  travels nightly → beta → stable, automated wherever it can be.
+  - **Nightly**: built automatically from `main`, no approval. Newest
+    work, least tested.
+  - **Beta**: a nightly build promoted with the maintainer's approval;
+    newer features, less tested than stable.
+  - **Stable** (the main release): a beta build promoted with the
+    maintainer's approval; well-tested features only.
+- Consequences: each channel has its own update feed, and the app lets
+  the user choose which one it follows (Settings). A promotion moves an
+  already-built, signed build forward; nothing is rebuilt between
+  channels. The approval steps are GitHub environment approvals, so
+  they are recorded. The signed beta gate (AJ-E807) governs claiming
+  "beta" for the programme as a whole, and stays separate from
+  promoting a single build. Supersedes the single beta channel of
+  AJ-E1010.
+
+### D-21 Two visual-check modes: full sweep and core — SETTLED (2026-10-19)
+
+- Decision: the visual regression check has two modes, chosen per
+  change. **Full sweep** compares every gallery state; it is used when a
+  screen is first built or rebuilt, and on demand. **Core** compares
+  the approved baselines of the core screens on every UI pull request
+  (AJ-E803 as built).
+- Consequences: the full sweep needs no stored baselines for the whole
+  gallery: it renders the base and the head of the change in the same
+  pinned container and reports every state that differs, so the
+  repository doesn't carry hundreds of reference images. The core mode
+  stays a required check.
+
+### D-22 Maintainer rulings on the E8 gates — SETTLED (2026-10-19)
+
+- **Accessibility gate time** (AJ-E804): the gate checks every gallery
+  state and runs per release candidate, split across four jobs. Its
+  measured 10 minutes is accepted; the budget becomes ≤ 15 minutes.
+- **Orphan detection** (AJ-E805): the budget reads "< 10 s after the
+  grace window". The 10 s grace (AJ-E410) stands, so a well-behaved
+  helper never shows as left behind.
+- **Usage-stats consent in first-run setup** (AJ-E1105): shown on the
+  policy step with equal weight and nothing pre-selected, and not
+  required. No answer keeps statistics off. Flow (a) keeps its
+  ≤ 5-click budget.
+- **Dependencies before launch**: nothing has shipped, so every
+  dependency, major versions included, is brought current now rather
+  than deferred.
+- **Repository**: the pre-move public repository is archived with a
+  pointer here; `visual` is a required check; secret scanning and push
+  protection are to be on for this public repository.
+
 ## Unresolved (in discussion order)
 
 - None. D-01..D-15 were marked Final on maintainer instruction
   (2026-10-13); D-16 and D-17 were settled by maintainer instruction
-  on 2026-10-13, D-18 on 2026-10-17 and D-19 on 2026-10-18; all follow the same law.
+  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18 and D-20..D-22 on 2026-10-19; all follow the same law.
