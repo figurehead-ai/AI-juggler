@@ -3,8 +3,9 @@
 //! Link is **off by default** and only ever turned on by the user. While
 //! on, this Mac:
 //!
-//! - serves the link (`juggler_link::node`) on TCP 47821 (or an
-//!   ephemeral port when that is taken), TLS 1.3 + pinned keys only;
+//! - serves the link (`juggler_link::node`) on TCP 47821 (AI Juggler;
+//!   Nightly 47822, Dev 47823 — D-23), or an ephemeral port when that is
+//!   taken, TLS 1.3 + pinned keys only;
 //! - advertises a minimal mDNS record and browses for other nodes;
 //! - keeps a connection (with heartbeats) to every pinned peer it can
 //!   find, so Fleet shows `Connected · mTLS · v1.0` / `Degraded` /
@@ -43,8 +44,16 @@ use juggler_link::{Permission, PublicIdentity, proto};
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 
-/// The preferred listening port (fixed so a VPN peer can be told it).
+/// AI Juggler's preferred listening port (fixed so a VPN peer can be
+/// told it). Each edition has its own (D-23): see [`preferred_port`].
 pub const PREFERRED_PORT: u16 = 47_821;
+
+/// The running edition's preferred listening port, also the default port
+/// of a typed address (a Fleet joins machines of the same edition).
+#[must_use]
+pub fn preferred_port() -> u16 {
+    crate::edition::current().preferred_link_port()
+}
 /// How often pinned peers are (re)connected.
 const RECONCILE_EVERY: Duration = Duration::from_secs(3);
 
@@ -1206,6 +1215,27 @@ pub fn resume_if_enabled(state: Arc<AppState>) {
     }
 }
 
+/// Opens the Fleet listener: the port this Mac used last, else the
+/// edition's preferred port, else any free one.
+async fn bind_listener(last_port: Option<u16>) -> std::io::Result<tokio::net::TcpListener> {
+    // Retried briefly: right after Link off the old listener may not be
+    // released yet, and falling back to another port would strand peers
+    // paired by address.
+    if let Some(port) = last_port.filter(|port| *port != 0) {
+        for _ in 0..10 {
+            if let Ok(listener) = tokio::net::TcpListener::bind(("0.0.0.0", port)).await {
+                return Ok(listener);
+            }
+            // poll: re-binding the last port after Link off; 10 tries, 2 s at most
+            tokio::time::sleep(Duration::from_millis(200)).await;
+        }
+    }
+    if let Ok(listener) = tokio::net::TcpListener::bind(("0.0.0.0", preferred_port())).await {
+        return Ok(listener);
+    }
+    tokio::net::TcpListener::bind(("0.0.0.0", 0)).await
+}
+
 fn start(state: &Arc<AppState>) -> AppResult<()> {
     let manager = &state.link;
     if manager
@@ -1233,24 +1263,7 @@ fn start(state: &Arc<AppState>) -> AppResult<()> {
             .and_then(|raw| raw.parse().ok())
     });
     let listener = runtime
-        .block_on(async {
-            // Retried briefly: right after Link off the old listener may
-            // not be released yet, and falling back to another port
-            // would strand peers paired by address.
-            if let Some(port) = last_port.filter(|port| *port != 0) {
-                for _ in 0..10 {
-                    if let Ok(listener) = tokio::net::TcpListener::bind(("0.0.0.0", port)).await {
-                        return Ok(listener);
-                    }
-                    // poll: re-binding the last port after Link off; 10 tries, 2 s at most
-                    tokio::time::sleep(Duration::from_millis(200)).await;
-                }
-            }
-            if let Ok(listener) = tokio::net::TcpListener::bind(("0.0.0.0", PREFERRED_PORT)).await {
-                return Ok(listener);
-            }
-            tokio::net::TcpListener::bind(("0.0.0.0", 0)).await
-        })
+        .block_on(bind_listener(last_port))
         .map_err(|e| AppError::io("open the Fleet link port", &e))?;
     let port = listener
         .local_addr()
@@ -1949,7 +1962,7 @@ fn join_addresses(
         let parsed = address
             .trim()
             .parse::<SocketAddr>()
-            .or_else(|_| format!("{}:{PREFERRED_PORT}", address.trim()).parse())
+            .or_else(|_| format!("{}:{}", address.trim(), preferred_port()).parse())
             .map_err(|_| AppError::Validation {
                 subject: "address",
                 message: "Use an IP address, optionally with :port (for example 100.64.0.2)."

@@ -33,8 +33,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Three update channels (decision D-20): **Nightly** (built from the latest
   code every day), **Beta** and **Stable** (each promoted with the
-  maintainer's approval). Choose one in Settings › About & updates; moving
-  to a steadier channel never installs an older version.
+  maintainer's approval). Choose Stable or Beta in Settings › About &
+  updates; moving to a steadier channel never installs an older version.
+- Editions that install side by side (decision D-23): **AI Juggler** for
+  everyday work, **AI Juggler Nightly** for trying the newest build, and
+  **AI Juggler Dev** for development (`just dev`). Each has its own data,
+  Keychain items, Fleet port and icon, so none can change another's data.
 - Derived workflows for the beta (E10):
   - an identity guard so an Instance never runs on the wrong account;
   - git worktree isolation for a second Instance in a project;

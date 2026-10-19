@@ -15,6 +15,9 @@ const calls = () => (w().__AIJ_UPDATE_CALLS__ as string[] | undefined) ?? [];
 const base: UpdateStatusInfo = {
   current_version: "0.1.0",
   channel: "beta",
+  edition: "main",
+  app_name: "AI Juggler",
+  channels: ["stable", "beta"],
   configured: true,
   check_on_launch: true,
   state: "idle",
@@ -94,7 +97,7 @@ describe("AJ-E1010 updates", () => {
     expect((container.querySelector("[data-testid='update-check-on-launch']") as HTMLInputElement).checked).toBe(false);
   });
 
-  it("D-20: three channels with what each means; switching forgets the found update", async () => {
+  it("D-20/D-23: AI Juggler offers stable and beta with what each means; switching forgets the found update", async () => {
     w().__AIJ_UPDATE_STATUS__ = { ...base, state: "available", available };
     const { container } = render(<UpdatesCard />);
     await waitFor(() => expect(container.querySelector("[data-testid='update-channel']")).not.toBeNull());
@@ -102,14 +105,15 @@ describe("AJ-E1010 updates", () => {
       container.querySelector<HTMLInputElement>(`[data-testid='update-channel-${id}']`)!;
     expect(radio("beta").checked).toBe(true);
     expect(container.textContent).toContain("Well-tested releases");
-    expect(container.textContent).toContain("Expect rough edges");
+    expect(container.querySelector("[data-testid='update-channel-nightly']")).toBeNull();
+    expect(container.querySelector("[data-testid='update-edition-note']")).toBeNull();
     expect(container.textContent).toContain("never goes back to an older version");
     expect(container.querySelector("[data-testid='update-available']")?.textContent).toContain("0.2.0 (beta)");
     await act(async () => {
-      fireEvent.click(radio("nightly"));
+      fireEvent.click(radio("stable"));
     });
-    expect(calls()).toEqual(["channel:nightly"]);
-    expect(radio("nightly").checked).toBe(true);
+    expect(calls()).toEqual(["channel:stable"]);
+    expect(radio("stable").checked).toBe(true);
     expect(container.querySelector("[data-testid='update-available']")).toBeNull();
   });
 
@@ -118,5 +122,52 @@ describe("AJ-E1010 updates", () => {
     const { container } = render(<UpdatesCard />);
     await waitFor(() => expect(container.querySelector("[data-testid='update-unconfigured']")).not.toBeNull());
     expect(container.querySelector("[data-testid='update-channel']")).toBeNull();
+  });
+
+  it("D-23: AI Juggler Nightly names itself, follows nightly with no picker, and says its data is separate", async () => {
+    w().__AIJ_UPDATE_STATUS__ = {
+      ...base,
+      edition: "nightly",
+      app_name: "AI Juggler Nightly",
+      channel: "nightly",
+      channels: ["nightly"],
+      state: "available",
+      available,
+    };
+    const { container } = render(<UpdatesCard />);
+    await waitFor(() => expect(container.querySelector("[data-testid='update-edition-note']")).not.toBeNull());
+    expect(container.querySelector("[data-testid='update-version']")!.textContent).toBe(
+      "AI Juggler Nightly 0.1.0 · nightly channel",
+    );
+    expect(container.querySelector("[data-testid='update-channel']")).toBeNull();
+    expect(container.querySelector("[data-testid='update-edition-note']")!.textContent).toContain(
+      "separate from AI Juggler",
+    );
+    expect(container.querySelector("[data-testid='update-available']")?.textContent).toContain(
+      "AI Juggler Nightly 0.2.0 (nightly)",
+    );
+    expect(container.querySelector("[data-testid='update-check-on-launch']")).not.toBeNull();
+    expect(container.textContent).toContain("Installing writes a backup of AI Juggler Nightly's data first");
+    expect(container.textContent).toContain("Check for updates when AI Juggler Nightly starts");
+  });
+
+  it("D-23: AI Juggler Dev says what it is once, with no channel and no check", async () => {
+    w().__AIJ_UPDATE_STATUS__ = {
+      ...base,
+      edition: "dev",
+      app_name: "AI Juggler Dev",
+      channel: "nightly",
+      channels: [],
+      configured: false,
+    };
+    const { container } = render(<UpdatesCard />);
+    await waitFor(() => expect(container.querySelector("[data-testid='update-edition-note']")).not.toBeNull());
+    expect(container.querySelector("[data-testid='update-edition-note']")!.textContent).toContain("doesn't update itself");
+    expect(container.querySelector("[data-testid='update-version']")!.textContent).toBe(
+      "AI Juggler Dev 0.1.0 · built on this Mac",
+    );
+    expect(container.querySelector("[data-testid='update-unconfigured']")).toBeNull();
+    expect(container.querySelector("[data-testid='update-channel']")).toBeNull();
+    expect(container.querySelector("[data-testid='update-check']")).toBeNull();
   });
 });

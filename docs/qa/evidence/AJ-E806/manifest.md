@@ -72,6 +72,14 @@
   a full process-table scan, which slows with every other process on the
   machine. It passed 5/5 standalone straight after and in the gate
   re-run. Budget, wait and assertion are unchanged; CI is the arbiter.
+- **Flake record, 2026-10-19 (known class; no change).** The core
+  visual gate on the D-23 editions branch failed one cell, `history —
+  light-comfortable-1280x800`: `locator.click: Test timeout of 30000ms
+  exceeded` before any screenshot, so no pixels were compared. Load was
+  about 15 on 30 cores (a parallel session rendering in containers), and
+  each cell took 10–18 s instead of about 3 s. Re-run in the same pinned
+  container, all eight History cells passed 3/3 (24/24) with no pixel
+  difference. Timeouts and thresholds are unchanged; CI is the arbiter.
 - a11y seeded failure is recorded DEFERRED with owning task AJ-E804 —
   the gate is named in QUALITY.md vocabulary now; its absence is
   explicit, never a silent pass (per the quarantine/deferral rule).

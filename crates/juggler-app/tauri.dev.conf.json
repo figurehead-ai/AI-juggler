@@ -1,0 +1,8 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "AI Juggler Dev",
+  "identifier": "ai.figurehead.juggler.dev",
+  "bundle": {
+    "icon": ["../../target/edition-icons/dev/icon.png"]
+  }
+}

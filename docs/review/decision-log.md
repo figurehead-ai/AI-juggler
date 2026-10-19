@@ -345,8 +345,30 @@
   future Figurehead Apple account changes only the signer. No App ID is
   registered; the app uses no Apple capabilities.
 
+### D-23 Editions: AI Juggler, AI Juggler Nightly and AI Juggler Dev side by side — SETTLED (2026-10-19)
+
+- **Ruling** (maintainer): one stable install for daily use and one
+  nightly install for trying new builds, on the same Mac, while
+  development and agents build and test independently.
+- **Decision**: three editions that share nothing. Each has its own
+  bundle id (`ai.figurehead.juggler`, `….nightly`, `….dev`), app name,
+  data folder, Keychain items, Fleet port, single-instance lock and icon.
+  The edition follows the bundle identifier; a debug build is always Dev,
+  and any unexpected identifier is Dev too, so a stray build can only
+  reach the Dev data folder.
+- **Channels**: AI Juggler chooses Stable or Beta; AI Juggler Nightly
+  follows nightly only; AI Juggler Dev never updates. D-20's one version
+  stream stands: the nightly run builds both apps from one commit, and
+  promotion still points beta and stable at that version's AI Juggler
+  build, never rebuilding it.
+- **Consequences**: AI Juggler keeps its existing folder, Keychain items
+  and port (no migration). `just dev` and `just app` build AI Juggler Dev.
+  Nightly signing and notarizing take about twice as long. Both apps can
+  manage the same real Claude account; the guide advises test Accounts in
+  Nightly.
+
 ## Unresolved (in discussion order)
 
 - None. D-01..D-15 were marked Final on maintainer instruction
   (2026-10-13); D-16 and D-17 were settled by maintainer instruction
-  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18 and D-20..D-22 on 2026-10-19; all follow the same law.
+  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18 and D-20..D-23 on 2026-10-19; all follow the same law.

@@ -33,21 +33,46 @@ pub trait SecretStore: Send + Sync {
     fn delete(&self, account: &str);
 }
 
-/// The macOS Keychain (generic password items).
-#[derive(Debug, Default, Clone, Copy)]
-pub struct KeychainStore;
+/// The macOS Keychain (generic password items) under one service. Each
+/// edition of the app (D-23) has its own service, so AI Juggler Nightly
+/// and AI Juggler Dev never read or replace AI Juggler's token.
+#[derive(Debug, Clone, Copy)]
+pub struct KeychainStore {
+    service: &'static str,
+}
+
+impl KeychainStore {
+    /// The store for `service` (the edition's bundle identifier).
+    #[must_use]
+    pub const fn for_service(service: &'static str) -> Self {
+        Self { service }
+    }
+
+    /// The Keychain service this store reads and writes.
+    #[must_use]
+    pub const fn service(&self) -> &'static str {
+        self.service
+    }
+}
+
+impl Default for KeychainStore {
+    /// AI Juggler's own service ([`KEYCHAIN_SERVICE`]).
+    fn default() -> Self {
+        Self::for_service(KEYCHAIN_SERVICE)
+    }
+}
 
 #[cfg(target_os = "macos")]
 impl SecretStore for KeychainStore {
     fn get(&self, account: &str) -> Option<String> {
-        security_framework::passwords::get_generic_password(KEYCHAIN_SERVICE, account)
+        security_framework::passwords::get_generic_password(self.service, account)
             .ok()
             .and_then(|bytes| String::from_utf8(bytes).ok())
     }
 
     fn set(&self, account: &str, secret: &str) -> Result<(), SecretError> {
         security_framework::passwords::set_generic_password(
-            KEYCHAIN_SERVICE,
+            self.service,
             account,
             secret.as_bytes(),
         )
@@ -55,7 +80,7 @@ impl SecretStore for KeychainStore {
     }
 
     fn delete(&self, account: &str) {
-        let _ = security_framework::passwords::delete_generic_password(KEYCHAIN_SERVICE, account);
+        let _ = security_framework::passwords::delete_generic_password(self.service, account);
     }
 }
 

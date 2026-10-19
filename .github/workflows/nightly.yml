@@ -1,4 +1,5 @@
 # D-20: the nightly channel — built from main every day, no approval.
+# Its feed carries AI Juggler Nightly, installed next to AI Juggler (D-23).
 # Skips a day with no new commits. Every build gets the next version
 # (MAJOR.MINOR from Cargo.toml, PATCH = this workflow's run number), is
 # published as a pre-release, and becomes the nightly feed. Promotion to
@@ -88,8 +89,11 @@ jobs:
         run: |
           set -euo pipefail
           work="$RUNNER_TEMP/channel" && mkdir -p "$work" && cd "$work"
-          gh release download "v$VERSION" --repo "$REPO" --pattern latest.json
-          python3 -c 'import json; d=json.load(open("latest.json")); assert d["version"] and d["platforms"], "bad feed"'
+          # D-23: the nightly feed carries AI Juggler Nightly, a separate
+          # app; AI Juggler itself only ever follows beta or stable.
+          gh release download "v$VERSION" --repo "$REPO" --pattern latest-nightly.json
+          mv latest-nightly.json latest.json
+          python3 -c 'import json; d=json.load(open("latest.json")); assert d["version"] and d["platforms"], "bad feed"; assert all("AI-Juggler-Nightly-" in p["url"] for p in d["platforms"].values()), "not the Nightly app"'
           if ! gh release view nightly-channel --repo "$REPO" >/dev/null 2>&1; then
             gh release create nightly-channel --repo "$REPO" --prerelease \
               --title "Nightly channel (update feed)" \

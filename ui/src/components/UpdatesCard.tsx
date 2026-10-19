@@ -24,7 +24,10 @@ import {
   type UpdateStatusInfo,
 } from "../lib/bridge";
 
-/** D-20: nightly → beta → stable; each says what it means for you. */
+/** D-20: the channels AI Juggler chooses between; each says what it
+ * means for you. Nightly builds are their own app, AI Juggler Nightly
+ * (D-23), so they are never offered here. The backend's `channels`
+ * decides which of these this edition shows. */
 const CHANNELS: { id: UpdateChannel; title: string; consequence: string }[] = [
   { id: "stable", title: "Stable", consequence: "Well-tested releases. Recommended for everyday work." },
   {
@@ -32,12 +35,17 @@ const CHANNELS: { id: UpdateChannel; title: string; consequence: string }[] = [
     title: "Beta",
     consequence: "Newer features a little earlier. Tested, but less than Stable.",
   },
-  {
-    id: "nightly",
-    title: "Nightly",
-    consequence: "Built from the latest code every day. Expect rough edges.",
-  },
 ];
+
+/** D-23: what the Nightly and Dev editions are, in a sentence. */
+const EDITION_NOTE: Record<string, string> = {
+  nightly:
+    "AI Juggler Nightly is built from the newest code every night and updates from the nightly channel. " +
+    "It has its own data, separate from AI Juggler, so keep everyday work there.",
+  dev:
+    "AI Juggler Dev is built from source on this Mac: it doesn't update itself and never checks. " +
+    "It has its own data, separate from AI Juggler.",
+};
 
 function when(ms: number): string {
   return new Date(ms).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
@@ -77,40 +85,50 @@ export function UpdatesCard(): JSX.Element {
         </span>
       </div>
       <p className="text-[11px] text-ink" data-testid="update-version">
-        AI Juggler {status.current_version} · {status.channel} channel
+        {status.app_name} {status.current_version} ·{" "}
+        {status.edition === "dev" ? "built on this Mac" : `${status.channel} channel`}
       </p>
-      {!status.configured ? (
-        <p className="text-[11px] text-muted" data-testid="update-unconfigured">
-          This is a development build: it does not update itself and never checks. Releases are on GitHub.
+      {EDITION_NOTE[status.edition] && (
+        <p className="text-[11px] text-muted" data-testid="update-edition-note">
+          {EDITION_NOTE[status.edition]}
         </p>
+      )}
+      {!status.configured ? (
+        status.edition === "dev" ? null : (
+          <p className="text-[11px] text-muted" data-testid="update-unconfigured">
+            This is a development build: it does not update itself and never checks. Releases are on GitHub.
+          </p>
+        )
       ) : (
         <>
-          <fieldset className="flex flex-col gap-1.5" data-testid="update-channel" disabled={working}>
-            <legend className="mb-1 text-[11px] font-medium text-ink">Update channel</legend>
-            {CHANNELS.map((option) => (
-              <label key={option.id} className="flex items-start gap-2 text-[11px]">
-                <input
-                  type="radio"
-                  name="update-channel"
-                  value={option.id}
-                  checked={status.channel === option.id}
-                  onChange={() => void run(() => updateSetChannel(option.id))}
-                  aria-describedby={`update-channel-${option.id}`}
-                  data-testid={`update-channel-${option.id}`}
-                />
-                <span className="flex flex-col">
-                  <span className="font-medium text-ink">{option.title}</span>
-                  <span id={`update-channel-${option.id}`} className="text-muted">
-                    {option.consequence}
+          {status.channels.length > 1 && (
+            <fieldset className="flex flex-col gap-1.5" data-testid="update-channel" disabled={working}>
+              <legend className="mb-1 text-[11px] font-medium text-ink">Update channel</legend>
+              {CHANNELS.filter((option) => status.channels.includes(option.id)).map((option) => (
+                <label key={option.id} className="flex items-start gap-2 text-[11px]">
+                  <input
+                    type="radio"
+                    name="update-channel"
+                    value={option.id}
+                    checked={status.channel === option.id}
+                    onChange={() => void run(() => updateSetChannel(option.id))}
+                    aria-describedby={`update-channel-${option.id}`}
+                    data-testid={`update-channel-${option.id}`}
+                  />
+                  <span className="flex flex-col">
+                    <span className="font-medium text-ink">{option.title}</span>
+                    <span id={`update-channel-${option.id}`} className="text-muted">
+                      {option.consequence}
+                    </span>
                   </span>
-                </span>
-              </label>
-            ))}
-            <p className="text-[11px] text-muted">
-              Moving to a steadier channel never goes back to an older version: you get that channel's next release
-              once it's newer than this one.
-            </p>
-          </fieldset>
+                </label>
+              ))}
+              <p className="text-[11px] text-muted">
+                Moving to a steadier channel never goes back to an older version: you get that channel's next release
+                once it's newer than this one.
+              </p>
+            </fieldset>
+          )}
           <label className="flex items-center gap-2 text-[11px] text-ink">
             <input
               type="checkbox"
@@ -118,10 +136,10 @@ export function UpdatesCard(): JSX.Element {
               onChange={(event) => void run(() => updateSetCheckOnLaunch(event.target.checked))}
               data-testid="update-check-on-launch"
             />
-            Check for updates when AI Juggler starts
+            Check for updates when {status.app_name} starts
           </label>
           <p className="text-[11px] text-muted">
-            A check only looks. Nothing is downloaded or installed until you choose Install, and AI Juggler never restarts
+            A check only looks. Nothing is downloaded or installed until you choose Install, and {status.app_name} never restarts
             by itself.
           </p>
           <div aria-live="polite" className="flex flex-col gap-2 text-[11px]" data-testid="update-state">
@@ -135,7 +153,7 @@ export function UpdatesCard(): JSX.Element {
             {status.available && ["available", "failed", "backing_up", "downloading"].includes(status.state) && (
               <div className="flex flex-col gap-1.5 rounded-lg border border-hairline p-3" data-testid="update-available">
                 <p className="font-medium text-ink">
-                  AI Juggler {status.available.version} ({status.channel}) is available
+                  {status.app_name} {status.available.version} ({status.channel}) is available
                   {status.available.date_ms ? ` — released ${when(status.available.date_ms)}` : ""}
                 </p>
                 <div className="max-h-48 overflow-y-auto text-muted" data-testid="update-notes">
@@ -146,11 +164,11 @@ export function UpdatesCard(): JSX.Element {
                   )}
                 </div>
                 <p className="text-muted">
-                  Installing writes a backup of AI Juggler's data first, so you can go back to {status.current_version}.
+                  Installing writes a backup of {status.app_name}'s data first, so you can go back to {status.current_version}.
                 </p>
               </div>
             )}
-            {status.state === "backing_up" && <p className="text-ink">Backing up AI Juggler's data first…</p>}
+            {status.state === "backing_up" && <p className="text-ink">Backing up {status.app_name}'s data first…</p>}
             {status.state === "downloading" && (
               <div className="flex flex-col gap-1">
                 <span className="text-ink">Downloading and verifying… {status.progress ?? 0}%</span>
@@ -170,7 +188,7 @@ export function UpdatesCard(): JSX.Element {
               <div className="flex flex-col gap-0.5 text-ink" data-testid="update-installed">
                 <p>
                   <span aria-hidden="true">✓ </span>
-                  {status.available?.version ?? "The update"} is installed. It starts the next time AI Juggler starts.
+                  {status.available?.version ?? "The update"} is installed. It starts the next time {status.app_name} starts.
                 </p>
                 {status.backup_path && <p className="break-all text-muted">Backup from before: {status.backup_path}</p>}
               </div>

@@ -82,7 +82,7 @@ the Xcode Command Line Tools.
 git clone https://github.com/figurehead-ai/AI-juggler.git
 cd AI-juggler
 pnpm --dir ui install
-just dev        # the desktop app with UI hot-reload
+just dev        # the desktop app (as AI Juggler Dev: its own data) with UI hot-reload
 just verify     # every gate CI runs: fmt, clippy, tests, docs, evidence, terminology
 ```
 

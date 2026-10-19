@@ -9,6 +9,11 @@ export type AppInfo = {
  */
 version: string, 
 /**
- * Machine-friendly app name.
+ * The app's name: the edition's (AI Juggler, AI Juggler Nightly,
+ * AI Juggler Dev — D-23).
  */
-name: string, };
+name: string, 
+/**
+ * The edition: `main` | `nightly` | `dev`.
+ */
+edition: string, };

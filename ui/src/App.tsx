@@ -701,6 +701,17 @@ export default function App() {
                 AI Juggler
               </span>
             )}
+            {/* D-23: which edition this window belongs to, when it isn't
+                AI Juggler itself (Nightly and Dev run side by side). */}
+            {info && info.edition !== "main" && (
+              <span
+                className="shrink-0 rounded-full border border-accent/40 bg-accent-soft px-1.5 py-0.5 text-[10px] font-semibold text-ink"
+                data-testid="edition-badge"
+                title={`${info.name}: its own data, separate from AI Juggler`}
+              >
+                {info.edition === "nightly" ? "Nightly" : "Dev"}
+              </span>
+            )}
           </div>
         )}
         footer={(minimal) =>

@@ -394,14 +394,16 @@ fn now_epoch_ms() -> i64 {
     juggler_core::model::Timestamp::now().millis()
 }
 
-/// Resolves the per-platform app data directory (spec §11 layout).
+/// Resolves the per-platform app data directory (spec §11 layout): one
+/// per edition (D-23), so AI Juggler Nightly and AI Juggler Dev never
+/// open AI Juggler's data.
 ///
 /// # Errors
 ///
 /// Returns a message string when no OS data directory can be determined.
 pub fn resolve_data_dir() -> Result<PathBuf, String> {
     dirs::data_dir()
-        .map(|base| base.join("AI Juggler"))
+        .map(|base| base.join(crate::edition::current().data_dir_name()))
         .ok_or_else(|| "no OS data directory available".to_string())
 }
 

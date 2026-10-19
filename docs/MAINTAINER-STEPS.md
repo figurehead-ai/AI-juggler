@@ -138,9 +138,14 @@ rollback all work before any user depends on them.
 - [ ] GitHub → **Actions** → **Nightly** → **Run workflow** (tick
       *force*). It builds, signs and notarizes the next version, publishes
       it as a pre-release, and points the nightly feed at it. No approval.
-- [ ] Install that version's `.dmg` on a clean Mac (or a new macOS user
-      account). Gatekeeper must open it without warnings. Settings ›
-      About & updates shows the version and the channel picker.
+- [ ] The release has two apps (D-23): `AI-Juggler-X.Y.Z-universal.dmg`
+      and `AI-Juggler-Nightly-X.Y.Z-universal.dmg`. Install **both** on
+      your Mac; they sit side by side in Applications and share nothing.
+      Gatekeeper must open each without warnings. AI Juggler's Settings ›
+      About & updates shows the version and the Stable/Beta picker; AI
+      Juggler Nightly's shows "nightly channel" and a **Nightly** badge
+      in the sidebar. Use AI Juggler for real work; give Nightly test
+      Accounts.
 - [ ] Write its user notes (`docs/releases/X.Y.Z.md`; the agent drafts
       them for you to approve), then **Actions** → **Promote** → version
       `X.Y.Z`, channel `beta`. When the run waits for you, open it and

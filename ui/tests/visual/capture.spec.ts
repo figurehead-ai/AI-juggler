@@ -6062,7 +6062,8 @@ for (const theme of THEMES) {
 // ---------------------------------------------------------------------
 
 const updateBase = {
-  current_version: "0.1.0", channel: "beta", configured: true, check_on_launch: true,
+  current_version: "0.1.0", channel: "beta", edition: "main", app_name: "AI Juggler", channels: ["stable", "beta"],
+  configured: true, check_on_launch: true,
   available: null, progress: null, error: null, backup_path: null, checked_at_ms: T0 - 60_000,
 };
 const updateAvailable = {
@@ -6079,22 +6080,36 @@ const updateStates: Record<string, Record<string, unknown>> = {
   },
   "up-to-date": { ...updateBase, state: "up_to_date" },
   development: { ...updateBase, configured: false, state: "idle" },
+  // D-23: the editions installed next to AI Juggler.
+  "nightly-edition": {
+    ...updateBase, edition: "nightly", app_name: "AI Juggler Nightly", channel: "nightly", channels: ["nightly"],
+    state: "available", available: updateAvailable,
+  },
+  "dev-edition": {
+    ...updateBase, edition: "dev", app_name: "AI Juggler Dev", channel: "nightly", channels: [], configured: false,
+    state: "idle",
+  },
+};
+const editionAppInfo: Record<string, Record<string, string>> = {
+  "nightly-edition": { version: "0.1.0", name: "AI Juggler Nightly", edition: "nightly" },
+  "dev-edition": { version: "0.1.0", name: "AI Juggler Dev", edition: "dev" },
 };
 
 for (const theme of THEMES) {
   for (const [name, status] of Object.entries(updateStates)) {
     test(`58 updates — ${name} — ${theme}`, async ({ page }) => {
       await page.addInitScript(
-        ({ fixture, t, t0, seeded }) => {
+        ({ fixture, t, t0, seeded, info }) => {
           const w = window as unknown as Record<string, unknown>;
           w.__AIJ_FIXTURE__ = fixture;
           w.__AIJ_UPDATE_STATUS__ = seeded;
+          if (info) w.__AIJ_APP_INFO__ = info;
           localStorage.setItem("aij.theme", t);
           localStorage.setItem("aij.onboarding.dismissed", "1");
           sessionStorage.setItem("aij.ready.skipped", "1");
           Date.now = () => t0;
         },
-        { fixture: allStatuses, t: theme, t0: T0, seeded: status },
+        { fixture: allStatuses, t: theme, t0: T0, seeded: status, info: editionAppInfo[name] ?? null },
       );
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: 1280, height: 800 });

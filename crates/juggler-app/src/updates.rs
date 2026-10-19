@@ -24,6 +24,7 @@
 
 use std::sync::{Arc, Mutex};
 
+use crate::edition::Edition;
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 
@@ -80,7 +81,30 @@ impl Channel {
         }
     }
 
-    /// The channel's update feed.
+    /// The channels an edition can follow (D-23): AI Juggler chooses
+    /// between stable and beta; AI Juggler Nightly follows nightly; AI
+    /// Juggler Dev never updates.
+    #[must_use]
+    pub fn offered(edition: Edition) -> &'static [Self] {
+        match edition {
+            Edition::Main => &[Self::Stable, Self::Beta],
+            Edition::Nightly => &[Self::Nightly],
+            Edition::Dev => &[],
+        }
+    }
+
+    /// The channel an edition follows until the user chooses one. A Dev
+    /// build is built from the newest code, so it reports nightly.
+    #[must_use]
+    pub fn default_for(edition: Edition) -> Self {
+        match edition {
+            Edition::Main => Self::DEFAULT,
+            Edition::Nightly | Edition::Dev => Self::Nightly,
+        }
+    }
+
+    /// The channel's update feed. The nightly feed carries AI Juggler
+    /// Nightly; beta and stable carry AI Juggler.
     #[must_use]
     pub fn endpoint(self) -> String {
         PINNED_ENDPOINT.map_or_else(
@@ -90,16 +114,19 @@ impl Channel {
     }
 }
 
-/// The channel this install follows (the user's choice, or the default).
-/// Each read also refreshes [`current_channel`].
+/// The channel this install follows (the user's choice, or the
+/// edition's default; a stored choice this edition doesn't offer falls
+/// back to the default). Each read also refreshes [`current_channel`].
 pub(crate) fn channel_of(state: &Arc<AppState>) -> Channel {
+    let edition = crate::edition::current();
     let channel = state
         .storage
         .lock()
         .ok()
         .and_then(|storage| storage.app_settings().get(CHANNEL_KEY).ok().flatten())
         .and_then(|raw| Channel::parse(&raw))
-        .unwrap_or(Channel::DEFAULT);
+        .filter(|channel| Channel::offered(edition).contains(channel))
+        .unwrap_or_else(|| Channel::default_for(edition));
     CURRENT.store(channel as u8, std::sync::atomic::Ordering::Relaxed);
     channel
 }
@@ -148,6 +175,12 @@ pub struct UpdateStatusInfo {
     pub current_version: String,
     /// The channel this install follows: `stable` | `beta` | `nightly`.
     pub channel: String,
+    /// This edition (D-23): `main` | `nightly` | `dev`.
+    pub edition: String,
+    /// The edition's app name (AI Juggler, AI Juggler Nightly, …).
+    pub app_name: String,
+    /// The channels this edition can choose between (empty: none).
+    pub channels: Vec<String>,
     /// This build can update itself (it carries the signing key).
     pub configured: bool,
     /// Check when AI Juggler starts (user setting; on by default).
@@ -207,7 +240,15 @@ impl Default for UpdateManager {
         Self {
             status: Mutex::new(UpdateStatusInfo {
                 current_version: env!("CARGO_PKG_VERSION").to_owned(),
-                channel: Channel::DEFAULT.as_str().to_owned(),
+                channel: Channel::default_for(crate::edition::current())
+                    .as_str()
+                    .to_owned(),
+                edition: crate::edition::current().as_str().to_owned(),
+                app_name: crate::edition::current().app_name().to_owned(),
+                channels: Channel::offered(crate::edition::current())
+                    .iter()
+                    .map(|channel| channel.as_str().to_owned())
+                    .collect(),
                 configured: configured(),
                 check_on_launch: true,
                 state: "idle".to_owned(),
@@ -280,10 +321,21 @@ pub fn update_set_channel_impl(
     state: &Arc<AppState>,
     channel: &str,
 ) -> AppResult<UpdateStatusInfo> {
-    let Some(parsed) = Channel::parse(channel) else {
+    let edition = crate::edition::current();
+    let offered = Channel::offered(edition);
+    let Some(parsed) = Channel::parse(channel).filter(|parsed| offered.contains(parsed)) else {
+        let message = match edition {
+            Edition::Main if channel == "nightly" => {
+                "nightly builds are a separate app, AI Juggler Nightly, installed next to this one"
+                    .to_owned()
+            }
+            Edition::Main => format!("unknown channel {channel:?} — choose stable or beta"),
+            Edition::Nightly => "AI Juggler Nightly always follows the nightly channel".to_owned(),
+            Edition::Dev => "AI Juggler Dev is built locally and doesn't update".to_owned(),
+        };
         return Err(AppError::Validation {
             subject: "update channel",
-            message: format!("unknown channel {channel:?} — choose stable, beta or nightly"),
+            message,
         });
     };
     let busy = state.updates.update(|_| {}).state;

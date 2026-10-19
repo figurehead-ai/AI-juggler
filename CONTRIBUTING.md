@@ -48,7 +48,8 @@ Prerequisites:
 
 ```bash
 pnpm --dir ui install
-just dev            # run the desktop app (UI hot-reload + Rust rebuild)
+just dev            # run the app as AI Juggler Dev (UI hot-reload + Rust rebuild);
+                    # its own data folder, so an installed AI Juggler is never touched
 pnpm --dir ui dev   # UI only, in a browser, against the mock bridge
 ```
 
