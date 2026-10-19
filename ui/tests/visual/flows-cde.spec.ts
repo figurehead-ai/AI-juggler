@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { allStatuses, honestEmpty } from "./fixtures";
+import { allStatuses, honestEmpty, goTo } from "./fixtures";
 
 /**
  * AJ-E306 quality gates — the three daily flows as click-count
@@ -77,7 +77,7 @@ test("flow (c): add a Provider ≤ 4 primary clicks", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark" });
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/");
-  await page.getByRole("button", { name: "Accounts" }).click();
+  await goTo(page, "Accounts");
 
   let primaryClicks = 0;
   // Click 1: Add Provider (flow c entry).
@@ -149,7 +149,7 @@ test("flow (d): add an Account ≤ 3 primary clicks (Provider locked, no gate)",
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark" });
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/");
-  await page.getByRole("button", { name: "Accounts" }).click();
+  await goTo(page, "Accounts");
 
   let primaryClicks = 0;
   // Click 1: Add account — the Provider is LOCKED (Req.4): no gate.
@@ -203,7 +203,7 @@ test("flow (e): launch ≤ 2 clicks; Profile never a sheet noun; verdict words n
   await expect(page.getByTestId("instance-board")).toBeVisible();
   // The launch sheet opens (⌘N opens New project; the header New
   // button opens the launch sheet — flow (e)'s surface).
-  await page.getByRole("button", { name: /^New$/ }).first().click();
+  await page.getByRole("banner").getByRole("button", { name: "New session", exact: true }).click();
   await expect(page.getByRole("heading", { name: "New session" })).toBeVisible();
 
   let clicks = 0;

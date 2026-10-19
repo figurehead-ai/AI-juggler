@@ -15,7 +15,7 @@ import { resolve } from "node:path";
 
 // Playwright runs with cwd = config dir (ui/).
 const GALLERY_ROOT = resolve(process.cwd(), "../docs/qa/evidence/_gallery");
-import { allStatuses, answerPolicy, cleanupFixture, honestEmpty, readyHome, goTo } from "./fixtures";
+import { allStatuses, answerPolicy, cleanupFixture, honestEmpty, readyHome, goTo, openFilters } from "./fixtures";
 
 // D-25: a fresh install opens first run; these captures document the
 // Add-account wizard, so they open it the way Add account does.
@@ -126,8 +126,9 @@ for (const theme of THEMES) {
       await page.goto("/");
       // AJ-E406: the empty work area is the fleet-at-a-glance summary
       // (RightInspector, Req.4) — never a blank panel.
-      await expect(page.getByText("Nothing selected", { exact: false })).toBeVisible();
-      await expect(page.getByText("Lowest quota")).toBeVisible();
+      // D-25: with no accounts, Home is one plain next step.
+      await expect(page.getByTestId("home-empty-accounts")).toBeVisible();
+      await expect(page.getByRole("button", { name: "Find my accounts" })).toBeVisible();
       await page.screenshot({
         path: resolve(GALLERY, `01-rail/honest-empty-${vp.name}-${theme}.png`),
       });
@@ -206,8 +207,7 @@ for (const density of DENSITIES) {
       await page.emulateMedia({ reducedMotion: "reduce" });
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
-      await expect(page.getByTestId("instance-board")).toBeVisible();
-      await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
+      if (density !== "minimal") await expect(page.getByTestId("instance-board")).toBeVisible();
       if (density === "minimal") {
         await expect(page.getByTitle(/Work Max/).first()).toBeVisible();
       } else {
@@ -235,8 +235,6 @@ test("rail minimal — hover tooltip open", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/");
-  await expect(page.getByTestId("instance-board")).toBeVisible();
-  await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
   const first = page.locator("aside button[title]").first();
   await first.hover();
   await page.waitForTimeout(150);
@@ -277,6 +275,9 @@ test("rail — needs-me sort default", async ({ page }) => {
 
 test("rail — quota risk with no data group", async ({ page }) => {
   await seedRail(page, {});
+  await openFilters(page);
+  // The "no data" group is the quota sort's own grouping (no project groups).
+  await page.selectOption('select[aria-label="Group by"]', "none");
   await page.selectOption('select[aria-label="Sort by"]', "quota");
   await expect(page.getByText("no data").first()).toBeVisible();
   await page.screenshot({ path: resolve(GALLERY, "01-rail-sort/quota-risk-1440x900.png") });
@@ -284,6 +285,7 @@ test("rail — quota risk with no data group", async ({ page }) => {
 
 test("rail — group by project with rollups", async ({ page }) => {
   await seedRail(page, {});
+  await openFilters(page);
   await page.selectOption('select[aria-label="Group by"]', "project");
   await expect(page.getByText(/running/).first()).toBeVisible();
   await page.screenshot({ path: resolve(GALLERY, "01-rail-sort/group-by-project-1440x900.png") });
@@ -292,7 +294,7 @@ test("rail — group by project with rollups", async ({ page }) => {
 test("rail — empty search state", async ({ page }) => {
   await seedRail(page, {});
   await page.locator('input[type="search"]').fill("does-not-exist");
-  await expect(page.getByText("No instances match")).toBeVisible();
+  await expect(page.getByText("No sessions match")).toBeVisible();
   await page.screenshot({ path: resolve(GALLERY, "01-rail-sort/empty-search-1440x900.png") });
 });
 
@@ -355,7 +357,7 @@ async function seedInspectorPage(page: import("@playwright/test").Page, vp: { wi
 for (const vp of INSPECTOR_VIEWPORTS) {
   test(`inspector — fleet-at-a-glance (empty) — ${vp.name}`, async ({ page }) => {
     await seedInspectorPage(page, vp);
-    await expect(page.getByText("Nothing selected", { exact: false })).toBeVisible();
+    await expect(page.getByTestId("home")).toBeVisible(); // D-25: Home replaces "fleet at a glance"
     await page.screenshot({ path: resolve(GALLERY, `06-inspector/empty-${vp.name}.png`) });
   });
 
@@ -369,7 +371,7 @@ for (const vp of INSPECTOR_VIEWPORTS) {
 
   test(`inspector — Account / Usage honest empty — ${vp.name}`, async ({ page }) => {
     await seedInspectorPage(page, vp);
-    await page.getByRole("button", { name: "Accounts" }).click();
+    await goTo(page, "Accounts");
     await page.getByRole("button", { name: "Inspect claude-code" }).first().click();
     await expect(page.getByRole("tab", { name: "Usage" })).toBeVisible();
     await page.getByRole("tab", { name: "Usage" }).click();
@@ -415,8 +417,9 @@ test("inspector — Instance Actions disabled-with-reason", async ({ page }) => 
 test("inspector — Session Overview ended stamp", async ({ page }) => {
   await seedInspectorPage(page, { width: 1440, height: 900 });
   await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
-  await page.getByRole("button", { name: /Personal/ }).first().click();
-  await expect(page.getByText(/Ended|Conversation|Transcript not readable yet/).first()).toBeVisible();
+  // An ended session (sess-7 stopped): its overview carries the stamp.
+  await page.locator('[data-instance-id="sess-7"]').click();
+  await expect(page.getByTestId("session-ended-stamp")).toContainText("Ended");
   await page.screenshot({ path: resolve(GALLERY, "07-inspector-content/session-overview.png") });
 });
 
@@ -443,7 +446,7 @@ test("inspector — Account Overview rings + forecast", async ({ page }) => {
     { t0: T0 },
   );
   await seedInspectorPage(page, { width: 1440, height: 900 });
-  await page.getByRole("button", { name: "Accounts" }).click();
+  await goTo(page, "Accounts");
   await page.getByRole("button", { name: "Inspect claude-code" }).first().click();
   await expect(page.getByTestId("account-rings")).toBeVisible();
   await expect(page.getByText(/5-hour window · Measured/)).toBeVisible();
@@ -470,7 +473,7 @@ test("inspector — Account logged-out collapse", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/");
-  await page.getByRole("button", { name: "Accounts" }).click();
+  await goTo(page, "Accounts");
   await page.getByRole("button", { name: "Inspect claude-code" }).nth(1).click();
   await expect(page.getByTestId("account-signin-card")).toBeVisible();
   await page.screenshot({ path: resolve(GALLERY, "08-inspector-aggregate/account-logged-out-1280x800.png") });
@@ -583,7 +586,7 @@ async function seedRenewalPage(
 }
 
 async function openAccountOverview(page: import("@playwright/test").Page) {
-  await page.getByRole("button", { name: "Accounts" }).click();
+  await goTo(page, "Accounts");
   await page.getByRole("button", { name: "Inspect claude-code" }).first().click();
   await expect(page.getByTestId("account-overview")).toBeVisible();
 }
@@ -620,7 +623,7 @@ test("renewal — editor at 1280x800", async ({ page }) => {
 
 test("renewal — Accounts row chip at <= 7 days (and none for unknown)", async ({ page }) => {
   await seedRenewalPage(page, { width: 1440, height: 900 }, 6);
-  await page.getByRole("button", { name: "Accounts" }).click();
+  await goTo(page, "Accounts");
   await expect(page.getByText("Renews in 6 days").first()).toBeVisible();
   await page.screenshot({ path: resolve(GALLERY, "11-renewal/accounts-row-chip-1440x900.png") });
 });
@@ -717,7 +720,7 @@ test("desktop — exited app state", async ({ page }) => {
   await page
     .getByRole("button", { name: /Fake Desk/ })
     .filter({ has: page.getByTestId("rail-app-chip") })
-    .filter({ hasText: /finished/i })
+    .filter({ hasText: /Done/ })
     .click();
   await expect(page.getByTestId("desktop-surface")).toBeVisible();
   await expect(page.getByTestId("desktop-surface")).toContainText("app exited");
@@ -965,7 +968,7 @@ test("preview — exited instance renders no preview (status only)", async ({ pa
   await page
     .getByRole("button", { name: /Fake Desk/ })
     .filter({ has: page.getByTestId("rail-app-chip") })
-    .filter({ hasText: /finished/i })
+    .filter({ hasText: /Done/ })
     .click();
   await expect(page.getByTestId("desktop-surface")).toContainText("app exited");
   await expect(page.getByTestId("desktop-preview")).toHaveCount(0);
@@ -2240,7 +2243,7 @@ for (const theme of THEMES) {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
-      await page.getByRole("button", { name: "New", exact: true }).click();
+      await page.getByRole("banner").getByRole("button", { name: "New session", exact: true }).click();
       await expect(page.getByTestId("ranked-rows")).toBeVisible();
       // Copy conformance before capture: Suggested badge, ≥2 factors
       // without hover, TTE, and the greyed filtered row keeps its seat.
@@ -2269,7 +2272,7 @@ for (const theme of THEMES) {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
-      await page.getByRole("button", { name: "New", exact: true }).click();
+      await page.getByRole("banner").getByRole("button", { name: "New session", exact: true }).click();
       await page.getByRole("button", { name: "Why this order?" }).click();
       // All five inputs are listed once expanded (both scored rows
       // expand — assert on the first).
@@ -3224,7 +3227,7 @@ for (const theme of THEMES) {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
-      await page.getByRole("button", { name: "Accounts" }).click();
+      await goTo(page, "Accounts");
       await expect(page.getByTestId("beta-matrix")).toBeVisible();
     };
 
@@ -4199,7 +4202,7 @@ for (const theme of THEMES) {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme as "dark" | "light" });
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
-      await page.getByRole("button", { name: "Accounts" }).click();
+      await goTo(page, "Accounts");
       await page.getByTestId("add-provider").click();
       const cards = page.getByTestId("provider-cards");
       await expect(cards).toBeVisible();
@@ -4264,7 +4267,7 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await expect(page.getByTestId("instance-board")).toBeVisible();
-      await page.getByRole("button", { name: /^New$/ }).first().click();
+      await page.getByRole("banner").getByRole("button", { name: "New session", exact: true }).click();
       await expect(page.getByTestId("new-session-sheet")).toBeVisible();
       await page
         .getByRole("button", { name: /ai-juggler.*prior sessions/s })
@@ -4318,7 +4321,7 @@ for (const theme of THEMES) {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme as "dark" | "light" });
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
-      await page.getByRole("button", { name: /^New$/ }).first().click();
+      await page.getByRole("banner").getByRole("button", { name: "New session", exact: true }).click();
       await page
         .getByRole("button", { name: /ai-juggler.*prior sessions/s })
         .click();
@@ -4799,7 +4802,7 @@ for (const theme of THEMES) {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme as "dark" | "light" });
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
-      await page.getByRole("button", { name: "Accounts" }).first().click();
+      await goTo(page, "Accounts");
       await expect(page.getByTestId("pack-secrets")).toBeVisible();
       await expect(page.getByTestId("pack-secrets-unset")).toBeVisible();
       await page.getByRole("button", { name: /Edit launch settings/ }).first().click();
@@ -5217,9 +5220,11 @@ for (const theme of THEMES) {
       await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
       await expect(page.getByTestId("board-machine")).toBeVisible();
       await page.screenshot({ path: resolve(GALLERY, `46-fleet-board/all-machines-${vp.name}-${theme}.png`) });
+      await openFilters(page);
       await page.getByLabel("Filter by machine").selectOption("machine-mini");
       await expect(page.getByTestId("board-machine-local")).toHaveCount(0);
       await page.screenshot({ path: resolve(GALLERY, `46-fleet-board/one-machine-${vp.name}-${theme}.png`) });
+      await openFilters(page);
       await page.getByLabel("Filter by machine").selectOption("all");
       await expect(page.getByTestId("remote-alert-exhausted")).toBeVisible();
       await page.screenshot({ path: resolve(GALLERY, `46-fleet-board/alert-${vp.name}-${theme}.png`) });
@@ -5413,6 +5418,7 @@ for (const theme of THEMES) {
     });
     await page.reload();
     await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
+    await openFilters(page);
     await page.getByLabel("Filter by machine").selectOption("machine-mini");
     await expect(page.getByTestId("board-machine")).toContainText("offline · last known");
     await expect(page.getByTestId("board-remote-row").first()).toContainText("was running");

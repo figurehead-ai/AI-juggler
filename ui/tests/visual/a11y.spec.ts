@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-import { allStatuses, answerPolicy, honestEmpty, type FixtureSet, goTo } from "./fixtures";
+import { allStatuses, answerPolicy, honestEmpty, type FixtureSet, goTo, openFilters } from "./fixtures";
 
 // D-25: a fresh install opens first run; these captures document the
 // Add-account wizard, so they open it the way Add account does.
@@ -302,7 +302,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/");
-    await page.getByRole("button", { name: "Accounts" }).click();
+    await goTo(page, "Accounts");
     await page.getByRole("button", { name: "Inspect claude-code" }).first().click();
     await expect(page.getByTestId("account-tier-toggles")).toBeVisible();
     const results = await new AxeBuilder({ page })
@@ -687,7 +687,7 @@ for (const theme of ["dark", "light"] as const) {
     // live-region semantics assertable before the modal opens).
     await expect(page.getByTestId("alert-actionable")).toBeVisible();
     await expect(page.getByTestId("queue-ready")).toBeVisible();
-    await page.getByRole("button", { name: "New", exact: true }).click();
+    await page.getByRole("banner").getByRole("button", { name: "New session", exact: true }).click();
     await expect(page.getByTestId("ranked-rows")).toBeVisible();
     const serious = await scanSeriousWithConfirm(page);
     if (serious.length > 0) {
@@ -1156,7 +1156,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await page.getByRole("button", { name: "Accounts" }).click();
+    await goTo(page, "Accounts");
     await expect(page.getByTestId("beta-matrix-table")).toBeVisible();
     // Real table semantics: scoped column + row headers.
     await expect(page.getByTestId("beta-matrix-table").locator("th[scope='col']").first()).toBeVisible();
@@ -1625,7 +1625,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.goto("/");
     await expect(page.getByTestId("instance-board")).toBeVisible();
     // The summoning button is where focus must RETURN.
-    const summon = page.getByRole("button", { name: /^New$/ }).first();
+    const summon = page.getByRole("banner").getByRole("button", { name: "New session", exact: true });
     await summon.click();
     await expect(page.getByTestId("new-session-sheet")).toBeVisible();
     const confirmed = await scanSeriousWithConfirm(page);
@@ -1689,7 +1689,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await page.getByRole("button", { name: "Accounts" }).click();
+    await goTo(page, "Accounts");
     await page.getByTestId("add-provider").click();
     await expect(page.getByTestId("provider-cards")).toBeVisible();
     const confirmed = await scanSeriousWithConfirm(page);
@@ -1886,7 +1886,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await page.getByRole("button", { name: "Accounts" }).first().click();
+    await goTo(page, "Accounts");
     await expect(page.getByRole("group", { name: "Your choice (all Providers)" })).toBeVisible();
     await page.getByRole("button", { name: /Edit launch settings/ }).first().click();
     await page.getByTestId("recipe-env-toggle").first().click();
@@ -2266,6 +2266,7 @@ for (const theme of ["dark", "light"] as const) {
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
     await page.reload();
     await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
+    await openFilters(page);
     await page.getByLabel("Filter by machine").selectOption("machine-mini");
     await expect(page.getByTestId("board-remote-row").first()).toContainText("was running");
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);

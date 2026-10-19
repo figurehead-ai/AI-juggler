@@ -30,6 +30,7 @@ import {
   ChildBadges,
   GitBadge,
   StaleChip,
+  gitWords,
   attentionBadge,
   attentionSuffix,
   attentionTooltip,
@@ -451,28 +452,45 @@ export function InstanceBoard({
           <button
             type="button"
             aria-expanded={moreFilters}
-            aria-label={narrowed(filters, sort, group) ? "Filters (some on)" : "Filters"}
+            aria-label={narrowed(filters, sort, group, machineChoice) ? "Filters (some on)" : "Filters"}
             title="Filters"
             onClick={() => setMoreFilters((open) => !open)}
             className={
               "relative ml-auto flex size-6 shrink-0 items-center justify-center rounded-md outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
-              (moreFilters || narrowed(filters, sort, group) ? "bg-accent-soft text-accent-hi" : "text-muted hover:bg-surface hover:text-ink")
+              (moreFilters || narrowed(filters, sort, group, machineChoice) ? "bg-accent-soft text-accent-hi" : "text-muted hover:bg-surface hover:text-ink")
             }
           >
             <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
               <path d="M4 6h16M7 12h10M10 18h4" />
             </svg>
-            {narrowed(filters, sort, group) && (
+            {narrowed(filters, sort, group, machineChoice) && (
               <span aria-hidden="true" className="absolute right-0.5 top-0.5 size-1.5 rounded-full bg-accent" />
             )}
           </button>
         </div>
         {moreFilters && (
-        <div className="flex flex-wrap items-center gap-1" data-testid="rail-more-filters">
-          <FilterChip active={filters.chips.includes("ended")} onClick={() => toggleChip(setFilters, "ended")} count={counts.ended}>
-            Ended
-          </FilterChip>
-          <Select ariaLabel="Sort by" value={sort} onChange={(value) => setSort(value as SortMode)} options={SORT_LABELS.map((entry) => ({ value: entry.id, label: entry.label }))} />
+        <div className="flex flex-col gap-1 rounded-lg border border-hairline/60 bg-surface/40 p-1.5 [&>select]:w-full" data-testid="rail-more-filters">
+          <div className="flex items-center justify-between gap-1">
+            <FilterChip active={filters.chips.includes("ended")} onClick={() => toggleChip(setFilters, "ended")} count={counts.ended}>
+              Ended
+            </FilterChip>
+            {narrowed(filters, sort, group, machineChoice) && (
+              <button
+                type="button"
+                data-testid="rail-filters-reset"
+                onClick={() => {
+                  setFilters(NO_CHIP_FILTERS);
+                  setSort("needs");
+                  setGroup("project");
+                  if (machineChoice !== "all") chooseMachine("all");
+                }}
+                className="rounded px-1.5 py-0.5 text-[10px] text-muted underline decoration-hairline underline-offset-2 outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+              >
+                Reset
+              </button>
+            )}
+          </div>
+          <Select ariaLabel="Sort by" value={sort} onChange={(value) => setSort(value as SortMode)} options={SORT_LABELS.map((entry) => ({ value: entry.id, label: `Sort: ${entry.label}` }))} />
           <Select ariaLabel="Group by" value={group} onChange={(value) => setGroup(value as GroupBy)} options={GROUP_LABELS.map((entry) => ({ value: entry.id, label: `Group: ${entry.label}` }))} />
           <Select
             ariaLabel="Filter by provider"
@@ -672,9 +690,7 @@ function BoardRow({
   selected,
   onSelect,
   density,
-  // Stale captions live in the session view now (D-25); the prop stays
-  // for the board's callers.
-  freshness: _freshness,
+  freshness,
   now,
   snooze,
   onContextMenu,
@@ -696,7 +712,7 @@ function BoardRow({
           {caption}
         </span>
       )}
-      <RailRow session={row} selected={selected} onSelect={onSelect} density={density} now={now} />
+      <RailRow session={row} selected={selected} onSelect={onSelect} density={density} now={now} freshness={freshness} />
       {/* I-03: a model that drifted from its launch settings is worth a
           glance (cost and behaviour differ) — beside the row, focusable. */}
       {modelDrift(row) && (
@@ -764,22 +780,38 @@ export function RailRow({
   onSelect,
   density,
   now,
+  freshness = {},
 }: {
   session: InstanceInfo;
   selected: boolean;
   onSelect: (id: string) => void;
   density: "comfortable" | "compact";
   now: number;
+  freshness?: Freshness;
 }) {
   const chip = stateChip(session.status);
-  const folder = session.cwd.replace(/\/+$/, "").split("/").pop() || session.cwd;
+  // Never crash on a missing folder (it names the row only as a fallback).
+  const cwd = session.cwd ?? "";
+  const folder = cwd.replace(/\/+$/, "").split("/").pop() || cwd || session.account_label;
   const title = session.git_branch ?? folder;
   const ended = ["finished", "stopped", "handed_over"].includes(session.status);
   const since = ended ? (session.last_activity_ms ?? session.started_at_ms) : (session.attention?.since_ms ?? session.started_at_ms);
-  const state = RAIL_STATE[session.status] ?? chip.label;
+  const parked = parkedWords(session, now);
+  const state = parked ? parked.chip : (RAIL_STATE[session.status] ?? chip.label);
   const left = session.quota ? Math.round(100 - session.quota.used_percentage) : null;
   const low = left !== null && left <= 25 ? `${Math.max(0, left)}% left` : null;
   const when = ended ? `${ago(since, now)} ago` : ago(since, now);
+  // D-25: the row stays calm — these markers appear only when they are
+  // the exception worth a glance (a sign-in to check, uncommitted work,
+  // a value that stopped updating); the session view has the rest.
+  const identity = identityWords(session);
+  const identityMark = identity && identity.state !== "verified" ? identity : null;
+  const dirty = session.git_dirty_count ? `${session.git_dirty_count} changed` : null;
+  const sampled = freshness[session.id];
+  const stale = sampled && isActiveStatus(session.status)
+    ? ((session.quota !== null ? staleCaption(sampled.quota, REFRESH_INTERVALS.quota, now) : null) ??
+      (session.cpu_pct !== null ? staleCaption(sampled.resources, REFRESH_INTERVALS.resources, now) : null))
+    : null;
   const Icon = chip.Icon;
   return (
     <button
@@ -801,12 +833,36 @@ export function RailRow({
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="flex min-w-0 items-baseline gap-1.5">
           <span className="min-w-0 truncate text-[12.5px] font-medium text-ink">{title}</span>
-          {density === "compact" && <span className="shrink-0 font-mono text-[10px] text-faint">{when}</span>}
+          {session.kind === "desktop" && (
+            <span title="Runs in the Claude desktop app" data-testid="rail-app-chip" className="shrink-0 text-[9.5px] font-medium uppercase tracking-wide text-accent-hi">
+              app
+            </span>
+          )}
+          {density === "compact" && <span className="ml-auto shrink-0 font-mono text-[10px] text-faint">{when}</span>}
         </span>
         {density === "comfortable" && (
-          <span className={"truncate text-[11px] " + (chip.tone === "warning" || chip.tone === "danger" ? minimalGlyphTone(chip.tone) : "text-faint")}>
-            {state} · {when}
-            {low && <span className="text-warning"> · {low}</span>}
+          <span className="flex min-w-0 items-center gap-1 overflow-hidden text-[11px] text-faint">
+            <span
+              title={parked ? parked.long : attentionTooltip(session)}
+              data-testid={parked ? "rail-parked" : undefined}
+              className={"shrink-0 whitespace-nowrap " + (parked ? "text-ink" : chip.tone === "warning" || chip.tone === "danger" ? minimalGlyphTone(chip.tone) : "")}
+            >
+              {state}
+            </span>
+            {low && <span className="shrink-0 whitespace-nowrap text-warning">· {low}</span>}
+            {dirty && (
+              <span title={gitWords(session)} data-testid="git-badge" className="shrink-0 whitespace-nowrap">
+                · {dirty}
+              </span>
+            )}
+            {identityMark && (
+              <span title={identityMark.text} aria-label={identityMark.text} data-testid="rail-identity" data-state={identityMark.state} className="min-w-0 truncate">
+                · {identityMark.state === "signed_out" ? "not signed in" : identityMark.state === "first_seen" ? "first sign-in" : "identity unchecked"}
+              </span>
+            )}
+            <StaleChip caption={stale} />
+            {/* The time yields first: the notes above matter more. */}
+            <span className="min-w-0 truncate">· {when}</span>
           </span>
         )}
         <span className="sr-only">
@@ -947,7 +1003,7 @@ function Select({ ariaLabel, value, onChange, options }: { ariaLabel: string; va
       aria-label={ariaLabel}
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      className="max-w-full truncate rounded-lg border border-hairline bg-surface/70 px-1.5 py-1 text-[10px] text-muted outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
+      className="min-w-0 max-w-full truncate rounded-lg border border-hairline bg-surface/70 px-1.5 py-1 text-[10px] text-muted outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
     >
       {options.map((option) => (
         <option key={option.value} value={option.value}>
@@ -959,8 +1015,9 @@ function Select({ ariaLabel, value, onChange, options }: { ariaLabel: string; va
 }
 
 /** Whether anything behind Filters narrows or reorders the list. */
-function narrowed(filters: ChipFilters, sort: SortMode, group: GroupBy): boolean {
+function narrowed(filters: ChipFilters, sort: SortMode, group: GroupBy, machine: string): boolean {
   return (
+    machine !== "all" ||
     filters.chips.includes("ended") ||
     filters.provider !== null ||
     filters.account !== null ||

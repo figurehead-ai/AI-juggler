@@ -185,7 +185,8 @@ test("the webview paints the rail at scale in under 2.5 s", async ({ browser }) 
     const context = await browser.newContext();
     const page = await context.newPage();
     await open(page);
-    await expect(page.getByRole("button", { name: /^project-00/ })).toBeVisible();
+    // The rail's first project header (Home also lists recent sessions).
+    await expect(page.getByTestId("rail-project").filter({ hasText: /^project-00/ }).first()).toBeVisible();
     runs.push(await page.evaluate(() => performance.now()));
     await context.close();
   }

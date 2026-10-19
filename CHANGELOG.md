@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- A calmer app, rebuilt around what you need first (decision D-25). The
+  top bar is Home, Accounts, History and Settings; Triage, Overview, Usage,
+  Fleet and Cleanup are under More, and Cleanup and Fleet show up by
+  themselves when they have something for you. The rail is one list of
+  your projects and their sessions: search, Needs you · Running · All,
+  and the rest behind a Filters button that says when one is on. A row
+  shows its state in words and adds a note only when it matters (low
+  quota, parked, uncommitted files, a sign-in to check, a stale value).
+- Home answers "what needs me?": sessions that need you, what's running,
+  each account's runway, and where you left off.
+- The session view opens on a short summary; everything else is under
+  Details. Announcements say what happened ("waiting for your reply"),
+  not rule codes.
+- List density moved to Settings › Appearance, with each choice
+  described.
+- First run, when there are no accounts yet: what's already on this Mac
+  (Claude Code in the terminal and the Claude desktop app's profiles),
+  brought in as copies with one button; a sign-in list with "Sign in to
+  all"; then the computer access this OS needs (macOS: Accessibility and
+  Automation, Screen Recording), each with why, its live status and Allow.
+
 - The project moved to its public home,
   [figurehead-ai/AI-juggler](https://github.com/figurehead-ai/AI-juggler),
   as a clean snapshot. Issue and PR numbers mentioned in earlier docs
@@ -23,6 +44,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tests pass unchanged).
 
 ### Fixed
+
+- The More menu opened underneath the page, so only its first item
+  could be clicked; it now paints above everything and closes on Escape
+  or a click elsewhere.
 
 - Screen readers and voice control: buttons are now named by the words they
   show (WCAG 2.5.3). Instance rows, filter chips, project tiles, remote rows

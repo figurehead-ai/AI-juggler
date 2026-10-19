@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Card, Chip, QuotaBar, QuotaRing, StatCard } from "./components/primitives";
 import { SessionCard, WorkflowRail, type Freshness } from "./components/WorkflowRail";
 import { GoToPalette } from "./components/GoToPalette";
@@ -224,6 +224,23 @@ export default function App() {
   const [selection, setSelection] = useState<Selection>({ kind: "none" });
   const [global, setGlobal] = useState<GlobalId | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement | null>(null);
+  // The More menu closes on a click elsewhere or Escape, like any menu.
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onDown = (event: MouseEvent) => {
+      if (moreRef.current && !moreRef.current.contains(event.target as Node)) setMoreOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMoreOpen(false);
+    };
+    window.addEventListener("mousedown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("mousedown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [moreOpen]);
   // D-25: Cleanup and Fleet surface only when they're relevant.
   const [cleanupCount, setCleanupCount] = useState(0);
   const [pairedCount, setPairedCount] = useState(0);
@@ -788,7 +805,7 @@ export default function App() {
           // menus wrap onto a second row instead of being clipped. The
           // title has a zero basis, so it truncates first and a wide
           // window keeps the single row.
-          className="flex min-h-14 shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-hairline bg-surface/50 px-5 py-2 backdrop-blur-xl"
+          className="relative z-30 flex min-h-14 shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-hairline bg-surface/50 px-5 py-2 backdrop-blur-xl"
         >
           <div className="flex min-w-0 flex-1 basis-0 items-center gap-3">
             <h1 className="min-w-0 truncate text-sm font-semibold capitalize tracking-wide">{contextTitle}</h1>
@@ -852,7 +869,7 @@ export default function App() {
                   {cleanupCount === 1 ? "1 thing to clean up" : `${cleanupCount} things to clean up`}
                 </button>
               )}
-              <div className="relative">
+              <div className="relative" ref={moreRef}>
                 <button
                   type="button"
                   aria-expanded={moreOpen}

@@ -403,3 +403,14 @@ export async function goTo(page: import("@playwright/test").Page, name: string):
   await main.getByRole("button", { name: "More", exact: true }).click();
   await page.locator("#nav-more").getByRole("button", { name: new RegExp(`^${name}\\b`) }).click();
 }
+
+/**
+ * D-25: the rail's sort, group and per-field filters sit behind its
+ * Filters button; open it (once) before using them.
+ */
+export async function openFilters(page: import("@playwright/test").Page): Promise<void> {
+  const more = page.getByTestId("rail-more-filters");
+  if (await more.isVisible()) return;
+  await page.getByRole("button", { name: /^Filters/ }).click();
+  await more.waitFor();
+}

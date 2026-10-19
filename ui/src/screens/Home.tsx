@@ -15,6 +15,7 @@
 import { useEffect, useMemo, useState, type JSX } from "react";
 import { Button } from "../components/primitives";
 import { hueOf } from "../components/indicator";
+import { MorningSummary } from "../components/MorningSummary";
 import { quotaDisplayAll, type AccountInfo, type InstanceInfo, type ProjectInfo, type QuotaDisplayData, type WindowDisplay } from "../lib/bridge";
 
 const NEEDS = ["waiting_user", "stuck", "quota_blocked", "failed"] as const;
@@ -59,14 +60,41 @@ const NEED_GLYPH: Record<Need, { glyph: string; tone: string; tint: string }> = 
 /** A session's place: project name (or folder) and branch. */
 export function placeOf(session: InstanceInfo, projects: ProjectInfo[]): { title: string; detail: string } {
   const project = projects.find((p) => p.id === session.project_id);
-  const folder = session.cwd.replace(/\/+$/, "").split("/").pop() || session.cwd;
+  const cwd = session.cwd ?? "";
+  const folder = cwd.replace(/\/+$/, "").split("/").pop() || cwd || session.account_label;
   const title = project?.name ?? folder;
   const detail = [session.git_branch, session.account_label].filter(Boolean).join(" · ");
   return { title, detail };
 }
 
 /** Runway for one Account: % left of the tighter measured window. */
-export function runwayOf(display: QuotaDisplayData | undefined): {
+export function runwayOf(
+  display: QuotaDisplayData | undefined,
+  sessions: InstanceInfo[] = [],
+): {
+  left: number | null;
+  words: string;
+  resets: string | null;
+} {
+  const fromAccount = accountRunway(display);
+  if (fromAccount.left !== null) return fromAccount;
+  // No account-level reading yet: a session's own quota line is still a
+  // real reading (the newest one wins), never a guess.
+  const reading = sessions
+    .filter((s) => s.quota !== null)
+    .sort((a, b) => (b.last_activity_ms ?? b.started_at_ms) - (a.last_activity_ms ?? a.started_at_ms))[0]?.quota;
+  if (!reading) return fromAccount;
+  const left = Math.max(0, Math.round(100 - reading.used_percentage));
+  return {
+    left,
+    words: `${left}% left, from its latest session`,
+    resets: reading.resets_at_ms
+      ? `Resets ${new Date(reading.resets_at_ms).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" })}`
+      : null,
+  };
+}
+
+function accountRunway(display: QuotaDisplayData | undefined): {
   left: number | null;
   words: string;
   resets: string | null;
@@ -143,7 +171,10 @@ export function HomeScreen({
     .filter((s) => ENDED.includes(s.status))
     .sort((a, b) => (b.last_activity_ms ?? b.started_at_ms) - (a.last_activity_ms ?? a.started_at_ms))
     .slice(0, 3);
-  const runway = accounts.map((account) => ({ account, ...runwayOf(quota.find((q) => q.account === account.id)) }));
+  const runway = accounts.map((account) => ({
+    account,
+    ...runwayOf(quota.find((q) => q.account === account.id), sessions.filter((s) => s.account_id === account.id)),
+  }));
   const best = runway.filter((r) => r.left !== null).sort((a, b) => (b.left ?? 0) - (a.left ?? 0))[0];
   const low = runway.find((r) => r.left !== null && r.left <= 25);
 
@@ -171,7 +202,7 @@ export function HomeScreen({
           : "All clear";
   const subline = [
     running.length > 0 ? `${running.length} running` : null,
-    low ? `${low.account.label} is at ${low.left}% — start new work on ${best && best.account.id !== low.account.id ? best.account.label : "another account"}` : best ? `Most runway: ${best.account.label}` : null,
+    low ? `${low.account.label} has ${low.left}% left — start new work on ${best && best.account.id !== low.account.id ? best.account.label : "another account"}` : best ? `Most runway: ${best.account.label}` : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -182,6 +213,9 @@ export function HomeScreen({
         <h1 className="text-2xl font-semibold tracking-tight">{headline}</h1>
         {subline && <p className="text-sm text-muted">{subline}</p>}
       </header>
+
+      {/* AJ-E1006: what changed while you were away — only when something did. */}
+      <MorningSummary onOpenSession={onOpenSession} />
 
       {sessions.length === 0 && (
         <section className="flex flex-col items-start gap-3 rounded-2xl border border-hairline bg-surface p-6" data-testid="home-first-session">
@@ -204,11 +238,11 @@ export function HomeScreen({
                   const glyph = NEED_GLYPH[need];
                   const place = placeOf(session, projects);
                   return (
-                    <li key={session.id} className="flex items-center gap-3.5 rounded-xl border border-hairline bg-surface px-4 py-3.5">
+                    <li key={session.id} className="flex flex-wrap items-center gap-x-3.5 gap-y-2 rounded-xl border border-hairline bg-surface px-4 py-3.5">
                       <span aria-hidden="true" className={`flex size-8 shrink-0 items-center justify-center rounded-lg font-bold ${glyph.tint} ${glyph.tone}`}>
                         {glyph.glyph}
                       </span>
-                      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span className="flex min-w-0 flex-1 basis-40 flex-col gap-0.5">
                         <span className="text-[15px] font-medium text-ink">{words.what}</span>
                         <span className="truncate text-xs text-muted">
                           {place.title}
@@ -216,9 +250,9 @@ export function HomeScreen({
                           {` · ${minutes(session.attention?.since_ms ?? session.last_activity_ms ?? session.started_at_ms, now)}`}
                         </span>
                       </span>
-                      <Button size="sm" variant="secondary" onClick={() => onOpenSession(session.id)}>
-                        {words.action}
-                        <span className="sr-only"> — {place.title}</span>
+                      <Button size="sm" variant="secondary" className="ml-auto" onClick={() => onOpenSession(session.id)}>
+                        {words.action}{" "}
+                        <span className="sr-only">— {place.title}</span>
                       </Button>
                     </li>
                   );

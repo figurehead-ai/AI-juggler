@@ -190,7 +190,7 @@ describe("AJ-E404 Quota risk sort", () => {
     const option = [...container.querySelectorAll<HTMLOptionElement>('select[aria-label="Sort by"] option')].find(
       (option_) => option_.value === "quota",
     );
-    expect(option?.textContent).toBe("Quota risk (quota only)");
+    expect(option?.textContent).toBe("Sort: Quota risk (quota only)");
   });
 });
 

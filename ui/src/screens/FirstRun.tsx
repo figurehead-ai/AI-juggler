@@ -436,8 +436,8 @@ function SigninRow({
         {!ready && (
           <>
             <Button size="sm" variant={active ? "secondary" : "primary"} onClick={onStart}>
-              {active ? "Open again" : "Sign in"}
-              <span className="sr-only"> {entry.label}</span>
+              {active ? "Open again" : "Sign in"}{" "}
+              <span className="sr-only">{entry.label}</span>
             </Button>
             <button
               type="button"
@@ -622,8 +622,8 @@ function AccessStep({
               </span>
             ) : (
               <Button variant={entry.action === "settings" ? "secondary" : "primary"} onClick={() => allow(entry)}>
-                {entry.action === "settings" ? "Open System Settings" : "Allow"}
-                <span className="sr-only"> {entry.title}</span>
+                {entry.action === "settings" ? "Open System Settings" : "Allow"}{" "}
+                <span className="sr-only">{entry.title}</span>
               </Button>
             )}
           </li>

@@ -199,10 +199,10 @@ describe("AJ-E406 keyboard + honest empties + footers", () => {
   it("every tab footer names the field's real source (Req.5)", () => {
     const { container } = shell({ kind: "instance", id: "sess-1" });
     const footer = container.querySelector("section:not([hidden]) footer");
-    expect(footer?.textContent).toContain("source: supervisor");
+    expect(footer?.textContent).toContain("from this Mac's process monitor");
     fireEvent.click(container.querySelector("#inspector-tab-usage")!);
     const usageFooter = container.querySelector("section:not([hidden]) footer");
-    expect(usageFooter?.textContent).toContain("source: usage-engine");
+    expect(usageFooter?.textContent).toContain("from usage tracking");
   });
 
   it("switching tabs NEVER unmounts the embedded terminal (gate)", () => {
@@ -214,12 +214,10 @@ describe("AJ-E406 keyboard + honest empties + footers", () => {
     expect(container.querySelector('[data-testid="instance-terminal"]')!.closest("section")!.hasAttribute("hidden")).toBe(true);
   });
 
-  it("empty selection renders the fleet-at-a-glance summary, never a blank panel (Req.4)", () => {
+  it("empty selection renders nothing here — the work area is Home (D-25)", () => {
     const { container } = shell({ kind: "none" });
-    expect(container.querySelector('[data-testid="fleet-at-a-glance"]')).not.toBeNull();
-    expect(container.textContent).toContain("Nothing selected");
-    expect(container.textContent).toContain("By state");
-    expect(container.textContent).toContain("Lowest quota");
+    expect(container.querySelector('[data-testid="right-inspector"]')).toBeNull();
+    expect(container.textContent).toBe("");
   });
 
   it("remote-machine selections show the machine chip (Req.7)", () => {

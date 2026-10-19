@@ -56,10 +56,10 @@ async function runningAnimations(page: Page): Promise<string[]> {
 
 /** Every top-bar menu and New are on screen — not clipped away. */
 async function menusOnScreen(page: Page) {
-  for (const name of ["Triage", "Overview", "History", "Accounts", "Usage", "Fleet", "Cleanup", "Settings"]) {
+  for (const name of ["Home", "Accounts", "History", "Settings", "More"]) {
     await expect(page.getByRole("button", { name, exact: true }).first(), `${name} is off screen`).toBeInViewport({ ratio: 1 });
   }
-  await expect(page.getByRole("button", { name: /^New$/ }).first()).toBeInViewport({ ratio: 1 });
+  await expect(page.getByRole("banner").getByRole("button", { name: "New session", exact: true })).toBeInViewport({ ratio: 1 });
 }
 
 async function walk(page: Page, theme: string, label: string) {

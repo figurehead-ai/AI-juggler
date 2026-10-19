@@ -4,7 +4,8 @@
  * walked as the user meets it: what's here → bring them in → sign in →
  * computer access → Home, a screenshot per step.
  */
-import { expect, test } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
+import { expect, test, type Page } from "@playwright/test";
 import { resolve } from "node:path";
 // The journey's screenshots are evidence: the gallery's 66-first-run.
 const OUT = process.env.AIJ_JOURNEY_OUT ?? resolve(process.cwd(), "../docs/qa/evidence/_gallery/66-first-run");
@@ -50,6 +51,13 @@ const SCAN = {
   cancelled: false,
 };
 
+/** axe: no critical or serious violation on this step (AJ-E1013 gate). */
+async function axeClean(page: Page, step: string) {
+  const results = await new AxeBuilder({ page }).analyze();
+  const bad = results.violations.filter((v) => v.impact === "critical" || v.impact === "serious");
+  expect(bad.map((v) => `${v.id}: ${v.nodes[0]?.target}`), `axe on ${step}`).toEqual([]);
+}
+
 test("first run on a Mac with Claude Code already set up", async ({ page }) => {
   await page.addInitScript((scan) => {
     const w = window as unknown as Record<string, unknown>;
@@ -72,6 +80,7 @@ test("first run on a Mac with Claude Code already set up", async ({ page }) => {
   const found = page.getByTestId("first-run-found");
   await expect(found).toBeVisible();
   await page.screenshot({ path: `${OUT}/found-1280x800-dark.png` });
+  await axeClean(page, "what's here");
   await expect(found).toContainText("You already have 6 Claude Code setups on this Mac.");
   await expect(page.getByTestId("first-run-bring-in")).toHaveText("Bring in 6 accounts");
   const looked = page.getByRole("button", { name: "Where we looked" });
@@ -83,10 +92,12 @@ test("first run on a Mac with Claude Code already set up", async ({ page }) => {
   await page.screenshot({ path: `${OUT}/after-bring-in-1280x800-dark.png` });
   const next = page.getByTestId("first-run-signin");
   await expect(next).toBeVisible();
+  await axeClean(page, "sign-in");
   await page.getByTestId("first-run-signin-next").click();
   const access = page.getByTestId("first-run-access");
   await expect(access).toBeVisible();
   await page.screenshot({ path: `${OUT}/access-1280x800-dark.png` });
+  await axeClean(page, "computer access");
   await page.getByRole("button", { name: /Allow See a live preview/ }).click();
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/access-one-allowed-1280x800-dark.png` });
@@ -97,4 +108,5 @@ test("first run on a Mac with Claude Code already set up", async ({ page }) => {
   expect(await page.evaluate(() => (window as unknown as { __AIJ_TYPED__: number }).__AIJ_TYPED__)).toBe(0);
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/home-after-first-run-1280x800-dark.png` });
+  await axeClean(page, "Home");
 });

@@ -225,3 +225,18 @@
 **Visual testing**: Gallery `66-first-run` (what's here, where we looked, sign-in, access, after).
 **Research basis**: D-25 and the "AI Juggler UX vision" canvas; maintainer report 2026-10-19 (first run opened on a CLI check and missed the Claude desktop profiles).
 
+
+### AJ-E1014 Home and the one rail (D-25) | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E1013, AJ-E403, AJ-E404
+**Goal**: Opening the app answers "what needs me, what's running, how much runway is left" at a glance; everything else is one step away.
+**User story**: As a developer juggling several sessions on several subscriptions, I want one calm list of my projects and their sessions and a Home that tells me what to do next, not every field the app knows.
+**Requirements**:
+1. The top level SHALL be Home, Accounts, History and Settings; Triage, Overview, Usage, Fleet and Cleanup sit under More. Cleanup SHALL show as its own pill while it has alerts, Fleet once a peer is paired. The More menu closes on Escape or a click elsewhere and paints above the page.
+2. The rail SHALL be one list grouped by project (a project header opens the project), with search, the quick filters Needs you · Running · All, and a Filters button that holds the rest (Ended, sort, group, provider, account, machine) and says when any is on.
+3. A row SHALL show the session's state as an icon and words, its branch or folder, how long, and its account's colour; it SHALL add only the exceptions worth a glance — quota at 25 % or less, parked, uncommitted files, a sign-in to check, a value that stopped updating, a desktop-app session.
+4. Home SHALL show Needs you, Running, Runway (the tightest measured window per account; "Not measured yet" otherwise) and Pick up where you left off; with no accounts it is one plain next step.
+5. Density SHALL move to Settings › Appearance, with each choice described; Comfortable is two lines per session, Compact one.
+6. The session view SHALL lead with a short summary (state, account, model, branch, park) and keep the rest under Details; announcements and source footers use plain words, not rule codes.
+**Quality gates**: vitest for the rail, Home and the inspector; the full Playwright suite; axe 0 on the captures; visual baselines re-rendered with notes.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1014/`.
+**Visual testing**: Gallery `01-rail`, `01-rail-density`, `01-rail-sort`, `05-session-panel`, `06-inspector`, `67-home`.
+**Research basis**: D-25 and the "AI Juggler UX vision" canvas; maintainer report 2026-10-19 (Usage blank, densities identical, two similar rail tabs, inline legend, busy filters).
