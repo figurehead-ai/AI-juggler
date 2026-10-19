@@ -67,7 +67,7 @@ jobs:
             case "$ref" in
               '#'*|pull/*)
                 local n="${ref#\#}"; n="${n#pull/}"; n="${n%/head}"
-                [[ "$n" =~ ^[0-9]+$ ]] || { echo "::error::Not a pull request number: $ref"; exit 1; }
+                [[ "$n" =~ ^[0-9]+$ ]] || { echo "::error::Not a pull request number: $ref" >&2; exit 1; }
                 git fetch --quiet --no-tags origin "+refs/pull/$n/head:refs/remotes/origin/pr/$n"
                 git rev-parse --verify "origin/pr/$n^{commit}" ;;
               *)

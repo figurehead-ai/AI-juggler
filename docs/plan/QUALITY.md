@@ -85,7 +85,9 @@ There are two visual checks, and the maintainer picks per change:
   should be one the change meant to touch. An unexpected one is a
   regression to fix (or a missing core baseline to add). The report
   itself is not committed — link the workflow run from the PR, or copy
-  the few relevant triptychs into the task's evidence.
+  the few relevant triptychs into the task's evidence. A few gallery
+  states photograph a live progress counter; one of them can show as
+  changed with a tiny region (AJ-E811 manifest, Known limits).
 
 ### Performance budgets (AJ-E805)
 
