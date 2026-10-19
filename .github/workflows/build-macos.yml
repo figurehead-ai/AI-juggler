@@ -4,6 +4,11 @@
 # nightly.yml; promote.yml later points the beta and stable channels at
 # the same build. Nothing is ever rebuilt for a channel.
 #
+# The two editions build in parallel jobs, from the same commit; one
+# publish job then puts both on one release. Each app is notarized and
+# stapled, and so is its disk image, so Gatekeeper opens the download
+# without a warning, online or off.
+#
 # Fails closed: without every signing secret nothing is built. No build
 # cache is restored: a signed, notarized build starts from a clean runner
 # so nothing another workflow wrote can end up inside it.
@@ -30,12 +35,30 @@ permissions:
   contents: write
 
 jobs:
-  build-macos:
-    name: build-macos
+  edition:
+    name: build ${{ matrix.edition }}
     runs-on: macos-latest
-    timeout-minutes: 150
+    # Apple's notary service can take most of an hour for a new team's
+    # first submissions, and each edition waits for it twice (app, disk
+    # image).
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - edition: main
+            prefix: AI-Juggler
+            overlay: ""
+            label: ""
+          - edition: nightly
+            prefix: AI-Juggler-Nightly
+            overlay: crates/juggler-app/tauri.nightly.conf.json
+            label: Nightly
     env:
       VERSION: ${{ inputs.version }}
+      EDITION: ${{ matrix.edition }}
+      PREFIX: ${{ matrix.prefix }}
+      OVERLAY: ${{ matrix.overlay }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -86,20 +109,21 @@ jobs:
           corepack enable
           pnpm --dir ui install --frozen-lockfile
 
-      - name: Icons
-        # The macOS icon sets are generated from the brand PNG at build
-        # time; no generated binaries live in the repository. AI Juggler
-        # Nightly's icon carries a "Nightly" band (D-23).
+      - name: Icon
+        # Generated from the brand PNG at build time; no generated binaries
+        # live in the repository. AI Juggler Nightly's carries a "Nightly"
+        # band (D-23).
+        env:
+          LABEL: ${{ matrix.label }}
         run: |
-          swift scripts/edition_icon.swift crates/juggler-app/icons/icon.png "$RUNNER_TEMP/nightly.png" Nightly 6D28D9
-          cd crates/juggler-app
-          cargo tauri icon icons/icon.png --output "$RUNNER_TEMP/icons/main"
-          cargo tauri icon "$RUNNER_TEMP/nightly.png" --output "$RUNNER_TEMP/icons/nightly"
+          source=crates/juggler-app/icons/icon.png
+          if [ -n "$LABEL" ]; then
+            swift scripts/edition_icon.swift "$source" "$RUNNER_TEMP/edition.png" "$LABEL" 6D28D9
+            source="$RUNNER_TEMP/edition.png"
+          fi
+          cargo tauri icon "$source" --output "$RUNNER_TEMP/icons"
 
-      - name: Build, sign, notarize and verify both editions (universal)
-        # D-23: AI Juggler (promoted later to beta and stable, never
-        # rebuilt) and AI Juggler Nightly (the nightly feed), from the same
-        # commit. Each has its own bundle id, name, data and icon.
+      - name: Build, sign and notarize the app (universal)
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -113,15 +137,12 @@ jobs:
           AIJ_UPDATER_PUBKEY: ${{ vars.AIJ_UPDATER_PUBKEY }}
         run: |
           set -euo pipefail
-          bundle="$PWD/target/universal-apple-darwin/release/bundle"
-          out="$RUNNER_TEMP/assets" && mkdir -p "$out"
-          build_edition() {  # edition  overlay-json-or-empty  asset-prefix
-            local edition="$1" overlay="$2" prefix="$3" config app dmg
-            config=$(EDITION="$edition" OVERLAY="$overlay" python3 - <<'PY'
+          config=$(python3 - <<'PY'
           import json, os
-          config = json.loads(os.environ["OVERLAY"]) if os.environ["OVERLAY"] else {}
+          overlay = os.environ["OVERLAY"]
+          config = json.load(open(overlay)) if overlay else {}
           config.pop("$schema", None)
-          icons = os.environ["RUNNER_TEMP"] + "/icons/" + os.environ["EDITION"]
+          icons = os.environ["RUNNER_TEMP"] + "/icons"
           config["bundle"] = {
             "active": True,
             "targets": ["app", "dmg"],
@@ -132,29 +153,85 @@ jobs:
           config["plugins"] = {"updater": {"pubkey": os.environ["AIJ_UPDATER_PUBKEY"], "requireSignedVersion": True}}
           print(json.dumps(config))
           PY
-            )
-            rm -rf "$bundle"
-            # From the repository root, as `just app` does: that's where the
-            # Tauri CLI finds the UI project (ui/) and runs `pnpm build` in it.
-            # From crates/juggler-app it finds none and the UI build fails.
-            cargo tauri build --target universal-apple-darwin --config "$config"
-            app="$(ls -d "$bundle"/macos/*.app | head -1)"
-            dmg="$(ls "$bundle"/dmg/*.dmg | head -1)"
-            echo "::group::Verify $app"
-            codesign --verify --deep --strict --verbose=2 "$app"
-            spctl --assess --type execute --verbose=4 "$app"
-            xcrun stapler validate "$dmg"
-            echo "::endgroup::"
-            cp "$dmg" "$out/${prefix}-${VERSION}-universal.dmg"
-            cp "$(ls "$bundle"/macos/*.app.tar.gz | head -1)" "$out/${prefix}-${VERSION}-universal.app.tar.gz"
-            cp "$(ls "$bundle"/macos/*.app.tar.gz.sig | head -1)" "$out/${prefix}-${VERSION}-universal.app.tar.gz.sig"
-          }
-          build_edition main "" AI-Juggler
-          build_edition nightly "$(cat crates/juggler-app/tauri.nightly.conf.json)" AI-Juggler-Nightly
+          )
+          # From the repository root, as `just app` does: that's where the
+          # Tauri CLI finds the UI project (ui/) and runs `pnpm build` in it.
+          cargo tauri build --target universal-apple-darwin --config "$config"
 
-      - name: Assemble assets (update feeds, checksums)
+      - name: Notarize and staple the disk image
+        # Tauri notarizes and staples the app; the .dmg around it is
+        # signed but not notarized, so it gets its own ticket here.
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          out="$RUNNER_TEMP/assets"
+          set -euo pipefail
+          dmg="$(ls target/universal-apple-darwin/release/bundle/dmg/*.dmg | head -1)"
+          xcrun notarytool submit "$dmg" \
+            --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" --team-id "$APPLE_TEAM_ID" \
+            --wait --timeout 90m
+          xcrun stapler staple "$dmg"
+
+      - name: Verify the signatures, notarization and updater signature
+        run: |
+          set -euo pipefail
+          bundle=target/universal-apple-darwin/release/bundle
+          app="$(ls -d "$bundle"/macos/*.app | head -1)"
+          dmg="$(ls "$bundle"/dmg/*.dmg | head -1)"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          spctl --assess --type execute --verbose=4 "$app"
+          xcrun stapler validate "$app"
+          xcrun stapler validate "$dmg"
+          spctl --assess --type open --context context:primary-signature --verbose=4 "$dmg"
+          ls "$bundle"/macos/*.app.tar.gz "$bundle"/macos/*.app.tar.gz.sig
+
+      - name: Collect this edition's assets
+        run: |
+          bundle=target/universal-apple-darwin/release/bundle
+          out="$RUNNER_TEMP/assets" && mkdir -p "$out"
+          cp "$(ls "$bundle"/dmg/*.dmg | head -1)" "$out/${PREFIX}-${VERSION}-universal.dmg"
+          cp "$(ls "$bundle"/macos/*.app.tar.gz | head -1)" "$out/${PREFIX}-${VERSION}-universal.app.tar.gz"
+          cp "$(ls "$bundle"/macos/*.app.tar.gz.sig | head -1)" "$out/${PREFIX}-${VERSION}-universal.app.tar.gz.sig"
+          ls -l "$out"
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-${{ matrix.edition }}
+          path: ${{ runner.temp }}/assets/
+          retention-days: 7
+          if-no-files-found: error
+
+  publish:
+    name: publish
+    needs: edition
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: release-*
+          path: ${{ runner.temp }}/assets/
+          merge-multiple: true
+
+      - name: Release notes (as the build jobs wrote them)
+        env:
+          PREVIOUS: ${{ inputs.previous }}
+          REF: ${{ inputs.ref }}
+        run: |
+          if [ ! -f "docs/releases/${VERSION}.md" ]; then
+            python3 scripts/nightly_notes.py "$VERSION" "$PREVIOUS" "$REF"
+          fi
+          ./scripts/release_notes_check.sh "$VERSION"
+
+      - name: Assemble the update feeds and checksums
+        run: |
           python3 - <<PY
           import json, os, datetime
           version = os.environ["VERSION"]
@@ -175,8 +252,7 @@ jobs:
               }
               json.dump(feed, open(f"{out}/{feed_name}", "w"), indent=2)
           PY
-          cp "docs/releases/${VERSION}.md" "$RUNNER_TEMP/notes.md"
-          (cd "$out" && shasum -a 256 ./* > SHA256SUMS.txt && cat SHA256SUMS.txt)
+          (cd "$RUNNER_TEMP/assets" && sha256sum ./* > SHA256SUMS.txt && cat SHA256SUMS.txt)
 
       - name: Publish the build (pre-release; channels point at it later)
         env:
@@ -184,7 +260,8 @@ jobs:
           REF: ${{ inputs.ref }}
         run: |
           gh release create "v${VERSION}" "$RUNNER_TEMP"/assets/* \
+            --repo "${{ github.repository }}" \
             --target "$REF" \
             --prerelease \
             --title "${VERSION}" \
-            --notes-file "$RUNNER_TEMP/notes.md"
+            --notes-file "docs/releases/${VERSION}.md"
