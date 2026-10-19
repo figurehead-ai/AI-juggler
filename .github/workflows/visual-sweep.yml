@@ -32,6 +32,11 @@ on:
 permissions:
   contents: read
 
+# The Playwright container's default shell is sh.
+defaults:
+  run:
+    shell: bash
+
 concurrency:
   group: visual-sweep-${{ inputs.head || github.ref }}-${{ inputs.base }}
   cancel-in-progress: true
