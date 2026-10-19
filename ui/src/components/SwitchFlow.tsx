@@ -195,6 +195,18 @@ export function SwitchFlow({
   const [chooserPick, setChooserPick] = useState<string | null>(null);
   const [unredact, setUnredact] = useState<Set<number>>(new Set());
   const dialogRef = useRef<HTMLDivElement | null>(null);
+  // AJ-E804 (WCAG 2.4.3): cancelling returns focus to the control that
+  // opened the switch. (A completed switch hands focus to the undo
+  // toast instead.)
+  const invokerRef = useRef<Element | null>(null);
+  if (invokerRef.current === null) invokerRef.current = document.activeElement;
+  const cancel = () => {
+    const invoker = invokerRef.current;
+    onClose();
+    requestAnimationFrame(() => {
+      if (invoker instanceof HTMLElement && invoker.isConnected) invoker.focus();
+    });
+  };
 
   // Reset the redaction state when the flow opens for a new target.
   useEffect(() => {
@@ -244,7 +256,7 @@ export function SwitchFlow({
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        onClose();
+        cancel();
         return;
       }
       if (event.key === "Enter" && executeArmed) {
@@ -394,7 +406,7 @@ export function SwitchFlow({
             <div className="flex justify-end gap-2">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={cancel}
                 className="rounded-lg border border-hairline px-3 py-1.5 text-xs hover:bg-surface-2"
               >
                 Cancel <span className="text-muted">(Esc)</span>
@@ -690,7 +702,7 @@ export function SwitchFlow({
             <div className="flex justify-end">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={cancel}
                 className="rounded-lg border border-hairline px-3 py-1.5 text-xs hover:bg-surface-2"
               >
                 Close
@@ -722,6 +734,13 @@ export function SwitchUndoToast({
   onUndone: (sessionId: string) => void;
 }): JSX.Element {
   const [secondsLeft, setSecondsLeft] = useState(10);
+  // AJ-E804 (WCAG 2.4.3): the switch dialog is gone, so focus would fall
+  // to the page; the undo button takes it — only when nothing else holds
+  // focus, never stolen from elsewhere.
+  const undoRef = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    if (!document.activeElement || document.activeElement === document.body) undoRef.current?.focus();
+  }, []);
   const [state, setState] = useState<
     { kind: "counting" } | { kind: "undoing" } | { kind: "failed"; message: string }
   >({ kind: "counting" });
@@ -762,6 +781,7 @@ export function SwitchUndoToast({
           </p>
           <button
             type="button"
+            ref={undoRef}
             onClick={() => void undo()}
             data-testid="switch-undo"
             className="rounded-lg border border-accent/40 bg-accent-soft px-3 py-1.5 text-xs text-accent-hi hover:border-accent/60"

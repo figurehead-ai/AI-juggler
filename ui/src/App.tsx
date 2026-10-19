@@ -730,12 +730,18 @@ export default function App() {
         {/* Glass status bar: work context left, global oversight right */}
         <header
           data-tauri-drag-region
-          className="flex h-14 shrink-0 items-center gap-3 border-b border-hairline bg-surface/50 px-5 backdrop-blur-xl"
+          // AJ-E804 (WCAG 1.4.10): at narrow widths and 200 % zoom the
+          // menus wrap onto a second row instead of being clipped. The
+          // title has a zero basis, so it truncates first and a wide
+          // window keeps the single row.
+          className="flex min-h-14 shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-hairline bg-surface/50 px-5 py-2 backdrop-blur-xl"
         >
-          <h1 className="min-w-0 truncate text-sm font-semibold capitalize tracking-wide">{contextTitle}</h1>
-          {contextProvider && <Chip tone="accent">{contextProvider}</Chip>}
+          <div className="flex min-w-0 flex-1 basis-0 items-center gap-3">
+            <h1 className="min-w-0 truncate text-sm font-semibold capitalize tracking-wide">{contextTitle}</h1>
+            {contextProvider && <Chip tone="accent">{contextProvider}</Chip>}
+          </div>
 
-          <div className="ml-auto flex shrink-0 items-center gap-0.5 xl:gap-1.5" data-tauri-drag-region={false}>
+          <div className="ml-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-0.5 xl:gap-1.5" data-tauri-drag-region={false}>
             {/* Density segmented control (AJ-E403 Req.4). The inspector
                 and panels never change with density — only the rail. */}
             <div

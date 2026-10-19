@@ -21,7 +21,7 @@
   /* Text */
   --color-ink: #e8ecf3;
   --color-muted: #8b95a7;
-  --color-faint: #5b6474;
+  --color-faint: #848c99; /* AJ-E804: ≥ 4.5:1 on every surface (was #5b6474, 2.6–3.3:1) */
 
   /* Identity: electric violet primary, cyan for live data */
   --color-accent: #7c7cf4;
@@ -83,19 +83,19 @@ body {
 
   --color-ink: #171c26;
   --color-muted: #57607a;
-  --color-faint: #8a92a6;
+  --color-faint: #626879; /* AJ-E804: ≥ 4.5:1 on every surface (was #8a92a6, 2.6–3.1:1) */
 
-  --color-accent: #5b5bf0;
+  --color-accent: #5555e1; /* AJ-E804: ≥ 4.5:1 on surface-3 too */
   --color-accent-hi: #4646e0;
   --color-accent-soft: #5b5bf016;
-  --color-live: #0891b2;
+  --color-live: #056074; /* AJ-E804: ≥ 4.6:1 on every surface and on its own tint (was #0891b2, 3.1–3.7:1) */
   --color-live-soft: #0891b216;
 
   /* AJ-E303: darkened (from #059669) so success chips on their soft
      background clear WCAG AA in the light theme. */
   --color-success: #065f46;
   --color-success-soft: #065f461a;
-  --color-warning: #b45309;
+  --color-warning: #a94e08; /* AJ-E804: ≥ 4.5:1 on surface-3 too */
   --color-warning-soft: #b4530914;
   /* AJ-E702: darkened (from #dc2626) — danger text on its own tinted
      button/chip background was 3.6–4.3:1 in the light theme; #b91c1c
@@ -155,7 +155,8 @@ body {
 .acct-disc {
   background: hsl(var(--acct-hue, 255) 55% 55% / 0.2);
   border: 1px solid hsl(var(--acct-hue, 255) 55% 60% / 0.45);
-  color: hsl(var(--acct-hue, 255) 75% 74%);
+  /* AJ-E804: lightness chosen for the worst hue — ≥ 5.4:1 over all 360. */
+  color: hsl(var(--acct-hue, 255) 75% 78%);
 }
 /*
  * I-10 attention count badge (AJ-E404): amber is semantic, the TEXT is
@@ -172,7 +173,8 @@ body {
 [data-theme="light"] .acct-disc {
   background: hsl(var(--acct-hue, 255) 55% 42% / 0.12);
   border: 1px solid hsl(var(--acct-hue, 255) 50% 38% / 0.4);
-  color: hsl(var(--acct-hue, 255) 60% 30%);
+  /* AJ-E804: was 3.4:1 for yellow/green hues; ≥ 4.8:1 over all 360. */
+  color: hsl(var(--acct-hue, 255) 60% 24%);
 }
 
 /* Numerals with a quiet violet→ink gradient: modern without noise. */
@@ -245,4 +247,18 @@ main::-webkit-scrollbar-track {
   .dot-live, .animate-breathe {
     animation: none !important;
   }
+}
+
+/*
+ * AJ-E804 — WCAG 2.2 2.5.8 target size. Native radios and checkboxes
+ * render at 13 px; 16 px with a 5 px margin keeps every control's 24 px
+ * safe circle clear of its neighbours (centres ≥ 26 px apart), whatever
+ * list it sits in. Unlayered, so it wins over size utilities.
+ */
+input[type="radio"],
+input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 5px;
+  flex-shrink: 0;
 }

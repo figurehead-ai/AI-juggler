@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
@@ -12,6 +12,28 @@ import {
 } from "../lib/bridge";
 
 const SCROLLBACK_LINES = 5_000;
+
+const TABBABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/**
+ * AJ-E804 (WCAG 2.1.2, no keyboard trap): Tab and Shift+Tab belong to the
+ * shell — completion, and the agent's own mode cycling — so Ctrl+Tab /
+ * Ctrl+Shift+Tab leave the terminal instead. Terminals send no sequence
+ * for Ctrl+Tab, so no CLI loses a key. Moves focus to the next (or
+ * previous) focusable element outside `host`.
+ */
+function leaveTerminal(host: HTMLElement, backwards: boolean) {
+  const all = Array.from(document.querySelectorAll<HTMLElement>(TABBABLE)).filter(
+    (el) => el.offsetParent !== null || el === document.activeElement,
+  );
+  const outside = all.filter((el) => !host.contains(el));
+  const firstInside = all.findIndex((el) => host.contains(el));
+  const before = all.slice(0, Math.max(0, firstInside)).filter((el) => !host.contains(el));
+  const after = all.slice(firstInside).filter((el) => !host.contains(el));
+  const target = backwards ? (before.at(-1) ?? outside.at(-1)) : (after[0] ?? outside[0]);
+  target?.focus();
+}
 
 function decodeBase64(data: string): Uint8Array {
   const binary = atob(data);
@@ -30,6 +52,7 @@ export function TerminalView({ id, title }: { id: string; title: string }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
+  const hintId = useId();
 
   useEffect(() => {
     const host = hostRef.current;
@@ -51,6 +74,17 @@ export function TerminalView({ id, title }: { id: string; title: string }) {
     const fit = new FitAddon();
     term.loadAddon(fit);
     term.open(host);
+    term.attachCustomKeyEventHandler((event) => {
+      if (event.key === "Tab" && event.ctrlKey) {
+        if (event.type === "keydown") {
+          event.preventDefault();
+          leaveTerminal(host, event.shiftKey);
+        }
+        return false;
+      }
+      return true;
+    });
+    term.textarea?.setAttribute("aria-describedby", hintId);
     termRef.current = term;
     fitRef.current = fit;
 
@@ -104,7 +138,7 @@ export function TerminalView({ id, title }: { id: string; title: string }) {
       term.dispose();
       termRef.current = null;
     };
-  }, [id, title]);
+  }, [id, title, hintId]);
 
   useEffect(() => {
     if (!hasLiveBackend()) return;
@@ -112,5 +146,17 @@ export function TerminalView({ id, title }: { id: string; title: string }) {
     return off;
   }, [id]);
 
-  return <div ref={hostRef} className="h-full w-full px-3 pt-2" data-terminal-host={id} />;
+  return (
+    <div className="group/term relative h-full w-full">
+      <div ref={hostRef} className="h-full w-full px-3 pt-2" data-terminal-host={id} />
+      {/* Shown only while the terminal has focus; always read with it. */}
+      <p
+        id={hintId}
+        className="pointer-events-none absolute bottom-1 right-2 rounded bg-surface-3 px-1.5 py-0.5 text-[10px] text-muted opacity-0 group-focus-within/term:opacity-100"
+        data-testid="terminal-leave-hint"
+      >
+        ⌃Tab leaves the terminal
+      </p>
+    </div>
+  );
 }

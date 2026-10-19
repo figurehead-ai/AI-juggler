@@ -74,7 +74,7 @@
 **Research basis**: deep/11 §8 state matrix; WCAG 2.2 1.4.1; E802 harness contract; decision-log D-04 (validation is mandatory, not optional).
 **Handover note**: Trap: raising thresholds to make a red build green is a quality-gate change requiring maintainer approval recorded in the PR, never a silent config tweak.
 
-### AJ-E804 Accessibility verification programme | Status: TODO | Priority P0 | Effort M | Depends: AJ-E802
+### AJ-E804 Accessibility verification programme | Status: IN-PROGRESS (automated gate evidenced; the per-release VoiceOver pass is a maintainer step) | Priority P0 | Effort M | Depends: AJ-E802
 **Goal**: Make WCAG 2.2 AA a repeatable proof, not a claim, for every shipped screen.
 **User story**: As a keyboard/screen-reader user running parallel agents, I want focus order, labels and announcements verified so supervision does not require a mouse or perfect vision.
 **Requirements**:

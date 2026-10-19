@@ -41,7 +41,7 @@ export function RankedRows({
         <button
           type="button"
           aria-expanded={whyOpen}
-          className="text-[11px] underline focus:outline-none focus:ring-2 focus:ring-accent"
+          className="py-1 text-[11px] underline focus:outline-none focus:ring-2 focus:ring-accent"
           onClick={() => setWhyOpen((open) => !open)}
         >
           Why this order?

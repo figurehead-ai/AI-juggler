@@ -9,13 +9,13 @@
  *
  * Run: pnpm --dir ui visual:capture   (writes docs/qa/evidence/_gallery/)
  */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./axe-gallery";
 import { mkdirSync, writeFileSync, existsSync, appendFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 // Playwright runs with cwd = config dir (ui/).
 const GALLERY_ROOT = resolve(process.cwd(), "../docs/qa/evidence/_gallery");
-import { allStatuses, answerPolicy, honestEmpty, readyHome } from "./fixtures";
+import { allStatuses, answerPolicy, cleanupFixture, honestEmpty, readyHome } from "./fixtures";
 
 const GALLERY = GALLERY_ROOT;
 const NOT_CAPTURETED = resolve(GALLERY, "not-captured.md");
@@ -1152,81 +1152,6 @@ for (const theme of THEMES) {
 // AJ-E506 Cleanup Centre captures: six states (needs-attention with
 // orphan+hog+collision, all-managed, re-adopted, unverifiable,
 // empty-success, ledger-degraded) × themes × sizes.
-const CLEANUP_ROW = (pid: number, state: string) => ({
-  pid,
-  pgid: 8100,
-  role: "helper",
-  state,
-  state_label:
-    state === "orphaned"
-      ? "Still running after its Instance closed"
-      : state === "adopted"
-        ? "Running — re-adopted"
-        : state === "unverifiable"
-          ? "Unverifiable — will not be touched"
-          : "Running",
-  role_guess: "python3 (guess)",
-  exe_path: "/usr/bin/python3",
-  cmdline: "python3 -m http.server 5173",
-  age_ms: 9_000_000,
-  rss_bytes: 48 * 1024 * 1024,
-  cpu_pct: 1.4,
-  ports: state === "orphaned" ? "5173" : null,
-  hog: pid === 8124,
-  hog_rules: pid === 8124 ? ["tree-rss>p95(provider)"] : [],
-  evidence: {
-    root_pid: 8100,
-    parent_pid: 8100,
-    pgid: 8100,
-    escaped_group: false,
-    verification: {
-      verdict: state === "unverifiable" ? "unverifiable" : "verified",
-      detail:
-        state === "unverifiable"
-          ? "live start-time or exe differs from the record"
-          : "start-time and exe match the live process",
-    },
-    first_seen: T0,
-    last_seen: T0 + 90_000,
-  },
-});
-
-function cleanupFixture(state: string) {
-  if (state === "empty") {
-    return { groups: [], clean_instances: 3, ledger_degraded: false };
-  }
-  if (state === "degraded") {
-    return { groups: [], clean_instances: 0, ledger_degraded: true };
-  }
-  // The FILTER states map to row states: needs-attention shows the
-  // orphan + the hog; re-adopted shows the adopted row; unverifiable
-  // shows the flagged one; all-managed shows the mix.
-  const firstState =
-    state === "needs-attention"
-      ? "orphaned"
-      : state === "re-adopted"
-        ? "adopted"
-        : "running";
-  const rows = [
-    CLEANUP_ROW(8123, firstState),
-    CLEANUP_ROW(8124, state === "unverifiable" ? "unverifiable" : "running"),
-  ];
-  return {
-    groups: [
-      {
-        session: "s-1",
-        provider: "claude-code",
-        account: "Work Max",
-        project: "web",
-        machine: "machine-local",
-        healthy: false,
-        rows,
-      },
-    ],
-    clean_instances: 2,
-    ledger_degraded: false,
-  };
-}
 
 for (const state of ["needs-attention", "all-managed", "re-adopted", "unverifiable", "empty", "degraded"]) {
   for (const theme of THEMES) {

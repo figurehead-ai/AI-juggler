@@ -77,7 +77,7 @@ export function CostMatrix(): JSX.Element {
           No usage recorded yet. Costs appear here as your Instances run.
         </p>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Cost table">
           <table className="w-full border-collapse text-xs">
             <caption className="sr-only">Cost per session, model, and day</caption>
             <thead>

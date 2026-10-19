@@ -62,7 +62,7 @@ export function BetaMatrix(): JSX.Element {
           AND one live dogfood cell passed on real binaries.
         </p>
       </div>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Provider pair matrix">
         <table className="w-full text-left text-[11px]" data-testid="beta-matrix-table">
           <thead>
             <tr className="border-b border-hairline text-muted">
