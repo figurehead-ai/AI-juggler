@@ -133,3 +133,11 @@
   also runs while a failing test unwinds. After the collateral and
   guardrail suites: zero `trap_helper.py` processes left. No assertion
   changed.
+- A flaky test of my own, fixed before merge (2026-10-18, found by a
+  verify run): `juggler-stats :: cycle::tests::leaving_share_skips_pending_reports`
+  (and two others with the same shape) assembled a week an hour after
+  it closed. The report's upload time is random in the 144 hours after
+  close, so about 0.7 % of runs found it already due and fetched the
+  config, failing "no requests". The tests now assemble at the moment
+  the week closes, where the upload can't yet be due; no assertion
+  changed.
