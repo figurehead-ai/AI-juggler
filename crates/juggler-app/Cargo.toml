@@ -17,7 +17,7 @@ stats = ["dep:juggler-stats", "dep:thread-priority"]
 workspace = true
 
 [dependencies]
-base64 = "0.22"
+base64 = "0.23"
 dirs = "7.0.0"
 flate2 = "1.1"
 juggler-adapter = { version = "0.0.1", path = "../juggler-adapter" }
