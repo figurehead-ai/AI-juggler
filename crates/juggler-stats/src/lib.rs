@@ -11,16 +11,26 @@
 //!   `stats/counters.sqlite` every 30 s and on [`shutdown`].
 //! - **Off means gone.** [`delete_all`] removes the whole folder.
 //!
-//! Weekly assembly and upload are AJ-E1104.
+//! - **One report a week.** [`cycle::tick`] closes ISO weeks into
+//!   reports and uploads at most one due report per tick (AJ-E1104).
 
 #![cfg_attr(
     test,
-    allow(clippy::pedantic, clippy::unwrap_used, clippy::expect_used)
+    allow(
+        clippy::pedantic,
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::panic
+    )
 )]
 
 pub mod buckets;
+pub mod config;
+pub mod cycle;
 mod generated;
 pub mod mode;
+pub mod pow;
+pub mod report;
 pub mod store;
 pub mod week;
 
@@ -56,19 +66,10 @@ enum Message {
     Stop,
 }
 
-/// Dimensions as the store keys them: a JSON object in schema order.
-fn dims_key(dims: &[(&str, &str)]) -> String {
-    let mut out = String::from("{");
-    for (i, (name, value)) in dims.iter().enumerate() {
-        if i > 0 {
-            out.push(',');
-        }
-        out.push_str(&serde_json::Value::from(*name).to_string());
-        out.push(':');
-        out.push_str(&serde_json::Value::from(*value).to_string());
-    }
-    out.push('}');
-    out
+/// Dimensions as the store keys them: canonical JSON, keys sorted.
+pub(crate) fn dims_key(dims: &[(&str, &str)]) -> String {
+    let map: BTreeMap<&str, &str> = dims.iter().copied().collect();
+    serde_json::to_string(&map).unwrap_or_else(|_| "{}".to_owned())
 }
 
 /// The UTC date of `at_ms` (`2026-10-18`).
@@ -389,6 +390,20 @@ pub fn shutdown() {
     if let Some(stats) = stats {
         stats.stop();
     }
+}
+
+/// Records a change of the effective mode at once (so a gap in sharing,
+/// however short, makes that week `partial_consent`). Creates nothing in
+/// `off`.
+///
+/// # Errors
+///
+/// Returns [`StoreError`] on storage failures.
+pub fn note_mode(dir: &Path, effective: EffectiveMode) -> Result<(), StoreError> {
+    if effective.mode == Mode::Off {
+        return Ok(());
+    }
+    cycle::observe_mode(&Store::open(dir)?, effective, now_ms())
 }
 
 /// Turns stats off: stops the recorder and deletes the whole `dir`

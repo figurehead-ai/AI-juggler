@@ -20,6 +20,8 @@ sha2 = "0.11"
 thiserror = "2"
 
 [dev-dependencies]
+# The flush budget is measured as thread CPU time.
+cpu-time = "1"
 # The parity test compares in schema order.
 serde_json = { version = "1", features = ["preserve_order"] }
 tempfile = "3.27.0"

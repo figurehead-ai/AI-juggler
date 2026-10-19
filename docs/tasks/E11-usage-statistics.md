@@ -70,7 +70,7 @@
 **Research basis**: spec §7.
 **Handover note**: An event that would need free text is a schema change — ask the maintainer; never widen a type.
 
-### AJ-E1104 Weekly assembly, sampling, config, upload and backoff | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1102
+### AJ-E1104 Weekly assembly, sampling, config, upload and backoff | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E1102
 **Goal**: Turn a closed ISO week (UTC) into one validated report and upload it later, at a random time, only when the user shares and the service accepts.
 **User story**: As a sharing user, one small report a week leaves my Mac, and I can read it first.
 **Requirements**:
@@ -86,7 +86,7 @@
 **Visual testing**: none (AJ-E1105).
 **Files to touch**: `crates/juggler-stats/src/` (week, report, upload), `crates/juggler-app/src/` (tick).
 **Research basis**: spec §5–§6.
-**Handover note**: Production collection is switched off until launch, so `503` with `Retry-After` is the normal answer today.
+**Handover note**: Production collection is switched off until launch: the config says `"enabled": false`, so a sharing user's reports are filed under `skipped/` as `server_disabled`, and a direct upload gets `503` with `Retry-After` (handled too). Test against the local stats server as the website's usage-stats prompt describes, never production.
 
 ### AJ-E1105 Consent in onboarding and Settings ▸ Privacy | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1102
 **Goal**: Ask once, fairly, and let the user see and control everything afterwards.
@@ -137,7 +137,7 @@
 **Research basis**: spec §10.
 **Handover note**: Needs a signed, notarized build to verify minidumps — that is the maintainer's step (AJ-E1010).
 
-### AJ-E1108 Puzzle solver and the user agent | Status: TODO | Priority P1 | Effort S | Depends: AJ-E1104
+### AJ-E1108 Puzzle solver and the user agent | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: AJ-E1104
 **Goal**: Keep honest uploads working when the service asks for a proof of work, at no cost the rest of the time.
 **User story**: As a sharing user, my reports keep arriving even when the service is protecting itself.
 **Requirements**:

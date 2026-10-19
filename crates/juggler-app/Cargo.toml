@@ -11,7 +11,7 @@ repository.workspace = true
 default = ["stats"]
 # Usage statistics (D-19). Without it the crate is not in the binary and
 # Settings shows "not included in this build".
-stats = ["dep:juggler-stats"]
+stats = ["dep:juggler-stats", "dep:thread-priority"]
 
 [lints]
 workspace = true
@@ -28,6 +28,8 @@ juggler-handover = { version = "0.0.1", path = "../juggler-handover" }
 juggler-link = { version = "0.0.1", path = "../juggler-link" }
 # AJ-E1102: opt-in usage statistics; leave it out with --no-default-features.
 juggler-stats = { version = "0.0.1", path = "../juggler-stats", optional = true }
+# AJ-E1108: the usage-stats tick (and any puzzle it solves) runs at low priority.
+thread-priority = { version = "3.1.1", optional = true }
 juggler-supervisor = { version = "0.0.1", path = "../juggler-supervisor" }
 getrandom = "0.3"
 prost = "0.14"

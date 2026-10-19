@@ -77,6 +77,11 @@ opt-level = 3
 [profile.dev.package.juggler-account]
 opt-level = 3
 
+# AJ-E1102/E1104: the stats store's flush and assembly budgets hold in debug
+# builds too (SQLite is otherwise compiled at -O0).
+[profile.dev.package.libsqlite3-sys]
+opt-level = 3
+
 # AJ-E1102: record() must stay under 1 µs in debug builds too.
 [profile.dev.package.juggler-stats]
 opt-level = 3

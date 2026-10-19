@@ -57,6 +57,10 @@ impl Store {
         }
         let conn = Connection::open(dir.join("counters.sqlite"))?;
         conn.pragma_update(None, "journal_mode", "WAL")?;
+        // WAL keeps the store consistent at NORMAL; counters don't need an
+        // fsync per flush.
+        conn.pragma_update(None, "synchronous", "NORMAL")?;
+        conn.busy_timeout(std::time::Duration::from_secs(2))?;
         conn.execute_batch(SCHEMA)?;
         let store = Self {
             dir: dir.to_path_buf(),
@@ -106,11 +110,12 @@ impl Store {
     /// Returns [`StoreError`] on SQLite failures.
     pub fn add(&self, week: &str, metric: &str, dims: &str, by: u64) -> Result<(), StoreError> {
         let by = i64::try_from(by).unwrap_or(i64::MAX);
-        self.conn.execute(
-            "INSERT INTO counters (week, metric, dims, value) VALUES (?1, ?2, ?3, ?4)
-             ON CONFLICT(week, metric, dims) DO UPDATE SET value = MIN(value + ?4, 9223372036854775807)",
-            params![week, metric, dims, by],
-        )?;
+        self.conn
+            .prepare_cached(
+                "INSERT INTO counters (week, metric, dims, value) VALUES (?1, ?2, ?3, ?4)
+                 ON CONFLICT(week, metric, dims) DO UPDATE SET value = MIN(value + ?4, 9223372036854775807)",
+            )?
+            .execute(params![week, metric, dims, by])?;
         Ok(())
     }
 
@@ -126,11 +131,12 @@ impl Store {
         dims: &str,
         value: &str,
     ) -> Result<(), StoreError> {
-        self.conn.execute(
-            "INSERT INTO gauges (week, metric, dims, value) VALUES (?1, ?2, ?3, ?4)
-             ON CONFLICT(week, metric, dims) DO UPDATE SET value = ?4",
-            params![week, metric, dims, value],
-        )?;
+        self.conn
+            .prepare_cached(
+                "INSERT INTO gauges (week, metric, dims, value) VALUES (?1, ?2, ?3, ?4)
+                 ON CONFLICT(week, metric, dims) DO UPDATE SET value = ?4",
+            )?
+            .execute(params![week, metric, dims, value])?;
         Ok(())
     }
 
@@ -252,6 +258,17 @@ impl Store {
             "INSERT INTO meta (key, value) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET value = ?2",
             params![key, value],
         )?;
+        Ok(())
+    }
+
+    /// Removes a state value.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError`] on SQLite failures.
+    pub fn delete_meta(&self, key: &str) -> Result<(), StoreError> {
+        self.conn
+            .execute("DELETE FROM meta WHERE key = ?1", params![key])?;
         Ok(())
     }
 
