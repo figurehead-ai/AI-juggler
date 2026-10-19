@@ -54,3 +54,26 @@ pub enum CoreError {
         message: String,
     },
 }
+
+impl CoreError {
+    /// The error's class as usage statistics name it (AJ-E1103), from the
+    /// variant and SQLite's typed result code only — never the message.
+    /// `None` for refusals that aren't failures (not found, validation).
+    #[must_use]
+    pub fn stats_code(&self) -> Option<&'static str> {
+        use rusqlite::ErrorCode;
+        Some(match self {
+            Self::Storage(rusqlite::Error::SqliteFailure(failure, _)) => match failure.code {
+                ErrorCode::DatabaseBusy | ErrorCode::DatabaseLocked => "db_locked",
+                ErrorCode::DatabaseCorrupt | ErrorCode::NotADatabase => "db_corrupt",
+                ErrorCode::PermissionDenied | ErrorCode::ReadOnly => "permission_denied",
+                _ => "io_error",
+            },
+            Self::Storage(_) | Self::Io(_) => "io_error",
+            Self::Serialization(_) => "parse_failed",
+            Self::SchemaTooNew { .. } => "version_unsupported",
+            Self::NotADatabase { .. } => "db_corrupt",
+            Self::NotFound { .. } | Self::Validation { .. } => return None,
+        })
+    }
+}

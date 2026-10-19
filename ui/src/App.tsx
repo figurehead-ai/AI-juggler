@@ -4,6 +4,7 @@ import { SessionCard, WorkflowRail, type Freshness, type WorkTab } from "./compo
 import { GoToPalette } from "./components/GoToPalette";
 import { PortWarningSheet } from "./components/PortMap";
 import { RecoverySummaryDialog } from "./components/RecoverySummaryDialog";
+import { UsageStatsReconsent } from "./components/UsageStatsReconsent";
 import { CleanupCentre, focusCleanupFilter } from "./screens/CleanupCentre";
 import { launchPortWarning, type PortWarningInfo,} from "./lib/bridge";
 import {
@@ -28,6 +29,25 @@ import {
   type RemoteMachineInfo,
 } from "./lib/bridge";
 import { isHandoverShortcut, isStopShortcut } from "./lib/shortcuts";
+import { statsEvent, statsGauge } from "./lib/bridge";
+
+/** AJ-E1103: the schema's screen names (Triage and History aren't counted). */
+const STAT_SCREENS: Partial<Record<string, string>> = {
+  overview: "overview",
+  accounts: "accounts",
+  usage: "usage",
+  fleet: "fleet",
+  cleanup: "cleanup",
+  settings: "settings",
+};
+
+/** AJ-E1103: one keyboard shortcut used (the schema's names). */
+function shortcutUsed(shortcut: string): void {
+  statsEvent("ui.shortcut_used", { shortcut });
+}
+
+/** AJ-E1103: the board became interactive once, after launch. */
+let boardInteractiveCounted = false;
 import { ProfilesScreen } from "./screens/Profiles";
 import { Triage } from "./screens/Triage";
 import { History } from "./screens/History";
@@ -125,6 +145,16 @@ export default function App() {
   // Density (AJ-E403): persisted in `aij.density`; the legacy
   // `aij.rail.collapsed` boolean migrates into `minimal` on first read.
   const [density, setDensity] = useState<Density>(() => readDensity());
+  // AJ-E1103: the display preferences, as this week's gauges.
+  useEffect(() => {
+    statsGauge("ui.density", density);
+  }, [density]);
+  useEffect(() => {
+    const report = () => void import("./theme").then((theme) => statsGauge("ui.theme", theme.storedTheme()));
+    report();
+    window.addEventListener("aij:theme-changed", report);
+    return () => window.removeEventListener("aij:theme-changed", report);
+  }, []);
   const cycleDensity = useCallback(() => {
     setDensity((current) => {
       const next = nextDensity(current);
@@ -166,6 +196,12 @@ export default function App() {
   }, []);
   const [selection, setSelection] = useState<Selection>({ kind: "none" });
   const [global, setGlobal] = useState<GlobalId | null>(null);
+  // AJ-E1103: which screens get opened (and the Cleanup Centre).
+  useEffect(() => {
+    const screen = global ? STAT_SCREENS[global] : undefined;
+    if (screen) statsEvent("ui.screen_opened", { screen });
+    if (global === "cleanup") statsEvent("cleanup_centre.opened");
+  }, [global]);
   // AJ-E1203: a Cloud chip / the onboarding card land on Account & Cloud.
   const [settingsFocusCloud, setSettingsFocusCloud] = useState(false);
   const openCloudSettings = () => {
@@ -277,6 +313,10 @@ export default function App() {
       setAccounts(accountRows);
       setProfiles(profileRows);
       setSwitchBackCards(backSuggestions);
+      if (!boardInteractiveCounted) {
+        boardInteractiveCounted = true;
+        statsEvent("perf.board_interactive_ms", {}, performance.now());
+      }
       setFreshness((current) => {
         // Keep known sample times; new rows get the load baseline.
         const baseline = baselineFreshness(sessionRows.map((row) => row.id));
@@ -478,16 +518,19 @@ export default function App() {
     const onKey = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "b") {
         event.preventDefault();
+        shortcutUsed("toggle_rail");
         setDensityAndStore(density === "minimal" ? "comfortable" : "minimal");
       }
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "n") {
         event.preventDefault();
+        shortcutUsed("new_session");
         setNewProjectDir((current) => current ?? "");
       }
       // ⌘. stops the selected live Instance (AJ-E407 Actions); ⌘⇧H
       // focuses the hand-over section (RightInspector switches tabs).
       if (isStopShortcut(event)) {
         event.preventDefault();
+        shortcutUsed("other");
         if (
           selectedSession &&
           (selectedSession.status === "running" || selectedSession.status === "starting")
@@ -500,6 +543,7 @@ export default function App() {
       }
       if (isHandoverShortcut(event)) {
         event.preventDefault();
+        shortcutUsed("switch");
         window.dispatchEvent(new Event("aij:focus-handover"));
       }
       // ⌘K/Ctrl+K focuses the rail search (AJ-E404 Req.4); Esc clears it
@@ -510,6 +554,7 @@ export default function App() {
       }
       if (isDensityShortcutEvent(event, hasLiveBackend())) {
         event.preventDefault();
+        shortcutUsed("other");
         cycleDensity();
       }
       if (
@@ -518,6 +563,7 @@ export default function App() {
         event.key.toLowerCase() === "l"
       ) {
         event.preventDefault();
+        shortcutUsed("other");
         void import("./theme").then((theme) => theme.cycleTheme());
       }
     };
@@ -538,26 +584,31 @@ export default function App() {
     const onKey = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && event.key.toLowerCase() === "k") {
         event.preventDefault();
+        shortcutUsed("command_palette");
         setGoToOpen((openNow) => !openNow);
       }
       // AJ-E704: ⌘⇧F opens Fleet from anywhere.
       if ((event.metaKey || event.ctrlKey) && event.shiftKey && !event.altKey && event.key.toLowerCase() === "f") {
         event.preventDefault();
+        shortcutUsed("other");
         setGlobal("fleet");
       }
       // AJ-E1203: ⌘, opens Settings (the macOS convention).
       if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && event.key === ",") {
         event.preventDefault();
+        shortcutUsed("other");
         setSettingsFocusCloud(false);
         setGlobal("settings");
       }
       // AJ-E506: ⌘⇧C opens the Cleanup Centre; ⌘F focuses its filter.
       if ((event.metaKey || event.ctrlKey) && event.shiftKey && !event.altKey && event.key.toLowerCase() === "c") {
         event.preventDefault();
+        shortcutUsed("other");
         setGlobal("cleanup");
       }
       if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && event.key.toLowerCase() === "f" && global === "cleanup") {
         event.preventDefault();
+        shortcutUsed("search");
         focusCleanupFilter();
       }
     };
@@ -603,7 +654,10 @@ export default function App() {
       <RenewalAnnouncer accounts={accounts} />
       <WorkflowRail
         tab={tab}
-        onTab={setTab}
+        onTab={(next) => {
+          statsEvent("ui.rail_tab", { tab: next });
+          setTab(next);
+        }}
         density={density}
         onCycleDensity={cycleDensity}
         projects={projects}
@@ -973,6 +1027,7 @@ export default function App() {
         </div>
       )}
 
+      <UsageStatsReconsent />
       {recovery !== null && (
         <RecoverySummaryDialog
           summary={recovery}

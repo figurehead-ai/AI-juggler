@@ -205,11 +205,20 @@ pub(crate) fn assert_identity(state: &Arc<AppState>, account: &Account) -> AppRe
     let pin = pins.get(account.id.as_str()).cloned();
     let (verdict, detected, _) = verdict(&found, pin.as_ref());
     match (verdict, &found) {
-        ("mismatch", _) => Err(AppError::IdentityMismatch {
-            account: account.label.clone(),
-            expected: pin.map(|pin| pin.label).unwrap_or_default(),
-            detected: detected.unwrap_or_default(),
-        }),
+        ("mismatch", _) => {
+            crate::usage_stats::count(
+                "instance.wrong_account_blocked",
+                &[(
+                    "provider",
+                    crate::usage_stats::provider(account.harness.as_str()),
+                )],
+            );
+            Err(AppError::IdentityMismatch {
+                account: account.label.clone(),
+                expected: pin.map(|pin| pin.label).unwrap_or_default(),
+                detected: detected.unwrap_or_default(),
+            })
+        }
         ("first_seen", IdentityProbe::SignedIn { subject, label }) => {
             pins.insert(
                 account.id.to_string(),

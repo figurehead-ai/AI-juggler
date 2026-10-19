@@ -15,6 +15,9 @@ use juggler_supervisor::{
 /// Everything the commands operate on. `storage` is `Mutex`-wrapped:
 /// rusqlite connections are `Send` but not `Sync`.
 pub struct AppState {
+    /// What happened while this launch opened (AJ-E1103 counts it once
+    /// stats start).
+    pub launch_facts: LaunchFacts,
     /// App data directory (databases, managed accounts, packs).
     pub data_dir: PathBuf,
     /// SQLite persistence (accounts, profiles, sessions).
@@ -154,6 +157,12 @@ impl AppState {
         // through the E507 path, F-3 closed) and the marker set drives
         // everything downstream.
         let report = run_startup_recovery(&ledger, &supervisor, &storage, &audit);
+        let launch_facts = LaunchFacts {
+            migrated: storage.migrated_on_open(),
+            recovered: !(report.adopted.is_empty()
+                && report.left_behind.is_empty()
+                && report.unverifiable.is_empty()),
+        };
         // Crash/restart reconciliation: sessions recorded running whose
         // processes did not survive the restart are marked stopped —
         // never a permanently fake "live" dot (survivors stay running).
@@ -211,6 +220,7 @@ impl AppState {
             link: crate::link::LinkManager::default(),
             figurehead: crate::figurehead::FigureheadManager::default(),
             preview: Mutex::new(None),
+            launch_facts,
             data_dir,
         })
     }
@@ -252,6 +262,16 @@ impl AppState {
             cancels.remove(attempt);
         }
     }
+}
+
+/// What happened while this launch opened.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct LaunchFacts {
+    /// Opening the database ran a migration.
+    pub migrated: bool,
+    /// The startup recovery pass found Instances or helpers that outlived
+    /// the previous run (it didn't shut down cleanly).
+    pub recovered: bool,
 }
 
 /// The built-in adapter set (community manifests arrive post-v1).

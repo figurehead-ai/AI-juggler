@@ -42,6 +42,7 @@ import {
   type DivergenceRecordInfo,
   type FleetSwitchBackPlanInfo,
   type RemoteSwitchTargetInfo,
+  statsEvent,
 } from "../lib/bridge";
 import { RemoteTabBody, freshnessText, type RemoteContext } from "./RemoteTabs";
 
@@ -244,6 +245,13 @@ export function RightInspector({
     setTab(next);
     if (kind !== "none" && kind !== "login") localStorage.setItem(TAB_KEY(kind), next);
   };
+  // AJ-E1103: a tab the user picked (not one the app moved to).
+  const pickTab = (next: InspectorTab) => {
+    if (kind !== "none" && kind !== "login" && kind !== "machine") {
+      statsEvent("ui.inspector_tab", { selection: kind, tab: next });
+    }
+    chooseTab(next);
+  };
 
   // ⌘⇧H (App dispatches): jump to the Overview tab; the section itself
   // scrolls into view from InstanceOverview's own listener.
@@ -273,7 +281,8 @@ export function RightInspector({
       const index = Number(event.key);
       if (index >= 1 && index <= INSPECTOR_TABS.length) {
         event.preventDefault();
-        chooseTab(INSPECTOR_TABS[index - 1]!.id);
+        statsEvent("ui.shortcut_used", { shortcut: "inspector_tab" });
+        pickTab(INSPECTOR_TABS[index - 1]!.id);
         const buttons = tabsRef.current?.querySelectorAll<HTMLButtonElement>("[role='tab']");
         buttons?.[index - 1]?.focus();
       }
@@ -412,7 +421,7 @@ export function RightInspector({
             aria-selected={tab === entry.id}
             aria-controls={`inspector-panel-${entry.id}`}
             tabIndex={tab === entry.id ? 0 : -1}
-            onClick={() => chooseTab(entry.id)}
+            onClick={() => pickTab(entry.id)}
             onKeyDown={(event) => {
               if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
                 event.preventDefault();

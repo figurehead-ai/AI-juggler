@@ -1,6 +1,7 @@
 import { StorageRetentionCard } from "../components/StorageRetentionCard";
 import { BackupRestoreCard } from "../components/BackupRestoreCard";
 import { UpdatesCard } from "../components/UpdatesCard";
+import { PrivacyCard } from "../components/PrivacyCard";
 import { RecoveryCodeSheet } from "../components/RecoveryCodeSheet";
 import { CloudBackupPanel } from "../components/CloudBackupPanel";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -45,6 +46,7 @@ export function SettingsScreen({ focusCloud = false }: { focusCloud?: boolean })
       </header>
       <AppearanceCard />
       <UpdatesCard />
+      <PrivacyCard />
       <StorageRetentionCard />
       <BackupRestoreCard />
       <div ref={cloudRef}>

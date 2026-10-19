@@ -53,7 +53,7 @@
 **Research basis**: spec §3–§4.
 **Handover note**: The enums are generated from the schema by a committed script; regenerate rather than hand-edit, and keep the parity test as the proof.
 
-### AJ-E1103 Wire the events into the app | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1102
+### AJ-E1103 Wire the events into the app | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E1102
 **Goal**: Count what people actually use: Instances, switching, usage clocks, cleanup, onboarding, Fleet, the interface, reliability and performance, exactly as the schema lists them.
 **User story**: As the maintainer, I can see which features matter, without ever seeing anyone's work.
 **Requirements**:
@@ -88,7 +88,7 @@
 **Research basis**: spec §5–§6.
 **Handover note**: Production collection is switched off until launch: the config says `"enabled": false`, so a sharing user's reports are filed under `skipped/` as `server_disabled`, and a direct upload gets `503` with `Retry-After` (handled too). Test against the local stats server as the website's usage-stats prompt describes, never production.
 
-### AJ-E1105 Consent in onboarding and Settings ▸ Privacy | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1102
+### AJ-E1105 Consent in onboarding and Settings ▸ Privacy | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E1102
 **Goal**: Ask once, fairly, and let the user see and control everything afterwards.
 **User story**: As a new user, I choose share, local-only or off with no option nudged; later I can read exactly what was counted and sent, and delete it.
 **Requirements**:

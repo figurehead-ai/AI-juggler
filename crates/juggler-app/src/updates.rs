@@ -165,7 +165,7 @@ impl UpdateManager {
     }
 }
 
-fn check_on_launch(state: &Arc<AppState>) -> bool {
+pub(crate) fn check_on_launch(state: &Arc<AppState>) -> bool {
     state
         .storage
         .lock()
@@ -229,6 +229,10 @@ pub fn update_check_impl(
         status.checked_at_ms = Some(now);
         match result {
             Ok(Some(announced)) => {
+                crate::usage_stats::count(
+                    "update.flow",
+                    &[("step", "prompt_shown"), ("reason", "none")],
+                );
                 status.set_state("available");
                 status.available = Some(announced);
             }
@@ -322,6 +326,7 @@ pub fn update_install_impl(
     }));
     let backups = state.data_dir.join("backups");
     if let Err(e) = std::fs::create_dir_all(&backups) {
+        flow_failed("disk");
         return Ok(fail(
             state,
             format!("Couldn't make the pre-update backup: {e}. Nothing was installed."),
@@ -336,6 +341,7 @@ pub fn update_install_impl(
     match crate::backup::backup_export_impl(state, &dest, &mut |_, _| {}) {
         Ok(_) => {}
         Err(e) => {
+            flow_failed("disk");
             return Ok(fail(
                 state,
                 format!("Couldn't make the pre-update backup: {e}. Nothing was installed."),
@@ -363,6 +369,14 @@ pub fn update_install_impl(
     let bytes = match bytes {
         Ok(bytes) => bytes,
         Err(reason) => {
+            let lower = reason.to_ascii_lowercase();
+            flow_failed(if lower.contains("signature") {
+                "signature"
+            } else if lower.contains("checksum") || lower.contains("hash") {
+                "checksum"
+            } else {
+                "network"
+            });
             return Ok(fail(
                 state,
                 format!(
@@ -372,15 +386,22 @@ pub fn update_install_impl(
         }
     };
     if let Err(reason) = feed.install(&bytes) {
+        flow_failed("other");
         return Ok(fail(
             state,
             format!("The install didn't finish: {reason}. Your current version is untouched."),
         ));
     }
+    crate::usage_stats::count("update.flow", &[("step", "installed"), ("reason", "none")]);
     Ok(state.updates.update(|status| {
         status.set_state("installed");
         status.progress = Some(100);
     }))
+}
+
+/// AJ-E1103: an install that didn't finish, and why (a closed word).
+fn flow_failed(reason: &'static str) {
+    crate::usage_stats::count("update.flow", &[("step", "failed"), ("reason", reason)]);
 }
 
 // --- the real feed (the Tauri updater plugin) ------------------------------

@@ -353,6 +353,17 @@ pub fn current() -> Option<Arc<Stats>> {
         .clone()
 }
 
+/// A recorder is installed (the mode isn't off). Cheap: callers check it
+/// before building an event, so `off` costs a lock read.
+#[must_use]
+pub fn recording() -> bool {
+    GLOBAL
+        .read()
+        .unwrap_or_else(PoisonError::into_inner)
+        .as_ref()
+        .is_some_and(|stats| stats.tx.is_some())
+}
+
 /// Counts `event` on the process-wide recorder. Never blocks, never fails;
 /// a no-op until one is installed and the mode isn't off.
 pub fn record(event: StatEvent) {

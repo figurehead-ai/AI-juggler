@@ -1,0 +1,97 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 9.74s
+     Running unittests src/lib.rs (target/debug/deps/juggler_app-e37bf8168380644e)
+
+running 13 tests
+test usage_stats::export_bindings_usagestatsinfo ... ok
+test usage_stats::export_bindings_usagestatssetresult ... ok
+test usage_stats::tests::a_debug_build_uploads_to_the_local_endpoint_with_the_contract_headers ... ok
+test usage_stats::tests::choosing_off_deletes_the_folder_and_says_so ... ok
+test usage_stats::tests::default_is_off_and_creates_nothing ... ok
+test usage_stats::tests::error_classes_come_from_the_variant_never_the_text ... ok
+test usage_stats::tests::every_metric_is_accounted_for_and_its_site_exists ... | `accounts.configured` | Gauge("Accounts per Provider") |
+| `provider.cli_version` | Gauge("`--version` per Provider, once a week") |
+| `launch_settings.count` | Gauge("launch settings per Provider") |
+| `projects.count` | Gauge("projects") |
+| `fleet.role` | Gauge("none / node (Link on) / console") |
+| `fleet.paired_machines` | Gauge("paired Macs") |
+| `cleanup.tier` | Gauge("Accounts opted in to safe cleanup, and the rest") |
+| `auto_restart.enabled` | NotYet("AI Juggler has no auto-restart setting yet") |
+| `pack.redaction_policy` | Gauge("the global redaction choice") |
+| `renewal_dates.entered` | Gauge("Accounts with a renewal date") |
+| `worktree.isolation_enabled` | Gauge("on once Juggler has made a worktree") |
+| `update.channel` | Gauge("the build's channel") |
+| `update.auto_check` | Gauge("check on launch") |
+| `ui.density` | Gauge("the interface, on change") |
+| `ui.theme` | Gauge("the interface, on change") |
+| `crash_reports.setting` | Gauge("`never` until AJ-E1107 adds crash reports") |
+| `instance.peak_concurrent` | Gauge("the 5 s resource sample, raised as it grows") |
+| `instance.started` | Backend("every place an Instance row is created (7)") |
+| `instance.ended` | Backend("commands::apply_lifecycle_event") |
+| `instance.minutes` | Backend("commands::apply_lifecycle_event") |
+| `instance.state_entered` | Backend("apply_attention_transition; quota exits") |
+| `instance.auto_restarted` | NotYet("AI Juggler doesn't auto-restart Instances yet") |
+| `instance.running_model` | Backend("commands::persist_running_model (family only)") |
+| `instance.wrong_account_blocked` | Backend("identity::assert_identity") |
+| `session.tokens` | Backend("usage_pipeline: new Measured rows only") |
+| `switch.started` | Backend("commands::switch_execute_core") |
+| `switch.completed` | Backend("switch_execute_core; switch_undo_impl") |
+| `switch.failed_stage` | Backend("commands::switch_execute_core") |
+| `switch.back` | Backend("commands::switch_back_execute_impl") |
+| `switch.divergence_shown` | Backend("commands::switch_back_plan_impl") |
+| `switch.duration_s` | Backend("commands::switch_execute_core") |
+| `pack.size_kb` | Backend("commands::pack_export_impl") |
+| `pack.redaction_reviewed` | Backend("commands::record_redaction_decision") |
+| `context_sync.applied` | NotYet("there is no context-sync operation yet") |
+| `usage.wall_hit` | Backend("commands::step_account_alerts") |
+| `usage.forecast_shown` | Backend("the quota_display command (Usage tab)") |
+| `usage.suggestion` | Ui("SwitchTargetRows") |
+| `usage.threshold_alert` | Backend("commands::step_account_alerts") |
+| `usage.parse_degraded` | Backend("usage_pipeline::record_health") |
+| `renewal.warning_shown` | Backend("commands::step_account_alerts") |
+| `process.children_per_instance` | Backend("the 5 s resource sample, hourly") |
+| `leftover.detected` | Backend("the orphan tracker's confirmations") |
+| `leftover.cleaned` | Backend("kill_execute_as; orphan_stop_audited") |
+| `leftover.verify_refused` | Backend("kill_execute_as; orphan_stop_audited") |
+| `cleanup.memory_freed_mb` | Backend("kill_execute_as; orphan_stop_audited") |
+| `cleanup.ports_freed` | Backend("kill_execute_as; orphan_stop_audited") |
+| `resource.alert` | Both("cleanup_alerts_inner (shown); Cleanup Centre (acted)") |
+| `cleanup_centre.opened` | Ui("App") |
+| `onboarding.scan_completed` | Backend("commands::environment_scan_full_impl") |
+| `onboarding.found` | Backend("commands::environment_scan_full_impl") |
+| `onboarding.source_detected` | Backend("commands::environment_scan_full_impl") |
+| `onboarding.proposal` | Backend("the funnel event the wizard records") |
+| `onboarding.import` | Backend("the account_import command") |
+| `onboarding.login` | Ui("OnboardingWizard") |
+| `onboarding.expert_opened` | Backend("the funnel event") |
+| `onboarding.first_launch_s` | Backend("the funnel's first_launch") |
+| `onboarding.flow` | Backend("the funnel's flow steps") |
+| `fleet.pairing` | Backend("link: host and joiner outcomes") |
+| `fleet.remote_action` | Backend("remote::send_action; fleet_switch_execute") |
+| `fleet.link_degraded` | Backend("link: adopt_connection; a dropped link") |
+| `ui.screen_opened` | Ui("App") |
+| `ui.inspector_tab` | Ui("RightInspector") |
+| `ui.rail_tab` | Ui("App") |
+| `ui.notification` | Ui("NotificationRegion") |
+| `ui.shortcut_used` | Ui("App; RightInspector") |
+| `app.launch` | Backend("usage_stats::start") |
+| `app.recovered_after_crash` | Backend("usage_stats::start (the recovery pass)") |
+| `error.class` | Backend("AppError crossing to the interface") |
+| `update.flow` | Both("updates (shown, installed, failed); the notice (deferred)") |
+| `storage.migration` | Backend("usage_stats::start (opening the database)") |
+| `stats.dropped` | Backend("juggler-stats: the recorder's flush") |
+| `stats.truncated` | Backend("juggler-stats: assembly") |
+| `stats.invalid_report` | Backend("juggler-stats: assembly") |
+| `perf.cold_start_ms` | Backend("usage_stats::start") |
+| `perf.board_interactive_ms` | Ui("App: the first board load") |
+| `perf.rss_peak_mb` | Backend("the hourly tick: this app's memory") |
+| `perf.cpu_overhead_pct` | Backend("the hourly tick: this app's CPU") |
+ok
+test usage_stats::tests::live_stats_server_accepts_a_report ... ignored, needs a local stats server (AIJ_E2E_STATS_URL)
+test usage_stats::tests::mappings_keep_only_schema_words ... ok
+test usage_stats::tests::off_and_local_send_nothing ... ok
+test usage_stats::tests::overrides_show_their_reason ... ok
+test usage_stats::tests::the_interface_cannot_widen_what_is_counted ... ok
+test usage_stats::tests::the_tick_thread_runs_at_the_lowest_priority ... ok
+
+test result: ok. 12 passed; 0 failed; 1 ignored; 0 measured; 129 filtered out; finished in 0.83s
+

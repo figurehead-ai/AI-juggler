@@ -1339,6 +1339,7 @@ pub(crate) fn launch_here(
         window: None,
         transcript_ref: transcript,
     })?;
+    crate::usage_stats::instance_started(account.harness.as_str(), false, "switch");
     drop(storage);
     crate::identity::record(state, &session, account, &assertion, moment);
     Ok((session, spawned.pid))
@@ -1440,10 +1441,21 @@ pub async fn fleet_switch_execute(
     request: FleetSwitchRequest,
 ) -> AppResult<FleetSwitchOutcomeInfo> {
     use tauri::Emitter as _;
-    fleet_switch_execute_impl(Arc::clone(state.inner()), request, move |progress| {
+    let outcome = fleet_switch_execute_impl(Arc::clone(state.inner()), request, move |progress| {
         let _ = app.emit(EVENT_FLEET_SWITCH_PROGRESS, progress);
     })
-    .await
+    .await;
+    // AJ-E1103: moving work to another Mac is a Fleet `switch` action.
+    let counted = match &outcome {
+        Ok(info) if info.accepted => "ok",
+        Ok(info) if info.reason_code.as_deref() == Some("permission_denied") => "denied",
+        _ => "failed",
+    };
+    crate::usage_stats::count(
+        "fleet.remote_action",
+        &[("kind", "switch"), ("outcome", counted)],
+    );
+    outcome
 }
 
 /// AJ-E706: cancels the push to `machine_id` (within one chunk).

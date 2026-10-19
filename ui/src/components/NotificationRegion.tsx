@@ -19,7 +19,19 @@ import {
   type RemoteMachineInfo,
   type ResetQueueRow,
   onUpdateStatus,
+  statsEvent,
 } from "../lib/bridge";
+
+/** AJ-E1103: an alert kind as the schema names it. */
+function alertKind(kind: string): string {
+  if (kind === "tray-amber" || kind === "actionable") return "quota_warning";
+  if (kind === "exhausted") return "quota_wall";
+  return "other";
+}
+
+function notification(kind: string, action: "shown" | "clicked" | "dismissed"): void {
+  statsEvent("ui.notification", { kind, action });
+}
 
 export function NotificationRegion({
   onQueueResume,
@@ -48,7 +60,10 @@ export function NotificationRegion({
         } catch {
           /* storage unavailable: show it */
         }
-        if (seen !== version) setUpdate(version);
+        if (seen !== version) {
+          notification("update", "shown");
+          setUpdate(version);
+        }
       }),
     [],
   );
@@ -90,6 +105,7 @@ export function NotificationRegion({
     let alive = true;
     const poll = () => {
       alertsTick().then((emitted) => {
+        for (const event of emitted) notification(alertKind(event.kind), "shown");
         if (alive && emitted.length > 0) setEvents((prior) => [...emitted, ...prior].slice(0, 5));
       });
       resetQueueList().then((rows) => {
@@ -146,7 +162,10 @@ export function NotificationRegion({
             <button
               type="button"
               className="underline focus:outline-none focus:ring-2 focus:ring-accent"
-              onClick={() => onOpenRemote(machine.machine_id)}
+              onClick={() => {
+                notification("fleet", "clicked");
+                onOpenRemote(machine.machine_id);
+              }}
             >
               Open
             </button>
@@ -154,7 +173,10 @@ export function NotificationRegion({
           <button
             type="button"
             className="text-muted underline focus:outline-none focus:ring-2 focus:ring-accent"
-            onClick={() => setDismissed((prior) => new Set(prior).add(key))}
+            onClick={() => {
+              notification("fleet", "dismissed");
+              setDismissed((prior) => new Set(prior).add(key));
+            }}
           >
             dismiss
           </button>
@@ -170,6 +192,7 @@ export function NotificationRegion({
             type="button"
             className="rounded border border-accent/50 px-2 py-0.5 font-medium text-accent-hi focus:outline-none focus:ring-2 focus:ring-accent"
             onClick={() => {
+              notification("update", "clicked");
               window.dispatchEvent(new CustomEvent("aij:open-settings"));
               closeUpdate(update);
             }}
@@ -180,7 +203,11 @@ export function NotificationRegion({
           <button
             type="button"
             className="text-ink underline focus:outline-none focus:ring-2 focus:ring-accent"
-            onClick={() => closeUpdate(update)}
+            onClick={() => {
+              notification("update", "dismissed");
+              statsEvent("update.flow", { step: "deferred", reason: "none" });
+              closeUpdate(update);
+            }}
             data-testid="update-notice-later"
           >
             Not now

@@ -2099,6 +2099,16 @@ export async function switchPreflight(
 /** AJ-E205: executes the switch with the user's freeze choice
  * (`finish-turn` default | `stop-now`) — the pipeline stages,
  * verifies, launches, and records the edge. */
+/** AJ-E1103: why the next switch happens — set when the user picks a
+ * target (the suggested one, or another), read once by
+ * [`switchExecute`]. */
+let pendingSwitchTrigger: "suggestion" | "manual" | null = null;
+
+/** AJ-E1103: the user picked a switch target. */
+export function noteSwitchPick(suggested: boolean): void {
+  pendingSwitchTrigger = suggested ? "suggestion" : "manual";
+}
+
 export async function switchExecute(
   sessionId: string,
   targetProfileId: string,
@@ -2137,12 +2147,15 @@ export async function switchExecute(
       source_session_id: sessionId,
     };
   }
+  const trigger = pendingSwitchTrigger ?? "manual";
+  pendingSwitchTrigger = null;
   return invoke<SwitchExecutedData>("switch_execute", {
     sessionId,
     targetProfileId,
     freezeChoice,
     redactionChoice: redactionChoice ?? null,
     redactionUnredact: redactionUnredact ?? [],
+    trigger,
   });
 }
 
@@ -2393,6 +2406,8 @@ export async function redactionPolicySetOverride(
  * Suggest-only: the click is the user's. */
 export interface SwitchTargetData {
   recipe_id: string;
+  /** The target's Provider id (AJ-E1103 counts suggestions by it). */
+  provider?: string;
   account_id: string;
   account_label: string;
   /** Ordered-pair badge wire name ("F1 · Beta" — never "lossless"
@@ -2676,6 +2691,153 @@ export async function funnelEventEmit(
     return;
   }
   return invoke<void>("funnel_event", { kind, fields });
+}
+
+export type { UsageStatsInfo } from "../types/generated/UsageStatsInfo";
+export type { UsageStatsOverview } from "../types/generated/UsageStatsOverview";
+export type { UsageStatsSetResult } from "../types/generated/UsageStatsSetResult";
+export type { UsageReportRow } from "../types/generated/UsageReportRow";
+export type { UsageStatRow } from "../types/generated/UsageStatRow";
+import type { UsageStatsInfo as UsageStatsInfoData } from "../types/generated/UsageStatsInfo";
+import type { UsageStatsOverview as UsageStatsOverviewData } from "../types/generated/UsageStatsOverview";
+import type { UsageStatsSetResult as UsageStatsSetResultData } from "../types/generated/UsageStatsSetResult";
+
+/** The usage-stats modes. */
+export type UsageStatsMode = "off" | "local" | "share";
+
+/** Preview mode's usage-stats state (tests and gallery captures set it). */
+type StatsSeam = {
+  __AIJ_USAGE_STATS__?: UsageStatsOverviewData;
+  __AIJ_USAGE_STATS_REPORTS__?: Record<string, string>;
+  __AIJ_USAGE_STATS_SETS__?: string[];
+};
+
+function previewStats(): UsageStatsOverviewData {
+  const seams = window as unknown as StatsSeam;
+  seams.__AIJ_USAGE_STATS__ ??= {
+    info: {
+      included: true,
+      chosen: "off",
+      effective: "off",
+      can_upload: false,
+      reason: null,
+      decided_at_ms: null,
+      consent_version: 0,
+      current_consent_version: 1,
+    },
+    week: "2026-W42",
+    rows: [],
+    reports: [],
+    next_upload_ms: null,
+    last_error: null,
+    docs_url: "https://github.com/figurehead-ai/AI-juggler/blob/main/docs/usage-stats.md",
+  };
+  return seams.__AIJ_USAGE_STATS__;
+}
+
+/** AJ-E1102: the usage-stats choice and what applies. */
+export async function usageStatsInfo(): Promise<UsageStatsInfoData> {
+  if (!hasBackend) return previewStats().info;
+  return invoke<UsageStatsInfoData>("usage_stats_info");
+}
+
+/** AJ-E1102: sets the mode (`off` deletes everything counted). */
+export async function usageStatsSet(mode: UsageStatsMode): Promise<UsageStatsSetResultData> {
+  if (!hasBackend) {
+    const seams = window as unknown as StatsSeam;
+    seams.__AIJ_USAGE_STATS_SETS__ = [...(seams.__AIJ_USAGE_STATS_SETS__ ?? []), mode];
+    const current = previewStats();
+    const info: UsageStatsInfoData = {
+      ...current.info,
+      chosen: mode,
+      effective: current.info.reason ? current.info.effective : mode,
+      can_upload: mode === "share" && !current.info.reason,
+      decided_at_ms: Date.now(),
+      consent_version: current.info.current_consent_version,
+    };
+    seams.__AIJ_USAGE_STATS__ = mode === "off" ? { ...current, info, rows: [], reports: [] } : { ...current, info };
+    return {
+      info,
+      message:
+        mode === "off"
+          ? "Usage stats are off. Local stats deleted."
+          : mode === "local"
+            ? "Usage stats are counted on this Mac only."
+            : "Usage stats are on. One small report a week will be sent.",
+    };
+  }
+  return invoke<UsageStatsSetResultData>("usage_stats_set", { mode });
+}
+
+/** AJ-E1105: everything Settings ▸ Privacy shows. */
+export async function usageStatsOverview(): Promise<UsageStatsOverviewData> {
+  if (!hasBackend) return previewStats();
+  return invoke<UsageStatsOverviewData>("usage_stats_overview");
+}
+
+/** AJ-E1105: one report's exact JSON (read-only). */
+export async function usageStatsReport(status: string, week: string): Promise<string> {
+  if (!hasBackend) {
+    const reports = (window as unknown as StatsSeam).__AIJ_USAGE_STATS_REPORTS__ ?? {};
+    return reports[`${status}/${week}`] ?? "{}";
+  }
+  return invoke<string>("usage_stats_report", { status, week });
+}
+
+/** AJ-E1105: "Delete local stats" (the mode is kept). */
+export async function usageStatsDeleteLocal(): Promise<UsageStatsSetResultData> {
+  if (!hasBackend) {
+    const current = previewStats();
+    (window as unknown as StatsSeam).__AIJ_USAGE_STATS__ = { ...current, rows: [], reports: [], last_error: null };
+    return { info: current.info, message: "Local stats deleted." };
+  }
+  return invoke<UsageStatsSetResultData>("usage_stats_delete_local");
+}
+
+/** AJ-E1105: opens the public list of every metric. */
+export async function usageStatsOpenDocs(): Promise<void> {
+  if (!hasBackend) return;
+  return invoke<void>("usage_stats_open_docs");
+}
+
+/** AJ-E1103: the usage-statistics metrics the interface counts. The
+ * backend accepts only these, and only with the schema's values (a
+ * `provider` may be any Provider id; it is mapped there). */
+export type UiStatMetric =
+  | "ui.screen_opened"
+  | "ui.inspector_tab"
+  | "ui.rail_tab"
+  | "ui.notification"
+  | "ui.shortcut_used"
+  | "cleanup_centre.opened"
+  | "usage.suggestion"
+  | "resource.alert"
+  | "onboarding.login"
+  | "onboarding.flow"
+  | "update.flow"
+  | "perf.board_interactive_ms";
+
+/** AJ-E1103: counts one interface event — fire and forget, never awaited
+ * on a user path, and a no-op unless the user opted in to usage stats. */
+export function statsEvent(metric: UiStatMetric, dims: Record<string, string> = {}, value?: number): void {
+  if (!hasBackend) {
+    const seams = window as unknown as {
+      __AIJ_STATS_EVENTS__?: { metric: string; dims: Record<string, string>; value?: number }[];
+    };
+    seams.__AIJ_STATS_EVENTS__ = [...(seams.__AIJ_STATS_EVENTS__ ?? []), { metric, dims, value }];
+    return;
+  }
+  void invoke<void>("usage_stats_ui_event", { metric, dims, value: value ?? null }).catch(() => undefined);
+}
+
+/** AJ-E1103: a display preference as this week's gauge (fire and forget). */
+export function statsGauge(metric: "ui.density" | "ui.theme", value: string): void {
+  if (!hasBackend) {
+    const seams = window as unknown as { __AIJ_STATS_GAUGES__?: Record<string, string> };
+    seams.__AIJ_STATS_GAUGES__ = { ...(seams.__AIJ_STATS_GAUGES__ ?? {}), [metric]: value };
+    return;
+  }
+  void invoke<void>("usage_stats_ui_gauge", { metric, value }).catch(() => undefined);
 }
 
 /** AJ-E309 Req.7: the LOCAL funnel report (markdown; never a network

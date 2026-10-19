@@ -41,6 +41,12 @@ impl Provider {
             Self::Other => "other",
         }
     }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
+    }
 }
 
 /// Schema enum `count_bucket`.
@@ -86,6 +92,12 @@ impl CountBucket {
             Self::TenOrMore => "10+",
         }
     }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
+    }
 }
 
 /// Schema enum `switch_kind`.
@@ -110,6 +122,12 @@ impl SwitchKind {
             Self::Provider => "provider",
             Self::Instance => "instance",
         }
+    }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
     }
 }
 
@@ -143,6 +161,12 @@ impl SwitchTrigger {
             Self::Manual => "manual",
             Self::Remote => "remote",
         }
+    }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
     }
 }
 
@@ -197,6 +221,12 @@ impl ModelFamily {
             Self::Other => "other",
         }
     }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
+    }
 }
 
 /// Schema enum `leftover_category`.
@@ -233,6 +263,12 @@ impl LeftoverCategory {
             Self::Watcher => "watcher",
             Self::Other => "other",
         }
+    }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
     }
 }
 
@@ -278,6 +314,12 @@ impl ErrorArea {
             Self::Updater => "updater",
             Self::Ui => "ui",
         }
+    }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
     }
 }
 
@@ -352,6 +394,12 @@ impl ErrorCode {
             Self::Other => "other",
         }
     }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
+    }
 }
 
 /// The value of `fleet.role`.
@@ -377,6 +425,12 @@ impl FleetRoleValue {
             Self::Node => "node",
         }
     }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
+    }
 }
 
 /// `tier` of `cleanup.tier`.
@@ -398,6 +452,12 @@ impl CleanupTierTier {
             Self::NotifyOnly => "notify_only",
             Self::CleanSafe => "clean_safe",
         }
+    }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
     }
 }
 
@@ -427,6 +487,12 @@ impl PackRedactionPolicyValue {
             Self::Other => "other",
         }
     }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
+    }
 }
 
 /// The value of `worktree.isolation_enabled`.
@@ -448,6 +514,12 @@ impl WorktreeIsolationEnabledValue {
             Self::On => "on",
             Self::Off => "off",
         }
+    }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
     }
 }
 
@@ -471,6 +543,12 @@ impl UpdateChannelValue {
             Self::Stable => "stable",
         }
     }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
+    }
 }
 
 /// The value of `update.auto_check`.
@@ -492,6 +570,12 @@ impl UpdateAutoCheckValue {
             Self::On => "on",
             Self::Off => "off",
         }
+    }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
     }
 }
 
@@ -518,6 +602,12 @@ impl UiDensityValue {
             Self::Minimal => "minimal",
         }
     }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
+    }
 }
 
 /// The value of `ui.theme`.
@@ -542,6 +632,12 @@ impl UiThemeValue {
             Self::Light => "light",
             Self::Dark => "dark",
         }
+    }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
     }
 }
 
@@ -568,6 +664,12 @@ impl CrashReportsSettingValue {
             Self::Always => "always",
         }
     }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
+    }
 }
 
 /// `kind` of `instance.started`.
@@ -589,6 +691,12 @@ impl InstanceStartedKind {
             Self::Terminal => "terminal",
             Self::Desktop => "desktop",
         }
+    }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
     }
 }
 
@@ -618,6 +726,12 @@ impl InstanceStartedOrigin {
             Self::Relaunch => "relaunch",
         }
     }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
+    }
 }
 
 /// `outcome` of `instance.ended`.
@@ -646,6 +760,12 @@ impl InstanceEndedOutcome {
             Self::Crashed => "crashed",
         }
     }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
+    }
 }
 
 /// `state` of `instance.state_entered`.
@@ -670,6 +790,12 @@ impl InstanceStateEnteredState {
             Self::Stuck => "stuck",
             Self::QuotaBlocked => "quota_blocked",
         }
+    }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
     }
 }
 
@@ -696,6 +822,12 @@ impl SessionTokensDirection {
             Self::Cache => "cache",
         }
     }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
+    }
 }
 
 /// `mechanism` of `switch.completed`.
@@ -721,6 +853,12 @@ impl SwitchCompletedMechanism {
             Self::PackReplay => "pack_replay",
         }
     }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
+    }
 }
 
 /// `outcome` of `switch.completed`.
@@ -745,6 +883,12 @@ impl SwitchCompletedOutcome {
             Self::RolledBack => "rolled_back",
             Self::Failed => "failed",
         }
+    }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
     }
 }
 
@@ -774,6 +918,12 @@ impl SwitchFailedStageStage {
             Self::Launch => "launch",
         }
     }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
+    }
 }
 
 /// `outcome` of `pack.redaction_reviewed`.
@@ -795,6 +945,12 @@ impl PackRedactionReviewedOutcome {
             Self::Kept => "kept",
             Self::Changed => "changed",
         }
+    }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
     }
 }
 
@@ -821,6 +977,12 @@ impl UsageWallHitWindow {
             Self::Credits => "credits",
         }
     }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
+    }
 }
 
 /// `action` of `usage.suggestion`.
@@ -846,6 +1008,12 @@ impl UsageSuggestionAction {
             Self::Dismissed => "dismissed",
         }
     }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
+    }
 }
 
 /// `level` of `usage.threshold_alert`.
@@ -867,6 +1035,12 @@ impl UsageThresholdAlertLevel {
             Self::Warn => "warn",
             Self::Critical => "critical",
         }
+    }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
     }
 }
 
@@ -890,6 +1064,12 @@ impl UsageParseDegradedArea {
             Self::QuotaFeed => "quota_feed",
         }
     }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
+    }
 }
 
 /// `mode` of `leftover.cleaned`.
@@ -911,6 +1091,12 @@ impl LeftoverCleanedMode {
             Self::Manual => "manual",
             Self::Auto => "auto",
         }
+    }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
     }
 }
 
@@ -937,6 +1123,12 @@ impl LeftoverVerifyRefusedReason {
             Self::Gone => "gone",
         }
     }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
+    }
 }
 
 /// `kind` of `resource.alert`.
@@ -962,6 +1154,12 @@ impl ResourceAlertKind {
             Self::Idle => "idle",
         }
     }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
+    }
 }
 
 /// `action` of `resource.alert`.
@@ -983,6 +1181,12 @@ impl ResourceAlertAction {
             Self::Shown => "shown",
             Self::Acted => "acted",
         }
+    }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
     }
 }
 
@@ -1008,6 +1212,12 @@ impl OnboardingFoundProvenance {
             Self::Likely => "likely",
             Self::Guessed => "guessed",
         }
+    }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
     }
 }
 
@@ -1050,6 +1260,12 @@ impl OnboardingSourceDetectedSource {
             Self::OtherManager => "other_manager",
         }
     }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
+    }
 }
 
 /// `action` of `onboarding.proposal`.
@@ -1075,6 +1291,12 @@ impl OnboardingProposalAction {
             Self::Customised => "customised",
         }
     }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
+    }
 }
 
 /// `outcome` of `onboarding.import`.
@@ -1096,6 +1318,12 @@ impl OnboardingImportOutcome {
             Self::Completed => "completed",
             Self::Failed => "failed",
         }
+    }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
     }
 }
 
@@ -1142,6 +1370,12 @@ impl OnboardingImportReasonCode {
             Self::Other => "other",
         }
     }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
+    }
 }
 
 /// `outcome` of `onboarding.login`.
@@ -1166,6 +1400,12 @@ impl OnboardingLoginOutcome {
             Self::Skipped => "skipped",
             Self::Expired => "expired",
         }
+    }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
     }
 }
 
@@ -1208,6 +1448,12 @@ impl OnboardingFlowFlow {
             Self::Import => "import",
         }
     }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
+    }
 }
 
 /// `outcome` of `fleet.pairing`.
@@ -1232,6 +1478,12 @@ impl FleetPairingOutcome {
             Self::Failed => "failed",
             Self::Expired => "expired",
         }
+    }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
     }
 }
 
@@ -1282,6 +1534,12 @@ impl FleetPairingReason {
             Self::Other => "other",
         }
     }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
+    }
 }
 
 /// `kind` of `fleet.remote_action`.
@@ -1306,6 +1564,12 @@ impl FleetRemoteActionKind {
             Self::Switch => "switch",
             Self::Cleanup => "cleanup",
         }
+    }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
     }
 }
 
@@ -1332,6 +1596,12 @@ impl FleetRemoteActionOutcome {
             Self::Failed => "failed",
         }
     }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
+    }
 }
 
 /// `reason` of `fleet.link_degraded`.
@@ -1353,6 +1623,12 @@ impl FleetLinkDegradedReason {
             Self::Version => "version",
             Self::Network => "network",
         }
+    }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
     }
 }
 
@@ -1395,6 +1671,12 @@ impl UiScreenOpenedScreen {
             Self::Settings => "settings",
         }
     }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
+    }
 }
 
 /// `selection` of `ui.inspector_tab`.
@@ -1431,6 +1713,12 @@ impl UiInspectorTabSelection {
             Self::Instance => "instance",
             Self::Project => "project",
         }
+    }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
     }
 }
 
@@ -1473,6 +1761,12 @@ impl UiInspectorTabTab {
             Self::Actions => "actions",
         }
     }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
+    }
 }
 
 /// `tab` of `ui.rail_tab`.
@@ -1497,6 +1791,12 @@ impl UiRailTabTab {
             Self::Instances => "instances",
             Self::Sessions => "sessions",
         }
+    }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
     }
 }
 
@@ -1551,6 +1851,12 @@ impl UiNotificationKind {
             Self::Other => "other",
         }
     }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
+    }
 }
 
 /// `action` of `ui.notification`.
@@ -1575,6 +1881,12 @@ impl UiNotificationAction {
             Self::Clicked => "clicked",
             Self::Dismissed => "dismissed",
         }
+    }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
     }
 }
 
@@ -1625,6 +1937,12 @@ impl UiShortcutUsedShortcut {
             Self::Other => "other",
         }
     }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
+    }
 }
 
 /// `step` of `update.flow`.
@@ -1657,6 +1975,12 @@ impl UpdateFlowStep {
             Self::Deferred => "deferred",
             Self::Failed => "failed",
         }
+    }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
     }
 }
 
@@ -1699,6 +2023,12 @@ impl UpdateFlowReason {
             Self::Other => "other",
         }
     }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
+    }
 }
 
 /// `outcome` of `storage.migration`.
@@ -1720,6 +2050,12 @@ impl StorageMigrationOutcome {
             Self::Ok => "ok",
             Self::Failed => "failed",
         }
+    }
+
+    /// The value with this wire form, if the schema lists it.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.wire() == wire)
     }
 }
 
@@ -2316,6 +2652,189 @@ impl StatEvent {
             Self::PerfRssPeakMb { value: 0.0 },
             Self::PerfCpuOverheadPct { value: 0.0 },
         ]
+    }
+
+    /// The event a metric name and wire dimensions describe, if the
+    /// schema allows exactly that: every dimension present, each value
+    /// listed, nothing extra; histograms need `value`.
+    #[must_use]
+    pub fn parse(metric: &str, dims: &[(&str, &str)], value: Option<f64>) -> Option<Self> {
+        let get = |name: &str| dims.iter().find(|(k, _)| *k == name).map(|(_, v)| *v);
+        let event = match metric {
+            "instance.started" => Self::InstanceStarted {
+                provider: Provider::from_wire(get("provider")?)?,
+                kind: InstanceStartedKind::from_wire(get("kind")?)?,
+                origin: InstanceStartedOrigin::from_wire(get("origin")?)?,
+            },
+            "instance.ended" => Self::InstanceEnded {
+                provider: Provider::from_wire(get("provider")?)?,
+                outcome: InstanceEndedOutcome::from_wire(get("outcome")?)?,
+            },
+            "instance.minutes" => Self::InstanceMinutes {
+                provider: Provider::from_wire(get("provider")?)?,
+            },
+            "instance.state_entered" => Self::InstanceStateEntered {
+                provider: Provider::from_wire(get("provider")?)?,
+                state: InstanceStateEnteredState::from_wire(get("state")?)?,
+            },
+            "instance.auto_restarted" => Self::InstanceAutoRestarted {
+                provider: Provider::from_wire(get("provider")?)?,
+            },
+            "instance.running_model" => Self::InstanceRunningModel {
+                provider: Provider::from_wire(get("provider")?)?,
+                model_family: ModelFamily::from_wire(get("model_family")?)?,
+            },
+            "instance.wrong_account_blocked" => Self::InstanceWrongAccountBlocked {
+                provider: Provider::from_wire(get("provider")?)?,
+            },
+            "session.tokens" => Self::SessionTokens {
+                provider: Provider::from_wire(get("provider")?)?,
+                direction: SessionTokensDirection::from_wire(get("direction")?)?,
+            },
+            "switch.started" => Self::SwitchStarted {
+                kind: SwitchKind::from_wire(get("kind")?)?,
+                trigger: SwitchTrigger::from_wire(get("trigger")?)?,
+            },
+            "switch.completed" => Self::SwitchCompleted {
+                kind: SwitchKind::from_wire(get("kind")?)?,
+                from: Provider::from_wire(get("from")?)?,
+                to: Provider::from_wire(get("to")?)?,
+                mechanism: SwitchCompletedMechanism::from_wire(get("mechanism")?)?,
+                trigger: SwitchTrigger::from_wire(get("trigger")?)?,
+                outcome: SwitchCompletedOutcome::from_wire(get("outcome")?)?,
+            },
+            "switch.failed_stage" => Self::SwitchFailedStage {
+                kind: SwitchKind::from_wire(get("kind")?)?,
+                stage: SwitchFailedStageStage::from_wire(get("stage")?)?,
+            },
+            "switch.back" => Self::SwitchBack {
+                kind: SwitchKind::from_wire(get("kind")?)?,
+            },
+            "switch.divergence_shown" => Self::SwitchDivergenceShown,
+            "switch.duration_s" => Self::SwitchDurationS {
+                kind: SwitchKind::from_wire(get("kind")?)?,
+                value: value?,
+            },
+            "pack.size_kb" => Self::PackSizeKb { value: value? },
+            "pack.redaction_reviewed" => Self::PackRedactionReviewed {
+                outcome: PackRedactionReviewedOutcome::from_wire(get("outcome")?)?,
+            },
+            "context_sync.applied" => Self::ContextSyncApplied,
+            "usage.wall_hit" => Self::UsageWallHit {
+                provider: Provider::from_wire(get("provider")?)?,
+                window: UsageWallHitWindow::from_wire(get("window")?)?,
+            },
+            "usage.forecast_shown" => Self::UsageForecastShown {
+                provider: Provider::from_wire(get("provider")?)?,
+            },
+            "usage.suggestion" => Self::UsageSuggestion {
+                provider: Provider::from_wire(get("provider")?)?,
+                action: UsageSuggestionAction::from_wire(get("action")?)?,
+            },
+            "usage.threshold_alert" => Self::UsageThresholdAlert {
+                provider: Provider::from_wire(get("provider")?)?,
+                level: UsageThresholdAlertLevel::from_wire(get("level")?)?,
+            },
+            "usage.parse_degraded" => Self::UsageParseDegraded {
+                provider: Provider::from_wire(get("provider")?)?,
+                area: UsageParseDegradedArea::from_wire(get("area")?)?,
+            },
+            "renewal.warning_shown" => Self::RenewalWarningShown,
+            "process.children_per_instance" => Self::ProcessChildrenPerInstance { value: value? },
+            "leftover.detected" => Self::LeftoverDetected {
+                category: LeftoverCategory::from_wire(get("category")?)?,
+            },
+            "leftover.cleaned" => Self::LeftoverCleaned {
+                category: LeftoverCategory::from_wire(get("category")?)?,
+                mode: LeftoverCleanedMode::from_wire(get("mode")?)?,
+            },
+            "leftover.verify_refused" => Self::LeftoverVerifyRefused {
+                reason: LeftoverVerifyRefusedReason::from_wire(get("reason")?)?,
+            },
+            "cleanup.memory_freed_mb" => Self::CleanupMemoryFreedMb,
+            "cleanup.ports_freed" => Self::CleanupPortsFreed,
+            "resource.alert" => Self::ResourceAlert {
+                kind: ResourceAlertKind::from_wire(get("kind")?)?,
+                action: ResourceAlertAction::from_wire(get("action")?)?,
+            },
+            "cleanup_centre.opened" => Self::CleanupCentreOpened,
+            "onboarding.scan_completed" => Self::OnboardingScanCompleted,
+            "onboarding.found" => Self::OnboardingFound {
+                provider: Provider::from_wire(get("provider")?)?,
+                provenance: OnboardingFoundProvenance::from_wire(get("provenance")?)?,
+            },
+            "onboarding.source_detected" => Self::OnboardingSourceDetected {
+                source: OnboardingSourceDetectedSource::from_wire(get("source")?)?,
+            },
+            "onboarding.proposal" => Self::OnboardingProposal {
+                action: OnboardingProposalAction::from_wire(get("action")?)?,
+            },
+            "onboarding.import" => Self::OnboardingImport {
+                provider: Provider::from_wire(get("provider")?)?,
+                outcome: OnboardingImportOutcome::from_wire(get("outcome")?)?,
+                reason_code: OnboardingImportReasonCode::from_wire(get("reason_code")?)?,
+            },
+            "onboarding.login" => Self::OnboardingLogin {
+                provider: Provider::from_wire(get("provider")?)?,
+                outcome: OnboardingLoginOutcome::from_wire(get("outcome")?)?,
+            },
+            "onboarding.expert_opened" => Self::OnboardingExpertOpened,
+            "onboarding.first_launch_s" => Self::OnboardingFirstLaunchS { value: value? },
+            "onboarding.flow" => Self::OnboardingFlow {
+                flow: OnboardingFlowFlow::from_wire(get("flow")?)?,
+            },
+            "fleet.pairing" => Self::FleetPairing {
+                outcome: FleetPairingOutcome::from_wire(get("outcome")?)?,
+                reason: FleetPairingReason::from_wire(get("reason")?)?,
+            },
+            "fleet.remote_action" => Self::FleetRemoteAction {
+                kind: FleetRemoteActionKind::from_wire(get("kind")?)?,
+                outcome: FleetRemoteActionOutcome::from_wire(get("outcome")?)?,
+            },
+            "fleet.link_degraded" => Self::FleetLinkDegraded {
+                reason: FleetLinkDegradedReason::from_wire(get("reason")?)?,
+            },
+            "ui.screen_opened" => Self::UiScreenOpened {
+                screen: UiScreenOpenedScreen::from_wire(get("screen")?)?,
+            },
+            "ui.inspector_tab" => Self::UiInspectorTab {
+                selection: UiInspectorTabSelection::from_wire(get("selection")?)?,
+                tab: UiInspectorTabTab::from_wire(get("tab")?)?,
+            },
+            "ui.rail_tab" => Self::UiRailTab {
+                tab: UiRailTabTab::from_wire(get("tab")?)?,
+            },
+            "ui.notification" => Self::UiNotification {
+                kind: UiNotificationKind::from_wire(get("kind")?)?,
+                action: UiNotificationAction::from_wire(get("action")?)?,
+            },
+            "ui.shortcut_used" => Self::UiShortcutUsed {
+                shortcut: UiShortcutUsedShortcut::from_wire(get("shortcut")?)?,
+            },
+            "app.launch" => Self::AppLaunch,
+            "app.recovered_after_crash" => Self::AppRecoveredAfterCrash,
+            "error.class" => Self::ErrorClass {
+                area: ErrorArea::from_wire(get("area")?)?,
+                code: ErrorCode::from_wire(get("code")?)?,
+            },
+            "update.flow" => Self::UpdateFlow {
+                step: UpdateFlowStep::from_wire(get("step")?)?,
+                reason: UpdateFlowReason::from_wire(get("reason")?)?,
+            },
+            "storage.migration" => Self::StorageMigration {
+                outcome: StorageMigrationOutcome::from_wire(get("outcome")?)?,
+            },
+            "stats.dropped" => Self::StatsDropped,
+            "stats.truncated" => Self::StatsTruncated,
+            "stats.invalid_report" => Self::StatsInvalidReport,
+            "perf.cold_start_ms" => Self::PerfColdStartMs { value: value? },
+            "perf.board_interactive_ms" => Self::PerfBoardInteractiveMs { value: value? },
+            "perf.rss_peak_mb" => Self::PerfRssPeakMb { value: value? },
+            "perf.cpu_overhead_pct" => Self::PerfCpuOverheadPct { value: value? },
+            _ => return None,
+        };
+        (dims.len() == event.dims().len() && (value.is_some() == event.observation().is_some()))
+            .then_some(event)
     }
 
     /// The observed value, for a histogram metric.

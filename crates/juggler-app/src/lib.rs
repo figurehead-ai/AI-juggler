@@ -79,6 +79,8 @@ pub const EVENT_PREVIEW_STATE: &str = "preview://state";
 /// Builds and runs the desktop application.
 #[allow(clippy::too_many_lines)] // the command registry is one flat list by design
 pub fn run() {
+    // AJ-E1103: cold start runs from here to the end of setup.
+    let launched = std::time::Instant::now();
     let data_dir = bootstrap_data_dir();
     let app_state = Arc::new(state::AppState::init(data_dir).unwrap_or_else(|error| {
         eprintln!("ai-juggler: fatal: {error}");
@@ -133,6 +135,12 @@ pub fn run() {
             commands::app_info,
             usage_stats::usage_stats_info,
             usage_stats::usage_stats_set,
+            usage_stats::usage_stats_ui_event,
+            usage_stats::usage_stats_ui_gauge,
+            usage_stats::usage_stats_overview,
+            usage_stats::usage_stats_report,
+            usage_stats::usage_stats_delete_local,
+            usage_stats::usage_stats_open_docs,
             commands::usage_source_health,
             commands::cost_rollups,
             commands::cost_csv_export,
@@ -324,7 +332,7 @@ pub fn run() {
             commands::preview_stop,
             commands::account_set_preview_opt_in,
         ])
-        .setup(|app| {
+        .setup(move |app| {
             let _ = app.emit(EVENT_APP_READY, commands::AppInfo::current());
             register_go_to_hotkey(app.handle());
             spawn_read_model_ticks(
@@ -351,7 +359,7 @@ pub fn run() {
             cloud_backup::spawn_schedule(cloud_backup_state);
             // AJ-E1102: usage stats start only if the user opted in (and
             // no override says off); off creates nothing.
-            usage_stats::start(stats_state);
+            usage_stats::start(stats_state, launched.elapsed());
             Ok(())
         })
         .build(tauri::generate_context!())

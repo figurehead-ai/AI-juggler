@@ -494,6 +494,7 @@ const MIGRATIONS: &[&str] = &[
 #[derive(Debug)]
 pub struct Storage {
     conn: Connection,
+    migrated: bool,
 }
 
 impl Storage {
@@ -536,13 +537,24 @@ impl Storage {
                 Some(p) => CoreError::NotADatabase { path: p, source: e },
                 None => CoreError::Storage(e),
             })?;
-        let storage = Self { conn };
-        storage.migrate(current)?;
+        let mut storage = Self {
+            conn,
+            migrated: false,
+        };
+        storage.migrated = storage.migrate(current)?;
         Ok(storage)
     }
 
-    /// Runs pending forward migrations from the current schema version.
-    fn migrate(&self, current: i64) -> Result<(), CoreError> {
+    /// Opening this database ran at least one migration (a new database
+    /// or an upgrade) — AJ-E1103 counts it.
+    #[must_use]
+    pub const fn migrated_on_open(&self) -> bool {
+        self.migrated
+    }
+
+    /// Runs pending forward migrations from the current schema version;
+    /// `true` when any ran.
+    fn migrate(&self, current: i64) -> Result<bool, CoreError> {
         let supported = i64::try_from(MIGRATIONS.len()).unwrap_or(i64::MAX);
         if current > supported {
             return Err(CoreError::SchemaTooNew {
@@ -560,7 +572,7 @@ impl Storage {
             tx.pragma_update(None, "user_version", version)?;
             tx.commit()?;
         }
-        Ok(())
+        Ok(applied < MIGRATIONS.len())
     }
 
     /// Repository for [`crate::model::Account`] rows.

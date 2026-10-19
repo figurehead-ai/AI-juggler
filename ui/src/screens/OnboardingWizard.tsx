@@ -10,8 +10,13 @@ import {
   type PackPolicyChoice,
   type PackPolicyWire,
 } from "../components/PackPolicyChooser";
+import { UsageStatsChooser } from "../components/UsageStatsChooser";
 import { pickDirectory, sourceInspect,
   signedIn,
+  usageStatsInfo,
+  usageStatsSet,
+  type UsageStatsInfo,
+  type UsageStatsMode,
 } from "../lib/bridge";
 import type { SourceInspectInfo } from "../types/generated/SourceInspectInfo";
 import {
@@ -39,6 +44,7 @@ import {
   accountSetRenewal,
   redactionPolicyGet,
   redactionPolicySetGlobal,
+  statsEvent,
 } from "../lib/bridge";
 
 const PLANS: { id: string | null; label: string; hint: string }[] = [
@@ -633,6 +639,12 @@ export function OnboardingWizard({
   // and "Decide later" writes nothing (no pack is staged until the
   // user chooses). The write happens on the accept/create click.
   const [policyChoice, setPolicyChoice] = useState<PackPolicyChoice | null>(null);
+  // AJ-E1105: the usage-stats consent, offered once on the first-run
+  // flow beside the pack policy — equal weight, nothing pre-selected.
+  // Not answering keeps it off (the private default), so it adds no
+  // required click to flow (a)'s ≤ 5-click budget (AJ-E305).
+  const [statsInfo, setStatsInfo] = useState<UsageStatsInfo | null>(null);
+  const [statsChoice, setStatsChoice] = useState<UsageStatsMode | null>(null);
   const [policyKnown, setPolicyKnown] = useState<{
     global: PackPolicyWire | null;
     effective: PackPolicyWire | null;
@@ -796,6 +808,20 @@ export function OnboardingWizard({
       alive = false;
     };
   }, [activeProvider]);
+  useEffect(() => {
+    let alive = true;
+    void usageStatsInfo()
+      .then((info) => {
+        if (alive) setStatsInfo(info);
+      })
+      .catch(() => {
+        if (alive) setStatsInfo(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const statsNeeded = !locked && statsInfo !== null && statsInfo.included && statsInfo.decided_at_ms === null;
   const policyNeeded = !locked && policyKnown !== null && policyKnown.global === null;
   // Deliberate choices get no fast-path: the accept/create stays
   // disabled until the user picks an option (Decide later counts) —
@@ -827,6 +853,15 @@ export function OnboardingWizard({
   // AJ-E309 Req.2: the global policy writes ONLY on the explicit
   // accept/create click. "Decide later" writes nothing.
   const commitPolicy = async () => {
+    // AJ-E1105: the usage-stats answer is saved on the same click.
+    if (statsNeeded && statsChoice !== null) {
+      try {
+        const result = await usageStatsSet(statsChoice);
+        setStatsInfo(result.info);
+      } catch {
+        // Unsaved means off — the safe reading; Settings › Privacy can set it.
+      }
+    }
     if (!policyNeeded || policyChoice === null) return;
     if (!emittedRef.current.has("policy")) {
       emittedRef.current.add("policy");
@@ -895,7 +930,10 @@ export function OnboardingWizard({
             renewal,
             renewalSaved: await saveRenewal(imported.account.id, renewal),
           });
-          if (imported.login === "expired") funnelEvent("login_expired");
+          if (imported.login === "expired") {
+            funnelEvent("login_expired");
+            statsEvent("onboarding.login", { provider: item.provider, outcome: "expired" });
+          }
           if (!signedIn(imported.login)) {
             queue.push({
               accountId: imported.account.id,
@@ -1085,7 +1123,10 @@ export function OnboardingWizard({
             degradedChoice,
           );
           funnelEvent("import_completed", { degraded: result.degraded === true });
-          if (result.login === "expired") funnelEvent("login_expired");
+          if (result.login === "expired") {
+            funnelEvent("login_expired");
+            statsEvent("onboarding.login", { provider: activeProvider, outcome: "expired" });
+          }
           setImportResult(result);
           setAccount(result.account);
           setCreated([
@@ -1387,8 +1428,15 @@ export function OnboardingWizard({
                     setRenewals((current) => ({ ...current, [index]: date }))
                   }
                   policySlot={
-                    policyNeeded ? (
-                      <PackPolicyChooser value={policyChoice} onChange={setPolicyChoice} />
+                    policyNeeded || statsNeeded ? (
+                      <>
+                        {policyNeeded && <PackPolicyChooser value={policyChoice} onChange={setPolicyChoice} />}
+                        {statsNeeded && <UsageStatsChooser
+                            value={statsChoice}
+                            onChange={setStatsChoice}
+                            hint="Optional — if you don't choose, it stays off. You can change it anytime in Settings › Privacy."
+                          />}
+                      </>
                     ) : null
                   }
                   acceptBlocked={
@@ -1835,6 +1883,11 @@ export function OnboardingWizard({
               {policyNeeded && (
                 <PackPolicyChooser value={policyChoice} onChange={setPolicyChoice} />
               )}
+              {statsNeeded && <UsageStatsChooser
+                            value={statsChoice}
+                            onChange={setStatsChoice}
+                            hint="Optional — if you don't choose, it stays off. You can change it anytime in Settings › Privacy."
+                          />}
 
               {/* AJ-E309 Req.5: the expert hatch (no account yet —
                   the Provider's folder; the shell line follows once
@@ -1968,10 +2021,12 @@ export function OnboardingWizard({
                   }
                   onReady={() => {
                     funnelEvent("login_completed");
+                    statsEvent("onboarding.login", { provider: currentSignin.provider, outcome: "completed" });
                     setSigninIndex((index) => index + 1);
                   }}
                   onSkip={() => {
                     funnelEvent("login_skipped");
+                    statsEvent("onboarding.login", { provider: currentSignin.provider, outcome: "skipped" });
                     setSigninIndex((index) => index + 1);
                   }}
                 />

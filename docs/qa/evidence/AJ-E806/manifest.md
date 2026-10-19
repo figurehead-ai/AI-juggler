@@ -133,3 +133,18 @@
   also runs while a failing test unwinds. After the collateral and
   guardrail suites: zero `trap_helper.py` processes left. No assertion
   changed.
+- The same kind of budget, again (2026-10-18, found by the AJ-E1103
+  verify run): `fleet_sync :: a_thousand_queued_changes_catch_up_inside_three_seconds`
+  measured each outbox write by wall clock, which includes SQLite's
+  commit to disk. On the loaded machine (load average 11–13) one full
+  run saw a p95 of 19.9 ms; the test alone passes in 0.2 s. The p95 is
+  now taken on the writing thread's CPU time, with wall time printed
+  beside it; the 10 ms budget and the catch-up assertion are unchanged.
+- A flaky test of my own, fixed before merge (2026-10-18, found by a
+  verify run): `juggler-stats :: cycle::tests::leaving_share_skips_pending_reports`
+  (and two others with the same shape) assembled a week an hour after
+  it closed. The report's upload time is random in the 144 hours after
+  close, so about 0.7 % of runs found it already due and fetched the
+  config, failing "no requests". The tests now assemble at the moment
+  the week closes, where the upload can't yet be due; no assertion
+  changed.
