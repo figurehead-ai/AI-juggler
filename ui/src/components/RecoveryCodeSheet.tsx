@@ -85,7 +85,7 @@ export function RecoveryCodeSheet({ onClose }: { onClose: (saved: boolean) => vo
               ))
             : "…"}
         </p>
-        <div className="flex gap-[9px]">
+        <div className="flex gap-2">
           <button
             type="button"
             onClick={() => void copy()}
