@@ -141,7 +141,7 @@ describe("AJ-E206 door", () => {
     fireEvent.click(view.getByTestId("switch-confirm"));
     await waitFor(() => expect(view.getByTestId("switch-done")).toBeTruthy());
     expect(onSwitched).not.toHaveBeenCalled();
-    fireEvent.click(view.getByRole("button", { name: /Go to the new instance/ }));
+    fireEvent.click(view.getByRole("button", { name: /Go to the new session/ }));
     expect(onSwitched).toHaveBeenCalledTimes(1);
     expect(onSwitched.mock.calls[0][1]).toBeNull();
   });

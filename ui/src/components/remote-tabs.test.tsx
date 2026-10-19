@@ -105,12 +105,12 @@ describe("RemoteTabBody", () => {
   });
 
   it("Stop shows the node's own verdict", async () => {
-    w().__AIJ_REMOTE_STOP__ = { accepted: false, reason_code: "unknown_record", message: "No such Instance on this Mac." };
+    w().__AIJ_REMOTE_STOP__ = { accepted: false, reason_code: "unknown_record", message: "No such session on this Mac." };
     const view = body("actions");
     await act(async () => {
       fireEvent.click(view.getByTestId("remote-stop"));
     });
-    expect(view.getByTestId("remote-outcome").textContent).toContain("Mac mini refused: No such Instance on this Mac.");
+    expect(view.getByTestId("remote-outcome").textContent).toContain("Mac mini refused: No such session on this Mac.");
     expect(w().__AIJ_FLEET_CALLS__).toContain("remote-stop:machine-mini:inst-1");
   });
 

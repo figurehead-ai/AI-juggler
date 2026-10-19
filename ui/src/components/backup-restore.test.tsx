@@ -47,7 +47,7 @@ describe("AJ-E1009 backup", () => {
     const done = container.querySelector("[data-testid='backup-done']")!.textContent!;
     expect(done).toContain("3.2 MB");
     expect(done).toContain("/Users/dev/Backups/move.ajbackup");
-    expect(done).toContain("41 Instances");
+    expect(done).toContain("41 Sessions");
     expect(done).toContain("ANTHROPIC_API_KEY");
     expect(calls()).toEqual(["export:/Users/dev/Backups/move.ajbackup"]);
   });

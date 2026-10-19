@@ -1189,13 +1189,13 @@ for (const state of ["needs-attention", "all-managed", "re-adopted", "unverifiab
         await expect(page.getByTestId("cleanup-centre")).toBeVisible();
         if (state === "needs-attention") {
           await expect(page.getByTestId("cleanup-row-8123")).toContainText(
-            "Still running after its Instance closed",
+            "Still running after its session closed",
           );
           await expect(page.getByTestId("cleanup-row-8124")).toContainText("hog");
         }
         if (state === "empty") {
           await expect(page.getByTestId("cleanup-empty")).toContainText(
-            "Nothing left behind — 3 Instances running clean.",
+            "Nothing left behind — 3 sessions running clean.",
           );
         }
         if (state === "degraded") {
@@ -1656,7 +1656,7 @@ for (const theme of THEMES) {
 
 const RECOVERY_SUMMARY = {
   summary:
-    "2 Instances re-adopted, 1 helpers left behind, 1 processes could not be verified and were left alone.",
+    "2 sessions re-adopted, 1 helpers left behind, 1 processes could not be verified and were left alone.",
   adopted: 2,
   left_behind: 1,
   unverifiable: 1,
@@ -1960,7 +1960,7 @@ const FLEET_CLEANUP = {
         {
           machine_id: "machine-local",
           pid: 8123, pgid: 8100, role: "helper", state: "orphaned",
-          state_label: "Still running after its Instance closed",
+          state_label: "Still running after its session closed",
           role_guess: "python3 (guess)", exe_path: "/usr/bin/python3",
           cmdline: "python3 -m http.server 5173", age_ms: 9_000_000,
           rss_bytes: 48 * 1024 * 1024, cpu_pct: 1.4, ports: "5173",
@@ -1984,7 +1984,7 @@ const FLEET_CLEANUP = {
         {
           machine_id: "machine-studio",
           pid: 9101, pgid: 9100, role: "helper", state: "orphaned",
-          state_label: "Still running after its Instance closed",
+          state_label: "Still running after its session closed",
           role_guess: "node (guess)", exe_path: "/usr/local/bin/node",
           cmdline: "node vite dev", age_ms: 4_000_000,
           rss_bytes: 220 * 1024 * 1024, cpu_pct: 0.4, ports: "5174",
@@ -2751,7 +2751,7 @@ for (const theme of THEMES) {
       });
       await page.getByTestId("switch-back-card").click();
       await expect(page.getByTestId("switch-back-sf7")).toContainText("S-F7");
-      await expect(page.getByTestId("switch-back-sf7")).toContainText("fresh instance");
+      await expect(page.getByTestId("switch-back-sf7")).toContainText("fresh session");
       await page.screenshot({
         path: resolve(GALLERY, `30-switchback/sf7-${vp.name}-${theme}.png`),
       });
@@ -4208,7 +4208,7 @@ for (const theme of THEMES) {
       await expect(cards).toBeVisible();
       await expect(cards).toContainText("Verified against 2.0.x, 2.1.x");
       await expect(cards).toContainText("Unverified — features may drift");
-      await expect(cards).toContainText("one Instance at a time");
+      await expect(cards).toContainText("one session at a time");
       await expect(cards).toContainText("Install Gemini CLI →");
       await page.screenshot({
         path: resolve(GALLERY, `38-flows-cde/c-provider-cards-${vp.name}-${theme}.png`),
@@ -5317,7 +5317,7 @@ const cleanupMachine = (over: Record<string, unknown> = {}) =>
     alerts: [],
     processes: [
       { instance_id: "inst-1", provider: "claude-code", account_label: "Work Max", pid: 4242, role: "helper", state: "orphaned",
-        state_label: "Still running after its Instance closed", verified: true, name: "node", age_ms: 3_600_000,
+        state_label: "Still running after its session closed", verified: true, name: "node", age_ms: 3_600_000,
         rss_bytes: 210 * 1024 ** 2, cpu_percent: 1.2, ports: "3000", measured_at_ms: T0 - 1_000 },
       { instance_id: "inst-1", provider: "claude-code", account_label: "Work Max", pid: 4250, role: "helper", state: "unverifiable",
         state_label: "Unverifiable — will not be touched", verified: false, name: "python3", age_ms: 7_200_000,

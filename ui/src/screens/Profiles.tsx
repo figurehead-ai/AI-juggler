@@ -290,7 +290,7 @@ function AccountCard({
           size="sm"
           variant="primary"
           disabled={profiles.length === 0 || !loggedIn}
-          title={loggedIn ? "Starts an Instance on this Account" : "Sign in first (Ready home)"}
+          title={loggedIn ? "Starts a session on this Account" : "Sign in first (Ready home)"}
           onClick={() => onLaunch(profiles[0])}
         >
           <IconTerminal width={13} height={13} />
@@ -449,7 +449,7 @@ function NewProfileModal({
           <div className="flex gap-2">
             <Input
               value={cwd}
-              placeholder="Where Instances start — or choose…"
+              placeholder="Where sessions start — or choose…"
               onChange={(event) => setCwd(event.target.value)}
               className="min-w-0 flex-1"
             />

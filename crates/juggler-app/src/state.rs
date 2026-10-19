@@ -339,7 +339,7 @@ fn run_startup_recovery(
         // Req.3: ONE summary, exact template, shown once, audited as
         // actor=system:recovery.
         let summary = format!(
-            "{} Instances re-adopted, {} helpers left behind, {} processes could not be verified and were left alone.",
+            "{} sessions re-adopted, {} helpers left behind, {} processes could not be verified and were left alone.",
             report.adopted.len(),
             report.left_behind.len(),
             report.unverifiable.len()

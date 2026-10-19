@@ -42,7 +42,7 @@ const COUNT_WORDS: Record<string, string> = {
   accounts: "Accounts",
   launch_settings: "Launch settings",
   projects: "projects",
-  instances: "Instances",
+  instances: "Sessions",
   history_events: "history events",
   switch_edges: "switches",
   epochs: "lineage steps",

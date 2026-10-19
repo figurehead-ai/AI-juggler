@@ -182,9 +182,9 @@ export function GoToPalette({
             aria-expanded="true"
             aria-controls="goto-listbox"
             aria-activedescendant={rows[active] ? `goto-option-${domId(rows[active]!.id)}` : undefined}
-            aria-label="Go to instance"
+            aria-label="Go to session"
             value={query}
-            placeholder={capturing ? "Press the new combo (Esc cancels)…" : "Go to instance…"}
+            placeholder={capturing ? "Press the new combo (Esc cancels)…" : "Go to session…"}
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={onKeyDown}
             className="w-full bg-transparent text-[13px] text-ink outline-none placeholder:text-faint"
@@ -193,12 +193,12 @@ export function GoToPalette({
         <ul
           id="goto-listbox"
           role="listbox"
-          aria-label="Live instances"
+          aria-label="Live sessions"
           className="max-h-72 overflow-y-auto p-1.5"
         >
           {rows.length === 0 && (
             <li className="px-2.5 py-3 text-[11.5px] text-muted">
-              No live instances — start one from the rail.
+              No live sessions — start one from the rail.
             </li>
           )}
           {rows.map((entry, index) => (

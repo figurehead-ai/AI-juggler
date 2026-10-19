@@ -74,7 +74,7 @@ export function CostMatrix(): JSX.Element {
       )}
       {data.rows.length === 0 ? (
         <p className="rounded-lg border border-hairline px-3 py-4 text-center text-xs text-muted" data-testid="cost-empty">
-          No usage recorded yet. Costs appear here as your Instances run.
+          No usage recorded yet. Costs appear here as your sessions run.
         </p>
       ) : (
         <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Cost table">

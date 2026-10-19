@@ -162,7 +162,7 @@ export function CrossMachineSwitchBack({
             </h3>
             <p className="text-[11px] text-ink">
               Nothing was merged and nothing ran. Choose what to keep; switching back and cleaning up
-              this Instance wait until you do.
+              this session wait until you do.
             </p>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" data-testid="conflict-sides">
               <section className="rounded-lg border border-hairline p-2.5 text-[11px]" aria-label="Here">
@@ -262,7 +262,7 @@ export function CrossMachineSwitchBack({
                 )}
                 <label className="flex items-center gap-2 text-[11px] text-ink">
                   <input type="checkbox" checked={keepAway} onChange={(event) => setKeepAway(event.target.checked)} />
-                  Keep this Instance running too
+                  Keep this session running too
                 </label>
                 <div className="flex justify-end gap-2">
                   <button

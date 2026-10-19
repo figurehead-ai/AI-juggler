@@ -27,7 +27,7 @@ pub fn instance_mark_reviewed_impl(state: &Arc<AppState>, session_id: &str) -> A
     if !crate::commands::is_terminal(record.status) {
         return Err(AppError::Validation {
             subject: "review",
-            message: "only an Instance that has ended can be marked reviewed".to_owned(),
+            message: "only a session that has ended can be marked reviewed".to_owned(),
         });
     }
     Ok(storage.sessions().record_lifecycle(&id, "reviewed")?)

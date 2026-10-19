@@ -516,7 +516,7 @@ fn desktop_focus_refuses_terminal_instances_by_name() {
         .unwrap();
     drop(storage);
     let error = commands::desktop_focus_with(&state, "sess-term", runner).unwrap_err();
-    assert!(error.to_string().contains("desktop instances"), "{error}");
+    assert!(error.to_string().contains("desktop sessions"), "{error}");
 }
 
 #[test]

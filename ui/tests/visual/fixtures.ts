@@ -291,7 +291,7 @@ const CLEANUP_ROW = (pid: number, state: string) => ({
   state,
   state_label:
     state === "orphaned"
-      ? "Still running after its Instance closed"
+      ? "Still running after its session closed"
       : state === "adopted"
         ? "Running — re-adopted"
         : state === "unverifiable"

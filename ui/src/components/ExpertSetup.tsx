@@ -254,7 +254,7 @@ export function ExpertSetup({
                     <p className="leading-relaxed text-muted">
                       Extra variables set when{" "}
                       {recipe.name === "Main" ? "the default Launch settings" : `“${recipe.name}”`}{" "}
-                      start an Instance.
+                      start a session.
                     </p>
                     <EnvOverlayEditor
                       recipeId={recipe.id}

@@ -681,7 +681,7 @@ export function SwitchFlow({
           <div className="flex flex-col gap-3" data-testid="switch-done">
             <h3 className="text-sm font-semibold">Switched to {targetLabel}</h3>
             <p className="text-[11px] text-muted">
-              You switched — the continuation instance is starting. The source rests and stays
+              You switched — the continuation session is starting. The source rests and stays
               resumable from the graph.
             </p>
             <div className="flex justify-end">
@@ -690,7 +690,7 @@ export function SwitchFlow({
                 onClick={() => onSwitched(phase.sessionId, null)}
                 className="rounded-lg border border-accent/40 bg-accent-soft px-3 py-1.5 text-xs text-accent-hi"
               >
-                Go to the new instance
+                Go to the new session
               </button>
             </div>
           </div>

@@ -283,7 +283,7 @@ function InstanceActions({
     : !connected
       ? `${machine.label} isn't connected right now`
       : !running
-        ? "This Instance isn't running"
+        ? "This session isn't running"
         : null;
   return (
     <Card className="flex flex-col gap-3 p-4" data-testid="remote-actions">
@@ -344,7 +344,7 @@ function InstanceActions({
       </div>
       <p className="text-[11px] leading-relaxed text-muted">
         {machine.label} checks the pairing permission, that the request is fresh, and that this
-        Instance exists before it acts — and records the request.
+        Session exists before it acts — and records the request.
       </p>
       <div aria-live="polite" data-testid="remote-outcome">
         {outcome && (
@@ -404,7 +404,7 @@ function MachineOverview({
         </dl>
       </Card>
       <Card className="flex flex-col gap-1 p-4">
-        <p className="text-xs font-medium">Instances on {machine.label}</p>
+        <p className="text-xs font-medium">Sessions on {machine.label}</p>
         {machine.instances.length === 0 ? (
           <p className="text-xs text-muted">
             {machine.freshness === "offline" ? "Unavailable while offline." : "None running."}
@@ -468,7 +468,7 @@ function InstanceProcessList({ machine, instanceId }: { machine: RemoteMachineIn
   if (rows.length === 0) {
     return (
       <p className="text-[11px] text-muted">
-        Unavailable — {machine.label} hasn't reported this Instance's processes.
+        Unavailable — {machine.label} hasn't reported this session's processes.
       </p>
     );
   }

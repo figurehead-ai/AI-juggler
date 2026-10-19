@@ -51,7 +51,7 @@ export function RecoverySummaryDialog({
           {summary.summary}
         </p>
         <p className="mt-2 text-[10.5px] text-muted">
-          Re-adopted Instances run on with a working verified stop (Terminate… in the Cleanup
+          Re-adopted sessions run on with a working verified stop (Terminate… in the Cleanup
           Centre or their process tab). Automatic cleanup stays suspended for 24 hours —
           re-confirm it in the Cleanup Centre when you are ready.
         </p>

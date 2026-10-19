@@ -155,8 +155,10 @@ function KindIcon({ kind }: { kind: InspectorKind }) {
 }
 
 export const KIND_LABELS: Record<InspectorKind, string> = {
-  instance: "Instance",
-  session: "Session",
+  // D-25: on screen, an Instance is a "session"; a Session (the
+  // conversation record) is a "conversation".
+  instance: "Session",
+  session: "Conversation",
   provider: "Provider",
   account: "Account",
   project: "Project",
@@ -297,7 +299,7 @@ export function RightInspector({
   const headerName = remote
     ? (remote.instance?.account_label ?? remote.machine.label)
     : kind === "instance"
-      ? (data.instance?.account_label ?? "Instance")
+      ? (data.instance?.account_label ?? "Session")
       : kind === "session"
         ? "Conversation"
         : kind === "provider"
@@ -365,7 +367,7 @@ export function RightInspector({
             <>
               <span aria-hidden="true">/</span>
               <span aria-current="page" className="text-ink">
-                Instance
+                Session
               </span>
             </>
           )}
@@ -903,7 +905,7 @@ function InstanceOverview(props: PanelProps) {
               <Chip tone={statusTone(session.status).tone}>
                 {statusTone(session.status).label}
               </Chip>
-              <span title="desktop app instance" className="inline-flex">
+              <span title="desktop app session" className="inline-flex">
                 <Chip tone="neutral">app</Chip>
               </span>
               <Chip tone="neutral">{session.provider}</Chip>
@@ -1023,7 +1025,7 @@ function InstanceOverview(props: PanelProps) {
             )}
             <p className="text-[11px] text-faint">
               The window is the app's own; Juggler tracks the process, never embeds it.
-              Focus matches this Instance's recorded window — a stale title or a collision is
+              Focus matches this session's recorded window — a stale title or a collision is
               reported, never guessed to a wrong window.
             </p>
           </Card>
@@ -1181,7 +1183,7 @@ function InstanceOverview(props: PanelProps) {
                 </span>
               </button>
             ) : (
-              <p className="text-xs text-muted">No live instance — free to juggle.</p>
+              <p className="text-xs text-muted">No live session — free to juggle.</p>
             )}
             <p className="mt-2 text-[11px] uppercase tracking-wider text-faint">
               Launch with another account
@@ -1262,9 +1264,9 @@ function InstanceOverview(props: PanelProps) {
           </div>
         </Card>
         <Card className="flex flex-col gap-2 p-4">
-          <p className="text-[11px] uppercase tracking-wider text-faint">Instances on this account</p>
+          <p className="text-[11px] uppercase tracking-wider text-faint">Sessions on this account</p>
           {rows.length === 0 ? (
-            <p className="text-xs text-muted">No instances recorded yet.</p>
+            <p className="text-xs text-muted">No sessions recorded yet.</p>
           ) : (
             rows.slice(0, 8).map((row) => (
               <button
@@ -1403,7 +1405,7 @@ function InstanceHistory(props: PanelProps) {
   return (
     <div className="flex flex-col gap-3" data-testid="instance-history">
       <Card className="flex flex-col gap-2 p-4">
-        <p className="text-[11px] uppercase tracking-wider text-muted">This instance</p>
+        <p className="text-[11px] uppercase tracking-wider text-muted">This session</p>
         <p className="text-[11.5px] text-muted">No history recorded yet</p>
         <p className="text-[10px] text-muted">
           resumes, handovers and crashes appear here as transcripts are indexed; imported
@@ -1496,7 +1498,7 @@ function InstanceActions(props: PanelProps & { onRelaunch?: (recipe: LaunchRecip
         reason={
           instance.status === "quota_blocked"
             ? "the reset queue lands with AJ-E1003"
-            : "quota-blocked instances only"
+            : "quota-blocked sessions only"
         }
       />
       <ActionRow label="Export pack…" onClick={undefined} reason="portable context pack lands with AJ-E202" />
@@ -1534,7 +1536,7 @@ function SessionOverview(props: PanelProps) {
               onClick={() => props.onOpenSession(instance.id)}
               className="-my-1 py-1 text-muted underline decoration-hairline underline-offset-2 outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
             >
-              owning Instance: {instance.account_label}
+              owning session: {instance.account_label}
             </button>
           ) : null}
         </div>
@@ -1663,7 +1665,7 @@ function SessionActions(props: PanelProps) {
         label="Hand over…"
         shortcut="⌘⇧H"
         onClick={() => window.dispatchEvent(new Event("aij:focus-handover"))}
-        reason="opens the owning Instance's hand-over section"
+        reason="opens the owning session's hand-over section"
       />
       <ActionRow label="Export pack…" onClick={undefined} reason="portable context pack lands with AJ-E202" />
       <ActionRow label="Fork" onClick={undefined} reason="fork/branch copy lands with E2 switching" />
@@ -1833,7 +1835,7 @@ function AccountOverview(props: PanelProps) {
                 );
               }}
             />
-            <span className="text-muted">Live preview of desktop instances (opt-in)</span>
+            <span className="text-muted">Live preview of desktop sessions (opt-in)</span>
           </label>
           <span data-testid="account-reset" className="text-muted">
             reset:{" "}
@@ -1849,7 +1851,7 @@ function AccountOverview(props: PanelProps) {
         </div>
       </Card>
       <Card className="flex flex-col gap-1.5 p-4">
-        <p className="text-[11px] uppercase tracking-wider text-muted">Running instances ({running.length})</p>
+        <p className="text-[11px] uppercase tracking-wider text-muted">Running sessions ({running.length})</p>
         {running.length === 0 ? (
           <p className="text-[11.5px] text-muted">None right now.</p>
         ) : (
@@ -1946,7 +1948,7 @@ function ProjectOverview(props: PanelProps) {
                 <SessionRowForCard session={active} />
               </div>
             ) : (
-              <p className="text-[11.5px] text-muted">No live instance — free to juggle.</p>
+              <p className="text-[11.5px] text-muted">No live session — free to juggle.</p>
             )}
           </Card>
           <Card className="flex flex-col gap-2 p-4">
@@ -2751,7 +2753,7 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
         </table>
         {readOnly && (
           <p className="pt-1 text-[10px] text-faint">
-            Read-only — ended conversation; stop actions live on the Instance&apos;s Processes tab.
+            Read-only — ended conversation; stop actions live on the session&apos;s Processes tab.
           </p>
         )}
       </Card>
@@ -2763,7 +2765,7 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
           </p>
           {orphans.length === 0 ? (
             <p className="text-[10px] text-faint">
-              A good empty state: nothing this Instance spawned outlived it.
+              A good empty state: nothing this session spawned outlived it.
             </p>
           ) : (
             <>
@@ -2847,7 +2849,7 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
           divergence here is how T3 survivors get mislabelled). */}
           <InstanceCleanupRows sessionId={instance.id} />
           {/* AJ-E505: the machine-wide port occupancy map below the
-          Instance tree — every listener classified, unmanaged rows
+          Session tree — every listener classified, unmanaged rows
           display-only (the F3 collateral guard). */}
           <div className="mt-3">
             <PortInventoryList />
@@ -2898,8 +2900,8 @@ function AggregateProcesses(props: PanelProps) {
   return (
     <div className="flex flex-col gap-3" data-testid="processes-aggregate">
       <p className="text-[10px] text-muted">
-        Read-only rollup across {members.length} instance{members.length === 1 ? "" : "s"} · stop actions
-        live on each Instance&apos;s Processes tab
+        Read-only rollup across {members.length} session{members.length === 1 ? "" : "s"} · stop actions
+        live on each session&apos;s Processes tab
       </p>
       {totalRows === 0 ? (
         <Card className="flex flex-col gap-1 p-4">

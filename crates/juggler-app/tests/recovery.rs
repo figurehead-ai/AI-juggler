@@ -251,7 +251,7 @@ fn crash_drill_readopts_verifies_and_reports() {
         .expect("summary pending");
     assert_eq!(
         summary.summary,
-        "2 Instances re-adopted, 1 helpers left behind, 1 processes could not be verified and were left alone."
+        "2 sessions re-adopted, 1 helpers left behind, 1 processes could not be verified and were left alone."
     );
     assert_eq!(
         (summary.adopted, summary.left_behind, summary.unverifiable),

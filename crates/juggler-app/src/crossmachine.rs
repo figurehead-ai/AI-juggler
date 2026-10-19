@@ -369,7 +369,7 @@ fn source_of(
     let (source, account) = crate::commands::handover_source(state, session_id)?;
     let project = source.project.clone().ok_or_else(|| AppError::Validation {
         subject: "switch",
-        message: "this Instance isn't linked to a project".to_owned(),
+        message: "this session isn't linked to a project".to_owned(),
     })?;
     let record = crate::commands::lock_storage_arc(state)?
         .projects()
@@ -692,7 +692,7 @@ fn stage_edge(
     let (source, account, _, _) = source_of(state, &request.session_id)?;
     let project = source.project.clone().ok_or_else(|| AppError::Validation {
         subject: "switch",
-        message: "this Instance isn't linked to a project".to_owned(),
+        message: "this session isn't linked to a project".to_owned(),
     })?;
     let storage = crate::commands::lock_storage_arc(state)?;
     let graph = storage.switch_graph();

@@ -128,8 +128,9 @@ beforeEach(() => {
 
 describe("AJ-E406 the shell across the five selection types (D-06)", () => {
   const kinds: { kind: InspectorSelection; name: string; type: string }[] = [
-    { kind: { kind: "instance", id: "sess-1" }, name: "Work Max", type: "Instance" },
-    { kind: { kind: "session", id: "conv-1" }, name: "Conversation", type: "Session" },
+    // D-25: on screen an Instance is a "session", a Session a "conversation".
+    { kind: { kind: "instance", id: "sess-1" }, name: "Work Max", type: "Session" },
+    { kind: { kind: "session", id: "conv-1" }, name: "Conversation", type: "Conversation" },
     { kind: { kind: "provider", id: "claude-code" }, name: "claude-code", type: "Provider" },
     { kind: { kind: "account", id: "claude-work" }, name: "Work Max", type: "Account" },
     { kind: { kind: "project", id: "proj-1" }, name: "alpha", type: "Project" },

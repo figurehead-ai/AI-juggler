@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and the rest behind a Filters button that says when one is on. A row
   shows its state in words and adds a note only when it matters (low
   quota, parked, uncommitted files, a sign-in to check, a stale value).
+- The app says **session** for what it used to call an Instance — in
+  every screen, message and the guide (D-25). A session's conversation
+  record is a "conversation". The code keeps its names.
 - Home answers "what needs me?": sessions that need you, what's running,
   each account's runway, and where you left off.
 - The session view opens on a short summary; everything else is under

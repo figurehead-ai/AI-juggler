@@ -970,7 +970,7 @@ export default function App() {
                 <header>
                   <h2 className="text-lg font-semibold tracking-tight">Usage</h2>
                   <p className="text-xs text-muted">
-                    What your Instances used, per session, model and day — measured on this Mac.
+                    What your sessions used, per session, model and day — measured on this Mac.
                   </p>
                 </header>
                 <CostMatrix />
@@ -1099,7 +1099,7 @@ export default function App() {
               projects={projects}
               accounts={accounts}
               profiles={profiles}
-              terminalTitle={selectedSession ? `${selectedSession.account_label} · instance` : null}
+              terminalTitle={selectedSession ? `${selectedSession.account_label} · session` : null}
               freshness={freshness}
               now={now}
               primaryAction={
@@ -1409,7 +1409,7 @@ function Overview({
       )}
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <StatCard
-          label="Live instances"
+          label="Live sessions"
           value={String(live.length)}
           hint={`${sessions.length} total recorded`}
           tone="live"
@@ -1441,7 +1441,7 @@ function Overview({
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-start gap-2">
               <div>
-                <h2 className="text-sm font-semibold">Live instances</h2>
+                <h2 className="text-sm font-semibold">Live sessions</h2>
                 <p className="text-xs text-muted">Select one to open its panel</p>
               </div>
               {/* Overview-header legend (AJ-E403 Req.6, surface 2 of 3). */}
@@ -1502,7 +1502,7 @@ function Overview({
               </div>
               <p className="text-center text-[11px] text-faint">
                 {live.length === 0
-                  ? "No live instances — quota shows per account once one runs"
+                  ? "No live sessions — quota shows per account once one runs"
                   : "Quota: no data — feeds land with the usage engine"}
               </p>
             </div>

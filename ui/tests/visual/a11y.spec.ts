@@ -189,7 +189,7 @@ for (const theme of ["dark", "light"] as const) {
                 pgid: 8100,
                 role: "helper",
                 state: "orphaned",
-                state_label: "Still running after its Instance closed",
+                state_label: "Still running after its session closed",
                 role_guess: "python3 (guess)",
                 exe_path: "/usr/bin/python3",
                 cmdline: "python3 -m http.server 5173",
@@ -410,7 +410,7 @@ for (const theme of ["dark", "light"] as const) {
         theme,
         recovery: {
           summary:
-            "2 Instances re-adopted, 1 helpers left behind, 1 processes could not be verified and were left alone.",
+            "2 sessions re-adopted, 1 helpers left behind, 1 processes could not be verified and were left alone.",
           adopted: 2,
           left_behind: 1,
           unverifiable: 1,
@@ -555,7 +555,7 @@ for (const theme of ["dark", "light"] as const) {
               rows: [
                 {
                   machine_id: "machine-local", pid: 8123, pgid: 8100, role: "helper",
-                  state: "orphaned", state_label: "Still running after its Instance closed",
+                  state: "orphaned", state_label: "Still running after its session closed",
                   role_guess: "python3 (guess)", exe_path: "/usr/bin/python3",
                   cmdline: "python3 -m http.server 5173", age_ms: 9_000_000,
                   rss_bytes: 48 * 1024 * 1024, cpu_pct: 1.4, ports: "5173",
@@ -568,7 +568,7 @@ for (const theme of ["dark", "light"] as const) {
                 },
                 {
                   machine_id: "machine-studio", pid: 9101, pgid: 9100, role: "helper",
-                  state: "orphaned", state_label: "Still running after its Instance closed",
+                  state: "orphaned", state_label: "Still running after its session closed",
                   role_guess: "node (guess)", exe_path: "/usr/local/bin/node",
                   cmdline: "node vite dev", age_ms: 4_000_000,
                   rss_bytes: 220 * 1024 * 1024, cpu_pct: 0.4, ports: "5174",
@@ -2196,7 +2196,7 @@ for (const theme of ["dark", "light"] as const) {
           last_heard_ms: now, permission: "control", resources: null, instances: [], alerts: [],
           processes: [
             { instance_id: "inst-1", provider: "claude-code", account_label: "Work Max", pid: 4242, role: "helper", state: "orphaned",
-              state_label: "Still running after its Instance closed", verified: true, name: "node", age_ms: 60000,
+              state_label: "Still running after its session closed", verified: true, name: "node", age_ms: 60000,
               rss_bytes: null, cpu_percent: null, ports: "3000", measured_at_ms: now },
             { instance_id: "inst-1", provider: "claude-code", account_label: "Work Max", pid: 4250, role: "helper", state: "unverifiable",
               state_label: "Unverifiable — will not be touched", verified: false, name: "python3", age_ms: 60000,

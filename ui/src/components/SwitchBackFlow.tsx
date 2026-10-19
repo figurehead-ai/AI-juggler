@@ -154,7 +154,7 @@ export function SwitchBackFlow({
                 {plan.sf7_fallback.startsWith("nearest-epoch") &&
                   " — the nearest surviving conversation resumes instead."}
                 {plan.sf7_fallback === "fresh-f0" &&
-                  " — a fresh instance starts, pack-primed honestly at F0."}
+                  " — a fresh session starts, pack-primed honestly at F0."}
               </p>
             )}
             <p className="text-[11px] text-muted" data-testid="switch-back-divergence">
@@ -199,7 +199,7 @@ export function SwitchBackFlow({
             {plan.away_live && (
               <fieldset className="flex flex-col gap-1.5" data-testid="switch-back-freeze-or-fork">
                 <legend className="text-[11px] uppercase tracking-wider text-muted">
-                  The away instance is still running
+                  The away session is still running
                 </legend>
                 <label className="flex items-center gap-2 text-xs">
                   <input
@@ -289,7 +289,7 @@ export function SwitchBackFlow({
                 onClick={() => onSwitched(phase.sessionId)}
                 className="rounded-lg border border-accent/40 bg-accent-soft px-3 py-1.5 text-xs text-accent-hi"
               >
-                Go to the instance
+                Go to the session
               </button>
             </div>
           </div>

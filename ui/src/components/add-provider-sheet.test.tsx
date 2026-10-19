@@ -78,7 +78,7 @@ describe("AJ-E306 flow (c) — AddProviderSheet", () => {
     );
     // Desktop: kind badge + the single-instance limit inline (Req.3).
     expect(cards[1]!.textContent).toContain("Desktop");
-    expect(cards[1]!.textContent).toContain("one Instance at a time");
+    expect(cards[1]!.textContent).toContain("one session at a time");
   });
 
   it("not-installed cards are never selectable — only [Install →] (Req.1)", async () => {

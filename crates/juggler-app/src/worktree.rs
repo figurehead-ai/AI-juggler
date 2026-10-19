@@ -480,7 +480,7 @@ pub fn worktree_remove_impl(
     let info = removal_info(state, path)?;
     if info.in_use {
         return Err(invalid(
-            "an Instance still runs in this worktree — stop it first",
+            "a session still runs in this worktree — stop it first",
         ));
     }
     if info.needs_confirmation && confirm != Some(info.folder.as_str()) {

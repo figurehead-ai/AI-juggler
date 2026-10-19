@@ -124,7 +124,7 @@ export function WorktreeRemoveDialog({ path, onClose }: { path: string; onClose:
               {info.summary}
             </p>
             {info.in_use && (
-              <p className="text-[11px] text-ink">An Instance still runs in it — stop it first.</p>
+              <p className="text-[11px] text-ink">A session still runs in it — stop it first.</p>
             )}
             {info.needs_confirmation && !info.in_use && (
               <label className="flex flex-col gap-1 text-[11px] text-ink">

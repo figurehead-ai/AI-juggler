@@ -15,7 +15,7 @@ function row(overrides: Partial<CleanupRowInfo> = {}): CleanupRowInfo {
     pgid: 8100,
     role: "helper",
     state: "orphaned",
-    state_label: "Still running after its Instance closed",
+    state_label: "Still running after its session closed",
     role_guess: "python3 (guess)",
     exe_path: "/usr/bin/python3",
     cmdline: "python3 -m http.server 5173",
@@ -94,7 +94,7 @@ describe("CleanupCentre (AJ-E506)", () => {
     const view = render(<CleanupCentre bridge={bridge} />);
     await waitFor(() => expect(view.getByTestId("cleanup-group-sess-orphan")).toBeTruthy());
     expect(view.getByTestId("cleanup-row-8123").textContent ?? "").toContain(
-      "Still running after its Instance closed",
+      "Still running after its session closed",
     );
     // Icon+text badge (never colour alone).
     expect(view.getByTestId("cleanup-state-8123").textContent ?? "").toMatch(/⚑/);
@@ -195,7 +195,7 @@ describe("CleanupCentre (AJ-E506)", () => {
     const view = render(<CleanupCentre bridge={empty} />);
     await waitFor(() => expect(view.getByTestId("cleanup-empty")).toBeTruthy());
     expect(view.getByTestId("cleanup-empty").textContent ?? "").toContain(
-      "Nothing left behind — 3 Instances running clean.",
+      "Nothing left behind — 3 sessions running clean.",
     );
     view.unmount();
 
@@ -403,7 +403,7 @@ describe("ProcessRow evidence expansion (AJ-E506 Req.4)", () => {
     fireEvent.click(view.getByTestId("cleanup-row-8123").querySelector("button")!);
     const panel = view.getByTestId("cleanup-evidence-8123");
     const text = panel.textContent ?? "";
-    expect(text).toContain("Instance root PID 8100");
+    expect(text).toContain("Session root PID 8100");
     expect(text).toContain("first-seen parent 8100");
     expect(text).toContain("matches the root (contained)");
     expect(text).toContain("verified — start-time and exe match the live process");

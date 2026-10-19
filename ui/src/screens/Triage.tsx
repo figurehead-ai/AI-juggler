@@ -202,7 +202,7 @@ export function Triage({
         <div className="min-w-0 flex-1">
           <h2 className="text-lg font-semibold tracking-tight">Triage</h2>
           <p className="text-xs text-muted">
-            Every project, grouped by what each Instance needs from you.{" "}
+            Every project, grouped by what each session needs from you.{" "}
             <span className="text-ink">J / K</span> or arrows to move, <span className="text-ink">Enter</span> opens,{" "}
             <span className="text-ink">A</span> runs the row's action.
           </p>

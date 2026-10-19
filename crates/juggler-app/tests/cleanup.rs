@@ -190,7 +190,7 @@ fn cleanup_centre_dogfood_orphan_row_with_evidence_and_zero_kill_fields() {
     // pass2 §2 label, VERBATIM.
     assert_eq!(
         orphan.state_label,
-        "Still running after its Instance closed"
+        "Still running after its session closed"
     );
     assert!(
         orphan

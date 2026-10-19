@@ -54,7 +54,7 @@ export function DeleteInstanceDialog({
         className="flex w-full max-w-lg flex-col gap-3 rounded-xl border border-hairline bg-surface p-5 shadow-card"
       >
         <h3 id="delete-title" className="text-sm font-semibold">
-          Delete this Instance{preview?.account_label ? ` (${preview.account_label})` : ""}?
+          Delete this session{preview?.account_label ? ` (${preview.account_label})` : ""}?
         </h3>
         {preview?.refused ? (
           <p className="text-[11px] text-ink" data-testid="delete-refused">

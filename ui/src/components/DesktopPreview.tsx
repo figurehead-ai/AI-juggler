@@ -149,13 +149,13 @@ export function DesktopPreview({
         <button
           type="button"
           onClick={onFocus}
-          title="Focus this instance's window (read-only preview — clicks focus, never inject)"
+          title="Focus this session's window (read-only preview — clicks focus, never inject)"
           className="overflow-hidden rounded-lg border border-hairline outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
           data-testid="preview-frame"
         >
           <img
             src={`data:image/png;base64,${frame.png_b64}`}
-            alt={`Live preview of this instance's window (captured ${ageSec ?? 0}s ago)`}
+            alt={`Live preview of this session's window (captured ${ageSec ?? 0}s ago)`}
             className={
               "block w-full " + (phase?.phase === "paused" ? "opacity-40" : "opacity-100")
             }

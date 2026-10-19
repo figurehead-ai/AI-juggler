@@ -690,7 +690,7 @@ impl NodeHandler for AppNode {
                     .and_then(|storage| crate::commands::session_infos_snapshot(&storage).ok())
                     .is_some_and(|rows| rows.iter().any(|row| row.id == stop.instance_id));
                 if !known {
-                    return Err(reject("unknown_record", "No such Instance on this Mac."));
+                    return Err(reject("unknown_record", "No such session on this Mac."));
                 }
                 state
                     .supervisor
@@ -809,7 +809,7 @@ fn clean_here(
     let info = result.map_err(|error| match error {
         AppError::NotFound { .. } => reject(
             "unknown_record",
-            "Not owned by that Instance on this Mac — never touched.".to_owned(),
+            "Not owned by that session on this Mac — never touched.".to_owned(),
         ),
         other => reject("clean_failed", other.wire().user_message),
     })?;
@@ -897,13 +897,13 @@ fn describe_action(state: &Arc<AppState>, action: &proto::control_command::Actio
                 .and_then(|storage| crate::commands::session_infos_snapshot(&storage).ok())
                 .and_then(|rows| rows.into_iter().find(|row| row.id == stop.instance_id))
                 .map(|row| format!("{} ({})", row.account_label, row.provider));
-            format!("stop {}", label.unwrap_or_else(|| "an Instance".to_owned()))
+            format!("stop {}", label.unwrap_or_else(|| "a session".to_owned()))
         }
         proto::control_command::Action::LaunchRecipe(_) => {
             "start a session from your Launch settings".to_owned()
         }
         proto::control_command::Action::CleanProcess(clean) => {
-            format!("clean up process {} of one of your Instances", clean.pid)
+            format!("clean up process {} of one of your sessions", clean.pid)
         }
         proto::control_command::Action::TakeHandover(take) => format!(
             "take over work from {} — continue it here",
@@ -926,7 +926,7 @@ fn describe_action(state: &Arc<AppState>, action: &proto::control_command::Actio
                 .map(|row| format!("{} ({})", row.account_label, row.provider));
             format!(
                 "bring {}'s window to the front",
-                label.unwrap_or_else(|| "an Instance".to_owned())
+                label.unwrap_or_else(|| "a session".to_owned())
             )
         }
     }
@@ -951,7 +951,7 @@ fn focus_here(state: &Arc<AppState>, instance_id: &str) -> Result<String, Comman
     if !known {
         return Err(reject(
             "unknown_record",
-            "No such Instance on this Mac.".to_owned(),
+            "No such session on this Mac.".to_owned(),
         ));
     }
     match crate::focus::screen_locked() {
@@ -974,7 +974,7 @@ fn focus_here(state: &Arc<AppState>, instance_id: &str) -> Result<String, Comman
             .map_err(|error| match error {
                 AppError::Validation { .. } => reject(
                     "not_desktop",
-                    "That Instance runs in a terminal — there's no window to focus.".to_owned(),
+                    "That session runs in a terminal — there's no window to focus.".to_owned(),
                 ),
                 other => reject("focus_failed", other.wire().user_message),
             })?;

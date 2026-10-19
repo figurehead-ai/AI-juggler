@@ -94,7 +94,7 @@ export function RemoteCleanup(): JSX.Element | null {
             {Object.entries(byInstance).map(([instanceId, rows]) => (
               <div key={instanceId} className="flex flex-col gap-1">
                 <p className="text-[11px] font-medium text-muted">
-                  {rows[0]!.account_label || "Instance"} · {rows[0]!.provider}
+                  {rows[0]!.account_label || "Session"} · {rows[0]!.provider}
                 </p>
                 <ul className="flex flex-col divide-y divide-hairline rounded-lg border border-hairline">
                   {rows.map((row) => {
@@ -198,7 +198,7 @@ function CleanSheet({
         </p>
         <p id="remote-clean-body" className="mt-1.5 text-xs leading-relaxed text-muted">
           {machine.label} checks again that pid {row.pid} is still the process it recorded for{" "}
-          {row.account_label || "that Instance"}, then asks it to quit and stops it if it doesn't. If
+          {row.account_label || "that session"}, then asks it to quit and stops it if it doesn't. If
           anything changed, nothing is touched.
         </p>
         <div className="mt-4 flex justify-end gap-2">

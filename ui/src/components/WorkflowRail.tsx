@@ -950,7 +950,7 @@ function RowContextMenu({
           >
             Until reset
           </MenuButton>
-          <MenuButton onClick={onMute}>Mute this instance</MenuButton>
+          <MenuButton onClick={onMute}>Mute this session</MenuButton>
         </>
       )}
     </div>
@@ -1297,7 +1297,7 @@ export function SessionRow({
         )}
         {session.kind === "desktop" && (
           <span
-            title="desktop app instance"
+            title="desktop app session"
             className="shrink-0 rounded-full border border-accent/25 bg-accent-soft px-1 text-[9.5px] font-medium text-accent-hi"
             data-testid="rail-app-chip"
           >
@@ -1483,7 +1483,7 @@ export function MinimalInstanceColumn({
       {needsYou > 0 && (
         <span
           className="mt-1 rounded-full border border-warning/40 bg-warning-soft px-1.5 py-0.5 text-[9px] font-bold text-warning"
-          title={`${needsYou} instance${needsYou === 1 ? "" : "s"} need you`}
+          title={`${needsYou} session${needsYou === 1 ? "" : "s"} need you`}
         >
           ! {needsYou}
         </span>
@@ -1645,7 +1645,7 @@ function RemoteBoardSection({
       </p>
       {rows.length === 0 ? (
         <p className="px-3 py-1 text-[11px] text-muted">
-          {machine.freshness === "offline" ? "Offline — nothing to show." : "No Instances match."}
+          {machine.freshness === "offline" ? "Offline — nothing to show." : "No sessions match."}
         </p>
       ) : (
         rows.map((row) => {

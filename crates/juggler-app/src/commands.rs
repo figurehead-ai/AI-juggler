@@ -3494,7 +3494,7 @@ pub fn desktop_focus_with(
     if record.kind != juggler_core::model::InstanceKind::Desktop {
         return Err(AppError::Validation {
             subject: "desktop focus",
-            message: "window focus applies to desktop instances".into(),
+            message: "window focus applies to desktop sessions".into(),
         });
     }
     if is_terminal(record.status) {
@@ -3670,7 +3670,7 @@ pub fn preview_start(
         if record.kind != juggler_core::model::InstanceKind::Desktop {
             return Err(AppError::Validation {
                 subject: "live preview",
-                message: "preview mirrors desktop instance windows".into(),
+                message: "preview mirrors desktop session windows".into(),
             });
         }
         if is_terminal(record.status) {
@@ -5789,7 +5789,7 @@ fn stop_continuation(state: &Arc<AppState>, target: Option<SessionId>) -> AppRes
         Ok(()) | Err(juggler_supervisor::SupervisorError::UnknownSession(_)) => Ok(()),
         Err(error) => Err(AppError::Io {
             context: "undo switch",
-            message: format!("Couldn't stop the continuation instance: {error}"),
+            message: format!("Couldn't stop the continuation session: {error}"),
         }),
     }
 }
@@ -6882,7 +6882,7 @@ pub struct CleanupInventoryInfo {
 #[must_use]
 pub fn cleanup_state_label(state: &str) -> &'static str {
     match state {
-        "orphaned" => "Still running after its Instance closed",
+        "orphaned" => "Still running after its session closed",
         "re-adopted" | "adopted" => "Running — re-adopted",
         "unverifiable" => "Unverifiable — will not be touched",
         "running" => "Running",
@@ -8609,13 +8609,13 @@ fn snapshot_descendants(
     root_pid: u32,
 ) -> (Vec<juggler_supervisor::DescendantRow>, String) {
     let Some(collector) = state.resources.lock().ok() else {
-        return (Vec::new(), "the ended instance".to_string());
+        return (Vec::new(), "the ended session".to_string());
     };
     let frozen = collector.rows(session).unwrap_or_default();
     let root_program = frozen
         .iter()
         .find(|row| row.pid == root_pid)
-        .map_or_else(|| "the ended instance".to_string(), |row| row.name.clone());
+        .map_or_else(|| "the ended session".to_string(), |row| row.name.clone());
     let rows = frozen
         .into_iter()
         .filter(|row| row.pid != root_pid)
@@ -9172,7 +9172,7 @@ fn instance_label_for(state: &Arc<AppState>, session: &str) -> String {
         let account = storage.accounts().get(&recipe.account).ok()?;
         Some(account.label.clone())
     })();
-    lookup.unwrap_or_else(|| "its Instance".to_string())
+    lookup.unwrap_or_else(|| "its session".to_string())
 }
 
 /// Reads the passive Cleanup Centre alerts (AJ-E512 Req.3).
@@ -10838,7 +10838,7 @@ fn stop_away_instance(state: &Arc<AppState>, session: &SessionId) -> AppResult<(
         Ok(()) | Err(juggler_supervisor::SupervisorError::UnknownSession(_)) => Ok(()),
         Err(error) => Err(AppError::Io {
             context: "switch back",
-            message: format!("Couldn't stop the away instance: {error}"),
+            message: format!("Couldn't stop the away session: {error}"),
         }),
     }
 }

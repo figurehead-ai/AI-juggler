@@ -110,7 +110,7 @@ export const defaultKillBridge: KillBridge = {
 export const KILL_SCOPES: { id: KillScope; label: string; hint: string }[] = [
   { id: "pid", label: "This process only", hint: "the narrowest scope" },
   { id: "pgid", label: "This process and its helpers", hint: "its whole process group" },
-  { id: "tree", label: "Whole Instance tree", hint: "every live process of this Instance" },
+  { id: "tree", label: "Whole session tree", hint: "every live process of this session" },
 ];
 
 /** Interpreters whose OWN name is never the user's name for the
@@ -353,7 +353,7 @@ export function KillSheet(props: {
           <div>
             <h2 className="text-sm font-semibold">{title}</h2>
             <p className="mt-0.5 font-mono text-[10.5px] text-muted">
-              Instance {props.session}
+              Session {props.session}
               {verify?.machine_id ? ` · ${verify.machine_id}` : ""}
               {verify !== null && verify.account_id !== null
                 ? ` · ${verify.account_id}`

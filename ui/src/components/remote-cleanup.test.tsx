@@ -13,7 +13,7 @@ const NOW = Date.now();
 const proc = (pid: number, verified: boolean) => ({
   instance_id: "inst-1", provider: "claude-code", account_label: "Work Max", pid, role: "helper",
   state: verified ? "orphaned" : "unverifiable",
-  state_label: verified ? "Still running after its Instance closed" : "Unverifiable — will not be touched",
+  state_label: verified ? "Still running after its session closed" : "Unverifiable — will not be touched",
   verified, name: "node", age_ms: 60_000, rss_bytes: null, cpu_percent: null, ports: verified ? "3000" : "", measured_at_ms: NOW,
 });
 const machine = (permission: string) => ({

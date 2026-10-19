@@ -739,7 +739,7 @@ pub fn backup_restore_impl(
         {
             return Err(validation(
                 "restore",
-                "stop every running Instance first — a restore replaces their records",
+                "stop every running session first — a restore replaces their records",
             ));
         }
     }

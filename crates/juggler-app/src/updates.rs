@@ -783,9 +783,9 @@ pub fn restart_blocker(state: &Arc<AppState>) -> AppResult<Option<String>> {
         format!(
             "{live} {} still running — restarting would stop {}. Restart when they finish.",
             if live == 1 {
-                "Instance is"
+                "session is"
             } else {
-                "Instances are"
+                "sessions are"
             },
             if live == 1 { "it" } else { "them" }
         )

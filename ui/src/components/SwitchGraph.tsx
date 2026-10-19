@@ -74,7 +74,7 @@ function GraphNode({
         {epoch.resumable ? "resumable" : "no transcript"}
       </span>
       <span className="sr-only">
-        {`, provider ${epoch.provider}, ${epoch.kind} instance${shape.fork ? ", forks here" : ""}${shape.merge ? ", converges here" : ""}`}
+        {`, provider ${epoch.provider}, ${epoch.kind} session${shape.fork ? ", forks here" : ""}${shape.merge ? ", converges here" : ""}`}
       </span>
     </button>
   );
@@ -180,7 +180,7 @@ export function SwitchGraph({
     setActionLine(null);
     try {
       const result = await epochResume(epochId);
-      setActionLine(`Resumed — instance ${result.session_id} is starting.`);
+      setActionLine(`Resumed — session ${result.session_id} is starting.`);
       onOpenSession(result.session_id);
     } catch (cause) {
       setActionError(errorText(cause));
@@ -339,7 +339,7 @@ export function SwitchGraph({
                   {failedEdge.failed_reason ? ` — ${failedEdge.failed_reason}` : ""}
                 </p>
                 <p className="mt-0.5 text-muted">
-                  Nothing was half-moved: the source stayed resumable and no target instance
+                  Nothing was half-moved: the source stayed resumable and no target session
                   was left behind. Recovery starts from the source — its own ranked targets
                   are one click away.
                 </p>
