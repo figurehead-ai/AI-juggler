@@ -85,7 +85,8 @@ export function UpdatesCard(): JSX.Element {
         </span>
       </div>
       <p className="text-[11px] text-ink" data-testid="update-version">
-        {status.app_name} {status.current_version} · {status.channel} channel
+        {status.app_name} {status.current_version} ·{" "}
+        {status.edition === "dev" ? "built on this Mac" : `${status.channel} channel`}
       </p>
       {EDITION_NOTE[status.edition] && (
         <p className="text-[11px] text-muted" data-testid="update-edition-note">
@@ -138,7 +139,7 @@ export function UpdatesCard(): JSX.Element {
             Check for updates when {status.app_name} starts
           </label>
           <p className="text-[11px] text-muted">
-            A check only looks. Nothing is downloaded or installed until you choose Install, and AI Juggler never restarts
+            A check only looks. Nothing is downloaded or installed until you choose Install, and {status.app_name} never restarts
             by itself.
           </p>
           <div aria-live="polite" className="flex flex-col gap-2 text-[11px]" data-testid="update-state">
@@ -163,11 +164,11 @@ export function UpdatesCard(): JSX.Element {
                   )}
                 </div>
                 <p className="text-muted">
-                  Installing writes a backup of AI Juggler's data first, so you can go back to {status.current_version}.
+                  Installing writes a backup of {status.app_name}'s data first, so you can go back to {status.current_version}.
                 </p>
               </div>
             )}
-            {status.state === "backing_up" && <p className="text-ink">Backing up AI Juggler's data first…</p>}
+            {status.state === "backing_up" && <p className="text-ink">Backing up {status.app_name}'s data first…</p>}
             {status.state === "downloading" && (
               <div className="flex flex-col gap-1">
                 <span className="text-ink">Downloading and verifying… {status.progress ?? 0}%</span>
@@ -187,7 +188,7 @@ export function UpdatesCard(): JSX.Element {
               <div className="flex flex-col gap-0.5 text-ink" data-testid="update-installed">
                 <p>
                   <span aria-hidden="true">✓ </span>
-                  {status.available?.version ?? "The update"} is installed. It starts the next time AI Juggler starts.
+                  {status.available?.version ?? "The update"} is installed. It starts the next time {status.app_name} starts.
                 </p>
                 {status.backup_path && <p className="break-all text-muted">Backup from before: {status.backup_path}</p>}
               </div>

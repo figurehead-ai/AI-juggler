@@ -147,6 +147,8 @@ describe("AJ-E1010 updates", () => {
       "AI Juggler Nightly 0.2.0 (nightly)",
     );
     expect(container.querySelector("[data-testid='update-check-on-launch']")).not.toBeNull();
+    expect(container.textContent).toContain("Installing writes a backup of AI Juggler Nightly's data first");
+    expect(container.textContent).toContain("Check for updates when AI Juggler Nightly starts");
   });
 
   it("D-23: AI Juggler Dev says what it is once, with no channel and no check", async () => {
@@ -161,6 +163,9 @@ describe("AJ-E1010 updates", () => {
     const { container } = render(<UpdatesCard />);
     await waitFor(() => expect(container.querySelector("[data-testid='update-edition-note']")).not.toBeNull());
     expect(container.querySelector("[data-testid='update-edition-note']")!.textContent).toContain("doesn't update itself");
+    expect(container.querySelector("[data-testid='update-version']")!.textContent).toBe(
+      "AI Juggler Dev 0.1.0 · built on this Mac",
+    );
     expect(container.querySelector("[data-testid='update-unconfigured']")).toBeNull();
     expect(container.querySelector("[data-testid='update-channel']")).toBeNull();
     expect(container.querySelector("[data-testid='update-check']")).toBeNull();
