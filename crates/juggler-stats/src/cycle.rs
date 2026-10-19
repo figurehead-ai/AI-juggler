@@ -689,6 +689,43 @@ pub fn reports(dir: &Path) -> Result<Vec<ReportFile>, StoreError> {
     Ok(out)
 }
 
+/// The last upload attempt in `upload.log`: (epoch ms, week, attempt,
+/// HTTP status or `None` for a network error).
+#[must_use]
+pub fn last_attempt(dir: &Path) -> Option<(i64, String, u32, Option<u16>)> {
+    let log = std::fs::read_to_string(dir.join("upload.log")).ok()?;
+    let line: serde_json::Value = serde_json::from_str(log.lines().last()?).ok()?;
+    Some((
+        line.get("ts")?.as_i64()?,
+        line.get("week")?.as_str()?.to_owned(),
+        u32::try_from(line.get("attempt")?.as_u64()?).ok()?,
+        line.get("status")?
+            .as_u64()
+            .and_then(|s| u16::try_from(s).ok()),
+    ))
+}
+
+/// This week's counters and gauges as stored: `(metric, dims json,
+/// value)`. Empty (and nothing created) when there is no store.
+///
+/// # Errors
+///
+/// Returns [`StoreError`] on storage failures.
+pub fn this_week(dir: &Path, now_ms: i64) -> Result<Vec<(String, String, String)>, StoreError> {
+    if !dir.join("counters.sqlite").exists() {
+        return Ok(Vec::new());
+    }
+    let store = Store::open(dir)?;
+    let week = week::label(now_ms);
+    let mut rows: Vec<(String, String, String)> = store
+        .counters(&week)?
+        .into_iter()
+        .map(|(metric, dims, value)| (metric, dims, value.to_string()))
+        .collect();
+    rows.extend(store.gauges(&week)?);
+    Ok(rows)
+}
+
 /// The exact JSON of one report (`status`: pending, sent or skipped).
 ///
 /// # Errors

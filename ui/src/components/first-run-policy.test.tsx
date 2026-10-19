@@ -68,6 +68,8 @@ beforeEach(() => {
     "__AIJ_EXPERT__",
     "__AIJ_RECIPE_ENV__",
     "__AIJ_RECIPE_ENV_REJECT__",
+    "__AIJ_USAGE_STATS__",
+    "__AIJ_USAGE_STATS_SETS__",
   ]) {
     delete w()[key];
   }
@@ -362,5 +364,47 @@ describe("AJ-E309 Req.6 — funnel events carry no paths, labels, or credentials
     for (const leak of ["/Users", "Work", "Side", ".claude"]) {
       expect(serialized).not.toContain(leak);
     }
+  });
+});
+
+describe("AJ-E1105 — the usage-stats consent on the first-run step", () => {
+  const statsRadio = (container: HTMLElement, value: string) =>
+    container.querySelector<HTMLInputElement>(
+      `[data-testid='usage-stats-chooser'] input[type='radio'][value='${value}']`,
+    )!;
+
+  it("three equal options, nothing pre-selected, and it never blocks Accept", async () => {
+    delete (window as unknown as Record<string, unknown>).__AIJ_USAGE_STATS__;
+    delete (window as unknown as Record<string, unknown>).__AIJ_USAGE_STATS_SETS__;
+    const { container } = await openProposal();
+    await waitFor(() => expect(container.querySelector("[data-testid='usage-stats-chooser']")).not.toBeNull());
+    const options = container.querySelectorAll("[data-testid='usage-stats-option']");
+    expect(options.length).toBe(3);
+    // Equal weight: one shared class list for every option.
+    expect(new Set([...options].map((option) => option.className)).size).toBe(1);
+    expect(["share", "local", "off"].some((value) => statsRadio(container, value).checked)).toBe(false);
+    // Only the pack policy holds Accept; the usage-stats answer is optional.
+    fireEvent.click(radio(container, "strip"));
+    expect(container.querySelector<HTMLButtonElement>("[data-testid='accept-setup']")!.disabled).toBe(false);
+  });
+
+  it("an answer is saved on the Accept click", async () => {
+    const seams = window as unknown as Record<string, unknown>;
+    const { container } = await openProposal();
+    await waitFor(() => expect(container.querySelector("[data-testid='usage-stats-chooser']")).not.toBeNull());
+    fireEvent.click(radio(container, "strip"));
+    fireEvent.click(statsRadio(container, "local"));
+    expect(seams.__AIJ_USAGE_STATS_SETS__).toBeUndefined();
+    await acceptAndReachSummary(container);
+    expect(seams.__AIJ_USAGE_STATS_SETS__).toEqual(["local"]);
+  });
+
+  it("no answer saves nothing — usage stats stay off", async () => {
+    const seams = window as unknown as Record<string, unknown>;
+    const { container } = await openProposal();
+    await waitFor(() => expect(container.querySelector("[data-testid='usage-stats-chooser']")).not.toBeNull());
+    fireEvent.click(radio(container, "strip"));
+    await acceptAndReachSummary(container);
+    expect(seams.__AIJ_USAGE_STATS_SETS__).toBeUndefined();
   });
 });

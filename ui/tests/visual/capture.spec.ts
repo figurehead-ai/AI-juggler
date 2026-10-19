@@ -6305,3 +6305,193 @@ for (const theme of THEMES) {
     await page.screenshot({ path: resolve(GALLERY, `61-account-macs/compare-1280x800-${theme}.png`) });
   });
 }
+
+// ---------------------------------------------------------------------
+// AJ-E1105 — 62-privacy: Settings › Privacy in every state of spec §8
+// (off, local, share, overridden, not included, an upload error, and a
+// report open in the read-only viewer); 63-consent: the first-run step
+// and the consent-version re-ask — 1280×800 and 1024×680, light/dark.
+// ---------------------------------------------------------------------
+
+const STATS_VP = [
+  { name: "1280x800", width: 1280, height: 800 },
+  { name: "1024x680", width: 1024, height: 680 },
+];
+
+const statsInfo = (patch: Record<string, unknown> = {}) => ({
+  included: true,
+  chosen: "off",
+  effective: "off",
+  can_upload: false,
+  reason: null,
+  decided_at_ms: null,
+  consent_version: 0,
+  current_consent_version: 1,
+  ...patch,
+});
+
+const STATS_ROWS = [
+  { category: "environment", metric: "accounts.configured", dims: "provider: claude-code", value: "2" },
+  { category: "environment", metric: "projects.count", dims: "", value: "4-5" },
+  { category: "environment", metric: "ui.theme", dims: "", value: "system" },
+  { category: "features", metric: "app.launch", dims: "", value: "6" },
+  { category: "features", metric: "instance.started", dims: "kind: terminal · origin: new · provider: claude-code", value: "14" },
+  { category: "features", metric: "switch.completed", dims: "from: claude-code · kind: account · mechanism: transplant · outcome: success · to: claude-code · trigger: suggestion", value: "3" },
+  { category: "features", metric: "ui.screen_opened", dims: "screen: cleanup", value: "2" },
+  { category: "reliability", metric: "perf.cold_start_ms", dims: "bucket: 750-1500", value: "6" },
+];
+
+const statsOverview = (info: Record<string, unknown>, patch: Record<string, unknown> = {}) => ({
+  info: statsInfo(info),
+  week: "2026-W42",
+  rows: [],
+  reports: [],
+  next_upload_ms: null,
+  last_error: null,
+  docs_url: "https://github.com/figurehead-ai/AI-juggler/blob/main/docs/usage-stats.md",
+  ...patch,
+});
+
+const LOCAL = statsOverview(
+  { chosen: "local", effective: "local", decided_at_ms: T0 - 30 * 86_400_000, consent_version: 1 },
+  {
+    rows: STATS_ROWS,
+    reports: [
+      { week: "2026-W41", status: "skipped", reason: "Counted while stats stayed on this Mac — never sent", upload_at_ms: null, next_try_ms: null, attempts: 0, bytes: 1_204 },
+      { week: "2026-W40", status: "skipped", reason: "Counted while stats stayed on this Mac — never sent", upload_at_ms: null, next_try_ms: null, attempts: 0, bytes: 988 },
+    ],
+  },
+);
+
+const SHARE = statsOverview(
+  { chosen: "share", effective: "share", can_upload: true, decided_at_ms: T0 - 30 * 86_400_000, consent_version: 1 },
+  {
+    rows: STATS_ROWS,
+    next_upload_ms: T0 + 2 * 86_400_000,
+    reports: [
+      { week: "2026-W41", status: "pending", reason: null, upload_at_ms: T0 + 2 * 86_400_000, next_try_ms: null, attempts: 0, bytes: 1_204 },
+      { week: "2026-W40", status: "sent", reason: null, upload_at_ms: null, next_try_ms: null, attempts: 0, bytes: 988 },
+      { week: "2026-W39", status: "skipped", reason: "Sharing didn't cover the whole week — never sent", upload_at_ms: null, next_try_ms: null, attempts: 0, bytes: 1_051 },
+    ],
+  },
+);
+
+const UPLOAD_ERROR = {
+  ...SHARE,
+  last_error: "Couldn't reach Figurehead.",
+  next_upload_ms: T0 + 3 * 3_600_000,
+  reports: [
+    { week: "2026-W41", status: "pending", reason: null, upload_at_ms: T0 - 3_600_000, next_try_ms: T0 + 3 * 3_600_000, attempts: 2, bytes: 1_204 },
+    ...SHARE.reports.slice(1),
+  ],
+};
+
+const REPORT_JSON = JSON.stringify({
+  schema: 1,
+  report_id: "0b6f2d4e-6a3c-4f0e-9d7b-3c1e5a9f8b21",
+  week: "2026-W41",
+  sample_rate: 1,
+  app: { version: "0.3.1", channel: "beta" },
+  os: { name: "macos", major: 15, arch: "arm64" },
+  install_age: "1-4w",
+  days_active: 5,
+  consent_version: 1,
+  entries: [
+    { m: "app.launch", d: {}, v: 6 },
+    { m: "instance.started", d: { kind: "terminal", origin: "new", provider: "claude-code" }, v: 14 },
+    { m: "switch.duration_s", d: { kind: "account" }, h: [1, 2, 0, 0] },
+    { m: "projects.count", d: {}, g: "4-5" },
+  ],
+});
+
+const PRIVACY_STATES: { name: string; seams: Record<string, unknown> }[] = [
+  { name: "off", seams: { __AIJ_USAGE_STATS__: statsOverview({}) } },
+  { name: "local", seams: { __AIJ_USAGE_STATS__: LOCAL } },
+  { name: "share", seams: { __AIJ_USAGE_STATS__: SHARE } },
+  {
+    name: "overridden",
+    seams: {
+      __AIJ_USAGE_STATS__: statsOverview({
+        chosen: "share",
+        effective: "off",
+        reason: "Off because DO_NOT_TRACK is set",
+        decided_at_ms: T0 - 30 * 86_400_000,
+        consent_version: 1,
+      }),
+    },
+  },
+  {
+    name: "not-included",
+    seams: { __AIJ_USAGE_STATS__: statsOverview({ included: false, reason: "Not included in this build" }) },
+  },
+  { name: "upload-error", seams: { __AIJ_USAGE_STATS__: UPLOAD_ERROR } },
+];
+
+for (const theme of THEMES) {
+  for (const vp of STATS_VP) {
+    for (const state of PRIVACY_STATES) {
+      test(`62 privacy — ${state.name} — ${vp.name} — ${theme}`, async ({ page }) => {
+        await openSettings(page, theme, vp, state.seams);
+        await expect(page.getByTestId("privacy-state")).toBeVisible();
+        await page.getByTestId("settings-privacy").evaluate((card) => card.scrollIntoView({ block: "start" }));
+        await page.mouse.move(0, 0);
+        await page.screenshot({ path: resolve(GALLERY, `62-privacy/${state.name}-${vp.name}-${theme}.png`) });
+      });
+    }
+
+    test(`62 privacy — a report in the read-only viewer — ${vp.name} — ${theme}`, async ({ page }) => {
+      await openSettings(page, theme, vp, {
+        __AIJ_USAGE_STATS__: SHARE,
+        __AIJ_USAGE_STATS_REPORTS__: { "pending/2026-W41": REPORT_JSON },
+      });
+      await page.getByTestId("privacy-report-view").first().click();
+      await expect(page.getByTestId("privacy-report-json")).toContainText('"week": "2026-W41"');
+      await page.getByTestId("privacy-report-json").evaluate((viewer) => viewer.scrollIntoView({ block: "end" }));
+      await page.mouse.move(0, 0);
+      await page.screenshot({ path: resolve(GALLERY, `62-privacy/report-json-${vp.name}-${theme}.png`) });
+    });
+
+    test(`63 consent — the first-run step (nothing chosen) — ${vp.name} — ${theme}`, async ({ page }) => {
+      await openPolicyRun(page, theme, vp);
+      await page.getByTestId("use-recommended").click();
+      await expect(page.getByTestId("usage-stats-chooser")).toBeVisible();
+      await expect(page.locator("[data-testid='usage-stats-chooser'] input:checked")).toHaveCount(0);
+      await page.getByTestId("usage-stats-chooser").scrollIntoViewIfNeeded();
+      await page.mouse.move(0, 0);
+      await page.screenshot({ path: resolve(GALLERY, `63-consent/first-run-${vp.name}-${theme}.png`) });
+    });
+
+    test(`63 consent — asked again after a consent change — ${vp.name} — ${theme}`, async ({ page }) => {
+      // The dialog opens over the home screen at launch.
+      await page.addInitScript(
+        ({ fixture, t, stats, t0 }) => {
+          const w = window as unknown as Record<string, unknown>;
+          w.__AIJ_FIXTURE__ = fixture;
+          w.__AIJ_USAGE_STATS__ = stats;
+          localStorage.setItem("aij.theme", t);
+          localStorage.setItem("aij.onboarding.dismissed", "1");
+          sessionStorage.setItem("aij.ready.skipped", "1");
+          Date.now = () => t0;
+        },
+        {
+          fixture: allStatuses,
+          t: theme,
+          t0: T0,
+          stats: statsOverview({
+            chosen: "share",
+            effective: "share",
+            decided_at_ms: T0 - 90 * 86_400_000,
+            consent_version: 1,
+            current_consent_version: 2,
+          }),
+        },
+      );
+      await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme as "dark" | "light" });
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      await page.goto("/");
+      await expect(page.getByTestId("usage-stats-reconsent")).toBeVisible();
+      await expect(page.locator("[data-testid='usage-stats-reconsent'] input:checked")).toHaveAttribute("value", "share");
+      await page.screenshot({ path: resolve(GALLERY, `63-consent/reask-${vp.name}-${theme}.png`) });
+    });
+  }
+}

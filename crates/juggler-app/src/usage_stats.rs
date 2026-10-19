@@ -1184,6 +1184,320 @@ pub mod enabled {
     }
 }
 
+/// The public list of every metric (opened from Settings ▸ Privacy).
+pub const METRICS_DOC_URL: &str =
+    "https://github.com/figurehead-ai/AI-juggler/blob/main/docs/usage-stats.md";
+
+/// One counter or gauge of this week, as Settings ▸ Privacy lists it.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct UsageStatRow {
+    /// `environment` | `features` | `reliability` (spec §6.2).
+    pub category: String,
+    /// The metric.
+    pub metric: String,
+    /// Its dimensions, readable (`provider: codex · kind: terminal`).
+    pub dims: String,
+    /// The count, or the gauge's bucket.
+    pub value: String,
+}
+
+/// One report file and its state.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct UsageReportRow {
+    /// The ISO week.
+    pub week: String,
+    /// `pending` | `sent` | `skipped`.
+    pub status: String,
+    /// Why it was skipped, in plain words.
+    pub reason: Option<String>,
+    /// When a pending report may be uploaded, epoch ms.
+    #[ts(type = "number | null")]
+    pub upload_at_ms: Option<i64>,
+    /// When a failed upload is retried, epoch ms.
+    #[ts(type = "number | null")]
+    pub next_try_ms: Option<i64>,
+    /// Failed attempts so far.
+    pub attempts: u32,
+    /// Its size, bytes.
+    #[ts(type = "number")]
+    pub bytes: u64,
+}
+
+/// Everything Settings ▸ Privacy shows about usage statistics.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct UsageStatsOverview {
+    /// The choice and what applies.
+    pub info: UsageStatsInfo,
+    /// This ISO week.
+    pub week: String,
+    /// This week's counters and gauges so far.
+    pub rows: Vec<UsageStatRow>,
+    /// Every report on this Mac, newest first.
+    pub reports: Vec<UsageReportRow>,
+    /// When the next pending report may go, epoch ms.
+    #[ts(type = "number | null")]
+    pub next_upload_ms: Option<i64>,
+    /// The last upload's failure, in plain words (cleared by a success).
+    pub last_error: Option<String>,
+    /// The public metrics document.
+    pub docs_url: String,
+}
+
+/// The report category of a metric (spec §6.2).
+#[must_use]
+pub fn category(metric: &str, gauge: bool) -> &'static str {
+    let reliability = metric.starts_with("perf.")
+        || metric.starts_with("stats.")
+        || matches!(
+            metric,
+            "error.class"
+                | "app.recovered_after_crash"
+                | "storage.migration"
+                | "usage.parse_degraded"
+                | "fleet.link_degraded"
+        );
+    if gauge {
+        "environment"
+    } else if reliability {
+        "reliability"
+    } else {
+        "features"
+    }
+}
+
+/// A skipped report's reason in plain words.
+#[must_use]
+pub fn reason_words(reason: &str) -> String {
+    match reason {
+        "local" => "Counted while stats stayed on this Mac — never sent".to_owned(),
+        "partial_consent" => "Sharing didn't cover the whole week — never sent".to_owned(),
+        "expired" => "Too old to send".to_owned(),
+        "not_sampled" => "Not picked this week (sampling) — never sent".to_owned(),
+        "server_disabled" => "Figurehead isn't collecting right now".to_owned(),
+        "version" => "This version of AI Juggler isn't collected".to_owned(),
+        "schema" => "Figurehead no longer accepts this kind of report".to_owned(),
+        "mode_changed" => "You stopped sharing before it was sent".to_owned(),
+        "gave_up" => "Couldn't send it in time".to_owned(),
+        "invalid" => "It didn't pass the checks — never sent".to_owned(),
+        other => other.strip_prefix("rejected:").map_or_else(
+            || "Not sent".to_owned(),
+            |status| format!("Figurehead refused it ({status})"),
+        ),
+    }
+}
+
+/// Dimensions JSON as readable text.
+#[cfg(feature = "stats")]
+fn readable_dims(dims: &str) -> String {
+    serde_json::from_str::<std::collections::BTreeMap<String, String>>(dims)
+        .map(|map| {
+            map.iter()
+                .map(|(k, v)| format!("{k}: {v}"))
+                .collect::<Vec<_>>()
+                .join(" · ")
+        })
+        .unwrap_or_default()
+}
+
+/// Core: what Settings ▸ Privacy shows. Reads only; creates nothing.
+///
+/// # Errors
+///
+/// Returns [`AppError::Io`] when the store can't be read.
+pub fn usage_stats_overview_impl(state: &Arc<AppState>) -> AppResult<UsageStatsOverview> {
+    let info = usage_stats_info_impl(state);
+    let now = juggler_core::model::Timestamp::now().millis();
+    #[cfg(feature = "stats")]
+    {
+        let dir = stats_dir(state);
+        let io = |e: juggler_stats::StoreError| AppError::Io {
+            context: "usage stats",
+            message: e.to_string(),
+        };
+        if let Some(recorder) = juggler_stats::current() {
+            recorder.flush();
+        }
+        let gauges: std::collections::BTreeSet<&str> = juggler_stats::METRICS
+            .iter()
+            .filter(|m| m.kind == "gauge")
+            .map(|m| m.name)
+            .collect();
+        let rows = juggler_stats::cycle::this_week(&dir, now)
+            .map_err(io)?
+            .into_iter()
+            .map(|(metric, dims, value)| UsageStatRow {
+                category: category(&metric, gauges.contains(metric.as_str())).to_owned(),
+                dims: readable_dims(&dims),
+                metric,
+                value,
+            })
+            .collect();
+        let files = juggler_stats::cycle::reports(&dir).map_err(io)?;
+        let next_upload_ms = files
+            .iter()
+            .filter(|f| f.status == "pending")
+            .filter_map(|f| match (f.upload_at_ms, f.next_try_ms) {
+                (Some(a), Some(b)) => Some(a.max(b)),
+                (a, b) => a.or(b),
+            })
+            .min();
+        let last_error =
+            juggler_stats::cycle::last_attempt(&dir).and_then(|(_, _, _, status)| match status {
+                Some(200 | 202) => None,
+                None => Some("Couldn't reach Figurehead.".to_owned()),
+                Some(503) => Some("Figurehead isn't accepting reports right now.".to_owned()),
+                Some(429) => Some("Figurehead is busy.".to_owned()),
+                Some(code) => Some(format!("Figurehead answered {code}.")),
+            });
+        let reports = files
+            .into_iter()
+            .map(|f| UsageReportRow {
+                week: f.week,
+                status: f.status.to_owned(),
+                reason: f.reason.as_deref().map(reason_words),
+                upload_at_ms: f.upload_at_ms,
+                next_try_ms: f.next_try_ms,
+                attempts: f.attempts,
+                bytes: f.bytes,
+            })
+            .collect();
+        Ok(UsageStatsOverview {
+            info,
+            week: juggler_stats::week::label(now),
+            rows,
+            reports,
+            next_upload_ms,
+            last_error,
+            docs_url: METRICS_DOC_URL.to_owned(),
+        })
+    }
+    #[cfg(not(feature = "stats"))]
+    {
+        let _ = (state, now);
+        Ok(UsageStatsOverview {
+            info,
+            week: String::new(),
+            rows: Vec::new(),
+            reports: Vec::new(),
+            next_upload_ms: None,
+            last_error: None,
+            docs_url: METRICS_DOC_URL.to_owned(),
+        })
+    }
+}
+
+/// Core: one report's exact JSON (read-only).
+///
+/// # Errors
+///
+/// Returns [`AppError::Validation`] for a bad status or week, and
+/// [`AppError::Io`] when the file can't be read.
+pub fn usage_stats_report_impl(
+    state: &Arc<AppState>,
+    status: &str,
+    week: &str,
+) -> AppResult<String> {
+    #[cfg(feature = "stats")]
+    {
+        juggler_stats::cycle::read_report(&stats_dir(state), status, week).map_err(|e| {
+            if e.kind() == std::io::ErrorKind::InvalidInput {
+                AppError::Validation {
+                    subject: "usage report",
+                    message: "unknown report".to_owned(),
+                }
+            } else {
+                AppError::Io {
+                    context: "usage stats",
+                    message: e.to_string(),
+                }
+            }
+        })
+    }
+    #[cfg(not(feature = "stats"))]
+    {
+        let _ = (state, status, week);
+        Err(AppError::Validation {
+            subject: "usage report",
+            message: "usage statistics are not included in this build".to_owned(),
+        })
+    }
+}
+
+/// Core: "Delete local stats" — removes every counter, report, the salt
+/// and the upload log, keeping the chosen mode (counting restarts fresh,
+/// so this week is no longer fully shared).
+///
+/// # Errors
+///
+/// Returns [`AppError::Io`] when the folder can't be deleted.
+pub fn usage_stats_delete_local_impl(state: &Arc<AppState>) -> AppResult<UsageStatsSetResult> {
+    delete_local(state)?;
+    #[cfg(feature = "stats")]
+    enabled::apply(state, &juggler_stats::Environment::from_process())?;
+    Ok(UsageStatsSetResult {
+        info: usage_stats_info_impl(state),
+        message: "Local stats deleted.".to_owned(),
+    })
+}
+
+/// AJ-E1105: opens the public list of every metric (a fixed address;
+/// the interface passes none).
+///
+/// # Errors
+///
+/// Returns [`AppError::Io`] when the browser can't be opened.
+#[tauri::command]
+pub fn usage_stats_open_docs(app: tauri::AppHandle) -> AppResult<()> {
+    use tauri_plugin_opener::OpenerExt as _;
+    app.opener()
+        .open_url(METRICS_DOC_URL, None::<&str>)
+        .map_err(|e| AppError::Io {
+            context: "usage stats",
+            message: e.to_string(),
+        })
+}
+
+/// AJ-E1105: what Settings ▸ Privacy shows.
+///
+/// # Errors
+///
+/// Per [`usage_stats_overview_impl`].
+#[tauri::command]
+pub fn usage_stats_overview(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<UsageStatsOverview> {
+    usage_stats_overview_impl(state.inner())
+}
+
+/// AJ-E1105: one report's exact JSON.
+///
+/// # Errors
+///
+/// Per [`usage_stats_report_impl`].
+#[tauri::command]
+pub fn usage_stats_report(
+    state: tauri::State<'_, Arc<AppState>>,
+    status: String,
+    week: String,
+) -> AppResult<String> {
+    usage_stats_report_impl(state.inner(), &status, &week)
+}
+
+/// AJ-E1105: "Delete local stats".
+///
+/// # Errors
+///
+/// Per [`usage_stats_delete_local_impl`].
+#[tauri::command]
+pub fn usage_stats_delete_local(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<UsageStatsSetResult> {
+    usage_stats_delete_local_impl(state.inner())
+}
+
 /// Core: the current choice and what applies.
 #[must_use]
 pub fn usage_stats_info_impl(state: &Arc<AppState>) -> UsageStatsInfo {
@@ -1930,6 +2244,78 @@ mod tests {
         );
         assert_eq!(again.status, 200);
         delete_local(&state).unwrap();
+    }
+
+    /// AJ-E1105: the overview lists this week, the reports with plain
+    /// reasons, reads exact JSON, and "Delete local stats" empties it
+    /// while keeping the mode.
+    #[cfg(feature = "stats")]
+    #[test]
+    fn the_privacy_overview_shows_what_was_counted_and_kept() {
+        let _serial = serial();
+        let (_dir, state) = state();
+        let off = usage_stats_overview_impl(&state).unwrap();
+        assert!(off.rows.is_empty() && off.reports.is_empty());
+        assert!(
+            !stats_dir(&state).exists(),
+            "reading the overview creates nothing"
+        );
+        usage_stats_set_impl(&state, "local").unwrap();
+        count("app.launch", &[]);
+        let now = juggler_core::model::Timestamp::now().millis();
+        let last = juggler_stats::week::label(now - 7 * 86_400_000);
+        juggler_stats::Store::open(&stats_dir(&state))
+            .unwrap()
+            .add(&last, "app.launch", "{}", 2)
+            .unwrap();
+        let release = juggler_stats::Environment::default();
+        let transport =
+            enabled::StatsTransport(Arc::new(juggler_account::RecordingTransport::default()));
+        enabled::tick(&state, &release, &enabled::envelope(), &transport, now).unwrap();
+        let overview = usage_stats_overview_impl(&state).unwrap();
+        let launch = overview
+            .rows
+            .iter()
+            .find(|r| r.metric == "app.launch")
+            .unwrap();
+        assert_eq!(
+            (launch.category.as_str(), launch.value.as_str()),
+            ("features", "1")
+        );
+        assert!(
+            overview
+                .rows
+                .iter()
+                .all(|r| r.category != "environment" || r.value.len() <= 6)
+        );
+        let report = overview.reports.iter().find(|r| r.week == last).unwrap();
+        assert_eq!(report.status, "skipped");
+        assert_eq!(
+            report.reason.as_deref(),
+            Some("Counted while stats stayed on this Mac — never sent")
+        );
+        let json = usage_stats_report_impl(&state, "skipped", &last).unwrap();
+        assert!(json.starts_with(r#"{"schema":1"#));
+        assert!(usage_stats_report_impl(&state, "skipped", "../../etc").is_err());
+        assert_eq!(overview.docs_url, METRICS_DOC_URL);
+        let deleted = usage_stats_delete_local_impl(&state).unwrap();
+        assert_eq!(deleted.message, "Local stats deleted.");
+        assert_eq!(deleted.info.chosen, "local", "the mode is kept");
+        let after = usage_stats_overview_impl(&state).unwrap();
+        assert!(after.reports.is_empty());
+        delete_local(&state).unwrap();
+    }
+
+    #[test]
+    fn skipped_reasons_read_plainly() {
+        assert_eq!(reason_words("rejected:413"), "Figurehead refused it (413)");
+        assert_eq!(
+            reason_words("not_sampled"),
+            "Not picked this week (sampling) — never sent"
+        );
+        assert_eq!(category("perf.cold_start_ms", false), "reliability");
+        assert_eq!(category("ui.theme", true), "environment");
+        assert_eq!(category("switch.started", false), "features");
     }
 
     /// AJ-E1108: the tick thread (where a puzzle is solved) can drop to

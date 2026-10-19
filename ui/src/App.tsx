@@ -4,6 +4,7 @@ import { SessionCard, WorkflowRail, type Freshness, type WorkTab } from "./compo
 import { GoToPalette } from "./components/GoToPalette";
 import { PortWarningSheet } from "./components/PortMap";
 import { RecoverySummaryDialog } from "./components/RecoverySummaryDialog";
+import { UsageStatsReconsent } from "./components/UsageStatsReconsent";
 import { CleanupCentre, focusCleanupFilter } from "./screens/CleanupCentre";
 import { launchPortWarning, type PortWarningInfo,} from "./lib/bridge";
 import {
@@ -1026,6 +1027,7 @@ export default function App() {
         </div>
       )}
 
+      <UsageStatsReconsent />
       {recovery !== null && (
         <RecoverySummaryDialog
           summary={recovery}

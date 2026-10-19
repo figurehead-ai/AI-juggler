@@ -2732,3 +2732,54 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("account-compare")).toHaveCount(0);
   });
 }
+
+// AJ-E1105: Settings › Privacy with everything listed and a report open.
+for (const theme of ["dark", "light"] as const) {
+  test(`settings — privacy, populated, report open — axe 0 — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ fixture, theme: t }) => {
+        const w = window as unknown as Record<string, unknown>;
+        w.__AIJ_FIXTURE__ = fixture;
+        w.__AIJ_USAGE_STATS__ = {
+          info: {
+            included: true,
+            chosen: "share",
+            effective: "share",
+            can_upload: true,
+            reason: null,
+            decided_at_ms: 1,
+            consent_version: 1,
+            current_consent_version: 1,
+          },
+          week: "2026-W42",
+          rows: [
+            { category: "environment", metric: "projects.count", dims: "", value: "4-5" },
+            { category: "features", metric: "app.launch", dims: "", value: "6" },
+            { category: "reliability", metric: "perf.cold_start_ms", dims: "bucket: 750-1500", value: "6" },
+          ],
+          reports: [
+            { week: "2026-W41", status: "pending", reason: null, upload_at_ms: 2, next_try_ms: 3, attempts: 1, bytes: 1204 },
+            { week: "2026-W40", status: "skipped", reason: "Sharing didn't cover the whole week — never sent", upload_at_ms: null, next_try_ms: null, attempts: 0, bytes: 988 },
+          ],
+          next_upload_ms: 2,
+          last_error: "Couldn't reach Figurehead.",
+          docs_url: "https://github.com/figurehead-ai/AI-juggler/blob/main/docs/usage-stats.md",
+        };
+        w.__AIJ_USAGE_STATS_REPORTS__ = { "pending/2026-W41": '{"schema":1,"week":"2026-W41","entries":[]}' };
+        localStorage.setItem("aij.theme", t);
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        sessionStorage.setItem("aij.ready.skipped", "1");
+      },
+      { fixture: allStatuses, theme },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await expect(page.getByRole("button", { name: "Settings" }).first()).toBeVisible();
+    await page.keyboard.press("ControlOrMeta+Comma");
+    await expect(page.getByTestId("settings-privacy")).toBeVisible();
+    await page.getByTestId("privacy-report-view").first().click();
+    await expect(page.getByTestId("privacy-report-json")).toBeVisible();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+  });
+}
