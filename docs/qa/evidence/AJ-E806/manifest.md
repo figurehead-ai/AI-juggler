@@ -148,3 +148,12 @@
   config, failing "no requests". The tests now assemble at the moment
   the week closes, where the upload can't yet be due; no assertion
   changed.
+- Observed again, no change (2026-10-18, twice during the E11 verify
+  runs): `reconciler :: fifty_instance_soak_and_construction_regression`
+  missed its wall-time p95 (416 ms and 887 ms) while other programs held
+  the developer box's load at 12–16 on 30 cores, below the existing
+  quarantine threshold (load above the core count). Alone it passed
+  both times, as did a full `cargo test -p juggler-supervisor`; CI
+  enforces the 100 ms budget strictly. The budget, the quarantine and
+  the assertion are unchanged; if it recurs on an idle machine or in CI,
+  it becomes a fix.

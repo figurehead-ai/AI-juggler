@@ -37,8 +37,8 @@ pub const CLOUD_KEY: &str = "figurehead_cloud";
 /// The consent screen's version: bump it when what a feature sends
 /// changes, and the "Turn on Cloud for this Mac" screen shows again.
 pub const CONSENT_VERSION: u32 = 1;
-/// Cloud features this build can't run yet: their choice is stored, but
-/// they stay off (usage sync arrives with usage statistics, E11).
+/// Cloud features Account & Cloud shows but doesn't switch: the usage
+/// sync is set in Settings › Privacy, beside usage statistics (AJ-E1109).
 const NOT_YET_SWITCHABLE: [&str; 1] = ["usageSync"];
 /// How often the account is refreshed while linked.
 const REFRESH_EVERY_MS: i64 = 6 * 60 * 60 * 1000;
@@ -112,7 +112,7 @@ impl FigureheadManager {
         )
     }
 
-    fn base(&self) -> String {
+    pub(crate) fn base(&self) -> String {
         self.base.lock().map(|b| b.clone()).unwrap_or_default()
     }
 }
@@ -739,6 +739,54 @@ pub(crate) fn session(state: &Arc<AppState>) -> AppResult<(AccountClient, Device
     let device = device_id(state).ok_or_else(not_linked)?;
     let token = token(state, &device).ok_or_else(not_linked)?;
     Ok((state.figurehead.client()?, token))
+}
+
+/// AJ-E1109: the personal stats sync (`usageSync`), set only from
+/// Settings › Privacy (it rides on usage statistics, so Account & Cloud
+/// shows it but doesn't switch it).
+///
+/// # Errors
+///
+/// Returns [`AppError::Validation`] when this Mac isn't linked or the
+/// account doesn't include it.
+pub(crate) fn set_usage_sync(state: &Arc<AppState>, on: bool) -> AppResult<()> {
+    if on
+        && !(device_id(state).is_some()
+            && cached_account(state).is_some_and(|account| account.allows("usageSync")))
+    {
+        return Err(AppError::Validation {
+            subject: "stats sync",
+            message: "link this Mac to a Figurehead account that includes it first".to_owned(),
+        });
+    }
+    let mut choices = cloud_choices(state);
+    choices.features.insert("usageSync".to_owned(), on);
+    save_cloud_choices(state, &choices)
+}
+
+/// AJ-E1109: whether the personal stats sync could be offered (linked,
+/// and the account includes it), and the account's email.
+#[cfg(feature = "stats")]
+pub(crate) fn usage_sync_offer(state: &Arc<AppState>) -> (bool, Option<String>) {
+    let account = cached_account(state);
+    (
+        device_id(state).is_some() && account.as_ref().is_some_and(|a| a.allows("usageSync")),
+        account.as_ref().and_then(|a| a.email().map(str::to_owned)),
+    )
+}
+
+/// AJ-E1109: the member endpoint for synced usage-stats reports.
+#[cfg(feature = "stats")]
+pub(crate) fn stats_sync_url(state: &Arc<AppState>) -> String {
+    format!("{}/api/v1/stats/reports", state.figurehead.base())
+}
+
+/// AJ-E1109: the service said this Mac's token is no longer valid —
+/// unlink locally (every cloud toggle off, local data kept), as any
+/// other `401` does.
+#[cfg(feature = "stats")]
+pub(crate) fn unlinked_by_service(state: &Arc<AppState>) {
+    forget_link(state, Some("This Mac was unlinked from Figurehead."));
 }
 
 /// AJ-E1205: this Mac's device id on Figurehead, when linked.

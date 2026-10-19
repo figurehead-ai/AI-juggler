@@ -18,6 +18,7 @@ const W42_END: i64 = W42_START + 7 * DAY;
 #[derive(Default)]
 struct Recording {
     requests: RefCell<Vec<(&'static str, String, Vec<u8>)>>,
+    bearers: RefCell<Vec<Option<String>>>,
     responses: RefCell<VecDeque<Result<Response, String>>>,
 }
 
@@ -63,10 +64,16 @@ impl Transport for Recording {
             .push(("GET", url.to_owned(), Vec::new()));
         self.next()
     }
-    fn post_gzip_json(&self, url: &str, body: &[u8]) -> Result<Response, String> {
+    fn post_gzip_json(
+        &self,
+        url: &str,
+        body: &[u8],
+        bearer: Option<&str>,
+    ) -> Result<Response, String> {
         self.requests
             .borrow_mut()
             .push(("POST", url.to_owned(), body.to_vec()));
+        self.bearers.borrow_mut().push(bearer.map(str::to_owned));
         self.next()
     }
 }
@@ -134,6 +141,7 @@ impl Fixture {
             now_ms,
             gauges: &no_gauges,
             pow_budget: crate::pow::BUDGET,
+            sync: None,
         }
     }
 
@@ -607,6 +615,7 @@ fn off_does_nothing_and_creates_nothing() {
         now_ms: W42_END,
         gauges: &no_gauges,
         pow_budget: crate::pow::BUDGET,
+        sync: None,
     };
     assert_eq!(tick(&dir, &ctx).unwrap(), TickOutcome::default());
     assert!(!dir.exists());
@@ -774,4 +783,105 @@ fn stats_events_record_into_weeks_the_cycle_closes() {
         .find(|e| e.m == "stats.truncated")
         .unwrap();
     assert_eq!(truncated.v, Some(7));
+}
+
+const SYNC_URL: &str = "https://figurehead.example/api/v1/stats/reports";
+
+fn no_op() {}
+
+#[test]
+fn a_fully_synced_week_goes_only_to_the_account_unsampled() {
+    let f = Fixture::new();
+    // Sync on since before the week (like sharing).
+    f.store()
+        .set_meta("sync_since", &(W42_START - DAY).to_string())
+        .unwrap();
+    let mut ctx = f.ctx(share(), W42_END);
+    ctx.sync = Some(Sync {
+        url: SYNC_URL,
+        bearer: "fhd_token",
+        unlinked: &no_op,
+    });
+    tick(&f.dir, &ctx).unwrap();
+    ctx.now_ms = f.upload_at("2026-W42") + 1;
+    f.net.respond(202, r#"{"ok":true}"#);
+    let out = tick(&f.dir, &ctx).unwrap();
+    assert_eq!(
+        out.uploads,
+        vec![("2026-W42".to_owned(), UploadOutcome::Sent)]
+    );
+    let requests = f.net.requests.borrow();
+    assert_eq!(requests.len(), 1, "no config fetch, no anonymous upload");
+    assert_eq!(requests[0].1, SYNC_URL);
+    assert_eq!(f.net.bearers.borrow()[0].as_deref(), Some("fhd_token"));
+    drop(requests);
+    let report = report_of(&f.dir.join("sent/2026-W42.json"));
+    assert!((report.sample_rate - 1.0).abs() < f64::EPSILON);
+    assert!(report.pow.is_none());
+    assert!(reports(&f.dir).unwrap()[0].synced);
+    // Nothing more, ever, for that week.
+    ctx.now_ms += 7 * DAY;
+    tick(&f.dir, &ctx).unwrap();
+    assert_eq!(f.net.count("POST"), 1);
+}
+
+#[test]
+fn a_week_the_sync_only_partly_covered_goes_the_anonymous_way() {
+    let f = Fixture::new();
+    // Sync was turned on mid-week (sharing covered it all).
+    f.store()
+        .set_meta("sync_since", &(W42_START + DAY).to_string())
+        .unwrap();
+    let mut ctx = f.ctx(share(), W42_END);
+    ctx.sync = Some(Sync {
+        url: SYNC_URL,
+        bearer: "fhd_token",
+        unlinked: &no_op,
+    });
+    tick(&f.dir, &ctx).unwrap();
+    ctx.now_ms = f.upload_at("2026-W42") + 1;
+    f.net.respond(200, CONFIG_ON);
+    f.net.respond(202, "{}");
+    let out = tick(&f.dir, &ctx).unwrap();
+    assert_eq!(out.uploads[0].1, UploadOutcome::Sent);
+    let requests = f.net.requests.borrow();
+    assert!(requests.iter().all(|r| r.1 != SYNC_URL), "never both");
+    assert_eq!(requests.iter().filter(|r| r.1 == REPORTS_URL).count(), 1);
+    assert_eq!(
+        f.net.bearers.borrow()[0],
+        None,
+        "no token on the anonymous upload"
+    );
+    drop(requests);
+    assert!(!reports(&f.dir).unwrap()[0].synced);
+}
+
+#[test]
+fn a_401_from_the_sync_unlinks_and_never_falls_back_to_anonymous() {
+    let f = Fixture::new();
+    f.store()
+        .set_meta("sync_since", &(W42_START - DAY).to_string())
+        .unwrap();
+    let called = std::cell::Cell::new(0);
+    let unlinked = || called.set(called.get() + 1);
+    let mut ctx = f.ctx(share(), W42_END);
+    ctx.sync = Some(Sync {
+        url: SYNC_URL,
+        bearer: "fhd_revoked",
+        unlinked: &unlinked,
+    });
+    tick(&f.dir, &ctx).unwrap();
+    ctx.now_ms = f.upload_at("2026-W42") + 1;
+    f.net.respond(401, r#"{"error":"unauthorized"}"#);
+    let out = tick(&f.dir, &ctx).unwrap();
+    assert_eq!(out.uploads[0].1, UploadOutcome::Skipped("unlinked".into()));
+    assert_eq!(called.get(), 1);
+    assert_eq!(sync_notice(&f.dir).unwrap().as_deref(), Some("unlinked"));
+    // The app turns the sync off; the week stays skipped, nothing else goes.
+    ctx.sync = None;
+    ctx.now_ms += DAY;
+    tick(&f.dir, &ctx).unwrap();
+    assert_eq!(f.net.count("POST"), 1);
+    assert_eq!(f.net.count("GET"), 0);
+    assert!(f.dir.join("skipped/2026-W42.json").exists());
 }

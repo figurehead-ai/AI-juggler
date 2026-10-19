@@ -17,7 +17,7 @@ stats = ["dep:juggler-stats", "dep:thread-priority"]
 workspace = true
 
 [dependencies]
-base64 = "0.22"
+base64 = "0.23"
 dirs = "7.0.0"
 flate2 = "1.1"
 juggler-adapter = { version = "0.0.1", path = "../juggler-adapter" }
@@ -58,6 +58,8 @@ ts-rs = { version = "12.0.1", features = ["serde-json-impl", "no-serde-warnings"
 tauri-build = { version = "2.7.2", features = [] }
 
 [dev-dependencies]
+# The usage-stats integration tests seed the store directly.
+juggler-stats = { version = "0.0.1", path = "../juggler-stats" }
 # Timing budgets measured as thread CPU time (AJ-E806 ledger).
 cpu-time = "1"
 juggler-handover = { version = "0.0.1", path = "../juggler-handover" }

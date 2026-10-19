@@ -104,7 +104,7 @@
 **Research basis**: spec §3, §8.
 **Handover note**: The three option labels and their one-line explanations are part of the consent; change them only with a consent-version bump.
 
-### AJ-E1106 Guardrail tests and the public metrics document | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1103, AJ-E1104, AJ-E1105
+### AJ-E1106 Guardrail tests and the public metrics document | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E1103, AJ-E1104, AJ-E1105
 **Goal**: Prove every promise in tests, and publish exactly what is collected.
 **User story**: As a sceptical user or reviewer, I can read the full list of metrics and see a test for each promise.
 **Requirements**:
@@ -119,7 +119,7 @@
 **Research basis**: spec §11–§12.
 **Handover note**: A guardrail that needs the network is wrong; use a recording transport.
 
-### AJ-E1107 Crash reports behind their own setting | Status: TODO | Priority P2 | Effort M | Depends: AJ-E1105
+### AJ-E1107 Crash reports behind their own setting | Status: IN-PROGRESS | Priority P2 | Effort M | Depends: AJ-E1105
 **Goal**: Optional crash reports, separate from usage statistics, scrubbed on the Mac.
 **User story**: As a user, I decide whether crash reports are never sent, sent after I review them, or always sent.
 **Requirements**:
@@ -153,7 +153,7 @@
 **Research basis**: spec §5.5.
 **Handover note**: The nonce is bound to the report id and week; never reuse one.
 
-### AJ-E1109 Personal stats sync | Status: TODO | Priority P1 | Effort M | Depends: AJ-E1104, AJ-E1202
+### AJ-E1109 Personal stats sync | Status: DONE-EVIDENCED | Priority P1 | Effort M | Depends: AJ-E1104, AJ-E1202
 **Goal**: Let a signed-in user see their own weekly stats in their Figurehead dashboard — instead of, never as well as, the anonymous report.
 **User story**: As a user with a linked Mac, I can choose to see my stats on figurehead.ai; only I can see them, and they go when my account goes.
 **Requirements**:

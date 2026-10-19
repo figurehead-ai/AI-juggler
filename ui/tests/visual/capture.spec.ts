@@ -6349,6 +6349,7 @@ const statsOverview = (info: Record<string, unknown>, patch: Record<string, unkn
   next_upload_ms: null,
   last_error: null,
   docs_url: "https://github.com/figurehead-ai/AI-juggler/blob/main/docs/usage-stats.md",
+  sync: { offered: false, on: false, email: null, notice: null },
   ...patch,
 });
 
@@ -6357,8 +6358,8 @@ const LOCAL = statsOverview(
   {
     rows: STATS_ROWS,
     reports: [
-      { week: "2026-W41", status: "skipped", reason: "Counted while stats stayed on this Mac — never sent", upload_at_ms: null, next_try_ms: null, attempts: 0, bytes: 1_204 },
-      { week: "2026-W40", status: "skipped", reason: "Counted while stats stayed on this Mac — never sent", upload_at_ms: null, next_try_ms: null, attempts: 0, bytes: 988 },
+      { week: "2026-W41", status: "skipped", reason: "Counted while stats stayed on this Mac — never sent", upload_at_ms: null, next_try_ms: null, attempts: 0, bytes: 1_204, synced: false },
+      { week: "2026-W40", status: "skipped", reason: "Counted while stats stayed on this Mac — never sent", upload_at_ms: null, next_try_ms: null, attempts: 0, bytes: 988, synced: false },
     ],
   },
 );
@@ -6369,9 +6370,9 @@ const SHARE = statsOverview(
     rows: STATS_ROWS,
     next_upload_ms: T0 + 2 * 86_400_000,
     reports: [
-      { week: "2026-W41", status: "pending", reason: null, upload_at_ms: T0 + 2 * 86_400_000, next_try_ms: null, attempts: 0, bytes: 1_204 },
-      { week: "2026-W40", status: "sent", reason: null, upload_at_ms: null, next_try_ms: null, attempts: 0, bytes: 988 },
-      { week: "2026-W39", status: "skipped", reason: "Sharing didn't cover the whole week — never sent", upload_at_ms: null, next_try_ms: null, attempts: 0, bytes: 1_051 },
+      { week: "2026-W41", status: "pending", reason: null, upload_at_ms: T0 + 2 * 86_400_000, next_try_ms: null, attempts: 0, bytes: 1_204, synced: false },
+      { week: "2026-W40", status: "sent", reason: null, upload_at_ms: null, next_try_ms: null, attempts: 0, bytes: 988, synced: false },
+      { week: "2026-W39", status: "skipped", reason: "Sharing didn't cover the whole week — never sent", upload_at_ms: null, next_try_ms: null, attempts: 0, bytes: 1_051, synced: false },
     ],
   },
 );
@@ -6381,7 +6382,7 @@ const UPLOAD_ERROR = {
   last_error: "Couldn't reach Figurehead.",
   next_upload_ms: T0 + 3 * 3_600_000,
   reports: [
-    { week: "2026-W41", status: "pending", reason: null, upload_at_ms: T0 - 3_600_000, next_try_ms: T0 + 3 * 3_600_000, attempts: 2, bytes: 1_204 },
+    { week: "2026-W41", status: "pending", reason: null, upload_at_ms: T0 - 3_600_000, next_try_ms: T0 + 3 * 3_600_000, attempts: 2, bytes: 1_204, synced: false },
     ...SHARE.reports.slice(1),
   ],
 };
@@ -6425,6 +6426,16 @@ const PRIVACY_STATES: { name: string; seams: Record<string, unknown> }[] = [
     seams: { __AIJ_USAGE_STATS__: statsOverview({ included: false, reason: "Not included in this build" }) },
   },
   { name: "upload-error", seams: { __AIJ_USAGE_STATS__: UPLOAD_ERROR } },
+  {
+    name: "synced",
+    seams: {
+      __AIJ_USAGE_STATS__: {
+        ...SHARE,
+        sync: { offered: true, on: true, email: "you@example.com", notice: null },
+        reports: SHARE.reports.map((row, index) => (index === 1 ? { ...row, synced: true } : row)),
+      },
+    },
+  },
 ];
 
 for (const theme of THEMES) {
@@ -6494,4 +6505,65 @@ for (const theme of THEMES) {
       await page.screenshot({ path: resolve(GALLERY, `63-consent/reask-${vp.name}-${theme}.png`) });
     });
   }
+}
+
+// ---------------------------------------------------------------------
+// AJ-E1107 — 64-crash: the crash-report setting in Settings › Privacy
+// and the next-launch question with the full report — 1280×800,
+// light/dark.
+// ---------------------------------------------------------------------
+
+const CRASH_REPORT = {
+  id: "a1b2c3d4e5f60718",
+  at_ms: T0 - 3_600_000,
+  signature: "9f2c1a0b7e3d4c5f",
+  message: "called `Option::unwrap()` on a `None` value",
+  location: "crates/juggler-app/src/commands.rs:4211",
+  frames: [
+    "0: std::panicking::begin_panic_handler",
+    "1: core::option::unwrap_failed",
+    "2: juggler_app::commands::switch_execute_core",
+    "at ~/Dev/AIJuggler/crates/juggler-app/src/commands.rs:4211:41",
+    "3: juggler_app::commands::switch_execute",
+  ],
+  app_version: "0.3.1",
+  channel: "beta",
+  os: "macos",
+};
+
+for (const theme of THEMES) {
+  test(`64 crash — the setting (ask, nothing sendable yet) — ${theme}`, async ({ page }) => {
+    await openSettings(page, theme, { width: 1280, height: 800 }, {
+      __AIJ_USAGE_STATS__: SHARE,
+      __AIJ_CRASH__: { setting: "ask", effective: "ask", reason: null, asking: [], queued: 1, can_send: false },
+    });
+    await page.getByTestId("privacy-crash-reports").evaluate((row) => row.scrollIntoView({ block: "center" }));
+    await page.mouse.move(0, 0);
+    await page.screenshot({ path: resolve(GALLERY, `64-crash/setting-1280x800-${theme}.png`) });
+  });
+
+  test(`64 crash — the next-launch question — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ fixture, t, crash, t0 }) => {
+        const w = window as unknown as Record<string, unknown>;
+        w.__AIJ_FIXTURE__ = fixture;
+        w.__AIJ_CRASH__ = crash;
+        localStorage.setItem("aij.theme", t);
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        sessionStorage.setItem("aij.ready.skipped", "1");
+        Date.now = () => t0;
+      },
+      {
+        fixture: allStatuses,
+        t: theme,
+        t0: T0,
+        crash: { setting: "ask", effective: "ask", reason: null, asking: [CRASH_REPORT], queued: 0, can_send: false },
+      },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme as "dark" | "light" });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await expect(page.getByTestId("crash-prompt")).toBeVisible();
+    await page.screenshot({ path: resolve(GALLERY, `64-crash/ask-1280x800-${theme}.png`) });
+  });
 }

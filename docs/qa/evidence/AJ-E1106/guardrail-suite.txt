@@ -1,0 +1,91 @@
+     Running unittests src/lib.rs (target/debug/deps/juggler_stats-cbbff33fc2a2f5e7)
+test buckets::tests::counts_bucket_as_the_schema_says ... ok
+test buckets::tests::histogram_buckets_follow_their_lower_edges ... ok
+test buckets::tests::totals_keep_two_significant_figures ... ok
+test buckets::tests::versions_keep_major_minor_only ... ok
+test config::tests::parses_leniently_and_checks_versions ... ok
+test cycle::tests::release_builds_ignore_the_endpoint_variable ... ok
+test mode::tests::overrides_win_in_order_with_their_reason ... ok
+test mode::tests::the_choice_applies_without_overrides ... ok
+test pow::tests::hex_matches_format ... ok
+test pow::tests::a_budget_stops_the_search ... ok
+test cycle::tests::sampling_hits_its_rate_within_two_percent ... ok
+test pow::tests::solves_and_checks ... ok
+test cycle::tests::off_does_nothing_and_creates_nothing ... ok
+test tests::a_full_channel_drops_and_counts ... ok
+test tests::dims_keys_are_canonical_json ... ok
+test pow::tests::the_solver_reproduces_the_checked_vectors ... ok
+test tests::off_creates_no_folder_and_records_nothing ... ok
+test tests::delete_all_removes_everything ... ok
+test tests::a_week_of_counters_flushes_in_under_5_ms ... ok
+test tests::record_is_under_a_microsecond ... ok
+test tests::utc_days ... ok
+test week::tests::civil_round_trips ... ok
+test week::tests::a_week_runs_monday_to_monday ... ok
+test week::tests::iso_weeks_match_known_dates ... ok
+test tests::counters_gauges_histograms_and_days_reach_the_store ... ok
+test tests::drops_become_the_stats_dropped_counter ... ok
+test cycle::tests::assembly_is_fast ... ok
+test cycle::tests::a_week_assembled_too_late_expires ... ok
+test tests::the_folder_is_private ... ok
+test cycle::tests::stats_events_record_into_weeks_the_cycle_closes ... ok
+test cycle::tests::reports_lists_every_file_with_its_state ... ok
+test cycle::tests::leaving_share_skips_pending_reports ... ok
+test cycle::tests::old_sent_and_skipped_reports_are_pruned ... ok
+test cycle::tests::a_puzzle_above_28_bits_postpones_a_day ... ok
+test cycle::tests::the_sample_rate_applied_is_in_the_report ... ok
+test cycle::tests::a_closed_week_is_assembled_once_into_pending ... ok
+test cycle::tests::a_due_report_uploads_once_gzipped_and_moves_to_sent ... ok
+test cycle::tests::a_401_from_the_sync_unlinks_and_never_falls_back_to_anonymous ... ok
+test cycle::tests::a_week_the_sync_only_partly_covered_goes_the_anonymous_way ... ok
+test cycle::tests::a_fully_synced_week_goes_only_to_the_account_unsampled ... ok
+test cycle::tests::expiry_ends_retries ... ok
+test cycle::tests::weeks_without_full_consent_or_in_local_are_skipped ... ok
+test cycle::tests::retry_after_is_honoured_and_capped ... ok
+test cycle::tests::a_puzzle_is_solved_and_a_raised_one_refetches_the_config ... ok
+test cycle::tests::no_usable_config_means_no_upload_yet ... ok
+test cycle::tests::several_weeks_go_oldest_first_one_per_tick ... ok
+test cycle::tests::ci_debug_and_unanswered_consent_never_send ... ok
+test cycle::tests::network_errors_back_off_and_give_up_after_six_attempts ... ok
+test cycle::tests::rejected_reports_are_not_retried ... ok
+test cycle::tests::the_config_can_switch_off_narrow_and_sample ... ok
+test cycle::tests::the_worst_case_week_stays_under_8_kb ... ok
+test pow::tests::twenty_bits_is_quick ... ok
+test result: ok. 52 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+     Running tests/parity.rs (target/debug/deps/parity-3121978dc1a8b6ce)
+test every_event_parses_back_from_its_wire_form_and_nothing_else_does ... ok
+test every_metric_has_exactly_one_typed_variant ... ok
+test the_metadata_table_equals_the_schema ... ok
+test the_generated_file_is_current ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running unittests src/lib.rs (target/debug/deps/juggler_app-2fbeb7aaea334503)
+test usage_stats::tests::live_stats_server_accepts_a_report ... ignored, needs a local stats server (AIJ_E2E_STATS_URL)
+test usage_stats::tests::skipped_reasons_read_plainly ... ok
+test usage_stats::tests::error_classes_come_from_the_variant_never_the_text ... ok
+test usage_stats::tests::overrides_show_their_reason ... ok
+test usage_stats::tests::the_tick_thread_runs_at_the_lowest_priority ... ok
+test usage_stats::tests::mappings_keep_only_schema_words ... ok
+test usage_stats::export_bindings_usagereportrow ... ok
+test usage_stats::export_bindings_usagesyncinfo ... ok
+test usage_stats::export_bindings_usagestatsinfo ... ok
+test usage_stats::export_bindings_usagestatrow ... ok
+test usage_stats::export_bindings_usagestatssetresult ... ok
+test usage_stats::export_bindings_usagestatsoverview ... ok
+test usage_stats::tests::choosing_off_deletes_the_folder_and_says_so ... ok
+test usage_stats::tests::every_metric_is_accounted_for_and_its_site_exists ... ok
+test usage_stats::tests::the_privacy_overview_shows_what_was_counted_and_kept ... ok
+test usage_stats::tests::the_interface_cannot_widen_what_is_counted ... ok
+test usage_stats::tests::a_debug_build_uploads_to_the_local_endpoint_with_the_contract_headers ... ok
+test usage_stats::tests::default_is_off_and_creates_nothing ... ok
+test usage_stats::tests::off_and_local_send_nothing ... ok
+test result: ok. 18 passed; 0 failed; 1 ignored; 0 measured; 129 filtered out; finished in 0.65s
+     Running tests/stats_guardrails.rs (target/debug/deps/stats_guardrails-c65d415425c17548)
+test stats_code_names_no_vendor_credential_or_identity_file ... ok
+test without_a_choice_nothing_is_created_and_nothing_is_sent ... ok
+test nothing_the_user_owns_reaches_the_stats_store_or_a_report ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+     Running tests/stats_sync.rs (target/debug/deps/stats_sync-33cfc09779f47f49)
+test a_synced_week_goes_to_the_account_with_the_token_and_never_anonymously ... ok
+test a_401_unlinks_keeps_the_report_and_sends_nothing_anonymously ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s

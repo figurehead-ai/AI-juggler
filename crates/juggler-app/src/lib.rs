@@ -14,6 +14,7 @@
 pub mod backup;
 pub mod cloud_backup;
 pub mod commands;
+pub mod crash;
 pub mod crossmachine;
 pub mod error;
 pub mod figurehead;
@@ -87,6 +88,8 @@ pub fn run() {
         std::process::exit(1);
     }));
 
+    // AJ-E1107: keep a scrubbed crash report if the user allows it.
+    crash::install(&app_state);
     spawn_lifecycle_forwarder(Arc::clone(&app_state));
 
     let attention_state = Arc::clone(&app_state);
@@ -141,6 +144,10 @@ pub fn run() {
             usage_stats::usage_stats_report,
             usage_stats::usage_stats_delete_local,
             usage_stats::usage_stats_open_docs,
+            usage_stats::usage_stats_set_sync,
+            crash::crash_info,
+            crash::crash_set,
+            crash::crash_answer,
             commands::usage_source_health,
             commands::cost_rollups,
             commands::cost_csv_export,
