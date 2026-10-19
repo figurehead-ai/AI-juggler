@@ -22,13 +22,15 @@ pub mod client;
 pub mod model;
 pub mod secrets;
 pub mod transport;
+pub mod vault;
 
-pub use client::{AccountClient, ApiError};
+pub use client::{AccountClient, ApiError, BackupRecord, DEFAULT_BACKUP_LIMIT, UploadedBackup};
 pub use model::{
     AccountView, DeviceFields, Entitlement, LinkRequest, PHASE1_FEATURES, PollOutcome,
 };
 pub use secrets::{KeychainStore, MemoryStore, SecretStore};
 pub use transport::{HttpRequest, HttpResponse, RecordingTransport, Transport, UreqTransport};
+pub use vault::{VaultError, VaultKey, VaultKeychain};
 
 /// The production service. Release builds always use it.
 pub const PRODUCTION_URL: &str = "https://figurehead.ai";

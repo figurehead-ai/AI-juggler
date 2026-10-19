@@ -18,6 +18,7 @@ import {
   type AlertEventData,
   type RemoteMachineInfo,
   type ResetQueueRow,
+  onUpdateStatus,
 } from "../lib/bridge";
 
 export function NotificationRegion({
@@ -33,6 +34,32 @@ export function NotificationRegion({
   const [remote, setRemote] = useState<RemoteMachineInfo[]>([]);
   const [dismissed, setDismissed] = useState<Set<string>>(() => new Set());
   const [offers, setOffers] = useState<ParkedOfferInfo[]>([]);
+  // AJ-E1010: an update announced by the launch check — one notice per
+  // version, never an install.
+  const [update, setUpdate] = useState<string | null>(null);
+  useEffect(
+    () =>
+      onUpdateStatus((status) => {
+        const version = status.state === "available" ? (status.available?.version ?? null) : null;
+        if (!version) return;
+        let seen = "";
+        try {
+          seen = localStorage.getItem("aij.update.noticed") ?? "";
+        } catch {
+          /* storage unavailable: show it */
+        }
+        if (seen !== version) setUpdate(version);
+      }),
+    [],
+  );
+  const closeUpdate = (version: string) => {
+    try {
+      localStorage.setItem("aij.update.noticed", version);
+    } catch {
+      /* best effort */
+    }
+    setUpdate(null);
+  };
 
   // AJ-E709 Req.3: Fleet alerts — a local read of what peers reported
   // (the link delivers within the second; this only paints it).
@@ -133,6 +160,33 @@ export function NotificationRegion({
           </button>
         </p>
       ))}
+      {update && (
+        <div
+          data-testid="update-notice"
+          className="flex flex-wrap items-center gap-2 rounded border border-accent/40 bg-accent-soft px-2 py-1.5 text-[11px] text-ink"
+        >
+          <span className="min-w-0 flex-1">AI Juggler {update} (beta) is available. Nothing is installed until you choose.</span>
+          <button
+            type="button"
+            className="rounded border border-accent/50 px-2 py-0.5 font-medium text-accent-hi focus:outline-none focus:ring-2 focus:ring-accent"
+            onClick={() => {
+              window.dispatchEvent(new CustomEvent("aij:open-settings"));
+              closeUpdate(update);
+            }}
+            data-testid="update-notice-review"
+          >
+            Review
+          </button>
+          <button
+            type="button"
+            className="text-ink underline focus:outline-none focus:ring-2 focus:ring-accent"
+            onClick={() => closeUpdate(update)}
+            data-testid="update-notice-later"
+          >
+            Not now
+          </button>
+        </div>
+      )}
       {offers.map((offer) => (
         <div
           key={`parked-${offer.session_id}`}

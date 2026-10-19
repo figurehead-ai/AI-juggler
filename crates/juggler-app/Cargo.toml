@@ -33,8 +33,15 @@ tauri-plugin-dialog = "2"
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-single-instance = "2"
+# AJ-E1010: without the plugin's default `zip` feature. That feature only
+# adds Windows installer extraction, through a `zip` version with open
+# advisories; macOS updates use tar + gzip, which the plugin always
+# includes there. Re-enable it when Windows releases start and the
+# plugin ships a fixed `zip` (docs/RELEASING.md).
+tauri-plugin-updater = { version = "2", default-features = false, features = ["rustls-tls", "system-proxy"] }
 thiserror = "2.0.21"
 tokio = { version = "1", features = ["rt-multi-thread", "net", "sync", "time"] }
+zstd = "0.13"
 ts-rs = { version = "12.0.1", features = ["serde-json-impl", "no-serde-warnings"] }
 
 [build-dependencies]

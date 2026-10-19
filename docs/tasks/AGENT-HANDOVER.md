@@ -32,9 +32,9 @@ Updated 2026-10-18. Re-verify with `git log --oneline -20` and
 - Decision log: D-01..D-18. D-16 dual themes, D-17 screen-capture
   shim, D-18 optional Figurehead account (two paths; ADR-0014).
 - Stage 2 (implementation) is approved and running.
-- Progress: 98/114 DONE-EVIDENCED — E1, E2, E3, E4, E5, E6, E9
-  complete; E7 10/11 (all but the AJ-E710 gate); E8 3/10; E10 7/11 (AJ-E1001..E1005, AJ-E1007, AJ-E1009; AJ-E1006/E1008 instruments ready, awaiting the cohort); E12 3/7
-  (AJ-E1201..E1203: decision, account client, Settings).
+- Progress: 100/114 DONE-EVIDENCED — E1, E2, E3, E4, E5, E6, E9
+  complete; E7 10/11 (all but the AJ-E710 gate); E8 3/10; E10 7/11 (AJ-E1001..E1005, AJ-E1007, AJ-E1009; AJ-E1006/E1008 instruments ready, awaiting the cohort; AJ-E1010 built, awaiting the maintainer's signing setup and first signed build; AJ-E1011 stays P2 until dogfood shows pack-sharing demand, per its handover note); E12 5/7
+  (AJ-E1201..E1205: decision, account client, Settings, vault, Cloud backup).
 - Execution order from here: the AJ-E710 gate write-up → E10 →
   AJ-E1204/E1205/E1206/E1207 → usage statistics (E11, its own decision
   D-19 / ADR-0015) → E8 tail.

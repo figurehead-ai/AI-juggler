@@ -108,6 +108,12 @@ a PR.
   every line you submit: review it, test it, and make sure it follows
   these rules (especially the no-personal-data rule).
 
+## Releases
+
+Releases are cut by the maintainer: [docs/RELEASING.md](./docs/RELEASING.md)
+has the signing setup, the release-notes rules, and the rollback steps.
+Contributors only add their change to `CHANGELOG.md` under `[Unreleased]`.
+
 ## Licensing
 
 By contributing, you agree that your contributions are licensed under

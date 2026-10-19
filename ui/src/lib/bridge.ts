@@ -22,6 +22,13 @@ import type { IdentityCheckInfo } from "../types/generated/IdentityCheckInfo";
 import type { IsolationOfferInfo } from "../types/generated/IsolationOfferInfo";
 import type { ParkedInfo } from "../types/generated/ParkedInfo";
 import type { OvernightSummaryInfo } from "../types/generated/OvernightSummaryInfo";
+import type { CloudBackupStatusInfo } from "../types/generated/CloudBackupStatusInfo";
+import type { CloudBackupInfo } from "../types/generated/CloudBackupInfo";
+import type { LastBackupInfo } from "../types/generated/LastBackupInfo";
+import type { VaultStatusInfo } from "../types/generated/VaultStatusInfo";
+import type { RecoveryCodeInfo } from "../types/generated/RecoveryCodeInfo";
+import type { UpdateStatusInfo } from "../types/generated/UpdateStatusInfo";
+import type { AnnouncedInfo } from "../types/generated/AnnouncedInfo";
 import type { BackupExportInfo } from "../types/generated/BackupExportInfo";
 import type { RestorePlanInfo } from "../types/generated/RestorePlanInfo";
 import type { RestoreResultInfo } from "../types/generated/RestoreResultInfo";
@@ -102,6 +109,13 @@ export type {
   ParkedInfo,
   ParkedOfferInfo,
   OvernightSummaryInfo,
+  CloudBackupStatusInfo,
+  CloudBackupInfo,
+  LastBackupInfo,
+  VaultStatusInfo,
+  RecoveryCodeInfo,
+  UpdateStatusInfo,
+  AnnouncedInfo,
   BackupExportInfo,
   RestorePlanInfo,
   RestoreResultInfo,
@@ -162,6 +176,8 @@ export const EVENTS = {
   fleetSwitchProgress: "fleet://switch-progress",
   /** Backup export progress (AJ-E1009): at least every 1 %. */
   backupProgress: "backup://progress",
+  /** Update status changes (AJ-E1010). */
+  updateStatus: "update://status",
 } as const;
 
 const hasBackend =
@@ -4169,4 +4185,253 @@ export async function backupRestore(path: string, token: string): Promise<Restor
     throw new Error("No backend in this preview");
   }
   return invoke<RestoreResultInfo>("backup_restore", { path, token });
+}
+
+// --- AJ-E1010: updates ---------------------------------------------------------
+
+interface UpdateSeams {
+  __AIJ_UPDATE_STATUS__?: UpdateStatusInfo;
+  __AIJ_UPDATE_CALLS__?: string[];
+  __AIJ_UPDATE_AFTER_CHECK__?: UpdateStatusInfo;
+  __AIJ_UPDATE_AFTER_INSTALL__?: UpdateStatusInfo;
+  __AIJ_UPDATE_RESTART_ERROR__?: string;
+}
+const updateSeams = () => window as unknown as UpdateSeams;
+const updateCall = (call: string) => {
+  const seams = updateSeams();
+  seams.__AIJ_UPDATE_CALLS__ = [...(seams.__AIJ_UPDATE_CALLS__ ?? []), call];
+};
+const mockUpdateStatus = (): UpdateStatusInfo =>
+  updateSeams().__AIJ_UPDATE_STATUS__ ?? {
+    current_version: "0.0.1",
+    channel: "beta",
+    configured: false,
+    check_on_launch: true,
+    state: "idle",
+    available: null,
+    progress: null,
+    error: null,
+    backup_path: null,
+    checked_at_ms: null,
+  };
+
+/** Where updating stands. */
+export async function updateStatus(): Promise<UpdateStatusInfo> {
+  if (!hasBackend) return { ...mockUpdateStatus() };
+  return invoke<UpdateStatusInfo>("update_status");
+}
+
+/** Turns "check when AI Juggler starts" on or off. */
+export async function updateSetCheckOnLaunch(enabled: boolean): Promise<UpdateStatusInfo> {
+  if (!hasBackend) {
+    updateCall(`check-on-launch:${enabled}`);
+    const next = { ...mockUpdateStatus(), check_on_launch: enabled };
+    updateSeams().__AIJ_UPDATE_STATUS__ = next;
+    return next;
+  }
+  return invoke<UpdateStatusInfo>("update_set_check_on_launch", { enabled });
+}
+
+/** Checks for a newer version now (never installs). */
+export async function updateCheck(): Promise<UpdateStatusInfo> {
+  if (!hasBackend) {
+    updateCall("check");
+    const next = updateSeams().__AIJ_UPDATE_AFTER_CHECK__ ?? mockUpdateStatus();
+    updateSeams().__AIJ_UPDATE_STATUS__ = next;
+    return { ...next };
+  }
+  return invoke<UpdateStatusInfo>("update_check");
+}
+
+/** Installs the announced update: backup, download, verify, install. */
+export async function updateInstall(): Promise<UpdateStatusInfo> {
+  if (!hasBackend) {
+    updateCall("install");
+    const next = updateSeams().__AIJ_UPDATE_AFTER_INSTALL__ ?? mockUpdateStatus();
+    updateSeams().__AIJ_UPDATE_STATUS__ = next;
+    return { ...next };
+  }
+  return invoke<UpdateStatusInfo>("update_install");
+}
+
+/** Restarts into the installed version (refused while Instances run). */
+export async function updateRestart(): Promise<void> {
+  if (!hasBackend) {
+    updateCall("restart");
+    const error = updateSeams().__AIJ_UPDATE_RESTART_ERROR__;
+    if (error) throw new Error(error);
+    return;
+  }
+  return invoke<void>("update_restart");
+}
+
+/** Update status changes pushed by the backend. */
+export function onUpdateStatus(handler: (status: UpdateStatusInfo) => void): () => void {
+  if (!hasBackend) return () => {};
+  let unlisten: (() => void) | null = null;
+  let disposed = false;
+  listen<UpdateStatusInfo>(EVENTS.updateStatus, (event) => handler(event.payload))
+    .then((stop) => {
+      if (disposed) stop();
+      else unlisten = stop;
+    })
+    .catch(() => {});
+  return () => {
+    disposed = true;
+    unlisten?.();
+  };
+}
+
+// --- AJ-E1204: the backup vault ---------------------------------------------
+
+interface VaultSeams {
+  __AIJ_VAULT_STATUS__?: VaultStatusInfo;
+  __AIJ_VAULT_CODE__?: string;
+  __AIJ_VAULT_CALLS__?: string[];
+  __AIJ_VAULT_SAVE_DEST__?: string | null;
+}
+const vaultSeams = () => window as unknown as VaultSeams;
+const vaultCall = (call: string) => {
+  const seams = vaultSeams();
+  seams.__AIJ_VAULT_CALLS__ = [...(seams.__AIJ_VAULT_CALLS__ ?? []), call];
+};
+
+/** Where the vault stands on this Mac. */
+export async function vaultStatus(): Promise<VaultStatusInfo> {
+  // The preview's default is a Mac whose code is already saved; specs seed
+  // the first-time state explicitly.
+  if (!hasBackend) return { ...(vaultSeams().__AIJ_VAULT_STATUS__ ?? { has_key: true, code_saved: true }) };
+  return invoke<VaultStatusInfo>("vault_status");
+}
+
+/** Makes the vault key (first time) and returns its recovery code. */
+export async function vaultSetup(): Promise<RecoveryCodeInfo> {
+  if (!hasBackend) {
+    vaultCall("setup");
+    const seams = vaultSeams();
+    seams.__AIJ_VAULT_STATUS__ = { has_key: true, code_saved: false };
+    return { code: seams.__AIJ_VAULT_CODE__ ?? "ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ23-4567-ABCD-EFGH-IJKL-MNOP-QRST-UVWX" };
+  }
+  return invoke<RecoveryCodeInfo>("vault_setup");
+}
+
+/** "I've saved my recovery code". */
+export async function vaultConfirmSaved(): Promise<VaultStatusInfo> {
+  if (!hasBackend) {
+    vaultCall("confirm");
+    const next = { has_key: true, code_saved: true };
+    vaultSeams().__AIJ_VAULT_STATUS__ = next;
+    return next;
+  }
+  return invoke<VaultStatusInfo>("vault_confirm_saved");
+}
+
+/** Saves the recovery code to a text file the user picks; false if cancelled. */
+export async function vaultSaveCode(): Promise<boolean> {
+  let dest: string | null;
+  if (!hasBackend) {
+    dest = vaultSeams().__AIJ_VAULT_SAVE_DEST__ ?? null;
+  } else {
+    const chosen = await saveDialog({
+      defaultPath: "AI Juggler recovery code.txt",
+      filters: [{ name: "Text", extensions: ["txt"] }],
+    });
+    dest = typeof chosen === "string" ? chosen : null;
+  }
+  if (!dest) return false;
+  if (!hasBackend) {
+    vaultCall(`save:${dest}`);
+    return true;
+  }
+  await invoke<void>("vault_save_code", { dest });
+  return true;
+}
+
+/** A new Mac enters its recovery code. */
+export async function vaultEnterCode(code: string): Promise<VaultStatusInfo> {
+  if (!hasBackend) {
+    vaultCall(`enter:${code}`);
+    const next = { has_key: true, code_saved: true };
+    vaultSeams().__AIJ_VAULT_STATUS__ = next;
+    return next;
+  }
+  return invoke<VaultStatusInfo>("vault_enter_code", { code });
+}
+
+// --- AJ-E1205: Cloud backup ----------------------------------------------------
+
+interface CloudBackupSeams {
+  __AIJ_CLOUD_BACKUP__?: CloudBackupStatusInfo;
+  __AIJ_CLOUD_BACKUPS__?: CloudBackupInfo[];
+  __AIJ_CLOUD_BACKUP_CALLS__?: string[];
+  __AIJ_CLOUD_BACKUP_ERROR__?: string;
+  __AIJ_CLOUD_RESTORE_PLAN__?: RestorePlanInfo;
+  __AIJ_CLOUD_RESTORE_ERROR__?: string;
+  __AIJ_CLOUD_BACKUP_HOLD__?: boolean;
+}
+const cloudSeams = () => window as unknown as CloudBackupSeams;
+const cloudCall = (call: string) => {
+  const seams = cloudSeams();
+  seams.__AIJ_CLOUD_BACKUP_CALLS__ = [...(seams.__AIJ_CLOUD_BACKUP_CALLS__ ?? []), call];
+};
+const mockCloud = (): CloudBackupStatusInfo =>
+  cloudSeams().__AIJ_CLOUD_BACKUP__ ?? {
+    enabled: true,
+    code_saved: true,
+    schedule: "weekly",
+    last: null,
+    uploading: false,
+    limit_bytes: 25 * 1024 * 1024,
+  };
+
+/** Where Cloud backup stands. */
+export async function cloudBackupStatus(): Promise<CloudBackupStatusInfo> {
+  if (!hasBackend) return { ...mockCloud() };
+  return invoke<CloudBackupStatusInfo>("cloud_backup_status");
+}
+
+/** Sets the schedule (off | daily | weekly). */
+export async function cloudBackupSetSchedule(schedule: string): Promise<CloudBackupStatusInfo> {
+  if (!hasBackend) {
+    cloudCall(`schedule:${schedule}`);
+    const next = { ...mockCloud(), schedule };
+    cloudSeams().__AIJ_CLOUD_BACKUP__ = next;
+    return next;
+  }
+  return invoke<CloudBackupStatusInfo>("cloud_backup_set_schedule", { schedule });
+}
+
+/** Backs up now (builds, seals and uploads). */
+export async function cloudBackupNow(): Promise<LastBackupInfo> {
+  if (!hasBackend) {
+    cloudCall("now");
+    const seams = cloudSeams();
+    if (seams.__AIJ_CLOUD_BACKUP_HOLD__) return new Promise<LastBackupInfo>(() => {});
+    if (seams.__AIJ_CLOUD_BACKUP_ERROR__) throw new Error(seams.__AIJ_CLOUD_BACKUP_ERROR__);
+    const last = { at_ms: Date.now(), ok: true, size_bytes: 412_000, error: null };
+    seams.__AIJ_CLOUD_BACKUP__ = { ...mockCloud(), last };
+    return last;
+  }
+  return invoke<LastBackupInfo>("cloud_backup_now");
+}
+
+/** The account's backups, newest first. */
+export async function cloudBackupList(): Promise<CloudBackupInfo[]> {
+  if (!hasBackend) {
+    cloudCall("list");
+    return [...(cloudSeams().__AIJ_CLOUD_BACKUPS__ ?? [])];
+  }
+  return invoke<CloudBackupInfo[]>("cloud_backup_list");
+}
+
+/** Downloads and opens one backup; returns the verified restore plan. */
+export async function cloudBackupPrepareRestore(id: string, recoveryCode: string | null): Promise<RestorePlanInfo> {
+  if (!hasBackend) {
+    cloudCall(`prepare:${id}:${recoveryCode ? "code" : "key"}`);
+    const seams = cloudSeams();
+    if (seams.__AIJ_CLOUD_RESTORE_ERROR__) throw new Error(seams.__AIJ_CLOUD_RESTORE_ERROR__);
+    if (seams.__AIJ_CLOUD_RESTORE_PLAN__) return seams.__AIJ_CLOUD_RESTORE_PLAN__;
+    throw new Error("No backend in this preview");
+  }
+  return invoke<RestorePlanInfo>("cloud_backup_prepare_restore", { id, recoveryCode });
 }

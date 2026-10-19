@@ -12,6 +12,7 @@
 )]
 
 pub mod backup;
+pub mod cloud_backup;
 pub mod commands;
 pub mod crossmachine;
 pub mod error;
@@ -28,7 +29,9 @@ pub mod preview;
 pub mod remote;
 pub mod state;
 pub mod terminal;
+pub mod updates;
 pub mod usage_pipeline;
+pub mod vault;
 pub mod worktree;
 
 use std::sync::Arc;
@@ -90,6 +93,8 @@ pub fn run() {
     let pipeline_state = Arc::clone(&app_state);
     let link_state = Arc::clone(&app_state);
     let figurehead_state = Arc::clone(&app_state);
+    let update_state = Arc::clone(&app_state);
+    let cloud_backup_state = Arc::clone(&app_state);
 
     tauri::Builder::default()
         // Registered first: a second launch defers to the running app
@@ -104,6 +109,10 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        // AJ-E1010: registering the updater makes no request. The feed is
+        // only built in release builds that carry the signing key, and
+        // the webview gets no updater permission.
+        .plugin(tauri_plugin_updater::Builder::new().build())
         // The global "Go to instance…" hotkey (AJ-E414 Req.4): the
         // registration itself happens in setup (stored binding or the
         // default); a conflict there logs and leaves the in-app ⌘K path.
@@ -183,6 +192,21 @@ pub fn run() {
             overnight::overnight_summary_seen,
             parked::instance_park,
             lifecycle::instance_mark_reviewed,
+            cloud_backup::cloud_backup_status,
+            cloud_backup::cloud_backup_set_schedule,
+            cloud_backup::cloud_backup_now,
+            cloud_backup::cloud_backup_list,
+            cloud_backup::cloud_backup_prepare_restore,
+            vault::vault_status,
+            vault::vault_setup,
+            vault::vault_confirm_saved,
+            vault::vault_save_code,
+            vault::vault_enter_code,
+            updates::update_status,
+            updates::update_set_check_on_launch,
+            updates::update_check,
+            updates::update_install,
+            updates::update_restart,
             backup::backup_export,
             backup::backup_verify,
             backup::backup_restore,
@@ -312,6 +336,12 @@ pub fn run() {
             // AJ-E1202: refresh the Figurehead account only if linked —
             // signed out, nothing runs and nothing is sent.
             figurehead::resume_if_linked(figurehead_state);
+            // AJ-E1010: release builds check for an update in the
+            // background, if the user left that on; never installs.
+            updates::spawn_launch_check(app.handle().clone(), update_state);
+            // AJ-E1205: the backup schedule (nothing runs while Cloud
+            // backup is off or the recovery code isn't saved).
+            cloud_backup::spawn_schedule(cloud_backup_state);
             Ok(())
         })
         .run(tauri::generate_context!())

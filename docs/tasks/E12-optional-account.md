@@ -85,7 +85,7 @@ from the account's entitlements, never from code.
 **Research basis**: D-16 (Settings Appearance), D-18; ADR-0014; wireframe 26 (Settings).
 **Handover note**: The onboarding step must not break AJ-E305's ≤ 5-click flow (a): it is skippable with one click and counted honestly.
 
-### AJ-E1204 Vault key, recovery code, encrypted backup format | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1009
+### AJ-E1204 Vault key, recovery code, encrypted backup format | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E1009
 **Goal**: A documented, versioned, end-to-end encrypted container for the AJ-E1009 backup set.
 **User story**: As a user, I save one recovery code and know that Figurehead can never read my backups.
 **Requirements**:
@@ -101,7 +101,7 @@ from the account's entitlements, never from code.
 **Research basis**: ADR-0014; AJ-E1009 backup set.
 **Handover note**: Never derive the vault key from the device token or the Fleet identity key.
 
-### AJ-E1205 Cloud backup upload, schedule, restore | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1202, AJ-E1204
+### AJ-E1205 Cloud backup upload, schedule, restore | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E1202, AJ-E1204
 **Goal**: Back up to Figurehead on demand or on a schedule, and restore on any linked Mac through AJ-E1009's verified restore path.
 **User story**: As a user replacing my laptop, I link the new Mac, enter my recovery code, and get my setup back.
 **Requirements**:

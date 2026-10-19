@@ -163,7 +163,7 @@
 **Research basis**: first-report F1.7; deep/10 backup proposal; SPEC §12 storage.
 **Handover note**: Export format versioning is an ADR-worthy decision if the schema is non-trivial; raise it rather than inventing a silent format.
 
-### AJ-E1010 Updates and release integrity for beta | Status: TODO | Priority P1 | Effort M | Depends: AJ-E1009
+### AJ-E1010 Updates and release integrity for beta | Status: IN-PROGRESS | Priority P1 | Effort M | Depends: AJ-E1009
 **Goal**: Ship beta updates that are signed, announced and safely reversible, so early users trust the update path.
 **User story**: As a beta user, I want to know what changed, update in one click, and roll back if a build breaks my workflow.
 **Requirements**:

@@ -172,6 +172,15 @@ export default function App() {
     setSettingsFocusCloud(true);
     setGlobal("settings");
   };
+  // AJ-E1010: the update notice's Review lands on Settings.
+  useEffect(() => {
+    const open = () => {
+      setSettingsFocusCloud(false);
+      setGlobal("settings");
+    };
+    window.addEventListener("aij:open-settings", open);
+    return () => window.removeEventListener("aij:open-settings", open);
+  }, []);
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [projects, setProjects] = useState<ProjectInfo[]>([]);
   const [sessions, setSessions] = useState<InstanceInfo[]>([]);

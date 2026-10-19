@@ -19,6 +19,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Derived workflows for the beta (E10):
+  - an identity guard so an Instance never runs on the wrong account;
+  - git worktree isolation for a second Instance in a project;
+  - parking a quota-blocked Instance until its reset;
+  - a morning summary from a timestamped status journal;
+  - a Triage view;
+  - History: transcript search, archive, read-only replay, and per-Account
+    retention with a dry run;
+  - backup and restore of AI Juggler's own data (ADR-0016);
+  - announced, verified, user-initiated updates for release builds, with
+    release and rollback workflows (docs/RELEASING.md).
 - Quality-signals engine (AJ-E409): per-Instance tokens/min, error rate,
   context report, session cost from a versioned in-repo pricing table
   (`crates/juggler-core/src/quality/pricing.v1.json`, **pricing table v1**

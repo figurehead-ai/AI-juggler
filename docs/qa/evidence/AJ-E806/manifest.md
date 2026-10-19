@@ -10,6 +10,17 @@
 
 ## Notes
 
+- **CI record, 2026-10-18 (fixed).** On PR #27, `backup_restore ::
+  export_throughput_keeps_a_gigabyte_inside_a_minute` failed on the
+  Linux runner: about 82 s/GB against the 60 s budget, while the same
+  test ran about 25 s/GB locally. The unoptimised debug build was being
+  measured, mostly the hand-rolled redaction scan plus hashing and
+  compression. Fix: those crates (`juggler-handover`, `sha2`,
+  `miniz_oxide`, `flate2`, `crc32fast`, `adler2`) are optimised in the
+  dev profile too, as the vault cipher already was, so the budget
+  measures what users get. Locally: export about 2.3 s/GB, verify about
+  0.9 s/GB. The budget is unchanged.
+
 - **Flake record, 2026-10-18 (fixed).** `juggler-supervisor --test
   reconciler :: fifty_instance_soak_and_construction_regression` failed
   under the full `just verify` on the E10 branch: p95 tick 1,360 ms

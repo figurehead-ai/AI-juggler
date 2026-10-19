@@ -1,0 +1,172 @@
+# AJ-E1010: build, sign, notarize and draft a release (docs/RELEASING.md).
+#
+# Runs on a version tag (vX.Y.Z) or by hand. It fails closed: without
+# every signing secret, user-facing notes, and matching versions, nothing
+# is built or published. The result is a DRAFT pre-release. The
+# maintainer reviews it and publishes it; publishing moves the beta
+# channel (release-channel.yml).
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release (vX.Y.Z, already pushed)"
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+
+jobs:
+  release-macos:
+    name: release-macos
+    runs-on: macos-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ env.TAG }}
+
+      - name: Preflight — secrets, versions, notes (fails closed)
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          AIJ_UPDATER_PUBKEY: ${{ vars.AIJ_UPDATER_PUBKEY }}
+        run: |
+          missing=()
+          for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY \
+                      APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID \
+                      TAURI_SIGNING_PRIVATE_KEY TAURI_SIGNING_PRIVATE_KEY_PASSWORD AIJ_UPDATER_PUBKEY; do
+            [ -n "${!name}" ] || missing+=("$name")
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Not releasing — missing: ${missing[*]} (docs/RELEASING.md § One-time setup)"
+            exit 1
+          fi
+          version="${TAG#v}"
+          conf="$(python3 -c 'import json;print(json.load(open("crates/juggler-app/tauri.conf.json"))["version"])')"
+          cargo_version="$(grep -m1 '^version' crates/juggler-app/Cargo.toml | sed -E 's/.*"(.*)".*/\1/')"
+          if [ "$version" != "$conf" ] || [ "$version" != "$cargo_version" ]; then
+            echo "::error::Tag $TAG, tauri.conf.json $conf and Cargo.toml $cargo_version must match"
+            exit 1
+          fi
+          grep -q "^## \[$version\]" CHANGELOG.md || { echo "::error::CHANGELOG.md has no [$version] section"; exit 1; }
+          ./scripts/release_notes_check.sh "$version"
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Cargo cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            ~/.cargo/bin/cargo-tauri
+            target
+          key: ${{ runner.os }}-release-cargo-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: ${{ runner.os }}-release-cargo-
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+
+      - name: Toolchain
+        run: |
+          rustup target add aarch64-apple-darwin x86_64-apple-darwin
+          command -v cargo-tauri >/dev/null || cargo install tauri-cli --version "^2" --locked
+          corepack enable
+          pnpm --dir ui install --frozen-lockfile
+
+      - name: Icons
+        # The macOS icon set is generated from the brand PNG at build
+        # time; no generated binaries live in the repository.
+        run: |
+          mkdir -p "$RUNNER_TEMP/icons"
+          cd crates/juggler-app && cargo tauri icon icons/icon.png --output "$RUNNER_TEMP/icons"
+
+      - name: Build, sign and notarize (universal)
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # Baked into the app: the key its updater verifies against.
+          AIJ_UPDATER_PUBKEY: ${{ vars.AIJ_UPDATER_PUBKEY }}
+        run: |
+          config=$(python3 - <<PY
+          import json, os
+          print(json.dumps({
+            "bundle": {
+              "active": True,
+              "targets": ["app", "dmg"],
+              "createUpdaterArtifacts": True,
+              "icon": [os.environ["RUNNER_TEMP"] + "/icons/icon.icns", os.environ["RUNNER_TEMP"] + "/icons/icon.png"],
+              "macOS": {"minimumSystemVersion": "14.0"}
+            },
+            "plugins": {"updater": {"pubkey": os.environ["AIJ_UPDATER_PUBKEY"], "requireSignedVersion": True}}
+          }))
+          PY
+          )
+          cd crates/juggler-app && cargo tauri build --target universal-apple-darwin --config "$config"
+
+      - name: Verify the signature, notarization and updater signature
+        run: |
+          bundle=target/universal-apple-darwin/release/bundle
+          app="$(ls -d "$bundle"/macos/*.app | head -1)"
+          dmg="$(ls "$bundle"/dmg/*.dmg | head -1)"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          spctl --assess --type execute --verbose=4 "$app"
+          xcrun stapler validate "$dmg"
+          ls "$bundle"/macos/*.app.tar.gz "$bundle"/macos/*.app.tar.gz.sig
+
+      - name: Assemble assets (installer name, updater feed)
+        run: |
+          bundle=target/universal-apple-darwin/release/bundle
+          out="$RUNNER_TEMP/assets" && mkdir -p "$out"
+          cp "$(ls "$bundle"/dmg/*.dmg | head -1)" "$out/AI-Juggler-${VERSION}-universal.dmg"
+          cp "$(ls "$bundle"/macos/*.app.tar.gz | head -1)" "$out/AI-Juggler-${VERSION}-universal.app.tar.gz"
+          cp "$(ls "$bundle"/macos/*.app.tar.gz.sig | head -1)" "$out/AI-Juggler-${VERSION}-universal.app.tar.gz.sig"
+          python3 - <<PY
+          import json, os, datetime
+          version = os.environ["VERSION"]
+          out = os.environ["RUNNER_TEMP"] + "/assets"
+          sig = open(f"{out}/AI-Juggler-{version}-universal.app.tar.gz.sig").read().strip()
+          url = f"https://github.com/${{ github.repository }}/releases/download/v{version}/AI-Juggler-{version}-universal.app.tar.gz"
+          notes = open(f"docs/releases/{version}.md").read()
+          feed = {
+            "version": version,
+            "notes": notes,
+            "pub_date": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "platforms": {p: {"signature": sig, "url": url} for p in ("darwin-aarch64", "darwin-x86_64")},
+          }
+          json.dump(feed, open(f"{out}/latest.json", "w"), indent=2)
+          PY
+          (cd "$out" && shasum -a 256 ./* > SHA256SUMS.txt && cat SHA256SUMS.txt)
+
+      - name: Draft the release (pre-release; the maintainer publishes)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$TAG" "$RUNNER_TEMP"/assets/* \
+            --draft --prerelease \
+            --title "$VERSION" \
+            --notes-file "docs/releases/${VERSION}.md"

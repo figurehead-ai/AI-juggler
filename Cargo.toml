@@ -34,3 +34,44 @@ expect_used = "warn"
 panic = "warn"
 todo = "warn"
 unimplemented = "warn"
+
+# AJ-E1204: the vault's cipher is optimised even in debug builds, so the
+# encrypt/decrypt budget (>= 100 MB/s) is measured as users get it.
+[profile.dev.package.chacha20]
+opt-level = 3
+
+[profile.dev.package.poly1305]
+opt-level = 3
+
+[profile.dev.package.chacha20poly1305]
+opt-level = 3
+
+[profile.dev.package.zstd-sys]
+opt-level = 3
+
+# AJ-E1009: backup hashing and compression, optimised in debug builds too
+# so the export/verify budgets are measured as users get them (the CI
+# runner's unoptimised build ran ≈ 82 s/GB against the 60 s budget).
+[profile.dev.package.sha2]
+opt-level = 3
+
+[profile.dev.package.miniz_oxide]
+opt-level = 3
+
+[profile.dev.package.flate2]
+opt-level = 3
+
+[profile.dev.package.crc32fast]
+opt-level = 3
+
+[profile.dev.package.adler2]
+opt-level = 3
+
+# The redaction scanner (hand-rolled, no regex) runs over every backup
+# entry.
+[profile.dev.package.juggler-handover]
+opt-level = 3
+
+# The cipher's generic code is instantiated in the crate that calls it.
+[profile.dev.package.juggler-account]
+opt-level = 3

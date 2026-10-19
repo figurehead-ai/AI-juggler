@@ -725,6 +725,45 @@ pub fn resume_if_linked(state: Arc<AppState>) {
         });
 }
 
+/// AJ-E1205: the client and this Mac's token, for a cloud call that
+/// already passed [`feature_on`].
+///
+/// # Errors
+///
+/// Returns [`AppError::Validation`] when this Mac is not linked.
+pub(crate) fn session(state: &Arc<AppState>) -> AppResult<(AccountClient, DeviceToken)> {
+    let not_linked = || AppError::Validation {
+        subject: "Figurehead account",
+        message: "this Mac isn't linked to Figurehead".to_owned(),
+    };
+    let device = device_id(state).ok_or_else(not_linked)?;
+    let token = token(state, &device).ok_or_else(not_linked)?;
+    Ok((state.figurehead.client()?, token))
+}
+
+/// AJ-E1205: this Mac's device id on Figurehead, when linked.
+pub(crate) fn this_device_id(state: &Arc<AppState>) -> Option<String> {
+    device_id(state)
+}
+
+/// AJ-E1205: maps a cloud call's error (the `401` cleanup included).
+pub(crate) fn handle_error(state: &Arc<AppState>, error: ApiError) -> AppError {
+    handle(state, error)
+}
+
+/// AJ-E1205: the plan's backup size limit (`maxBytes`), else 25 MB.
+pub(crate) fn backup_limit(state: &Arc<AppState>) -> u64 {
+    cached_account(state)
+        .and_then(|account| account.entitlements.get("cloudBackup").cloned())
+        .and_then(|entitlement| {
+            entitlement
+                .limits
+                .get("maxBytes")
+                .and_then(serde_json::Value::as_u64)
+        })
+        .unwrap_or(juggler_account::DEFAULT_BACKUP_LIMIT)
+}
+
 /// Test seam: swaps the transport, the secret store and the base URL.
 #[doc(hidden)]
 pub fn use_for_test(
