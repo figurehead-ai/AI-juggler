@@ -4,6 +4,8 @@ import { defineConfig } from "@playwright/test";
 // (vite preview) for determinism — never a live Tauri backend.
 export default defineConfig({
   testDir: "./tests/visual",
+  // AJ-E803's regression gate runs in its pinned container only.
+  testIgnore: /regression\.spec\.ts/,
   timeout: 30_000,
   retries: 0,
   use: {

@@ -72,3 +72,17 @@ dev:
 # Release-mode app bundle under target/release/bundle/ (unsigned dev build).
 app:
     cargo tauri build
+
+# AJ-E803 visual regression gate (in the pinned Playwright container):
+# compare the deterministic matrix with the approved baselines.
+visual-gate:
+    ./scripts/visual_gate.sh
+
+# Re-render the baselines after an intentional UI change; the PR then
+# needs a "## Visual baselines" note per changed screen.
+visual-baselines:
+    ./scripts/visual_gate.sh --update
+
+# The gate's self-test: a seeded 2 px button shift must fail.
+visual-selftest:
+    ./scripts/visual_gate.sh --selftest
