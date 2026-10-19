@@ -1,0 +1,173 @@
+# D-21 / AJ-E811: the full-sweep visual check, run on demand by the
+# maintainer — never on its own, and never a required check (the core
+# mode is CI's required `visual` job). It renders the whole gallery at
+# the base and at the head of a change in the pinned Playwright
+# container (four shards; each renders both sides twice, on one runner)
+# and diffs every state pairwise; the
+# report (changed states with base/head/diff images) is the
+# `visual-sweep-report` artifact and the run's summary.
+#
+#   gh workflow run visual-sweep.yml -f head='#123'          # a pull request
+#   gh workflow run visual-sweep.yml -f head=my-branch -f base=main
+#
+# docs/plan/QUALITY.md § Visual checks says when to use which mode.
+name: visual-sweep
+
+on:
+  workflow_dispatch:
+    inputs:
+      head:
+        description: "What to sweep: a branch, tag or SHA, or a pull request as #123 (empty: the branch this run starts from)"
+        required: false
+        default: ""
+      base:
+        description: "Compare with this branch or ref (at its merge-base with the head)"
+        required: false
+        default: main
+      tip:
+        description: "Compare with the base's tip instead of the merge-base"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# The Playwright container's default shell is sh.
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: visual-sweep-${{ inputs.head || github.ref }}-${{ inputs.base }}
+  cancel-in-progress: true
+
+jobs:
+  refs:
+    name: sweep refs
+    runs-on: ubuntu-latest
+    outputs:
+      base: ${{ steps.resolve.outputs.base }}
+      head: ${{ steps.resolve.outputs.head }}
+      base_label: ${{ steps.resolve.outputs.base_label }}
+      head_label: ${{ steps.resolve.outputs.head_label }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      - name: Resolve base and head
+        id: resolve
+        env:
+          HEAD_IN: ${{ inputs.head }}
+          BASE_IN: ${{ inputs.base }}
+          TIP: ${{ inputs.tip }}
+        run: |
+          set -euo pipefail
+          commit() {
+            local ref="$1"
+            case "$ref" in
+              '#'*|pull/*)
+                local n="${ref#\#}"; n="${n#pull/}"; n="${n%/head}"
+                [[ "$n" =~ ^[0-9]+$ ]] || { echo "::error::Not a pull request number: $ref" >&2; exit 1; }
+                git fetch --quiet --no-tags origin "+refs/pull/$n/head:refs/remotes/origin/pr/$n"
+                git rev-parse --verify "origin/pr/$n^{commit}" ;;
+              *)
+                git rev-parse --verify --quiet "origin/$ref^{commit}" || git rev-parse --verify "$ref^{commit}" ;;
+            esac
+          }
+          head_label="${HEAD_IN:-$GITHUB_REF_NAME}"
+          head="$(commit "${HEAD_IN:-$GITHUB_SHA}")"
+          base_label="${BASE_IN:-main}"
+          base="$(commit "$base_label")"
+          if [ "$TIP" != true ]; then
+            base="$(git merge-base "$base" "$head")"
+            base_label="merge-base with $base_label"
+          fi
+          {
+            echo "base=$base"; echo "head=$head"
+            echo "base_label=$base_label"; echo "head_label=$head_label"
+          } >> "$GITHUB_OUTPUT"
+          echo "Sweeping ${head:0:12} ($head_label) against ${base:0:12} ($base_label)" >> "$GITHUB_STEP_SUMMARY"
+
+  # Base and head of one shard render on the same runner, each twice, so
+  # the comparison never crosses machines and unstable states show up.
+  render:
+    name: sweep render (${{ matrix.shard }}/4)
+    needs: refs
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: true
+      matrix:
+        shard: [1, 2, 3, 4]
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
+      options: --ipc=host
+    steps:
+      # The sweep's own tooling comes from this workflow's commit; each
+      # gallery is rendered from its side's commit (which may predate it).
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          path: tools
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ needs.refs.outputs.base }}
+          path: base
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ needs.refs.outputs.head }}
+          path: head
+      - name: Render base and head, twice each (shard ${{ matrix.shard }}/4)
+        env:
+          BASE_SHA: ${{ needs.refs.outputs.base }}
+          HEAD_SHA: ${{ needs.refs.outputs.head }}
+          BASE_LABEL: ${{ needs.refs.outputs.base_label }}
+          HEAD_LABEL: ${{ needs.refs.outputs.head_label }}
+          SHARD: ${{ matrix.shard }}/4
+        run: |
+          set -euo pipefail
+          for out in base base-recheck head head-recheck; do
+            side="${out%-recheck}"
+            if [ "$side" = base ]; then export SWEEP_SHA="$BASE_SHA" SWEEP_REF="$BASE_LABEL"
+            else export SWEEP_SHA="$HEAD_SHA" SWEEP_REF="$HEAD_LABEL"; fi
+            echo "::group::$out"
+            tools/scripts/visual_sweep.sh render "$side" "sweep/$out" --shard="$SHARD"
+            echo "::endgroup::"
+          done
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: sweep-${{ matrix.shard }}
+          path: sweep/
+          if-no-files-found: error
+          retention-days: 7
+
+  report:
+    name: sweep report
+    needs: render
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
+      options: --ipc=host
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Install
+        working-directory: ui
+        run: corepack enable && corepack prepare pnpm@10 --activate && pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: sweep-*
+          path: sweep
+          merge-multiple: true
+      - name: Diff every state
+        run: scripts/visual_sweep.sh diff sweep report ui
+      - name: Summary
+        if: always()
+        run: |
+          if [ -f report/summary.md ]; then cat report/summary.md >> "$GITHUB_STEP_SUMMARY"; fi
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Images: the \`visual-sweep-report\` artifact (open \`index.html\`)." >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: visual-sweep-report
+          path: report/
+          if-no-files-found: error
+          retention-days: 30

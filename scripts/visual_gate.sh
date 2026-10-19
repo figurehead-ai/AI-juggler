@@ -6,7 +6,10 @@
 # every baseline is re-rendered, so a change under the comparison
 # threshold still lands in the baseline);
 # `--selftest` seeds a 2 px button shift that must fail.
+# `--full-sweep [--base REF] …` is the other mode (D-21): the whole
+# gallery, base against head, no baselines — scripts/visual_sweep.sh.
 set -euo pipefail
+if [ "${1:-}" = --full-sweep ]; then shift; exec "$(dirname "$0")/visual_sweep.sh" "$@"; fi
 cd "$(dirname "$0")/../ui"
 IMAGE="mcr.microsoft.com/playwright:v1.64.1-noble"
 ARGS=""

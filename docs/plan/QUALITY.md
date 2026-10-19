@@ -63,7 +63,31 @@ juggler-core → (external crates only; knows nothing about app/UI)
 | Coverage | `llvm-cov`: ≥ 85% line coverage on `juggler-core`, `juggler-adapter`, `juggler-adapters`, `juggler-handover`; ≥ 80% on `juggler-supervisor`, `juggler-link`; reported at every gate |
 | UI | Playwright smoke per milestone (critical flows); component tests for board/wizard |
 | Visual regression (AJ-E803) | The deterministic matrix (`ui/tests/visual/regression.spec.ts`: rail, inspector and main screens; both themes, both densities, 1280×800 and 1024×680) is compared with approved baselines rendered in the pinned Playwright container, the same image locally (`just visual-gate`) and in CI's `visual` job. Thresholds: ≤ 0.1 % differing pixels per screen; 0 pixels for text-bearing chrome (rail tabs, buttons, badges). A status shown by colour must also be in words or an accessible name (WCAG 1.4.1). A failure uploads the baseline/current/diff triptych and is linked from the PR, never dismissed in chat. Baseline changes need a "## Visual baselines" note per screen naming the task (`scripts/check_baseline_notes.py`) and maintainer approval. Raising a threshold is a quality-gate change that needs the maintainer's recorded approval |
+| Visual full sweep (D-21, AJ-E811) | The whole gallery (every state `pnpm --dir ui visual:capture` writes, ≈ 860 tests) is rendered in the same pinned container at the merge-base with the base branch and at the head — each side twice, with reduced motion forced and Chromium's partial raster off so settled screens render byte-for-byte the same — and every state is diffed pixel by pixel. No stored baselines. A state is *changed* when base and head differ by any pixel and each side rendered it the same both times; one that differed between two renders of the same commit is listed as *unstable*, apart, with its images. The report lists each changed state with base/head/diff images, the unstable ones, the states only one side captured, and any gallery test that failed. Locally `just visual-sweep` (or `scripts/visual_gate.sh --full-sweep --base REF`) writes it to `target/visual-sweep/`; in CI the maintainer runs the `visual-sweep` workflow by hand and gets it as the `visual-sweep-report` artifact. It reports, it doesn't block, and it is not a required check |
 | Guardrails | The dedicated suite (writes confinement, no network outside allowlist, no account mutation without user command, automation policy) runs in CI on every PR and at every gate |
+
+### Visual checks: which mode when (D-21)
+
+There are two visual checks, and the maintainer picks per change:
+
+- **Core** (`visual`, required): every UI pull request is compared with
+  the approved baselines of the core screens. It always runs; nothing
+  to choose.
+- **Full sweep** (`visual-sweep`, on demand): run it when a screen is
+  first built or rebuilt — the first full development pass over the UI
+  sweeps every screen — and whenever a change could reach beyond the
+  core screens (shared tokens, layout primitives, a dependency bump of
+  React, Tailwind or Vite). Later passes over an existing screen rely on
+  the core check. Run it for a pull request with
+  `gh workflow run visual-sweep.yml -f head='#123'`, for a branch with
+  `-f head=<branch>`, or locally with `just visual-sweep`.
+- A full-sweep report is reviewed, not passed: every changed state
+  should be one the change meant to touch. An unexpected one is a
+  regression to fix (or a missing core baseline to add). The report
+  itself is not committed — link the workflow run from the PR, or copy
+  the few relevant triptychs into the task's evidence. A few gallery
+  states photograph a live progress counter; one of them can show as
+  changed with a tiny region (AJ-E811 manifest, Known limits).
 
 ### Performance budgets (AJ-E805)
 
@@ -143,6 +167,7 @@ Structure & naming · layering conformance · error handling · test quality (no
 | verify | `just verify` (fmt, clippy -D warnings, tests, docs, **evidence**) | every PR |
 | ui | `pnpm --dir ui build` (tsc + vite) | every PR |
 | visual | `pnpm --dir ui visual:compare` (AJ-E803, thresholds + triptychs) | UI-changing PRs |
+| visual-sweep | `just visual-sweep` / the `visual-sweep` workflow (D-21, AJ-E811; a report, not a pass/fail) | on demand — the maintainer's choice |
 | a11y | `pnpm --dir ui a11y` (AJ-E804, axe 0 critical, both themes) | UI-changing PRs |
 | perf | AJ-E805 measured table | milestones |
 | evidence | `./scripts/evidence_check.sh` | inside verify |

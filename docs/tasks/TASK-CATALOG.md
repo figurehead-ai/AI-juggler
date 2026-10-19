@@ -88,6 +88,7 @@
 | AJ-E808 | Provider-pair fidelity validation matrix (operations) | E8-validation-visual-performance-quality.md | P0 | L | AJ-E801 |
 | AJ-E809 | Beta dogfood programme | E8-validation-visual-performance-quality.md | P1 | M | AJ-E807, AJ-E808 |
 | AJ-E810 | External research evidence standard | E8-validation-visual-performance-quality.md | P1 | S | AJ-E801 |
+| AJ-E811 | Full-sweep visual check (D-21) | E8-validation-visual-performance-quality.md | P1 | S | AJ-E802, AJ-E803 |
 | AJ-E901 | SPEC §3 domain-model rewrite (Provider/Instance/Switch Graph/ledger) | E9-docs-adrs-and-plan-rewrite.md | P0 | M | — |
 | AJ-E902 | SPEC §5 supervisor/ledger + §6 two-clock usage rewrite | E9-docs-adrs-and-plan-rewrite.md | P0 | M | AJ-E901 |
 | AJ-E903 | SPEC §7 Switching rewrite (Switch Graph, pack v2, divergence) | E9-docs-adrs-and-plan-rewrite.md | P0 | M | AJ-E901 |

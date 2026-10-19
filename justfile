@@ -131,3 +131,10 @@ visual-baselines:
 # The gate's self-test: a seeded 2 px button shift must fail.
 visual-selftest:
     ./scripts/visual_gate.sh --selftest
+
+# D-21 full sweep (AJ-E811): render the WHOLE gallery at the merge-base
+# with `base` and at `head` in the pinned container and report every
+# state that differs (target/visual-sweep/). For new or rebuilt screens
+# and on demand; the core gate above runs on every UI PR.
+visual-sweep base="origin/main" head="HEAD":
+    ./scripts/visual_sweep.sh --base {{base}} --head {{head}}
