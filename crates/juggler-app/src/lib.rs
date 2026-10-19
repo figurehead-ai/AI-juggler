@@ -18,6 +18,7 @@ pub mod crossmachine;
 pub mod error;
 pub mod figurehead;
 pub mod fleet;
+pub mod fleet_account;
 pub mod focus;
 pub mod history;
 pub mod identity;
@@ -192,6 +193,8 @@ pub fn run() {
             overnight::overnight_summary_seen,
             parked::instance_park,
             lifecycle::instance_mark_reviewed,
+            fleet_account::fleet_account_macs,
+            fleet_account::fleet_account_pin,
             cloud_backup::cloud_backup_status,
             cloud_backup::cloud_backup_set_schedule,
             cloud_backup::cloud_backup_now,
