@@ -263,3 +263,23 @@ is signed.
 - [ ] Beta: run `just gate-packet`, read `docs/qa/gate-beta.md`, and sign
       it only when every criterion is PASS. `just gate-signed` confirms
       the signature is complete.
+
+---
+
+## Part 6 — As UI changes land
+
+### 15. Choose the visual check (D-21)
+
+**Why:** the required `visual` check only compares the core screens.
+A screen that is new or rebuilt, or a change to something every screen
+shares, needs the whole gallery compared.
+
+- [ ] For such a pull request, run the full sweep:
+      `gh workflow run visual-sweep.yml -f head='#<number>'` (or
+      Actions → visual-sweep → Run workflow). It takes about 15
+      minutes.
+- [ ] Open the run's summary: every changed state listed should be one
+      the change meant to touch. The `visual-sweep-report` artifact
+      holds the base/head/diff images (`index.html`).
+- [ ] Anything unexpected: ask for a fix before merging. Otherwise
+      nothing else to do — routine changes need only the core check.

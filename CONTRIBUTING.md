@@ -79,6 +79,10 @@ pnpm --dir ui exec playwright test       # visual states + a11y (for UI changes)
   `text-muted` or `text-ink` (`text-faint` fails AA contrast on the
   canvas). Every new state gets a gallery capture in
   `ui/tests/visual/capture.spec.ts` and an axe scan in `a11y.spec.ts`.
+  A new or rebuilt screen also gets a full visual sweep
+  (`just visual-sweep`, D-21): the whole gallery, your branch against
+  `main`, with every changed state listed — see
+  [QUALITY.md](docs/plan/QUALITY.md) § Visual checks.
 - **Words:** the UI says Provider / Account / Instance / Launch settings.
   "Profile" never means an account, and "harness" is internal-only — the
   terminology gate enforces this.

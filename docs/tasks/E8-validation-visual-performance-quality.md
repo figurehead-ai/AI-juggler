@@ -196,3 +196,16 @@
 **Files to touch**: `docs/tasks/E6-quota-cost-and-billing-research.md` (consumption), `docs/research/` (logs), `docs/qa/evidence/AJ-E810/`.
 **Research basis**: decision-log D-12 research mandate; second-pass appendix unresolved items (negative-evidence caveats); pass2/06 search-log precedent.
 **Handover note**: If a live API test needs a paid account action, stop and record it as a maintainer action; never improvise with a real user account.
+
+### AJ-E811 Full-sweep visual check (D-21) | Status: DONE-EVIDENCED (claude-opus, 2026-10-19) | Priority P1 | Effort S | Depends: AJ-E802, AJ-E803
+**Goal**: Give the maintainer a second visual check that covers the whole gallery, to run when a screen is first built or rebuilt and on demand, beside the per-PR core check.
+**User story**: As the maintainer, I want to see every gallery state a change touched, base against head, without the repository carrying a baseline for each of the ≈ 860 states.
+**Requirements**:
+1. The full sweep SHALL render the whole gallery at the base of a change (its merge-base with the base branch by default) and at its head in the pinned Playwright container the core gate uses, and diff each state pairwise; no stored baselines.
+2. The report SHALL list every changed state with base, head and diff images, the states only one side captured, and any gallery test that failed on either side. A state that renders differently twice on the same commit SHALL be listed as unstable, apart from the changed states, never silently dropped.
+3. It SHALL run locally (`just visual-sweep`, `scripts/visual_gate.sh --full-sweep`) and in CI by `workflow_dispatch` for a pull request or branch; it SHALL NOT be a required check, and the core `visual` check SHALL stay as it is.
+4. QUALITY.md SHALL say when to use which mode.
+**Quality gates**: Base = head reports 0 changed states (unstable ones listed apart); a deliberate small change in a scratch commit shows up as changed, locally and in CI. `just verify`, `pnpm --dir ui build` and the core visual suite green.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E811/` — the noise run, the scratch-change reports (local and CI) and their triptychs.
+**Files to touch**: `scripts/visual_sweep.sh`, `scripts/visual_sweep_diff.mjs`, `scripts/visual_gate.sh` (`--full-sweep` hand-off), `justfile`, `.github/workflows/visual-sweep.yml`, `docs/plan/QUALITY.md`, `docs/MAINTAINER-STEPS.md`, `CONTRIBUTING.md`.
+**Handover note**: The sweep reports, it does not block; an unexpected changed state is a regression to fix or a missing core baseline to add, never a reason to stop running the core check.
