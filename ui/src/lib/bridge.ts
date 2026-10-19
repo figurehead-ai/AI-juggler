@@ -2985,7 +2985,6 @@ export async function usageStatsOpenDocs(): Promise<void> {
 export type UiStatMetric =
   | "ui.screen_opened"
   | "ui.inspector_tab"
-  | "ui.rail_tab"
   | "ui.notification"
   | "ui.shortcut_used"
   | "cleanup_centre.opened"

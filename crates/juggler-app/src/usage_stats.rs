@@ -1713,7 +1713,6 @@ pub fn shutdown() {
 pub const UI_METRICS: &[&str] = &[
     "ui.screen_opened",
     "ui.inspector_tab",
-    "ui.rail_tab",
     "ui.notification",
     "ui.shortcut_used",
     "cleanup_centre.opened",
@@ -1946,7 +1945,10 @@ pub const SITES: &[(&str, Site)] = &[
     ),
     ("ui.screen_opened", Site::Ui("App")),
     ("ui.inspector_tab", Site::Ui("RightInspector")),
-    ("ui.rail_tab", Site::Ui("App")),
+    (
+        "ui.rail_tab",
+        Site::NotYet("D-25 removed the rail's tabs; the schema keeps the name"),
+    ),
     ("ui.notification", Site::Ui("NotificationRegion")),
     ("ui.shortcut_used", Site::Ui("App; RightInspector")),
     ("app.launch", Site::Backend("usage_stats::start")),
