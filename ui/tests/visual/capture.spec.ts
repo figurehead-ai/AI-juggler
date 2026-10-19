@@ -6508,3 +6508,50 @@ for (const theme of THEMES) {
     await page.screenshot({ path: resolve(GALLERY, `64-crash/ask-1280x800-${theme}.png`) });
   });
 }
+
+// ---------------------------------------------------------------------
+// Wireframe 26 — 65-settings-sections: the section list beside the
+// policies, each new section jumped to (Context packs & secrets,
+// Cleanup, Accounts & renewal dates, Notifications, Fleet permissions)
+// — 1280×800, plus the list at the 1024×680 minimum — light/dark.
+// ---------------------------------------------------------------------
+
+const SETTINGS_PEER = {
+  machine_id: "machine-mini",
+  label: "Mac mini",
+  fingerprint: "11AA 22BB 33CC 44DD 55EE 66FF 7788 99AA",
+  permission: "control",
+  permission_label: "View + control",
+  ask_each_time: true,
+  paired_via: "code",
+  paired_at_ms: T0 - 86_400_000,
+  last_seen_ms: T0 - 60_000,
+  connection: "link_off",
+  protocol: null,
+  connection_detail: null,
+};
+const SETTINGS_SECTIONS: Array<[string, string]> = [
+  ["packs", "Context packs & secrets"],
+  ["cleanup", "Cleanup"],
+  ["renewal", "Accounts & renewal dates"],
+  ["notifications", "Notifications"],
+  ["fleet", "Fleet permissions"],
+];
+
+for (const theme of THEMES) {
+  for (const [name, title] of SETTINGS_SECTIONS) {
+    test(`65 settings sections — ${name} — ${theme}`, async ({ page }) => {
+      await openSettings(page, theme, { width: 1280, height: 800 }, { __AIJ_FLEET_PEERS__: [SETTINGS_PEER] });
+      await page.getByRole("navigation", { name: "Settings sections" }).getByRole("button", { name: title }).click();
+      await expect(page.locator(`#settings-${name}-title`)).toBeFocused();
+      await page.mouse.move(0, 0);
+      await page.screenshot({ path: resolve(GALLERY, `65-settings-sections/${name}-1280x800-${theme}.png`) });
+    });
+  }
+
+  test(`65 settings sections — the list at the minimum window — ${theme}`, async ({ page }) => {
+    await openSettings(page, theme, { width: 1024, height: 680 }, {});
+    await expect(page.getByTestId("settings-nav")).toBeVisible();
+    await page.screenshot({ path: resolve(GALLERY, `65-settings-sections/list-1024x680-${theme}.png`) });
+  });
+}

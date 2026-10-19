@@ -934,7 +934,7 @@ const ALERT_DIGEST_KEY: &str = "alert_digest";
 /// `switch_oneclick` vs `switch_wizard{steps_shown}` proves the fast
 /// path is earned, not assumed.
 const SWITCH_DOOR_COUNTERS_KEY: &str = "switch_door_counters";
-const ALERT_MUTES_KEY: &str = "alert_mutes";
+pub(crate) const ALERT_MUTES_KEY: &str = "alert_mutes";
 
 /// AJ-E611: one account's two window FSMs + its renewal-approaching
 /// digest line (Req.5 — the subscription clock NEVER steps a window
@@ -1134,11 +1134,18 @@ fn queue_and_digest_events(
         .flatten()
         .and_then(|blob| serde_json::from_str(&blob).ok())
         .unwrap_or_default();
-    let quiet_hour = local_hour.is_none_or(|hour| !(7..22).contains(&hour));
+    let quiet_hours = crate::settings_policy::quiet_hours(storage);
+    let quiet_hour = local_hour.is_none_or(|hour| quiet_hours.contains(hour));
     let (next_digest, flushed) = if quiet_hour {
         (digest.clone(), Vec::new())
     } else {
-        juggler_core::alerts::digest_flush(&digest, now, &muted, local_hour.unwrap_or(12))
+        juggler_core::alerts::digest_flush_with(
+            &digest,
+            now,
+            &muted,
+            local_hour.unwrap_or(12),
+            quiet_hours,
+        )
     };
     for entry in flushed {
         out.push(AlertEventInfo {
@@ -1955,7 +1962,10 @@ pub fn create_account(
         imported_at: None,
     };
     lock_storage_arc(state)?.accounts().insert(&account)?;
-    Ok(account_info_of(&account))
+    crate::settings_policy::apply_cleanup_default(state, account.id.as_str());
+    Ok(account_info_of(
+        &find_account_arc(state, account.id.as_str()).unwrap_or(account),
+    ))
 }
 
 /// Re-probes an account's login state (metadata-only; ADR-0003).
@@ -2846,6 +2856,8 @@ pub fn account_import_impl(
             default_cwd: None,
         })?;
     }
+    crate::settings_policy::apply_cleanup_default(state, account.id.as_str());
+    let account = find_account_arc(state, account.id.as_str()).unwrap_or(account);
     Ok(ImportResult {
         account: account_info_of(&account),
         files_copied: outcome.files_copied,

@@ -35,6 +35,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   code every day), **Beta** and **Stable** (each promoted with the
   maintainer's approval). Choose Stable or Beta in Settings › About &
   updates; moving to a steadier channel never installs an older version.
+- Settings, organised as in the approved design: a section list beside
+  every policy you own — Context packs & secrets, Cleanup (with a default
+  for new Accounts, off unless you choose it), Accounts & renewal dates
+  (with how early to remind you), Notifications (quiet hours for the
+  hourly digest and which Accounts it includes), Fleet permissions, and
+  Data.
 - Editions that install side by side (decision D-23): **AI Juggler** for
   everyday work, **AI Juggler Nightly** for trying the newest build, and
   **AI Juggler Dev** for development (`just dev`). Each has its own data,

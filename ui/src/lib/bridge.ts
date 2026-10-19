@@ -5,6 +5,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
 import type { AppInfo } from "../types/generated/AppInfo";
+import type { NotificationPrefsInfo } from "../types/generated/NotificationPrefsInfo";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { DiscoveredInfo } from "../types/generated/DiscoveredInfo";
 import type { ImportResult } from "../types/generated/ImportResult";
@@ -1049,9 +1050,15 @@ export function onPreviewState(
   };
 }
 
+/** Mock app settings (browser preview and tests): kept for the page. */
+const appSettingSeams = () =>
+  window as unknown as { __AIJ_APP_SETTINGS__?: Record<string, string> };
+
 /** Reads one app-level setting (schema v10 kv); null = never set. */
 export async function appSettingGet(key: string): Promise<string | null> {
   if (!hasBackend) {
+    const stored = appSettingSeams().__AIJ_APP_SETTINGS__?.[key];
+    if (stored !== undefined) return stored === "" ? null : stored;
     return key === "go_to_hotkey" ? "Alt+Space" : null;
   }
   return invoke<string | null>("app_setting_get", { key });
@@ -1060,9 +1067,54 @@ export async function appSettingGet(key: string): Promise<string | null> {
 /** Writes one app-level setting (empty value = reset to default). */
 export async function appSettingSet(key: string, value: string): Promise<void> {
   if (!hasBackend) {
+    const seams = appSettingSeams();
+    seams.__AIJ_APP_SETTINGS__ = { ...(seams.__AIJ_APP_SETTINGS__ ?? {}), [key]: value };
     return;
   }
   await invoke("app_setting_set", { key, value });
+}
+
+/** Settings › Notifications (wireframe 26): the digest's quiet hours and
+ * the Accounts left out of it. */
+export type { NotificationPrefsInfo };
+const notificationSeams = () =>
+  window as unknown as { __AIJ_NOTIFICATION_PREFS__?: NotificationPrefsInfo; __AIJ_CLEANUP_DEFAULT__?: boolean };
+
+/** Reads Settings › Notifications. */
+export async function notificationPrefsGet(): Promise<NotificationPrefsInfo> {
+  if (!hasBackend) {
+    return { quiet_start: 22, quiet_end: 7, digest_muted_accounts: [], ...notificationSeams().__AIJ_NOTIFICATION_PREFS__ };
+  }
+  return invoke<NotificationPrefsInfo>("notification_prefs_get");
+}
+
+/** Saves Settings › Notifications (hours 0–23; equal hours = none). */
+export async function notificationPrefsSet(prefs: NotificationPrefsInfo): Promise<NotificationPrefsInfo> {
+  if (!hasBackend) {
+    const saved = {
+      ...prefs,
+      digest_muted_accounts: [...new Set(prefs.digest_muted_accounts)].sort(),
+    };
+    notificationSeams().__AIJ_NOTIFICATION_PREFS__ = saved;
+    return saved;
+  }
+  return invoke<NotificationPrefsInfo>("notification_prefs_set", { prefs });
+}
+
+/** Whether new Accounts start with left-behind dev servers tidied (D-08:
+ * off unless the user chooses it). */
+export async function cleanupDefaultGet(): Promise<boolean> {
+  if (!hasBackend) return notificationSeams().__AIJ_CLEANUP_DEFAULT__ ?? false;
+  return invoke<boolean>("cleanup_default_get");
+}
+
+/** Sets the cleanup default for new Accounts (existing ones keep theirs). */
+export async function cleanupDefaultSet(on: boolean): Promise<boolean> {
+  if (!hasBackend) {
+    notificationSeams().__AIJ_CLEANUP_DEFAULT__ = on;
+    return on;
+  }
+  return invoke<boolean>("cleanup_default_set", { on });
 }
 
 /** Rebinds the global "Go to instance…" hotkey (registers with the OS

@@ -30,6 +30,7 @@ pub mod overnight;
 pub mod parked;
 pub mod preview;
 pub mod remote;
+pub mod settings_policy;
 pub mod state;
 pub mod terminal;
 pub mod updates;
@@ -344,6 +345,10 @@ pub fn run() {
             commands::desktop_focus,
             commands::app_setting_get,
             commands::app_setting_set,
+            settings_policy::notification_prefs_get,
+            settings_policy::notification_prefs_set,
+            settings_policy::cleanup_default_get,
+            settings_policy::cleanup_default_set,
             commands::go_to_hotkey_set,
             commands::open_accessibility_settings,
             commands::preview_start,

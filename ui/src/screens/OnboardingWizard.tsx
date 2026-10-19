@@ -408,7 +408,7 @@ function RenewalField({
         >
           {/* WCAG 2.5.3: the name is what's shown, plus who it's for. */}
           <span aria-hidden="true">＋ </span>
-          Renewal date<span className="sr-only"> for {accountLabel} (optional)</span>
+          Renewal date{" "}<span className="sr-only">for {accountLabel} (optional)</span>
         </button>
       </div>
     );
@@ -1569,7 +1569,12 @@ export function OnboardingWizard({
                                 {ready ? `installed · ${row.version ?? ""}` : "not installed"}
                               </span>
                               {/* WCAG 2.5.3: named by what it shows, then what it does. */}
-                              {ready && <span className="sr-only"> — create your first account</span>}
+                              {ready && (
+                                <>
+                                  {" "}
+                                  <span className="sr-only">— create your first account</span>
+                                </>
+                              )}
                             </button>
                             {!ready && row.install_url && (
                               <a

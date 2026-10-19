@@ -196,3 +196,19 @@
 **Files to touch**: E2 pack module, E3 import flow, `crates/juggler-core/` (lineage origin), share/import UI.
 **Research basis**: pass2/07 W9; deep/10 pack sharing signal (templates demotion revisit trigger); D-14.
 **Handover note**: Demand signal comes from AJ-E809 dogfood (repeated pack sharing). If absent by beta-exit, keep this P2 and do not promote on enthusiasm.
+
+### AJ-E1012 Settings — the policies the user owns (wireframe 26) | Status: DONE-EVIDENCED | Priority P1 | Effort M | Depends: AJ-E208, AJ-E508, AJ-E610, AJ-E1203
+**Goal**: One home for every "whose choice is it?" setting, visible and reversible, as approved in wireframe 26.
+**User story**: As a user, I want to see and change every policy AI Juggler follows for me in one place, without hunting through screens or Inspectors.
+**Requirements**:
+1. Settings SHALL show a section list beside the settings — General, Account & Cloud, Context packs & secrets, Cleanup, Accounts & renewal dates, Notifications, Fleet permissions, Data — that jumps to a section, moves focus to its heading, and marks where you are; every section stays on the page so search finds any setting.
+2. Context packs & secrets SHALL reuse the D-14 global + per-Provider control (the same component as Accounts).
+3. Cleanup SHALL list each Account's two D-08 toggles and offer a default for new Accounts that is "Notify only" unless the user picks otherwise; the default SHALL reach only Accounts created after the choice, and never Tier 2.
+4. Accounts & renewal dates SHALL show each Account's user-entered date (D-12; "Not set" means no reminders) and the reminder lead time (1–30 days, default 7).
+5. Notifications SHALL let the user set the digest's quiet hours (default 22:00–07:00; equal hours = none; deferred, never dropped) and choose which Accounts' lines join the hourly digest; actionable alerts stay at-most-once per window.
+6. Fleet permissions SHALL list paired Macs and change access through the same sheet as the Fleet screen.
+**Quality gates**: Unit + integration tests for quiet hours, digest mutes and the cleanup default; vitest for every section; axe 0 on the new gallery states; core visual baselines re-rendered with notes.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1012/`.
+**Visual testing**: Gallery `65-settings-sections` (each new section at 1280×800 and the list at 1024×680, light/dark).
+**Research basis**: wireframe 26 (approved 2026-10-13); D-08, D-12, D-14; AJ-E611 anti-fatigue rules.
+

@@ -213,6 +213,40 @@ pub fn digest_add(digest: &Digest, key: &str, text: &str) -> Digest {
     next
 }
 
+/// The local hours in which the digest waits (it is deferred, never
+/// dropped). The user sets them in Settings › Notifications; the
+/// default is 22:00–07:00.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
+pub struct QuietHours {
+    /// First quiet hour, 0–23.
+    pub start: u32,
+    /// First hour that is no longer quiet, 0–23. `start == end` means no
+    /// quiet hours at all.
+    pub end: u32,
+}
+
+impl QuietHours {
+    /// 22:00–07:00 local.
+    pub const DEFAULT: Self = Self { start: 22, end: 7 };
+
+    /// Whether `hour` (0–23, local) falls in the quiet hours. A span
+    /// may wrap past midnight.
+    #[must_use]
+    pub fn contains(self, hour: u32) -> bool {
+        match self.start.cmp(&self.end) {
+            std::cmp::Ordering::Equal => false,
+            std::cmp::Ordering::Less => (self.start..self.end).contains(&hour),
+            std::cmp::Ordering::Greater => hour >= self.start || hour < self.end,
+        }
+    }
+}
+
+impl Default for QuietHours {
+    fn default() -> Self {
+        Self::DEFAULT
+    }
+}
+
 /// Flushes the digest if due: hourly cadence, muted keys dropped,
 /// quiet hours (22:00–07:00 local — the caller passes the local hour)
 /// defer without dropping.
@@ -223,10 +257,22 @@ pub fn digest_flush(
     muted_keys: &[String],
     local_hour: u32,
 ) -> (Digest, Vec<DigestEntry>) {
+    digest_flush_with(digest, now_ms, muted_keys, local_hour, QuietHours::DEFAULT)
+}
+
+/// [`digest_flush`] with the user's own quiet hours.
+#[must_use]
+pub fn digest_flush_with(
+    digest: &Digest,
+    now_ms: i64,
+    muted_keys: &[String],
+    local_hour: u32,
+    quiet_hours: QuietHours,
+) -> (Digest, Vec<DigestEntry>) {
     let due = digest
         .last_flush_ms
         .is_none_or(|last| now_ms.saturating_sub(last) >= DIGEST_EVERY_MS);
-    let quiet = !(7..22).contains(&local_hour);
+    let quiet = quiet_hours.contains(local_hour);
     if !due || quiet {
         return (digest.clone(), Vec::new()); // deferred, never dropped
     }
