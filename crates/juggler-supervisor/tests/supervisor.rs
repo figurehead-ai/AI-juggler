@@ -396,15 +396,17 @@ fn twenty_streaming_sessions_fan_out_without_deadlock() {
         supervisor
             .spawn(&session, &spec, &ledger_test_ctx())
             .unwrap();
-        let tap = supervisor.tap(&session).unwrap();
-        sessions.push((session, tap));
+        // Backlog + tap in one step: on a busy machine the shell can
+        // print all 50 lines before a plain tap would be attached.
+        let (backlog, tap) = supervisor.tap_with_backlog(&session).unwrap();
+        sessions.push((session, backlog, tap));
     }
 
     let deadline = std::time::Instant::now() + Duration::from_secs(30);
-    for (session, rx) in sessions {
-        let mut tail = Vec::new();
-        let mut got_last = false;
-        while std::time::Instant::now() < deadline {
+    for (session, backlog, rx) in sessions {
+        let mut got_last = backlog.windows(7).any(|w| w == b"line-49");
+        let mut tail = backlog;
+        while !got_last && std::time::Instant::now() < deadline {
             match rx.recv_timeout(Duration::from_millis(300)) {
                 Ok(chunk) => {
                     tail.extend_from_slice(&chunk);
@@ -422,6 +424,43 @@ fn twenty_streaming_sessions_fan_out_without_deadlock() {
             "stream for {session} never delivered its final line"
         );
     }
+}
+
+/// The race behind the 2026-10-19 CI failure of the fan-out test: a
+/// process that writes everything and exits before anyone attaches. A
+/// plain tap sees none of it; `tap_with_backlog` hands over every byte.
+#[test]
+fn a_tap_attached_after_the_process_finished_still_gets_its_output() {
+    let workdir = tempfile::tempdir().unwrap();
+    let supervisor = Supervisor::new();
+    let session = SessionId::new("s-finished-first");
+    let spec = LaunchSpec {
+        program: PathBuf::from("/bin/sh"),
+        args: vec!["-c".into(), "echo early-1; echo early-2".to_string()],
+        env: EnvMap::new(),
+        cwd: workdir.path().to_path_buf(),
+        needs_pty: true,
+    };
+    supervisor
+        .spawn(&session, &spec, &ledger_test_ctx())
+        .unwrap();
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    while std::time::Instant::now() < deadline && !supervisor.is_finished(&session) {
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    assert!(supervisor.is_finished(&session));
+
+    let late = supervisor.tap(&session).unwrap();
+    assert!(
+        late.recv_timeout(Duration::from_millis(200)).is_err(),
+        "a plain tap only sees output written after it attached"
+    );
+    let (backlog, _rx) = supervisor.tap_with_backlog(&session).unwrap();
+    let text = String::from_utf8_lossy(&backlog);
+    assert!(
+        text.contains("early-1") && text.contains("early-2"),
+        "{text}"
+    );
 }
 
 /// AJ-E401: the batched live-stats collector reads every supervised
