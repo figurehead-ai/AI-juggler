@@ -5,6 +5,7 @@ import { GoToPalette } from "./components/GoToPalette";
 import { PortWarningSheet } from "./components/PortMap";
 import { RecoverySummaryDialog } from "./components/RecoverySummaryDialog";
 import { UsageStatsReconsent } from "./components/UsageStatsReconsent";
+import { CrashReportPrompt } from "./components/CrashReports";
 import { CleanupCentre, focusCleanupFilter } from "./screens/CleanupCentre";
 import { launchPortWarning, type PortWarningInfo,} from "./lib/bridge";
 import {
@@ -1028,6 +1029,7 @@ export default function App() {
       )}
 
       <UsageStatsReconsent />
+      <CrashReportPrompt />
       {recovery !== null && (
         <RecoverySummaryDialog
           summary={recovery}

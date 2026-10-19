@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Card } from "./primitives";
 import { UsageStatsChooser } from "./UsageStatsChooser";
+import { CrashReportsSetting } from "./CrashReports";
 import {
   errorText,
   usageStatsDeleteLocal,
@@ -325,9 +326,7 @@ export function PrivacyCard(): JSX.Element {
         Reports carry no ID, so one that was already sent can't be found and deleted later. Figurehead keeps raw reports
         for 35 days, then only totals.
       </p>
-      <p className="text-[11px] text-muted" data-testid="privacy-crash-reports">
-        Crash reports: never. This build doesn't send crash reports.
-      </p>
+      <CrashReportsSetting />
     </Card>
   );
 }

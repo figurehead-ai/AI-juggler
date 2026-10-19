@@ -51,13 +51,15 @@ const MACHINE_ONLY_SETTINGS: &[&str] = &[
 ];
 /// …and whole families: this Mac's Figurehead link and cloud choices,
 /// its Fleet state, its install telemetry, its Cloud backup schedule, its
-/// usage-stats choice (a restore never opts another Mac in).
+/// usage-stats and crash-report choices (a restore never opts another
+/// Mac in).
 const MACHINE_ONLY_PREFIXES: &[&str] = &[
     "figurehead_",
     "fleet_",
     "funnel_",
     "cloud_backup_",
     "usage_stats",
+    "crash_reports",
 ];
 
 /// The SQL condition matching a machine-only setting key.

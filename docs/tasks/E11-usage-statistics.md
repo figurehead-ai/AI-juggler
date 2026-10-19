@@ -119,7 +119,7 @@
 **Research basis**: spec §11–§12.
 **Handover note**: A guardrail that needs the network is wrong; use a recording transport.
 
-### AJ-E1107 Crash reports behind their own setting | Status: TODO | Priority P2 | Effort M | Depends: AJ-E1105
+### AJ-E1107 Crash reports behind their own setting | Status: IN-PROGRESS | Priority P2 | Effort M | Depends: AJ-E1105
 **Goal**: Optional crash reports, separate from usage statistics, scrubbed on the Mac.
 **User story**: As a user, I decide whether crash reports are never sent, sent after I review them, or always sent.
 **Requirements**:

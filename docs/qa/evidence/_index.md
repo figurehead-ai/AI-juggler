@@ -26,6 +26,7 @@
 | AJ-E1104 | PASS8 | 2026-10-18 | [manifest](AJ-E1104/manifest.md) |
 | AJ-E1105 | PASS6 | 2026-10-18 | [manifest](AJ-E1105/manifest.md) |
 | AJ-E1106 | PASS3 | 2026-10-18 | [manifest](AJ-E1106/manifest.md) |
+| AJ-E1107 | PASS5 | 2026-10-18 | [manifest](AJ-E1107/manifest.md) |
 | AJ-E1108 | PASS5 | 2026-10-18 | [manifest](AJ-E1108/manifest.md) |
 | AJ-E1109 | PASS4 | 2026-10-18 | [manifest](AJ-E1109/manifest.md) |
 | AJ-E1201 | PASS5 | 2026-10-18 | [manifest](AJ-E1201/manifest.md) |

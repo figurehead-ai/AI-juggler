@@ -6506,3 +6506,64 @@ for (const theme of THEMES) {
     });
   }
 }
+
+// ---------------------------------------------------------------------
+// AJ-E1107 — 64-crash: the crash-report setting in Settings › Privacy
+// and the next-launch question with the full report — 1280×800,
+// light/dark.
+// ---------------------------------------------------------------------
+
+const CRASH_REPORT = {
+  id: "a1b2c3d4e5f60718",
+  at_ms: T0 - 3_600_000,
+  signature: "9f2c1a0b7e3d4c5f",
+  message: "called `Option::unwrap()` on a `None` value",
+  location: "crates/juggler-app/src/commands.rs:4211",
+  frames: [
+    "0: std::panicking::begin_panic_handler",
+    "1: core::option::unwrap_failed",
+    "2: juggler_app::commands::switch_execute_core",
+    "at ~/Dev/AIJuggler/crates/juggler-app/src/commands.rs:4211:41",
+    "3: juggler_app::commands::switch_execute",
+  ],
+  app_version: "0.3.1",
+  channel: "beta",
+  os: "macos",
+};
+
+for (const theme of THEMES) {
+  test(`64 crash — the setting (ask, nothing sendable yet) — ${theme}`, async ({ page }) => {
+    await openSettings(page, theme, { width: 1280, height: 800 }, {
+      __AIJ_USAGE_STATS__: SHARE,
+      __AIJ_CRASH__: { setting: "ask", effective: "ask", reason: null, asking: [], queued: 1, can_send: false },
+    });
+    await page.getByTestId("privacy-crash-reports").evaluate((row) => row.scrollIntoView({ block: "center" }));
+    await page.mouse.move(0, 0);
+    await page.screenshot({ path: resolve(GALLERY, `64-crash/setting-1280x800-${theme}.png`) });
+  });
+
+  test(`64 crash — the next-launch question — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ fixture, t, crash, t0 }) => {
+        const w = window as unknown as Record<string, unknown>;
+        w.__AIJ_FIXTURE__ = fixture;
+        w.__AIJ_CRASH__ = crash;
+        localStorage.setItem("aij.theme", t);
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        sessionStorage.setItem("aij.ready.skipped", "1");
+        Date.now = () => t0;
+      },
+      {
+        fixture: allStatuses,
+        t: theme,
+        t0: T0,
+        crash: { setting: "ask", effective: "ask", reason: null, asking: [CRASH_REPORT], queued: 0, can_send: false },
+      },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme as "dark" | "light" });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await expect(page.getByTestId("crash-prompt")).toBeVisible();
+    await page.screenshot({ path: resolve(GALLERY, `64-crash/ask-1280x800-${theme}.png`) });
+  });
+}

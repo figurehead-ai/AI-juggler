@@ -1075,8 +1075,8 @@ pub mod enabled {
         if let Some(value) = UpdateAutoCheckValue::from_wire(auto) {
             out.push(StatGauge::UpdateAutoCheck { value });
         }
-        // Crash reports aren't built yet (AJ-E1107): nothing is ever sent.
-        if let Some(value) = CrashReportsSettingValue::from_wire("never") {
+        // AJ-E1107: the crash-report setting (only the setting).
+        if let Some(value) = CrashReportsSettingValue::from_wire(&crate::crash::effective(state)) {
             out.push(StatGauge::CrashReportsSetting { value });
         }
         // One `--version` per Provider, once a week, on this low-priority
