@@ -204,7 +204,7 @@ pub fn report_of(message: &str, location: &str, backtrace: &str, at_ms: i64) -> 
             .map(|line| scrub(line, &home, &user))
             .collect(),
         app_version: env!("CARGO_PKG_VERSION").to_owned(),
-        channel: crate::updates::CHANNEL.to_owned(),
+        channel: crate::updates::current_channel().as_str().to_owned(),
         os: std::env::consts::OS.to_owned(),
     }
 }

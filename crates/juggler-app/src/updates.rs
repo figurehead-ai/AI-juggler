@@ -29,17 +29,94 @@ use crate::state::AppState;
 
 /// The release signing public key baked into release builds.
 pub const PUBKEY: Option<&str> = option_env!("AIJ_UPDATER_PUBKEY");
-/// The update feed (the beta channel's `latest.json`), overridable at
-/// build time.
-pub const ENDPOINT: &str = match option_env!("AIJ_UPDATER_ENDPOINT") {
-    Some(url) => url,
-    None => {
-        "https://github.com/figurehead-ai/AI-juggler/releases/download/beta-channel/latest.json"
-    }
+/// Where the channel feeds live: each channel's `latest.json` is an
+/// asset of the `<channel>-channel` release (D-20). Overridable at build
+/// time; `AIJ_UPDATER_ENDPOINT` pins one feed for every channel (tests).
+pub const FEED_BASE: &str = match option_env!("AIJ_UPDATER_FEED_BASE") {
+    Some(base) => base,
+    None => "https://github.com/figurehead-ai/AI-juggler/releases/download",
 };
-/// The release channel this build belongs to.
-pub const CHANNEL: &str = "beta";
+const PINNED_ENDPOINT: Option<&str> = option_env!("AIJ_UPDATER_ENDPOINT");
 const CHECK_ON_LAUNCH_KEY: &str = "update_check_on_launch";
+const CHANNEL_KEY: &str = "update_channel";
+
+/// D-20: the update channels. One version stream: a build is made once
+/// (nightly) and promoted, so moving to a steadier channel never
+/// downgrades — it waits until that channel passes this version.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Channel {
+    /// Well-tested releases, promoted from beta with the maintainer's
+    /// approval.
+    Stable,
+    /// Newer features, promoted from nightly with the maintainer's
+    /// approval.
+    Beta,
+    /// Built from `main` every day, no approval.
+    Nightly,
+}
+
+impl Channel {
+    /// Before the first stable release, installs follow beta (D-20).
+    pub const DEFAULT: Self = Self::Beta;
+
+    /// The wire and settings name.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Stable => "stable",
+            Self::Beta => "beta",
+            Self::Nightly => "nightly",
+        }
+    }
+
+    /// Parses a stored or requested name.
+    #[must_use]
+    pub fn parse(raw: &str) -> Option<Self> {
+        match raw {
+            "stable" => Some(Self::Stable),
+            "beta" => Some(Self::Beta),
+            "nightly" => Some(Self::Nightly),
+            _ => None,
+        }
+    }
+
+    /// The channel's update feed.
+    #[must_use]
+    pub fn endpoint(self) -> String {
+        PINNED_ENDPOINT.map_or_else(
+            || format!("{FEED_BASE}/{}-channel/latest.json", self.as_str()),
+            str::to_owned,
+        )
+    }
+}
+
+/// The channel this install follows (the user's choice, or the default).
+/// Each read also refreshes [`current_channel`].
+pub(crate) fn channel_of(state: &Arc<AppState>) -> Channel {
+    let channel = state
+        .storage
+        .lock()
+        .ok()
+        .and_then(|storage| storage.app_settings().get(CHANNEL_KEY).ok().flatten())
+        .and_then(|raw| Channel::parse(&raw))
+        .unwrap_or(Channel::DEFAULT);
+    CURRENT.store(channel as u8, std::sync::atomic::Ordering::Relaxed);
+    channel
+}
+
+static CURRENT: std::sync::atomic::AtomicU8 =
+    std::sync::atomic::AtomicU8::new(Channel::DEFAULT as u8);
+
+/// The channel last read from settings, for reports built without the
+/// app state (usage-stats envelope, crash reports).
+#[must_use]
+pub fn current_channel() -> Channel {
+    match CURRENT.load(std::sync::atomic::Ordering::Relaxed) {
+        x if x == Channel::Stable as u8 => Channel::Stable,
+        x if x == Channel::Nightly as u8 => Channel::Nightly,
+        _ => Channel::Beta,
+    }
+}
 /// A switch edge newer than this, still staged/verified/launched, is in
 /// flight.
 const SWITCH_IN_FLIGHT_MS: i64 = 30 * 60 * 1000;
@@ -69,7 +146,7 @@ pub struct AnnouncedInfo {
 pub struct UpdateStatusInfo {
     /// This build's version.
     pub current_version: String,
-    /// The release channel (`beta`).
+    /// The channel this install follows: `stable` | `beta` | `nightly`.
     pub channel: String,
     /// This build can update itself (it carries the signing key).
     pub configured: bool,
@@ -130,7 +207,7 @@ impl Default for UpdateManager {
         Self {
             status: Mutex::new(UpdateStatusInfo {
                 current_version: env!("CARGO_PKG_VERSION").to_owned(),
-                channel: CHANNEL.to_owned(),
+                channel: Channel::DEFAULT.as_str().to_owned(),
                 configured: configured(),
                 check_on_launch: true,
                 state: "idle".to_owned(),
@@ -184,7 +261,50 @@ pub(crate) fn check_on_launch(state: &Arc<AppState>) -> bool {
 #[must_use]
 pub fn update_status_impl(state: &Arc<AppState>) -> UpdateStatusInfo {
     let on = check_on_launch(state);
-    state.updates.update(|status| status.check_on_launch = on)
+    let channel = channel_of(state);
+    state.updates.update(|status| {
+        status.check_on_launch = on;
+        channel.as_str().clone_into(&mut status.channel);
+    })
+}
+
+/// Core: chooses the update channel (D-20). A different feed, so what a
+/// previous check found is forgotten; nothing is downloaded until the
+/// next check and the user's Install.
+///
+/// # Errors
+///
+/// [`AppError::Validation`] for an unknown channel; the typed storage
+/// error otherwise.
+pub fn update_set_channel_impl(
+    state: &Arc<AppState>,
+    channel: &str,
+) -> AppResult<UpdateStatusInfo> {
+    let Some(parsed) = Channel::parse(channel) else {
+        return Err(AppError::Validation {
+            subject: "update channel",
+            message: format!("unknown channel {channel:?} — choose stable, beta or nightly"),
+        });
+    };
+    let busy = state.updates.update(|_| {}).state;
+    if ["backing_up", "downloading"].contains(&busy.as_str()) {
+        return Err(AppError::Validation {
+            subject: "update channel",
+            message: "an update is being installed — change the channel when it finishes"
+                .to_owned(),
+        });
+    }
+    crate::commands::lock_storage_arc(state)?
+        .app_settings()
+        .set(CHANNEL_KEY, parsed.as_str())?;
+    state.updates.update(|status| {
+        if !["installed"].contains(&status.state.as_str()) {
+            status.set_state("idle");
+            status.available = None;
+            status.error = None;
+        }
+    });
+    Ok(update_status_impl(state))
 }
 
 /// Core: turns "check when AI Juggler starts" on or off.
@@ -423,8 +543,14 @@ impl PluginFeed {
     }
 
     fn updater(&self) -> Result<tauri_plugin_updater::Updater, String> {
+        use tauri::Manager as _;
         use tauri_plugin_updater::UpdaterExt as _;
-        let url = ENDPOINT
+        let channel = self
+            .app
+            .try_state::<Arc<AppState>>()
+            .map_or(Channel::DEFAULT, |state| channel_of(state.inner()));
+        let url = channel
+            .endpoint()
             .parse()
             .map_err(|e| format!("the update feed address is invalid ({e})"))?;
         self.app
@@ -522,6 +648,19 @@ pub fn update_set_check_on_launch(
     enabled: bool,
 ) -> AppResult<UpdateStatusInfo> {
     update_set_check_on_launch_impl(state.inner(), enabled)
+}
+
+/// D-20: chooses the update channel.
+///
+/// # Errors
+///
+/// Per [`update_set_channel_impl`].
+#[tauri::command]
+pub fn update_set_channel(
+    state: tauri::State<'_, Arc<AppState>>,
+    channel: String,
+) -> AppResult<UpdateStatusInfo> {
+    update_set_channel_impl(state.inner(), &channel)
 }
 
 /// AJ-E1010: checks for a newer version now.

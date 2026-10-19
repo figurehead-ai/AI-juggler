@@ -1,21 +1,38 @@
 # Releasing AI Juggler
 
-How a beta release is built, signed, announced, and if needed rolled back
-(AJ-E1010). Two workflows do the mechanical work:
+How AI Juggler is built, signed, released on its three channels, and if
+needed rolled back (AJ-E1010, decision D-20). Every change travels
+**nightly → beta → stable**:
 
-- **`release.yml`** builds a draft.
-- **`release-channel.yml`** points the beta update channel at a release once
-  it is published.
+| Channel | Who it's for | How a build gets there |
+|---|---|---|
+| **Nightly** | People who want the newest code and accept rough edges | `nightly.yml` builds `main` every day there's a new commit. No approval |
+| **Beta** | Newer features, a little less tested | `promote.yml` with the maintainer's approval (the `beta` environment) |
+| **Stable** | Well-tested releases for everyday work | `promote.yml` with the maintainer's approval (the `stable` environment), only for a version that was on beta, once the beta gate is signed |
 
-Publishing is always a person's decision.
+There is **one version stream**. A build is made once, by the nightly
+workflow, with the next version (`MAJOR.MINOR` from `Cargo.toml`, the patch
+is the nightly run number). Promotion points a channel's feed at that same
+signed build, so nothing is rebuilt and versions only go up. Three
+workflows do the mechanical work:
+
+- **`nightly.yml`** plans the build and calls **`build-macos.yml`**, which
+  signs, notarizes and publishes the version as a pre-release; then it moves
+  the nightly feed.
+- **`promote.yml`** moves the beta or stable feed to an existing version
+  after its checks and the maintainer's approval.
 
 ## How users get updates
 
-- **Release builds** carry the updater's public key. They check
-  `releases/download/beta-channel/latest.json` when they start, a setting that
-  is on by default and can be turned off. A check only reports: the user sees
-  the new version and its notes, and nothing is downloaded or installed until
-  they choose **Install**.
+- **Release builds** carry the updater's public key. They check their
+  channel's feed (`releases/download/<channel>-channel/latest.json`) when
+  they start, a setting that is on by default and can be turned off. A check
+  only reports: the user sees the new version and its notes, and nothing is
+  downloaded or installed until they choose **Install**.
+- **The channel** is chosen in Settings › About & updates: Stable, Beta or
+  Nightly. Installs follow Beta until the first stable release. Moving to a
+  steadier channel never goes back to an older version: that channel is
+  offered once it passes the installed one.
 - **Installing** first writes a backup of AI Juggler's data (`backups/` in the
   data folder). It then downloads the package, checks it against the release
   signature, and installs it. If any step fails, the running version is left
@@ -39,7 +56,7 @@ Repository settings → Secrets and variables → Actions.
 
 Keep the updater private key outside the repository, with a backup. If it is
 lost, installed apps can never verify another update and must be reinstalled
-by hand. `release.yml` stops before building if any of these is missing.
+by hand. `build-macos.yml` stops before building if any of these is missing.
 
 Windows releases: the updater plugin is built without its `zip` feature
 (Windows installer extraction), because the `zip` version it uses has open
@@ -52,16 +69,23 @@ icon before the first public release.
 
 ## Each release
 
-1. **Version.** Set the same `X.Y.Z` in `crates/juggler-app/tauri.conf.json`
-   and `crates/juggler-app/Cargo.toml`. Add a `## [X.Y.Z]` section to
-   `CHANGELOG.md` for contributors.
+**Nightly** needs nothing from you: every day with new commits on `main`,
+`nightly.yml` builds the next version. Its notes are generated from the
+commit subjects (`scripts/nightly_notes.py`; only `feat`, `perf` and `fix`
+commits, with task IDs and PR numbers removed). To build now, run
+**Nightly** by hand (`workflow_dispatch`, optionally with `force`).
+
+**Promoting a version to beta:**
+
+1. **Pick the build.** Any `vX.Y.Z` pre-release on GitHub that nightly
+   testing has been happy with.
 2. **Usage-statistics schema.** Run
-   `FH_SITE=<website clone> scripts/stats_schema_diff.sh`. It must report
-   identical, because the server rejects anything its copy doesn't list. If a
-   metric changed, the CHANGELOG and `docs/usage-stats.md` change in the
-   same release.
-3. **Notes for users.** Write `docs/releases/X.Y.Z.md`. The website shows this
-   text as is, and `scripts/release_notes_check.sh X.Y.Z` enforces the rules:
+   `FH_SITE=<website clone> scripts/stats_schema_diff.sh` at that commit. It
+   must report identical, because the server rejects anything its copy
+   doesn't list.
+3. **Notes for users.** Write `docs/releases/X.Y.Z.md` on `main` (they
+   replace the generated nightly notes). The website shows this text as is,
+   and `scripts/release_notes_check.sh X.Y.Z` enforces the rules:
    - The first line is one plain sentence on what the release is about.
    - Then only the sections that apply, in this order: `## New`,
      `## Improved`, `## Fixed`, `## Known issues`.
@@ -71,44 +95,45 @@ icon before the first public release.
      features as beta, and never call switching lossless.
    - No task IDs, PR numbers, internal names or file paths. No raw HTML:
      screenshots are uploaded to the release and linked with Markdown.
-4. **Tag.** Push `vX.Y.Z`. `release.yml` checks the secrets, versions and
-   notes, then:
-   - builds the universal app, signs and notarizes it;
-   - verifies the signature, the notarization and the updater signature;
-   - names the installer `AI-Juggler-X.Y.Z-universal.dmg`;
-   - writes `latest.json`;
-   - drafts a **pre-release** with every asset and `SHA256SUMS.txt`.
-5. **Review the draft.**
-   - Install the `.dmg` on a clean Mac and open it: Gatekeeper must not
-     complain.
-   - Check Settings › About & updates shows the version and Beta.
-   - Back up from Settings and keep the file.
-6. **Publish.** Publishing runs `release-channel.yml`, which copies the
-   release's `latest.json` to the `beta-channel` feed, and from then on beta
-   users are offered it. The website's download button uses the newest
-   release that has a `.dmg`.
-   - The feed moves only when the beta gate is signed at that tag
-     (`docs/qa/gate-beta.md`, AJ-E807; check with `just gate-signed`).
-     Until then the release is published and can be downloaded from its
-     page, which is how dogfood testers get builds, but no beta install
-     is offered it. Build the packet with `just gate-packet`, review it,
-     then fill in its Sign-off section.
-   - The release workflow builds nothing until its `a11y` job passes
-     (`just a11y-gate`, AJ-E804).
-7. **Usage statistics** (only once they are switched on): the maintainer
-   registers `X.Y.Z` as a known version in Figurehead's usage-statistics
-   configuration. Reports from unregistered versions are left out of the
-   dashboards.
+4. **Run Promote** (`workflow_dispatch`): version `X.Y.Z`, channel `beta`.
+   It checks the build and the notes, runs the accessibility gate on the
+   exact commit (`just a11y-gate`, AJ-E804), then waits for your approval in
+   the run. Approving points the beta feed at the build, puts the notes on
+   the release and in its feed, and tags it `beta/vX.Y.Z`.
+5. **Check it.** Install the `.dmg` on a clean Mac and open it: Gatekeeper
+   must not complain. Settings › About & updates shows the version.
+
+**Promoting a version to stable** works the same way, with channel
+`stable`, and also needs:
+
+- the version was on beta first (the `beta/vX.Y.Z` tag);
+- the beta gate is signed (`docs/qa/gate-beta.md`, AJ-E807; build it with
+  `just gate-packet`, review it, fill in its Sign-off section, check with
+  `just gate-signed`);
+- a `## [X.Y.Z]` section in `CHANGELOG.md` for contributors.
+
+Approving makes it GitHub's **Latest** release (the website's download
+button uses it) and tags it `stable/vX.Y.Z`.
+
+**Usage statistics** (only once they are switched on): register `X.Y.Z` as a
+known version in Figurehead's usage-statistics configuration when it reaches
+beta or stable. Reports from unregistered versions are left out of the
+dashboards.
 
 ## Rollback
 
 A release is never deleted to roll it back. Instead:
 
-1. **Stop offering it.** Run **Release channel** by hand
-   (`workflow_dispatch`) with the previous good tag. Builds that have not
-   updated are then offered nothing new.
+1. **Stop offering it.** Point the channel back at the previous good
+   version:
+   - beta or stable: run **Promote** with that version and channel (it was
+     approved before, so its checks pass again);
+   - nightly: `gh release download vX.Y.Z --pattern latest.json` for the good
+     version, then `gh release upload nightly-channel latest.json --clobber`.
+
+   Installs that have not updated are then offered nothing new.
 2. **For users who already installed it**, the release notes of a follow-up
-   point release say how to go back:
+   version say how to go back:
    - download the previous version's `.dmg` from GitHub Releases and install it;
    - if that version cannot open the newer data (it says so: "made by a newer
      AI Juggler"), restore the backup the update wrote in `backups/`
@@ -116,11 +141,9 @@ A release is never deleted to roll it back. Instead:
 3. **Fix forward** with a new version. Version numbers only go up, and the
    updater refuses a downgrade (`requireSignedVersion`).
 
-**Rehearse this once per channel**, before the first beta reaches users:
-1. Publish a test release `0.0.2` and update to it.
-2. Move the channel back to `0.0.1`.
-3. Install `0.0.1` from its `.dmg` and restore the pre-update backup.
-
+**Rehearse this once**, before the first beta reaches users: let nightly
+build two versions, update to the second, point the channel back at the
+first, install the first from its `.dmg` and restore the pre-update backup.
 Record the run in `docs/qa/evidence/AJ-E1010/`.
 
 ## Database changes between versions

@@ -157,8 +157,8 @@ def build(definition: Path) -> int:
     lines.append(kept.rstrip() + "\n" if kept else "\n".join([
         SIGNOFF_HEADING,
         "",
-        "Signing approves this packet at the commit named. An unsigned gate keeps the beta",
-        "channel where it is (`release-channel.yml` runs `scripts/gate_packet.py signed`).",
+        "Signing approves this packet at the commit named. An unsigned beta gate keeps the",
+        "stable channel closed (`promote.yml` runs `scripts/gate_packet.py signed` before stable).",
         "",
         "| Field | Value |",
         "|---|---|",

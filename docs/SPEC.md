@@ -723,7 +723,7 @@ Task-level breakdown, live tracking, and the per-milestone validation-gate proce
 6. **Codex control plane: PTY-first (M2); app-server explored at M4.** ✅
 7. **Platform: macOS-first (Universal, v0.x); Windows/Linux post-1.0; cross-platform core from day one.** ✅
 8. **Fleet: gRPC over mTLS + mDNS pairing; one binary, console/node roles; LAN/user-VPN only — no cloud relay.** ✅ (M5 transport spike de-risks tonic/rustls before M6.)
-9. **Release: strict semver; `0.x.0-beta.N` on the beta channel for feedback; stable channel opens at 1.0; macOS signing/notarization via Vuxtra's Apple Developer account.** ✅
+9. **Release: strict semver; `0.x.0-beta.N` on the beta channel for feedback; stable channel opens at 1.0; macOS signing/notarization via Vuxtra's Apple Developer account.** ✅ *(Versioning and channels superseded by D-20: nightly → beta → stable on one version stream, see `docs/RELEASING.md`.)*
 
 **Open (non-blocking):**
 

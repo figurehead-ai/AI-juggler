@@ -31,6 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Three update channels (decision D-20): **Nightly** (built from the latest
+  code every day), **Beta** and **Stable** (each promoted with the
+  maintainer's approval). Choose one in Settings › About & updates; moving
+  to a steadier channel never installs an older version.
 - Derived workflows for the beta (E10):
   - an identity guard so an Instance never runs on the wrong account;
   - git worktree isolation for a second Instance in a project;
