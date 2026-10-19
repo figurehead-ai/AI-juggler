@@ -45,8 +45,11 @@ pub struct OsAccessInfo {
 }
 
 const ASKED_PREFIX: &str = "os_access_asked:";
+// Only macOS has entries that read these back.
+#[cfg(target_os = "macos")]
 const AUTOMATION_KEY: &str = "os_access_automation";
 
+#[cfg(target_os = "macos")]
 fn asked(state: &Arc<AppState>, id: &str) -> bool {
     state
         .storage
@@ -178,6 +181,7 @@ mod platform {
     }
 }
 
+#[cfg(target_os = "macos")]
 fn stored_automation(state: &Arc<AppState>) -> Option<bool> {
     state
         .storage
