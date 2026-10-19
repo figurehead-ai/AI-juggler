@@ -91,7 +91,16 @@ and share nothing. Evidence: `editions.log`.
 | AI Juggler offers Stable and Beta only; nightly is refused with a pointer to the Nightly app | `updates :: the_channel_is_a_persisted_choice_with_its_own_feed` | PASS |
 | Settings names the edition, shows only its channels, explains Nightly and Dev | vitest `updates.test.tsx` 8/8 | PASS |
 | A real Dev build creates only `AI Juggler Dev` (launched with a throwaway HOME) | manual run, 2026-10-19: `Application Support/` held only `AI Juggler Dev` (`juggler.sqlite` + WAL) | PASS |
-| Nightly run builds, signs and notarizes both apps; nightly feed carries the Nightly app, beta/stable never do | `build-macos.yml`, `nightly.yml`, `promote.yml` (asserts on the feed URLs); actionlint clean | PENDING first signed run |
+| Nightly run builds, signs and notarizes both apps; nightly feed carries the Nightly app, beta/stable never do | Nightly [run 39288351167](https://github.com/figurehead-ai/AI-juggler/actions/runs/39288351167) → release `v0.0.4` (2026-10-19): both editions built in parallel, app and DMG notarized and stapled; `latest.json` → `AI-Juggler-0.0.4-universal.app.tar.gz`, `latest-nightly.json` = the `nightly-channel` feed → `AI-Juggler-Nightly-0.0.4-…`. Downloaded DMGs re-checked on the maintainer's Mac: SHA-256 match `SHA256SUMS.txt`, `stapler validate` OK, `spctl --type open`: accepted, Notarized Developer ID, team TH8VS427L5 | PASS |
 
 Gallery states `58-updates/nightly-edition` and `58-updates/dev-edition`
 show the Settings card and the rail's edition badge.
+
+### First signed nightly (2026-10-19)
+
+Four runs to the first good one, each failure fixed at its cause:
+
+1. Run 39258103322: Tauri's `pnpm build` ran in `crates/juggler-app`, where the CLI finds no UI project → the build runs from the repository root (#44).
+2. Run 39264342560 (0.0.2): `stamp` left the crates' internal dependency requirements at 0.0.1 → it rewrites them too (#46).
+3. Run 39270091506 (0.0.3): app built, signed, **notarized (Accepted, 43 min)**; the DMG itself wasn't notarized → DMG notarized and stapled, editions built in parallel (#47).
+4. Run 39288351167 (0.0.4): **success**, 25 minutes end to end.
