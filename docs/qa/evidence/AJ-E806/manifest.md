@@ -110,3 +110,14 @@
   see a cancel, until a 64 MB (debug-build) digest finished. The digest is
   now computed chunk by chunk as the bundle is sent; the budget and the
   assertion are unchanged.
+- A test-hygiene leak fixed (2026-10-18): every `just verify` left
+  `trap_helper.py` fixtures running as orphans (four after a run), and
+  they accumulated across runs. The neighbour session's fixture kit in
+  the app guardrail suite includes a `setsid` escapee, which no
+  group-scoped stop reaches, and the cleanup killed only the first
+  session's helpers; a test that failed before its cleanup leaked its
+  whole kit. `FixtureSet` now kills every helper it started on drop,
+  matched by the kit's own trap-log path (unique per temp dir), so it
+  also runs while a failing test unwinds. After the collateral and
+  guardrail suites: zero `trap_helper.py` processes left. No assertion
+  changed.

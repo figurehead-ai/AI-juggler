@@ -78,6 +78,23 @@ pub struct FixtureSet {
     fixtures: Vec<Fixture>,
 }
 
+impl Drop for FixtureSet {
+    /// Every helper this kit started dies with it, matched by its own
+    /// trap-log path (unique to the test's temp dir). That includes the
+    /// `setsid` escapee, which no group-scoped stop reaches, and helpers
+    /// of a test that failed before its cleanup — both used to outlive
+    /// the run as orphans.
+    fn drop(&mut self) {
+        for fixture in &self.fixtures {
+            let _ = std::process::Command::new("pkill")
+                .arg("-9")
+                .arg("-f")
+                .arg(fixture.trap_log.as_os_str())
+                .status();
+        }
+    }
+}
+
 /// The fixture kinds spawned INSIDE a supervised root (background
 /// lines for the root script, joined by the root's `wait`).
 pub const IN_TREE_KINDS: &[&str] = &["vite", "term-ignorer", "escapee", "mcp", "shell"];
