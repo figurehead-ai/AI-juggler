@@ -7,6 +7,12 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[features]
+default = ["stats"]
+# Usage statistics (D-19). Without it the crate is not in the binary and
+# Settings shows "not included in this build".
+stats = ["dep:juggler-stats"]
+
 [lints]
 workspace = true
 
@@ -20,6 +26,8 @@ juggler-adapters = { version = "0.0.1", path = "../juggler-adapters" }
 juggler-core = { version = "0.0.1", path = "../juggler-core" }
 juggler-handover = { version = "0.0.1", path = "../juggler-handover" }
 juggler-link = { version = "0.0.1", path = "../juggler-link" }
+# AJ-E1102: opt-in usage statistics; leave it out with --no-default-features.
+juggler-stats = { version = "0.0.1", path = "../juggler-stats", optional = true }
 juggler-supervisor = { version = "0.0.1", path = "../juggler-supervisor" }
 getrandom = "0.3"
 prost = "0.14"

@@ -38,7 +38,6 @@ pub const FORMAT: &str = "ai-juggler-backup";
 pub const FORMAT_VERSION: u32 = 1;
 const STAGING_DIR: &str = "restore-staging";
 const TOKEN_KEY: &str = "restore_token";
-/// App settings that only mean something on the Mac that wrote them.
 /// App settings that only mean something on the Mac that wrote them:
 /// never in a backup, and on restore this Mac keeps its own. Exact keys…
 const MACHINE_ONLY_SETTINGS: &[&str] = &[
@@ -51,8 +50,15 @@ const MACHINE_ONLY_SETTINGS: &[&str] = &[
     "update_check_on_launch",
 ];
 /// …and whole families: this Mac's Figurehead link and cloud choices,
-/// its Fleet state, its install telemetry, its Cloud backup schedule.
-const MACHINE_ONLY_PREFIXES: &[&str] = &["figurehead_", "fleet_", "funnel_", "cloud_backup_"];
+/// its Fleet state, its install telemetry, its Cloud backup schedule, its
+/// usage-stats choice (a restore never opts another Mac in).
+const MACHINE_ONLY_PREFIXES: &[&str] = &[
+    "figurehead_",
+    "fleet_",
+    "funnel_",
+    "cloud_backup_",
+    "usage_stats",
+];
 
 /// The SQL condition matching a machine-only setting key.
 fn machine_only_where(column: &str) -> String {

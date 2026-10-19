@@ -18,11 +18,18 @@ verify:
     just evidence
     just terminology
     just stats-doc
+    just stats-events
 
 # Usage-statistics doc gate (AJ-E1106): docs/usage-stats.md is generated
 # from stats/schema.v1.json and must not drift.
 stats-doc:
     python3 scripts/gen_usage_stats_doc.py --check
+
+# Usage-statistics types gate (AJ-E1102): the typed events are generated
+# from the schema, and the `stats` feature really leaves the crate out.
+stats-events:
+    python3 scripts/gen_stats_events.py --check
+    ./scripts/stats_feature_check.sh
 
 # Evidence-store gate (AJ-E801): link resolution + secret scan + index freshness.
 evidence:

@@ -74,6 +74,10 @@ jobs:
         run: ./scripts/terminology_lint.sh
       - name: Usage-statistics doc is generated from the schema (AJ-E1106)
         run: python3 scripts/gen_usage_stats_doc.py --check
+      - name: Usage-statistics types are generated from the schema; the stats feature leaves them out (AJ-E1102)
+        run: |
+          python3 scripts/gen_stats_events.py --check
+          ./scripts/stats_feature_check.sh
       - name: Dependency policy (cargo-deny)
         run: cargo deny check
       # Coverage artifact. Best-effort in edge cases (zero-test workspaces);

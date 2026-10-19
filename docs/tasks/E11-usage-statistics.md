@@ -35,7 +35,7 @@
 **Research basis**: the usage-statistics specification (Figurehead, approved 2026-10-16, amended 2026-10-17).
 **Handover note**: The schema is the one file copied from the website repo; everything else is written here in our own words. Never put server internals (limits, firewall rules, costs) in this repo.
 
-### AJ-E1102 The `juggler-stats` crate: modes, overrides, counting, local store, the cargo feature | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1101
+### AJ-E1102 The `juggler-stats` crate: modes, overrides, counting, local store, the cargo feature | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E1101
 **Goal**: A small crate that counts closed, typed events on the Mac — and does nothing at all until the user opts in.
 **User story**: As a user who never opted in, I have no stats folder and no stats code runs; as one who did, counting never slows the app.
 **Requirements**:
