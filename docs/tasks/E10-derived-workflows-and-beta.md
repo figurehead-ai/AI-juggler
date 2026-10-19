@@ -212,3 +212,16 @@
 **Visual testing**: Gallery `65-settings-sections` (each new section at 1280×800 and the list at 1024×680, light/dark).
 **Research basis**: wireframe 26 (approved 2026-10-13); D-08, D-12, D-14; AJ-E611 anti-fatigue rules.
 
+### AJ-E1013 First run, rebuilt on the UX vision (D-25) | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E301, AJ-E307, AJ-E308, AJ-E1012
+**Goal**: A fresh install opens on what's already on this computer and gets the user working in three calm steps.
+**User story**: As a developer with Claude Code set up in the terminal and in the Claude desktop app, I want AI Juggler to find all of it, bring it in with one click, help me sign each copy in, and set up what the OS needs — without reading a manual.
+**Requirements**:
+1. With no Account, first run SHALL open full-window on the scan's results, grouped as the user thinks of them (Claude desktop app profiles, Claude Code in the terminal, other setups), preselected (signed in or used in 30 days; never one already in AI Juggler), with one "Bring in N accounts" button; imports are copies and say so. "Where we looked" SHALL show every probe.
+2. Each copy that still needs the vendor's sign-in SHALL be one row (name, status, Sign in; the rest behind More), polled every 2 s, with "Sign in to all, one after another" that moves on by itself.
+3. Computer access SHALL list what this platform reports (D-25) with one line of why, live status, Allow (system prompt) or Open System Settings once declined; it is polled, and skipped when the OS needs nothing.
+4. The pack-secrets question SHALL NOT be asked in first run; the first switch asks while no choice exists (D-14).
+**Quality gates**: Backend tests for the access list (never prompting in tests); vitest for the rules and the flow; the journey `journey-first-run.spec.ts` end to end; axe 0 on its captures.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1013/`.
+**Visual testing**: Gallery `66-first-run` (what's here, where we looked, sign-in, access, after).
+**Research basis**: D-25 and the "AI Juggler UX vision" canvas; maintainer report 2026-10-19 (first run opened on a CLI check and missed the Claude desktop profiles).
+

@@ -53,6 +53,7 @@ import { ProfilesScreen } from "./screens/Profiles";
 import { Triage } from "./screens/Triage";
 import { History } from "./screens/History";
 import { OnboardingWizard } from "./screens/OnboardingWizard";
+import { FirstRun } from "./screens/FirstRun";
 import { NewSessionModal } from "./screens/NewSession";
 import { NewProjectSheet } from "./screens/NewProjectSheet";
 import { FleetScreen } from "./screens/FleetScreen";
@@ -254,6 +255,9 @@ export default function App() {
   const [goToOpen, setGoToOpen] = useState(false);
   const [goToHotkey, setGoToHotkey] = useState("Alt+Space");
   const [wizard, setWizard] = useState(false);
+  // D-25: a fresh install opens on first run (what's here → sign in →
+  // computer access); the wizard stays for Accounts › Add account.
+  const [firstRun, setFirstRun] = useState(false);
   // AJ-E305: [Add another account] reopens the wizard fresh — the
   // nonce remounts it (no stale step state).
   const [wizardNonce, setWizardNonce] = useState(0);
@@ -290,12 +294,19 @@ export default function App() {
     };
   }, []);
 
-  // First run: zero accounts → the onboarding wizard opens by itself
-  // (spec §12.1), once per dismissal.
+  // First run: zero accounts → first run opens by itself (spec §12.1,
+  // D-25), once per dismissal.
   useEffect(() => {
     if (localStorage.getItem("aij.onboarding.dismissed") === "1") return;
+    // Test seam (browser preview only): open the Add-account wizard
+    // instead, as if the user clicked Add account — its gallery and
+    // accessibility captures start from a fresh install.
+    const seam = (window as unknown as { __AIJ_FIRST_RUN__?: string }).__AIJ_FIRST_RUN__;
     void accountsList().then((accounts) => {
-      if (accounts.length === 0) setWizard(true);
+      if (accounts.length === 0) {
+        if (seam === "wizard") setWizard(true);
+        else setFirstRun(true);
+      }
     });
   }, []);
 
@@ -1086,6 +1097,25 @@ export default function App() {
           setGoToHotkey(combo);
         }}
       />
+
+      {firstRun && (
+        <FirstRun
+          openLoginTerminal={openLoginTerminal}
+          onDone={() => {
+            localStorage.setItem("aij.onboarding.dismissed", "1");
+            setFirstRun(false);
+            void refresh();
+          }}
+          onAddFresh={() => {
+            setFirstRun(false);
+            setWizard(true);
+          }}
+          onImportFolder={() => {
+            setFirstRun(false);
+            setWizard(true);
+          }}
+        />
+      )}
 
       {wizard && (
         <OnboardingWizard

@@ -3,6 +3,14 @@ import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { answerPolicy, honestEmpty } from "./fixtures";
 
+// D-25: a fresh install opens first run; these captures document the
+// Add-account wizard, so they open it the way Add account does.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as unknown as { __AIJ_FIRST_RUN__?: string }).__AIJ_FIRST_RUN__ = "wizard";
+  });
+});
+
 /**
  * AJ-E305 quality gate — flow (a) as a TESTED CONTRACT: the primary
  * path runs in ≤ 5 PRIMARY-button clicks with 0 typed fields, and

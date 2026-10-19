@@ -17,6 +17,14 @@ import { resolve } from "node:path";
 const GALLERY_ROOT = resolve(process.cwd(), "../docs/qa/evidence/_gallery");
 import { allStatuses, answerPolicy, cleanupFixture, honestEmpty, readyHome } from "./fixtures";
 
+// D-25: a fresh install opens first run; these captures document the
+// Add-account wizard, so they open it the way Add account does.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as unknown as { __AIJ_FIRST_RUN__?: string }).__AIJ_FIRST_RUN__ = "wizard";
+  });
+});
+
 const GALLERY = GALLERY_ROOT;
 const NOT_CAPTURETED = resolve(GALLERY, "not-captured.md");
 

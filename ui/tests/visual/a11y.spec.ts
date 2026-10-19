@@ -2,6 +2,14 @@ import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { allStatuses, answerPolicy, honestEmpty, type FixtureSet } from "./fixtures";
 
+// D-25: a fresh install opens first run; these captures document the
+// Add-account wizard, so they open it the way Add account does.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as unknown as { __AIJ_FIRST_RUN__?: string }).__AIJ_FIRST_RUN__ = "wizard";
+  });
+});
+
 /**
  * AJ-E402 quality gate: axe-core reports 0 critical/serious violations on
  * the rail fixture page (all 9 states rendered) in BOTH themes (D-16).

@@ -12,6 +12,14 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { allStatuses, cleanupFixture, DOOR_ONECLICK, DOOR_WIZARD, honestEmpty, type FixtureSet } from "./fixtures";
 
+// D-25: a fresh install opens first run; these captures document the
+// Add-account wizard, so they open it the way Add account does.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as unknown as { __AIJ_FIRST_RUN__?: string }).__AIJ_FIRST_RUN__ = "wizard";
+  });
+});
+
 const T0 = 1_728_800_000_000;
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/AJ-E804/keyboard");
 // The traversal records are written under `just a11y-gate` only; every

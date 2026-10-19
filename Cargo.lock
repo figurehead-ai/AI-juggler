@@ -2752,6 +2752,7 @@ name = "juggler-app"
 version = "0.0.1"
 dependencies = [
  "base64 0.23.1",
+ "core-graphics",
  "cpu-time",
  "dirs",
  "flate2",
@@ -2765,6 +2766,7 @@ dependencies = [
  "juggler-scap-init",
  "juggler-stats",
  "juggler-supervisor",
+ "macos-accessibility-client",
  "prost",
  "screencapturekit",
  "serde",
@@ -3072,6 +3074,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "52d3a9855747c17eaf4383823f135220716ab49bea5fbea7dd42cc9a92f8aa31"
 dependencies = [
  "logos-codegen",
+]
+
+[[package]]
+name = "macos-accessibility-client"
+version = "0.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c33254f6f9b60b98eff934c3664530e5058ff7173e0c6b12419a17d5461e7145"
+dependencies = [
+ "core-foundation 0.10.1",
+ "core-foundation-sys",
 ]
 
 [[package]]
