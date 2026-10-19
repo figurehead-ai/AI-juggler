@@ -714,8 +714,10 @@ function BoardRow({
       )}
       <RailRow session={row} selected={selected} onSelect={onSelect} density={density} now={now} freshness={freshness} />
       {/* I-03: a model that drifted from its launch settings is worth a
-          glance (cost and behaviour differ) — beside the row, focusable. */}
-      {modelDrift(row) && (
+          glance (cost and behaviour differ) — beside the row, focusable.
+          Compact rows have no room beside the time; the session view
+          says it there. */}
+      {density === "comfortable" && modelDrift(row) && (
         <span
           title={modelDrift(row)!}
           aria-label={modelDrift(row)!}

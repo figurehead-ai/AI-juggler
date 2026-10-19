@@ -213,3 +213,12 @@
   enforces the 100 ms budget strictly. The budget, the quarantine and
   the assertion are unchanged; if it recurs on an idle machine or in CI,
   it becomes a fix.
+- Observed, no change (2026-10-19, rendering the D-25 baselines locally):
+  `regression.spec.ts › fleet — light-compact-1024x680` and
+  `settings — light-compact-1024x680` timed out in `goTo`'s first
+  locator call — the last two cells of an 81-test run in the amd64
+  container emulated on an arm64 Mac, with a host Playwright suite
+  running beside it. Re-run alone, both passed in 30 s, and the same
+  spec passed 81/81 on the host. No threshold, timeout or assertion
+  changed; CI runs the gate natively. If it recurs in CI, it becomes a
+  fix.
