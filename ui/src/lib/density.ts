@@ -7,6 +7,8 @@
 export type Density = "comfortable" | "compact" | "minimal";
 
 export const DENSITY_KEY = "aij.density";
+/** D-25: dispatched when Settings changes the density (App follows it). */
+export const DENSITY_EVENT = "aij:density-changed";
 /** Legacy boolean from the pre-E403 rail collapse — migrated, never kept. */
 const LEGACY_COLLAPSED_KEY = "aij.rail.collapsed";
 
