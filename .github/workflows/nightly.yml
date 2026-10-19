@@ -1,0 +1,99 @@
+# D-20: the nightly channel — built from main every day, no approval.
+# Skips a day with no new commits. Every build gets the next version
+# (MAJOR.MINOR from Cargo.toml, PATCH = this workflow's run number), is
+# published as a pre-release, and becomes the nightly feed. Promotion to
+# beta and stable (promote.yml) reuses the same signed build.
+name: Nightly
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Build even if main hasn't changed since the last nightly"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    name: plan
+    runs-on: ubuntu-latest
+    outputs:
+      skip: ${{ steps.plan.outputs.skip }}
+      version: ${{ steps.plan.outputs.version }}
+      ref: ${{ steps.plan.outputs.ref }}
+      previous: ${{ steps.plan.outputs.previous }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: What to build
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          FORCE: ${{ inputs.force || false }}
+          RUN: ${{ github.run_number }}
+        run: |
+          ref="$(git rev-parse HEAD)"
+          previous=""
+          work="$RUNNER_TEMP/feed" && mkdir -p "$work"
+          if gh release download nightly-channel --repo "$REPO" --pattern latest.json --dir "$work" 2>/dev/null; then
+            last="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' "$work/latest.json")"
+            previous="$(gh release view "v$last" --repo "$REPO" --json targetCommitish --jq .targetCommitish)"
+          fi
+          skip=false
+          if [ "$previous" = "$ref" ] && [ "$FORCE" != "true" ]; then
+            skip=true
+            echo "main hasn't changed since the last nightly ($ref)." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          version="$(python3 scripts/release_version.py next "$RUN")"
+          {
+            echo "skip=$skip"
+            echo "version=$version"
+            echo "ref=$ref"
+            echo "previous=$previous"
+          } >> "$GITHUB_OUTPUT"
+          echo "Nightly $version from $ref (previous: ${previous:-none})" >> "$GITHUB_STEP_SUMMARY"
+
+  build:
+    needs: plan
+    if: needs.plan.outputs.skip != 'true'
+    uses: ./.github/workflows/build-macos.yml
+    with:
+      ref: ${{ needs.plan.outputs.ref }}
+      version: ${{ needs.plan.outputs.version }}
+      previous: ${{ needs.plan.outputs.previous }}
+    secrets: inherit
+
+  publish:
+    name: nightly feed
+    needs: [plan, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Point the nightly channel at this build
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          VERSION: ${{ needs.plan.outputs.version }}
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/channel" && mkdir -p "$work" && cd "$work"
+          gh release download "v$VERSION" --repo "$REPO" --pattern latest.json
+          python3 -c 'import json; d=json.load(open("latest.json")); assert d["version"] and d["platforms"], "bad feed"'
+          if ! gh release view nightly-channel --repo "$REPO" >/dev/null 2>&1; then
+            gh release create nightly-channel --repo "$REPO" --prerelease \
+              --title "Nightly channel (update feed)" \
+              --notes "The update feed nightly installs read. Not a release: download a version from the list above."
+          fi
+          gh release upload nightly-channel latest.json --repo "$REPO" --clobber
+          echo "Nightly channel → $VERSION" >> "$GITHUB_STEP_SUMMARY"

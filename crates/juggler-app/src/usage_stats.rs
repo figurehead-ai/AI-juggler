@@ -876,7 +876,9 @@ pub mod enabled {
     pub fn envelope() -> Envelope {
         Envelope {
             app_version: env!("CARGO_PKG_VERSION").to_owned(),
-            channel: if crate::updates::CHANNEL == "stable" {
+            // The schema (shared with the server) knows beta and stable;
+            // nightly is pre-release, so it reports as beta.
+            channel: if crate::updates::current_channel() == crate::updates::Channel::Stable {
                 Channel::Stable
             } else {
                 Channel::Beta
@@ -1064,7 +1066,12 @@ pub mod enabled {
         if let Some(value) = FleetRoleValue::from_wire(role) {
             out.push(StatGauge::FleetRole { value });
         }
-        if let Some(value) = UpdateChannelValue::from_wire(crate::updates::CHANNEL) {
+        let wire = match crate::updates::channel_of(state) {
+            crate::updates::Channel::Stable => "stable",
+            // Pre-release channels share the schema's `beta` value.
+            crate::updates::Channel::Beta | crate::updates::Channel::Nightly => "beta",
+        };
+        if let Some(value) = UpdateChannelValue::from_wire(wire) {
             out.push(StatGauge::UpdateChannel { value });
         }
         let auto = if crate::updates::check_on_launch(state) {

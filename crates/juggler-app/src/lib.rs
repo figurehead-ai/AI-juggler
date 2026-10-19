@@ -88,6 +88,8 @@ pub fn run() {
         std::process::exit(1);
     }));
 
+    // D-20: the chosen update channel, for reports built without state.
+    let _ = updates::channel_of(&app_state);
     // AJ-E1107: keep a scrubbed crash report if the user allows it.
     crash::install(&app_state);
     spawn_lifecycle_forwarder(Arc::clone(&app_state));
@@ -226,6 +228,7 @@ pub fn run() {
             vault::vault_enter_code,
             updates::update_status,
             updates::update_set_check_on_launch,
+            updates::update_set_channel,
             updates::update_check,
             updates::update_install,
             updates::update_restart,

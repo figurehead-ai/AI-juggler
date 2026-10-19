@@ -63,3 +63,15 @@ it.
 - `cargo test -p juggler-app --test updates`: 3/3 (`update-policy.log`).
 - vitest `updates.test.tsx` 4/4. Playwright `58 updates` 10,
   `updates card — axe 0` 2.
+
+## Superseded by D-20 (2026-10-19)
+
+The single beta channel built from a version tag is replaced by three
+channels on one version stream. `release.yml` and `release-channel.yml`
+are gone. `build-macos.yml` keeps every build step recorded above
+(secrets fail closed, signing, notarization, the updater signature,
+`SHA256SUMS.txt`), now called by `nightly.yml`. `promote.yml` moves the
+beta and stable feeds with the maintainer's approval. The app chooses its
+channel in Settings (`updates :: the_channel_is_a_persisted_choice_with_its_own_feed`,
+vitest `updates.test.tsx`). The signed-build and rollback rows stay
+pending on the maintainer's secrets.

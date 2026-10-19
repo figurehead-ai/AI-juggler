@@ -17,10 +17,27 @@ import {
   updateCheck,
   updateInstall,
   updateRestart,
+  updateSetChannel,
   updateSetCheckOnLaunch,
   updateStatus,
+  type UpdateChannel,
   type UpdateStatusInfo,
 } from "../lib/bridge";
+
+/** D-20: nightly → beta → stable; each says what it means for you. */
+const CHANNELS: { id: UpdateChannel; title: string; consequence: string }[] = [
+  { id: "stable", title: "Stable", consequence: "Well-tested releases. Recommended for everyday work." },
+  {
+    id: "beta",
+    title: "Beta",
+    consequence: "Newer features a little earlier. Tested, but less than Stable.",
+  },
+  {
+    id: "nightly",
+    title: "Nightly",
+    consequence: "Built from the latest code every day. Expect rough edges.",
+  },
+];
 
 function when(ms: number): string {
   return new Date(ms).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
@@ -68,6 +85,32 @@ export function UpdatesCard(): JSX.Element {
         </p>
       ) : (
         <>
+          <fieldset className="flex flex-col gap-1.5" data-testid="update-channel" disabled={working}>
+            <legend className="mb-1 text-[11px] font-medium text-ink">Update channel</legend>
+            {CHANNELS.map((option) => (
+              <label key={option.id} className="flex items-start gap-2 text-[11px]">
+                <input
+                  type="radio"
+                  name="update-channel"
+                  value={option.id}
+                  checked={status.channel === option.id}
+                  onChange={() => void run(() => updateSetChannel(option.id))}
+                  aria-describedby={`update-channel-${option.id}`}
+                  data-testid={`update-channel-${option.id}`}
+                />
+                <span className="flex flex-col">
+                  <span className="font-medium text-ink">{option.title}</span>
+                  <span id={`update-channel-${option.id}`} className="text-muted">
+                    {option.consequence}
+                  </span>
+                </span>
+              </label>
+            ))}
+            <p className="text-[11px] text-muted">
+              Moving to a steadier channel never goes back to an older version: you get that channel's next release
+              once it's newer than this one.
+            </p>
+          </fieldset>
           <label className="flex items-center gap-2 text-[11px] text-ink">
             <input
               type="checkbox"
@@ -92,7 +135,7 @@ export function UpdatesCard(): JSX.Element {
             {status.available && ["available", "failed", "backing_up", "downloading"].includes(status.state) && (
               <div className="flex flex-col gap-1.5 rounded-lg border border-hairline p-3" data-testid="update-available">
                 <p className="font-medium text-ink">
-                  AI Juggler {status.available.version} (beta) is available
+                  AI Juggler {status.available.version} ({status.channel}) is available
                   {status.available.date_ms ? ` — released ${when(status.available.date_ms)}` : ""}
                 </p>
                 <div className="max-h-48 overflow-y-auto text-muted" data-testid="update-notes">

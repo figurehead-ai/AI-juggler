@@ -1,0 +1,161 @@
+# D-20: promote one already-built, signed version to the beta or stable
+# channel. Every promotion waits for the maintainer's approval (the
+# `beta` and `stable` GitHub environments require it). Nothing is
+# rebuilt: the channel's feed is pointed at the same build.
+#
+# Beta needs: the build exists, its user-facing notes
+# (docs/releases/X.Y.Z.md on main) pass the notes check, and the
+# accessibility gate passes on the exact commit it was built from.
+# Stable also needs: the version was on beta first, and the beta gate
+# (docs/qa/gate-beta.md, AJ-E807) is signed.
+name: Promote
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to promote (X.Y.Z, an existing build)"
+        type: string
+        required: true
+      channel:
+        description: "Channel to move to it"
+        type: choice
+        options: [beta, stable]
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: promote-${{ inputs.channel }}
+  cancel-in-progress: false
+
+env:
+  VERSION: ${{ inputs.version }}
+  CHANNEL: ${{ inputs.channel }}
+
+jobs:
+  check:
+    name: check
+    runs-on: ubuntu-latest
+    outputs:
+      ref: ${{ steps.check.outputs.ref }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: main
+      - name: The build, its notes, its history
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::$VERSION is not X.Y.Z"; exit 1; }
+          ref="$(gh release view "v$VERSION" --repo "$REPO" --json targetCommitish --jq .targetCommitish)" \
+            || { echo "::error::no build v$VERSION — nightly.yml makes builds"; exit 1; }
+          ./scripts/release_notes_check.sh "$VERSION"
+          if [ "$CHANNEL" = "stable" ]; then
+            gh api "repos/$REPO/git/ref/tags/beta/v$VERSION" >/dev/null 2>&1 \
+              || { echo "::error::v$VERSION was never on beta — promote it to beta first"; exit 1; }
+            python3 scripts/gate_packet.py signed docs/qa/gate-beta.md
+            grep -q "^## \[$VERSION\]" CHANGELOG.md \
+              || { echo "::error::CHANGELOG.md has no [$VERSION] section"; exit 1; }
+          fi
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+          echo "Promote $VERSION ($ref) to $CHANNEL" >> "$GITHUB_STEP_SUMMARY"
+
+  # AJ-E804: no build reaches beta or stable with a critical or serious
+  # accessibility violation or a broken keyboard flow. The full scan is
+  # ~10 min on 30 cores, so it runs in four shards; `a11y` summarises.
+  a11y-shard:
+    name: a11y (${{ matrix.shard }}/4)
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
+      options: --ipc=host
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ needs.check.outputs.ref }}
+      - name: Install
+        working-directory: ui
+        run: corepack enable && corepack prepare pnpm@10 --activate && pnpm install --frozen-lockfile
+      - name: Accessibility gate, shard ${{ matrix.shard }}/4
+        env:
+          A11Y_SKIP_SUMMARY: "1"
+        run: ./scripts/a11y_gate.sh --shard=${{ matrix.shard }}/4
+      - name: Scans
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: a11y-shard-${{ matrix.shard }}
+          path: docs/qa/evidence/AJ-E804/
+          retention-days: 30
+
+  a11y:
+    name: a11y
+    needs: [check, a11y-shard]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ needs.check.outputs.ref }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: a11y-shard-*
+          path: docs/qa/evidence/AJ-E804/
+          merge-multiple: true
+      - name: Every gallery state, summarised (0 critical, 0 serious)
+        run: |
+          python3 scripts/axe_summary.py
+          cat docs/qa/evidence/AJ-E804/axe-summary.md >> "$GITHUB_STEP_SUMMARY"
+
+  promote:
+    name: promote to ${{ inputs.channel }}
+    needs: [check, a11y]
+    runs-on: ubuntu-latest
+    # The approval: the environment requires the maintainer.
+    environment: ${{ inputs.channel }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: main
+      - name: Point the channel at this build
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          REF: ${{ needs.check.outputs.ref }}
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/channel" && mkdir -p "$work"
+          gh release download "v$VERSION" --repo "$REPO" --pattern latest.json --dir "$work"
+          # The channel's users read the hand-written notes, not the nightly ones.
+          python3 - "$work/latest.json" "docs/releases/$VERSION.md" <<'PY'
+          import json, sys
+          feed = json.load(open(sys.argv[1]))
+          assert feed["version"] and feed["platforms"], "bad feed"
+          feed["notes"] = open(sys.argv[2]).read()
+          json.dump(feed, open(sys.argv[1], "w"), indent=2)
+          PY
+          gh release edit "v$VERSION" --repo "$REPO" --notes-file "docs/releases/$VERSION.md"
+          gh release upload "v$VERSION" "$work/latest.json" --repo "$REPO" --clobber
+          if ! gh release view "$CHANNEL-channel" --repo "$REPO" >/dev/null 2>&1; then
+            gh release create "$CHANNEL-channel" --repo "$REPO" --prerelease \
+              --title "${CHANNEL^} channel (update feed)" \
+              --notes "The update feed ${CHANNEL} installs read. Not a release: download a version from the list above."
+          fi
+          gh release upload "$CHANNEL-channel" "$work/latest.json" --repo "$REPO" --clobber
+          # A record of where this build has been (stable checks for beta/).
+          gh api "repos/$REPO/git/refs" -f ref="refs/tags/$CHANNEL/v$VERSION" -f sha="$REF" >/dev/null \
+            || echo "tag $CHANNEL/v$VERSION already exists"
+          if [ "$CHANNEL" = "stable" ]; then
+            gh release edit "v$VERSION" --repo "$REPO" --prerelease=false --latest
+          fi
+          echo "${CHANNEL^} channel → $VERSION" >> "$GITHUB_STEP_SUMMARY"

@@ -294,3 +294,48 @@ fn install_waits_for_a_switch_in_flight_and_restart_for_live_instances() {
     let reason = updates::restart_blocker(&state).unwrap().unwrap();
     assert!(reason.contains("1 Instance is still running"), "{reason}");
 }
+
+/// D-20: three channels, one feed each. Beta until the first stable
+/// release; the choice persists; an unknown name is refused; switching
+/// forgets what the previous feed announced (nothing downloads until
+/// the next check and Install).
+#[test]
+fn the_channel_is_a_persisted_choice_with_its_own_feed() {
+    use juggler_app::updates::Channel;
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path(), true);
+    assert_eq!(updates::update_status_impl(&state).channel, "beta");
+
+    for (channel, feed) in [
+        (Channel::Stable, "/stable-channel/latest.json"),
+        (Channel::Beta, "/beta-channel/latest.json"),
+        (Channel::Nightly, "/nightly-channel/latest.json"),
+    ] {
+        assert!(channel.endpoint().ends_with(feed), "{}", channel.endpoint());
+        assert_eq!(Channel::parse(channel.as_str()), Some(channel));
+    }
+    assert_eq!(Channel::parse("canary"), None);
+
+    // A check on beta finds 0.2.0 …
+    let feed = FakeFeed::default();
+    let found = updates::update_check_impl(&state, &feed).unwrap();
+    assert_eq!(found.state, "available");
+    // … switching to nightly forgets it, and the choice persists.
+    let switched = updates::update_set_channel_impl(&state, "nightly").unwrap();
+    assert_eq!(switched.channel, "nightly");
+    assert_eq!(switched.state, "idle");
+    assert!(switched.available.is_none());
+    assert_eq!(updates::current_channel(), Channel::Nightly);
+    drop(state);
+    let reopened = app_state(dir.path(), true);
+    assert_eq!(updates::update_status_impl(&reopened).channel, "nightly");
+
+    let refused = updates::update_set_channel_impl(&reopened, "canary").unwrap_err();
+    assert!(
+        refused
+            .to_string()
+            .contains("choose stable, beta or nightly"),
+        "{refused}"
+    );
+    assert_eq!(updates::update_status_impl(&reopened).channel, "nightly");
+}

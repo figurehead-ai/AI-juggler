@@ -10,7 +10,7 @@ export type UpdateStatusInfo = {
  */
 current_version: string, 
 /**
- * The release channel (`beta`).
+ * The channel this install follows: `stable` | `beta` | `nightly`.
  */
 channel: string, 
 /**

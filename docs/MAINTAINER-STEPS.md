@@ -19,33 +19,34 @@ lands. The organisation's "No-cost security baseline" is enforced on
 every repo and has both switched off, so they can't be turned on from
 the repository itself.
 
-- [ ] github.com/organizations/figurehead-ai/settings → **Code security**
-      → **Configurations**.
-- [ ] Open **GitHub recommended** → **Apply to** → choose **AI-juggler**
-      only. This also turns on CodeQL code scanning and private
-      vulnerability reporting. For a public repository all of it is
-      free, and the baseline still governs every other repo.
-- [ ] Check: AI-juggler → **Settings** → **Code security** shows Secret
-      Protection and Push protection as enabled.
+- [ ] Your profile picture (top right) → **Organizations** →
+      **figurehead-ai** → **Settings**.
+- [ ] In the sidebar's **Security** section, open **Advanced Security**
+      → **Configurations**, then the **Repositories** tab.
+- [ ] Tick **AI-juggler** only → **Apply configuration** → **GitHub
+      recommended** → review → **Apply**. This also turns on CodeQL code
+      scanning and private vulnerability reporting. For a public
+      repository all of it is free, and the baseline still governs every
+      other repo.
+- [ ] Check: AI-juggler → **Settings** → **Advanced Security** shows
+      Secret Protection and Push protection as enabled.
+
+GitHub renames these menus from time to time. If they don't match, the
+current steps are in GitHub's guide [Applying a custom security
+configuration](https://docs.github.com/en/code-security/how-tos/secure-at-scale/configure-organization-security/establish-complete-coverage/applying-a-custom-security-configuration).
 
 *Or* let an agent do it: run `gh auth refresh -h github.com -s admin:org`
 in your terminal once, then ask.
 
-### 2. Choose the app's bundle id (1 min, permanent)
+### 2. The app's bundle id ✓ decided: `ai.figurehead.juggler`
 
-**Why:** the bundle id is the app's identity on macOS. It decides where
-the app keeps its settings and data, and how macOS and the updater
-recognise it. Changing it after people install means migrating their
-data, so before the first signed release is the free moment to choose.
-Today it is `com.vuxtra.ai-juggler`.
-
-**Recommendation: `ai.figurehead.juggler`.** The Figurehead Keychain
-entry already uses that name. The identity then doesn't depend on which
-company signs the app: Vuxtra LLC's Apple account signs it now, and if
-Figurehead becomes its own company, only the signing moves.
-
-- [ ] Tell the agent which id to use. It changes `tauri.conf.json`,
-      the docs and tests in one PR.
+Decided 2026-10-19 and set in `crates/juggler-app/tauri.conf.json`. The
+bundle id is the app's permanent identity on macOS. It doesn't have to
+match the signing team: Vuxtra LLC's certificate signs it today, and if
+Figurehead later has its own Apple account, only the signer changes.
+No App ID registration is needed. The app ships outside the Mac App
+Store and uses no Apple capabilities. Register one later only if that
+changes.
 
 ### 3. Apple: certificate, team, notarization (about 30 min)
 
@@ -53,9 +54,10 @@ You need the Apple Developer account of Vuxtra LLC, signed in as its
 **Account Holder** (or an Admin allowed to create Developer ID
 certificates).
 
-**a. Team ID**
-- [ ] developer.apple.com/account → **Membership details** → copy the
-      **Team ID** (10 characters).
+**a. Team ID** ✓ — `TH8VS427L5` (Vuxtra LLC). `APPLE_TEAM_ID` and
+`APPLE_SIGNING_IDENTITY` are already set in GitHub. In the portal, the
+team switcher at the top right must say **Vuxtra LLC**: your Apple ID
+also belongs to Advancedcompany.com, whose membership has expired.
 
 **b. Developer ID Application certificate.** This is the certificate for
 apps distributed outside the Mac App Store.
@@ -72,10 +74,7 @@ apps distributed outside the Mac App Store.
       password manager.
 - [ ] Base64-encode it for GitHub: `base64 -i DeveloperID.p12 | pbcopy`.
 
-**c. Reserve the bundle id** (optional, recommended)
-- [ ] developer.apple.com/account/resources/identifiers → **+** →
-      **App IDs** → **App** → Description "AI Juggler", **Explicit**
-      Bundle ID = the id from step 2. No capabilities needed.
+**c. App ID** — not needed (see step 2).
 
 **d. Notarization password**
 - [ ] account.apple.com → **Sign-In and Security** → **App-Specific
@@ -104,10 +103,10 @@ variables** → **Actions**.
 |---|---|---|
 | `APPLE_CERTIFICATE` | Secrets | the base64 text from 3b |
 | `APPLE_CERTIFICATE_PASSWORD` | Secrets | the `.p12` password |
-| `APPLE_SIGNING_IDENTITY` | Secrets | `Developer ID Application: Vuxtra LLC (TEAMID)` — the exact certificate name |
+| `APPLE_SIGNING_IDENTITY` | Secrets | ✓ already set: `Developer ID Application: Vuxtra LLC (TH8VS427L5)` |
 | `APPLE_ID` | Secrets | the Apple ID email used in 3d |
 | `APPLE_PASSWORD` | Secrets | the app-specific password from 3d |
-| `APPLE_TEAM_ID` | Secrets | the Team ID from 3a |
+| `APPLE_TEAM_ID` | Secrets | ✓ already set: `TH8VS427L5` |
 | `TAURI_SIGNING_PRIVATE_KEY` | Secrets | the contents of `~/.tauri/ai-juggler-updater.key` |
 | `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Secrets | its password |
 | `AIJ_UPDATER_PUBKEY` | **Variables** | the contents of the `.pub` file (public by design) |
@@ -130,14 +129,22 @@ variables** → **Actions**.
 **Why:** this proves that signing, notarization, the update feed and
 rollback all work before any user depends on them.
 
-- [ ] Approve the build's promotion when GitHub asks (the channels
-      workflow asks you through a GitHub environment approval).
-- [ ] Install the `.dmg` on a clean Mac (or a new macOS user account).
-      Gatekeeper must open it without warnings. Settings › About &
-      updates shows the version.
+- [ ] GitHub → **Actions** → **Nightly** → **Run workflow** (tick
+      *force*). It builds, signs and notarizes the next version, publishes
+      it as a pre-release, and points the nightly feed at it. No approval.
+- [ ] Install that version's `.dmg` on a clean Mac (or a new macOS user
+      account). Gatekeeper must open it without warnings. Settings ›
+      About & updates shows the version and the channel picker.
+- [ ] Write its user notes (`docs/releases/X.Y.Z.md`; the agent drafts
+      them for you to approve), then **Actions** → **Promote** → version
+      `X.Y.Z`, channel `beta`. When the run waits for you, open it and
+      click **Review deployments → Approve**.
 - [ ] Back up from Settings and keep the file.
-- [ ] Rollback rehearsal: follow `docs/RELEASING.md` § Rollback. The
-      agent gives you the exact command once the channels are built.
+- [ ] Rollback rehearsal: follow `docs/RELEASING.md` § Rollback (let
+      nightly make a second version first).
+
+Stable comes later: **Promote** with channel `stable` only accepts a
+version that was on beta, and only once the beta gate is signed (Part 5).
 
 ### 8. Measurements on your Mac (AJ-E805, 20 min)
 

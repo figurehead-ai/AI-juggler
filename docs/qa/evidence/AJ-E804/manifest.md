@@ -4,8 +4,8 @@ Task: `docs/tasks/E8-validation-visual-performance-quality.md` AJ-E804
 (accessibility verification programme). 2026-10-19, reviewer claude-opus.
 
 Run: `just a11y-gate` (`scripts/a11y_gate.sh`). It also runs as the
-`a11y` job of `release.yml`, and `release-macos` needs it, so a release
-candidate cannot build with a failing accessibility gate. Headless
+`a11y` jobs of `promote.yml` (D-20), which the approval step waits on, so no
+build reaches beta or stable with a failing accessibility gate. Headless
 Chromium, production build, mocked bridge.
 
 Evidence:
