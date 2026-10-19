@@ -1,0 +1,29 @@
+# just load-gate — 2026-10-19T04:28Z, commit base 3be0761 + this branch
+# Machine: Apple M5 Ultra, 30 cores, 96 GB, macOS 27.0.1; Playwright Chromium (headless), pnpm preview build
+# Fixture: ui/tests/visual/fixtures.ts atScale (sha256 7334cefed416…), crates/juggler-app/tests/load_budgets.rs seed()
+
+Running 10 tests using 1 worker
+[perf] board paints 50 rows
+[perf] rail: Instances tab painting all 50 Instances: median 41 ms (budget 300 ms) — 42, 42, 41, 39, 41
+[perf] inspector: select an Instance to its painted Overview: median 34 ms (budget 200 ms) — 58, 30, 41, 33, 34
+[perf] search: type to a filtered board: median 8 ms (budget 200 ms) — 11, 7, 9, 8, 6
+[perf] cleanup: open the inventory: median 33 ms (budget 300 ms) — 48, 31, 33, 31, 46
+[perf] cold start: webview navigation to painted rail: median 64 ms (budget 2500 ms) — 61, 64, 64, 67, 62
+[perf] 50 rows visible without expanding a group
+[perf] rail: scroll the board to its last Instance: median 16 ms (budget 300 ms) — 16, 16, 15, 16, 18
+  10 passed (9.7s)
+     Running tests/load_budgets.rs (target/debug/deps/load_budgets-eb9ecdab0926a61d)
+test idle_with_ten_live_instances ... ignored, 30 s idle measurement; run by `just load-gate`
+[perf] terminal input echo: median 323.083µs, p95 330.458µs, max 330.833µs
+test terminal_input_echo_under_50ms ... ok
+[perf] backend cold start at scale: median 16.813708ms (runs [17.115625ms, 16.813708ms, 17.034458ms, 15.590209ms, 14.037334ms])
+test backend_cold_start_at_scale ... ok
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.11s
+     Running tests/load_budgets.rs (target/debug/deps/load_budgets-eb9ecdab0926a61d)
+test idle_with_ten_live_instances ... [perf] idle with 10 live Instances: CPU 0.39 % (118.158ms over 30.2339925s), RSS 20 MB
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 32.37s
+     Running tests/pack_load.rs (target/debug/deps/pack_load-03613068dcbb8ff0)
+[perf] full pack, 500 turns (1356 KB of text): 7.384958ms (budget 5 s)
+[perf] distilled pack, 500 turns (1356 KB of text): 4.4165ms (budget 5 s)
+test a_500_turn_pack_is_assembled_and_written_in_under_5_s ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s

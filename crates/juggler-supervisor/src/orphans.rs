@@ -286,6 +286,7 @@ where
         if !alive(pid) {
             return StopOutcome::Gone { escalated: false };
         }
+        // poll: TERM grace, bounded by `term_grace`
         std::thread::sleep(Duration::from_millis(20));
     }
     send_signal(pid, &Signal::Kill);
@@ -295,6 +296,7 @@ where
         if !alive(pid) {
             return StopOutcome::Gone { escalated: true };
         }
+        // poll: post-KILL disappearance check, bounded by its deadline
         std::thread::sleep(Duration::from_millis(20));
     }
     StopOutcome::StillAlive

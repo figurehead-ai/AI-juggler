@@ -484,6 +484,46 @@ fn live_stats_collector_batches_and_masks_first_cpu_sample() {
     assert_eq!(dead.cpu_pct, Some(0.0));
 }
 
+/// A live root stays in its tree on every 2 s tick — full scans and
+/// targeted refreshes alike. (Regression, found by the AJ-E805 idle
+/// proof: the targeted refresh listed the root twice, once as the root
+/// and once from its own row, and sysinfo dropped a process it was
+/// asked to refresh twice — so a live Instance's Processes tab blinked
+/// empty every other tick.)
+#[test]
+fn live_root_stays_sampled_across_targeted_ticks() {
+    use juggler_supervisor::LiveStatsCollector;
+
+    let workdir = tempfile::tempdir().unwrap();
+    let supervisor = Supervisor::new();
+    let session = SessionId::new("s-steady-rows");
+    supervisor
+        .spawn(
+            &session,
+            &LaunchSpec {
+                program: PathBuf::from("/bin/sleep"),
+                args: vec!["30".into()],
+                env: EnvMap::from([("JUGGLER_TEST".to_string(), "1".to_string())]),
+                cwd: workdir.path().to_path_buf(),
+                needs_pty: false,
+            },
+            &ledger_test_ctx(),
+        )
+        .unwrap();
+    let mut collector = LiveStatsCollector::new();
+    let mut seen = Vec::new();
+    // Ticks 1-3 are warm-up full scans; 4, 6, 7, 8, 9, 11, 12 are targeted.
+    for tick in 1..=12_i64 {
+        collector.tick(&supervisor, tick * 2_000);
+        seen.push(collector.rows(&session).map_or(0, |rows| rows.len()));
+    }
+    supervisor.stop(&session, Duration::from_secs(5)).unwrap();
+    assert!(
+        seen.iter().all(|rows| *rows == 1),
+        "rows per tick: {seen:?}"
+    );
+}
+
 // --- AJ-E507: the ladder primitive's outcome vocabulary -------------
 
 use juggler_supervisor::tree::{ProcessOutcome, terminate_group};

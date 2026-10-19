@@ -1,0 +1,77 @@
+{
+  "fixture": "atScale: 10 Accounts, 50 Instances, 20 Projects",
+  "results": [
+    {
+      "name": "rail: Instances tab painting all 50 Instances",
+      "budget_ms": 300,
+      "median_ms": 41,
+      "runs": [
+        42,
+        42,
+        41,
+        39,
+        41
+      ]
+    },
+    {
+      "name": "inspector: select an Instance to its painted Overview",
+      "budget_ms": 200,
+      "median_ms": 34,
+      "runs": [
+        58,
+        30,
+        41,
+        33,
+        34
+      ]
+    },
+    {
+      "name": "search: type to a filtered board",
+      "budget_ms": 200,
+      "median_ms": 8,
+      "runs": [
+        11,
+        7,
+        9,
+        8,
+        6
+      ]
+    },
+    {
+      "name": "cleanup: open the inventory",
+      "budget_ms": 300,
+      "median_ms": 33,
+      "runs": [
+        48,
+        31,
+        33,
+        31,
+        46
+      ]
+    },
+    {
+      "name": "cold start: webview navigation to painted rail",
+      "budget_ms": 2500,
+      "median_ms": 64,
+      "runs": [
+        61,
+        64,
+        64,
+        67,
+        62
+      ]
+    },
+    {
+      "name": "rail: scroll the board to its last Instance",
+      "budget_ms": 300,
+      "median_ms": 16,
+      "runs": [
+        16,
+        16,
+        15,
+        16,
+        18
+      ]
+    }
+  ]
+}

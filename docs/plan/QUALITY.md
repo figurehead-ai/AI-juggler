@@ -64,6 +64,28 @@ juggler-core → (external crates only; knows nothing about app/UI)
 | UI | Playwright smoke per milestone (critical flows); component tests for board/wizard |
 | Guardrails | The dedicated suite (writes confinement, no network outside allowlist, no account mutation without user command, automation policy) runs in CI on every PR and at every gate |
 
+### Performance budgets (AJ-E805)
+
+Measured on the reference Mac by `just load-gate` at the promised scale
+(10 Accounts, 50 Instances, 20 Projects, 500-turn transcripts). The
+gate quotes the measured values from
+`docs/qa/evidence/AJ-E805/manifest.md`, never these targets. A median
+more than 10 % slower than `ui/tests/visual/load-baseline.json` (5 ms
+floor) fails unless the baseline lists a waiver with a task ID and an
+expiry date. `just polling-audit` (part of `just verify`) fails any
+sub-second timer or sleep in shipped code without a `poll:` note.
+
+| Budget | Target |
+|---|---|
+| Cold start to interactive | < 2.5 s |
+| Rail render, 50 rows | < 300 ms |
+| Inspector selection to paint | < 200 ms |
+| Terminal input echo (local) | < 50 ms |
+| Switch pack assembly, 500 turns | < 5 s |
+| Orphan detection after the grace window | < 10 s |
+| Idle CPU, 10 live Instances | < 2 % |
+| Memory, excluding child processes | < 600 MB |
+
 ## 6. Security & supply chain
 
 - `#![forbid(unsafe_code)]` everywhere unless an ADR approves a specific exception.

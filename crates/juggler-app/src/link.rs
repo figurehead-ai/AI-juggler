@@ -1242,6 +1242,7 @@ fn start(state: &Arc<AppState>) -> AppResult<()> {
                     if let Ok(listener) = tokio::net::TcpListener::bind(("0.0.0.0", port)).await {
                         return Ok(listener);
                     }
+                    // poll: re-binding the last port after Link off; 10 tries, 2 s at most
                     tokio::time::sleep(Duration::from_millis(200)).await;
                 }
             }

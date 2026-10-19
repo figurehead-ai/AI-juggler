@@ -1,0 +1,19 @@
+## 1. Seeded regression: baseline rail median set to 20 ms (real ~42 ms) — must FAIL
+[perf] rail: Instances tab painting all 50 Instances: median 43 ms (budget 300 ms) — 39, 43, 43, 43, 42
+    Error: rail: Instances tab painting all 50 Instances: regressed past the baseline 20 ms (limit 25.0 ms)
+    > 91 |     expect(median, `${name}: regressed past the baseline ${before} ms (limit ${limit.toFixed(1)} ms)`).toBeLessThanOrEqual(limit);
+  1 failed
+
+## 2. Same regression with an unexpired waiver (task AJ-E805) — must PASS
+[perf] rail: Instances tab painting all 50 Instances: median 42 ms (budget 300 ms) — 40, 42, 40, 42, 43
+  1 passed (6.1s)
+
+## 3. Same waiver, expired — must FAIL
+[perf] rail: Instances tab painting all 50 Instances: median 42 ms (budget 300 ms) — 49, 42, 41, 42, 40
+    Error: rail: Instances tab painting all 50 Instances: regressed past the baseline 20 ms (limit 25.0 ms)
+    > 91 |     expect(median, `${name}: regressed past the baseline ${before} ms (limit ${limit.toFixed(1)} ms)`).toBeLessThanOrEqual(limit);
+  1 failed
+
+## 4. Baseline restored — must PASS
+[perf] rail: Instances tab painting all 50 Instances: median 42 ms (budget 300 ms) — 47, 41, 42, 43, 42
+  1 passed (6.2s)

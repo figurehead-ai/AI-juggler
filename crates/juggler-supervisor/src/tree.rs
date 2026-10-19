@@ -690,6 +690,7 @@ where
             outcomes.push((pid, ProcessOutcome::ExitedOnTerm));
         }
         if !survivors.is_empty() {
+            // poll: TERM ladder rounds, bounded by the caller's grace
             std::thread::sleep(Duration::from_millis(50));
         }
     }
@@ -728,6 +729,7 @@ where
         if refused.is_empty() {
             break;
         }
+        // poll: KILL ladder rounds, bounded by the caller's grace
         std::thread::sleep(Duration::from_millis(50));
     }
     for pid in refused {
