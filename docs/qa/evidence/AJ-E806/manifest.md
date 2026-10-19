@@ -47,6 +47,31 @@
   Open question for the maintainer: measure this tick as CPU time, as
   the flush and outbox budgets already are (a re-threshold that needs a
   recorded decision), or keep wall time and accept rare local misses.
+- **Flake record, 2026-10-19 (fixed).** `juggler-supervisor --test
+  supervisor :: twenty_streaming_sessions_fan_out_without_deadlock`
+  failed in CI `verify` on PR #42 (release channels, which doesn't touch
+  the supervisor): `stream for s-stream-7 never delivered its final
+  line`, 1.17 s into the run. Cause: a race in the test, not a deadlock.
+  It spawned each shell and only then attached a live tap; a tap sees
+  only output written after it attaches, so on a busy runner a shell
+  could print all 50 lines and exit first. Fix:
+  `Supervisor::tap_with_backlog` takes the retained output and the live
+  tap under one ring lock, so nothing falls between them or arrives
+  twice, and the test reads both. New regression test
+  `a_tap_attached_after_the_process_finished_still_gets_its_output`
+  reproduces the race deterministically. Verified 25/25 repeated runs
+  and the full `just verify`. The 30 s budget and the assertion are
+  unchanged.
+- **Flake record, 2026-10-19 (known class; no change).** While
+  verifying the fix above, `juggler-app --test tiers ::
+  tier2_crash_flow_notification_undo_and_lapse` failed once in the full
+  `just verify` with `crash orphans never surfaced`, at 25.2 s against
+  its 25 s wait. Load was 15.4 (5-minute average) on 30 cores: a
+  parallel session was rendering the visual gallery in containers.
+  This is the same class as the reconciler soak above: each wait tick is
+  a full process-table scan, which slows with every other process on the
+  machine. It passed 5/5 standalone straight after and in the gate
+  re-run. Budget, wait and assertion are unchanged; CI is the arbiter.
 - a11y seeded failure is recorded DEFERRED with owning task AJ-E804 —
   the gate is named in QUALITY.md vocabulary now; its absence is
   explicit, never a silent pass (per the quarantine/deferral rule).
