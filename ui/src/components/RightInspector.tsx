@@ -2179,7 +2179,9 @@ function TierTag({ tier }: { tier: "Measured" | "Computed" | "Estimated" }) {
  * default, never bundled (ADR-0010's amendment). Deliberately
  * mouse-only (no shortcut could enable automation).
  */
-export function TierToggles(props: { accountId: string; initial: boolean }) {
+/** `explain` (default on) adds the D-08 rules under the toggles; a list
+ * of Accounts that states them once turns it off. */
+export function TierToggles(props: { accountId: string; initial: boolean; explain?: boolean }) {
   const [tiers, setTiers] = useState({ tier1: props.initial, tier2: false });
   const [loaded, setLoaded] = useState(false);
   // The tier table is the source of truth (the account row only
@@ -2235,12 +2237,14 @@ export function TierToggles(props: { accountId: string; initial: boolean }) {
         />
         <span className="text-muted">Also tidy after a crash (with notification)</span>
       </label>
-      <span className="text-[10px] leading-relaxed text-muted">
-        Both off by default — only verified dev servers and watchers of this Account's clean
-        exits are tidied; shells, MCP servers and databases are never touched automatically
-        and every kill is audit-logged (D-08). Crash tidies wait 5 minutes and ask first
-        with an Undo window.
-      </span>
+      {props.explain !== false && (
+        <span className="text-[10px] leading-relaxed text-muted">
+          Both off by default — only verified dev servers and watchers of this Account's clean
+          exits are tidied; shells, MCP servers and databases are never touched automatically
+          and every kill is audit-logged (D-08). Crash tidies wait 5 minutes and ask first
+          with an Undo window.
+        </span>
+      )}
     </span>
   );
 }

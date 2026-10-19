@@ -110,6 +110,7 @@
 | AJ-E1009 | Backup, restore and machine migration of Juggler's own data | E10-derived-workflows-and-beta.md | P1 | M | AJ-E1007 |
 | AJ-E1010 | Updates and release integrity for beta | E10-derived-workflows-and-beta.md | P1 | M | AJ-E1009 |
 | AJ-E1011 | Team pack export and colleague handoff | E10-derived-workflows-and-beta.md | P2 | M | AJ-E1007, AJ-E1009 |
+| AJ-E1012 | Settings — the policies the user owns (wireframe 26) | E10-derived-workflows-and-beta.md | P1 | M | AJ-E208, AJ-E508, AJ-E610, AJ-E1203 |
 | AJ-E1101 | Decision D-19, ADR-0015, doc amendments, the schema copy | E11-usage-statistics.md | P0 | S | — |
 | AJ-E1102 | The juggler-stats crate: modes, overrides, counting, local store, the cargo feature | E11-usage-statistics.md | P0 | M | AJ-E1101 |
 | AJ-E1103 | Wire the events into the app | E11-usage-statistics.md | P0 | M | AJ-E1102 |

@@ -65,7 +65,7 @@ export function RemoteSwitchTargets({
                         <span className="font-medium text-ink">
                           <span className="sr-only">Switch to </span>
                           {target.account_label}
-                          <span className="sr-only"> on {label}</span>
+                          {" "}<span className="sr-only">on {label}</span>
                         </span>
                         <span className="text-muted">{target.provider}</span>
                         <span className="text-muted">· {target.recipe_name}</span>

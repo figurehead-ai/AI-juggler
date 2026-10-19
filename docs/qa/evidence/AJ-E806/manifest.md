@@ -80,6 +80,15 @@
   each cell took 10–18 s instead of about 3 s. Re-run in the same pinned
   container, all eight History cells passed 3/3 (24/24) with no pixel
   difference. Timeouts and thresholds are unchanged; CI is the arbiter.
+- **Flake record, 2026-10-19 (fixed).** `juggler-app --test parked_reset
+  :: a_parked_instance_is_offered_back_once_at_the_reset_and_resumes_the_original`
+  failed once in `just verify` on the AJ-E1012 branch: the resume's
+  arguments read as `--resume` without the session id. Cause: the test's
+  stub wrote `last-args` with `printf … > file`, which creates the file
+  before writing it, and the test polls for the file, so it could read it
+  half-written. Fix: the stub writes a temporary file and renames it into
+  place. It passed 15/15 standalone before the fix; the assertion is
+  unchanged.
 - a11y seeded failure is recorded DEFERRED with owning task AJ-E804 —
   the gate is named in QUALITY.md vocabulary now; its absence is
   explicit, never a silent pass (per the quarantine/deferral rule).

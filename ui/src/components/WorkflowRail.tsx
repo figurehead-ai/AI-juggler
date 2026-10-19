@@ -905,7 +905,7 @@ function FilterChip({ active, onClick, count, children }: { active: boolean; onC
         <>
           {" "}
           <span className="tabular-nums opacity-80">{count}</span>
-          <span className="sr-only"> items</span>
+          {" "}<span className="sr-only">items</span>
         </>
       )}
     </button>
@@ -1597,7 +1597,7 @@ function RemoteBoardSection({
                 />
                 <span className="min-w-0 flex-1 truncate text-[12.5px]">
                   {row.account_label}
-                  <span className="sr-only"> on</span>
+                  {" "}<span className="sr-only">on</span>
                 </span>
                 <span className="shrink-0 rounded border border-hairline px-1 text-[9.5px] text-muted">{machine.label}</span>
               </span>

@@ -327,7 +327,7 @@ export function FleetScreen({
                   onClick={() => setAccess(peer)}
                   data-testid="fleet-access"
                 >
-                  Access…<span className="sr-only"> for {peer.label} on this Mac</span>
+                  Access…{" "}<span className="sr-only">for {peer.label} on this Mac</span>
                 </Button>
                 {peer.paired_via === "account" && (
                   <span className="text-[11px] text-muted">via your Figurehead account</span>
@@ -742,7 +742,7 @@ function RemoteInstances({
 /** AJ-E709: what a paired machine may do on THIS Mac. Changed only here
  * — the click on this Mac is the confirmation; a console can never raise
  * its own access (ADR-0013). */
-function AccessSheet({
+export function AccessSheet({
   peer,
   busy,
   onCancel,

@@ -4,9 +4,18 @@ import { UpdatesCard } from "../components/UpdatesCard";
 import { PrivacyCard } from "../components/PrivacyCard";
 import { RecoveryCodeSheet } from "../components/RecoveryCodeSheet";
 import { CloudBackupPanel } from "../components/CloudBackupPanel";
-import { useCallback, useEffect, useRef, useState, type JSX } from "react";
+import { useCallback, useEffect, useRef, useState, type JSX, type ReactNode } from "react";
+import { PackSecretsCard } from "../components/PackSecretsCard";
+import {
+  CleanupSettingsCard,
+  FleetPermissionsCard,
+  NotificationSettingsCard,
+  RenewalSettingsCard,
+} from "../components/SettingsSections";
 import { Button, Card, Chip } from "../components/primitives";
 import {
+  accountsList,
+  type AccountInfo,
   errorText,
   figureheadClaim,
   figureheadDismissNotice,
@@ -26,31 +35,142 @@ import {
 import { THEME_EVENT, setTheme, storedTheme, type ThemeChoice } from "../theme";
 
 /**
- * Settings (AJ-E1203) — the app's first settings screen: Appearance
- * (D-16, kept in sync with ⌘⇧L) and **Account & Cloud**, the single home
- * for the optional Figurehead account (D-18, ADR-0014).
+ * Settings (AJ-E1203; wireframe 26) — the policies the user owns, in
+ * sections with a sticky list beside them: General (Appearance, D-16,
+ * kept in sync with ⌘⇧L; About & updates; Privacy), **Account & Cloud**
+ * (the single home for the optional Figurehead account, D-18,
+ * ADR-0014), Context packs & secrets (D-14), Cleanup (D-08), Accounts &
+ * renewal dates (D-12), Notifications, Fleet permissions, and Data.
+ * Every section stays on the page, so search finds any setting; the
+ * list jumps to one and shows where you are.
  *
  * Copy rule: the desktop path is complete — "You can do everything
  * without an account; Cloud adds…". Every cloud feature says what it
  * does and exactly what it sends. No prompts anywhere else, ever.
  */
-export function SettingsScreen({ focusCloud = false }: { focusCloud?: boolean }): JSX.Element {
-  const cloudRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    if (focusCloud) cloudRef.current?.scrollIntoView({ block: "start" });
-  }, [focusCloud]);
+const SECTIONS = [
+  { id: "general", title: "General" },
+  { id: "account", title: "Account & Cloud" },
+  { id: "packs", title: "Context packs & secrets" },
+  { id: "cleanup", title: "Cleanup" },
+  { id: "renewal", title: "Accounts & renewal dates" },
+  { id: "notifications", title: "Notifications" },
+  { id: "fleet", title: "Fleet permissions" },
+  { id: "data", title: "Data: backup & retention" },
+] as const;
+type SectionId = (typeof SECTIONS)[number]["id"];
+
+function SettingsSection({ id, children }: { id: SectionId; children: ReactNode }): JSX.Element {
+  const title = SECTIONS.find((section) => section.id === id)?.title ?? id;
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-5" data-testid="settings-screen">
-      <header>
-        <h2 className="text-lg font-semibold tracking-tight">Settings</h2>
-      </header>
-      <AppearanceCard />
-      <UpdatesCard />
-      <PrivacyCard />
-      <StorageRetentionCard />
-      <BackupRestoreCard />
-      <div ref={cloudRef}>
-        <AccountCloudCard />
+    <section
+      id={`settings-${id}`}
+      aria-labelledby={`settings-${id}-title`}
+      className="flex scroll-mt-4 flex-col gap-3"
+      data-settings-section={id}
+    >
+      <h3
+        id={`settings-${id}-title`}
+        tabIndex={-1}
+        className="text-[11px] font-semibold uppercase tracking-wider text-muted outline-none"
+      >
+        {title}
+      </h3>
+      {children}
+    </section>
+  );
+}
+
+export function SettingsScreen({ focusCloud = false }: { focusCloud?: boolean }): JSX.Element {
+  const [current, setCurrent] = useState<SectionId>(focusCloud ? "account" : "general");
+  const [accounts, setAccounts] = useState<AccountInfo[]>([]);
+  useEffect(() => {
+    void accountsList().then(setAccounts, () => setAccounts([]));
+  }, []);
+  // A jump wins over scroll tracking while its scroll settles: a section
+  // near the end can't reach the top, and would otherwise lose the mark.
+  const jumpedAt = useRef(0);
+  const jump = useCallback((id: SectionId) => {
+    jumpedAt.current = Date.now();
+    setCurrent(id);
+    const target = document.getElementById(`settings-${id}`);
+    target?.scrollIntoView?.({ block: "start" });
+    document.getElementById(`settings-${id}-title`)?.focus({ preventScroll: true });
+  }, []);
+  useEffect(() => {
+    if (focusCloud) document.getElementById("settings-account")?.scrollIntoView?.({ block: "start" });
+  }, [focusCloud]);
+  // Shows where you are while scrolling (not where jsdom has no layout).
+  useEffect(() => {
+    if (typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (Date.now() - jumpedAt.current < 1000) return;
+        const visible = entries.filter((entry) => entry.isIntersecting);
+        if (visible.length === 0) return;
+        const top = visible.reduce((a, b) => (a.boundingClientRect.top <= b.boundingClientRect.top ? a : b));
+        const id = top.target.getAttribute("data-settings-section") as SectionId | null;
+        if (id) setCurrent(id);
+      },
+      { rootMargin: "0px 0px -70% 0px" },
+    );
+    document.querySelectorAll("[data-settings-section]").forEach((node) => observer.observe(node));
+    return () => observer.disconnect();
+  }, []);
+  const providers = [...new Set(accounts.map((account) => account.provider))];
+  return (
+    <div className="mx-auto flex w-full max-w-5xl gap-6" data-testid="settings-screen">
+      <nav aria-label="Settings sections" className="sticky top-0 hidden w-48 shrink-0 self-start pt-1 md:block">
+        <h2 className="mb-3 text-lg font-semibold tracking-tight">Settings</h2>
+        <ul className="flex flex-col gap-0.5" data-testid="settings-nav">
+          {SECTIONS.map((section) => (
+            <li key={section.id}>
+              <button
+                type="button"
+                onClick={() => jump(section.id)}
+                aria-current={current === section.id ? "true" : undefined}
+                className={
+                  "w-full rounded-md px-2.5 py-1.5 text-left text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent " +
+                  (current === section.id ? "bg-accent-soft font-medium text-ink" : "text-muted hover:bg-surface hover:text-ink")
+                }
+              >
+                {section.title}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </nav>
+      <div className="flex min-w-0 max-w-3xl flex-1 flex-col gap-8">
+        <header className="md:hidden">
+          <h2 className="text-lg font-semibold tracking-tight">Settings</h2>
+        </header>
+        <SettingsSection id="general">
+          <AppearanceCard />
+          <UpdatesCard />
+          <PrivacyCard />
+        </SettingsSection>
+        <SettingsSection id="account">
+          <AccountCloudCard />
+        </SettingsSection>
+        <SettingsSection id="packs">
+          <PackSecretsCard providers={providers} />
+        </SettingsSection>
+        <SettingsSection id="cleanup">
+          <CleanupSettingsCard accounts={accounts} />
+        </SettingsSection>
+        <SettingsSection id="renewal">
+          <RenewalSettingsCard accounts={accounts} />
+        </SettingsSection>
+        <SettingsSection id="notifications">
+          <NotificationSettingsCard accounts={accounts} />
+        </SettingsSection>
+        <SettingsSection id="fleet">
+          <FleetPermissionsCard />
+        </SettingsSection>
+        <SettingsSection id="data">
+          <StorageRetentionCard />
+          <BackupRestoreCard />
+        </SettingsSection>
       </div>
     </div>
   );
