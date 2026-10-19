@@ -14,9 +14,9 @@
  *  - every funnel event carries only allow-listed, free-text-free
  *    fields (no paths, labels, or credentials).
  */
-import { act, fireEvent, render, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { OnboardingWizard } from "../screens/OnboardingWizard";
 import { PackPolicyChooser, packPolicyRestatement } from "./PackPolicyChooser";
 import { envRowProblem } from "./EnvOverlayEditor";
@@ -124,6 +124,10 @@ const acceptAndReachSummary = async (container: HTMLElement) => {
   );
   spy.mockRestore();
 };
+
+// Unmount every wizard: one left mounted keeps scheduling React work
+// after the test environment is torn down (an unhandled error in CI).
+afterEach(cleanup);
 
 describe("AJ-E309 Req.1 — the policy question, no pre-selected default", () => {
   it("copy lint: the chooser markup carries NO checked radio until the user picks", () => {
