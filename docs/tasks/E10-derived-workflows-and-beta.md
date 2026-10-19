@@ -240,3 +240,29 @@
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1014/`.
 **Visual testing**: Gallery `01-rail`, `01-rail-density`, `01-rail-sort`, `05-session-panel`, `06-inspector`, `67-home`.
 **Research basis**: D-25 and the "AI Juggler UX vision" canvas; maintainer report 2026-10-19 (Usage blank, densities identical, two similar rail tabs, inline legend, busy filters).
+
+### AJ-E1015 The screen says "session" (D-25) | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: AJ-E1014
+**Goal**: One word for the thing the user juggles, everywhere they read it.
+**User story**: As a user, I want the app to call a running conversation a session — the word I use — not an internal noun.
+**Requirements**:
+1. Every on-screen string, visible attribute (label, title, placeholder, alt) and backend message that reaches the screen SHALL say "session" where it said "Instance"; a Session (the conversation record) SHALL show as "Conversation".
+2. Code, SQL, metric names and internal docs SHALL keep their names (D-25).
+3. The terminology lint SHALL refuse "Instance" in JSX text and visible attributes.
+4. README and the user guide SHALL follow.
+**Quality gates**: vitest, Rust tests, the full Playwright suite, the lint (with a seeded regression).
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1015/`.
+**Research basis**: D-25 ("use 'session' as the on-screen word").
+
+### AJ-E1016 Accounts with runway, a Usage screen that explains itself, the limit decision (D-25) | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E1014, AJ-E610, AJ-E1003, AJ-E206
+**Goal**: "How much do I have left, and what do I do when it runs out?" is answered where the user looks, in words.
+**User story**: As a developer on several subscriptions, I want each account's runway at a glance, the best account for new work named, and one calm decision when an account hits its limit.
+**Requirements**:
+1. Each account on Accounts SHALL show its 5-hour and weekly windows in words (% left, when it resets; "Used up until …", "Measuring", "Not measured yet"), the pace line only when it will run out, and what runs on it; with no account reading, the newest session's own quota line, named as such.
+2. Accounts SHALL name the best account for new work (signed in, most left in its tighter window). Sign-in shows only when it is needed. A disabled Start says why.
+3. The pack-secrets policy SHALL be one link away (Settings › Context packs & secrets, opened at that section); the Beta matrix SHALL sit behind a disclosure.
+4. Usage SHALL lead with every account's runway, then what sessions used; with no accounts it says what will appear and offers Find my accounts — never a blank page.
+5. When a session is stopped by its limit, Home's "Continue elsewhere" SHALL open one decision: Continue now on the ranker's pick (its runway, what carries over), Wait for the reset (park; offered back at the reset; nothing restarts on its own), or Choose another. It is a modal dialog with focus inside, Escape closes it, and nothing happens until a choice.
+**Quality gates**: vitest (`account-runway.test.tsx`, `limit-dialog.test.tsx`); `accounts-gallery.spec.ts` with axe; the full Playwright suite; baselines re-rendered with notes.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1016/`.
+**Visual testing**: Gallery `68-accounts` (Accounts full and signed out, Usage full and with no accounts, the limit decision; both themes).
+**Research basis**: D-25 and the "AI Juggler UX vision" canvas (Limit board); maintainer report 2026-10-19 (Usage blank).

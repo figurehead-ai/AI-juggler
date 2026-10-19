@@ -55,6 +55,8 @@ import { History } from "./screens/History";
 import { OnboardingWizard } from "./screens/OnboardingWizard";
 import { FirstRun } from "./screens/FirstRun";
 import { HomeScreen } from "./screens/Home";
+import { UsageScreen } from "./screens/Usage";
+import { LimitDialog } from "./components/LimitDialog";
 import { NewSessionModal } from "./screens/NewSession";
 import { NewProjectSheet } from "./screens/NewProjectSheet";
 import { FleetScreen } from "./screens/FleetScreen";
@@ -65,7 +67,6 @@ import { IsolationOfferDialog } from "./components/IsolationOfferDialog";
 import { funnelEvent } from "./lib/funnel";
 import { ReadyHome } from "./screens/ReadyHome";
 import { SessionPanel } from "./screens/WorkPanels";
-import { CostMatrix } from "./components/CostMatrix";
 import { NotificationRegion } from "./components/NotificationRegion";
 import { SwitchFlow, SwitchUndoToast } from "./components/SwitchFlow";
 import { SwitchBackFlow } from "./components/SwitchBackFlow";
@@ -265,14 +266,17 @@ export default function App() {
   }, [global]);
   // AJ-E1203: a Cloud chip / the onboarding card land on Account & Cloud.
   const [settingsFocusCloud, setSettingsFocusCloud] = useState(false);
+  // D-25: a link elsewhere (Accounts' pack-secrets line) opens one section.
+  const [settingsSection, setSettingsSection] = useState<string | undefined>(undefined);
   const openCloudSettings = () => {
     setSettingsFocusCloud(true);
     setGlobal("settings");
   };
   // AJ-E1010: the update notice's Review lands on Settings.
   useEffect(() => {
-    const open = () => {
+    const open = (event: Event) => {
       setSettingsFocusCloud(false);
+      setSettingsSection((event as CustomEvent<{ section?: string } | undefined>).detail?.section);
       setGlobal("settings");
     };
     window.addEventListener("aij:open-settings", open);
@@ -295,6 +299,8 @@ export default function App() {
   const [newSession, setNewSession] = useState(false);
   // AJ-E205: the executing switch flow (freeze dialog → stages →
   // source-safe failure banner). Null = closed.
+  // D-25: the account-limit decision, for this session id.
+  const [limitFor, setLimitFor] = useState<string | null>(null);
   const [switchFlow, setSwitchFlow] = useState<{ sessionId: string; targetProfileId: string; targetLabel: string } | null>(null);
   // AJ-E206: the 10-second undo window after a 1-click switch (the
   // edge is the undo handle). Null = no window open.
@@ -668,6 +674,7 @@ export default function App() {
         event.preventDefault();
         shortcutUsed("other");
         setSettingsFocusCloud(false);
+        setSettingsSection(undefined);
         setGlobal("settings");
       }
       // AJ-E506: ⌘⇧C opens the Cleanup Centre; ⌘F focuses its filter.
@@ -823,6 +830,7 @@ export default function App() {
                     aria-current={current ? "page" : undefined}
                     onClick={() => {
                       setSettingsFocusCloud(false);
+                      setSettingsSection(undefined);
                       setMoreOpen(false);
                       if (item.id === "home") {
                         setGlobal(null);
@@ -927,6 +935,7 @@ export default function App() {
           ) : global === "accounts" ? (
             <div className="h-full overflow-y-auto">
               <ProfilesScreen
+                sessions={sessions}
                 openTerminal={openLoginTerminal}
                 onLaunchFirstSession={(startHere) => {
                   setNewSession(true);
@@ -966,15 +975,7 @@ export default function App() {
             </div>
           ) : global === "usage" ? (
             <div className="h-full overflow-y-auto">
-              <div className="mx-auto flex w-full max-w-5xl flex-col gap-5" data-testid="usage-screen">
-                <header>
-                  <h2 className="text-lg font-semibold tracking-tight">Usage</h2>
-                  <p className="text-xs text-muted">
-                    What your sessions used, per session, model and day — measured on this Mac.
-                  </p>
-                </header>
-                <CostMatrix />
-              </div>
+              <UsageScreen accounts={accounts} sessions={sessions} onAddAccounts={() => setFirstRun(true)} />
             </div>
           ) : global === "fleet" ? (
             <div className="h-full overflow-y-auto">
@@ -982,7 +983,7 @@ export default function App() {
             </div>
           ) : global === "settings" ? (
             <div className="h-full overflow-y-auto">
-              <SettingsScreen focusCloud={settingsFocusCloud} />
+              <SettingsScreen key={settingsSection ?? "top"} focusCloud={settingsFocusCloud} focusSection={settingsSection} />
             </div>
           ) : selectedLogin ? (
             <SessionPanel
@@ -1079,6 +1080,7 @@ export default function App() {
                     onOpenSession={selectSession}
                     onNewSession={() => setNewSession(true)}
                     onAddAccounts={() => setFirstRun(true)}
+                    onLimit={setLimitFor}
                   />
                 </div>
               ) : (
@@ -1255,6 +1257,23 @@ export default function App() {
         />
       )}
 
+      {limitFor && sessions.some((s) => s.id === limitFor) && (
+        <LimitDialog
+          session={sessions.find((s) => s.id === limitFor)!}
+          sessions={sessions}
+          now={now}
+          onClose={() => setLimitFor(null)}
+          onParked={() => void refresh()}
+          onChooseAnother={() => {
+            setLimitFor(null);
+            selectSession(limitFor);
+          }}
+          onContinue={(target) => {
+            setLimitFor(null);
+            setSwitchFlow({ sessionId: limitFor, targetProfileId: target.recipe_id, targetLabel: target.account_label });
+          }}
+        />
+      )}
       {switchFlow && (
         <SwitchFlow
           sessionId={switchFlow.sessionId}

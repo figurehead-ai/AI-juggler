@@ -3228,6 +3228,8 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await goTo(page, "Accounts");
+      // D-25: the matrix sits behind its disclosure on Accounts.
+      await page.getByTestId("accounts-beta-matrix").locator("summary").click();
       await expect(page.getByTestId("beta-matrix")).toBeVisible();
     };
 
@@ -4803,12 +4805,15 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await goTo(page, "Accounts");
-      await expect(page.getByTestId("pack-secrets")).toBeVisible();
-      await expect(page.getByTestId("pack-secrets-unset")).toBeVisible();
       await page.getByRole("button", { name: /Edit launch settings/ }).first().click();
       await page.getByTestId("recipe-env-toggle").first().click();
       await expect(page.getByTestId("env-overlay-editor")).toBeVisible();
       await shot41(page, `accounts-pack-secrets-${vp.name}-${theme}`);
+      // D-25: the choice itself is in Settings, one link from Accounts.
+      await page.getByTestId("accounts-pack-settings").click();
+      await expect(page.getByTestId("pack-secrets")).toBeVisible();
+      await expect(page.getByTestId("pack-secrets-unset")).toBeVisible();
+      await shot41(page, `settings-pack-secrets-${vp.name}-${theme}`);
     });
   }
 }

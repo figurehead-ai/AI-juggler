@@ -82,8 +82,16 @@ function SettingsSection({ id, children }: { id: SectionId; children: ReactNode 
   );
 }
 
-export function SettingsScreen({ focusCloud = false }: { focusCloud?: boolean }): JSX.Element {
-  const [current, setCurrent] = useState<SectionId>(focusCloud ? "account" : "general");
+export function SettingsScreen({
+  focusCloud = false,
+  focusSection,
+}: {
+  focusCloud?: boolean;
+  /** D-25: open on this section (a link from another screen). */
+  focusSection?: string;
+}): JSX.Element {
+  const opening = SECTIONS.find((section) => section.id === focusSection)?.id;
+  const [current, setCurrent] = useState<SectionId>(opening ?? (focusCloud ? "account" : "general"));
   const [accounts, setAccounts] = useState<AccountInfo[]>([]);
   useEffect(() => {
     void accountsList().then(setAccounts, () => setAccounts([]));
@@ -99,8 +107,9 @@ export function SettingsScreen({ focusCloud = false }: { focusCloud?: boolean })
     document.getElementById(`settings-${id}-title`)?.focus({ preventScroll: true });
   }, []);
   useEffect(() => {
-    if (focusCloud) document.getElementById("settings-account")?.scrollIntoView?.({ block: "start" });
-  }, [focusCloud]);
+    if (opening) jump(opening);
+    else if (focusCloud) document.getElementById("settings-account")?.scrollIntoView?.({ block: "start" });
+  }, [focusCloud, opening, jump]);
   // Shows where you are while scrolling (not where jsdom has no layout).
   useEffect(() => {
     if (typeof IntersectionObserver === "undefined") return;

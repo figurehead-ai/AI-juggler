@@ -25,6 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The session view opens on a short summary; everything else is under
   Details. Announcements say what happened ("waiting for your reply"),
   not rule codes.
+- Accounts shows each account's runway in words — the 5-hour window
+  and the week, when each resets, and when this pace would run out — plus
+  what runs on it and the best account for new work. Usage leads with the
+  same runway and explains itself when nothing is set up yet.
+- When an account hits its limit, one decision: continue now on the best
+  other account, park the session until the reset (it's offered back;
+  nothing restarts on its own), or choose another.
 - List density moved to Settings › Appearance, with each choice
   described.
 - First run, when there are no accounts yet: what's already on this Mac

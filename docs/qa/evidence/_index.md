@@ -16,6 +16,8 @@
 | AJ-E1012 | PASS8 | 2026-10-19 | [manifest](AJ-E1012/manifest.md) |
 | AJ-E1013 | PASS7 | 2026-10-19 | [manifest](AJ-E1013/manifest.md) |
 | AJ-E1014 | PASS8 | 2026-10-19 | [manifest](AJ-E1014/manifest.md) |
+| AJ-E1015 | PASS4 | 2026-10-19 | [manifest](AJ-E1015/manifest.md) |
+| AJ-E1016 | PASS7 | 2026-10-19 | [manifest](AJ-E1016/manifest.md) |
 | AJ-E102 | PASS2 | 2026-10-13 | [manifest](AJ-E102/manifest.md) |
 | AJ-E103 | PASS2 | 2026-10-13 | [manifest](AJ-E103/manifest.md) |
 | AJ-E104 | PASS6 | 2026-10-13 | [manifest](AJ-E104/manifest.md) |

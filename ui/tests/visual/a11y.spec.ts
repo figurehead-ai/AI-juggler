@@ -1157,6 +1157,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     await goTo(page, "Accounts");
+    await page.getByTestId("accounts-beta-matrix").locator("summary").click(); // D-25: behind a disclosure
     await expect(page.getByTestId("beta-matrix-table")).toBeVisible();
     // Real table semantics: scoped column + row headers.
     await expect(page.getByTestId("beta-matrix-table").locator("th[scope='col']").first()).toBeVisible();
@@ -1887,12 +1888,15 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     await goTo(page, "Accounts");
-    await expect(page.getByRole("group", { name: "Your choice (all Providers)" })).toBeVisible();
     await page.getByRole("button", { name: /Edit launch settings/ }).first().click();
     await page.getByTestId("recipe-env-toggle").first().click();
     await expect(page.getByLabel("Variable name 1")).toHaveValue("CLAUDE_CODE_MAX_OUTPUT_TOKENS");
     await page.getByTestId("expert-hatch").first().click();
     await expect(page.getByTestId("expert-panel").first()).toBeVisible();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+    // D-25: the pack-secrets choice is one link away, in Settings.
+    await page.getByTestId("accounts-pack-settings").click();
+    await expect(page.getByRole("group", { name: "Your choice (all Providers)" })).toBeVisible();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
   });
 }
