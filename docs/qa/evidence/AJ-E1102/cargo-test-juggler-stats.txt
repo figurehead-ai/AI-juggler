@@ -1,0 +1,44 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 13.21s
+     Running unittests src/lib.rs (target/debug/deps/juggler_stats-3e753f3829bfcb31)
+
+running 19 tests
+test buckets::tests::counts_bucket_as_the_schema_says ... ok
+test buckets::tests::histogram_buckets_follow_their_lower_edges ... ok
+test buckets::tests::totals_keep_two_significant_figures ... ok
+test buckets::tests::versions_keep_major_minor_only ... ok
+test mode::tests::overrides_win_in_order_with_their_reason ... ok
+test mode::tests::the_choice_applies_without_overrides ... ok
+test tests::a_full_channel_drops_and_counts ... ok
+test tests::a_week_of_counters_flushes_in_under_5_ms ... flush: 77 rows in 1153 µs
+ok
+test tests::counters_gauges_histograms_and_days_reach_the_store ... ok
+test tests::delete_all_removes_everything ... ok
+test tests::dims_keys_are_json_in_schema_order ... ok
+test tests::drops_become_the_stats_dropped_counter ... ok
+test tests::off_creates_no_folder_and_records_nothing ... ok
+test tests::record_is_under_a_microsecond ... record(): median 37 ns per event (share); 0 ns per event (off)
+ok
+test tests::the_folder_is_private ... ok
+test tests::utc_days ... ok
+test week::tests::a_week_runs_monday_to_monday ... ok
+test week::tests::civil_round_trips ... ok
+test week::tests::iso_weeks_match_known_dates ... ok
+
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/parity.rs (target/debug/deps/parity-e6f440bf54a24ca0)
+
+running 3 tests
+test every_metric_has_exactly_one_typed_variant ... ok
+test the_generated_file_is_current ... stats-events: up to date
+ok
+test the_metadata_table_equals_the_schema ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+   Doc-tests juggler_stats
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

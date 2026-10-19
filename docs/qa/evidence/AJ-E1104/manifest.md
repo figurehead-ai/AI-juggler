@@ -2,8 +2,8 @@
 
 Task: `docs/tasks/E11-usage-statistics.md` AJ-E1104 (weekly assembly,
 sampling, config, upload and backoff). 2026-10-18, reviewer claude-opus.
-Logs: [`cargo-test-juggler-stats.log`](cargo-test-juggler-stats.log)
-(fake-clock tests), [`live-local-server.log`](live-local-server.log)
+Logs: [`cargo-test-juggler-stats.txt`](cargo-test-juggler-stats.txt)
+(fake-clock tests), [`live-local-server.txt`](live-local-server.txt)
 (the service's local development server).
 
 | Claim | Threshold | Observed | Verdict | Date | Reviewer |
@@ -15,7 +15,7 @@ Logs: [`cargo-test-juggler-stats.log`](cargo-test-juggler-stats.log)
 | Release builds ignore `AI_JUGGLER_STATS_ENDPOINT`; debug builds upload only there | Req.5 | `release_builds_ignore_the_endpoint_variable`; `ci_debug_and_unanswered_consent_never_send` (CI, a debug build without the endpoint, and an unanswered consent version: zero requests, report kept in `pending/`) | PASS | 2026-10-18 | claude-opus |
 | Off and local make zero stats requests | spec §9 | `off_does_nothing_and_creates_nothing` (no folder, no requests); app `off_and_local_send_nothing` (recording transport: 0) | PASS | 2026-10-18 | claude-opus |
 | Assembly < 50 ms; typical < 4 KB; ≤ 8 KB hard (`ui.*`, `perf.*`, then the rest) | perf budget | `assembly: 21 µs (best of 5)`; the live report is 400 bytes; worst case 8,192 bytes with no `ui.*` entries left | PASS | 2026-10-18 | claude-opus |
-| A run against the local stats endpoint (debug build) | evidence | `live-local-server.log`: assembled → pending → uploaded → `202` → `sent/`; the same report again → `200 {"duplicate":true}` | PASS | 2026-10-18 | claude-opus |
+| A run against the local stats endpoint (debug build) | evidence | `live-local-server.txt`: assembled → pending → uploaded → `202` → `sent/`; the same report again → `200 {"duplicate":true}` | PASS | 2026-10-18 | claude-opus |
 
 Notes:
 

@@ -2,7 +2,7 @@
 
 Task: `docs/tasks/E11-usage-statistics.md` AJ-E1108 (the puzzle solver
 and the user agent). 2026-10-18, reviewer claude-opus. Log:
-[`../AJ-E1104/cargo-test-juggler-stats.log`](../AJ-E1104/cargo-test-juggler-stats.log).
+[`../AJ-E1104/cargo-test-juggler-stats.txt`](../AJ-E1104/cargo-test-juggler-stats.txt).
 
 | Claim | Threshold | Observed | Verdict | Date | Reviewer |
 |---|---|---|---|---|---|

@@ -3,7 +3,7 @@
 Task: `docs/tasks/E11-usage-statistics.md` AJ-E1102 (the `juggler-stats`
 crate: modes, overrides, counting, the local store, the `stats` cargo
 feature). 2026-10-18, reviewer claude-opus. Test log:
-[`cargo-test-juggler-stats.log`](cargo-test-juggler-stats.log).
+[`cargo-test-juggler-stats.txt`](cargo-test-juggler-stats.txt).
 
 | Claim | Threshold | Observed | Verdict | Date | Reviewer |
 |---|---|---|---|---|---|

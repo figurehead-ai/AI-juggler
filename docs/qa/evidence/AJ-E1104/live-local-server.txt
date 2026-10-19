@@ -1,0 +1,18 @@
+# AJ-E1104 against the stats service's local development server, 2026-10-18.
+# Server: the website clone's `npm run stats:dev` (port 8790) with
+# "enabled": true set locally for the run, then reverted
+# (`git checkout -- .`; clone clean afterwards). Never production.
+# Client: AIJ_E2E_STATS_URL=http://localhost:8790 cargo test -p juggler-app
+#   --lib usage_stats::tests::live -- --ignored --nocapture
+# A debug build with AI_JUGGLER_STATS_ENDPOINT set; the envelope presents
+# version 0.1.0 because this workspace (0.0.1) is below the service's
+# min_app_version and is correctly skipped as `version`.
+
+running 1 test
+assembled: [("2026-W42", Pending { upload_at_ms: 1792876527019 })]
+uploads: [("2026-W42", Sent)]
+report: {"schema":1,"report_id":"a79c0a93-b22f-4dd5-b18a-4994a041b359","week":"2026-W42","sample_rate":1.0,"app":{"version":"0.1.0","channel":"beta"},"os":{"name":"macos","major":27,"arch":"arm64"},"install_age":"<1w","days_active":3,"consent_version":1,"entries":[{"m":"app.launch","d":{},"v":3},{"m":"switch.duration_s","d":{"kind":"provider"},"h":[0,0,2,0]}]}
+again: 200 {"ok":true,"duplicate":true}
+test usage_stats::tests::live_stats_server_accepts_a_report ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 136 filtered out; finished in 0.41s
