@@ -134,7 +134,10 @@ jobs:
           PY
             )
             rm -rf "$bundle"
-            (cd crates/juggler-app && cargo tauri build --target universal-apple-darwin --config "$config")
+            # From the repository root, as `just app` does: that's where the
+            # Tauri CLI finds the UI project (ui/) and runs `pnpm build` in it.
+            # From crates/juggler-app it finds none and the UI build fails.
+            cargo tauri build --target universal-apple-darwin --config "$config"
             app="$(ls -d "$bundle"/macos/*.app | head -1)"
             dmg="$(ls "$bundle"/dmg/*.dmg | head -1)"
             echo "::group::Verify $app"
