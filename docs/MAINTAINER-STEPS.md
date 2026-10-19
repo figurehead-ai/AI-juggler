@@ -144,8 +144,14 @@ rollback all work before any user depends on them.
       Gatekeeper must open each without warnings. AI Juggler's Settings ›
       About & updates shows the version and the Stable/Beta picker; AI
       Juggler Nightly's shows "nightly channel" and a **Nightly** badge
-      in the sidebar. Use AI Juggler for real work; give Nightly test
-      Accounts.
+      in the sidebar. Use AI Juggler for real work and Nightly to try
+      new builds: each keeps its own copies of your Accounts. In Nightly,
+      press ⌘K and change the Go to instance shortcut, since both apps
+      want ⌥Space.
+- [ ] Use AI Juggler Nightly for at least 3 days of real work (D-24).
+      Report what you find; anything that loses data, uses the wrong
+      account, stops the wrong process, crashes at launch or breaks an
+      update gets the `blocker` label.
 - [ ] Write its user notes (`docs/releases/X.Y.Z.md`; the agent drafts
       them for you to approve), then **Actions** → **Promote** → version
       `X.Y.Z`, channel `beta`. When the run waits for you, open it and

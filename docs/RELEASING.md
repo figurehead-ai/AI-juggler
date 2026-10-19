@@ -7,8 +7,15 @@ travels **nightly → beta → stable**:
 | Channel | Who it's for | How a build gets there |
 |---|---|---|
 | **Nightly** | People who want the newest code and accept rough edges. Installed as its own app, **AI Juggler Nightly** | `nightly.yml` builds `main` every day there's a new commit. No approval |
-| **Beta** | Newer features, a little less tested | `promote.yml` with the maintainer's approval (the `beta` environment) |
-| **Stable** | Well-tested releases for everyday work | `promote.yml` with the maintainer's approval (the `stable` environment), only for a version that was on beta, once the beta gate is signed |
+| **Beta** | Newer features, a little less tested | `promote.yml`, once the build has had **3+ days of real use** as AI Juggler Nightly and **no `blocker` issue is open** (D-24), with the maintainer's approval (the `beta` environment) |
+| **Stable** | Well-tested releases for everyday work | `promote.yml`, a deliberate release: only a version that has been on beta **14+ days** with **no open `blocker`**, once the beta gate is signed, with the maintainer's approval (the `stable` environment) |
+
+**What counts as a blocker** (label the issue `blocker`): data loss, an
+Instance running on the wrong account, stopping a process AI Juggler
+doesn't own, a crash at launch, or a broken update or rollback. An open
+blocker stops every promotion until it's fixed or relabelled. A rule can
+be overridden only with a written reason (Promote's `override` input),
+which is kept in the channel tag.
 
 There is **one version stream**. A build is made once, by the nightly
 workflow, with the next version (`MAJOR.MINOR` from `Cargo.toml`, the patch
@@ -38,9 +45,12 @@ with their name. The edition comes from the bundle identifier
 overlay `tauri.conf.json`); a debug build is always Dev. So:
 
 - **Use AI Juggler for real work and AI Juggler Nightly to try what's
-  coming**, at the same time. Give Nightly its own test Accounts: both apps
-  can manage the same Claude account, but each would then set up its usage
-  meter in it.
+  coming**, at the same time. Each makes its own copy of an Account inside
+  its own data folder, so the two never write to the same Claude setup or
+  to `~/.claude`; you sign in once inside each copy, and both draw on the
+  same subscription's usage. Both want ⌥Space for Go to instance, and only
+  the one opened first gets it: give Nightly another shortcut (⌘K, then
+  change it there).
 - **Developers and agents run only AI Juggler Dev**, which can never open an
   installed edition's data.
 - **Promotion is unchanged**: beta and stable point at the AI Juggler build
@@ -127,9 +137,10 @@ commits, with task IDs and PR numbers removed). To build now, run
    - No task IDs, PR numbers, internal names or file paths. No raw HTML:
      screenshots are uploaded to the release and linked with Markdown.
 4. **Run Promote** (`workflow_dispatch`): version `X.Y.Z`, channel `beta`.
-   It checks the build and the notes, runs the accessibility gate on the
-   exact commit (`just a11y-gate`, AJ-E804), then waits for your approval in
-   the run. Approving points the beta feed at the build, puts the notes on
+   It checks the build, the notes and the D-24 requirements
+   (`scripts/promotion_rules.py`: 3+ days since the build was published, no
+   open `blocker`), runs the accessibility gate on the exact commit
+   (`just a11y-gate`, AJ-E804), then waits for your approval in the run. Approving points the beta feed at the build, puts the notes on
    the release and in its feed, and tags it `beta/vX.Y.Z`.
 5. **Check it.** Install the `.dmg` on a clean Mac and open it: Gatekeeper
    must not complain. Settings › About & updates shows the version.
@@ -137,7 +148,8 @@ commits, with task IDs and PR numbers removed). To build now, run
 **Promoting a version to stable** works the same way, with channel
 `stable`, and also needs:
 
-- the version was on beta first (the `beta/vX.Y.Z` tag);
+- the version has been on beta for 14+ days (counted from the annotated
+  `beta/vX.Y.Z` tag's date) and no `blocker` issue is open;
 - the beta gate is signed (`docs/qa/gate-beta.md`, AJ-E807; build it with
   `just gate-packet`, review it, fill in its Sign-off section, check with
   `just gate-signed`);

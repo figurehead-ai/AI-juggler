@@ -363,12 +363,46 @@
   build, never rebuilding it.
 - **Consequences**: AI Juggler keeps its existing folder, Keychain items
   and port (no migration). `just dev` and `just app` build AI Juggler Dev.
-  Nightly signing and notarizing take about twice as long. Both apps can
-  manage the same real Claude account; the guide advises test Accounts in
-  Nightly.
+  Nightly signing and notarizing take about twice as long. Each edition
+  keeps its own copies of Accounts, so both can be used for real work;
+  they share only the subscription's usage and the default ⌥Space
+  shortcut.
+
+### D-24 Channel requirements: when a build may move to beta and stable — SETTLED (2026-10-19)
+
+- **Ruling** (maintainer): who merges or deploys doesn't matter; what
+  matters is the point at which each channel is ready. Nightly gets
+  changes as they land, beta needs real usage testing, stable is a
+  deliberate release.
+- **Research**: Chrome (Canary daily with only automated testing; a
+  milestone ships to Stable after about four weeks on Beta, then a
+  staged rollout), Firefox (crash rate per channel; release criteria
+  reviewed for stability, performance, security, functionality), VS
+  Code (daily Insiders; an endgame week before each Stable), Rust (a
+  six-week nightly → beta → stable train; beta regressions fixed on the
+  main branch first).
+- **Decision**, sized for one maintainer and a few testers:
+  - **Nightly**: every new commit on `main`, required checks green,
+    signed and notarized. No gate.
+  - **Beta**: the build was published 3+ days ago and has been used as AI
+    Juggler Nightly for real work, and no issue labelled `blocker` is
+    open; notes written; the accessibility gate passes.
+  - **Stable**: 14+ days on beta (from the annotated `beta/vX.Y.Z` tag's
+    date), no open `blocker`, the beta gate signed, a CHANGELOG section;
+    and the maintainer chooses to release it.
+  - **Blocker**: data loss, an Instance on the wrong account, stopping a
+    process AI Juggler doesn't own, a crash at launch, a broken update or
+    rollback.
+- **Enforced** by `scripts/promotion_rules.py` (self-tested in CI) from
+  `promote.yml`. A rule is overridden only with a written reason, kept in
+  the channel tag.
+- **Later**: a crash-free-sessions threshold for stable once crash reports
+  have a service, and a short fixes-only freeze before a stable release
+  (one version stream means a beta fix otherwise brings other changes).
+- **Applied first to 0.0.4**: held until it meets the beta requirements.
 
 ## Unresolved (in discussion order)
 
 - None. D-01..D-15 were marked Final on maintainer instruction
   (2026-10-13); D-16 and D-17 were settled by maintainer instruction
-  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18 and D-20..D-23 on 2026-10-19; all follow the same law.
+  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18 and D-20..D-24 on 2026-10-19; all follow the same law.

@@ -4,10 +4,14 @@
 # rebuilt: the channel's feed is pointed at the same build.
 #
 # Beta needs: the build exists, its user-facing notes
-# (docs/releases/X.Y.Z.md on main) pass the notes check, and the
-# accessibility gate passes on the exact commit it was built from.
-# Stable also needs: the version was on beta first, and the beta gate
-# (docs/qa/gate-beta.md, AJ-E807) is signed.
+# (docs/releases/X.Y.Z.md on main) pass the notes check, the
+# accessibility gate passes on the exact commit it was built from, and
+# the D-24 requirements hold: the build is 3+ days old (real use as AI
+# Juggler Nightly) and no `blocker` issue is open.
+# Stable also needs: 14+ days on beta, no open `blocker`, the beta gate
+# (docs/qa/gate-beta.md, AJ-E807) signed, and a CHANGELOG section. A
+# D-24 requirement can be overridden only with a written reason, which
+# is kept in the channel tag.
 name: Promote
 
 on:
@@ -22,6 +26,11 @@ on:
         type: choice
         options: [beta, stable]
         required: true
+      override:
+        description: "Only to promote despite an unmet requirement (D-24): why"
+        type: string
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -33,6 +42,7 @@ concurrency:
 env:
   VERSION: ${{ inputs.version }}
   CHANNEL: ${{ inputs.channel }}
+  OVERRIDE: ${{ inputs.override }}
 
 jobs:
   check:
@@ -55,6 +65,27 @@ jobs:
           ref="$(gh release view "v$VERSION" --repo "$REPO" --json targetCommitish --jq .targetCommitish)" \
             || { echo "::error::no build v$VERSION — nightly.yml makes builds"; exit 1; }
           ./scripts/release_notes_check.sh "$VERSION"
+          # D-24: the channel's requirements, decided by promotion_rules.py.
+          built_at="$(gh release view "v$VERSION" --repo "$REPO" --json publishedAt --jq .publishedAt)"
+          beta_at=""
+          if beta_ref="$(gh api "repos/$REPO/git/ref/tags/beta/v$VERSION" --jq '.object.type + " " + .object.sha' 2>/dev/null)"; then
+            # An annotated tag carries the date the version reached beta.
+            [ "${beta_ref%% *}" = "tag" ] && beta_at="$(gh api "repos/$REPO/git/tags/${beta_ref#* }" --jq .tagger.date)"
+          fi
+          gh issue list --repo "$REPO" --label blocker --state open --json number,title > "$RUNNER_TEMP/blockers.json"
+          python3 - "$RUNNER_TEMP/facts.json" "$built_at" "$beta_at" "$RUNNER_TEMP/blockers.json" <<'PY'
+          import datetime, json, os, sys
+          out, built_at, beta_at, blockers = sys.argv[1:]
+          json.dump({
+            "now": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "built_at": built_at or None,
+            "beta_at": beta_at or None,
+            "blockers": json.load(open(blockers)),
+            "override": os.environ.get("OVERRIDE", ""),
+          }, open(out, "w"))
+          PY
+          python3 scripts/promotion_rules.py check "$CHANNEL" "$RUNNER_TEMP/facts.json" | tee "$RUNNER_TEMP/rules.txt"
+          { echo '```'; cat "$RUNNER_TEMP/rules.txt"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           if [ "$CHANNEL" = "stable" ]; then
             gh api "repos/$REPO/git/ref/tags/beta/v$VERSION" >/dev/null 2>&1 \
               || { echo "::error::v$VERSION was never on beta — promote it to beta first"; exit 1; }
@@ -154,8 +185,16 @@ jobs:
               --notes "The update feed ${CHANNEL} installs read. Not a release: download a version from the list above."
           fi
           gh release upload "$CHANNEL-channel" "$work/latest.json" --repo "$REPO" --clobber
-          # A record of where this build has been (stable checks for beta/).
-          gh api "repos/$REPO/git/refs" -f ref="refs/tags/$CHANNEL/v$VERSION" -f sha="$REF" >/dev/null \
+          # A record of where this build has been and since when: an
+          # annotated tag, whose date stable's 14 days count from (D-24).
+          message="v$VERSION on $CHANNEL"
+          [ -n "$OVERRIDE" ] && message="$message (requirement overridden: $OVERRIDE)"
+          tag="$(gh api "repos/$REPO/git/tags" -f tag="$CHANNEL/v$VERSION" -f message="$message" \
+            -f object="$REF" -f type=commit \
+            -f 'tagger[name]=github-actions[bot]' \
+            -f 'tagger[email]=41898282+github-actions[bot]@users.noreply.github.com' \
+            -f "tagger[date]=$(date -u +%Y-%m-%dT%H:%M:%SZ)" --jq .sha)"
+          gh api "repos/$REPO/git/refs" -f ref="refs/tags/$CHANNEL/v$VERSION" -f sha="$tag" >/dev/null \
             || echo "tag $CHANNEL/v$VERSION already exists"
           if [ "$CHANNEL" = "stable" ]; then
             gh release edit "v$VERSION" --repo "$REPO" --prerelease=false --latest
