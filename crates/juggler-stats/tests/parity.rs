@@ -125,3 +125,43 @@ fn the_generated_file_is_current() {
         .unwrap();
     assert!(status.success(), "run scripts/gen_stats_events.py");
 }
+
+#[test]
+fn every_event_parses_back_from_its_wire_form_and_nothing_else_does() {
+    for event in StatEvent::examples() {
+        assert_eq!(
+            StatEvent::parse(event.metric(), &event.dims(), event.observation()),
+            Some(event),
+            "{}",
+            event.metric()
+        );
+    }
+    assert_eq!(StatEvent::parse("no.such_metric", &[], None), None);
+    assert_eq!(
+        StatEvent::parse("app.launch", &[("extra", "x")], None),
+        None
+    );
+    assert_eq!(
+        StatEvent::parse("app.launch", &[], Some(1.0)),
+        None,
+        "a counter takes no value"
+    );
+    assert_eq!(
+        StatEvent::parse("switch.duration_s", &[("kind", "account")], None),
+        None
+    );
+    assert_eq!(
+        StatEvent::parse(
+            "instance.ended",
+            &[("provider", "codex"), ("outcome", "exploded")],
+            None
+        ),
+        None,
+        "a value outside the schema"
+    );
+    assert_eq!(
+        StatEvent::parse("instance.ended", &[("provider", "codex")], None),
+        None,
+        "a missing dimension"
+    );
+}

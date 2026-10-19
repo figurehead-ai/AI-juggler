@@ -129,6 +129,9 @@ impl serde::Serialize for AppError {
     where
         S: serde::Serializer,
     {
+        // AJ-E1103: an error crossing to the interface is one the user
+        // met; usage stats count its class (never its text).
+        crate::usage_stats::error_surfaced(self);
         self.wire().serialize(serializer)
     }
 }

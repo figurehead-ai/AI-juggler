@@ -962,6 +962,7 @@ fn step_account_alerts(
             .any(|line| line.key == id && line.text == display.renewal.label)
     {
         *digest = juggler_core::alerts::digest_add(digest, &id, &display.renewal.label);
+        crate::usage_stats::count("renewal.warning_shown", &[]);
     }
     for (slot, window) in [
         ("five_hour", &display.five_hour),
@@ -1022,6 +1023,7 @@ fn step_account_alerts(
             AlertEmission::None | AlertEmission::ResetReached => None,
         };
         if let Some((kind, text)) = event {
+            crate::usage_stats::quota_alert(account.harness.as_str(), slot, kind);
             out.push(AlertEventInfo {
                 kind: kind.to_owned(),
                 account: id.clone(),
@@ -1309,11 +1311,22 @@ pub fn quota_display(
     let record = storage
         .accounts()
         .get(&juggler_core::model::AccountId::new(account.clone()))?;
-    Ok(quota_display_inner(
+    let display = quota_display_inner(
         &storage,
         &record,
         juggler_core::model::Timestamp::now().millis(),
-    ))
+    );
+    // AJ-E1103: the Usage tab is showing an exhaustion forecast.
+    if display.forecast.tte_min.is_some() {
+        crate::usage_stats::count(
+            "usage.forecast_shown",
+            &[(
+                "provider",
+                crate::usage_stats::provider(record.harness.as_str()),
+            )],
+        );
+    }
+    Ok(display)
 }
 
 /// AJ-E610: the two-clock display for EVERY account (the rail chip /
@@ -2183,6 +2196,9 @@ pub fn funnel_event_impl(
     juggler_core::funnel_events::FunnelLog::open(&state.data_dir)
         .append(&event)
         .map_err(core_to_app)?;
+    // AJ-E1103: the onboarding steps the funnel already records, counted
+    // (its fields are schema-checked counts and words).
+    crate::usage_stats::funnel_event(kind, &event.fields);
     if first_launch {
         lock_storage_arc(state)?
             .app_settings()
@@ -2743,7 +2759,7 @@ pub fn account_import(
     origin: Option<String>,
     degraded: Option<bool>,
 ) -> AppResult<ImportResult> {
-    account_import_impl(
+    let imported = account_import_impl(
         state.inner(),
         &harness,
         &source_path,
@@ -2751,7 +2767,9 @@ pub fn account_import(
         plan,
         origin,
         degraded.unwrap_or(false),
-    )
+    );
+    crate::usage_stats::import_finished(&harness, imported.as_ref().err());
+    imported
 }
 
 /// Core implementation shared with integration tests.
@@ -3249,6 +3267,7 @@ pub fn launch_profile(
             window: None,
             transcript_ref: None,
         })?;
+        crate::usage_stats::instance_started(account.harness.as_str(), false, "new");
     };
     crate::identity::record(state, &session_id, &account, &assertion, "launch");
     Ok(LaunchResult {
@@ -3362,6 +3381,7 @@ pub fn desktop_launch_arc(state: &Arc<AppState>, account_id: &str) -> AppResult<
             }),
             transcript_ref: None,
         })?;
+        crate::usage_stats::instance_started(account.harness.as_str(), true, "new");
     }
     Ok(DesktopLaunchInfo {
         session_id: session_id.to_string(),
@@ -3990,6 +4010,14 @@ pub fn apply_lifecycle_event(
             if record.status != SessionStatus::QuotaBlocked {
                 record.attention = None;
             }
+            // AJ-E1103: a signal nobody asked for is a crash.
+            let outcome = match (record.status, kind) {
+                (SessionStatus::Finished, _) => "finished",
+                (SessionStatus::Stopped, _) if stopped_by_user => "stopped",
+                (_, juggler_supervisor::ExitKind::Signaled(_)) => "crashed",
+                _ => "failed",
+            };
+            crate::usage_stats::instance_ended(storage, &record, outcome);
         }
     }
     record.last_activity = Some(Timestamp::now());
@@ -4005,9 +4033,13 @@ pub fn apply_attention_transition(
     transition: &juggler_supervisor::AttentionTransition,
 ) -> Option<SessionRecord> {
     let mut record = storage.sessions().get(session).ok()?;
+    let entered = record.status != transition.status;
     record.status = transition.status;
     record.attention = Some(transition.reason.clone());
     storage.sessions().update(&record).ok()?;
+    if entered {
+        crate::usage_stats::instance_state_entered(storage, &record);
+    }
     Some(record)
 }
 
@@ -4401,6 +4433,7 @@ pub fn emit_resources(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResul
             })
             .collect()
     };
+    crate::usage_stats::resources_sampled(&payload);
     if payload.is_empty() {
         return Ok(());
     }
@@ -5421,14 +5454,23 @@ pub fn switch_execute(
     freeze_choice: String,
     redaction_choice: Option<String>,
     redaction_unredact: Option<Vec<u32>>,
+    trigger: Option<String>,
 ) -> AppResult<SwitchExecutedInfo> {
-    switch_execute_impl(
+    // AJ-E1103: why the user switched (a closed word; anything else is
+    // a manual switch).
+    let trigger = match trigger.as_deref() {
+        Some("quota_wall") => "quota_wall",
+        Some("suggestion") => "suggestion",
+        _ => "manual",
+    };
+    switch_execute_core(
         state.inner(),
         &session_id,
         &target_profile_id,
         &freeze_choice,
         redaction_choice.as_deref(),
         &redaction_unredact.unwrap_or_default(),
+        trigger,
     )
 }
 
@@ -5444,6 +5486,27 @@ pub fn switch_execute_impl(
     freeze_choice: &str,
     redaction_choice: Option<&str>,
     redaction_unredact: &[u32],
+) -> AppResult<SwitchExecutedInfo> {
+    switch_execute_core(
+        state,
+        session_id,
+        target_profile_id,
+        freeze_choice,
+        redaction_choice,
+        redaction_unredact,
+        "manual",
+    )
+}
+
+/// [`switch_execute_impl`] with the switch's trigger (AJ-E1103).
+fn switch_execute_core(
+    state: &Arc<AppState>,
+    session_id: &str,
+    target_profile_id: &str,
+    freeze_choice: &str,
+    redaction_choice: Option<&str>,
+    redaction_unredact: &[u32],
+    trigger: &'static str,
 ) -> AppResult<SwitchExecutedInfo> {
     use juggler_handover::pipeline::{self, FreezeChoice, Mechanism};
 
@@ -5483,6 +5546,12 @@ pub fn switch_execute_impl(
     // failures transition it, history is never rewritten.
     let (work_id, from_epoch, edge_id) =
         record_edge_staged(state, &source, &reference, &account_a, &account_b)?;
+    let switch = crate::usage_stats::Switch::started(
+        account_a.harness.as_str(),
+        account_b.harness.as_str(),
+        "transplant",
+        trigger,
+    );
 
     // The pipeline: snapshot → stage → verify → launch (the app's
     // supervisor hook) → the copy-never-move invariant.
@@ -5511,6 +5580,7 @@ pub fn switch_execute_impl(
         Ok(value) => value,
         Err(failure) => {
             record_edge_failed(state, &edge_id, &failure);
+            switch.failed(failure.stage());
             return Err(AppError::Io {
                 context: "hand over",
                 message: failure.copy(&account_a.label),
@@ -5532,6 +5602,7 @@ pub fn switch_execute_impl(
     )?;
 
     crate::identity::record(state, &new_session, &account_b, &assertion, "switch");
+    switch.succeeded();
 
     // AJ-E208: the switch's redaction decision rides the edge.
     record_redaction_decision(
@@ -5577,7 +5648,9 @@ pub fn switch_undo(
 pub fn switch_undo_impl(state: &Arc<AppState>, edge_id: &str) -> AppResult<LaunchResult> {
     let context = undo_edge_context(state, edge_id)?;
     stop_continuation(state, context.target_session.clone())?;
-    undo_resume_source(state, &context)
+    let resumed = undo_resume_source(state, &context)?;
+    crate::usage_stats::switch_undone(&context.edge);
+    Ok(resumed)
 }
 
 /// The read-side of a switch to undo (AJ-E206).
@@ -5796,6 +5869,11 @@ fn record_compensating_edge(
         window: None,
         transcript_ref: source.transcript_ref.clone(),
     })?;
+    crate::usage_stats::instance_started(
+        &crate::usage_stats::harness_of_recipe(&storage, profile),
+        false,
+        "relaunch",
+    );
     let graph = storage.switch_graph();
     let epoch_undo = EpochId::new(format!("ep-{}", unique_suffix()));
     graph.insert_epoch(&Epoch {
@@ -5857,6 +5935,14 @@ fn record_redaction_decision(
         juggler_handover::redaction::resolve_policy(global, r#override)
     };
     let chosen = redaction_choice.and_then(juggler_handover::redaction::RedactionPolicy::from_wire);
+    if redaction_choice.is_some() {
+        // AJ-E1103: the user reviewed redaction on this switch.
+        let changed = !redaction_unredact.is_empty() || (chosen.is_some() && chosen != policy);
+        crate::usage_stats::count(
+            "pack.redaction_reviewed",
+            &[("outcome", if changed { "changed" } else { "kept" })],
+        );
+    }
     let applied = chosen
         .or(policy)
         .map_or_else(|| "unset".to_owned(), |parsed| parsed.as_str().to_owned());
@@ -6075,6 +6161,7 @@ fn record_edge_succeeded(
             native_id: Some(native_id.clone()),
         }),
     })?;
+    crate::usage_stats::instance_started(target.harness.as_str(), false, "switch");
     let graph = storage.switch_graph();
     let to_epoch = EpochId::new(format!("ep-{}", unique_suffix()));
     graph.insert_epoch(&Epoch {
@@ -7347,6 +7434,10 @@ pub fn orphan_stop_audited(
     if !state.orphans.allows(session, pid) {
         let outcome = juggler_supervisor::StopOutcome::RefusedNotRecorded;
         state.orphans.record_stop(pid, outcome.clone());
+        crate::usage_stats::count(
+            "leftover.verify_refused",
+            &[("reason", "ownership_unverified")],
+        );
         return Ok(StopOutcomeInfo {
             pid,
             state: outcome.state_label().to_string(),
@@ -7356,7 +7447,17 @@ pub fn orphan_stop_audited(
     // the first signal; a failed write refuses the kill with the
     // typed error (never a silent `let _ =`), and the ladder runs
     // only behind a recorded intent.
-    let (intent_id, _ports_before) = audit_kill_intent(state, audit, session, pid)?;
+    let (intent_id, ports_before) = audit_kill_intent(state, audit, session, pid)?;
+    // AJ-E1103: what it is and holds, read before it goes.
+    let before = if crate::usage_stats::recording() {
+        state
+            .resources
+            .lock()
+            .ok()
+            .and_then(|collector| collector.lookup(pid))
+    } else {
+        None
+    };
     let outcome = juggler_supervisor::stop_pid_ladder(pid, Duration::from_secs(2), |pid| {
         juggler_supervisor::process_alive(pid).is_some()
     });
@@ -7373,6 +7474,22 @@ pub fn orphan_stop_audited(
         // floor) already exists; a failed completion degrades to the
         // truthful pending record, read as `outcome unknown`.
         let _ = audit.complete(id, outcome.state_label(), ports_after.as_deref());
+    }
+    if let (juggler_supervisor::StopOutcome::Gone { .. }, Some((name, rss))) = (&outcome, &before) {
+        let ports = |list: Option<&str>| {
+            list.unwrap_or_default()
+                .split(',')
+                .filter(|port| !port.trim().is_empty())
+                .count()
+        };
+        let freed = ports(ports_before.as_deref()).saturating_sub(ports(ports_after.as_deref()));
+        crate::usage_stats::leftover_cleaned(
+            name,
+            "",
+            false,
+            u64::try_from(freed).unwrap_or(0),
+            *rss,
+        );
     }
     Ok(StopOutcomeInfo {
         pid,
@@ -8059,6 +8176,10 @@ pub fn kill_execute_as(
     // ZERO signals and the exact copy.
     let verified = verify_kill_target(state, &session, row);
     if !verified {
+        crate::usage_stats::count(
+            "leftover.verify_refused",
+            &[("reason", "ownership_unverified")],
+        );
         return Ok(KillExecuteInfo {
             refusal: Some(KILL_REFUSAL_COPY.to_string()),
             members: vec![KillMemberOutcome {
@@ -8074,6 +8195,8 @@ pub fn kill_execute_as(
     // Scope enumeration (Req.1's three scopes; the UI defaults to
     // the narrowest that covers the goal).
     let members = scope_members(scope, &rows, pid)?;
+    // AJ-E1103: memory the members hold now (freed if they go).
+    let rss_before = crate::usage_stats::rss_of(state, &members);
     // The port facts: the goal port when the user stated one (the
     // port that opened the sheet — it may be held by an ESCAPED
     // sibling, which is exactly the honest-still-holding case),
@@ -8130,6 +8253,10 @@ pub fn kill_execute_as(
         let ports_after = (!ports_after.is_empty()).then_some(ports_after);
         // Best-effort (E509's floor is the intent row itself).
         let _ = audit.complete(intent_id, &vocabulary, ports_after.as_deref());
+    }
+    if outcome.all_succeeded() && !outcome.cancelled {
+        let held: Vec<u16> = still_holding.iter().map(|held| held.port).collect();
+        crate::usage_stats::leftover_killed(row, actor, ports_before.as_deref(), &held, rss_before);
     }
     let members = outcome
         .members
@@ -8473,7 +8600,16 @@ pub fn processes_tick(state: &Arc<AppState>) {
         let tracked = state.orphans.tracked_pids();
         if !tracked.is_empty() {
             collector.refresh_pids(&tracked);
-            let _ = state.orphans.poll(now, |pid| collector.lookup(pid));
+            let confirmed = state.orphans.poll(now, |pid| collector.lookup(pid));
+            for orphan in &confirmed {
+                crate::usage_stats::count(
+                    "leftover.detected",
+                    &[(
+                        "category",
+                        crate::usage_stats::leftover_category(&orphan.name, ""),
+                    )],
+                );
+            }
         }
     }
     auto_cleanup_sweep(state, now);
@@ -8904,6 +9040,7 @@ pub fn cleanup_alerts_inner(state: &Arc<AppState>) -> CleanupAlertsInfo {
             let Some(top) = top else { continue };
             let helper = top.name.rsplit('/').next().unwrap_or(&top.name).to_string();
             let instance = instance_label_for(state, &session);
+            crate::usage_stats::resource_alert_shown("memory_hog", &session, top.pid);
             alerts.push(CleanupAlertInfo {
                 kind: "hog".into(),
                 text: format!(
@@ -8963,6 +9100,7 @@ pub fn cleanup_alerts_inner(state: &Arc<AppState>) -> CleanupAlertsInfo {
             .next()
             .unwrap_or(&row.exe_path)
             .to_string();
+        crate::usage_stats::resource_alert_shown("idle", &row.session_id, pid);
         alerts.push(CleanupAlertInfo {
             kind: "idle".into(),
             text: format!(
@@ -9450,7 +9588,22 @@ fn persist_running_model(
         return false; // unchanged: no write, no emit
     }
     record.running = Some(next.clone());
-    storage.sessions().update(&record).is_ok()
+    let updated = storage.sessions().update(&record).is_ok();
+    if updated && crate::usage_stats::recording() {
+        // AJ-E1103: the model family only, never the name.
+        let harness = crate::usage_stats::harness_of_recipe(&storage, &record.profile);
+        crate::usage_stats::count(
+            "instance.running_model",
+            &[
+                ("provider", crate::usage_stats::provider(&harness)),
+                (
+                    "model_family",
+                    crate::usage_stats::model_family(&next.model),
+                ),
+            ],
+        );
+    }
+    updated
 }
 
 #[cfg(test)]
@@ -10456,6 +10609,9 @@ pub fn switch_back_plan_impl(
             ),
         ),
     };
+    if away_only_turns > 0 || !conflicts.is_empty() {
+        crate::usage_stats::count("switch.divergence_shown", &[]);
+    }
     Ok(SwitchBackPlanInfo {
         suggestion: suggestion_copy(&original_account.label, &delta_input.away_account),
         original_account: original_account.label.clone(),
@@ -10538,15 +10694,27 @@ pub fn switch_back_execute_impl(
         stop_away_instance(state, &lineage.away_session.id)?;
     }
 
-    resume_original_with_delta(
+    let resumed = resume_original_with_delta(
         state,
         &lineage,
         &away_account,
-        original_account,
+        original_account.clone(),
         &delta_input,
         &verdict,
         &actions,
-    )
+    )?;
+    crate::usage_stats::count(
+        "switch.back",
+        &[(
+            "kind",
+            if away_account.harness == original_account.harness {
+                "account"
+            } else {
+                "provider"
+            },
+        )],
+    );
+    Ok(resumed)
 }
 
 /// Parses the UI's wire choices into resolutions (unknown wire
@@ -10778,6 +10946,7 @@ fn record_switch_back_edge(
         window: None,
         transcript_ref: original_session.transcript_ref.clone(),
     })?;
+    crate::usage_stats::instance_started(account_a.harness.as_str(), false, "switch");
     let graph = storage.switch_graph();
     let epoch_id = EpochId::new(format!("ep-{}", unique_suffix()));
     graph.insert_epoch(&Epoch {
@@ -11283,6 +11452,8 @@ fn redaction_items_of(source: &juggler_core::model::InstanceRecord) -> Vec<Redac
 pub struct SwitchTargetInfo {
     /// The launch recipe the switch would run under.
     pub recipe_id: String,
+    /// Its Provider id (AJ-E1103: a suggestion is counted by Provider).
+    pub provider: String,
     /// Its account id.
     pub account_id: String,
     /// Its account label.
@@ -11428,6 +11599,7 @@ pub fn switch_targets_impl(
             });
             out.push(SwitchTargetInfo {
                 recipe_id: recipe.id.to_string(),
+                provider: account.harness.to_string(),
                 account_id: account.id.to_string(),
                 account_label: account.label.clone(),
                 badge: juggler_handover::validation::advertised_badge(
@@ -11802,6 +11974,7 @@ pub fn epoch_resume_impl(state: &Arc<AppState>, epoch_id: &str) -> AppResult<Lau
                 window: None,
                 transcript_ref: session_row.transcript_ref.clone(),
             })?;
+        crate::usage_stats::instance_started(account.harness.as_str(), false, "resume");
     }
     Ok(LaunchResult {
         session_id: new_session.to_string(),
@@ -11953,6 +12126,11 @@ pub(crate) fn stage_session_pack(
         context: "export pack",
         message: error.to_string(),
     })?;
+    if crate::usage_stats::recording() {
+        #[allow(clippy::cast_precision_loss)] // a size into a bucket
+        let kb = crate::usage_stats::dir_bytes(dir) as f64 / 1024.0;
+        crate::usage_stats::observe("pack.size_kb", &[], kb);
+    }
     Ok(())
 }
 
@@ -12540,6 +12718,9 @@ pub fn environment_scan_full_impl(
         &desktop_apps,
         cancelled,
     );
+    if !cancelled {
+        crate::usage_stats::scan_completed(&installs, &managers);
+    }
 
     Ok(ScanReportInfo {
         installs,

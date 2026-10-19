@@ -2757,6 +2757,7 @@ name = "juggler-app"
 version = "0.0.1"
 dependencies = [
  "base64 0.22.1",
+ "cpu-time",
  "dirs",
  "flate2",
  "getrandom 0.3.4",

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { RemoteCleanup } from "../components/RemoteCleanup";
 import { KillSheet, type KillBridge } from "../components/KillSheet";
 import { Button, CleanupEmpty, ProcessRow, type CleanupRowInfo } from "../components/ProcessRow";
-import { errorText } from "../lib/bridge";
+import { errorText, statsEvent } from "../lib/bridge";
 
 /**
  * AJ-E506/E507: the global Cleanup Centre — the read-only inventory
@@ -438,6 +438,7 @@ export function CleanupCentre(props: {
                       )
                       .find(({ row }) => row.pid === alert.pid);
                     if (!target) return;
+                    statsEvent("resource.alert", { kind: "memory_hog", action: "acted" });
                     setKillTarget({
                       session: target.session,
                       pid: target.row.pid,

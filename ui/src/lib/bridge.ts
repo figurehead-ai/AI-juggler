@@ -2099,6 +2099,16 @@ export async function switchPreflight(
 /** AJ-E205: executes the switch with the user's freeze choice
  * (`finish-turn` default | `stop-now`) — the pipeline stages,
  * verifies, launches, and records the edge. */
+/** AJ-E1103: why the next switch happens — set when the user picks a
+ * target (the suggested one, or another), read once by
+ * [`switchExecute`]. */
+let pendingSwitchTrigger: "suggestion" | "manual" | null = null;
+
+/** AJ-E1103: the user picked a switch target. */
+export function noteSwitchPick(suggested: boolean): void {
+  pendingSwitchTrigger = suggested ? "suggestion" : "manual";
+}
+
 export async function switchExecute(
   sessionId: string,
   targetProfileId: string,
@@ -2137,12 +2147,15 @@ export async function switchExecute(
       source_session_id: sessionId,
     };
   }
+  const trigger = pendingSwitchTrigger ?? "manual";
+  pendingSwitchTrigger = null;
   return invoke<SwitchExecutedData>("switch_execute", {
     sessionId,
     targetProfileId,
     freezeChoice,
     redactionChoice: redactionChoice ?? null,
     redactionUnredact: redactionUnredact ?? [],
+    trigger,
   });
 }
 
@@ -2393,6 +2406,8 @@ export async function redactionPolicySetOverride(
  * Suggest-only: the click is the user's. */
 export interface SwitchTargetData {
   recipe_id: string;
+  /** The target's Provider id (AJ-E1103 counts suggestions by it). */
+  provider?: string;
   account_id: string;
   account_label: string;
   /** Ordered-pair badge wire name ("F1 · Beta" — never "lossless"
@@ -2676,6 +2691,46 @@ export async function funnelEventEmit(
     return;
   }
   return invoke<void>("funnel_event", { kind, fields });
+}
+
+/** AJ-E1103: the usage-statistics metrics the interface counts. The
+ * backend accepts only these, and only with the schema's values (a
+ * `provider` may be any Provider id; it is mapped there). */
+export type UiStatMetric =
+  | "ui.screen_opened"
+  | "ui.inspector_tab"
+  | "ui.rail_tab"
+  | "ui.notification"
+  | "ui.shortcut_used"
+  | "cleanup_centre.opened"
+  | "usage.suggestion"
+  | "resource.alert"
+  | "onboarding.login"
+  | "onboarding.flow"
+  | "update.flow"
+  | "perf.board_interactive_ms";
+
+/** AJ-E1103: counts one interface event — fire and forget, never awaited
+ * on a user path, and a no-op unless the user opted in to usage stats. */
+export function statsEvent(metric: UiStatMetric, dims: Record<string, string> = {}, value?: number): void {
+  if (!hasBackend) {
+    const seams = window as unknown as {
+      __AIJ_STATS_EVENTS__?: { metric: string; dims: Record<string, string>; value?: number }[];
+    };
+    seams.__AIJ_STATS_EVENTS__ = [...(seams.__AIJ_STATS_EVENTS__ ?? []), { metric, dims, value }];
+    return;
+  }
+  void invoke<void>("usage_stats_ui_event", { metric, dims, value: value ?? null }).catch(() => undefined);
+}
+
+/** AJ-E1103: a display preference as this week's gauge (fire and forget). */
+export function statsGauge(metric: "ui.density" | "ui.theme", value: string): void {
+  if (!hasBackend) {
+    const seams = window as unknown as { __AIJ_STATS_GAUGES__?: Record<string, string> };
+    seams.__AIJ_STATS_GAUGES__ = { ...(seams.__AIJ_STATS_GAUGES__ ?? {}), [metric]: value };
+    return;
+  }
+  void invoke<void>("usage_stats_ui_gauge", { metric, value }).catch(() => undefined);
 }
 
 /** AJ-E309 Req.7: the LOCAL funnel report (markdown; never a network

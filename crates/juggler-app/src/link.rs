@@ -1004,6 +1004,7 @@ impl PairingHost for AppPairing {
 
     fn failed(&self) {
         let _ = self.with_guard(|guard| guard.fail(now_ms()));
+        crate::usage_stats::fleet_pairing(Some("mismatch"));
         if let Ok(mut message) = self.message.lock() {
             *message = Some((
                 "mismatch".to_owned(),
@@ -1073,6 +1074,7 @@ impl PairingHost for AppPairing {
                 label: candidate.label.clone(),
             };
         }
+        crate::usage_stats::fleet_pairing(None);
     }
 }
 
@@ -1454,6 +1456,7 @@ async fn reconcile_loop(
                 heartbeat.abort();
                 telemetry.abort();
                 crate::remote::disconnected(&remote, &machine_id);
+                crate::usage_stats::count("fleet.link_degraded", &[("reason", "network")]);
                 set_peer(
                     &peers,
                     &machine_id,
@@ -1532,6 +1535,9 @@ fn adopt_connection(
     peer: &juggler_link::client::LinkPeer,
 ) -> Watch {
     let degraded = peer.hello.service_level == "degraded";
+    if degraded {
+        crate::usage_stats::count("fleet.link_degraded", &[("reason", "version")]);
+    }
     let version = peer.hello.version.unwrap_or_default();
     set_peer(
         peers,
@@ -1792,6 +1798,7 @@ pub fn pairing_host_open_impl(state: &Arc<AppState>) -> AppResult<PairingStateIn
             .open(now_ms())
     };
     if let Err(error) = opened {
+        crate::usage_stats::fleet_pairing(Some(error.code()));
         *manager.host.lock().map_err(|_| AppError::StatePoisoned)? = HostPhase::Failed {
             reason: error.code().to_owned(),
             message: error.to_string(),
@@ -2046,6 +2053,7 @@ pub fn pairing_join_start_impl(
                             label: joined.candidate.label,
                         };
                     }
+                    crate::usage_stats::fleet_pairing(None);
                     return;
                 }
                 Err(JoinError::Connect(reason)) => last = JoinError::Connect(reason),
@@ -2055,6 +2063,7 @@ pub fn pairing_join_start_impl(
                 }
             }
         }
+        crate::usage_stats::fleet_pairing(Some(last.reason_code()));
         if let Ok(mut phase) = join.lock() {
             *phase = JoinPhase::Failed {
                 reason: last.reason_code().to_owned(),

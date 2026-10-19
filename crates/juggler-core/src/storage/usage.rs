@@ -33,7 +33,21 @@ impl UsageRepo<'_> {
     /// Returns [`CoreError::Storage`] on SQLite failures; the
     /// transaction rolls back atomically.
     pub fn insert_events(&self, events: &[UsageEvent]) -> Result<usize, CoreError> {
-        let mut inserted = 0usize;
+        Ok(self
+            .insert_events_marking(events)?
+            .into_iter()
+            .filter(|new| *new)
+            .count())
+    }
+
+    /// As [`Self::insert_events`], saying for each event whether it was
+    /// new (not a duplicate already stored).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn insert_events_marking(&self, events: &[UsageEvent]) -> Result<Vec<bool>, CoreError> {
+        let mut inserted = Vec::with_capacity(events.len());
         let tx = self.conn.unchecked_transaction()?;
         {
             let mut stmt = tx.prepare(
@@ -45,24 +59,23 @@ impl UsageRepo<'_> {
             for event in events {
                 let source = event.source.as_str();
                 let confidence = confidence_name(event.confidence);
-                inserted += stmt
-                    .execute(params![
-                        event.account,
-                        event.session,
-                        event.ts,
-                        event.model,
-                        i64::try_from(event.tokens.input).unwrap_or(i64::MAX),
-                        i64::try_from(event.tokens.output).unwrap_or(i64::MAX),
-                        i64::try_from(event.tokens.cache_read).unwrap_or(i64::MAX),
-                        i64::try_from(event.tokens.cache_write).unwrap_or(i64::MAX),
-                        i64::try_from(event.tokens.reasoning).unwrap_or(i64::MAX),
-                        event.credits,
-                        event.usd_est,
-                        source,
-                        confidence,
-                        event.msg_uuid,
-                    ])
-                    .map(|changed| usize::from(changed > 0))?;
+                let changed = stmt.execute(params![
+                    event.account,
+                    event.session,
+                    event.ts,
+                    event.model,
+                    i64::try_from(event.tokens.input).unwrap_or(i64::MAX),
+                    i64::try_from(event.tokens.output).unwrap_or(i64::MAX),
+                    i64::try_from(event.tokens.cache_read).unwrap_or(i64::MAX),
+                    i64::try_from(event.tokens.cache_write).unwrap_or(i64::MAX),
+                    i64::try_from(event.tokens.reasoning).unwrap_or(i64::MAX),
+                    event.credits,
+                    event.usd_est,
+                    source,
+                    confidence,
+                    event.msg_uuid,
+                ])?;
+                inserted.push(changed > 0);
             }
         }
         tx.commit()?;

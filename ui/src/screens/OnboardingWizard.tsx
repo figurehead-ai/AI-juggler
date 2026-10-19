@@ -39,6 +39,7 @@ import {
   accountSetRenewal,
   redactionPolicyGet,
   redactionPolicySetGlobal,
+  statsEvent,
 } from "../lib/bridge";
 
 const PLANS: { id: string | null; label: string; hint: string }[] = [
@@ -895,7 +896,10 @@ export function OnboardingWizard({
             renewal,
             renewalSaved: await saveRenewal(imported.account.id, renewal),
           });
-          if (imported.login === "expired") funnelEvent("login_expired");
+          if (imported.login === "expired") {
+            funnelEvent("login_expired");
+            statsEvent("onboarding.login", { provider: item.provider, outcome: "expired" });
+          }
           if (!signedIn(imported.login)) {
             queue.push({
               accountId: imported.account.id,
@@ -1085,7 +1089,10 @@ export function OnboardingWizard({
             degradedChoice,
           );
           funnelEvent("import_completed", { degraded: result.degraded === true });
-          if (result.login === "expired") funnelEvent("login_expired");
+          if (result.login === "expired") {
+            funnelEvent("login_expired");
+            statsEvent("onboarding.login", { provider: activeProvider, outcome: "expired" });
+          }
           setImportResult(result);
           setAccount(result.account);
           setCreated([
@@ -1968,10 +1975,12 @@ export function OnboardingWizard({
                   }
                   onReady={() => {
                     funnelEvent("login_completed");
+                    statsEvent("onboarding.login", { provider: currentSignin.provider, outcome: "completed" });
                     setSigninIndex((index) => index + 1);
                   }}
                   onSkip={() => {
                     funnelEvent("login_skipped");
+                    statsEvent("onboarding.login", { provider: currentSignin.provider, outcome: "skipped" });
                     setSigninIndex((index) => index + 1);
                   }}
                 />

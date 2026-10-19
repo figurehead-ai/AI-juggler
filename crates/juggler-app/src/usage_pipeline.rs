@@ -114,8 +114,11 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
     // Single writer: ONE storage lock for the whole batch.
     if let Ok(storage) = state.storage.lock() {
         let usage = storage.usage();
-        if !store_batch.is_empty() {
-            let _ = usage.insert_events(&store_batch);
+        if !store_batch.is_empty()
+            && let Ok(new) = usage.insert_events_marking(&store_batch)
+        {
+            // AJ-E1103: Measured tokens of new rows only (D-06).
+            crate::usage_stats::tokens_ingested(&accounts, &store_batch, &new);
         }
         for (account, kind, sample) in &sample_batch {
             let _ = usage.insert_sample(account, *kind, sample);
@@ -279,6 +282,20 @@ fn record_health(
         health.last_event_at = health.last_event_at.max(Some(ts));
     }
     health.parse_errors += parse_errors;
+    if parse_errors > 0 {
+        // AJ-E1103: one degraded read of this source (never its text).
+        let (provider, area) = match source {
+            "statusline" => ("claude-code", "quota_feed"),
+            "transcript" => ("claude-code", "transcript"),
+            "rollout" => ("codex", "transcript"),
+            "sqlite" => ("zcode", "transcript"),
+            _ => ("other", "transcript"),
+        };
+        crate::usage_stats::count(
+            "usage.parse_degraded",
+            &[("provider", provider), ("area", area)],
+        );
+    }
     if !note.is_empty() {
         // The note is diagnostic only (eprintln): health stays the
         // typed observable, never a stringly blob.

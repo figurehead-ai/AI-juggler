@@ -11,8 +11,8 @@
  * (the host's switch flow) is the user's. A11y: a labelled list of
  * buttons, ↑/↓ roving focus, no nested interactives.
  */
-import { useRef, useState } from "react";
-import type { SwitchTargetData } from "../lib/bridge";
+import { useEffect, useRef, useState } from "react";
+import { noteSwitchPick, statsEvent, type SwitchTargetData } from "../lib/bridge";
 
 /** The badge chip: solid when validated, hatched while beta. The text
  * label (the badge string itself + the validated line) carries the
@@ -52,6 +52,22 @@ export function SwitchTargetRows({
 }): JSX.Element {
   const [whyOpen, setWhyOpen] = useState(false);
   const listRef = useRef<HTMLUListElement>(null);
+  // AJ-E1103: a suggestion shown, then taken or passed over.
+  const suggested = targets.find((target) => target.suggested && !target.filtered_reason);
+  const suggestedProvider = suggested?.provider ?? "other";
+  useEffect(() => {
+    if (suggested) statsEvent("usage.suggestion", { provider: suggestedProvider, action: "shown" });
+  }, [suggested?.recipe_id, suggestedProvider]); // eslint-disable-line react-hooks/exhaustive-deps
+  const pick = (target: SwitchTargetData) => {
+    if (suggested) {
+      statsEvent("usage.suggestion", {
+        provider: suggestedProvider,
+        action: target.recipe_id === suggested.recipe_id ? "accepted" : "dismissed",
+      });
+    }
+    noteSwitchPick(target.suggested);
+    onPick(target);
+  };
   const onKeyDown = (event: React.KeyboardEvent<HTMLUListElement>) => {
     const delta = event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0;
     if (delta === 0) return;
@@ -91,7 +107,7 @@ export function SwitchTargetRows({
                 data-row
                 disabled={filtered}
                 aria-pressed={target.suggested}
-                onClick={() => onPick(target)}
+                onClick={() => pick(target)}
                 className={`flex w-full flex-col gap-1 rounded-lg border px-3 py-2 text-left text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-accent ${
                   filtered
                     ? "cursor-not-allowed border-hairline"

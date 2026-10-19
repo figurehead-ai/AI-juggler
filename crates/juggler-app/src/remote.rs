@@ -733,13 +733,14 @@ pub async fn send_action_for_test(
     machine_id: String,
     action: proto::control_command::Action,
 ) -> AppResult<RemoteCommandOutcomeInfo> {
-    send_action(state, machine_id, action).await
+    send_action(state, machine_id, action, "view").await
 }
 
 async fn send_action(
     state: Arc<AppState>,
     machine_id: String,
     action: proto::control_command::Action,
+    kind: &'static str,
 ) -> AppResult<RemoteCommandOutcomeInfo> {
     let (peer, permission) = {
         let map = state
@@ -761,6 +762,10 @@ async fn send_action(
     };
     if permission.as_deref() != Some("control") {
         // The UI never offers this; the node would refuse it anyway.
+        crate::usage_stats::count(
+            "fleet.remote_action",
+            &[("kind", kind), ("outcome", "denied")],
+        );
         return Ok(RemoteCommandOutcomeInfo {
             accepted: false,
             reason_code: Some("permission_denied".to_owned()),
@@ -799,6 +804,18 @@ async fn send_action(
             message: result.message,
         },
     };
+    // AJ-E1103: the kind and how it went, never what or where.
+    let counted = if outcome.accepted {
+        "ok"
+    } else if outcome.reason_code.as_deref() == Some("permission_denied") {
+        "denied"
+    } else {
+        "failed"
+    };
+    crate::usage_stats::count(
+        "fleet.remote_action",
+        &[("kind", kind), ("outcome", counted)],
+    );
     crate::fleet::append_audit(
         &state,
         &juggler_link::node::LinkAuditEvent {
@@ -831,6 +848,7 @@ pub async fn fleet_remote_stop_impl(
         state,
         machine_id,
         proto::control_command::Action::StopInstance(proto::StopInstance { instance_id }),
+        "cleanup",
     )
     .await
 }
@@ -851,6 +869,7 @@ pub async fn fleet_remote_focus_impl(
         state,
         machine_id,
         proto::control_command::Action::FocusInstance(proto::FocusInstance { instance_id }),
+        "view",
     )
     .await
 }
@@ -882,6 +901,7 @@ pub async fn fleet_remote_clean_impl(
         state,
         machine_id,
         proto::control_command::Action::CleanProcess(proto::CleanProcess { instance_id, pid }),
+        "cleanup",
     )
     .await
 }
