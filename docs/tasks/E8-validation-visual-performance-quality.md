@@ -127,7 +127,7 @@
 **Research basis**: docs/plan/QUALITY.md gates; docs/plan/RUNBOOK.md process; agent-review-prompt offline gates (`just verify`, `cargo test --workspace`, `pnpm --dir ui build`).
 **Handover note**: First inspect what CI actually exists today; do not assume a workflow file. If no CI exists, the task delivers the documented local gate script first and names CI creation as a follow-up task.
 
-### AJ-E807 Milestone gate verification and sign-off | Status: TODO | Priority P0 | Effort M | Depends: AJ-E803, AJ-E804, AJ-E805, AJ-E806
+### AJ-E807 Milestone gate verification and sign-off | Status: IN-PROGRESS (packet, link check, rehearsal and the signed-gate block evidenced; the gate signatures are the maintainer's) | Priority P0 | Effort M | Depends: AJ-E803, AJ-E804, AJ-E805, AJ-E806
 **Goal**: Make each milestone gate (M1 onwards) an evidence review, not a status meeting.
 **User story**: As a maintainer signing a gate, I want every acceptance criterion traced to stored proof so beta claims are auditable later.
 **Requirements**:
@@ -144,7 +144,7 @@
 **Research basis**: EPICS.md:158-164; QUALITY.md §8; decision-log D-04/D-15 (docs acceptance precedes code stages).
 **Handover note**: The M1 gate was previously found unsigned while scope accumulated; closing that paperwork is part of this task's first execution.
 
-### AJ-E808 Provider-pair fidelity validation matrix (operations) | Status: TODO | Priority P0 | Effort L | Depends: AJ-E801
+### AJ-E808 Provider-pair fidelity validation matrix (operations) | Status: IN-PROGRESS (register, rules and automatic reset evidenced; every live cell is the maintainer's) | Priority P0 | Effort L | Depends: AJ-E801
 **Goal**: Run and maintain the per-Provider-pair validation matrix that turns beta fidelity badges from claims into earned labels.
 **User story**: As a user choosing a switch destination, I want the badge on each pair to reflect tests actually run on real binaries, not optimism.
 **Requirements**:

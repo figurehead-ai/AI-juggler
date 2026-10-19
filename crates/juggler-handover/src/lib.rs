@@ -20,6 +20,7 @@ pub mod pipeline;
 pub mod ranking;
 pub mod reconcile;
 pub mod redaction;
+pub mod register;
 pub mod switch_back;
 pub mod transplant;
 pub mod validation;

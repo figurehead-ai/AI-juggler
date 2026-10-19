@@ -208,7 +208,9 @@ fn switch_target_badges_derive_from_the_recorded_cells() {
     assert_eq!(target.badge, "F1 · Beta");
     assert!(!target.validated);
 
-    // A PASSING cell on the real-CI row graduates the badge — the
+    // A PASSING cell on the real-CI row no longer graduates the badge
+    // by itself (AJ-E808): every area must also PASS in the fidelity
+    // register, on the installed versions — and today none does. The
     // ranked rows read the same matrix (one source, no drift).
     commands::validation_dogfood_record_impl(
         &state,
@@ -227,8 +229,8 @@ fn switch_target_badges_derive_from_the_recorded_cells() {
         .iter()
         .find(|t| t.account_label == "Personal")
         .unwrap();
-    assert_eq!(target.badge, "F1 · Validated");
-    assert!(target.validated, "the live cell flipped the row green");
+    assert_eq!(target.badge, "F1 · Beta");
+    assert!(!target.validated, "one live cell is not the register");
 
     // A later FAIL replaces it: the ceiling lowers INTO the ranked
     // rows (the honest recovery — badges follow evidence).

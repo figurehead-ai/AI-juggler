@@ -67,6 +67,20 @@ lint:
 test:
     cargo test --workspace
 
+# AJ-E807: (re)build the beta gate packet from the manifests, then check
+# it; `gate-signed` exits 1 until the maintainer signs it.
+gate-packet:
+    python3 scripts/gate_packet.py build docs/qa/gates/beta.json
+    python3 scripts/gate_packet.py check docs/qa/gate-beta.md
+
+gate-signed:
+    python3 scripts/gate_packet.py signed docs/qa/gate-beta.md
+
+# AJ-E808: render the provider-pair fidelity register (a test fails on drift).
+fidelity-register:
+    mkdir -p docs/qa/evidence/AJ-E808
+    cargo run -q -p juggler-handover --example fidelity_register > docs/qa/evidence/AJ-E808/register.md
+
 # AJ-E210: regenerate the E2 validation gate report from the matrix.
 e2-gate:
     ./scripts/e2_gate_report.sh > docs/qa/gate-E2-validation.md

@@ -1,0 +1,424 @@
+{
+  "schema": 1,
+  "note": "AJ-E808 provider-pair fidelity register. UNVALIDATED is the default; a cell becomes PASS only from a live run on real binaries with a sacrificial project (fixture and fake-harness results never promote). A Provider upgrade resets PASS cells automatically: the app compares each cell's recorded versions with the installed ones. Render: just fidelity-register.",
+  "pairs": [
+    {
+      "from": "claude-code",
+      "to": "claude-code",
+      "cells": [
+        {
+          "area": "transcript-resume",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "rules-carry",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "todos",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "subagents",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "file-history",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "mcp-references",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "cwd-worktree-edges",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "switch-back",
+          "verdict": "UNVALIDATED"
+        }
+      ]
+    },
+    {
+      "from": "codex",
+      "to": "codex",
+      "cells": [
+        {
+          "area": "transcript-resume",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "rules-carry",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "todos",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "subagents",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "file-history",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "mcp-references",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "cwd-worktree-edges",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "switch-back",
+          "verdict": "UNVALIDATED"
+        }
+      ]
+    },
+    {
+      "from": "zcode",
+      "to": "zcode",
+      "cells": [
+        {
+          "area": "transcript-resume",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "rules-carry",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "todos",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "subagents",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "file-history",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "mcp-references",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "cwd-worktree-edges",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "switch-back",
+          "verdict": "UNVALIDATED"
+        }
+      ]
+    },
+    {
+      "from": "claude-code",
+      "to": "codex",
+      "cells": [
+        {
+          "area": "transcript-resume",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "rules-carry",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "todos",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "subagents",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "file-history",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "mcp-references",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "cwd-worktree-edges",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "switch-back",
+          "verdict": "UNVALIDATED"
+        }
+      ]
+    },
+    {
+      "from": "codex",
+      "to": "claude-code",
+      "cells": [
+        {
+          "area": "transcript-resume",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "rules-carry",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "todos",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "subagents",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "file-history",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "mcp-references",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "cwd-worktree-edges",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "switch-back",
+          "verdict": "UNVALIDATED"
+        }
+      ]
+    },
+    {
+      "from": "claude-code",
+      "to": "zcode",
+      "cells": [
+        {
+          "area": "transcript-resume",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "rules-carry",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "todos",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "subagents",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "file-history",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "mcp-references",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "cwd-worktree-edges",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "switch-back",
+          "verdict": "UNVALIDATED"
+        }
+      ]
+    },
+    {
+      "from": "zcode",
+      "to": "claude-code",
+      "cells": [
+        {
+          "area": "transcript-resume",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "rules-carry",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "todos",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "subagents",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "file-history",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "mcp-references",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "cwd-worktree-edges",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "switch-back",
+          "verdict": "UNVALIDATED"
+        }
+      ]
+    },
+    {
+      "from": "codex",
+      "to": "zcode",
+      "cells": [
+        {
+          "area": "transcript-resume",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "rules-carry",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "todos",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "subagents",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "file-history",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "mcp-references",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "cwd-worktree-edges",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "switch-back",
+          "verdict": "UNVALIDATED"
+        }
+      ]
+    },
+    {
+      "from": "zcode",
+      "to": "codex",
+      "cells": [
+        {
+          "area": "transcript-resume",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "rules-carry",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "todos",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "subagents",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "file-history",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "mcp-references",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "cwd-worktree-edges",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "switch-back",
+          "verdict": "UNVALIDATED"
+        }
+      ]
+    },
+    {
+      "from": "claude-code",
+      "to": "gemini-cli",
+      "cells": [
+        {
+          "area": "transcript-resume",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "rules-carry",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "todos",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "subagents",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "file-history",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "mcp-references",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "cwd-worktree-edges",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "switch-back",
+          "verdict": "UNVALIDATED"
+        }
+      ]
+    },
+    {
+      "from": "claude-code",
+      "to": "opencode",
+      "cells": [
+        {
+          "area": "transcript-resume",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "rules-carry",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "todos",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "subagents",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "file-history",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "mcp-references",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "cwd-worktree-edges",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "switch-back",
+          "verdict": "UNVALIDATED"
+        }
+      ]
+    }
+  ]
+}

@@ -107,25 +107,54 @@ impl PairCell {
         }
     }
 
-    /// Validated = real CI row green AND a PASSING live cell (Req.4).
-    /// Fake-harness mechanism green never counts (handover rule).
+    /// Validated = real CI row green AND a PASSING live cell (Req.4)
+    /// AND every area of the pair PASS in the AJ-E808 register. Fake-
+    /// harness mechanism green never counts (handover rule). Without
+    /// installed versions; the app uses [`Self::validated_for`].
     #[must_use]
     pub fn validated(&self) -> bool {
+        self.validated_for(&crate::register::unknown_versions, false)
+    }
+
+    /// [`Self::validated`] for the installed Provider versions: a
+    /// register PASS recorded against other versions reads UNVALIDATED
+    /// (AJ-E808 Req.4); with `strict`, an unknown version can't confirm
+    /// one either.
+    #[must_use]
+    pub fn validated_for(&self, installed: crate::register::Versions<'_>, strict: bool) -> bool {
+        self.validated_against(crate::register::embedded(), installed, strict)
+    }
+
+    /// [`Self::validated_for`] against a given register.
+    #[must_use]
+    pub fn validated_against(
+        &self,
+        register: &crate::register::Register,
+        installed: crate::register::Versions<'_>,
+        strict: bool,
+    ) -> bool {
         self.ci_green
             && self
                 .dogfood
                 .as_ref()
                 .is_some_and(|cell| matches!(cell.verdict, DogfoodVerdict::Pass { .. }))
+            && register.pair_validated(&self.from, &self.to, installed, strict)
     }
 
     /// The wire badge the UI renders ("F1 · Beta" / "F3 · Validated")
     /// — never "lossless" below F4 (D-11).
     #[must_use]
     pub fn badge(&self) -> String {
+        self.badge_for(&crate::register::unknown_versions, false)
+    }
+
+    /// [`Self::badge`] for the installed Provider versions.
+    #[must_use]
+    pub fn badge_for(&self, installed: crate::register::Versions<'_>, strict: bool) -> String {
         format!(
             "{} · {}",
             self.advertised_ceiling().as_str(),
-            if self.validated() {
+            if self.validated_for(installed, strict) {
                 "Validated"
             } else {
                 "Beta"
@@ -138,9 +167,13 @@ impl PairCell {
     pub fn status_words(&self) -> String {
         match (&self.dogfood, self.ci_green) {
             (Some(cell), _) => match &cell.verdict {
-                DogfoodVerdict::Pass { .. } if self.ci_green => format!(
+                DogfoodVerdict::Pass { .. } if self.validated() => format!(
                     "Validated — live cell passed {} ({} shape)",
                     cell.at, cell.project_shape
+                ),
+                DogfoodVerdict::Pass { .. } if self.ci_green => format!(
+                    "Live cell passed {} but the fidelity register (AJ-E808) isn't PASS on every area — stays Beta",
+                    cell.at
                 ),
                 DogfoodVerdict::Pass { .. } => format!(
                     "Live cell passed {} but the real-adapter CI row is not green — stays Beta",
@@ -387,13 +420,44 @@ mod tests {
             pair_cell("claude-code", "claude-code").unwrap(),
             passing_cell(),
         );
-        assert!(claude.validated());
-        assert_eq!(claude.badge(), "F1 · Validated");
+        // AJ-E808: a passing live cell alone no longer promotes — every
+        // area must PASS in the register, and today none is validated.
+        assert!(!claude.validated());
+        assert_eq!(claude.badge(), "F1 · Beta");
         assert!(
-            claude
-                .status_words()
-                .to_lowercase()
-                .contains("live cell passed")
+            claude.status_words().contains("fidelity register"),
+            "{}",
+            claude.status_words()
+        );
+        // With every area PASS on the installed versions, it validates.
+        let register = crate::register::Register {
+            schema: 1,
+            note: String::new(),
+            pairs: vec![crate::register::Pair {
+                from: "claude-code".to_owned(),
+                to: "claude-code".to_owned(),
+                cells: crate::register::AREAS
+                    .iter()
+                    .map(|area| crate::register::Cell {
+                        area: (*area).to_owned(),
+                        verdict: crate::register::Verdict::Pass,
+                        run: Some(crate::register::RunKind::Live),
+                        source_version: Some("2.1.296".to_owned()),
+                        target_version: Some("2.1.296".to_owned()),
+                        date: Some("2026-10-19".to_owned()),
+                        fixture: Some("tiny-repo".to_owned()),
+                        evidence: Some("docs/qa/evidence/AJ-E808/cells/x.txt".to_owned()),
+                        drop_note: None,
+                    })
+                    .collect(),
+            }],
+        };
+        let installed = |_: &str| Some("2.1.296".to_owned());
+        assert!(claude.validated_against(&register, &installed, true));
+        let upgraded = |_: &str| Some("2.2.0".to_owned());
+        assert!(
+            !claude.validated_against(&register, &upgraded, true),
+            "an upgrade resets the badge"
         );
 
         let codex = with_dogfood(pair_cell("codex", "codex").unwrap(), passing_cell());

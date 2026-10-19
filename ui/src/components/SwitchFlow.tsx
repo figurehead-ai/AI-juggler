@@ -173,6 +173,12 @@ function RedactionBlock({
   );
 }
 
+
+/** AJ-E808: the same words the switch rows use for the pair's state. */
+function validationWords(validated: boolean | undefined): string {
+  return validated ? "Validated" : "Beta · Not yet validated";
+}
+
 export function SwitchFlow({
   sessionId,
   targetProfileId,
@@ -353,7 +359,7 @@ export function SwitchFlow({
             <h3 className="text-sm font-semibold">
               Switch to {targetLabel}
               <span className="ml-2 rounded border border-accent/50 px-1 text-[10px] text-accent">
-                {phase.preflight.fidelity} · usual account · beta
+                {phase.preflight.fidelity} · usual account · {validationWords(phase.preflight.validated)}
               </span>
             </h3>
             <p className="text-[11px] text-muted" data-testid="switch-oneclick-carry">
@@ -466,7 +472,7 @@ export function SwitchFlow({
                 <h3 className="text-sm font-semibold">
                   Switch to {targetLabel}
                   <span className="ml-2 rounded border border-accent/50 px-1 text-[10px] text-accent">
-                    {phase.preflight.fidelity} · beta
+                    {phase.preflight.fidelity} · {validationWords(phase.preflight.validated)}
                   </span>
                 </h3>
                 <ul className="flex flex-col gap-1" data-testid="switch-wizard-reasons">

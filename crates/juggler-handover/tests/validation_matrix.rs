@@ -227,8 +227,8 @@ fn mechanism_fixtures_round_trip_every_pair() {
     }
 }
 
-/// Req.4 end to end at the matrix layer: a PASSING live cell
-/// validates only real-CI rows; a FAILING cell lowers the advertised
+/// Req.4 end to end at the matrix layer: a PASSING live cell alone
+/// validates nothing (AJ-E808: the register must also be PASS); a FAILING cell lowers the advertised
 /// ceiling one level until fixed; pending cells change nothing.
 #[test]
 fn dogfood_cells_drive_the_advertised_badge_per_the_rules() {
@@ -241,14 +241,16 @@ fn dogfood_cells_drive_the_advertised_badge_per_the_rules() {
             continuity_note: "target answered the pre-switch question".to_owned(),
         },
     };
-    // Pass on the real-CI row → validated, badge graduates.
+    // Pass on the real-CI row: still Beta until every area of the pair
+    // is PASS in the AJ-E808 fidelity register (none is yet). The
+    // register's own tests cover the graduation itself.
     let claude = pair_cell("claude-code", "claude-code").unwrap();
     let validated = with_dogfood(claude.clone(), pass.clone());
-    assert!(validated.validated());
-    assert_eq!(validated.badge(), "F1 · Validated");
+    assert!(!validated.validated());
+    assert_eq!(validated.badge(), "F1 · Beta");
     assert_eq!(
         advertised_badge("claude-code", "claude-code", Some(&pass)),
-        "F1 · Validated"
+        "F1 · Beta"
     );
 
     // The SAME pass on a fake-only row never validates it.
@@ -275,13 +277,13 @@ fn dogfood_cells_drive_the_advertised_badge_per_the_rules() {
     );
 
     // A later PASS replaces the fail (fixed and re-run) — the ceiling
-    // recovers AND the pair validates.
+    // recovers (validation still waits on the register).
     fail.verdict = DogfoodVerdict::Pass {
         continuity_note: "fixed; target answered".to_owned(),
     };
     fail.at = "2026-10-17".to_owned();
     assert_eq!(
         advertised_badge("claude-code", "claude-code", Some(&fail)),
-        "F1 · Validated"
+        "F1 · Beta"
     );
 }

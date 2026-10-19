@@ -1,0 +1,19 @@
+# AJ-E807 rehearsal — 2026-10-19T06:32Z, commit 92bb6bdc
+
+## 1. Build a gate whose R2 is unlinked (task done, evidence missing) — R2 must be FAIL, never PASS
+docs/qa/gate-rehearsal.md: 1 PASS, 0 DEFERRED, 1 FAIL
+| R1 | Quality gates enforced in CI | AJ-E806 | [AJ-E806](evidence/AJ-E806/manifest.md) | **PASS** |
+| R2 | Deliberately unlinked: evidence that does not exist | AJ-E806 | `docs/qa/evidence/AJ-E806/does-not-exist.md` (missing) | **FAIL** — tasks marked done but evidence missing: docs/qa/evidence/AJ-E806/does-not-exist.md |
+
+## 2. Hand-edit R2 to PASS — the link check must fail
+| R2 | Deliberately unlinked: evidence that does not exist | AJ-E806 | `docs/qa/evidence/AJ-E806/does-not-exist.md` (missing) | **PASS** |
+docs/qa/gate-rehearsal.md: PASS without resolving evidence: R2
+exit=1
+
+## 3. The beta gate, unsigned — signed must exit 1
+docs/qa/gate-beta.md: UNSIGNED — needs Decision APPROVED, Reviewer, Date (YYYY-MM-DD) and Commit (sha)
+exit=1
+
+## 4. A copy with the sign-off filled in — signed must exit 0
+(scratch)/gate-beta-signed.md: signed
+exit=0

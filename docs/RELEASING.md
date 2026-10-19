@@ -87,6 +87,14 @@ icon before the first public release.
    release's `latest.json` to the `beta-channel` feed, and from then on beta
    users are offered it. The website's download button uses the newest
    release that has a `.dmg`.
+   - The feed moves only when the beta gate is signed at that tag
+     (`docs/qa/gate-beta.md`, AJ-E807; check with `just gate-signed`).
+     Until then the release is published and can be downloaded from its
+     page, which is how dogfood testers get builds, but no beta install
+     is offered it. Build the packet with `just gate-packet`, review it,
+     then fill in its Sign-off section.
+   - The release workflow builds nothing until its `a11y` job passes
+     (`just a11y-gate`, AJ-E804).
 7. **Usage statistics** (only once they are switched on): the maintainer
    registers `X.Y.Z` as a known version in Figurehead's usage-statistics
    configuration. Reports from unregistered versions are left out of the

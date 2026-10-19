@@ -81,10 +81,10 @@ runs them; nothing here claims them.
 | 1c | Cross-machine A→B→A with the continuity checklist | PENDING — dogfood | Loopback: `fleet_switch` (T2 there, one-delta switch-back here, original never overwritten) |
 | 1d | Remote orphan cleanup with zero collateral | PENDING — dogfood | Loopback: `fleet_link :: a_console_cleans_only_what_the_node_verifies…` (impostor untouched) |
 | 2 | Security checklist — one negative per STRIDE row | **PASS (automated)** | The *Security negatives* table above, all green, including the AJ-E710 additions: no credential or secret reaches the other Mac or any log (`fleet_switch :: no_credential_or_secret…`), forged free-form launches refused (`fleet_switch :: forged_free_form_launches…`), parallel pairing sessions refused (`pairing :: only_one_session_runs_at_a_time`) |
-| 3 | Every unvalidated Provider pair / path listed by name; `Unvalidated` at the point of action | **PASS** | List below; the wizard shows `F… · Unvalidated` on every cross-machine destination (gallery `50-cross-switch`) |
+| 3 | Every unvalidated Provider pair / path listed by name; `Unvalidated` at the point of action | **PASS** | List below; the wizard shows `F… · Unvalidated` on every cross-machine destination ([AJ-E708](evidence/AJ-E708/manifest.md), gallery [`50-cross-switch`](evidence/_gallery/50-cross-switch)) |
 | 4 | Measured performance vs budgets on the gate hardware | PARTIAL — loopback measured, gate hardware pending | Every run of `just gate-e7` files the numbers (heartbeat RTT, 1,000-delta catch-up, target list, handover throughput, divergence round trip); the two-Mac numbers come from the dogfood |
 | 5 | Mixed versions: current ↔ previous minor | PASS (in-process) / N/A (physical) | `transport :: the_mixed_version_matrix` (telemetry works, commands degrade with the banner, nothing crashes). Protocol v1.0 is unreleased, so no previous minor exists to run physically yet |
-| 6 | Link off returns the app to fully local behaviour, tested | **PASS** | `fleet_switch :: link_off_returns_both_macs_to_fully_local_behaviour` (after real fleet use: no destination offered, local switch targets listed, nothing marked diverged) |
+| 6 | Link off returns the app to fully local behaviour, tested | **PASS** | [AJ-E706](evidence/AJ-E706/manifest.md): `fleet_switch :: link_off_returns_both_macs_to_fully_local_behaviour` (after real fleet use: no destination offered, local switch targets listed, nothing marked diverged) |
 | 7 | No pass with a P0 security negative red | **PASS (by construction)** | `scripts/gate_e7.sh` exits non-zero on any red suite; beta labelling waives nothing |
 | — | Two tester sign-offs | PENDING | Maintainer |
 
@@ -124,3 +124,16 @@ Local validation status per pair stays in `gate-E2-validation.md`.
       and clean; two tester sign-offs.
 - [ ] AJ-E705: select a remote Instance, read Overview/Processes, time
       the render; Stop it from the console with View + control.
+
+## Sign-off
+
+Added by AJ-E807: a gate is signed here with the decision, the reviewer,
+the date and the commit it approves (`scripts/gate_packet.py signed`
+checks it). Until then this gate is open.
+
+| Field | Value |
+|---|---|
+| Decision | UNSIGNED |
+| Reviewer | |
+| Date | |
+| Commit | |

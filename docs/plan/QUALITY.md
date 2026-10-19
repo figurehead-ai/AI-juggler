@@ -106,7 +106,7 @@ sub-second timer or sleep in shipped code without a `poll:` note.
 
 ## 8. Validation gates (milestone-level)
 
-Defined in [EPICS.md](./EPICS.md) (automated + functional + quality audit + report + user confirmation). The gate report template:
+Defined in [EPICS.md](./EPICS.md) (automated + functional + quality audit + report + user confirmation). Gate packets are generated, not hand-written (AJ-E807): `scripts/gate_packet.py build docs/qa/gates/<gate>.json` lists each criterion with its evidence links and verdict. A criterion is PASS only when every evidence path resolves and its tasks are DONE-EVIDENCED; otherwise it is DEFERRED with the open task IDs, or FAIL when tasks claim done without proof. The packet also carries the gallery delta, the axe summary, the measured performance table and the unresolved items. `just evidence` link-checks every `docs/qa/gate-*.md` and rejects a PASS without evidence. A gate is signed in its Sign-off section with decision, reviewer, date and commit; the beta update channel waits for a signed beta gate. The gate report template:
 
 ```markdown
 # Gate VX — <Milestone>
