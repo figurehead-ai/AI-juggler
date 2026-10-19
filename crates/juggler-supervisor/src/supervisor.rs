@@ -2160,6 +2160,30 @@ impl Supervisor {
         Ok(rx)
     }
 
+    /// The retained output AND a live tap, taken under one ring lock so
+    /// no chunk falls between them or arrives twice. Use this when the
+    /// reader needs everything: a fast process can write (and even
+    /// finish) before a plain [`Supervisor::tap`] is attached.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SupervisorError::UnknownSession`] when the id is not
+    /// supervised.
+    pub fn tap_with_backlog(
+        &self,
+        session: &SessionId,
+    ) -> Result<(Vec<u8>, std::sync::mpsc::Receiver<Vec<u8>>), SupervisorError> {
+        let handle = self.child(session)?;
+        let mut ring = handle
+            .ring
+            .lock()
+            .map_err(|_| SupervisorError::UnknownSession(session.clone()))?;
+        let backlog = ring.snapshot();
+        let (tx, rx) = std::sync::mpsc::channel();
+        ring.add_listener(tx);
+        Ok((backlog, rx))
+    }
+
     /// Sessions from previous app runs whose processes are still alive
     /// (journal adoption; spec §5.3 crash re-adoption).
     /// One startup recovery pass (AJ-E510, pass2 §11.2): over the
