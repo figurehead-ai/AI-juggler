@@ -21,8 +21,8 @@ use std::time::Duration;
 
 use juggler_account::model::DeviceToken;
 use juggler_account::{
-    AccountClient, AccountView, ApiError, DeviceFields, KeychainStore, LinkRequest, PollOutcome,
-    SecretStore, Transport, UreqTransport,
+    AccountClient, AccountView, ApiError, DeviceFields, LinkRequest, PollOutcome, SecretStore,
+    Transport, UreqTransport,
 };
 
 use crate::error::{AppError, AppResult};
@@ -74,7 +74,7 @@ impl Default for FigureheadManager {
     fn default() -> Self {
         Self {
             transport: Mutex::new(None),
-            secrets: Mutex::new(Arc::new(KeychainStore)),
+            secrets: Mutex::new(Arc::new(crate::edition::current().keychain())),
             base: Mutex::new(juggler_account::base_url()),
             link: Mutex::new(None),
             offline: Mutex::new(false),
@@ -107,7 +107,7 @@ impl FigureheadManager {
 
     fn secrets(&self) -> Arc<dyn SecretStore> {
         self.secrets.lock().map_or_else(
-            |_| Arc::new(KeychainStore) as Arc<dyn SecretStore>,
+            |_| Arc::new(crate::edition::current().keychain()) as Arc<dyn SecretStore>,
             |s| s.clone(),
         )
     }

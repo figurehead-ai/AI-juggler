@@ -15,7 +15,7 @@ use std::io::{Read, Write};
 use std::path::Path;
 use std::sync::Arc;
 
-use juggler_account::{SecretStore, VaultKey, VaultKeychain};
+use juggler_account::{SecretStore, VaultKey};
 
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
@@ -256,7 +256,7 @@ pub fn vault_save_code_impl(
 #[tauri::command]
 #[must_use]
 pub fn vault_status(state: tauri::State<'_, Arc<AppState>>) -> VaultStatusInfo {
-    vault_status_impl(state.inner(), &VaultKeychain)
+    vault_status_impl(state.inner(), &crate::edition::current().vault_keychain())
 }
 
 /// AJ-E1204: makes the vault key (first time) and returns the recovery
@@ -267,7 +267,7 @@ pub fn vault_status(state: tauri::State<'_, Arc<AppState>>) -> VaultStatusInfo {
 /// Per [`vault_setup_impl`].
 #[tauri::command]
 pub fn vault_setup(state: tauri::State<'_, Arc<AppState>>) -> AppResult<RecoveryCodeInfo> {
-    vault_setup_impl(state.inner(), &VaultKeychain)
+    vault_setup_impl(state.inner(), &crate::edition::current().vault_keychain())
 }
 
 /// AJ-E1204: "I've saved my recovery code".
@@ -277,7 +277,7 @@ pub fn vault_setup(state: tauri::State<'_, Arc<AppState>>) -> AppResult<Recovery
 /// Per [`vault_confirm_saved_impl`].
 #[tauri::command]
 pub fn vault_confirm_saved(state: tauri::State<'_, Arc<AppState>>) -> AppResult<VaultStatusInfo> {
-    vault_confirm_saved_impl(state.inner(), &VaultKeychain)
+    vault_confirm_saved_impl(state.inner(), &crate::edition::current().vault_keychain())
 }
 
 /// AJ-E1204: saves the recovery code to a file the user chose.
@@ -287,7 +287,11 @@ pub fn vault_confirm_saved(state: tauri::State<'_, Arc<AppState>>) -> AppResult<
 /// Per [`vault_save_code_impl`].
 #[tauri::command]
 pub fn vault_save_code(state: tauri::State<'_, Arc<AppState>>, dest: String) -> AppResult<()> {
-    vault_save_code_impl(state.inner(), &VaultKeychain, Path::new(&dest))
+    vault_save_code_impl(
+        state.inner(),
+        &crate::edition::current().vault_keychain(),
+        Path::new(&dest),
+    )
 }
 
 /// AJ-E1204: enters a recovery code on a new Mac.
@@ -300,5 +304,9 @@ pub fn vault_enter_code(
     state: tauri::State<'_, Arc<AppState>>,
     code: String,
 ) -> AppResult<VaultStatusInfo> {
-    vault_enter_code_impl(state.inner(), &VaultKeychain, &code)
+    vault_enter_code_impl(
+        state.inner(),
+        &crate::edition::current().vault_keychain(),
+        &code,
+    )
 }

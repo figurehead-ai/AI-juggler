@@ -75,3 +75,23 @@ beta and stable feeds with the maintainer's approval. The app chooses its
 channel in Settings (`updates :: the_channel_is_a_persisted_choice_with_its_own_feed`,
 vitest `updates.test.tsx`). The signed-build and rollback rows stay
 pending on the maintainer's secrets.
+
+## Editions, D-23 (2026-10-19)
+
+AI Juggler, AI Juggler Nightly and AI Juggler Dev install side by side
+and share nothing. Evidence: `editions.log`.
+
+| Requirement | Proof | Result |
+|---|---|---|
+| The edition follows the bundle id; a debug build or any unexpected id is Dev | `edition::tests` (5) | PASS |
+| Editions share no identifier, data folder, Keychain item or Fleet port | `edition::tests::editions_share_nothing` | PASS |
+| AI Juggler keeps its existing folder, Keychain items and port (no migration) | `edition::tests::ai_juggler_keeps_its_existing_folder_keychain_items_and_port` | PASS |
+| Nightly: own data, Keychain, port 47822; nightly only, a stored beta can't move it | `edition_nightly` (own process) | PASS |
+| Dev: own data, Keychain, port 47823; no channel, no updates | `edition_dev` (own process) | PASS |
+| AI Juggler offers Stable and Beta only; nightly is refused with a pointer to the Nightly app | `updates :: the_channel_is_a_persisted_choice_with_its_own_feed` | PASS |
+| Settings names the edition, shows only its channels, explains Nightly and Dev | vitest `updates.test.tsx` 8/8 | PASS |
+| A real Dev build creates only `AI Juggler Dev` (launched with a throwaway HOME) | manual run, 2026-10-19: `Application Support/` held only `AI Juggler Dev` (`juggler.sqlite` + WAL) | PASS |
+| Nightly run builds, signs and notarizes both apps; nightly feed carries the Nightly app, beta/stable never do | `build-macos.yml`, `nightly.yml`, `promote.yml` (asserts on the feed URLs); actionlint clean | PENDING first signed run |
+
+Gallery states `58-updates/nightly-edition` and `58-updates/dev-edition`
+show the Settings card and the rail's edition badge.

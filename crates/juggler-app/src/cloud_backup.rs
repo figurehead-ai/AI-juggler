@@ -21,7 +21,7 @@
 
 use std::sync::Arc;
 
-use juggler_account::{BackupRecord, SecretStore, VaultKey, VaultKeychain};
+use juggler_account::{BackupRecord, SecretStore, VaultKey};
 
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
@@ -334,7 +334,7 @@ pub fn cloud_backup_prepare_restore_impl(
 #[tauri::command]
 #[must_use]
 pub fn cloud_backup_status(state: tauri::State<'_, Arc<AppState>>) -> CloudBackupStatusInfo {
-    cloud_backup_status_impl(state.inner(), &VaultKeychain)
+    cloud_backup_status_impl(state.inner(), &crate::edition::current().vault_keychain())
 }
 
 /// AJ-E1205: sets the schedule.
@@ -347,7 +347,11 @@ pub fn cloud_backup_set_schedule(
     state: tauri::State<'_, Arc<AppState>>,
     schedule: String,
 ) -> AppResult<CloudBackupStatusInfo> {
-    cloud_backup_set_schedule_impl(state.inner(), &VaultKeychain, &schedule)
+    cloud_backup_set_schedule_impl(
+        state.inner(),
+        &crate::edition::current().vault_keychain(),
+        &schedule,
+    )
 }
 
 async fn blocking<T: Send + 'static>(
@@ -370,7 +374,10 @@ async fn blocking<T: Send + 'static>(
 /// Per [`cloud_backup_now_impl`].
 #[tauri::command]
 pub async fn cloud_backup_now(state: tauri::State<'_, Arc<AppState>>) -> AppResult<LastBackupInfo> {
-    blocking(&state, |state| cloud_backup_now_impl(state, &VaultKeychain)).await
+    blocking(&state, |state| {
+        cloud_backup_now_impl(state, &crate::edition::current().vault_keychain())
+    })
+    .await
 }
 
 /// AJ-E1205: lists the account's backups.
@@ -397,7 +404,12 @@ pub async fn cloud_backup_prepare_restore(
     recovery_code: Option<String>,
 ) -> AppResult<crate::backup::RestorePlanInfo> {
     blocking(&state, move |state| {
-        cloud_backup_prepare_restore_impl(state, &VaultKeychain, &id, recovery_code.as_deref())
+        cloud_backup_prepare_restore_impl(
+            state,
+            &crate::edition::current().vault_keychain(),
+            &id,
+            recovery_code.as_deref(),
+        )
     })
     .await
 }
@@ -408,7 +420,7 @@ pub fn spawn_schedule(state: Arc<AppState>) {
     std::thread::spawn(move || {
         loop {
             std::thread::sleep(std::time::Duration::from_secs(3_600));
-            let _ = cloud_backup_tick(&state, &VaultKeychain);
+            let _ = cloud_backup_tick(&state, &crate::edition::current().vault_keychain());
         }
     });
 }

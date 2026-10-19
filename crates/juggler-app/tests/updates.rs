@@ -295,16 +295,21 @@ fn install_waits_for_a_switch_in_flight_and_restart_for_live_instances() {
     assert!(reason.contains("1 Instance is still running"), "{reason}");
 }
 
-/// D-20: three channels, one feed each. Beta until the first stable
-/// release; the choice persists; an unknown name is refused; switching
-/// forgets what the previous feed announced (nothing downloads until
-/// the next check and Install).
+/// D-20 / D-23: one feed per channel. AI Juggler follows beta until the
+/// first stable release and chooses between stable and beta (nightly is
+/// the separate AI Juggler Nightly app); the choice persists; anything
+/// else is refused; switching forgets what the previous feed announced
+/// (nothing downloads until the next check and Install).
 #[test]
 fn the_channel_is_a_persisted_choice_with_its_own_feed() {
     use juggler_app::updates::Channel;
     let dir = tempfile::tempdir().unwrap();
     let state = app_state(dir.path(), true);
-    assert_eq!(updates::update_status_impl(&state).channel, "beta");
+    let status = updates::update_status_impl(&state);
+    assert_eq!(status.channel, "beta");
+    assert_eq!(status.edition, "main");
+    assert_eq!(status.app_name, "AI Juggler");
+    assert_eq!(status.channels, ["stable", "beta"]);
 
     for (channel, feed) in [
         (Channel::Stable, "/stable-channel/latest.json"),
@@ -320,22 +325,25 @@ fn the_channel_is_a_persisted_choice_with_its_own_feed() {
     let feed = FakeFeed::default();
     let found = updates::update_check_impl(&state, &feed).unwrap();
     assert_eq!(found.state, "available");
-    // … switching to nightly forgets it, and the choice persists.
-    let switched = updates::update_set_channel_impl(&state, "nightly").unwrap();
-    assert_eq!(switched.channel, "nightly");
+    // … switching to stable forgets it, and the choice persists.
+    let switched = updates::update_set_channel_impl(&state, "stable").unwrap();
+    assert_eq!(switched.channel, "stable");
     assert_eq!(switched.state, "idle");
     assert!(switched.available.is_none());
-    assert_eq!(updates::current_channel(), Channel::Nightly);
+    assert_eq!(updates::current_channel(), Channel::Stable);
     drop(state);
     let reopened = app_state(dir.path(), true);
-    assert_eq!(updates::update_status_impl(&reopened).channel, "nightly");
+    assert_eq!(updates::update_status_impl(&reopened).channel, "stable");
 
     let refused = updates::update_set_channel_impl(&reopened, "canary").unwrap_err();
     assert!(
-        refused
-            .to_string()
-            .contains("choose stable, beta or nightly"),
+        refused.to_string().contains("choose stable or beta"),
         "{refused}"
     );
-    assert_eq!(updates::update_status_impl(&reopened).channel, "nightly");
+    let nightly = updates::update_set_channel_impl(&reopened, "nightly").unwrap_err();
+    assert!(
+        nightly.to_string().contains("AI Juggler Nightly"),
+        "{nightly}"
+    );
+    assert_eq!(updates::update_status_impl(&reopened).channel, "stable");
 }

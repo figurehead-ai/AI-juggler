@@ -141,6 +141,8 @@ jobs:
           import json, sys
           feed = json.load(open(sys.argv[1]))
           assert feed["version"] and feed["platforms"], "bad feed"
+          # D-23: beta and stable carry AI Juggler, never AI Juggler Nightly.
+          assert all("AI-Juggler-Nightly-" not in p["url"] for p in feed["platforms"].values()), "Nightly app in a beta/stable feed"
           feed["notes"] = open(sys.argv[2]).read()
           json.dump(feed, open(sys.argv[1], "w"), indent=2)
           PY

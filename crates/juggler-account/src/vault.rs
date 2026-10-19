@@ -289,21 +289,45 @@ pub fn open(key: &VaultKey, container: &[u8]) -> Result<Vec<u8>, VaultError> {
         .map_err(|_| VaultError::Tampered)
 }
 
-/// The vault key's Keychain item: [`VAULT_SERVICE`] / [`VAULT_ACCOUNT`].
-#[derive(Debug, Default, Clone, Copy)]
-pub struct VaultKeychain;
+/// The vault key's Keychain item: a service ([`VAULT_SERVICE`] for AI
+/// Juggler; each edition has its own, D-23) / [`VAULT_ACCOUNT`].
+#[derive(Debug, Clone, Copy)]
+pub struct VaultKeychain {
+    service: &'static str,
+}
+
+impl VaultKeychain {
+    /// The vault key item under `service`.
+    #[must_use]
+    pub const fn for_service(service: &'static str) -> Self {
+        Self { service }
+    }
+
+    /// The Keychain service this item lives under.
+    #[must_use]
+    pub const fn service(&self) -> &'static str {
+        self.service
+    }
+}
+
+impl Default for VaultKeychain {
+    /// AI Juggler's own vault item ([`VAULT_SERVICE`]).
+    fn default() -> Self {
+        Self::for_service(VAULT_SERVICE)
+    }
+}
 
 #[cfg(target_os = "macos")]
 impl SecretStore for VaultKeychain {
     fn get(&self, account: &str) -> Option<String> {
-        security_framework::passwords::get_generic_password(VAULT_SERVICE, account)
+        security_framework::passwords::get_generic_password(self.service, account)
             .ok()
             .and_then(|bytes| String::from_utf8(bytes).ok())
     }
 
     fn set(&self, account: &str, secret: &str) -> Result<(), SecretError> {
         security_framework::passwords::set_generic_password(
-            VAULT_SERVICE,
+            self.service,
             account,
             secret.as_bytes(),
         )
@@ -311,7 +335,7 @@ impl SecretStore for VaultKeychain {
     }
 
     fn delete(&self, account: &str) {
-        let _ = security_framework::passwords::delete_generic_password(VAULT_SERVICE, account);
+        let _ = security_framework::passwords::delete_generic_password(self.service, account);
     }
 }
 

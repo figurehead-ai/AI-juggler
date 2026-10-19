@@ -1,0 +1,5 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "AI Juggler Nightly",
+  "identifier": "ai.figurehead.juggler.nightly"
+}

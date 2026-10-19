@@ -14,6 +14,18 @@ current_version: string,
  */
 channel: string, 
 /**
+ * This edition (D-23): `main` | `nightly` | `dev`.
+ */
+edition: string, 
+/**
+ * The edition's app name (AI Juggler, AI Juggler Nightly, …).
+ */
+app_name: string, 
+/**
+ * The channels this edition can choose between (empty: none).
+ */
+channels: Array<string>, 
+/**
  * This build can update itself (it carries the signing key).
  */
 configured: boolean, 

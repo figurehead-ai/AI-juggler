@@ -455,7 +455,9 @@ function None<T>(): T | null {
 
 export async function fetchAppInfo(): Promise<AppInfo | null> {
   if (!hasBackend) {
-    return { version: "0.0.0-preview", name: "AI Juggler" };
+    // Gallery seam: a Nightly or Dev window (D-23).
+    const seeded = (window as unknown as { __AIJ_APP_INFO__?: AppInfo }).__AIJ_APP_INFO__;
+    return seeded ?? { version: "0.0.0-preview", name: "AI Juggler", edition: "main" };
   }
   try {
     return await invoke<AppInfo>("app_info");
@@ -4438,6 +4440,9 @@ const mockUpdateStatus = (): UpdateStatusInfo =>
   updateSeams().__AIJ_UPDATE_STATUS__ ?? {
     current_version: "0.0.1",
     channel: "beta",
+    edition: "main",
+    app_name: "AI Juggler",
+    channels: ["stable", "beta"],
     configured: false,
     check_on_launch: true,
     state: "idle",
@@ -4465,7 +4470,8 @@ export async function updateSetCheckOnLaunch(enabled: boolean): Promise<UpdateSt
   return invoke<UpdateStatusInfo>("update_set_check_on_launch", { enabled });
 }
 
-/** D-20: the update channel this install follows. */
+/** D-20: the update channel this install follows. AI Juggler offers
+ * stable and beta; AI Juggler Nightly follows nightly (D-23). */
 export type UpdateChannel = "stable" | "beta" | "nightly";
 
 /** Chooses the update channel; forgets what the previous feed announced. */

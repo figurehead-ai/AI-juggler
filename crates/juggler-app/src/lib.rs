@@ -16,6 +16,7 @@ pub mod cloud_backup;
 pub mod commands;
 pub mod crash;
 pub mod crossmachine;
+pub mod edition;
 pub mod error;
 pub mod figurehead;
 pub mod fleet;
@@ -82,6 +83,13 @@ pub const EVENT_PREVIEW_STATE: &str = "preview://state";
 pub fn run() {
     // AJ-E1103: cold start runs from here to the end of setup.
     let launched = std::time::Instant::now();
+    // D-23: the edition comes from the identifier this build carries, and
+    // decides everything that must never be shared between editions.
+    let context = tauri::generate_context!();
+    edition::set_current(edition::Edition::from_identifier(
+        &context.config().identifier,
+        cfg!(debug_assertions),
+    ));
     let data_dir = bootstrap_data_dir();
     let app_state = Arc::new(state::AppState::init(data_dir).unwrap_or_else(|error| {
         eprintln!("ai-juggler: fatal: {error}");
@@ -372,7 +380,7 @@ pub fn run() {
             usage_stats::start(stats_state, launched.elapsed());
             Ok(())
         })
-        .build(tauri::generate_context!())
+        .build(context)
         .unwrap_or_else(|error| {
             eprintln!("ai-juggler: fatal: {error}");
             std::process::exit(1);

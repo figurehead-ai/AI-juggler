@@ -2606,7 +2606,8 @@ for (const theme of ["dark", "light"] as const) {
         const w = window as unknown as Record<string, unknown>;
         w.__AIJ_FIXTURE__ = fixture;
         w.__AIJ_UPDATE_STATUS__ = {
-          current_version: "0.1.0", channel: "beta", configured: true, check_on_launch: true, state: "available",
+          current_version: "0.1.0", channel: "beta", edition: "main", app_name: "AI Juggler",
+          channels: ["stable", "beta"], configured: true, check_on_launch: true, state: "available",
           available: { version: "0.2.0", notes: "## New\n- History", date_ms: null },
           progress: null, error: null, backup_path: null, checked_at_ms: null,
         };

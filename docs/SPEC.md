@@ -643,6 +643,9 @@ AI Juggler instances link over the network so one console can see — and manage
 
 ## 12. Storage layout
 
+One data folder per edition (D-23): `AI Juggler`, `AI Juggler Nightly` or
+`AI Juggler Dev`, the same layout in each; editions never share one.
+
 ```
 ~/Library/Application Support/AI Juggler/        (macOS; XDG on Linux, %APPDATA% on Win)
 ├── juggler.sqlite          # accounts, launch_recipes, instances index, usage events, lineage, footprint stats (WAL)

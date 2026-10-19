@@ -32,8 +32,11 @@ use crate::state::AppState;
 pub struct AppInfo {
     /// Application version from the crate manifest.
     pub version: String,
-    /// Machine-friendly app name.
+    /// The app's name: the edition's (AI Juggler, AI Juggler Nightly,
+    /// AI Juggler Dev — D-23).
     pub name: String,
+    /// The edition: `main` | `nightly` | `dev`.
+    pub edition: String,
 }
 
 impl AppInfo {
@@ -42,7 +45,8 @@ impl AppInfo {
     pub fn current() -> Self {
         Self {
             version: env!("CARGO_PKG_VERSION").to_string(),
-            name: "AI Juggler".to_string(),
+            name: crate::edition::current().app_name().to_string(),
+            edition: crate::edition::current().as_str().to_string(),
         }
     }
 }
@@ -9665,6 +9669,7 @@ mod tests {
     fn app_info_is_populated() {
         let info = AppInfo::current();
         assert_eq!(info.name, "AI Juggler");
+        assert_eq!(info.edition, "main");
         assert!(!info.version.is_empty());
     }
 

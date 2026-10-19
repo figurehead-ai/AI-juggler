@@ -1,12 +1,12 @@
 # Releasing AI Juggler
 
 How AI Juggler is built, signed, released on its three channels, and if
-needed rolled back (AJ-E1010, decision D-20). Every change travels
-**nightly → beta → stable**:
+needed rolled back (AJ-E1010, decisions D-20 and D-23). Every change
+travels **nightly → beta → stable**:
 
 | Channel | Who it's for | How a build gets there |
 |---|---|---|
-| **Nightly** | People who want the newest code and accept rough edges | `nightly.yml` builds `main` every day there's a new commit. No approval |
+| **Nightly** | People who want the newest code and accept rough edges. Installed as its own app, **AI Juggler Nightly** | `nightly.yml` builds `main` every day there's a new commit. No approval |
 | **Beta** | Newer features, a little less tested | `promote.yml` with the maintainer's approval (the `beta` environment) |
 | **Stable** | Well-tested releases for everyday work | `promote.yml` with the maintainer's approval (the `stable` environment), only for a version that was on beta, once the beta gate is signed |
 
@@ -17,8 +17,36 @@ signed build, so nothing is rebuilt and versions only go up. Three
 workflows do the mechanical work:
 
 - **`nightly.yml`** plans the build and calls **`build-macos.yml`**, which
-  signs, notarizes and publishes the version as a pre-release; then it moves
-  the nightly feed.
+  builds, signs, notarizes and publishes the version as a pre-release, as
+  both apps (below); then it moves the nightly feed.
+
+## Editions: side by side on one Mac (D-23)
+
+Every version is built as two apps from the same commit, and developers
+build a third locally. They install next to each other and share nothing:
+
+| Edition | Bundle id | Data folder (Application Support) | Updates from | Release assets |
+|---|---|---|---|---|
+| **AI Juggler** | `ai.figurehead.juggler` | `AI Juggler` | Beta or Stable (the user's choice) | `AI-Juggler-X.Y.Z-universal.*`, `latest.json` |
+| **AI Juggler Nightly** | `ai.figurehead.juggler.nightly` | `AI Juggler Nightly` | Nightly | `AI-Juggler-Nightly-X.Y.Z-universal.*`, `latest-nightly.json` |
+| **AI Juggler Dev** | `ai.figurehead.juggler.dev` | `AI Juggler Dev` | never | built by `just dev` / `just app` |
+
+Each edition also has its own Keychain items, Fleet port (47821, 47822,
+47823) and single-instance lock, and the Nightly and Dev icons carry a band
+with their name. The edition comes from the bundle identifier
+(`crates/juggler-app/tauri.nightly.conf.json` and `tauri.dev.conf.json`
+overlay `tauri.conf.json`); a debug build is always Dev. So:
+
+- **Use AI Juggler for real work and AI Juggler Nightly to try what's
+  coming**, at the same time. Give Nightly its own test Accounts: both apps
+  can manage the same Claude account, but each would then set up its usage
+  meter in it.
+- **Developers and agents run only AI Juggler Dev**, which can never open an
+  installed edition's data.
+- **Promotion is unchanged**: beta and stable point at the AI Juggler build
+  of a version (`latest.json`); the nightly feed points at its AI Juggler
+  Nightly build (`latest-nightly.json`). Both workflows check they carry the
+  right app.
 - **`promote.yml`** moves the beta or stable feed to an existing version
   after its checks and the maintainer's approval.
 
@@ -29,8 +57,10 @@ workflows do the mechanical work:
   they start, a setting that is on by default and can be turned off. A check
   only reports: the user sees the new version and its notes, and nothing is
   downloaded or installed until they choose **Install**.
-- **The channel** is chosen in Settings › About & updates: Stable, Beta or
-  Nightly. Installs follow Beta until the first stable release. Moving to a
+- **The channel** is chosen in AI Juggler's Settings › About & updates:
+  Stable or Beta. Installs follow Beta until the first stable release.
+  Nightly builds are the separate AI Juggler Nightly app, which always
+  follows the nightly feed. Moving to a
   steadier channel never goes back to an older version: that channel is
   offered once it passes the installed one.
 - **Installing** first writes a backup of AI Juggler's data (`backups/` in the
@@ -39,7 +69,8 @@ workflows do the mechanical work:
   as it was, with a reason and **Retry**.
 - **Restarting** into the new version is offered, never forced. It waits until
   no Instance is running, and an install waits while a switch is in flight.
-- **Development builds** (anything built without the key) never check.
+- **Development builds** (anything built without the key, and AI Juggler
+  Dev) never check.
 
 ## One-time setup (maintainer)
 
@@ -128,8 +159,9 @@ A release is never deleted to roll it back. Instead:
    version:
    - beta or stable: run **Promote** with that version and channel (it was
      approved before, so its checks pass again);
-   - nightly: `gh release download vX.Y.Z --pattern latest.json` for the good
-     version, then `gh release upload nightly-channel latest.json --clobber`.
+   - nightly: `gh release download vX.Y.Z --pattern latest-nightly.json` for
+     the good version, rename it to `latest.json`, then
+     `gh release upload nightly-channel latest.json --clobber`.
 
    Installs that have not updated are then offered nothing new.
 2. **For users who already installed it**, the release notes of a follow-up

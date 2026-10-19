@@ -1,5 +1,6 @@
 # D-20: build, sign and notarize one AI Juggler version, and publish it
-# as a pre-release with its update feed (`latest.json`). Called by
+# as a pre-release with its update feeds: `latest.json` (AI Juggler) and
+# `latest-nightly.json` (AI Juggler Nightly, D-23). Called by
 # nightly.yml; promote.yml later points the beta and stable channels at
 # the same build. Nothing is ever rebuilt for a channel.
 #
@@ -32,7 +33,7 @@ jobs:
   build-macos:
     name: build-macos
     runs-on: macos-latest
-    timeout-minutes: 90
+    timeout-minutes: 150
     env:
       VERSION: ${{ inputs.version }}
     steps:
@@ -86,13 +87,19 @@ jobs:
           pnpm --dir ui install --frozen-lockfile
 
       - name: Icons
-        # The macOS icon set is generated from the brand PNG at build
-        # time; no generated binaries live in the repository.
+        # The macOS icon sets are generated from the brand PNG at build
+        # time; no generated binaries live in the repository. AI Juggler
+        # Nightly's icon carries a "Nightly" band (D-23).
         run: |
-          mkdir -p "$RUNNER_TEMP/icons"
-          cd crates/juggler-app && cargo tauri icon icons/icon.png --output "$RUNNER_TEMP/icons"
+          swift scripts/edition_icon.swift crates/juggler-app/icons/icon.png "$RUNNER_TEMP/nightly.png" Nightly 6D28D9
+          cd crates/juggler-app
+          cargo tauri icon icons/icon.png --output "$RUNNER_TEMP/icons/main"
+          cargo tauri icon "$RUNNER_TEMP/nightly.png" --output "$RUNNER_TEMP/icons/nightly"
 
-      - name: Build, sign and notarize (universal)
+      - name: Build, sign, notarize and verify both editions (universal)
+        # D-23: AI Juggler (promoted later to beta and stable, never
+        # rebuilt) and AI Juggler Nightly (the nightly feed), from the same
+        # commit. Each has its own bundle id, name, data and icon.
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -105,53 +112,65 @@ jobs:
           # Baked into the app: the key its updater verifies against.
           AIJ_UPDATER_PUBKEY: ${{ vars.AIJ_UPDATER_PUBKEY }}
         run: |
-          config=$(python3 - <<PY
-          import json, os
-          print(json.dumps({
-            "bundle": {
-              "active": True,
-              "targets": ["app", "dmg"],
-              "createUpdaterArtifacts": True,
-              "icon": [os.environ["RUNNER_TEMP"] + "/icons/icon.icns", os.environ["RUNNER_TEMP"] + "/icons/icon.png"],
-              "macOS": {"minimumSystemVersion": "14.0"}
-            },
-            "plugins": {"updater": {"pubkey": os.environ["AIJ_UPDATER_PUBKEY"], "requireSignedVersion": True}}
-          }))
-          PY
-          )
-          cd crates/juggler-app && cargo tauri build --target universal-apple-darwin --config "$config"
-
-      - name: Verify the signature, notarization and updater signature
-        run: |
-          bundle=target/universal-apple-darwin/release/bundle
-          app="$(ls -d "$bundle"/macos/*.app | head -1)"
-          dmg="$(ls "$bundle"/dmg/*.dmg | head -1)"
-          codesign --verify --deep --strict --verbose=2 "$app"
-          spctl --assess --type execute --verbose=4 "$app"
-          xcrun stapler validate "$dmg"
-          ls "$bundle"/macos/*.app.tar.gz "$bundle"/macos/*.app.tar.gz.sig
-
-      - name: Assemble assets (installer name, updater feed)
-        run: |
-          bundle=target/universal-apple-darwin/release/bundle
+          set -euo pipefail
+          bundle="$PWD/target/universal-apple-darwin/release/bundle"
           out="$RUNNER_TEMP/assets" && mkdir -p "$out"
-          cp "$(ls "$bundle"/dmg/*.dmg | head -1)" "$out/AI-Juggler-${VERSION}-universal.dmg"
-          cp "$(ls "$bundle"/macos/*.app.tar.gz | head -1)" "$out/AI-Juggler-${VERSION}-universal.app.tar.gz"
-          cp "$(ls "$bundle"/macos/*.app.tar.gz.sig | head -1)" "$out/AI-Juggler-${VERSION}-universal.app.tar.gz.sig"
+          build_edition() {  # edition  overlay-json-or-empty  asset-prefix
+            local edition="$1" overlay="$2" prefix="$3" config app dmg
+            config=$(EDITION="$edition" OVERLAY="$overlay" python3 - <<'PY'
+          import json, os
+          config = json.loads(os.environ["OVERLAY"]) if os.environ["OVERLAY"] else {}
+          config.pop("$schema", None)
+          icons = os.environ["RUNNER_TEMP"] + "/icons/" + os.environ["EDITION"]
+          config["bundle"] = {
+            "active": True,
+            "targets": ["app", "dmg"],
+            "createUpdaterArtifacts": True,
+            "icon": [icons + "/icon.icns", icons + "/icon.png"],
+            "macOS": {"minimumSystemVersion": "14.0"},
+          }
+          config["plugins"] = {"updater": {"pubkey": os.environ["AIJ_UPDATER_PUBKEY"], "requireSignedVersion": True}}
+          print(json.dumps(config))
+          PY
+            )
+            rm -rf "$bundle"
+            (cd crates/juggler-app && cargo tauri build --target universal-apple-darwin --config "$config")
+            app="$(ls -d "$bundle"/macos/*.app | head -1)"
+            dmg="$(ls "$bundle"/dmg/*.dmg | head -1)"
+            echo "::group::Verify $app"
+            codesign --verify --deep --strict --verbose=2 "$app"
+            spctl --assess --type execute --verbose=4 "$app"
+            xcrun stapler validate "$dmg"
+            echo "::endgroup::"
+            cp "$dmg" "$out/${prefix}-${VERSION}-universal.dmg"
+            cp "$(ls "$bundle"/macos/*.app.tar.gz | head -1)" "$out/${prefix}-${VERSION}-universal.app.tar.gz"
+            cp "$(ls "$bundle"/macos/*.app.tar.gz.sig | head -1)" "$out/${prefix}-${VERSION}-universal.app.tar.gz.sig"
+          }
+          build_edition main "" AI-Juggler
+          build_edition nightly "$(cat crates/juggler-app/tauri.nightly.conf.json)" AI-Juggler-Nightly
+
+      - name: Assemble assets (update feeds, checksums)
+        run: |
+          out="$RUNNER_TEMP/assets"
           python3 - <<PY
           import json, os, datetime
           version = os.environ["VERSION"]
           out = os.environ["RUNNER_TEMP"] + "/assets"
-          sig = open(f"{out}/AI-Juggler-{version}-universal.app.tar.gz.sig").read().strip()
-          url = f"https://github.com/${{ github.repository }}/releases/download/v{version}/AI-Juggler-{version}-universal.app.tar.gz"
           notes = open(f"docs/releases/{version}.md").read()
-          feed = {
-            "version": version,
-            "notes": notes,
-            "pub_date": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "platforms": {p: {"signature": sig, "url": url} for p in ("darwin-aarch64", "darwin-x86_64")},
-          }
-          json.dump(feed, open(f"{out}/latest.json", "w"), indent=2)
+          date = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+          # latest.json: AI Juggler (what beta and stable point at later).
+          # latest-nightly.json: AI Juggler Nightly (the nightly feed).
+          for feed_name, prefix in (("latest.json", "AI-Juggler"), ("latest-nightly.json", "AI-Juggler-Nightly")):
+              archive = f"{prefix}-{version}-universal.app.tar.gz"
+              sig = open(f"{out}/{archive}.sig").read().strip()
+              url = f"https://github.com/${{ github.repository }}/releases/download/v{version}/{archive}"
+              feed = {
+                "version": version,
+                "notes": notes,
+                "pub_date": date,
+                "platforms": {p: {"signature": sig, "url": url} for p in ("darwin-aarch64", "darwin-x86_64")},
+              }
+              json.dump(feed, open(f"{out}/{feed_name}", "w"), indent=2)
           PY
           cp "docs/releases/${VERSION}.md" "$RUNNER_TEMP/notes.md"
           (cd "$out" && shasum -a 256 ./* > SHA256SUMS.txt && cat SHA256SUMS.txt)

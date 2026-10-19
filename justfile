@@ -97,13 +97,20 @@ gate-e7:
 doc:
     RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
 
-# Run the desktop app in dev mode (UI hot-reload + Rust rebuild on change).
-dev:
-    cargo tauri dev
+# AI Juggler Dev (D-23) has its own data folder, Keychain items, Fleet port
+# and single-instance lock: it runs next to an installed AI Juggler or AI
+# Juggler Nightly and never touches their data.
+# Run the app as AI Juggler Dev (UI hot-reload + Rust rebuild on change).
+dev: dev-icon
+    cargo tauri dev --config crates/juggler-app/tauri.dev.conf.json
 
-# Release-mode app bundle under target/release/bundle/ (unsigned dev build).
-app:
-    cargo tauri build
+# Release-mode build of AI Juggler Dev (unsigned, never updates).
+app: dev-icon
+    cargo tauri build --config crates/juggler-app/tauri.dev.conf.json
+
+# The Dev edition's marked icon (generated; target/ is not committed).
+dev-icon:
+    swift scripts/edition_icon.swift crates/juggler-app/icons/icon.png target/edition-icons/dev/icon.png Dev C2410C
 
 # AJ-E803 visual regression gate (in the pinned Playwright container):
 # compare the deterministic matrix with the approved baselines.
