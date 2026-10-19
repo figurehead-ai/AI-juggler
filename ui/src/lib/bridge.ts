@@ -4465,6 +4465,25 @@ export async function updateSetCheckOnLaunch(enabled: boolean): Promise<UpdateSt
   return invoke<UpdateStatusInfo>("update_set_check_on_launch", { enabled });
 }
 
+/** D-20: the update channel this install follows. */
+export type UpdateChannel = "stable" | "beta" | "nightly";
+
+/** Chooses the update channel; forgets what the previous feed announced. */
+export async function updateSetChannel(channel: UpdateChannel): Promise<UpdateStatusInfo> {
+  if (!hasBackend) {
+    updateCall(`channel:${channel}`);
+    const current = mockUpdateStatus();
+    const next: UpdateStatusInfo = {
+      ...current,
+      channel,
+      ...(current.state === "installed" ? {} : { state: "idle", available: null, error: null }),
+    };
+    updateSeams().__AIJ_UPDATE_STATUS__ = next;
+    return next;
+  }
+  return invoke<UpdateStatusInfo>("update_set_channel", { channel });
+}
+
 /** Checks for a newer version now (never installs). */
 export async function updateCheck(): Promise<UpdateStatusInfo> {
   if (!hasBackend) {

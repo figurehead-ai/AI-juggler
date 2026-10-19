@@ -2,7 +2,7 @@
   "gate": "beta",
   "title": "Gate — v0.1 beta exit",
   "output": "docs/qa/gate-beta.md",
-  "scope": "Beta may be claimed only when every criterion is PASS on stored evidence (docs/qa/beta-exit.md). Until this gate is signed, the beta update channel does not move (release-channel.yml).",
+  "scope": "Beta may be claimed only when every criterion is PASS on stored evidence (docs/qa/beta-exit.md). Until this gate is signed, no version can be promoted to the stable channel (promote.yml, decision D-20).",
   "criteria": [
     {"id": "B1", "criterion": "Fidelity register: same-Provider pairs PASS on every area; cross-Provider pairs PASS or FAIL with a user-facing drop list — from live runs on real binaries", "tasks": ["AJ-E210", "AJ-E808"], "evidence": ["docs/qa/evidence/AJ-E808/register.md", "docs/qa/gate-E2-validation.md"]},
     {"id": "B2", "criterion": "Dogfood programme: ≥ 80 % unaided task completion; ≥ 80 % A→B→A continuity; median switch < 2 min", "tasks": ["AJ-E809"], "evidence": ["docs/qa/evidence/AJ-E809/manifest.md"]},

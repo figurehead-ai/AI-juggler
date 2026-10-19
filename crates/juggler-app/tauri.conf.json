@@ -2,7 +2,7 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "AI Juggler",
   "version": "0.0.1",
-  "identifier": "com.vuxtra.ai-juggler",
+  "identifier": "ai.figurehead.juggler",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "beforeBuildCommand": "pnpm build",

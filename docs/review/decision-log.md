@@ -301,10 +301,13 @@
   the user choose which one it follows (Settings). A promotion moves an
   already-built, signed build forward; nothing is rebuilt between
   channels. The approval steps are GitHub environment approvals, so
-  they are recorded. The signed beta gate (AJ-E807) governs claiming
-  "beta" for the programme as a whole, and stays separate from
-  promoting a single build. Supersedes the single beta channel of
-  AJ-E1010.
+  they are recorded. One version stream: a nightly build gets the next
+  version (`MAJOR.MINOR` from `Cargo.toml`, the patch is the nightly run
+  number) and keeps it on every channel. Promotion to **stable** also
+  needs the version to have been on beta and the beta gate (AJ-E807) to
+  be signed: the gate's criteria are the exit from beta. Installs follow
+  Beta until the first stable release. Supersedes the single beta
+  channel of AJ-E1010 and the `0.x.0-beta.N` versioning of SPEC §15.9.
 
 ### D-21 Two visual-check modes: full sweep and core — SETTLED (2026-10-19)
 
@@ -336,7 +339,11 @@
   than deferred.
 - **Repository**: the pre-move public repository is archived with a
   pointer here; `visual` is a required check; secret scanning and push
-  protection are to be on for this public repository.
+  protection are on for this public repository.
+- **Bundle id**: `ai.figurehead.juggler`. It is the product's identity,
+  independent of the signing team (Vuxtra LLC's Developer ID today), so a
+  future Figurehead Apple account changes only the signer. No App ID is
+  registered; the app uses no Apple capabilities.
 
 ## Unresolved (in discussion order)
 

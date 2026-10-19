@@ -1,94 +1,47 @@
-# AJ-E1010: build, sign, notarize and draft a release (docs/RELEASING.md).
+# D-20: build, sign and notarize one AI Juggler version, and publish it
+# as a pre-release with its update feed (`latest.json`). Called by
+# nightly.yml; promote.yml later points the beta and stable channels at
+# the same build. Nothing is ever rebuilt for a channel.
 #
-# Runs on a version tag (vX.Y.Z) or by hand. It fails closed: without
-# every signing secret, user-facing notes, and matching versions, nothing
-# is built or published. The result is a DRAFT pre-release. The
-# maintainer reviews it and publishes it; publishing moves the beta
-# channel (release-channel.yml).
-name: Release
+# Fails closed: without every signing secret nothing is built. No build
+# cache is restored: a signed, notarized build starts from a clean runner
+# so nothing another workflow wrote can end up inside it.
+name: Build (macOS)
 
 on:
-  push:
-    tags: ["v*.*.*"]
-  workflow_dispatch:
+  workflow_call:
     inputs:
-      tag:
-        description: "Tag to release (vX.Y.Z, already pushed)"
+      ref:
+        description: "Commit to build"
+        type: string
         required: true
+      version:
+        description: "X.Y.Z (release_version.py next)"
+        type: string
+        required: true
+      previous:
+        description: "Commit of the previous nightly (release notes since then); empty for the first"
+        type: string
+        required: false
+        default: ""
 
 permissions:
   contents: write
 
-concurrency:
-  group: release-${{ github.event.inputs.tag || github.ref_name }}
-  cancel-in-progress: false
-
-env:
-  TAG: ${{ github.event.inputs.tag || github.ref_name }}
-
 jobs:
-  # AJ-E804: no release candidate ships with a critical or serious
-  # accessibility violation or a broken keyboard flow. The full scan is
-  # ~10 min on 30 cores, so it runs in four shards; `a11y` summarises.
-  a11y-shard:
-    name: a11y (${{ matrix.shard }}/4)
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2, 3, 4]
-    container:
-      image: mcr.microsoft.com/playwright:v1.64.1-noble
-      options: --ipc=host
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          ref: ${{ env.TAG }}
-      - name: Install
-        working-directory: ui
-        run: corepack enable && corepack prepare pnpm@10 --activate && pnpm install --frozen-lockfile
-      - name: Accessibility gate, shard ${{ matrix.shard }}/4
-        env:
-          A11Y_SKIP_SUMMARY: "1"
-        run: ./scripts/a11y_gate.sh --shard=${{ matrix.shard }}/4
-      - name: Scans
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: a11y-shard-${{ matrix.shard }}
-          path: docs/qa/evidence/AJ-E804/
-          retention-days: 30
-
-  a11y:
-    name: a11y
-    needs: a11y-shard
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          ref: ${{ env.TAG }}
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          pattern: a11y-shard-*
-          path: docs/qa/evidence/AJ-E804/
-          merge-multiple: true
-      - name: Every gallery state, summarised (0 critical, 0 serious)
-        run: |
-          python3 scripts/axe_summary.py
-          cat docs/qa/evidence/AJ-E804/axe-summary.md >> "$GITHUB_STEP_SUMMARY"
-
-  release-macos:
-    name: release-macos
-    needs: a11y
+  build-macos:
+    name: build-macos
     runs-on: macos-latest
     timeout-minutes: 90
+    env:
+      VERSION: ${{ inputs.version }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          ref: ${{ env.TAG }}
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0
 
-      - name: Preflight — secrets, versions, notes (fails closed)
+      - name: Preflight — secrets, version, notes (fails closed)
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -99,6 +52,8 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           AIJ_UPDATER_PUBKEY: ${{ vars.AIJ_UPDATER_PUBKEY }}
+          PREVIOUS: ${{ inputs.previous }}
+          REF: ${{ inputs.ref }}
         run: |
           missing=()
           for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY \
@@ -107,31 +62,17 @@ jobs:
             [ -n "${!name}" ] || missing+=("$name")
           done
           if [ ${#missing[@]} -gt 0 ]; then
-            echo "::error::Not releasing — missing: ${missing[*]} (docs/RELEASING.md § One-time setup)"
+            echo "::error::Not building — missing: ${missing[*]} (docs/RELEASING.md § One-time setup)"
             exit 1
           fi
-          version="${TAG#v}"
-          conf="$(python3 -c 'import json;print(json.load(open("crates/juggler-app/tauri.conf.json"))["version"])')"
-          cargo_version="$(grep -m1 '^version' crates/juggler-app/Cargo.toml | sed -E 's/.*"(.*)".*/\1/')"
-          if [ "$version" != "$conf" ] || [ "$version" != "$cargo_version" ]; then
-            echo "::error::Tag $TAG, tauri.conf.json $conf and Cargo.toml $cargo_version must match"
-            exit 1
+          # The version is stamped into this checkout only (never committed).
+          python3 scripts/release_version.py stamp "$VERSION"
+          # Nightly notes from the commits since the previous nightly; a
+          # version that already has hand-written notes keeps them.
+          if [ ! -f "docs/releases/${VERSION}.md" ]; then
+            python3 scripts/nightly_notes.py "$VERSION" "$PREVIOUS" "$REF"
           fi
-          grep -q "^## \[$version\]" CHANGELOG.md || { echo "::error::CHANGELOG.md has no [$version] section"; exit 1; }
-          ./scripts/release_notes_check.sh "$version"
-          echo "VERSION=$version" >> "$GITHUB_ENV"
-
-      - name: Cargo cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: |
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db
-            ~/.cargo/bin/cargo-tauri
-            target
-          key: ${{ runner.os }}-release-cargo-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
-          restore-keys: ${{ runner.os }}-release-cargo-
+          ./scripts/release_notes_check.sh "$VERSION"
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
@@ -212,13 +153,16 @@ jobs:
           }
           json.dump(feed, open(f"{out}/latest.json", "w"), indent=2)
           PY
+          cp "docs/releases/${VERSION}.md" "$RUNNER_TEMP/notes.md"
           (cd "$out" && shasum -a 256 ./* > SHA256SUMS.txt && cat SHA256SUMS.txt)
 
-      - name: Draft the release (pre-release; the maintainer publishes)
+      - name: Publish the build (pre-release; channels point at it later)
         env:
           GH_TOKEN: ${{ github.token }}
+          REF: ${{ inputs.ref }}
         run: |
-          gh release create "$TAG" "$RUNNER_TEMP"/assets/* \
-            --draft --prerelease \
-            --title "$VERSION" \
-            --notes-file "docs/releases/${VERSION}.md"
+          gh release create "v${VERSION}" "$RUNNER_TEMP"/assets/* \
+            --target "$REF" \
+            --prerelease \
+            --title "${VERSION}" \
+            --notes-file "$RUNNER_TEMP/notes.md"

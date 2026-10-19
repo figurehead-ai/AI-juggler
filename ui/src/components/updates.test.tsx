@@ -93,4 +93,30 @@ describe("AJ-E1010 updates", () => {
     expect(calls()).toEqual(["check-on-launch:false"]);
     expect((container.querySelector("[data-testid='update-check-on-launch']") as HTMLInputElement).checked).toBe(false);
   });
+
+  it("D-20: three channels with what each means; switching forgets the found update", async () => {
+    w().__AIJ_UPDATE_STATUS__ = { ...base, state: "available", available };
+    const { container } = render(<UpdatesCard />);
+    await waitFor(() => expect(container.querySelector("[data-testid='update-channel']")).not.toBeNull());
+    const radio = (id: string) =>
+      container.querySelector<HTMLInputElement>(`[data-testid='update-channel-${id}']`)!;
+    expect(radio("beta").checked).toBe(true);
+    expect(container.textContent).toContain("Well-tested releases");
+    expect(container.textContent).toContain("Expect rough edges");
+    expect(container.textContent).toContain("never goes back to an older version");
+    expect(container.querySelector("[data-testid='update-available']")?.textContent).toContain("0.2.0 (beta)");
+    await act(async () => {
+      fireEvent.click(radio("nightly"));
+    });
+    expect(calls()).toEqual(["channel:nightly"]);
+    expect(radio("nightly").checked).toBe(true);
+    expect(container.querySelector("[data-testid='update-available']")).toBeNull();
+  });
+
+  it("a development build offers no channel (it never checks)", async () => {
+    w().__AIJ_UPDATE_STATUS__ = { ...base, configured: false };
+    const { container } = render(<UpdatesCard />);
+    await waitFor(() => expect(container.querySelector("[data-testid='update-unconfigured']")).not.toBeNull());
+    expect(container.querySelector("[data-testid='update-channel']")).toBeNull();
+  });
 });
