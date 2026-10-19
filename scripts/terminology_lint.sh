@@ -20,7 +20,8 @@ done
 
 while IFS= read -r jsx; do
   check "$jsx" '>[^<>{}]*\bharness(es)?[^<>{}]*<' 'vendor|claude' "user-facing harness in JSX"
-  check "$jsx" '>[^<>{}]*\b[Pp]rofiles?\b[^<>{}]*<' 'launch|settings|Launch|recipe' "profile-as-account in JSX"
+  # "Claude desktop profiles" is the vendor app's own name for its folders.
+  check "$jsx" '>[^<>{}]*\b[Pp]rofiles?\b[^<>{}]*<' 'launch|settings|Launch|recipe|desktop' "profile-as-account in JSX"
 done < <(find ui/src -name "*.tsx" | grep -v types/generated)
 
 [ "$fail" -eq 0 ] && echo "terminology-lint: OK"

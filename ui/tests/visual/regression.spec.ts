@@ -6,7 +6,7 @@
  * pinned Playwright container — the same image locally
  * (`just visual-baselines`) and in CI — so a diff is the code, not the
  * machine. Thresholds: whole screens ≤ 0.1 % differing pixels; text-
- * bearing chrome (the rail's tabs, a primary button, a status badge)
+ * bearing chrome (the rail's quick filters, a nav button, a status badge)
  * 0 pixels. A failure leaves expected/actual/diff (the triptych) in
  * `test-results/`, which CI uploads and summarises.
  *
@@ -14,7 +14,7 @@
  * with a per-screen note in the PR — scripts/check_baseline_notes.py).
  */
 import { expect, test, type Page } from "@playwright/test";
-import { allStatuses } from "./fixtures";
+import { allStatuses, goTo } from "./fixtures";
 
 const T0 = 1_728_800_000_000;
 const THEMES = ["dark", "light"] as const;
@@ -63,7 +63,8 @@ for (const theme of THEMES) {
       test(`rail + home — ${cell}`, async ({ page }) => {
         await open(page, theme, density, vp);
         await expect(page).toHaveScreenshot(`home-${cell}.png`, SCREEN);
-        await expect(page.getByRole("tablist").first()).toHaveScreenshot(`chrome-rail-tabs-${cell}.png`, CHROME);
+        // D-25: the rail's tabs gave way to its quick filters.
+        await expect(page.getByRole("group", { name: "Show" })).toHaveScreenshot(`chrome-rail-filters-${cell}.png`, CHROME);
         await expect(page.getByRole("button", { name: "Settings" }).first()).toHaveScreenshot(
           `chrome-nav-button-${cell}.png`,
           CHROME,
@@ -72,7 +73,7 @@ for (const theme of THEMES) {
 
       test(`inspector — Instance overview — ${cell}`, async ({ page }) => {
         await open(page, theme, density, vp);
-        await page.getByRole("tab", { name: "Sessions" }).click();
+        await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
         await page.getByRole("button", { name: /Work Max/ }).first().click();
         await expect(page.getByRole("tab", { name: "Quality / Performance" })).toBeVisible();
         await expect(page).toHaveScreenshot(`inspector-instance-${cell}.png`, SCREEN);
@@ -81,7 +82,7 @@ for (const theme of THEMES) {
       for (const screen of ["Triage", "Overview", "History", "Accounts", "Usage", "Fleet", "Cleanup", "Settings"] as const) {
         test(`${screen.toLowerCase()} — ${cell}`, async ({ page }) => {
           await open(page, theme, density, vp);
-          await page.getByRole("button", { name: screen }).first().click();
+          await goTo(page, screen); // D-25: some screens sit under More
           await page.waitForLoadState("networkidle");
           await page.mouse.move(0, 0);
           await expect(page).toHaveScreenshot(`${screen.toLowerCase()}-${cell}.png`, SCREEN);
@@ -96,8 +97,9 @@ for (const theme of THEMES) {
 // is small. The fixture holds an Instance in every status.
 test("status is never colour-only", async ({ page }) => {
   await open(page, "dark", "comfortable", VIEWPORTS[0]);
-  await page.getByRole("tab", { name: "Sessions" }).click();
-  const words = ["Starting", "Running", "Needs you", "Stuck?", "Quota blocked", "Finished", "Stopped", "Failed", "Handed over"];
+  await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
+  // D-25: the rail's own words for each state.
+  const words = ["Starting", "Running", "Waiting for you", "Looks stuck", "Hit its limit", "Done", "Stopped", "Failed", "Handed over"];
   const missing: string[] = [];
   for (const word of words) {
     const asText = await page.getByText(word, { exact: true }).count();

@@ -522,6 +522,26 @@ import { useEffect, useRef, useState } from "react";
  * changes are never conveyed by colour alone. The message is the badge
  * text plus the rule (`Needs you — waiting_prompt`).
  */
+/** D-25: an attention rule in plain words (never the rule's code). */
+export function attentionWords(rule: string | null | undefined): string {
+  switch (rule) {
+    case "waiting_prompt":
+    case "waiting_user":
+      return "waiting for your reply";
+    case "stuck_no_output":
+    case "stuck":
+      return "no output for a while";
+    case "quota_exit":
+    case "quota_blocked":
+    case "quota_wall":
+      return "hit its usage limit";
+    case "failed":
+      return "stopped with an error";
+    default:
+      return "needs attention";
+  }
+}
+
 export function AttentionAnnouncer({ sessions }: { sessions: InstanceInfo[] }) {
   const [message, setMessage] = useState("");
   const previous = useRef<Set<string>>(new Set());
@@ -529,13 +549,13 @@ export function AttentionAnnouncer({ sessions }: { sessions: InstanceInfo[] }) {
   useEffect(() => {
     const current = new Set(sessions.filter((row) => row.attention !== null).map((row) => row.id));
     const labelOf = (id: string) =>
-      sessions.find((row) => row.id === id)?.account_label ?? "Instance";
+      sessions.find((row) => row.id === id)?.account_label ?? "A session";
     const fresh = [...current].filter((id) => !previous.current.has(id));
     const recovered = [...previous.current].filter((id) => !current.has(id));
     if (fresh.length > 0) {
       const parts = fresh.map((id) => {
         const row = sessions.find((entry) => entry.id === id);
-        return `${labelOf(id)} needs you — ${row?.attention?.rule ?? row?.needs_attention ?? "attention"}`;
+        return `${labelOf(id)} needs you — ${attentionWords(row?.attention?.rule ?? row?.needs_attention)}`;
       });
       setMessage(parts.join(". "));
     } else if (recovered.length > 0) {

@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Card, Chip, QuotaBar, QuotaRing, StatCard } from "./components/primitives";
-import { SessionCard, WorkflowRail, type Freshness, type WorkTab } from "./components/WorkflowRail";
+import { SessionCard, WorkflowRail, type Freshness } from "./components/WorkflowRail";
 import { GoToPalette } from "./components/GoToPalette";
 import { PortWarningSheet } from "./components/PortMap";
 import { RecoverySummaryDialog } from "./components/RecoverySummaryDialog";
@@ -15,7 +15,7 @@ import {
 } from "./components/icons";
 import { AttentionAnnouncer, IndicatorLegend, RenewalAnnouncer } from "./components/indicator";
 import {
-  DENSITY_ORDER,
+  DENSITY_EVENT,
   isDensityShortcut as isDensityShortcutEvent,
   nextDensity,
   readDensity,
@@ -30,7 +30,7 @@ import {
   type RemoteMachineInfo,
 } from "./lib/bridge";
 import { isHandoverShortcut, isStopShortcut } from "./lib/shortcuts";
-import { statsEvent, statsGauge } from "./lib/bridge";
+import { cleanupAlerts, fleetPeers, statsEvent, statsGauge } from "./lib/bridge";
 
 /** AJ-E1103: the schema's screen names (Triage and History aren't counted). */
 const STAT_SCREENS: Partial<Record<string, string>> = {
@@ -53,6 +53,8 @@ import { ProfilesScreen } from "./screens/Profiles";
 import { Triage } from "./screens/Triage";
 import { History } from "./screens/History";
 import { OnboardingWizard } from "./screens/OnboardingWizard";
+import { FirstRun } from "./screens/FirstRun";
+import { HomeScreen } from "./screens/Home";
 import { NewSessionModal } from "./screens/NewSession";
 import { NewProjectSheet } from "./screens/NewProjectSheet";
 import { FleetScreen } from "./screens/FleetScreen";
@@ -123,6 +125,23 @@ const GLOBAL_NAV = [
 
 type GlobalId = (typeof GLOBAL_NAV)[number]["id"];
 
+/** D-25: the header's four destinations; the rest are one click away
+ * under More (Fleet joins the header once a Mac is paired; Cleanup shows
+ * as a pill while something is left behind). */
+const PRIMARY_NAV: Array<{ id: GlobalId | "home"; label: string }> = [
+  { id: "home", label: "Home" },
+  { id: "accounts", label: "Accounts" },
+  { id: "history", label: "History" },
+  { id: "settings", label: "Settings" },
+];
+const MORE_NAV: Array<{ id: GlobalId; label: string; hint: string }> = [
+  { id: "triage", label: "Triage", hint: "Every session that needs you, sorted" },
+  { id: "overview", label: "Overview", hint: "All sessions as cards" },
+  { id: "usage", label: "Usage", hint: "Quota, cost and the two clocks per account" },
+  { id: "fleet", label: "Fleet", hint: "Your other Macs" },
+  { id: "cleanup", label: "Cleanup", hint: "Processes left behind, and the audit log" },
+];
+
 /** Display names for the header's Provider chip. */
 const PROVIDER_NAMES: Record<string, string> = {
   "claude-code": "Claude Code",
@@ -142,10 +161,15 @@ type Selection =
   | { kind: "remote"; machineId: string; instanceId: string | null };
 
 export default function App() {
-  const [tab, setTab] = useState<WorkTab>("projects");
   // Density (AJ-E403): persisted in `aij.density`; the legacy
   // `aij.rail.collapsed` boolean migrates into `minimal` on first read.
   const [density, setDensity] = useState<Density>(() => readDensity());
+  // D-25: density lives in Settings › Appearance now; follow its changes.
+  useEffect(() => {
+    const follow = () => setDensity(readDensity());
+    window.addEventListener(DENSITY_EVENT, follow);
+    return () => window.removeEventListener(DENSITY_EVENT, follow);
+  }, []);
   // AJ-E1103: the display preferences, as this week's gauges.
   useEffect(() => {
     statsGauge("ui.density", density);
@@ -162,10 +186,12 @@ export default function App() {
       storeDensity(next);
       return next;
     });
+    window.setTimeout(() => window.dispatchEvent(new Event(DENSITY_EVENT)), 0);
   }, []);
   const setDensityAndStore = useCallback((next: Density) => {
     setDensity(next);
     storeDensity(next);
+    window.dispatchEvent(new Event(DENSITY_EVENT));
   }, []);
 
   // The stale-data tick (AJ-E403 Req.5): ONE shared 15 s timer for the
@@ -197,6 +223,40 @@ export default function App() {
   }, []);
   const [selection, setSelection] = useState<Selection>({ kind: "none" });
   const [global, setGlobal] = useState<GlobalId | null>(null);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement | null>(null);
+  // The More menu closes on a click elsewhere or Escape, like any menu.
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onDown = (event: MouseEvent) => {
+      if (moreRef.current && !moreRef.current.contains(event.target as Node)) setMoreOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMoreOpen(false);
+    };
+    window.addEventListener("mousedown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("mousedown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [moreOpen]);
+  // D-25: Cleanup and Fleet surface only when they're relevant.
+  const [cleanupCount, setCleanupCount] = useState(0);
+  const [pairedCount, setPairedCount] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    const load = () => {
+      void cleanupAlerts().then((data) => alive && setCleanupCount(data.alerts.length), () => null);
+      void fleetPeers().then((peers) => alive && setPairedCount(peers.length), () => null);
+    };
+    load();
+    const timer = window.setInterval(load, 30_000);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+    };
+  }, []);
   // AJ-E1103: which screens get opened (and the Cleanup Centre).
   useEffect(() => {
     const screen = global ? STAT_SCREENS[global] : undefined;
@@ -254,6 +314,9 @@ export default function App() {
   const [goToOpen, setGoToOpen] = useState(false);
   const [goToHotkey, setGoToHotkey] = useState("Alt+Space");
   const [wizard, setWizard] = useState(false);
+  // D-25: a fresh install opens on first run (what's here → sign in →
+  // computer access); the wizard stays for Accounts › Add account.
+  const [firstRun, setFirstRun] = useState(false);
   // AJ-E305: [Add another account] reopens the wizard fresh — the
   // nonce remounts it (no stale step state).
   const [wizardNonce, setWizardNonce] = useState(0);
@@ -290,12 +353,19 @@ export default function App() {
     };
   }, []);
 
-  // First run: zero accounts → the onboarding wizard opens by itself
-  // (spec §12.1), once per dismissal.
+  // First run: zero accounts → first run opens by itself (spec §12.1,
+  // D-25), once per dismissal.
   useEffect(() => {
     if (localStorage.getItem("aij.onboarding.dismissed") === "1") return;
+    // Test seam (browser preview only): open the Add-account wizard
+    // instead, as if the user clicked Add account — its gallery and
+    // accessibility captures start from a fresh install.
+    const seam = (window as unknown as { __AIJ_FIRST_RUN__?: string }).__AIJ_FIRST_RUN__;
     void accountsList().then((accounts) => {
-      if (accounts.length === 0) setWizard(true);
+      if (accounts.length === 0) {
+        if (seam === "wizard") setWizard(true);
+        else setFirstRun(true);
+      }
     });
   }, []);
 
@@ -432,7 +502,6 @@ export default function App() {
     setLoginTerminals((current) =>
       current.some((t) => t.id === id) ? current : [...current, { id, title, ended: false }],
     );
-    setTab("sessions");
     setGlobal(null); // the panel must show the terminal, not stay on Accounts
     setSelection({ kind: "login", id });
   }, []);
@@ -643,22 +712,13 @@ export default function App() {
           ? selectedSession.account_label
           : selectedLogin
             ? selectedLogin.title
-            : tab === "projects"
-              ? "Projects"
-              : tab === "instances"
-                ? "Instances"
-                : "Sessions";
+            : "Home";
 
   return (
     <div className="flex h-screen w-screen overflow-hidden">
       <AttentionAnnouncer sessions={sessions} />
       <RenewalAnnouncer accounts={accounts} />
       <WorkflowRail
-        tab={tab}
-        onTab={(next) => {
-          statsEvent("ui.rail_tab", { tab: next });
-          setTab(next);
-        }}
         density={density}
         onCycleDensity={cycleDensity}
         projects={projects}
@@ -745,7 +805,7 @@ export default function App() {
           // menus wrap onto a second row instead of being clipped. The
           // title has a zero basis, so it truncates first and a wide
           // window keeps the single row.
-          className="flex min-h-14 shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-hairline bg-surface/50 px-5 py-2 backdrop-blur-xl"
+          className="relative z-30 flex min-h-14 shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-hairline bg-surface/50 px-5 py-2 backdrop-blur-xl"
         >
           <div className="flex min-w-0 flex-1 basis-0 items-center gap-3">
             <h1 className="min-w-0 truncate text-sm font-semibold capitalize tracking-wide">{contextTitle}</h1>
@@ -753,52 +813,105 @@ export default function App() {
           </div>
 
           <div className="ml-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-0.5 xl:gap-1.5" data-tauri-drag-region={false}>
-            {/* Density segmented control (AJ-E403 Req.4). The inspector
-                and panels never change with density — only the rail. */}
-            <div
-              role="group"
-              aria-label="Rail density"
-              className="flex items-center rounded-lg border border-hairline bg-surface/60 p-0.5"
-            >
-              {DENSITY_ORDER.map((mode) => (
+            <nav aria-label="Main" className="flex flex-wrap items-center gap-0.5 xl:gap-1">
+              {PRIMARY_NAV.map((item) => {
+                const current = item.id === "home" ? global === null && selection.kind === "none" : global === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    aria-current={current ? "page" : undefined}
+                    onClick={() => {
+                      setSettingsFocusCloud(false);
+                      setMoreOpen(false);
+                      if (item.id === "home") {
+                        setGlobal(null);
+                        setSelection({ kind: "none" });
+                      } else {
+                        setGlobal(item.id);
+                      }
+                    }}
+                    className={
+                      "rounded-md px-2 py-1.5 text-xs font-medium transition-colors xl:px-2.5 " +
+                      (current ? "bg-surface text-ink sheen" : "text-muted hover:bg-surface/60 hover:text-ink")
+                    }
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
+              {pairedCount > 0 && (
                 <button
-                  key={mode}
                   type="button"
-                  aria-pressed={density === mode}
-                  onClick={() => setDensityAndStore(mode)}
-                  title={`${mode} rail${mode === "minimal" ? " (Ctrl+D cycles)" : ""}`}
+                  aria-current={global === "fleet" ? "page" : undefined}
+                  onClick={() => {
+                    setMoreOpen(false);
+                    setGlobal("fleet");
+                  }}
                   className={
-                    "rounded-md px-1.5 py-1 text-[10.5px] font-medium capitalize transition-colors outline-none xl:px-2 focus-visible:ring-1 focus-visible:ring-accent/60 " +
-                    (density === mode
-                      ? "bg-accent-soft text-accent-hi"
-                      : "text-muted hover:bg-surface hover:text-ink")
+                    "rounded-md px-2 py-1.5 text-xs font-medium transition-colors xl:px-2.5 " +
+                    (global === "fleet" ? "bg-surface text-ink sheen" : "text-muted hover:bg-surface/60 hover:text-ink")
                   }
                 >
-                  {mode === "comfortable" ? "Comfort" : mode === "compact" ? "Compact" : "Minimal"}
+                  Fleet
                 </button>
-              ))}
-            </div>
-            {GLOBAL_NAV.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => {
-                  setSettingsFocusCloud(false);
-                  setGlobal(item.id);
-                }}
-                className={
-                  "rounded-md px-1.5 py-1.5 text-[11px] font-medium transition-colors xl:px-2.5 " +
-                  (global === item.id
-                    ? "bg-surface text-ink sheen"
-                    : "text-muted hover:bg-surface/60 hover:text-ink")
-                }
-              >
-                {item.label}
-              </button>
-            ))}
+              )}
+              {cleanupCount > 0 && global !== "cleanup" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMoreOpen(false);
+                    setGlobal("cleanup");
+                  }}
+                  className="ml-1 rounded-full border border-warning/40 bg-warning-soft px-2.5 py-1 text-[11px] font-medium text-ink"
+                  data-testid="nav-cleanup-pill"
+                >
+                  {cleanupCount === 1 ? "1 thing to clean up" : `${cleanupCount} things to clean up`}
+                </button>
+              )}
+              <div className="relative" ref={moreRef}>
+                <button
+                  type="button"
+                  aria-expanded={moreOpen}
+                  aria-controls="nav-more"
+                  onClick={() => setMoreOpen((open) => !open)}
+                  className={
+                    "rounded-md px-2 py-1.5 text-xs font-medium transition-colors xl:px-2.5 " +
+                    (MORE_NAV.some((item) => item.id === global) ? "bg-surface text-ink sheen" : "text-muted hover:bg-surface/60 hover:text-ink")
+                  }
+                >
+                  More
+                </button>
+                {moreOpen && (
+                  <div
+                    id="nav-more"
+                    className="absolute right-0 top-full z-40 mt-1.5 flex w-72 flex-col rounded-xl border border-hairline bg-surface p-1.5 shadow-xl"
+                    onKeyDown={(event) => {
+                      if (event.key === "Escape") setMoreOpen(false);
+                    }}
+                  >
+                    {MORE_NAV.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        aria-current={global === item.id ? "page" : undefined}
+                        onClick={() => {
+                          setMoreOpen(false);
+                          setGlobal(item.id);
+                        }}
+                        className="flex flex-col items-start gap-0.5 rounded-lg px-3 py-2 text-left hover:bg-surface-2"
+                      >
+                        <span className="text-xs font-medium text-ink">{item.label}</span>
+                        <span className="text-[11px] text-muted">{item.hint}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </nav>
             <Button size="sm" variant="primary" onClick={() => setNewSession(true)}>
               <IconTerminal width={14} height={14} />
-              New
+              New session
             </Button>
           </div>
         </header>
@@ -956,13 +1069,24 @@ export default function App() {
                 onQueueResume={() => setNewSession(true)}
                 onOpenRemote={(machineId) => inspectRemote(machineId, null)}
               />
+              {selection.kind === "none" ? (
+                <div className="h-full overflow-y-auto">
+                  <HomeScreen
+                    sessions={sessions}
+                    accounts={accounts}
+                    projects={projects}
+                    now={now}
+                    onOpenSession={selectSession}
+                    onNewSession={() => setNewSession(true)}
+                    onAddAccounts={() => setFirstRun(true)}
+                  />
+                </div>
+              ) : (
               <RightInspector
               selection={
                 selection.kind === "session"
                   ? { kind: "instance", id: selection.id }
-                  : selection.kind === "none"
-                    ? { kind: "none" }
-                    : selection
+                  : selection
               }
               data={{
                 instance: selectedSession,
@@ -1026,6 +1150,7 @@ export default function App() {
               }}
               onNew={() => setNewSession(true)}
             />
+              )}
             </>
           )}
         </main>
@@ -1086,6 +1211,25 @@ export default function App() {
           setGoToHotkey(combo);
         }}
       />
+
+      {firstRun && (
+        <FirstRun
+          openLoginTerminal={openLoginTerminal}
+          onDone={() => {
+            localStorage.setItem("aij.onboarding.dismissed", "1");
+            setFirstRun(false);
+            void refresh();
+          }}
+          onAddFresh={() => {
+            setFirstRun(false);
+            setWizard(true);
+          }}
+          onImportFolder={() => {
+            setFirstRun(false);
+            setWizard(true);
+          }}
+        />
+      )}
 
       {wizard && (
         <OnboardingWizard
@@ -1171,7 +1315,6 @@ export default function App() {
             funnelEvent("first_launch");
             setNewSession(false);
             setNewSessionDir(null);
-            setTab("sessions");
             void refresh();
             selectSession(sessionId);
           }}
@@ -1194,7 +1337,6 @@ export default function App() {
           onLaunched={(sessionId) => {
             funnelEvent("first_launch");
             setNewProjectDir(null);
-            setTab("sessions");
             void refresh();
             selectSession(sessionId);
           }}

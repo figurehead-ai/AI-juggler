@@ -1,0 +1,364 @@
+/**
+ * D-25 — Home: the three questions, every glance.
+ *
+ * 1. **What needs me?** Sessions waiting for a reply, stuck, blocked by
+ *    a limit or failed — each in one plain sentence with the one action
+ *    that moves it on.
+ * 2. **How much runway?** Per Account: one bar (the tighter of the
+ *    5-hour and weekly windows, as measured), when it resets, and the
+ *    best Account for new work. Unmeasured says so — never a guess.
+ * 3. **What's running where?** Quiet, by project and Account.
+ *
+ * Plus "Pick up where you left off". Empty means "start here": no
+ * Account → bring them in; no session → start one.
+ */
+import { useEffect, useMemo, useState, type JSX } from "react";
+import { Button } from "../components/primitives";
+import { hueOf } from "../components/indicator";
+import { MorningSummary } from "../components/MorningSummary";
+import { quotaDisplayAll, type AccountInfo, type InstanceInfo, type ProjectInfo, type QuotaDisplayData, type WindowDisplay } from "../lib/bridge";
+
+const NEEDS = ["waiting_user", "stuck", "quota_blocked", "failed"] as const;
+type Need = (typeof NEEDS)[number];
+const ENDED = ["finished", "stopped", "handed_over"];
+
+/** A session's need, from the status or the attention flag. */
+export function needOf(session: InstanceInfo): Need | null {
+  if ((NEEDS as readonly string[]).includes(session.status)) return session.status as Need;
+  return (session.needs_attention as Need | null) ?? null;
+}
+
+function minutes(sinceMs: number, now: number): string {
+  const m = Math.max(0, Math.round((now - sinceMs) / 60_000));
+  if (m < 1) return "just now";
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  return h < 24 ? `${h} h` : `${Math.floor(h / 24)} d`;
+}
+
+/** What's wrong, in a sentence, and the one action. */
+export function needWords(need: Need, session: InstanceInfo): { what: string; action: string } {
+  switch (need) {
+    case "waiting_user":
+      return { what: "Waiting for your reply", action: "Open" };
+    case "stuck":
+      return { what: "Looks stuck — no progress for a while", action: "Take a look" };
+    case "quota_blocked":
+      return { what: `${session.account_label} hit its limit`, action: "Continue elsewhere" };
+    case "failed":
+      return { what: "Stopped with an error", action: "See what happened" };
+  }
+}
+
+const NEED_GLYPH: Record<Need, { glyph: string; tone: string; tint: string }> = {
+  waiting_user: { glyph: "!", tone: "text-warning", tint: "bg-warning-soft" },
+  stuck: { glyph: "?", tone: "text-warning", tint: "bg-warning-soft" },
+  quota_blocked: { glyph: "◷", tone: "text-danger", tint: "bg-danger-soft" },
+  failed: { glyph: "✕", tone: "text-danger", tint: "bg-danger-soft" },
+};
+
+/** A session's place: project name (or folder) and branch. */
+export function placeOf(session: InstanceInfo, projects: ProjectInfo[]): { title: string; detail: string } {
+  const project = projects.find((p) => p.id === session.project_id);
+  const cwd = session.cwd ?? "";
+  const folder = cwd.replace(/\/+$/, "").split("/").pop() || cwd || session.account_label;
+  const title = project?.name ?? folder;
+  const detail = [session.git_branch, session.account_label].filter(Boolean).join(" · ");
+  return { title, detail };
+}
+
+/** Runway for one Account: % left of the tighter measured window. */
+export function runwayOf(
+  display: QuotaDisplayData | undefined,
+  sessions: InstanceInfo[] = [],
+): {
+  left: number | null;
+  words: string;
+  resets: string | null;
+} {
+  const fromAccount = accountRunway(display);
+  if (fromAccount.left !== null) return fromAccount;
+  // No account-level reading yet: a session's own quota line is still a
+  // real reading (the newest one wins), never a guess.
+  const reading = sessions
+    .filter((s) => s.quota !== null)
+    .sort((a, b) => (b.last_activity_ms ?? b.started_at_ms) - (a.last_activity_ms ?? a.started_at_ms))[0]?.quota;
+  if (!reading) return fromAccount;
+  const left = Math.max(0, Math.round(100 - reading.used_percentage));
+  return {
+    left,
+    words: `${left}% left, from its latest session`,
+    resets: reading.resets_at_ms
+      ? `Resets ${new Date(reading.resets_at_ms).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" })}`
+      : null,
+  };
+}
+
+function accountRunway(display: QuotaDisplayData | undefined): {
+  left: number | null;
+  words: string;
+  resets: string | null;
+} {
+  const windows: Array<[string, WindowDisplay | undefined]> = [
+    ["5-hour window", display?.five_hour],
+    ["week", display?.weekly],
+  ];
+  const measured = windows.filter(([, w]) => w && w.percentage !== undefined && w.state !== "unknown");
+  if (measured.length === 0) {
+    const learning = windows.some(([, w]) => w?.state === "learning");
+    return { left: null, words: learning ? "Measuring — shows after a little use" : "Not measured yet", resets: null };
+  }
+  const tightest = measured.reduce((a, b) => ((a[1]!.percentage ?? 0) >= (b[1]!.percentage ?? 0) ? a : b));
+  const left = Math.max(0, Math.round(100 - (tightest[1]!.percentage ?? 0)));
+  const resetsAt = tightest[1]!.resets_at_ms;
+  const resets = resetsAt
+    ? `${tightest[0] === "week" ? "Week" : "5-hour window"} resets ${new Date(resetsAt).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" })}`
+    : null;
+  return { left, words: `${left}% left ${tightest[0] === "week" ? "this week" : "in the 5-hour window"}`, resets };
+}
+
+function SectionTitle({ id, children }: { id: string; children: string }): JSX.Element {
+  return (
+    <h2 id={id} className="text-[11px] font-semibold uppercase tracking-wider text-muted">
+      {children}
+    </h2>
+  );
+}
+
+function AccountDot({ id }: { id: string | null }): JSX.Element {
+  return <span aria-hidden="true" className="size-2 shrink-0 rounded-full" style={{ background: `hsl(${hueOf(id)} 70% 66%)` }} />;
+}
+
+export function HomeScreen({
+  sessions,
+  accounts,
+  projects,
+  now,
+  onOpenSession,
+  onNewSession,
+  onAddAccounts,
+}: {
+  sessions: InstanceInfo[];
+  accounts: AccountInfo[];
+  projects: ProjectInfo[];
+  now: number;
+  onOpenSession: (id: string) => void;
+  onNewSession: () => void;
+  onAddAccounts: () => void;
+}): JSX.Element {
+  const [quota, setQuota] = useState<QuotaDisplayData[]>([]);
+  useEffect(() => {
+    let alive = true;
+    const load = () => void quotaDisplayAll().then((rows) => alive && setQuota(rows), () => null);
+    load();
+    const timer = window.setInterval(load, 30_000);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+    };
+  }, [accounts.length]);
+
+  const needs = useMemo(
+    () =>
+      sessions
+        .map((session) => ({ session, need: needOf(session) }))
+        .filter((row): row is { session: InstanceInfo; need: Need } => row.need !== null)
+        .sort((a, b) => NEEDS.indexOf(a.need) - NEEDS.indexOf(b.need)),
+    [sessions],
+  );
+  const running = sessions.filter((s) => (s.status === "running" || s.status === "starting") && needOf(s) === null);
+  const recent = sessions
+    .filter((s) => ENDED.includes(s.status))
+    .sort((a, b) => (b.last_activity_ms ?? b.started_at_ms) - (a.last_activity_ms ?? a.started_at_ms))
+    .slice(0, 3);
+  const runway = accounts.map((account) => ({
+    account,
+    ...runwayOf(quota.find((q) => q.account === account.id), sessions.filter((s) => s.account_id === account.id)),
+  }));
+  const best = runway.filter((r) => r.left !== null).sort((a, b) => (b.left ?? 0) - (a.left ?? 0))[0];
+  const low = runway.find((r) => r.left !== null && r.left <= 25);
+
+  if (accounts.length === 0) {
+    return (
+      <div className="mx-auto flex w-full max-w-2xl flex-col items-start gap-4 py-16" data-testid="home-empty-accounts">
+        <h1 className="text-2xl font-semibold tracking-tight">Bring in your accounts to start.</h1>
+        <p className="text-[15px] leading-relaxed text-muted">
+          AI Juggler finds the Claude Code setups already on this computer and brings them in as copies; your originals stay as they are.
+        </p>
+        <Button variant="primary" onClick={onAddAccounts}>Find my accounts</Button>
+      </div>
+    );
+  }
+
+  const headline =
+    needs.length > 0
+      ? needs.length === 1
+        ? "1 session needs you"
+        : `${needs.length} sessions need you`
+      : running.length > 0
+        ? "All clear — nothing needs you"
+        : sessions.length === 0
+          ? "Ready when you are"
+          : "All clear";
+  const subline = [
+    running.length > 0 ? `${running.length} running` : null,
+    low ? `${low.account.label} has ${low.left}% left — start new work on ${best && best.account.id !== low.account.id ? best.account.label : "another account"}` : best ? `Most runway: ${best.account.label}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-7 py-2" data-testid="home">
+      <header className="flex flex-col gap-1">
+        <h1 className="text-2xl font-semibold tracking-tight">{headline}</h1>
+        {subline && <p className="text-sm text-muted">{subline}</p>}
+      </header>
+
+      {/* AJ-E1006: what changed while you were away — only when something did. */}
+      <MorningSummary onOpenSession={onOpenSession} />
+
+      {sessions.length === 0 && (
+        <section className="flex flex-col items-start gap-3 rounded-2xl border border-hairline bg-surface p-6" data-testid="home-first-session">
+          <h2 className="text-lg font-semibold">Start your first session</h2>
+          <p className="max-w-xl text-sm leading-relaxed text-muted">
+            Pick a project folder and an account. AI Juggler starts Claude Code there and keeps an eye on it — when it needs you, it shows up here.
+          </p>
+          <Button variant="primary" onClick={onNewSession}>New session</Button>
+        </section>
+      )}
+
+      <div className="flex flex-wrap gap-6">
+        <div className="flex min-w-0 flex-[3_1_420px] flex-col gap-6">
+          {needs.length > 0 && (
+            <section aria-labelledby="home-needs" className="flex flex-col gap-2.5" data-testid="home-needs">
+              <SectionTitle id="home-needs">Needs you</SectionTitle>
+              <ul className="flex flex-col gap-2.5">
+                {needs.map(({ session, need }) => {
+                  const words = needWords(need, session);
+                  const glyph = NEED_GLYPH[need];
+                  const place = placeOf(session, projects);
+                  return (
+                    <li key={session.id} className="flex flex-wrap items-center gap-x-3.5 gap-y-2 rounded-xl border border-hairline bg-surface px-4 py-3.5">
+                      <span aria-hidden="true" className={`flex size-8 shrink-0 items-center justify-center rounded-lg font-bold ${glyph.tint} ${glyph.tone}`}>
+                        {glyph.glyph}
+                      </span>
+                      <span className="flex min-w-0 flex-1 basis-40 flex-col gap-0.5">
+                        <span className="text-[15px] font-medium text-ink">{words.what}</span>
+                        <span className="truncate text-xs text-muted">
+                          {place.title}
+                          {place.detail ? ` · ${place.detail}` : ""}
+                          {` · ${minutes(session.attention?.since_ms ?? session.last_activity_ms ?? session.started_at_ms, now)}`}
+                        </span>
+                      </span>
+                      <Button size="sm" variant="secondary" className="ml-auto" onClick={() => onOpenSession(session.id)}>
+                        {words.action}{" "}
+                        <span className="sr-only">— {place.title}</span>
+                      </Button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
+
+          {running.length > 0 && (
+            <section aria-labelledby="home-running" className="flex flex-col gap-2.5" data-testid="home-running">
+              <SectionTitle id="home-running">Running</SectionTitle>
+              <ul className="overflow-hidden rounded-xl border border-hairline bg-surface">
+                {running.map((session) => {
+                  const place = placeOf(session, projects);
+                  return (
+                    <li key={session.id} className="border-t border-hairline/60 first:border-t-0">
+                      <button
+                        type="button"
+                        className="flex w-full items-center gap-3.5 px-4 py-2.5 text-left hover:bg-surface-2"
+                        onClick={() => onOpenSession(session.id)}
+                      >
+                        <span aria-hidden="true" className="size-2 shrink-0 rounded-full bg-live shadow-[0_0_0_4px_var(--color-live-soft)]" />
+                        <span className="min-w-0 flex-1 truncate text-sm text-ink">
+                          {place.title}
+                          {session.git_branch && <span className="text-faint"> · {session.git_branch}</span>}
+                        </span>
+                        <span className="flex items-center gap-1.5 text-xs text-muted">
+                          <AccountDot id={session.account_id} />
+                          {session.account_label}
+                        </span>
+                        <span className="w-14 text-right font-mono text-xs text-faint">{minutes(session.started_at_ms, now)}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
+        </div>
+
+        <section aria-labelledby="home-runway" className="flex min-w-0 flex-[2_1_280px] flex-col gap-2.5" data-testid="home-runway">
+          <SectionTitle id="home-runway">Runway</SectionTitle>
+          <div className="flex flex-col rounded-xl border border-hairline bg-surface px-4 py-1.5">
+            {runway.map((row) => (
+              <div key={row.account.id} className="flex flex-col gap-1.5 border-t border-hairline/60 py-3 first:border-t-0" data-testid="home-runway-account">
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <span className="flex min-w-0 items-center gap-2 font-medium text-ink">
+                    <AccountDot id={row.account.id} />
+                    <span className="truncate">{row.account.label}</span>
+                  </span>
+                  <span className={"shrink-0 font-mono text-xs " + (row.left !== null && row.left <= 25 ? "text-warning" : "text-muted")}>
+                    {row.left !== null ? `${row.left}% left` : "—"}
+                  </span>
+                </div>
+                {row.left !== null ? (
+                  <div
+                    className="h-1.5 overflow-hidden rounded-full bg-surface-3"
+                    role="meter"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={row.left}
+                    aria-label={`${row.account.label}: ${row.words}`}
+                  >
+                    <div
+                      className={"h-full rounded-full " + (row.left <= 25 ? "bg-warning" : "bg-accent")}
+                      style={{ width: `${row.left}%` }}
+                    />
+                  </div>
+                ) : null}
+                <span className="text-[11px] text-faint">{row.left !== null ? (row.resets ?? row.words) : row.words}</span>
+              </div>
+            ))}
+            {best && runway.length > 1 && (
+              <p className="border-t border-hairline/60 py-3 text-xs text-muted">
+                Best for new work: <span className="font-semibold text-ink">{best.account.label}</span>, {best.left}% left.
+              </p>
+            )}
+          </div>
+        </section>
+      </div>
+
+      {recent.length > 0 && (
+        <section aria-labelledby="home-recent" className="flex flex-col gap-2.5" data-testid="home-recent">
+          <SectionTitle id="home-recent">Pick up where you left off</SectionTitle>
+          <ul className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
+            {recent.map((session) => {
+              const place = placeOf(session, projects);
+              return (
+                <li key={session.id}>
+                  <button
+                    type="button"
+                    className="flex w-full flex-col items-start gap-1.5 rounded-xl border border-hairline bg-surface px-4 py-3 text-left hover:border-accent/40"
+                    onClick={() => onOpenSession(session.id)}
+                  >
+                    <span className="w-full truncate text-sm font-medium text-ink">{place.title}</span>
+                    <span className="w-full truncate text-xs text-faint">
+                      {place.detail} · {minutes(session.last_activity_ms ?? session.started_at_ms, now)} ago
+                    </span>
+                    <span className="text-xs text-accent-hi">Open →</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+    </div>
+  );
+}

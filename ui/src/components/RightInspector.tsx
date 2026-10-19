@@ -1,4 +1,3 @@
-import { MorningSummary } from "./MorningSummary";
 import { ParkCard } from "./ParkCard";
 import { WorktreeGit } from "./WorktreeGit";
 import { identityWords } from "../lib/identity";
@@ -24,7 +23,7 @@ import type {
   ProjectInfo,
 } from "../lib/bridge";
 import { renewalLabel } from "../lib/renewal";
-import { QuotaBar, formatCountdown, quotaTierTag } from "./primitives";
+import { QuotaBar, formatCountdown } from "./primitives";
 import { TwoClocks, WindowRing } from "./QuotaRings";
 import { accountSetFee, quotaDisplay, switchTargets, type QuotaDisplayData, type SwitchBackSuggestionData, type SwitchTargetData, errorText,
   signedIn,
@@ -76,13 +75,15 @@ export const INSPECTOR_TABS = [
 export type InspectorTab = (typeof INSPECTOR_TABS)[number]["id"];
 
 /** Real data source per tab (footer contract, Req.5). */
+/** Where each tab's numbers come from, in plain words (AJ-E406 Req.5;
+ * D-25 wording). */
 export const TAB_SOURCES: Record<InspectorTab, string> = {
-  overview: "supervisor",
-  usage: "usage-engine",
-  history: "transcript",
-  quality: "supervisor",
-  processes: "supervisor",
-  actions: "supervisor",
+  overview: "this Mac's process monitor",
+  usage: "usage tracking",
+  history: "the session's transcript",
+  quality: "this Mac's process monitor",
+  processes: "this Mac's process monitor",
+  actions: "this Mac's process monitor",
 };
 
 const TAB_KEY = (kind: InspectorKind) => `aij.inspector.tab.${kind}`;
@@ -192,7 +193,9 @@ export function RightInspector({
   onHandover,
   switchBackSuggestions = [],
   onSwitchBack = () => {},
-  onNew,
+  // Kept on the props for callers; the empty work area (which used it)
+  // is Home now (D-25).
+  onNew: _onNew,
   processesBridge = defaultProcessesBridge,
   focusBridge = defaultFocusBridge,
   onRemoteBack,
@@ -338,11 +341,8 @@ export function RightInspector({
     return () => window.removeEventListener("keydown", onKey);
   }, [remote, onRemoteBack]);
 
-  if (kind === "none") {
-    return (
-      <FleetAtAGlance sessions={sessions} accounts={accounts} now={now} onNew={onNew} onOpenSession={onOpenSession} />
-    );
-  }
+  // D-25: with nothing selected the work area is Home (screens/Home).
+  if (kind === "none") return null;
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3" data-testid="right-inspector" data-inspector-kind={kind}>
@@ -504,10 +504,19 @@ export function RightInspector({
                 )}{" "}
                 ago
               </span>
-              <span aria-hidden="true">·</span>
-              <span>
-                source: {remote ? `${remote.machine.label} over the Fleet link` : TAB_SOURCES[entry.id]}
-              </span>
+              {/* D-25: where a number comes from stays one hover away;
+                  a paired Mac's is worth saying out loud. */}
+              {remote ? (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <span>from {remote.machine.label} over the Fleet link</span>
+                </>
+              ) : (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <span>from {TAB_SOURCES[entry.id]}</span>
+                </>
+              )}
             </footer>
           </section>
         ))}
@@ -761,25 +770,31 @@ function InstanceOverview(props: PanelProps) {
             empty, never fabricated). Lineage is omitted entirely until
             the Switch Graph exists (E2) — no fabricated A→B links. */}
         <Card className="flex flex-col gap-2 p-3" data-testid="instance-overview-fields">
+          {/* D-25: the summary shows what matters now — state, Account
+              (runway only when low) and the identity guard; the rest
+              waits under Details. */}
           <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
             <Chip tone={statusTone(session.status).tone}>
               {statusTone(session.status).label} · {since(session.started_at_ms, props.now)}
             </Chip>
-            <Chip tone="neutral">{session.provider}</Chip>
-            <Chip tone="neutral">{session.account_label}</Chip>
+            {["finished", "stopped", "failed", "handed_over"].includes(session.status) && session.last_activity_ms ? (
+              <span className="text-[11.5px] text-muted" data-testid="session-ended-stamp">
+                Ended{" "}
+                {new Date(session.last_activity_ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}
+              </span>
+            ) : null}
             <Chip tone="neutral">
-              {props.profiles.find((r) => r.id === session.launch_recipe_id)?.name ?? "launch settings"}
+              {session.account_label}
+              {session.quota && 100 - session.quota.used_percentage <= 25
+                ? ` · ${Math.max(0, Math.round(100 - session.quota.used_percentage))}% left`
+                : ""}
             </Chip>
-            <Chip tone="accent">{session.model ?? "default model"}</Chip>
             {identityWords(session) && (
               <span data-testid="instance-identity" data-state={identityWords(session)!.state}>
                 <Chip tone={identityWords(session)!.state === "verified" ? "success" : "neutral"}>
                   {identityWords(session)!.text}
                 </Chip>
               </span>
-            )}
-            {session.model_source === "launch" && session.launch_model !== null && (
-              <Chip tone="warning">not verified live</Chip>
             )}
           </div>
           {(() => {
@@ -808,16 +823,33 @@ function InstanceOverview(props: PanelProps) {
             return null;
           })()}
           <div className="flex flex-col gap-1 text-[11px] text-muted">
+            <WorktreeGit sessionId={session.id} live={live} />
+            <ParkCard session={session} now={props.now} />
+          </div>
+          <details className="group text-[11px]" data-testid="instance-details">
+            <summary className="w-fit cursor-pointer select-none rounded text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
+              Details
+            </summary>
+            <div className="mt-2 flex flex-col gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Chip tone="neutral">{session.provider}</Chip>
+            <Chip tone="neutral">
+              {props.profiles.find((r) => r.id === session.launch_recipe_id)?.name ?? "launch settings"}
+            </Chip>
+            <Chip tone="accent">{session.model ?? "default model"}</Chip>
+            {session.model_source === "launch" && session.launch_model !== null && (
+              <Chip tone="warning">not verified live</Chip>
+            )}
+          </div>
+          <div className="flex flex-col gap-1 text-muted">
             {project ? (
               <CopyField testId="instance-project" label="project" value={project.name} onOpen={() => props.onOpenProject(project.id)} />
             ) : null}
-            <CopyField testId="instance-cwd" label="cwd" value={session.cwd} mono />
-            <WorktreeGit sessionId={session.id} live={live} />
-            <ParkCard session={session} now={props.now} />
+            <CopyField testId="instance-cwd" label="folder" value={session.cwd} mono />
             <span data-testid="instance-native-id">
-              native session:{" "}
+              Claude session:{" "}
               <span className="font-mono text-ink">
-                {session.conversation_id ?? "not discovered yet"}
+                {session.conversation_id ?? "not found yet"}
               </span>
             </span>
           </div>
@@ -837,14 +869,16 @@ function InstanceOverview(props: PanelProps) {
               )}
             </span>
             <span data-testid="instance-cost" className="text-muted">
-              cost: <span className="text-faint">No data — arrives with statusline</span>
+              cost: <span className="text-faint">—</span>
             </span>
             <span data-testid="instance-resources" className="tabular-nums text-muted">
               cpu {session.cpu_pct !== null ? `${Math.round(session.cpu_pct)}%` : "—"} · ram{" "}
-              {session.rss_bytes !== null ? formatBytes(session.rss_bytes) : "—"} · children{" "}
+              {session.rss_bytes !== null ? formatBytes(session.rss_bytes) : "—"} · helpers{" "}
               {session.child_count ?? "—"}
             </span>
           </div>
+            </div>
+          </details>
         </Card>
         {project && (
           <button
@@ -1283,114 +1317,6 @@ function InstanceOverview(props: PanelProps) {
   return <HonestEmpty tab="overview" task="AJ-E407 (conversation inspector)" />;
 }
 
-/** Empty selection: the fleet-at-a-glance summary — never a blank panel (Req.4). */
-function FleetAtAGlance({
-  sessions,
-  accounts,
-  now,
-  onNew,
-  onOpenSession,
-}: {
-  sessions: InstanceInfo[];
-  accounts: AccountInfo[];
-  now: number;
-  onNew: () => void;
-  onOpenSession: (id: string) => void;
-}) {
-  const counts = new Map<string, number>();
-  for (const row of sessions) counts.set(row.status, (counts.get(row.status) ?? 0) + 1);
-  const withQuota = sessions.filter((s) => s.quota !== null);
-  const lowest = withQuota.reduce<InstanceInfo | null>((min, row) => {
-    if (!min) return row;
-    const left = 100 - (row.quota?.used_percentage ?? 100);
-    const minLeft = 100 - (min.quota?.used_percentage ?? 100);
-    return left < minLeft ? row : min;
-  }, null);
-  const lowestAccount = lowest
-    ? accounts.find((a) => a.id === lowest.account_id)?.label ?? lowest.account_label
-    : null;
-  const live = sessions.filter((s) => s.status === "running" || s.status === "starting");
-  const cpuSum = live.reduce((sum, row) => sum + (row.cpu_pct ?? 0), 0);
-  const ramSum = live.reduce((sum, row) => sum + (row.rss_bytes ?? 0), 0);
-
-  return (
-    // Centred when it fits; when the morning summary makes it taller than
-    // the pane it scrolls from the top (justify-center would clip the
-    // top under the header, out of reach).
-    <div className="flex h-full flex-col overflow-y-auto" data-testid="fleet-at-a-glance">
-      <div className="my-auto flex w-full flex-col items-center gap-5 py-2">
-      <MorningSummary onOpenSession={onOpenSession} />
-      <div className="text-center">
-        <p className="text-sm font-medium">Nothing selected — the fleet at a glance</p>
-        <p className="mt-1 text-xs text-muted">
-          Pick anything in the rail; this home never moves.
-        </p>
-      </div>
-      <div className="grid w-full max-w-2xl grid-cols-2 gap-3 xl:grid-cols-4">
-        <Card className="p-3">
-          <p className="text-[10px] uppercase tracking-wider text-muted">By state</p>
-          <div className="mt-1.5 flex flex-col gap-0.5 text-[11px]">
-            {sessions.length === 0 ? (
-              <span className="text-muted">No instances yet</span>
-            ) : (
-              [...counts.entries()].map(([status, count]) => (
-                <span key={status} className="flex justify-between gap-2">
-                  <span className="text-muted">{stateChip(status).label}</span>
-                  <span className="tabular-nums text-ink">{count}</span>
-                </span>
-              ))
-            )}
-          </div>
-        </Card>
-        <Card className="p-3">
-          <p className="text-[10px] uppercase tracking-wider text-muted">Lowest quota</p>
-          <p className="mt-1.5 text-[11px] text-muted">
-            {lowest && lowest.quota ? (
-              <>
-                <span className="text-ink">{lowestAccount}</span> ·{" "}
-                {Math.round(100 - lowest.quota.used_percentage)}% left ·{" "}
-                {quotaTierTag(lowest.quota.confidence)}
-              </>
-            ) : (
-              "Quota: no data"
-            )}
-          </p>
-        </Card>
-        <Card className="p-3">
-          <p className="text-[10px] uppercase tracking-wider text-muted">
-            This Mac
-          </p>
-          <div className="mt-1.5 flex flex-col gap-0.5 text-[11px]">
-            <span className="flex justify-between gap-2">
-              <span className="text-muted">live CPU (sum)</span>
-              <span className="tabular-nums text-ink">{live.length > 0 ? `${Math.round(cpuSum)}%` : "—"}</span>
-            </span>
-            <span className="flex justify-between gap-2">
-              <span className="text-muted">live RAM (sum)</span>
-              <span className="tabular-nums text-ink">{live.length > 0 ? formatBytes(ramSum) : "—"}</span>
-            </span>
-          </div>
-          <p className="mt-1 text-[9px] text-muted">
-            {live.length === 0
-              ? "gauges show — until instances report resources"
-              : `measured over ${live.length} live instance${live.length === 1 ? "" : "s"}`}
-          </p>
-        </Card>
-        <Card className="flex flex-col items-start justify-center gap-2 p-3">
-          <p className="text-[10px] uppercase tracking-wider text-muted">Start</p>
-          <Button size="sm" variant="primary" onClick={onNew}>
-            <IconTerminal width={13} height={13} />
-            New session
-          </Button>
-        </Card>
-      </div>
-      <p className="text-[10px] text-muted">
-        Updated {since(now, now)} ago · source: supervisor
-      </p>
-      </div>
-    </div>
-  );
-}
 
 
 

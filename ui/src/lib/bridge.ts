@@ -6,6 +6,7 @@ import { listen } from "@tauri-apps/api/event";
 import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
 import type { AppInfo } from "../types/generated/AppInfo";
 import type { NotificationPrefsInfo } from "../types/generated/NotificationPrefsInfo";
+import type { OsAccessInfo } from "../types/generated/OsAccessInfo";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { DiscoveredInfo } from "../types/generated/DiscoveredInfo";
 import type { ImportResult } from "../types/generated/ImportResult";
@@ -1101,6 +1102,62 @@ export async function notificationPrefsSet(prefs: NotificationPrefsInfo): Promis
   return invoke<NotificationPrefsInfo>("notification_prefs_set", { prefs });
 }
 
+/** D-25: what this OS must allow (one entry per thing it makes possible;
+ * an empty list means the first-run access step is skipped). */
+export type { OsAccessInfo };
+const osAccessSeams = () =>
+  window as unknown as { __AIJ_OS_ACCESS__?: OsAccessInfo[]; __AIJ_OS_ACCESS_CALLS__?: string[] };
+const MOCK_OS_ACCESS: OsAccessInfo[] = [
+  {
+    id: "focus",
+    title: "Jump to a session's own window",
+    why: "Brings the right terminal window to the front when you open a session.",
+    system_name: "Accessibility and Automation",
+    status: "not_asked",
+    action: "prompt",
+    note: null,
+  },
+  {
+    id: "preview",
+    title: "See a live preview of each session",
+    why: "Shows a session's window inside AI Juggler, on this Mac only; nothing is recorded or sent.",
+    system_name: "Screen Recording",
+    status: "not_asked",
+    action: "prompt",
+    note: "macOS may ask you to reopen AI Juggler after you allow it.",
+  },
+];
+
+/** What this OS needs, as it stands (never prompts — safe to poll). */
+export async function osAccessList(): Promise<OsAccessInfo[]> {
+  if (!hasBackend) return (osAccessSeams().__AIJ_OS_ACCESS__ ?? MOCK_OS_ACCESS).map((entry) => ({ ...entry }));
+  return invoke<OsAccessInfo[]>("os_access_list");
+}
+
+/** Allow: raises the system's prompts for one entry. */
+export async function osAccessRequest(id: string): Promise<OsAccessInfo[]> {
+  if (!hasBackend) {
+    const seams = osAccessSeams();
+    seams.__AIJ_OS_ACCESS_CALLS__ = [...(seams.__AIJ_OS_ACCESS_CALLS__ ?? []), `request:${id}`];
+    // The preview's user says yes in the system dialog.
+    seams.__AIJ_OS_ACCESS__ = (seams.__AIJ_OS_ACCESS__ ?? MOCK_OS_ACCESS).map((entry) =>
+      entry.id === id ? { ...entry, status: "allowed", action: "none", note: null } : entry,
+    );
+    return osAccessList();
+  }
+  return invoke<OsAccessInfo[]>("os_access_request", { id });
+}
+
+/** Opens the settings pane for one entry (a fixed link per id). */
+export async function osAccessOpenSettings(id: string): Promise<void> {
+  if (!hasBackend) {
+    const seams = osAccessSeams();
+    seams.__AIJ_OS_ACCESS_CALLS__ = [...(seams.__AIJ_OS_ACCESS_CALLS__ ?? []), `settings:${id}`];
+    return;
+  }
+  await invoke("os_access_open_settings", { id });
+}
+
 /** Whether new Accounts start with left-behind dev servers tidied (D-08:
  * off unless the user chooses it). */
 export async function cleanupDefaultGet(): Promise<boolean> {
@@ -1949,6 +2006,7 @@ export const TERMINAL_EVENTS = {
 
 /** Spawns the guided login for an account inside an embedded terminal. */
 export async function terminalSpawnLogin(accountId: string): Promise<TerminalInfo> {
+  if (!hasBackend) return { id: `login-preview-${accountId}` };
   return invoke<TerminalInfo>("terminal_spawn_login", { accountId });
 }
 
@@ -2927,7 +2985,6 @@ export async function usageStatsOpenDocs(): Promise<void> {
 export type UiStatMetric =
   | "ui.screen_opened"
   | "ui.inspector_tab"
-  | "ui.rail_tab"
   | "ui.notification"
   | "ui.shortcut_used"
   | "cleanup_centre.opened"

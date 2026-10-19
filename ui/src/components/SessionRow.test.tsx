@@ -257,7 +257,7 @@ describe("AJ-E405 structured reasons + live announcements", () => {
     rerender(<AttentionAnnouncer sessions={[waiting]} />);
     const region = document.querySelector('[data-testid="attention-announcer"]')!;
     expect(region.getAttribute("aria-live")).toBe("polite");
-    expect(region.textContent).toContain("Work Max needs you — waiting_prompt");
+    expect(region.textContent).toContain("Work Max needs you — waiting for your reply");
     rerender(<AttentionAnnouncer sessions={[healthy]} />);
     expect(document.querySelector('[data-testid="attention-announcer"]')!.textContent).toContain(
       "recovered",

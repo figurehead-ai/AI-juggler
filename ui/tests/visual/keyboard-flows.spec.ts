@@ -12,6 +12,14 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { allStatuses, cleanupFixture, DOOR_ONECLICK, DOOR_WIZARD, honestEmpty, type FixtureSet } from "./fixtures";
 
+// D-25: a fresh install opens first run; these captures document the
+// Add-account wizard, so they open it the way Add account does.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as unknown as { __AIJ_FIRST_RUN__?: string }).__AIJ_FIRST_RUN__ = "wizard";
+  });
+});
+
 const T0 = 1_728_800_000_000;
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/AJ-E804/keyboard");
 // The traversal records are written under `just a11y-gate` only; every
@@ -123,8 +131,7 @@ test("inspector tab walk — arrow keys move across all six tabs", async ({ page
   await open(page);
   const stops: Stop[] = [];
   await page.locator("body").focus();
-  await tabTo(page, stops, /^tab: Instances/);
-  await page.keyboard.press("Enter");
+  // D-25: one rail — the rows are the first stops after search and filters.
   await tabTo(page, stops, /^button: .*Work Max/i);
   await page.keyboard.press("Enter");
   // Selecting an Instance focuses its terminal, which keeps Tab for the
@@ -154,7 +161,7 @@ test("launch — the sheet opens, traps focus, and Esc returns to New", async ({
   await open(page);
   const stops: Stop[] = [];
   await page.locator("body").focus();
-  await tabTo(page, stops, /^button: .*\bNew$/);
+  await tabTo(page, stops, /^button: .*\bNew session$/);
   await page.keyboard.press("Enter");
   await expect(page.getByTestId("new-session-sheet")).toBeVisible();
   // Walk the whole sheet: every stop stays inside and shows focus.
@@ -168,15 +175,13 @@ test("launch — the sheet opens, traps focus, and Esc returns to New", async ({
   await page.keyboard.press("Escape");
   await expect(page.getByTestId("new-session-sheet")).toHaveCount(0);
   stops.push(await focused(page));
-  expect(stops.at(-1)!.name).toMatch(/\bNew$/);
-  record("launch", stops, ["15 Tabs stay inside the sheet (focus trap); Esc closes it and focus returns to New."]);
+  expect(stops.at(-1)!.name).toMatch(/\bNew session$/);
+  record("launch", stops, ["15 Tabs stay inside the sheet (focus trap); Esc closes it and focus returns to New session."]);
 });
 
-/** Sessions tab → the Work Max session → its first ranked switch row. */
+/** The Work Max session in the rail → its first ranked switch row. */
 async function toSwitchRow(page: Page, stops: Stop[]) {
   await page.locator("body").focus();
-  await tabTo(page, stops, /^tab: Sessions/);
-  await page.keyboard.press("Enter");
   await tabTo(page, stops, /Work Max/);
   await page.keyboard.press("Enter");
   await leaveTerminalIfFocused(page, stops);
@@ -237,7 +242,10 @@ test("cleanup — Terminate opens the confirm sheet; Esc returns to the row", as
   await open(page, allStatuses, { __AIJ_CLEANUP__: cleanupFixture("needs-attention") });
   const stops: Stop[] = [];
   await page.locator("body").focus();
-  await tabTo(page, stops, /^button: Cleanup$/);
+  // D-25: Cleanup waits under More (a pill shows while something's left).
+  await tabTo(page, stops, /^button: More$/);
+  await page.keyboard.press("Enter");
+  await tabTo(page, stops, /^button: Cleanup/);
   await page.keyboard.press("Enter");
   await expect(page.getByTestId("cleanup-centre")).toBeVisible();
   await tabTo(page, stops, /^button: Terminate…$/);

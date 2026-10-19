@@ -134,7 +134,7 @@ describe("AJ-E407 Instance Overview (§5.1, Req.1)", () => {
     expect(container.querySelector('[data-testid="instance-native-id"]')?.textContent).toContain("822e4125-e07d");
     expect(container.querySelector('[data-testid="instance-quota"]')?.textContent).toContain("60% left");
     expect(container.querySelector('[data-testid="instance-tokens"]')?.textContent).toContain("19,134");
-    expect(container.querySelector('[data-testid="instance-resources"]')?.textContent).toContain("children 3");
+    expect(container.querySelector('[data-testid="instance-resources"]')?.textContent).toContain("helpers 3");
     expect(container.querySelector('[data-testid="handover-section"]')).not.toBeNull();
     // Lineage: OMITTED while the Switch Graph does not exist (empty rule).
     expect(container.textContent).not.toContain("lineage");
@@ -144,7 +144,7 @@ describe("AJ-E407 Instance Overview (§5.1, Req.1)", () => {
     const { container } = shell(
       mk({ quota: null, tokens: null, cpu_pct: null, rss_bytes: null, child_count: null, model: null, conversation_id: null }),
     );
-    expect(container.querySelector('[data-testid="instance-native-id"]')?.textContent).toContain("not discovered yet");
+    expect(container.querySelector('[data-testid="instance-native-id"]')?.textContent).toContain("not found yet");
     expect(container.querySelector('[data-testid="instance-tokens"]')?.textContent).toContain("No usage recorded yet");
     expect(container.querySelector('[data-testid="instance-quota"]')?.textContent).toContain("Quota: no data");
     expect(container.textContent).toContain("default model");

@@ -31,7 +31,7 @@ async function open(page: Page, theme: "dark" | "light") {
   );
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
   await page.goto("/");
-  await expect(page.getByRole("tab", { name: /^Instances/ })).toBeVisible();
+  await expect(page.getByTestId("instance-board")).toBeVisible();
 }
 
 async function shoot(page: Page, name: string) {
@@ -56,22 +56,22 @@ async function runningAnimations(page: Page): Promise<string[]> {
 
 /** Every top-bar menu and New are on screen — not clipped away. */
 async function menusOnScreen(page: Page) {
-  for (const name of ["Triage", "Overview", "History", "Accounts", "Usage", "Fleet", "Cleanup", "Settings"]) {
+  for (const name of ["Home", "Accounts", "History", "Settings", "More"]) {
     await expect(page.getByRole("button", { name, exact: true }).first(), `${name} is off screen`).toBeInViewport({ ratio: 1 });
   }
-  await expect(page.getByRole("button", { name: /^New$/ }).first()).toBeInViewport({ ratio: 1 });
+  await expect(page.getByRole("banner").getByRole("button", { name: "New session", exact: true })).toBeInViewport({ ratio: 1 });
 }
 
 async function walk(page: Page, theme: string, label: string) {
   await menusOnScreen(page);
   // Rail.
-  await page.getByRole("tab", { name: /^Instances/ }).click();
+  await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
   await expect(page.locator("[data-instance-id]").first()).toBeVisible();
   await noHorizontalScroll(page);
   expect(await runningAnimations(page), "animations under reduced motion").toEqual([]);
   await shoot(page, `rail-${label}-${theme}`);
   // Inspector.
-  await page.getByRole("tab", { name: "Sessions" }).click();
+  await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
   await page.getByRole("button", { name: /Work Max/ }).first().click();
   await expect(page.getByRole("tab", { name: "Overview" })).toBeVisible();
   await noHorizontalScroll(page);

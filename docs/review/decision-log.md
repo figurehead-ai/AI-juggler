@@ -401,8 +401,49 @@
   (one version stream means a beta fix otherwise brings other changes).
 - **Applied first to 0.0.4**: held until it meets the beta requirements.
 
+### D-25 The UX vision: progressive by design; "session" on screen; first run in three steps — SETTLED (2026-10-19)
+
+- **Ruling** (maintainer, after first real use of 0.0.4): the app showed
+  everything it knew, everywhere, at once — nine top-level tabs, seven
+  filters and a full status legend over an empty list, internal codes on
+  screen, a first run that opened on a CLI check. It must be "smart
+  progressive": what a multi-subscription vibe-coder needs at a glance,
+  depth one step away or on request. Reviewed and approved as the canvas
+  "AI Juggler UX vision" (vision + first run, OS access, Home, a session up
+  close, an account hitting its limit).
+- **Principles**: lead with "what needs me?"; runway always in view; calm
+  until it matters (colour only for what needs you, every state also a
+  shape); depth on request (summaries, then Details, then ⋯/Settings);
+  plain words; an empty screen means "start here".
+- **Structure**: top level Home, Accounts, History, Settings; Cleanup shows
+  when there is something to clean, Fleet once a second Mac is paired;
+  density moves to Settings › Appearance. One rail of projects with their
+  sessions, those that need you first; search plus Needs you · Running ·
+  All, the rest behind a Filter button; the legend behind "?". Home: Needs
+  you, Runway, Running, Pick up where you left off. Runway lives on Home and
+  in Accounts; a row shows quota only when it's low.
+- **Wording**: the screen says **session** for a conversation running on an
+  Account in a project (what the UI called an Instance). The domain model
+  and code keep `Instance`/`Session`; only user-facing text changes.
+- **First run**, when no Account exists: (1) what's already on this Mac —
+  the CLI's config and Claude desktop profiles, grouped, preselected, one
+  button to bring them in (copies; originals untouched); (2) sign in where
+  needed; (3) OS access, then Home. The pack-secrets question moves from
+  first run to the first switch, which already asks while no choice exists
+  (D-14 unchanged: nothing is built before a choice).
+- **OS access is per platform**: the backend lists what this OS needs, each
+  with one line of why, live status, an Allow that opens the system prompt
+  and a link to the settings pane (macOS: Accessibility, Screen Recording;
+  Local Network only when Fleet is turned on). Another OS lists its own, or
+  none — then the step is skipped. Anything skipped is asked for in
+  context, once.
+- **Consequences**: the existing wizard stays for Accounts › Add account
+  until it is simplified in a later stage; screens are rebuilt in stages
+  (first run; Home and rail; the session view, Accounts and the rest), each
+  walked as a real journey before it merges.
+
 ## Unresolved (in discussion order)
 
 - None. D-01..D-15 were marked Final on maintainer instruction
   (2026-10-13); D-16 and D-17 were settled by maintainer instruction
-  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18 and D-20..D-24 on 2026-10-19; all follow the same law.
+  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18 and D-20..D-25 on 2026-10-19; all follow the same law.

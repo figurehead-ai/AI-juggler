@@ -1,7 +1,7 @@
 import { identityWords } from "../lib/identity";
 import { parkedWords } from "../lib/parked";
 import { ReactNode, useCallback, useEffect, useId, useRef, useState, type JSX } from "react";
-import { IconProjects, IconSessions, IconTerminal } from "./icons";
+import { IconProjects, IconTerminal } from "./icons";
 import type { AccountInfo, InstanceInfo, ProjectInfo, RemoteInstanceInfo, RemoteMachineInfo } from "../lib/bridge";
 import type { Density } from "../lib/density";
 import { REFRESH_INTERVALS, staleCaption } from "../lib/density";
@@ -14,7 +14,6 @@ import {
   snoozeCaption,
   sortSessions,
   storeSnooze,
-  unsnoozedNeedsCount,
   chipCounts,
   filterSessions,
   groupSessions,
@@ -30,8 +29,8 @@ import {
   AccountDisc,
   ChildBadges,
   GitBadge,
-  IndicatorLegend,
   StaleChip,
+  gitWords,
   attentionBadge,
   attentionSuffix,
   attentionTooltip,
@@ -40,6 +39,7 @@ import {
   isActiveStatus,
   providerMark,
   rememberResourceSample,
+  hueOf,
   stateChip,
   tokenSummary,
   ageSummary,
@@ -51,14 +51,6 @@ import { QuotaBar, Sparkline } from "./primitives";
 /** Freshness timestamps per Instance id (epoch ms) driving the stale rule. */
 export type Freshness = Record<string, { resources: number; quota: number }>;
 
-/** The three workflow tabs the whole navbar switches between. */
-export type WorkTab = "projects" | "instances" | "sessions";
-
-const TABS: { id: WorkTab; label: string; icon: ReactNode }[] = [
-  { id: "projects", label: "Projects", icon: <IconProjects width={15} height={15} /> },
-  { id: "instances", label: "Instances", icon: <IconTerminal width={15} height={15} /> },
-  { id: "sessions", label: "Sessions", icon: <IconSessions width={15} height={15} /> },
-];
 
 const WIDTH_MIN = 208;
 const WIDTH_MAX = 360;
@@ -79,8 +71,6 @@ function readWidth(): number {
  * icon-only below the label threshold. Nothing ever clips.
  */
 export function WorkflowRail({
-  tab,
-  onTab,
   density,
   onCycleDensity,
   projects,
@@ -100,8 +90,6 @@ export function WorkflowRail({
   selectedRemote = null,
   onSelectRemote,
 }: {
-  tab: WorkTab;
-  onTab: (tab: WorkTab) => void;
   density: Density;
   onCycleDensity: () => void;
   projects: ProjectInfo[];
@@ -132,7 +120,6 @@ export function WorkflowRail({
     setSnooze(next);
     storeSnooze(next);
   }, []);
-  const unsnoozedNeeds = unsnoozedNeedsCount(sessions, snooze, now);
   const [width, setWidth] = useState<number>(readWidth);
   const [dragging, setDragging] = useState(false);
   const dragState = useRef<{ startX: number; startWidth: number } | null>(null);
@@ -174,9 +161,6 @@ export function WorkflowRail({
     };
   }, [dragging]);
 
-  // Label threshold: below this width, tabs show icons only (with
-  // tooltips) instead of squeezing text into clipping.
-  const showLabels = !minimal && width >= 244;
 
   return (
     <aside
@@ -188,69 +172,6 @@ export function WorkflowRail({
     >
       {header(minimal)}
 
-      {/* Tab switcher — adapts: icon+label → icon-only as the rail narrows */}
-      <nav
-        className={
-          "flex gap-1 px-2 pb-2 pt-0.5 " +
-          (minimal ? "flex-col items-center" : "")
-        }
-        role="tablist"
-      >
-        {TABS.map((item) => {
-          const active = tab === item.id;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              aria-label={
-                item.id === "instances" && unsnoozedNeeds > 0
-                  ? `${item.label}, ${unsnoozedNeeds} need${unsnoozedNeeds === 1 ? "s" : ""} you`
-                  : item.label
-              }
-              title={minimal || !showLabels ? item.label : undefined}
-              onClick={() => onTab(item.id)}
-              className={
-                "group/tab relative flex min-w-0 items-center justify-center overflow-hidden rounded-lg text-[12px] font-medium outline-none transition-colors duration-100 " +
-                "focus-visible:ring-1 focus-visible:ring-accent/60 " +
-                // AJ-E804: no flex-1 in the minimal column — it squashed
-                // the tabs to 17 px, under the 24 px target minimum.
-                (minimal
-                  ? "size-9 shrink-0 "
-                  : "flex-1 ") +
-                (minimal
-                  ? ""
-                  : showLabels
-                    ? "gap-1.5 px-2 py-[7px] "
-                    : "gap-0 px-0 py-[7px] ") +
-                (active
-                  ? "border border-accent/25 bg-accent-soft text-accent-hi"
-                  : "border border-transparent text-muted hover:bg-surface hover:text-ink")
-              }
-            >
-              <span className="shrink-0 leading-none">{item.icon}</span>
-              {showLabels && (
-                <span className="min-w-0 truncate opacity-100 transition-opacity duration-150">
-                  {item.label}
-                </span>
-              )}
-              {/* Unsnoozed needs-you count rides the tab (Req.6) —
-                  absolutely positioned so it never widens the tab. */}
-              {item.id === "instances" && unsnoozedNeeds > 0 && (
-                <span
-                  aria-hidden="true"
-                  className="attn-badge absolute right-0 top-0 flex items-center justify-center rounded-full px-1 text-[8.5px] font-bold leading-4 ring-1 ring-canvas"
-                  title={`${unsnoozedNeeds} instance${unsnoozedNeeds === 1 ? "" : "s"} need you`}
-                >
-                  !{unsnoozedNeeds}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </nav>
-
       {/* The live list for the active tab */}
       <div className="rail-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2 pb-2">
         {minimal ? (
@@ -259,10 +180,9 @@ export function WorkflowRail({
             selectedId={selectedId}
             onSelect={onSelectSession}
           />
-        ) : tab === "projects" ? (
-          <ProjectList projects={projects} selectedId={selectedId} onSelect={onSelectProject} />
         ) : (
           <InstanceBoard
+            onSelectProject={onSelectProject}
             sessions={sessions}
             accounts={accounts}
             loginTerminals={loginTerminals}
@@ -281,34 +201,27 @@ export function WorkflowRail({
         )}
       </div>
 
-      {/* The workflow's primary action lives in the navigator — on the
-          Projects tab it's AJ-E305 flow (b), elsewhere New session. */}
-      <div className="border-t border-hairline/60 p-2">
+      {/* D-25: one primary action; New project stays one click away. */}
+      <div className={"flex gap-1.5 border-t border-hairline/60 p-2 " + (minimal ? "flex-col" : "")}>
         <button
           type="button"
-          onClick={tab === "projects" ? onNewProject : onNewSession}
-          title={
-            minimal
-              ? tab === "projects"
-                ? "New project (⌘N)"
-                : "New session"
-              : undefined
-          }
-          data-testid={
-            tab === "projects" ? "rail-new-project" : "rail-new-session"
-          }
-          className="flex w-full items-center justify-center gap-2 overflow-hidden rounded-lg border border-accent/30 bg-accent-soft px-3 py-[7px] text-[12px] font-medium text-accent-hi outline-none transition-colors hover:border-accent/50 hover:bg-accent/15 focus-visible:ring-1 focus-visible:ring-accent/60"
+          onClick={onNewSession}
+          title={minimal ? "New session" : undefined}
+          data-testid="rail-new-session"
+          className="flex min-w-0 flex-1 items-center justify-center gap-2 overflow-hidden rounded-lg border border-accent/30 bg-accent-soft px-3 py-[7px] text-[12px] font-medium text-accent-hi outline-none transition-colors hover:border-accent/50 hover:bg-accent/15 focus-visible:ring-1 focus-visible:ring-accent/60"
         >
-          {tab === "projects" ? (
-            <IconProjects width={14} height={14} />
-          ) : (
-            <IconTerminal width={14} height={14} />
-          )}
-          {!minimal && (
-            <span className="truncate">
-              {tab === "projects" ? "New project" : "New session"}
-            </span>
-          )}
+          <IconTerminal width={14} height={14} />
+          {!minimal && <span className="truncate">New session</span>}
+        </button>
+        <button
+          type="button"
+          onClick={onNewProject}
+          aria-label="New project"
+          title="New project"
+          data-testid="rail-new-project"
+          className="flex shrink-0 items-center justify-center rounded-lg border border-hairline px-2.5 py-[7px] text-muted outline-none transition-colors hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+        >
+          <IconProjects width={14} height={14} />
         </button>
       </div>
 
@@ -339,66 +252,8 @@ export function WorkflowRail({
   );
 }
 
-function ProjectList({
-  projects,
-  selectedId,
-  onSelect,
-}: {
-  projects: ProjectInfo[];
-  selectedId: string | null;
-  onSelect: (id: string) => void;
-}) {
-  if (projects.length === 0) {
-    return (
-      <p className="px-2 py-6 text-center text-[11px] leading-relaxed text-faint">
-        Launch a session in any directory — it becomes a project here.
-      </p>
-    );
-  }
-  return (
-    <div className="flex flex-col gap-0.5">
-      {projects.map((project) => {
-        const active = project.id === selectedId;
-        return (
-          <button
-            key={project.id}
-            type="button"
-            onClick={() => onSelect(project.id)}
-            className={
-              "relative min-w-0 rounded-lg py-[7px] pl-3 pr-2.5 text-left outline-none transition-colors " +
-              "focus-visible:ring-1 focus-visible:ring-accent/60 " +
-              (active ? "bg-surface" : "hover:bg-surface/60")
-            }
-          >
-            {active && (
-              <span className="absolute left-0.5 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-full bg-accent" />
-            )}
-            <div className="flex min-w-0 items-center gap-2">
-              <span className="shrink-0 text-accent-hi/90">
-                <IconProjects width={13} height={13} />
-              </span>
-              <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-ink">
-                {project.name}
-              </span>
-              {project.active_instance ? (
-                <span className="dot-live size-1.5 shrink-0 rounded-full bg-live" />
-              ) : null}
-            </div>
-            <p className="mt-0.5 truncate pl-[21px] text-[10.5px] leading-tight text-faint">
-              {project.accounts_used.length} acct
-              {project.accounts_used.length === 1 ? "" : "s"} · {project.instance_count} run
-              {project.instance_count === 1 ? "" : "s"}
-            </p>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-/** Virtualisation threshold: past this many rows the flat list windows. */
 const VIRTUALISE_AT = 50;
-const ROW_HEIGHT = { comfortable: 70, compact: 42 } as const;
+export const ROW_HEIGHT = { comfortable: 50, compact: 32 } as const;
 
 /**
  * The sorted/filtered/searchable Instance board (AJ-E404): toolbar above
@@ -422,9 +277,12 @@ export function InstanceBoard({
   remoteMachines = [],
   selectedRemote = null,
   onSelectRemote,
+  onSelectProject,
 }: {
   /** AJ-E411 Req.5: account expiry feeds the Needs-me tie-break. */
   accounts?: AccountInfo[];
+  /** D-25: a project group's header opens the project. */
+  onSelectProject?: (id: string) => void;
   remoteMachines?: RemoteMachineInfo[];
   selectedRemote?: { machineId: string; instanceId: string | null } | null;
   onSelectRemote?: (machineId: string, instanceId: string) => void;
@@ -440,7 +298,10 @@ export function InstanceBoard({
   onSnooze: (next: SnoozeState) => void;
 }) {
   const [sort, setSort] = useState<SortMode>("needs");
-  const [group, setGroup] = useState<GroupBy>("none");
+  // D-25: one rail — sessions grouped under their project by default.
+  const [group, setGroup] = useState<GroupBy>("project");
+  // D-25: the quick filters show; the rest wait behind Filters.
+  const [moreFilters, setMoreFilters] = useState(false);
   const [filters, setFilters] = useState<ChipFilters>(NO_CHIP_FILTERS);
   const [query, setQuery] = useState("");
   // AJ-E709 Req.2: machines filter the board; "All machines" is the
@@ -508,6 +369,16 @@ export function InstanceBoard({
       ? quotaDataGroups(sorted)
       : groupSessions(sorted, effectiveGroup === "none" ? "none" : effectiveGroup, projects);
   const counts = chipCounts(sessions);
+  // D-25: a project with no sessions still has a place in the rail (one
+  // click opens it) — in the plain project view, not while filtering.
+  const quiet =
+    effectiveGroup === "project" &&
+    filters.chips.length === 0 &&
+    filters.provider === null &&
+    filters.account === null &&
+    filters.project === null &&
+    query.trim() === "";
+  const idleProjects = quiet && onSelectProject ? projects.filter((p) => !sessions.some((row) => row.project_id === p.id)) : [];
 
   // Windowing (Req.7): only the flat, ungrouped list virtualises — the
   // 200-row scale is ungrouped monitoring; grouped triage views stay
@@ -555,31 +426,71 @@ export function InstanceBoard({
                 searchRef.current?.focus();
               }
             }}
-            placeholder="Search ⌘K"
-            aria-label="Search instances by account, project, branch, model or provider"
+            placeholder="Search sessions ⌘K"
+            aria-label="Search sessions by account, project, branch, model or provider"
             className="w-full rounded-lg border border-hairline bg-surface/70 py-1.5 pl-6 pr-2 text-[11.5px] text-ink outline-none placeholder:text-faint focus-visible:ring-1 focus-visible:ring-accent/60"
           />
         </div>
-        <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Filters">
-          <FilterChip active={filters.chips.length === 0 && !filters.provider && !filters.account && !filters.project} onClick={() => setFilters(NO_CHIP_FILTERS)}>
-            All
-          </FilterChip>
+        <div className="flex min-w-0 items-center gap-1" role="group" aria-label="Show">
           <FilterChip
             active={filters.chips.includes("needs")}
-            onClick={() => toggleChip(setFilters, "needs")}
+            onClick={() => setFilters((current) => ({ ...current, chips: current.chips.includes("needs") ? [] : ["needs"] }))}
             count={counts.needs}
           >
-            Needs me
+            Needs you
           </FilterChip>
-          <FilterChip active={filters.chips.includes("running")} onClick={() => toggleChip(setFilters, "running")} count={counts.running}>
+          <FilterChip
+            active={filters.chips.includes("running")}
+            onClick={() => setFilters((current) => ({ ...current, chips: current.chips.includes("running") ? [] : ["running"] }))}
+            count={counts.running}
+          >
             Running
           </FilterChip>
-          <FilterChip active={filters.chips.includes("ended")} onClick={() => toggleChip(setFilters, "ended")} count={counts.ended}>
-            Ended
+          <FilterChip active={filters.chips.length === 0} onClick={() => setFilters((current) => ({ ...current, chips: [] }))}>
+            All
           </FilterChip>
+          <button
+            type="button"
+            aria-expanded={moreFilters}
+            aria-label={narrowed(filters, sort, group, machineChoice) ? "Filters (some on)" : "Filters"}
+            title="Filters"
+            onClick={() => setMoreFilters((open) => !open)}
+            className={
+              "relative ml-auto flex size-6 shrink-0 items-center justify-center rounded-md outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
+              (moreFilters || narrowed(filters, sort, group, machineChoice) ? "bg-accent-soft text-accent-hi" : "text-muted hover:bg-surface hover:text-ink")
+            }
+          >
+            <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+              <path d="M4 6h16M7 12h10M10 18h4" />
+            </svg>
+            {narrowed(filters, sort, group, machineChoice) && (
+              <span aria-hidden="true" className="absolute right-0.5 top-0.5 size-1.5 rounded-full bg-accent" />
+            )}
+          </button>
         </div>
-        <div className="flex flex-wrap items-center gap-1">
-          <Select ariaLabel="Sort by" value={sort} onChange={(value) => setSort(value as SortMode)} options={SORT_LABELS.map((entry) => ({ value: entry.id, label: entry.label }))} />
+        {moreFilters && (
+        <div className="flex flex-col gap-1 rounded-lg border border-hairline/60 bg-surface/40 p-1.5 [&>select]:w-full" data-testid="rail-more-filters">
+          <div className="flex items-center justify-between gap-1">
+            <FilterChip active={filters.chips.includes("ended")} onClick={() => toggleChip(setFilters, "ended")} count={counts.ended}>
+              Ended
+            </FilterChip>
+            {narrowed(filters, sort, group, machineChoice) && (
+              <button
+                type="button"
+                data-testid="rail-filters-reset"
+                onClick={() => {
+                  setFilters(NO_CHIP_FILTERS);
+                  setSort("needs");
+                  setGroup("project");
+                  if (machineChoice !== "all") chooseMachine("all");
+                }}
+                className="rounded px-1.5 py-0.5 text-[10px] text-muted underline decoration-hairline underline-offset-2 outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+              >
+                Reset
+              </button>
+            )}
+          </div>
+          <Select ariaLabel="Sort by" value={sort} onChange={(value) => setSort(value as SortMode)} options={SORT_LABELS.map((entry) => ({ value: entry.id, label: `Sort: ${entry.label}` }))} />
           <Select ariaLabel="Group by" value={group} onChange={(value) => setGroup(value as GroupBy)} options={GROUP_LABELS.map((entry) => ({ value: entry.id, label: `Group: ${entry.label}` }))} />
           <Select
             ariaLabel="Filter by provider"
@@ -612,6 +523,7 @@ export function InstanceBoard({
             options={[{ value: "", label: "Project: all" }, ...projects.map((project) => ({ value: project.id, label: project.name }))]}
           />
         </div>
+        )}
       </div>
 
       {/* Sign-ins ride above the board on the Sessions tab. */}
@@ -649,12 +561,15 @@ export function InstanceBoard({
         )}
         {!showLocal ? null : sorted.length === 0 ? (
           sessions.length === 0 ? (
-            /* Nothing exists at all — the All-clear explainer (legend
-               surface 3). */
-            <AllClearExplainer />
+            /* D-25: empty means "start here" — the legend lives behind
+               the footer's "?". */
+            <div className="flex flex-col gap-1.5 px-3 py-6" data-testid="rail-empty">
+              <p className="text-[12px] font-medium text-ink">No sessions yet</p>
+              <p className="text-[11px] leading-relaxed text-muted">Start one with New session below; it shows up here under its project.</p>
+            </div>
           ) : (
             <div className="flex flex-col items-center gap-2 px-2 py-8 text-center">
-              <p className="text-[11.5px] font-medium text-muted">No instances match</p>
+              <p className="text-[11.5px] font-medium text-muted">No sessions match</p>
               <Button
                 size="sm"
                 variant="secondary"
@@ -686,18 +601,34 @@ export function InstanceBoard({
             ))}
             <div style={{ height: (flatRows.length - windowed.end) * ROW_HEIGHT[effectiveDensity] }} />
             <p className="px-3 pt-1 text-center text-[9px] text-faint">
-              {flatRows.length} instances
+              {flatRows.length} sessions
             </p>
           </div>
         ) : (
           groups.map((entry) => (
             <div key={entry.id} className="mb-1 flex flex-col gap-0.5">
-              {entry.label !== "" && (
-                <p className="flex items-baseline gap-1.5 px-3 pb-0.5 pt-1 text-[10px] font-medium uppercase tracking-[0.08em] text-faint">
-                  <span className="truncate normal-case tracking-normal">{entry.label}</span>
-                  {entry.rollup && <span className="shrink-0 font-normal normal-case tracking-normal text-faint">· {entry.rollup}</span>}
-                </p>
-              )}
+              {entry.label !== "" &&
+                (effectiveGroup === "project" && onSelectProject && projects.some((p) => p.id === entry.id) ? (
+                  <button
+                    type="button"
+                    onClick={() => onSelectProject(entry.id)}
+                    title={entry.rollup || undefined}
+                    className="flex w-full min-w-0 items-baseline justify-between gap-2 rounded-md px-2.5 pb-0.5 pt-2 text-left text-[11.5px] font-semibold text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+                    data-testid="rail-project"
+                  >
+                    <span className="min-w-0 truncate">{entry.label}</span>
+                    <span className="shrink-0 text-[10px] font-normal text-faint">{entry.rows.length}</span>
+                  </button>
+                ) : (
+                  <p
+                    className="flex min-w-0 items-baseline justify-between gap-2 px-2.5 pb-0.5 pt-2 text-[11.5px] font-semibold text-muted"
+                    title={entry.rollup || undefined}
+                  >
+                    <span className="min-w-0 truncate">{entry.label}</span>
+                    {entry.rollup && <span className="sr-only">· {entry.rollup}</span>}
+                    <span className="shrink-0 text-[10px] font-normal text-faint">{entry.rows.length}</span>
+                  </p>
+                ))}
               {entry.rows.map((row) => (
                 <BoardRow
                   key={row.id}
@@ -714,6 +645,18 @@ export function InstanceBoard({
             </div>
           ))
         )}
+        {idleProjects.map((project) => (
+          <button
+            key={project.id}
+            type="button"
+            onClick={() => onSelectProject?.(project.id)}
+            className="flex w-full min-w-0 items-baseline justify-between gap-2 rounded-md px-2.5 pb-0.5 pt-2 text-left text-[11.5px] font-semibold text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+            data-testid="rail-project"
+          >
+            <span className="min-w-0 truncate">{project.name}</span>
+            <span className="shrink-0 text-[10px] font-normal text-faint">0</span>
+          </button>
+        ))}
         {remoteShown.map((machine) => (
           <RemoteBoardSection
             key={machine.machine_id}
@@ -769,14 +712,22 @@ function BoardRow({
           {caption}
         </span>
       )}
-      <SessionRow
-        session={row}
-        selected={selected}
-        onSelect={onSelect}
-        density={density}
-        freshness={freshness}
-        now={now}
-      />
+      <RailRow session={row} selected={selected} onSelect={onSelect} density={density} now={now} freshness={freshness} />
+      {/* I-03: a model that drifted from its launch settings is worth a
+          glance (cost and behaviour differ) — beside the row, focusable.
+          Compact rows have no room beside the time; the session view
+          says it there. */}
+      {density === "comfortable" && modelDrift(row) && (
+        <span
+          title={modelDrift(row)!}
+          aria-label={modelDrift(row)!}
+          tabIndex={0}
+          data-testid="model-drift"
+          className="absolute right-6 top-1.5 z-10 rounded-full border border-warning/25 bg-warning-soft px-1 text-[10px] font-medium text-warning outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
+        >
+          ⇄
+        </span>
+      )}
       {/* The I-10 context menu trigger (Req.6): right-click the row, or
           this ⋯ button for pointer-free access. 24 px square: the
           WCAG 2.2 minimum target (AJ-E804). */}
@@ -794,6 +745,141 @@ function BoardRow({
         ⋯
       </button>
     </div>
+  );
+}
+
+/** D-25: what a rail row says about its state, in plain words. */
+const RAIL_STATE: Record<string, string> = {
+  starting: "Starting",
+  running: "Running",
+  waiting_user: "Waiting for you",
+  stuck: "Looks stuck",
+  quota_blocked: "Hit its limit",
+  finished: "Done",
+  stopped: "Stopped",
+  failed: "Failed",
+  handed_over: "Handed over",
+};
+
+function ago(ms: number, now: number): string {
+  const m = Math.max(0, Math.round((now - ms) / 60_000));
+  if (m < 1) return "now";
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  return h < 24 ? `${h} h` : `${Math.floor(h / 24)} d`;
+}
+
+/**
+ * D-25 — the rail row: a state shape, what it is (the branch, else the
+ * folder), one line of state and time, and the Account's colour. Quota
+ * shows only when it's low (25 % or less left). Everything else — model,
+ * tokens, processes, resources — is one click away in the session view.
+ * Comfortable is two lines; compact is one.
+ */
+export function RailRow({
+  session,
+  selected,
+  onSelect,
+  density,
+  now,
+  freshness = {},
+}: {
+  session: InstanceInfo;
+  selected: boolean;
+  onSelect: (id: string) => void;
+  density: "comfortable" | "compact";
+  now: number;
+  freshness?: Freshness;
+}) {
+  const chip = stateChip(session.status);
+  // Never crash on a missing folder (it names the row only as a fallback).
+  const cwd = session.cwd ?? "";
+  const folder = cwd.replace(/\/+$/, "").split("/").pop() || cwd || session.account_label;
+  const title = session.git_branch ?? folder;
+  const ended = ["finished", "stopped", "handed_over"].includes(session.status);
+  const since = ended ? (session.last_activity_ms ?? session.started_at_ms) : (session.attention?.since_ms ?? session.started_at_ms);
+  const parked = parkedWords(session, now);
+  const state = parked ? parked.chip : (RAIL_STATE[session.status] ?? chip.label);
+  const left = session.quota ? Math.round(100 - session.quota.used_percentage) : null;
+  const low = left !== null && left <= 25 ? `${Math.max(0, left)}% left` : null;
+  const when = ended ? `${ago(since, now)} ago` : ago(since, now);
+  // D-25: the row stays calm — these markers appear only when they are
+  // the exception worth a glance (a sign-in to check, uncommitted work,
+  // a value that stopped updating); the session view has the rest.
+  const identity = identityWords(session);
+  const identityMark = identity && identity.state !== "verified" ? identity : null;
+  const dirty = session.git_dirty_count ? `${session.git_dirty_count} changed` : null;
+  const sampled = freshness[session.id];
+  const stale = sampled && isActiveStatus(session.status)
+    ? ((session.quota !== null ? staleCaption(sampled.quota, REFRESH_INTERVALS.quota, now) : null) ??
+      (session.cpu_pct !== null ? staleCaption(sampled.resources, REFRESH_INTERVALS.resources, now) : null))
+    : null;
+  const Icon = chip.Icon;
+  return (
+    <button
+      type="button"
+      data-instance-id={session.id}
+      aria-current={selected ? "true" : undefined}
+      onClick={() => onSelect(session.id)}
+      className={
+        "relative flex w-full min-w-0 items-center gap-2.5 rounded-lg pl-2.5 pr-2 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
+        (density === "compact" ? "py-1.5 " : "py-2 ") +
+        (selected ? "bg-surface" : "hover:bg-surface/60") +
+        (ended ? " opacity-70" : "")
+      }
+    >
+      {selected && <span aria-hidden="true" className="absolute left-0.5 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-full bg-accent" />}
+      <span aria-hidden="true" className={"flex w-4 shrink-0 justify-center " + minimalGlyphTone(chip.tone)}>
+        <Icon width={13} height={13} />
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="flex min-w-0 items-baseline gap-1.5">
+          <span className="min-w-0 truncate text-[12.5px] font-medium text-ink">{title}</span>
+          {session.kind === "desktop" && (
+            <span title="Runs in the Claude desktop app" data-testid="rail-app-chip" className="shrink-0 text-[9.5px] font-medium uppercase tracking-wide text-accent-hi">
+              app
+            </span>
+          )}
+          {density === "compact" && <span className="ml-auto shrink-0 font-mono text-[10px] text-faint">{when}</span>}
+        </span>
+        {density === "comfortable" && (
+          <span className="flex min-w-0 items-center gap-1 overflow-hidden text-[11px] text-faint">
+            <span
+              title={parked ? parked.long : attentionTooltip(session)}
+              data-testid={parked ? "rail-parked" : undefined}
+              className={"shrink-0 whitespace-nowrap " + (parked ? "text-ink" : chip.tone === "warning" || chip.tone === "danger" ? minimalGlyphTone(chip.tone) : "")}
+            >
+              {state}
+            </span>
+            {low && <span className="shrink-0 whitespace-nowrap text-warning">· {low}</span>}
+            {dirty && (
+              <span title={gitWords(session)} data-testid="git-badge" className="shrink-0 whitespace-nowrap">
+                · {dirty}
+              </span>
+            )}
+            {identityMark && (
+              <span title={identityMark.text} aria-label={identityMark.text} data-testid="rail-identity" data-state={identityMark.state} className="min-w-0 truncate">
+                · {identityMark.state === "signed_out" ? "not signed in" : identityMark.state === "first_seen" ? "first sign-in" : "identity unchecked"}
+              </span>
+            )}
+            <StaleChip caption={stale} />
+            {/* The time yields first: the notes above matter more. */}
+            <span className="min-w-0 truncate">· {when}</span>
+          </span>
+        )}
+        <span className="sr-only">
+          , {state}, {session.account_label}
+          {low ? `, ${low}` : ""}
+        </span>
+      </span>
+      {density === "compact" && low && <span className="shrink-0 font-mono text-[10px] text-warning">{low}</span>}
+      <span
+        aria-hidden="true"
+        title={session.account_label}
+        className="size-2 shrink-0 rounded-full"
+        style={{ background: `hsl(${hueOf(session.account_id)} 70% 66%)` }}
+      />
+    </button>
   );
 }
 
@@ -893,7 +979,7 @@ function FilterChip({ active, onClick, count, children }: { active: boolean; onC
       aria-pressed={active}
       onClick={onClick}
       className={
-        "rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors outline-none focus-visible:ring-1 focus-visible:ring-accent/60 " +
+        "whitespace-nowrap rounded-full border px-1.5 py-0.5 text-[10px] font-medium transition-colors outline-none focus-visible:ring-1 focus-visible:ring-accent/60 " +
         (active
           ? "border-accent/40 bg-accent-soft text-accent-hi"
           : "border-hairline text-muted hover:bg-surface hover:text-ink")
@@ -901,7 +987,8 @@ function FilterChip({ active, onClick, count, children }: { active: boolean; onC
     >
       {children}
       {/* The name is what's shown (WCAG 2.5.3): "Needs me 5 items". */}
-      {count !== undefined && (
+      {/* D-25: a zero count says nothing — only real counts show. */}
+      {count !== undefined && count > 0 && (
         <>
           {" "}
           <span className="tabular-nums opacity-80">{count}</span>
@@ -918,7 +1005,7 @@ function Select({ ariaLabel, value, onChange, options }: { ariaLabel: string; va
       aria-label={ariaLabel}
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      className="max-w-full truncate rounded-lg border border-hairline bg-surface/70 px-1.5 py-1 text-[10px] text-muted outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
+      className="min-w-0 max-w-full truncate rounded-lg border border-hairline bg-surface/70 px-1.5 py-1 text-[10px] text-muted outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
     >
       {options.map((option) => (
         <option key={option.value} value={option.value}>
@@ -926,6 +1013,19 @@ function Select({ ariaLabel, value, onChange, options }: { ariaLabel: string; va
         </option>
       ))}
     </select>
+  );
+}
+
+/** Whether anything behind Filters narrows or reorders the list. */
+function narrowed(filters: ChipFilters, sort: SortMode, group: GroupBy, machine: string): boolean {
+  return (
+    machine !== "all" ||
+    filters.chips.includes("ended") ||
+    filters.provider !== null ||
+    filters.account !== null ||
+    filters.project !== null ||
+    sort !== "needs" ||
+    group !== "project"
   );
 }
 
@@ -1406,19 +1506,6 @@ function minimalGlyphTone(tone: StateChipTone): string {
     case "accent": return "text-accent-hi";
     default: return "text-muted";
   }
-}
-
-/** The empty-Inbox "All clear" explainer — carries the shared legend. */
-function AllClearExplainer() {
-  return (
-    <div className="flex flex-col gap-2 px-2 py-2">
-      <p className="text-[11px] font-medium text-success">All clear — nothing needs you</p>
-      <p className="text-[10px] leading-relaxed text-faint">
-        Live instances appear here with their full indicator row. The legend below explains every state, the quota bar and the sparkline.
-      </p>
-      <IndicatorLegend compact />
-    </div>
-  );
 }
 
 /**

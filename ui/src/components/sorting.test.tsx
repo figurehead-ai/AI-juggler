@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { InstanceBoard, SessionRow } from "./WorkflowRail";
+import { InstanceBoard, ROW_HEIGHT, SessionRow } from "./WorkflowRail";
 import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
 import {
   chipCounts,
@@ -96,8 +96,18 @@ function renderBoard(rows: InstanceInfo[] = FIXTURE, snooze: SnoozeState = {}, p
 const renderedIds = (container: HTMLElement): string[] =>
   [...container.querySelectorAll("[data-instance-id]")].map((el) => (el as HTMLElement).dataset.instanceId!);
 
-const setSelect = (container: HTMLElement, label: string, value: string) =>
+/** D-25: the advanced menus wait behind Filters — open it first. */
+const openFilters = (container: HTMLElement) => {
+  if (container.querySelector('[data-testid="rail-more-filters"]')) return;
+  const toggle = [...container.querySelectorAll<HTMLButtonElement>("button[aria-expanded]")].find((button) =>
+    (button.getAttribute("aria-label") ?? "").startsWith("Filters"),
+  );
+  if (toggle) fireEvent.click(toggle);
+};
+const setSelect = (container: HTMLElement, label: string, value: string) => {
+  openFilters(container);
   fireEvent.change(container.querySelector(`select[aria-label="${label}"]`)!, { target: { value } });
+};
 
 describe("AJ-E404 Needs-me sort (default)", () => {
   it("renders the exact severity order on the 8-row fixture (snoozed sinks, never disappears)", () => {
@@ -162,6 +172,9 @@ function snoozeHas(row: InstanceInfo, snooze: SnoozeState, now: number): number 
 describe("AJ-E404 Quota risk sort", () => {
   it("orders by lowest % left and groups the no-quota rows under `no data` last", () => {
     const { container } = renderBoard();
+    // D-25 groups by project by default; the no-data bucket is the
+    // ungrouped quota view.
+    setSelect(container, "Group by", "none");
     setSelect(container, "Sort by", "quota");
     const groups = [...container.querySelectorAll("p")].map((p) => p.textContent ?? "");
     expect(groups.some((text) => text.includes("no data"))).toBe(true);
@@ -173,10 +186,11 @@ describe("AJ-E404 Quota risk sort", () => {
 
   it("the menu labels the sort honestly while burn rate is pending (AJ-E409)", () => {
     const { container } = renderBoard();
+    openFilters(container);
     const option = [...container.querySelectorAll<HTMLOptionElement>('select[aria-label="Sort by"] option')].find(
       (option_) => option_.value === "quota",
     );
-    expect(option?.textContent).toBe("Quota risk (quota only)");
+    expect(option?.textContent).toBe("Sort: Quota risk (quota only)");
   });
 });
 
@@ -207,7 +221,7 @@ describe("AJ-E404 search", () => {
     fireEvent.change(input, { target: { value: "opus" } });
     expect(renderedIds(container).length).toBe(FIXTURE.length);
     fireEvent.change(input, { target: { value: "does-not-exist" } });
-    expect(container.textContent).toContain("No instances match");
+    expect(container.textContent).toContain("No sessions match");
     expect(container.textContent).toContain("Clear filters");
     fireEvent.keyDown(input, { key: "Escape" });
     expect(renderedIds(container).length).toBe(FIXTURE.length);
@@ -227,7 +241,7 @@ function chip(container: HTMLElement, name: string): HTMLElement {
 describe("AJ-E404 filter chips", () => {
   it("carry counts with announced labels and filter the list", () => {
     const { container } = renderBoard();
-    const needsChip = chip(container, "Needs me 5 items");
+    const needsChip = chip(container, "Needs you 5 items");
     expect(needsChip.getAttribute("aria-pressed")).toBe("false");
     expect(chipCounts(FIXTURE)).toEqual({ needs: 5, running: 2, ended: 2 }); // failed counts as Ended
     fireEvent.click(needsChip);
@@ -238,7 +252,7 @@ describe("AJ-E404 filter chips", () => {
 
   it("the provider dropdown ANDs with the chips", () => {
     const { container } = renderBoard();
-    fireEvent.click(chip(container, "Needs me 5 items"));
+    fireEvent.click(chip(container, "Needs you 5 items"));
     setSelect(container, "Filter by project", "proj-1");
     expect(renderedIds(container)).toEqual(["s1", "s2", "s3", "s4", "s5"]);
     setSelect(container, "Filter by project", "proj-2");
@@ -293,7 +307,7 @@ describe("AJ-E404 virtualisation", () => {
       (element) => Number.parseFloat(element.style.height),
     );
     const trailing = Math.max(...spacers);
-    expect(rendered + trailing / 42).toBe(120);
+    expect(rendered + trailing / ROW_HEIGHT.compact).toBe(120);
   });
 });
 

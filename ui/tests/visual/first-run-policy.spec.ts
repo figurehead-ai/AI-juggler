@@ -1,6 +1,14 @@
 import { expect, test, type Page } from "@playwright/test";
 import { honestEmpty, answerPolicy } from "./fixtures";
 
+// D-25: a fresh install opens first run; these captures document the
+// Add-account wizard, so they open it the way Add account does.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as unknown as { __AIJ_FIRST_RUN__?: string }).__AIJ_FIRST_RUN__ = "wizard";
+  });
+});
+
 /**
  * AJ-E309 quality gate — the first-run policy hook end to end in the
  * production build: every option choosable, the Summary restates the
