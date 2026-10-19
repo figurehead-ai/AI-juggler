@@ -118,7 +118,7 @@ const FEATURE_COPY: Record<string, { title: string; does: string; sends: string;
     title: "Sync usage stats to my dashboard",
     does: "Shows your weekly usage statistics on figurehead.ai.",
     sends: "The weekly usage-statistics report, linked to your account.",
-    locked: "Arrives with usage statistics",
+    locked: "Turn on in Settings › Privacy, while sharing usage stats",
   },
   alerts: {
     title: "Alerts when you're away",

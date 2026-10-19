@@ -102,12 +102,30 @@ pub trait Transport {
     fn get(&self, url: &str) -> Result<Response, String>;
 
     /// `POST url` with a gzip-encoded JSON body
-    /// (`Content-Type: application/json`, `Content-Encoding: gzip`).
+    /// (`Content-Type: application/json`, `Content-Encoding: gzip`), and
+    /// `Authorization: Bearer` only for the personal sync.
     ///
     /// # Errors
     ///
     /// A network failure (no response).
-    fn post_gzip_json(&self, url: &str, body: &[u8]) -> Result<Response, String>;
+    fn post_gzip_json(
+        &self,
+        url: &str,
+        body: &[u8],
+        bearer: Option<&str>,
+    ) -> Result<Response, String>;
+}
+
+/// The personal sync (AJ-E1109): the member's endpoint and this Mac's
+/// device token. Present only while the user wants it and this Mac is
+/// linked.
+pub struct Sync<'a> {
+    /// `POST` synced reports here.
+    pub url: &'a str,
+    /// The device token.
+    pub bearer: &'a str,
+    /// Called once when the service says this Mac is no longer linked.
+    pub unlinked: &'a dyn Fn(),
 }
 
 /// Everything a tick needs from the app.
@@ -131,6 +149,8 @@ pub struct Context<'a> {
     pub gauges: &'a dyn Fn() -> Vec<StatGauge>,
     /// CPU time allowed for a puzzle.
     pub pow_budget: Duration,
+    /// The personal sync, when on.
+    pub sync: Option<Sync<'a>>,
 }
 
 /// Where a closed week went.
@@ -187,6 +207,8 @@ pub struct ReportFile {
     pub attempts: u32,
     /// Its size, uncompressed.
     pub bytes: u64,
+    /// Sent to the member's account (AJ-E1109), not anonymously.
+    pub synced: bool,
 }
 
 fn random_u64() -> u64 {
@@ -267,6 +289,24 @@ pub fn observe_mode(
     Ok(())
 }
 
+/// Keeps `sync_since` in step with the personal sync: a week is synced
+/// only if the sync was on from its start (AJ-E1109).
+///
+/// # Errors
+///
+/// Returns [`StoreError`] on SQLite failures.
+pub fn observe_sync(store: &Store, on: bool, now_ms: i64) -> Result<(), StoreError> {
+    if on {
+        if store.meta("sync_since")?.is_none() {
+            store.set_meta("sync_since", &now_ms.to_string())?;
+            store.delete_meta("sync_notice")?;
+        }
+    } else {
+        store.delete_meta("sync_since")?;
+    }
+    Ok(())
+}
+
 /// Runs one tick: assemble every closed week, then attempt at most one
 /// upload. In `off` (or with no `stats/` folder) it does nothing at all.
 ///
@@ -281,6 +321,11 @@ pub fn tick(dir: &Path, ctx: &Context<'_>) -> Result<TickOutcome, StoreError> {
     }
     let store = Store::open(dir)?;
     observe_mode(&store, ctx.effective, ctx.now_ms)?;
+    observe_sync(
+        &store,
+        ctx.sync.is_some() && ctx.effective.mode == Mode::Share,
+        ctx.now_ms,
+    )?;
     let current = week::label(ctx.now_ms);
     if store.meta("first_week")?.is_none() {
         store.set_meta("first_week", &current)?;
@@ -475,6 +520,18 @@ fn upload_due(
         if upload_at > now || next_try > now {
             continue;
         }
+        // AJ-E1109: a week the sync covered from its start goes to the
+        // member's account and only there — never also anonymously.
+        if let Some(sync) = ctx
+            .sync
+            .as_ref()
+            .filter(|_| ctx.effective.can_upload && ctx.consent_current)
+            && synced_week(store, &week)?
+        {
+            let outcome = send_synced(store, dir, &week, ctx, sync)?;
+            out.uploads.push((week, outcome));
+            return Ok(());
+        }
         let (true, true, Some(endpoints)) =
             (ctx.effective.can_upload, ctx.consent_current, ctx.endpoints)
         else {
@@ -526,29 +583,75 @@ fn upload_due(
         if dropped > 0 {
             store.add(current, "stats.truncated", "{}", dropped)?;
         }
-        // The pending file holds exactly what is sent.
-        let bytes = report.to_bytes();
-        write_file(&path, &bytes)?;
-        let mut gzip = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
-        gzip.write_all(&bytes)?;
-        let body = gzip.finish()?;
-        let attempts = meta_i64(store, &format!("attempts:{week}"))?
-            .and_then(|n| u32::try_from(n).ok())
-            .unwrap_or(0);
-        let response = ctx.transport.post_gzip_json(&endpoints.reports, &body);
-        log_attempt(
-            dir,
-            now,
-            &week,
-            attempts + 1,
-            response.as_ref().ok().map(|r| r.status),
-            bytes.len(),
-        );
+        let (attempts, response) = post(store, dir, &week, ctx, &report, &endpoints.reports, None)?;
         let outcome = settle(store, dir, &week, attempts, response, now)?;
         out.uploads.push((week, outcome));
         return Ok(()); // never more than one upload per tick
     }
     Ok(())
+}
+
+/// Writes the exact bytes to the pending file, sends them gzipped, and
+/// logs the attempt: (attempts before this one, the response).
+fn post(
+    store: &Store,
+    dir: &Path,
+    week: &str,
+    ctx: &Context<'_>,
+    report: &Report,
+    url: &str,
+    bearer: Option<&str>,
+) -> Result<(u32, Result<Response, String>), StoreError> {
+    let bytes = report.to_bytes();
+    write_file(&file(dir, "pending", week), &bytes)?;
+    let mut gzip = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+    gzip.write_all(&bytes)?;
+    let body = gzip.finish()?;
+    let attempts = meta_i64(store, &format!("attempts:{week}"))?
+        .and_then(|n| u32::try_from(n).ok())
+        .unwrap_or(0);
+    let response = ctx.transport.post_gzip_json(url, &body, bearer);
+    let status = response.as_ref().ok().map(|r| r.status);
+    log_attempt(dir, ctx.now_ms, week, attempts + 1, status, bytes.len());
+    Ok((attempts, response))
+}
+
+/// The personal sync was on from the start of `week`.
+fn synced_week(store: &Store, week: &str) -> Result<bool, StoreError> {
+    let start = week::start_ms(week).unwrap_or(0);
+    Ok(meta_i64(store, "sync_since")?.is_some_and(|since| since <= start))
+}
+
+/// Sends one week to the member's account: unsampled, no puzzle, the
+/// device token. A `401` means this Mac was unlinked: the report is
+/// kept here (`unlinked`) and never sent anonymously instead.
+fn send_synced(
+    store: &Store,
+    dir: &Path,
+    week: &str,
+    ctx: &Context<'_>,
+    sync: &Sync<'_>,
+) -> Result<UploadOutcome, StoreError> {
+    let path = file(dir, "pending", week);
+    let Some(mut report) = std::fs::read(&path)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<Report>(&bytes).ok())
+    else {
+        return skip(store, dir, week, "invalid");
+    };
+    report.sample_rate = 1.0;
+    report.pow = None;
+    let (attempts, response) = post(store, dir, week, ctx, &report, sync.url, Some(sync.bearer))?;
+    if matches!(&response, Ok(r) if r.status == 401) {
+        store.set_meta("sync_notice", "unlinked")?;
+        (sync.unlinked)();
+        return skip(store, dir, week, "unlinked");
+    }
+    let outcome = settle(store, dir, week, attempts, response, ctx.now_ms)?;
+    if outcome == UploadOutcome::Sent {
+        store.set_meta(&format!("synced:{week}"), "1")?;
+    }
+    Ok(outcome)
 }
 
 /// Why the config says not to send this week, if it does.
@@ -642,6 +745,7 @@ fn prune(store: &Store, dir: &Path, now_ms: i64) -> Result<(), StoreError> {
             if week::start_ms(week).is_some_and(|start| start < now_ms - KEEP_MS) {
                 std::fs::remove_file(entry.path())?;
                 store.delete_meta(&format!("week_state:{week}"))?;
+                store.delete_meta(&format!("synced:{week}"))?;
             }
         }
     }
@@ -682,6 +786,7 @@ pub fn reports(dir: &Path) -> Result<Vec<ReportFile>, StoreError> {
                     .and_then(|n| u32::try_from(n).ok())
                     .unwrap_or(0),
                 bytes: entry.metadata().map_or(0, |m| m.len()),
+                synced: store.meta(&format!("synced:{week}"))?.is_some(),
             });
         }
     }
@@ -724,6 +829,18 @@ pub fn this_week(dir: &Path, now_ms: i64) -> Result<Vec<(String, String, String)
         .collect();
     rows.extend(store.gauges(&week)?);
     Ok(rows)
+}
+
+/// Why the last sync stopped (`unlinked`), until the sync is on again.
+///
+/// # Errors
+///
+/// Returns [`StoreError`] on storage failures.
+pub fn sync_notice(dir: &Path) -> Result<Option<String>, StoreError> {
+    if !dir.join("counters.sqlite").exists() {
+        return Ok(None);
+    }
+    Store::open(dir)?.meta("sync_notice")
 }
 
 /// The exact JSON of one report (`status`: pending, sent or skipped).

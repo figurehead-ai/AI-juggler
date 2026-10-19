@@ -2,6 +2,7 @@
 import type { UsageReportRow } from "./UsageReportRow";
 import type { UsageStatRow } from "./UsageStatRow";
 import type { UsageStatsInfo } from "./UsageStatsInfo";
+import type { UsageSyncInfo } from "./UsageSyncInfo";
 
 /**
  * Everything Settings ▸ Privacy shows about usage statistics.
@@ -34,4 +35,8 @@ last_error: string | null,
 /**
  * The public metrics document.
  */
-docs_url: string, };
+docs_url: string, 
+/**
+ * The personal stats sync.
+ */
+sync: UsageSyncInfo, };

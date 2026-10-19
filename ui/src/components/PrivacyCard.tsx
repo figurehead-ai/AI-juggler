@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Card } from "./primitives";
 import { UsageStatsChooser } from "./UsageStatsChooser";
+import { CrashReportsSetting } from "./CrashReports";
 import {
   errorText,
   usageStatsDeleteLocal,
@@ -20,6 +21,7 @@ import {
   usageStatsOverview,
   usageStatsReport,
   usageStatsSet,
+  usageStatsSetSync,
   type UsageReportRow,
   type UsageStatsMode,
   type UsageStatsOverview,
@@ -93,6 +95,15 @@ export function PrivacyCard(): JSX.Element {
       setError(errorText(cause));
     }
   };
+  const setSync = async (on: boolean) => {
+    setError(null);
+    try {
+      setOverview(await usageStatsSetSync(on));
+      setMessage(null);
+    } catch (cause) {
+      setError(errorText(cause));
+    }
+  };
   const view = async (row: UsageReportRow) => {
     setCopied(false);
     try {
@@ -135,6 +146,36 @@ export function PrivacyCard(): JSX.Element {
           onChange={(mode) => void choose(mode)}
           disabled={locked}
         />
+      )}
+      {info.included && overview.sync.offered && (
+        <div className="flex flex-col gap-1 rounded-lg border border-hairline px-3 py-2" data-testid="privacy-sync">
+          <label className="flex items-start gap-2 text-[11px] text-ink">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={overview.sync.on}
+              onChange={(event) => void setSync(event.target.checked)}
+              data-testid="privacy-sync-toggle"
+            />
+            <span className="flex flex-col gap-0.5">
+              <span className="font-medium">Show my stats in my Figurehead dashboard</span>
+              <span className="text-muted">
+                Links this Mac's weekly reports to your Figurehead account so you can see them at figurehead.ai. Only
+                you can see them, and they're deleted with your account. A synced week is never also sent anonymously.
+              </span>
+            </span>
+          </label>
+          {overview.sync.on && overview.sync.email && (
+            <p className="pl-5 text-[11px] text-muted" data-testid="privacy-sync-email">
+              Synced to {overview.sync.email}
+            </p>
+          )}
+        </div>
+      )}
+      {overview.sync.notice && (
+        <p className="text-[11px] text-ink" role="status" data-testid="privacy-sync-notice">
+          {overview.sync.notice}
+        </p>
       )}
       {message && (
         <p className="text-[11px] text-ink" role="status" data-testid="privacy-message">
@@ -203,7 +244,9 @@ export function PrivacyCard(): JSX.Element {
                   data-status={row.status}
                 >
                   <span className="w-20 shrink-0 font-mono text-ink">{row.week}</span>
-                  <span className="w-28 shrink-0 text-ink">{STATUS_LABEL[row.status] ?? row.status}</span>
+                  <span className="w-28 shrink-0 text-ink">
+                    {row.synced ? "Synced to your account" : (STATUS_LABEL[row.status] ?? row.status)}
+                  </span>
                   <span className="min-w-0 flex-1 truncate text-muted">
                     {row.reason ??
                       (row.status === "pending" && row.upload_at_ms ? `after ${when(row.upload_at_ms)}` : "")}
@@ -283,9 +326,7 @@ export function PrivacyCard(): JSX.Element {
         Reports carry no ID, so one that was already sent can't be found and deleted later. Figurehead keeps raw reports
         for 35 days, then only totals.
       </p>
-      <p className="text-[11px] text-muted" data-testid="privacy-crash-reports">
-        Crash reports: never. This build doesn't send crash reports.
-      </p>
+      <CrashReportsSetting />
     </Card>
   );
 }

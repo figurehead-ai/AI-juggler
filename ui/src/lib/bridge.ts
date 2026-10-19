@@ -2731,6 +2731,7 @@ function previewStats(): UsageStatsOverviewData {
     next_upload_ms: null,
     last_error: null,
     docs_url: "https://github.com/figurehead-ai/AI-juggler/blob/main/docs/usage-stats.md",
+    sync: { offered: false, on: false, email: null, notice: null },
   };
   return seams.__AIJ_USAGE_STATS__;
 }
@@ -2792,6 +2793,70 @@ export async function usageStatsDeleteLocal(): Promise<UsageStatsSetResultData> 
     return { info: current.info, message: "Local stats deleted." };
   }
   return invoke<UsageStatsSetResultData>("usage_stats_delete_local");
+}
+
+/** AJ-E1109: turns the personal stats sync on or off. */
+export async function usageStatsSetSync(on: boolean): Promise<UsageStatsOverviewData> {
+  if (!hasBackend) {
+    const current = previewStats();
+    (window as unknown as StatsSeam).__AIJ_USAGE_STATS__ = {
+      ...current,
+      sync: { ...current.sync, on, notice: on ? null : current.sync.notice },
+    };
+    return previewStats();
+  }
+  return invoke<UsageStatsOverviewData>("usage_stats_set_sync", { on });
+}
+
+export type { CrashInfo } from "../types/generated/CrashInfo";
+export type { CrashReport } from "../types/generated/CrashReport";
+import type { CrashInfo as CrashInfoData } from "../types/generated/CrashInfo";
+
+function previewCrash(): CrashInfoData {
+  const seams = window as unknown as { __AIJ_CRASH__?: CrashInfoData };
+  seams.__AIJ_CRASH__ ??= { setting: "never", effective: "never", reason: null, asking: [], queued: 0, can_send: false };
+  return seams.__AIJ_CRASH__;
+}
+
+/** AJ-E1107: the crash-report setting and the reports waiting. */
+export async function crashInfo(): Promise<CrashInfoData> {
+  if (!hasBackend) return previewCrash();
+  return invoke<CrashInfoData>("crash_info");
+}
+
+/** AJ-E1107: `never` (deletes every kept report) | `ask` | `always`. */
+export async function crashSet(setting: "never" | "ask" | "always"): Promise<CrashInfoData> {
+  if (!hasBackend) {
+    const current = previewCrash();
+    const next: CrashInfoData = {
+      ...current,
+      setting,
+      effective: current.reason ? "never" : setting,
+      ...(setting === "never" ? { asking: [], queued: 0 } : {}),
+    };
+    (window as unknown as { __AIJ_CRASH__?: CrashInfoData }).__AIJ_CRASH__ = next;
+    return next;
+  }
+  return invoke<CrashInfoData>("crash_set", { setting });
+}
+
+/** AJ-E1107: the answer to "Send a crash report?" for one report. */
+export async function crashAnswer(id: string, answer: "send" | "dont_send" | "always_send"): Promise<CrashInfoData> {
+  if (!hasBackend) {
+    const current = previewCrash();
+    const asking = current.asking.filter((report) => report.id !== id);
+    const next: CrashInfoData = {
+      ...current,
+      asking,
+      queued: current.queued + (answer === "dont_send" ? 0 : 1),
+      setting: answer === "always_send" ? "always" : current.setting,
+    };
+    (window as unknown as { __AIJ_CRASH__?: CrashInfoData; __AIJ_CRASH_ANSWERS__?: string[] }).__AIJ_CRASH__ = next;
+    const w = window as unknown as { __AIJ_CRASH_ANSWERS__?: string[] };
+    w.__AIJ_CRASH_ANSWERS__ = [...(w.__AIJ_CRASH_ANSWERS__ ?? []), `${id}:${answer}`];
+    return next;
+  }
+  return invoke<CrashInfoData>("crash_answer", { id, answer });
 }
 
 /** AJ-E1105: opens the public list of every metric. */

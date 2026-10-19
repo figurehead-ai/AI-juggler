@@ -32,8 +32,8 @@ Updated 2026-10-18. Re-verify with `git log --oneline -20` and
 - Decision log: D-01..D-18. D-16 dual themes, D-17 screen-capture
   shim, D-18 optional Figurehead account (two paths; ADR-0014).
 - Stage 2 (implementation) is approved and running.
-- Progress: 108/123 DONE-EVIDENCED — E1, E2, E3, E4, E5, E6, E9
-  complete; E7 10/11 (all but the AJ-E710 gate); E8 3/10; E10 7/11 (AJ-E1001..E1005, AJ-E1007, AJ-E1009; AJ-E1006/E1008 instruments ready, awaiting the cohort; AJ-E1010 built, awaiting the maintainer's signing setup and first signed build; AJ-E1011 stays P2 until dogfood shows pack-sharing demand, per its handover note); E12 7/7 (complete); E11 6/9 (AJ-E1105: the consent step and Settings ▸ Privacy; AJ-E1103: every metric wired or marked not-yet, with a coverage gate; AJ-E1101: D-19, ADR-0015, schema; AJ-E1102: the juggler-stats crate and the `stats` feature; AJ-E1104: the weekly cycle — assembly, sampling, config, upload, backoff; AJ-E1108: the puzzle solver and user agent).
+- Progress: 110/123 DONE-EVIDENCED — E1, E2, E3, E4, E5, E6, E9
+  complete; E7 10/11 (all but the AJ-E710 gate); E8 3/10; E10 7/11 (AJ-E1001..E1005, AJ-E1007, AJ-E1009; AJ-E1006/E1008 instruments ready, awaiting the cohort; AJ-E1010 built, awaiting the maintainer's signing setup and first signed build; AJ-E1011 stays P2 until dogfood shows pack-sharing demand, per its handover note); E12 7/7 (complete); E11 8/9, AJ-E1107 in progress — the setting, scrubbing, limits and the next-launch question are done; sending waits for the reporting service and a notarized build (AJ-E1106: the guardrail suite, every promise mapped to a test; AJ-E1109: personal stats sync; AJ-E1105: the consent step and Settings ▸ Privacy; AJ-E1103: every metric wired or marked not-yet, with a coverage gate; AJ-E1101: D-19, ADR-0015, schema; AJ-E1102: the juggler-stats crate and the `stats` feature; AJ-E1104: the weekly cycle — assembly, sampling, config, upload, backoff; AJ-E1108: the puzzle solver and user agent).
 - Execution order from here: the AJ-E710 gate write-up → E10 →
   AJ-E1204/E1205/E1206/E1207 → usage statistics (E11, its own decision
   D-19 / ADR-0015) → E8 tail.

@@ -1,0 +1,14 @@
+# AJ-E1109 against the website's local dev server (npm run dev, port 4321), 2026-10-18.
+# "enabled": true set locally in the website clone's stats config for the run, then reverted (git checkout -- .; clone clean).
+# The link was approved in a browser on localhost (dev sign-in). Never production.
+# AIJ_E2E_FIGUREHEAD_URL=http://localhost:4321 cargo test -p juggler-app --test stats_sync_live -- --ignored --nocapture
+
+[e2e] approve http://localhost:4321/link?code=XXXX-XXXX (code XXXX-XXXX)
+[e2e] linked
+[e2e] report: {"schema":1,"report_id":"9fea1d9a-b7dd-4161-b3df-9fa5bd43513a","week":"2026-W42","sample_rate":1.0,"app":{"version":"0.1.0","channel":"beta"},"os":{"name":"macos","major":27,"arch":"arm64"},"install_age":"<1w","days_active":1,"consent_version":1,"entries":[{"m":"app.launch","d":{},"v":4}]}
+[e2e] sync: 202 {"ok":true}
+[e2e] again: 200 {"ok":true,"duplicate":true}
+[e2e] without a token: 401
+[e2e] after unlink: 401 {"error":"unauthorized"}
+test a_synced_report_is_accepted_once_and_refused_after_unlink ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 19.20s
