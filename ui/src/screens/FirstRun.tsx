@@ -16,7 +16,7 @@
  * The pack-secrets choice is no longer asked here: the first switch asks
  * while no choice exists (D-14, nothing is built before it).
  */
-import { useCallback, useEffect, useMemo, useState, type JSX } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { Button } from "../components/primitives";
 import { funnelEvent, funnelStep } from "../lib/funnel";
 import {
@@ -655,9 +655,13 @@ export function FirstRun({
   onAddFresh,
   onImportFolder,
   openLoginTerminal,
+  mode = "first-run",
 }: {
   /** First run is over: Home. */
   onDone: () => void;
+  /** D-25: "add" reuses the same three steps from Accounts › Add
+   * account — closable, and not counted as a first install. */
+  mode?: "first-run" | "add";
   /** "Add a fresh account" — the account wizard. */
   onAddFresh: () => void;
   /** "Import from another folder…" — the wizard's folder import. */
@@ -671,7 +675,7 @@ export function FirstRun({
   const [access, setAccess] = useState<OsAccessInfo[] | null>(null);
 
   useEffect(() => {
-    funnelStep("a-first-install", "found");
+    if (mode === "first-run") funnelStep("a-first-install", "found");
     funnelEvent("scan_started");
     void environmentScanFull().then(
       (scan) => {
@@ -685,31 +689,63 @@ export function FirstRun({
       () => setCli(null),
     );
     void osAccessList().then(setAccess, () => setAccess([]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on open
   }, []);
 
-  const skipAccess = access !== null && access.length === 0;
+  // A modal dialog takes focus when it opens (WCAG 2.4.3); adding can be
+  // left with Escape from anywhere in it.
+  const frameRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    frameRef.current?.focus();
+  }, []);
+  useEffect(() => {
+    if (mode !== "add") return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onDone();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [mode, onDone]);
+
+  // D-25: adding, with nothing new on this Mac to bring in — go straight
+  // to a fresh account rather than show an empty list.
+  useEffect(() => {
+    if (mode === "add" && report && !report.installs.some((found) => !found.managed)) onAddFresh();
+  }, [mode, report, onAddFresh]);
+
+  // Nothing to ask for: this OS needs nothing, or it is all allowed.
+  const skipAccess = access !== null && access.every((entry) => entry.status === "allowed");
   const finish = useCallback(() => {
-    funnelStep("a-first-install", "done");
+    if (mode === "first-run") funnelStep("a-first-install", "done");
     onDone();
-  }, [onDone]);
+  }, [onDone, mode]);
   const toAccess = useCallback(() => {
     if (skipAccess) {
       finish();
       return;
     }
-    funnelStep("a-first-install", "access");
+    if (mode === "first-run") funnelStep("a-first-install", "access");
     setStep("access");
-  }, [finish, skipAccess]);
+  }, [finish, skipAccess, mode]);
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-canvas text-ink"
+      className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-canvas text-ink outline-none"
       role="dialog"
       aria-modal="true"
-      aria-label="Set up AI Juggler"
+      aria-label={mode === "add" ? "Add accounts" : "Set up AI Juggler"}
       data-testid="first-run"
+      data-mode={mode}
+      ref={frameRef}
+      tabIndex={-1}
     >
-      <div data-tauri-drag-region className="h-11 shrink-0" />
+      <div data-tauri-drag-region className="flex h-11 shrink-0 items-center justify-end px-4">
+        {mode === "add" && (
+          <Button size="sm" variant="ghost" onClick={onDone} data-testid="first-run-close">
+            Close
+          </Button>
+        )}
+      </div>
       <div className="flex flex-1 justify-center px-6 pb-16 pt-6">
         <div className="flex w-full max-w-3xl flex-col gap-7">
           <StepMarks step={step} skipAccess={skipAccess} />
@@ -723,7 +759,7 @@ export function FirstRun({
                 setQueue(signins);
                 if (signins.length > 0) {
                   funnelEvent("login_queued");
-                  funnelStep("a-first-install", "signin");
+                  if (mode === "first-run") funnelStep("a-first-install", "signin");
                   setStep("signin");
                 } else {
                   toAccess();

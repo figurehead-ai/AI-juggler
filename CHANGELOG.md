@@ -29,6 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and the week, when each resets, and when this pace would run out — plus
   what runs on it and the best account for new work. Usage leads with the
   same runway and explains itself when nothing is set up yet.
+- Add account finds what's already on this Mac and isn't in AI Juggler
+  yet, the same way first run does, and goes straight to a fresh account
+  when there's nothing new.
 - When an account hits its limit, one decision: continue now on the best
   other account, park the session until the reset (it's offered back;
   nothing restarts on its own), or choose another.

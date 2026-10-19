@@ -71,7 +71,11 @@ export function ProfilesScreen({
   onInspectAccount,
   onLaunchFirstSession,
   sessions = [],
+  onAddAccounts,
 }: {
+  /** D-25: Add account opens the find → bring in → sign in flow. Without
+   * it, the account wizard opens (as before). */
+  onAddAccounts?: () => void;
   openTerminal: (id: string, title: string) => void;
   /** D-25: what runs where (activity line, runway fallback). */
   sessions?: InstanceInfo[];
@@ -158,7 +162,7 @@ export function ProfilesScreen({
           <IconProfiles width={14} height={14} />
           Add Provider
         </Button>
-        <Button variant="primary" size="sm" onClick={() => setAddAccount(true)} data-testid="add-account">
+        <Button variant="primary" size="sm" onClick={() => (onAddAccounts ? onAddAccounts() : setAddAccount(true))} data-testid="add-account">
           <IconProfiles width={14} height={14} />
           Add account
         </Button>
@@ -172,7 +176,7 @@ export function ProfilesScreen({
       )}
 
       {accounts.length === 0 ? (
-        <EmptyAccounts onAdd={() => setAddAccount(true)} />
+        <EmptyAccounts onAdd={() => (onAddAccounts ? onAddAccounts() : setAddAccount(true))} />
       ) : (
         <div className="flex flex-col gap-4">
           {accounts.map((account) => (

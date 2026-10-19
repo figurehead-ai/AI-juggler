@@ -28,6 +28,12 @@ with runway, Usage, the limit decision, D-25). Status: **DONE-EVIDENCED**.
   `instance_park`, then says when it comes back); Choose another (the
   session view). A modal dialog with focus inside, Escape and Not now
   close it, and nothing happens until a choice.
+- **Add account** opens first run's three steps in "add" mode: what's on
+  this Mac that isn't in AI Juggler yet, bring them in, sign in. It has a
+  Close and Escape, is not counted as a first install, and goes straight
+  to a fresh account when nothing new is found (flow (d) stays at three
+  clicks). The computer-access step is skipped, in both modes, when
+  everything is already allowed. First run now takes focus when it opens.
 - Settings accepts a section to open at (`aij:open-settings` with a
   `section`).
 
@@ -40,7 +46,8 @@ with runway, Usage, the limit decision, D-25). Status: **DONE-EVIDENCED**.
 | Req.3 link and disclosure | a11y and capture suites follow the link into Settings (the choice group is there, axe 0) and open the matrix disclosure | PASS |
 | Req.4 Usage | `accounts-gallery.spec.ts`: Usage with accounts and with none | PASS |
 | Req.5 the decision | vitest `limit-dialog.test.tsx` (5: the pick, the reset in words, Continue hands on the target, what carries over, Park parks and confirms, Escape does nothing); the gallery opens it from Home, focus lands on Continue, Escape closes it | PASS |
-| axe | `accounts-gallery.spec.ts`: 0 critical/serious on all 10 states | PASS |
+| Add accounts | vitest `first-run.test.tsx` (add mode: labelled, Close; nothing new → fresh account; all allowed → no access step); the gallery opens it from Accounts with two setups found, Escape closes it; `flows-cde` flow (d) still ≤ 3 clicks | PASS |
+| axe | `accounts-gallery.spec.ts`: 0 critical/serious on all 12 states | PASS |
 | Full suite | Playwright 907/907; vitest 461/461 | PASS |
 
 ## Not covered here

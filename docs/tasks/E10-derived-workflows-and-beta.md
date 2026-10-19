@@ -261,6 +261,7 @@
 2. Accounts SHALL name the best account for new work (signed in, most left in its tighter window). Sign-in shows only when it is needed. A disabled Start says why.
 3. The pack-secrets policy SHALL be one link away (Settings › Context packs & secrets, opened at that section); the Beta matrix SHALL sit behind a disclosure.
 4. Usage SHALL lead with every account's runway, then what sessions used; with no accounts it says what will appear and offers Find my accounts — never a blank page.
+6. Accounts › Add account SHALL open first run's find → bring in → sign in (closable; straight to a fresh account when nothing new is found; no access step when all is allowed).
 5. When a session is stopped by its limit, Home's "Continue elsewhere" SHALL open one decision: Continue now on the ranker's pick (its runway, what carries over), Wait for the reset (park; offered back at the reset; nothing restarts on its own), or Choose another. It is a modal dialog with focus inside, Escape closes it, and nothing happens until a choice.
 **Quality gates**: vitest (`account-runway.test.tsx`, `limit-dialog.test.tsx`); `accounts-gallery.spec.ts` with axe; the full Playwright suite; baselines re-rendered with notes.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1016/`.

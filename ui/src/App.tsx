@@ -299,6 +299,11 @@ export default function App() {
   const [newSession, setNewSession] = useState(false);
   // AJ-E205: the executing switch flow (freeze dialog → stages →
   // source-safe failure banner). Null = closed.
+  // D-25: Accounts › Add account reuses first run's three steps.
+  const [addAccounts, setAddAccounts] = useState(false);
+  // The wizard opened from Accounts is locked to its Provider (AJ-E306).
+  const [wizardLocked, setWizardLocked] = useState(false);
+  const [accountsNonce, setAccountsNonce] = useState(0);
   // D-25: the account-limit decision, for this session id.
   const [limitFor, setLimitFor] = useState<string | null>(null);
   const [switchFlow, setSwitchFlow] = useState<{ sessionId: string; targetProfileId: string; targetLabel: string } | null>(null);
@@ -935,7 +940,9 @@ export default function App() {
           ) : global === "accounts" ? (
             <div className="h-full overflow-y-auto">
               <ProfilesScreen
+                key={accountsNonce}
                 sessions={sessions}
+                onAddAccounts={() => setAddAccounts(true)}
                 openTerminal={openLoginTerminal}
                 onLaunchFirstSession={(startHere) => {
                   setNewSession(true);
@@ -1233,13 +1240,38 @@ export default function App() {
         />
       )}
 
+      {addAccounts && (
+        <FirstRun
+          mode="add"
+          openLoginTerminal={openLoginTerminal}
+          onDone={() => {
+            setAddAccounts(false);
+            setAccountsNonce((n) => n + 1);
+            void refresh();
+          }}
+          onAddFresh={() => {
+            setAddAccounts(false);
+            setWizardLocked(true);
+            setWizard(true);
+          }}
+          onImportFolder={() => {
+            setAddAccounts(false);
+            setWizardLocked(true);
+            setWizard(true);
+          }}
+        />
+      )}
+
       {wizard && (
         <OnboardingWizard
           key={wizardNonce}
           provider="claude-code"
+          locked={wizardLocked}
           onClose={() => {
             localStorage.setItem("aij.onboarding.dismissed", "1");
             setWizard(false);
+            setWizardLocked(false);
+            setAccountsNonce((n) => n + 1);
           }}
           onAccountCreated={() => void refresh()}
           onConnectCloud={openCloudSettings}

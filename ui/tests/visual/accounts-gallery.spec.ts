@@ -81,3 +81,49 @@ for (const theme of ["dark", "light"] as const) {
     await expect(dialog).toHaveCount(0);
   });
 }
+
+// D-25: Accounts › Add account opens first run's list (closable).
+const FOUND = {
+  installs: ["work-b", "client"].map((name, i) => ({
+    harness: "claude-code",
+    path: `/Users/you/Library/Application Support/ClaudeCodeProfiles/${name}`,
+    origin: "manager-tool",
+    login: "logged_in",
+    bytes: 30_000_000,
+    last_used_secs: Math.floor(T0 / 1000) - i * 86_400,
+    managed: false,
+    notes: [],
+    signals: ["manager-tool"],
+    inference: {
+      purpose: name,
+      purpose_confidence: "likely",
+      login: "signed-in",
+      login_confidence: "found",
+      activity: "active",
+      activity_confidence: "found",
+      activity_words: "Active this week",
+      keychain_bound: false,
+    },
+  })),
+  probes: [{ label: "Claude desktop profiles", health: "ok", detail: "2 profiles", reason: null }],
+  seeds: [],
+  desktop_apps: ["Claude"],
+  cancelled: false,
+};
+
+for (const theme of ["dark", "light"] as const) {
+  test(`add accounts — found on this Mac — ${theme}`, async ({ page }) => {
+    await page.addInitScript((scan) => {
+      (window as unknown as Record<string, unknown>).__AIJ_SCAN_REPORT__ = scan;
+    }, FOUND);
+    await seed(page, allStatuses, theme);
+    await goTo(page, "Accounts");
+    await page.getByTestId("add-account").click();
+    const dialog = page.getByRole("dialog", { name: "Add accounts" });
+    await expect(dialog.getByTestId("first-run-bring-in")).toHaveText("Bring in 2 accounts");
+    await page.screenshot({ path: resolve(OUT, `add-accounts-1280x800-${theme}.png`) });
+    await axeClean(page, "add accounts");
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+  });
+}

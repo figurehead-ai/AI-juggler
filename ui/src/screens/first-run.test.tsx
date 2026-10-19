@@ -199,6 +199,40 @@ describe("D-25 first run — the flow", () => {
     await waitFor(() => expect(onDone).toHaveBeenCalledOnce());
   });
 
+  it("add mode (Accounts › Add account): closable, labelled, the same list", async () => {
+    const onDone = vi.fn();
+    const { findByTestId, getByTestId } = render(
+      <FirstRun mode="add" onDone={onDone} onAddFresh={() => null} onImportFolder={() => null} openLoginTerminal={() => null} />,
+    );
+    expect((await findByTestId("first-run-found")).textContent).toContain("You already have 5 Claude Code setups");
+    expect(getByTestId("first-run").getAttribute("aria-label")).toBe("Add accounts");
+    fireEvent.click(getByTestId("first-run-close"));
+    expect(onDone).toHaveBeenCalledOnce();
+  });
+
+  it("add mode with nothing new to bring in goes straight to a fresh account", async () => {
+    w().__AIJ_SCAN_REPORT__ = { ...SCAN, installs: [found(`${PROFILES}/already`, "manager-tool", { managed: true })] };
+    const onAddFresh = vi.fn();
+    render(<FirstRun mode="add" onDone={() => null} onAddFresh={onAddFresh} onImportFolder={() => null} openLoginTerminal={() => null} />);
+    await waitFor(() => expect(onAddFresh).toHaveBeenCalledOnce());
+  });
+
+  it("everything already allowed: no access step", async () => {
+    w().__AIJ_OS_ACCESS__ = [
+      { id: "focus", title: "Jump", why: "Why", system_name: "Accessibility", status: "allowed", action: "none", note: null },
+    ];
+    const onDone = vi.fn();
+    const { findByTestId, getByTestId } = renderIt({ onDone });
+    await findByTestId("first-run-found");
+    await act(async () => {
+      fireEvent.click(getByTestId("first-run-bring-in"));
+    });
+    await act(async () => {
+      fireEvent.click(await findByTestId("first-run-signin-next"));
+    });
+    await waitFor(() => expect(onDone).toHaveBeenCalledOnce());
+  });
+
   it("nothing found: a plain start, and Add an account", async () => {
     w().__AIJ_SCAN_REPORT__ = { ...SCAN, installs: [], probes: [] };
     const onAddFresh = vi.fn();
