@@ -55,6 +55,10 @@ and the [decision log](./docs/review/decision-log.md)):
   features the user turns on one by one; backups are encrypted on the
   Mac and the server stores only ciphertext. Transcripts and vendor
   credentials never leave the Mac.
+- **Usage statistics and crash reports are strictly opt-in,** aggregated
+  on the device, carry no identifiers, and are documented in
+  [docs/usage-stats.md](./docs/usage-stats.md). Until the user chooses,
+  nothing is counted and no request is made.
 - **Signed updates only**, verified before installation.
 - **Fleet links** use mutual TLS with per-machine identity keys and a
   user-verified pairing code; vendor credentials never travel over them.

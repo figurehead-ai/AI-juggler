@@ -72,6 +72,8 @@ jobs:
         run: ./scripts/evidence_check.sh
       - name: Terminology (AJ-E108 gate)
         run: ./scripts/terminology_lint.sh
+      - name: Usage-statistics doc is generated from the schema (AJ-E1106)
+        run: python3 scripts/gen_usage_stats_doc.py --check
       - name: Dependency policy (cargo-deny)
         run: cargo deny check
       # Coverage artifact. Best-effort in edge cases (zero-test workspaces);

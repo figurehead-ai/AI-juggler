@@ -241,8 +241,54 @@
   in README, PROPOSAL, SECURITY and SPEC §1/§8/§11 are updated in the
   same change. Work lives in epic E12 (`docs/tasks/E12-optional-account.md`).
 
+### D-19 Opt-in usage statistics — SETTLED (2026-10-18)
+
+- Decision: the maintainer approved the usage-statistics specification
+  on 2026-10-16 (abuse protection and personal sync added 2026-10-17).
+  AI Juggler may learn which features people use, only if each person
+  opts in, and never anything about their work.
+- What it means:
+  1. **Opt-in, three modes:** `off` (the default: nothing is counted or
+     stored, and no request is made), `local` (count on this Mac and
+     show it, never send) and `share` (also send one report a week).
+  2. **Aggregated on the Mac.** Only weekly counters exist; raw events
+     are never stored or sent.
+  3. **One report per ISO week (UTC)**, uploaded 0–144 h after the week
+     closes, retried with backoff. Only a week fully covered by `share`
+     is ever sent.
+  4. **No identifier.** A report's single-use random id only lets the
+     server drop duplicates; two reports from one Mac can't be linked.
+  5. **Sampling** comes from a static config file and needs no id
+     (a local salt that is never sent).
+  6. **A closed schema** (`stats/schema.v1.json`, identical to the
+     server's copy) lists every metric and value; anything else is
+     rejected. Generated Rust enums with no string fields make free text
+     impossible to send.
+  7. **Crash reports** have their own setting (`never` by default, `ask`,
+     `always`) and are scrubbed on the Mac.
+  8. **Overrides:** `DO_NOT_TRACK`, `AI_JUGGLER_STATS=off|local`, CI and
+     debug builds never upload, and building without the `stats`
+     feature leaves it out entirely.
+  9. **Consent versioning:** a new *category* of data asks again; new
+     metrics within a category are listed in the CHANGELOG and
+     `docs/usage-stats.md`.
+  10. **Personal stats sync** (signed in, linked Mac, its own checkbox):
+      the weekly report goes to the member's account *instead of* the
+      anonymous endpoint, never both.
+  11. **Abuse protection without identity:** a strict schema with caps,
+      and an adaptive proof of work that stays off unless the service is
+      under attack.
+  12. **Never collected:** prompts, transcripts, code, paths, project or
+      Account names, machine or user names, setting values outside the
+      enums, error text; nothing read from, derived from or hashed from
+      vendor credential or identity files.
+- Consequences: ADR-0015 records the architecture. SPEC §1/§8, SECURITY
+  and README say the same. The word "telemetry" keeps its E7 meaning (the
+  status sync between paired Macs); this feature is "usage statistics".
+  Work lives in epic E11 (`docs/tasks/E11-usage-statistics.md`).
+
 ## Unresolved (in discussion order)
 
 - None. D-01..D-15 were marked Final on maintainer instruction
   (2026-10-13); D-16 and D-17 were settled by maintainer instruction
-  on 2026-10-13, and D-18 on 2026-10-17; all follow the same law.
+  on 2026-10-13, D-18 on 2026-10-17 and D-19 on 2026-10-18; all follow the same law.

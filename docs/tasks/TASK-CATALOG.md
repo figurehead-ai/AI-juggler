@@ -109,6 +109,15 @@
 | AJ-E1009 | Backup, restore and machine migration of Juggler's own data | E10-derived-workflows-and-beta.md | P1 | M | AJ-E1007 |
 | AJ-E1010 | Updates and release integrity for beta | E10-derived-workflows-and-beta.md | P1 | M | AJ-E1009 |
 | AJ-E1011 | Team pack export and colleague handoff | E10-derived-workflows-and-beta.md | P2 | M | AJ-E1007, AJ-E1009 |
+| AJ-E1101 | Decision D-19, ADR-0015, doc amendments, the schema copy | E11-usage-statistics.md | P0 | S | — |
+| AJ-E1102 | The juggler-stats crate: modes, overrides, counting, local store, the cargo feature | E11-usage-statistics.md | P0 | M | AJ-E1101 |
+| AJ-E1103 | Wire the events into the app | E11-usage-statistics.md | P0 | M | AJ-E1102 |
+| AJ-E1104 | Weekly assembly, sampling, config, upload and backoff | E11-usage-statistics.md | P0 | M | AJ-E1102 |
+| AJ-E1105 | Consent in onboarding and Settings ▸ Privacy | E11-usage-statistics.md | P0 | M | AJ-E1102 |
+| AJ-E1106 | Guardrail tests and the public metrics document | E11-usage-statistics.md | P0 | M | AJ-E1103, AJ-E1104, AJ-E1105 |
+| AJ-E1107 | Crash reports behind their own setting | E11-usage-statistics.md | P2 | M | AJ-E1105 |
+| AJ-E1108 | Puzzle solver and the user agent | E11-usage-statistics.md | P1 | S | AJ-E1104 |
+| AJ-E1109 | Personal stats sync | E11-usage-statistics.md | P1 | M | AJ-E1104, AJ-E1202 |
 | AJ-E1201 | Decision D-18, ADR-0014, stale-rule updates | E12-optional-account.md | P0 | S | — |
 | AJ-E1202 | Account client: link (browser + code), Keychain token, 401/unlink, entitlements cache | E12-optional-account.md | P0 | L | AJ-E1201, AJ-E702 |
 | AJ-E1203 | Settings → Account & Cloud, onboarding step, Cloud chips, consent screen | E12-optional-account.md | P0 | L | AJ-E1202 |
@@ -117,5 +126,5 @@
 | AJ-E1206 | Fleet discovery via account | E12-optional-account.md | P1 | M | AJ-E1202, AJ-E704 |
 | AJ-E1207 | Guardrail tests and visual captures | E12-optional-account.md | P0 | M | AJ-E1202, AJ-E1203, AJ-E1205 |
 
-Total: 114 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+Total: 123 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

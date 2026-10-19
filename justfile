@@ -17,6 +17,12 @@ verify:
     RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
     just evidence
     just terminology
+    just stats-doc
+
+# Usage-statistics doc gate (AJ-E1106): docs/usage-stats.md is generated
+# from stats/schema.v1.json and must not drift.
+stats-doc:
+    python3 scripts/gen_usage_stats_doc.py --check
 
 # Evidence-store gate (AJ-E801): link resolution + secret scan + index freshness.
 evidence:

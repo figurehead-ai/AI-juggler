@@ -18,6 +18,7 @@ ADRs capture the *why* behind non-obvious decisions: context, decision, alternat
 | [0012](./0012-two-clock-quota-model.md) | Two-clock quota model; user-entered expiry | Accepted |
 | [0013](./0013-fleet-at-launch.md) | Fleet at launch (beta); per-machine permissions | Accepted |
 | [0014](./0014-optional-figurehead-account.md) | Optional Figurehead account and cloud services (two paths) | Accepted |
+| [0015](./0015-usage-statistics.md) | Opt-in usage statistics: on-device counters, weekly identifier-free reports, a closed schema | Accepted |
 | [0016](./0016-backup-archive-format.md) | Backup archive format v1: allowlisted, scrubbed, verified before restore | Accepted |
 | [0017](./0017-encrypted-cloud-backup-container.md) | Encrypted Cloud backup container (FHB1): vault key, recovery code, XChaCha20-Poly1305 | Accepted |
 
