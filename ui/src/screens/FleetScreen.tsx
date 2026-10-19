@@ -1,5 +1,5 @@
 import { AccountMacsCard } from "../components/AccountMacsCard";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type JSX } from "react";
 import { Button, Card, Chip } from "../components/primitives";
 import { IconFleet } from "../components/icons";
 import { PairingWizard, type PairingMode } from "./PairingWizard";
@@ -325,10 +325,9 @@ export function FleetScreen({
                   size="sm"
                   variant="ghost"
                   onClick={() => setAccess(peer)}
-                  aria-label={`Change what ${peer.label} may do on this Mac`}
                   data-testid="fleet-access"
                 >
-                  Access…
+                  Access…<span className="sr-only"> for {peer.label} on this Mac</span>
                 </Button>
                 {peer.paired_via === "account" && (
                   <span className="text-[11px] text-muted">via your Figurehead account</span>

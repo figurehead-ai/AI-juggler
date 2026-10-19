@@ -163,11 +163,12 @@ describe("AJ-E402 card/row parity and screen-reader access", () => {
     const session = mk();
     const card = rowText(session, "card");
     // The narrow rail row carries the account as initials disc + title;
-    // accessible parity is the row's aria-label (I-02 without the room).
+    // accessible parity is the row's name plus its description (AJ-E804).
     const { container } = render(
       <SessionRow session={session} selected={false} onSelect={() => {}} />,
     );
-    const row = container.querySelector("button")?.getAttribute("aria-label") ?? "";
+    const button = container.querySelector("button")!;
+    const row = `${button.textContent ?? ""} ${document.getElementById(button.getAttribute("aria-describedby") ?? "")?.textContent ?? ""}`;
     for (const field of [
       "Claude",
       "Work Max",
@@ -182,26 +183,28 @@ describe("AJ-E402 card/row parity and screen-reader access", () => {
     }
   });
 
-  it("every number is reachable as text via the row's aria-label", () => {
-    const session = mk();
-    render(<SessionRow session={session} selected={false} onSelect={() => {}} />);
-    const label = screen.getByRole("button", { name: /Work Max/ }).getAttribute("aria-label") ?? "";
-    for (const part of [
-      "Claude provider",
-      "Work Max",
-      "opus",
-      "Running",
-      "quota 58% left, computed",
-      "19.1k tok",
-      "cpu 4%, ram 121 KB",
-      "2 children",
-      "branch feat/read-model",
-    ]) {
-      expect(label).toContain(part);
+  /** WCAG 2.5.3 (AJ-E804): the name is the row's visible content; the rest is its description. */
+  function announced(): { name: string; described: string } {
+    const row = screen.getByRole("button", { name: /Work Max/ });
+    expect(row.getAttribute("aria-label")).toBeNull();
+    const described = document.getElementById(row.getAttribute("aria-describedby") ?? "")?.textContent ?? "";
+    return { name: row.textContent ?? "", described };
+  }
+
+  it("every number is reachable as text: the row's name plus its description", () => {
+    render(<SessionRow session={mk()} selected={false} onSelect={() => {}} />);
+    const { name, described } = announced();
+    const all = `${name} ${described}`;
+    for (const part of ["Claude", "Work Max", "opus", "Running", "feat/read-model"]) {
+      expect(name).toContain(part);
     }
+    for (const part of ["quota 58% left, computed", "19.1k tok", "cpu 4%, ram 121 KB", "2 children"]) {
+      expect(described).toContain(part);
+    }
+    expect(all).not.toContain("!");
   });
 
-  it("aria-label degrades honestly with no data", () => {
+  it("the description degrades honestly with no data", () => {
     render(
       <SessionRow
         session={mk({ quota: null, tokens: null, model: null, cpu_pct: null, rss_bytes: null })}
@@ -209,9 +212,9 @@ describe("AJ-E402 card/row parity and screen-reader access", () => {
         onSelect={() => {}}
       />,
     );
-    const label = screen.getByRole("button", { name: /Work Max/ }).getAttribute("aria-label") ?? "";
-    expect(label).toContain("default model");
-    expect(label).toContain("Quota: no data");
+    const { name, described } = announced();
+    expect(name).toContain("default model");
+    expect(described).toContain("Quota: no data");
   });
 
   it("renders the generic Tool mark for an unknown provider", () => {
@@ -236,8 +239,9 @@ describe("AJ-E405 structured reasons + live announcements", () => {
     );
     const badge = container.querySelector("[title='waiting_prompt · prompt alive · no output 4m']");
     expect(badge).not.toBeNull();
-    const label = container.querySelector("button")!.getAttribute("aria-label") ?? "";
-    expect(label).toContain("waiting_prompt · prompt alive · no output 4m");
+    const button = container.querySelector("button")!;
+    const described = document.getElementById(button.getAttribute("aria-describedby") ?? "")?.textContent ?? "";
+    expect(described).toContain("waiting_prompt · prompt alive · no output 4m");
   });
 
   it("the polite live region announces attention transitions (WCAG 4.1.3)", async () => {

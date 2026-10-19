@@ -1,6 +1,6 @@
 import { identityWords } from "../lib/identity";
 import { parkedWords } from "../lib/parked";
-import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { ReactNode, useCallback, useEffect, useId, useRef, useState, type JSX } from "react";
 import { IconProjects, IconSessions, IconTerminal } from "./icons";
 import type { AccountInfo, InstanceInfo, ProjectInfo, RemoteInstanceInfo, RemoteMachineInfo } from "../lib/bridge";
 import type { Density } from "../lib/density";
@@ -36,6 +36,7 @@ import {
   attentionSuffix,
   attentionTooltip,
   ariaSummary,
+  RowDetails,
   isActiveStatus,
   providerMark,
   rememberResourceSample,
@@ -890,7 +891,6 @@ function FilterChip({ active, onClick, count, children }: { active: boolean; onC
     <button
       type="button"
       aria-pressed={active}
-      aria-label={count !== undefined ? `${children}, ${count} items` : String(children)}
       onClick={onClick}
       className={
         "rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors outline-none focus-visible:ring-1 focus-visible:ring-accent/60 " +
@@ -900,7 +900,14 @@ function FilterChip({ active, onClick, count, children }: { active: boolean; onC
       }
     >
       {children}
-      {count !== undefined && <span className="ml-1 tabular-nums opacity-80">{count}</span>}
+      {/* The name is what's shown (WCAG 2.5.3): "Needs me 5 items". */}
+      {count !== undefined && (
+        <>
+          {" "}
+          <span className="tabular-nums opacity-80">{count}</span>
+          <span className="sr-only"> items</span>
+        </>
+      )}
     </button>
   );
 }
@@ -1049,13 +1056,16 @@ export function SessionRow({
   // Terminal rows never show resource slots: a finished Instance is not
   // "unavailable" — it is done. Active-but-unsampled keeps the honest `—`.
   const showResources = isActiveStatus(session.status);
+  // WCAG 2.5.3 (AJ-E804): the row's name is its visible content; the
+  // rest is its description.
+  const detailsId = useId();
 
   if (density === "compact") {
     return (
       <button
         type="button"
         onClick={() => onSelect(session.id)}
-        aria-label={ariaSummary(session)}
+        aria-describedby={detailsId}
         data-instance-id={session.id}
         className={
           "relative flex min-w-0 w-full flex-col gap-0.5 rounded-lg px-2.5 py-1.5 pl-3 text-left outline-none transition-colors " +
@@ -1063,6 +1073,7 @@ export function SessionRow({
           (selected ? "bg-surface" : "hover:bg-surface/60")
         }
       >
+        <RowDetails id={detailsId} session={session} />
         {selected && (
           <span className="absolute left-0.5 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-full bg-accent" />
         )}
@@ -1076,6 +1087,7 @@ export function SessionRow({
             <span className="truncate">{mark.abbrev}</span>
           </span>
           <AccountDisc accountId={session.account_id} label={session.account_label} />
+          <span className="sr-only">{session.account_label}</span>
           <span className="ml-auto inline-flex shrink-0 items-center gap-1">
             {badge ? (
               <span
@@ -1084,7 +1096,7 @@ export function SessionRow({
                   chipToneClasses[badge.tone]
                 }
               >
-                {badge.tone === "warning" || badge.tone === "danger" ? "!" : null}
+                {badge.tone === "warning" || badge.tone === "danger" ? <span aria-hidden="true">!</span> : null}
                 {badge.text}
               </span>
             ) : (
@@ -1129,7 +1141,10 @@ export function SessionRow({
               {resources ? (
                 <span className="min-w-0 truncate tabular-nums">{resources}</span>
               ) : (
-                <span className="text-faint" title="resources unavailable">—</span>
+                <span className="text-faint" title="resources unavailable">
+                  <span aria-hidden="true">—</span>
+                  <span className="sr-only">resources unavailable</span>
+                </span>
               )}
               <StaleChip caption={resourceStale} />
             </span>
@@ -1143,7 +1158,7 @@ export function SessionRow({
     <button
       type="button"
       onClick={() => onSelect(session.id)}
-      aria-label={ariaSummary(session)}
+      aria-describedby={detailsId}
       data-instance-id={session.id}
       className={
         "relative flex min-w-0 w-full flex-col gap-1 rounded-lg px-2.5 py-2 pl-3 text-left outline-none transition-colors " +
@@ -1151,6 +1166,7 @@ export function SessionRow({
         (selected ? "bg-surface" : "hover:bg-surface/60")
       }
     >
+      <RowDetails id={detailsId} session={session} />
       {selected && (
         <span className="absolute left-0.5 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-full bg-accent" />
       )}
@@ -1166,6 +1182,7 @@ export function SessionRow({
           <span className="truncate">{mark.abbrev}</span>
         </span>
         <AccountDisc accountId={session.account_id} label={session.account_label} />
+          <span className="sr-only">{session.account_label}</span>
         {identityWords(session) && (
           <span
             title={identityWords(session)!.text}
@@ -1220,7 +1237,7 @@ export function SessionRow({
                 chipToneClasses[badge.tone]
               }
             >
-              {badge.tone === "warning" || badge.tone === "danger" ? "!" : null}
+              {badge.tone === "warning" || badge.tone === "danger" ? <span aria-hidden="true">!</span> : null}
               {badge.text}
             </span>
           ) : (
@@ -1302,6 +1319,7 @@ export function MinimalInstanceColumn({
   // ones that must scream `!` in the collapsed rail (user story).
   const active = sessions.filter((s) => isActiveStatus(s.status));
   const needsYou = active.filter((s) => s.needs_attention !== null).length;
+  const railId = useId();
   return (
     <div className="flex flex-col items-center gap-1 pt-1">
       {active.map((s) => {
@@ -1312,13 +1330,21 @@ export function MinimalInstanceColumn({
             key={s.id}
             type="button"
             onClick={() => onSelect(s.id)}
-            aria-label={ariaSummary(s)}
+            aria-describedby={`${railId}-${s.id}`}
             title={ariaSummary(s)}
             className={
               "group relative flex size-9 items-center justify-center rounded-lg outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
               (s.id === selectedId ? "bg-surface" : "hover:bg-surface")
             }
           >
+            {/* Icon-only: nothing else is shown, so the description is the full summary. */}
+            <span id={`${railId}-${s.id}`} hidden>
+              {ariaSummary(s)}
+            </span>
+            {/* WCAG 2.5.3: an icon-only button's name, in words. */}
+            <span className="sr-only">
+              {s.account_label}, {badge ? badge.text : chip.label}
+            </span>
             <AccountDisc accountId={s.account_id} label={s.account_label} size={22} />
             <chip.Icon
               width={10}
@@ -1340,7 +1366,7 @@ export function MinimalInstanceColumn({
             ) : null}
             {/* Hover/focus tooltip: the full I-01..I-11 field text for THIS
                 instance (Req.3) — never a bare disc. */}
-            <span className="pointer-events-none absolute left-full top-0 z-30 ml-2 hidden w-56 rounded-lg border border-hairline bg-surface p-2.5 text-left shadow-card group-hover:block group-focus-visible:block">
+            <span aria-hidden="true" className="pointer-events-none absolute left-full top-0 z-30 ml-2 hidden w-56 rounded-lg border border-hairline bg-surface p-2.5 text-left shadow-card group-hover:block group-focus-visible:block">
               <span className="flex items-center gap-1.5">
                 <span className="truncate text-[11.5px] font-medium text-ink">
                   {s.account_label}
@@ -1402,6 +1428,7 @@ function AllClearExplainer() {
  * explain.
  */
 export function SessionCard({ session, onSelect }: { session: InstanceInfo; onSelect?: (id: string) => void }) {
+  const detailsId = useId();
   const mark = providerMark(session.provider);
   const badge = attentionBadge(session);
   const chip = stateChip(session.status);
@@ -1416,9 +1443,10 @@ export function SessionCard({ session, onSelect }: { session: InstanceInfo; onSe
     <button
       type="button"
       onClick={onSelect ? () => onSelect(session.id) : undefined}
-      aria-label={ariaSummary(session)}
+      aria-describedby={detailsId}
       className="flex w-full min-w-0 flex-col gap-1.5 rounded-xl px-3 py-2.5 text-left outline-none transition-colors hover:bg-surface-2/60 focus-visible:ring-1 focus-visible:ring-accent/60"
     >
+      <RowDetails id={detailsId} session={session} />
       <span className="flex min-w-0 items-center gap-2">
         <span className="inline-flex shrink-0 items-center gap-1.5 text-[11.5px] font-medium text-ink">
           <mark.Icon width={12} height={12} className="text-accent-hi" />
@@ -1438,7 +1466,7 @@ export function SessionCard({ session, onSelect }: { session: InstanceInfo; onSe
                 chipToneClasses[badge.tone]
               }
             >
-              {badge.tone === "warning" || badge.tone === "danger" ? "!" : null}
+              {badge.tone === "warning" || badge.tone === "danger" ? <span aria-hidden="true">!</span> : null}
               {badge.text}
             </span>
           ) : (
@@ -1547,7 +1575,7 @@ function RemoteBoardSection({
                 "relative flex w-full min-w-0 flex-col gap-0.5 rounded-lg py-1.5 pl-3 pr-2.5 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
                 (active ? "bg-surface" : "hover:bg-surface/60")
               }
-              aria-label={`${row.account_label} on ${machine.label} — ${status}`}
+              // WCAG 2.5.3: named by its own words ("Work Max on Mac mini …").
               data-testid="board-remote-row"
             >
               {active && (
@@ -1567,7 +1595,10 @@ function RemoteBoardSection({
                   }
                   aria-hidden="true"
                 />
-                <span className="min-w-0 flex-1 truncate text-[12.5px]">{row.account_label}</span>
+                <span className="min-w-0 flex-1 truncate text-[12.5px]">
+                  {row.account_label}
+                  <span className="sr-only"> on</span>
+                </span>
                 <span className="shrink-0 rounded border border-hairline px-1 text-[9.5px] text-muted">{machine.label}</span>
               </span>
               <span className="flex min-w-0 gap-1 truncate pl-3 text-[10.5px] text-muted">

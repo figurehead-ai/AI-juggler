@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useId, type JSX } from "react";
 
 /**
  * AJ-E309 Req.1 (D-14): the pack secret-handling choice as a consent

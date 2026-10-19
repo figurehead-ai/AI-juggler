@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Open-source setup: rewritten README, CONTRIBUTING (real dev setup and
   gates), SECURITY (private reporting, scope), new SUPPORT and
   GOVERNANCE, Dependabot, privacy reminders in the issue and PR templates.
+- Dependencies brought current before launch: React 19, Vite 8 (Rolldown),
+  TypeScript 7, Playwright 1.64.1, axe-core 4.14; in Rust, ed25519-dalek and
+  x25519-dalek 3, chacha20poly1305 0.11, getrandom 0.4 and zstd 0.14 (keys,
+  signatures and backup containers are byte-compatible: the known-answer
+  tests pass unchanged).
+
+### Fixed
+
+- Screen readers and voice control: buttons are now named by the words they
+  show (WCAG 2.5.3). Instance rows, filter chips, project tiles, remote rows
+  and switch targets read their visible text first; the rest of a row's
+  details is its description, so nothing is lost.
 
 ### Added
 

@@ -10,7 +10,7 @@
  * States: off, local, share, overridden (controls disabled for
  * DO_NOT_TRACK), not included in this build, and an upload error.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type JSX } from "react";
 import { Card } from "./primitives";
 import { UsageStatsChooser } from "./UsageStatsChooser";
 import { CrashReportsSetting } from "./CrashReports";

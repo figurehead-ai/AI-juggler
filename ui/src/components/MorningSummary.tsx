@@ -6,7 +6,7 @@
  * says Unavailable (D-06/D-07); no composite health score. Built from
  * the status journal, so it is the same after a restart.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useState, type JSX } from "react";
 import { overnightSummary, overnightSummarySeen, type OvernightSummaryInfo, type SummaryRowInfo } from "../lib/bridge";
 
 const GROUPS: Array<{ id: string; title: string; icon: string }> = [

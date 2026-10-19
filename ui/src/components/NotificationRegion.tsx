@@ -5,7 +5,7 @@
  * countdown / ready states + an explicit Resume click (the click is
  * the ONLY action; nothing here launches by itself).
  */
-import { useEffect, useState } from "react";
+import { useEffect, useState, type JSX } from "react";
 import {
   alertsTick,
   fleetRemote,

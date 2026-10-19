@@ -63,7 +63,7 @@ for (const theme of ["dark", "light"] as const) {
     let clicks = 0;
     // Click 1: the recent-dir tile (ai-juggler, last used with Work Max).
     await page
-      .getByRole("button", { name: /Work in ai-juggler — last used with Work Max/ })
+      .getByRole("button", { name: /Work in ai-juggler.*last used with Work Max/ })
       .click();
     clicks += 1;
     await expect(page.getByTestId("project-account")).toBeVisible();

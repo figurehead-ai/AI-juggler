@@ -12,7 +12,7 @@
  * focus is "Review later" (non-destructive); no auto-dismiss. The choices
  * are a radio group with descriptions — completable keyboard-only.
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type JSX } from "react";
 import {
   errorText,
   fleetDivergenceKeepTheirs,

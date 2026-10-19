@@ -3,7 +3,7 @@
  * live Instance uses, with input disabled. Nothing typed here reaches
  * anything.
  */
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type JSX } from "react";
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";

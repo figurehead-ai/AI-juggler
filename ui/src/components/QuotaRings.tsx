@@ -13,6 +13,7 @@
  * is visible without hover; grayscale keeps every number + badge
  * readable (WCAG 2.2 AA 1.4.1/1.4.3).
  */
+import type { JSX } from "react";
 import type { QuotaDisplayData, WindowDisplay } from "../lib/bridge";
 
 const badgeText = (badge?: string): string =>

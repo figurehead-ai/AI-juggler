@@ -7,6 +7,7 @@
  * T3 only / unavailable with the reason). Listing these moved nothing:
  * they come from what each machine published, never a transcript.
  */
+import type { JSX } from "react";
 import type { RemoteSwitchTargetInfo } from "../lib/bridge";
 
 /** Readiness in plain words (the row's second line). */
@@ -52,7 +53,6 @@ export function RemoteSwitchTargets({
                       onClick={() => onPick(target)}
                       data-testid="remote-switch-target"
                       data-readiness={target.readiness}
-                      aria-label={`Switch to ${target.account_label} on ${label} — ${readinessText(target)}`}
                       className={
                         "flex w-full flex-col gap-0.5 rounded-lg border px-2.5 py-1.5 text-left text-[11px] " +
                         (unavailable
@@ -61,7 +61,12 @@ export function RemoteSwitchTargets({
                       }
                     >
                       <span className="flex flex-wrap items-center gap-1.5">
-                        <span className="font-medium text-ink">{target.account_label}</span>
+                        {/* WCAG 2.5.3: named by its own words. */}
+                        <span className="font-medium text-ink">
+                          <span className="sr-only">Switch to </span>
+                          {target.account_label}
+                          <span className="sr-only"> on {label}</span>
+                        </span>
                         <span className="text-muted">{target.provider}</span>
                         <span className="text-muted">· {target.recipe_name}</span>
                         <span className="flex-1" />

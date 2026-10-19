@@ -7,7 +7,7 @@
  * what it will do, including when the backup comes from another Mac
  * (its data, never its identity). Failures name the file and the reason.
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type JSX } from "react";
 import { Card } from "./primitives";
 import {
   backupExport,

@@ -6,7 +6,7 @@
  * anything would be, needs the folder's name typed back. The branch is
  * always kept.
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type JSX } from "react";
 import {
   errorText,
   gitStatusRefresh,

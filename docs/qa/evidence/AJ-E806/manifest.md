@@ -33,6 +33,20 @@
   measures the reconciler, not its siblings. The 100 ms budget and the
   load quarantine are unchanged. Verified 3/3 standalone and in the
   full gate re-run; CI stays the arbiter.
+- **Flake record, 2026-10-19 (recurrence; open).** The same soak failed
+  again during `just verify` on the dependency-upgrade branch: p95 tick
+  1,304 ms against 100 ms, load 7.66/9.22/9.69 on 30 cores, with about
+  1,240 processes on the machine (another project's browser tests and 48
+  containers). It failed 2 of the next 3 runs in that window, then passed
+  in 7 of 7 later runs on the same branch (p95 30–42 ms) and on unmodified
+  `main` (p95 33 ms). The test binary was already serialised, so the
+  2026-10-18 fix wasn't the cause. The stall is machine-wide and doesn't
+  show in the load average the quarantine reads; the p95 tick is the
+  full process-table scan, which slows with every other process on the
+  box. Nothing changed: same budget, same quarantine, CI is the arbiter.
+  Open question for the maintainer: measure this tick as CPU time, as
+  the flush and outbox budgets already are (a re-threshold that needs a
+  recorded decision), or keep wall time and accept rare local misses.
 - a11y seeded failure is recorded DEFERRED with owning task AJ-E804 —
   the gate is named in QUALITY.md vocabulary now; its absence is
   explicit, never a silent pass (per the quarantine/deferral rule).

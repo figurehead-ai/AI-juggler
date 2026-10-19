@@ -7,7 +7,7 @@
  * to Backup & restore's dialog, so a cloud restore is confirmed exactly
  * like a local one.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useState, type JSX } from "react";
 import {
   cloudBackupList,
   cloudBackupNow,

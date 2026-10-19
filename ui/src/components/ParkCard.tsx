@@ -5,7 +5,7 @@
  * Measured reset shows a countdown; an Estimated one says so and offers
  * "Check now" instead. Nothing here resumes by itself.
  */
-import { useState } from "react";
+import { useState, type JSX } from "react";
 import { errorText, instancePark, parkedCheckNow, parkedResume, type InstanceInfo } from "../lib/bridge";
 import { parkedWords } from "../lib/parked";
 

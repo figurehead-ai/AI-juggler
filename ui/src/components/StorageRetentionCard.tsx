@@ -7,7 +7,7 @@
  * every Instance it would remove and every one it keeps (and why), and
  * only that dry run can be applied.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type JSX } from "react";
 import { Card } from "./primitives";
 import {
   accountStorage,

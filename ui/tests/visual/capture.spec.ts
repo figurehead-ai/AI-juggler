@@ -4068,7 +4068,7 @@ for (const theme of THEMES) {
         fullPage: true,
       });
       await page
-        .getByRole("button", { name: /Work in ai-juggler — last used with Work Max/ })
+        .getByRole("button", { name: /Work in ai-juggler.*last used with Work Max/ })
         .click();
       // Step 2: the preselected account.
       await expect(page.getByTestId("project-account")).toContainText("Work Max");

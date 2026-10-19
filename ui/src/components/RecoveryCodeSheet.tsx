@@ -5,7 +5,7 @@
  * losing it means, and asks for "I've saved my recovery code" before
  * any backup is uploaded. Once confirmed, it is never shown again.
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type JSX } from "react";
 import { errorText, vaultConfirmSaved, vaultSaveCode, vaultSetup } from "../lib/bridge";
 
 export function RecoveryCodeSheet({ onClose }: { onClose: (saved: boolean) => void }): JSX.Element {

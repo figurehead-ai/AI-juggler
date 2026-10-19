@@ -9,7 +9,7 @@
  * A view over E4 data, not a second model: the only state it adds is the
  * explicit "reviewed" step, recorded in the Instance's history.
  */
-import { useCallback, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useCallback, useMemo, useRef, useState, type KeyboardEvent, type JSX } from "react";
 import { SessionRow } from "../components/WorkflowRail";
 import { parkedWords } from "../lib/parked";
 import type { Density } from "../lib/density";

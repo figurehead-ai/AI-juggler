@@ -147,7 +147,10 @@ describe("AJ-E403 density field presence per mode", () => {
     const { container } = render(
       <SessionRow session={mk()} selected={false} onSelect={() => {}} density="compact" freshness={{ ["sess-density"]: fresh }} now={NOW} />,
     );
-    const text = container.textContent ?? "";
+    // What's on screen: not the hidden description or screen-reader-only words.
+    const shown = container.cloneNode(true) as HTMLElement;
+    shown.querySelectorAll("[hidden], .sr-only").forEach((node) => node.remove());
+    const text = shown.textContent ?? "";
     for (const field of ["Claude", "Running", "main", "12% · 1.0 GB"]) {
       expect(text).toContain(field);
     }
@@ -166,17 +169,19 @@ describe("AJ-E403 density field presence per mode", () => {
     expect(container.textContent).toContain("Needs you");
   });
 
-  it("Minimal shows disc + state glyph + ! badge and keeps the full text in aria-label", () => {
+  it("Minimal shows disc + state glyph + ! badge and keeps the full text in its name and description", () => {
     const rows = [mk(), mk({ id: "sess-wait", status: "waiting_user", needs_attention: "waiting_user" })];
     const { container } = render(
       <MinimalInstanceColumn sessions={rows} selectedId={null} onSelect={() => {}} />,
     );
     const buttons = container.querySelectorAll("button");
     expect(buttons.length).toBe(2);
-    // Full I-01..I-11 text reachable in every minimal row (Req.3).
-    expect(buttons[0]!.getAttribute("aria-label")).toContain("Work Max");
-    expect(buttons[0]!.getAttribute("aria-label")).toContain("60% left");
-    expect(buttons[0]!.getAttribute("aria-label")).toContain("opus");
+    // Full I-01..I-11 text reachable in every minimal row (Req.3): the
+    // name says who and how it is; the description carries the rest.
+    const described = document.getElementById(buttons[0]!.getAttribute("aria-describedby") ?? "")?.textContent ?? "";
+    expect(buttons[0]!.textContent).toContain("Work Max");
+    expect(described).toContain("60% left");
+    expect(described).toContain("opus");
     // The ! badge count: one instance needs you.
     expect(container.textContent).toContain("! 1");
   });

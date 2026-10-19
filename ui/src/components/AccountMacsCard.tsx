@@ -7,7 +7,7 @@
  * the other Mac confirms this one too. Paired this way, a Mac starts at
  * View and is labelled "via your Figurehead account".
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type JSX } from "react";
 import { Card } from "./primitives";
 import {
   errorText,

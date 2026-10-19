@@ -9,7 +9,7 @@
  * labelled LIST of buttons (no nested interactives inside listbox
  * options) with ↑/↓ roving focus between rows.
  */
-import { useRef, useState } from "react";
+import { useRef, useState, type JSX } from "react";
 import type { RankedRowData } from "../lib/bridge";
 
 export function RankedRows({

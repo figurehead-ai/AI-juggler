@@ -6,7 +6,7 @@
  * subscription view. A11y: real table semantics (`th scope`), a
  * totals row the reader announces, badge text visible without hover.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useState, type JSX } from "react";
 import { Button, Card } from "./primitives";
 import { costCsvExport, costRollups, type CostRollupsData } from "../lib/bridge";
 

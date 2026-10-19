@@ -1350,10 +1350,11 @@ for (const theme of ["dark", "light"] as const) {
     await expect(cards).toContainText("Likely: Work");
     await expect(cards).toContainText("Signed in");
     await expect(cards).toContainText("Active this week");
-    // Descriptive aria-label on the import action.
+    // Descriptive aria-label on the import action, starting with the
+    // words shown (WCAG 2.5.3).
     await expect(cards.getByTestId("import-as").first()).toHaveAttribute(
       "aria-label",
-      /Import .* as “Work”/,
+      /^Import as “Work” — /,
     );
     // The managed card is disabled inline with its label.
     const managedImport = cards.locator(

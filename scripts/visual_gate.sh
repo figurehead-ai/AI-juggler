@@ -8,7 +8,7 @@
 # `--selftest` seeds a 2 px button shift that must fail.
 set -euo pipefail
 cd "$(dirname "$0")/../ui"
-IMAGE="mcr.microsoft.com/playwright:v1.64.0-noble"
+IMAGE="mcr.microsoft.com/playwright:v1.64.1-noble"
 ARGS=""
 ENV_SELFTEST=0
 for arg in "$@"; do
