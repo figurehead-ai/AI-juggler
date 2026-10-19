@@ -18,7 +18,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { atScale } from "./fixtures";
+import { atScale, goTo } from "./fixtures";
 
 const T0 = 1_728_800_000_000;
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/AJ-E805");
@@ -61,7 +61,7 @@ async function timed(page: Page, act: () => Promise<void>, done: () => Promise<v
 /** Opens the board; its row count is taken once, then expected every time. */
 let rowCount = 0;
 async function boardRows(page: Page): Promise<number> {
-  await page.getByRole("tab", { name: /^Instances/ }).click();
+  await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
   await expect(page.locator(ROWS).first()).toBeVisible();
   if (rowCount === 0) {
     await page.waitForTimeout(300);
@@ -98,23 +98,26 @@ test("rail renders 50 Instances in under 300 ms", async ({ page }) => {
   await open(page);
   const n = await boardRows(page);
   const runs: number[] = [];
+  // D-25: one rail — the repaint measured is Running → All, every
+  // session back on screen.
+  const show = page.getByRole("group", { name: "Show" });
   for (let i = 0; i < 5; i++) {
-    await page.getByRole("tab", { name: "Projects", exact: true }).click();
+    await show.getByRole("button", { name: /^Running/ }).click();
     runs.push(
       await timed(
         page,
-        () => page.getByRole("tab", { name: /^Instances/ }).click(),
+        () => show.getByRole("button", { name: "All", exact: true }).click(),
         () => expect(page.locator(ROWS)).toHaveCount(n),
       ),
     );
   }
-  record("rail: Instances tab painting all 50 Instances", 300, runs);
+  record("rail: painting all 50 sessions (Running → All)", 300, runs);
 });
 
 test("inspector paints a selection in under 200 ms", async ({ page }) => {
   await open(page);
   const n = await boardRows(page);
-  await page.getByRole("tab", { name: /^Instances/ }).click();
+  await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
   const rows = page.locator(ROWS);
   await expect(rows).toHaveCount(n);
   const runs: number[] = [];
@@ -140,7 +143,7 @@ test("inspector paints a selection in under 200 ms", async ({ page }) => {
 test("search filters 50 Instances in under 200 ms", async ({ page }) => {
   await open(page);
   const n = await boardRows(page);
-  await page.getByRole("tab", { name: /^Instances/ }).click();
+  await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
   const search = page.getByRole("searchbox").or(page.getByPlaceholder("Search ⌘K")).first();
   const runs: number[] = [];
   for (let i = 0; i < 5; i++) {
@@ -163,11 +166,11 @@ test("the Cleanup inventory opens in under 300 ms", async ({ page }) => {
   const n = await boardRows(page);
   const runs: number[] = [];
   for (let i = 0; i < 5; i++) {
-    await page.getByRole("button", { name: "Overview" }).first().click();
+    await goTo(page, "Overview");
     runs.push(
       await timed(
         page,
-        () => page.getByRole("button", { name: "Cleanup" }).first().click(),
+        () => goTo(page, "Cleanup"),
         () => expect(page.getByTestId("cleanup-centre").or(page.getByRole("heading", { name: /Cleanup/ })).first()).toBeVisible(),
       ),
     );

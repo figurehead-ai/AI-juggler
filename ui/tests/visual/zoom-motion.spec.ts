@@ -31,7 +31,7 @@ async function open(page: Page, theme: "dark" | "light") {
   );
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
   await page.goto("/");
-  await expect(page.getByRole("tab", { name: /^Instances/ })).toBeVisible();
+  await expect(page.getByTestId("instance-board")).toBeVisible();
 }
 
 async function shoot(page: Page, name: string) {
@@ -65,13 +65,13 @@ async function menusOnScreen(page: Page) {
 async function walk(page: Page, theme: string, label: string) {
   await menusOnScreen(page);
   // Rail.
-  await page.getByRole("tab", { name: /^Instances/ }).click();
+  await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
   await expect(page.locator("[data-instance-id]").first()).toBeVisible();
   await noHorizontalScroll(page);
   expect(await runningAnimations(page), "animations under reduced motion").toEqual([]);
   await shoot(page, `rail-${label}-${theme}`);
   // Inspector.
-  await page.getByRole("tab", { name: "Sessions" }).click();
+  await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
   await page.getByRole("button", { name: /Work Max/ }).first().click();
   await expect(page.getByRole("tab", { name: "Overview" })).toBeVisible();
   await noHorizontalScroll(page);

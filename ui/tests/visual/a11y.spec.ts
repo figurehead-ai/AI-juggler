@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-import { allStatuses, answerPolicy, honestEmpty, type FixtureSet } from "./fixtures";
+import { allStatuses, answerPolicy, honestEmpty, type FixtureSet, goTo } from "./fixtures";
 
 // D-25: a fresh install opens first run; these captures document the
 // Add-account wizard, so they open it the way Add account does.
@@ -64,8 +64,8 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/");
-    await expect(page.getByRole("tab", { name: "Sessions" })).toBeVisible();
-    await page.getByRole("tab", { name: "Sessions" }).click();
+    await expect(page.getByTestId("instance-board")).toBeVisible();
+    await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
     await expect(page.getByText("Handed over").first()).toBeVisible();
 
     // AJ-E405: the badge tooltip carries the structured reason (rule +
@@ -115,7 +115,7 @@ test("rail — no row overflows its width", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/");
-  await page.getByRole("tab", { name: "Sessions" }).click();
+  await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
   await expect(page.getByText("Handed over").first()).toBeVisible();
   const overflows = await page.evaluate(() => {
     const bad: string[] = [];
@@ -244,7 +244,7 @@ for (const theme of ["dark", "light"] as const) {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: 1440, height: 900 });
       await page.goto("/");
-      await page.getByRole("button", { name: "Cleanup" }).click();
+      await goTo(page, "Cleanup");
       await expect(page.getByTestId("cleanup-centre")).toBeVisible();
       await page.getByTestId("cleanup-kill-8123").click();
       await expect(
@@ -357,7 +357,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/");
-    await page.getByRole("button", { name: "Cleanup" }).click();
+    await goTo(page, "Cleanup");
     await expect(page.getByTestId("cleanup-tier2-notice-8123")).toBeVisible();
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
@@ -495,7 +495,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/");
-    await page.getByRole("button", { name: "Cleanup" }).click();
+    await goTo(page, "Cleanup");
     await expect(page.getByTestId("hog-alert-8123")).toBeVisible();
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
@@ -591,7 +591,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/");
-    await page.getByRole("button", { name: "Cleanup" }).click();
+    await goTo(page, "Cleanup");
     await page
       .getByRole("combobox", { name: "Machine filter" })
       .selectOption("all");
@@ -767,7 +767,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await page.getByRole("tab", { name: "Sessions" }).click();
+    await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
     await page.getByRole("button", { name: /Work Max/ }).first().click();
     await page.getByTestId("handover-section")
       // AJ-E209: the ranked, badged row is the switch entry point.
@@ -841,7 +841,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await page.getByRole("tab", { name: "Sessions" }).click();
+    await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
     await page.getByRole("button", { name: /Work Max/ }).first().click();
     await page.getByTestId("handover-section")
       // AJ-E209: the ranked, badged row is the switch entry point.
@@ -914,7 +914,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await page.getByRole("tab", { name: "Sessions" }).click();
+    await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
     await page.getByRole("button", { name: /Work Max/ }).first().click();
     await expect(page.getByTestId("switch-back-card")).toBeVisible();
     const cardScan = await new AxeBuilder({ page })
@@ -987,7 +987,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await page.getByRole("tab", { name: "Sessions" }).click();
+    await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
     await page.getByRole("button", { name: /Work Max/ }).first().click();
     await page.getByTestId("handover-section")
       // AJ-E209: the ranked, badged row is the switch entry point.
@@ -1021,7 +1021,7 @@ for (const theme of ["dark", "light"] as const) {
       }
     });
     await page.reload();
-    await page.getByRole("tab", { name: "Sessions" }).click();
+    await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
     await page.getByRole("button", { name: /Work Max/ }).first().click();
     await page.getByTestId("handover-section")
       // AJ-E209: the ranked, badged row is the switch entry point.
@@ -1090,7 +1090,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await page.getByRole("tab", { name: "Sessions" }).click();
+    await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
     await page.getByRole("button", { name: /Work Max/ }).first().click();
 
     // The ranked entry: scoped scan (the rows + their explanations).
@@ -1100,7 +1100,6 @@ for (const theme of ["dark", "light"] as const) {
       .analyze();
 
     // The graph: scoped scan on the project panel.
-    await page.getByRole("tab", { name: "Projects" }).click();
     await page.getByRole("button", { name: /ai-juggler/ }).first().click();
     await expect(page.getByTestId("switch-graph")).toBeVisible();
     const graphScan = await new AxeBuilder({ page })
@@ -1507,7 +1506,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await expect(page.getByRole("tab", { name: "Sessions" })).toBeVisible();
+    await expect(page.getByTestId("instance-board")).toBeVisible();
     // Summon by keyboard alone.
     // The ⌘N handler mounts with the shell — wait for it (AJ-E806:
     // pressing during the first frames after load is a test race).
@@ -1624,7 +1623,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await expect(page.getByRole("tab", { name: "Sessions" })).toBeVisible();
+    await expect(page.getByTestId("instance-board")).toBeVisible();
     // The summoning button is where focus must RETURN.
     const summon = page.getByRole("button", { name: /^New$/ }).first();
     await summon.click();
@@ -1919,7 +1918,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await page.getByRole("button", { name: "Fleet" }).first().click();
+    await goTo(page, "Fleet");
     const fingerprint = page.getByLabel("Machine fingerprint");
     await expect(fingerprint).toBeVisible();
     await fingerprint.focus();
@@ -1955,7 +1954,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await page.getByRole("button", { name: "Fleet" }).first().click();
+    await goTo(page, "Fleet");
     await expect(page.getByRole("switch", { name: /Link on/ })).toBeVisible();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
 
@@ -2029,7 +2028,7 @@ for (const theme of ["dark", "light"] as const) {
         features: [...w.__AIJ_FIGUREHEAD__.features, { key: "transcriptVault", access: "upgrade", tier: "paid", on: false }],
       };
     });
-    await page.getByRole("button", { name: "Fleet" }).first().click();
+    await goTo(page, "Fleet");
     await page.getByRole("button", { name: "Settings" }).first().click();
     await expect(page.getByTestId("cloud-offline")).toBeVisible();
     await expect(page.getByTestId("cloud-upgrade")).toBeVisible();
@@ -2072,7 +2071,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await page.getByRole("button", { name: "Fleet" }).first().click();
+    await goTo(page, "Fleet");
     await page.getByTestId("fleet-remote-instance").click();
     await expect(page.getByRole("navigation", { name: "Breadcrumb" })).toBeVisible();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
@@ -2118,10 +2117,10 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await page.getByRole("tab", { name: "Sessions" }).click();
+    await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
     await expect(page.getByTestId("board-remote-row")).toBeVisible();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
-    await page.getByRole("button", { name: "Fleet" }).first().click();
+    await goTo(page, "Fleet");
     await page.getByTestId("fleet-access").click();
     await expect(page.getByTestId("fleet-access-sheet")).toBeVisible();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
@@ -2213,7 +2212,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await page.getByRole("button", { name: "Cleanup" }).first().click();
+    await goTo(page, "Cleanup");
     await page.getByLabel("Machine filter").selectOption("all");
     await expect(page.getByTestId("remote-cleanup")).toBeVisible();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
@@ -2260,13 +2259,13 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await page.getByRole("button", { name: "Fleet" }).first().click();
+    await goTo(page, "Fleet");
     await expect(page.getByTestId("fleet-sync")).toHaveText("⇡ 12 changes queued");
     await expect(page.getByTestId("fleet-clock-skew")).toBeVisible();
     await expect(page.getByTestId("fleet-last-known")).toBeVisible();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
     await page.reload();
-    await page.getByRole("tab", { name: "Sessions" }).click();
+    await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
     await page.getByLabel("Filter by machine").selectOption("machine-mini");
     await expect(page.getByTestId("board-remote-row").first()).toContainText("was running");
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
@@ -2311,7 +2310,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await page.getByRole("tab", { name: "Sessions" }).click();
+    await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
     await page.getByRole("button", { name: /Work Max/ }).first().click();
     await expect(page.getByTestId("remote-switch-target")).toBeVisible();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
@@ -2372,7 +2371,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await page.getByRole("tab", { name: "Sessions" }).click();
+    await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
     await expect(page.getByTestId("rail-identity").first()).toHaveAttribute("aria-label", /verified|first seen|unverified|Not signed in/);
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
     await page.getByRole("button", { name: /Work Max/ }).first().click();
@@ -2424,7 +2423,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await page.getByRole("tab", { name: "Sessions" }).click();
+    await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
     await expect(page.getByTestId("git-badge").first()).toHaveAttribute("title", /3 uncommitted files/);
     await page.getByRole("button", { name: /Work Max/ }).first().click();
     await page.getByTestId("worktree-remove").click();
@@ -2465,7 +2464,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await page.getByRole("tab", { name: "Sessions" }).click();
+    await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
     await expect(page.getByTestId("rail-parked").first()).toContainText("Parked (est.)");
     await page.getByTestId("parked-offer-resume").focus();
     await page.keyboard.press("Tab");
@@ -2531,7 +2530,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await page.getByRole("button", { name: "Triage" }).click();
+    await goTo(page, "Triage");
     await expect(page.getByRole("region", { name: /Needs you/ })).toBeVisible();
     await page.getByTestId("triage-row").first().locator("button").first().focus();
     await page.keyboard.press("j");
@@ -2732,7 +2731,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await page.getByRole("button", { name: "Fleet" }).click();
+    await goTo(page, "Fleet");
     await expect(page.getByTestId("account-mac")).toHaveCount(1);
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
     await page.getByTestId("account-mac-compare").click();

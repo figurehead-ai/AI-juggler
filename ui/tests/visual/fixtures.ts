@@ -387,3 +387,19 @@ export const DOOR_ONECLICK = {
   usual_account: true,
   carry: { carried: ["chat transcript", "rules & guidelines", "uncommitted git diff", "MCP config", "skills & commands", "model settings"], regenerated: [], dropped: [] },
 };
+
+/**
+ * D-25: opens a top-level screen the way a user does — Home, Accounts,
+ * History and Settings sit in the header (Fleet too, once a Mac is
+ * paired); Triage, Overview, Usage, Fleet and Cleanup wait under More.
+ */
+export async function goTo(page: import("@playwright/test").Page, name: string): Promise<void> {
+  const main = page.getByRole("navigation", { name: "Main" });
+  const direct = main.getByRole("button", { name, exact: true });
+  if ((await direct.count()) > 0) {
+    await direct.first().click();
+    return;
+  }
+  await main.getByRole("button", { name: "More", exact: true }).click();
+  await page.locator("#nav-more").getByRole("button", { name: new RegExp(`^${name}\\b`) }).click();
+}

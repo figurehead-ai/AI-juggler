@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { allStatuses } from "./fixtures";
+import { allStatuses, goTo } from "./fixtures";
 
 /**
  * AJ-E704 quality gates — the pairing wizard end to end in the
@@ -212,12 +212,12 @@ test("machine filter persists, a Fleet alert opens its machine, access is change
   expect(await calls(page)).toContain("permission:machine-mini:control:true");
 
   // The board: All machines by default; filter to Mac mini; it persists.
-  await page.getByRole("button", { name: "Fleet" }).first().click();
-  await page.getByRole("tab", { name: "Sessions" }).click();
+  await goTo(page, "Fleet");
+  await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
   await expect(page.getByTestId("board-remote-row")).toHaveAccessibleName(/^Work Max on Mac mini.*waiting user/);
   await page.getByLabel("Filter by machine").selectOption("machine-mini");
   await page.reload();
-  await page.getByRole("tab", { name: "Sessions" }).click();
+  await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
   await expect(page.getByLabel("Filter by machine")).toHaveValue("machine-mini");
   await expect(page.getByTestId("board-machine-local")).toHaveCount(0);
 

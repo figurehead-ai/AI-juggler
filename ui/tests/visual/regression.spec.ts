@@ -72,7 +72,7 @@ for (const theme of THEMES) {
 
       test(`inspector — Instance overview — ${cell}`, async ({ page }) => {
         await open(page, theme, density, vp);
-        await page.getByRole("tab", { name: "Sessions" }).click();
+        await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
         await page.getByRole("button", { name: /Work Max/ }).first().click();
         await expect(page.getByRole("tab", { name: "Quality / Performance" })).toBeVisible();
         await expect(page).toHaveScreenshot(`inspector-instance-${cell}.png`, SCREEN);
@@ -96,7 +96,7 @@ for (const theme of THEMES) {
 // is small. The fixture holds an Instance in every status.
 test("status is never colour-only", async ({ page }) => {
   await open(page, "dark", "comfortable", VIEWPORTS[0]);
-  await page.getByRole("tab", { name: "Sessions" }).click();
+  await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
   const words = ["Starting", "Running", "Needs you", "Stuck?", "Quota blocked", "Finished", "Stopped", "Failed", "Handed over"];
   const missing: string[] = [];
   for (const word of words) {

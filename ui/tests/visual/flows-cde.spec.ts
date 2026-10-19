@@ -200,7 +200,7 @@ test("flow (e): launch ≤ 2 clicks; Profile never a sheet noun; verdict words n
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark" });
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/");
-  await expect(page.getByRole("tab", { name: "Sessions" })).toBeVisible();
+  await expect(page.getByTestId("instance-board")).toBeVisible();
   // The launch sheet opens (⌘N opens New project; the header New
   // button opens the launch sheet — flow (e)'s surface).
   await page.getByRole("button", { name: /^New$/ }).first().click();

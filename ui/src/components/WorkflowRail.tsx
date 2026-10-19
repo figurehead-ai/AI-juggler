@@ -368,6 +368,16 @@ export function InstanceBoard({
       ? quotaDataGroups(sorted)
       : groupSessions(sorted, effectiveGroup === "none" ? "none" : effectiveGroup, projects);
   const counts = chipCounts(sessions);
+  // D-25: a project with no sessions still has a place in the rail (one
+  // click opens it) — in the plain project view, not while filtering.
+  const quiet =
+    effectiveGroup === "project" &&
+    filters.chips.length === 0 &&
+    filters.provider === null &&
+    filters.account === null &&
+    filters.project === null &&
+    query.trim() === "";
+  const idleProjects = quiet && onSelectProject ? projects.filter((p) => !sessions.some((row) => row.project_id === p.id)) : [];
 
   // Windowing (Req.7): only the flat, ungrouped list virtualises — the
   // 200-row scale is ungrouped monitoring; grouped triage views stay
@@ -617,6 +627,18 @@ export function InstanceBoard({
             </div>
           ))
         )}
+        {idleProjects.map((project) => (
+          <button
+            key={project.id}
+            type="button"
+            onClick={() => onSelectProject?.(project.id)}
+            className="flex w-full min-w-0 items-baseline justify-between gap-2 rounded-md px-2.5 pb-0.5 pt-2 text-left text-[11.5px] font-semibold text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+            data-testid="rail-project"
+          >
+            <span className="min-w-0 truncate">{project.name}</span>
+            <span className="shrink-0 text-[10px] font-normal text-faint">0</span>
+          </button>
+        ))}
         {remoteShown.map((machine) => (
           <RemoteBoardSection
             key={machine.machine_id}
