@@ -41,6 +41,11 @@ Keep the updater private key outside the repository, with a backup. If it is
 lost, installed apps can never verify another update and must be reinstalled
 by hand. `release.yml` stops before building if any of these is missing.
 
+Windows releases: the updater plugin is built without its `zip` feature
+(Windows installer extraction), because the `zip` version it uses has open
+advisories. Turn it back on in `crates/juggler-app/Cargo.toml` when Windows
+releases start and the plugin ships a fixed `zip`.
+
 The app icon is generated at build time from
 `crates/juggler-app/icons/icon.png`. Replace it with a 1024×1024 brand
 icon before the first public release.

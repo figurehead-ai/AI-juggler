@@ -18,6 +18,9 @@ allow = [
     "Zlib",
     "CC0-1.0",
     "MPL-2.0",
+    # The Mozilla root-certificate list (`webpki-root-certs`, pulled in by
+    # Tauri's HTTP client for the updater): a permissive data licence.
+    "CDLA-Permissive-2.0",
 ]
 
 [bans]
