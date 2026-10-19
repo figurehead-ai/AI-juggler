@@ -56,7 +56,7 @@
 **Research basis**: `docs/SPEC.md:442` (Playwright on webview); deep/11 §8 state matrix (lines 299-320), §12 testing hooks; `crates/juggler-app/tauri.conf.json` (1360x860 default, 1024x680 min); pass2/04 §7 wireframes.
 **Handover note**: The repo has no Playwright dependency today (`ui/package.json`: vite/tsc only) — adding it is this task's scope, pinned and lockfile-committed. Trap: never capture against a live Tauri backend for the gallery; mocked-bridge determinism is the point. Live captures belong to dogfood (AJ-E809).
 
-### AJ-E803 Visual regression thresholds and review workflow | Status: TODO | Priority P0 | Effort M | Depends: AJ-E802
+### AJ-E803 Visual regression thresholds and review workflow | Status: IN-PROGRESS | Priority P0 | Effort M | Depends: AJ-E802
 **Goal**: Turn screenshots into a pass/fail gate with human review for intentional change.
 **User story**: As a reviewer, I want any visual diff over threshold flagged with before/after/diff images so regressions cannot slip in as "looks fine".
 **Requirements**:
@@ -180,7 +180,7 @@
 **Research basis**: deep/07 validation plan; pass2/07 §13 falsification; pass2/12 dogfood programme; decision-log D-04.
 **Handover note**: Personas are composites, not interview data; this programme is where they earn or lose their claims. Update persona files only from recorded evidence.
 
-### AJ-E810 External research evidence standard | Status: TODO | Priority P1 | Effort S | Depends: AJ-E801
+### AJ-E810 External research evidence standard | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: AJ-E801
 **Goal**: Set the proof bar for external claims (Provider APIs/SDKs, competitor facts) so research tasks produce reusable, checkable evidence.
 **User story**: As an agent picking up a research task cold, I want a standard for what counts as proven so I do not re-derive or over-claim.
 **Requirements**:

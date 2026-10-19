@@ -10,9 +10,23 @@
 - [ ] Tests added (unit + integration/fixtures for new flows; corpus grown if parsers touched)
 - [ ] Architecture layering respected (QUALITY.md §4); no new `unsafe`; `cargo-deny` clean
 - [ ] CHANGELOG updated; spec/docs updated if behavior changed; ADR if a decision was made
-- [ ] UI changes: both themes captured in the gallery, a11y scan added, `pnpm --dir ui exec playwright test` green
+- [ ] UI changes: both themes captured in the gallery, a11y scan added, `pnpm --dir ui exec playwright test` green, `just visual-gate` green (or baselines re-rendered with a note per screen), `just visual-gate` green (or baselines re-rendered with a note per screen)
 - [ ] Evidence stored under `docs/qa/evidence/<task-id>/` when this closes a task
 - [ ] **Nothing personal or secret**: no real account names, e-mails, home paths, hostnames, tokens, or screenshots of a real desktop
+
+## Visual baselines
+
+<!-- Only when this PR changes files under ui/tests/visual/__baselines__/ (AJ-E803):
+     name the task (AJ-E…) and, one line per changed baseline, its file name and the
+     intentional change — e.g. `settings-dark-comfortable-1280x800: Privacy card added`.
+     CI rejects baseline changes without a note for each. Maintainer approval required. -->
+
+## Visual baselines
+
+<!-- Only when this PR changes files under ui/tests/visual/__baselines__/ (AJ-E803):
+     name the task (AJ-E…) and, one line per changed baseline, its file name and the
+     intentional change — e.g. `settings-dark-comfortable-1280x800: Privacy card added`.
+     CI rejects baseline changes without a note for each. Maintainer approval required. -->
 
 ## Reviewer checklist
 
