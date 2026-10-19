@@ -21,6 +21,10 @@ verify:
     just stats-events
     just polling-audit
 
+# AJ-E809: the weekly dogfood report from runs.csv (exit 1 until beta-exit is met).
+dogfood-report:
+    python3 scripts/dogfood_report.py
+
 # AJ-E805: the load proof on the reference Mac — SPEC budgets plus the
 # >10 % regression rule against ui/tests/visual/load-baseline.json;
 # writes docs/qa/evidence/AJ-E805/ui-load.json and the load captures.

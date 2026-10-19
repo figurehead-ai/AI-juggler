@@ -56,3 +56,16 @@ A stop report states: what was completed (issues closed), what's next, and exact
 
 - The loop is driven by a scheduled automation (every 30 minutes) plus an immediate kickoff run; each run re-reads this file, so behavior changes only by changing this file.
 - The user can pause/resume/stop the automation at any time (Automations page, or just say so) — runs stop with the schedule; in-flight work finishes or is abandoned on a branch (never half-merged).
+
+## Dogfood cadence (AJ-E809)
+
+The beta dogfood programme is human-run: real developers, their own
+machines and accounts. Agents never run it, and never touch live user
+data or vendor credentials. Each week the maintainer fills
+`docs/qa/evidence/AJ-E809/runs.csv` (format: `run-sheet.md`), runs
+`python3 scripts/dogfood_report.py`, files every friction note as a task
+within 48 hours and commits the week. Agents may tally the sheets and
+file the tasks the report lists. After four weeks the beta gate packet
+(`just gate-packet`) reads the report for criteria B2 and B3. Plan,
+cohort, consent list and scripted tasks:
+`docs/qa/evidence/AJ-E809/programme.md`.
