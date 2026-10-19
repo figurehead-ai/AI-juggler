@@ -95,7 +95,7 @@ describe("Settings — Account & Cloud", () => {
     expect(view.getByTestId("cloud-retry")).toBeTruthy();
   });
 
-  it("the consent screen defaults backup and discovery on, usage sync off and disabled", async () => {
+  it("the consent screen defaults backup and discovery on; usage sync off here (it's set in Privacy)", async () => {
     w().__AIJ_FIGUREHEAD__ = { ...LINKED };
     const view = render(<SettingsScreen />);
     await view.findByTestId("cloud-consent");
@@ -104,7 +104,9 @@ describe("Settings — Account & Cloud", () => {
     const usage = switchOf(view.container, "usageSync");
     expect(usage.getAttribute("aria-checked")).toBe("false");
     expect(usage.disabled).toBe(true);
-    expect(view.getByTestId("cloud-feature-locked").textContent).toBe("Arrives with usage statistics");
+    expect(view.getByTestId("cloud-feature-locked").textContent).toBe(
+      "Turn on in Settings › Privacy, while sharing usage stats",
+    );
     for (const row of view.getAllByTestId("cloud-feature")) {
       expect(row.textContent).toContain("Sends:");
     }

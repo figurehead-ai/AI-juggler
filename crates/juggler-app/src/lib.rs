@@ -141,6 +141,7 @@ pub fn run() {
             usage_stats::usage_stats_report,
             usage_stats::usage_stats_delete_local,
             usage_stats::usage_stats_open_docs,
+            usage_stats::usage_stats_set_sync,
             commands::usage_source_health,
             commands::cost_rollups,
             commands::cost_csv_export,

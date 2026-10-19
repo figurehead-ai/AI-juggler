@@ -939,11 +939,16 @@ pub mod enabled {
             })
         }
 
-        fn post_gzip_json(&self, url: &str, body: &[u8]) -> Result<Response, String> {
+        fn post_gzip_json(
+            &self,
+            url: &str,
+            body: &[u8],
+            bearer: Option<&str>,
+        ) -> Result<Response, String> {
             self.send(&juggler_account::HttpRequest {
                 method: "POST",
                 url: url.to_owned(),
-                bearer: None,
+                bearer: bearer.map(str::to_owned),
                 content_type: "application/json",
                 headers: vec![("content-encoding", "gzip".to_owned())],
                 body: body.to_vec(),
@@ -1109,6 +1114,17 @@ pub mod enabled {
         }
         let endpoints = Endpoints::for_build(env);
         let gauges = || gauges(state);
+        // AJ-E1109: the personal sync, while sharing and the user wants it.
+        let sync_url = crate::figurehead::stats_sync_url(state);
+        let token = (applied.mode == Mode::Share
+            && crate::figurehead::feature_on(state, "usageSync"))
+        .then(|| {
+            crate::figurehead::session(state)
+                .ok()
+                .map(|(_, token)| token)
+        })
+        .flatten();
+        let unlinked = || crate::figurehead::unlinked_by_service(state);
         let ctx = Context {
             effective: applied,
             consent_current: choice.consent_version == super::CONSENT_VERSION,
@@ -1119,6 +1135,11 @@ pub mod enabled {
             now_ms,
             gauges: &gauges,
             pow_budget: juggler_stats::pow::BUDGET,
+            sync: token.as_ref().map(|token| juggler_stats::cycle::Sync {
+                url: &sync_url,
+                bearer: token.expose(),
+                unlinked: &unlinked,
+            }),
         };
         juggler_stats::cycle::tick(&super::stats_dir(state), &ctx).map_err(io)
     }
@@ -1223,6 +1244,22 @@ pub struct UsageReportRow {
     /// Its size, bytes.
     #[ts(type = "number")]
     pub bytes: u64,
+    /// It went to the member's Figurehead account, not anonymously.
+    pub synced: bool,
+}
+
+/// The personal stats sync as Settings ▸ Privacy shows it (AJ-E1109).
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct UsageSyncInfo {
+    /// Offered: sharing, this Mac is linked, and the account includes it.
+    pub offered: bool,
+    /// The user turned it on.
+    pub on: bool,
+    /// The linked account's email ("Synced to …").
+    pub email: Option<String>,
+    /// Why it stopped, in plain words.
+    pub notice: Option<String>,
 }
 
 /// Everything Settings ▸ Privacy shows about usage statistics.
@@ -1244,6 +1281,8 @@ pub struct UsageStatsOverview {
     pub last_error: Option<String>,
     /// The public metrics document.
     pub docs_url: String,
+    /// The personal stats sync.
+    pub sync: UsageSyncInfo,
 }
 
 /// The report category of a metric (spec §6.2).
@@ -1282,6 +1321,7 @@ pub fn reason_words(reason: &str) -> String {
         "mode_changed" => "You stopped sharing before it was sent".to_owned(),
         "gave_up" => "Couldn't send it in time".to_owned(),
         "invalid" => "It didn't pass the checks — never sent".to_owned(),
+        "unlinked" => "This Mac is no longer linked, so stats sync is off — never sent".to_owned(),
         other => other.strip_prefix("rejected:").map_or_else(
             || "Not sent".to_owned(),
             |status| format!("Figurehead refused it ({status})"),
@@ -1362,8 +1402,18 @@ pub fn usage_stats_overview_impl(state: &Arc<AppState>) -> AppResult<UsageStatsO
                 next_try_ms: f.next_try_ms,
                 attempts: f.attempts,
                 bytes: f.bytes,
+                synced: f.synced,
             })
             .collect();
+        let (linked, email) = crate::figurehead::usage_sync_offer(state);
+        let sync = UsageSyncInfo {
+            offered: linked && info.effective == "share",
+            on: crate::figurehead::feature_on(state, "usageSync"),
+            email,
+            notice: juggler_stats::cycle::sync_notice(&dir)
+                .map_err(io)?
+                .map(|_| "This Mac is no longer linked, so stats sync is off.".to_owned()),
+        };
         Ok(UsageStatsOverview {
             info,
             week: juggler_stats::week::label(now),
@@ -1372,6 +1422,7 @@ pub fn usage_stats_overview_impl(state: &Arc<AppState>) -> AppResult<UsageStatsO
             next_upload_ms,
             last_error,
             docs_url: METRICS_DOC_URL.to_owned(),
+            sync,
         })
     }
     #[cfg(not(feature = "stats"))]
@@ -1385,6 +1436,7 @@ pub fn usage_stats_overview_impl(state: &Arc<AppState>) -> AppResult<UsageStatsO
             next_upload_ms: None,
             last_error: None,
             docs_url: METRICS_DOC_URL.to_owned(),
+            sync: UsageSyncInfo::default(),
         })
     }
 }
@@ -1441,6 +1493,36 @@ pub fn usage_stats_delete_local_impl(state: &Arc<AppState>) -> AppResult<UsageSt
         info: usage_stats_info_impl(state),
         message: "Local stats deleted.".to_owned(),
     })
+}
+
+/// Core: turns the personal stats sync on or off (AJ-E1109). On needs
+/// sharing and a linked Mac whose account includes it.
+///
+/// # Errors
+///
+/// Returns [`AppError::Validation`] when it can't be offered.
+pub fn usage_stats_set_sync_impl(state: &Arc<AppState>, on: bool) -> AppResult<UsageStatsOverview> {
+    if on && usage_stats_info_impl(state).effective != "share" {
+        return Err(AppError::Validation {
+            subject: "stats sync",
+            message: "share usage stats first".to_owned(),
+        });
+    }
+    crate::figurehead::set_usage_sync(state, on)?;
+    usage_stats_overview_impl(state)
+}
+
+/// AJ-E1109: turns the personal stats sync on or off.
+///
+/// # Errors
+///
+/// Per [`usage_stats_set_sync_impl`].
+#[tauri::command]
+pub fn usage_stats_set_sync(
+    state: tauri::State<'_, Arc<AppState>>,
+    on: bool,
+) -> AppResult<UsageStatsOverview> {
+    usage_stats_set_sync_impl(state.inner(), on)
 }
 
 /// AJ-E1105: opens the public list of every metric (a fixed address;
@@ -2235,7 +2317,7 @@ mod tests {
         let mut gzip = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
         std::io::Write::write_all(&mut gzip, &sent).unwrap();
         let again = transport
-            .post_gzip_json(&format!("{base}/v1/reports"), &gzip.finish().unwrap())
+            .post_gzip_json(&format!("{base}/v1/reports"), &gzip.finish().unwrap(), None)
             .unwrap();
         println!(
             "again: {} {}",

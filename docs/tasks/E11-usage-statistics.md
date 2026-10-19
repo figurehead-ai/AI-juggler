@@ -153,7 +153,7 @@
 **Research basis**: spec §5.5.
 **Handover note**: The nonce is bound to the report id and week; never reuse one.
 
-### AJ-E1109 Personal stats sync | Status: TODO | Priority P1 | Effort M | Depends: AJ-E1104, AJ-E1202
+### AJ-E1109 Personal stats sync | Status: DONE-EVIDENCED | Priority P1 | Effort M | Depends: AJ-E1104, AJ-E1202
 **Goal**: Let a signed-in user see their own weekly stats in their Figurehead dashboard — instead of, never as well as, the anonymous report.
 **User story**: As a user with a linked Mac, I can choose to see my stats on figurehead.ai; only I can see them, and they go when my account goes.
 **Requirements**:

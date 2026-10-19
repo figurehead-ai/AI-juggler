@@ -6349,6 +6349,7 @@ const statsOverview = (info: Record<string, unknown>, patch: Record<string, unkn
   next_upload_ms: null,
   last_error: null,
   docs_url: "https://github.com/figurehead-ai/AI-juggler/blob/main/docs/usage-stats.md",
+  sync: { offered: false, on: false, email: null, notice: null },
   ...patch,
 });
 
@@ -6357,8 +6358,8 @@ const LOCAL = statsOverview(
   {
     rows: STATS_ROWS,
     reports: [
-      { week: "2026-W41", status: "skipped", reason: "Counted while stats stayed on this Mac — never sent", upload_at_ms: null, next_try_ms: null, attempts: 0, bytes: 1_204 },
-      { week: "2026-W40", status: "skipped", reason: "Counted while stats stayed on this Mac — never sent", upload_at_ms: null, next_try_ms: null, attempts: 0, bytes: 988 },
+      { week: "2026-W41", status: "skipped", reason: "Counted while stats stayed on this Mac — never sent", upload_at_ms: null, next_try_ms: null, attempts: 0, bytes: 1_204, synced: false },
+      { week: "2026-W40", status: "skipped", reason: "Counted while stats stayed on this Mac — never sent", upload_at_ms: null, next_try_ms: null, attempts: 0, bytes: 988, synced: false },
     ],
   },
 );
@@ -6369,9 +6370,9 @@ const SHARE = statsOverview(
     rows: STATS_ROWS,
     next_upload_ms: T0 + 2 * 86_400_000,
     reports: [
-      { week: "2026-W41", status: "pending", reason: null, upload_at_ms: T0 + 2 * 86_400_000, next_try_ms: null, attempts: 0, bytes: 1_204 },
-      { week: "2026-W40", status: "sent", reason: null, upload_at_ms: null, next_try_ms: null, attempts: 0, bytes: 988 },
-      { week: "2026-W39", status: "skipped", reason: "Sharing didn't cover the whole week — never sent", upload_at_ms: null, next_try_ms: null, attempts: 0, bytes: 1_051 },
+      { week: "2026-W41", status: "pending", reason: null, upload_at_ms: T0 + 2 * 86_400_000, next_try_ms: null, attempts: 0, bytes: 1_204, synced: false },
+      { week: "2026-W40", status: "sent", reason: null, upload_at_ms: null, next_try_ms: null, attempts: 0, bytes: 988, synced: false },
+      { week: "2026-W39", status: "skipped", reason: "Sharing didn't cover the whole week — never sent", upload_at_ms: null, next_try_ms: null, attempts: 0, bytes: 1_051, synced: false },
     ],
   },
 );
@@ -6381,7 +6382,7 @@ const UPLOAD_ERROR = {
   last_error: "Couldn't reach Figurehead.",
   next_upload_ms: T0 + 3 * 3_600_000,
   reports: [
-    { week: "2026-W41", status: "pending", reason: null, upload_at_ms: T0 - 3_600_000, next_try_ms: T0 + 3 * 3_600_000, attempts: 2, bytes: 1_204 },
+    { week: "2026-W41", status: "pending", reason: null, upload_at_ms: T0 - 3_600_000, next_try_ms: T0 + 3 * 3_600_000, attempts: 2, bytes: 1_204, synced: false },
     ...SHARE.reports.slice(1),
   ],
 };
@@ -6425,6 +6426,16 @@ const PRIVACY_STATES: { name: string; seams: Record<string, unknown> }[] = [
     seams: { __AIJ_USAGE_STATS__: statsOverview({ included: false, reason: "Not included in this build" }) },
   },
   { name: "upload-error", seams: { __AIJ_USAGE_STATS__: UPLOAD_ERROR } },
+  {
+    name: "synced",
+    seams: {
+      __AIJ_USAGE_STATS__: {
+        ...SHARE,
+        sync: { offered: true, on: true, email: "you@example.com", notice: null },
+        reports: SHARE.reports.map((row, index) => (index === 1 ? { ...row, synced: true } : row)),
+      },
+    },
+  },
 ];
 
 for (const theme of THEMES) {

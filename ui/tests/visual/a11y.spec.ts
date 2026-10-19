@@ -2758,12 +2758,13 @@ for (const theme of ["dark", "light"] as const) {
             { category: "reliability", metric: "perf.cold_start_ms", dims: "bucket: 750-1500", value: "6" },
           ],
           reports: [
-            { week: "2026-W41", status: "pending", reason: null, upload_at_ms: 2, next_try_ms: 3, attempts: 1, bytes: 1204 },
-            { week: "2026-W40", status: "skipped", reason: "Sharing didn't cover the whole week — never sent", upload_at_ms: null, next_try_ms: null, attempts: 0, bytes: 988 },
+            { week: "2026-W41", status: "pending", reason: null, upload_at_ms: 2, next_try_ms: 3, attempts: 1, bytes: 1204, synced: false },
+            { week: "2026-W40", status: "skipped", reason: "Sharing didn't cover the whole week — never sent", upload_at_ms: null, next_try_ms: null, attempts: 0, bytes: 988, synced: true },
           ],
           next_upload_ms: 2,
           last_error: "Couldn't reach Figurehead.",
           docs_url: "https://github.com/figurehead-ai/AI-juggler/blob/main/docs/usage-stats.md",
+          sync: { offered: true, on: true, email: "you@example.com", notice: null },
         };
         w.__AIJ_USAGE_STATS_REPORTS__ = { "pending/2026-W41": '{"schema":1,"week":"2026-W41","entries":[]}' };
         localStorage.setItem("aij.theme", t);

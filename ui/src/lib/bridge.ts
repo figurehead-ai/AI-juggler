@@ -2731,6 +2731,7 @@ function previewStats(): UsageStatsOverviewData {
     next_upload_ms: null,
     last_error: null,
     docs_url: "https://github.com/figurehead-ai/AI-juggler/blob/main/docs/usage-stats.md",
+    sync: { offered: false, on: false, email: null, notice: null },
   };
   return seams.__AIJ_USAGE_STATS__;
 }
@@ -2792,6 +2793,19 @@ export async function usageStatsDeleteLocal(): Promise<UsageStatsSetResultData> 
     return { info: current.info, message: "Local stats deleted." };
   }
   return invoke<UsageStatsSetResultData>("usage_stats_delete_local");
+}
+
+/** AJ-E1109: turns the personal stats sync on or off. */
+export async function usageStatsSetSync(on: boolean): Promise<UsageStatsOverviewData> {
+  if (!hasBackend) {
+    const current = previewStats();
+    (window as unknown as StatsSeam).__AIJ_USAGE_STATS__ = {
+      ...current,
+      sync: { ...current.sync, on, notice: on ? null : current.sync.notice },
+    };
+    return previewStats();
+  }
+  return invoke<UsageStatsOverviewData>("usage_stats_set_sync", { on });
 }
 
 /** AJ-E1105: opens the public list of every metric. */

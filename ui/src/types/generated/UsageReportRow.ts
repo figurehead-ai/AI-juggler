@@ -31,4 +31,8 @@ attempts: number,
 /**
  * Its size, bytes.
  */
-bytes: number, };
+bytes: number, 
+/**
+ * It went to the member's Figurehead account, not anonymously.
+ */
+synced: boolean, };

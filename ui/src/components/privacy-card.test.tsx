@@ -37,6 +37,7 @@ function overview(
     next_upload_ms: null,
     last_error: null,
     docs_url: "https://example.invalid/usage-stats",
+    sync: { offered: false, on: false, email: null, notice: null },
     ...rest,
   };
 }
@@ -58,6 +59,7 @@ const counting = overview({
       next_try_ms: null,
       attempts: 0,
       bytes: 312,
+      synced: false,
     },
   ],
 });
@@ -116,6 +118,7 @@ describe("AJ-E1105 Settings › Privacy", () => {
           next_try_ms: Date.UTC(2026, 9, 21, 16, 10),
           attempts: 1,
           bytes: 401,
+          synced: false,
         },
       ],
     });
@@ -186,6 +189,7 @@ describe("AJ-E1105 performance", () => {
       next_try_ms: null,
       attempts: 0,
       bytes: 1_200,
+      synced: false,
     }));
     const rows = Array.from({ length: 150 }, (_, i) => ({
       category: i % 10 === 0 ? "environment" : i % 7 === 0 ? "reliability" : "features",
@@ -207,5 +211,35 @@ describe("AJ-E1105 performance", () => {
     const took = performance.now() - started;
     console.log(`privacy card: 12 reports + 150 rows rendered in ${took.toFixed(0)} ms`);
     expect(took).toBeLessThan(200);
+  });
+});
+
+describe("AJ-E1109 personal stats sync in Privacy", () => {
+  it("is offered only while sharing on a linked Mac; on says where it goes", async () => {
+    w().__AIJ_USAGE_STATS__ = overview({
+      ...counting,
+      info: { ...counting.info, chosen: "share", effective: "share", can_upload: true } as Partial<
+        UsageStatsOverview["info"]
+      >,
+      sync: { offered: true, on: false, email: "you@example.com", notice: null },
+    });
+    const { findByTestId, getByTestId, queryByTestId } = render(<PrivacyCard />);
+    const toggle = (await findByTestId("privacy-sync-toggle")) as HTMLInputElement;
+    expect(toggle.checked).toBe(false);
+    expect(queryByTestId("privacy-sync-email")).toBeNull();
+    fireEvent.click(toggle);
+    await waitFor(() => expect(getByTestId("privacy-sync-email").textContent).toBe("Synced to you@example.com"));
+  });
+
+  it("isn't offered otherwise; an unlink says sync is off", async () => {
+    w().__AIJ_USAGE_STATS__ = overview({
+      ...counting,
+      sync: { offered: false, on: false, email: null, notice: "This Mac is no longer linked, so stats sync is off." },
+    });
+    const { findByTestId, queryByTestId } = render(<PrivacyCard />);
+    expect((await findByTestId("privacy-sync-notice")).textContent).toBe(
+      "This Mac is no longer linked, so stats sync is off.",
+    );
+    expect(queryByTestId("privacy-sync")).toBeNull();
   });
 });
