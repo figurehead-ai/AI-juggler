@@ -96,6 +96,12 @@ outside the repository, with a backup.
 
 ### 5. Add everything to GitHub (5 min)
 
+**Quickest:** run `scripts/set_release_secrets.sh` (it takes the `.p12`
+path, default `~/Desktop/DeveloperID.p12`). It reads the `.p12` and the
+updater key from their files and asks for each password at gh's hidden
+prompt. It generates the updater key (step 4) if you don't have one yet.
+Or do it by hand:
+
 github.com/figurehead-ai/AI-juggler → **Settings** → **Secrets and
 variables** → **Actions**.
 
