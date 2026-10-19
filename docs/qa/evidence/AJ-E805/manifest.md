@@ -36,7 +36,7 @@ reviews were estimates, and nothing here is quoted from them.
 | Cleanup inventory | (rail budget) | **33 ms** (open the Cleanup centre at scale) | PASS |
 | Terminal input echo, local | < 50 ms | **0.32 ms** median, 0.33 ms p95 over 20 writes (dock write → bytes back through a real PTY → readable by the terminal snapshot) | PASS |
 | Switch pack assembly, 500 turns | < 5 s | **7.4 ms** full pack, **4.4 ms** distilled (1.36 MB of turns, redacted, written to disk; no credential pattern in the output) | PASS |
-| Orphan detection | < 10 s after exit | Surfaced **10.13 s** after the harness exited: the settled 10 s grace (AJ-E410) plus **0.13 s** detection. See the note below | PASS after grace / conflict flagged |
+| Orphan detection | < 10 s after the grace window (D-22) | Surfaced **10.13 s** after the harness exited: the settled 10 s grace (AJ-E410) plus **0.13 s** detection. See the note below | PASS (D-22: < 10 s after the grace window) |
 | Idle CPU, 10 live Instances | < 2 % | **0.39 %** (10 quiet PTY Instances under the supervisor plus the app's 2 s per-tree tick for 30 s; every tree asserted sampled) | PASS (backend proxy) |
 | Memory excluding children | < 600 MB | **20 MB** resident for that backend process | PASS (backend proxy) |
 
@@ -80,7 +80,8 @@ reviews were estimates, and nothing here is quoted from them.
   sooner than its grace, so the literal reading cannot pass with any
   grace of 10 s or more. Measured: 10.13 s after exit, which is 0.13 s
   after the grace ended. Recorded as "< 10 s after the grace window" in
-  QUALITY.md, pending the maintainer's confirmation.
+  QUALITY.md; the maintainer confirmed that reading (decision D-22,
+  2026-10-19).
 - **Maintainer steps (reference Mac, release build):** cold start of
   the signed app to an interactive rail; idle CPU and memory with 10 live
   provider Instances over 10 minutes (Activity Monitor or `ps`). Record
