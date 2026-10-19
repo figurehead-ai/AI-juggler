@@ -1,0 +1,805 @@
+{
+  "$comment": "AI Juggler usage statistics, schema 1 (docs/USAGE-STATS-SPEC.md \u00a76\u2013\u00a77). Closed: the server rejects any metric, dimension or value not listed here. Enums may still grow until the first AI Juggler release that uploads; after that, changes need a new schema version. Every dimension listed for a metric is required; conditional dimensions use \"none\". Counters and histograms are capped per report by \"max\" (default: limits.counter_max / limits.histogram_total_max); reports over a cap are rejected.",
+  "schema": 1,
+  "limits": {
+    "counter_max": 10000,
+    "histogram_total_max": 10000
+  },
+  "enums": {
+    "provider": [
+      "claude-code",
+      "codex",
+      "zcode",
+      "other"
+    ],
+    "count_bucket": [
+      "0",
+      "1",
+      "2",
+      "3",
+      "4-5",
+      "6-9",
+      "10+"
+    ],
+    "switch_kind": [
+      "account",
+      "provider",
+      "instance"
+    ],
+    "switch_trigger": [
+      "quota_wall",
+      "suggestion",
+      "manual",
+      "remote"
+    ],
+    "model_family": [
+      "opus",
+      "sonnet",
+      "haiku",
+      "gpt-5",
+      "gpt-5-codex",
+      "gpt-5-mini",
+      "glm-4",
+      "glm-5",
+      "other"
+    ],
+    "leftover_category": [
+      "dev_server",
+      "mcp",
+      "browser",
+      "watcher",
+      "other"
+    ],
+    "error_area": [
+      "adapter",
+      "supervisor",
+      "storage",
+      "switch",
+      "fleet",
+      "updater",
+      "ui"
+    ],
+    "error_code": [
+      "parse_failed",
+      "io_error",
+      "permission_denied",
+      "timeout",
+      "not_found",
+      "version_unsupported",
+      "db_locked",
+      "db_corrupt",
+      "network",
+      "signature_invalid",
+      "spawn_failed",
+      "pty_failed",
+      "invalid_state",
+      "other"
+    ]
+  },
+  "metrics": {
+    "accounts.configured": {
+      "type": "gauge",
+      "dims": {
+        "provider": "provider"
+      },
+      "values": "count_bucket"
+    },
+    "provider.cli_version": {
+      "type": "gauge",
+      "dims": {
+        "provider": "provider"
+      },
+      "pattern": "^(\\d{1,4}\\.\\d{1,4}|other)$"
+    },
+    "launch_settings.count": {
+      "type": "gauge",
+      "dims": {
+        "provider": "provider"
+      },
+      "values": "count_bucket"
+    },
+    "projects.count": {
+      "type": "gauge",
+      "dims": {},
+      "values": "count_bucket"
+    },
+    "fleet.role": {
+      "type": "gauge",
+      "dims": {},
+      "values": [
+        "none",
+        "console",
+        "node"
+      ]
+    },
+    "fleet.paired_machines": {
+      "type": "gauge",
+      "dims": {},
+      "values": "count_bucket"
+    },
+    "cleanup.tier": {
+      "type": "gauge",
+      "dims": {
+        "tier": [
+          "notify_only",
+          "clean_safe"
+        ]
+      },
+      "values": "count_bucket"
+    },
+    "auto_restart.enabled": {
+      "type": "gauge",
+      "dims": {},
+      "values": "count_bucket"
+    },
+    "pack.redaction_policy": {
+      "type": "gauge",
+      "dims": {},
+      "values": [
+        "redact",
+        "keep",
+        "ask",
+        "other"
+      ]
+    },
+    "renewal_dates.entered": {
+      "type": "gauge",
+      "dims": {},
+      "values": "count_bucket"
+    },
+    "worktree.isolation_enabled": {
+      "type": "gauge",
+      "dims": {},
+      "values": [
+        "on",
+        "off"
+      ]
+    },
+    "update.channel": {
+      "type": "gauge",
+      "dims": {},
+      "values": [
+        "beta",
+        "stable"
+      ]
+    },
+    "update.auto_check": {
+      "type": "gauge",
+      "dims": {},
+      "values": [
+        "on",
+        "off"
+      ]
+    },
+    "ui.density": {
+      "type": "gauge",
+      "dims": {},
+      "values": [
+        "comfortable",
+        "compact",
+        "minimal"
+      ]
+    },
+    "ui.theme": {
+      "type": "gauge",
+      "dims": {},
+      "values": [
+        "system",
+        "light",
+        "dark"
+      ]
+    },
+    "crash_reports.setting": {
+      "type": "gauge",
+      "dims": {},
+      "values": [
+        "never",
+        "ask",
+        "always"
+      ]
+    },
+    "instance.started": {
+      "type": "counter",
+      "dims": {
+        "provider": "provider",
+        "kind": [
+          "terminal",
+          "desktop"
+        ],
+        "origin": [
+          "new",
+          "resume",
+          "switch",
+          "relaunch"
+        ]
+      }
+    },
+    "instance.ended": {
+      "type": "counter",
+      "dims": {
+        "provider": "provider",
+        "outcome": [
+          "finished",
+          "stopped",
+          "failed",
+          "crashed"
+        ]
+      }
+    },
+    "instance.minutes": {
+      "type": "counter",
+      "dims": {
+        "provider": "provider"
+      },
+      "max": 600000
+    },
+    "instance.peak_concurrent": {
+      "type": "gauge",
+      "dims": {},
+      "values": "count_bucket"
+    },
+    "instance.state_entered": {
+      "type": "counter",
+      "dims": {
+        "provider": "provider",
+        "state": [
+          "waiting_user",
+          "stuck",
+          "quota_blocked"
+        ]
+      },
+      "max": 100000
+    },
+    "instance.auto_restarted": {
+      "type": "counter",
+      "dims": {
+        "provider": "provider"
+      }
+    },
+    "instance.running_model": {
+      "type": "counter",
+      "dims": {
+        "provider": "provider",
+        "model_family": "model_family"
+      }
+    },
+    "instance.wrong_account_blocked": {
+      "type": "counter",
+      "dims": {
+        "provider": "provider"
+      }
+    },
+    "session.tokens": {
+      "type": "counter",
+      "dims": {
+        "provider": "provider",
+        "direction": [
+          "input",
+          "output",
+          "cache"
+        ]
+      },
+      "max": 10000000000
+    },
+    "switch.started": {
+      "type": "counter",
+      "dims": {
+        "kind": "switch_kind",
+        "trigger": "switch_trigger"
+      }
+    },
+    "switch.completed": {
+      "type": "counter",
+      "dims": {
+        "kind": "switch_kind",
+        "from": "provider",
+        "to": "provider",
+        "mechanism": [
+          "native_resume",
+          "transplant",
+          "pack_replay"
+        ],
+        "trigger": "switch_trigger",
+        "outcome": [
+          "success",
+          "rolled_back",
+          "failed"
+        ]
+      }
+    },
+    "switch.failed_stage": {
+      "type": "counter",
+      "dims": {
+        "kind": "switch_kind",
+        "stage": [
+          "freeze",
+          "stage",
+          "verify",
+          "launch"
+        ]
+      }
+    },
+    "switch.back": {
+      "type": "counter",
+      "dims": {
+        "kind": "switch_kind"
+      }
+    },
+    "switch.divergence_shown": {
+      "type": "counter",
+      "dims": {}
+    },
+    "switch.duration_s": {
+      "type": "histogram",
+      "dims": {
+        "kind": "switch_kind"
+      },
+      "buckets": [
+        "<5",
+        "5-15",
+        "15-60",
+        "60+"
+      ]
+    },
+    "pack.size_kb": {
+      "type": "histogram",
+      "dims": {},
+      "buckets": [
+        "<16",
+        "16-64",
+        "64-256",
+        "256+"
+      ]
+    },
+    "pack.redaction_reviewed": {
+      "type": "counter",
+      "dims": {
+        "outcome": [
+          "kept",
+          "changed"
+        ]
+      }
+    },
+    "context_sync.applied": {
+      "type": "counter",
+      "dims": {}
+    },
+    "usage.wall_hit": {
+      "type": "counter",
+      "dims": {
+        "provider": "provider",
+        "window": [
+          "5h",
+          "weekly",
+          "credits"
+        ]
+      }
+    },
+    "usage.forecast_shown": {
+      "type": "counter",
+      "dims": {
+        "provider": "provider"
+      },
+      "max": 100000
+    },
+    "usage.suggestion": {
+      "type": "counter",
+      "dims": {
+        "provider": "provider",
+        "action": [
+          "shown",
+          "accepted",
+          "dismissed"
+        ]
+      },
+      "max": 100000
+    },
+    "usage.threshold_alert": {
+      "type": "counter",
+      "dims": {
+        "provider": "provider",
+        "level": [
+          "warn",
+          "critical"
+        ]
+      }
+    },
+    "usage.parse_degraded": {
+      "type": "counter",
+      "dims": {
+        "provider": "provider",
+        "area": [
+          "transcript",
+          "quota_feed"
+        ]
+      }
+    },
+    "renewal.warning_shown": {
+      "type": "counter",
+      "dims": {}
+    },
+    "process.children_per_instance": {
+      "type": "histogram",
+      "dims": {},
+      "buckets": [
+        "0",
+        "1-2",
+        "3-5",
+        "6+"
+      ]
+    },
+    "leftover.detected": {
+      "type": "counter",
+      "dims": {
+        "category": "leftover_category"
+      },
+      "max": 100000
+    },
+    "leftover.cleaned": {
+      "type": "counter",
+      "dims": {
+        "category": "leftover_category",
+        "mode": [
+          "manual",
+          "auto"
+        ]
+      }
+    },
+    "leftover.verify_refused": {
+      "type": "counter",
+      "dims": {
+        "reason": [
+          "ownership_unverified",
+          "pid_reused",
+          "gone"
+        ]
+      }
+    },
+    "cleanup.memory_freed_mb": {
+      "type": "counter",
+      "dims": {},
+      "max": 10000000
+    },
+    "cleanup.ports_freed": {
+      "type": "counter",
+      "dims": {},
+      "max": 100000
+    },
+    "resource.alert": {
+      "type": "counter",
+      "dims": {
+        "kind": [
+          "cpu_hog",
+          "memory_hog",
+          "idle"
+        ],
+        "action": [
+          "shown",
+          "acted"
+        ]
+      }
+    },
+    "cleanup_centre.opened": {
+      "type": "counter",
+      "dims": {}
+    },
+    "onboarding.scan_completed": {
+      "type": "counter",
+      "dims": {}
+    },
+    "onboarding.found": {
+      "type": "counter",
+      "dims": {
+        "provider": "provider",
+        "provenance": [
+          "found",
+          "likely",
+          "guessed"
+        ]
+      }
+    },
+    "onboarding.source_detected": {
+      "type": "counter",
+      "dims": {
+        "source": [
+          "vendor_default",
+          "env_override",
+          "alias",
+          "cc_switch",
+          "t3code",
+          "other_manager"
+        ]
+      }
+    },
+    "onboarding.proposal": {
+      "type": "counter",
+      "dims": {
+        "action": [
+          "shown",
+          "accepted",
+          "customised"
+        ]
+      }
+    },
+    "onboarding.import": {
+      "type": "counter",
+      "dims": {
+        "provider": "provider",
+        "outcome": [
+          "completed",
+          "failed"
+        ],
+        "reason_code": [
+          "none",
+          "permission_denied",
+          "source_missing",
+          "copy_failed",
+          "unsupported_layout",
+          "verify_failed",
+          "other"
+        ]
+      }
+    },
+    "onboarding.login": {
+      "type": "counter",
+      "dims": {
+        "provider": "provider",
+        "outcome": [
+          "completed",
+          "skipped",
+          "expired"
+        ]
+      }
+    },
+    "onboarding.expert_opened": {
+      "type": "counter",
+      "dims": {}
+    },
+    "onboarding.first_launch_s": {
+      "type": "histogram",
+      "dims": {},
+      "buckets": [
+        "<60",
+        "60-300",
+        "300-900",
+        "900+"
+      ]
+    },
+    "onboarding.flow": {
+      "type": "counter",
+      "dims": {
+        "flow": [
+          "first_install",
+          "new_project",
+          "add_provider",
+          "add_account",
+          "add_instance",
+          "import"
+        ]
+      }
+    },
+    "fleet.pairing": {
+      "type": "counter",
+      "dims": {
+        "outcome": [
+          "completed",
+          "failed",
+          "expired"
+        ],
+        "reason": [
+          "none",
+          "code_invalid",
+          "code_expired",
+          "network",
+          "version",
+          "tls",
+          "denied",
+          "other"
+        ]
+      }
+    },
+    "fleet.remote_action": {
+      "type": "counter",
+      "dims": {
+        "kind": [
+          "view",
+          "switch",
+          "cleanup"
+        ],
+        "outcome": [
+          "ok",
+          "denied",
+          "failed"
+        ]
+      }
+    },
+    "fleet.link_degraded": {
+      "type": "counter",
+      "dims": {
+        "reason": [
+          "version",
+          "network"
+        ]
+      }
+    },
+    "ui.screen_opened": {
+      "type": "counter",
+      "dims": {
+        "screen": [
+          "overview",
+          "accounts",
+          "usage",
+          "fleet",
+          "cleanup",
+          "settings"
+        ]
+      },
+      "max": 100000
+    },
+    "ui.inspector_tab": {
+      "type": "counter",
+      "dims": {
+        "selection": [
+          "session",
+          "provider",
+          "account",
+          "instance",
+          "project"
+        ],
+        "tab": [
+          "overview",
+          "usage",
+          "history",
+          "quality",
+          "processes",
+          "actions"
+        ]
+      },
+      "max": 100000
+    },
+    "ui.rail_tab": {
+      "type": "counter",
+      "dims": {
+        "tab": [
+          "projects",
+          "instances",
+          "sessions"
+        ]
+      },
+      "max": 100000
+    },
+    "ui.notification": {
+      "type": "counter",
+      "dims": {
+        "kind": [
+          "quota_warning",
+          "quota_wall",
+          "waiting_user",
+          "stuck",
+          "leftover",
+          "renewal",
+          "update",
+          "fleet",
+          "other"
+        ],
+        "action": [
+          "shown",
+          "clicked",
+          "dismissed"
+        ]
+      },
+      "max": 100000
+    },
+    "ui.shortcut_used": {
+      "type": "counter",
+      "dims": {
+        "shortcut": [
+          "toggle_rail",
+          "new_session",
+          "command_palette",
+          "switch",
+          "focus_window",
+          "inspector_tab",
+          "search",
+          "other"
+        ]
+      },
+      "max": 100000
+    },
+    "app.launch": {
+      "type": "counter",
+      "dims": {}
+    },
+    "app.recovered_after_crash": {
+      "type": "counter",
+      "dims": {}
+    },
+    "error.class": {
+      "type": "counter",
+      "dims": {
+        "area": "error_area",
+        "code": "error_code"
+      }
+    },
+    "update.flow": {
+      "type": "counter",
+      "dims": {
+        "step": [
+          "prompt_shown",
+          "installed",
+          "deferred",
+          "failed"
+        ],
+        "reason": [
+          "none",
+          "network",
+          "signature",
+          "checksum",
+          "disk",
+          "other"
+        ]
+      }
+    },
+    "storage.migration": {
+      "type": "counter",
+      "dims": {
+        "outcome": [
+          "ok",
+          "failed"
+        ]
+      }
+    },
+    "stats.dropped": {
+      "type": "counter",
+      "dims": {}
+    },
+    "stats.truncated": {
+      "type": "counter",
+      "dims": {}
+    },
+    "stats.invalid_report": {
+      "type": "counter",
+      "dims": {}
+    },
+    "perf.cold_start_ms": {
+      "type": "histogram",
+      "dims": {},
+      "buckets": [
+        "<750",
+        "750-1500",
+        "1500-3000",
+        "3000+"
+      ]
+    },
+    "perf.board_interactive_ms": {
+      "type": "histogram",
+      "dims": {},
+      "buckets": [
+        "<250",
+        "250-500",
+        "500-1000",
+        "1000+"
+      ]
+    },
+    "perf.rss_peak_mb": {
+      "type": "histogram",
+      "dims": {},
+      "buckets": [
+        "<100",
+        "100-150",
+        "150-300",
+        "300+"
+      ]
+    },
+    "perf.cpu_overhead_pct": {
+      "type": "histogram",
+      "dims": {},
+      "buckets": [
+        "<0.5",
+        "0.5-1",
+        "1-3",
+        "3+"
+      ]
+    }
+  }
+}

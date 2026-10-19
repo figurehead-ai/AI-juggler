@@ -32,6 +32,7 @@ pub mod state;
 pub mod terminal;
 pub mod updates;
 pub mod usage_pipeline;
+pub mod usage_stats;
 pub mod vault;
 pub mod worktree;
 
@@ -96,6 +97,7 @@ pub fn run() {
     let figurehead_state = Arc::clone(&app_state);
     let update_state = Arc::clone(&app_state);
     let cloud_backup_state = Arc::clone(&app_state);
+    let stats_state = Arc::clone(&app_state);
 
     tauri::Builder::default()
         // Registered first: a second launch defers to the running app
@@ -129,6 +131,8 @@ pub fn run() {
         .manage(app_state)
         .invoke_handler(tauri::generate_handler![
             commands::app_info,
+            usage_stats::usage_stats_info,
+            usage_stats::usage_stats_set,
             commands::usage_source_health,
             commands::cost_rollups,
             commands::cost_csv_export,
@@ -345,12 +349,20 @@ pub fn run() {
             // AJ-E1205: the backup schedule (nothing runs while Cloud
             // backup is off or the recovery code isn't saved).
             cloud_backup::spawn_schedule(cloud_backup_state);
+            // AJ-E1102: usage stats start only if the user opted in (and
+            // no override says off); off creates nothing.
+            usage_stats::start(stats_state);
             Ok(())
         })
-        .run(tauri::generate_context!())
+        .build(tauri::generate_context!())
         .unwrap_or_else(|error| {
             eprintln!("ai-juggler: fatal: {error}");
             std::process::exit(1);
+        })
+        .run(|_app, event| {
+            if let tauri::RunEvent::Exit = event {
+                usage_stats::shutdown();
+            }
         });
 }
 

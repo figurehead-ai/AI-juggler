@@ -98,6 +98,13 @@ impl UreqTransport {
     /// A transport identifying as `AIJuggler/<app_version>`.
     #[must_use]
     pub fn new(app_version: &str) -> Self {
+        Self::with_timeout(app_version, TIMEOUT)
+    }
+
+    /// The same, with another per-request timeout (usage-stats uploads
+    /// use 10 s).
+    #[must_use]
+    pub fn with_timeout(app_version: &str, timeout: Duration) -> Self {
         // The operating system's trust store (so a managed Mac's own
         // roots work); no bundled CA list.
         let roots: Vec<ureq::tls::Certificate<'static>> = rustls_native_certs::load_native_certs()
@@ -113,7 +120,7 @@ impl UreqTransport {
             ))
             .build();
         let agent = ureq::Agent::config_builder()
-            .timeout_global(Some(TIMEOUT))
+            .timeout_global(Some(timeout))
             .max_redirects(0)
             .http_status_as_error(false)
             .tls_config(tls)

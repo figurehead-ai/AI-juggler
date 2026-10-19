@@ -110,6 +110,18 @@
   see a cancel, until a 64 MB (debug-build) digest finished. The digest is
   now computed chunk by chunk as the bundle is sent; the budget and the
   assertion are unchanged.
+- A budget measured the wrong thing (2026-10-18, found while building
+  AJ-E1104): `juggler-stats :: a_week_of_counters_flushes_in_under_5_ms`
+  timed the flush by wall clock, which includes the disk's write latency
+  at commit. With another program saturating the disk, commits took
+  8–30 ms (a Python sqlite3 control run showed the same), against 1.1 ms
+  quiet. The budget is what the flush costs the app, so the test now
+  takes the flush thread's CPU time (best of 5, `cpu-time` dev
+  dependency) and prints wall time beside it: 0.5 ms CPU, ≈10 ms wall
+  under that load. The 5 ms budget is unchanged. Also: the store now runs
+  SQLite at `synchronous=NORMAL` (safe with WAL) with cached statements,
+  and debug builds compile SQLite optimised (`libsqlite3-sys`
+  opt-level 3).
 - A test-hygiene leak fixed (2026-10-18): every `just verify` left
   `trap_helper.py` fixtures running as orphans (four after a run), and
   they accumulated across runs. The neighbour session's fixture kit in

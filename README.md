@@ -58,6 +58,8 @@ hacks. AI Juggler replaces that pile with one app.
 - **Local-first and private.** Works fully offline with no account. An
   optional Figurehead account adds cloud features you choose to turn on
   — each one says what it sends, and content is end-to-end encrypted.
+  Usage statistics are off unless you turn them on; see
+  [docs/usage-stats.md](./docs/usage-stats.md).
 - **Honest UI.** Unknown values say "unknown"; estimates say "estimate";
   nothing is dressed up as measured.
 

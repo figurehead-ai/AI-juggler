@@ -11,6 +11,7 @@ members = [
     # D-17 carve-out: the ONLY crate not inheriting the workspace lint
     # baseline (one audited unsafe call — see its Cargo.toml/lib.rs).
     "crates/juggler-scap-init",
+    "crates/juggler-stats",
     "crates/juggler-supervisor",
 ]
 
@@ -74,4 +75,13 @@ opt-level = 3
 
 # The cipher's generic code is instantiated in the crate that calls it.
 [profile.dev.package.juggler-account]
+opt-level = 3
+
+# AJ-E1102/E1104: the stats store's flush and assembly budgets hold in debug
+# builds too (SQLite is otherwise compiled at -O0).
+[profile.dev.package.libsqlite3-sys]
+opt-level = 3
+
+# AJ-E1102: record() must stay under 1 µs in debug builds too.
+[profile.dev.package.juggler-stats]
 opt-level = 3

@@ -55,7 +55,12 @@ icon before the first public release.
 1. **Version.** Set the same `X.Y.Z` in `crates/juggler-app/tauri.conf.json`
    and `crates/juggler-app/Cargo.toml`. Add a `## [X.Y.Z]` section to
    `CHANGELOG.md` for contributors.
-2. **Notes for users.** Write `docs/releases/X.Y.Z.md`. The website shows this
+2. **Usage-statistics schema.** Run
+   `FH_SITE=<website clone> scripts/stats_schema_diff.sh`. It must report
+   identical, because the server rejects anything its copy doesn't list. If a
+   metric changed, the CHANGELOG and `docs/usage-stats.md` change in the
+   same release.
+3. **Notes for users.** Write `docs/releases/X.Y.Z.md`. The website shows this
    text as is, and `scripts/release_notes_check.sh X.Y.Z` enforces the rules:
    - The first line is one plain sentence on what the release is about.
    - Then only the sections that apply, in this order: `## New`,
@@ -66,23 +71,23 @@ icon before the first public release.
      features as beta, and never call switching lossless.
    - No task IDs, PR numbers, internal names or file paths. No raw HTML:
      screenshots are uploaded to the release and linked with Markdown.
-3. **Tag.** Push `vX.Y.Z`. `release.yml` checks the secrets, versions and
+4. **Tag.** Push `vX.Y.Z`. `release.yml` checks the secrets, versions and
    notes, then:
    - builds the universal app, signs and notarizes it;
    - verifies the signature, the notarization and the updater signature;
    - names the installer `AI-Juggler-X.Y.Z-universal.dmg`;
    - writes `latest.json`;
    - drafts a **pre-release** with every asset and `SHA256SUMS.txt`.
-4. **Review the draft.**
+5. **Review the draft.**
    - Install the `.dmg` on a clean Mac and open it: Gatekeeper must not
      complain.
    - Check Settings › About & updates shows the version and Beta.
    - Back up from Settings and keep the file.
-5. **Publish.** Publishing runs `release-channel.yml`, which copies the
+6. **Publish.** Publishing runs `release-channel.yml`, which copies the
    release's `latest.json` to the `beta-channel` feed, and from then on beta
    users are offered it. The website's download button uses the newest
    release that has a `.dmg`.
-6. **Usage statistics** (only once they are switched on): the maintainer
+7. **Usage statistics** (only once they are switched on): the maintainer
    registers `X.Y.Z` as a known version in Figurehead's usage-statistics
    configuration. Reports from unregistered versions are left out of the
    dashboards.

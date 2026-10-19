@@ -1,0 +1,79 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.41s
+     Running unittests src/lib.rs (target/debug/deps/juggler_stats-cbbff33fc2a2f5e7)
+
+running 49 tests
+test buckets::tests::counts_bucket_as_the_schema_says ... ok
+test buckets::tests::histogram_buckets_follow_their_lower_edges ... ok
+test buckets::tests::totals_keep_two_significant_figures ... ok
+test buckets::tests::versions_keep_major_minor_only ... ok
+test config::tests::parses_leniently_and_checks_versions ... ok
+test cycle::tests::a_closed_week_is_assembled_once_into_pending ... ok
+test cycle::tests::a_due_report_uploads_once_gzipped_and_moves_to_sent ... ok
+test cycle::tests::a_puzzle_above_28_bits_postpones_a_day ... ok
+test cycle::tests::a_puzzle_is_solved_and_a_raised_one_refetches_the_config ... ok
+test cycle::tests::a_week_assembled_too_late_expires ... ok
+test cycle::tests::assembly_is_fast ... assembly: 21 µs (best of 5)
+ok
+test cycle::tests::ci_debug_and_unanswered_consent_never_send ... ok
+test cycle::tests::expiry_ends_retries ... ok
+test cycle::tests::leaving_share_skips_pending_reports ... ok
+test cycle::tests::network_errors_back_off_and_give_up_after_six_attempts ... ok
+test cycle::tests::no_usable_config_means_no_upload_yet ... ok
+test cycle::tests::off_does_nothing_and_creates_nothing ... ok
+test cycle::tests::old_sent_and_skipped_reports_are_pruned ... ok
+test cycle::tests::rejected_reports_are_not_retried ... ok
+test cycle::tests::release_builds_ignore_the_endpoint_variable ... ok
+test cycle::tests::reports_lists_every_file_with_its_state ... ok
+test cycle::tests::retry_after_is_honoured_and_capped ... ok
+test cycle::tests::sampling_hits_its_rate_within_two_percent ... sampling: rate 0.1 → 0.1008
+sampling: rate 0.5 → 0.4878
+ok
+test cycle::tests::several_weeks_go_oldest_first_one_per_tick ... ok
+test cycle::tests::stats_events_record_into_weeks_the_cycle_closes ... ok
+test cycle::tests::the_config_can_switch_off_narrow_and_sample ... ok
+test cycle::tests::the_sample_rate_applied_is_in_the_report ... ok
+test cycle::tests::the_worst_case_week_stays_under_8_kb ... worst case: 8192 bytes, 105 entries, 464 truncated
+ok
+test cycle::tests::weeks_without_full_consent_or_in_local_are_skipped ... ok
+test mode::tests::overrides_win_in_order_with_their_reason ... ok
+test mode::tests::the_choice_applies_without_overrides ... ok
+test pow::tests::a_budget_stops_the_search ... ok
+test pow::tests::hex_matches_format ... ok
+test pow::tests::solves_and_checks ... ok
+test pow::tests::the_solver_reproduces_the_checked_vectors ... ok
+test pow::tests::twenty_bits_is_quick ... pow: 20 bits in 189 ms (nonce 4267b9)
+ok
+test tests::a_full_channel_drops_and_counts ... ok
+test tests::a_week_of_counters_flushes_in_under_5_ms ... flush: 77 rows in 114 µs CPU, 114 µs wall (best of 5)
+ok
+test tests::counters_gauges_histograms_and_days_reach_the_store ... ok
+test tests::delete_all_removes_everything ... ok
+test tests::dims_keys_are_canonical_json ... ok
+test tests::drops_become_the_stats_dropped_counter ... ok
+test tests::off_creates_no_folder_and_records_nothing ... ok
+test tests::record_is_under_a_microsecond ... record(): median 50 ns per event (share); 0 ns per event (off)
+ok
+test tests::the_folder_is_private ... ok
+test tests::utc_days ... ok
+test week::tests::a_week_runs_monday_to_monday ... ok
+test week::tests::civil_round_trips ... ok
+test week::tests::iso_weeks_match_known_dates ... ok
+
+test result: ok. 49 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.54s
+
+     Running tests/parity.rs (target/debug/deps/parity-3121978dc1a8b6ce)
+
+running 3 tests
+test every_metric_has_exactly_one_typed_variant ... ok
+test the_generated_file_is_current ... stats-events: up to date
+ok
+test the_metadata_table_equals_the_schema ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+   Doc-tests juggler_stats
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
