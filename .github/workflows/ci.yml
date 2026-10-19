@@ -78,6 +78,11 @@ jobs:
         run: |
           python3 scripts/gen_stats_events.py --check
           ./scripts/stats_feature_check.sh
+      - name: Release scripts (D-20, D-24 self-tests)
+        run: |
+          python3 scripts/release_version.py --selftest
+          python3 scripts/nightly_notes.py --selftest
+          python3 scripts/promotion_rules.py --selftest
       - name: Dependency policy (cargo-deny)
         run: cargo deny check
       # Coverage artifact. Best-effort in edge cases (zero-test workspaces);
