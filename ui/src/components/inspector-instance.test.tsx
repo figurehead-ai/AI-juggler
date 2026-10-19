@@ -125,7 +125,8 @@ describe("AJ-E407 Instance Overview (§5.1, Req.1)", () => {
   it("renders every populated field", () => {
     const { container } = shell(mk());
     expect(container.querySelector('[data-testid="instance-overview-fields"]')).not.toBeNull();
-    expect(container.textContent).toContain("Running · 42m");
+    // D-25: the header carries the state and how long (no duplicate chip).
+    expect(container.textContent).toContain("started 42m ago");
     expect(container.textContent).toContain("claude-code");
     expect(container.textContent).toContain("Work Max");
     expect(container.textContent).toContain("Deep work");

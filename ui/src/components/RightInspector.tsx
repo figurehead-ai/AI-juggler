@@ -154,6 +154,27 @@ function KindIcon({ kind }: { kind: InspectorKind }) {
   }
 }
 
+/** D-25: a session is named by its place — branch, else folder. */
+export function sessionPlace(session: InstanceInfo): string {
+  const cwd = session.cwd ?? "";
+  const folder = cwd.replace(/\/+$/, "").split("/").pop() || cwd;
+  return session.git_branch ?? (folder || session.account_label);
+}
+
+/** "storefront · Work Max · started 38 min ago (· 18% left when low)". */
+export function sessionSubline(session: InstanceInfo, projects: ProjectInfo[], now: number): string {
+  const project = projects.find((p) => p.id === session.project_id)?.name;
+  const left = session.quota ? Math.max(0, Math.round(100 - session.quota.used_percentage)) : null;
+  return [
+    project,
+    session.account_label,
+    `started ${since(session.started_at_ms, now)} ago`,
+    left !== null && left <= 25 ? `${left}% left` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 export const KIND_LABELS: Record<InspectorKind, string> = {
   // D-25: on screen, an Instance is a "session"; a Session (the
   // conversation record) is a "conversation".
@@ -299,7 +320,7 @@ export function RightInspector({
   const headerName = remote
     ? (remote.instance?.account_label ?? remote.machine.label)
     : kind === "instance"
-      ? (data.instance?.account_label ?? "Session")
+      ? (data.instance ? sessionPlace(data.instance) : "Session")
       : kind === "session"
         ? "Conversation"
         : kind === "provider"
@@ -396,8 +417,26 @@ export function RightInspector({
             </Chip>
           )
         )}
-        <div className="ml-auto flex items-center gap-2">{primaryAction ?? null}</div>
+        <div className="ml-auto flex items-center gap-2">
+          {/* D-25: the session's one-step-away move, beside its Stop. */}
+          {!remote && kind === "instance" && data.instance && data.instance.kind !== "desktop" && (
+            <Button
+              size="sm"
+              variant="secondary"
+              data-testid="header-switch"
+              onClick={() => window.dispatchEvent(new Event("aij:focus-handover"))}
+            >
+              Switch account…
+            </Button>
+          )}
+          {primaryAction ?? null}
+        </div>
       </header>
+      {!remote && kind === "instance" && data.instance && (
+        <p className="-mt-2 text-xs text-muted" data-testid="session-subline">
+          {sessionSubline(data.instance, projects, now)}
+        </p>
+      )}
 
       {remote && (
         <p
@@ -693,7 +732,7 @@ const defaultFocusBridge: FocusBridge = async (sessionId) =>
   (await import("../lib/bridge")).desktopFocus(sessionId);
 
 function InstanceOverview(props: PanelProps) {
-  const handoverRef = useRef<HTMLDivElement | null>(null);
+  const handoverRef = useRef<HTMLDetailsElement | null>(null);
   // AJ-E414: which focus tier the last Open/Focus attempt achieved —
   // shown verbatim, never overstated. A missing Accessibility grant
   // additionally raises the one-time explainer (Req.3).
@@ -701,10 +740,19 @@ function InstanceOverview(props: PanelProps) {
   const [explainerDismissed, setExplainerDismissed] = useState(
     () => localStorage.getItem("aij.a11y-explainer.dismissed") === "1",
   );
+  // D-25: the ranked switch list is one step away — open when this
+  // session hit its limit (or a way back is on offer), otherwise behind
+  // "Switch account…" (header) or ⌘⇧H.
+  const [switchOpen, setSwitchOpen] = useState(() => props.data.instance?.status === "quota_blocked");
   useEffect(() => {
     const scroll = () => {
+      setSwitchOpen(true);
       // jsdom has no scrollIntoView; the guard keeps tests honest.
-      handoverRef.current?.scrollIntoView?.({ block: "center" });
+      requestAnimationFrame(() => {
+        handoverRef.current?.scrollIntoView?.({ block: "center" });
+        // ⌘⇧H "focuses the hand-over section": its summary takes focus.
+        handoverRef.current?.querySelector<HTMLElement>("summary")?.focus();
+      });
     };
     window.addEventListener("aij:focus-handover", scroll);
     return () => window.removeEventListener("aij:focus-handover", scroll);
@@ -772,25 +820,16 @@ function InstanceOverview(props: PanelProps) {
             empty, never fabricated). Lineage is omitted entirely until
             the Switch Graph exists (E2) — no fabricated A→B links. */}
         <Card className="flex flex-col gap-2 p-3" data-testid="instance-overview-fields">
-          {/* D-25: the summary shows what matters now — state, Account
-              (runway only when low) and the identity guard; the rest
-              waits under Details. */}
-          <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-            <Chip tone={statusTone(session.status).tone}>
-              {statusTone(session.status).label} · {since(session.started_at_ms, props.now)}
-            </Chip>
+          {/* The header already says the state, the account and its low
+              runway (D-25); this row adds only when it ended and the
+              identity check. */}
+          <div className="flex flex-wrap items-center gap-1.5 text-[11px] empty:hidden">
             {["finished", "stopped", "failed", "handed_over"].includes(session.status) && session.last_activity_ms ? (
               <span className="text-[11.5px] text-muted" data-testid="session-ended-stamp">
                 Ended{" "}
                 {new Date(session.last_activity_ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}
               </span>
             ) : null}
-            <Chip tone="neutral">
-              {session.account_label}
-              {session.quota && 100 - session.quota.used_percentage <= 25
-                ? ` · ${Math.max(0, Math.round(100 - session.quota.used_percentage))}% left`
-                : ""}
-            </Chip>
             {identityWords(session) && (
               <span data-testid="instance-identity" data-state={identityWords(session)!.state}>
                 <Chip tone={identityWords(session)!.state === "verified" ? "success" : "neutral"}>
@@ -1040,7 +1079,17 @@ function InstanceOverview(props: PanelProps) {
           </p>
         )}
         {!isDesktop && (
-        <div ref={handoverRef} className="flex flex-col gap-2" data-testid="handover-section">
+        <details
+          ref={handoverRef}
+          open={switchOpen || Boolean(backPlan) || (props.switchBackSuggestions ?? []).some((suggestion) => suggestion.session_id === session.id)}
+          onToggle={(event) => setSwitchOpen((event.currentTarget as HTMLDetailsElement).open)}
+          className="group flex flex-col gap-2"
+          data-testid="handover-section"
+        >
+          <summary className="cursor-default list-none text-[11px] uppercase tracking-wider text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
+            <span aria-hidden="true" className="mr-1 inline-block transition-transform group-open:rotate-90">▸</span>
+            Continue on another account
+          </summary>
           {/* AJ-E207 Req.3: the reset-trigger suggestion — suggested,
               never executed; the user clicks. */}
           {(props.switchBackSuggestions ?? [])
@@ -1059,9 +1108,6 @@ function InstanceOverview(props: PanelProps) {
                 <span className="text-muted">Resume the original conversation ▸</span>
               </button>
             ))}
-          <p className="text-[11px] uppercase tracking-wider text-muted">
-            Continue on another account
-          </p>
           {/* AJ-E209 Req.1/3: the ranked, badged destinations —
               §Q6 + switch cost + return bonus; every cross-Provider
               row carries its ordered-pair badge and Drop list
@@ -1122,7 +1168,7 @@ function InstanceOverview(props: PanelProps) {
               <RemoteSwitchTargets targets={remoteTargets} onPick={setCrossTarget} />
             </>
           )}
-        </div>
+        </details>
         )}
         {crossTarget && (
           <CrossMachineSwitchFlow

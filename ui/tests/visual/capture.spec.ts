@@ -15,7 +15,7 @@ import { resolve } from "node:path";
 
 // Playwright runs with cwd = config dir (ui/).
 const GALLERY_ROOT = resolve(process.cwd(), "../docs/qa/evidence/_gallery");
-import { allStatuses, answerPolicy, cleanupFixture, honestEmpty, readyHome, goTo, openFilters } from "./fixtures";
+import { allStatuses, answerPolicy, cleanupFixture, honestEmpty, readyHome, goTo, openFilters, openSwitch } from "./fixtures";
 
 // D-25: a fresh install opens first run; these captures document the
 // Add-account wizard, so they open it the way Add account does.
@@ -2387,6 +2387,7 @@ for (const theme of THEMES) {
     const openDialog = async (page: import("@playwright/test").Page) => {
       await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
       await page.getByRole("button", { name: /Work Max/ }).first().click();
+      await openSwitch(page);
       await page.getByTestId("handover-section")
         // AJ-E209: the ranked, badged row is the switch entry point.
         .locator("button[data-row]:not(:disabled)")
@@ -2573,6 +2574,7 @@ for (const theme of THEMES) {
       await page.goto("/");
       await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
       await page.getByRole("button", { name: /Work Max/ }).first().click();
+      await openSwitch(page);
       await page.getByTestId("handover-section")
         // AJ-E209: the ranked, badged row is the switch entry point.
         .locator("button[data-row]:not(:disabled)")
@@ -2811,6 +2813,7 @@ for (const theme of THEMES) {
       await page.goto("/");
       await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
       await page.getByRole("button", { name: /Work Max/ }).first().click();
+      await openSwitch(page);
       await page.getByTestId("handover-section")
         // AJ-E209: the ranked, badged row is the switch entry point.
         .locator("button[data-row]:not(:disabled)")
@@ -3063,6 +3066,7 @@ for (const theme of THEMES) {
       await page.goto("/");
       await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
       await page.getByRole("button", { name: /Work Max/ }).first().click();
+      await openSwitch(page);
       await expect(page.getByTestId("switch-target-rows")).toBeVisible();
       await page.screenshot({
         path: resolve(GALLERY, `32-graph/targets-${vp.name}-${theme}.png`),
@@ -3285,6 +3289,7 @@ for (const theme of THEMES) {
       await page.goto("/");
       await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
       await page.getByRole("button", { name: /Work Max/ }).first().click();
+      await openSwitch(page);
       await page.getByTestId("handover-section")
         .locator("button[data-row]:not(:disabled)")
         .first()
@@ -5515,6 +5520,7 @@ const openCross = async (
   await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
   await page.getByRole("button", { name: /Work Max/ }).first().click();
   await expect(page.getByTestId("handover-section")).toBeVisible();
+  await openSwitch(page);
 };
 
 for (const theme of THEMES) {

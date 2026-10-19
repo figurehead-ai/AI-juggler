@@ -185,6 +185,10 @@ async function toSwitchRow(page: Page, stops: Stop[]) {
   await tabTo(page, stops, /Work Max/);
   await page.keyboard.press("Enter");
   await leaveTerminalIfFocused(page, stops);
+  // D-25: the ranked list is folded; ⌘⇧H opens it and focuses it.
+  await page.keyboard.press("ControlOrMeta+Shift+H");
+  await expect(page.locator("[data-testid='handover-section'] > summary")).toBeFocused();
+  stops.push(await focused(page));
   await tabToEl(page, stops, "[data-testid='handover-section'] button[data-row]:not(:disabled)", { max: 120 });
 }
 

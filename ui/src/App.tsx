@@ -721,7 +721,8 @@ export default function App() {
         : selection.kind === "project"
         ? (selectedProject?.name ?? "Project")
         : selectedSession
-          ? selectedSession.account_label
+          ? // D-25: the session's project (the view below names its place).
+            (projects.find((p) => p.id === selectedSession.project_id)?.name ?? "Session")
           : selectedLogin
             ? selectedLogin.title
             : "Home";

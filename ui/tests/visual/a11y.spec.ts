@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-import { allStatuses, answerPolicy, honestEmpty, type FixtureSet, goTo, openFilters } from "./fixtures";
+import { allStatuses, answerPolicy, honestEmpty, type FixtureSet, goTo, openFilters, openSwitch } from "./fixtures";
 
 // D-25: a fresh install opens first run; these captures document the
 // Add-account wizard, so they open it the way Add account does.
@@ -769,6 +769,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.goto("/");
     await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
     await page.getByRole("button", { name: /Work Max/ }).first().click();
+    await openSwitch(page);
     await page.getByTestId("handover-section")
       // AJ-E209: the ranked, badged row is the switch entry point.
       .locator("button[data-row]:not(:disabled)")
@@ -843,6 +844,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.goto("/");
     await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
     await page.getByRole("button", { name: /Work Max/ }).first().click();
+    await openSwitch(page);
     await page.getByTestId("handover-section")
       // AJ-E209: the ranked, badged row is the switch entry point.
       .locator("button[data-row]:not(:disabled)")
@@ -989,6 +991,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.goto("/");
     await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
     await page.getByRole("button", { name: /Work Max/ }).first().click();
+    await openSwitch(page);
     await page.getByTestId("handover-section")
       // AJ-E209: the ranked, badged row is the switch entry point.
       .locator("button[data-row]:not(:disabled)")
@@ -1023,6 +1026,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.reload();
     await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
     await page.getByRole("button", { name: /Work Max/ }).first().click();
+    await openSwitch(page);
     await page.getByTestId("handover-section")
       // AJ-E209: the ranked, badged row is the switch entry point.
       .locator("button[data-row]:not(:disabled)")
@@ -1094,6 +1098,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.getByRole("button", { name: /Work Max/ }).first().click();
 
     // The ranked entry: scoped scan (the rows + their explanations).
+    await openSwitch(page);
     await expect(page.getByTestId("switch-target-rows")).toBeVisible();
     const rowsScan = await new AxeBuilder({ page })
       .include("[data-testid='handover-section']")
