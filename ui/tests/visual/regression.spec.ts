@@ -101,7 +101,7 @@ test("status is never colour-only", async ({ page }) => {
   const missing: string[] = [];
   for (const word of words) {
     const asText = await page.getByText(word, { exact: true }).count();
-    const asName = await page.locator(`[aria-label*="${word}"]`).count();
+    const asName = await page.getByRole("button", { name: word }).count();
     if (asText + asName === 0) missing.push(word);
   }
   expect(missing, "statuses with no words or accessible name").toEqual([]);

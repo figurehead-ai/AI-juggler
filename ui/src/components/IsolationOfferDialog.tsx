@@ -7,7 +7,7 @@
  * unavailable and offers no fake alternative. One dialog serves every
  * launch entry point (the bridge's `launchSession` raises it).
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type JSX } from "react";
 import {
   ISOLATION_OFFER_EVENT,
   type IsolationDecision,

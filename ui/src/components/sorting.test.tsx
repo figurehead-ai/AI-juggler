@@ -215,21 +215,30 @@ describe("AJ-E404 search", () => {
   });
 });
 
+/** A filter chip by its accessible name (its visible text plus " items"). */
+function chip(container: HTMLElement, name: string): HTMLElement {
+  const found = Array.from(container.querySelectorAll<HTMLElement>("button[aria-pressed]")).find(
+    (button) => (button.textContent ?? "").replace(/\s+/g, " ").trim() === name,
+  );
+  if (!found) throw new Error(`no chip named ${name}`);
+  return found;
+}
+
 describe("AJ-E404 filter chips", () => {
   it("carry counts with announced labels and filter the list", () => {
     const { container } = renderBoard();
-    const needsChip = container.querySelector('button[aria-label="Needs me, 5 items"]')!;
+    const needsChip = chip(container, "Needs me 5 items");
     expect(needsChip.getAttribute("aria-pressed")).toBe("false");
     expect(chipCounts(FIXTURE)).toEqual({ needs: 5, running: 2, ended: 2 }); // failed counts as Ended
     fireEvent.click(needsChip);
     expect(renderedIds(container)).toEqual(["s1", "s2", "s3", "s4", "s5"]);
-    const runningChip = container.querySelector('button[aria-label="Running, 2 items"]')!;
+    const runningChip = chip(container, "Running 2 items");
     expect(runningChip.getAttribute("aria-pressed")).toBe("false");
   });
 
   it("the provider dropdown ANDs with the chips", () => {
     const { container } = renderBoard();
-    fireEvent.click(container.querySelector('button[aria-label="Needs me, 5 items"]')!);
+    fireEvent.click(chip(container, "Needs me 5 items"));
     setSelect(container, "Filter by project", "proj-1");
     expect(renderedIds(container)).toEqual(["s1", "s2", "s3", "s4", "s5"]);
     setSelect(container, "Filter by project", "proj-2");

@@ -13,7 +13,7 @@
  * ⌘R resumes the open node. Density: the collapse cut bounds each
  * timeline; long chains scroll horizontally.
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type JSX } from "react";
 import type { EpochNodeData, GraphEdgeData, WorkGraphData } from "../lib/bridge";
 import { epochResume, packExport, switchGraphOverview, errorText,} from "../lib/bridge";
 import { providerMark } from "./indicator";

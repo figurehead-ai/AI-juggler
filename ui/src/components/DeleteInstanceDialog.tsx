@@ -5,7 +5,7 @@
  * word "delete" is typed. The backend also refuses without the preview's
  * one-time token.
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type JSX } from "react";
 import { errorText, instanceDelete, instanceDeletePreview, type DeletePreviewInfo } from "../lib/bridge";
 
 export function DeleteInstanceDialog({

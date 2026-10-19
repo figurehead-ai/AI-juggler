@@ -31,7 +31,7 @@ juggler-stats = { version = "0.0.1", path = "../juggler-stats", optional = true 
 # AJ-E1108: the usage-stats tick (and any puzzle it solves) runs at low priority.
 thread-priority = { version = "3.1.1", optional = true }
 juggler-supervisor = { version = "0.0.1", path = "../juggler-supervisor" }
-getrandom = "0.3"
+getrandom = "0.4"
 prost = "0.14"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
@@ -51,7 +51,7 @@ tauri-plugin-single-instance = "2"
 tauri-plugin-updater = { version = "2", default-features = false, features = ["rustls-tls", "system-proxy"] }
 thiserror = "2.0.21"
 tokio = { version = "1", features = ["rt-multi-thread", "net", "sync", "time"] }
-zstd = "0.13"
+zstd = "0.14"
 ts-rs = { version = "12.0.1", features = ["serde-json-impl", "no-serde-warnings"] }
 
 [build-dependencies]

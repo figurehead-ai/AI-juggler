@@ -221,7 +221,6 @@ export function NewProjectSheet({
                 key={row.id}
                 type="button"
                 data-tile
-                aria-label={`Work in ${row.name}${row.accounts_used.length > 0 ? ` — last used with ${row.accounts_used[row.accounts_used.length - 1]}` : ""}`}
                 onClick={() => chooseDirectory(row.root)}
                 className={
                   "flex min-w-0 flex-col gap-1 rounded-xl border px-3 py-2.5 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
@@ -232,7 +231,11 @@ export function NewProjectSheet({
               >
                 <span className="flex items-center gap-1.5">
                   <IconProjects width={12} height={12} />
-                  <span className="truncate text-xs font-medium">{row.name}</span>
+                  {/* WCAG 2.5.3: the name is the tile's own words. */}
+                  <span className="truncate text-xs font-medium">
+                    <span className="sr-only">Work in </span>
+                    {row.name}
+                  </span>
                 </span>
                 <span className="truncate text-[10px] text-muted">
                   {row.accounts_used.length > 0

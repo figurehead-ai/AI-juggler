@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useId, type JSX } from "react";
 import { usageStatsOpenDocs, type UsageStatsMode } from "../lib/bridge";
 
 /**

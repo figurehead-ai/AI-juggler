@@ -13,7 +13,7 @@
  * edge). Copy never says "we switched you" (SPEC:26) — the user
  * clicked, the user switched.
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type JSX } from "react";
 import {
   switchPreflight,
   switchExecute,

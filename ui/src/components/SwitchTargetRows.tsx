@@ -11,7 +11,7 @@
  * (the host's switch flow) is the user's. A11y: a labelled list of
  * buttons, ↑/↓ roving focus, no nested interactives.
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type JSX } from "react";
 import { noteSwitchPick, statsEvent, type SwitchTargetData } from "../lib/bridge";
 
 /** The badge chip: solid when validated, hatched while beta. The text

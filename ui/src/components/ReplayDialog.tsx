@@ -5,7 +5,7 @@
  * record. The header says Replay · read-only, and the transcript's
  * sha256 proves it is the stored file.
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type JSX } from "react";
 import { ReplayTerminal } from "./ReplayTerminal";
 import { errorText, instanceReplay, type ReplayInfo } from "../lib/bridge";
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { Button, Card, Chip } from "../components/primitives";
 import { IconProjects, IconTerminal } from "../components/icons";
 import { QuotaChip } from "../components/QuotaRings";

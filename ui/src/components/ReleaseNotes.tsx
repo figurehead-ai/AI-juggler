@@ -4,6 +4,7 @@
  * `**bold**`. Nothing is ever injected as HTML; anything else shows as
  * text.
  */
+import type { JSX } from "react";
 import type { ReactNode } from "react";
 
 function inline(text: string): ReactNode[] {

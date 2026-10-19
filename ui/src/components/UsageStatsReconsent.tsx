@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type JSX } from "react";
 import { Button } from "./primitives";
 import { UsageStatsChooser } from "./UsageStatsChooser";
 import { usageStatsInfo, usageStatsSet, type UsageStatsInfo, type UsageStatsMode } from "../lib/bridge";

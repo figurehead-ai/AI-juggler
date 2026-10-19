@@ -6,7 +6,7 @@
  * in full and asks. This build has no reporting service yet, so a
  * report the user chooses to send stays queued here — and says so.
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type JSX } from "react";
 import { Button } from "./primitives";
 import { crashAnswer, crashInfo, crashSet, errorText, type CrashInfo } from "../lib/bridge";
 

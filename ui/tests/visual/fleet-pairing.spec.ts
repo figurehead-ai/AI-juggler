@@ -214,7 +214,7 @@ test("machine filter persists, a Fleet alert opens its machine, access is change
   // The board: All machines by default; filter to Mac mini; it persists.
   await page.getByRole("button", { name: "Fleet" }).first().click();
   await page.getByRole("tab", { name: "Sessions" }).click();
-  await expect(page.getByTestId("board-remote-row")).toHaveAccessibleName("Work Max on Mac mini — waiting user");
+  await expect(page.getByTestId("board-remote-row")).toHaveAccessibleName(/^Work Max on Mac mini.*waiting user/);
   await page.getByLabel("Filter by machine").selectOption("machine-mini");
   await page.reload();
   await page.getByRole("tab", { name: "Sessions" }).click();

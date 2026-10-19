@@ -76,6 +76,30 @@ target size and 6 states failed scrollable-region-focusable.
    seen. The bar now wraps at narrow widths and stays a single row at
    normal widths.
 
+## Found by the axe-core 4.14 upgrade (2026-10-19)
+
+axe-core 4.14 reports `label-content-name-mismatch` (WCAG 2.5.3, Label in
+Name) as serious under WCAG 2.1 A. A voice-control user says the words
+they see, so a control's accessible name has to contain them. Elements
+with a hand-written `aria-label` that reworded their visible text failed:
+
+- **Instance rows** (compact, comfortable, Minimal, card), the **remote
+  rows** on the board, and the **cross-machine switch targets** are now
+  named by their visible content. Shorthand gets a screen-reader word
+  (initials → the Account name, "—" → "resources unavailable"; "!" is
+  hidden), and the rest of a row's detail (quota with confidence, tokens,
+  CPU/RAM, children, age, the attention reason) is its
+  `aria-describedby`. A Minimal row, which shows only icons, is named
+  "Account, status" and described by the full summary.
+- **Filter chips** read "Needs me 5 items"; **project tiles** "Work in
+  <project> last used with <Account>"; the Fleet **Access…** button
+  "Access… for <Mac> on this Mac"; **Import** "Import as “<name>” —
+  <path>"; **＋ Renewal date** "Renewal date for <Account> (optional)".
+
+Tests that read the old labels now read the name plus the description
+(`SessionRow.test.tsx`, `density.test.tsx`, `sorting.test.tsx`, the
+keyboard-flow name helper, `regression.spec.ts`'s colour-only check).
+
 ## Notes
 
 - The gallery's other a11y specs (`a11y.spec.ts`) still scan the real

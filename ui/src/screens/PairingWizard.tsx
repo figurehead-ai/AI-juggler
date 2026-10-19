@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type JSX } from "react";
 import { Button, Card } from "../components/primitives";
 import {
   errorText,

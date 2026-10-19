@@ -8,7 +8,7 @@
  * bridge's `launchSession` raises it). Keyboard: focus starts on the
  * first action, Tab stays inside, Esc cancels.
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type JSX } from "react";
 import {
   IDENTITY_MISMATCH_EVENT,
   type IdentityDecision,

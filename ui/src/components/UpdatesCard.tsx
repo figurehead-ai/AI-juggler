@@ -8,7 +8,7 @@
  * user's call and waits until no Instance is running. A development
  * build says plainly that it does not update itself.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useState, type JSX } from "react";
 import { Card } from "./primitives";
 import { ReleaseNotes } from "./ReleaseNotes";
 import {

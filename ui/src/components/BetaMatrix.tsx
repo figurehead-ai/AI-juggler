@@ -9,7 +9,7 @@
  * interaction: cells are recorded by the maintainer from live runs,
  * never from this surface.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useState, type JSX } from "react";
 import { Card } from "./primitives";
 import { validationMatrix, type ValidationCellData } from "../lib/bridge";
 

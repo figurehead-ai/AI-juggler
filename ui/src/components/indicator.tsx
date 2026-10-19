@@ -287,6 +287,43 @@ export function ariaSummary(session: InstanceInfo, nowMs: number = Date.now()): 
   return parts.join(", ");
 }
 
+/**
+ * The details a row doesn't show as text, for its `aria-describedby`
+ * (WCAG 2.5.3 — the row's name is its visible content; everything else
+ * a screen reader needs is here).
+ */
+export function ariaDetails(session: InstanceInfo, nowMs: number = Date.now()): string {
+  const parts: string[] = [];
+  parts.push(
+    session.quota
+      ? `quota ${Math.round(100 - session.quota.used_percentage)}% left, ${session.quota.confidence}`
+      : "Quota: no data",
+  );
+  const tokens = tokenSummary(session.tokens);
+  if (tokens) parts.push(tokens);
+  if (session.cpu_pct !== null && session.rss_bytes !== null) {
+    parts.push(`cpu ${Math.round(session.cpu_pct)}%, ram ${formatBytes(session.rss_bytes)}`);
+  }
+  if (session.child_count) parts.push(`${session.child_count} children`);
+  if (session.subtask_count) parts.push(`${session.subtask_count} subtasks`);
+  parts.push(ageSummary(session.started_at_ms, session.last_activity_ms, nowMs));
+  const reason = attentionTooltip(session);
+  if (reason) parts.push(reason);
+  return parts.join(", ");
+}
+
+/**
+ * A row's described-by text: `hidden`, so it never joins the row's name
+ * from content, but still read as its description.
+ */
+export function RowDetails({ id, session }: { id: string; session: InstanceInfo }): ReactNode {
+  return (
+    <span id={id} hidden>
+      {ariaDetails(session)}
+    </span>
+  );
+}
+
 /** `1.1 GB` / `890 MB` byte formatting. */
 export function formatBytes(bytes: number): string {
   if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(1)} GB`;

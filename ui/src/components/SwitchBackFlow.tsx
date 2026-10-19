@@ -12,7 +12,7 @@
  * trapped; Esc cancels; ⏎ confirms when armed; conflicts are
  * keyboard-completable end to end.
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type JSX } from "react";
 import {
   switchBackPlan,
   switchBackExecute,

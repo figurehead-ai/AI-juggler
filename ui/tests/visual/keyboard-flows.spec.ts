@@ -49,10 +49,14 @@ async function focused(page: Page): Promise<Stop> {
     const outline = style.outlineStyle !== "none" && parseFloat(style.outlineWidth) > 0;
     const ring = style.boxShadow !== "none" && style.boxShadow !== "";
     const labelled = (el as HTMLInputElement).labels?.[0]?.textContent?.replace(/\s+/g, " ").trim().slice(0, 60);
+    // Name from content, as accessible names are: no hidden or
+    // aria-hidden text (a row's description lives in a hidden node).
+    const named = el.cloneNode(true) as HTMLElement;
+    named.querySelectorAll("[hidden], [aria-hidden='true']").forEach((node) => node.remove());
     const label =
       el.getAttribute("aria-label") ||
       labelled ||
-      (el.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 60) ||
+      (named.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 60) ||
       el.getAttribute("title") ||
       el.getAttribute("data-testid") ||
       (el.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 60) ||

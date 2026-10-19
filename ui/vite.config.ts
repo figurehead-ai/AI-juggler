@@ -16,9 +16,10 @@ export default defineConfig({
     sourcemap: false,
     rollupOptions: {
       output: {
-        manualChunks: {
-          // xterm is heavy and terminal-first paint doesn't need it.
-          xterm: ["@xterm/xterm", "@xterm/addon-fit"],
+        // xterm is heavy and terminal-first paint doesn't need it. (Vite 8
+        // bundles with Rolldown, which takes only the function form.)
+        manualChunks(id: string) {
+          return id.includes("/node_modules/@xterm/") ? "xterm" : undefined;
         },
       },
     },

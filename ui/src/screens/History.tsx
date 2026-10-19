@@ -6,7 +6,7 @@
  * offers Replay (read-only), Archive or Unarchive, and Delete…, which is
  * its own confirmed dialog naming exactly what goes and what stays.
  */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { SessionRow } from "../components/WorkflowRail";
 import { ReplayDialog } from "../components/ReplayDialog";
 import { DeleteInstanceDialog } from "../components/DeleteInstanceDialog";

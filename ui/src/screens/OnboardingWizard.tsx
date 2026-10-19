@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type JSX } from "react";
 import { Button, Card, Chip } from "../components/primitives";
 import { IconJuggler, IconProfiles, IconTerminal } from "../components/icons";
 import { funnelEvent, funnelStep, reasonCode } from "../lib/funnel";
@@ -332,10 +332,11 @@ function CandidateCards({
               <button
                 type="button"
                 disabled={managed}
+                // WCAG 2.5.3: the name starts with the words shown.
                 aria-label={
                   managed
-                    ? `Already in AI Juggler: ${found.path}`
-                    : `Import ${found.path} as “${purpose}”`
+                    ? `Already in AI Juggler — ${found.path}`
+                    : `Import as “${purpose}” — ${found.path}`
                 }
                 title={managed ? "Already managed by AI Juggler" : undefined}
                 onClick={() => onImport(found, purpose)}
@@ -403,10 +404,11 @@ function RenewalField({
           type="button"
           onClick={() => setOpen(true)}
           className="rounded text-[11px] text-accent-hi underline-offset-2 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
-          aria-label={`Add a renewal date for ${accountLabel} (optional)`}
           data-testid={`${testId}-add`}
         >
-          ＋ Renewal date
+          {/* WCAG 2.5.3: the name is what's shown, plus who it's for. */}
+          <span aria-hidden="true">＋ </span>
+          Renewal date<span className="sr-only"> for {accountLabel} (optional)</span>
         </button>
       </div>
     );
@@ -1543,11 +1545,6 @@ export function OnboardingWizard({
                             <button
                               type="button"
                               disabled={!ready}
-                              aria-label={
-                                ready
-                                  ? `Create your first ${row.display_name} account`
-                                  : `${row.display_name} isn't installed`
-                              }
                               onClick={() => {
                                 setProviderOverride(row.provider);
                                 setImporting(null);
@@ -1571,6 +1568,8 @@ export function OnboardingWizard({
                               <span className="text-[10px] text-muted">
                                 {ready ? `installed · ${row.version ?? ""}` : "not installed"}
                               </span>
+                              {/* WCAG 2.5.3: named by what it shows, then what it does. */}
+                              {ready && <span className="sr-only"> — create your first account</span>}
                             </button>
                             {!ready && row.install_url && (
                               <a

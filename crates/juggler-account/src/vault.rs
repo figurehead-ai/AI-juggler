@@ -240,7 +240,7 @@ pub fn seal_with_nonce(key: &VaultKey, nonce: &[u8; 24], plaintext: &[u8]) -> Ve
     let cipher = XChaCha20Poly1305::new((&key.0).into());
     let ciphertext = cipher
         .encrypt(
-            XNonce::from_slice(nonce),
+            &XNonce::from(*nonce),
             Payload {
                 msg: plaintext,
                 aad: AAD,
@@ -276,10 +276,11 @@ pub fn open(key: &VaultKey, container: &[u8]) -> Result<Vec<u8>, VaultError> {
     if container[5..13] != key.id() {
         return Err(VaultError::WrongKey);
     }
+    let nonce = XNonce::try_from(&container[13..HEADER_LEN]).map_err(|_| VaultError::Tampered)?;
     let cipher = XChaCha20Poly1305::new((&key.0).into());
     cipher
         .decrypt(
-            XNonce::from_slice(&container[13..HEADER_LEN]),
+            &nonce,
             Payload {
                 msg: &container[HEADER_LEN..],
                 aad: AAD,

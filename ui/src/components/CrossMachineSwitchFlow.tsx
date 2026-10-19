@@ -12,7 +12,7 @@
  * cancelled. Keyboard: radio groups with descriptions, Esc closes, Tab
  * stays in the dialog.
  */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type JSX } from "react";
 import {
   errorText,
   fleetSwitchCancel,
