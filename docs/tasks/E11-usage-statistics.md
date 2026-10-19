@@ -104,7 +104,7 @@
 **Research basis**: spec §3, §8.
 **Handover note**: The three option labels and their one-line explanations are part of the consent; change them only with a consent-version bump.
 
-### AJ-E1106 Guardrail tests and the public metrics document | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1103, AJ-E1104, AJ-E1105
+### AJ-E1106 Guardrail tests and the public metrics document | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E1103, AJ-E1104, AJ-E1105
 **Goal**: Prove every promise in tests, and publish exactly what is collected.
 **User story**: As a sceptical user or reviewer, I can read the full list of metrics and see a test for each promise.
 **Requirements**:
