@@ -21,9 +21,7 @@ use juggler_app::state::AppState;
 
 fn app_state(dir: &Path) -> Arc<AppState> {
     let mut registry = AdapterRegistry::new();
-    registry.register(Arc::new(ClaudeCodeAdapter::with_bin(
-        &dir.join("no-claude"),
-    )));
+    registry.register(Arc::new(ClaudeCodeAdapter::with_bin(dir.join("no-claude"))));
     Arc::new(AppState::init_with_registry(dir.join("app-data"), registry).unwrap())
 }
 
