@@ -85,6 +85,10 @@ pub struct AppState {
     pub link: crate::link::LinkManager,
     /// The optional Figurehead account (AJ-E1202): silent until linked.
     pub figurehead: crate::figurehead::FigureheadManager,
+    /// AJ-E808: installed Provider versions from the last discovery, so
+    /// a fidelity-register PASS recorded on other versions reads
+    /// UNVALIDATED (the upgrade resets it by itself).
+    pub provider_versions: Mutex<std::collections::HashMap<String, String>>,
 }
 
 impl AppState {
@@ -219,6 +223,7 @@ impl AppState {
             fleet: Mutex::new(None),
             link: crate::link::LinkManager::default(),
             figurehead: crate::figurehead::FigureheadManager::default(),
+            provider_versions: Mutex::new(std::collections::HashMap::new()),
             preview: Mutex::new(None),
             launch_facts,
             data_dir,

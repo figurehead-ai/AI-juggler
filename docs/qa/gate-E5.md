@@ -117,3 +117,16 @@ from candidates by machine scope today).
 - [ ] AJ-E511 DONE-EVIDENCED
 
 Prepared: 2026-10-13 (zcode-primary)
+
+## Sign-off
+
+Added by AJ-E807: a gate is signed here with the decision, the reviewer,
+the date and the commit it approves (`scripts/gate_packet.py signed`
+checks it). Until then this gate is open.
+
+| Field | Value |
+|---|---|
+| Decision | UNSIGNED |
+| Reviewer | |
+| Date | |
+| Commit | |

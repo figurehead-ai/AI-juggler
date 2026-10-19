@@ -74,3 +74,16 @@ evidence in PR #37) and its live sessions kept running throughout.
 - Desktop-class harness adapters (Claude.app on this machine is the Claude
   chat desktop app, not Claude Code — separate product; adapter research
   is its own milestone with a ToS check)
+
+## Sign-off
+
+Added by AJ-E807: a gate is signed here with the decision, the reviewer,
+the date and the commit it approves (`scripts/gate_packet.py signed`
+checks it). Until then this gate is open.
+
+| Field | Value |
+|---|---|
+| Decision | UNSIGNED |
+| Reviewer | |
+| Date | |
+| Commit | |

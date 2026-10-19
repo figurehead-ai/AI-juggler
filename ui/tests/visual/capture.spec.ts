@@ -3283,7 +3283,8 @@ for (const theme of THEMES) {
         .first()
         .click();
       await expect(page.getByTestId("switch-wizard")).toBeVisible();
-      await expect(page.getByTestId("switch-wizard")).toContainText("· beta");
+      // AJ-E808: the register's words for an unvalidated pair, verbatim.
+      await expect(page.getByTestId("switch-wizard")).toContainText("· Beta · Not yet validated");
       await page.screenshot({
         path: resolve(GALLERY, `33-beta/badge-in-situ-${vp.name}-${theme}.png`),
       });

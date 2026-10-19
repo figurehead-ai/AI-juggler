@@ -1,0 +1,18 @@
+{
+  "gate": "beta",
+  "title": "Gate — v0.1 beta exit",
+  "output": "docs/qa/gate-beta.md",
+  "scope": "Beta may be claimed only when every criterion is PASS on stored evidence (docs/qa/beta-exit.md). Until this gate is signed, the beta update channel does not move (release-channel.yml).",
+  "criteria": [
+    {"id": "B1", "criterion": "Fidelity register: same-Provider pairs PASS on every area; cross-Provider pairs PASS or FAIL with a user-facing drop list — from live runs on real binaries", "tasks": ["AJ-E210", "AJ-E808"], "evidence": ["docs/qa/evidence/AJ-E808/register.md", "docs/qa/gate-E2-validation.md"]},
+    {"id": "B2", "criterion": "Dogfood programme: ≥ 80 % unaided task completion; ≥ 80 % A→B→A continuity; median switch < 2 min", "tasks": ["AJ-E809"], "evidence": ["docs/qa/evidence/AJ-E809/manifest.md"]},
+    {"id": "B3", "criterion": "Cleanup safety: zero false cleanup kills across the dogfood programme", "tasks": ["AJ-E503", "AJ-E507", "AJ-E512", "AJ-E809"], "evidence": ["docs/qa/evidence/AJ-E503/manifest.md", "docs/qa/evidence/AJ-E507/manifest.md", "docs/qa/evidence/AJ-E512/manifest.md", "docs/qa/evidence/AJ-E809/manifest.md"]},
+    {"id": "B4", "criterion": "Accessibility: the a11y gate green on measured evidence — axe on every gallery state, keyboard-complete core flows, contrast, no colour-only signals; the per-release VoiceOver pass", "tasks": ["AJ-E804"], "evidence": ["docs/qa/evidence/AJ-E804/manifest.md", "docs/qa/evidence/AJ-E804/axe-summary.md"]},
+    {"id": "B5", "criterion": "Performance: every AJ-E805 budget met or waivered, on measured values, including the release app on the reference Mac", "tasks": ["AJ-E805"], "evidence": ["docs/qa/evidence/AJ-E805/manifest.md"]},
+    {"id": "B6", "criterion": "Fleet security review (STRIDE) passed and signed", "tasks": ["AJ-E710"], "evidence": ["docs/qa/evidence/AJ-E710/manifest.md", "docs/qa/gate-E7.md"]},
+    {"id": "B7", "criterion": "Visual regression gate green against approved baselines", "tasks": ["AJ-E803"], "evidence": ["docs/qa/evidence/AJ-E803/manifest.md"]},
+    {"id": "B8", "criterion": "Quality gates enforced in CI; no deselected check or re-threshold without a recorded decision (the flake ledger)", "tasks": ["AJ-E806"], "evidence": ["docs/qa/evidence/AJ-E806/manifest.md"]},
+    {"id": "B9", "criterion": "Signed, notarized release built by the release workflow, with the updater's tampered-artifact rejection shown", "tasks": ["AJ-E1010"], "evidence": ["docs/qa/evidence/AJ-E1010/manifest.md"]},
+    {"id": "B10", "criterion": "Gate packet complete: every criterion links resolving evidence; this gate signed with date, commit and reviewer", "tasks": ["AJ-E807"], "evidence": ["docs/qa/evidence/AJ-E807/manifest.md"]}
+  ]
+}

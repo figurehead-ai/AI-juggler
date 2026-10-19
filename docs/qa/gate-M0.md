@@ -53,3 +53,16 @@ Audit conformance: typed errors everywhere (`CoreError`, `AdapterError`, `Superv
 ## 5. Confirmation
 
 - Maintainer sign-off: **the maintainer — PENDING** (this gate requires explicit confirmation on issue #7 before M1 starts; per RUNBOOK the next milestone's issues are not created until then).
+
+## Sign-off
+
+Added by AJ-E807: a gate is signed here with the decision, the reviewer,
+the date and the commit it approves (`scripts/gate_packet.py signed`
+checks it). Until then this gate is open.
+
+| Field | Value |
+|---|---|
+| Decision | UNSIGNED |
+| Reviewer | |
+| Date | |
+| Commit | |

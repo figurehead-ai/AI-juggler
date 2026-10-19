@@ -16,6 +16,13 @@ for doc in docs/qa/gate-*.md docs/qa/beta-exit.md docs/qa/evidence/*/manifest.md
   done < <(grep -oE '\((docs/qa/evidence/[^)#]+)\)' "$doc" | tr -d '()')
 done
 
+# --- 1b) gate files: every link resolves relative to the file, and no
+#         criterion is PASS without a resolving evidence link (AJ-E807) --
+for doc in docs/qa/gate-*.md; do
+  [ -f "$doc" ] || continue
+  out="$(python3 scripts/gate_packet.py check "$doc")" || { echo "$out"; fail=1; }
+done
+
 # --- 2) secret scan over the evidence store -------------------------------
 patterns='(sk-[A-Za-z0-9]{16,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----|ghp_[A-Za-z0-9]{30,}|eyJhbGciOi[A-Za-z0-9._-]{40,})'
 while IFS= read -r hit; do

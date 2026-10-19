@@ -21,6 +21,10 @@ verify:
     just stats-events
     just polling-audit
 
+# AJ-E809: the weekly dogfood report from runs.csv (exit 1 until beta-exit is met).
+dogfood-report:
+    python3 scripts/dogfood_report.py
+
 # AJ-E805: the load proof on the reference Mac — SPEC budgets plus the
 # >10 % regression rule against ui/tests/visual/load-baseline.json;
 # writes docs/qa/evidence/AJ-E805/ui-load.json and the load captures.
@@ -66,6 +70,20 @@ lint:
 
 test:
     cargo test --workspace
+
+# AJ-E807: (re)build the beta gate packet from the manifests, then check
+# it; `gate-signed` exits 1 until the maintainer signs it.
+gate-packet:
+    python3 scripts/gate_packet.py build docs/qa/gates/beta.json
+    python3 scripts/gate_packet.py check docs/qa/gate-beta.md
+
+gate-signed:
+    python3 scripts/gate_packet.py signed docs/qa/gate-beta.md
+
+# AJ-E808: render the provider-pair fidelity register (a test fails on drift).
+fidelity-register:
+    mkdir -p docs/qa/evidence/AJ-E808
+    cargo run -q -p juggler-handover --example fidelity_register > docs/qa/evidence/AJ-E808/register.md
 
 # AJ-E210: regenerate the E2 validation gate report from the matrix.
 e2-gate:

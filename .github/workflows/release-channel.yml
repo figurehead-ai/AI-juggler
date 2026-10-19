@@ -26,6 +26,15 @@ jobs:
     name: beta-channel
     runs-on: ubuntu-latest
     steps:
+      # AJ-E807: beta is claimed only through a signed gate. A published
+      # release stays downloadable from its page (dogfood testers use
+      # that); the update feed every beta install reads waits for the
+      # maintainer's signature on docs/qa/gate-beta.md at that tag.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.inputs.tag || github.event.release.tag_name }}
+      - name: The beta gate is signed
+        run: python3 scripts/gate_packet.py signed docs/qa/gate-beta.md
       - name: Move the beta channel
         env:
           GH_TOKEN: ${{ github.token }}

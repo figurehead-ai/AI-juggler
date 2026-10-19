@@ -5052,6 +5052,7 @@ pub fn session_handover_impl(
 /// AJ-E205: the preflight verdict for one switch (rendered by the
 /// freeze dialog / door before anything executes).
 #[derive(Clone, PartialEq, Debug, serde::Serialize)]
+#[allow(clippy::struct_excessive_bools)] // wire DTO: each flag is its own fact the door renders
 pub struct PreflightInfo {
     /// Mechanism wire name (`native-resume|transplant|replay|pack`).
     pub mechanism: String,
@@ -5089,6 +5090,9 @@ pub struct PreflightInfo {
     /// AJ-E208: the source conversation's detected secrets (masked)
     /// — the per-item un-redact list.
     pub redaction_items: Vec<RedactionItemInfo>,
+    /// AJ-E808: the pair is validated (the same verdict the switch rows
+    /// and Settings › Beta show; strict on the installed versions).
+    pub validated: bool,
 }
 
 /// The carry-list grouped by disposition (AJ-E206; every name is a
@@ -5213,6 +5217,12 @@ pub fn switch_preflight_impl(
         );
         (policy, redaction_items_of(&source))
     };
+    // AJ-E808: the door shows the same validation verdict as the rows.
+    let validated = pair_validated_now(
+        state,
+        account_a.harness.as_str(),
+        account_b.harness.as_str(),
+    )?;
 
     Ok(PreflightInfo {
         mechanism: match report.mechanism {
@@ -5237,7 +5247,27 @@ pub fn switch_preflight_impl(
         carry,
         redaction,
         redaction_items,
+        validated,
     })
+}
+
+/// AJ-E808: whether `from → to` is validated right now — the recorded
+/// live cell, the fidelity register, and the installed versions (strict).
+fn pair_validated_now(state: &Arc<AppState>, from: &str, to: &str) -> AppResult<bool> {
+    let versions = installed_versions_for(state, from, to);
+    let installed = |provider: &str| versions.get(provider).cloned();
+    let cell = {
+        let storage = lock_storage_arc(state)?;
+        dogfood_cells_of(&storage)
+            .get(&dogfood_key(from, to))
+            .cloned()
+    };
+    Ok(juggler_handover::validation::pair_cell(from, to)
+        .map(|row| match cell {
+            Some(record) => juggler_handover::validation::with_dogfood(row, record),
+            None => row,
+        })
+        .is_some_and(|row| row.validated_for(&installed, true)))
 }
 
 /// Target quota gate from the E606/E610 engine (hard filter =
@@ -11566,6 +11596,9 @@ pub fn switch_targets_impl(
         .iter()
         .map(|row| (row.account.clone(), row))
         .collect();
+    // AJ-E808: any discovery the register needs runs before storage is
+    // held (it spawns the Providers' version probes).
+    warm_provider_versions(state);
     let storage = lock_storage_arc(state)?;
     let dogfood = dogfood_cells_of(&storage);
     let mut out = Vec::new();
@@ -11597,19 +11630,24 @@ pub fn switch_targets_impl(
                 Some(record) => juggler_handover::validation::with_dogfood(row, record.clone()),
                 None => row,
             });
+            let versions = installed_versions_for(
+                state,
+                context.source_provider.as_str(),
+                account.harness.as_str(),
+            );
+            let installed = |provider: &str| versions.get(provider).cloned();
             out.push(SwitchTargetInfo {
                 recipe_id: recipe.id.to_string(),
                 provider: account.harness.to_string(),
                 account_id: account.id.to_string(),
                 account_label: account.label.clone(),
-                badge: juggler_handover::validation::advertised_badge(
-                    context.source_provider.as_str(),
-                    account.harness.as_str(),
-                    cell,
+                badge: matrix_row.as_ref().map_or_else(
+                    || "F0 · Beta".to_owned(),
+                    |row| row.badge_for(&installed, true),
                 ),
                 validated: matrix_row
                     .as_ref()
-                    .is_some_and(juggler_handover::validation::PairCell::validated),
+                    .is_some_and(|row| row.validated_for(&installed, true)),
                 cross_provider: cross,
                 drops: carry.dropped.clone(),
                 score: row.score,
@@ -12231,8 +12269,12 @@ pub fn validation_matrix(
 ///
 /// Returns the typed [`AppError`] per the command docs.
 pub fn validation_matrix_impl(state: &Arc<AppState>) -> AppResult<Vec<ValidationCellInfo>> {
-    let storage = lock_storage_arc(state)?;
-    let recorded = dogfood_cells_of(&storage);
+    // Released before the rows are built: confirming a register PASS
+    // may run Provider discovery (subprocesses).
+    let recorded = {
+        let storage = lock_storage_arc(state)?;
+        dogfood_cells_of(&storage)
+    };
     Ok(juggler_handover::validation::validation_matrix()
         .into_iter()
         .map(|row| {
@@ -12240,6 +12282,8 @@ pub fn validation_matrix_impl(state: &Arc<AppState>) -> AppResult<Vec<Validation
                 Some(cell) => juggler_handover::validation::with_dogfood(row.clone(), cell.clone()),
                 None => row.clone(),
             };
+            let versions = installed_versions_for(state, &row.from, &row.to);
+            let installed = |provider: &str| versions.get(provider).cloned();
             ValidationCellInfo {
                 from: row.from.clone(),
                 to: row.to.clone(),
@@ -12251,8 +12295,8 @@ pub fn validation_matrix_impl(state: &Arc<AppState>) -> AppResult<Vec<Validation
                 .to_owned(),
                 researched_ceiling: row.researched_ceiling.as_str().to_owned(),
                 advertised: merged.advertised_ceiling().as_str().to_owned(),
-                badge: merged.badge(),
-                validated: merged.validated(),
+                badge: merged.badge_for(&installed, true),
+                validated: merged.validated_for(&installed, true),
                 mechanism_green: row.mechanism_green,
                 ci_green: row.ci_green,
                 dogfood: merged.dogfood.as_ref().map(|cell| DogfoodCellInfo {
@@ -12453,6 +12497,74 @@ pub fn providers_discover(
 ///
 /// Returns the typed [`AppError`] per the command docs.
 pub fn providers_discover_impl(state: &Arc<AppState>) -> AppResult<Vec<ProviderInstallInfo>> {
+    let rows = providers_discover_rows(state);
+    // AJ-E808: remember what is installed, for the register's reset.
+    if let Ok(mut versions) = state.provider_versions.lock() {
+        for row in &rows {
+            if let Some(version) = &row.version {
+                versions.insert(row.provider.clone(), version.clone());
+            }
+        }
+    }
+    Ok(rows)
+}
+
+/// AJ-E808: the installed versions the fidelity register needs to
+/// confirm a PASS for `from → to`. Discovery runs (once per launch)
+/// only when the register holds a decided cell for that pair — while
+/// every cell is UNVALIDATED there is nothing to confirm.
+fn installed_versions_for(
+    state: &Arc<AppState>,
+    from: &str,
+    to: &str,
+) -> std::collections::HashMap<String, String> {
+    let decided = juggler_handover::register::embedded()
+        .pair(from, to)
+        .is_some_and(|pair| {
+            pair.cells
+                .iter()
+                .any(|cell| cell.verdict != juggler_handover::register::Verdict::Unvalidated)
+        });
+    if !decided {
+        return std::collections::HashMap::new();
+    }
+    let cached = state
+        .provider_versions
+        .lock()
+        .map(|v| v.clone())
+        .unwrap_or_default();
+    if !cached.is_empty() {
+        return cached;
+    }
+    let _ = providers_discover_impl(state);
+    state
+        .provider_versions
+        .lock()
+        .map(|v| v.clone())
+        .unwrap_or_default()
+}
+
+/// Runs discovery once per launch if any register cell is decided and
+/// nothing is cached yet, so later lookups are cache hits.
+fn warm_provider_versions(state: &Arc<AppState>) {
+    let decided = juggler_handover::register::embedded()
+        .pairs
+        .iter()
+        .any(|pair| {
+            pair.cells
+                .iter()
+                .any(|cell| cell.verdict != juggler_handover::register::Verdict::Unvalidated)
+        });
+    let empty = state
+        .provider_versions
+        .lock()
+        .map_or(true, |v| v.is_empty());
+    if decided && empty {
+        let _ = providers_discover_impl(state);
+    }
+}
+
+fn providers_discover_rows(state: &Arc<AppState>) -> Vec<ProviderInstallInfo> {
     // Tauri dispatches commands off the UI thread; the per-adapter
     // probes additionally run on their OWN threads (parallel, one
     // subprocess each — the ≤800 ms p95 budget for 3 Providers).
@@ -12485,7 +12597,7 @@ pub fn providers_discover_impl(state: &Arc<AppState>) -> AppResult<Vec<ProviderI
                     .filter_map(|handle| handle.join().ok())
                     .collect()
             });
-        Ok(reports
+        reports
             .into_iter()
             .map(|report| {
                 let (display_name, install_url) = provider_display(report.adapter.as_str());
@@ -12540,7 +12652,7 @@ pub fn providers_discover_impl(state: &Arc<AppState>) -> AppResult<Vec<ProviderI
                     single_instance_note,
                 }
             })
-            .collect())
+            .collect()
     }
 }
 

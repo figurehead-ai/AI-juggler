@@ -2008,6 +2008,8 @@ export interface PreflightInfoData {
   redaction: RedactionInfoData;
   /** AJ-E208: detected secrets (masked) — the per-item un-redact list. */
   redaction_items: RedactionItemData[];
+  /** AJ-E808: validated per the fidelity register (absent = not validated). */
+  validated?: boolean;
 }
 
 /** AJ-E208: the resolved redaction policy for one Provider. */
