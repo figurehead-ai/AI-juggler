@@ -11,6 +11,9 @@ const DAY: i64 = DAY_MS;
 /// 2026-W42 runs Monday 2026-10-12 to Monday 2026-10-19 (UTC).
 const W42_START: i64 = 1_791_763_200_000;
 const W42_END: i64 = W42_START + 7 * DAY;
+// Weeks are assembled at the moment they close: a report's upload time
+// is then 0–144 h later, never already due (a tick an hour later would
+// find it due in ~0.7 % of runs — AJ-E806 ledger).
 
 #[derive(Default)]
 struct Recording {
@@ -181,7 +184,7 @@ fn a_closed_week_is_assembled_once_into_pending() {
     let f = Fixture::new();
     // Still open: nothing happens.
     assert!(f.tick(W42_END - 1).assembled.is_empty());
-    let out = f.tick(W42_END + HOUR);
+    let out = f.tick(W42_END);
     assert_eq!(out.assembled.len(), 1);
     let Placement::Pending { upload_at_ms } = out.assembled[0].1 else {
         panic!("{out:?}")
@@ -207,7 +210,7 @@ fn a_closed_week_is_assembled_once_into_pending() {
     assert_eq!(switch.h, Some(vec![0, 0, 3, 0]));
     // The week's rows are gone, so it is never assembled twice.
     assert!(f.store().counters("2026-W42").unwrap().is_empty());
-    assert!(f.tick(W42_END + 2 * HOUR).assembled.is_empty());
+    assert!(f.tick(W42_END + 1).assembled.is_empty());
     assert_eq!(f.net.requests.borrow().len(), 0, "nothing is due yet");
 }
 
@@ -217,7 +220,7 @@ fn weeks_without_full_consent_or_in_local_are_skipped() {
     f.store()
         .set_meta("share_since", &(W42_START + DAY).to_string())
         .unwrap();
-    let out = f.tick(W42_END + HOUR);
+    let out = f.tick(W42_END);
     assert_eq!(
         out.assembled[0].1,
         Placement::Skipped("partial_consent".into())
@@ -226,7 +229,7 @@ fn weeks_without_full_consent_or_in_local_are_skipped() {
 
     let g = Fixture::new();
     let local = effective(Mode::Local, &Environment::default());
-    let out = tick(&g.dir, &g.ctx(local, W42_END + HOUR)).unwrap();
+    let out = tick(&g.dir, &g.ctx(local, W42_END)).unwrap();
     assert_eq!(out.assembled[0].1, Placement::Skipped("local".into()));
     assert_eq!(g.net.requests.borrow().len(), 0);
     // Local mode clears the consent mark: sharing again starts a new one.
@@ -243,7 +246,7 @@ fn a_week_assembled_too_late_expires() {
 #[test]
 fn a_due_report_uploads_once_gzipped_and_moves_to_sent() {
     let f = Fixture::new();
-    f.tick(W42_END + HOUR);
+    f.tick(W42_END);
     let due = f.upload_at("2026-W42") + 1;
     f.net.respond(200, CONFIG_ON);
     f.net.respond(202, r#"{"ok":true}"#);
@@ -308,7 +311,7 @@ fn several_weeks_go_oldest_first_one_per_tick() {
 #[test]
 fn retry_after_is_honoured_and_capped() {
     let f = Fixture::new();
-    f.tick(W42_END + HOUR);
+    f.tick(W42_END);
     let due = f.upload_at("2026-W42") + 1;
     f.net.respond(200, CONFIG_ON);
     f.net.respond_retry_after(503, "86400");
@@ -337,7 +340,7 @@ fn retry_after_is_honoured_and_capped() {
 #[test]
 fn network_errors_back_off_and_give_up_after_six_attempts() {
     let f = Fixture::new();
-    f.tick(W42_END + HOUR);
+    f.tick(W42_END);
     let mut now = f.upload_at("2026-W42") + 1;
     // A config refresh is due a day after the last fetch.
     let script = |now: i64| {
@@ -375,7 +378,7 @@ fn network_errors_back_off_and_give_up_after_six_attempts() {
 fn rejected_reports_are_not_retried() {
     for status in [400, 404, 413] {
         let f = Fixture::new();
-        f.tick(W42_END + HOUR);
+        f.tick(W42_END);
         let due = f.upload_at("2026-W42") + 1;
         f.net.respond(200, CONFIG_ON);
         f.net
@@ -392,7 +395,7 @@ fn rejected_reports_are_not_retried() {
 #[test]
 fn expiry_ends_retries() {
     let f = Fixture::new();
-    f.tick(W42_END + HOUR);
+    f.tick(W42_END);
     let due = f.upload_at("2026-W42") + 1;
     f.net.respond(200, CONFIG_ON);
     f.net.respond_retry_after(503, "86400");
@@ -412,7 +415,7 @@ fn the_config_can_switch_off_narrow_and_sample() {
     ];
     for (config, reason) in cases {
         let f = Fixture::new();
-        f.tick(W42_END + HOUR);
+        f.tick(W42_END);
         f.net.respond(200, config);
         let out = f.tick(f.upload_at("2026-W42") + 1);
         assert_eq!(
@@ -435,7 +438,7 @@ fn the_sample_rate_applied_is_in_the_report() {
     f.store()
         .set_meta("salt", &crate::store::hex(&salt))
         .unwrap();
-    f.tick(W42_END + HOUR);
+    f.tick(W42_END);
     f.net.respond(
         200,
         &CONFIG_ON.replace("\"sample_rate\":1.0", "\"sample_rate\":0.5"),
@@ -449,7 +452,7 @@ fn the_sample_rate_applied_is_in_the_report() {
 #[test]
 fn no_usable_config_means_no_upload_yet() {
     let f = Fixture::new();
-    f.tick(W42_END + HOUR);
+    f.tick(W42_END);
     let due = f.upload_at("2026-W42") + 1;
     f.net.fail();
     assert!(f.tick(due).uploads.is_empty());
@@ -472,7 +475,7 @@ fn no_usable_config_means_no_upload_yet() {
 #[test]
 fn a_puzzle_is_solved_and_a_raised_one_refetches_the_config() {
     let f = Fixture::new();
-    f.tick(W42_END + HOUR);
+    f.tick(W42_END);
     let due = f.upload_at("2026-W42") + 1;
     f.net.respond(200, CONFIG_ON);
     f.net.respond(403, r#"{"error":"pow","bits":8}"#);
@@ -498,7 +501,7 @@ fn a_puzzle_is_solved_and_a_raised_one_refetches_the_config() {
 #[test]
 fn a_puzzle_above_28_bits_postpones_a_day() {
     let f = Fixture::new();
-    f.tick(W42_END + HOUR);
+    f.tick(W42_END);
     let due = f.upload_at("2026-W42") + 1;
     f.net
         .respond(200, &CONFIG_ON.replace("\"pow_bits\":0", "\"pow_bits\":29"));
@@ -516,7 +519,7 @@ fn a_puzzle_above_28_bits_postpones_a_day() {
 #[test]
 fn leaving_share_skips_pending_reports() {
     let f = Fixture::new();
-    f.tick(W42_END + HOUR);
+    f.tick(W42_END);
     let local = effective(Mode::Local, &Environment::default());
     let out = tick(&f.dir, &f.ctx(local, W42_END + 2 * HOUR)).unwrap();
     assert_eq!(
@@ -548,7 +551,7 @@ fn ci_debug_and_unanswered_consent_never_send() {
         ("consent", share(), false),
     ] {
         let f = Fixture::new();
-        let mut ctx = f.ctx(effective_mode, W42_END + HOUR);
+        let mut ctx = f.ctx(effective_mode, W42_END);
         ctx.consent_current = consent;
         tick(&f.dir, &ctx).unwrap();
         ctx.now_ms = W42_END + UPLOAD_SPREAD_MS + HOUR;
@@ -601,7 +604,7 @@ fn off_does_nothing_and_creates_nothing() {
         envelope: &envelope,
         endpoints: Some(&endpoints),
         transport: &net,
-        now_ms: W42_END + HOUR,
+        now_ms: W42_END,
         gauges: &no_gauges,
         pow_budget: crate::pow::BUDGET,
     };
@@ -732,7 +735,7 @@ fn assembly_is_fast() {
 #[test]
 fn reports_lists_every_file_with_its_state() {
     let f = Fixture::new();
-    f.tick(W42_END + HOUR);
+    f.tick(W42_END);
     let listed = reports(&f.dir).unwrap();
     assert_eq!(listed.len(), 1);
     assert_eq!(listed[0].status, "pending");
@@ -749,7 +752,7 @@ fn old_sent_and_skipped_reports_are_pruned() {
     f.store()
         .set_meta("share_since", &(W42_START + DAY).to_string())
         .unwrap();
-    f.tick(W42_END + HOUR);
+    f.tick(W42_END);
     assert!(f.dir.join("skipped/2026-W42.json").exists());
     f.tick(W42_START + KEEP_MS + DAY);
     assert!(!f.dir.join("skipped/2026-W42.json").exists());
@@ -762,7 +765,7 @@ fn stats_events_record_into_weeks_the_cycle_closes() {
     let stats = crate::Stats::start(&f.dir, share()).unwrap();
     stats.record_at(W42_START + HOUR, StatEvent::StatsTruncated, 5);
     stats.flush();
-    let out = f.tick(W42_END + HOUR);
+    let out = f.tick(W42_END);
     assert_eq!(out.assembled.len(), 1);
     let report = report_of(&f.dir.join("pending/2026-W42.json"));
     let truncated = report
