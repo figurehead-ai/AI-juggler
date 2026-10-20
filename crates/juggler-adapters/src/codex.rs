@@ -23,7 +23,7 @@
 
 use std::path::{Path, PathBuf};
 
-use juggler_adapter::environment::{AliasHint, DiscoveredInstall, ImportOutcome, LoginProbe};
+use juggler_adapter::environment::{DiscoveredInstall, ImportOutcome, LoginProbe};
 use juggler_adapter::{
     AdapterError, Capabilities, DiscoveryReport, EnvMap, HarnessAdapter, InstallStatus, LaunchMode,
     LaunchSpec, SessionWatcher, VerificationStatus,
@@ -150,6 +150,31 @@ impl CodexAdapter {
             AdapterError::InvalidLaunch("codex binary not found; run discovery for details".into())
         })
     }
+}
+
+/// A native session id is a UUID or a name; one starting with "-" would
+/// be read as an option (`--last` resumes something else entirely).
+///
+/// # Errors
+///
+/// [`AdapterError::InvalidLaunch`] for an id that starts with "-".
+pub fn refuse_option_like(session_id: &str) -> Result<(), AdapterError> {
+    if session_id.is_empty() || session_id.starts_with('-') {
+        return Err(AdapterError::InvalidLaunch(
+            "that session id can't be resumed".into(),
+        ));
+    }
+    Ok(())
+}
+
+/// `CODEX_HOME=` assignments in the shell rc files under `home`.
+#[must_use]
+pub fn codex_aliases(home: &Path) -> Vec<juggler_adapter::environment::AliasHint> {
+    let (hints, _) = crate::scan_signals::scan_rc_assignments(home);
+    hints
+        .into_iter()
+        .filter(|hint| hint.variable == ENV_CODEX_HOME)
+        .collect()
 }
 
 /// `codex --version` prints `codex-cli 0.163.0`; older builds printed the
@@ -367,6 +392,9 @@ impl HarnessAdapter for CodexAdapter {
         // Launch-settings overrides first, isolation LAST (AJ-E309).
         let mut env: EnvMap = profile.settings_overlay.env.clone();
         env.extend(home_env(&account.state_dir));
+        if let LaunchMode::Resume { session_id, .. } = mode {
+            refuse_option_like(session_id)?;
+        }
         let mut args: Vec<String> = Vec::new();
         let needs_pty = !matches!(mode, LaunchMode::Headless { .. });
         match mode {
@@ -389,15 +417,18 @@ impl HarnessAdapter for CodexAdapter {
         if let Some(model) = &profile.settings_overlay.model {
             args.extend(["--model".into(), model.clone()]);
         }
-        // The prompt goes last, after every option.
+        // The prompt goes last, after `--`: user text that starts with
+        // "-" (a markdown bullet, or a flag) is never read as an option
+        // (verified on 0.163.0: `codex -- "- fix X"` parses, without `--`
+        // it is an "unexpected argument").
         match mode {
             LaunchMode::Headless { prompt } | LaunchMode::Primed { prompt } => {
-                args.push(prompt.clone());
+                args.extend(["--".into(), prompt.clone()]);
             }
             LaunchMode::Resume {
                 delta_prompt: Some(delta),
                 ..
-            } => args.push(delta.clone()),
+            } => args.extend(["--".into(), delta.clone()]),
             LaunchMode::Resume { .. } | LaunchMode::Interactive => {}
         }
         Ok(LaunchSpec {
@@ -440,18 +471,6 @@ impl HarnessAdapter for CodexAdapter {
         )
     }
 
-    /// AJ-E302 S5: rc assignments of `CODEX_HOME` only.
-    fn scan_shell_aliases(&self) -> Vec<AliasHint> {
-        let Some(home) = home_dir() else {
-            return Vec::new();
-        };
-        let (hints, _) = crate::scan_signals::scan_rc_assignments(&home);
-        hints
-            .into_iter()
-            .filter(|hint| hint.variable == ENV_CODEX_HOME)
-            .collect()
-    }
-
     fn import_account(&self, source: &Path, dest: &Path) -> Result<ImportOutcome, AdapterError> {
         crate::codex_environment::import_codex_home(source, dest, &scan_probe)
     }
@@ -473,6 +492,19 @@ impl HarnessAdapter for CodexAdapter {
 
     fn isolation_env_keys(&self) -> &'static [&'static str] {
         &[ENV_CODEX_HOME, ENV_SQLITE_HOME, ENV_BIN_OVERRIDE]
+    }
+
+    /// Both the home and the SQLite home point at the Account's folder —
+    /// the snippet sets both, so an exported `CODEX_SQLITE_HOME` never
+    /// joins two accounts.
+    fn pinned_env_keys(&self) -> &'static [&'static str] {
+        &[ENV_CODEX_HOME, ENV_SQLITE_HOME]
+    }
+
+    /// AJ-E302 S5: rc assignments of `CODEX_HOME` only (`CLAUDE_CONFIG_DIR`
+    /// belongs to the Claude adapter).
+    fn scan_shell_aliases(&self) -> Vec<juggler_adapter::environment::AliasHint> {
+        crate::claude_code::home_dir().map_or_else(Vec::new, |home| codex_aliases(&home))
     }
 
     fn shell_command(&self) -> Option<&'static str> {

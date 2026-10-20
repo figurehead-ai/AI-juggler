@@ -39,17 +39,33 @@ reviewer claude-opus.
 |---|---|---|
 | Req.1 discovery, `codex-cli X.Y.Z` parsing, drift note | `codex_adapter::version_parsing_takes_the_number_after_the_name`, `discover_verified_and_drifted_versions`, `discover_missing_binary_is_not_found` | PASS |
 | Req.2 the home is created 0700 with the `codex` marker and nothing else | `prepare_account_creates_the_codex_home_codex_requires`, `two_accounts_never_share_a_home` | PASS |
-| Req.3 `CODEX_HOME` and `CODEX_SQLITE_HOME` pinned after overrides | `launch_specs_per_mode` (an override of both is ignored) | PASS |
-| Req.4 argv per mode, model flag, `--no-daemon` | `launch_specs_per_mode`, `model_override_rides_the_command_line`; real-binary parse above | PASS |
+| Req.3 `CODEX_HOME` and `CODEX_SQLITE_HOME` pinned after overrides — in launches, in the Expert snippet (`HarnessAdapter::pinned_env_keys`, both keys) and in the isolation row (both checked) | `launch_specs_per_mode` (an override of both is ignored), `isolation_keys_and_snippet`; app `codex_provider` (snippet and row name both) | PASS |
+| Req.4 argv per mode, model flag, `--no-daemon`; user text after `--` (a prompt or delta starting with "-" stays text); a resume id starting with "-" is refused (Claude too) | `launch_specs_per_mode`, `model_override_rides_the_command_line`, Claude `a_resume_id_that_looks_like_an_option_is_refused`; real-binary parse above and below | PASS |
 | Req.5 sign-in state through `HarnessAdapter::login_state`, field names only, `auth_mode` first, damaged = unknown, Keychain item naming | `login_state_reads_field_shape_only`, `keychain_account_matches_codex_naming`; Claude's suite unchanged (`claude_code_adapter`) | PASS |
 | Req.6 vendor `codex login` in a PTY; snippet `CODEX_HOME='…' codex --no-daemon` | `login_spec_runs_the_vendor_flow_in_the_isolated_home`, `isolation_keys_and_snippet` | PASS |
-| Req.7 registry and `providers_list` include Codex; isolation check names `CODEX_HOME` and passes; `CODEX_HOME` aliases are Codex candidates; Keychain-bound inference uses `auth.json` | `juggler-app` `codex_provider` (3 tests) | PASS |
+| Req.7 registry and `providers_list` include Codex; isolation check passes on Codex's pinned keys; `CODEX_HOME` aliases found in the shell files become Codex candidates; Keychain-bound inference uses `auth.json` | `juggler-app` `codex_provider` (3 tests); aliases through a real `.zshrc` in a temp home: `codex_adapter::codex_home_aliases_come_from_the_shell_files`, `codex_provider::a_codex_shell_alias_becomes_a_codex_candidate` | PASS |
 | Req.8 First run and Add account offer Codex | UI change pending (coordinated with the D-25 screens work) | UNPROVEN |
 
 Commands: `cargo test -p juggler-adapters --test codex_adapter` (11
 passed), `cargo test -p juggler-adapters --test claude_code_adapter` (8
 passed), `cargo test -p juggler-app --test codex_provider` (3 passed);
 the full gate is `just verify` on the PR.
+
+## Correction (review, 2026-10-20)
+
+The first version of this manifest marked Req.7 PASS while
+`CodexAdapter` had no `scan_shell_aliases` — the alias test built its
+`AliasHint` by hand, so a `CODEX_HOME=` line in `.zshrc` was never found
+in the real app. The adapter now scans the rc files (filtered to
+`CODEX_HOME`) and both tests go through a real rc file. The same review
+found the snippet pinned only `CODEX_HOME` (now both keys) and user text
+reaching argv without `--` (now after `--`; `codex --no-daemon "- fix X"`
+fails with "unexpected argument" on 0.163.0, `codex --no-daemon -- "- fix
+X"` parses — checked with a throwaway `CODEX_HOME`, no credentials; the
+`exec` form also parsed and then tried to connect without credentials,
+refused with 401). Claude prompts are unchanged: whether the Claude CLI
+honours `--` was not verified (running it could reach a real sign-in), so
+only its resume-id check was added.
 
 ## Not claimed
 

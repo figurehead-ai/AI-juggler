@@ -60,6 +60,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A message to Codex that starts with "-" (a list item, say) is passed as
+  text, never read as an option; a session id that looks like an option
+  is refused instead of resuming something else (Codex and Claude Code).
+  The Expert-setup line for a Codex account now pins its SQLite folder
+  too, and First run finds a `CODEX_HOME=` line in your shell files.
+
 - Session rows are readable at the WCAG contrast minimum in both themes:
   their second line and time use the stronger grey, and ended sessions
   are shown by a quieter title instead of being faded.
