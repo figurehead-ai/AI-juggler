@@ -23,3 +23,16 @@
 
 ## Earlier: baselines rendered on linux/arm64, compared on linux/amd64
   41 passed (1.8m)
+
+# 2026-10-20: wider coverage (pinned container mcr.microsoft.com/playwright:v1.64.1-noble, linux/amd64)
+# New: tool, account and project views, Add account, the limit dialog, New session, first run, the legend (64 baselines; 152 in all)
+## --update
+  137 passed (7.0m)
+## Clean tree, run 1
+  137 passed (6.4m)
+## Clean tree, run 2
+  137 passed (7.2m)
+## Self-test (every button shifted 2 px)
+  128 failed
+  9 passed (12.5m)   # the 8 legend cells (no buttons) and "status is never colour-only"
+  differing pixels per failing cell: 1,544 – 15,584
