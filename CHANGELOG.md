@@ -109,6 +109,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the model each turn ran, tokens, compaction and errors come from
   Codex's own session files, in both of its history formats. The
   account's identity check uses Codex's account id (never a token).
+- Switching with Codex, in beta (AJ-E1304). Between two Codex accounts
+  the session's file is copied into the other account and resumed
+  there — the original is never changed, and a session that already
+  exists there gets a new id instead of overwriting. Between Claude Code
+  and Codex the conversation is replayed into a new session on the other
+  side (with secrets handled the way you chose — a replay waits until
+  you have chosen). Every Codex switch is labelled Beta: none has been
+  checked on real accounts yet.
 - Three update channels (decision D-20): **Nightly** (built from the latest
   code every day), **Beta** and **Stable** (each promoted with the
   maintainer's approval). Choose Stable or Beta in Settings › About &

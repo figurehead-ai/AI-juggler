@@ -811,12 +811,27 @@ fn fork_original(path: &Path) -> Result<(String, TranscriptRef), HandoverRejecti
     );
     let original = std::fs::read(path)
         .map_err(|_| refuse("original_gone", "The original couldn't be read."))?;
-    let target = path.with_file_name(format!("{fork}.jsonl"));
-    std::fs::write(
-        &target,
-        juggler_adapter::handover::fork_session_id(&original, &fork),
-    )
-    .map_err(|_| refuse("internal", "Couldn't write the copy."))?;
+    let name = path
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    // AJ-E1304: a Codex rollout carries its thread id in its name and in
+    // its lines; a Claude transcript is `<id>.jsonl` with `sessionId`.
+    let codex_thread = (juggler_adapters::transcript::detect_format(&original)
+        == juggler_adapters::transcript::TranscriptFormat::CodexRollout)
+        .then(|| juggler_adapters::codex_transcript::rollout_thread_id(&original, &name))
+        .flatten();
+    let (target, bytes) = match codex_thread {
+        Some(thread) => (
+            path.with_file_name(name.replace(&thread, &fork)),
+            juggler_adapters::codex_handover::fork_rollout(&original, &thread, &fork),
+        ),
+        None => (
+            path.with_file_name(format!("{fork}.jsonl")),
+            juggler_adapter::handover::fork_session_id(&original, &fork),
+        ),
+    };
+    std::fs::write(&target, bytes).map_err(|_| refuse("internal", "Couldn't write the copy."))?;
     Ok((
         fork.clone(),
         TranscriptRef {
