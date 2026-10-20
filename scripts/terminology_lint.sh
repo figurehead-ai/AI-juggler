@@ -41,22 +41,38 @@ TASKCODE='(\bAJ-E[0-9]+|\bE[0-9]+\+|\(E[0-9]+\)|\bE[0-9]+\b|\bD-[0-9]{1,2}\b)'
 COMMENT_LINE='^[0-9]+:\s*(//|\*|/\*|\{/\*)'
 
 # String literals ("…", '…', `…`) that carry a code. A tokenizer, not a
-# grep: it skips // and /* */ comments (so `f("a"); // AJ-E1: "b"` is
-# clean), reads each literal whole, leaves apostrophes in words alone,
-# and ignores attributes nobody reads (data-testid, key, id, className…).
+# grep, over the whole file: it skips // and /* */ comments (so
+# `f("a"); // AJ-E1: "b"` is clean) and regex literals (so a `"` inside
+# /…/ opens no string), reads each literal whole (a template literal may
+# span lines), leaves apostrophes in words alone, and ignores attributes
+# nobody reads (data-testid, key, id, className…).
 string_codes() { # $1=file
   while IFS= read -r hit; do
     [ -z "${hit:-}" ] && continue
     echo "TERMINOLOGY: $1:$hit — task code in a user-facing string (say it in plain words)"
     fail=1
-  done < <(perl -ne '
-    next if /^\s*(\/\/|\*|\/\*|\{\/\*)/;
-    my $line = $_;
-    while ($line =~ m{(/\*.*?\*/|//.*$)|(?:\b([\w-]+)=)?("(?:[^"\\\n]|\\.)*"|(?<![A-Za-z])\x27(?:[^\x27\\\n]|\\.)*\x27(?![A-Za-z])|`(?:[^`\\]|\\.)*`)}g) {
-      next if defined $1;
-      my ($attr, $lit) = ($2 // "", $3);
+  done < <(perl -0777 -ne '
+    my $src = $_;
+    my @lines = split /\n/, $src, -1;
+    my %seen;
+    while ($src =~ m{
+        (/\*.*?\*/ | //[^\n]*)                                    # 1: comment
+      | ((?:(?<=[(,=:\[!&|?{};\n])|(?<=return)|\A)[ \t]*
+          /(?![/*>])(?:[^/\\\n\[]|\\.|\[(?:[^\]\\\n]|\\.)*\])+/[a-z]*)  # 2: regex literal
+      | (?:\b([\w-]+)=)?                                          # 3: attribute
+        ( "(?:[^"\\\n]|\\.)*"
+        | (?<![A-Za-z])\x27(?:[^\x27\\\n]|\\.)*\x27(?![A-Za-z])
+        | `(?:[^`\\]|\\.)*` )                                     # 4: string
+      }gsx) {
+      next if defined $1 || defined $2;
+      my ($attr, $lit, $at) = ($3 // "", $4, $-[4]);
       next if $attr =~ /^(data-[\w-]+|key|id|className|htmlFor|role|type|name|href|src|ref|testId)$/;
-      if ($lit =~ /\bAJ-E\d+|\bE\d+\+|\(E\d+\)|\bE\d+\b|\bD-\d{1,2}\b/) { print "$.:$_"; last; }
+      next unless $lit =~ /\bAJ-E\d+|\bE\d+\+|\(E\d+\)|\bE\d+\b|\bD-\d{1,2}\b/;
+      # The line the code itself is on (a template literal may start earlier).
+      my $off = $at + $-[0] if $lit =~ /\bAJ-E\d+|\bE\d+\+|\(E\d+\)|\bE\d+\b|\bD-\d{1,2}\b/;
+      my $ln = 1 + (substr($src, 0, $off) =~ tr/\n//);
+      next if $seen{$ln}++;
+      print "$ln:$lines[$ln-1]\n";
     }
   ' "$1" 2>/dev/null || true)
 }
@@ -132,9 +148,18 @@ BAD
 GOOD
   cat > "$dir/bad.ts" <<'BAD'
 export const reason = "arrives with AJ-E606";
+export const msg = `first line
+  arrives with E2`;
+const quoted = /"(.*)"/; const later = "lands with E2";
+const half = text.replace(/"/g, ""); const why = "see D-7";
 BAD
   cat > "$dir/good.ts" <<'GOOD'
 export const label = "Not measured yet"; // AJ-E1025: "plain words"
+const ratio = a / b; const ok = "fine";
+/**
+ * AJ-E413 "a doc comment may quote"
+ */
+const t = `fine ${x} words`;
 GOOD
   hits="$(fail=0; jsx_checks "$dir/bad.tsx"; true)"
   # Every line of bad.tsx must be flagged (by one rule or more).
@@ -142,7 +167,9 @@ GOOD
     echo "terminology-lint selftest: expected all 16 lines of bad.tsx flagged, got:"; printf '%s\n' "$hits"; rm -rf "$dir"; exit 2
   fi
   hits="$(fail=0; string_codes "$dir/bad.ts"; string_codes "$dir/good.ts"; true)"
-  if [ "$(printf '%s\n' "$hits" | grep -c 'bad\.ts:1:')" -ne 1 ] || printf '%s\n' "$hits" | grep -q 'good\.ts'; then
+  # bad.ts: the code on line 3 sits in a template literal opened on line 2;
+  # lines 4 and 5 follow a regex literal holding a quote.
+  if [ "$(printf '%s\n' "$hits" | grep -oE 'bad\.ts:[0-9]+:' | sort -u | tr -d '\n')" != "bad.ts:1:bad.ts:3:bad.ts:4:bad.ts:5:" ] || printf '%s\n' "$hits" | grep -q 'good\.ts'; then
     echo "terminology-lint selftest: .ts strings — expected bad.ts flagged and good.ts clean, got:"; printf '%s\n' "$hits"; rm -rf "$dir"; exit 2
   fi
   hits="$(fail=0; jsx_checks "$dir/good.tsx"; true)"

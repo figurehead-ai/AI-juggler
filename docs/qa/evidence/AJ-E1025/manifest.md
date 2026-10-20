@@ -81,8 +81,9 @@ in the inspector views; no task codes on screen, D-25). Status:
 - Raw tool ids outside the inspector (the go-to palette, the morning
   summary, the remote tabs, Fleet, a rail row's details): same fix, other
   screens; follow-up.
-- `primitives.tsx` ("Quota: no data" on an empty quota bar, the "MEAS" tag)
-  and `FirstRun.tsx` wait for #76.
+- `primitives.tsx`'s "MEAS"/"COMP" tier tags (they're the legend's
+  abbreviations, not placeholders). "Quota: no data" is done (review
+  round); the unused `QuotaRing`, the last "No data", is removed.
 
 ## Review fixes (2026-10-20, #80 review)
 
@@ -106,3 +107,8 @@ in the inspector views; no task codes on screen, D-25). Status:
 - Gates on the head with main merged in (#76, #61, #77): vitest 490/490;
   Playwright 836/836; a11y gate 836 states, 0 critical/serious/moderate/
   minor; visual gate (compare) 73/73, no baseline changes.
+- Follow-up commit (approved review's nits): the unused `QuotaRing` (its
+  "No data") is deleted. The lint's string tokenizer reads the whole file,
+  so a code in a multi-line template literal is caught, and it skips regex
+  literals, so a `"` inside `/…/` no longer hides the next string. Both
+  cases are in the `.ts` fixtures; the previous tokenizer fails them.
