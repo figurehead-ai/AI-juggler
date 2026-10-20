@@ -173,6 +173,7 @@ mod tests {
             import_source_path: None,
             import_origin: None,
             imported_at: None,
+            in_place: false,
         };
         let profile = juggler_core::model::Profile {
             id: juggler_core::model::ProfileId::new("p"),

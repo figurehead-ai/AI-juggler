@@ -32,6 +32,7 @@ fn state_with_account(dir: &Path) -> Arc<AppState> {
                 import_source_path: None,
                 import_origin: None,
                 imported_at: None,
+                in_place: false,
             })
             .unwrap();
     }

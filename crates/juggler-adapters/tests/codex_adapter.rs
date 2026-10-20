@@ -31,6 +31,7 @@ fn account(state_dir: &Path) -> juggler_core::model::Account {
         import_source_path: None,
         import_origin: None,
         imported_at: None,
+        in_place: false,
     }
 }
 

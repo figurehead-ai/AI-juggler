@@ -10,6 +10,7 @@ import { EnvOverlayEditor } from "../components/EnvOverlayEditor";
 import { AccountRunway, runwayLines } from "../components/AccountRunway";
 import { providerDisplayName } from "../lib/providers";
 import {
+  accountUseOriginal,
   accountsList,
   createProfile,
   deleteProfile,
@@ -288,6 +289,7 @@ function AccountCard({
   onInspect?: () => void;
 }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [useOriginal, setUseOriginal] = useState(false);
   const [envFor, setEnvFor] = useState<string | null>(null);
   const onToggleSettings = () => setSettingsOpen((v) => !v);
   const loggedIn = signedIn(account.login_state);
@@ -301,7 +303,23 @@ function AccountCard({
             <span className="truncate text-sm font-semibold">{account.label}</span>
             {account.plan && <Chip tone="accent">{account.plan}</Chip>}
           </div>
-          <span className="text-[11px] text-muted">{providerDisplayName(account.provider)}</span>
+          <div className="flex min-w-0 items-center gap-1.5 text-[11px]">
+            <span className="truncate text-muted" title={account.import_source_path ?? undefined} data-testid="account-placement">
+              {providerDisplayName(account.provider)}
+              {placementWords(account) && ` · ${placementWords(account)}`}
+            </span>
+            {/* ADR-0018: a copy can switch to the folder it came from. */}
+            {account.import_source_path && !account.in_place && account.provider === "claude-code" && (
+              <button
+                type="button"
+                className="shrink-0 text-accent-hi hover:underline"
+                onClick={() => setUseOriginal(true)}
+                data-testid="account-use-original"
+              >
+                Use the original instead
+              </button>
+            )}
+          </div>
         </div>
         <div className="ml-auto flex items-center gap-2">
           {renewalRowVisible(renewalLabel(account.renewal_date, now)) && (
@@ -426,7 +444,76 @@ function AccountCard({
       </div>
       {/* keep recheck reachable for logged-in cards via silent refresh */}
       <span className="hidden">{void onLoginRechecked}</span>
+      {useOriginal && account.import_source_path && (
+        <UseOriginalModal
+          account={account}
+          source={account.import_source_path}
+          onClose={() => setUseOriginal(false)}
+          onDone={async () => {
+            setUseOriginal(false);
+            await onLoginRechecked();
+          }}
+        />
+      )}
     </Card>
+  );
+}
+
+/** ADR-0018: confirm switching a copy to its original folder — what
+ * changes, and that nothing is deleted. */
+function UseOriginalModal({
+  account,
+  source,
+  onClose,
+  onDone,
+}: {
+  account: AccountInfo;
+  source: string;
+  onClose: () => void;
+  onDone: () => Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const where = shortPath(source);
+  return (
+    <Modal title="Use the original folder?" onClose={onClose}>
+      <div className="flex flex-col gap-4 text-sm" data-testid="use-original">
+        <p className="truncate font-mono text-xs text-ink" title={source}>
+          {where}
+        </p>
+        <p className="leading-relaxed text-muted">
+          {account.label} will use your original folder: the same sign-in, settings and history as your Claude app.
+          AI Juggler's copy stays where it is (nothing is deleted); sessions you started in the copy stay in the copy, and
+          won't resume from the original.
+        </p>
+        {error && (
+          <p className="text-xs text-danger" role="alert">
+            {error}
+          </p>
+        )}
+        <div className="flex justify-end gap-2">
+          <Button onClick={onClose}>Not now</Button>
+          <Button
+            variant="primary"
+            disabled={busy}
+            data-testid="use-original-confirm"
+            onClick={async () => {
+              setBusy(true);
+              setError(null);
+              try {
+                await accountUseOriginal(account.id);
+                await onDone();
+              } catch (cause) {
+                setError(errorText(cause));
+                setBusy(false);
+              }
+            }}
+          >
+            {busy ? "Switching…" : "Use the original"}
+          </Button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
@@ -437,7 +524,7 @@ function HarnessGlyph({ provider, onClick }: { provider: string; onClick?: () =>
       type="button"
       onClick={onClick}
       disabled={!onClick}
-      title={onClick ? `Inspect ${provider}` : provider}
+      title={onClick ? `Inspect ${providerDisplayName(provider)}` : providerDisplayName(provider)}
       className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-accent/20 bg-accent-soft text-accent-hi outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 enabled:hover:border-accent/40 disabled:cursor-default"
     >
       <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -587,4 +674,17 @@ function RecipeEnvEditor({
     return <p className="text-[11px] text-muted">Loading…</p>;
   }
   return <EnvOverlayEditor recipeId={recipeId} protectedKeys={protectedKeys} />;
+}
+
+/** ADR-0018: where an account lives, in a few words — "uses ~/x where
+ * it is" or "a copy of ~/x"; nothing for an account made fresh here. */
+export function placementWords(account: AccountInfo): string | null {
+  if (!account.import_source_path) return null;
+  const where = shortPath(account.import_source_path);
+  return account.in_place ? `uses ${where} where it is` : `a copy of ${where}`;
+}
+
+/** `/Users/<you>/x` → `~/x`, for a line of text. */
+function shortPath(path: string): string {
+  return path.replace(/^\/Users\/[^/]+/, "~").replace(/^\/home\/[^/]+/, "~");
 }

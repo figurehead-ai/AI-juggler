@@ -9,12 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- On Home, J/K keep working after you mark a session reviewed or resume
+  it, and A works from a row's own Mark reviewed button. Handed-over
+  sessions no longer show under "Pick up where you left off". Home's
+  header has the legend "?" too. "Find my accounts" on Home and Usage
+  asks which tool when more than one is installed, like Accounts does.
+  The tool choice keeps keyboard focus where you put it.
+- Settings › Cleanup has the "Pause automatic cleanup" switch too. In
+  Cleanup, keyboard focus stays on the ⋯ button after you pause, resume
+  or press Escape. In a narrow window, ⌘B and the density shortcut only
+  open or close the list for now; they never change your setting.
 - Adding an account is short: name it and sign in, or pick a folder,
   see what's in it (size, sign-in, a too-large history offers settings
   only) and bring it in as a copy. First run, Accounts › Add account and
   New project's "Add an account" all use these steps; the old setup
   wizard is gone. Add account asks which tool only when more than one is
   installed, so the separate "Add Provider" button is gone too.
+- Bringing in your Claude setups now **uses them where they are** by
+  default: your Claude app and AI Juggler share one sign-in, one history
+  and one set of settings, and AI Juggler doesn't change your files.
+  Signed-in setups stay signed in. **Make separate copies** is right
+  next to it if you want an isolated sandbox. Each account in Accounts
+  says which it is.
+- When some setups come in and some don't, you choose: **Continue** with
+  the ones that came in, **Try again** for the others, or — for a copy
+  that failed — **Use it where it is instead**. Close or Esc while
+  bringing them in means **Stop**: the one in progress finishes and the
+  rest wait.
+- An account you brought in as a copy can switch to the folder it came
+  from: **Use the original instead** on its card in Accounts. It then
+  shares that folder's sign-in and history; the copy stays on disk.
 - Cleanup says what it is in one line instead of "Tier 0 observe ·
   verified manual kills". Pause automatic cleanup and Cleanup settings
   sit behind ⋯, and Resume is on the "paused" banner. The machine filter
@@ -102,6 +126,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is refused instead of resuming something else (Codex and Claude Code).
   The Expert-setup line for a Codex account now pins its SQLite folder
   too, and First run finds a `CODEX_HOME=` line in your shell files.
+- Measured quota from Claude's status line works on a real Mac. The
+  status line command pointed at a path under "Application Support"
+  without quotes, so the shell split it at the space and the capture
+  never ran. Existing installs are repaired the next time AI Juggler
+  checks them, and your own status line stays chained.
+- Started from a terminal that exports `ANTHROPIC_API_KEY` (or an auth
+  token), AI Juggler ran every account on that one key. Each account now
+  signs in as itself; a key set in an account's own settings still works.
+- A launch setting that picks a model no longer rewrites the account's
+  `settings.json` (it replaced the whole file, losing hooks and
+  permissions); the model goes in as Claude's own `--model` option.
 - Bringing in a Claude setup that has a linked folder (for example a
   skill under `skills/` that is a link to somewhere else) no longer fails
   with "cannot copy skills/…". The folder is kept as a link that points
