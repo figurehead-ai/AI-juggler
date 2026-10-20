@@ -97,6 +97,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A message to Codex that starts with "-" (a list item, say) is passed as
+  text, never read as an option; a session id that looks like an option
+  is refused instead of resuming something else (Codex and Claude Code).
+  The Expert-setup line for a Codex account now pins its SQLite folder
+  too, and First run finds a `CODEX_HOME=` line in your shell files.
 - Measured quota from Claude's status line works on a real Mac. The
   status line command pointed at a path under "Application Support"
   without quotes, so the shell split it at the space and the capture
@@ -162,6 +167,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Codex** is the second Provider (AJ-E1301). AI Juggler finds the Codex
+  CLI, gives each Codex account its own folder (`CODEX_HOME`), signs it
+  in with OpenAI's own `codex login`, and starts, resumes or runs Codex
+  in it. Sessions run without Codex's background server, so stopping a
+  session stops all of it. Verified against Codex CLI 0.163.0. Watching
+  sessions, bringing in existing setups and switching follow (E13).
 - Three update channels (decision D-20): **Nightly** (built from the latest
   code every day), **Beta** and **Stable** (each promoted with the
   maintainer's approval). Choose Stable or Beta in Settings › About &

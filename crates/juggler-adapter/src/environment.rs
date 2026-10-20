@@ -26,6 +26,32 @@ pub enum LoginProbe {
     LoggedOut,
 }
 
+/// Sign-in state of a managed account (AJ-E308 Req.1 taxonomy), detected
+/// without reading credential contents. Each adapter documents what its
+/// probe looks at; the wire names live in the app.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LoginState {
+    /// Credentials are present and structurally usable.
+    SignedIn,
+    /// A credentials file exists but is EMPTY — an OAuth abandoned
+    /// halfway in this dir ("Sign-in didn't finish").
+    Partial,
+    /// Credentials exist with a PAST expiry claim (the documented
+    /// field is parsed; token contents are never read or logged).
+    Expired,
+    /// An SSO session marker exists without completed credentials —
+    /// finish in the browser/IdP window, then return.
+    SsoPending,
+    /// An API-key account (settings metadata NAMES a key — the value
+    /// is never read; subscription rings never apply).
+    ApiKey,
+    /// No credentials found for this config dir.
+    LoggedOut,
+    /// The probe itself failed (unreadable dir) — NEVER renders as
+    /// [`LoginState::LoggedOut`] (AJ-E308 Req.1).
+    Unknown,
+}
+
 /// How a discovered install's location came to exist.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InstallOrigin {

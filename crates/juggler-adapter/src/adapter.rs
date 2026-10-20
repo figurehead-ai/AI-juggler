@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use crate::capabilities::Capabilities;
 use crate::discovery::DiscoveryReport;
-use crate::environment::{DiscoveredInstall, ImportOutcome, LoginUrl};
+use crate::environment::{DiscoveredInstall, ImportOutcome, LoginState, LoginUrl};
 use crate::error::AdapterError;
 use crate::launch::{DesktopLaunch, EnvMap, LaunchMode, LaunchSpec};
 use crate::model::{Account, HarnessId, Profile};
@@ -99,6 +99,15 @@ pub trait HarnessAdapter: Send + Sync {
         crate::identity::IdentityProbe::Unverifiable {
             reason: "this Provider exposes no account metadata".into(),
         }
+    }
+
+    /// AJ-E308/AJ-E1301: the Account's sign-in state, probed from its
+    /// state dir without reading credential contents (ADR-0003). The
+    /// default — `LoggedOut` — is what Providers without a probe have
+    /// always reported; an adapter that can tell overrides it.
+    fn login_state(&self, state_dir: &Path) -> LoginState {
+        let _ = state_dir;
+        LoginState::LoggedOut
     }
 
     /// Creates a watcher over the account's transcript root.
@@ -229,7 +238,7 @@ pub trait HarnessAdapter: Send + Sync {
         &[]
     }
 
-    /// The value of the first isolation key for `state_dir`, or `None`
+    /// The value of the pinned isolation keys for `state_dir`, or `None`
     /// when the folder runs with that key unset (ADR-0018: the vendor's
     /// own default folder). Default: the path.
     fn isolation_env_value(&self, state_dir: &Path) -> Option<String> {
@@ -245,6 +254,16 @@ pub trait HarnessAdapter: Send + Sync {
     #[must_use]
     fn isolation_env_keys(&self) -> &'static [&'static str] {
         &[]
+    }
+
+    /// The isolation keys pinned to the Account's state dir itself —
+    /// every one the shell snippet sets and the isolation check
+    /// verifies. Default: the first isolation key (one variable points
+    /// the Provider at its state); Codex also pins `CODEX_SQLITE_HOME`.
+    #[must_use]
+    fn pinned_env_keys(&self) -> &'static [&'static str] {
+        let keys = self.isolation_env_keys();
+        &keys[..keys.len().min(1)]
     }
 
     /// The command a user types to start this Provider against
@@ -265,8 +284,8 @@ pub fn shell_quote(value: &str) -> String {
 }
 
 /// Builds the copyable shell line for `adapter` against `state_dir`
-/// plus any extra environment (Launch-settings overrides), isolation
-/// keys first. `None` when the Provider has no terminal entry point.
+/// plus any extra environment (Launch-settings overrides), every pinned
+/// isolation key first. `None` when the Provider has no terminal entry point.
 #[must_use]
 pub fn shell_snippet(
     adapter: &dyn HarnessAdapter,
@@ -276,12 +295,13 @@ pub fn shell_snippet(
     let command = adapter.shell_command()?;
     // What AI Juggler's own launches remove, the line removes too: the
     // default folder's key (run as the vendor runs it) and any inherited
-    // credentials.
+    // credentials. Every pinned key points at the folder otherwise.
     let mut unset: Vec<String> = Vec::new();
     let mut parts: Vec<String> = Vec::new();
-    if let Some(key) = adapter.isolation_env_keys().first() {
-        match adapter.isolation_env_value(state_dir) {
-            Some(dir) => parts.push(format!("{key}={}", shell_quote(&dir))),
+    let value = adapter.isolation_env_value(state_dir);
+    for key in adapter.pinned_env_keys() {
+        match &value {
+            Some(dir) => parts.push(format!("{key}={}", shell_quote(dir))),
             None => unset.push((*key).to_owned()),
         }
     }
