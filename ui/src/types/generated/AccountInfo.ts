@@ -51,4 +51,8 @@ import_origin?: string | null,
 /**
  * Import completion time, epoch ms (None = never imported).
  */
-imported_at?: bigint | null, };
+imported_at?: bigint | null, 
+/**
+ * ADR-0018: the account uses the user's own folder where it is.
+ */
+in_place: boolean, };

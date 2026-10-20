@@ -325,3 +325,31 @@
   brief quotes each turn so text in a turn can't pose as another turn.
   Regression: `claude_handover :: an_untrusted_bundle_cannot_write_outside_the_target`
   (fails on the old code) and `a_turn_cannot_forge_another_turn_in_the_brief`.
+- Real bugs found while building AJ-E1024 (2026-10-20, the maintainer's
+  bring-in report plus code reading):
+  1. A launch setting with a model replaced the account's whole
+     `settings.json` with `{"model": …}` on every launch, wiping hooks,
+     permissions and the status line in copies. Now `claude --model`.
+     Regression: `in_place_accounts :: a_copy_keeps_its_settings_file_when_a_profile_sets_a_model`.
+  2. One failed setup trapped the bring-in: no Continue, "Try again"
+     reran all of them and lost the others' sign-ins, and closing
+     mid-way kept importing unseen. Regressions: `first-run.test.tsx`
+     (Continue, Try again, Stop).
+  3. A copy whose account record failed to save left its copied folder
+     behind (no sweep). It is now removed at once (marked copies only).
+  4. Found by the review of AJ-E1024, pre-existing since AJ-E607: the
+     managed status line `command` was the bare wrapper path under
+     "~/Library/Application Support/AI Juggler/…". Claude runs it through
+     the shell, which split it at the space, so the wrapper never ran and
+     no Measured quota sample was ever captured on a real Mac (the
+     maintainer's five copies had empty `quota-spool/`). The command and
+     the spool path are one quoted shell word now; old installs are
+     re-pointed with the user's chained line kept. Regression:
+     `quota_ingest :: the_status_line_runs_from_a_folder_with_spaces`
+     (fails on the old code) and `an_unquoted_install_is_repaired_and_keeps_the_chain`.
+- **Flake record, 2026-10-20 (local only, load average 33–45 while three
+  sessions ran full suites).** `processes :: processes_command_reports_tree_orphans_and_stops`
+  ("never saw the child") and `reconciler :: helper_exiting_inside_grace_never_surfaces`
+  timed out once each in a `cargo test --workspace` run; both passed
+  alone at once (3/3 each). No budget changed.
+

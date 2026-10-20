@@ -649,14 +649,15 @@ One data folder per edition (D-23): `AI Juggler`, `AI Juggler Nightly` or
 ```
 ~/Library/Application Support/AI Juggler/        (macOS; XDG on Linux, %APPDATA% on Win)
 ├── juggler.sqlite          # accounts, launch_recipes, instances index, usage events, lineage, footprint stats (WAL)
-├── accounts/<provider-id>/<account-id>/   # managed Provider state dirs (the isolation roots)
+├── accounts/<provider-id>/<account-id>/   # managed Provider state dirs (the isolation roots) — copies
+├── overlays/<account-id>/  # in-place accounts' launch settings + status line capture (ADR-0018)
 ├── packs/                  # context packs + lineage metadata
 ├── fleet/                  # node identity keypair + paired-peer registry
 ├── logs/                   # rotated app logs (redaction-aware)
 └── cache/                  # parser fixtures cache, rollups
 ```
 
-Nothing is ever written inside `~/.claude`, `~/.codex`, or `~/.zcode` (the user's pre-existing single-account installs remain untouched; the smart-onboarding import (§12.1, ADR-0006) *reads* them and offers a managed copy).
+AI Juggler writes nothing of its own inside `~/.claude`, `~/.codex`, `~/.zcode` or any other setup the user brings in (ADR-0018). Bringing one in either **uses it where it is** (the default: an in-place account whose folder is the user's own; per-launch settings go in as `--model` / `--settings` flags and AI Juggler's capture lives under `overlays/`) or makes **a separate copy** under `accounts/` (ADR-0006). Claude Code itself still writes to a folder it runs on, as it always does.
 
 ### 12.1 Onboarding workflow (smart onboarding, ADR-0006; cross-Provider per pass2/03)
 
