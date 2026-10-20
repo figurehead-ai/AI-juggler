@@ -47,9 +47,23 @@ available: AnnouncedInfo | null,
  */
 progress: number | null, 
 /**
- * Why the last step failed (the running version is untouched).
+ * Why the last step failed, in plain words (the running version is
+ * untouched).
  */
 error: string | null, 
+/**
+ * What kind of failure it was ([`FailureKind::as_str`]).
+ */
+error_kind: string | null, 
+/**
+ * The technical reason behind `error` (shown on request).
+ */
+error_detail: string | null, 
+/**
+ * Installed, but restarting has to wait — why, in plain words. `None`
+ * once it is safe (or before anything is installed).
+ */
+restart_wait: string | null, 
 /**
  * The backup written before installing, when there is one.
  */

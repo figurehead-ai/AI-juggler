@@ -26,6 +26,7 @@ pub mod history;
 pub mod identity;
 pub mod lifecycle;
 pub mod link;
+pub mod newer_data;
 pub mod os_access;
 pub mod overnight;
 pub mod parked;
@@ -94,10 +95,20 @@ pub fn run() {
         cfg!(debug_assertions),
     ));
     let data_dir = bootstrap_data_dir();
-    let app_state = Arc::new(state::AppState::init(data_dir).unwrap_or_else(|error| {
-        eprintln!("ai-juggler: fatal: {error}");
-        std::process::exit(1);
-    }));
+    let app_state = Arc::new(match state::AppState::init(data_dir.clone()) {
+        Ok(state) => state,
+        // AJ-E1010: an older AI Juggler opened data a newer one saved — say
+        // so, and offer the backup from before the update (never a silent
+        // quit).
+        Err(error::AppError::Core(juggler_core::CoreError::SchemaTooNew { found, supported })) => {
+            newer_data::at_launch(&data_dir, found, supported)
+        }
+        Err(error) => {
+            eprintln!("ai-juggler: fatal: {error}");
+            newer_data::cannot_start(&error.to_string());
+            std::process::exit(1);
+        }
+    });
 
     // D-20: the chosen update channel, for reports built without state.
     let _ = updates::channel_of(&app_state);

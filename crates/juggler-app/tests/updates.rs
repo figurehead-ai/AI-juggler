@@ -1,10 +1,12 @@
 //! AJ-E1010 integration — the update policy against a fake feed: no
 //! request in a build without the signing key or with the check turned
 //! off; a check only reports (version + notes); a signature failure
-//! never installs and leaves the running version untouched, with Retry;
-//! a backup is written before any install; progress is reported at least
-//! every 5 %; install waits while a switch is in flight; restart waits
-//! while an Instance is live.
+//! never installs and leaves the running version untouched, with Try
+//! again; every failure is said in plain words; a backup is written
+//! before any install; progress is reported at least every 5 %; install
+//! waits while a switch is in flight; "Restart to update" waits while a
+//! session is live, a switch is in flight or a bring-in is under way.
+//! The real updater plugin against local fixtures is `updates_plugin.rs`.
 
 #![allow(
     clippy::unwrap_used,
@@ -19,7 +21,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use juggler_adapter::AdapterRegistry;
 use juggler_app::state::AppState;
-use juggler_app::updates::{self, AnnouncedInfo, UpdateFeed, UpdateManager};
+use juggler_app::updates::{
+    self, AnnouncedInfo, FailureKind, FeedError, UpdateFeed, UpdateManager,
+};
 
 #[derive(Default)]
 struct FakeFeed {
@@ -30,7 +34,7 @@ struct FakeFeed {
 }
 
 impl UpdateFeed for FakeFeed {
-    fn check(&self) -> Result<Option<AnnouncedInfo>, String> {
+    fn check(&self) -> Result<Option<AnnouncedInfo>, FeedError> {
         self.checks.fetch_add(1, Ordering::SeqCst);
         Ok(Some(AnnouncedInfo {
             version: "0.2.0".into(),
@@ -39,21 +43,75 @@ impl UpdateFeed for FakeFeed {
             date_ms: Some(1_800_000_000_000),
         }))
     }
-    fn download(&self, progress: &mut dyn FnMut(u64, Option<u64>)) -> Result<Vec<u8>, String> {
+    fn download(&self, progress: &mut dyn FnMut(u64, Option<u64>)) -> Result<Vec<u8>, FeedError> {
         self.downloads.fetch_add(1, Ordering::SeqCst);
         for _ in 0..1000 {
             progress(1_000, Some(1_000_000));
         }
         if self.bad_signature {
-            Err("signature verification failed".into())
+            Err(FeedError::new(
+                FailureKind::Signature,
+                "the signature verification failed: Invalid signature",
+            ))
         } else {
             Ok(vec![0u8; 16])
         }
     }
-    fn install(&self, _bytes: &[u8]) -> Result<(), String> {
+    fn install(&self, _bytes: &[u8]) -> Result<(), FeedError> {
         self.installs.fetch_add(1, Ordering::SeqCst);
         Ok(())
     }
+}
+
+/// A switch staged just now (in flight until it is confirmed).
+fn stage_switch(state: &Arc<AppState>) {
+    use juggler_core::model::{
+        AccountId, EdgeActor, EdgeState, Epoch, EpochId, HarnessId, SwitchEdge, SwitchEdgeId,
+        SwitchMechanism, Timestamp,
+    };
+    let storage = state.storage.lock().unwrap();
+    let project = storage
+        .projects()
+        .touch(Path::new("/w/p"), None)
+        .unwrap()
+        .id;
+    let work_item = storage.switch_graph().create_work(&project, "w").unwrap();
+    storage
+        .switch_graph()
+        .insert_epoch(&Epoch {
+            id: EpochId::new("e1"),
+            work: work_item.id.clone(),
+            session_ref: None,
+            native_id: None,
+            account: AccountId::new("a"),
+            provider: HarnessId::new("claude-code"),
+            resumed_from_epoch: None,
+            machine: None,
+        })
+        .unwrap();
+    storage
+        .switch_graph()
+        .append_edge(&SwitchEdge {
+            id: SwitchEdgeId::new("x1"),
+            work: work_item.id,
+            from_epoch: EpochId::new("e1"),
+            to_epoch: None,
+            from_account: AccountId::new("a"),
+            to_account: AccountId::new("b"),
+            from_provider: HarnessId::new("claude-code"),
+            to_provider: HarnessId::new("claude-code"),
+            mechanism: SwitchMechanism::Transplant,
+            pack_id: None,
+            fidelity_shown: None,
+            manifest_sha256: None,
+            state: EdgeState::Staged,
+            actor: EdgeActor::User,
+            parent_edge_a: None,
+            parent_edge_b: None,
+            created_at: Timestamp::now(),
+            to_machine: None,
+        })
+        .unwrap();
 }
 
 fn app_state(dir: &Path, configured: bool) -> Arc<AppState> {
@@ -127,10 +185,22 @@ fn a_bad_signature_never_installs_and_retry_works() {
             .unwrap();
     assert_eq!(status.state, "failed");
     let error = status.error.unwrap();
+    // Plain words first; the technical reason is kept for Details.
     assert!(
-        error.contains("signature verification failed") && error.contains("untouched"),
+        error.contains("didn't pass the signature check")
+            && error.contains("wasn't installed")
+            && error.contains("untouched"),
         "{error}"
     );
+    assert!(!error.contains("Invalid signature"), "{error}");
+    assert_eq!(status.error_kind.as_deref(), Some("signature"));
+    assert!(
+        status
+            .error_detail
+            .as_deref()
+            .is_some_and(|d| d.contains("Invalid signature"))
+    );
+    assert_eq!(status.restart_wait, None, "nothing installed: no restart");
     assert_eq!(
         bad.installs.load(Ordering::SeqCst),
         0,
@@ -153,6 +223,7 @@ fn a_bad_signature_never_installs_and_retry_works() {
     let good = FakeFeed::default();
     let status = updates::update_install_impl(&state, &good, &mut |_| {}).unwrap();
     assert_eq!(status.state, "installed");
+    assert_eq!(status.error, None, "Try again clears the failure");
     assert_eq!(good.installs.load(Ordering::SeqCst), 1);
     assert_eq!(
         updates::restart_blocker(&state).unwrap(),
@@ -164,9 +235,8 @@ fn a_bad_signature_never_installs_and_retry_works() {
 #[test]
 fn install_waits_for_a_switch_in_flight_and_restart_for_live_instances() {
     use juggler_core::model::{
-        Account, AccountId, EdgeActor, EdgeState, Epoch, EpochId, HarnessId, InstanceKind,
-        InstanceRecord, LaunchRecipe, MachineId, ProfileId, SessionId, SessionStatus, SwitchEdge,
-        SwitchEdgeId, SwitchMechanism, Timestamp,
+        Account, AccountId, HarnessId, InstanceKind, InstanceRecord, LaunchRecipe, MachineId,
+        ProfileId, SessionId, SessionStatus, Timestamp,
     };
     let work = tempfile::tempdir().unwrap();
     let state = app_state(work.path(), true);
@@ -178,51 +248,7 @@ fn install_waits_for_a_switch_in_flight_and_restart_for_live_instances() {
             .unwrap()
             .contains("nothing has been installed")
     );
-    {
-        let storage = state.storage.lock().unwrap();
-        let project = storage
-            .projects()
-            .touch(Path::new("/w/p"), None)
-            .unwrap()
-            .id;
-        let work_item = storage.switch_graph().create_work(&project, "w").unwrap();
-        storage
-            .switch_graph()
-            .insert_epoch(&Epoch {
-                id: EpochId::new("e1"),
-                work: work_item.id.clone(),
-                session_ref: None,
-                native_id: None,
-                account: AccountId::new("a"),
-                provider: HarnessId::new("claude-code"),
-                resumed_from_epoch: None,
-                machine: None,
-            })
-            .unwrap();
-        storage
-            .switch_graph()
-            .append_edge(&SwitchEdge {
-                id: SwitchEdgeId::new("x1"),
-                work: work_item.id,
-                from_epoch: EpochId::new("e1"),
-                to_epoch: None,
-                from_account: AccountId::new("a"),
-                to_account: AccountId::new("b"),
-                from_provider: HarnessId::new("claude-code"),
-                to_provider: HarnessId::new("claude-code"),
-                mechanism: SwitchMechanism::Transplant,
-                pack_id: None,
-                fidelity_shown: None,
-                manifest_sha256: None,
-                state: EdgeState::Staged,
-                actor: EdgeActor::User,
-                parent_edge_a: None,
-                parent_edge_b: None,
-                created_at: Timestamp::now(),
-                to_machine: None,
-            })
-            .unwrap();
-    }
+    stage_switch(&state);
     let refused = updates::update_install_impl(&state, &feed, &mut |_| {})
         .unwrap_err()
         .to_string();
@@ -294,6 +320,11 @@ fn install_waits_for_a_switch_in_flight_and_restart_for_live_instances() {
     drop(storage);
     let reason = updates::restart_blocker(&state).unwrap().unwrap();
     assert!(reason.contains("1 session is still running"), "{reason}");
+    assert_eq!(
+        updates::update_status_impl(&state).restart_wait.as_deref(),
+        Some(reason.as_str()),
+        "the status carries why the restart waits"
+    );
 }
 
 /// D-20 / D-23: one feed per channel. AI Juggler follows beta until the
@@ -347,4 +378,130 @@ fn the_channel_is_a_persisted_choice_with_its_own_feed() {
         "{nightly}"
     );
     assert_eq!(updates::update_status_impl(&reopened).channel, "stable");
+}
+
+/// Each failure kind has its own plain words, names the running
+/// version as untouched where it is, and keeps the technical reason
+/// apart; a failed check says what to do.
+#[test]
+fn every_failure_is_said_in_plain_words_with_the_reason_kept_apart() {
+    struct Failing(FailureKind, bool);
+    impl UpdateFeed for Failing {
+        fn check(&self) -> Result<Option<AnnouncedInfo>, FeedError> {
+            if self.1 {
+                return Err(FeedError::new(self.0, "error sending request: tcp connect"));
+            }
+            FakeFeed::default().check()
+        }
+        fn download(
+            &self,
+            _progress: &mut dyn FnMut(u64, Option<u64>),
+        ) -> Result<Vec<u8>, FeedError> {
+            match self.0 {
+                FailureKind::Install | FailureKind::NotRestored => Ok(vec![1]),
+                kind => Err(FeedError::new(kind, "technical reason")),
+            }
+        }
+        fn install(&self, _bytes: &[u8]) -> Result<(), FeedError> {
+            Err(FeedError::new(self.0, "technical reason"))
+        }
+    }
+    let work = tempfile::tempdir().unwrap();
+    let state = app_state(work.path(), true);
+    let failed = updates::update_check_impl(&state, &Failing(FailureKind::Network, true)).unwrap();
+    assert_eq!(failed.state, "failed");
+    assert!(
+        failed
+            .error
+            .as_deref()
+            .unwrap()
+            .starts_with("Couldn't reach the update server"),
+        "{failed:?}"
+    );
+    assert_eq!(failed.error_kind.as_deref(), Some("network"));
+    assert!(failed.available.is_none(), "a failed check offers nothing");
+
+    let current = env!("CARGO_PKG_VERSION");
+    for (kind, words) in [
+        (FailureKind::Network, "download stopped"),
+        (FailureKind::Signature, "signature check"),
+        (FailureKind::WrongVersion, "signed for a different version"),
+        (FailureKind::Install, "couldn't be put in place"),
+        (FailureKind::Feed, "couldn't be read"),
+    ] {
+        let feed = Failing(kind, false);
+        updates::update_check_impl(&state, &feed).unwrap();
+        let status = updates::update_install_impl(&state, &feed, &mut |_| {}).unwrap();
+        let error = status.error.unwrap();
+        assert_eq!(status.state, "failed", "{kind:?}");
+        assert!(error.contains(words), "{kind:?}: {error}");
+        assert!(
+            error.contains(&format!("AI Juggler {current}")),
+            "{kind:?} names the running version: {error}"
+        );
+        assert!(!error.contains("technical reason"), "{kind:?}: {error}");
+        assert_eq!(status.error_detail.as_deref(), Some("technical reason"));
+        assert_eq!(status.error_kind.as_deref(), Some(kind.as_str()));
+    }
+}
+
+/// AJ-E1010 Req.4: "Restart to update" is held back while a bring-in is
+/// under way — including the short gap between two imports of one
+/// first-run bring-in — and offered once it is safe. Nothing restarts
+/// by itself.
+#[test]
+fn restart_waits_for_a_bring_in_and_is_offered_once_safe() {
+    let work = tempfile::tempdir().unwrap();
+    let state = app_state(work.path(), true);
+    let feed = FakeFeed::default();
+    updates::update_check_impl(&state, &feed).unwrap();
+    assert_eq!(
+        updates::update_status_impl(&state).restart_wait,
+        None,
+        "before an install there is no restart to wait for"
+    );
+    let guard = state.updates.bring_in();
+    let installed = updates::update_install_impl(&state, &feed, &mut |_| {}).unwrap();
+    assert_eq!(installed.state, "installed");
+    let wait = installed.restart_wait.expect("held back during a bring-in");
+    assert!(wait.contains("being brought in"), "{wait}");
+    drop(guard);
+    let wait = updates::restart_blocker(&state).unwrap();
+    assert!(
+        wait.is_some_and(|w| w.contains("being brought in")),
+        "the next import of the same bring-in follows within seconds"
+    );
+    // A real import goes through the guard too: an unknown tool fails at
+    // once, but the bring-in still counted while it ran.
+    let _ = juggler_app::commands::account_import_impl(
+        &state,
+        "no-such-tool",
+        "/nowhere",
+        "X",
+        None,
+        None,
+        false,
+    );
+    assert!(updates::restart_blocker(&state).unwrap().is_some());
+    // Seconds after the last import, it is safe: the restart is offered.
+    let later = juggler_core::model::Timestamp::now().millis() + 11_000;
+    assert_eq!(updates::restart_blocker_at(&state, later).unwrap(), None);
+
+    // A switch in flight holds it back again, until it is confirmed.
+    stage_switch(&state);
+    let wait = updates::restart_blocker_at(&state, later).unwrap().unwrap();
+    assert!(wait.contains("switch is in progress"), "{wait}");
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .raw_conn()
+        .execute("UPDATE switch_edges SET state = 'confirmed'", [])
+        .unwrap();
+    assert_eq!(updates::restart_blocker_at(&state, later).unwrap(), None);
+    assert_eq!(
+        updates::update_status_impl(&state).state,
+        "installed",
+        "nothing restarted by itself"
+    );
 }
