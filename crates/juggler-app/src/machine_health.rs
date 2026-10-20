@@ -55,7 +55,8 @@ pub struct MachinePointInfo {
     pub at_ms: i64,
     /// Whole-Mac CPU, percent of all cores; `null` when unmeasured.
     pub cpu_pct: Option<f64>,
-    /// Memory in use (total − available), bytes.
+    /// Memory in use as Activity Monitor counts it (app + wired +
+    /// compressed), bytes; total − available where the OS has no figure.
     #[ts(type = "number")]
     pub memory_used: u64,
 }
@@ -101,7 +102,8 @@ pub struct MachineHealthInfo {
     /// Physical memory, bytes.
     #[ts(type = "number")]
     pub memory_total: u64,
-    /// Memory in use (total − available), bytes.
+    /// Memory in use as Activity Monitor counts it (app + wired +
+    /// compressed), bytes; total − available where the OS has no figure.
     #[ts(type = "number")]
     pub memory_used: u64,
     /// Memory the OS can hand out without swapping, bytes.
@@ -164,6 +166,15 @@ fn power_info(power: PowerState) -> PowerInfo {
     }
 }
 
+/// Memory in use as Activity Monitor counts it, where the OS gives it;
+/// total − available otherwise.
+fn memory_used_of(sample: &juggler_supervisor::machine::MachineSample) -> u64 {
+    sample
+        .memory_used
+        .unwrap_or_else(|| sample.memory_total.saturating_sub(sample.memory_available))
+        .min(sample.memory_total)
+}
+
 /// Pure: the read model from a sampler snapshot.
 #[must_use]
 pub fn health_of(snapshot: &MachineSnapshot, thresholds: &RoomThresholds) -> MachineHealthInfo {
@@ -174,7 +185,7 @@ pub fn health_of(snapshot: &MachineSnapshot, thresholds: &RoomThresholds) -> Mac
         cores: snapshot.cores,
         cpu_pct: latest.cpu_pct,
         memory_total: latest.memory_total,
-        memory_used: latest.memory_total.saturating_sub(latest.memory_available),
+        memory_used: memory_used_of(&latest),
         memory_available: latest.memory_available,
         pressure: latest.pressure.map(|level| pressure_key(level).to_string()),
         swap_total: latest.swap_total,
@@ -210,37 +221,42 @@ pub fn health_of(snapshot: &MachineSnapshot, thresholds: &RoomThresholds) -> Mac
             .map(|sample| MachinePointInfo {
                 at_ms: sample.at_ms,
                 cpu_pct: sample.cpu_pct,
-                memory_used: sample.memory_total.saturating_sub(sample.memory_available),
+                memory_used: memory_used_of(sample),
             })
             .collect(),
     }
 }
 
 /// The folders whose volumes matter: the data folder and every active
-/// session's working folder.
+/// session's working folder (one query for active sessions only).
 fn paths_in_use(state: &Arc<AppState>) -> Vec<PathBuf> {
     let mut paths = vec![state.data_dir.clone()];
     if let Ok(storage) = state.storage.lock()
-        && let Ok(sessions) = storage.sessions().list(None)
+        && let Ok(cwds) = storage.sessions().active_cwds()
     {
-        paths.extend(
-            sessions
-                .into_iter()
-                .filter(|record| crate::commands::is_active(record.status))
-                .map(|record| record.cwd),
-        );
+        paths.extend(cwds);
     }
     paths
 }
 
-/// The 2 s tick's machine half (AJ-E1401 Req.1). Takes only the sampler's
-/// lock; the storage lock is taken (briefly, inside) on the 30 s disk
-/// cadence alone.
+/// The 2 s tick's machine half (AJ-E1401 Req.1). The sampler's lock is
+/// held only for the cheap part (microseconds); the disk half — the folders
+/// in use (a storage read) and, every 10 minutes, listing the disks (50–150
+/// ms) — runs outside it, so a reader of the lock never waits on either.
 pub fn tick(state: &Arc<AppState>, now_ms: i64) {
-    let Ok(mut sampler) = state.machine.lock() else {
+    let work = {
+        let Ok(mut sampler) = state.machine.lock() else {
+            return;
+        };
+        sampler.tick(now_ms)
+    };
+    let Some(mut work) = work else {
         return;
     };
-    sampler.tick(now_ms, || paths_in_use(state));
+    let volumes = work.volumes(&paths_in_use(state));
+    if let Ok(mut sampler) = state.machine.lock() {
+        sampler.finish_disks(work, volumes);
+    }
 }
 
 /// The read model now.
@@ -253,14 +269,23 @@ pub fn machine_health_impl(state: &Arc<AppState>) -> AppResult<MachineHealthInfo
     Ok(health_of(sampler.snapshot(), &RoomThresholds::default()))
 }
 
-/// How the Mac is doing (AJ-E1401 Req.4).
+/// How the Mac is doing (AJ-E1401 Req.4). Off the main thread: it takes a
+/// lock the sampling tick also takes.
 ///
 /// # Errors
 ///
 /// [`AppError::StatePoisoned`] when the sampler's lock is poisoned.
 #[tauri::command]
-pub fn machine_health(state: tauri::State<'_, Arc<AppState>>) -> AppResult<MachineHealthInfo> {
-    machine_health_impl(state.inner())
+pub async fn machine_health(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<MachineHealthInfo> {
+    let state = Arc::clone(state.inner());
+    tauri::async_runtime::spawn_blocking(move || machine_health_impl(&state))
+        .await
+        .map_err(|error| AppError::Io {
+            context: "read how the Mac is doing",
+            message: error.to_string(),
+        })?
 }
 
 #[cfg(test)]
@@ -288,6 +313,7 @@ mod tests {
                 cpu_pct: (i > 0).then_some(25.0),
                 memory_total: 32 * G,
                 memory_available: 2 * G,
+                memory_used: None,
                 pressure: Some(PressureLevel::Warning),
                 swap_total: 4 * G,
                 swap_used: G,
@@ -326,5 +352,24 @@ mod tests {
             info.swap_growth_mb_per_min, None,
             "4 s is too little history"
         );
+    }
+
+    #[test]
+    fn memory_used_is_activity_monitors_figure_when_the_os_gives_it() {
+        let sample = MachineSample {
+            memory_total: 32 * G,
+            memory_available: 20 * G,
+            memory_used: Some(26 * G),
+            ..MachineSample::default()
+        };
+        let snapshot = MachineSnapshot {
+            cores: 8,
+            latest: Some(sample),
+            ring: vec![sample],
+            ..MachineSnapshot::default()
+        };
+        let info = health_of(&snapshot, &RoomThresholds::default());
+        assert_eq!(info.memory_used, 26 * G, "not total − available (12 GB)");
+        assert_eq!(info.series[0].memory_used, 26 * G);
     }
 }

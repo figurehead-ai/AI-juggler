@@ -13,6 +13,7 @@ at_ms: number,
  */
 cpu_pct: number | null, 
 /**
- * Memory in use (total − available), bytes.
+ * Memory in use as Activity Monitor counts it (app + wired +
+ * compressed), bytes; total − available where the OS has no figure.
  */
 memory_used: number, };
