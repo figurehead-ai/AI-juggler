@@ -86,9 +86,10 @@ describe("AJ-E402 SessionRow — the 9 SessionStatus states (icon + text + colou
 });
 
 describe("AJ-E402 honesty copy — absence is exact, never fabricated", () => {
-  it("quota-less row renders `Quota: no data`, not a zero bar", () => {
+  it("quota-less row renders `Not measured yet`, not a zero bar", () => {
     const text = rowText(mk({ quota: null }));
-    expect(text).toContain("Quota: no data");
+    expect(text).toContain("Not measured yet");
+    expect(text).not.toMatch(/no data/i);
     expect(text).not.toContain("% left");
   });
 
@@ -214,7 +215,7 @@ describe("AJ-E402 card/row parity and screen-reader access", () => {
     );
     const { name, described } = announced();
     expect(name).toContain("default model");
-    expect(described).toContain("Quota: no data");
+    expect(described).toContain("Quota: not measured yet");
   });
 
   it("renders the generic Tool mark for an unknown provider", () => {

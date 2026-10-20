@@ -114,18 +114,19 @@ describe("AJ-E407 Session Overview (§5.2, Req.5/6)", () => {
   it("Usage renders the per-turn honest empty (no fabricated tables)", () => {
     const withTokens = sessionShell(ended);
     open(withTokens.container, "usage");
-    expect(withTokens.container.textContent).toContain("per-turn rows arrive with transcript indexing");
+    expect(withTokens.container.textContent).toContain("tokens");
+    expect(withTokens.container.textContent).not.toMatch(/\bAJ-E\d+|\bE\d+\+|\(E\d+\)|\bD-\d{2}\b/);
     cleanup();
     const bare = sessionShell({ ...ended, tokens: null });
     open(bare.container, "usage");
     expect(bare.container.textContent).toContain("No usage recorded yet");
   });
 
-  it("History renders the lineage honest empty (Switch Graph = E2)", () => {
+  it("History renders the lineage honest empty, in plain words", () => {
     const { container } = sessionShell(ended);
     open(container, "history");
-    expect(container.textContent).toContain("No lineage yet");
-    expect(container.textContent).toContain("Switch Graph");
+    expect(container.textContent).toContain("No switches between accounts yet.");
+    expect(container.textContent).not.toMatch(/\bAJ-E\d+|\bE\d+\+|\(E\d+\)|\bD-\d{2}\b/);
   });
 
   it("Actions offers Resume primary + disabled-with-reason rows", () => {
@@ -133,7 +134,9 @@ describe("AJ-E407 Session Overview (§5.2, Req.5/6)", () => {
     open(container, "actions");
     const resume = container.querySelector('[data-testid="action-resume"] button')! as HTMLButtonElement;
     expect(resume.disabled).toBe(false);
-    expect(container.querySelector('[data-testid="action-export-pack"]')!.textContent).toContain("AJ-E202");
-    expect(container.querySelector('[data-testid="action-delete"]')!.textContent).toContain("guarded");
+    // Not built yet, so not shown (D-25 amendment of AJ-E407 Req.4).
+    for (const id of ["action-export-pack", "action-fork", "action-archive", "action-delete"]) {
+      expect(container.querySelector(`[data-testid="${id}"]`)).toBeNull();
+    }
   });
 });
