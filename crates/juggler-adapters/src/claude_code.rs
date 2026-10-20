@@ -838,7 +838,7 @@ fn config_dir_value(dir: &Path) -> String {
     )
 }
 
-/// [`config_dir_value`] for an explicit home folder (pure, testable).
+/// The `CLAUDE_CONFIG_DIR` value for an explicit home folder (pure, testable).
 #[must_use]
 pub fn config_dir_value_in(dir: &Path, home: &Path) -> String {
     if is_vendor_default_dir_in(dir, home) {
