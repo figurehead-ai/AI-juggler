@@ -55,7 +55,7 @@ ZCode follows the same five steps later (its own epic).
 **Research basis**: research/codex.md §2–§3 and §10; codex-rs `utils/home-dir/src/lib.rs`, `login/src/auth/storage.rs`, `tui/src/daemon_startup.rs` at `rust-v0.163.0`.
 **Handover note**: Trap — `OPENAI_API_KEY` being set does not mean an API-key account. Trap — `codex --version` prints the name first; Claude's parser takes the first token. Never run the real binary against `~/.codex`; use a scratch `CODEX_HOME`.
 
-### AJ-E1302 Find and bring in existing Codex setups | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1301, AJ-E307
+### AJ-E1302 Find and bring in existing Codex setups | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E1301, AJ-E307
 **Goal**: First run finds the user's existing Codex homes and brings each in as a copy, the original untouched.
 **User story**: As a Codex user with `~/.codex` and a `~/.codex-work` I made by hand, I see both in First run and bring them in with one click each; my originals keep working exactly as before.
 **Requirements**:
@@ -70,7 +70,7 @@ ZCode follows the same five steps later (its own epic).
 **Visual testing**: none unless copy changes (the existing import screens are Provider-neutral).
 **Files to touch**: new `crates/juggler-adapters/src/codex_environment.rs`, `codex.rs`, tests and fixtures under `crates/juggler-adapters/tests/fixtures/codex/`.
 **Research basis**: research/codex.md §3 (Codex docs sanction copying `auth.json` to another machine), §10 (home contents); `claude_environment.rs` as the pattern.
-**Handover note**: Trap — the SQLite state is a projection Codex rebuilds from the rollouts; copying a live database can copy a torn WAL. Skip it.
+**Handover note**: Trap — Codex's `state_5.sqlite` stores ABSOLUTE rollout paths: a copied index would point the new account at the original's session files, and a resume would write into the original. It is a projection Codex rebuilds from `sessions/` (filename scan + read-repair), so every `*.sqlite*` stays behind — memories and queued messages kept in SQLite do not travel (listed in the skips). The copy machinery is shared with Claude through `claude_environment::Layout`.
 
 ### AJ-E1303 Watch Codex sessions: rollout parser, linking, identity | Status: TODO | Priority P0 | Effort L | Depends: AJ-E1301
 **Goal**: The app sees Codex sessions appear and grow, reads their conversation into the neutral parsed form every feature uses, and knows which account a home is signed in as.

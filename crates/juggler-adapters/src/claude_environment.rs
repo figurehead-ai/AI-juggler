@@ -12,7 +12,7 @@ use juggler_adapter::environment::{
 };
 use juggler_core::model::HarnessId;
 
-use crate::claude_code::{CLAUDE_CODE_ID, is_managed_dir, prepare_managed_dir};
+use crate::claude_code::{CLAUDE_CODE_ID, is_managed_dir, prepare_managed_dir_for};
 
 /// Directory/file names inside a Claude config dir that are rebuildable
 /// cache or telemetry noise — skipped on import (`shell-snapshots/` alone
@@ -35,6 +35,61 @@ const CONFIG_EVIDENCE: &[&str] = &[
     "projects",
     "keybinds.json",
 ];
+
+/// What differs between Providers' config homes for the scan, the
+/// inspection and the copy (AJ-E1302); the machinery in this module is
+/// shared — Codex supplies its own [`Layout`].
+pub(crate) struct Layout {
+    /// The Provider id written into discovered installs and the marker.
+    pub(crate) provider: &'static str,
+    /// Entry names skipped as rebuildable state.
+    pub(crate) skip_names: &'static [&'static str],
+    /// File-name suffixes skipped as rebuildable state.
+    pub(crate) skip_suffixes: &'static [&'static str],
+    /// Top-level names that make a directory a real config home.
+    pub(crate) config_evidence: &'static [&'static str],
+    /// Top-level history entries the settings-only import leaves behind.
+    pub(crate) history: &'static [&'static str],
+    /// Files kept owner-only (0600) in the copy.
+    pub(crate) private_files: &'static [&'static str],
+    /// The plain words when a folder is not this Provider's config.
+    pub(crate) not_a_config: &'static str,
+    /// Signed in at the source, not in the copy.
+    pub(crate) login_stays_note: &'static str,
+    /// Signed in at both.
+    pub(crate) login_moves_note: &'static str,
+}
+
+impl Layout {
+    /// Whether `name` is rebuildable state, never copied.
+    pub(crate) fn skips(&self, name: &str) -> bool {
+        self.skip_names.contains(&name)
+            || self
+                .skip_suffixes
+                .iter()
+                .any(|suffix| name.ends_with(suffix))
+    }
+
+    /// Whether `dir` carries evidence of a real config home.
+    pub(crate) fn is_config_dir(&self, dir: &Path) -> bool {
+        self.config_evidence
+            .iter()
+            .any(|name| dir.join(name).exists())
+    }
+}
+
+/// Claude Code's home layout.
+pub(crate) const CLAUDE_LAYOUT: Layout = Layout {
+    provider: CLAUDE_CODE_ID,
+    skip_names: SKIP_ON_IMPORT,
+    skip_suffixes: &[],
+    config_evidence: CONFIG_EVIDENCE,
+    history: HISTORY_DIRS,
+    private_files: &[".credentials.json"],
+    not_a_config: "this folder does not look like a Claude Code configuration (no settings, credentials, or session history found)",
+    login_stays_note: "Your Claude login lives in the macOS Keychain, locked to the original folder — it can't (and shouldn't) be moved. Sign in once inside the imported account; it takes a few seconds.",
+    login_moves_note: "Login carried over with the import.",
+};
 
 /// Default import ceiling: config dirs beyond this are almost entirely
 /// transcript/cache bulk; the wizard offers a fresh account instead.
@@ -82,26 +137,38 @@ pub fn scan_claude_environment(
         }
     }
 
+    installs_from(&CLAUDE_LAYOUT, candidates, login_probe, &origin_notes)
+}
+
+/// Turns candidate paths into discovered installs: canonical, deduped,
+/// config-only, metadata-only, most useful first. Shared by every
+/// Provider's scan.
+pub(crate) fn installs_from(
+    layout: &Layout,
+    candidates: Vec<(PathBuf, InstallOrigin)>,
+    login_probe: &dyn Fn(&Path) -> LoginProbe,
+    origin_notes: &dyn Fn(InstallOrigin, LoginProbe) -> Vec<String>,
+) -> Vec<DiscoveredInstall> {
     let mut seen: Vec<PathBuf> = Vec::new();
     let mut found: Vec<DiscoveredInstall> = Vec::new();
     for (path, origin) in candidates {
         let Ok(canonical) = path.canonicalize() else {
             continue;
         };
-        if seen.contains(&canonical) || !is_claude_config_dir(&canonical) {
+        if seen.contains(&canonical) || !layout.is_config_dir(&canonical) {
             continue;
         }
         seen.push(canonical.clone());
         let login = login_probe(&canonical);
         let managed = is_managed_dir(&canonical);
-        let bytes = estimate_bytes(&canonical);
+        let bytes = estimate_bytes(layout, &canonical);
         let last_used_secs = newest_mtime_secs(&canonical);
         let mut notes = origin_notes(origin, login);
         if managed {
             notes.push("Already managed by AI Juggler.".to_string());
         }
         found.push(DiscoveredInstall {
-            harness: HarnessId::new(CLAUDE_CODE_ID),
+            harness: HarnessId::new(layout.provider),
             path: canonical,
             origin,
             login,
@@ -139,6 +206,19 @@ pub fn inspect_source(
     source: &Path,
     login_probe: &dyn Fn(&Path) -> LoginProbe,
 ) -> Result<SourceInspect, juggler_adapter::AdapterError> {
+    inspect_with_layout(&CLAUDE_LAYOUT, source, login_probe)
+}
+
+/// [`inspect_source`] for any Provider's [`Layout`].
+///
+/// # Errors
+///
+/// As [`inspect_source`].
+pub(crate) fn inspect_with_layout(
+    layout: &Layout,
+    source: &Path,
+    login_probe: &dyn Fn(&Path) -> LoginProbe,
+) -> Result<SourceInspect, juggler_adapter::AdapterError> {
     let mut inspect = SourceInspect {
         ceiling_bytes: MAX_IMPORT_BYTES,
         ..SourceInspect::default()
@@ -156,11 +236,11 @@ pub fn inspect_source(
                 path: source.to_path_buf(),
                 message: format!("cannot read folder: {e}"),
             })?;
-    inspect.is_config = is_claude_config_dir(&canonical);
+    inspect.is_config = layout.is_config_dir(&canonical);
     inspect.already_managed = is_managed_dir(&canonical);
     inspect.login = login_probe(&canonical);
     let mut entries: std::collections::BTreeMap<String, u64> = std::collections::BTreeMap::new();
-    inspect_walk(&canonical, &canonical, &mut entries, &mut inspect).map_err(|e| {
+    inspect_walk(layout, &canonical, &canonical, &mut entries, &mut inspect).map_err(|e| {
         juggler_adapter::AdapterError::AccountDir {
             path: source.to_path_buf(),
             message: format!("cannot read folder: {e}"),
@@ -173,6 +253,7 @@ pub fn inspect_source(
 }
 
 fn inspect_walk(
+    layout: &Layout,
     root: &Path,
     dir: &Path,
     entries: &mut std::collections::BTreeMap<String, u64>,
@@ -191,11 +272,11 @@ fn inspect_walk(
         };
         let name = entry.file_name();
         let name = name.to_string_lossy().into_owned();
-        if SKIP_ON_IMPORT.contains(&name.as_str()) {
+        if layout.skips(&name) {
             continue;
         }
         if meta.is_dir() {
-            inspect_walk(root, &entry.path(), entries, inspect)?;
+            inspect_walk(layout, root, &entry.path(), entries, inspect)?;
         } else {
             inspect.file_count += 1;
             inspect.total_bytes = inspect.total_bytes.saturating_add(meta.len());
@@ -288,6 +369,30 @@ pub fn import_with_cap_skips(
     max_bytes: u64,
     extra_skips: &[&str],
 ) -> Result<ImportOutcome, juggler_adapter::AdapterError> {
+    import_with_layout(
+        &CLAUDE_LAYOUT,
+        source,
+        dest,
+        login_probe,
+        max_bytes,
+        extra_skips,
+    )
+}
+
+/// [`import_with_cap_skips`] for any Provider's [`Layout`] — the one
+/// copy path (read-only toward `source`, session-scoped cleanup).
+///
+/// # Errors
+///
+/// As [`import_with_cap_skips`].
+pub(crate) fn import_with_layout(
+    layout: &Layout,
+    source: &Path,
+    dest: &Path,
+    login_probe: &dyn Fn(&Path) -> LoginProbe,
+    max_bytes: u64,
+    extra_skips: &[&str],
+) -> Result<ImportOutcome, juggler_adapter::AdapterError> {
     use juggler_adapter::AdapterError;
 
     let dir_error = |message: String| AdapterError::AccountDir {
@@ -304,10 +409,8 @@ pub fn import_with_cap_skips(
     let source = source
         .canonicalize()
         .map_err(|e| dir_error(e.to_string()))?;
-    if !is_claude_config_dir(&source) {
-        return Err(dir_error(
-            "this folder does not look like a Claude Code configuration (no settings, credentials, or session history found)".to_string(),
-        ));
+    if !layout.is_config_dir(&source) {
+        return Err(dir_error(layout.not_a_config.to_string()));
     }
     if is_managed_dir(&source) {
         return Err(dir_error(
@@ -329,7 +432,7 @@ pub fn import_with_cap_skips(
         total: 0,
         folders: Vec::new(),
     };
-    collect_files(&source, &source, &mut acc, max_bytes, extra_skips).map_err(dir_error)?;
+    collect_files(layout, &source, &source, &mut acc, max_bytes, extra_skips).map_err(dir_error)?;
     let CollectAccum {
         files,
         skipped,
@@ -340,7 +443,7 @@ pub fn import_with_cap_skips(
     let source_login = login_probe(&source);
 
     // Marker first: even a partially imported dir is identifiable as ours.
-    prepare_managed_dir(dest)?;
+    prepare_managed_dir_for(dest, layout.provider)?;
 
     let mut files_copied: u64 = 0;
     let mut bytes_copied: u64 = 0;
@@ -371,7 +474,7 @@ pub fn import_with_cap_skips(
         }
         if relative
             .file_name()
-            .is_some_and(|n| n == ".credentials.json")
+            .is_some_and(|n| layout.private_files.iter().any(|f| n == *f))
         {
             // Defense in depth: credentials stay owner-only in the copy.
             let _ = crate::claude_code::restrict_to_owner(&to);
@@ -380,7 +483,7 @@ pub fn import_with_cap_skips(
         bytes_copied += std::fs::metadata(&to).map(|m| m.len()).unwrap_or_default();
     }
 
-    let (login, login_note) = login_carryover(source_login, login_probe(dest));
+    let (login, login_note) = login_carryover(layout, source_login, login_probe(dest));
 
     Ok(ImportOutcome {
         files_copied,
@@ -395,14 +498,14 @@ pub fn import_with_cap_skips(
 
 /// The post-copy login carryover pair (destination probe + the
 /// plain-language note when the login could not move).
-fn login_carryover(source: LoginProbe, dest: LoginProbe) -> (LoginProbe, Option<String>) {
+fn login_carryover(
+    layout: &Layout,
+    source: LoginProbe,
+    dest: LoginProbe,
+) -> (LoginProbe, Option<String>) {
     let note = match (source, dest) {
-        (LoginProbe::LoggedIn, LoginProbe::LoggedOut) => Some(
-            "Your Claude login lives in the macOS Keychain, locked to the original folder — it can't (and shouldn't) be moved. Sign in once inside the imported account; it takes a few seconds.".to_string(),
-        ),
-        (LoginProbe::LoggedIn, LoginProbe::LoggedIn) => {
-            Some("Login carried over with the import.".to_string())
-        }
+        (LoginProbe::LoggedIn, LoginProbe::LoggedOut) => Some(layout.login_stays_note.to_string()),
+        (LoginProbe::LoggedIn, LoginProbe::LoggedIn) => Some(layout.login_moves_note.to_string()),
         _ => None,
     };
     (dest, note)
@@ -433,7 +536,7 @@ fn cleanup_partial(dest: &Path) {
 
 // ---- internals -----------------------------------------------------------
 
-fn origin_rank(origin: InstallOrigin) -> u8 {
+pub(crate) fn origin_rank(origin: InstallOrigin) -> u8 {
     match origin {
         InstallOrigin::VendorDefault => 0,
         InstallOrigin::EnvOverride => 1,
@@ -473,13 +576,9 @@ fn origin_notes(origin: InstallOrigin, login: LoginProbe) -> Vec<String> {
     notes
 }
 
-fn is_claude_config_dir(dir: &Path) -> bool {
-    CONFIG_EVIDENCE.iter().any(|name| dir.join(name).exists())
-}
-
 /// Sums file sizes to depth 2 (config dirs keep bulk under `projects/`),
 /// bounded by [`MAX_WALK_ENTRIES`]; skips the same noise the import skips.
-fn estimate_bytes(dir: &Path) -> u64 {
+pub(crate) fn estimate_bytes(layout: &Layout, dir: &Path) -> u64 {
     let mut total = 0u64;
     let mut entries_seen = 0usize;
     let mut stack = vec![(dir.to_path_buf(), 0usize)];
@@ -494,7 +593,7 @@ fn estimate_bytes(dir: &Path) -> u64 {
             }
             let name = entry.file_name();
             let name = name.to_string_lossy().into_owned();
-            if SKIP_ON_IMPORT.contains(&name.as_str()) {
+            if layout.skips(&name) {
                 continue;
             }
             let Ok(meta) = entry.metadata() else { continue };
@@ -508,7 +607,7 @@ fn estimate_bytes(dir: &Path) -> u64 {
     total
 }
 
-fn newest_mtime_secs(dir: &Path) -> Option<u64> {
+pub(crate) fn newest_mtime_secs(dir: &Path) -> Option<u64> {
     std::fs::read_dir(dir)
         .ok()?
         .flatten()
@@ -535,6 +634,7 @@ struct CollectAccum {
 }
 
 fn collect_files(
+    layout: &Layout,
     root: &Path,
     dir: &Path,
     acc: &mut CollectAccum,
@@ -555,7 +655,7 @@ fn collect_files(
             Err(_) => entry.path(),
         };
         if meta.is_dir() {
-            if SKIP_ON_IMPORT.contains(&name.as_str()) {
+            if layout.skips(&name) {
                 acc.skipped
                     .push(format!("{}/ (rebuildable cache)", relative.display()));
                 continue;
@@ -573,10 +673,19 @@ fn collect_files(
                 ));
                 continue;
             }
-            collect_files(root, &entry.path(), acc, max_bytes, extra_skips)?;
-        } else if SKIP_ON_IMPORT.contains(&name.as_str()) {
+            collect_files(layout, root, &entry.path(), acc, max_bytes, extra_skips)?;
+        } else if layout.skips(&name) {
             acc.skipped
                 .push(format!("{} (rebuildable)", relative.display()));
+        } else if relative.components().count() == 1 && extra_skips.contains(&name.as_str()) {
+            // A top-level history FILE (Codex's `history.jsonl`) stays
+            // behind with its size, like a history folder.
+            #[allow(clippy::cast_precision_loss)]
+            let mib = meta.len() as f64 / 1_048_576.0;
+            acc.skipped.push(format!(
+                "{} ({mib:.1} MiB history — skipped at your choice)",
+                relative.display(),
+            ));
         } else {
             acc.total += meta.len();
             if acc.total > max_bytes {

@@ -23,6 +23,7 @@
 
 use std::path::{Path, PathBuf};
 
+use juggler_adapter::environment::{AliasHint, DiscoveredInstall, ImportOutcome, LoginProbe};
 use juggler_adapter::{
     AdapterError, Capabilities, DiscoveryReport, EnvMap, HarnessAdapter, InstallStatus, LaunchMode,
     LaunchSpec, SessionWatcher, VerificationStatus,
@@ -30,7 +31,7 @@ use juggler_adapter::{
 use juggler_core::model::{Account, HarnessId, Profile};
 
 use crate::claude_code::{
-    LoginState, existing, find_on_path, home_relative, prepare_managed_dir_for,
+    LoginState, existing, find_on_path, home_dir, home_relative, prepare_managed_dir_for,
 };
 
 /// Provider id: `codex`.
@@ -259,6 +260,20 @@ pub fn keychain_account(state_dir: &Path) -> Option<String> {
     Some(format!("cli|{hex}"))
 }
 
+/// The scan-side sign-in axis stays binary (the inference vocabulary);
+/// the account wire carries the full taxonomy (AJ-E308), as for Claude.
+fn scan_probe(path: &Path) -> LoginProbe {
+    match codex_login_state(path) {
+        LoginState::SignedIn => LoginProbe::LoggedIn,
+        LoginState::Partial
+        | LoginState::Expired
+        | LoginState::SsoPending
+        | LoginState::ApiKey
+        | LoginState::LoggedOut
+        | LoginState::Unknown => LoginProbe::LoggedOut,
+    }
+}
+
 /// The isolation overlay: the home, and the SQLite home pinned inside it
 /// so an inherited `CODEX_SQLITE_HOME` can never join two accounts.
 fn home_env(state_dir: &Path) -> EnvMap {
@@ -407,6 +422,53 @@ impl HarnessAdapter for CodexAdapter {
 
     fn login_spec(&self, state_dir: &Path) -> Result<LaunchSpec, AdapterError> {
         self.login_spec_inherent(state_dir)
+    }
+
+    /// AJ-E1302: `~/.codex`, `$CODEX_HOME` and `~/.codex*` homes —
+    /// metadata only (the sign-in probe reads field names, never values).
+    fn scan_environment(&self) -> Vec<DiscoveredInstall> {
+        let Some(home) = home_dir() else {
+            return Vec::new();
+        };
+        let env_override = std::env::var_os(ENV_CODEX_HOME)
+            .filter(|value| !value.is_empty())
+            .map(PathBuf::from);
+        crate::codex_environment::scan_codex_environment(
+            &home,
+            env_override.as_deref(),
+            &scan_probe,
+        )
+    }
+
+    /// AJ-E302 S5: rc assignments of `CODEX_HOME` only.
+    fn scan_shell_aliases(&self) -> Vec<AliasHint> {
+        let Some(home) = home_dir() else {
+            return Vec::new();
+        };
+        let (hints, _) = crate::scan_signals::scan_rc_assignments(&home);
+        hints
+            .into_iter()
+            .filter(|hint| hint.variable == ENV_CODEX_HOME)
+            .collect()
+    }
+
+    fn import_account(&self, source: &Path, dest: &Path) -> Result<ImportOutcome, AdapterError> {
+        crate::codex_environment::import_codex_home(source, dest, &scan_probe)
+    }
+
+    fn inspect_source(
+        &self,
+        source: &Path,
+    ) -> Result<juggler_adapter::environment::SourceInspect, AdapterError> {
+        crate::codex_environment::inspect_codex_source(source, &scan_probe)
+    }
+
+    fn import_account_degraded(
+        &self,
+        source: &Path,
+        dest: &Path,
+    ) -> Result<ImportOutcome, AdapterError> {
+        crate::codex_environment::import_codex_settings_only(source, dest, &scan_probe)
     }
 
     fn isolation_env_keys(&self) -> &'static [&'static str] {
