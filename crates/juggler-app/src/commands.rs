@@ -4241,6 +4241,13 @@ fn scan_rollout_line(
             }
         }
         (Some("token_usage_record"), _) => {
+            // Once per response, as the parser and the usage pipeline count.
+            let key = ["thread_id", "turn_id", "response_id"]
+                .map(|field| payload[field].as_str().unwrap_or_default())
+                .join("/");
+            if !scan.rollout_seen.insert(key) {
+                return;
+            }
             let usage = &payload["usage"];
             scan.turns += 1;
             scan.events.push(juggler_core::quality::UsageEvent {
@@ -4282,6 +4289,42 @@ struct TranscriptScan {
     turns: u64,
     context_used: Option<u64>,
     context_window: Option<u64>,
+    /// Codex usage rows already counted (thread/turn/response): a forked
+    /// or resumed rollout repeats its parent's rows.
+    rollout_seen: std::collections::BTreeSet<String>,
+}
+
+#[cfg(test)]
+mod rollout_scan_tests {
+    use super::{TranscriptScan, scan_rollout_line};
+
+    #[test]
+    fn a_repeated_usage_row_counts_once_in_the_quality_scan() {
+        let mut scan = TranscriptScan {
+            events: Vec::new(),
+            errors: 0,
+            turns: 0,
+            context_used: None,
+            context_window: None,
+            rollout_seen: std::collections::BTreeSet::new(),
+        };
+        let row: serde_json::Value = serde_json::json!({
+            "timestamp": "2026-10-20T08:00:00.000Z",
+            "type": "token_usage_record",
+            "payload": {"thread_id": "t", "turn_id": "1", "response_id": "r",
+                        "usage": {"input_tokens": 100, "cached_input_tokens": 40, "output_tokens": 10}}
+        });
+        let mut model = None;
+        for _ in 0..3 {
+            scan_rollout_line(&row, &row["payload"], &mut model, &mut scan, 0);
+        }
+        assert_eq!(
+            scan.turns, 1,
+            "a forked/resumed rollout's repeat is not a turn"
+        );
+        assert_eq!(scan.events.len(), 1);
+        assert_eq!(scan.events[0].tokens.input, 60);
+    }
 }
 
 /// Scans the native transcript JSONL for per-turn usage events,
@@ -4295,6 +4338,7 @@ fn scan_transcript(record: &SessionRecord, now: i64) -> TranscriptScan {
         turns: 0,
         context_used: None,
         context_window: None,
+        rollout_seen: std::collections::BTreeSet::new(),
     };
     let bytes = record
         .transcript_ref
@@ -5196,7 +5240,16 @@ fn resolve_source(
     };
     source.transcript_ref = Some(found);
     if persist {
-        lock_storage_arc(state)?.sessions().update(&source)?;
+        // Re-read under the lock: the watcher may have changed the
+        // record (status, last activity) during the scan — only the link
+        // is written, and only if nothing linked it meanwhile.
+        let storage = lock_storage_arc(state)?;
+        let mut fresh = storage.sessions().get(&source.id)?;
+        if fresh.transcript_ref.is_none() {
+            fresh.transcript_ref.clone_from(&source.transcript_ref);
+            storage.sessions().update(&fresh)?;
+        }
+        source = fresh;
     }
     Ok((source, account_a))
 }
