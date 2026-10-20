@@ -41,6 +41,7 @@ fn account(provider: &str, plan: Option<&str>) -> Account {
         import_source_path: None,
         import_origin: None,
         imported_at: None,
+        in_place: false,
     }
 }
 

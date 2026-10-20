@@ -294,6 +294,7 @@ fn g3_g4_no_plaintext_and_no_credentials_leave_the_mac() {
                 import_source_path: None,
                 import_origin: None,
                 imported_at: None,
+                in_place: false,
             })
             .unwrap();
         storage
