@@ -11,16 +11,49 @@
  *
  * Plus "Pick up where you left off". Empty means "start here": no
  * Account → bring them in; no session → start one.
+ *
+ * D-25 amendment (AJ-E1021): Home is also the morning triage. Sessions
+ * parked until a reset get their own section (Resume once the reset is
+ * reached) instead of reading as "hit its limit"; "Pick up where you
+ * left off" lists what ended this week and isn't marked reviewed yet;
+ * J/K or the arrows move between rows, Enter opens, A runs the row's
+ * action. The ledger-degraded banner moved here from Overview.
  */
-import { useEffect, useMemo, useState, type JSX } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent } from "react";
 import { Button } from "../components/primitives";
 import { hueOf } from "../components/indicator";
 import { MorningSummary } from "../components/MorningSummary";
-import { accountLoginState, errorText, quotaDisplayAll, signedIn, terminalSpawnLogin, type AccountInfo, type InstanceInfo, type ProjectInfo, type QuotaDisplayData, type WindowDisplay } from "../lib/bridge";
+import { parkedWords } from "../lib/parked";
+import {
+  accountLoginState,
+  dashboardStats,
+  errorText,
+  instanceMarkReviewed,
+  parkedResume,
+  quotaDisplayAll,
+  signedIn,
+  terminalSpawnLogin,
+  type AccountInfo,
+  type InstanceInfo,
+  type ProjectInfo,
+  type QuotaDisplayData,
+  type WindowDisplay,
+} from "../lib/bridge";
 
 const NEEDS = ["waiting_user", "stuck", "quota_blocked", "failed"] as const;
 type Need = (typeof NEEDS)[number];
 const ENDED = ["finished", "stopped", "handed_over"];
+/** Ended sessions older than this are left to History (AJ-E1007). */
+const TO_REVIEW_WINDOW_MS = 7 * 24 * 3_600_000;
+/** "Pick up where you left off" shows this many, the rest on request. */
+const RECENT_SHOWN = 3;
+
+/** Ended this week and not yet marked reviewed (or archived). */
+export function toReview(session: InstanceInfo, now: number): boolean {
+  if (!ENDED.includes(session.status)) return false;
+  if (session.lifecycle === "reviewed" || session.lifecycle === "archived") return false;
+  return now - (session.last_activity_ms ?? session.started_at_ms) <= TO_REVIEW_WINDOW_MS;
+}
 
 /** A session's need, from the status or the attention flag. */
 export function needOf(session: InstanceInfo): Need | null {
@@ -140,6 +173,7 @@ export function HomeScreen({
   onLimit,
   openLoginTerminal,
   onAccountsChanged,
+  onChanged,
 }: {
   sessions: InstanceInfo[];
   accounts: AccountInfo[];
@@ -155,6 +189,8 @@ export function HomeScreen({
   openLoginTerminal?: (id: string, title: string) => void;
   /** Called when a sign-in started here completes (the app refreshes). */
   onAccountsChanged?: () => void;
+  /** A row's action changed a session (resumed, marked reviewed). */
+  onChanged?: () => void;
 }): JSX.Element {
   const [quota, setQuota] = useState<QuotaDisplayData[]>([]);
   useEffect(() => {
@@ -168,15 +204,76 @@ export function HomeScreen({
     };
   }, [accounts.length]);
 
+  // AJ-E501: process tracking degraded — said here, only when it is.
+  const [ledgerDegraded, setLedgerDegraded] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    void dashboardStats().then((stats) => alive && setLedgerDegraded(stats.ledger_degraded === true), () => null);
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const [status, setStatus] = useState("");
+  const [busy, setBusy] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
+  const act = useCallback(
+    async (session: InstanceInfo, what: "resume" | "reviewed") => {
+      setBusy(session.id);
+      try {
+        if (what === "resume") await parkedResume(session.id);
+        else await instanceMarkReviewed(session.id);
+        setStatus(`${session.account_label}: ${what === "resume" ? "resumed" : "marked reviewed"}.`);
+        onChanged?.();
+      } catch (cause) {
+        setStatus(`${session.account_label}: ${errorText(cause)}`);
+      } finally {
+        setBusy(null);
+      }
+    },
+    [onChanged],
+  );
+
+  // AJ-E1005 Req.3 on Home: J/K or the arrows move between rows, Enter
+  // opens (each row's first control is a button), A runs the row's action.
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
+    const target = event.target as HTMLElement;
+    if (target.tagName === "SELECT" || target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
+    const rows = Array.from(rootRef.current?.querySelectorAll<HTMLElement>("[data-home-row]") ?? []);
+    const at = rows.findIndex((row) => row === document.activeElement);
+    const focusRow = (index: number) => rows[Math.max(0, Math.min(rows.length - 1, index))]?.focus();
+    if (event.key === "j" || (event.key === "ArrowDown" && at >= 0)) {
+      event.preventDefault();
+      focusRow(at + 1);
+    } else if (event.key === "k" || (event.key === "ArrowUp" && at >= 0)) {
+      event.preventDefault();
+      focusRow(at < 0 ? 0 : at - 1);
+    } else if ((event.key === "a" || event.key === "A") && at >= 0) {
+      const item = rows[at]!.closest("[data-home-item]");
+      const action = item?.querySelector<HTMLElement>("[data-home-action]") ?? rows[at]!;
+      event.preventDefault();
+      action.click();
+    }
+  };
+
   const needs = useMemo(
     () =>
       sessions
+        // A parked session already has its decision: it waits for the reset.
+        .filter((session) => !session.parked)
         .map((session) => ({ session, need: needOf(session) }))
         .filter((row): row is { session: InstanceInfo; need: Need } => row.need !== null)
         .sort((a, b) => NEEDS.indexOf(a.need) - NEEDS.indexOf(b.need)),
     [sessions],
   );
-  const running = sessions.filter((s) => (s.status === "running" || s.status === "starting") && needOf(s) === null);
+  const running = sessions.filter((s) => (s.status === "running" || s.status === "starting") && needOf(s) === null && !s.parked);
+  const parked = sessions
+    .filter((s) => s.parked)
+    .sort((a, b) => (a.parked_resets_at_ms ?? Number.MAX_SAFE_INTEGER) - (b.parked_resets_at_ms ?? Number.MAX_SAFE_INTEGER));
+  const review = sessions
+    .filter((s) => toReview(s, now))
+    .sort((a, b) => (b.last_activity_ms ?? b.started_at_ms) - (a.last_activity_ms ?? a.started_at_ms));
   const signIns = accounts.filter((account) => !signedIn(account.login_state));
   // D-25: Sign in opens Claude's own sign-in straight away (first run's
   // rule); the row then says where to finish it.
@@ -211,10 +308,7 @@ export function HomeScreen({
       (cause) => setSignInError(errorText(cause)),
     );
   };
-  const recent = sessions
-    .filter((s) => ENDED.includes(s.status))
-    .sort((a, b) => (b.last_activity_ms ?? b.started_at_ms) - (a.last_activity_ms ?? a.started_at_ms))
-    .slice(0, 3);
+  const recent = showAll ? review : review.slice(0, RECENT_SHOWN);
   const runway = accounts.map((account) => ({
     account,
     ...runwayOf(quota.find((q) => q.account === account.id), sessions.filter((s) => s.account_id === account.id)),
@@ -256,11 +350,25 @@ export function HomeScreen({
     .join(" · ");
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-7 py-2" data-testid="home">
+    <div ref={rootRef} onKeyDown={onKeyDown} className="mx-auto flex w-full max-w-5xl flex-col gap-7 py-2" data-testid="home">
       <header className="flex flex-col gap-1">
         <h1 className="text-2xl font-semibold tracking-tight">{headline}</h1>
         {subline && <p className="text-sm text-muted">{subline}</p>}
       </header>
+      <p className="sr-only" aria-live="polite" data-testid="home-status">
+        {status}
+      </p>
+
+      {ledgerDegraded && (
+        <div
+          role="alert"
+          data-testid="ledger-degraded-banner"
+          className="flex items-center gap-2.5 rounded-lg border border-warning/25 bg-warning-soft px-4 py-3 text-[12.5px] text-ink"
+        >
+          <span aria-hidden>⚠</span>
+          Process tracking degraded — cleanup is read-only until restart.
+        </div>
+      )}
 
       {/* AJ-E1006: what changed while you were away — only when something did. */}
       <MorningSummary onOpenSession={onOpenSession} />
@@ -308,7 +416,7 @@ export function HomeScreen({
                   const glyph = NEED_GLYPH[need];
                   const place = placeOf(session, projects);
                   return (
-                    <li key={session.id} className="flex flex-wrap items-center gap-x-3.5 gap-y-2 rounded-xl border border-hairline bg-surface px-4 py-3.5">
+                    <li key={session.id} data-home-item className="flex flex-wrap items-center gap-x-3.5 gap-y-2 rounded-xl border border-hairline bg-surface px-4 py-3.5">
                       <span aria-hidden="true" className={`flex size-8 shrink-0 items-center justify-center rounded-lg font-bold ${glyph.tint} ${glyph.tone}`}>
                         {glyph.glyph}
                       </span>
@@ -324,6 +432,8 @@ export function HomeScreen({
                         size="sm"
                         variant="secondary"
                         className="ml-auto"
+                        data-home-row
+                        aria-keyshortcuts="A"
                         onClick={() => (need === "quota_blocked" && onLimit ? onLimit(session.id) : onOpenSession(session.id))}
                       >
                         {words.action}{" "}
@@ -343,9 +453,10 @@ export function HomeScreen({
                 {running.map((session) => {
                   const place = placeOf(session, projects);
                   return (
-                    <li key={session.id} className="border-t border-hairline/60 first:border-t-0">
+                    <li key={session.id} data-home-item className="border-t border-hairline/60 first:border-t-0">
                       <button
                         type="button"
+                        data-home-row
                         className="flex w-full items-center gap-3.5 px-4 py-2.5 text-left hover:bg-surface-2"
                         onClick={() => onOpenSession(session.id)}
                       >
@@ -360,6 +471,44 @@ export function HomeScreen({
                         </span>
                         <span className="w-14 text-right font-mono text-xs text-faint">{minutes(session.started_at_ms, now)}</span>
                       </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
+
+          {parked.length > 0 && (
+            <section aria-labelledby="home-parked" className="flex flex-col gap-2.5" data-testid="home-parked">
+              <SectionTitle id="home-parked">Parked until a reset</SectionTitle>
+              <ul className="overflow-hidden rounded-xl border border-hairline bg-surface">
+                {parked.map((session) => {
+                  const place = placeOf(session, projects);
+                  const words = parkedWords(session, now)!;
+                  return (
+                    <li key={session.id} data-home-item className="flex flex-wrap items-center gap-x-3.5 gap-y-2 border-t border-hairline/60 px-4 py-2.5 first:border-t-0">
+                      <span aria-hidden="true" className="w-4 shrink-0 text-center text-xs text-muted">⏸</span>
+                      <span className="flex min-w-0 flex-1 basis-40 flex-col gap-0.5">
+                        <span className="truncate text-sm text-ink">
+                          {place.title}
+                          {session.git_branch && <span className="text-faint"> · {session.git_branch}</span>}
+                        </span>
+                        <span className="truncate text-xs text-muted" title={words.long}>
+                          {session.account_label} · {words.short.replace(/^Parked · /, "")}
+                        </span>
+                      </span>
+                      <Button
+                        size="sm"
+                        variant={words.due ? "primary" : "secondary"}
+                        className="ml-auto"
+                        data-home-row
+                        aria-keyshortcuts="A"
+                        disabled={busy === session.id}
+                        onClick={() => (words.due ? void act(session, "resume") : onOpenSession(session.id))}
+                      >
+                        {words.due ? "Resume" : "Open"}
+                        <span className="sr-only"> — {place.title}</span>
+                      </Button>
                     </li>
                   );
                 })}
@@ -416,10 +565,11 @@ export function HomeScreen({
             {recent.map((session) => {
               const place = placeOf(session, projects);
               return (
-                <li key={session.id}>
+                <li key={session.id} data-home-item className="flex flex-col rounded-xl border border-hairline bg-surface hover:border-accent/40" data-testid="home-recent-item">
                   <button
                     type="button"
-                    className="flex w-full flex-col items-start gap-1.5 rounded-xl border border-hairline bg-surface px-4 py-3 text-left hover:border-accent/40"
+                    data-home-row
+                    className="flex w-full flex-col items-start gap-1.5 rounded-t-xl px-4 pb-1.5 pt-3 text-left"
                     onClick={() => onOpenSession(session.id)}
                   >
                     <span className="w-full truncate text-sm font-medium text-ink">{place.title}</span>
@@ -428,11 +578,40 @@ export function HomeScreen({
                     </span>
                     <span className="text-xs text-accent-hi">Open →</span>
                   </button>
+                  {/* AJ-E1005 Req.4: it leaves this list only when you say so. */}
+                  <button
+                    type="button"
+                    data-home-action
+                    aria-keyshortcuts="A"
+                    disabled={busy === session.id}
+                    onClick={() => void act(session, "reviewed")}
+                    className="self-end px-4 pb-2.5 text-[11px] text-muted hover:text-ink hover:underline disabled:opacity-60"
+                  >
+                    Mark reviewed<span className="sr-only"> — {place.title}</span>
+                  </button>
                 </li>
               );
             })}
           </ul>
+          {review.length > RECENT_SHOWN && (
+            <button
+              type="button"
+              className="self-start text-xs text-muted hover:text-ink hover:underline"
+              aria-expanded={showAll}
+              onClick={() => setShowAll((open) => !open)}
+              data-testid="home-recent-all"
+            >
+              {showAll ? "Show fewer" : `Show all ${review.length}`}
+            </button>
+          )}
         </section>
+      )}
+
+      {needs.length + running.length + parked.length + recent.length > 0 && (
+        <p className="text-[11px] text-faint" data-testid="home-keys">
+          Keyboard: <kbd className="font-mono">J</kbd> / <kbd className="font-mono">K</kbd> move between sessions ·{" "}
+          <kbd className="font-mono">Enter</kbd> opens · <kbd className="font-mono">A</kbd> runs the row's action
+        </p>
       )}
     </div>
   );
