@@ -410,17 +410,23 @@ pub fn probe_codex_identity(state_dir: &Path) -> juggler_adapter::IdentityProbe 
             return IdentityProbe::SignedOut;
         }
     }
-    let account_id = std::fs::read(state_dir.join("auth.json"))
+    // Streamed into a shape that keeps ONLY `tokens.account_id` (an id,
+    // not a credential); every token value is skipped (ADR-0003).
+    #[derive(Default, serde::Deserialize)]
+    #[serde(default)]
+    struct IdShape {
+        tokens: Option<IdTokens>,
+    }
+    #[derive(Default, serde::Deserialize)]
+    #[serde(default)]
+    struct IdTokens {
+        account_id: Option<String>,
+    }
+    let account_id = std::fs::File::open(state_dir.join("auth.json"))
         .ok()
-        .and_then(|raw| serde_json::from_slice::<serde_json::Value>(&raw).ok())
-        .and_then(|value| {
-            value
-                .get("tokens")?
-                .get("account_id")?
-                .as_str()
-                .filter(|id| !id.is_empty())
-                .map(str::to_owned)
-        });
+        .and_then(|file| serde_json::from_reader::<_, IdShape>(std::io::BufReader::new(file)).ok())
+        .and_then(|shape| shape.tokens?.account_id)
+        .filter(|id| !id.is_empty());
     match account_id {
         Some(subject) => {
             let tail: String = subject
