@@ -77,6 +77,16 @@ export const REFRESH_INTERVALS = {
 } as const;
 
 /**
+ * Where a key is someone's typing, not a shortcut: a text field, an
+ * editable element, or the terminal (xterm), where Ctrl+D is end-of-input.
+ */
+export function isTypingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  if (target.closest("input, textarea, select, [contenteditable=''], [contenteditable='true'], .xterm")) return true;
+  return target instanceof HTMLElement && target.isContentEditable === true;
+}
+
+/**
  * The density-cycle shortcut predicate (Req.4): Ctrl+D works everywhere;
  * Cmd+D only inside the Tauri app — the web preview must keep the
  * browser's bookmark shortcut. Modifiers beyond the shortcut (shift,

@@ -431,7 +431,7 @@ export function InstanceBoard({
               }
             }}
             placeholder="Search sessions ⌘K"
-            aria-label="Search sessions by account, project, branch, model or provider"
+            aria-label="Search sessions by account, project, branch, model or tool"
             className="w-full rounded-lg border border-hairline bg-surface/70 py-1.5 pl-6 pr-2 text-[11.5px] text-ink outline-none placeholder:text-faint focus-visible:ring-1 focus-visible:ring-accent/60"
           />
         </div>
@@ -1178,7 +1178,7 @@ export function SessionRow({
         <span className="flex min-w-0 items-center gap-1.5 overflow-hidden">
           <span
             className="inline-flex min-w-0 shrink items-center gap-1 text-[10.5px] font-medium text-ink"
-            title={session.provider}
+            title={providerDisplayName(session.provider)}
           >
             <mark.Icon width={11} height={11} className="shrink-0 text-accent-hi" />
             <span className="truncate">{mark.abbrev}</span>
@@ -1273,7 +1273,7 @@ export function SessionRow({
       <span className="flex min-w-0 items-center gap-1.5 overflow-hidden">
         <span
           className="inline-flex min-w-0 shrink items-center gap-1 text-[10.5px] font-medium text-ink"
-          title={session.provider}
+          title={providerDisplayName(session.provider)}
         >
           <mark.Icon width={11} height={11} className="shrink-0 text-accent-hi" />
           <span className="truncate">{mark.abbrev}</span>

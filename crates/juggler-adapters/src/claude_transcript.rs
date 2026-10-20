@@ -216,6 +216,9 @@ impl ParsedTranscript {
                 .kinds
                 .get("compact_boundary")
                 .is_some_and(|count| *count > 0)
+            // Codex rollouts mark a compaction with a `compacted` line
+            // (AJ-E1303) — the same cap applies.
+            || self.kinds.get("compacted").is_some_and(|count| *count > 0)
     }
 }
 

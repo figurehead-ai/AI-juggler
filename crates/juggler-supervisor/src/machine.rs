@@ -458,20 +458,27 @@ pub trait OsReadings: Send {
     }
 }
 
+/// The sysctls behind [`memory_parts`], in its order (all required).
+#[cfg(target_os = "macos")]
+const MEMORY_SYSCTLS: [&str; 5] = [
+    "hw.pagesize",
+    "vm.page_pageable_internal_count",
+    "vm.page_purgeable_count",
+    "vm.page_wired_count",
+    "vm.compressor_bytes_used",
+];
+
 /// macOS: app memory, wired and compressed, read through sysctl. `None` if
 /// any part can't be read (never a partial sum).
 #[cfg(target_os = "macos")]
 #[must_use]
 pub fn memory_parts() -> Option<MemoryParts> {
-    let page = sysctl_u64("hw.pagesize")?;
-    let internal = sysctl_u64("vm.page_pageable_internal_count")?;
-    let purgeable = sysctl_u64("vm.page_purgeable_count")?;
-    let wired = sysctl_u64("vm.page_wired_count")?;
-    let compressed = sysctl_u64("vm.compressor_bytes_used")?;
+    let [page, internal, purgeable, wired, compressed] = MEMORY_SYSCTLS.map(sysctl_u64);
+    let page = page?;
     Some(MemoryParts {
-        app: internal.saturating_sub(purgeable).saturating_mul(page),
-        wired: wired.saturating_mul(page),
-        compressed,
+        app: internal?.saturating_sub(purgeable?).saturating_mul(page),
+        wired: wired?.saturating_mul(page),
+        compressed: compressed?,
     })
 }
 
@@ -1170,25 +1177,39 @@ mod tests {
             "kern.memorystatus_vm_pressure_level"
         );
         assert!(host.thermal().is_some());
-        // The parts add up, and stay within the Mac's memory.
+        // The parts add up, and stay within the Mac's memory — or, where
+        // this macOS doesn't report one of them (GitHub's macOS runner
+        // didn't), nothing is shown: never a partial sum, never another
+        // measure under the same name. The log names what's missing.
         let total = {
             let mut system = sysinfo::System::new();
             system.refresh_memory();
             system.total_memory()
         };
-        let parts = memory_parts().expect("app, wired and compressed");
-        assert!(parts.app > 0 && parts.wired > 0, "{parts:?}");
-        assert!(parts.app <= total && parts.wired <= total && parts.compressed <= total);
         let (used, basis) = host.memory_in_use(total, 0);
-        assert_eq!(basis, MemoryBasis::AppWiredCompressed);
-        let used = used.expect("read");
-        assert!(used <= total, "used {used} ≤ total {total}");
-        // Read a moment apart, so within 2 % of the parts' sum.
-        let sum = parts.total().min(total);
-        assert!(
-            used.abs_diff(sum) <= total / 50,
-            "used {used} vs parts {sum}"
-        );
+        if let Some(parts) = memory_parts() {
+            assert!(parts.app > 0 && parts.wired > 0, "{parts:?}");
+            assert!(parts.app <= total && parts.wired <= total && parts.compressed <= total);
+            assert_eq!(basis, MemoryBasis::AppWiredCompressed);
+            let used = used.expect("read");
+            assert!(used <= total, "used {used} ≤ total {total}");
+            // Read a moment apart, so within 2 % of the parts' sum.
+            let sum = parts.total().min(total);
+            assert!(
+                used.abs_diff(sum) <= total / 50,
+                "used {used} vs parts {sum}"
+            );
+        } else {
+            let missing: Vec<&str> = MEMORY_SYSCTLS
+                .iter()
+                .copied()
+                .filter(|name| sysctl_u64(name).is_none())
+                .collect();
+            eprintln!("memory parts unavailable on this macOS; missing: {missing:?}");
+            assert!(!missing.is_empty(), "None only when a sysctl is missing");
+            assert_eq!(used, None, "nothing shown rather than another measure");
+            assert_eq!(basis, MemoryBasis::Unknown);
+        }
         assert!(host.power().is_some());
     }
 }

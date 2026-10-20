@@ -89,6 +89,33 @@
   half-written. Fix: the stub writes a temporary file and renames it into
   place. It passed 15/15 standalone before the fix; the assertion is
   unchanged.
+- **Flake record, 2026-10-20 (infrastructure; no change).** On PR #59
+  (AJ-E1301) the CI `ui` job failed in its first step, `corepack prepare
+  pnpm@10 --activate`: "Internal Error: Error when performing the request
+  to https://registry.npmjs.org/pnpm/10.34.7" (run 39438483215, job
+  118681742197). No project code had run; install, component tests and
+  build were skipped. The job is re-run unchanged; CI is the arbiter.
+- **Defect record, 2026-10-20 (found by review; fixed).** PR #60's shared
+  import walk (`claude_environment.rs`) used `DirEntry::metadata`, which
+  does not follow links, and then copied every non-directory with
+  `std::fs::copy`, which does: a linked folder failed the whole import, a
+  link to a file outside the home (e.g. a key) was copied in, and the
+  size ceiling counted the link, not its target. This affected Claude
+  imports too. Fixed on main by #73 (a linked folder is kept as a link, a
+  linked file copied by content, a broken link left out); #60's own
+  skip-the-link fix was replaced by that shared rule.
+  The same review found Codex's `auth.json` copy would share a
+  single-use refresh token (now kept back).
+- **Defect record, 2026-10-20 (found by review; fixed before merge).**
+  PR #61's transcript linking (`handover_source` → `oldest_since`) took
+  the oldest file in the session's folder created after its start and
+  WROTE it down — even from a preflight. Two sessions of one account in
+  one folder (Codex writes a rollout only on the first turn) could be
+  given the other's conversation; Claude sessions too. Now: files linked
+  to other sessions are excluded, two matches find nothing, another live
+  unlinked session in the same folder makes it ambiguous (the switch
+  asks), only the switch itself persists, and the scan runs outside the
+  storage lock. Tests for Codex and Claude.
 - a11y seeded failure is recorded DEFERRED with owning task AJ-E804 —
   the gate is named in QUALITY.md vocabulary now; its absence is
   explicit, never a silent pass (per the quarantine/deferral rule).
