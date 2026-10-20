@@ -4202,7 +4202,8 @@ pub fn attention_recovery_drain(app: &tauri::AppHandle, state: &Arc<AppState>) -
 }
 
 /// The model a transcript line records for its turn — top-level
-/// `model` or nested `message.model` (both shapes ship in the wild).
+/// `model` or nested `message.model` (both shapes ship in the wild), or
+/// a Codex rollout's `turn_context` payload (AJ-E1303).
 fn line_model(value: &serde_json::Value) -> Option<String> {
     value
         .get("model")
@@ -4213,7 +4214,72 @@ fn line_model(value: &serde_json::Value) -> Option<String> {
                 .and_then(|message| message.get("model"))
                 .and_then(serde_json::Value::as_str)
         })
+        .or_else(|| {
+            (value.get("type").and_then(serde_json::Value::as_str) == Some("turn_context"))
+                .then(|| value.get("payload")?.get("model")?.as_str())
+                .flatten()
+        })
         .map(str::to_string)
+}
+
+/// AJ-E1303: one Codex rollout line's contribution to the quality scan —
+/// `token_usage_record` rows are turns with tokens, `token_count` events
+/// carry the context pair, `error` events count as errors.
+fn scan_rollout_line(
+    value: &serde_json::Value,
+    payload: &serde_json::Value,
+    model: &mut Option<String>,
+    scan: &mut TranscriptScan,
+    now: i64,
+) {
+    let kind = value.get("type").and_then(serde_json::Value::as_str);
+    let inner = payload.get("type").and_then(serde_json::Value::as_str);
+    match (kind, inner) {
+        (Some("turn_context"), _) => {
+            if let Some(name) = payload.get("model").and_then(serde_json::Value::as_str) {
+                *model = Some(name.to_owned());
+            }
+        }
+        (Some("token_usage_record"), _) => {
+            // Once per response, as the parser and the usage pipeline count.
+            let key = ["thread_id", "turn_id", "response_id"]
+                .map(|field| payload[field].as_str().unwrap_or_default())
+                .join("/");
+            if !scan.rollout_seen.insert(key) {
+                return;
+            }
+            let usage = &payload["usage"];
+            scan.turns += 1;
+            scan.events.push(juggler_core::quality::UsageEvent {
+                at_ms: value["timestamp"]
+                    .as_str()
+                    .and_then(chrono_like_ms)
+                    .unwrap_or(now),
+                tokens: juggler_core::model::TokenCounts {
+                    // Fresh prompt only (`input_tokens` includes the
+                    // cached history), as Claude's lines count it.
+                    input: usage["input_tokens"]
+                        .as_u64()
+                        .unwrap_or(0)
+                        .saturating_sub(usage["cached_input_tokens"].as_u64().unwrap_or(0)),
+                    output: usage["output_tokens"].as_u64().unwrap_or(0),
+                    cache_read: usage["cached_input_tokens"].as_u64().unwrap_or(0),
+                    cache_write: 0,
+                    reasoning: usage["reasoning_output_tokens"].as_u64().unwrap_or(0),
+                },
+                model: model.clone(),
+            });
+        }
+        (Some("event_msg"), Some("token_count")) => {
+            let info = &payload["info"];
+            if let Some(used) = info["last_token_usage"]["total_tokens"].as_u64() {
+                scan.context_used = Some(used);
+                scan.context_window = info["model_context_window"].as_u64();
+            }
+        }
+        (Some("event_msg"), Some("error" | "stream_error")) => scan.errors += 1,
+        _ => {}
+    }
 }
 
 /// Aggregated transcript facts feeding the quality signals.
@@ -4223,6 +4289,42 @@ struct TranscriptScan {
     turns: u64,
     context_used: Option<u64>,
     context_window: Option<u64>,
+    /// Codex usage rows already counted (thread/turn/response): a forked
+    /// or resumed rollout repeats its parent's rows.
+    rollout_seen: std::collections::BTreeSet<String>,
+}
+
+#[cfg(test)]
+mod rollout_scan_tests {
+    use super::{TranscriptScan, scan_rollout_line};
+
+    #[test]
+    fn a_repeated_usage_row_counts_once_in_the_quality_scan() {
+        let mut scan = TranscriptScan {
+            events: Vec::new(),
+            errors: 0,
+            turns: 0,
+            context_used: None,
+            context_window: None,
+            rollout_seen: std::collections::BTreeSet::new(),
+        };
+        let row: serde_json::Value = serde_json::json!({
+            "timestamp": "2026-10-20T08:00:00.000Z",
+            "type": "token_usage_record",
+            "payload": {"thread_id": "t", "turn_id": "1", "response_id": "r",
+                        "usage": {"input_tokens": 100, "cached_input_tokens": 40, "output_tokens": 10}}
+        });
+        let mut model = None;
+        for _ in 0..3 {
+            scan_rollout_line(&row, &row["payload"], &mut model, &mut scan, 0);
+        }
+        assert_eq!(
+            scan.turns, 1,
+            "a forked/resumed rollout's repeat is not a turn"
+        );
+        assert_eq!(scan.events.len(), 1);
+        assert_eq!(scan.events[0].tokens.input, 60);
+    }
 }
 
 /// Scans the native transcript JSONL for per-turn usage events,
@@ -4236,6 +4338,7 @@ fn scan_transcript(record: &SessionRecord, now: i64) -> TranscriptScan {
         turns: 0,
         context_used: None,
         context_window: None,
+        rollout_seen: std::collections::BTreeSet::new(),
     };
     let bytes = record
         .transcript_ref
@@ -4244,10 +4347,15 @@ fn scan_transcript(record: &SessionRecord, now: i64) -> TranscriptScan {
     let Some(bytes) = bytes else {
         return scan;
     };
+    let mut rollout_model = None;
     for line in String::from_utf8_lossy(&bytes).lines() {
         let Ok(value) = serde_json::from_str::<serde_json::Value>(line) else {
             continue;
         };
+        if let Some(payload) = value.get("payload") {
+            scan_rollout_line(&value, payload, &mut rollout_model, &mut scan, now);
+            continue;
+        }
         if value.get("usage").is_none() {
             continue;
         }
@@ -5045,22 +5153,121 @@ pub(crate) fn handover_source(
     state: &Arc<AppState>,
     session_id: &str,
 ) -> AppResult<(juggler_core::model::InstanceRecord, Account)> {
-    let storage = lock_storage_arc(state)?;
-    let source = storage
-        .sessions()
-        .get(&SessionId::new(session_id))
-        .map_err(|error| not_found_or_core(error, "session", session_id))?;
-    let source_profile = storage
-        .profiles()
-        .get(&source.profile)
-        .map_err(|error| not_found_or_core(error, "profile", &source.profile.to_string()))?;
-    let account_a = storage
-        .accounts()
-        .get(&source_profile.account)
-        .map_err(|error| {
-            not_found_or_core(error, "account", &source_profile.account.to_string())
-        })?;
+    resolve_source(state, session_id, false)
+}
+
+/// [`handover_source`] that KEEPS the transcript link it finds — only
+/// the switch itself does this (a preflight or a ranking look never
+/// writes a guess down).
+///
+/// # Errors
+///
+/// As [`handover_source`].
+pub(crate) fn handover_source_linked(
+    state: &Arc<AppState>,
+    session_id: &str,
+) -> AppResult<(juggler_core::model::InstanceRecord, Account)> {
+    resolve_source(state, session_id, true)
+}
+
+/// AJ-E1303: a session the app launched has no transcript link yet; the
+/// Provider finds the file it created (same folder, created after the
+/// launch). Never a guess: files linked to other sessions are excluded,
+/// two matches find nothing, and another live, unlinked session of the
+/// same account in the same folder makes it ambiguous (its file could
+/// be the only one so far) — the switch then asks. The filesystem scan
+/// runs without the storage lock.
+fn resolve_source(
+    state: &Arc<AppState>,
+    session_id: &str,
+    persist: bool,
+) -> AppResult<(juggler_core::model::InstanceRecord, Account)> {
+    let (mut source, account_a, taken, ambiguous) = {
+        let storage = lock_storage_arc(state)?;
+        let source = storage
+            .sessions()
+            .get(&SessionId::new(session_id))
+            .map_err(|error| not_found_or_core(error, "session", session_id))?;
+        let source_profile = storage
+            .profiles()
+            .get(&source.profile)
+            .map_err(|error| not_found_or_core(error, "profile", &source.profile.to_string()))?;
+        let account_a = storage
+            .accounts()
+            .get(&source_profile.account)
+            .map_err(|error| {
+                not_found_or_core(error, "account", &source_profile.account.to_string())
+            })?;
+        if source.transcript_ref.is_some() {
+            return Ok((source, account_a));
+        }
+        let others: Vec<juggler_core::model::InstanceRecord> = storage
+            .sessions()
+            .list(None)?
+            .into_iter()
+            .filter(|other| other.id != source.id)
+            .collect();
+        let account_recipes: std::collections::HashSet<String> = storage
+            .profiles()
+            .list_by_account(&account_a.id)?
+            .into_iter()
+            .map(|recipe| recipe.id.to_string())
+            .collect();
+        let taken: Vec<PathBuf> = others
+            .iter()
+            .filter_map(|other| other.transcript_ref.as_ref().map(|r| r.path.clone()))
+            .collect();
+        let ambiguous = others.iter().any(|other| {
+            account_recipes.contains(other.profile.as_str())
+                && other.transcript_ref.is_none()
+                && other.cwd == source.cwd
+                && !ended_before(other, source.started_at.millis())
+        });
+        (source, account_a, taken, ambiguous)
+    };
+    if ambiguous {
+        return Ok((source, account_a));
+    }
+    let Some(found) = state.registry.get(&account_a.harness).and_then(|adapter| {
+        adapter.locate_transcript(
+            &account_a.state_dir,
+            &source.cwd,
+            source.started_at.millis(),
+            &taken,
+        )
+    }) else {
+        return Ok((source, account_a));
+    };
+    source.transcript_ref = Some(found);
+    if persist {
+        // Re-read under the lock: the watcher may have changed the
+        // record (status, last activity) during the scan — only the link
+        // is written, and only if nothing linked it meanwhile.
+        let storage = lock_storage_arc(state)?;
+        let mut fresh = storage.sessions().get(&source.id)?;
+        if fresh.transcript_ref.is_none() {
+            fresh.transcript_ref.clone_from(&source.transcript_ref);
+            storage.sessions().update(&fresh)?;
+        }
+        source = fresh;
+    }
     Ok((source, account_a))
+}
+
+/// Whether `session` had ended before `at_ms` (its last activity — a
+/// session that ended earlier could not have written a file after it).
+fn ended_before(session: &juggler_core::model::InstanceRecord, at_ms: i64) -> bool {
+    let ended = matches!(
+        session.status,
+        SessionStatus::Finished
+            | SessionStatus::Stopped
+            | SessionStatus::Failed
+            | SessionStatus::HandedOver
+    );
+    ended
+        && session
+            .last_activity
+            .is_some_and(|last| last.millis() < at_ms.saturating_sub(2_000))
 }
 
 /// Resumes the session under the target account (see the module docs).
@@ -5188,9 +5395,8 @@ pub fn switch_preflight_impl(
     })?;
 
     // Compaction scan from the source transcript (the F2 signal).
-    let compacted = std::fs::read(&reference.path).is_ok_and(|bytes| {
-        juggler_adapters::claude_transcript::parse_transcript(&bytes).has_compact_boundary()
-    });
+    let compacted = std::fs::read(&reference.path)
+        .is_ok_and(|bytes| juggler_adapters::parse_any(&bytes).has_compact_boundary());
 
     // Target quota gate + the usual-account test (one storage pass).
     let now = Timestamp::now().millis();
@@ -5589,7 +5795,7 @@ fn switch_execute_core(
         FreezeChoice::FinishTurnThenSwitch
     };
     let (profile_b, account_b) = find_profile_with_account_arc(state, target_profile_id)?;
-    let (source, account_a) = handover_source(state, session_id)?;
+    let (source, account_a) = handover_source_linked(state, session_id)?;
     if source.project.is_none() {
         return Err(AppError::Io {
             context: "hand over",
@@ -10470,9 +10676,9 @@ fn transcript_side(
     std::collections::HashSet<String>,
     Vec<juggler_handover::pack::IrTurn>,
 )> {
-    use juggler_adapters::claude_transcript::{MessageRole, parse_transcript};
+    use juggler_adapters::claude_transcript::MessageRole;
     let bytes = std::fs::read(path).ok()?;
-    let parsed = parse_transcript(&bytes);
+    let parsed = juggler_adapters::parse_any(&bytes);
     let mut uuids = std::collections::HashSet::new();
     let mut turns = Vec::new();
     for message in parsed.messages {
@@ -11593,7 +11799,7 @@ fn switch_rank_context_of(
     }
     let source_replay_tokens = source.transcript_ref.as_ref().and_then(|reference| {
         std::fs::read(&reference.path).ok().map(|bytes| {
-            let parsed = juggler_adapters::claude_transcript::parse_transcript(&bytes);
+            let parsed = juggler_adapters::parse_any(&bytes);
             parsed.usage.input.saturating_add(parsed.usage.output)
         })
     });

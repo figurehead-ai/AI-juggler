@@ -428,6 +428,40 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         ClaudeCodeAdapter::login_state(self, state_dir)
     }
 
+    /// Claude keeps `projects/<mangled cwd>/<session>.jsonl`; the cwd
+    /// is read from the file (never decoded from the name, H-3).
+    fn locate_transcript(
+        &self,
+        state_dir: &Path,
+        cwd: &Path,
+        since_ms: i64,
+        taken: &[PathBuf],
+    ) -> Option<juggler_core::model::TranscriptRef> {
+        let mut candidates = Vec::new();
+        for project in std::fs::read_dir(state_dir.join("projects"))
+            .ok()?
+            .flatten()
+        {
+            let Ok(files) = std::fs::read_dir(project.path()) else {
+                continue;
+            };
+            for file in files.flatten() {
+                let path = file.path();
+                if path.extension().is_some_and(|ext| ext == "jsonl") {
+                    candidates.push(path);
+                }
+            }
+        }
+        only_since(candidates, since_ms, taken, |bytes| {
+            juggler_adapter::handover::embedded_cwd(bytes)
+                .is_some_and(|found| same_folder(&found, cwd))
+        })
+        .map(|path| juggler_core::model::TranscriptRef {
+            native_id: Some(file_stem(&path)),
+            path,
+        })
+    }
+
     fn watcher(&self, transcript_root: &Path) -> Result<Box<dyn SessionWatcher>, AdapterError> {
         ClaudeTranscriptWatcher::new(transcript_root)
             .map(|watcher| Box::new(watcher) as Box<dyn SessionWatcher>)
@@ -613,16 +647,27 @@ pub(crate) fn prepare_managed_dir_for(
 /// `.jsonl` file; new files emit [`SessionEvent::Discovered`], growth emits
 /// [`SessionEvent::MessageAppended`]. Content is never parsed here — the
 /// transcript parser runs downstream on demand (spec §4.1).
-struct ClaudeTranscriptWatcher {
+pub(crate) struct ClaudeTranscriptWatcher {
     root: PathBuf,
+    /// The vendor session id of a transcript file (Claude: the stem;
+    /// Codex: the thread UUID inside the rollout name).
+    id_of: fn(&Path) -> String,
     _watcher: notify::RecommendedWatcher,
     events: std::sync::mpsc::Receiver<notify::Result<notify::Event>>,
     seen: BTreeMap<PathBuf, usize>,
+    /// (size, mtime) at the last read: an unchanged file is not read
+    /// again (Codex keeps every past rollout under `sessions/`).
+    stamps: BTreeMap<PathBuf, (u64, Option<std::time::SystemTime>)>,
     pending: std::collections::VecDeque<SessionEvent>,
 }
 
 impl ClaudeTranscriptWatcher {
     fn new(root: &Path) -> Result<Self, AdapterError> {
+        Self::with_ids(root, file_stem)
+    }
+
+    /// A watcher whose native ids come from `id_of` (shared by Codex).
+    pub(crate) fn with_ids(root: &Path, id_of: fn(&Path) -> String) -> Result<Self, AdapterError> {
         use notify::Watcher;
         let (tx, events) = std::sync::mpsc::channel();
         let mut watcher = notify::recommended_watcher(tx)
@@ -634,9 +679,11 @@ impl ClaudeTranscriptWatcher {
             })?;
         Ok(Self {
             root: root.to_path_buf(),
+            id_of,
             _watcher: watcher,
             events,
             seen: BTreeMap::new(),
+            stamps: BTreeMap::new(),
             pending: std::collections::VecDeque::new(),
         })
     }
@@ -661,16 +708,23 @@ impl ClaudeTranscriptWatcher {
         collect_jsonl(&self.root, &mut files, 0);
         files.sort();
         for path in files {
+            let stamp = std::fs::metadata(&path)
+                .map(|meta| (meta.len(), meta.modified().ok()))
+                .unwrap_or_default();
+            if self.stamps.get(&path) == Some(&stamp) {
+                continue;
+            }
+            self.stamps.insert(path.clone(), stamp);
             let lines = std::fs::read(&path).map_or(0, |bytes| count_lines(&bytes));
             let known = self.seen.entry(path.clone()).or_insert(0);
             if *known == 0 && lines > 0 {
                 self.pending.push_back(SessionEvent::Discovered {
-                    native_id: file_stem(&path),
+                    native_id: (self.id_of)(&path),
                     transcript_path: path.clone(),
                 });
             } else if lines > *known {
                 self.pending.push_back(SessionEvent::MessageAppended {
-                    native_id: file_stem(&path),
+                    native_id: (self.id_of)(&path),
                     transcript_path: path.clone(),
                 });
             }
@@ -705,6 +759,54 @@ pub(crate) fn collect_jsonl(dir: &Path, out: &mut Vec<PathBuf>, depth: usize) {
         } else if path.extension().is_some_and(|ext| ext == "jsonl") {
             out.push(path);
         }
+    }
+}
+
+/// The ONE file of `candidates` created at or after `since_ms` (2 s of
+/// clock slack), not in `taken`, whose head satisfies `matches` — `None`
+/// when there is none or more than one (never a guess between two).
+pub(crate) fn only_since(
+    candidates: Vec<PathBuf>,
+    since_ms: i64,
+    taken: &[PathBuf],
+    matches: impl Fn(&[u8]) -> bool,
+) -> Option<PathBuf> {
+    let born_ms = |path: &Path| {
+        let meta = std::fs::metadata(path).ok()?;
+        let time = meta.created().or_else(|_| meta.modified()).ok()?;
+        let since = time.duration_since(std::time::UNIX_EPOCH).ok()?;
+        i64::try_from(since.as_millis()).ok()
+    };
+    let mut found = candidates
+        .into_iter()
+        .filter(|path| !taken.contains(path))
+        .filter_map(|path| Some((born_ms(&path)?, path)))
+        .filter(|(born, _)| *born >= since_ms.saturating_sub(2_000))
+        .filter(|(_, path)| {
+            // The head carries the cwd; a first line can be large (a
+            // rollout's `session_meta` holds the base instructions), so
+            // the bound is generous but finite.
+            use std::io::Read as _;
+            let mut head = Vec::new();
+            std::fs::File::open(path)
+                .and_then(|file| file.take(HEAD_LIMIT).read_to_end(&mut head))
+                .is_ok_and(|_| matches(&head))
+        })
+        .map(|(_, path)| path);
+    let first = found.next()?;
+    found.next().is_none().then_some(first)
+}
+
+/// How much of a transcript's head the cwd match reads.
+const HEAD_LIMIT: u64 = 8 * 1024 * 1024;
+
+/// The same folder, symlinks resolved when both sides exist (`/var` vs
+/// `/private/var`), else the exact string.
+pub(crate) fn same_folder(recorded: &str, cwd: &Path) -> bool {
+    let recorded = Path::new(recorded);
+    match (recorded.canonicalize(), cwd.canonicalize()) {
+        (Ok(a), Ok(b)) => a == b,
+        _ => recorded == cwd,
     }
 }
 
