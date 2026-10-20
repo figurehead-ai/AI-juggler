@@ -349,6 +349,7 @@ pub fn tick(state: &Arc<AppState>, now_ms: i64) {
     track_footprints(
         state,
         now_ms,
+        ticks.is_multiple_of(FOOTPRINT_EVERY),
         ticks == 1 || ticks.is_multiple_of(FOOTPRINT_EVERY),
     );
     if !scan {
@@ -672,7 +673,7 @@ fn peaks_for_new_sessions(
 /// trees that ended (and, every 10 min, for every running one). At start
 /// and every 10 min, a deleted launch setting's or Account's footprints
 /// are forgotten.
-fn track_footprints(state: &Arc<AppState>, now_ms: i64, periodic: bool) {
+fn track_footprints(state: &Arc<AppState>, now_ms: i64, periodic: bool, prune: bool) {
     let Ok((sessions, observed)) = state
         .resources
         .lock()
@@ -741,14 +742,14 @@ fn track_footprints(state: &Arc<AppState>, now_ms: i64, periodic: bool) {
             writes.extend(watch.peaks.iter().map(|(id, peak)| footprint_of(id, peak)));
         }
     }
-    if writes.is_empty() && !periodic {
+    if writes.is_empty() && !prune {
         return;
     }
     if let Ok(storage) = state.storage.lock() {
         for footprint in writes.iter().filter(|footprint| footprint.peak_rss > 0) {
             let _ = storage.footprints().record(footprint);
         }
-        if periodic {
+        if prune {
             let _ = storage.footprints().forget_deleted();
         }
     }

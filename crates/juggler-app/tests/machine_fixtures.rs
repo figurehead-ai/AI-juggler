@@ -184,6 +184,20 @@ fn footprints_teach_the_advisor_within_twenty_percent() {
         assert_eq!(footprint.account_id.as_deref(), Some("acc-e14"));
     }
 
+    // Seconds-long sessions don't teach the advisor (a session counts
+    // once it has run a minute) …
+    let advice = machine_health::machine_advice_impl(&state).unwrap();
+    let heavy = advice.iter().find(|a| a.recipe_id == "rec-hog").unwrap();
+    assert_eq!(heavy.based_on, 0, "under a minute: not counted");
+    // … so the hogs stand in for 10-minute sessions (their peaks are
+    // what's measured here; a footprint's duration only ever grows).
+    {
+        let storage = state.storage.lock().unwrap();
+        for mut footprint in footprints {
+            footprint.duration_ms = 600_000;
+            storage.footprints().record(&footprint).unwrap();
+        }
+    }
     let advice = machine_health::machine_advice_impl(&state).unwrap();
     let heavy = advice.iter().find(|a| a.recipe_id == "rec-hog").unwrap();
     assert_eq!(heavy.based_on, 3);

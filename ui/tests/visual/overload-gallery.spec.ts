@@ -21,7 +21,9 @@ const MEMORY = {
   session_id: "sess-2",
   place: null,
   subject_bytes: 3_200_000_000,
-  subject_cpu: 12,
+  subject_estimate: false,
+  // The backend sends only what's high: a memory alert carries no CPU.
+  subject_cpu: null,
   since_ms: T0 - 45_000,
 };
 const CPU = {
@@ -31,7 +33,9 @@ const CPU = {
   detail: "97% busy for over two minutes",
   session_id: null,
   place: "desktop",
-  subject_bytes: 1_600_000_000,
+  // … and a CPU alert no memory.
+  subject_bytes: null,
+  subject_estimate: false,
   subject_cpu: 140,
   since_ms: T0 - 150_000,
 };
