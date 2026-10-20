@@ -244,3 +244,8 @@
   rows while they were still loading under load ("never reached …").
   It now waits for the rows to be visible, then tabs; the keyboard path
   and its assertions are unchanged.
+- A test-design fix (2026-10-20, PR #55 `ui` on ubuntu):
+  `first-run-policy :: Decide later writes NOTHING…` waited with
+  Testing Library's 1 s default for the wizard's summary, which follows
+  two mocked imports; on a loaded runner it arrived after 1,049 ms.
+  The wizard steps in that file now wait up to 5 s. No assertion changed.

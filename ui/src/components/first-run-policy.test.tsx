@@ -88,21 +88,28 @@ const mountWizard = (locked = false) =>
     />,
   );
 
+// Each wizard step settles asynchronously (scans, two imports); a loaded
+// CI runner needs more than waitFor's 1 s default. Only the wait grows.
+const STEP = { timeout: 5_000 };
+
 /** Gate → scan → open the proposal (the set path's Confirm). */
 const openProposal = async () => {
   const mounted = mountWizard();
   await waitFor(() =>
     expect(mounted.container.querySelector("[data-testid='install-continue']")).not.toBeNull(),
+  STEP,
   );
   await act(async () => {
     fireEvent.click(mounted.container.querySelector("[data-testid='install-continue']")!);
   });
   await waitFor(() =>
     expect(mounted.container.querySelector("[data-testid='use-recommended']")).not.toBeNull(),
+  STEP,
   );
   fireEvent.click(mounted.container.querySelector("[data-testid='use-recommended']")!);
   await waitFor(() =>
     expect(mounted.container.querySelector("[data-testid='accept-setup']")).not.toBeNull(),
+  STEP,
   );
   return mounted;
 };
@@ -121,6 +128,7 @@ const acceptAndReachSummary = async (container: HTMLElement) => {
   });
   await waitFor(() =>
     expect(container.querySelector("[data-testid='set-summary']")).not.toBeNull(),
+  STEP,
   );
   spy.mockRestore();
 };
