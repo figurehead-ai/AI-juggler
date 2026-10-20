@@ -24,10 +24,18 @@ const VIEWPORTS = [
   { name: "1024x680", width: 1024, height: 680 },
 ] as const;
 
+/** allStatuses with its limit-hit sessions parked, the reset reached. */
+const PARKED = {
+  ...allStatuses,
+  sessions: allStatuses.sessions.map((session) =>
+    session.status === "quota_blocked" ? { ...session, parked: "measured", parked_resets_at_ms: T0 - 60_000 } : session,
+  ),
+};
+
 const SCREEN = { maxDiffPixelRatio: 0.001, animations: "disabled", caret: "hide" } as const;
 const CHROME = { maxDiffPixels: 0, animations: "disabled", caret: "hide" } as const;
 
-async function open(page: Page, theme: string, density: string, vp: { width: number; height: number }) {
+async function open(page: Page, theme: string, density: string, vp: { width: number; height: number }, fixture: unknown = allStatuses) {
   await page.addInitScript(
     ({ fixture, t, d, t0, selftest }) => {
       const w = window as unknown as Record<string, unknown>;
@@ -47,7 +55,7 @@ async function open(page: Page, theme: string, density: string, vp: { width: num
         });
       }
     },
-    { fixture: allStatuses, t: theme, d: density, t0: T0, selftest: process.env.AIJ_VISUAL_SELFTEST === "1" },
+    { fixture, t: theme, d: density, t0: T0, selftest: process.env.AIJ_VISUAL_SELFTEST === "1" },
   );
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme as "dark" | "light" });
   await page.setViewportSize({ width: vp.width, height: vp.height });
@@ -69,6 +77,20 @@ for (const theme of THEMES) {
           `chrome-nav-button-${cell}.png`,
           CHROME,
         );
+      });
+
+      // AJ-E1021: Home's lower half — parked, pick up where you left off
+      // (Mark reviewed, Show all) and the keyboard line — scrolled into view.
+      test(`home scrolled — ${cell}`, async ({ page }) => {
+        await open(page, theme, density, vp, PARKED);
+        const home = page.getByTestId("home");
+        await expect(home.getByTestId("home-parked")).toBeVisible();
+        await home.evaluate((node) => {
+          const scroller = node.parentElement!;
+          scroller.scrollTop = scroller.scrollHeight;
+        });
+        await page.mouse.move(0, 0);
+        await expect(page).toHaveScreenshot(`home-scrolled-${cell}.png`, SCREEN);
       });
 
       test(`inspector — Instance overview — ${cell}`, async ({ page }) => {
