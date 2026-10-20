@@ -290,7 +290,7 @@ pub struct LiveStatsCollector {
     /// Roots of AI tools AI Juggler did NOT start (AJ-E1402): the Claude
     /// desktop app, `claude` in a terminal. Measured read-only; never
     /// written to the ledger, never reconciled, never signalled (D-08).
-    observed_roots: Vec<u32>,
+    observed_roots: Vec<ObservedRoot>,
     /// The observed trees' latest stats and rings, by root pid.
     observed: HashMap<u32, ObservedTree>,
 }
@@ -308,6 +308,8 @@ pub struct ProcessBrief {
     pub exe: Option<String>,
     /// The command line, joined.
     pub cmd: String,
+    /// Kernel start time, epoch seconds (pins a root against pid reuse).
+    pub start_time: i64,
 }
 
 /// One AI tool AI Juggler did not start, measured over its whole process
@@ -319,6 +321,25 @@ pub struct ObservedTree {
     pub stats: LiveProcessStats,
     /// 2 s samples, 5 minutes (the heavy rule's sustained window).
     pub ring: std::collections::VecDeque<TreeSample>,
+    /// Every pid of the tree at the last tick: all of them are refreshed
+    /// on every tick, so each process's CPU delta covers the same
+    /// interval as the refresh it's divided by (`sysinfo` divides a delta
+    /// since the process's OWN last refresh by the time since the last
+    /// refresh call — a helper refreshed only on full scans read ~5× high
+    /// and then froze).
+    pub pids: Vec<u32>,
+}
+
+/// A root to observe, pinned to the process the scan saw: a pid reused by
+/// another process (different start time) is dropped, never measured as
+/// the tool.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ObservedRoot {
+    /// The root pid.
+    pub pid: u32,
+    /// Its kernel start time (epoch seconds) when the scan saw it; `None`
+    /// when unknown (then only liveness is checked).
+    pub start_time: Option<i64>,
 }
 
 impl Default for LiveStatsCollector {
@@ -375,9 +396,17 @@ impl LiveStatsCollector {
                 .values()
                 .flat_map(|tree| tree.rows.iter().map(|row| row.pid))
                 .chain(roots.iter().map(|(_, pid, _)| *pid))
-                .chain(self.observed_pids())
                 .collect();
             self.refresh_pids(&known);
+            // Observed trees need CPU and memory only (never the exe or
+            // command line, which feed the ledger): ~130 helpers of the
+            // Claude app cost a few milliseconds this way.
+            let observed: Vec<u32> = self
+                .observed_pids()
+                .into_iter()
+                .filter(|pid| !known.contains(pid))
+                .collect();
+            self.refresh_pids_usage(&observed);
             // Targeted refresh keeps parent edges of known pids fresh;
             // brand-new children appear at the next full scan.
         }
@@ -881,6 +910,25 @@ impl LiveStatsCollector {
         );
     }
 
+    /// Targeted refresh of CPU and memory only (observed trees).
+    fn refresh_pids_usage(&mut self, pids: &[u32]) {
+        use sysinfo::{ProcessRefreshKind, ProcessesToUpdate};
+        if pids.is_empty() {
+            return;
+        }
+        let mut targets: Vec<sysinfo::Pid> = pids
+            .iter()
+            .map(|pid| sysinfo::Pid::from_u32(*pid))
+            .collect();
+        targets.sort_unstable();
+        targets.dedup();
+        self.system.refresh_processes_specifics(
+            ProcessesToUpdate::Some(&targets),
+            true,
+            ProcessRefreshKind::nothing().with_cpu().with_memory(),
+        );
+    }
+
     /// Targeted refresh of specific pids (orphan liveness probes).
     ///
     /// Each pid is listed once: sysinfo drops a process it is asked to
@@ -958,8 +1006,9 @@ impl LiveStatsCollector {
     /// Sets the roots of AI tools AI Juggler did not start (AJ-E1402).
     /// A root inside a supervised tree is ignored at the next tick (no
     /// double count); trees for roots no longer listed are dropped.
-    pub fn set_observed_roots(&mut self, roots: Vec<u32>) {
-        self.observed.retain(|root, _| roots.contains(root));
+    pub fn set_observed_roots(&mut self, roots: Vec<ObservedRoot>) {
+        self.observed
+            .retain(|root, _| roots.iter().any(|pinned| pinned.pid == *root));
         self.observed_roots = roots;
     }
 
@@ -989,6 +1038,7 @@ impl LiveStatsCollector {
                     .map(|part| part.to_string_lossy())
                     .collect::<Vec<_>>()
                     .join(" "),
+                start_time: i64::try_from(process.start_time()).unwrap_or_default(),
             })
             .collect()
     }
@@ -998,8 +1048,12 @@ impl LiveStatsCollector {
         // so per-process CPU deltas stay real between full scans.
         self.observed_roots
             .iter()
-            .copied()
-            .chain(self.observed.keys().copied())
+            .map(|root| root.pid)
+            .chain(
+                self.observed
+                    .values()
+                    .flat_map(|tree| tree.pids.iter().copied()),
+            )
             .collect()
     }
 
@@ -1014,12 +1068,23 @@ impl LiveStatsCollector {
             .collect();
         let roots = self.observed_roots.clone();
         let sampled = self.sampled;
-        for root in roots {
-            let alive = self
-                .system
-                .process(sysinfo::Pid::from_u32(root))
-                .is_some_and(|process| process.status() != sysinfo::ProcessStatus::Zombie);
-            if supervised.contains(&root) || !alive {
+        let mut reused = Vec::new();
+        for pinned in roots {
+            let root = pinned.pid;
+            let process = self.system.process(sysinfo::Pid::from_u32(root));
+            let alive =
+                process.is_some_and(|process| process.status() != sysinfo::ProcessStatus::Zombie);
+            // The pid now names another process: never measure it as the
+            // tool (and stop watching it until the next scan).
+            let same = process.is_none_or(|process| {
+                pinned.start_time.is_none_or(|started| {
+                    i64::try_from(process.start_time()).is_ok_and(|now| now == started)
+                })
+            });
+            if !same {
+                reused.push(root);
+            }
+            if supervised.contains(&root) || !alive || !same {
                 self.observed.remove(&root);
                 continue;
             }
@@ -1031,6 +1096,7 @@ impl LiveStatsCollector {
             }
             let tree = self.observed.entry(root).or_default();
             tree.stats = stats;
+            tree.pids = rows.iter().map(|row| row.pid).collect();
             push_ring_sample(
                 &mut tree.ring,
                 TreeSample {
@@ -1040,6 +1106,8 @@ impl LiveStatsCollector {
                 },
             );
         }
+        self.observed_roots
+            .retain(|pinned| !reused.contains(&pinned.pid));
     }
 
     /// The listener-probe degrade note for the LAST tick, when the

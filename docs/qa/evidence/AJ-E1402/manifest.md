@@ -23,6 +23,46 @@ decided with the This Mac panel, by walking the rail both ways (AJ-E1404).
 - Attribution: a tool's folder is matched against each Account's managed
   folder and the folder it was brought in from.
 
+## Review fixes (coordinating session's review of PR #68, 2026-10-20)
+
+1. **CPU was read ~5× high, then froze.** The hot tick refreshed observed
+   roots only, so a desktop tree's helpers were refreshed only on full
+   scans. `sysinfo` divides a process's CPU delta since *its own* last
+   refresh by the time since the last refresh call, so a helper read about
+   (ticks since its refresh)× too high at each full scan and kept that
+   value in between. Now every pid of every observed tree is refreshed on
+   every tick, for CPU and memory only (never exe or command line).
+   - Test `a_busy_helper_reads_one_core_not_five`: one busy helper under an
+     observed root. On the old code it reads
+     `[100, 205, 205, 205, 205, 205, 499, 499, 499, 499]` % and fails; now
+     it stays under one core.
+   - Cost on the reference Mac (5 Claude windows, 104–134 helpers; debug
+     build, load 18–45): hot-tick median 1.1–1.9 ms without observed
+     trees, 3.6–6.9 ms with them.
+   - Live, the Claude windows now read 28–43 % of a core where the bug
+     showed 500–1,260 %.
+2. **Going from one tool to none was never sent.** This Mac is now emitted
+   on any change, including the step to zero (`should_emit`, unit test).
+3. **Our own leftovers showed as theirs.** A `claude` AI Juggler started,
+   adopted by launchd after its session ended, was classified as a
+   terminal tool "not started by AI Juggler" and also counted as a
+   leftover. Pids with a ledger row are now excluded from the scan
+   (`not_ours`, unit test).
+4. **Pid reuse.** Each root is pinned to the start time the scan saw. A
+   reused pid (different start time) is never measured as the tool and is
+   dropped (test `a_reused_pid_is_never_measured_as_the_tool`).
+5. **Memory honesty.**
+   - An observed tree's memory is summed helper RSS: Electron helpers
+     share pages, so it overcounts. An exact footprint needs
+     `proc_pid_rusage` (unsafe FFI, forbidden here).
+   - Such trees and totals carry `memory_estimate`, and the UI shows
+     "about".
+   - Their heaviness is CPU only, so the 2 GB rule no longer flags every
+     window (unit test).
+6. **Nits.** The scan's doc no longer claims it reads every process's
+   environment. Until a scan has found a process table, it retries every
+   tick instead of waiting 30 s.
+
 | Claim / Req ID | Command / fixture / live step (exact) | Threshold | Observed | Verdict | Commit SHA | Date | Reviewer |
 |---|---|---|---|---|---|---|---|
 | Req.1 one root per tree | `cargo test -p juggler-app --lib -- running_setups` (`tool_roots`: desktop app's own `claude` and a `claude -p` run by a `claude` are not roots; folder match with `~` and trailing slash) | pass | pass | PASS | 583c2f0d+ | 2026-10-20 | claude-opus |

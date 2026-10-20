@@ -162,13 +162,14 @@ function totals(trees: ToolTreeInfo[], cores: number): ToolTotalsInfo {
   const measured = trees.every((tree) => tree.cpu_pct !== null);
   return {
     count: trees.length,
+    memory_estimate: trees.some((tree) => tree.memory_estimate),
     cpu_pct: measured ? Math.min(100, trees.reduce((sum, tree) => sum + (tree.cpu_pct ?? 0), 0) / cores) : null,
     rss_bytes: trees.reduce((sum, tree) => sum + tree.rss_bytes, 0),
   };
 }
 
 const MOCK_OBSERVED: ToolTreeInfo[] = [
-  { session_id: null, place: "desktop", account_label: "Personal", cpu_pct: 14, rss_bytes: 1_600_000_000, helpers: 21, heavy_note: null },
+  { session_id: null, place: "desktop", account_label: "Personal", cpu_pct: 14, rss_bytes: 1_600_000_000, helpers: 21, heavy_note: null, memory_estimate: true },
 ];
 
 /** The preview's This Mac, derived from the sessions on screen. */
@@ -184,6 +185,7 @@ export function mockThisMac(sessions: InstanceInfo[], machine: MachineHealthInfo
       rss_bytes: session.rss_bytes ?? 0,
       helpers: session.child_count ?? 0,
       heavy_note: mockHeavyNote(session.cpu_pct, session.rss_bytes ?? 0),
+      memory_estimate: false,
     }));
   const all = [...ours, ...observed].sort((a, b) => b.rss_bytes - a.rss_bytes);
   return {

@@ -7,7 +7,7 @@
 use std::collections::HashSet;
 
 use juggler_supervisor::supervisor::observed_sums;
-use juggler_supervisor::{LiveStatsCollector, ProcessRow, Supervisor};
+use juggler_supervisor::{LiveStatsCollector, ObservedRoot, ProcessRow, Supervisor};
 
 fn row(pid: u32, parent: u32, rss: u64, cpu: f64) -> ProcessRow {
     ProcessRow {
@@ -54,7 +54,10 @@ fn a_tree_we_did_not_start_is_measured_without_touching_it() {
     let root = child.id();
     let supervisor = Supervisor::new();
     let mut collector = LiveStatsCollector::new();
-    collector.set_observed_roots(vec![root]);
+    collector.set_observed_roots(vec![ObservedRoot {
+        pid: root,
+        start_time: None,
+    }]);
     let mut found = None;
     for tick in 0..20 {
         collector.tick(&supervisor, i64::from(tick) * 2_000);
@@ -81,4 +84,83 @@ fn a_tree_we_did_not_start_is_measured_without_touching_it() {
         collector.tick(&supervisor, i64::from(tick) * 2_000);
     }
     assert!(!collector.observed_snapshot().contains_key(&root));
+}
+
+/// Review of #68: a helper of an observed tree is refreshed on EVERY tick,
+/// not only on full scans. `sysinfo` divides a process's CPU delta since
+/// its own last refresh by the time since the last refresh call, so a
+/// helper skipped on the hot ticks read several times too high at each
+/// full scan and froze in between. One busy helper (a single-threaded
+/// loop, at most one core) must never read far above 100 %.
+#[cfg(unix)]
+#[test]
+fn a_busy_helper_reads_one_core_not_five() {
+    let mut child = std::process::Command::new("/bin/sh")
+        .args(["-c", "sh -c 'while :; do :; done' & wait"])
+        .spawn()
+        .unwrap();
+    let root = child.id();
+    let supervisor = Supervisor::new();
+    let mut collector = LiveStatsCollector::new();
+    collector.set_observed_roots(vec![ObservedRoot {
+        pid: root,
+        start_time: None,
+    }]);
+    let mut readings = Vec::new();
+    // Ticks 1–3 are full scans (warm-up), then every 5th: 13 ticks cover
+    // hot ticks and two full scans after the helper is known.
+    for tick in 1..=13_i64 {
+        collector.tick(&supervisor, tick * 300);
+        std::thread::sleep(std::time::Duration::from_millis(300));
+        if tick > 3
+            && let Some(tree) = collector.observed_snapshot().get(&root)
+            && let Some(cpu) = tree.stats.cpu_pct
+        {
+            readings.push(cpu);
+        }
+    }
+    child.kill().unwrap();
+    let _ = child.wait();
+    let _ = std::process::Command::new("pkill")
+        .args(["-f", "while :; do :; done"])
+        .status();
+    assert!(readings.len() >= 8, "measured: {readings:?}");
+    let max = readings.iter().copied().fold(0.0_f64, f64::max);
+    assert!(
+        max < 160.0,
+        "a single busy helper read {max:.0} % of a core: {readings:?}"
+    );
+    assert!(
+        readings.iter().filter(|cpu| **cpu > 50.0).count() >= readings.len() / 2,
+        "and it reads as busy, not frozen at a stale value: {readings:?}"
+    );
+}
+
+/// Review of #68: a root is pinned to the process the scan saw. If the pid
+/// now names a different process (another start time), it is never
+/// measured as the tool and is dropped.
+#[cfg(unix)]
+#[test]
+fn a_reused_pid_is_never_measured_as_the_tool() {
+    let mut child = std::process::Command::new("/bin/sleep")
+        .arg("30")
+        .spawn()
+        .unwrap();
+    let pid = child.id();
+    let supervisor = Supervisor::new();
+    let mut collector = LiveStatsCollector::new();
+    // The scan saw a process with this pid that started at another time.
+    collector.set_observed_roots(vec![ObservedRoot {
+        pid,
+        start_time: Some(1),
+    }]);
+    for tick in 1..=3_i64 {
+        collector.tick(&supervisor, tick * 2_000);
+    }
+    assert!(
+        !collector.observed_snapshot().contains_key(&pid),
+        "a different process under a reused pid is not the tool"
+    );
+    child.kill().unwrap();
+    let _ = child.wait();
 }
