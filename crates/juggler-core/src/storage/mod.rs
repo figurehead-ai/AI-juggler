@@ -521,7 +521,7 @@ pub fn pre_migration_copies(db: &Path) -> Vec<(i64, std::path::PathBuf)> {
             Some((schema, entry.path()))
         })
         .collect();
-    copies.sort_by(|a, b| b.0.cmp(&a.0));
+    copies.sort_by_key(|copy| std::cmp::Reverse(copy.0));
     copies
 }
 
@@ -580,7 +580,7 @@ impl Storage {
             path: path.to_path_buf(),
             source: e,
         })?;
-        Self::initialize(conn, Some(path.to_path_buf()))
+        Self::initialize(conn, Some(path))
     }
 
     /// Opens an in-memory database (tests and ephemeral indexes).
@@ -594,7 +594,7 @@ impl Storage {
     }
 
     /// Applies connection pragmas and runs migrations.
-    fn initialize(conn: Connection, path: Option<std::path::PathBuf>) -> Result<Self, CoreError> {
+    fn initialize(conn: Connection, path: Option<&Path>) -> Result<Self, CoreError> {
         // Everything in this phase touches the file for the first time, so
         // any failure here means "not a database" for on-disk paths.
         let current: i64 = conn
@@ -602,15 +602,15 @@ impl Storage {
             .and_then(|()| conn.pragma_update(None, "synchronous", "NORMAL"))
             .and_then(|()| conn.pragma_update(None, "foreign_keys", "ON"))
             .and_then(|()| conn.query_row("PRAGMA user_version", [], |row| row.get(0)))
-            .map_err(|e| match &path {
+            .map_err(|e| match path {
                 Some(p) => CoreError::NotADatabase {
-                    path: p.clone(),
+                    path: p.to_path_buf(),
                     source: e,
                 },
                 None => CoreError::Storage(e),
             })?;
         let supported = i64::try_from(MIGRATIONS.len()).unwrap_or(i64::MAX);
-        if let Some(path) = path.as_deref()
+        if let Some(path) = path
             && current > 0
             && current < supported
         {
