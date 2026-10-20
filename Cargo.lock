@@ -2782,6 +2782,7 @@ dependencies = [
  "macos-accessibility-client",
  "prost",
  "rfd",
+ "rusqlite",
  "screencapturekit",
  "serde",
  "serde_json",

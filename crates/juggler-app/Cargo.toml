@@ -68,6 +68,9 @@ tempfile = "3.27.0"
 # app, and minisign signatures made in the test (signature fixtures).
 tauri = { version = "2.12.3", features = ["test"] }
 ed25519-dalek = "3"
+# AJ-E1010: databases at an earlier schema, built and read as an older
+# build would (the going-back fixtures).
+rusqlite = "0.40.2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 # AJ-E415: ScreenCaptureKit mirror — macOS-only; the preview driver

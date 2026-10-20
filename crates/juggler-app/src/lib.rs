@@ -256,6 +256,8 @@ pub fn run() {
             updates::update_check,
             updates::update_install,
             updates::update_restart,
+            newer_data::going_back_options,
+            newer_data::going_back_prepare,
             backup::backup_export,
             backup::backup_verify,
             backup::backup_restore,

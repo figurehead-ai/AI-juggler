@@ -6,6 +6,11 @@
 //!   written by *newer* builds are rejected with
 //!   [`CoreError::SchemaTooNew`] instead of being risked.
 //! - Corrupt or foreign files degrade to [`CoreError::NotADatabase`].
+//! - AJ-E1010: before any migration touches an existing database file, a
+//!   consistent copy of it is kept beside it as `<file>.before-v<N>` (N:
+//!   the schema being left), the newest [`KEPT_PRE_MIGRATION_COPIES`]
+//!   only. The previous version can open that copy, so going back after
+//!   an update loses only what changed since. No copy, no migration.
 
 mod accounts;
 mod profiles;
@@ -494,6 +499,66 @@ const MIGRATIONS: &[&str] = &[
     V22, V23, V24, V25, V26, V27, V28,
 ];
 
+/// How many pre-migration copies (`<file>.before-v<N>`) are kept beside a
+/// database: the newest by schema.
+pub const KEPT_PRE_MIGRATION_COPIES: usize = 2;
+
+/// The pre-migration copies kept beside the database at `db`, newest
+/// schema first: `(schema, path)`.
+#[must_use]
+pub fn pre_migration_copies(db: &Path) -> Vec<(i64, std::path::PathBuf)> {
+    let (Some(dir), Some(name)) = (db.parent(), db.file_name()) else {
+        return Vec::new();
+    };
+    let prefix = format!("{}.before-v", name.to_string_lossy());
+    let mut copies: Vec<(i64, std::path::PathBuf)> = std::fs::read_dir(dir)
+        .into_iter()
+        .flatten()
+        .filter_map(Result::ok)
+        .filter_map(|entry| {
+            let file = entry.file_name().to_string_lossy().into_owned();
+            let schema = file.strip_prefix(&prefix)?.parse::<i64>().ok()?;
+            Some((schema, entry.path()))
+        })
+        .collect();
+    copies.sort_by(|a, b| b.0.cmp(&a.0));
+    copies
+}
+
+/// Keeps a consistent copy (SQLite's online backup API) of the database
+/// about to be migrated, as `<file>.before-v<current>`, written to a
+/// temporary name first so a half-written copy never carries the name.
+/// Then prunes to the newest [`KEPT_PRE_MIGRATION_COPIES`].
+fn keep_pre_migration_copy(conn: &Connection, db: &Path, current: i64) -> Result<(), CoreError> {
+    let failed = |e: &dyn std::fmt::Display| {
+        CoreError::Io(format!(
+            "couldn't keep a copy of the data before upgrading it ({e}); nothing was changed"
+        ))
+    };
+    let name = db
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .ok_or_else(|| failed(&"no file name"))?;
+    let target = db.with_file_name(format!("{name}.before-v{current}"));
+    let partial = db.with_file_name(format!("{name}.before-v{current}.partial"));
+    let _ = std::fs::remove_file(&partial);
+    {
+        let mut copy = Connection::open(&partial).map_err(|e| failed(&e))?;
+        let backup = rusqlite::backup::Backup::new(conn, &mut copy).map_err(|e| failed(&e))?;
+        backup
+            .run_to_completion(256, std::time::Duration::ZERO, None)
+            .map_err(|e| failed(&e))?;
+    }
+    std::fs::rename(&partial, &target).map_err(|e| failed(&e))?;
+    for (_, stale) in pre_migration_copies(db)
+        .into_iter()
+        .skip(KEPT_PRE_MIGRATION_COPIES)
+    {
+        let _ = std::fs::remove_file(stale);
+    }
+    Ok(())
+}
+
 /// An opened AI Juggler database with typed repositories.
 #[derive(Debug)]
 pub struct Storage {
@@ -537,10 +602,20 @@ impl Storage {
             .and_then(|()| conn.pragma_update(None, "synchronous", "NORMAL"))
             .and_then(|()| conn.pragma_update(None, "foreign_keys", "ON"))
             .and_then(|()| conn.query_row("PRAGMA user_version", [], |row| row.get(0)))
-            .map_err(|e| match path {
-                Some(p) => CoreError::NotADatabase { path: p, source: e },
+            .map_err(|e| match &path {
+                Some(p) => CoreError::NotADatabase {
+                    path: p.clone(),
+                    source: e,
+                },
                 None => CoreError::Storage(e),
             })?;
+        let supported = i64::try_from(MIGRATIONS.len()).unwrap_or(i64::MAX);
+        if let Some(path) = path.as_deref()
+            && current > 0
+            && current < supported
+        {
+            keep_pre_migration_copy(&conn, path, current)?;
+        }
         let mut storage = Self {
             conn,
             migrated: false,
@@ -697,6 +772,24 @@ impl Storage {
             None::<fn(rusqlite::backup::Progress)>,
         )?;
         self.conn.pragma_update(None, "foreign_keys", "ON")?;
+        Ok(())
+    }
+
+    /// AJ-E1010: going back to an earlier version — replaces this
+    /// database's contents with the older database at `path` **as it is**
+    /// (no migration; its schema comes with it), through SQLite's online
+    /// backup API. Only for handing the data to an older build: the caller
+    /// must stop using this storage at once (the app quits).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn replace_with_older(&mut self, path: &Path) -> Result<(), CoreError> {
+        self.conn.restore(
+            rusqlite::MAIN_DB,
+            path,
+            None::<fn(rusqlite::backup::Progress)>,
+        )?;
         Ok(())
     }
 

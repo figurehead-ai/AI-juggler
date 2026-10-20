@@ -1057,16 +1057,55 @@ pub fn restart_blocker_at(state: &Arc<AppState>, now_ms: i64) -> AppResult<Optio
     if state.updates.update(|_| {}).state != "installed" {
         return Ok(Some("nothing has been installed yet".to_owned()));
     }
+    Ok(busy_at(state, now_ms)?.map(|busy| busy.words("Restart to update is offered")))
+}
+
+/// What would be cut short if AI Juggler stopped now.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Busy {
+    /// A switch is staged, verified or launched.
+    Switch,
+    /// Accounts are being brought in.
+    BringIn,
+    /// This many sessions are live (stopping would stop them).
+    Sessions(usize),
+}
+
+impl Busy {
+    /// Plain words: what is busy, then "`offered` once it finishes".
+    #[must_use]
+    pub fn words(self, offered: &str) -> String {
+        match self {
+            Self::Switch => format!("A switch is in progress. {offered} once it finishes."),
+            Self::BringIn => {
+                format!("Accounts are being brought in. {offered} once that's done.")
+            }
+            Self::Sessions(live) => format!(
+                "{live} {} still running — stopping AI Juggler would stop {}. {offered} once {} finished.",
+                if live == 1 {
+                    "session is"
+                } else {
+                    "sessions are"
+                },
+                if live == 1 { "it" } else { "them" },
+                if live == 1 { "it has" } else { "they have" },
+            ),
+        }
+    }
+}
+
+/// Core: whether stopping AI Juggler now would cut something short — a
+/// switch in flight, a bring-in under way, live sessions — as of `now_ms`.
+///
+/// # Errors
+///
+/// Returns the typed storage error.
+pub fn busy_at(state: &Arc<AppState>, now_ms: i64) -> AppResult<Option<Busy>> {
     if switch_in_flight(state)? {
-        return Ok(Some(
-            "A switch is in progress. Restart to update is offered once it finishes.".to_owned(),
-        ));
+        return Ok(Some(Busy::Switch));
     }
     if state.updates.bring_in_running(now_ms) {
-        return Ok(Some(
-            "Accounts are being brought in. Restart to update is offered once that's done."
-                .to_owned(),
-        ));
+        return Ok(Some(Busy::BringIn));
     }
     let live = crate::commands::lock_storage_arc(state)?
         .sessions()
@@ -1074,18 +1113,7 @@ pub fn restart_blocker_at(state: &Arc<AppState>, now_ms: i64) -> AppResult<Optio
         .iter()
         .filter(|record| !crate::commands::is_terminal(record.status))
         .count();
-    Ok((live > 0).then(|| {
-        format!(
-            "{live} {} still running — restarting would stop {}. Restart to update is offered once {} finished.",
-            if live == 1 {
-                "session is"
-            } else {
-                "sessions are"
-            },
-            if live == 1 { "it" } else { "them" },
-            if live == 1 { "it has" } else { "they have" },
-        )
-    }))
+    Ok((live > 0).then_some(Busy::Sessions(live)))
 }
 
 /// AJ-E1010: restarts into the installed version — only when it is safe
