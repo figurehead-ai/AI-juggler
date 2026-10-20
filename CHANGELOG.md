@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- On Home, J/K keep working after you mark a session reviewed or resume
+  it, and A works from a row's own Mark reviewed button. Handed-over
+  sessions no longer show under "Pick up where you left off". Home's
+  header has the legend "?" too. "Find my accounts" on Home and Usage
+  asks which tool when more than one is installed, like Accounts does.
+  The tool choice keeps keyboard focus where you put it.
+- Settings › Cleanup has the "Pause automatic cleanup" switch too. In
+  Cleanup, keyboard focus stays on the ⋯ button after you pause, resume
+  or press Escape. In a narrow window, ⌘B and the density shortcut only
+  open or close the list for now; they never change your setting.
 - Adding an account is short: name it and sign in, or pick a folder,
   see what's in it (size, sign-in, a too-large history offers settings
   only) and bring it in as a copy. First run, Accounts › Add account and

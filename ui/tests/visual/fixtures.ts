@@ -411,16 +411,18 @@ export async function openSwitch(page: import("@playwright/test").Page): Promise
 }
 
 /**
- * D-25 (AJ-E1020): the rail is the list at 900 px and wider (unless the
- * density is Minimal); narrower, it folds to its icon column by itself.
- * Waits for the rail and, where it is the list, for the list.
+ * D-25 (AJ-E1020): at 900 px and wider the rail shows exactly the stored
+ * density (Settings › Appearance); narrower, a non-Minimal rail folds to
+ * its icon column by itself. Waits for the rail and, where it is the
+ * list, for the list.
  */
 export async function expectRail(page: import("@playwright/test").Page): Promise<void> {
   const rail = page.getByTestId("rail");
   await expect(rail).toBeVisible();
-  if ((await rail.getAttribute("data-density")) !== "minimal") {
-    await expect(page.getByTestId("instance-board")).toBeVisible();
-  }
+  const stored = (await page.evaluate(() => localStorage.getItem("aij.density"))) ?? "comfortable";
+  const wide = (page.viewportSize()?.width ?? 1280) >= 900;
+  await expect(rail).toHaveAttribute("data-density", wide || stored === "minimal" ? stored : "minimal");
+  if (wide && stored !== "minimal") await expect(page.getByTestId("instance-board")).toBeVisible();
 }
 
 /**

@@ -437,7 +437,7 @@ function HarnessGlyph({ provider, onClick }: { provider: string; onClick?: () =>
       type="button"
       onClick={onClick}
       disabled={!onClick}
-      title={onClick ? `Inspect ${provider}` : provider}
+      title={onClick ? `Inspect ${providerDisplayName(provider)}` : providerDisplayName(provider)}
       className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-accent/20 bg-accent-soft text-accent-hi outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 enabled:hover:border-accent/40 disabled:cursor-default"
     >
       <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
