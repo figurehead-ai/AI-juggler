@@ -4484,6 +4484,9 @@ const mockUpdateStatus = (): UpdateStatusInfo =>
     available: null,
     progress: null,
     error: null,
+    error_kind: null,
+    error_detail: null,
+    restart_wait: null,
     backup_path: null,
     checked_at_ms: null,
   };
@@ -4547,7 +4550,8 @@ export async function updateInstall(): Promise<UpdateStatusInfo> {
   return invoke<UpdateStatusInfo>("update_install");
 }
 
-/** Restarts into the installed version (refused while Instances run). */
+/** Restarts into the installed version (refused while it isn't safe: a
+ * session running, a switch in flight, a bring-in under way). */
 export async function updateRestart(): Promise<void> {
   if (!hasBackend) {
     updateCall("restart");

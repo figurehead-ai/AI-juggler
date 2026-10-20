@@ -20,7 +20,11 @@ import {
   type ResetQueueRow,
   onUpdateStatus,
   statsEvent,
+  updateRestart,
+  updateStatus,
+  type UpdateStatusInfo,
 } from "../lib/bridge";
+import { ChannelChip, updateErrorText } from "./UpdatesCard";
 
 /** AJ-E1103: an alert kind as the schema names it. */
 function alertKind(kind: string): string {
@@ -47,26 +51,45 @@ export function NotificationRegion({
   const [dismissed, setDismissed] = useState<Set<string>>(() => new Set());
   const [offers, setOffers] = useState<ParkedOfferInfo[]>([]);
   // AJ-E1010: an update announced by the launch check — one notice per
-  // version, never an install.
-  const [update, setUpdate] = useState<string | null>(null);
-  useEffect(
-    () =>
-      onUpdateStatus((status) => {
-        const version = status.state === "available" ? (status.available?.version ?? null) : null;
-        if (!version) return;
-        let seen = "";
-        try {
-          seen = localStorage.getItem("aij.update.noticed") ?? "";
-        } catch {
-          /* storage unavailable: show it */
-        }
-        if (seen !== version) {
-          notification("update", "shown");
-          setUpdate(version);
-        }
-      }),
-    [],
-  );
+  // version, never an install. Once one is installed, "Restart to update"
+  // — offered only while it is safe (the backend holds it back during a
+  // switch, a bring-in or live sessions), never forced.
+  const [update, setUpdate] = useState<{ version: string; channel: string } | null>(null);
+  const [ready, setReady] = useState<{ version: string; channel: string } | null>(null);
+  const [restartError, setRestartError] = useState<string | null>(null);
+  useEffect(() => {
+    const seen = (key: string): string => {
+      try {
+        return localStorage.getItem(key) ?? "";
+      } catch {
+        return ""; /* storage unavailable: show it */
+      }
+    };
+    const apply = (status: UpdateStatusInfo) => {
+      const version = status.available?.version ?? null;
+      if (status.state === "available" && version && seen("aij.update.noticed") !== version) {
+        notification("update", "shown");
+        setUpdate({ version, channel: status.channel });
+      }
+      if (status.state === "installed" && version && !status.restart_wait && seen("aij.update.restart.later") !== version) {
+        setUpdate(null);
+        setReady({ version, channel: status.channel });
+      } else {
+        setReady(null);
+      }
+    };
+    let alive = true;
+    void updateStatus()
+      .then((status) => {
+        if (alive) apply(status);
+      })
+      .catch(() => null);
+    const stop = onUpdateStatus(apply);
+    return () => {
+      alive = false;
+      stop();
+    };
+  }, []);
   const closeUpdate = (version: string) => {
     try {
       localStorage.setItem("aij.update.noticed", version);
@@ -74,6 +97,14 @@ export function NotificationRegion({
       /* best effort */
     }
     setUpdate(null);
+  };
+  const later = (version: string) => {
+    try {
+      localStorage.setItem("aij.update.restart.later", version);
+    } catch {
+      /* best effort */
+    }
+    setReady(null);
   };
 
   // AJ-E709 Req.3: Fleet alerts — a local read of what peers reported
@@ -187,14 +218,17 @@ export function NotificationRegion({
           data-testid="update-notice"
           className="flex flex-wrap items-center gap-2 rounded border border-accent/40 bg-accent-soft px-2 py-1.5 text-[11px] text-ink"
         >
-          <span className="min-w-0 flex-1">AI Juggler {update} (beta) is available. Nothing is installed until you choose.</span>
+          <span className="min-w-0 flex-1">
+            AI Juggler {update.version} is available. Nothing is installed until you choose.
+          </span>
+          <ChannelChip channel={update.channel} testId="update-notice-channel" />
           <button
             type="button"
             className="rounded border border-accent/50 px-2 py-0.5 font-medium text-accent-hi focus:outline-none focus:ring-2 focus:ring-accent"
             onClick={() => {
               notification("update", "clicked");
-              window.dispatchEvent(new CustomEvent("aij:open-settings"));
-              closeUpdate(update);
+              window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "updates" } }));
+              closeUpdate(update.version);
             }}
             data-testid="update-notice-review"
           >
@@ -206,12 +240,47 @@ export function NotificationRegion({
             onClick={() => {
               notification("update", "dismissed");
               statsEvent("update.flow", { step: "deferred", reason: "none" });
-              closeUpdate(update);
+              closeUpdate(update.version);
             }}
             data-testid="update-notice-later"
           >
             Not now
           </button>
+        </div>
+      )}
+      {ready && (
+        <div
+          data-testid="update-ready"
+          className="flex flex-wrap items-center gap-2 rounded border border-accent/40 bg-accent-soft px-2 py-1.5 text-[11px] text-ink"
+        >
+          <span className="min-w-0 flex-1">
+            AI Juggler {ready.version} is installed. Restart when you're ready — nothing restarts by itself.
+          </span>
+          <ChannelChip channel={ready.channel} testId="update-ready-channel" />
+          <button
+            type="button"
+            className="rounded border border-accent/50 px-2 py-0.5 font-medium text-accent-hi focus:outline-none focus:ring-2 focus:ring-accent"
+            onClick={() => {
+              setRestartError(null);
+              updateRestart().catch((cause: unknown) => setRestartError(updateErrorText(cause)));
+            }}
+            data-testid="update-ready-restart"
+          >
+            Restart to update
+          </button>
+          <button
+            type="button"
+            className="text-ink underline focus:outline-none focus:ring-2 focus:ring-accent"
+            onClick={() => later(ready.version)}
+            data-testid="update-ready-later"
+          >
+            Later
+          </button>
+          {restartError && (
+            <p role="alert" className="basis-full" data-testid="update-ready-error">
+              {restartError}
+            </p>
+          )}
         </div>
       )}
       {offers.map((offer) => (

@@ -2,12 +2,14 @@
  * AJ-E1010 vitest — About & updates: the Beta label and version always;
  * a development build says it never checks; a check shows version and
  * changes before anything installs; install is the user's click; a
- * failed install says why (version untouched) and offers Retry; restart
- * is refused with the reason while Instances run.
+ * failed install says why in plain words (version untouched), keeps the
+ * technical reason behind Details and offers Try again; "Restart to
+ * update" waits with its reason until it is safe and is never forced.
  */
 import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { UpdatesCard } from "./UpdatesCard";
+import { NotificationRegion } from "./NotificationRegion";
 import type { UpdateStatusInfo } from "../lib/bridge";
 
 const w = () => window as unknown as Record<string, unknown>;
@@ -24,6 +26,9 @@ const base: UpdateStatusInfo = {
   available: null,
   progress: null,
   error: null,
+  error_kind: null,
+  error_detail: null,
+  restart_wait: null,
   backup_path: null,
   checked_at_ms: null,
 };
@@ -32,6 +37,8 @@ const available = { version: "0.2.0", notes: "## New\n- **History**: find any pa
 afterEach(cleanup);
 beforeEach(() => {
   for (const key of Object.keys(w()).filter((key) => key.startsWith("__AIJ_UPDATE"))) delete w()[key];
+  localStorage.removeItem("aij.update.noticed");
+  localStorage.removeItem("aij.update.restart.later");
 });
 
 describe("AJ-E1010 updates", () => {
@@ -54,7 +61,8 @@ describe("AJ-E1010 updates", () => {
     await act(async () => {
       fireEvent.click(container.querySelector("[data-testid='update-check']")!);
     });
-    expect(container.querySelector("[data-testid='update-available']")!.textContent).toContain("0.2.0 (beta)");
+    expect(container.querySelector("[data-testid='update-available']")!.textContent).toContain("AI Juggler 0.2.0 is available");
+    expect(container.querySelector("[data-testid='update-available-channel']")!.textContent).toBe("Beta");
     expect(container.querySelector("[data-testid='update-notes']")!.textContent).toContain("History");
     expect(calls()).toEqual(["check"]);
     await act(async () => {
@@ -64,26 +72,89 @@ describe("AJ-E1010 updates", () => {
     expect(container.querySelector("[data-testid='update-installed']")!.textContent).toContain("before-update.ajbackup");
   });
 
-  it("a failed install says why and offers Retry; restart waits for Instances", async () => {
+  it("a failed install says why in plain words, keeps the reason behind Details, and offers Try again", async () => {
     w().__AIJ_UPDATE_STATUS__ = {
       ...base,
       state: "failed",
       available,
-      error: "The download didn't finish or didn't verify: signature verification failed. Your current version is untouched.",
+      error:
+        "The download didn't pass the signature check — it was damaged on the way or isn't from AI Juggler — so it wasn't installed. AI Juggler 0.1.0 is untouched.",
+      error_kind: "signature",
+      error_detail: "the signature verification failed: Invalid signature",
     };
-    const { container, unmount } = render(<UpdatesCard />);
+    w().__AIJ_UPDATE_AFTER_INSTALL__ = { ...base, state: "installed", available, progress: 100 };
+    const { container } = render(<UpdatesCard />);
     await waitFor(() => expect(container.querySelector("[data-testid='update-failed']")).not.toBeNull());
-    expect(container.querySelector("[data-testid='update-failed']")!.textContent).toContain("untouched");
-    expect(container.querySelector("[data-testid='update-install']")!.textContent).toBe("Retry");
-    unmount();
+    const failed = container.querySelector("[data-testid='update-failed']")!;
+    expect(failed.getAttribute("role")).toBe("alert");
+    expect(failed.textContent).toContain("Not installed — the download didn't check out");
+    expect(failed.textContent).toContain("0.1.0 is untouched");
+    const details = container.querySelector<HTMLDetailsElement>("[data-testid='update-failed-details']")!;
+    expect(details.open).toBe(false);
+    expect(details.textContent).toContain("Invalid signature");
+    // The new version and its notes stay readable next to the failure.
+    expect(container.querySelector("[data-testid='update-notes']")!.textContent).toContain("History");
+    expect(container.querySelector("[data-testid='update-install']")!.textContent).toBe("Try again");
+    await act(async () => {
+      fireEvent.click(container.querySelector("[data-testid='update-install']")!);
+    });
+    expect(calls()).toEqual(["install"]);
+    expect(container.querySelector("[data-testid='update-failed']")).toBeNull();
+  });
+
+  it("a failed check says so, and Try again checks again", async () => {
+    w().__AIJ_UPDATE_STATUS__ = {
+      ...base,
+      state: "failed",
+      error: "Couldn't reach the update server. Check your internet connection, then try again.",
+      error_kind: "network",
+      error_detail: "error sending request",
+    };
+    const { container } = render(<UpdatesCard />);
+    await waitFor(() => expect(container.querySelector("[data-testid='update-failed']")).not.toBeNull());
+    expect(container.querySelector("[data-testid='update-failed']")!.textContent).toContain("Couldn't check for updates");
+    expect(container.querySelector("[data-testid='update-install']")).toBeNull();
+    const again = container.querySelector("[data-testid='update-check']")!;
+    expect(again.textContent).toBe("Try again");
+    await act(async () => {
+      fireEvent.click(again);
+    });
+    expect(calls()).toEqual(["check"]);
+  });
+
+  it("Restart to update waits, with the reason, until it is safe — never forced", async () => {
+    w().__AIJ_UPDATE_STATUS__ = {
+      ...base,
+      state: "installed",
+      available,
+      restart_wait: "A switch is in progress. Restart to update is offered once it finishes.",
+    };
+    const first = render(<UpdatesCard />);
+    await waitFor(() => expect(first.container.querySelector("[data-testid='update-restart-wait']")).not.toBeNull());
+    expect(first.container.querySelector("[data-testid='update-restart-wait']")!.textContent).toContain(
+      "Nothing restarts by itself",
+    );
+    expect(first.container.querySelector("[data-testid='update-restart']")).toBeNull();
+    expect(calls()).toEqual([]);
+    first.unmount();
+
+    // Safe now: offered, and only the click restarts. The backend still
+    // refuses if something started meanwhile, and the card says why.
     w().__AIJ_UPDATE_STATUS__ = { ...base, state: "installed", available };
-    w().__AIJ_UPDATE_RESTART_ERROR__ = "invalid update: 2 sessions are still running — restarting would stop them. Restart when they finish.";
+    w().__AIJ_UPDATE_RESTART_ERROR__ =
+      "invalid update: 2 sessions are still running — restarting would stop them. Restart to update is offered once they have finished.";
     const second = render(<UpdatesCard />);
     await waitFor(() => expect(second.container.querySelector("[data-testid='update-restart']")).not.toBeNull());
+    expect(second.container.querySelector("[data-testid='update-restart']")!.textContent).toBe("Restart to update");
+    expect(calls()).toEqual([]);
     await act(async () => {
       fireEvent.click(second.container.querySelector("[data-testid='update-restart']")!);
     });
-    expect(second.container.querySelector("[data-testid='update-error']")!.textContent).toContain("2 sessions are still running");
+    expect(calls()).toEqual(["restart"]);
+    // The refusal in plain words: no "invalid update:" framing.
+    expect(second.container.querySelector("[data-testid='update-error']")!.textContent).toBe(
+      "2 sessions are still running — restarting would stop them. Restart to update is offered once they have finished.",
+    );
   });
 
   it("the launch-time check can be turned off", async () => {
@@ -108,7 +179,7 @@ describe("AJ-E1010 updates", () => {
     expect(container.querySelector("[data-testid='update-channel-nightly']")).toBeNull();
     expect(container.querySelector("[data-testid='update-edition-note']")).toBeNull();
     expect(container.textContent).toContain("never goes back to an older version");
-    expect(container.querySelector("[data-testid='update-available']")?.textContent).toContain("0.2.0 (beta)");
+    expect(container.querySelector("[data-testid='update-available-channel']")?.textContent).toBe("Beta");
     await act(async () => {
       fireEvent.click(radio("stable"));
     });
@@ -144,8 +215,9 @@ describe("AJ-E1010 updates", () => {
       "separate from AI Juggler",
     );
     expect(container.querySelector("[data-testid='update-available']")?.textContent).toContain(
-      "AI Juggler Nightly 0.2.0 (nightly)",
+      "AI Juggler Nightly 0.2.0 is available",
     );
+    expect(container.querySelector("[data-testid='update-available-channel']")?.textContent).toBe("Nightly");
     expect(container.querySelector("[data-testid='update-check-on-launch']")).not.toBeNull();
     expect(container.textContent).toContain("Installing writes a backup of AI Juggler Nightly's data first");
     expect(container.textContent).toContain("Check for updates when AI Juggler Nightly starts");
@@ -169,5 +241,63 @@ describe("AJ-E1010 updates", () => {
     expect(container.querySelector("[data-testid='update-unconfigured']")).toBeNull();
     expect(container.querySelector("[data-testid='update-channel']")).toBeNull();
     expect(container.querySelector("[data-testid='update-check']")).toBeNull();
+  });
+});
+
+describe("AJ-E1010 update prompts on Home", () => {
+  it("an available update is announced with its Beta label; nothing installs", async () => {
+    w().__AIJ_UPDATE_STATUS__ = { ...base, state: "available", available };
+    const { container } = render(<NotificationRegion />);
+    await waitFor(() => expect(container.querySelector("[data-testid='update-notice']")).not.toBeNull());
+    expect(container.querySelector("[data-testid='update-notice']")!.textContent).toContain(
+      "AI Juggler 0.2.0 is available. Nothing is installed until you choose.",
+    );
+    expect(container.querySelector("[data-testid='update-notice-channel']")!.textContent).toBe("Beta");
+    expect(calls()).toEqual([]);
+    // Review opens Settings on the update itself, focused.
+    const opened: unknown[] = [];
+    const listen = (event: Event) => opened.push((event as CustomEvent).detail);
+    window.addEventListener("aij:open-settings", listen);
+    fireEvent.click(container.querySelector("[data-testid='update-notice-review']")!);
+    window.removeEventListener("aij:open-settings", listen);
+    expect(opened).toEqual([{ section: "updates" }]);
+    expect(calls()).toEqual([]);
+    const card = render(<UpdatesCard focus />);
+    await waitFor(() => expect(document.activeElement?.id).toBe("settings-updates-title"));
+    card.unmount();
+  });
+
+  it("Restart to update is offered only once it is safe, and Later puts it away", async () => {
+    w().__AIJ_UPDATE_STATUS__ = {
+      ...base,
+      state: "installed",
+      available,
+      restart_wait: "Accounts are being brought in. Restart to update is offered once that's done.",
+    };
+    const held = render(<NotificationRegion />);
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 30));
+    });
+    expect(held.container.querySelector("[data-testid='update-ready']")).toBeNull();
+    held.unmount();
+
+    w().__AIJ_UPDATE_STATUS__ = { ...base, state: "installed", available };
+    const safe = render(<NotificationRegion />);
+    await waitFor(() => expect(safe.container.querySelector("[data-testid='update-ready']")).not.toBeNull());
+    expect(safe.container.querySelector("[data-testid='update-ready']")!.textContent).toContain("nothing restarts by itself");
+    expect(safe.container.querySelector("[data-testid='update-ready-channel']")!.textContent).toBe("Beta");
+    expect(calls()).toEqual([]);
+    await act(async () => {
+      fireEvent.click(safe.container.querySelector("[data-testid='update-ready-restart']")!);
+    });
+    expect(calls()).toEqual(["restart"]);
+    fireEvent.click(safe.container.querySelector("[data-testid='update-ready-later']")!);
+    expect(safe.container.querySelector("[data-testid='update-ready']")).toBeNull();
+    safe.unmount();
+    const again = render(<NotificationRegion />);
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 30));
+    });
+    expect(again.container.querySelector("[data-testid='update-ready']")).toBeNull();
   });
 });
