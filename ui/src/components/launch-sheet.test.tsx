@@ -15,8 +15,8 @@ import * as bridgeModule from "../lib/bridge";
 const w = () => window as unknown as Record<string, unknown>;
 
 const ACCOUNTS = [
-  { id: "claude-work", provider: "claude-code", label: "Work Max", plan: null, login_state: "logged_in", cleanup_opt_in: false, renewal_date: null, preview_opt_in: false },
-  { id: "claude-personal", provider: "claude-code", label: "Personal", plan: null, login_state: "logged_out", cleanup_opt_in: false, renewal_date: null, preview_opt_in: false },
+  { id: "claude-work", provider: "claude-code", label: "Work Max", plan: null, login_state: "logged_in", cleanup_opt_in: false, renewal_date: null, preview_opt_in: false, in_place: false },
+  { id: "claude-personal", provider: "claude-code", label: "Personal", plan: null, login_state: "logged_out", cleanup_opt_in: false, renewal_date: null, preview_opt_in: false, in_place: false },
 ];
 
 const RECIPES = [

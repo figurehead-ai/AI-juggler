@@ -1710,9 +1710,9 @@ impl Supervisor {
         }
 
         let mut command = Command::new(&launch.program);
+        apply_env(&mut command, &launch.env);
         command
             .args(&launch.args)
-            .envs(&launch.env)
             .current_dir(&launch.cwd)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
@@ -1797,9 +1797,9 @@ impl Supervisor {
         use std::process::{Command, Stdio};
 
         let mut command = Command::new(&spec.program);
+        apply_env(&mut command, &spec.env);
         command
             .args(&spec.args)
-            .envs(&spec.env)
             .current_dir(&spec.cwd)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
@@ -1925,9 +1925,7 @@ impl Supervisor {
         for (key, value) in std::env::vars_os() {
             builder.env(key, value);
         }
-        for (key, value) in &spec.env {
-            builder.env(key, value);
-        }
+        apply_pty_env(&mut builder, &spec.env);
         let mut child = pair
             .slave
             .spawn_command(builder)
@@ -2838,4 +2836,48 @@ fn tree_stats(
 #[must_use]
 pub fn default_journal_path(state_dir: &Path) -> PathBuf {
     state_dir.join("supervision.jsonl")
+}
+
+/// The launch env overlay onto a command: set each value, or remove the
+/// variable for [`juggler_adapter::launch::ENV_UNSET`].
+fn apply_env(command: &mut std::process::Command, env: &juggler_adapter::EnvMap) {
+    for (key, value) in env {
+        if value == juggler_adapter::launch::ENV_UNSET {
+            command.env_remove(key);
+        } else {
+            command.env(key, value);
+        }
+    }
+}
+
+/// [`apply_env`] for a PTY command builder.
+fn apply_pty_env(builder: &mut portable_pty::CommandBuilder, env: &juggler_adapter::EnvMap) {
+    for (key, value) in env {
+        if value == juggler_adapter::launch::ENV_UNSET {
+            builder.env_remove(key);
+        } else {
+            builder.env(key, value);
+        }
+    }
+}
+
+#[cfg(test)]
+mod env_overlay_tests {
+    #[test]
+    fn the_unset_marker_removes_the_variable() {
+        let mut env = juggler_adapter::EnvMap::new();
+        env.insert(
+            "CLAUDE_CONFIG_DIR".into(),
+            juggler_adapter::launch::ENV_UNSET.into(),
+        );
+        env.insert("KEEP".into(), "yes".into());
+        let mut command = std::process::Command::new("true");
+        super::apply_env(&mut command, &env);
+        let envs: Vec<_> = command.get_envs().collect();
+        assert!(envs.contains(&(std::ffi::OsStr::new("CLAUDE_CONFIG_DIR"), None)));
+        assert!(envs.contains(&(
+            std::ffi::OsStr::new("KEEP"),
+            Some(std::ffi::OsStr::new("yes"))
+        )));
+    }
 }

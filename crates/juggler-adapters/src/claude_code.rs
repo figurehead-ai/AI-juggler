@@ -45,6 +45,9 @@ const ENV_BIN_OVERRIDE: &str = "AI_JUGGLER_CLAUDE_BIN";
 #[derive(Debug, Clone, Default)]
 pub struct ClaudeCodeAdapter {
     bin: Option<PathBuf>,
+    /// ADR-0018: where in-place accounts' launch overlays live (AI
+    /// Juggler's data). `None` = no status line capture for them.
+    overlays_root: Option<PathBuf>,
 }
 
 impl ClaudeCodeAdapter {
@@ -59,7 +62,16 @@ impl ClaudeCodeAdapter {
     pub fn with_bin(bin: impl Into<PathBuf>) -> Self {
         Self {
             bin: Some(bin.into()),
+            overlays_root: None,
         }
+    }
+
+    /// ADR-0018: in-place accounts get their status line capture from a
+    /// `--settings` file under `root` instead of edits to their folder.
+    #[must_use]
+    pub fn with_overlays_root(mut self, root: impl Into<PathBuf>) -> Self {
+        self.overlays_root = Some(root.into());
+        self
     }
 
     fn resolve_bin(&self) -> Option<PathBuf> {
@@ -297,6 +309,15 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         claude_environment::import_claude_config(source, dest, &probe)
     }
 
+    fn adopt_account(&self, source: &Path) -> Result<ImportOutcome, AdapterError> {
+        let adapter = ClaudeCodeAdapter::new();
+        let probe = move |path: &Path| match adapter.login_state(path) {
+            LoginState::SignedIn => LoginProbe::LoggedIn,
+            _ => LoginProbe::LoggedOut,
+        };
+        claude_environment::adopt_claude_config(source, &probe)
+    }
+
     fn inspect_source(
         &self,
         source: &Path,
@@ -350,6 +371,15 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         &[ENV_CONFIG_DIR, ENV_BIN_OVERRIDE]
     }
 
+    fn launch_unset_keys(&self) -> &'static [&'static str] {
+        &INHERITED_CREDENTIAL_KEYS
+    }
+
+    fn isolation_env_value(&self, state_dir: &Path) -> Option<String> {
+        let value = config_dir_value(state_dir);
+        (value != juggler_adapter::launch::ENV_UNSET).then_some(value)
+    }
+
     fn shell_command(&self) -> Option<&'static str> {
         Some("claude")
     }
@@ -376,9 +406,10 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         let mut env: EnvMap = profile.settings_overlay.env.clone();
         env.insert(
             ENV_CONFIG_DIR.to_string(),
-            account.state_dir.to_string_lossy().into_owned(),
+            config_dir_value(&account.state_dir),
         );
-        let (args, needs_pty) = match mode {
+        unset_inherited_credentials(&mut env);
+        let (mut args, needs_pty) = match mode {
             LaunchMode::Interactive => (Vec::new(), true),
             // `claude "<prompt>"` — an interactive session whose first
             // turn is the prompt (AJ-E706 T3 replay).
@@ -407,6 +438,28 @@ impl HarnessAdapter for ClaudeCodeAdapter {
                 (args, true)
             }
         };
+        // Per-launch settings go in as flags, never as edits to the
+        // folder's settings.json (ADR-0018 §3): the profile's model, and
+        // for an in-place account the status line capture in AI Juggler's
+        // own folder.
+        let mut leading = Vec::new();
+        if let Some(model) = &profile.settings_overlay.model {
+            leading.extend(["--model".to_owned(), model.clone()]);
+        }
+        if account.in_place
+            && let Some(root) = &self.overlays_root
+            && let Ok(settings) = crate::quota_ingest::ensure_launch_overlay(
+                root,
+                account.id.as_str(),
+                &account.state_dir,
+            )
+        {
+            leading.extend([
+                "--settings".to_owned(),
+                settings.to_string_lossy().into_owned(),
+            ]);
+        }
+        args.splice(0..0, leading);
         Ok(LaunchSpec {
             program: bin,
             args,
@@ -516,6 +569,12 @@ impl ClaudeCodeAdapter {
         if keychain_entry_exists(&namespaced_service(state_dir)) {
             return LoginState::SignedIn;
         }
+        // The vendor's default folder runs without CLAUDE_CONFIG_DIR, and
+        // its sign-in has the un-namespaced name (ADR-0018 §3).
+        #[cfg(target_os = "macos")]
+        if is_vendor_default_dir(state_dir) && keychain_entry_exists(SHARED_SERVICE) {
+            return LoginState::SignedIn;
+        }
         LoginState::LoggedOut
     }
 
@@ -567,15 +626,22 @@ impl ClaudeCodeAdapter {
             ));
         };
         let mut env = EnvMap::new();
-        env.insert(
-            ENV_CONFIG_DIR.to_string(),
-            state_dir.to_string_lossy().into_owned(),
-        );
+        env.insert(ENV_CONFIG_DIR.to_string(), config_dir_value(state_dir));
+        unset_inherited_credentials(&mut env);
+        // Not the config folder itself: Claude would treat it as a project
+        // (a trust prompt, a projects/ entry for the folder) — an empty
+        // folder of AI Juggler's own, when there is one.
+        let cwd = self
+            .overlays_root
+            .as_ref()
+            .map(|root| root.join("sign-in"))
+            .filter(|dir| std::fs::create_dir_all(dir).is_ok())
+            .unwrap_or_else(|| state_dir.to_path_buf());
         Ok(LaunchSpec {
             program: bin,
             args: Vec::new(),
             env,
-            cwd: state_dir.to_path_buf(),
+            cwd,
             needs_pty: true,
         })
     }
@@ -835,6 +901,91 @@ pub(crate) fn find_on_path(program: &str) -> Option<PathBuf> {
 }
 
 /// The user's home dir (`HOME` / `USERPROFILE`).
+/// The un-namespaced Keychain service Claude Code uses when
+/// `CLAUDE_CONFIG_DIR` is unset (the vendor's default folder).
+#[cfg(target_os = "macos")]
+const SHARED_SERVICE: &str = "Claude Code-credentials";
+
+/// ADR-0018: true for the vendor's own default folder, `~/.claude`.
+/// Only an in-place account can have it (copies live in AI Juggler's
+/// data), and it is launched as the vendor runs it: with
+/// `CLAUDE_CONFIG_DIR` unset, so its sign-in and state are the same.
+#[must_use]
+pub fn is_vendor_default_dir(dir: &Path) -> bool {
+    home_dir().is_some_and(|home| is_vendor_default_dir_in(dir, &home))
+}
+
+/// [`is_vendor_default_dir`] for an explicit home folder (pure, testable).
+/// The exact path only — not a link to it: a launch through a link sets
+/// `CLAUDE_CONFIG_DIR` to the link, and that sign-in is namespaced.
+#[must_use]
+pub fn is_vendor_default_dir_in(dir: &Path, home: &Path) -> bool {
+    let trimmed = PathBuf::from(dir.to_string_lossy().trim_end_matches('/'));
+    trimmed == home.join(".claude")
+}
+
+/// Credentials Claude Code takes from the environment ahead of the
+/// folder's own sign-in. Started from a terminal that exports one, AI
+/// Juggler would otherwise run EVERY account on that one key.
+pub const INHERITED_CREDENTIAL_KEYS: [&str; 3] = [
+    "ANTHROPIC_API_KEY",
+    "ANTHROPIC_AUTH_TOKEN",
+    "CLAUDE_CODE_OAUTH_TOKEN",
+];
+
+/// Each account signs in as itself: remove [`INHERITED_CREDENTIAL_KEYS`]
+/// from what the launch inherits (an account set up with a key keeps it
+/// in its own settings, which this doesn't touch).
+fn unset_inherited_credentials(env: &mut EnvMap) {
+    for key in INHERITED_CREDENTIAL_KEYS {
+        env.insert(
+            key.to_owned(),
+            juggler_adapter::launch::ENV_UNSET.to_owned(),
+        );
+    }
+}
+
+/// The `CLAUDE_CONFIG_DIR` value for a folder: its exact path (Claude's
+/// Keychain name hashes that string), or unset for the default folder.
+fn config_dir_value(dir: &Path) -> String {
+    home_dir().map_or_else(
+        || dir.to_string_lossy().into_owned(),
+        |home| config_dir_value_in(dir, &home),
+    )
+}
+
+/// The `CLAUDE_CONFIG_DIR` value for an explicit home folder (pure, testable).
+#[must_use]
+pub fn config_dir_value_in(dir: &Path, home: &Path) -> String {
+    if is_vendor_default_dir_in(dir, home) {
+        juggler_adapter::launch::ENV_UNSET.to_owned()
+    } else {
+        dir.to_string_lossy().into_owned()
+    }
+}
+
+/// Claude Code's state file for a folder: inside it, or `~/.claude.json`
+/// for the vendor's default folder (where Claude keeps it when
+/// `CLAUDE_CONFIG_DIR` is unset).
+#[must_use]
+pub fn claude_state_file(dir: &Path) -> PathBuf {
+    home_dir().map_or_else(
+        || dir.join(".claude.json"),
+        |home| claude_state_file_in(dir, &home),
+    )
+}
+
+/// [`claude_state_file`] for an explicit home folder (pure, testable).
+#[must_use]
+pub fn claude_state_file_in(dir: &Path, home: &Path) -> PathBuf {
+    // Unset, Claude keeps it at ~/.claude.json — prefer that over any
+    // stale ~/.claude/.claude.json.
+    if is_vendor_default_dir_in(dir, home) && home.join(".claude.json").exists() {
+        return home.join(".claude.json");
+    }
+    dir.join(".claude.json")
+}
+
 pub(crate) fn home_dir() -> Option<PathBuf> {
     std::env::var_os("HOME")
         .or_else(|| std::env::var_os("USERPROFILE"))
@@ -935,7 +1086,7 @@ pub fn write_settings_overlay(
 #[must_use]
 pub fn probe_claude_identity(state_dir: &Path) -> juggler_adapter::IdentityProbe {
     use juggler_adapter::IdentityProbe;
-    let Ok(raw) = std::fs::read(state_dir.join(".claude.json")) else {
+    let Ok(raw) = std::fs::read(claude_state_file(state_dir)) else {
         return IdentityProbe::SignedOut;
     };
     let Ok(value) = serde_json::from_slice::<serde_json::Value>(&raw) else {

@@ -127,3 +127,37 @@ for (const theme of ["dark", "light"] as const) {
     await expect(dialog).toHaveCount(0);
   });
 }
+
+// ADR-0018: an account brought in as a copy (0.0.7 and before) can switch
+// to its original folder; each card says where its account lives.
+for (const theme of ["dark", "light"] as const) {
+  test(`accounts — a copy switches to its original folder — ${theme}`, async ({ page }) => {
+    const fixture: FixtureSet = {
+      ...allStatuses,
+      accounts: allStatuses.accounts.map((account, index) =>
+        index === 0
+          ? { ...account, import_source_path: "/Users/you/Library/Application Support/ClaudeCodeProfiles/work-a", in_place: false }
+          : index === 1
+            ? { ...account, import_source_path: "/Users/you/.claude-side", in_place: true }
+            : account,
+      ),
+    };
+    await seed(page, fixture, theme);
+    await goTo(page, "Accounts");
+    const lines = page.getByTestId("account-placement");
+    await expect(lines.first()).toContainText("a copy of ~/Library/Application Support/ClaudeCodeProfiles/work-a");
+    await expect(lines.nth(1)).toContainText("uses ~/.claude-side where it is");
+    await page.screenshot({ path: resolve(OUT, `accounts-placement-1280x800-${theme}.png`) });
+    await axeClean(page, "accounts placement");
+    await page.getByTestId("account-use-original").click();
+    const dialog = page.getByTestId("use-original");
+    await expect(dialog).toContainText("nothing is deleted");
+    await page.screenshot({ path: resolve(OUT, `use-original-1280x800-${theme}.png`) });
+    await axeClean(page, "use the original");
+    await page.getByTestId("use-original-confirm").click();
+    await expect(dialog).toHaveCount(0);
+    await expect(lines.first()).toContainText("uses ~/Library/Application Support/ClaudeCodeProfiles/work-a where it is");
+    await expect(page.getByTestId("account-use-original")).toHaveCount(0);
+  });
+}
+
