@@ -88,6 +88,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is refused instead of resuming something else (Codex and Claude Code).
   The Expert-setup line for a Codex account now pins its SQLite folder
   too, and First run finds a `CODEX_HOME=` line in your shell files.
+- Bringing in a Claude setup that has a linked folder (for example a
+  skill under `skills/` that is a link to somewhere else) no longer fails
+  with "cannot copy skills/…". The folder is kept as a link that points
+  where it did — AI Juggler never follows it or copies what it points to
+  — and the import says which links it kept. Linked files are still
+  copied, so the copy never shares a file with your original. A broken
+  link, or one this system won't let AI Juggler make, is left out with a
+  note instead of failing the import.
+- Everything you can click shows the pointing hand: buttons, rows,
+  menus, filters, checkboxes and links all showed the arrow.
+- The bring-in screen can always be closed: **Not now** at first run,
+  **Close** from Accounts › Add account, or Esc.
 - Security: a switch arriving from a paired Mac can no longer write files
   outside the target account's folder or replace a file it already has —
   names and session ids in a switch bundle are now checked before
