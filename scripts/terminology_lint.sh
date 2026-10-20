@@ -37,6 +37,8 @@ jsx_checks() { # $1=file
   # D-25: on screen it is a "session" (the code keeps Instance).
   check "$jsx" '>[^<>{}]*\b[Ii]nstances?\b[^<>{}]*<' 'NONE^' "Instance on screen in JSX (say session)"
   check "$jsx" '(aria-label|title|placeholder|label|alt)=("|\{`)[^"`$]*\b[Ii]nstances?\b' 'NONE^' "Instance in a visible attribute (say session)"
+  # A label that starts its line: "instances: <span>2</span>".
+  check "$jsx" '^\s*[^=;{}<>"`]*\b[Ii]nstances?\b[^=;{}<>"`]*<[a-z]' "$COMMENT_LINE" "Instance on screen in JSX (say session)"
   # D-25: on screen it is the tool (Claude Code, Codex); the code keeps Provider.
   check "$jsx" '>[^<>{}]*\bProviders?\b[^<>{}]*<' 'NONE^' "Provider on screen in JSX (say tool)"
   check "$jsx" '>[^<>{}]*\bproviders?\b[^<>{}]*<' "$CODE_PROVIDER" "provider on screen in JSX (say tool)"
@@ -63,6 +65,7 @@ selftest() {
 <p className="text-[10px] text-muted">lands with AJ-E606+ (two-clock usage engine)</p>
 <ActionRow label="Rename" reason="account settings land with E3+" />
 const why = "handovers render from Switch Graph edges (E2)";
+                instances: <span className="tabular-nums">{n}</span>
           and every kill is audit-logged (D-08). Crash tidies wait 5 minutes
 BAD
   cat > "$dir/good.tsx" <<'GOOD'
@@ -74,12 +77,13 @@ BAD
 // AJ-E1005: the morning question first.
   const tone = ready ? "border-hairline" : "border-hairline/50"; // AJ-E804: no opacity
         {/* D-25: plain words on screen; a comment may cite a decision. */}
+  if (instances.length <3) return null;
  * AJ-E413 Req.3 (D-06): a doc comment may cite both.
 GOOD
   hits="$(fail=0; jsx_checks "$dir/bad.tsx"; true)"
   # Every line of bad.tsx must be flagged (by one rule or more).
-  if [ "$(printf '%s\n' "$hits" | grep -oE 'bad\.tsx:[0-9]+:' | sort -u | wc -l | tr -d ' ')" -ne 7 ]; then
-    echo "terminology-lint selftest: expected all 7 lines of bad.tsx flagged, got:"; printf '%s\n' "$hits"; rm -rf "$dir"; exit 2
+  if [ "$(printf '%s\n' "$hits" | grep -oE 'bad\.tsx:[0-9]+:' | sort -u | wc -l | tr -d ' ')" -ne 8 ]; then
+    echo "terminology-lint selftest: expected all 8 lines of bad.tsx flagged, got:"; printf '%s\n' "$hits"; rm -rf "$dir"; exit 2
   fi
   hits="$(fail=0; jsx_checks "$dir/good.tsx"; true)"
   if [ -n "$hits" ]; then

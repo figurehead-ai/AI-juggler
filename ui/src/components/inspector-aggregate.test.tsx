@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RightInspector } from "./RightInspector";
+import { providerDisplayName } from "../lib/providers";
 import type {
   AccountInfo,
   InstanceInfo,
@@ -98,7 +99,7 @@ function shell(kind: "provider" | "account" | "project", id: string) {
         instance: null,
         project: kind === "project" ? PROJECTS.find((p) => p.id === id) ?? null : null,
         account: kind === "account" ? ACCOUNTS.find((a) => a.id === id) ?? null : null,
-        provider: kind === "provider" ? { id, name: id } : null,
+        provider: kind === "provider" ? { id, name: providerDisplayName(id) } : null,
         machineId: "this-mac",
       }}
       sessions={SESSIONS}
@@ -156,12 +157,15 @@ describe("AJ-E408 Provider (§5.3, Req.1-2)", () => {
     expect(container.querySelector('[data-testid="action-open-tool-settings"]')).toBeNull();
   });
 
-  it("no tab of the tool, account or project views shows a task code (D-25)", () => {
-    for (const [kind, id] of [["provider", "claude-code"], ["account", "claude-work"], ["project", "proj-1"]] as const) {
+  it("no tab of the tool, account or project views shows a task code or an internal id (D-25)", () => {
+    for (const [kind, id] of [["provider", "claude-code"], ["account", "claude-work"], ["project", "proj-1"], ["project", "proj-2"]] as const) {
       const { container } = shell(kind, id);
       for (const tab of ["overview", "usage", "history", "quality", "processes", "actions"]) {
         open(container, tab);
-        expect(container.textContent ?? "", `${kind} › ${tab}`).not.toMatch(/\bAJ-E\d+|\bE\d+\+|\(E\d+\)|\bD-\d{2}\b/);
+        // innerText-like: hidden screen-reader text counts too.
+        const text = container.textContent ?? "";
+        expect(text, `${kind} › ${tab}`).not.toMatch(/\bAJ-E\d+|\bE\d+\+|\(E\d+\)|\bD-\d{2}\b/);
+        expect(text, `${kind} › ${tab}`).not.toMatch(/claude-code|\b[Ii]nstances?\b|lands with|No data|now ago/);
       }
       cleanup();
     }
@@ -228,6 +232,9 @@ describe("AJ-E408 Account (§5.4, Req.3-4)", () => {
     open(container, "history");
     expect(container.querySelector('[data-testid="account-history"]')).not.toBeNull();
     expect(container.textContent).toContain("Today");
+    // Each row says how long ago it started — never "now ago".
+    expect(container.textContent).not.toContain("now ago");
+    expect(container.textContent).toMatch(/\d+[smh] ago/);
     cleanup();
     const actions = shell("account", "claude-work");
     open(actions.container, "actions");

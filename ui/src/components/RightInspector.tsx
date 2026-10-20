@@ -28,7 +28,8 @@ import { TwoClocks, WindowRing } from "./QuotaRings";
 import { accountSetFee, quotaDisplay, switchTargets, type QuotaDisplayData, type SwitchBackSuggestionData, type SwitchTargetData, errorText,
   signedIn,
 } from "../lib/bridge";
-import { formatBytes, stateChip } from "./indicator";
+import { STATE_WORDS, formatBytes, stateChip } from "./indicator";
+import { providerDisplayName } from "../lib/providers";
 import { SwitchGraph } from "./SwitchGraph";
 import { SwitchTargetRows } from "./SwitchTargetRows";
 import { RemoteSwitchTargets } from "./RemoteSwitchTargets";
@@ -849,7 +850,7 @@ function InstanceOverview(props: PanelProps) {
             if (session.running_model === null && session.launch_model === null) {
               return (
                 <p data-testid="instance-model-line" className="text-[11px] text-muted">
-                  Model: not reported by {session.provider}
+                  Model: not reported by {providerDisplayName(session.provider)}
                 </p>
               );
             }
@@ -865,7 +866,7 @@ function InstanceOverview(props: PanelProps) {
             </summary>
             <div className="mt-2 flex flex-col gap-2">
           <div className="flex flex-wrap items-center gap-1.5">
-            <Chip tone="neutral">{session.provider}</Chip>
+            <Chip tone="neutral">{providerDisplayName(session.provider)}</Chip>
             <Chip tone="neutral">
               {props.profiles.find((r) => r.id === session.launch_recipe_id)?.name ?? "launch settings"}
             </Chip>
@@ -939,7 +940,7 @@ function InstanceOverview(props: PanelProps) {
               <span title="desktop app session" className="inline-flex">
                 <Chip tone="neutral">app</Chip>
               </span>
-              <Chip tone="neutral">{session.provider}</Chip>
+              <Chip tone="neutral">{providerDisplayName(session.provider)}</Chip>
               <span className="text-[11.5px] text-muted">
                 {session.account_label}
                 {project ? ` · ${project.name}` : ""}
@@ -1291,7 +1292,7 @@ function InstanceOverview(props: PanelProps) {
           <p className="text-[11px] uppercase tracking-wider text-faint">Account</p>
           <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[11.5px]">
             <span>
-              provider: <span className="text-muted">{account.provider}</span>
+              tool: <span className="text-muted">{providerDisplayName(account.provider)}</span>
             </span>
             <span>
               plan: <span className="text-muted">{account.plan ?? "unknown"}</span>
@@ -1417,7 +1418,7 @@ function InstanceUsage(props: PanelProps) {
           <p className="text-[11.5px] text-muted">No usage recorded yet</p>
         )}
         <span className="text-[10px] text-muted">
-          series confidence: <span className="rounded border border-hairline px-1">Measured</span> (observed tokens; time-series arrive tagged per source)
+          <span className="rounded border border-hairline px-1">Measured</span> counted from what the session reports
         </span>
       </Card>
       <Card className="flex flex-col gap-2 p-4" data-testid="two-clock-card">
@@ -1427,10 +1428,8 @@ function InstanceUsage(props: PanelProps) {
             the forecast pill. */}
         <AccountTwoClocks accountId={instance.account_id} />
       </Card>
-      <Card className="flex flex-col gap-1 p-4">
-        <p className="text-[11px] uppercase tracking-wider text-muted">Tokens / min · cost over time</p>
-        <p className="text-[11.5px] text-muted">No data — arrives with statusline</p>
-      </Card>
+      {/* D-25: tokens/min and cost over time join this tab once a time
+          series exists; until then the card isn't shown. */}
     </div>
   );
 }
@@ -1445,12 +1444,9 @@ function InstanceHistory(props: PanelProps) {
       <Card className="flex flex-col gap-2 p-4">
         <p className="text-[11px] uppercase tracking-wider text-muted">This session</p>
         <p className="text-[11.5px] text-muted">No history recorded yet</p>
+        <p className="text-[10px] text-muted">Resumes, handovers and crashes will show here.</p>
         <p className="text-[10px] text-muted">
-          resumes, handovers and crashes appear here as transcripts are indexed; imported
-          history rows carry an <span className="rounded border border-hairline px-1">imported</span> badge
-        </p>
-        <p className="text-[10px] text-muted">
-          started {new Date(instance.started_at_ms).toLocaleString()} · status {instance.status}
+          Started {new Date(instance.started_at_ms).toLocaleString()} · {STATE_WORDS[instance.status] ?? instance.status}
         </p>
       </Card>
     </div>
@@ -1772,7 +1768,7 @@ function ProviderOverview(props: PanelProps) {
         )}
       </Card>
       <Card className="flex flex-col gap-1.5 p-4" data-testid="provider-aggregate">
-        <p className="text-[11px] uppercase tracking-wider text-muted">Aggregate quota (worst account first)</p>
+        <p className="text-[11px] uppercase tracking-wider text-muted">Quota, lowest first</p>
         {perAccount.length === 0 ? (
           <p className="text-[11.5px] text-muted">No accounts for this tool yet.</p>
         ) : (
@@ -1782,13 +1778,15 @@ function ProviderOverview(props: PanelProps) {
                 <span className="text-ink">{account.label}</span>
                 {!signedIn(account.login_state) ? <span className="text-faint"> · signed out</span> : null}
               </span>
-              <QuotaBar quota={worst?.quota ?? null} />
+              {/* D-25: a signed-out account with no reading says "signed
+                  out" above; an empty bar would only repeat it. */}
+              {worst?.quota || signedIn(account.login_state) ? <QuotaBar quota={worst?.quota ?? null} /> : null}
             </div>
           ))
         )}
         {tiers.size > 1 ? (
           <span className="text-[10px] text-muted" data-testid="provider-mixed">
-            cross-account sums are <span className="rounded border border-hairline px-1">mixed</span> (confidence tiers differ)
+            <span className="rounded border border-hairline px-1">mixed</span> some of these are measured, some estimated
           </span>
         ) : null}
       </Card>
@@ -1891,7 +1889,7 @@ function AccountOverview(props: PanelProps) {
             {worst?.quota?.resets_at_ms ? (
               <span className="text-ink">{formatCountdown(worst.quota.resets_at_ms, props.now)}</span>
             ) : (
-              <span className="text-faint">No data</span>
+              <span className="text-faint">not known yet</span>
             )}
           </span>
         </div>
@@ -2004,7 +2002,7 @@ function ProjectOverview(props: PanelProps) {
                 accounts used: <span className="text-ink">{project.accounts_used.join(", ") || "none"}</span>
               </span>
               <span>
-                instances: <span className="tabular-nums text-ink">{project.instance_count}</span> · imported sessions:{" "}
+                sessions: <span className="tabular-nums text-ink">{project.instance_count}</span> · imported sessions:{" "}
                 <span className="tabular-nums text-ink">{project.history_sessions}</span>
               </span>
             </div>
@@ -2106,8 +2104,9 @@ function GroupedHistory(props: PanelProps) {
             <p className="text-[11px] uppercase tracking-wider text-muted">{group.label}</p>
             {groupRows.map((row) => (
               <button key={row.id} type="button" onClick={() => props.onOpenSession(row.id)} className="flex items-center gap-2 py-1 text-left text-xs">
-                <span className="min-w-0 flex-1 truncate font-medium">{row.account_label}</span>
-                <span className="text-faint">{formatCountdown(row.started_at_ms, props.now)} ago</span>
+                {/* An account's own history names each session by its place. */}
+                <span className="min-w-0 flex-1 truncate font-medium">{kind === "account" ? sessionPlace(row) : row.account_label}</span>
+                <span className="text-faint">{since(row.started_at_ms, props.now)} ago</span>
                 <Chip tone={statusTone(row.status).tone}>{statusTone(row.status).label}</Chip>
               </button>
             ))}
@@ -2135,7 +2134,7 @@ function TierTag({ tier }: { tier: "Measured" | "Computed" | "Estimated" }) {
 }
 
 /// The `Renewal date (optional)` editor (AJ-E411 Req.4): date input +
-/// Clear, helper text `Entered by you - Juggler does not read billing`,
+/// Clear, helper text `Entered by you - AI Juggler does not read billing`,
 /// and focus hand-off from Account Actions (`aij:edit-renewal`).
 /**
  * AJ-E508 (D-08): the Account launch-settings area's per-tier
@@ -2336,7 +2335,7 @@ function RenewalEditor({ account }: { account: AccountInfo }) {
       >
         Clear
       </Button>
-      <span className="text-[10px] text-faint">Entered by you - Juggler does not read billing</span>
+      <span className="text-[10px] text-faint">Entered by you - AI Juggler does not read billing</span>
     </span>
   );
 }
@@ -2424,7 +2423,7 @@ function QualityTab(props: PanelProps) {
           )}
         </div>
       ) : (
-        <span className="text-muted">no data — no transcript usage events yet</span>
+        <span className="text-muted">Nothing measured yet</span>
       ),
     });
     const lastSample = resources?.spark.at(-1);
@@ -2462,7 +2461,7 @@ function QualityTab(props: PanelProps) {
           </span>
         ) : (
           <span className="text-muted">
-            Context: not reported by {instance.provider} · cumulative{" "}
+            Context: not reported by {providerDisplayName(instance.provider)} · cumulative{" "}
             <span className="tabular-nums text-ink">
               {(quality.cumulative.input + quality.cumulative.output).toLocaleString()}
             </span>{" "}
@@ -2508,12 +2507,12 @@ function QualityTab(props: PanelProps) {
     <div className="flex flex-col gap-3" data-testid="quality-tab">
       {signals.length === 0 ? (
         <Card className="flex flex-col gap-1 p-4">
-          <p className="text-[11.5px] text-muted">no data — no transcript usage events yet</p>
+          <p className="text-[11.5px] text-muted">Nothing measured yet — this fills in as the session works.</p>
         </Card>
       ) : (
         <>
           <div className="flex items-center justify-between">
-            <p className="text-[10px] text-muted">Sampled every 2 s · measured</p>
+            <p className="text-[10px] text-muted">Measured every 2 seconds</p>
             <button
               type="button"
               onClick={() => setAsTable((v) => !v)}

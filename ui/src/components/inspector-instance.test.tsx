@@ -127,7 +127,7 @@ describe("AJ-E407 Instance Overview (§5.1, Req.1)", () => {
     expect(container.querySelector('[data-testid="instance-overview-fields"]')).not.toBeNull();
     // D-25: the header carries the state and how long (no duplicate chip).
     expect(container.textContent).toContain("started 42m ago");
-    expect(container.textContent).toContain("claude-code");
+    expect(container.textContent).toContain("Claude Code");
     expect(container.textContent).toContain("Work Max");
     expect(container.textContent).toContain("Deep work");
     expect(container.textContent).toContain("opus");
@@ -162,21 +162,30 @@ describe("AJ-E407 Instance Usage (Req.2)", () => {
     expect(container.textContent).toContain("Measured");
   });
 
-  it("renders the exact chart empties while time-series sources are pending", () => {
+  it("without tokens says so; the over-time chart waits for a time series (D-25)", () => {
     const { container } = shell(mk({ tokens: null }));
     open(container, "usage");
     expect(container.textContent).toContain("No usage recorded yet");
-    expect(container.textContent).toContain("No data — arrives with statusline");
+    expect(container.textContent).not.toContain("Tokens / min");
+    expect(container.textContent).not.toMatch(/No data|arrives with|statusline/);
+  });
+
+  it("names the tool, not its id, and the state in the rail's words", () => {
+    const { container } = shell(mk({ status: "quota_blocked" }));
+    expect(container.textContent).not.toContain("claude-code");
+    open(container, "history");
+    expect(container.textContent).toContain("Hit its limit");
+    expect(container.textContent).not.toContain("quota_blocked");
   });
 });
 
 describe("AJ-E407 Instance History (Req.3)", () => {
-  it("renders the honest history empty with the imported-badge contract", () => {
+  it("renders the honest history empty in plain words", () => {
     const { container } = shell(mk());
     open(container, "history");
     expect(container.querySelector('[data-testid="instance-history"]')).not.toBeNull();
     expect(container.textContent).toContain("No history recorded yet");
-    expect(container.textContent).toContain("imported");
+    expect(container.textContent).toContain("Resumes, handovers and crashes will show here.");
   });
 });
 

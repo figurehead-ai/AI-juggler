@@ -166,7 +166,7 @@ describe("AJ-E411 Account inspector states + editor", () => {
     expect(editor.querySelector(`label[for="renewal-a1"]`)!.textContent).toBe(
       "Renewal date (optional)",
     );
-    expect(editor.textContent).toContain("Entered by you - Juggler does not read billing");
+    expect(editor.textContent).toContain("Entered by you - AI Juggler does not read billing");
     expect(input.value).toBe(daysOut(6));
     expect(editor.querySelector("button")!.textContent).toContain("Clear");
   });

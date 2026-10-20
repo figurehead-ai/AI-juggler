@@ -737,6 +737,7 @@ export default function App() {
     global !== null
       ? null
       : (selectedSession?.provider ??
+        selectedAccount?.provider ??
         remoteInstanceProvider ??
         (selection.kind === "provider" ? selection.id : null));
   const contextProvider = contextProviderId ? (PROVIDER_NAMES[contextProviderId] ?? contextProviderId) : null;
@@ -748,6 +749,10 @@ export default function App() {
         ? `Fleet · ${remoteMachines?.find((m) => m.machine_id === selection.machineId)?.label ?? "machine"}`
         : selection.kind === "project"
         ? (selectedProject?.name ?? "Project")
+        : selection.kind === "provider"
+        ? (contextProvider ?? "Tool")
+        : selection.kind === "account"
+        ? (selectedAccount?.label ?? "Account")
         : selectedSession
           ? // D-25: the session's project (the view below names its place).
             (projects.find((p) => p.id === selectedSession.project_id)?.name ?? "Session")
@@ -852,7 +857,7 @@ export default function App() {
             <h1 className="min-w-0 truncate text-sm font-semibold tracking-wide">{contextTitle}</h1>
             {/* The tool's own view (what's installed, its accounts and
                 their quota): one click from a session that runs on it. */}
-            {contextProvider && contextProviderId && (
+            {contextProvider && contextProviderId && selection.kind !== "provider" && (
               <button
                 type="button"
                 onClick={() => {
