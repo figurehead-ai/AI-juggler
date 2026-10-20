@@ -30,6 +30,12 @@ pub struct AppState {
     /// owns the persistent process table so CPU% deltas survive ticks.
     /// Lock ordering: never held together with `storage`.
     pub resources: Mutex<LiveStatsCollector>,
+    /// The machine's own signals (AJ-E1401): CPU, memory and pressure,
+    /// swap, disks in use, power, thermal — sampled on the same 2 s tick.
+    /// Lock ordering: never held together with `resources` or `storage`;
+    /// held only for the cheap part of a tick (the disk work and the
+    /// storage read run outside it).
+    pub machine: Mutex<juggler_supervisor::MachineSampler>,
     /// Exit snapshots → confirmed orphans + stop states (AJ-E410).
     /// Interior-mutex: safe to read without the collector lock.
     pub orphans: OrphanTracker,
@@ -210,6 +216,7 @@ impl AppState {
             registry,
             storage: Mutex::new(storage),
             resources: Mutex::new(LiveStatsCollector::new()),
+            machine: Mutex::new(juggler_supervisor::MachineSampler::new()),
             orphans: OrphanTracker::new(),
             model_offsets: Mutex::new(std::collections::HashMap::new()),
             heuristics: HeuristicEngine::new(load_thresholds(&data_dir)),
