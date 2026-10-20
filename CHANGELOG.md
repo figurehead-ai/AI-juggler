@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The session, account, project and tool views say what they show in
+  plain words: no task codes ("lands with AJ-E606+"), no "No data"
+  placeholders, tools by name ("Claude Code") and states in the rail's
+  words. Actions that don't work yet aren't shown; ones that don't apply
+  right now stay greyed with the reason. The tool chip in a session's or
+  an account's header opens the tool's own view: what's installed and its
+  accounts' quota. An account's history says how long ago each session
+  started (it said "now ago"), in days once it's more than two. A quota
+  with no reading says "Not measured yet" everywhere, as Accounts does.
 - On Home, J/K keep working after you mark a session reviewed or resume
   it, and A works from a row's own Mark reviewed button. Handed-over
   sessions no longer show under "Pick up where you left off". Home's

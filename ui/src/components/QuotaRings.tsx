@@ -52,7 +52,7 @@ export function WindowRing({
   // Typed empty/unavailable states — copy exactly (deep/10 lines 29).
   if (window.state === "unknown") {
     return (
-      <div data-testid={`ring-${kind}`} role="img" aria-label={`${label}: no data yet`}>
+      <div data-testid={`ring-${kind}`} role="img" aria-label={`${label}: not measured yet`}>
         <p className="text-xs text-muted">Start a session to measure</p>
       </div>
     );

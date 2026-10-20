@@ -371,3 +371,14 @@
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1024/`.
 **Research basis**: maintainer, 2026-10-20: "most of people don't want 10s of different profiles confusing everywhere"; "we should always give option to the user if they want to continue with partial import or try again. We can't be forceful to users". ADR-0018.
 
+### AJ-E1025 Plain words in the inspector views; no task codes on screen (D-25) | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: AJ-E407, AJ-E408, AJ-E1019
+**Goal**: The session, account, project and tool views say what they show in plain words. No task or decision code, raw id or "No data" placeholder reaches the screen, and the tool view gets a way in.
+**User story**: As someone opening a session's Usage tab, I read "No usage measured for this yet", not "lands with AJ-E606+ (two-clock usage engine)".
+**Requirements**:
+1. No task code (`AJ-E…`, `E3+`, `(E2)`) or decision code (`D-08`) SHALL appear in visible text, a visible attribute or a user-facing string; `scripts/terminology_lint.sh` SHALL fail on one (JSX text, wrapped JSX text, attributes, strings) and leave comments alone. Its selftest covers each form.
+2. Each inspector tab's honest empty SHALL say what's missing in plain words. An action that isn't built yet SHALL NOT be shown; one that exists but doesn't apply now stays disabled with its reason (AJ-E407 Req.4 as amended). A row with nothing to show waits until it has data.
+3. The views SHALL name a tool by its name ("Claude Code", never `claude-code`), a state in the rail's words ("Hit its limit", never `quota_blocked`), and a session on screen as a session.
+4. The tool view SHALL read what's installed ("Version 2.1.296 · tested with 2.1.x", "Not installed on this Mac"), and SHALL open from the tool chip in a session's or an account's header ("About Claude Code"). The header SHALL name the tool or account it shows.
+**Quality gates**: the terminology lint (and its selftest); vitest `inspector-*.test.tsx`, `tier-toggles`, `quality-tab`, `running-model`, `renewal`; capture `72-tool-view` (axe on every capture); the visual gate.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1025/`.
+**Research basis**: D-25 (plain words, progressive disclosure); D-06 (the six tabs and honest empties stay); the maintainer's lesson: walk every changed control in the browser before calling it done.

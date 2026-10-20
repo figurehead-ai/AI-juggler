@@ -539,9 +539,8 @@ export function SwitchFlow({
               <div className="flex flex-col gap-2" data-testid="switch-step-conflicts">
                 <h3 className="text-sm font-semibold">Conflicts</h3>
                 <p className="text-[11px] text-muted">
-                  Both sides changed. Three-way reconciliation arrives with the switch-back
-                  epic (AJ-E207) — until then this switch keeps the source's version and
-                  records the fork.
+                  Both sides changed. AI Juggler can't merge the two versions yet, so this
+                  switch keeps the source's version and records the fork.
                 </p>
               </div>
             )}
