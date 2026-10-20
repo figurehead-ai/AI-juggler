@@ -82,12 +82,18 @@ fn a_codex_account_gets_its_own_home_and_real_sign_in_state() {
         .find(|row| row.id == "launch_env_managed_only")
         .unwrap();
     assert!(env_row.pass, "{rows:#?}");
-    assert!(env_row.detail.contains("CODEX_HOME"), "{}", env_row.detail);
+    assert!(
+        env_row.detail.contains("CODEX_HOME"),
+        "the row names CODEX_HOME"
+    );
     let probe = rows
         .iter()
         .find(|row| row.id == "probe_independence")
         .unwrap();
-    assert!(probe.detail.contains("signed_in"), "{}", probe.detail);
+    assert!(
+        probe.detail.contains("signed_in"),
+        "the probe reads signed in"
+    );
     assert!(
         rows.iter().all(|row| row.pass),
         "a fresh codex account: {rows:#?}"
@@ -97,8 +103,14 @@ fn a_codex_account_gets_its_own_home_and_real_sign_in_state() {
     let expert =
         commands::expert_setup_info_impl(&state, CODEX_ID, Some(&created.id), None).unwrap();
     let snippet = expert.shell_snippet.unwrap();
-    assert!(snippet.starts_with("CODEX_HOME='"), "{snippet}");
-    assert!(snippet.ends_with("codex --no-daemon"), "{snippet}");
+    assert!(
+        snippet.starts_with("CODEX_HOME='"),
+        "the snippet sets the home"
+    );
+    assert!(
+        snippet.ends_with("codex --no-daemon"),
+        "the snippet runs codex without the daemon"
+    );
     assert!(
         expert
             .protected_env_keys
