@@ -983,8 +983,8 @@ test("preview — exited instance renders no preview (status only)", async ({ pa
   await page.screenshot({ path: resolve(GALLERY, "15-preview/panel-exited-1280x800.png") });
 });
 
-// AJ-E501: the ledger-degraded banner (the Cleanup Centre stub's only
-// surface) — copy exact, both themes, on the Overview screen.
+// AJ-E501: the ledger-degraded banner — copy exact, both themes, on Home
+// (it moved there from Overview, AJ-E1021).
 for (const theme of ["dark", "light"] as const) {
   test(`ledger — degraded banner (${theme} 1440x900)`, async ({ page }) => {
     await page.addInitScript(
@@ -1010,7 +1010,6 @@ for (const theme of ["dark", "light"] as const) {
     });
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/");
-    await goTo(page, "Overview");
     const banner = page.getByTestId("ledger-degraded-banner");
     await expect(banner).toBeVisible();
     await expect(banner).toContainText(
@@ -5861,9 +5860,9 @@ for (const theme of THEMES) {
 }
 
 // ---------------------------------------------------------------------
-// AJ-E1005 — 55-triage: the morning triage populated (needs you, parked,
-// running, finished — not reviewed) and empty, at 1440×900 and 1024×680,
-// light/dark, comfortable and compact.
+// AJ-E1005 / AJ-E1021 — 55-triage: the morning triage, now on Home (D-25
+// amendment): needs you, parked, running, finished — not reviewed — and
+// empty, at 1440×900 and 1024×680, light/dark, comfortable and compact.
 // ---------------------------------------------------------------------
 
 for (const theme of THEMES) {
@@ -5888,10 +5887,9 @@ for (const theme of THEMES) {
         await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
         await page.setViewportSize({ width: vp.width, height: vp.height });
         await page.goto("/");
-        await goTo(page, "Triage");
-        await expect(page.getByTestId("triage-group-parked")).toContainText("2h 13m");
-        await expect(page.getByTestId("triage-action").first()).toBeVisible();
-        await page.screenshot({ path: resolve(GALLERY, `55-triage/populated-${vp.name}-${density}-${theme}.png`) });
+        await expect(page.getByTestId("home-parked")).toContainText("2h 13m");
+        await expect(page.getByTestId("home-needs").getByRole("button").first()).toBeVisible();
+        await page.screenshot({ path: resolve(GALLERY, `55-triage/home-populated-${vp.name}-${density}-${theme}.png`) });
       });
     }
     test(`55 triage — empty — ${vp.name} — ${theme}`, async ({ page }) => {
@@ -5909,9 +5907,8 @@ for (const theme of THEMES) {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
-      await goTo(page, "Triage");
-      await expect(page.getByTestId("triage-empty")).toBeVisible();
-      await page.screenshot({ path: resolve(GALLERY, `55-triage/empty-${vp.name}-${theme}.png`) });
+      await expect(page.getByTestId("home")).toContainText("Ready when you are");
+      await page.screenshot({ path: resolve(GALLERY, `55-triage/home-empty-${vp.name}-${theme}.png`) });
     });
   }
 }

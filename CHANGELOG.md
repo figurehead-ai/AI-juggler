@@ -20,9 +20,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - In a window narrower than 900 px, the rail folds to its icon column by
   itself and comes back when the window is wider. Your density setting
   doesn't change; ⌘B opens the list while the window is narrow.
+- Home is also the morning triage. Sessions parked until a reset have
+  their own section, with Resume once the reset is reached (they no
+  longer read as "hit its limit"). "Pick up where you left off" lists
+  what ended this week that you haven't marked reviewed. J/K or the
+  arrows move between rows, Enter opens, A runs the row's action. Triage
+  and Overview, which repeated Home, are gone from More.
 - A calmer app, rebuilt around what you need first (decision D-25). The
-  top bar is Home, Accounts, History and Settings; Triage, Overview, Usage,
-  Fleet and Cleanup are under More, and Cleanup and Fleet show up by
+  top bar is Home, Accounts, History and Settings; Usage, Fleet and
+  Cleanup are under More, and Cleanup and Fleet show up by
   themselves when they have something for you. The rail is one list of
   your projects and their sessions: search, Needs you · Running · All,
   and the rest behind a Filters button that says when one is on. A row
