@@ -25,6 +25,7 @@ AJ-E1404).
 |---|---|---|---|---|---|---|---|
 | Req.1 totals, split, top 3 | `cargo test -p juggler-app --lib -- machine_health` (`this_mac_splits_ours_from_theirs_and_ranks_by_memory`, `an_unmeasured_tree_leaves_the_cpu_total_unknown_never_zero`) | pass | pass | PASS | 583c2f0d+ | 2026-10-20 | claude-opus |
 | Req.2 heavy rule and note | `heavy_means_sustained_for_a_minute` (CPU, memory, both, 20 s spike ≠ heavy, hog rule alone) | pass | pass | PASS | 583c2f0d+ | 2026-10-20 | claude-opus |
+| Req.2 no flapping (AJ-E1404 review) | `a_session_hovering_near_the_line_stays_heavy_until_it_calms`: a minute over 90 % turns heavy; dips to 85 % or one sample under 80 % keep it heavy; 45 s under 80 % clears it; a tree that never had a full minute over is never heavy. Fails on the old code (one sample under 90 % cleared it). | pass | pass | PASS | e14-this-mac | 2026-10-20 | claude-opus |
 | Req.3 ≤ 200 ms at 50 Instances | `cargo test -p juggler-app --test load_budgets this_mac -- --nocapture` (50 live supervised trees with helpers) | ≤ 200 ms | median 5.9 ms (runs 4.4–7.3 ms), 50 trees counted | PASS | 583c2f0d+ | 2026-10-20 | claude-opus |
 | Bridge + preview mock | `pnpm --dir ui exec vitest run src/lib/machine.test.ts` | pass | 6 passed | PASS | 583c2f0d+ | 2026-10-20 | claude-opus |
 
