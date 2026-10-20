@@ -74,7 +74,7 @@ test("every clickable control shows the hand — the main screens", async ({ pag
     await page.waitForTimeout(150);
     await expectHands(page, name);
   }
-  for (const name of ["Triage", "Overview", "Usage", "Fleet", "Cleanup"]) {
+  for (const name of ["Usage", "Fleet", "Cleanup"]) {
     await nav.getByRole("button", { name: "More", exact: true }).click();
     await page.locator("#nav-more").getByRole("button", { name: new RegExp(`^${name}\\b`) }).click();
     await page.waitForTimeout(150);

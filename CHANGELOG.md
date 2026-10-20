@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Adding an account is short: name it and sign in, or pick a folder,
+  see what's in it (size, sign-in, a too-large history offers settings
+  only) and bring it in as a copy. First run, Accounts › Add account and
+  New project's "Add an account" all use these steps; the old setup
+  wizard is gone. Add account asks which tool only when more than one is
+  installed, so the separate "Add Provider" button is gone too.
 - Bringing in your Claude setups now **uses them where they are** by
   default: your Claude app and AI Juggler share one sign-in, one history
   and one set of settings, and AI Juggler doesn't change your files.
@@ -31,9 +37,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - In a window narrower than 900 px, the rail folds to its icon column by
   itself and comes back when the window is wider. Your density setting
   doesn't change; ⌘B opens the list while the window is narrow.
+- Home is also the morning triage. Sessions parked until a reset have
+  their own section, with Resume once the reset is reached (they no
+  longer read as "hit its limit"). "Pick up where you left off" lists
+  what ended this week that you haven't marked reviewed. J/K or the
+  arrows move between rows, Enter opens, A runs the row's action. Triage
+  and Overview, which repeated Home, are gone from More.
 - A calmer app, rebuilt around what you need first (decision D-25). The
-  top bar is Home, Accounts, History and Settings; Triage, Overview, Usage,
-  Fleet and Cleanup are under More, and Cleanup and Fleet show up by
+  top bar is Home, Accounts, History and Settings; Usage, Fleet and
+  Cleanup are under More, and Cleanup and Fleet show up by
   themselves when they have something for you. The rail is one list of
   your projects and their sessions: search, Needs you · Running · All,
   and the rest behind a Filters button that says when one is on. A row
@@ -102,6 +114,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   menus, filters, checkboxes and links all showed the arrow.
 - The bring-in screen can always be closed: **Not now** at first run,
   **Close** from Accounts › Add account, or Esc.
+- Security: a switch arriving from a paired Mac can no longer write files
+  outside the target account's folder or replace a file it already has —
+  names and session ids in a switch bundle are now checked before
+  anything is written. (Only possible with Fleet pairing, which is beta.)
+
 - The "?" at the bottom of the session list now opens the guide to what
   the icons and words mean (it opened out of sight), in the list's own
   words.

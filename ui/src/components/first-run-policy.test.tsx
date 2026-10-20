@@ -1,318 +1,147 @@
 /**
- * AJ-E309 vitest — the first-run policy hook, renewal dates, the
- * Expert-setup hatch, and the funnel events:
- *  - the Policy question rides Confirm with NOTHING pre-selected (the
- *    copy lint renders the markup and finds no `checked`), Accept waits
- *    for an answer, ⌘↩ never answers it;
- *  - "Decide later" writes NOTHING and Summary says so; each stored
- *    option is written ONCE on the accept click and restated;
- *  - an existing choice is never re-asked; locked flows never ask;
- *  - renewal dates are optional per Confirm row, empty = "expiry
- *    unknown", set = written via account_set_renewal;
- *  - [Expert setup…] shows the read-only folder, Reveal, the shell
- *    line (once an account exists), env overrides, Import from folder;
- *  - every funnel event carries only allow-listed, free-text-free
- *    fields (no paths, labels, or credentials).
+ * AJ-E309 / D-14 vitest — what first run must and mustn't do with your
+ * choices, now that the old account wizard is gone (AJ-E1022):
+ *  - first run (every step: what's here, a fresh account, a folder)
+ *    never asks how packs handle secrets and never writes that choice —
+ *    the first switch asks while none exists (D-14);
+ *  - every funnel event carries only allow-listed, free-text-free fields
+ *    (no paths, labels, or credentials);
+ *  - the pack restatement words; env overrides refuse isolation and
+ *    credential keys inline.
  */
 import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
-import { renderToStaticMarkup } from "react-dom/server";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { OnboardingWizard } from "../screens/OnboardingWizard";
-import { PackPolicyChooser, packPolicyRestatement } from "./PackPolicyChooser";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { FirstRun } from "../screens/FirstRun";
+import { packPolicyRestatement } from "./PackPolicyChooser";
 import { envRowProblem } from "./EnvOverlayEditor";
-import * as bridgeModule from "../lib/bridge";
-import type { ProviderInstallData } from "../lib/bridge";
 
 const w = () => window as unknown as Record<string, unknown>;
+const NOW = Math.floor(Date.now() / 1000);
 
-const INSTALLED: ProviderInstallData[] = [
-  {
-    provider: "claude-code",
-    display_name: "Claude Code",
-    install_url: "https://claude.com/download",
-    status: "installed",
-    version: "2.1.296",
-    binary: "/usr/local/bin/claude",
-    notes: [],
-  },
-];
-
-const RECOMMENDATION = {
-  items: [
-    { provider: "claude-code", label: "Work", action: "import", rationale: "Signed in — import keeps history", default_on: true, path: "/Users/you/.claude-work" },
-    { provider: "claude-code", label: "Side", action: "import", rationale: "Active — you'll sign in after import", default_on: true, path: "/Users/you/.claude-side" },
+const SCAN = {
+  installs: [
+    {
+      harness: "claude-code",
+      path: "/Users/you/.claude-work",
+      origin: "home-pattern",
+      login: "logged_out",
+      bytes: 1000,
+      last_used_secs: NOW - 60,
+      managed: false,
+      notes: [],
+      signals: [],
+      inference: { purpose: "Work", purpose_confidence: "likely", login: "signed-out", login_confidence: "found", activity: "active", activity_confidence: "found", activity_words: "Active", keychain_bound: false },
+    },
   ],
-  summary: "Your juggling set: Claude ×2 (Work — signed in; Side — needs sign-in).",
-  start_here: "-users-dev-api",
+  probes: [],
+  seeds: [],
+  desktop_apps: [],
+  cancelled: false,
 };
-
-const SIGNED_IN_IMPORT = (label: string) => ({
-  account: { id: `acct-${label.toLowerCase()}`, provider: "claude-code", label, plan: null, login_state: "logged_in", cleanup_opt_in: false, renewal_date: null, preview_opt_in: false },
-  files_copied: 3,
-  bytes_copied: 3,
-  skipped: [],
-  login: "logged_in",
-  login_note: null,
-  degraded: false,
-});
 
 beforeEach(() => {
-  for (const key of [
-    "__AIJ_PROVIDER_INSTALLS__",
-    "__AIJ_RECOMMENDATION__",
-    "__AIJ_REDACTION_POLICY__",
-    "__AIJ_REDACTION_SET_GLOBAL__",
-    "__AIJ_FUNNEL_EVENTS__",
-    "__AIJ_RENEWAL_SET__",
-    "__AIJ_SCAN_REPORT__",
-    "__AIJ_EXPERT__",
-    "__AIJ_RECIPE_ENV__",
-    "__AIJ_RECIPE_ENV_REJECT__",
-    "__AIJ_USAGE_STATS__",
-    "__AIJ_USAGE_STATS_SETS__",
-  ]) {
-    delete w()[key];
-  }
-  w().__AIJ_PROVIDER_INSTALLS__ = INSTALLED;
-  w().__AIJ_RECOMMENDATION__ = RECOMMENDATION;
+  for (const key of Object.keys(w()).filter((key) => key.startsWith("__AIJ_"))) delete w()[key];
+  w().__AIJ_SCAN_REPORT__ = SCAN;
+  w().__AIJ_OS_ACCESS__ = [];
 });
-
-const mountWizard = (locked = false) =>
-  render(
-    <OnboardingWizard
-      provider="claude-code"
-      locked={locked}
-      onClose={() => {}}
-      onAccountCreated={() => {}}
-      openLoginTerminal={() => {}}
-    />,
-  );
-
-// Each wizard step settles asynchronously (scans, two imports); a loaded
-// CI runner needs more than waitFor's 1 s default. Only the wait grows.
-const STEP = { timeout: 5_000 };
-
-/** Gate → scan → open the proposal (the set path's Confirm). */
-const openProposal = async () => {
-  const mounted = mountWizard();
-  await waitFor(() =>
-    expect(mounted.container.querySelector("[data-testid='install-continue']")).not.toBeNull(),
-  STEP,
-  );
-  await act(async () => {
-    fireEvent.click(mounted.container.querySelector("[data-testid='install-continue']")!);
-  });
-  await waitFor(() =>
-    expect(mounted.container.querySelector("[data-testid='use-recommended']")).not.toBeNull(),
-  STEP,
-  );
-  fireEvent.click(mounted.container.querySelector("[data-testid='use-recommended']")!);
-  await waitFor(() =>
-    expect(mounted.container.querySelector("[data-testid='accept-setup']")).not.toBeNull(),
-  STEP,
-  );
-  return mounted;
-};
-
-const radio = (container: HTMLElement, value: string) =>
-  container.querySelector<HTMLInputElement>(
-    `[data-testid='policy-panel'] input[type='radio'][value='${value}']`,
-  )!;
-
-const acceptAndReachSummary = async (container: HTMLElement) => {
-  const spy = vi
-    .spyOn(bridgeModule, "accountImport")
-    .mockImplementation(async (_provider, _path, label) => SIGNED_IN_IMPORT(label) as never);
-  await act(async () => {
-    fireEvent.click(container.querySelector("[data-testid='accept-setup']")!);
-  });
-  await waitFor(() =>
-    expect(container.querySelector("[data-testid='set-summary']")).not.toBeNull(),
-  STEP,
-  );
-  spy.mockRestore();
-};
-
-// Unmount every wizard: one left mounted keeps scheduling React work
-// after the test environment is torn down (an unhandled error in CI).
 afterEach(cleanup);
 
-describe("AJ-E309 Req.1 — the policy question, no pre-selected default", () => {
-  it("copy lint: the chooser markup carries NO checked radio until the user picks", () => {
-    const html = renderToStaticMarkup(<PackPolicyChooser value={null} onChange={() => {}} />);
-    expect(html).not.toMatch(/checked/);
-    expect(html).toContain("<fieldset");
-    expect(html).toContain("<legend");
-    expect((html.match(/type="radio"/g) ?? []).length).toBe(4);
-    // Every option states its consequence (one sentence each).
-    for (const words of ["Strip", "Keep", "Ask each time", "Decide later"]) {
-      expect(html).toContain(words);
+const PACK_QUESTION = /context packs handle secrets|Decide later/i;
+
+describe("D-14 — first run never asks about pack secrets", () => {
+  it("bringing in, a fresh account and a folder: no pack question, nothing written", async () => {
+    w().__AIJ_PICK_DIRECTORY__ = "/Users/you/old-claude";
+    const { findByTestId, getByTestId, container } = render(
+      <FirstRun mode="add" onDone={() => null} openLoginTerminal={() => null} />,
+    );
+    await findByTestId("first-run-found");
+    expect(container.textContent).not.toMatch(PACK_QUESTION);
+    fireEvent.click(getByTestId("first-run-bring-in"));
+    await findByTestId("first-run-signin");
+    expect(container.textContent).not.toMatch(PACK_QUESTION);
+    cleanup();
+
+    const fresh = render(<FirstRun mode="add" onDone={() => null} openLoginTerminal={() => null} />);
+    await fresh.findByTestId("first-run-found");
+    fireEvent.click(fresh.getByRole("button", { name: "Add a fresh account instead" }));
+    await fresh.findByTestId("first-run-fresh");
+    expect(fresh.container.textContent).not.toMatch(PACK_QUESTION);
+    await act(async () => {
+      fireEvent.click(await fresh.findByTestId("first-run-fresh-create"));
+    });
+    await fresh.findByTestId("first-run-signin");
+    cleanup();
+
+    const folder = render(<FirstRun mode="add" onDone={() => null} openLoginTerminal={() => null} />);
+    await folder.findByTestId("first-run-found");
+    await act(async () => {
+      fireEvent.click(folder.getByRole("button", { name: "Import from another folder…" }));
+    });
+    await folder.findByTestId("first-run-folder-bring-in");
+    expect(folder.container.textContent).not.toMatch(PACK_QUESTION);
+    expect(w().__AIJ_REDACTION_SET_GLOBAL__).toBeUndefined();
+  });
+});
+
+describe("AJ-E309 Req.6 — funnel events carry no paths, labels, or credentials", () => {
+  it("first run's bring-in, fresh account and folder import emit only allow-listed fields", async () => {
+    w().__AIJ_PICK_DIRECTORY__ = "/Users/you/old-claude";
+    const run = render(<FirstRun onDone={() => null} openLoginTerminal={() => null} />);
+    await run.findByTestId("first-run-found");
+    await act(async () => {
+      fireEvent.click(run.getByTestId("first-run-bring-in"));
+    });
+    await run.findByTestId("first-run-signin");
+    cleanup();
+    const fresh = render(<FirstRun mode="add" onDone={() => null} openLoginTerminal={() => null} />);
+    await fresh.findByTestId("first-run-found");
+    fireEvent.click(fresh.getByRole("button", { name: "Add a fresh account instead" }));
+    await act(async () => {
+      fireEvent.click(await fresh.findByTestId("first-run-fresh-create"));
+    });
+    cleanup();
+    const folder = render(<FirstRun mode="add" onDone={() => null} openLoginTerminal={() => null} />);
+    await folder.findByTestId("first-run-found");
+    await act(async () => {
+      fireEvent.click(folder.getByRole("button", { name: "Import from another folder…" }));
+    });
+    await act(async () => {
+      fireEvent.click(await folder.findByTestId("first-run-folder-bring-in"));
+    });
+    await waitFor(() => expect(folder.getByTestId("first-run-signin")).toBeTruthy());
+
+    const events = w().__AIJ_FUNNEL_EVENTS__ as { kind: string; fields: Record<string, string> }[];
+    const kinds = events.map((event) => event.kind);
+    for (const expected of ["flow_step", "scan_started", "scan_completed", "import_started", "import_completed", "login_queued"]) {
+      expect(kinds).toContain(expected);
+    }
+    const forbidden = ["path", "label", "token", "dir", "source", "account", "email", "key", "name", "secret"];
+    for (const event of events) {
+      for (const [key, value] of Object.entries(event.fields)) {
+        expect(forbidden).not.toContain(key);
+        expect(value).toMatch(/^[a-z0-9][a-z0-9_:-]*$/);
+      }
+    }
+    const serialized = JSON.stringify(events);
+    for (const leak of ["/Users", "Work", "old-claude", ".claude", "Claude Code"]) {
+      expect(serialized).not.toContain(leak);
     }
   });
+});
 
-  it("rides the Confirm: Accept is disabled with a stated reason, and ⌘↩ cannot answer it", async () => {
-    const { container } = await openProposal();
-    const accept = container.querySelector<HTMLButtonElement>("[data-testid='accept-setup']")!;
-    expect(accept.disabled).toBe(true);
-    expect(accept.getAttribute("aria-describedby")).toBeTruthy();
-    expect(container.querySelector("[data-testid='accept-blocked']")!.textContent).toContain(
-      "Decide later",
-    );
-    const importSpy = vi.spyOn(bridgeModule, "accountImport");
-    await act(async () => {
-      fireEvent.keyDown(window, { key: "Enter", metaKey: true });
-    });
-    expect(importSpy).not.toHaveBeenCalled();
-    importSpy.mockRestore();
-  });
-
-  it("Decide later writes NOTHING, stages no pack, and Summary says so", async () => {
-    const { container } = await openProposal();
-    fireEvent.click(radio(container, "decide_later"));
-    await acceptAndReachSummary(container);
-    expect(w().__AIJ_REDACTION_SET_GLOBAL__).toBeUndefined();
-    expect(container.querySelector("[data-testid='policy-restatement']")!.textContent).toBe(
-      "Packs: not chosen yet — your first switch asks before any pack is built",
-    );
-    const events = w().__AIJ_FUNNEL_EVENTS__ as { kind: string; fields: Record<string, string> }[];
-    expect(events.filter((event) => event.kind === "policy_chosen")).toEqual([
-      { kind: "policy_chosen", fields: { choice: "decide_later" } },
-    ]);
-  });
-
+describe("AJ-E309 — the pack restatement words", () => {
   it.each([
     ["strip", "Packs: strip secrets (all tools)"],
     ["keep", "Packs: keep secrets — packs stay on this Mac (all tools)"],
     ["ask", "Packs: ask each time (all tools)"],
-  ])("choosing %s writes the global once on the accept click and restates it", async (value, restated) => {
-    const { container } = await openProposal();
-    fireEvent.click(radio(container, value));
-    // Picking a radio writes nothing yet — only the accept click does.
-    expect(w().__AIJ_REDACTION_SET_GLOBAL__).toBeUndefined();
-    await acceptAndReachSummary(container);
-    expect(w().__AIJ_REDACTION_SET_GLOBAL__).toEqual([value]);
-    expect(container.querySelector("[data-testid='policy-restatement']")!.textContent).toBe(restated);
+  ] as const)("%s reads %s", (value, words) => {
+    expect(packPolicyRestatement(value, "global", "Claude Code")).toBe(words);
   });
-
-  it("an existing choice is never re-asked — Summary restates it", async () => {
-    w().__AIJ_REDACTION_POLICY__ = { global: "keep", override: null, effective: "keep", source: "global", line: "" };
-    const { container } = await openProposal();
-    expect(container.querySelector("[data-testid='policy-panel']")).toBeNull();
-    expect(container.querySelector<HTMLButtonElement>("[data-testid='accept-setup']")!.disabled).toBe(false);
-    await acceptAndReachSummary(container);
-    expect(w().__AIJ_REDACTION_SET_GLOBAL__).toBeUndefined();
-    expect(container.querySelector("[data-testid='policy-restatement']")!.textContent).toBe(
-      "Packs: keep secrets — packs stay on this Mac (all tools)",
+  it("names an override's scope; nothing chosen says the first switch asks", () => {
+    expect(packPolicyRestatement("strip", "override", "Codex")).toBe("Packs: strip secrets (Codex override)");
+    expect(packPolicyRestatement(null, "unset", "Claude Code")).toBe(
+      "Packs: not chosen yet — your first switch asks before any pack is built",
     );
-  });
-
-  it("locked flows (add Provider / add Account) never ask, keeping their click budgets", async () => {
-    const { container } = mountWizard(true);
-    await waitFor(() =>
-      expect(container.querySelector("[data-testid='use-recommended']")).not.toBeNull(),
-    );
-    fireEvent.click(container.querySelector("[data-testid='use-recommended']")!);
-    await waitFor(() =>
-      expect(container.querySelector("[data-testid='accept-setup']")).not.toBeNull(),
-    );
-    expect(container.querySelector("[data-testid='policy-panel']")).toBeNull();
-    expect(container.querySelector<HTMLButtonElement>("[data-testid='accept-setup']")!.disabled).toBe(false);
-  });
-
-  it("the restatement helper names an override's scope", () => {
-    expect(packPolicyRestatement("strip", "override", "Codex")).toBe(
-      "Packs: strip secrets (Codex override)",
-    );
-  });
-});
-
-describe("AJ-E309 Req.3 — optional renewal dates (D-12)", () => {
-  it("each Confirm row offers one; set → written, empty → 'expiry unknown'", async () => {
-    w().__AIJ_REDACTION_POLICY__ = { global: "strip", override: null, effective: "strip", source: "global", line: "" };
-    const { container } = await openProposal();
-    const fields = container.querySelectorAll("[data-testid='renewal-date']");
-    expect(fields.length).toBe(2);
-    expect(fields[0]!.getAttribute("data-state")).toBe("unknown");
-    expect(fields[0]!.textContent).toContain("Expiry unknown");
-    // Open the first row's field: a LABELLED native date input.
-    fireEvent.click(container.querySelector("[data-testid='renewal-date-add']")!);
-    const input = container.querySelector<HTMLInputElement>("[data-testid='renewal-date-input']")!;
-    expect(input.type).toBe("date");
-    expect(input.getAttribute("aria-label")).toBe("Renewal date for Work (optional)");
-    fireEvent.change(input, { target: { value: "2026-11-30" } });
-    await acceptAndReachSummary(container);
-    expect(w().__AIJ_RENEWAL_SET__).toEqual([["acct-work", "2026-11-30"]]);
-    const restated = Array.from(container.querySelectorAll("[data-testid='renewal-restatement']")).map(
-      (row) => row.textContent,
-    );
-    expect(restated).toEqual([
-      "Work: renews 2026-11-30 — we'll warn you before it",
-      "Side: expiry unknown",
-    ]);
-  });
-
-  it("Skip clears the date without penalty — nothing is written", async () => {
-    w().__AIJ_REDACTION_POLICY__ = { global: "strip", override: null, effective: "strip", source: "global", line: "" };
-    const { container } = await openProposal();
-    fireEvent.click(container.querySelector("[data-testid='renewal-date-add']")!);
-    fireEvent.change(container.querySelector("[data-testid='renewal-date-input']")!, {
-      target: { value: "2026-12-01" },
-    });
-    fireEvent.click(container.querySelector("[data-testid='renewal-date-skip']")!);
-    expect(container.querySelector("[data-testid='renewal-date-input']")).toBeNull();
-    await acceptAndReachSummary(container);
-    expect(w().__AIJ_RENEWAL_SET__).toBeUndefined();
-  });
-});
-
-describe("AJ-E309 Req.5 — [Expert setup…]", () => {
-  it("before an account exists: read-only folder, Reveal, Import from folder, honest pending notes", async () => {
-    w().__AIJ_REDACTION_POLICY__ = { global: "strip", override: null, effective: "strip", source: "global", line: "" };
-    const { container } = await openProposal();
-    const hatch = await waitFor(() => {
-      const found = container.querySelector<HTMLButtonElement>("[data-testid='expert-hatch']");
-      expect(found).not.toBeNull();
-      return found!;
-    });
-    expect(hatch.getAttribute("aria-expanded")).toBe("false");
-    fireEvent.click(hatch);
-    await waitFor(() =>
-      expect(container.querySelector("[data-testid='expert-state-dir']")).not.toBeNull(),
-    );
-    expect(hatch.getAttribute("aria-expanded")).toBe("true");
-    const dir = container.querySelector<HTMLInputElement>("[data-testid='expert-state-dir']")!;
-    expect(dir.readOnly).toBe(true);
-    expect(dir.value).toContain("AI Juggler/accounts/claude-code");
-    expect(container.querySelector("[data-testid='expert-reveal']")).not.toBeNull();
-    expect(container.querySelector("[data-testid='expert-snippet-pending']")).not.toBeNull();
-    expect(container.querySelector("[data-testid='expert-env-pending']")).not.toBeNull();
-    expect(container.querySelector("[data-testid='expert-import-folder']")).not.toBeNull();
-    expect(container.querySelector("[data-testid='expert-export-metrics']")).not.toBeNull();
-    const events = w().__AIJ_FUNNEL_EVENTS__ as { kind: string; fields: Record<string, string> }[];
-    expect(events).toContainEqual({ kind: "expert_opened", fields: { surface: "wizard" } });
-  });
-
-  it("after the accept: the shell line and the env editor for the new accounts", async () => {
-    w().__AIJ_REDACTION_POLICY__ = { global: "strip", override: null, effective: "strip", source: "global", line: "" };
-    const recipes = vi.spyOn(bridgeModule, "launchRecipesList").mockResolvedValue([
-      { id: "recipe-work", name: "Main", account_id: "acct-work", account_label: "Work", provider: "claude-code", model: null, default_cwd: null },
-    ]);
-    const { container } = await openProposal();
-    await acceptAndReachSummary(container);
-    const summaryHatch = Array.from(container.querySelectorAll<HTMLButtonElement>("[data-testid='expert-hatch']")).at(-1)!;
-    fireEvent.click(summaryHatch);
-    await waitFor(() =>
-      expect(container.querySelector("[data-testid='expert-snippet']")).not.toBeNull(),
-    );
-    expect(container.querySelector("[data-testid='expert-snippet']")!.textContent).toContain(
-      "CLAUDE_CONFIG_DIR=",
-    );
-    // Two accounts were made → a picker.
-    expect(container.querySelectorAll("[data-testid='expert-account'] option").length).toBe(2);
-    await waitFor(() =>
-      expect(container.querySelector("[data-testid='env-overlay-editor']")).not.toBeNull(),
-    );
-    recipes.mockRestore();
   });
 });
 
@@ -330,93 +159,5 @@ describe("AJ-E309 Req.5 — env overrides refuse isolation and credential keys i
   it("ordinary tuning variables pass (whole-segment matching)", () => {
     expect(envRowProblem("CLAUDE_CODE_MAX_OUTPUT_TOKENS", "8000", protectedKeys)).toBeNull();
     expect(envRowProblem("ANTHROPIC_BASE_URL", "http://127.0.0.1:8080", protectedKeys)).toBeNull();
-  });
-});
-
-describe("AJ-E309 Req.6 — funnel events carry no paths, labels, or credentials", () => {
-  it("a full first-run emits only allow-listed, free-text-free fields", async () => {
-    const { container } = await openProposal();
-    // Customise (secondary) toggles the block; reopen it for the accept.
-    const customise = container.querySelector("[data-testid='proposal-customise']");
-    expect(customise).not.toBeNull();
-    fireEvent.click(customise!);
-    if (container.querySelector("[data-testid='accept-setup']") === null) {
-      fireEvent.click(customise!);
-    }
-    await waitFor(() => expect(container.querySelector("[data-testid='policy-panel']")).not.toBeNull());
-    // Let the scan finish so its completion event lands.
-    await waitFor(() => expect(container.querySelector("[data-testid='scan-progress']")).toBeNull(), {
-      timeout: 4000,
-    });
-    fireEvent.click(radio(container, "strip"));
-    await acceptAndReachSummary(container);
-    const events = w().__AIJ_FUNNEL_EVENTS__ as { kind: string; fields: Record<string, string> }[];
-    const kinds = events.map((event) => event.kind);
-    for (const expected of [
-      "flow_step",
-      "scan_started",
-      "scan_completed",
-      "proposal_shown",
-      "proposal_customised",
-      "policy_chosen",
-      "proposal_accepted",
-      "import_started",
-      "import_completed",
-    ]) {
-      expect(kinds).toContain(expected);
-    }
-    const forbidden = ["path", "label", "token", "dir", "source", "account", "email", "key", "name", "secret"];
-    for (const event of events) {
-      for (const [key, value] of Object.entries(event.fields)) {
-        expect(forbidden).not.toContain(key);
-        expect(value).toMatch(/^[a-z0-9][a-z0-9_:-]*$/);
-      }
-    }
-    const serialized = JSON.stringify(events);
-    for (const leak of ["/Users", "Work", "Side", ".claude"]) {
-      expect(serialized).not.toContain(leak);
-    }
-  });
-});
-
-describe("AJ-E1105 — the usage-stats consent on the first-run step", () => {
-  const statsRadio = (container: HTMLElement, value: string) =>
-    container.querySelector<HTMLInputElement>(
-      `[data-testid='usage-stats-chooser'] input[type='radio'][value='${value}']`,
-    )!;
-
-  it("three equal options, nothing pre-selected, and it never blocks Accept", async () => {
-    delete (window as unknown as Record<string, unknown>).__AIJ_USAGE_STATS__;
-    delete (window as unknown as Record<string, unknown>).__AIJ_USAGE_STATS_SETS__;
-    const { container } = await openProposal();
-    await waitFor(() => expect(container.querySelector("[data-testid='usage-stats-chooser']")).not.toBeNull());
-    const options = container.querySelectorAll("[data-testid='usage-stats-option']");
-    expect(options.length).toBe(3);
-    // Equal weight: one shared class list for every option.
-    expect(new Set([...options].map((option) => option.className)).size).toBe(1);
-    expect(["share", "local", "off"].some((value) => statsRadio(container, value).checked)).toBe(false);
-    // Only the pack policy holds Accept; the usage-stats answer is optional.
-    fireEvent.click(radio(container, "strip"));
-    expect(container.querySelector<HTMLButtonElement>("[data-testid='accept-setup']")!.disabled).toBe(false);
-  });
-
-  it("an answer is saved on the Accept click", async () => {
-    const seams = window as unknown as Record<string, unknown>;
-    const { container } = await openProposal();
-    await waitFor(() => expect(container.querySelector("[data-testid='usage-stats-chooser']")).not.toBeNull());
-    fireEvent.click(radio(container, "strip"));
-    fireEvent.click(statsRadio(container, "local"));
-    expect(seams.__AIJ_USAGE_STATS_SETS__).toBeUndefined();
-    await acceptAndReachSummary(container);
-    expect(seams.__AIJ_USAGE_STATS_SETS__).toEqual(["local"]);
-  });
-
-  it("no answer saves nothing — usage stats stay off", async () => {
-    const seams = window as unknown as Record<string, unknown>;
-    const { container } = await openProposal();
-    await waitFor(() => expect(container.querySelector("[data-testid='usage-stats-chooser']")).not.toBeNull());
-    fireEvent.click(radio(container, "strip"));
-    await acceptAndReachSummary(container);
-    expect(seams.__AIJ_USAGE_STATS_SETS__).toBeUndefined();
   });
 });

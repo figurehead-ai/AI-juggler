@@ -15,15 +15,7 @@ import { resolve } from "node:path";
 
 // Playwright runs with cwd = config dir (ui/).
 const GALLERY_ROOT = resolve(process.cwd(), "../docs/qa/evidence/_gallery");
-import { allStatuses, answerPolicy, cleanupFixture, honestEmpty, readyHome, goTo, openFilters, openSwitch, expectRail, openRailList } from "./fixtures";
-
-// D-25: a fresh install opens first run; these captures document the
-// Add-account wizard, so they open it the way Add account does.
-test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => {
-    (window as unknown as { __AIJ_FIRST_RUN__?: string }).__AIJ_FIRST_RUN__ = "wizard";
-  });
-});
+import { allStatuses, cleanupFixture, honestEmpty, readyHome, goTo, openFilters, openSwitch, expectRail, openRailList } from "./fixtures";
 
 const GALLERY = GALLERY_ROOT;
 const NOT_CAPTURETED = resolve(GALLERY, "not-captured.md");
@@ -48,12 +40,12 @@ function noteNotCaptured(screen: string, state: string, reason: string) {
 
 test.beforeAll(() => {
   mkdirSync(GALLERY, { recursive: true });
-  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "16-onboarding-detect", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "34-wizard", "35-candidates", "36-recommend", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings", "45-remote", "46-fleet-board", "47-remote-focus", "48-remote-cleanup", "49-fleet-sync", "50-cross-switch", "51-identity", "52-worktree", "53-parked", "54-summary", "55-triage", "56-history", "57-backup", "58-updates", "59-vault", "60-cloud-backup", "61-account-macs"]) {
+  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings", "45-remote", "46-fleet-board", "47-remote-focus", "48-remote-cleanup", "49-fleet-sync", "50-cross-switch", "51-identity", "52-worktree", "53-parked", "54-summary", "55-triage", "56-history", "57-backup", "58-updates", "59-vault", "60-cloud-backup", "61-account-macs", "71-add-account"]) {
     mkdirSync(resolve(GALLERY, screen), { recursive: true });
   }
   writeFileSync(NOT_CAPTURETED, "# Not captured (explicit omissions)\n\n| Screen | State | Reason |\n|---|---|---|\n");
   // Loading/error states do not exist yet — recorded, not hidden.
-  for (const screen of ["01-rail", "05-session-panel", "16-onboarding-detect"]) {
+  for (const screen of ["01-rail", "05-session-panel"]) {
     noteNotCaptured(screen, "loading (skeleton)", "pending AJ-E405+ (state emission not yet implemented)");
     noteNotCaptured(screen, "error (banner + retained data)", "pending AJ-E405+ (error states not yet implemented)");
   }
@@ -158,32 +150,6 @@ for (const theme of THEMES) {
       });
     });
 
-    test(`onboarding detect — ${vp.name} — ${theme}`, async ({ page }) => {
-      await page.addInitScript(
-        ({ fixture, theme }) => {
-          (window as never as { __AIJ_FIXTURE__: unknown }).__AIJ_FIXTURE__ = fixture;
-          localStorage.setItem("aij.theme", theme);
-          sessionStorage.setItem("aij.ready.skipped", "1");
-        },
-        { fixture: honestEmpty, theme },
-      );
-      await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
-      await page.setViewportSize({ width: vp.width, height: vp.height });
-      await page.goto("/");
-      // AJ-E301: Step 0 (the install gate) now precedes the scan —
-      // the preview default has Claude installed, so Continue is
-      // enabled and advances; the not-installed state is captured in
-      // the dedicated Step-0 shots below.
-      await expect(page.getByTestId("wizard-step-install")).toBeVisible();
-      await expect(page.getByTestId("install-continue")).toBeEnabled();
-      await page.getByTestId("install-continue").click();
-      await expect(page.getByText("Let's look at what", { exact: false })).toBeVisible();
-      await page.waitForTimeout(400); // scan mock resolves
-      await expect(page.getByText(/signed in|not signed in/).first()).toBeVisible();
-      await page.screenshot({
-        path: resolve(GALLERY, `16-onboarding-detect/populated-${vp.name}-${theme}.png`),
-      });
-    });
   }
 }
 
@@ -983,8 +949,8 @@ test("preview — exited instance renders no preview (status only)", async ({ pa
   await page.screenshot({ path: resolve(GALLERY, "15-preview/panel-exited-1280x800.png") });
 });
 
-// AJ-E501: the ledger-degraded banner (the Cleanup Centre stub's only
-// surface) — copy exact, both themes, on the Overview screen.
+// AJ-E501: the ledger-degraded banner — copy exact, both themes, on Home
+// (it moved there from Overview, AJ-E1021).
 for (const theme of ["dark", "light"] as const) {
   test(`ledger — degraded banner (${theme} 1440x900)`, async ({ page }) => {
     await page.addInitScript(
@@ -1010,7 +976,6 @@ for (const theme of ["dark", "light"] as const) {
     });
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/");
-    await goTo(page, "Overview");
     const banner = page.getByTestId("ledger-degraded-banner");
     await expect(banner).toBeVisible();
     await expect(banner).toContainText(
@@ -3324,598 +3289,10 @@ for (const theme of THEMES) {
 }
 
 /**
- * AJ-E301 gallery 34 — the wizard's Step-0 install gate: installed /
- * not-installed (install help open) / unverified rows, plus the
- * in-flight close confirm — at 1280×800 and 390×844 (narrow sheet) ×
- * light+dark. The gate precedes everything: a missing CLI never
- * reaches Identity.
- */
-const WIZARD_VP = [
-  { name: "1280x800", width: 1280, height: 800 },
-  { name: "390x844", width: 390, height: 844 },
-] as const;
-
-const openWizardStep0 = async (
-  page: import("@playwright/test").Page,
-  installs: unknown[],
-  theme: string,
-  vp: { width: number; height: number },
-) => {
-  await page.addInitScript(
-    ({ fixture, installs: rows, theme: themeName }) => {
-      const w = window as unknown as Record<string, unknown>;
-      w.__AIJ_FIXTURE__ = fixture;
-      w.__AIJ_PROVIDER_INSTALLS__ = rows;
-      localStorage.setItem("aij.theme", themeName);
-      sessionStorage.setItem("aij.ready.skipped", "1");
-    },
-    { fixture: honestEmpty, installs, theme },
-  );
-  await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme as "dark" | "light" });
-  await page.setViewportSize({ width: vp.width, height: vp.height });
-  await page.goto("/");
-  await expect(page.getByTestId("wizard-step-install")).toBeVisible();
-};
-
-for (const theme of THEMES) {
-  for (const vp of WIZARD_VP) {
-    test(`wizard step0 — installed — ${vp.name} — ${theme}`, async ({ page }) => {
-      await openWizardStep0(page, [
-        {
-          provider: "claude-code",
-          display_name: "Claude Code",
-          install_url: "https://claude.com/download",
-          status: "installed",
-          version: "2.1.296",
-          binary: "/usr/local/bin/claude",
-          notes: [],
-        },
-      ], theme, vp);
-      await expect(page.getByTestId("install-continue")).toBeEnabled();
-      await page.screenshot({
-        path: resolve(GALLERY, `34-wizard/installed-${vp.name}-${theme}.png`),
-      });
-    });
-
-    test(`wizard step0 — not installed (gate + help) — ${vp.name} — ${theme}`, async ({ page }) => {
-      await openWizardStep0(page, [
-        {
-          provider: "claude-code",
-          display_name: "Claude Code",
-          install_url: "https://claude.com/download",
-          status: "not_installed",
-          version: null,
-          binary: null,
-          notes: [],
-        },
-      ], theme, vp);
-      await expect(page.getByTestId("install-continue")).toBeDisabled();
-      await page.locator("[data-testid='provider-row'] button").first().click();
-      await expect(page.getByTestId("install-help")).toContainText("Install Claude Code →");
-      await page.screenshot({
-        path: resolve(GALLERY, `34-wizard/not-installed-${vp.name}-${theme}.png`),
-      });
-    });
-
-    test(`wizard step0 — unverified — ${vp.name} — ${theme}`, async ({ page }) => {
-      await openWizardStep0(page, [
-        {
-          provider: "claude-code",
-          display_name: "Claude Code",
-          install_url: "https://claude.com/download",
-          status: "unverified",
-          version: "2.2.7",
-          binary: "/usr/local/bin/claude",
-          notes: ["version drift: 2.2.7; this adapter was verified against 2.1.296"],
-        },
-      ], theme, vp);
-      await expect(page.getByTestId("provider-row")).toContainText("unverified");
-      await expect(page.getByTestId("install-continue")).toBeEnabled();
-      await page.screenshot({
-        path: resolve(GALLERY, `34-wizard/unverified-${vp.name}-${theme}.png`),
-      });
-    });
-  }
-
-  test(`wizard — close confirm while busy — 1280x800 — ${theme}`, async ({ page }) => {
-    // The close-guard visual: the confirm card over a "busy" wizard.
-    await page.addInitScript(
-      ({ fixture, installs: rows, theme: themeName }) => {
-        const w = window as unknown as Record<string, unknown>;
-        w.__AIJ_FIXTURE__ = fixture;
-        w.__AIJ_PROVIDER_INSTALLS__ = rows;
-        // createAccount hangs → the wizard stays "busy" in identity.
-        w.__AIJ_CREATE_HANG__ = true;
-        localStorage.setItem("aij.theme", themeName);
-        sessionStorage.setItem("aij.ready.skipped", "1");
-      },
-      {
-        fixture: honestEmpty,
-        theme,
-        installs: [
-          {
-            provider: "claude-code",
-            display_name: "Claude Code",
-            install_url: "https://claude.com/download",
-            status: "installed",
-            version: "2.1.296",
-            binary: "/usr/local/bin/claude",
-            notes: [],
-          },
-        ],
-      },
-    );
-    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme as "dark" | "light" });
-    await page.setViewportSize({ width: 1280, height: 800 });
-    await page.goto("/");
-    await page.getByTestId("install-continue").click();
-    await page.getByRole("button", { name: /fresh account/ }).click();
-    await page.getByPlaceholder("e.g. Work, Personal, Side project").fill("Work");
-    await answerPolicy(page);
-    await page.getByRole("button", { name: /Create account/ }).click();
-    await page.getByRole("button", { name: "Close setup" }).click({ force: true });
-    await expect(page.getByTestId("onboarding-wizard")).toBeVisible();
-    await page.screenshot({
-      path: resolve(GALLERY, `34-wizard/close-guard-1280x800-${theme}.png`),
-    });
-  });
-}
-
-/**
- * AJ-E302 gallery 34 additions — the 10-signal scan in the wizard's
- * detect step: scanning-in-progress (the "n of 10" text), completed
- * with Details open, and the partial/denied state — 1280×800 ×
- * light+dark. Progress is text (aria-live), never colour-only.
- */
-const SCAN_DENIED_REPORT = {
-  installs: [],
-  probes: [
-    { id: "s1-config-dirs", label: "Config directories", health: "ok", reason: null, detail: "0 candidate setup(s)" },
-    { id: "s2-env-overrides", label: "Environment overrides", health: "ok", reason: null, detail: "none set in this app's environment" },
-    { id: "s3-manager-t3", label: "t3 profiles", health: "ok", reason: null, detail: "not present" },
-    { id: "s4-manager-cc-switch", label: "cc-switch database", health: "denied", reason: "cc-switch database is locked or unreadable", detail: "database present (not readable — existence only)" },
-    { id: "s5-shell-aliases", label: "Shell aliases", health: "partial", reason: "1 assignment points at a directory that no longer exists", detail: "1 assignment(s) (1 dangling)" },
-    { id: "s6-installed-clis", label: "Installed CLIs", health: "ok", reason: null, detail: "claude-code: installed" },
-    { id: "s7-login-metadata", label: "Login metadata", health: "ok", reason: null, detail: "0 of 0 signed in" },
-    { id: "s8-usage-recency", label: "Usage recency", health: "ok", reason: null, detail: "0 setup(s) with recent activity" },
-    { id: "s9-projects", label: "Projects", health: "ok", reason: null, detail: "0 project name(s)" },
-    { id: "s10-desktop", label: "Desktop apps", health: "ok", reason: null, detail: "none of the known desktop apps present" },
-  ],
-  seeds: [],
-  desktop_apps: [],
-  cancelled: false,
-};
-
-for (const theme of THEMES) {
-  const openDetect = async (
-    page: import("@playwright/test").Page,
-    scanReport?: unknown,
-  ) => {
-    await page.addInitScript(
-      ({ fixture, installs, scan, theme: themeName }) => {
-        const w = window as unknown as Record<string, unknown>;
-        w.__AIJ_FIXTURE__ = fixture;
-        w.__AIJ_PROVIDER_INSTALLS__ = installs;
-        if (scan !== undefined) w.__AIJ_SCAN_REPORT__ = scan;
-        localStorage.setItem("aij.theme", themeName);
-        sessionStorage.setItem("aij.ready.skipped", "1");
-      },
-      {
-        fixture: honestEmpty,
-        theme,
-        installs: [
-          {
-            provider: "claude-code",
-            display_name: "Claude Code",
-            install_url: "https://claude.com/download",
-            status: "installed",
-            version: "2.1.296",
-            binary: "/usr/local/bin/claude",
-            notes: [],
-          },
-        ],
-        scan: scanReport,
-      },
-    );
-    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme as "dark" | "light" });
-    await page.setViewportSize({ width: 1280, height: 800 });
-    await page.goto("/");
-    await page.getByTestId("install-continue").click();
-  };
-
-  test(`scan — in progress (n of 10) — 1280x800 — ${theme}`, async ({ page }) => {
-    await openDetect(page);
-    await expect(page.getByTestId("scan-progress")).toContainText("of 10 checks");
-    await expect(page.getByTestId("scan-progress")).toHaveAttribute("aria-live", "polite");
-    await page.screenshot({
-      path: resolve(GALLERY, `34-wizard/scan-progress-1280x800-${theme}.png`),
-    });
-  });
-
-  test(`scan — completed with Details — 1280x800 — ${theme}`, async ({ page }) => {
-    await openDetect(page);
-    await page.getByTestId("scan-details-toggle").waitFor({ state: "visible" });
-    await page.getByTestId("scan-details-toggle").click();
-    await expect(page.getByTestId("scan-details")).toContainText("cc-switch");
-    await page.screenshot({
-      path: resolve(GALLERY, `34-wizard/scan-details-1280x800-${theme}.png`),
-    });
-  });
-
-  test(`scan — denied state never reads empty — 1280x800 — ${theme}`, async ({ page }) => {
-    await openDetect(page, SCAN_DENIED_REPORT);
-    await expect(page.getByTestId("scan-denied")).toContainText("We couldn't check 1 place");
-    await page.screenshot({
-      path: resolve(GALLERY, `34-wizard/scan-denied-1280x800-${theme}.png`),
-    });
-  });
-}
-
-/**
- * AJ-E303 gallery 35 — the candidate-card matrix: Found/Likely/
- * Guessed × signed-in / not-signed-in / already-managed (9 states,
- * one screen), plus the deep t3 long-path truncation — 1280×800 and
- * 390×844 × light+dark. Confidence is WORDS; the managed card is
- * disabled inline.
- */
-function cardFixture(
-  path: string,
-  confidence: "found" | "likely" | "guessed",
-  login: "signed-in" | "not-signed-in",
-  managed = false,
-): Record<string, unknown> {
-  return {
-    harness: "claude-code",
-    path,
-    origin: "home-pattern",
-    login: login === "signed-in" ? "logged_in" : "logged_out",
-    bytes: 9_000_000,
-    last_used_secs: Math.floor(Date.now() / 1000) - 86_400,
-    managed,
-    notes: ["A separate Claude configuration — created manually or by another tool."],
-    inference: {
-      purpose: managed ? "Managed" : confidence === "likely" ? "Work" : "Side",
-      purpose_confidence: confidence,
-      login,
-      login_confidence: "found",
-      activity: "active",
-      activity_confidence: "found",
-      activity_words: "Active this week",
-      keychain_bound: login === "signed-in" && path.endsWith("-key"),
-    },
-    signals: ["home-pattern"],
-  };
-}
-
-for (const theme of THEMES) {
-  for (const vp of WIZARD_VP) {
-    test(`candidates — 9-state matrix — ${vp.name} — ${theme}`, async ({ page }) => {
-      const installs = [
-        cardFixture("/Users/you/.claude", "found", "signed-in"),
-        cardFixture("/Users/you/.claude-work", "likely", "signed-in"),
-        cardFixture("/Users/you/.claude-side", "guessed", "signed-in"),
-        cardFixture("/Users/you/.claude-api", "found", "not-signed-in"),
-        cardFixture("/Users/you/.claude-personal", "likely", "not-signed-in"),
-        cardFixture("/Users/you/.claude-lab", "guessed", "not-signed-in"),
-        cardFixture("/Users/you/.claude-m1", "found", "signed-in", true),
-        cardFixture("/Users/you/.claude-m2", "likely", "not-signed-in", true),
-        cardFixture("/Users/you/.claude-m3", "guessed", "not-signed-in", true),
-      ];
-      await page.addInitScript(
-        ({ fixture, installs: rows, theme: themeName }) => {
-          const w = window as unknown as Record<string, unknown>;
-          w.__AIJ_FIXTURE__ = fixture;
-          w.__AIJ_PROVIDER_INSTALLS__ = [
-            {
-              provider: "claude-code",
-              display_name: "Claude Code",
-              install_url: "https://claude.com/download",
-              status: "installed",
-              version: "2.1.296",
-              binary: "/usr/local/bin/claude",
-              notes: [],
-            },
-          ];
-          w.__AIJ_SCAN_REPORT__ = {
-            installs: rows,
-            probes: [],
-            seeds: [],
-            desktop_apps: [],
-            cancelled: false,
-          };
-          localStorage.setItem("aij.theme", themeName);
-          sessionStorage.setItem("aij.ready.skipped", "1");
-        },
-        { fixture: honestEmpty, installs, theme },
-      );
-      await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme as "dark" | "light" });
-      await page.setViewportSize({ width: vp.width, height: vp.height });
-      await page.goto("/");
-      await page.getByTestId("install-continue").click();
-      await expect(page.getByTestId("candidate-cards").first()).toBeVisible();
-      await expect(page.getByTestId("candidate-cards").first()).toContainText("Likely: Work");
-      await expect(page.getByTestId("candidate-cards").first()).toContainText("Already in AI Juggler");
-      await page.screenshot({
-        path: resolve(GALLERY, `35-candidates/matrix-${vp.name}-${theme}.png`),
-        fullPage: true,
-      });
-    });
-
-    test(`candidates — deep t3 long path truncates — ${vp.name} — ${theme}`, async ({ page }) => {
-      const deep =
-        "/Users/you/Library/Application Support/ClaudeCodeProfiles/profile-42/projects/some-extremely-long-nested-name/with/more/segments";
-      await page.addInitScript(
-        ({ fixture, install, theme: themeName }) => {
-          const w = window as unknown as Record<string, unknown>;
-          w.__AIJ_FIXTURE__ = fixture;
-          w.__AIJ_PROVIDER_INSTALLS__ = [
-            {
-              provider: "claude-code",
-              display_name: "Claude Code",
-              install_url: "https://claude.com/download",
-              status: "installed",
-              version: "2.1.296",
-              binary: "/usr/local/bin/claude",
-              notes: [],
-            },
-          ];
-          w.__AIJ_SCAN_REPORT__ = {
-            installs: [install],
-            probes: [],
-            seeds: [],
-            desktop_apps: [],
-            cancelled: false,
-          };
-          localStorage.setItem("aij.theme", themeName);
-          sessionStorage.setItem("aij.ready.skipped", "1");
-        },
-        {
-          fixture: honestEmpty,
-          theme,
-          install: cardFixture(deep, "guessed", "not-signed-in"),
-        },
-      );
-      await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme as "dark" | "light" });
-      await page.setViewportSize({ width: vp.width, height: vp.height });
-      await page.goto("/");
-      await page.getByTestId("install-continue").click();
-      const card = page.getByTestId("candidate-card").first();
-      await expect(card).toBeVisible();
-      // The path truncates (one line) — the card never grows sideways.
-      const box = await card.locator("span.truncate").boundingBox();
-      expect(box).not.toBeNull();
-      expect(box!.width).toBeLessThanOrEqual(vp.width - 80);
-      await page.screenshot({
-        path: resolve(GALLERY, `35-candidates/long-path-${vp.name}-${theme}.png`),
-      });
-    });
-  }
-}
-
-/**
- * AJ-E304 gallery 36 — the recommended-set proposal: the teaser with
- * the worked-example sentence, Customise expanded (checkbox list with
- * rationales), accept-in-progress (per-item states; the add item hangs
- * so the intermediate list is reviewable), and the partial-failure end
- * state (item 2 of 4 rejects with a coded reason — 3 done, 1 failed,
- * 0 aborts) — 1280×800 and 390×844 × light+dark.
- */
-const WORKED_EXAMPLE_RECOMMENDATION = {
-  items: [
-    {
-      provider: "claude-code",
-      label: "Work",
-      action: "import",
-      rationale: "Signed in — import keeps history",
-      default_on: true,
-      path: "/Users/you/.claude-work",
-    },
-    {
-      provider: "claude-code",
-      label: "Personal",
-      action: "import",
-      rationale: "Signed in — import keeps history",
-      default_on: true,
-      path: "/Users/you/.claude-personal",
-    },
-    {
-      provider: "claude-code",
-      label: "Side",
-      action: "import",
-      rationale: "Active — you'll sign in after import",
-      default_on: true,
-      path: "/Users/you/.claude-side",
-    },
-    {
-      provider: "codex",
-      label: "Codex",
-      action: "add",
-      rationale: "Add Codex (installed, not set up)",
-      default_on: true,
-      path: null,
-    },
-  ],
-  summary:
-    "Your juggling set: Claude ×3 (Work — signed in; Personal — signed in; Side — needs sign-in) + Codex ×1 (signed in).",
-  start_here: "-users-dev-api",
-};
-
-const openProposalDetect = async (
-  page: import("@playwright/test").Page,
-  theme: string,
-  vp: { width: number; height: number },
-  extraWindows: Record<string, unknown> = {},
-  rec: unknown = WORKED_EXAMPLE_RECOMMENDATION,
-) => {
-  await page.addInitScript(
-    ({ fixture, rec, theme: themeName, extra }) => {
-      const w = window as unknown as Record<string, unknown>;
-      w.__AIJ_FIXTURE__ = fixture;
-      w.__AIJ_PROVIDER_INSTALLS__ = [
-        {
-          provider: "claude-code",
-          display_name: "Claude Code",
-          install_url: "https://claude.com/download",
-          status: "installed",
-          version: "2.1.296",
-          binary: "/usr/local/bin/claude",
-          notes: [],
-        },
-      ];
-      w.__AIJ_SCAN_REPORT__ = {
-        installs: [
-          {
-            harness: "claude-code",
-            path: "/Users/you/.claude-work",
-            origin: "home-pattern",
-            login: "logged_in",
-            bytes: 9_000_000,
-            last_used_secs: Math.floor(Date.now() / 1000) - 86_400,
-            managed: false,
-            notes: [],
-            inference: {
-              purpose: "Work",
-              purpose_confidence: "found",
-              login: "signed-in",
-              login_confidence: "found",
-              activity: "active",
-              activity_confidence: "found",
-              activity_words: "Active this week",
-              keychain_bound: false,
-            },
-            signals: ["home-pattern"],
-          },
-        ],
-        probes: [],
-        seeds: [],
-        desktop_apps: [],
-        cancelled: false,
-      };
-      w.__AIJ_RECOMMENDATION__ = rec;
-      Object.assign(w, extra);
-      localStorage.setItem("aij.theme", themeName);
-      sessionStorage.setItem("aij.ready.skipped", "1");
-    },
-    { fixture: honestEmpty, rec, theme, extra: extraWindows },
-  );
-  await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme as "dark" | "light" });
-  await page.setViewportSize({ width: vp.width, height: vp.height });
-  await page.goto("/");
-  await page.getByTestId("install-continue").click();
-  await expect(page.getByTestId("proposal-teaser")).toBeVisible();
-};
-
-for (const theme of THEMES) {
-  for (const vp of WIZARD_VP) {
-    test(`recommend — teaser + customise — ${vp.name} — ${theme}`, async ({ page }) => {
-      // Customise shows the all-signed-in set AND the collapsed
-      // "Found but quiet" group (dormant Lab, default OFF).
-      const allSignedIn = {
-        items: [
-          ...WORKED_EXAMPLE_RECOMMENDATION.items.slice(0, 3),
-          WORKED_EXAMPLE_RECOMMENDATION.items[3],
-          {
-            provider: "claude-code",
-            label: "Lab",
-            action: "import",
-            rationale: "Dormant — include when you want it",
-            default_on: false,
-            path: "/Users/you/.claude-lab",
-          },
-        ],
-        summary:
-          "Your juggling set: Claude ×3 (Work — signed in; Personal — signed in; Side — signed in) + Codex ×1 (signed in).",
-        start_here: "-users-dev-api",
-      };
-      await openProposalDetect(page, theme, vp, {}, allSignedIn);
-      await expect(page.getByTestId("proposal-summary")).toContainText(
-        "Your juggling set: Claude ×3",
-      );
-      await page.screenshot({
-        path: resolve(GALLERY, `36-recommend/proposal-${vp.name}-${theme}.png`),
-        fullPage: true,
-      });
-      await page.getByTestId("proposal-customise").click();
-      const block = page.getByTestId("proposal-block");
-      await expect(block).toBeVisible();
-      await expect(page.getByTestId("proposal-toggle")).toHaveCount(5);
-      // The dormant item rides under the quiet group, unchecked.
-      const quiet = page.getByTestId("proposal-quiet");
-      await expect(quiet).toContainText("Found but quiet");
-      await expect(quiet.getByTestId("proposal-toggle")).toHaveCount(1);
-      await expect(quiet.getByTestId("proposal-toggle")).not.toBeChecked();
-      await expect(page.getByTestId("accept-setup")).toContainText("Accept setup → (4)");
-      await page.screenshot({
-        path: resolve(GALLERY, `36-recommend/customise-${vp.name}-${theme}.png`),
-        fullPage: true,
-      });
-    });
-
-    test(`recommend — accept in progress (per-item states) — ${vp.name} — ${theme}`, async ({
-      page,
-    }) => {
-      await openProposalDetect(page, theme, vp, { __AIJ_CREATE_HANG__: true });
-      await page.getByTestId("use-recommended").click();
-      await answerPolicy(page);
-      await page.getByTestId("accept-setup").click();
-      await expect(page.getByTestId("accept-progress")).toBeVisible();
-      await expect(page.getByTestId("accept-item")).toHaveCount(4);
-      // The three imports resolve; the add hangs — the list freezes reviewable.
-      await expect(
-        page.locator("[data-testid='accept-item'][data-state='done']"),
-      ).toHaveCount(3);
-      await expect(
-        page.locator("[data-testid='accept-item'][data-state='pending']"),
-      ).toHaveCount(1);
-      await page.screenshot({
-        path: resolve(GALLERY, `36-recommend/accept-progress-${vp.name}-${theme}.png`),
-        fullPage: true,
-      });
-    });
-
-    test(`recommend — one item fails, the rest complete (0 aborts) — ${vp.name} — ${theme}`, async ({
-      page,
-    }) => {
-      await openProposalDetect(page, theme, vp, {
-        __AIJ_IMPORT_FAIL_PATHS__: ["personal"],
-      });
-      await page.getByTestId("use-recommended").click();
-      await answerPolicy(page);
-      await page.getByTestId("accept-setup").click();
-      // AJ-E305: the three logged_out successes queue for sign-ins —
-      // Skip walks through (never blocks the Summary).
-      await expect(page.getByTestId("signin-queue")).toBeVisible();
-      for (let card = 0; card < 3; card += 1) {
-        await page.getByTestId("signin-skip").click();
-      }
-      const summary = page.getByTestId("set-summary");
-      await expect(summary).toBeVisible();
-      // All 4 picked items appear — a failure never aborts the run.
-      await expect(page.getByTestId("set-summary-item")).toHaveCount(4);
-      await expect(
-        page.locator("[data-testid='set-summary-item'][data-state='done']"),
-      ).toHaveCount(3);
-      const failed = page.locator(
-        "[data-testid='set-summary-item'][data-state='failed']",
-      );
-      await expect(failed).toHaveCount(1);
-      await expect(failed).toContainText("Personal");
-      await expect(failed).toContainText("Disk full");
-      await expect(page.getByTestId("start-here")).toContainText("-users-dev-api");
-      await page.screenshot({
-        path: resolve(GALLERY, `36-recommend/set-summary-${vp.name}-${theme}.png`),
-        fullPage: true,
-      });
-    });
-  }
-}
-
-/**
- * AJ-E305 gallery 37 — the two flows end to end. Flow (a)'s five
- * screens (gate → scan+proposal → confirm → queued sign-ins →
- * summary), the zero-found collapse, flow (b)'s two steps (tiles →
- * preselected account), and the no-Account inline detour — at
- * 1280×800, 1024×768, 390×844 × light+dark.
+ * AJ-E305 gallery 37 — flow (b)'s two steps (tiles → preselected
+ * account) and the no-Account inline detour (Add account over the sheet,
+ * AJ-E1022) — at 1280×800, 1024×768, 390×844 × light+dark. Flow (a) is
+ * first run's journey (journey-first-run.spec.ts, gallery 66).
  */
 const FLOW_VP = [
   { name: "1280x800", width: 1280, height: 800 },
@@ -3923,156 +3300,8 @@ const FLOW_VP = [
   { name: "390x844", width: 390, height: 844 },
 ] as const;
 
-const openFirstInstall = async (
-  page: import("@playwright/test").Page,
-  theme: string,
-  vp: { width: number; height: number },
-) => {
-  await page.addInitScript(
-    ({ fixture, theme: themeName }) => {
-      const w = window as unknown as Record<string, unknown>;
-      w.__AIJ_FIXTURE__ = fixture;
-      w.__AIJ_PROVIDER_INSTALLS__ = [
-        {
-          provider: "claude-code",
-          display_name: "Claude Code",
-          install_url: "https://claude.com/download",
-          status: "installed",
-          version: "2.1.296",
-          binary: "/usr/local/bin/claude",
-          notes: [],
-        },
-      ];
-      w.__AIJ_RECOMMENDATION__ = {
-        items: [
-          {
-            provider: "claude-code",
-            label: "Work",
-            action: "import",
-            rationale: "Signed in — import keeps history",
-            default_on: true,
-            path: "/Users/you/.claude-work",
-          },
-          {
-            provider: "claude-code",
-            label: "Side",
-            action: "import",
-            rationale: "Active — you'll sign in after import",
-            default_on: true,
-            path: "/Users/you/.claude-side",
-          },
-        ],
-        summary:
-          "Your juggling set: Claude ×2 (Work — signed in; Side — needs sign-in).",
-        start_here: "/Users/you/dev-api",
-      };
-      localStorage.setItem("aij.theme", themeName);
-      sessionStorage.setItem("aij.ready.skipped", "1");
-    },
-    { fixture: honestEmpty, theme },
-  );
-  await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme as "dark" | "light" });
-  await page.setViewportSize({ width: vp.width, height: vp.height });
-  // The first-run wizard opens itself (the Accounts entry is the
-  // LOCKED flow (d) since AJ-E306 — no Step-0 gate there).
-  await page.goto("/");
-  await expect(page.getByTestId("wizard-step-install")).toBeVisible();
-};
-
 for (const theme of THEMES) {
   for (const vp of FLOW_VP) {
-    test(`flow a — all 5 screens — ${vp.name} — ${theme}`, async ({ page }) => {
-      await openFirstInstall(page, theme, vp);
-      // 1: the gate.
-      await page.screenshot({
-        path: resolve(GALLERY, `37-flows/a1-gate-${vp.name}-${theme}.png`),
-        fullPage: true,
-      });
-      await page.getByTestId("install-continue").click();
-      // 2: scan + proposal.
-      await expect(page.getByTestId("proposal-teaser")).toBeVisible();
-      await page.screenshot({
-        path: resolve(GALLERY, `37-flows/a2-proposal-${vp.name}-${theme}.png`),
-        fullPage: true,
-      });
-      // 3: confirm (customise — the pre-filled identity).
-      await page.getByTestId("proposal-customise").click();
-      await expect(page.getByTestId("proposal-block")).toBeVisible();
-      await page.screenshot({
-        path: resolve(GALLERY, `37-flows/a3-confirm-${vp.name}-${theme}.png`),
-        fullPage: true,
-      });
-      await answerPolicy(page);
-      await page.getByTestId("accept-setup").click();
-      // 4: the queued sign-ins.
-      await expect(page.getByTestId("signin-queue")).toBeVisible();
-      await expect(page.getByTestId("signin-queue")).toContainText("1 of 2");
-      await page.screenshot({
-        path: resolve(GALLERY, `37-flows/a4-signins-${vp.name}-${theme}.png`),
-        fullPage: true,
-      });
-      for (let card = 0; card < 2; card += 1) {
-        await page.getByTestId("signin-skip").click();
-      }
-      // 5: the summary with its three exits.
-      await expect(page.getByTestId("summary-exits")).toBeVisible();
-      await page.screenshot({
-        path: resolve(GALLERY, `37-flows/a5-summary-${vp.name}-${theme}.png`),
-        fullPage: true,
-      });
-    });
-
-    test(`flow a — zero-found collapse — ${vp.name} — ${theme}`, async ({ page }) => {
-      await page.addInitScript(
-        ({ fixture, theme: themeName }) => {
-          const w = window as unknown as Record<string, unknown>;
-          w.__AIJ_FIXTURE__ = fixture;
-          w.__AIJ_PROVIDER_INSTALLS__ = [
-            {
-              provider: "claude-code",
-              display_name: "Claude Code",
-              install_url: "https://claude.com/download",
-              status: "installed",
-              version: "2.1.296",
-              binary: "/usr/local/bin/claude",
-              notes: [],
-            },
-            {
-              provider: "codex",
-              display_name: "Codex",
-              install_url: "https://developers.openai.com/codex",
-              status: "not_installed",
-              version: null,
-              binary: null,
-              notes: [],
-            },
-          ];
-          w.__AIJ_SCAN_REPORT__ = {
-            installs: [],
-            probes: [],
-            seeds: [],
-            desktop_apps: [],
-            cancelled: false,
-          };
-          w.__AIJ_RECOMMENDATION__ = { items: [], summary: "", start_here: null };
-          localStorage.setItem("aij.theme", themeName);
-          sessionStorage.setItem("aij.ready.skipped", "1");
-        },
-        { fixture: honestEmpty, theme },
-      );
-      await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme as "dark" | "light" });
-      await page.setViewportSize({ width: vp.width, height: vp.height });
-      // First-run wizard (unlocked — the picker must show here).
-      await page.goto("/");
-      await page.getByTestId("install-continue").click();
-      await expect(page.getByTestId("zero-found")).toBeVisible();
-      await expect(page.getByTestId("zero-found")).toContainText("Create your first account");
-      await page.screenshot({
-        path: resolve(GALLERY, `37-flows/zero-found-${vp.name}-${theme}.png`),
-        fullPage: true,
-      });
-    });
-
     test(`flow b — both steps — ${vp.name} — ${theme}`, async ({ page }) => {
       await page.addInitScript(
         ({ fixture, theme: themeName }) => {
@@ -4140,7 +3369,9 @@ for (const theme of THEMES) {
       await page.getByRole("button", { name: /Work in ai-juggler/ }).click();
       await expect(page.getByTestId("no-account-detour")).toBeVisible();
       await page.getByRole("button", { name: "Add an account" }).click();
-      await expect(page.getByTestId("onboarding-wizard")).toBeVisible();
+      // AJ-E1022: Add account opens over the sheet, at what's on this Mac.
+      await expect(page.getByTestId("first-run")).toHaveAttribute("data-mode", "add");
+      await expect(page.getByTestId("first-run-found")).toBeVisible();
       await page.screenshot({
         path: resolve(GALLERY, `37-flows/b-detour-${vp.name}-${theme}.png`),
         fullPage: true,
@@ -4229,7 +3460,8 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await goTo(page, "Accounts");
-      await page.getByTestId("add-provider").click();
+      // AJ-E1023: several tools installed → Add account asks which first.
+      await page.getByTestId("add-account").click();
       const cards = page.getByTestId("provider-cards");
       await expect(cards).toBeVisible();
       await expect(cards).toContainText("Verified against 2.0.x, 2.1.x");
@@ -4365,10 +3597,10 @@ for (const theme of THEMES) {
 }
 
 /**
- * AJ-E306's successor gallery 39 — AJ-E307 flow (f): the
- * Confirm-source panel (normal / oversize / non-config), the
- * duplicate block, and the vanished-source state — 1280×800 +
- * 390×844 × light+dark.
+ * AJ-E306's successor gallery 39 — AJ-E307 flow (f), first run's folder
+ * step since AJ-E1022: the check (normal / oversize / non-config), the
+ * duplicate block, the moved-folder state and the sign-in after —
+ * 1280×800 + 390×844 × light+dark.
  */
 const NORMAL_INSPECT = {
   total_bytes: 46_000_000,
@@ -4386,79 +3618,45 @@ const NORMAL_INSPECT = {
   keychain_bound: true,
 };
 
+// AJ-E1022: the folder import is first run's own step now (the old
+// account wizard is gone): the picker, then the check, then the copy.
 const openConfirmSource = async (
   page: import("@playwright/test").Page,
   theme: string,
   vp: { width: number; height: number },
   inspect: unknown,
+  extra: Record<string, unknown> = {},
 ) => {
   await page.addInitScript(
-    ({ fixture, inspect: probe, theme: t }) => {
+    ({ fixture, inspect: probe, theme: t, extra: more }) => {
       const w = window as unknown as Record<string, unknown>;
       w.__AIJ_FIXTURE__ = fixture;
-      w.__AIJ_PROVIDER_INSTALLS__ = [
-        {
-          provider: "claude-code",
-          display_name: "Claude Code",
-          install_url: "https://claude.com/download",
-          status: "installed",
-          version: "2.1.296",
-          binary: "/usr/local/bin/claude",
-          notes: [],
-        },
-      ];
-      w.__AIJ_SCAN_REPORT__ = {
-        installs: [
-          {
-            harness: "claude-code",
-            path: "/Users/you/.claude-work",
-            origin: "home-pattern",
-            login: "logged_in",
-            bytes: 9_000_000,
-            last_used_secs: 86_400,
-            managed: false,
-            notes: [],
-            inference: {
-              purpose: "Work",
-              purpose_confidence: "found",
-              login: "signed-in",
-              login_confidence: "found",
-              activity: "active",
-              activity_confidence: "found",
-              activity_words: "Active this week",
-              keychain_bound: true,
-            },
-            signals: ["home-pattern"],
-          },
-        ],
-        probes: [],
-        seeds: [],
-        desktop_apps: [],
-        cancelled: false,
-      };
-      w.__AIJ_RECOMMENDATION__ = { items: [], summary: "", start_here: null };
+      w.__AIJ_SCAN_REPORT__ = { installs: [], probes: [], seeds: [], desktop_apps: [], cancelled: false };
       w.__AIJ_SOURCE_INSPECT__ = probe;
+      w.__AIJ_PICK_DIRECTORY__ = "/Users/you/.claude-manual";
+      for (const [key, value] of Object.entries(more)) w[key] = value;
       localStorage.setItem("aij.theme", t);
       sessionStorage.setItem("aij.ready.skipped", "1");
     },
-    { fixture: honestEmpty, inspect, theme },
+    { fixture: honestEmpty, inspect, theme, extra },
   );
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme as "dark" | "light" });
   await page.setViewportSize({ width: vp.width, height: vp.height });
   await page.goto("/");
-  await page.getByTestId("install-continue").click();
-  await expect(page.getByTestId("candidate-card").first()).toBeVisible();
-  await page.getByTestId("import-as").first().click();
-  await expect(page.getByTestId("confirm-source")).toBeVisible();
+  await expect(page.getByTestId("first-run-found")).toBeVisible();
+  await page.getByRole("button", { name: "Import from another folder…" }).click();
+  await expect(page.getByTestId("first-run-folder-check")).toBeVisible();
 };
 
 for (const theme of THEMES) {
   for (const vp of CDE_VP) {
     test(`flow f — confirm-source normal — ${vp.name} — ${theme}`, async ({ page }) => {
       await openConfirmSource(page, theme, vp, NORMAL_INSPECT);
-      const panel = page.getByTestId("confirm-source");
-      await expect(panel).toContainText("projects/");
-      await expect(panel).toContainText("macOS Keychain");
+      const panel = page.getByTestId("first-run-folder-check");
+      await expect(panel).toContainText("128 files");
+      await expect(page.getByTestId("first-run-folder-keychain")).toContainText("macOS Keychain");
+      await panel.getByText("What's in it").click();
+      await expect(page.getByTestId("source-breakdown")).toContainText("projects/");
       await page.screenshot({
         path: resolve(GALLERY, `39-import/f-normal-${vp.name}-${theme}.png`),
         fullPage: true,
@@ -4471,9 +3669,10 @@ for (const theme of THEMES) {
         total_bytes: 3_300_000_000,
         folders: [{ name: "projects/", bytes: 3_299_000_000 }],
       });
-      await expect(page.getByTestId("import-settings-only")).toBeVisible();
-      await expect(page.getByTestId("add-fresh-instead")).toBeVisible();
-      await expect(page.getByTestId("confirm-source")).not.toContainText("ceiling");
+      await expect(page.getByTestId("first-run-folder-large")).toBeVisible();
+      await expect(page.getByTestId("first-run-folder-bring-in")).toHaveText("Bring in settings only");
+      await expect(page.getByRole("button", { name: "Add a fresh account instead" })).toBeVisible();
+      await expect(page.getByTestId("first-run-folder")).not.toContainText("ceiling");
       await page.screenshot({
         path: resolve(GALLERY, `39-import/f-oversize-${vp.name}-${theme}.png`),
         fullPage: true,
@@ -4489,59 +3688,42 @@ for (const theme of THEMES) {
       const reject = page.getByTestId("source-not-config");
       await expect(reject).toBeVisible();
       await expect(reject).toContainText("doesn't look like a Claude Code setup");
+      await expect(page.getByTestId("first-run-folder-bring-in")).toHaveCount(0);
       await page.screenshot({
         path: resolve(GALLERY, `39-import/f-non-config-${vp.name}-${theme}.png`),
         fullPage: true,
       });
     });
 
-    test(`flow f — duplicate block with [Open it] — ${vp.name} — ${theme}`, async ({ page }) => {
-      await page.addInitScript(
-        ({ fixture, inspect: probe, theme: t }) => {
-          const w = window as unknown as Record<string, unknown>;
-          w.__AIJ_FIXTURE__ = fixture;
-          w.__AIJ_PROVIDER_INSTALLS__ = [
-            {
-              provider: "claude-code",
-              display_name: "Claude Code",
-              install_url: "https://claude.com/download",
-              status: "installed",
-              version: "2.1.296",
-              binary: "/usr/local/bin/claude",
-              notes: [],
-            },
-          ];
-          w.__AIJ_SCAN_REPORT__ = {
-            installs: [],
-            probes: [],
-            seeds: [],
-            desktop_apps: [],
-            cancelled: false,
-          };
-          w.__AIJ_RECOMMENDATION__ = { items: [], summary: "", start_here: null };
-          w.__AIJ_SOURCE_INSPECT__ = probe;
-          // The manual-folder entry point with a duplicate rejection.
-          w.__AIJ_IMPORT_DUPLICATE_LABEL__ = "Work";
-          w.__AIJ_PICK_DIRECTORY__ = "/Users/you/.claude-manual";
-          localStorage.setItem("aij.theme", t);
-          sessionStorage.setItem("aij.ready.skipped", "1");
-        },
-        { fixture: honestEmpty, inspect: NORMAL_INSPECT, theme },
-      );
-      await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme as "dark" | "light" });
-      await page.setViewportSize({ width: vp.width, height: vp.height });
-      await page.goto("/");
-      await page.getByTestId("install-continue").click();
-      await expect(page.getByTestId("zero-found")).toBeVisible();
-      await page.getByTestId("import-specific-folder").click();
-      await expect(page.getByTestId("confirm-source")).toBeVisible();
-      // The folder label arrives prefilled; attempt the import.
-      await answerPolicy(page);
-      await page.getByRole("button", { name: "Import account" }).click();
-      await expect(page.getByTestId("duplicate-blocked")).toBeVisible();
-      await expect(page.getByTestId("duplicate-blocked")).toContainText("Already imported");
+    test(`flow f — duplicate block — ${vp.name} — ${theme}`, async ({ page }) => {
+      await openConfirmSource(page, theme, vp, NORMAL_INSPECT, { __AIJ_IMPORT_DUPLICATE_LABEL__: "Work" });
+      await page.getByTestId("first-run-folder-bring-in").click();
+      await expect(page.getByTestId("first-run-folder-duplicate")).toContainText("Already imported");
       await page.screenshot({
         path: resolve(GALLERY, `39-import/f-duplicate-${vp.name}-${theme}.png`),
+        fullPage: true,
+      });
+    });
+
+    test(`flow f — moved since the pick — ${vp.name} — ${theme}`, async ({ page }) => {
+      await openConfirmSource(page, theme, vp, NORMAL_INSPECT, {
+        __AIJ_IMPORT_ERROR__: { code: "io", retryable: false, user_message: "/Users/you/.claude-manual does not exist" },
+      });
+      await page.getByTestId("first-run-folder-bring-in").click();
+      await expect(page.getByTestId("first-run-folder-moved")).toContainText("That folder moved or is gone.");
+      await expect(page.getByTestId("first-run-folder-again")).toBeVisible();
+      await page.screenshot({
+        path: resolve(GALLERY, `39-import/f-moved-${vp.name}-${theme}.png`),
+        fullPage: true,
+      });
+    });
+
+    test(`flow f — brought in, then its sign-in — ${vp.name} — ${theme}`, async ({ page }) => {
+      await openConfirmSource(page, theme, vp, NORMAL_INSPECT);
+      await page.getByTestId("first-run-folder-bring-in").click();
+      await expect(page.getByTestId("first-run-signin-row")).toContainText("claude-manual");
+      await page.screenshot({
+        path: resolve(GALLERY, `39-import/f-signin-${vp.name}-${theme}.png`),
         fullPage: true,
       });
     });
@@ -4588,221 +3770,42 @@ for (const theme of THEMES) {
   }
 }
 
-/** The isolation rows (pass + one forced fail) for the Summary. */
-const isolationRows = (fail: boolean) => [
-  { id: "managed_dir_private", label: "Account folder is owner-only (0700)", pass: true, detail: "checked" },
-  { id: "marker_present", label: "The managed-folder marker is present", pass: true, detail: "checked" },
-  { id: "launch_env_managed_only", label: "Launch environment points only at this account's folder", pass: true, detail: "checked" },
-  { id: "source_free_of_juggler_writes", label: "The imported-from folder is untouched (no AI Juggler writes)", pass: true, detail: "checked" },
-  { id: "probe_independence", label: "Login state reads only this account's folder", pass: true, detail: "checked" },
-  {
-    id: "no_writes_outside_managed",
-    label: "No stray files outside managed folders",
-    pass: !fail,
-    detail: fail ? "stray.txt found at the accounts root" : "checked",
-  },
-];
-
+// AJ-E1022 — 71-add-account: Add account with nothing new on this Mac
+// opens at a fresh account (its name filled in), then its sign-in —
+// 1280×800 + 390×844 × light+dark.
 for (const theme of THEMES) {
   for (const vp of CDE_VP) {
-    for (const fail of [false, true]) {
-      test(`isolation checklist — ${fail ? "forced fail blocks Launch" : "6/6 pass"} — ${vp.name} — ${theme}`, async ({ page }) => {
-        await page.addInitScript(
-          ({ fixture, rows, theme: t }) => {
-            const w = window as unknown as Record<string, unknown>;
-            w.__AIJ_FIXTURE__ = fixture;
-            w.__AIJ_PROVIDER_INSTALLS__ = [
-              {
-                provider: "claude-code",
-                display_name: "Claude Code",
-                install_url: "https://claude.com/download",
-                status: "installed",
-                version: "2.1.296",
-                binary: "/usr/local/bin/claude",
-                notes: [],
-              },
-            ];
-            w.__AIJ_RECOMMENDATION__ = {
-              items: [
-                {
-                  provider: "claude-code",
-                  label: "Work",
-                  action: "import",
-                  rationale: "Signed in — import keeps history",
-                  default_on: true,
-                  path: "/Users/you/.claude-work",
-                },
-              ],
-              summary: "Your juggling set: Claude ×1 (Work — signed in).",
-              start_here: null,
-            };
-            w.__AIJ_ISOLATION__ = rows;
-            w.__AIJ_LOGIN_STATE__ = "signed_in";
-            localStorage.setItem("aij.theme", t);
-            sessionStorage.setItem("aij.ready.skipped", "1");
-          },
-          { fixture: honestEmpty, theme, rows: isolationRows(fail) },
-        );
-        await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme as "dark" | "light" });
-        await page.setViewportSize({ width: vp.width, height: vp.height });
-        await page.goto("/");
-        await page.getByTestId("install-continue").click();
-        await expect(page.getByTestId("proposal-teaser")).toBeVisible();
-        await page.getByTestId("use-recommended").click();
-        await answerPolicy(page);
-        await page.getByTestId("accept-setup").click();
-        // The queued card's poll reads the injected signed-in state
-        // and AUTO-ADVANCES to the Summary (Req.2 — "we detect it").
-        await expect(page.getByTestId("isolation-checklist")).toBeVisible({ timeout: 15_000 });
-        const failing = page.locator("[data-testid='isolation-row'][data-pass='false']");
-        if (fail) {
-          await expect(failing).toHaveCount(1);
-          await expect(failing).toContainText("stray.txt");
-          await expect(page.getByTestId("launch-first-session")).toBeDisabled();
-        } else {
-          await expect(failing).toHaveCount(0);
-          await expect(page.getByTestId("launch-first-session")).toBeEnabled();
-        }
-        await page.screenshot({
-          path: resolve(
-            GALLERY,
-            `40-login/summary-${fail ? "fail" : "pass"}-${vp.name}-${theme}.png`,
-          ),
-          fullPage: true,
-        });
-      });
-    }
+    test(`71 add account — fresh, then its sign-in — ${vp.name} — ${theme}`, async ({ page }) => {
+      await page.addInitScript(
+        ({ fixture, t }) => {
+          const w = window as unknown as Record<string, unknown>;
+          w.__AIJ_FIXTURE__ = fixture;
+          w.__AIJ_SCAN_REPORT__ = { installs: [], probes: [], seeds: [], desktop_apps: [], cancelled: false };
+          localStorage.setItem("aij.theme", t);
+          localStorage.setItem("aij.onboarding.dismissed", "1");
+          sessionStorage.setItem("aij.ready.skipped", "1");
+        },
+        { fixture: allStatuses, t: theme },
+      );
+      await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme as "dark" | "light" });
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      await page.goto("/");
+      await goTo(page, "Accounts");
+      await page.getByTestId("add-account").click();
+      await expect(page.getByTestId("first-run-fresh")).toBeVisible();
+      await expect(page.getByTestId("first-run-fresh-name")).toHaveValue(/^Claude Code/);
+      await page.screenshot({ path: resolve(GALLERY, `71-add-account/fresh-${vp.name}-${theme}.png`), fullPage: true });
+      await page.getByTestId("first-run-fresh-create").click();
+      await expect(page.getByTestId("first-run-signin-row")).toBeVisible();
+      await page.screenshot({ path: resolve(GALLERY, `71-add-account/fresh-signin-${vp.name}-${theme}.png`), fullPage: true });
+    });
   }
 }
 
-// ---------------------------------------------------------------------
-// AJ-E309 — 41-policy: the first-run pack-policy question (unchosen /
-// chosen / Decide later), the Confirm row with and without a renewal
-// date, [Expert setup…] open, the Summary restatement, and Accounts →
-// Pack secrets — at 1280×800 and 390×844, both themes.
-// ---------------------------------------------------------------------
-
-const POLICY_INSTALLS = [
-  {
-    provider: "claude-code",
-    display_name: "Claude Code",
-    install_url: "https://claude.com/download",
-    status: "installed",
-    version: "2.1.296",
-    binary: "/usr/local/bin/claude",
-    notes: [],
-  },
-];
-
-const POLICY_RECOMMENDATION = {
-  items: [
-    { provider: "claude-code", label: "Work", action: "import", rationale: "Signed in — import keeps history", default_on: true, path: "/Users/you/.claude-work" },
-    { provider: "claude-code", label: "Side", action: "import", rationale: "Active — you'll sign in after import", default_on: true, path: "/Users/you/.claude-side" },
-  ],
-  summary: "Your juggling set: Claude ×2 (Work — signed in; Side — needs sign-in).",
-  start_here: "/Users/you/dev-api",
-};
-
-const openPolicyRun = async (
-  page: import("@playwright/test").Page,
-  theme: string,
-  vp: { width: number; height: number },
-  recommendation: unknown = POLICY_RECOMMENDATION,
-) => {
-  await page.addInitScript(
-    ({ fixture, installs, rec, t }) => {
-      const w = window as unknown as Record<string, unknown>;
-      w.__AIJ_FIXTURE__ = fixture;
-      w.__AIJ_PROVIDER_INSTALLS__ = installs;
-      w.__AIJ_RECOMMENDATION__ = rec;
-      w.__AIJ_SCAN_REPORT__ = { installs: [], probes: [], seeds: [], desktop_apps: [], cancelled: false };
-      w.__AIJ_LOGIN_STATE__ = "signed_in";
-      localStorage.setItem("aij.theme", t);
-      sessionStorage.setItem("aij.ready.skipped", "1");
-    },
-    { fixture: honestEmpty, installs: POLICY_INSTALLS, rec: recommendation, t: theme },
-  );
-  await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme as "dark" | "light" });
-  await page.setViewportSize({ width: vp.width, height: vp.height });
-  await page.goto("/");
-  await page.getByTestId("install-continue").click();
-};
-
+// AJ-E309 — 41-policy: Accounts → Pack secrets (the first-run question
+// went with the old account wizard; D-14: the first switch asks).
 const shot41 = (page: import("@playwright/test").Page, name: string) =>
   page.screenshot({ path: resolve(GALLERY, `41-policy/${name}.png`), fullPage: true });
-
-for (const theme of THEMES) {
-  for (const vp of CDE_VP) {
-    test(`41 policy — unchosen (Accept waits) — ${vp.name} — ${theme}`, async ({ page }) => {
-      await openPolicyRun(page, theme, vp);
-      await page.getByTestId("use-recommended").click();
-      await expect(page.getByTestId("policy-panel")).toBeVisible();
-      await expect(page.locator("[data-testid='policy-panel'] input:checked")).toHaveCount(0);
-      await expect(page.getByTestId("accept-setup")).toBeDisabled();
-      await page.getByTestId("policy-panel").scrollIntoViewIfNeeded();
-      await shot41(page, `policy-unchosen-${vp.name}-${theme}`);
-    });
-
-    test(`41 policy — chosen (Strip) — ${vp.name} — ${theme}`, async ({ page }) => {
-      await openPolicyRun(page, theme, vp);
-      await page.getByTestId("use-recommended").click();
-      await answerPolicy(page, "strip");
-      await expect(page.getByTestId("accept-setup")).toBeEnabled();
-      await shot41(page, `policy-chosen-${vp.name}-${theme}`);
-    });
-
-    test(`41 policy — Decide later — ${vp.name} — ${theme}`, async ({ page }) => {
-      await openPolicyRun(page, theme, vp);
-      await page.getByTestId("use-recommended").click();
-      await answerPolicy(page, "decide_later");
-      await expect(page.getByTestId("accept-setup")).toBeEnabled();
-      await shot41(page, `policy-decide-later-${vp.name}-${theme}`);
-    });
-
-    test(`41 policy — Confirm row, no renewal date — ${vp.name} — ${theme}`, async ({ page }) => {
-      await openPolicyRun(page, theme, vp, { items: [], summary: "", start_here: null });
-      await page.getByTestId("zero-found-provider").first().click();
-      await expect(page.getByTestId("renewal-date")).toHaveAttribute("data-state", "unknown");
-      await expect(page.getByTestId("create-account")).toBeDisabled();
-      await shot41(page, `confirm-renewal-empty-${vp.name}-${theme}`);
-    });
-
-    test(`41 policy — Confirm row with a renewal date — ${vp.name} — ${theme}`, async ({ page }) => {
-      await openPolicyRun(page, theme, vp, { items: [], summary: "", start_here: null });
-      await page.getByTestId("zero-found-provider").first().click();
-      await page.getByTestId("renewal-date-add").click();
-      await page.getByTestId("renewal-date-input").fill("2026-11-30");
-      await answerPolicy(page, "strip");
-      await expect(page.getByTestId("create-account")).toBeEnabled();
-      await shot41(page, `confirm-renewal-set-${vp.name}-${theme}`);
-    });
-
-    test(`41 policy — Expert setup open — ${vp.name} — ${theme}`, async ({ page }) => {
-      await openPolicyRun(page, theme, vp);
-      await expect(page.getByTestId("expert-hatch")).toBeVisible();
-      await page.getByTestId("expert-hatch").click();
-      await expect(page.getByTestId("expert-state-dir")).toBeVisible();
-      await page.getByTestId("expert-panel").scrollIntoViewIfNeeded();
-      await shot41(page, `expert-open-${vp.name}-${theme}`);
-    });
-
-    test(`41 policy — Summary restatement — ${vp.name} — ${theme}`, async ({ page }) => {
-      await openPolicyRun(page, theme, vp);
-      await page.getByTestId("use-recommended").click();
-      await page.getByTestId("renewal-date-add").first().click();
-      await page.getByTestId("renewal-date-input").fill("2026-11-30");
-      await answerPolicy(page, "strip");
-      await page.getByTestId("accept-setup").click();
-      await expect(page.getByTestId("summary-exits")).toBeVisible({ timeout: 15_000 });
-      await expect(page.getByTestId("policy-restatement")).toHaveText(
-        "Packs: strip secrets (all tools)",
-      );
-      await expect(page.getByTestId("renewal-restatement").nth(1)).toHaveText("Side: expiry unknown");
-      await shot41(page, `summary-restated-${vp.name}-${theme}`);
-    });
-
-  }
-}
 
 // Accounts is a main-shell screen: captured at the desktop sizes the
 // Tauri window allows (its minimum is 1024×680), not phone width.
@@ -5861,9 +4864,9 @@ for (const theme of THEMES) {
 }
 
 // ---------------------------------------------------------------------
-// AJ-E1005 — 55-triage: the morning triage populated (needs you, parked,
-// running, finished — not reviewed) and empty, at 1440×900 and 1024×680,
-// light/dark, comfortable and compact.
+// AJ-E1005 / AJ-E1021 — 55-triage: the morning triage, now on Home (D-25
+// amendment): needs you, parked, running, finished — not reviewed — and
+// empty, at 1440×900 and 1024×680, light/dark, comfortable and compact.
 // ---------------------------------------------------------------------
 
 for (const theme of THEMES) {
@@ -5888,10 +4891,9 @@ for (const theme of THEMES) {
         await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
         await page.setViewportSize({ width: vp.width, height: vp.height });
         await page.goto("/");
-        await goTo(page, "Triage");
-        await expect(page.getByTestId("triage-group-parked")).toContainText("2h 13m");
-        await expect(page.getByTestId("triage-action").first()).toBeVisible();
-        await page.screenshot({ path: resolve(GALLERY, `55-triage/populated-${vp.name}-${density}-${theme}.png`) });
+        await expect(page.getByTestId("home-parked")).toContainText("2h 13m");
+        await expect(page.getByTestId("home-needs").getByRole("button").first()).toBeVisible();
+        await page.screenshot({ path: resolve(GALLERY, `55-triage/home-populated-${vp.name}-${density}-${theme}.png`) });
       });
     }
     test(`55 triage — empty — ${vp.name} — ${theme}`, async ({ page }) => {
@@ -5909,9 +4911,8 @@ for (const theme of THEMES) {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
-      await goTo(page, "Triage");
-      await expect(page.getByTestId("triage-empty")).toBeVisible();
-      await page.screenshot({ path: resolve(GALLERY, `55-triage/empty-${vp.name}-${theme}.png`) });
+      await expect(page.getByTestId("home")).toContainText("Ready when you are");
+      await page.screenshot({ path: resolve(GALLERY, `55-triage/home-empty-${vp.name}-${theme}.png`) });
     });
   }
 }
@@ -6288,8 +5289,8 @@ for (const theme of THEMES) {
 // ---------------------------------------------------------------------
 // AJ-E1105 — 62-privacy: Settings › Privacy in every state of spec §8
 // (off, local, share, overridden, not included, an upload error, and a
-// report open in the read-only viewer); 63-consent: the first-run step
-// and the consent-version re-ask — 1280×800 and 1024×680, light/dark.
+// report open in the read-only viewer); 63-consent: the consent-version
+// re-ask — 1280×800 and 1024×680, light/dark.
 // ---------------------------------------------------------------------
 
 const STATS_VP = [
@@ -6439,16 +5440,6 @@ for (const theme of THEMES) {
       await page.getByTestId("privacy-report-json").evaluate((viewer) => viewer.scrollIntoView({ block: "end" }));
       await page.mouse.move(0, 0);
       await page.screenshot({ path: resolve(GALLERY, `62-privacy/report-json-${vp.name}-${theme}.png`) });
-    });
-
-    test(`63 consent — the first-run step (nothing chosen) — ${vp.name} — ${theme}`, async ({ page }) => {
-      await openPolicyRun(page, theme, vp);
-      await page.getByTestId("use-recommended").click();
-      await expect(page.getByTestId("usage-stats-chooser")).toBeVisible();
-      await expect(page.locator("[data-testid='usage-stats-chooser'] input:checked")).toHaveCount(0);
-      await page.getByTestId("usage-stats-chooser").scrollIntoViewIfNeeded();
-      await page.mouse.move(0, 0);
-      await page.screenshot({ path: resolve(GALLERY, `63-consent/first-run-${vp.name}-${theme}.png`) });
     });
 
     test(`63 consent — asked again after a consent change — ${vp.name} — ${theme}`, async ({ page }) => {

@@ -138,9 +138,9 @@ describe("AJ-E305 NewProjectSheet — flow (b) in ≤3 clicks", () => {
         button.textContent?.includes("Add an account"),
       )!,
     );
-    // The wizard opens INLINE over the sheet — same overlay, pending dir kept.
+    // Add account opens INLINE over the sheet (AJ-E1022) — pending dir kept.
     await waitFor(() =>
-      expect(container.querySelector("[data-testid='onboarding-wizard']")).not.toBeNull(),
+      expect(container.querySelector("[data-testid='first-run'][data-mode='add']")).not.toBeNull(),
     );
     expect(container.textContent).toContain("Starting in dev-api");
   });

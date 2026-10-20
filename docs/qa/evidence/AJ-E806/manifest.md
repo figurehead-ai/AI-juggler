@@ -264,6 +264,12 @@
   carries the fix. The gate passes locally (939 states, 0 serious). One
   capture timed out while the visual container ran beside it and passed
   twice alone.
+- **Flake record, 2026-10-20 (open, local only).** vitest
+  `sorting.test.tsx` › "sort+filter of 200 rows stays inside one frame
+  (<16 ms)" took 89 ms once while a full Playwright run of another
+  checkout (and other projects' suites) loaded the Mac (load average
+  ≈ 20–25). Alone it passed 15/15 at once. The budget is untouched. If it recurs in CI, measure the
+  median of several runs instead of one.
 - Real bugs found by the maintainer on 0.0.7 (2026-10-20, dogfood),
   none caught by a suite:
   1. Bringing in six Claude setups failed at `skills/ego-browser`, a
@@ -280,6 +286,18 @@
   3. The bring-in screen had no way out at first run (Close only in add
      mode, Escape only in add mode). Regression: `first-run.test.tsx ::
      first run can be left too…`.
+- A real security bug found by review (2026-10-20, review of Codex PR #64,
+  pre-existing in the Claude adapter since AJ-E203/E706):
+  `ClaudeCodeAdapter::install_bundle` joined each bundle file's name and
+  the manifest's session id into paths unchecked. A bundle can arrive from
+  a paired Mac (Fleet `TakeHandover`), so a name like `../../…` or an
+  absolute path could write outside the target account's folder, and an
+  existing file could be replaced. Now: only one plain file name per file
+  and a safe session id are accepted, refused before anything is written;
+  an install never replaces a file the target already has; the replay
+  brief quotes each turn so text in a turn can't pose as another turn.
+  Regression: `claude_handover :: an_untrusted_bundle_cannot_write_outside_the_target`
+  (fails on the old code) and `a_turn_cannot_forge_another_turn_in_the_brief`.
 - Real bugs found while building AJ-E1024 (2026-10-20, the maintainer's
   bring-in report plus code reading):
   1. A launch setting with a model replaced the account's whole
