@@ -34,6 +34,7 @@ import {
   createAccount,
   pickDirectory,
   sourceInspect,
+  statsEvent,
   accountLoginCommand,
   accountLoginState,
   environmentScanFull,
@@ -215,6 +216,7 @@ function FoundStep({
       setProgress((current) => ({ ...current, [found.path]: { state: "working" } }));
       try {
         const result = await accountImport(found.harness, found.path, labelOf(found), null, found.origin);
+        if (result.login === "expired") countLogin(found.harness, "expired");
         if (result.login !== "logged_in") {
           signins.push({
             accountId: result.account.id,
@@ -435,13 +437,22 @@ function FoundStep({
 
 type Signin = { accountId: string; label: string; loginNote: string | null; colour: string };
 
+/** AJ-E1103 `onboarding.login`: how a first-run sign-in ended (the schema's
+ * provider names; anything else is "other"). */
+function countLogin(provider: string, outcome: "completed" | "skipped" | "expired"): void {
+  const known = ["claude-code", "codex", "zcode"].includes(provider) ? provider : "other";
+  statsEvent("onboarding.login", { provider: known, outcome });
+}
+
 /** One account's sign-in: status, Sign in, and the rest behind More. */
 function SigninRow({
   entry,
   active,
   onStart,
   onReady,
+  onSkip,
 }: {
+  onSkip?: () => void;
   entry: Signin;
   active: boolean;
   onStart: () => void;
@@ -518,7 +529,10 @@ function SigninRow({
               Or run it yourself: <span className="font-mono text-ink">{command}</span>
             </span>
           )}
-          <button type="button" className="self-start text-accent-hi hover:underline" onClick={() => setSkipped(true)}>
+          <button type="button" className="self-start text-accent-hi hover:underline" onClick={() => {
+            if (!skipped) onSkip?.();
+            setSkipped(true);
+          }}>
             Sign in later
           </button>
         </div>
@@ -529,14 +543,17 @@ function SigninRow({
 
 function SigninStep({
   queue,
+  provider,
   openLoginTerminal,
   onDone,
 }: {
+  provider: string;
   queue: Signin[];
   openLoginTerminal: (id: string, title: string) => void;
   onDone: () => void;
 }): JSX.Element {
   const [ready, setReady] = useState<Record<string, boolean>>({});
+  const [skippedIds, setSkippedIds] = useState<Record<string, boolean>>({});
   const [active, setActive] = useState<string | null>(null);
   const [runAll, setRunAll] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -553,6 +570,7 @@ function SigninStep({
     [openLoginTerminal],
   );
   const markReady = (entry: Signin) => {
+    if (!ready[entry.accountId]) countLogin(provider, "completed");
     setReady((current) => ({ ...current, [entry.accountId]: true }));
     if (runAll) {
       const next = queue.find((other) => other.accountId !== entry.accountId && !ready[other.accountId]);
@@ -577,6 +595,10 @@ function SigninStep({
       <ul className="overflow-hidden rounded-2xl border border-hairline bg-surface">
         {queue.map((entry) => (
           <SigninRow
+            onSkip={() => {
+              setSkippedIds((current) => ({ ...current, [entry.accountId]: true }));
+              countLogin(provider, "skipped");
+            }}
             key={entry.accountId}
             entry={entry}
             active={active === entry.accountId}
@@ -592,7 +614,10 @@ function SigninStep({
       )}
       <div className="flex flex-wrap items-center justify-between gap-4">
         {left.length > 0 ? (
-          <button type="button" className="text-sm text-muted hover:text-ink hover:underline" onClick={onDone} data-testid="first-run-signin-next">
+          <button type="button" className="text-sm text-muted hover:text-ink hover:underline" onClick={() => {
+              for (const entry of left) if (!skippedIds[entry.accountId]) countLogin(provider, "skipped");
+              onDone();
+            }} data-testid="first-run-signin-next">
             Sign in later
           </button>
         ) : (
@@ -850,6 +875,7 @@ function FolderStep({
     funnelEvent("import_started");
     try {
       const result = await accountImport(provider, path, label.trim(), null, "manual", degraded);
+      if (result.login === "expired") countLogin(provider, "expired");
       funnelEvent("import_completed", { degraded: result.degraded === true });
       onImported(
         signedIn(result.login)
@@ -1170,7 +1196,7 @@ export function FirstRun({
               onDone={onDone}
             />
           )}
-          {step === "signin" && <SigninStep queue={queue} openLoginTerminal={openLoginTerminal} onDone={toAccess} />}
+          {step === "signin" && <SigninStep queue={queue} provider={provider} openLoginTerminal={openLoginTerminal} onDone={toAccess} />}
           {step === "access" && access !== null && <AccessStep entries={access} setEntries={setAccess} onDone={finish} />}
         </div>
       </div>

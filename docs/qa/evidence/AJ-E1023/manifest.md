@@ -27,7 +27,7 @@ reviewer claude-opus.
 | Req.1 the choice | vitest `add-provider-sheet.test.tsx` (cards, never-selectable missing tools, onChoose with the tool, Escape, dialog name); `flows-cde.spec.ts` flow (c); capture `38-flows-cde/c-provider-cards-*` via Add account | PASS |
 | Req.2 one tool | `flows-cde.spec.ts` flow (d): no cards, straight to a fresh account | PASS |
 | Req.3 dialog, budget | a11y "Add account's tool choice": axe 0, Enter on the Codex card opens Add account for Codex (name "Codex"), axe 0 again; flow (c) = 4 primary clicks to the sign-in, funnel `c-add-provider:open` and `:choose` | PASS |
-| Full suites | vitest 450/450; Playwright 813/813 (the wizard-only tests are gone, see the PR); a11y gate 828 states, 0 critical/serious; visual gate re-rendered (Accounts: the separate tool button is gone) | PASS |
+| Full suites | vitest 452/452; Playwright 813/813 (the wizard-only tests are gone, see the PR); a11y gate 828 states, 0 critical/serious; visual gate re-rendered (Accounts: the separate tool button is gone) | PASS |
 
 ## Not covered here
 

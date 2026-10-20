@@ -399,3 +399,54 @@ describe("AJ-E1022 another folder", () => {
     await waitFor(() => expect(view.getByTestId("first-run-folder-check").textContent).toContain("~/other-claude"));
   });
 });
+
+describe("AJ-E1103 onboarding.login — how first run's sign-ins end", () => {
+  const events = () =>
+    ((w().__AIJ_STATS_EVENTS__ as { metric: string; dims: Record<string, string> }[] | undefined) ?? []).filter(
+      (event) => event.metric === "onboarding.login",
+    );
+
+  it("Sign in later counts each one left as skipped, with the tool and no names", async () => {
+    const { findByTestId, getByTestId } = render(<FirstRun onDone={() => null} openLoginTerminal={() => null} />);
+    await findByTestId("first-run-found");
+    await act(async () => {
+      fireEvent.click(getByTestId("first-run-bring-in"));
+    });
+    const rows = await waitFor(() => {
+      const found = document.querySelectorAll("[data-testid='first-run-signin-row']");
+      expect(found.length).toBeGreaterThan(0);
+      return found;
+    });
+    await act(async () => {
+      fireEvent.click(getByTestId("first-run-signin-next"));
+    });
+    expect(events()).toHaveLength(rows.length);
+    for (const event of events()) expect(event.dims).toEqual({ provider: "claude-code", outcome: "skipped" });
+  });
+
+  it("a folder whose sign-in has expired counts as expired", async () => {
+    w().__AIJ_PICK_DIRECTORY__ = "/Users/you/old-claude";
+    const { findByTestId, getByRole } = render(<FirstRun mode="add" onDone={() => null} openLoginTerminal={() => null} />);
+    await findByTestId("first-run-found");
+    // The preview import reports logged_out; an expired one is the backend's word.
+    const bridge = await import("../lib/bridge");
+    const spy = vi.spyOn(bridge, "accountImport").mockResolvedValue({
+      account: { id: "acct-x", provider: "claude-code", label: "old-claude", plan: null, login_state: "expired", cleanup_opt_in: false, renewal_date: null, preview_opt_in: false },
+      files_copied: 1,
+      bytes_copied: 1,
+      folders: [],
+      degraded: false,
+      skipped: [],
+      login: "expired",
+      login_note: null,
+    } as unknown as Awaited<ReturnType<typeof bridge.accountImport>>);
+    await act(async () => {
+      fireEvent.click(getByRole("button", { name: "Import from another folder…" }));
+    });
+    await act(async () => {
+      fireEvent.click(await findByTestId("first-run-folder-bring-in"));
+    });
+    await waitFor(() => expect(events()).toEqual([{ metric: "onboarding.login", dims: { provider: "claude-code", outcome: "expired" }, value: undefined }]));
+    spy.mockRestore();
+  });
+});
