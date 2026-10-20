@@ -83,6 +83,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A message to Codex that starts with "-" (a list item, say) is passed as
+  text, never read as an option; a session id that looks like an option
+  is refused instead of resuming something else (Codex and Claude Code).
+  The Expert-setup line for a Codex account now pins its SQLite folder
+  too, and First run finds a `CODEX_HOME=` line in your shell files.
 - Bringing in a Claude setup that has a linked folder (for example a
   skill under `skills/` that is a link to somewhere else) no longer fails
   with "cannot copy skills/…". The folder is kept as a link that points
@@ -137,6 +142,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Codex** is the second Provider (AJ-E1301). AI Juggler finds the Codex
+  CLI, gives each Codex account its own folder (`CODEX_HOME`), signs it
+  in with OpenAI's own `codex login`, and starts, resumes or runs Codex
+  in it. Sessions run without Codex's background server, so stopping a
+  session stops all of it. Verified against Codex CLI 0.163.0. Watching
+  sessions, bringing in existing setups and switching follow (E13).
 - AI Juggler now watches the Mac itself, not only its sessions (E14,
   AJ-E1401): processor and memory use, macOS's own memory-pressure level,
   swap, free space on the disks your sessions use, power and thermal

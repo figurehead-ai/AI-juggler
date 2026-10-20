@@ -49,7 +49,10 @@ fn every_stop_path_refuses_a_tool_we_did_not_start() {
         .resources
         .lock()
         .unwrap()
-        .set_observed_roots(vec![pid]);
+        .set_observed_roots(vec![juggler_supervisor::ObservedRoot {
+            pid,
+            start_time: None,
+        }]);
     commands::processes_tick(&state);
     commands::processes_tick(&state);
     assert!(

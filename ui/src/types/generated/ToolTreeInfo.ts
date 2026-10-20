@@ -35,4 +35,11 @@ helpers: number,
 /**
  * "CPU 95%", "3.2 GB" — only when the tree is heavy.
  */
-heavy_note: string | null, };
+heavy_note: string | null, 
+/**
+ * The memory is an estimate: helper RSS summed, so memory those
+ * helpers share is counted once per helper (a tool AI Juggler didn't
+ * start, whose exact footprint needs an unsafe OS call). Show it as
+ * "about".
+ */
+memory_estimate: boolean, };

@@ -9,6 +9,10 @@ export type ToolTotalsInfo = {
  */
 count: number, 
 /**
+ * The memory includes estimates (a tool AI Juggler didn't start).
+ */
+memory_estimate: boolean, 
+/**
  * Share of the whole Mac's CPU (all cores), percent; `null` until
  * measured.
  */

@@ -48,8 +48,8 @@ pub use ports::{
 };
 pub use ring::OutputRing;
 pub use supervisor::{
-    LiveProcessStats, LiveStatsCollector, ObservedTree, ProcessBrief, ProcessFacts, ProcessRow,
-    ProcessTable, SpawnedProcess, Supervisor, TreeSample,
+    LiveProcessStats, LiveStatsCollector, ObservedRoot, ObservedTree, ProcessBrief, ProcessFacts,
+    ProcessRow, ProcessTable, SpawnedProcess, Supervisor, TreeSample,
 };
 pub use tree::{
     LadderOutcome, LadderScope, ProcessOutcome, ladder_platform, live_details, pgid_members,
