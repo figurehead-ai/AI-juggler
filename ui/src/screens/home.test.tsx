@@ -2,10 +2,12 @@
  * D-25 vitest — Home: what needs you (one sentence, one action), what's
  * running, each Account's runway (measured, or a session's own reading,
  * or "Not measured yet"), and the plain next step when nothing is set up.
+ * AJ-E1021 (D-25 amendment): Home is also the morning triage — parked
+ * sessions, what ended and isn't reviewed, J/K/Enter/A (from AJ-E1005).
  */
-import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { HomeScreen, needOf, needWords, placeOf, runwayOf } from "./Home";
+import { HomeScreen, needOf, needWords, placeOf, runwayOf, toReview } from "./Home";
 import type { AccountInfo, InstanceInfo, ProjectInfo, QuotaDisplayData } from "../lib/bridge";
 
 const NOW = 1_728_800_000_000;
@@ -137,11 +139,132 @@ describe("D-25 Home — the screen", () => {
     expect(getByTestId("home").textContent).toContain("Not measured yet");
   });
 
+  it("an account that needs its sign-in is a Needs you item; Sign in opens the login terminal", async () => {
+    const opened: string[] = [];
+    const accounts = [{ ...ACCOUNTS[0]!, login_state: "logged_out" }, ACCOUNTS[1]!] as AccountInfo[];
+    const { getByTestId } = render(
+      <HomeScreen
+        sessions={[]}
+        accounts={accounts}
+        projects={PROJECTS}
+        now={NOW}
+        onOpenSession={() => null}
+        onNewSession={() => null}
+        onAddAccounts={() => null}
+        openLoginTerminal={(_id, title) => opened.push(title)}
+      />,
+    );
+    expect(getByTestId("home").textContent).toContain("Work Max needs its sign-in");
+    const item = getByTestId("home-signin");
+    fireEvent.click(within(item).getByRole("button", { name: /^Sign in/ }));
+    await waitFor(() => expect(opened).toEqual(["Sign in · Work Max"]));
+    expect(item.textContent).toContain("Finish signing in in the terminal that opened");
+  });
+
   it("no accounts: one plain next step", () => {
     const onAddAccounts = vi.fn();
     const { getByTestId, getByRole } = renderHome([], [], { onAddAccounts });
     expect(getByTestId("home-empty-accounts").textContent).toContain("Bring in your accounts to start.");
     fireEvent.click(getByRole("button", { name: "Find my accounts" }));
     expect(onAddAccounts).toHaveBeenCalledOnce();
+  });
+});
+
+describe("AJ-E1021 Home as the morning triage (from AJ-E1005)", () => {
+  const calls = () => [
+    ...((w().__AIJ_TRIAGE_CALLS__ as string[] | undefined) ?? []),
+    ...((w().__AIJ_PARK_CALLS__ as string[] | undefined) ?? []),
+  ];
+  const renderHome = (sessions: InstanceInfo[], props: { onOpenSession?: (id: string) => void; onChanged?: () => void } = {}) =>
+    render(
+      <HomeScreen
+        sessions={sessions}
+        accounts={ACCOUNTS}
+        projects={PROJECTS}
+        now={NOW}
+        onOpenSession={props.onOpenSession ?? (() => null)}
+        onNewSession={() => null}
+        onAddAccounts={() => null}
+        onChanged={props.onChanged}
+      />,
+    );
+
+  it("to review: ended this week and not reviewed or archived", () => {
+    expect(toReview(mk("a", { status: "finished" }), NOW)).toBe(true);
+    expect(toReview(mk("b", { status: "stopped" }), NOW)).toBe(true);
+    expect(toReview(mk("c", { status: "finished", lifecycle: "reviewed" }), NOW)).toBe(false);
+    expect(toReview(mk("d", { status: "stopped", lifecycle: "archived" }), NOW)).toBe(false);
+    expect(toReview(mk("e", { status: "finished", last_activity_ms: NOW - 8 * 24 * 3_600_000 }), NOW)).toBe(false);
+    expect(toReview(mk("f", { status: "running" }), NOW)).toBe(false);
+  });
+
+  it("a parked session waits in its own section, not under Needs you; at the reset it offers Resume", async () => {
+    let changed = 0;
+    const { getByTestId, queryByTestId, getByRole } = renderHome(
+      [
+        mk("p-later", { status: "quota_blocked", parked: "measured", parked_resets_at_ms: NOW + 2 * 3_600_000 + 13 * 60_000 }),
+        mk("p-due", { status: "quota_blocked", parked: "measured", parked_resets_at_ms: NOW - 1 }),
+      ],
+      { onChanged: () => changed++ },
+    );
+    expect(queryByTestId("home-needs")).toBeNull();
+    const parked = getByTestId("home-parked");
+    expect(parked.textContent).toContain("Parked until a reset");
+    expect(parked.textContent).toContain("resets in 2h 13m");
+    expect(parked.textContent).toContain("reset reached");
+    await act(async () => {
+      fireEvent.click(getByRole("button", { name: /^Resume/ }));
+    });
+    expect(calls()).toEqual(["resume:p-due"]);
+    expect(changed).toBe(1);
+  });
+
+  it("pick up where you left off: three, then Show all; Mark reviewed takes one off", async () => {
+    let changed = 0;
+    const ended = Array.from({ length: 5 }, (_, n) => mk(`e-${n}`, { status: "finished", last_activity_ms: NOW - (n + 1) * 60_000 }));
+    const { getByTestId, getAllByTestId, getAllByRole } = renderHome(
+      [...ended, mk("old", { status: "finished", lifecycle: "reviewed" })],
+      { onChanged: () => changed++ },
+    );
+    expect(getAllByTestId("home-recent-item")).toHaveLength(3);
+    fireEvent.click(getByTestId("home-recent-all"));
+    expect(getAllByTestId("home-recent-item")).toHaveLength(5);
+    await act(async () => {
+      fireEvent.click(getAllByRole("button", { name: /^Mark reviewed/ })[0]!);
+    });
+    expect(calls()).toEqual(["reviewed:e-0"]);
+    expect(changed).toBe(1);
+  });
+
+  it("is keyboard operable: J/K or arrows move, A runs the row's action, Enter opens", async () => {
+    const opened: string[] = [];
+    const { container } = renderHome(
+      [mk("w", { status: "waiting_user" }), mk("r"), mk("d", { status: "finished" })],
+      { onOpenSession: (id) => opened.push(id) },
+    );
+    const rows = () => Array.from(container.querySelectorAll<HTMLElement>("[data-home-row]"));
+    expect(rows()).toHaveLength(3);
+    rows()[0]!.focus();
+    fireEvent.keyDown(rows()[0]!, { key: "j" });
+    expect(document.activeElement).toBe(rows()[1]);
+    fireEvent.keyDown(document.activeElement!, { key: "ArrowDown" });
+    expect(document.activeElement).toBe(rows()[2]);
+    await act(async () => {
+      fireEvent.keyDown(document.activeElement!, { key: "a" });
+    });
+    expect(calls()).toEqual(["reviewed:d"]);
+    fireEvent.keyDown(document.activeElement!, { key: "k" });
+    fireEvent.keyDown(document.activeElement!, { key: "k" });
+    fireEvent.click(document.activeElement!);
+    expect(opened).toEqual(["w"]);
+    expect(container.querySelector("[data-testid='home-keys']")!.textContent).toContain("runs the row's action");
+  });
+
+  it("renders 50 sessions well inside 300 ms", () => {
+    const statuses = ["waiting_user", "stuck", "running", "finished", "quota_blocked"];
+    const sessions = Array.from({ length: 50 }, (_, n) => mk(`s-${n}`, { status: statuses[n % 5]! }));
+    const started = performance.now();
+    renderHome(sessions);
+    expect(performance.now() - started).toBeLessThan(300);
   });
 });

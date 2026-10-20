@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Button, Card, Chip, QuotaBar, QuotaRing, StatCard } from "./components/primitives";
-import { SessionCard, WorkflowRail, type Freshness } from "./components/WorkflowRail";
+import { createPortal } from "react-dom";
+import { Button, Card, Chip } from "./components/primitives";
+import { WorkflowRail, type Freshness } from "./components/WorkflowRail";
 import { GoToPalette } from "./components/GoToPalette";
 import { PortWarningSheet } from "./components/PortMap";
 import { RecoverySummaryDialog } from "./components/RecoverySummaryDialog";
@@ -8,11 +9,7 @@ import { UsageStatsReconsent } from "./components/UsageStatsReconsent";
 import { CrashReportPrompt } from "./components/CrashReports";
 import { CleanupCentre, focusCleanupFilter } from "./screens/CleanupCentre";
 import { launchPortWarning, type PortWarningInfo,} from "./lib/bridge";
-import {
-  IconFleet,
-  IconJuggler,
-  IconTerminal,
-} from "./components/icons";
+import { IconJuggler, IconTerminal } from "./components/icons";
 import { AttentionAnnouncer, IndicatorLegend, RenewalAnnouncer } from "./components/indicator";
 import {
   DENSITY_EVENT,
@@ -32,9 +29,9 @@ import {
 import { isHandoverShortcut, isStopShortcut } from "./lib/shortcuts";
 import { cleanupAlerts, fleetPeers, statsEvent, statsGauge } from "./lib/bridge";
 
-/** AJ-E1103: the schema's screen names (Triage and History aren't counted). */
+/** AJ-E1103: the schema's screen names (History isn't counted; Home and
+ * the retired Overview aren't either — the schema keeps the name). */
 const STAT_SCREENS: Partial<Record<string, string>> = {
-  overview: "overview",
   accounts: "accounts",
   usage: "usage",
   fleet: "fleet",
@@ -50,9 +47,8 @@ function shortcutUsed(shortcut: string): void {
 /** AJ-E1103: the board became interactive once, after launch. */
 let boardInteractiveCounted = false;
 import { ProfilesScreen } from "./screens/Profiles";
-import { Triage } from "./screens/Triage";
 import { History } from "./screens/History";
-import { OnboardingWizard } from "./screens/OnboardingWizard";
+import { AddProviderSheet } from "./screens/AddProviderSheet";
 import { FirstRun } from "./screens/FirstRun";
 import { HomeScreen } from "./screens/Home";
 import { UsageScreen } from "./screens/Usage";
@@ -65,7 +61,6 @@ import { FleetPromptDialog } from "./components/FleetPromptDialog";
 import { IdentityMismatchDialog } from "./components/IdentityMismatchDialog";
 import { IsolationOfferDialog } from "./components/IsolationOfferDialog";
 import { funnelEvent } from "./lib/funnel";
-import { ReadyHome } from "./screens/ReadyHome";
 import { SessionPanel } from "./screens/WorkPanels";
 import { NotificationRegion } from "./components/NotificationRegion";
 import { SwitchFlow, SwitchUndoToast } from "./components/SwitchFlow";
@@ -73,6 +68,7 @@ import { SwitchBackFlow } from "./components/SwitchBackFlow";
 import { RightInspector } from "./components/RightInspector";
 import {
   accountsList,
+  providersDiscover,
   type SwitchBackSuggestionData,
   launchRecipesList,
   onSessionsQuota,
@@ -91,14 +87,12 @@ import {
   goToHotkeySet,
   onGoToHotkey,
   type LaunchRecipeInfo,
-  dashboardStats,
   fetchAppInfo,
   onAppReady,
   type AccountInfo,
   type AppInfo,
   type ProjectInfo,
   type InstanceInfo,
-  type StatsInfo,
 } from "./lib/bridge";
 
 /**
@@ -109,9 +103,7 @@ import {
  */
 
 const GLOBAL_NAV = [
-  // AJ-E1005: the morning question first — who needs me?
-  { id: "triage", label: "Triage" },
-  { id: "overview", label: "Overview" },
+  // D-25 amendment (AJ-E1021): Triage and Overview folded into Home.
   // AJ-E1007: every ended Instance — search, archive, replay.
   { id: "history", label: "History" },
   { id: "accounts", label: "Accounts" },
@@ -136,12 +128,29 @@ const PRIMARY_NAV: Array<{ id: GlobalId | "home"; label: string }> = [
   { id: "settings", label: "Settings" },
 ];
 const MORE_NAV: Array<{ id: GlobalId; label: string; hint: string }> = [
-  { id: "triage", label: "Triage", hint: "Every session that needs you, sorted" },
-  { id: "overview", label: "Overview", hint: "All sessions as cards" },
   { id: "usage", label: "Usage", hint: "Quota, cost and the two clocks per account" },
   { id: "fleet", label: "Fleet", hint: "Your other Macs" },
   { id: "cleanup", label: "Cleanup", hint: "Processes left behind, and the audit log" },
 ];
+
+/** D-25: below this width the rail folds to icons by itself. */
+const NARROW_RAIL_PX = 900;
+
+/** True while the window is narrower than `px` (follows resizes). */
+function useNarrowWindow(px: number): boolean {
+  const query = `(max-width: ${px - 1}px)`;
+  const read = () => typeof window.matchMedia === "function" && window.matchMedia(query).matches;
+  const [narrow, setNarrow] = useState(read);
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const list = window.matchMedia(query);
+    const follow = () => setNarrow(list.matches);
+    follow();
+    list.addEventListener("change", follow);
+    return () => list.removeEventListener("change", follow);
+  }, [query]);
+  return narrow;
+}
 
 /** Display names for the header's Provider chip. */
 const PROVIDER_NAMES: Record<string, string> = {
@@ -194,6 +203,25 @@ export default function App() {
     storeDensity(next);
     window.dispatchEvent(new Event(DENSITY_EVENT));
   }, []);
+  // D-25: below 900 px the rail folds to its icon column by itself and
+  // comes back when the window widens; the stored density never changes.
+  // ⌘B (or the logo) opens it for now while narrow.
+  const narrow = useNarrowWindow(NARROW_RAIL_PX);
+  const [narrowOpen, setNarrowOpen] = useState(false);
+  useEffect(() => {
+    if (!narrow) setNarrowOpen(false);
+  }, [narrow]);
+  const railDensity: Density = narrow
+    ? narrowOpen
+      ? density === "minimal"
+        ? "comfortable"
+        : density
+      : "minimal"
+    : density;
+  const toggleRail = useCallback(() => {
+    if (narrow) setNarrowOpen((open) => !open);
+    else setDensityAndStore(density === "minimal" ? "comfortable" : "minimal");
+  }, [narrow, density, setDensityAndStore]);
 
   // The stale-data tick (AJ-E403 Req.5): ONE shared 15 s timer for the
   // whole app — staleness captions recompute against `now` without any
@@ -289,9 +317,6 @@ export default function App() {
   const railSessions = useMemo(() => sessions.filter((row) => row.lifecycle !== "archived"), [sessions]);
   const [accounts, setAccounts] = useState<AccountInfo[]>([]);
   const [profiles, setProfiles] = useState<LaunchRecipeInfo[]>([]);
-  const [readySkipped, setReadySkipped] = useState(
-    () => sessionStorage.getItem("aij.ready.skipped") === "1",
-  );
   const [newSessionDir, setNewSessionDir] = useState<string | null>(null);
   const [loginTerminals, setLoginTerminals] = useState<
     { id: string; title: string; ended: boolean }[]
@@ -299,10 +324,20 @@ export default function App() {
   const [newSession, setNewSession] = useState(false);
   // AJ-E205: the executing switch flow (freeze dialog → stages →
   // source-safe failure banner). Null = closed.
-  // D-25: Accounts › Add account reuses first run's three steps.
-  const [addAccounts, setAddAccounts] = useState(false);
-  // The wizard opened from Accounts is locked to its Provider (AJ-E306).
-  const [wizardLocked, setWizardLocked] = useState(false);
+  // D-25: Accounts › Add account reuses first run's steps, for this tool
+  // (AJ-E1023: chosen first only when more than one is installed).
+  const [addAccounts, setAddAccounts] = useState<string | null>(null);
+  const [chooseTool, setChooseTool] = useState(false);
+  const startAddAccount = useCallback(() => {
+    void providersDiscover().then(
+      (rows) => {
+        const ready = rows.filter((row) => row.status === "installed" || row.status === "unverified");
+        if (ready.length > 1) setChooseTool(true);
+        else setAddAccounts(ready[0]?.provider ?? "claude-code");
+      },
+      () => setAddAccounts("claude-code"),
+    );
+  }, []);
   const [accountsNonce, setAccountsNonce] = useState(0);
   // D-25: the account-limit decision, for this session id.
   const [limitFor, setLimitFor] = useState<string | null>(null);
@@ -324,13 +359,9 @@ export default function App() {
   // hotkey (backend event) or in-app ⌘K; the binding is rebindable.
   const [goToOpen, setGoToOpen] = useState(false);
   const [goToHotkey, setGoToHotkey] = useState("Alt+Space");
-  const [wizard, setWizard] = useState(false);
   // D-25: a fresh install opens on first run (what's here → sign in →
-  // computer access); the wizard stays for Accounts › Add account.
+  // computer access); a fresh account and a folder import are its steps.
   const [firstRun, setFirstRun] = useState(false);
-  // AJ-E305: [Add another account] reopens the wizard fresh — the
-  // nonce remounts it (no stale step state).
-  const [wizardNonce, setWizardNonce] = useState(0);
   // AJ-E305 flow (b): the New project sheet. Null = closed; a string
   // pre-selects that directory (the Summary's Start here).
   const [newProjectDir, setNewProjectDir] = useState<string | null>(null);
@@ -368,15 +399,8 @@ export default function App() {
   // D-25), once per dismissal.
   useEffect(() => {
     if (localStorage.getItem("aij.onboarding.dismissed") === "1") return;
-    // Test seam (browser preview only): open the Add-account wizard
-    // instead, as if the user clicked Add account — its gallery and
-    // accessibility captures start from a fresh install.
-    const seam = (window as unknown as { __AIJ_FIRST_RUN__?: string }).__AIJ_FIRST_RUN__;
     void accountsList().then((accounts) => {
-      if (accounts.length === 0) {
-        if (seam === "wizard") setWizard(true);
-        else setFirstRun(true);
-      }
+      if (accounts.length === 0) setFirstRun(true);
     });
   }, []);
 
@@ -574,11 +598,6 @@ export default function App() {
         : null,
     [selection, loginTerminals],
   );
-  const showReadyHome =
-    global === null &&
-    accounts.length > 0 &&
-    accounts.some((a) => a.login_state !== "logged_in") &&
-    !readySkipped;
 
   const selectedAccount = useMemo(
     () => (selection.kind === "account" ? (accounts.find((a) => a.id === selection.id) ?? null) : null),
@@ -587,7 +606,7 @@ export default function App() {
   const selectedProvider = useMemo(() => {
     if (selection.kind !== "provider") return null;
     const providerAccounts = accounts.filter((a) => a.provider === selection.id);
-    return { id: selection.id, name: selection.id, accounts: providerAccounts };
+    return { id: selection.id, name: PROVIDER_NAMES[selection.id] ?? selection.id, accounts: providerAccounts };
   }, [selection, accounts]);
 
 
@@ -600,7 +619,7 @@ export default function App() {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "b") {
         event.preventDefault();
         shortcutUsed("toggle_rail");
-        setDensityAndStore(density === "minimal" ? "comfortable" : "minimal");
+        toggleRail();
       }
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "n") {
         event.preventDefault();
@@ -650,7 +669,7 @@ export default function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [cycleDensity, density, setDensityAndStore]);
+  }, [cycleDensity, toggleRail]);
 
   useEffect(() => {
     void appSettingGet("go_to_hotkey").then((stored) => {
@@ -732,7 +751,7 @@ export default function App() {
       <AttentionAnnouncer sessions={sessions} />
       <RenewalAnnouncer accounts={accounts} />
       <WorkflowRail
-        density={density}
+        density={railDensity}
         onCycleDensity={cycleDensity}
         projects={projects}
         sessions={railSessions}
@@ -761,8 +780,8 @@ export default function App() {
           >
             <button
               type="button"
-              title={minimal ? "Comfortable (⌘B)" : "Minimal (⌘B)"}
-              onClick={() => setDensityAndStore(density === "minimal" ? "comfortable" : "minimal")}
+              title={minimal ? "Show the list (⌘B)" : "Icons only (⌘B)"}
+              onClick={toggleRail}
               className="shrink-0 rounded-md p-1 text-accent hover:bg-surface"
             >
               <span className="block drop-shadow-[0_0_10px_#7c7cf466]">
@@ -943,43 +962,17 @@ export default function App() {
               <ProfilesScreen
                 key={accountsNonce}
                 sessions={sessions}
-                onAddAccounts={() => setAddAccounts(true)}
+                onAddAccounts={startAddAccount}
                 openTerminal={openLoginTerminal}
-                onLaunchFirstSession={(startHere) => {
-                  setNewSession(true);
-                  setNewSessionDir(startHere);
-                }}
                 onInspectAccount={(id) => {
                   setGlobal(null);
                   setSelection({ kind: "account", id });
                 }}
               />
             </div>
-          ) : global === "triage" ? (
-            <div className="h-full overflow-y-auto">
-              <Triage
-                sessions={sessions}
-                projects={projects}
-                density={density}
-                onOpenSession={selectSession}
-                onChanged={() => void refresh()}
-              />
-            </div>
           ) : global === "history" ? (
             <div className="h-full overflow-y-auto">
               <History sessions={sessions} projects={projects} onChanged={() => void refresh()} />
-            </div>
-          ) : global === "overview" ? (
-            <div className="h-full overflow-y-auto">
-              <Overview
-                sessions={sessions}
-                projects={projects}
-                onSelectSession={selectSession}
-                onInspectProvider={(provider) => {
-                  setGlobal(null);
-                  setSelection({ kind: "provider", id: provider });
-                }}
-              />
             </div>
           ) : global === "usage" ? (
             <div className="h-full overflow-y-auto">
@@ -1059,15 +1052,6 @@ export default function App() {
                 />
               );
             })()
-          ) : showReadyHome && selection.kind === "none" ? (
-            <ReadyHome
-              accounts={accounts}
-              openTerminal={openLoginTerminal}
-              onSkip={() => {
-                sessionStorage.setItem("aij.ready.skipped", "1");
-                setReadySkipped(true);
-              }}
-            />
           ) : (
             <>
               {/* AJ-E611: the alert/notification region — polite
@@ -1089,6 +1073,9 @@ export default function App() {
                     onNewSession={() => setNewSession(true)}
                     onAddAccounts={() => setFirstRun(true)}
                     onLimit={setLimitFor}
+                    openLoginTerminal={openLoginTerminal}
+                    onAccountsChanged={() => void refresh()}
+                    onChanged={() => void refresh()}
                   />
                 </div>
               ) : (
@@ -1230,63 +1217,31 @@ export default function App() {
             setFirstRun(false);
             void refresh();
           }}
-          onAddFresh={() => {
-            setFirstRun(false);
-            setWizard(true);
-          }}
-          onImportFolder={() => {
-            setFirstRun(false);
-            setWizard(true);
+          onAccountsChanged={() => void refresh()}
+        />
+      )}
+
+      {chooseTool && (
+        <AddProviderSheet
+          onClose={() => setChooseTool(false)}
+          onChoose={(provider) => {
+            setChooseTool(false);
+            setAddAccounts(provider);
           }}
         />
       )}
 
-      {addAccounts && (
+      {addAccounts !== null && (
         <FirstRun
           mode="add"
+          provider={addAccounts}
           openLoginTerminal={openLoginTerminal}
           onDone={() => {
-            setAddAccounts(false);
+            setAddAccounts(null);
             setAccountsNonce((n) => n + 1);
             void refresh();
           }}
-          onAddFresh={() => {
-            setAddAccounts(false);
-            setWizardLocked(true);
-            setWizard(true);
-          }}
-          onImportFolder={() => {
-            setAddAccounts(false);
-            setWizardLocked(true);
-            setWizard(true);
-          }}
-        />
-      )}
-
-      {wizard && (
-        <OnboardingWizard
-          key={wizardNonce}
-          provider="claude-code"
-          locked={wizardLocked}
-          onClose={() => {
-            localStorage.setItem("aij.onboarding.dismissed", "1");
-            setWizard(false);
-            setWizardLocked(false);
-            setAccountsNonce((n) => n + 1);
-          }}
-          onAccountCreated={() => void refresh()}
-          onConnectCloud={openCloudSettings}
-          openLoginTerminal={openLoginTerminal}
-          onLaunchFirstSession={(startHere) => {
-            setWizard(false);
-            setNewSession(true);
-            setNewSessionDir(startHere);
-          }}
-          onAddAnother={() => {
-            setWizard(false);
-            setWizardNonce((nonce) => nonce + 1);
-            setWizard(true);
-          }}
+          onAccountsChanged={() => void refresh()}
         />
       )}
 
@@ -1404,164 +1359,82 @@ export default function App() {
   );
 }
 
-/** The `?` legend popover button + panel (AJ-E403 Req.6). */
+/** The `?` legend popover button + panel (AJ-E403 Req.6). The panel is
+ * fixed-positioned above the button and portalled to the body: the
+ * footer row clips overflow and the rail is its own stacking layer, so
+ * a panel placed inside it opened out of sight (0.0.6 dogfood). */
 function LegendPopover() {
   const [open, setOpen] = useState(false);
+  const [place, setPlace] = useState<{ left: number; bottom: number; maxHeight: number } | null>(null);
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const toggle = () => {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    const rect = buttonRef.current?.getBoundingClientRect();
+    if (rect) {
+      const width = 320;
+      setPlace({
+        left: Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)),
+        bottom: window.innerHeight - rect.top + 8,
+        maxHeight: Math.max(160, rect.top - 16),
+      });
+    }
+    setOpen(true);
+  };
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (!panelRef.current?.contains(target) && !buttonRef.current?.contains(target)) setOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+        buttonRef.current?.focus();
+      }
+    };
+    window.addEventListener("mousedown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("mousedown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
   return (
-    <span className="relative ml-auto shrink-0">
+    <span className="ml-auto shrink-0">
       <button
+        ref={buttonRef}
         type="button"
         aria-expanded={open}
+        aria-controls="indicator-legend"
         aria-label="Indicator legend"
-        onClick={() => setOpen((value) => !value)}
-        className="flex size-4 items-center justify-center rounded-full border border-hairline text-[9px] font-bold text-muted outline-none transition-colors hover:bg-surface hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+        onClick={toggle}
+        // A 24 px target around the 16 px glyph (WCAG 2.5.8), same layout.
+        className="group -my-1 flex p-1 outline-none"
       >
-        ?
-      </button>
-      {open && (
-        <span className="absolute bottom-full left-0 z-40 mb-2 block w-64 rounded-xl border border-hairline bg-surface p-3 shadow-card">
-          <IndicatorLegend />
+        <span className="flex size-4 items-center justify-center rounded-full border border-hairline text-[9px] font-bold text-muted transition-colors group-hover:bg-surface group-hover:text-ink group-focus-visible:ring-1 group-focus-visible:ring-accent/60">
+          ?
         </span>
+      </button>
+      {open && place && createPortal(
+        <div
+          ref={panelRef}
+          id="indicator-legend"
+          role="dialog"
+          aria-label="What the icons mean"
+          data-testid="indicator-legend"
+          style={{ left: place.left, bottom: place.bottom, maxHeight: place.maxHeight }}
+          className="fixed z-50 w-80 overflow-y-auto rounded-xl border border-hairline bg-surface p-3 shadow-card"
+        >
+          <IndicatorLegend />
+        </div>,
+        // At the top of the page: the rail is its own stacking layer, so
+        // anything placed inside it paints under the work area.
+        document.body,
       )}
     </span>
   );
 }
-
-function Overview({
-  sessions,
-  projects,
-  onSelectSession,
-  onInspectProvider,
-}: {
-  sessions: InstanceInfo[];
-  projects: ProjectInfo[];
-  onSelectSession: (id: string) => void;
-  onInspectProvider: (provider: string) => void;
-}) {
-  const [stats, setStats] = useState<StatsInfo | null>(null);
-  useEffect(() => {
-    void dashboardStats().then(setStats);
-  }, []);
-  void stats;
-  const live = sessions.filter((s) => s.status === "running" || s.status === "starting");
-
-  return (
-    <div className="flex flex-col gap-6">
-      {/* AJ-E501: the ledger-degraded banner (the Cleanup Centre stub's
-          only surface until AJ-E506 builds the Centre). */}
-      {stats?.ledger_degraded === true && (
-        <div
-          role="alert"
-          data-testid="ledger-degraded-banner"
-          className="flex items-center gap-2.5 rounded-lg border border-warning/25 bg-warning-soft px-4 py-3 text-[12.5px] text-ink"
-        >
-          <span aria-hidden>⚠</span>
-          Process tracking degraded — cleanup is read-only until restart.
-        </div>
-      )}
-      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-        <StatCard
-          label="Live sessions"
-          value={String(live.length)}
-          hint={`${sessions.length} total recorded`}
-          tone="live"
-          icon={<IconTerminal width={15} height={15} />}
-        />
-        <StatCard
-          label="Projects"
-          value={String(projects.length)}
-          hint="directories juggled"
-          icon={<IconJuggler width={15} height={15} />}
-        />
-        <StatCard
-          label="Machine"
-          value="OK"
-          hint="RAM · CPU · disk nominal (live gauges: M3)"
-          tone="success"
-          icon={<IconFleet width={15} height={15} />}
-        />
-        <StatCard
-          label="Fleet"
-          value="1"
-          hint="this-mac only"
-          icon={<IconFleet width={15} height={15} />}
-        />
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <Card className="p-5 xl:col-span-2">
-          <div className="mb-4 flex items-center justify-between">
-            <div className="flex items-start gap-2">
-              <div>
-                <h2 className="text-sm font-semibold">Live sessions</h2>
-                <p className="text-xs text-muted">Select one to open its panel</p>
-              </div>
-              {/* Overview-header legend (AJ-E403 Req.6, surface 2 of 3). */}
-              <LegendPopover />
-            </div>
-            <Chip tone="neutral" dot>
-              {live.length} live
-            </Chip>
-          </div>
-          {live.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-hairline py-10">
-              <span className="flex size-10 items-center justify-center rounded-xl border border-accent/20 bg-accent-soft text-accent-hi">
-                <IconTerminal width={19} height={19} />
-              </span>
-              <p className="text-sm text-muted">
-                Nothing running — start one from the rail's New session.
-              </p>
-            </div>
-          ) : (
-            /* The card variant (AJ-E402 Req.4): identical I-01..I-11 to the
-               rail row — no number exists here the rail cannot explain. */
-            <div className="flex flex-col divide-y divide-hairline/50">
-              {live.map((s) => (
-                <SessionCard key={s.id} session={s} onSelect={onSelectSession} />
-              ))}
-            </div>
-          )}
-        </Card>
-
-        <Card className="flex flex-col items-start justify-center gap-3 p-5">
-          <h2 className="self-start text-sm font-semibold">Quota windows</h2>
-          {/* Honest I-05 (AJ-E402 Req.3): the fabricated percent={0} rings
-              are gone — each live Account renders its measured quota, and
-              with no feed the exact `Quota: no data` empty state shows. */}
-          {live.some((s) => s.quota !== null) ? (
-            <div className="flex w-full flex-col gap-3 pt-1">
-              {live
-                .filter((s) => s.quota !== null)
-                .map((s) => (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => onInspectProvider(s.provider)}
-                    className="flex flex-col items-start gap-1 rounded-lg outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
-                  >
-                    <span className="text-[11px] text-muted hover:text-ink">
-                      {s.account_label} · {s.provider}
-                    </span>
-                    <QuotaBar quota={s.quota} />
-                  </button>
-                ))}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center gap-3 self-stretch py-2">
-              <div className="flex items-center justify-around gap-4">
-                <QuotaRing percent={null} label="5h" />
-                <QuotaRing percent={null} label="week" />
-              </div>
-              <p className="text-center text-[11px] text-faint">
-                {live.length === 0
-                  ? "No live sessions — quota shows per account once one runs"
-                  : "Quota: no data — feeds land with the usage engine"}
-              </p>
-            </div>
-          )}
-        </Card>
-      </div>
-    </div>
-  );
-}
-

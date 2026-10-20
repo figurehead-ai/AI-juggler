@@ -1921,7 +1921,7 @@ pub const SITES: &[(&str, Site)] = &[
         "onboarding.import",
         Site::Backend("the account_import command"),
     ),
-    ("onboarding.login", Site::Ui("OnboardingWizard")),
+    ("onboarding.login", Site::Ui("FirstRun")),
     (
         "onboarding.expert_opened",
         Site::Backend("the funnel event"),

@@ -113,8 +113,8 @@ export function History({
       <header className="flex flex-col gap-1">
         <h2 className="text-lg font-semibold tracking-tight">History</h2>
         <p className="text-xs text-muted">
-          Every session that has ended. Search by project, Account, Provider, model, branch, date (2026-10-01) or
-          anything said in the transcript.
+          Every session that has ended. Search by project, account, tool, model, branch, date (2026-10-01) or
+          anything said in the conversation.
         </p>
       </header>
       <div className="flex flex-wrap items-center gap-2">

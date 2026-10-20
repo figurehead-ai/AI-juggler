@@ -51,6 +51,10 @@ const ENV_SQLITE_HOME: &str = "CODEX_SQLITE_HOME";
 /// Optional test/dev override for the Codex binary path.
 const ENV_BIN_OVERRIDE: &str = "AI_JUGGLER_CODEX_BIN";
 
+/// Variables that would sign a launch in as someone else (an API key
+/// bills that key, whatever the account signed in as).
+const INHERITED_KEYS: &[&str] = &["CODEX_API_KEY", "OPENAI_API_KEY"];
+
 /// Keeps the TUI off the background app-server (see module docs).
 const NO_DAEMON: &str = "--no-daemon";
 
@@ -58,6 +62,9 @@ const NO_DAEMON: &str = "--no-daemon";
 #[derive(Debug, Clone, Default)]
 pub struct CodexAdapter {
     bin: Option<PathBuf>,
+    /// The user's home for the shell-file scan (tests/fixtures; `None`
+    /// reads `$HOME`).
+    home: Option<PathBuf>,
 }
 
 impl CodexAdapter {
@@ -72,7 +79,16 @@ impl CodexAdapter {
     pub fn with_bin(bin: impl Into<PathBuf>) -> Self {
         Self {
             bin: Some(bin.into()),
+            home: None,
         }
+    }
+
+    /// The adapter scanning `home`'s shell files instead of `$HOME`'s
+    /// (tests/fixtures).
+    #[must_use]
+    pub fn with_home(mut self, home: impl Into<PathBuf>) -> Self {
+        self.home = Some(home.into());
+        self
     }
 
     fn resolve_bin(&self) -> Option<PathBuf> {
@@ -206,33 +222,110 @@ pub fn codex_login_state(state_dir: &Path) -> LoginState {
     if meta.len() == 0 {
         return LoginState::Partial; // a sign-in abandoned mid-write
     }
-    let Ok(raw) = std::fs::read(&path) else {
+    // ADR-0003: the file is streamed into `AuthShape`, which keeps only
+    // whether each field is there — every value (tokens, keys) is skipped
+    // while parsing and never stored, logged or returned.
+    let Ok(file) = std::fs::File::open(&path) else {
         return LoginState::Unknown;
     };
-    let Ok(value) = serde_json::from_slice::<serde_json::Value>(&raw) else {
-        return LoginState::Unknown;
-    };
-    classify_auth(&value)
+    match serde_json::from_reader::<_, AuthShape>(std::io::BufReader::new(file)) {
+        Ok(shape) => classify_auth(&shape),
+        Err(_) => LoginState::Unknown,
+    }
 }
 
-/// Classifies an `auth.json` value by field names and presence only.
+/// Whether a field holds something — never what. A string counts when
+/// non-empty, an object when it has entries; the value is consumed by
+/// the parser and dropped on the spot (ADR-0003).
+#[derive(Debug, Default, Clone, Copy)]
+struct Present(bool);
+
+impl<'de> serde::Deserialize<'de> for Present {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct Shape;
+        impl<'de> serde::de::Visitor<'de> for Shape {
+            type Value = Present;
+            fn expecting(&self, out: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                out.write_str("any JSON value")
+            }
+            fn visit_str<E>(self, value: &str) -> Result<Present, E> {
+                Ok(Present(!value.is_empty()))
+            }
+            fn visit_map<A: serde::de::MapAccess<'de>>(
+                self,
+                mut map: A,
+            ) -> Result<Present, A::Error> {
+                let mut any = false;
+                while map
+                    .next_entry::<serde::de::IgnoredAny, serde::de::IgnoredAny>()?
+                    .is_some()
+                {
+                    any = true;
+                }
+                Ok(Present(any))
+            }
+            fn visit_seq<A: serde::de::SeqAccess<'de>>(
+                self,
+                mut seq: A,
+            ) -> Result<Present, A::Error> {
+                while seq.next_element::<serde::de::IgnoredAny>()?.is_some() {}
+                Ok(Present(false))
+            }
+            fn visit_unit<E>(self) -> Result<Present, E> {
+                Ok(Present(false))
+            }
+            fn visit_bool<E>(self, _: bool) -> Result<Present, E> {
+                Ok(Present(false))
+            }
+            fn visit_i64<E>(self, _: i64) -> Result<Present, E> {
+                Ok(Present(false))
+            }
+            fn visit_u64<E>(self, _: u64) -> Result<Present, E> {
+                Ok(Present(false))
+            }
+            fn visit_f64<E>(self, _: f64) -> Result<Present, E> {
+                Ok(Present(false))
+            }
+        }
+        deserializer.deserialize_any(Shape)
+    }
+}
+
+/// The shape of `auth.json` the probe needs — field names and presence;
+/// `auth_mode` is a mode name, not a secret.
+#[derive(Debug, Default, serde::Deserialize)]
+#[serde(default)]
+struct AuthShape {
+    auth_mode: Option<String>,
+    #[serde(rename = "OPENAI_API_KEY")]
+    api_key: Present,
+    tokens: Option<TokenShape>,
+    personal_access_token: Present,
+    bedrock_api_key: Present,
+    bedrock_access_keys: Present,
+}
+
+/// The `tokens` object's shape (presence only).
+#[derive(Debug, Default, serde::Deserialize)]
+#[serde(default)]
+struct TokenShape {
+    access_token: Present,
+    refresh_token: Present,
+}
+
+/// Classifies an `auth.json` shape by field names and presence only.
 /// `auth_mode` decides when present — a `ChatGPT` sign-in may ALSO carry an
 /// exchanged API key, so `OPENAI_API_KEY` alone never means an API-key
 /// account (codex-rs `login/src/auth/manager.rs` `resolved_mode`).
-fn classify_auth(value: &serde_json::Value) -> LoginState {
-    let present = |v: Option<&serde_json::Value>| match v {
-        Some(serde_json::Value::String(text)) => !text.is_empty(),
-        Some(serde_json::Value::Object(map)) => !map.is_empty(),
-        _ => false,
-    };
-    let tokens = value.get("tokens").filter(|t| t.is_object());
-    let has_tokens =
-        tokens.is_some_and(|t| present(t.get("refresh_token")) || present(t.get("access_token")));
-    let has_key = present(value.get("OPENAI_API_KEY"));
-    let has_pat = present(value.get("personal_access_token"));
-    let has_bedrock =
-        present(value.get("bedrock_api_key")) || present(value.get("bedrock_access_keys"));
-    let mode = value.get("auth_mode").and_then(serde_json::Value::as_str);
+fn classify_auth(shape: &AuthShape) -> LoginState {
+    let has_tokens = shape
+        .tokens
+        .as_ref()
+        .is_some_and(|t| t.refresh_token.0 || t.access_token.0);
+    let has_key = shape.api_key.0;
+    let has_pat = shape.personal_access_token.0;
+    let has_bedrock = shape.bedrock_api_key.0 || shape.bedrock_access_keys.0;
+    let mode = shape.auth_mode.as_deref();
     // Files written before `auth_mode` existed follow Codex's own
     // fallback order: personal access token, Bedrock, API key, tokens.
     let api_key = match mode {
@@ -392,6 +485,15 @@ impl HarnessAdapter for CodexAdapter {
         // Launch-settings overrides first, isolation LAST (AJ-E309).
         let mut env: EnvMap = profile.settings_overlay.env.clone();
         env.extend(home_env(&account.state_dir));
+        // An API key in the environment would bill every managed account
+        // to that key, whatever it signed in as. None may come from Launch
+        // settings. One inherited from the app's own environment is still
+        // passed on by the supervisor until the env-unset marker
+        // (`juggler_adapter::launch::ENV_UNSET`) lands; then these become
+        // explicit unsets.
+        for key in INHERITED_KEYS {
+            env.remove(*key);
+        }
         if let LaunchMode::Resume { session_id, .. } = mode {
             refuse_option_like(session_id)?;
         }
@@ -458,7 +560,7 @@ impl HarnessAdapter for CodexAdapter {
     /// AJ-E1302: `~/.codex`, `$CODEX_HOME` and `~/.codex*` homes —
     /// metadata only (the sign-in probe reads field names, never values).
     fn scan_environment(&self) -> Vec<DiscoveredInstall> {
-        let Some(home) = home_dir() else {
+        let Some(home) = self.home.clone().or_else(home_dir) else {
             return Vec::new();
         };
         let env_override = std::env::var_os(ENV_CODEX_HOME)
@@ -504,10 +606,16 @@ impl HarnessAdapter for CodexAdapter {
     /// AJ-E302 S5: rc assignments of `CODEX_HOME` only (`CLAUDE_CONFIG_DIR`
     /// belongs to the Claude adapter).
     fn scan_shell_aliases(&self) -> Vec<juggler_adapter::environment::AliasHint> {
-        crate::claude_code::home_dir().map_or_else(Vec::new, |home| codex_aliases(&home))
+        self.home
+            .clone()
+            .or_else(crate::claude_code::home_dir)
+            .map_or_else(Vec::new, |home| codex_aliases(&home))
     }
 
+    /// Plain `codex`: it runs on every version (`--no-daemon` needs 0.156
+    /// or later), and a session started by hand is the user's own process,
+    /// not one Juggler tracks — the daemon reasoning applies to launches.
     fn shell_command(&self) -> Option<&'static str> {
-        Some("codex --no-daemon")
+        Some("codex")
     }
 }

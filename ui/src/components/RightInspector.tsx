@@ -180,7 +180,7 @@ export const KIND_LABELS: Record<InspectorKind, string> = {
   // conversation record) is a "conversation".
   instance: "Session",
   session: "Conversation",
-  provider: "Provider",
+  provider: "Tool",
   account: "Account",
   project: "Project",
   machine: "Machine",
@@ -324,7 +324,7 @@ export function RightInspector({
       : kind === "session"
         ? "Conversation"
         : kind === "provider"
-          ? (data.provider?.name ?? "Provider")
+          ? (data.provider?.name ?? "Tool")
           : kind === "account"
             ? (data.account?.label ?? "Account")
             : kind === "project"
@@ -1336,7 +1336,7 @@ function InstanceOverview(props: PanelProps) {
     return (
       <div className="flex flex-col gap-3">
         <Card className="flex flex-col gap-2 p-4">
-          <p className="text-[11px] uppercase tracking-wider text-faint">Provider</p>
+          <p className="text-[11px] uppercase tracking-wider text-faint">Tool</p>
           <p className="font-mono text-[11.5px]">{data.provider.id}</p>
           <p className="text-[11.5px] text-muted">
             {providerAccounts.length} account{providerAccounts.length === 1 ? "" : "s"} ·{" "}
@@ -1795,8 +1795,8 @@ function ProviderActions() {
   return (
     <div className="flex flex-col gap-2" data-testid="provider-actions">
       <ActionRow label="Add account…" onClick={() => window.dispatchEvent(new Event("aij:open-accounts"))} reason="opens Accounts" />
-      <ActionRow label="Check for Provider update" onClick={undefined} reason="manual check only — lands with provider settings (never auto-update, SPEC §5.4)" />
-      <ActionRow label="Open Provider settings" onClick={undefined} reason="provider settings screen lands with E3+" />
+      <ActionRow label="Check for an update" onClick={undefined} reason="not available yet — AI Juggler never updates a tool by itself" />
+      <ActionRow label="Open tool settings" onClick={undefined} reason="not available yet" />
     </div>
   );
 }

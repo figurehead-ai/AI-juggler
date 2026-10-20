@@ -171,6 +171,98 @@ jobs:
           path: ui/test-results/
           retention-days: 14
 
+  # AJ-E804 on every pull request that changes the interface: the same
+  # accessibility gate Promote runs (axe on every gallery state, keyboard
+  # flows, 200 % zoom and reduced motion, contrast), in the same four
+  # shards, so a regression is caught before it merges rather than at
+  # release time. Changes without UI work skip it; `a11y` always reports.
+  a11y-scope:
+    name: a11y scope
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    outputs:
+      ui: ${{ steps.scope.outputs.ui }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      - name: Did this change touch the UI or the gate itself?
+        id: scope
+        shell: bash
+        run: |
+          base="${{ github.event.pull_request.base.sha || github.event.before }}"
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ] \
+            || git diff --name-only "$base" HEAD | grep -qE '^ui/|^scripts/(a11y_gate\.sh|axe_summary\.py)$|^\.github/workflows/ci\.yml$'; then
+            echo "ui=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ui=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  a11y-shard:
+    name: a11y (${{ matrix.shard }}/4)
+    permissions:
+      contents: read
+    needs: a11y-scope
+    if: needs.a11y-scope.outputs.ui == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
+      options: --ipc=host
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Install
+        working-directory: ui
+        run: corepack enable && corepack prepare pnpm@10 --activate && pnpm install --frozen-lockfile
+      - name: Accessibility gate, shard ${{ matrix.shard }}/4
+        env:
+          A11Y_SKIP_SUMMARY: "1"
+        # Split by test, not by file: the gate is mostly one large spec, so
+        # file-level shards left shards 2–4 empty and shard 1 near its timeout.
+        run: ./scripts/a11y_gate.sh --fully-parallel --shard=${{ matrix.shard }}/4
+      - name: Scans
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: a11y-shard-${{ matrix.shard }}
+          path: docs/qa/evidence/AJ-E804/
+          retention-days: 14
+
+  a11y:
+    name: a11y
+    permissions:
+      contents: read
+    needs: [a11y-scope, a11y-shard]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: No UI change
+        if: needs.a11y-scope.outputs.ui != 'true'
+        run: |
+          echo "Accessibility gate: no UI change — nothing to scan." >> "$GITHUB_STEP_SUMMARY"
+      - name: Every shard passed
+        if: needs.a11y-scope.outputs.ui == 'true'
+        run: |
+          [ "${{ needs.a11y-shard.result }}" = "success" ] \
+            || { echo "::error::an accessibility shard failed (${{ needs.a11y-shard.result }}) — see its log and the a11y-shard-* artifacts"; exit 1; }
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        if: needs.a11y-scope.outputs.ui == 'true'
+        with:
+          pattern: a11y-shard-*
+          path: docs/qa/evidence/AJ-E804/
+          merge-multiple: true
+      - name: Every gallery state, summarised (0 critical, 0 serious)
+        if: needs.a11y-scope.outputs.ui == 'true'
+        run: |
+          python3 scripts/axe_summary.py
+          cat docs/qa/evidence/AJ-E804/axe-summary.md >> "$GITHUB_STEP_SUMMARY"
+
   # Cross-platform build matrix (spec §1: cross-platform core from day one).
   build-macos:
     name: build-macos
