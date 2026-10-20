@@ -1,6 +1,6 @@
-import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { RightInspector, installWords } from "./RightInspector";
+import { RightInspector, installWords, since, useToolInstall } from "./RightInspector";
 import { providerDisplayName } from "../lib/providers";
 import type {
   AccountInfo,
@@ -157,6 +157,39 @@ describe("AJ-E408 Provider (§5.3, Req.1-2)", () => {
     expect(container.querySelector('[data-testid="action-open-tool-settings"]')).toBeNull();
   });
 
+  it("a failed install check says so instead of showing nothing", async () => {
+    (window as unknown as Record<string, unknown>).__AIJ_PROVIDER_INSTALLS_ERROR__ = new Error("probe failed");
+    try {
+      const { container } = shell("provider", "claude-code");
+      await waitFor(() => expect(container.querySelector('[data-testid="provider-install"]')?.textContent).toBe("Couldn't check what's installed"));
+    } finally {
+      delete (window as unknown as Record<string, unknown>).__AIJ_PROVIDER_INSTALLS_ERROR__;
+    }
+  });
+
+  it("another tool's version never shows while the new tool is checked", async () => {
+    const hook = renderHook(({ id }: { id: string }) => useToolInstall(id), { initialProps: { id: "claude-code" } });
+    await waitFor(() => expect(hook.result.current).not.toBeNull());
+    expect((hook.result.current as { provider: string }).provider).toBe("claude-code");
+    hook.rerender({ id: "codex" });
+    // Straight after the switch: nothing, not Claude Code's version.
+    expect(hook.result.current).toBeNull();
+    await waitFor(() => expect(hook.result.current).not.toBeNull());
+    const now = hook.result.current;
+    expect(now === "failed" || (now as { provider: string }).provider === "codex").toBe(true);
+    hook.unmount();
+  });
+
+  it("how long ago: seconds, minutes, hours, then days past 48 h", () => {
+    const now = 1_000_000_000_000;
+    expect(since(now - 30_000, now)).toBe("30s");
+    expect(since(now - 12 * 60_000, now)).toBe("12m");
+    expect(since(now - 30 * 3_600_000, now)).toBe("30h");
+    expect(since(now - 47 * 3_600_000, now)).toBe("47h");
+    expect(since(now - 48 * 3_600_000, now)).toBe("2d");
+    expect(since(now - 168 * 3_600_000, now)).toBe("7d");
+  });
+
   it("says what's installed in plain words", () => {
     const base = { provider: "claude-code", display_name: "Claude Code", install_url: "", binary: null, notes: [], kind: "terminal", single_instance_note: null } as const;
     expect(installWords({ ...base, status: "installed", version: "2.1.296", verified_against: ["2.1.x"] } as never)).toBe("Version 2.1.296 · tested with 2.1.x");
@@ -176,7 +209,7 @@ describe("AJ-E408 Provider (§5.3, Req.1-2)", () => {
         // innerText-like: hidden screen-reader text counts too.
         const text = container.textContent ?? "";
         expect(text, `${kind} › ${tab}`).not.toMatch(/\bAJ-E\d+|\bE\d+\+|\(E\d+\)|\bD-\d{2}\b/);
-        expect(text, `${kind} › ${tab}`).not.toMatch(/claude-code|\b[Ii]nstances?\b|lands with|No data|now ago/);
+        expect(text, `${kind} › ${tab}`).not.toMatch(/claude-code|\b[Ii]nstances?\b|lands with|no data|now ago/i);
       }
       cleanup();
     }

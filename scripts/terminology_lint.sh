@@ -35,10 +35,31 @@ done
 CODE_PROVIDER='\.providers?\b|\bproviders?\.[A-Za-z_]|\(providers?[,)]|,[[:space:]]*providers?[[:space:]]*[,)]|\{providers?\}|\[providers?\]|\bproviders?=[{"]|\bproviders?[[:space:]]+(<|>|<=|>=|===|!==|==|!=|&&|\|\||\?\?|\?)[[:space:]]'
 
 # D-25: no task, epic or decision codes on screen ("lands with AJ-E606+",
-# "E3+", "(E2)", "audit-logged (D-08)"). Comments may cite them; what the
-# user reads may not.
-TASKCODE='(\bAJ-E[0-9]+|\bE[0-9]+\+|\(E[0-9]+\)|\bD-[0-9]{2}\b)'
+# "E3+", "(E2)", "lands with E2", "audit-logged (D-08)", "D-7").
+# Comments may cite them; what the user reads may not.
+TASKCODE='(\bAJ-E[0-9]+|\bE[0-9]+\+|\(E[0-9]+\)|\bE[0-9]+\b|\bD-[0-9]{1,2}\b)'
 COMMENT_LINE='^[0-9]+:\s*(//|\*|/\*|\{/\*)'
+
+# String literals ("…", '…', `…`) that carry a code. A tokenizer, not a
+# grep: it skips // and /* */ comments (so `f("a"); // AJ-E1: "b"` is
+# clean), reads each literal whole, leaves apostrophes in words alone,
+# and ignores attributes nobody reads (data-testid, key, id, className…).
+string_codes() { # $1=file
+  while IFS= read -r hit; do
+    [ -z "${hit:-}" ] && continue
+    echo "TERMINOLOGY: $1:$hit — task code in a user-facing string (say it in plain words)"
+    fail=1
+  done < <(perl -ne '
+    next if /^\s*(\/\/|\*|\/\*|\{\/\*)/;
+    my $line = $_;
+    while ($line =~ m{(/\*.*?\*/|//.*$)|(?:\b([\w-]+)=)?("(?:[^"\\\n]|\\.)*"|(?<![A-Za-z])\x27(?:[^\x27\\\n]|\\.)*\x27(?![A-Za-z])|`(?:[^`\\]|\\.)*`)}g) {
+      next if defined $1;
+      my ($attr, $lit) = ($2 // "", $3);
+      next if $attr =~ /^(data-[\w-]+|key|id|className|htmlFor|role|type|name|href|src|ref|testId)$/;
+      if ($lit =~ /\bAJ-E\d+|\bE\d+\+|\(E\d+\)|\bE\d+\b|\bD-\d{1,2}\b/) { print "$.:$_"; last; }
+    }
+  ' "$1" 2>/dev/null || true)
+}
 
 jsx_checks() { # $1=file
   local jsx=$1
@@ -63,7 +84,7 @@ jsx_checks() { # $1=file
   check "$jsx" "^\\s*[A-Za-z(][^=;{}<>\"\`]*${TASKCODE}[^=;{}<>]*\$" "$COMMENT_LINE" "task code in JSX text (say it in plain words)"
   case "$jsx" in *.test.tsx) ;; *)
     check "$jsx" '"[^"]*\b(a|the|each|all|other|this|another|every|per) [Pp]roviders?\b[^"]*"' '^[0-9]+:\s*(//|\*|/\*)' "Provider in a user-facing string (say tool)"
-    check "$jsx" "\"[^\"]*${TASKCODE}[^\"]*\"|\`[^\`]*${TASKCODE}[^\`]*\`" "$COMMENT_LINE" "task code in a user-facing string (say it in plain words)" ;;
+    string_codes "$jsx" ;;
   esac
 }
 
@@ -84,6 +105,10 @@ const why = "handovers render from Switch Graph edges (E2)";
           Pick a Provider (Claude Code or Codex)
 <p>Which provider?</p>
 <p>No accounts for this provider!</p>
+<p className="text-muted">Usage lands with E2</p>
+const soon = 'arrives in E4';
+<p>See D-7 for why</p>
+const why = "kept apart by D-7";
 BAD
   cat > "$dir/good.tsx" <<'GOOD'
 {list.length > 0 && provider < 3 ? <b>x</b> : null}
@@ -100,11 +125,25 @@ BAD
 <Row onClick={() => choose(provider)}>Tool</Row>
           Install(account, provider)
 <Row tone={provider === "codex" ? "accent" : "neutral"}>Tool</Row>
+  foo("bar"); // AJ-E101: "baz"
+<div data-testid="AJ-E1025-panel" />
+<p>Can't stop it</p>; // AJ-E1: it's fine
+  const kind = `E2E tests`; const keys = "Ctrl+D";
+GOOD
+  cat > "$dir/bad.ts" <<'BAD'
+export const reason = "arrives with AJ-E606";
+BAD
+  cat > "$dir/good.ts" <<'GOOD'
+export const label = "Not measured yet"; // AJ-E1025: "plain words"
 GOOD
   hits="$(fail=0; jsx_checks "$dir/bad.tsx"; true)"
   # Every line of bad.tsx must be flagged (by one rule or more).
-  if [ "$(printf '%s\n' "$hits" | grep -oE 'bad\.tsx:[0-9]+:' | sort -u | wc -l | tr -d ' ')" -ne 12 ]; then
-    echo "terminology-lint selftest: expected all 12 lines of bad.tsx flagged, got:"; printf '%s\n' "$hits"; rm -rf "$dir"; exit 2
+  if [ "$(printf '%s\n' "$hits" | grep -oE 'bad\.tsx:[0-9]+:' | sort -u | wc -l | tr -d ' ')" -ne 16 ]; then
+    echo "terminology-lint selftest: expected all 16 lines of bad.tsx flagged, got:"; printf '%s\n' "$hits"; rm -rf "$dir"; exit 2
+  fi
+  hits="$(fail=0; string_codes "$dir/bad.ts"; string_codes "$dir/good.ts"; true)"
+  if [ "$(printf '%s\n' "$hits" | grep -c 'bad\.ts:1:')" -ne 1 ] || printf '%s\n' "$hits" | grep -q 'good\.ts'; then
+    echo "terminology-lint selftest: .ts strings — expected bad.ts flagged and good.ts clean, got:"; printf '%s\n' "$hits"; rm -rf "$dir"; exit 2
   fi
   hits="$(fail=0; jsx_checks "$dir/good.tsx"; true)"
   if [ -n "$hits" ]; then
@@ -117,6 +156,10 @@ selftest
 while IFS= read -r jsx; do
   jsx_checks "$jsx"
 done < <(find ui/src -name "*.tsx" | grep -v types/generated)
+# Plain .ts carries user-facing strings too (reasons, labels, errors).
+while IFS= read -r ts; do
+  string_codes "$ts"
+done < <(find ui/src -name "*.ts" ! -name "*.test.ts" ! -name "*.d.ts" | grep -v types/generated)
 
 [ "$fail" -eq 0 ] && echo "terminology-lint: OK"
 exit $fail

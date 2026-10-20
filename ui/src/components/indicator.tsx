@@ -269,7 +269,7 @@ export function ariaSummary(session: InstanceInfo, nowMs: number = Date.now()): 
       `quota ${Math.round(100 - session.quota.used_percentage)}% left, ${session.quota.confidence}`,
     );
   } else {
-    parts.push("Quota: no data");
+    parts.push("Quota: not measured yet");
   }
   const tokens = tokenSummary(session.tokens);
   if (tokens) parts.push(tokens);
@@ -297,7 +297,7 @@ export function ariaDetails(session: InstanceInfo, nowMs: number = Date.now()): 
   parts.push(
     session.quota
       ? `quota ${Math.round(100 - session.quota.used_percentage)}% left, ${session.quota.confidence}`
-      : "Quota: no data",
+      : "Quota: not measured yet",
   );
   const tokens = tokenSummary(session.tokens);
   if (tokens) parts.push(tokens);

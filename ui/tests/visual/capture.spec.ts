@@ -251,7 +251,7 @@ test("rail — quota risk with no data group", async ({ page }) => {
   // The "no data" group is the quota sort's own grouping (no project groups).
   await page.selectOption('select[aria-label="Group by"]', "none");
   await page.selectOption('select[aria-label="Sort by"]', "quota");
-  await expect(page.getByText("no data").first()).toBeVisible();
+  await expect(page.getByText("Not measured yet").first()).toBeVisible();
   await page.screenshot({ path: resolve(GALLERY, "01-rail-sort/quota-risk-1440x900.png") });
 });
 

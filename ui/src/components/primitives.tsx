@@ -202,7 +202,7 @@ export function QuotaRing({
         aria-label={
           hasData
             ? `${Math.round(left)}% quota left`
-            : "Quota: no data"
+            : "Quota: not measured yet"
         }
         style={{ boxShadow: `0 0 20px -8px ${hasData && clamped > 0 ? color : "transparent"}` }}
       >
@@ -254,7 +254,7 @@ export function quotaTierTag(confidence: string): string {
 
 /** I-05: the quota bar for a row/card — filled by `% left`, reset
  * countdown when known, tier tag always adjacent, and the exact honest
- * empty state: dashed track + `Quota: no data` (never a fabricated 0). */
+ * empty state: dashed track + `Not measured yet` (never a fabricated 0). */
 export function QuotaBar({
   quota,
   className = "",
@@ -266,10 +266,10 @@ export function QuotaBar({
     return (
       <span
         className={`inline-flex min-w-0 items-center gap-1.5 ${className}`}
-        title="Quota: no data"
+        title="Quota: not measured yet"
       >
         <span className="inline-block h-1.5 w-14 rounded-full border border-dashed border-faint/70" />
-        <span className="whitespace-nowrap text-[10px] text-muted">Quota: no data</span>
+        <span className="whitespace-nowrap text-[10px] text-muted">Not measured yet</span>
       </span>
     );
   }

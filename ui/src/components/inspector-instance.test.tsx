@@ -147,7 +147,7 @@ describe("AJ-E407 Instance Overview (§5.1, Req.1)", () => {
     );
     expect(container.querySelector('[data-testid="instance-native-id"]')?.textContent).toContain("not found yet");
     expect(container.querySelector('[data-testid="instance-tokens"]')?.textContent).toContain("No usage recorded yet");
-    expect(container.querySelector('[data-testid="instance-quota"]')?.textContent).toContain("Quota: no data");
+    expect(container.querySelector('[data-testid="instance-quota"]')?.textContent).toContain("Not measured yet");
     expect(container.textContent).toContain("default model");
   });
 });
@@ -167,7 +167,7 @@ describe("AJ-E407 Instance Usage (Req.2)", () => {
     open(container, "usage");
     expect(container.textContent).toContain("No usage recorded yet");
     expect(container.textContent).not.toContain("Tokens / min");
-    expect(container.textContent).not.toMatch(/No data|arrives with|statusline/);
+    expect(container.textContent).not.toMatch(/no data|arrives with|statusline/i);
   });
 
   it("names the tool, not its id, and the state in the rail's words", () => {

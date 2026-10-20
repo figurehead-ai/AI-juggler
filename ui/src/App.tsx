@@ -351,6 +351,8 @@ export default function App() {
   const [accountsNonce, setAccountsNonce] = useState(0);
   // D-25: the account-limit decision, for this session id.
   const [limitFor, setLimitFor] = useState<string | null>(null);
+  // The tool chip leaves the header when its view opens: focus follows.
+  const [inspectorFocus, setInspectorFocus] = useState(0);
   const [switchFlow, setSwitchFlow] = useState<{ sessionId: string; targetProfileId: string; targetLabel: string } | null>(null);
   // AJ-E206: the 10-second undo window after a 1-click switch (the
   // edge is the undo handle). Null = no window open.
@@ -865,6 +867,7 @@ export default function App() {
                 onClick={() => {
                   setGlobal(null);
                   setSelection({ kind: "provider", id: contextProviderId });
+                  setInspectorFocus((n) => n + 1);
                 }}
                 aria-label={`About ${contextProvider}`}
                 title={`About ${contextProvider}`}
@@ -1112,6 +1115,7 @@ export default function App() {
                 </div>
               ) : (
               <RightInspector
+              focusTabsRequest={inspectorFocus}
               selection={
                 selection.kind === "session"
                   ? { kind: "instance", id: selection.id }

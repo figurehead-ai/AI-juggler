@@ -130,11 +130,13 @@ function statusTone(status: string): { tone: ChipTone; label: string } {
   return { tone, label: chip.label };
 }
 
-function since(ms: number, now: number): string {
+/** How long ago, short: "40s", "12m", "30h", then days past 48 h ("7d"). */
+export function since(ms: number, now: number): string {
   const secs = Math.max(1, Math.floor((now - ms) / 1000));
   if (secs < 60) return `${secs}s`;
   if (secs < 3600) return `${Math.floor(secs / 60)}m`;
-  return `${Math.floor(secs / 3600)}h`;
+  if (secs < 48 * 3600) return `${Math.floor(secs / 3600)}h`;
+  return `${Math.floor(secs / 86_400)}d`;
 }
 
 function KindIcon({ kind }: { kind: InspectorKind }) {
@@ -225,6 +227,7 @@ export function RightInspector({
   onRemoteBack,
   onRemoteSelect,
   onRemoteActionDone,
+  focusTabsRequest = 0,
 }: {
   selection: InspectorSelection;
   data: InspectorData;
@@ -255,6 +258,9 @@ export function RightInspector({
   onRemoteSelect?: (instanceId: string | null) => void;
   /** AJ-E705: a remote action was accepted. */
   onRemoteActionDone?: () => void;
+  /** Bumped when the opener goes away (the header's tool chip): focus
+   *  moves to the selected tab once this selection's view is shown. */
+  focusTabsRequest?: number;
 }) {
   const kind: InspectorKind | "none" | "login" = selection.kind;
   const remote = data.remote ?? null;
@@ -267,6 +273,19 @@ export function RightInspector({
   useEffect(() => {
     if (kind !== "none" && kind !== "login") setTab(readTab(kind));
   }, [kind]);
+  // A focus request waits until this kind's tab is the selected one.
+  const pendingFocus = useRef(0);
+  useEffect(() => {
+    if (focusTabsRequest > 0) pendingFocus.current = focusTabsRequest;
+  }, [focusTabsRequest]);
+  useEffect(() => {
+    if (pendingFocus.current === 0 || kind === "none" || kind === "login" || tab !== readTab(kind)) return;
+    const selected = tabsRef.current?.querySelector<HTMLElement>("[role='tab'][aria-selected='true']");
+    if (selected) {
+      selected.focus();
+      pendingFocus.current = 0;
+    }
+  });
 
   const chooseTab = (next: InspectorTab) => {
     setTab(next);
@@ -1692,22 +1711,34 @@ function SessionActions(props: PanelProps) {
 /** Provider Overview (§5.3): counts, worst-first aggregate, honest
  * capability/version badges. */
 /** What this Mac has of a tool: installed version, verified range. */
-function useToolInstall(providerId: string | null): import("../lib/bridge").ProviderInstallData | null {
-  const [install, setInstall] = useState<import("../lib/bridge").ProviderInstallData | null>(null);
+/** What's installed for one tool: null while checking (nothing shown),
+ * "failed" when the check failed or doesn't know the tool. The result is
+ * kept per tool, so another tool's version never shows while checking. */
+export function useToolInstall(
+  providerId: string | null,
+): import("../lib/bridge").ProviderInstallData | "failed" | null {
+  const [result, setResult] = useState<{
+    providerId: string;
+    install: import("../lib/bridge").ProviderInstallData | "failed";
+  } | null>(null);
   useEffect(() => {
     if (!providerId) return;
     let alive = true;
     void import("../lib/bridge")
       .then((bridge) => bridge.providersDiscover())
       .then(
-        (rows) => alive && setInstall(rows.find((row) => row.provider === providerId) ?? null),
-        () => null,
+        (rows) => {
+          if (alive) setResult({ providerId, install: rows.find((row) => row.provider === providerId) ?? "failed" });
+        },
+        () => {
+          if (alive) setResult({ providerId, install: "failed" });
+        },
       );
     return () => {
       alive = false;
     };
   }, [providerId]);
-  return install;
+  return result && result.providerId === providerId ? result.install : null;
 }
 
 /** The installed version and verified range, in words. */
@@ -1761,9 +1792,9 @@ function ProviderOverview(props: PanelProps) {
           <span className="text-muted">· {running.length} running</span>
         </div>
         {/* Shown once known; nothing in its place until then (D-25). */}
-        {install && (
+        {install !== null && (
           <p className="text-[11px] text-muted" data-testid="provider-install">
-            {installWords(install)}
+            {install === "failed" ? "Couldn't check what's installed" : installWords(install)}
           </p>
         )}
       </Card>
