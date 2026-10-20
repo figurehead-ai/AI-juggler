@@ -87,6 +87,7 @@ fn seed_account(state: &Arc<AppState>, dir: &Path, id: &str, tier1: bool, tier2:
                 import_source_path: None,
                 import_origin: None,
                 imported_at: None,
+                in_place: false,
             })
             .unwrap();
         storage
