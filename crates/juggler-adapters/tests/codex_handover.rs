@@ -151,7 +151,10 @@ fn install_places_it_where_codex_looks_and_forks_on_a_collision() {
         .unwrap()
         .to_string_lossy()
         .into_owned();
-    assert!(name.contains(&new_id) && !name.contains(THREAD), "{name}");
+    assert!(
+        name.contains(&new_id) && !name.contains(THREAD),
+        "the forked rollout is named for the new id only"
+    );
     let forked = std::fs::read_to_string(&second.reference.path).unwrap();
     assert!(!forked.contains(THREAD), "every line carries the new id");
     assert!(forked.contains(&format!("\"id\":\"{new_id}\"")));
