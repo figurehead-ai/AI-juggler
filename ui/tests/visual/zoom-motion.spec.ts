@@ -10,7 +10,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { allStatuses, DOOR_WIZARD, openSwitch } from "./fixtures";
+import { allStatuses, DOOR_WIZARD, openSwitch, expectRail } from "./fixtures";
 
 const T0 = 1_728_800_000_000;
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/AJ-E804/zoom-motion");
@@ -31,7 +31,7 @@ async function open(page: Page, theme: "dark" | "light") {
   );
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
   await page.goto("/");
-  await expect(page.getByTestId("instance-board")).toBeVisible();
+  await expectRail(page); // D-25: the list, or its icon column when narrow
 }
 
 async function shoot(page: Page, name: string) {
@@ -64,15 +64,16 @@ async function menusOnScreen(page: Page) {
 
 async function walk(page: Page, theme: string, label: string) {
   await menusOnScreen(page);
-  // Rail.
-  await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
-  await expect(page.locator("[data-instance-id]").first()).toBeVisible();
+  // Rail. D-25 (AJ-E1019): at 200 % (640 px wide) it folds to its icon
+  // column by itself; at full width it is the list.
+  const narrow = (page.viewportSize()?.width ?? 1280) < 900;
+  await expect(page.getByTestId("rail")).toHaveAttribute("data-density", narrow ? "minimal" : "comfortable");
+  if (!narrow) await expect(page.locator("[data-instance-id]").first()).toBeVisible();
   await noHorizontalScroll(page);
   expect(await runningAnimations(page), "animations under reduced motion").toEqual([]);
   await shoot(page, `rail-${label}-${theme}`);
   // Inspector.
-  await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
-  await page.getByRole("button", { name: /Work Max/ }).first().click();
+  await page.getByTestId("rail").getByRole("button", { name: /Work Max/ }).first().click();
   await expect(page.getByRole("tab", { name: "Overview" })).toBeVisible();
   await noHorizontalScroll(page);
   expect(await runningAnimations(page)).toEqual([]);

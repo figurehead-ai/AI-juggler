@@ -160,7 +160,7 @@ export function ProfilesScreen({
         <div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
         <Button variant="secondary" size="sm" onClick={() => setAddProvider(true)} data-testid="add-provider">
           <IconProfiles width={14} height={14} />
-          Add Provider
+          Add a tool
         </Button>
         <Button variant="primary" size="sm" onClick={() => (onAddAccounts ? onAddAccounts() : setAddAccount(true))} data-testid="add-account">
           <IconProfiles width={14} height={14} />
@@ -288,8 +288,8 @@ function EmptyAccounts({ onAdd }: { onAdd: () => void }) {
         <IconProfiles width={22} height={22} />
       </span>
       <p className="max-w-sm text-center text-sm text-muted">
-        No accounts yet. Add your first Provider sign-in — AI Juggler keeps its
-        state fully isolated from any existing install.
+        No accounts yet. Add your first one: AI Juggler keeps each account's sign-in in its
+        own folder, apart from anything you already use.
       </p>
       <Button variant="primary" size="sm" onClick={onAdd} data-testid="finish-setup">
         {dismissed ? "Finish setting up AI Juggler" : "Add account"}

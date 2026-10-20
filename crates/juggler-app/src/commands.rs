@@ -547,7 +547,7 @@ pub fn quota_display_inner(
     let mut unavailable_reason = None;
     let (five_hour, five_hour_reason, weekly, weekly_reason) = match provider {
         "gemini" | "antigravity" => {
-            unavailable_reason = Some("No verified quota source for this Provider yet".to_owned());
+            unavailable_reason = Some("No verified quota source for this tool yet".to_owned());
             (None, None, None, None)
         }
         // Codex Pro has no 5 h limit (AJ-E603): omit that ring with
@@ -9090,7 +9090,7 @@ pub fn cleanup_alerts_inner(state: &Arc<AppState>) -> CleanupAlertsInfo {
             alerts.push(CleanupAlertInfo {
                 kind: "hog".into(),
                 text: format!(
-                    "{helper} under {instance} holds {} — review in Cleanup Centre.",
+                    "{helper} under {instance} holds {} — review it in Cleanup.",
                     rss_text(top.rss_bytes)
                 ),
                 pid: top.pid,
@@ -9150,7 +9150,7 @@ pub fn cleanup_alerts_inner(state: &Arc<AppState>) -> CleanupAlertsInfo {
         alerts.push(CleanupAlertInfo {
             kind: "idle".into(),
             text: format!(
-                "{helper} has been idle for {} — review it in the Cleanup Centre.",
+                "{helper} has been idle for {} — review it in Cleanup.",
                 age_text(age)
             ),
             pid,
