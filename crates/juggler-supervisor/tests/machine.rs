@@ -33,7 +33,7 @@ fn the_sampler_constructs_one_system_and_reads_real_memory() {
     let before = system_construction_count();
     let mut sampler = MachineSampler::with_readings(Box::new(Fixed));
     for i in 0..4 {
-        sampler.tick(i * 2_000, || vec![std::env::temp_dir()]);
+        sampler.tick_with(i * 2_000, || vec![std::env::temp_dir()]);
     }
     assert_eq!(
         system_construction_count() - before,
@@ -66,7 +66,7 @@ fn live_reading() {
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     let mut sampler = MachineSampler::new();
     for i in 0..3 {
-        sampler.tick(i * 2_000, || vec![std::env::temp_dir()]);
+        sampler.tick_with(i * 2_000, || vec![std::env::temp_dir()]);
         std::thread::sleep(std::time::Duration::from_millis(500));
     }
     let snapshot = sampler.snapshot();
@@ -100,17 +100,33 @@ fn tick_cost_stays_inside_the_budget() {
     let mut sampler = MachineSampler::new();
     // The first tick lists the disks (50–150 ms, once per 10 minutes);
     // the budget is the steady state.
-    sampler.tick(0, || vec![std::env::temp_dir()]);
-    let mut costs: Vec<u128> = (0..60)
-        .map(|i| {
-            let started = std::time::Instant::now();
-            sampler.tick((i + 1) * 2_000, || vec![std::env::temp_dir()]);
-            started.elapsed().as_micros()
-        })
-        .collect();
+    sampler.tick_with(0, || vec![std::env::temp_dir()]);
+    let mut costs: Vec<u128> = Vec::new();
+    let mut locked: Vec<u128> = Vec::new();
+    for i in 0..60 {
+        let started = std::time::Instant::now();
+        // What runs under the lock the UI also reads …
+        let work = sampler.tick((i + 1) * 2_000);
+        locked.push(started.elapsed().as_micros());
+        // … and the disk half, done outside it.
+        if let Some(mut work) = work {
+            let volumes = work.volumes(&[std::env::temp_dir()]);
+            sampler.finish_disks(work, volumes);
+        }
+        costs.push(started.elapsed().as_micros());
+    }
     costs.sort_unstable();
+    locked.sort_unstable();
     let p95 = costs[costs.len() * 95 / 100];
     let median = costs[costs.len() / 2];
-    println!("machine tick: median {median} µs, p95 {p95} µs over 60 ticks");
+    let locked_max = *locked.last().unwrap();
+    let locked_p95 = locked[locked.len() * 95 / 100];
+    println!(
+        "machine tick: median {median} µs, p95 {p95} µs over 60 ticks; under the lock p95 {locked_p95} µs, max {locked_max} µs"
+    );
     assert!(p95 < 2_000, "p95 {p95} µs");
+    // Never the disk listing (50–150 ms) under the lock; the max allows
+    // scheduler jitter on a loaded machine.
+    assert!(locked_p95 < 2_000, "lock held p95 {locked_p95} µs");
+    assert!(locked_max < 20_000, "lock held {locked_max} µs");
 }
