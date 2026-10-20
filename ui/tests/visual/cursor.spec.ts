@@ -28,8 +28,11 @@ async function seed(page: Page) {
 }
 
 /** Enabled, visible clickable things whose cursor isn't the hand. */
-async function notPointing(page: Page): Promise<{ count: number; wrong: string[] }> {
+async function notPointing(page: Page): Promise<{ count: number; wrong: string[]; disabledHands: string[] }> {
   return page.evaluate(() => {
+    const disabledHands = [...document.querySelectorAll<HTMLElement>("button:disabled, [aria-disabled='true'], select:disabled")]
+      .filter((el) => el.getBoundingClientRect().width > 0 && getComputedStyle(el).cursor === "pointer")
+      .map((el) => `${el.tagName.toLowerCase()} "${(el.getAttribute("aria-label") ?? el.innerText ?? "").trim().slice(0, 40)}"`);
     const native =
       'button, [role="button"], a[href], summary, select, label:has(> input[type="checkbox"]), label:has(> input[type="radio"])';
     const wrong: string[] = [];
@@ -50,14 +53,15 @@ async function notPointing(page: Page): Promise<{ count: number; wrong: string[]
         wrong.push(`${el.tagName.toLowerCase()} "${(el.getAttribute("aria-label") ?? el.innerText ?? "").trim().slice(0, 40)}"`);
       }
     }
-    return { count, wrong };
+    return { count, wrong, disabledHands };
   });
 }
 
 async function expectHands(page: Page, where: string) {
-  const { count, wrong } = await notPointing(page);
+  const { count, wrong, disabledHands } = await notPointing(page);
   expect(count, `${where}: some controls were checked`).toBeGreaterThan(3);
   expect(wrong, `${where}: clickable without the hand cursor`).toEqual([]);
+  expect(disabledHands, `${where}: a disabled control shows the hand`).toEqual([]);
 }
 
 test("every clickable control shows the hand — the main screens", async ({ page }) => {

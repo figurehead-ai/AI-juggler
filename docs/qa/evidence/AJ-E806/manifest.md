@@ -271,7 +271,7 @@
      to regular files. It now recreates each link as a link (never
      followed; an absolute link inside the setup is pointed at the copy)
      and lists it in the result. Regression:
-     `claude_environment :: symlinks_are_recreated_as_links_never_followed`.
+     `claude_environment :: linked_folders_stay_links_and_linked_files_are_copied`.
   2. No hand cursor anywhere: the shared Button and several rows set
      `cursor-default`. Fixed at the source and in a base rule for every
      native control. Regression: `cursor.spec.ts` checks every enabled

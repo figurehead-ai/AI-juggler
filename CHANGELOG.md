@@ -73,10 +73,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bringing in a Claude setup that has a linked folder (for example a
   skill under `skills/` that is a link to somewhere else) no longer fails
-  with "cannot copy skills/…". The link is kept as a link — AI Juggler
-  never follows it or copies what it points to — and the import says
-  which links it kept. A link to a sign-in file is skipped; sign in once
-  instead.
+  with "cannot copy skills/…". The folder is kept as a link that points
+  where it did — AI Juggler never follows it or copies what it points to
+  — and the import says which links it kept. Linked files are still
+  copied, so the copy never shares a file with your original. A broken
+  link, or one this system won't let AI Juggler make, is left out with a
+  note instead of failing the import.
 - Everything you can click shows the pointing hand: buttons, rows,
   menus, filters, checkboxes and links all showed the arrow.
 - The bring-in screen can always be closed: **Not now** at first run,

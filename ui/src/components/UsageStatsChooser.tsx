@@ -60,9 +60,9 @@ export function UsageStatsChooser({
           <label
             key={option.value}
             className={
-              "flex cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-2 text-xs transition-colors " +
+              "flex items-start gap-2.5 rounded-lg border px-3 py-2 text-xs transition-colors " +
               (checked ? "border-accent/40 bg-accent-soft" : "border-hairline hover:border-accent/30") +
-              (disabled ? " opacity-70" : "")
+              (disabled ? " cursor-default opacity-70" : " cursor-pointer")
             }
             data-testid="usage-stats-option"
             data-value={option.value}
