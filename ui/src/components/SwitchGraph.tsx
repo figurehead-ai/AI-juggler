@@ -75,7 +75,7 @@ function GraphNode({
         {epoch.resumable ? "resumable" : "no transcript"}
       </span>
       <span className="sr-only">
-        {`, provider ${epoch.provider}, ${epoch.kind} session${shape.fork ? ", forks here" : ""}${shape.merge ? ", converges here" : ""}`}
+        {`, ${providerDisplayName(epoch.provider)}, ${epoch.kind} session${shape.fork ? ", forks here" : ""}${shape.merge ? ", converges here" : ""}`}
       </span>
     </button>
   );

@@ -163,6 +163,25 @@ describe("D-25 Home — the screen", () => {
     expect(item.textContent).toContain("Finish signing in in the terminal that opened");
   });
 
+  it("a Codex account's sign-in names Codex's own sign-in (OpenAI)", () => {
+    const accounts = [{ ...ACCOUNTS[0]!, provider: "codex", login_state: "logged_out" }] as AccountInfo[];
+    const { getByTestId } = render(
+      <HomeScreen
+        sessions={[]}
+        accounts={accounts}
+        projects={PROJECTS}
+        now={NOW}
+        onOpenSession={() => null}
+        onNewSession={() => null}
+        onAddAccounts={() => null}
+        openLoginTerminal={() => null}
+      />,
+    );
+    const item = getByTestId("home-signin");
+    expect(item.textContent).toContain("Codex's own sign-in (OpenAI)");
+    expect(item.textContent).not.toContain("Claude's own sign-in");
+  });
+
   it("no accounts: one plain next step", () => {
     const onAddAccounts = vi.fn();
     const { getByTestId, getByRole } = renderHome([], [], { onAddAccounts });
