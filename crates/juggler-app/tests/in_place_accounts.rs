@@ -70,7 +70,12 @@ fn snapshot(root: &Path) -> Vec<(String, u64, std::time::SystemTime)> {
     fn walk(dir: &Path, root: &Path, out: &mut Vec<(String, u64, std::time::SystemTime)>) {
         for entry in std::fs::read_dir(dir).unwrap().flatten() {
             let meta = std::fs::symlink_metadata(entry.path()).unwrap();
-            let rel = entry.path().strip_prefix(root).unwrap().to_string_lossy().into_owned();
+            let rel = entry
+                .path()
+                .strip_prefix(root)
+                .unwrap()
+                .to_string_lossy()
+                .into_owned();
             out.push((rel, meta.len(), meta.modified().unwrap()));
             if meta.is_dir() {
                 walk(&entry.path(), root, out);
@@ -147,11 +152,20 @@ fn a_setup_used_where_it_is_is_never_written_by_ai_juggler() {
     // Launch with a model: flags, not edits.
     launch_and_wait(&state, &result.account.id, Some("opus"));
     let lines = std::fs::read_to_string(&log).unwrap();
-    assert!(lines.contains(&format!("dir={}\n", folder.display())), "{lines}");
-    assert!(lines.contains("arg=--model\narg=opus\n"), "{lines}");
-    let overlays = work.path().join("app-data/overlays").join(&result.account.id);
     assert!(
-        lines.contains(&format!("arg=--settings\narg={}", overlays.join("launch-settings.json").display())),
+        lines.contains(&format!("dir={}\n", folder.display())),
+        "{lines}"
+    );
+    assert!(lines.contains("arg=--model\narg=opus\n"), "{lines}");
+    let overlays = work
+        .path()
+        .join("app-data/overlays")
+        .join(&result.account.id);
+    assert!(
+        lines.contains(&format!(
+            "arg=--settings\narg={}",
+            overlays.join("launch-settings.json").display()
+        )),
         "{lines}"
     );
     // The capture chains the user's own status line, from AI Juggler's folder.
@@ -164,7 +178,10 @@ fn a_setup_used_where_it_is_is_never_written_by_ai_juggler() {
     // Its checklist passes, honestly worded.
     let rows = commands::isolation_check_impl(&state, &result.account.id).unwrap();
     assert!(rows.iter().all(|row| row.pass), "{rows:?}");
-    assert!(rows.iter().any(|row| row.label == "Uses your folder where it is"));
+    assert!(
+        rows.iter()
+            .any(|row| row.label == "Uses your folder where it is")
+    );
 
     // The same folder can't come in twice.
     let again = commands::account_import_mode_impl(
@@ -179,7 +196,11 @@ fn a_setup_used_where_it_is_is_never_written_by_ai_juggler() {
     );
     assert!(again.is_err());
 
-    assert_eq!(snapshot(&folder), before, "nothing in the user's folder changed");
+    assert_eq!(
+        snapshot(&folder),
+        before,
+        "nothing in the user's folder changed"
+    );
 }
 
 #[test]
@@ -206,7 +227,10 @@ fn a_copy_keeps_its_settings_file_when_a_profile_sets_a_model() {
     launch_and_wait(&state, &result.account.id, Some("opus"));
     let lines = std::fs::read_to_string(&log).unwrap();
     assert!(lines.contains("arg=--model\narg=opus\n"), "{lines}");
-    assert!(!lines.contains("arg=--settings"), "copies keep their own status line install");
+    assert!(
+        !lines.contains("arg=--settings"),
+        "copies keep their own status line install"
+    );
     assert_eq!(
         std::fs::read_to_string(copy.join("settings.json")).unwrap(),
         settings,
@@ -243,9 +267,15 @@ fn ai_juggler_s_own_copy_or_a_non_setup_cannot_be_used_in_place() {
         )
     };
     let copy_dir = state_dir(&state, &copy.account.id);
-    assert!(in_place(copy_dir.to_str().unwrap()).is_err(), "our own copy");
+    assert!(
+        in_place(copy_dir.to_str().unwrap()).is_err(),
+        "our own copy"
+    );
     let empty = work.path().join("not-claude");
     std::fs::create_dir_all(&empty).unwrap();
     assert!(in_place(empty.to_str().unwrap()).is_err(), "not a setup");
-    assert!(in_place(work.path().join("gone").to_str().unwrap()).is_err(), "missing");
+    assert!(
+        in_place(work.path().join("gone").to_str().unwrap()).is_err(),
+        "missing"
+    );
 }

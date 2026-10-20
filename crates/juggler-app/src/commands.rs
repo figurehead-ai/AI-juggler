@@ -2969,7 +2969,11 @@ pub fn account_import_mode_impl(
         // The folder exactly as found (Claude's Keychain name hashes the
         // path string), without a trailing separator.
         let trimmed = source_path.trim_end_matches(['/', '\\']);
-        let folder = std::path::PathBuf::from(if trimmed.is_empty() { source_path } else { trimmed });
+        let folder = std::path::PathBuf::from(if trimmed.is_empty() {
+            source_path
+        } else {
+            trimmed
+        });
         let outcome = adapter.adopt_account(&folder)?;
         (folder, outcome)
     } else {
@@ -12989,7 +12993,8 @@ pub fn environment_scan_full_impl(
     if let Ok(storage) = state.storage.lock()
         && let Ok(accounts) = storage.accounts().list()
     {
-        let canonical = |path: &std::path::Path| path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+        let canonical =
+            |path: &std::path::Path| path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
         let in_place: Vec<std::path::PathBuf> = accounts
             .iter()
             .filter(|account| account.in_place)

@@ -3,7 +3,12 @@
 //! Keychain sign-in and `~/.claude.json` apply. Any other folder is set
 //! exactly, as the profile manager sets it.
 
-#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::pedantic)]
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::pedantic
+)]
 #![cfg(unix)]
 
 use juggler_adapter::launch::ENV_UNSET;
@@ -28,12 +33,18 @@ fn the_default_folder_runs_unset_and_others_run_exactly() {
     assert!(!is_vendor_default_dir_in(&other, home.path()));
 
     assert_eq!(config_dir_value_in(&default, home.path()), ENV_UNSET);
-    assert_eq!(config_dir_value_in(&other, home.path()), other.to_str().unwrap());
+    assert_eq!(
+        config_dir_value_in(&other, home.path()),
+        other.to_str().unwrap()
+    );
 
     // Claude keeps the default folder's state file beside it.
     assert_eq!(
         claude_state_file_in(&default, home.path()),
         home.path().join(".claude.json")
     );
-    assert_eq!(claude_state_file_in(&other, home.path()), other.join(".claude.json"));
+    assert_eq!(
+        claude_state_file_in(&other, home.path()),
+        other.join(".claude.json")
+    );
 }

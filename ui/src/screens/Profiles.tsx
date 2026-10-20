@@ -340,7 +340,10 @@ function AccountCard({
             <span className="truncate text-sm font-semibold">{account.label}</span>
             {account.plan && <Chip tone="accent">{account.plan}</Chip>}
           </div>
-          <span className="text-[11px] text-muted">{providerDisplayName(account.provider)}</span>
+          <span className="truncate text-[11px] text-muted" title={account.import_source_path ?? undefined} data-testid="account-placement">
+            {providerDisplayName(account.provider)}
+            {placementWords(account) && ` · ${placementWords(account)}`}
+          </span>
         </div>
         <div className="ml-auto flex items-center gap-2">
           {renewalRowVisible(renewalLabel(account.renewal_date, now)) && (
@@ -626,4 +629,17 @@ function RecipeEnvEditor({
     return <p className="text-[11px] text-muted">Loading…</p>;
   }
   return <EnvOverlayEditor recipeId={recipeId} protectedKeys={protectedKeys} />;
+}
+
+/** ADR-0018: where an account lives, in a few words — "uses ~/x where
+ * it is" or "a copy of ~/x"; nothing for an account made fresh here. */
+export function placementWords(account: AccountInfo): string | null {
+  if (!account.import_source_path) return null;
+  const where = shortPath(account.import_source_path);
+  return account.in_place ? `uses ${where} where it is` : `a copy of ${where}`;
+}
+
+/** `/Users/<you>/x` → `~/x`, for a line of text. */
+function shortPath(path: string): string {
+  return path.replace(/^\/Users\/[^/]+/, "~").replace(/^\/home\/[^/]+/, "~");
 }

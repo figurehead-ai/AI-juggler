@@ -280,3 +280,16 @@
   3. The bring-in screen had no way out at first run (Close only in add
      mode, Escape only in add mode). Regression: `first-run.test.tsx ::
      first run can be left too…`.
+- Real bugs found while building AJ-E1024 (2026-10-20, the maintainer's
+  bring-in report plus code reading):
+  1. A launch setting with a model replaced the account's whole
+     `settings.json` with `{"model": …}` on every launch, wiping hooks,
+     permissions and the status line in copies. Now `claude --model`.
+     Regression: `in_place_accounts :: a_copy_keeps_its_settings_file_when_a_profile_sets_a_model`.
+  2. One failed setup trapped the bring-in: no Continue, "Try again"
+     reran all of them and lost the others' sign-ins, and closing
+     mid-way kept importing unseen. Regressions: `first-run.test.tsx`
+     (Continue, Try again, Stop).
+  3. A copy whose account record failed to save left its copied folder
+     behind (no sweep). It is now removed at once (marked copies only).
+

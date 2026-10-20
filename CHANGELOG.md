@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bringing in your Claude setups now **uses them where they are** by
+  default: your Claude app and AI Juggler share one sign-in, one history
+  and one set of settings, and AI Juggler doesn't change your files.
+  Signed-in setups stay signed in. **Make separate copies** is right
+  next to it if you want an isolated sandbox. Each account in Accounts
+  says which it is.
+- When some setups come in and some don't, you choose: **Continue** with
+  the ones that came in, **Try again** for the others, or — for a copy
+  that failed — **Use it where it is instead**. Close or Esc while
+  bringing them in means **Stop**: the one in progress finishes and the
+  rest wait.
 - Cleanup says what it is in one line instead of "Tier 0 observe ·
   verified manual kills". Pause automatic cleanup and Cleanup settings
   sit behind ⋯, and Resume is on the "paused" banner. The machine filter
@@ -71,6 +82,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A launch setting that picks a model no longer rewrites the account's
+  `settings.json` (it replaced the whole file, losing hooks and
+  permissions); the model goes in as Claude's own `--model` option.
 - Bringing in a Claude setup that has a linked folder (for example a
   skill under `skills/` that is a link to somewhere else) no longer fails
   with "cannot copy skills/…". The folder is kept as a link that points

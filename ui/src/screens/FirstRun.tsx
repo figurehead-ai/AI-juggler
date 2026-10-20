@@ -394,17 +394,19 @@ function FoundStep({
                 type="radio"
                 name="first-run-placement"
                 value={option.id}
+                aria-labelledby={`first-run-placement-${option.id}-title`}
+                aria-describedby={`first-run-placement-${option.id}-detail`}
                 checked={placement === option.id}
                 disabled={busy}
                 onChange={() => setPlacement(option.id)}
                 className="mt-0.5 size-4 shrink-0 accent-[var(--color-accent)]"
               />
               <span className="flex flex-col gap-0.5">
-                <span className="text-sm font-medium text-ink">
+                <span id={`first-run-placement-${option.id}-title`} className="text-sm font-medium text-ink">
                   {option.title}
                   {option.id === "in_place" && <span className="ml-1.5 text-xs font-normal text-muted">Recommended</span>}
                 </span>
-                <span className="text-xs leading-relaxed text-muted">{option.detail}</span>
+                <span id={`first-run-placement-${option.id}-detail`} className="text-xs leading-relaxed text-muted">{option.detail}</span>
               </span>
             </label>
           ))}
@@ -902,7 +904,7 @@ export function FirstRun({
           variant="secondary"
           onClick={leave}
           disabled={stopping}
-          title="Esc"
+          aria-keyshortcuts="Escape"
           data-testid="first-run-close"
         >
           {stopping ? "Stopping after this one…" : importing ? "Stop" : mode === "add" ? "Close" : "Not now"}

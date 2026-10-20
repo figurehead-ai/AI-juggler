@@ -95,9 +95,9 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
             "claude-code" => {
                 // ADR-0018: an in-place account's capture lives in AI
                 // Juggler's own folder; its folder is never written.
-                let spool = account
-                    .in_place
-                    .then(|| juggler_adapters::overlay_spool_path(&state.overlays_dir(), &account_id));
+                let spool = account.in_place.then(|| {
+                    juggler_adapters::overlay_spool_path(&state.overlays_dir(), &account_id)
+                });
                 ingest_claude(
                     &account_id,
                     &dir,

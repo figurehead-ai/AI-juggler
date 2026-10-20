@@ -6,7 +6,7 @@
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { AccountRunway, paceWords, runwayLines, windowLine } from "./AccountRunway";
-import { activityWords, bestForNewWork } from "../screens/Profiles";
+import { activityWords, bestForNewWork, placementWords } from "../screens/Profiles";
 import type { AccountInfo, InstanceInfo, QuotaDisplayData } from "../lib/bridge";
 
 afterEach(cleanup);
@@ -75,5 +75,17 @@ describe("D-25 Accounts — activity and the best pick", () => {
     const displays = [display(10, 90), { ...display(40, 30), account: "personal" }, { ...display(0, 0), account: "out" }];
     expect(bestForNewWork(accounts, displays, [])).toMatchObject({ account: { id: "personal" }, left: 60 });
     expect(bestForNewWork(accounts, [], [])).toBeNull();
+  });
+});
+
+describe("ADR-0018 where an account lives", () => {
+  const account = (extra: Partial<AccountInfo>): AccountInfo =>
+    ({ id: "a", provider: "claude-code", label: "Work", in_place: false, ...extra }) as AccountInfo;
+  it("says whether it uses your folder or is a copy; nothing for a fresh account", () => {
+    expect(placementWords(account({ in_place: true, import_source_path: "/Users/you/.claude-work" }))).toBe(
+      "uses ~/.claude-work where it is",
+    );
+    expect(placementWords(account({ import_source_path: "/Users/you/.claude" }))).toBe("a copy of ~/.claude");
+    expect(placementWords(account({}))).toBeNull();
   });
 });

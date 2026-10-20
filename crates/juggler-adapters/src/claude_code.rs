@@ -395,7 +395,10 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         // override can never repoint the config dir (AJ-E309 — the
         // env editor refuses these keys too; this is the backstop).
         let mut env: EnvMap = profile.settings_overlay.env.clone();
-        env.insert(ENV_CONFIG_DIR.to_string(), config_dir_value(&account.state_dir));
+        env.insert(
+            ENV_CONFIG_DIR.to_string(),
+            config_dir_value(&account.state_dir),
+        );
         let (mut args, needs_pty) = match mode {
             LaunchMode::Interactive => (Vec::new(), true),
             // `claude "<prompt>"` — an interactive session whose first
@@ -433,8 +436,11 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         }
         if account.in_place
             && let Some(root) = &self.overlays_root
-            && let Ok(settings) =
-                crate::quota_ingest::ensure_launch_overlay(root, account.id.as_str(), &account.state_dir)
+            && let Ok(settings) = crate::quota_ingest::ensure_launch_overlay(
+                root,
+                account.id.as_str(),
+                &account.state_dir,
+            )
         {
             leading.extend([
                 "--settings".to_owned(),
@@ -808,7 +814,10 @@ pub fn config_dir_value_in(dir: &Path, home: &Path) -> String {
 /// `CLAUDE_CONFIG_DIR` is unset).
 #[must_use]
 pub fn claude_state_file(dir: &Path) -> PathBuf {
-    home_dir().map_or_else(|| dir.join(".claude.json"), |home| claude_state_file_in(dir, &home))
+    home_dir().map_or_else(
+        || dir.join(".claude.json"),
+        |home| claude_state_file_in(dir, &home),
+    )
 }
 
 /// [`claude_state_file`] for an explicit home folder (pure, testable).

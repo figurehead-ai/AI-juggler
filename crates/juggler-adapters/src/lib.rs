@@ -28,9 +28,9 @@ pub use claude_transcript::{
 pub use fake::{FAKE_HARNESS_ID, FakeHarnessAdapter};
 pub use quota_ingest::{
     SourceHealth, TailOutcome, ensure_launch_overlay, install_statusline, overlay_dir,
-    overlay_spool_path, rollout_events, rotate_spool_if_needed,
-    spool_path, statusline_samples, tail_rollout, tail_spool, tail_transcript,
-    uninstall_statusline, zcode_events, zcode_is_peak, zcode_multiplier,
+    overlay_spool_path, rollout_events, rotate_spool_if_needed, spool_path, statusline_samples,
+    tail_rollout, tail_spool, tail_transcript, uninstall_statusline, zcode_events, zcode_is_peak,
+    zcode_multiplier,
 };
 pub mod fake_desktop;
 pub use fake_desktop::{FAKE_DESKTOP_ID, FakeDesktopAdapter, SINGLE_ACCOUNT_LABEL};

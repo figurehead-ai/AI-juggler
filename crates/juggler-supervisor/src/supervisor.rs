@@ -2643,12 +2643,18 @@ mod env_overlay_tests {
     #[test]
     fn the_unset_marker_removes_the_variable() {
         let mut env = juggler_adapter::EnvMap::new();
-        env.insert("CLAUDE_CONFIG_DIR".into(), juggler_adapter::launch::ENV_UNSET.into());
+        env.insert(
+            "CLAUDE_CONFIG_DIR".into(),
+            juggler_adapter::launch::ENV_UNSET.into(),
+        );
         env.insert("KEEP".into(), "yes".into());
         let mut command = std::process::Command::new("true");
         super::apply_env(&mut command, &env);
         let envs: Vec<_> = command.get_envs().collect();
         assert!(envs.contains(&(std::ffi::OsStr::new("CLAUDE_CONFIG_DIR"), None)));
-        assert!(envs.contains(&(std::ffi::OsStr::new("KEEP"), Some(std::ffi::OsStr::new("yes")))));
+        assert!(envs.contains(&(
+            std::ffi::OsStr::new("KEEP"),
+            Some(std::ffi::OsStr::new("yes"))
+        )));
     }
 }
