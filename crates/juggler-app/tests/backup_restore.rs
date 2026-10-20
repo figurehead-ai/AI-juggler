@@ -505,7 +505,7 @@ fn damaged_newer_and_unsafe_archives_are_refused_with_the_reason() {
     let refused = backup::backup_restore_impl(&b, &archive, &plan.token)
         .unwrap_err()
         .to_string();
-    assert!(refused.contains("stop every running Instance"), "{refused}");
+    assert!(refused.contains("stop every running session"), "{refused}");
 }
 
 #[test]

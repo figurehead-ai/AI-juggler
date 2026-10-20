@@ -340,7 +340,7 @@ export function CleanupCentre(props: {
       <p aria-live="polite" className="sr-only" data-testid="cleanup-filter-announcement">
         {`Cleanup filter: ${
           CLEANUP_FILTERS.find((entry) => entry.id === filter)?.label ?? filter
-        } — ${visibleGroups.length} Instance ${
+        } — ${visibleGroups.length} session ${
           visibleGroups.length === 1 ? "group" : "groups"
         }`}
       </p>
@@ -524,8 +524,8 @@ export function CleanupCentre(props: {
       )}
 
       <p className="text-[10px] text-faint" data-testid="cleanup-glossary">
-        An <dfn>orphan</dfn> is a process still running after its Instance closed; a{" "}
-        <dfn>helper</dfn> is any process an Instance spawned (dev server, watcher…).
+        An <dfn>orphan</dfn> is a process still running after its session closed; a{" "}
+        <dfn>helper</dfn> is any process a session spawned (dev server, watcher…).
       </p>
     </div>
   );

@@ -177,8 +177,7 @@ pub fn instance_park_impl(state: &Arc<AppState>, session_id: &str) -> AppResult<
     if session.status != SessionStatus::QuotaBlocked {
         return Err(AppError::Validation {
             subject: "park",
-            message: "only an Instance blocked by its quota can be parked until the reset"
-                .to_owned(),
+            message: "only a session blocked by its quota can be parked until the reset".to_owned(),
         });
     }
     let dir = state.data_dir.join("parked").join(session_id);
@@ -315,7 +314,7 @@ pub fn parked_dismiss_impl(state: &Arc<AppState>, session_id: &str) -> AppResult
     let row = parked
         .get_mut(session_id)
         .ok_or_else(|| AppError::NotFound {
-            entity: "parked Instance",
+            entity: "parked session",
             id: session_id.to_owned(),
         })?;
     if row.snoozed_until_ms.is_none() {
@@ -338,7 +337,7 @@ pub fn parked_check_now_impl(state: &Arc<AppState>, session_id: &str) -> AppResu
     let row = parked
         .get_mut(session_id)
         .ok_or_else(|| AppError::NotFound {
-            entity: "parked Instance",
+            entity: "parked session",
             id: session_id.to_owned(),
         })?;
     row.resets_at_ms = resets_at_ms;
@@ -363,7 +362,7 @@ pub fn parked_resume_impl(
     let parked = load(state);
     if !parked.contains_key(session_id) {
         return Err(AppError::NotFound {
-            entity: "parked Instance",
+            entity: "parked session",
             id: session_id.to_owned(),
         });
     }
@@ -374,7 +373,7 @@ pub fn parked_resume_impl(
             .clone()
             .ok_or_else(|| AppError::Validation {
                 subject: "resume",
-                message: "the parked Instance has no native session to resume".to_owned(),
+                message: "the parked session has no conversation to resume".to_owned(),
             })?;
     let native = reference.native_id.clone().unwrap_or_default();
     let project_id = session
@@ -382,7 +381,7 @@ pub fn parked_resume_impl(
         .clone()
         .ok_or_else(|| AppError::Validation {
             subject: "resume",
-            message: "the parked Instance isn't linked to a project".to_owned(),
+            message: "the parked session isn't linked to a project".to_owned(),
         })?;
     let (profile, project) = {
         let storage = crate::commands::lock_storage_arc(state)?;

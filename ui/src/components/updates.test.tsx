@@ -77,13 +77,13 @@ describe("AJ-E1010 updates", () => {
     expect(container.querySelector("[data-testid='update-install']")!.textContent).toBe("Retry");
     unmount();
     w().__AIJ_UPDATE_STATUS__ = { ...base, state: "installed", available };
-    w().__AIJ_UPDATE_RESTART_ERROR__ = "invalid update: 2 Instances are still running — restarting would stop them. Restart when they finish.";
+    w().__AIJ_UPDATE_RESTART_ERROR__ = "invalid update: 2 sessions are still running — restarting would stop them. Restart when they finish.";
     const second = render(<UpdatesCard />);
     await waitFor(() => expect(second.container.querySelector("[data-testid='update-restart']")).not.toBeNull());
     await act(async () => {
       fireEvent.click(second.container.querySelector("[data-testid='update-restart']")!);
     });
-    expect(second.container.querySelector("[data-testid='update-error']")!.textContent).toContain("2 Instances are still running");
+    expect(second.container.querySelector("[data-testid='update-error']")!.textContent).toContain("2 sessions are still running");
   });
 
   it("the launch-time check can be turned off", async () => {

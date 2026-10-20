@@ -99,7 +99,7 @@ describe("AJ-E407 Session Overview (§5.2, Req.5/6)", () => {
     const stamp = container.querySelector('[data-testid="session-ended-stamp"]');
     expect(stamp?.textContent).toMatch(/Ended \d{2}:\d{2}/);
     expect(container.querySelector('[data-testid="session-tokens"]')?.textContent).toContain("1,500");
-    expect(container.textContent).toContain("owning Instance");
+    expect(container.textContent).toContain("owning session");
     // Never zeroed stats: unreadable transcript renders the exact copy.
     expect(container.querySelector('[data-testid="session-transcript"]')?.textContent).toContain(
       "Transcript not readable yet",

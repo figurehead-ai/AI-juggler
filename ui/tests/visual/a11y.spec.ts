@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-import { allStatuses, answerPolicy, honestEmpty, type FixtureSet, goTo, openFilters } from "./fixtures";
+import { allStatuses, answerPolicy, honestEmpty, type FixtureSet, goTo, openFilters, openSwitch } from "./fixtures";
 
 // D-25: a fresh install opens first run; these captures document the
 // Add-account wizard, so they open it the way Add account does.
@@ -189,7 +189,7 @@ for (const theme of ["dark", "light"] as const) {
                 pgid: 8100,
                 role: "helper",
                 state: "orphaned",
-                state_label: "Still running after its Instance closed",
+                state_label: "Still running after its session closed",
                 role_guess: "python3 (guess)",
                 exe_path: "/usr/bin/python3",
                 cmdline: "python3 -m http.server 5173",
@@ -410,7 +410,7 @@ for (const theme of ["dark", "light"] as const) {
         theme,
         recovery: {
           summary:
-            "2 Instances re-adopted, 1 helpers left behind, 1 processes could not be verified and were left alone.",
+            "2 sessions re-adopted, 1 helpers left behind, 1 processes could not be verified and were left alone.",
           adopted: 2,
           left_behind: 1,
           unverifiable: 1,
@@ -555,7 +555,7 @@ for (const theme of ["dark", "light"] as const) {
               rows: [
                 {
                   machine_id: "machine-local", pid: 8123, pgid: 8100, role: "helper",
-                  state: "orphaned", state_label: "Still running after its Instance closed",
+                  state: "orphaned", state_label: "Still running after its session closed",
                   role_guess: "python3 (guess)", exe_path: "/usr/bin/python3",
                   cmdline: "python3 -m http.server 5173", age_ms: 9_000_000,
                   rss_bytes: 48 * 1024 * 1024, cpu_pct: 1.4, ports: "5173",
@@ -568,7 +568,7 @@ for (const theme of ["dark", "light"] as const) {
                 },
                 {
                   machine_id: "machine-studio", pid: 9101, pgid: 9100, role: "helper",
-                  state: "orphaned", state_label: "Still running after its Instance closed",
+                  state: "orphaned", state_label: "Still running after its session closed",
                   role_guess: "node (guess)", exe_path: "/usr/local/bin/node",
                   cmdline: "node vite dev", age_ms: 4_000_000,
                   rss_bytes: 220 * 1024 * 1024, cpu_pct: 0.4, ports: "5174",
@@ -769,6 +769,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.goto("/");
     await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
     await page.getByRole("button", { name: /Work Max/ }).first().click();
+    await openSwitch(page);
     await page.getByTestId("handover-section")
       // AJ-E209: the ranked, badged row is the switch entry point.
       .locator("button[data-row]:not(:disabled)")
@@ -843,6 +844,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.goto("/");
     await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
     await page.getByRole("button", { name: /Work Max/ }).first().click();
+    await openSwitch(page);
     await page.getByTestId("handover-section")
       // AJ-E209: the ranked, badged row is the switch entry point.
       .locator("button[data-row]:not(:disabled)")
@@ -989,6 +991,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.goto("/");
     await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
     await page.getByRole("button", { name: /Work Max/ }).first().click();
+    await openSwitch(page);
     await page.getByTestId("handover-section")
       // AJ-E209: the ranked, badged row is the switch entry point.
       .locator("button[data-row]:not(:disabled)")
@@ -1023,6 +1026,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.reload();
     await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
     await page.getByRole("button", { name: /Work Max/ }).first().click();
+    await openSwitch(page);
     await page.getByTestId("handover-section")
       // AJ-E209: the ranked, badged row is the switch entry point.
       .locator("button[data-row]:not(:disabled)")
@@ -1094,6 +1098,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.getByRole("button", { name: /Work Max/ }).first().click();
 
     // The ranked entry: scoped scan (the rows + their explanations).
+    await openSwitch(page);
     await expect(page.getByTestId("switch-target-rows")).toBeVisible();
     const rowsScan = await new AxeBuilder({ page })
       .include("[data-testid='handover-section']")
@@ -1157,6 +1162,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     await goTo(page, "Accounts");
+    await page.getByTestId("accounts-beta-matrix").locator("summary").click(); // D-25: behind a disclosure
     await expect(page.getByTestId("beta-matrix-table")).toBeVisible();
     // Real table semantics: scoped column + row headers.
     await expect(page.getByTestId("beta-matrix-table").locator("th[scope='col']").first()).toBeVisible();
@@ -1887,12 +1893,15 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     await goTo(page, "Accounts");
-    await expect(page.getByRole("group", { name: "Your choice (all Providers)" })).toBeVisible();
     await page.getByRole("button", { name: /Edit launch settings/ }).first().click();
     await page.getByTestId("recipe-env-toggle").first().click();
     await expect(page.getByLabel("Variable name 1")).toHaveValue("CLAUDE_CODE_MAX_OUTPUT_TOKENS");
     await page.getByTestId("expert-hatch").first().click();
     await expect(page.getByTestId("expert-panel").first()).toBeVisible();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+    // D-25: the pack-secrets choice is one link away, in Settings.
+    await page.getByTestId("accounts-pack-settings").click();
+    await expect(page.getByRole("group", { name: "Your choice (all Providers)" })).toBeVisible();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
   });
 }
@@ -2196,7 +2205,7 @@ for (const theme of ["dark", "light"] as const) {
           last_heard_ms: now, permission: "control", resources: null, instances: [], alerts: [],
           processes: [
             { instance_id: "inst-1", provider: "claude-code", account_label: "Work Max", pid: 4242, role: "helper", state: "orphaned",
-              state_label: "Still running after its Instance closed", verified: true, name: "node", age_ms: 60000,
+              state_label: "Still running after its session closed", verified: true, name: "node", age_ms: 60000,
               rss_bytes: null, cpu_percent: null, ports: "3000", measured_at_ms: now },
             { instance_id: "inst-1", provider: "claude-code", account_label: "Work Max", pid: 4250, role: "helper", state: "unverifiable",
               state_label: "Unverifiable — will not be touched", verified: false, name: "python3", age_ms: 60000,

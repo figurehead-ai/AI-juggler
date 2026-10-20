@@ -1,4 +1,5 @@
 import type { FixtureSet, InstanceInfo } from "../../src/lib/bridge";
+import { expect } from "@playwright/test";
 
 /**
  * Deterministic fixture sets for the visual harness (AJ-E802 Req.1):
@@ -291,7 +292,7 @@ const CLEANUP_ROW = (pid: number, state: string) => ({
   state,
   state_label:
     state === "orphaned"
-      ? "Still running after its Instance closed"
+      ? "Still running after its session closed"
       : state === "adopted"
         ? "Running — re-adopted"
         : state === "unverifiable"
@@ -413,4 +414,15 @@ export async function openFilters(page: import("@playwright/test").Page): Promis
   if (await more.isVisible()) return;
   await page.getByRole("button", { name: /^Filters/ }).click();
   await more.waitFor();
+}
+
+/**
+ * D-25: a session's ranked switch list sits behind "Switch account…"
+ * (open by itself only when the session hit its limit). Opens it once.
+ */
+export async function openSwitch(page: import("@playwright/test").Page): Promise<void> {
+  const section = page.getByTestId("handover-section");
+  if (await section.evaluate((node) => (node as HTMLDetailsElement).open).catch(() => false)) return;
+  await page.getByTestId("header-switch").click();
+  await expect(section).toHaveJSProperty("open", true);
 }

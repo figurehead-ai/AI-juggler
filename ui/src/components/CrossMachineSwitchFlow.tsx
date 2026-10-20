@@ -366,7 +366,7 @@ export function CrossMachineSwitchFlow({
                   {target.account_label} in {projectName} on {machine}.
                   {target.dropped.length > 0 ? ` Drops: ${target.dropped.join(", ")}.` : ""}
                 </p>
-                <div role="radiogroup" aria-label="This Instance" className="flex flex-col gap-1">
+                <div role="radiogroup" aria-label="This session" className="flex flex-col gap-1">
                   {(
                     [
                       ["finish-turn", "Let the current turn finish, then switch"],
@@ -473,7 +473,7 @@ export function CrossMachineSwitchFlow({
           <div className="flex flex-col gap-2" data-testid="cross-switch-done" aria-live="polite">
             <p className="text-[11px] text-ink">
               <span aria-hidden="true">✓ </span>
-              {phase.outcome.message} — on {machine}. This Instance rests here as handed over.
+              {phase.outcome.message} — on {machine}. This session rests here as handed over.
             </p>
             <div className="flex justify-end">
               <button

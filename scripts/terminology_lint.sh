@@ -22,6 +22,9 @@ while IFS= read -r jsx; do
   check "$jsx" '>[^<>{}]*\bharness(es)?[^<>{}]*<' 'vendor|claude' "user-facing harness in JSX"
   # "Claude desktop profiles" is the vendor app's own name for its folders.
   check "$jsx" '>[^<>{}]*\b[Pp]rofiles?\b[^<>{}]*<' 'launch|settings|Launch|recipe|desktop' "profile-as-account in JSX"
+  # D-25: on screen it is a "session" (the code keeps Instance).
+  check "$jsx" '>[^<>{}]*\b[Ii]nstances?\b[^<>{}]*<' 'NONE^' "Instance on screen in JSX (say session)"
+  check "$jsx" '(aria-label|title|placeholder|label|alt)=("|\{`)[^"`$]*\b[Ii]nstances?\b' 'NONE^' "Instance in a visible attribute (say session)"
 done < <(find ui/src -name "*.tsx" | grep -v types/generated)
 
 [ "$fail" -eq 0 ] && echo "terminology-lint: OK"

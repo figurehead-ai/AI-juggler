@@ -292,7 +292,7 @@ fn install_waits_for_a_switch_in_flight_and_restart_for_live_instances() {
         .unwrap();
     drop(storage);
     let reason = updates::restart_blocker(&state).unwrap().unwrap();
-    assert!(reason.contains("1 Instance is still running"), "{reason}");
+    assert!(reason.contains("1 session is still running"), "{reason}");
 }
 
 /// D-20 / D-23: one feed per channel. AI Juggler follows beta until the

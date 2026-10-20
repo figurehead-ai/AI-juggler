@@ -69,7 +69,7 @@ pub fn instance_archive_impl(state: &Arc<AppState>, session_id: &str) -> AppResu
     if !crate::commands::is_terminal(record.status) {
         return Err(validation(
             "archive",
-            "only an Instance that has ended can be archived — stop it first",
+            "only a session that has ended can be archived — stop it first",
         ));
     }
     Ok(storage.sessions().record_lifecycle(&id, "archived")?)
@@ -87,7 +87,7 @@ pub fn instance_unarchive_impl(state: &Arc<AppState>, session_id: &str) -> AppRe
     storage.sessions().get(&id)?;
     let latest = storage.sessions().lifecycle_latest()?;
     if latest.get(session_id).map(|(event, _)| event.as_str()) != Some("archived") {
-        return Err(validation("unarchive", "this Instance is not archived"));
+        return Err(validation("unarchive", "this session is not archived"));
     }
     Ok(storage.sessions().record_lifecycle(&id, "unarchived")?)
 }
@@ -186,7 +186,7 @@ fn delete_refusal(
 ) -> AppResult<Option<String>> {
     if !crate::commands::is_terminal(record.status) {
         return Ok(Some(
-            "It is still live — stop it first. Only an ended Instance can be deleted.".to_owned(),
+            "It is still live — stop it first. Only an ended session can be deleted.".to_owned(),
         ));
     }
     let lineage = count(

@@ -17,7 +17,7 @@ afterEach(cleanup);
 
 const SUMMARY: RecoverySummaryData = {
   summary:
-    "2 Instances re-adopted, 1 helpers left behind, 1 processes could not be verified and were left alone.",
+    "2 sessions re-adopted, 1 helpers left behind, 1 processes could not be verified and were left alone.",
   adopted: 2,
   left_behind: 1,
   unverifiable: 1,

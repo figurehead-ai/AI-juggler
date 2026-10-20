@@ -88,7 +88,7 @@ export function AddProviderSheet({
                     </span>
                     {desktop && row.single_instance_note && (
                       <span className="text-[10px] leading-relaxed text-muted">
-                        {row.single_instance_note} — one Instance at a time on this Provider.
+                        {row.single_instance_note} — one session at a time on this Provider.
                       </span>
                     )}
                   </div>

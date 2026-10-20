@@ -128,7 +128,7 @@ describe("AJ-E207 switch-back flow", () => {
     );
     await waitFor(() => expect(view.getByTestId("switch-back-review")).toBeTruthy());
     expect(view.getByTestId("switch-back-sf7").textContent).toContain("S-F7");
-    expect(view.getByTestId("switch-back-sf7").textContent).toContain("fresh instance");
+    expect(view.getByTestId("switch-back-sf7").textContent).toContain("fresh session");
   });
 
   it("suggests via the card copy verbatim (the plan's suggestion line)", async () => {

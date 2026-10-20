@@ -137,6 +137,7 @@ export function HomeScreen({
   onOpenSession,
   onNewSession,
   onAddAccounts,
+  onLimit,
 }: {
   sessions: InstanceInfo[];
   accounts: AccountInfo[];
@@ -145,6 +146,8 @@ export function HomeScreen({
   onOpenSession: (id: string) => void;
   onNewSession: () => void;
   onAddAccounts: () => void;
+  /** D-25: a session stopped by its limit opens the decision dialog. */
+  onLimit?: (id: string) => void;
 }): JSX.Element {
   const [quota, setQuota] = useState<QuotaDisplayData[]>([]);
   useEffect(() => {
@@ -250,7 +253,12 @@ export function HomeScreen({
                           {` · ${minutes(session.attention?.since_ms ?? session.last_activity_ms ?? session.started_at_ms, now)}`}
                         </span>
                       </span>
-                      <Button size="sm" variant="secondary" className="ml-auto" onClick={() => onOpenSession(session.id)}>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="ml-auto"
+                        onClick={() => (need === "quota_blocked" && onLimit ? onLimit(session.id) : onOpenSession(session.id))}
+                      >
                         {words.action}{" "}
                         <span className="sr-only">— {place.title}</span>
                       </Button>

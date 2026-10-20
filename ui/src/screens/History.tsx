@@ -113,7 +113,7 @@ export function History({
       <header className="flex flex-col gap-1">
         <h2 className="text-lg font-semibold tracking-tight">History</h2>
         <p className="text-xs text-muted">
-          Every Instance that has ended. Search by project, Account, Provider, model, branch, date (2026-10-01) or
+          Every session that has ended. Search by project, Account, Provider, model, branch, date (2026-10-01) or
           anything said in the transcript.
         </p>
       </header>
@@ -128,7 +128,7 @@ export function History({
           className="min-w-0 flex-1 rounded-lg border border-hairline bg-surface px-3 py-1.5 text-sm text-ink"
           data-testid="history-search"
         />
-        <div role="tablist" aria-label="Which Instances" className="flex rounded-lg border border-hairline p-0.5">
+        <div role="tablist" aria-label="Which sessions" className="flex rounded-lg border border-hairline p-0.5">
           {(
             [
               { id: "ended", label: "Ended" },
@@ -160,8 +160,8 @@ export function History({
           {query.trim()
             ? `Nothing matches “${query.trim()}”${searching ? " yet — still searching transcripts" : ""}.`
             : list === "archived"
-              ? "Nothing archived. Archive an ended Instance to tidy the rail — nothing is deleted."
-              : "No ended Instances yet."}
+              ? "Nothing archived. Archive an ended session to tidy the rail — nothing is deleted."
+              : "No ended sessions yet."}
         </p>
       ) : (
         <ul className="flex flex-col gap-1.5">

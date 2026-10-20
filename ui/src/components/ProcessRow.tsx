@@ -183,7 +183,7 @@ export function ProcessRow(props: {
           <dl className="grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-0.5">
             <dt className="text-faint">Spawned by</dt>
             <dd>
-              Instance root PID {evidence.root_pid ?? "—"}
+              Session root PID {evidence.root_pid ?? "—"}
               {evidence.parent_pid !== null && <> · first-seen parent {evidence.parent_pid}</>}
             </dd>
             <dt className="text-faint">Group</dt>
@@ -220,7 +220,7 @@ export function ProcessRow(props: {
 export function CleanupEmpty(props: { cleanInstances: number }) {
   return (
     <p className="text-[12px] text-muted" data-testid="cleanup-empty">
-      Nothing left behind — {props.cleanInstances} Instances running clean.
+      Nothing left behind — {props.cleanInstances} sessions running clean.
     </p>
   );
 }

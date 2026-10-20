@@ -651,7 +651,7 @@ export function SyncChip({ peer, diverged = 0 }: { peer: FleetPeerInfo; diverged
       <span
         data-testid="fleet-sync"
         data-state="diverged"
-        title={`Work that moved between this Mac and ${peer.label} changed on both — open the Instance to choose what to keep.`}
+        title={`Work that moved between this Mac and ${peer.label} changed on both — open the session to choose what to keep.`}
       >
         <Chip tone="warning">{`⚠ Diverged — ${diverged} ${diverged === 1 ? "needs" : "need"} you`}</Chip>
       </span>
@@ -716,7 +716,7 @@ function RemoteInstances({
         Last known{asOf !== null ? ` · as of ${new Date(asOf).toLocaleString()}` : ""} — may have changed since.
       </p>
     )}
-    <ul className="flex w-full flex-col gap-1 pl-1" aria-label={`Instances on ${machine.label}${lastKnown ? " (last known)" : ""}`} data-testid="fleet-remote-instances">
+    <ul className="flex w-full flex-col gap-1 pl-1" aria-label={`Sessions on ${machine.label}${lastKnown ? " (last known)" : ""}`} data-testid="fleet-remote-instances">
       {machine.instances.map((row) => (
         <li key={row.id}>
           <button
@@ -770,7 +770,7 @@ export function AccessSheet({
     };
   }, [onCancel]);
   const options: Array<{ id: "view" | "ask" | "control"; title: string; body: string }> = [
-    { id: "view", title: "View only", body: `${peer.label} can see this Mac's accounts, Instances and usage — it can't change anything.` },
+    { id: "view", title: "View only", body: `${peer.label} can see this Mac's accounts, sessions and usage — it can't change anything.` },
     {
       id: "ask",
       title: "View + control, ask each time",

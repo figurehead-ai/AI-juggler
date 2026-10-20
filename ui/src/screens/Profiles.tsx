@@ -9,7 +9,7 @@ import { LoginQueueCard } from "../components/LoginQueueCard";
 import { BetaMatrix } from "../components/BetaMatrix";
 import { ExpertSetup } from "../components/ExpertSetup";
 import { EnvOverlayEditor } from "../components/EnvOverlayEditor";
-import { PackSecretsCard } from "../components/PackSecretsCard";
+import { AccountRunway, runwayLines } from "../components/AccountRunway";
 import { providerDisplayName } from "../lib/providers";
 import {
   accountsList,
@@ -23,12 +23,44 @@ import {
   expertSetupInfo,
   errorText,
   signedIn,
+  quotaDisplayAll,
+  type InstanceInfo,
+  type QuotaDisplayData,
 } from "../lib/bridge";
+
+const LIVE = ["running", "starting", "waiting_user", "stuck"];
+
+/** What runs on an account, in a few words ("2 running · 1 needs you"). */
+export function activityWords(sessions: InstanceInfo[]): string {
+  const live = sessions.filter((s) => LIVE.includes(s.status));
+  const needs = sessions.filter((s) => s.status === "waiting_user" || s.status === "stuck" || s.status === "quota_blocked" || s.status === "failed");
+  const parts = [live.length > 0 ? `${live.length} running` : null, needs.length > 0 ? `${needs.length} need${needs.length === 1 ? "s" : ""} you` : null].filter(Boolean);
+  return parts.length > 0 ? parts.join(" · ") : "Nothing running";
+}
+
+/** The account with the most runway left for new work, if any is measured. */
+export function bestForNewWork(
+  accounts: AccountInfo[],
+  displays: QuotaDisplayData[],
+  sessions: InstanceInfo[],
+): { account: AccountInfo; left: number } | null {
+  let best: { account: AccountInfo; left: number } | null = null;
+  for (const account of accounts) {
+    if (!signedIn(account.login_state)) continue;
+    const lines = runwayLines(displays.find((d) => d.account === account.id), sessions.filter((s) => s.account_id === account.id));
+    const measured = lines.filter((line) => line.left !== null).map((line) => line.left!);
+    if (measured.length === 0) continue;
+    const left = Math.min(...measured);
+    if (!best || left > best.left) best = { account, left };
+  }
+  return best;
+}
 
 /**
  * Accounts screen (M1-3; component name kept from the M1 "Profiles"
  * era — the UI noun is Accounts, D-10): accounts with isolated state,
- * their Launch settings, and the Provider-level pack-secrets policy.
+ * their runway (D-25) and Launch settings. The pack-secrets policy
+ * lives in Settings › Context packs & secrets.
  * Every action maps 1:1 to a typed backend command; in plain-browser
  * preview mode the screen renders mock data and launches are no-ops so
  * the design can be reviewed without a backend.
@@ -38,8 +70,15 @@ export function ProfilesScreen({
   openTerminal,
   onInspectAccount,
   onLaunchFirstSession,
+  sessions = [],
+  onAddAccounts,
 }: {
+  /** D-25: Add account opens the find → bring in → sign in flow. Without
+   * it, the account wizard opens (as before). */
+  onAddAccounts?: () => void;
   openTerminal: (id: string, title: string) => void;
+  /** D-25: what runs where (activity line, runway fallback). */
+  sessions?: InstanceInfo[];
   onInspectAccount?: (id: string) => void;
   /** AJ-E305: the wizard's [Launch first session →] opens the launch
    * sheet with the Start-here project preselected. */
@@ -53,6 +92,17 @@ export function ProfilesScreen({
   const [newProfileFor, setNewProfileFor] = useState<AccountInfo | null>(null);
   const [loginFor, setLoginFor] = useState<AccountInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [displays, setDisplays] = useState<QuotaDisplayData[]>([]);
+  useEffect(() => {
+    let alive = true;
+    const load = () => void quotaDisplayAll().then((rows) => alive && setDisplays(rows), () => null);
+    load();
+    const timer = window.setInterval(load, 30_000);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+    };
+  }, []);
 
   const refresh = useCallback(async () => {
     try {
@@ -98,9 +148,13 @@ export function ProfilesScreen({
       <header className="flex items-end justify-between gap-4">
         <div>
           <h2 className="text-lg font-semibold tracking-tight">Accounts</h2>
-          <p className="text-xs text-muted">
-            One account per Provider sign-in — each fully isolated. Start any of
-            them in parallel with one click.
+          <p className="text-xs text-muted" data-testid="accounts-summary">
+            {(() => {
+              const best = bestForNewWork(accounts, displays, sessions);
+              return best
+                ? `Best for new work: ${best.account.label}, ${best.left}% left.`
+                : "Each account is its own sign-in, kept apart from the others.";
+            })()}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
@@ -108,7 +162,7 @@ export function ProfilesScreen({
           <IconProfiles width={14} height={14} />
           Add Provider
         </Button>
-        <Button variant="primary" size="sm" onClick={() => setAddAccount(true)} data-testid="add-account">
+        <Button variant="primary" size="sm" onClick={() => (onAddAccounts ? onAddAccounts() : setAddAccount(true))} data-testid="add-account">
           <IconProfiles width={14} height={14} />
           Add account
         </Button>
@@ -122,7 +176,7 @@ export function ProfilesScreen({
       )}
 
       {accounts.length === 0 ? (
-        <EmptyAccounts onAdd={() => setAddAccount(true)} />
+        <EmptyAccounts onAdd={() => (onAddAccounts ? onAddAccounts() : setAddAccount(true))} />
       ) : (
         <div className="flex flex-col gap-4">
           {accounts.map((account) => (
@@ -139,20 +193,35 @@ export function ProfilesScreen({
               onLogin={() => setLoginFor(account)}
               onInspect={() => onInspectAccount?.(account.id)}
               onLoginRechecked={refresh}
+              display={displays.find((d) => d.account === account.id)}
+              sessions={sessions.filter((session) => session.account_id === account.id)}
             />
           ))}
         </div>
       )}
 
-      {/* AJ-E309 Req.2 (D-14): the remembered pack-secrets choice —
-          global + per-Provider override. "Decide later" in the first
-          run points here. */}
-      <PackSecretsCard providers={[...new Set(accounts.map((account) => account.provider))]} />
-
-      {/* AJ-E210: the Beta validation matrix (Settings → Beta,
-          disclosure only) — the same table the switch badges derive
-          from, so "which pairs are proven" is never a guess. */}
-      <BetaMatrix />
+      {/* D-25: the pack-secrets policy lives in Settings; the matrix of
+          proven switches is one click away, not on every visit. */}
+      <p className="text-xs text-muted">
+        How keys and tokens in context packs are handled is in{" "}
+        <button
+          type="button"
+          data-testid="accounts-pack-settings"
+          onClick={() => window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "packs" } }))}
+          className="text-ink underline decoration-hairline underline-offset-2 outline-none hover:decoration-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+        >
+          Settings › Context packs &amp; secrets
+        </button>
+        .
+      </p>
+      <details className="group" data-testid="accounts-beta-matrix">
+        <summary className="cursor-default text-xs text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
+          Which switches between accounts are proven (Beta)
+        </summary>
+        <div className="mt-3">
+          <BetaMatrix />
+        </div>
+      </details>
 
       {addAccount && (
         <OnboardingWizard
@@ -239,8 +308,14 @@ function AccountCard({
   onLogin,
   onLoginRechecked,
   onInspect,
+  display,
+  sessions = [],
 }: {
   account: AccountInfo;
+  /** D-25: this account's two windows (runway), if measured. */
+  display?: QuotaDisplayData;
+  /** D-25: its sessions (what runs on it; a runway fallback). */
+  sessions?: InstanceInfo[];
   /** Local clock for the expiry tiers (AJ-E411). */
   now?: number;
   profiles: LaunchRecipeInfo[];
@@ -274,15 +349,26 @@ function AccountCard({
               {renewalLabel(account.renewal_date, now)!.text}
             </Chip>
           )}
-          <Chip tone={loginTone} dot breathing={!loggedIn}>
-            {loggedIn ? "Logged in" : "Needs login"}
-          </Chip>
-          {!loggedIn && (
-            <Button size="sm" variant="secondary" onClick={onLogin}>
-              Log in
-            </Button>
+          {loggedIn ? (
+            <span className="text-[11px] text-muted" data-testid="account-activity">
+              {activityWords(sessions)}
+            </span>
+          ) : (
+            <>
+              <Chip tone={loginTone} dot breathing>
+                Needs sign-in
+              </Chip>
+              <Button size="sm" variant="secondary" onClick={onLogin}>
+                Sign in
+              </Button>
+            </>
           )}
         </div>
+      </div>
+
+      {/* D-25: runway lives here and on Home. */}
+      <div className="px-5 py-3.5">
+        <AccountRunway display={display} sessions={sessions} />
       </div>
 
       <div className="flex items-center gap-2 border-t border-hairline px-5 py-3">
@@ -290,23 +376,21 @@ function AccountCard({
           size="sm"
           variant="primary"
           disabled={profiles.length === 0 || !loggedIn}
-          title={loggedIn ? "Starts an Instance on this Account" : "Sign in first (Ready home)"}
+          title={!loggedIn ? "Sign in first" : profiles.length === 0 ? "Add launch settings first (Edit launch settings)" : "Starts a session on this account"}
           onClick={() => onLaunch(profiles[0])}
         >
           <IconTerminal width={13} height={13} />
-          Start on {account.label}
+          Start a session
+          <span className="sr-only">on {account.label}</span>
         </Button>
-        <Button size="sm" variant="secondary" onClick={onToggleSettings}>
+        <Button size="sm" variant="secondary" onClick={onToggleSettings} aria-expanded={settingsOpen}>
           Edit launch settings {settingsOpen ? "▾" : "▸"}
         </Button>
-        <span className="ml-auto text-[11px] text-muted">
-          Applies when you start on this account.
-        </span>
       </div>
 
       <div className={settingsOpen ? "divide-y divide-hairline" : "hidden"}>
         <div className="flex items-center justify-between px-5 py-2">
-          <span className="text-[11px] uppercase tracking-wider text-muted">Launch settings</span>
+          <span className="text-[11px] uppercase tracking-wider text-muted">Launch settings · used when you start on this account</span>
           <button
             type="button"
             className="rounded-md px-2 py-1 text-[11px] text-muted hover:bg-surface hover:text-ink"
@@ -449,7 +533,7 @@ function NewProfileModal({
           <div className="flex gap-2">
             <Input
               value={cwd}
-              placeholder="Where Instances start — or choose…"
+              placeholder="Where sessions start — or choose…"
               onChange={(event) => setCwd(event.target.value)}
               className="min-w-0 flex-1"
             />

@@ -366,7 +366,7 @@ pub fn preflight(input: &PreflightInput) -> Result<PreflightReport, SwitchFailur
     // 5. Git/worktree: same-branch both-live warn + worktree offer.
     if input.git.same_branch_both_live {
         warnings.push(CopySituation::SameBranchParallel {
-            instance_a: "This instance".to_owned(),
+            instance_a: "This session".to_owned(),
             instance_b: "the target".to_owned(),
             branch: "the current branch".to_owned(),
         });

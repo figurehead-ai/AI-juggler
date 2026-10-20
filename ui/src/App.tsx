@@ -55,6 +55,8 @@ import { History } from "./screens/History";
 import { OnboardingWizard } from "./screens/OnboardingWizard";
 import { FirstRun } from "./screens/FirstRun";
 import { HomeScreen } from "./screens/Home";
+import { UsageScreen } from "./screens/Usage";
+import { LimitDialog } from "./components/LimitDialog";
 import { NewSessionModal } from "./screens/NewSession";
 import { NewProjectSheet } from "./screens/NewProjectSheet";
 import { FleetScreen } from "./screens/FleetScreen";
@@ -65,7 +67,6 @@ import { IsolationOfferDialog } from "./components/IsolationOfferDialog";
 import { funnelEvent } from "./lib/funnel";
 import { ReadyHome } from "./screens/ReadyHome";
 import { SessionPanel } from "./screens/WorkPanels";
-import { CostMatrix } from "./components/CostMatrix";
 import { NotificationRegion } from "./components/NotificationRegion";
 import { SwitchFlow, SwitchUndoToast } from "./components/SwitchFlow";
 import { SwitchBackFlow } from "./components/SwitchBackFlow";
@@ -265,14 +266,17 @@ export default function App() {
   }, [global]);
   // AJ-E1203: a Cloud chip / the onboarding card land on Account & Cloud.
   const [settingsFocusCloud, setSettingsFocusCloud] = useState(false);
+  // D-25: a link elsewhere (Accounts' pack-secrets line) opens one section.
+  const [settingsSection, setSettingsSection] = useState<string | undefined>(undefined);
   const openCloudSettings = () => {
     setSettingsFocusCloud(true);
     setGlobal("settings");
   };
   // AJ-E1010: the update notice's Review lands on Settings.
   useEffect(() => {
-    const open = () => {
+    const open = (event: Event) => {
       setSettingsFocusCloud(false);
+      setSettingsSection((event as CustomEvent<{ section?: string } | undefined>).detail?.section);
       setGlobal("settings");
     };
     window.addEventListener("aij:open-settings", open);
@@ -295,6 +299,13 @@ export default function App() {
   const [newSession, setNewSession] = useState(false);
   // AJ-E205: the executing switch flow (freeze dialog → stages →
   // source-safe failure banner). Null = closed.
+  // D-25: Accounts › Add account reuses first run's three steps.
+  const [addAccounts, setAddAccounts] = useState(false);
+  // The wizard opened from Accounts is locked to its Provider (AJ-E306).
+  const [wizardLocked, setWizardLocked] = useState(false);
+  const [accountsNonce, setAccountsNonce] = useState(0);
+  // D-25: the account-limit decision, for this session id.
+  const [limitFor, setLimitFor] = useState<string | null>(null);
   const [switchFlow, setSwitchFlow] = useState<{ sessionId: string; targetProfileId: string; targetLabel: string } | null>(null);
   // AJ-E206: the 10-second undo window after a 1-click switch (the
   // edge is the undo handle). Null = no window open.
@@ -668,6 +679,7 @@ export default function App() {
         event.preventDefault();
         shortcutUsed("other");
         setSettingsFocusCloud(false);
+        setSettingsSection(undefined);
         setGlobal("settings");
       }
       // AJ-E506: ⌘⇧C opens the Cleanup Centre; ⌘F focuses its filter.
@@ -709,7 +721,8 @@ export default function App() {
         : selection.kind === "project"
         ? (selectedProject?.name ?? "Project")
         : selectedSession
-          ? selectedSession.account_label
+          ? // D-25: the session's project (the view below names its place).
+            (projects.find((p) => p.id === selectedSession.project_id)?.name ?? "Session")
           : selectedLogin
             ? selectedLogin.title
             : "Home";
@@ -808,7 +821,7 @@ export default function App() {
           className="relative z-30 flex min-h-14 shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-hairline bg-surface/50 px-5 py-2 backdrop-blur-xl"
         >
           <div className="flex min-w-0 flex-1 basis-0 items-center gap-3">
-            <h1 className="min-w-0 truncate text-sm font-semibold capitalize tracking-wide">{contextTitle}</h1>
+            <h1 className="min-w-0 truncate text-sm font-semibold tracking-wide">{contextTitle}</h1>
             {contextProvider && <Chip tone="accent">{contextProvider}</Chip>}
           </div>
 
@@ -823,6 +836,7 @@ export default function App() {
                     aria-current={current ? "page" : undefined}
                     onClick={() => {
                       setSettingsFocusCloud(false);
+                      setSettingsSection(undefined);
                       setMoreOpen(false);
                       if (item.id === "home") {
                         setGlobal(null);
@@ -927,6 +941,9 @@ export default function App() {
           ) : global === "accounts" ? (
             <div className="h-full overflow-y-auto">
               <ProfilesScreen
+                key={accountsNonce}
+                sessions={sessions}
+                onAddAccounts={() => setAddAccounts(true)}
                 openTerminal={openLoginTerminal}
                 onLaunchFirstSession={(startHere) => {
                   setNewSession(true);
@@ -966,15 +983,7 @@ export default function App() {
             </div>
           ) : global === "usage" ? (
             <div className="h-full overflow-y-auto">
-              <div className="mx-auto flex w-full max-w-5xl flex-col gap-5" data-testid="usage-screen">
-                <header>
-                  <h2 className="text-lg font-semibold tracking-tight">Usage</h2>
-                  <p className="text-xs text-muted">
-                    What your Instances used, per session, model and day — measured on this Mac.
-                  </p>
-                </header>
-                <CostMatrix />
-              </div>
+              <UsageScreen accounts={accounts} sessions={sessions} onAddAccounts={() => setFirstRun(true)} />
             </div>
           ) : global === "fleet" ? (
             <div className="h-full overflow-y-auto">
@@ -982,7 +991,7 @@ export default function App() {
             </div>
           ) : global === "settings" ? (
             <div className="h-full overflow-y-auto">
-              <SettingsScreen focusCloud={settingsFocusCloud} />
+              <SettingsScreen key={settingsSection ?? "top"} focusCloud={settingsFocusCloud} focusSection={settingsSection} />
             </div>
           ) : selectedLogin ? (
             <SessionPanel
@@ -1079,6 +1088,7 @@ export default function App() {
                     onOpenSession={selectSession}
                     onNewSession={() => setNewSession(true)}
                     onAddAccounts={() => setFirstRun(true)}
+                    onLimit={setLimitFor}
                   />
                 </div>
               ) : (
@@ -1099,7 +1109,7 @@ export default function App() {
               projects={projects}
               accounts={accounts}
               profiles={profiles}
-              terminalTitle={selectedSession ? `${selectedSession.account_label} · instance` : null}
+              terminalTitle={selectedSession ? `${selectedSession.account_label} · session` : null}
               freshness={freshness}
               now={now}
               primaryAction={
@@ -1231,13 +1241,38 @@ export default function App() {
         />
       )}
 
+      {addAccounts && (
+        <FirstRun
+          mode="add"
+          openLoginTerminal={openLoginTerminal}
+          onDone={() => {
+            setAddAccounts(false);
+            setAccountsNonce((n) => n + 1);
+            void refresh();
+          }}
+          onAddFresh={() => {
+            setAddAccounts(false);
+            setWizardLocked(true);
+            setWizard(true);
+          }}
+          onImportFolder={() => {
+            setAddAccounts(false);
+            setWizardLocked(true);
+            setWizard(true);
+          }}
+        />
+      )}
+
       {wizard && (
         <OnboardingWizard
           key={wizardNonce}
           provider="claude-code"
+          locked={wizardLocked}
           onClose={() => {
             localStorage.setItem("aij.onboarding.dismissed", "1");
             setWizard(false);
+            setWizardLocked(false);
+            setAccountsNonce((n) => n + 1);
           }}
           onAccountCreated={() => void refresh()}
           onConnectCloud={openCloudSettings}
@@ -1255,6 +1290,23 @@ export default function App() {
         />
       )}
 
+      {limitFor && sessions.some((s) => s.id === limitFor) && (
+        <LimitDialog
+          session={sessions.find((s) => s.id === limitFor)!}
+          sessions={sessions}
+          now={now}
+          onClose={() => setLimitFor(null)}
+          onParked={() => void refresh()}
+          onChooseAnother={() => {
+            setLimitFor(null);
+            selectSession(limitFor);
+          }}
+          onContinue={(target) => {
+            setLimitFor(null);
+            setSwitchFlow({ sessionId: limitFor, targetProfileId: target.recipe_id, targetLabel: target.account_label });
+          }}
+        />
+      )}
       {switchFlow && (
         <SwitchFlow
           sessionId={switchFlow.sessionId}
@@ -1409,7 +1461,7 @@ function Overview({
       )}
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <StatCard
-          label="Live instances"
+          label="Live sessions"
           value={String(live.length)}
           hint={`${sessions.length} total recorded`}
           tone="live"
@@ -1441,7 +1493,7 @@ function Overview({
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-start gap-2">
               <div>
-                <h2 className="text-sm font-semibold">Live instances</h2>
+                <h2 className="text-sm font-semibold">Live sessions</h2>
                 <p className="text-xs text-muted">Select one to open its panel</p>
               </div>
               {/* Overview-header legend (AJ-E403 Req.6, surface 2 of 3). */}
@@ -1502,7 +1554,7 @@ function Overview({
               </div>
               <p className="text-center text-[11px] text-faint">
                 {live.length === 0
-                  ? "No live instances — quota shows per account once one runs"
+                  ? "No live sessions — quota shows per account once one runs"
                   : "Quota: no data — feeds land with the usage engine"}
               </p>
             </div>

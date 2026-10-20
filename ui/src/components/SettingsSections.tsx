@@ -239,7 +239,7 @@ export function NotificationSettingsCard({ accounts }: { accounts: AccountInfo[]
       <div>
         <h3 className="text-sm font-semibold">Notifications</h3>
         <p className="mt-0.5 text-xs leading-relaxed text-muted">
-          Alerts you can act on, such as an Account about to run out or a parked Instance ready to resume, show once
+          Alerts you can act on, such as an Account about to run out or a parked session ready to resume, show once
           each time. Everything else waits for an hourly digest.
         </p>
       </div>

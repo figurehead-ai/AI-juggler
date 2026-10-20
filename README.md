@@ -2,7 +2,7 @@
 
 **Start anywhere. Switch when you hit the wall. Never lose the thread — or leave a zombie behind.**
 
-*One console for every Provider, Account, and Instance you juggle.*
+*One console for every Provider, Account, and session you juggle.*
 
 [![CI](https://github.com/figurehead-ai/AI-juggler/actions/workflows/ci.yml/badge.svg)](https://github.com/figurehead-ai/AI-juggler/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
@@ -41,7 +41,7 @@ hacks. AI Juggler replaces that pile with one app.
 | Pillar | What you get |
 | --- | --- |
 | 🔀 **Switch** | Move the work (conversation, context, project state) between Accounts and Providers. One click when the pair is proven; an itemised wizard when something would be lost; switch-back resumes the original. Cross-Provider switching is labelled beta with a fidelity badge — never marketed as lossless. |
-| 👁️ **See** | A right-hand Inspector for any Provider, Account, Instance, Session or Project: usage, history, quality signals, owned processes and actions. A field shows only when it can actually be measured. |
+| 👁️ **See** | A right-hand Inspector for any Provider, Account, session, conversation or Project: usage, history, quality signals, owned processes and actions. A field shows only when it can actually be measured. |
 | 🧹 **Clean** | Every process AI Juggler spawns is owned until it exits. Leftovers are verified before anything is stopped; automatic cleanup is opt-in per Account and every stop is audited. |
 | 🎭 **Parallelism** | Many Accounts per Provider, each in its own isolated folder; one-click launches from a project or folder. |
 | 🚀 **Smart onboarding** | Scans your machine (including other manager tools' profiles), proposes a set of Accounts, imports read-only copies, and guides each Provider's own sign-in. |

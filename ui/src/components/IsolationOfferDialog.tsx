@@ -87,7 +87,7 @@ export function IsolationOfferDialog(): JSX.Element | null {
         </h3>
         {!offer.available && (
           <p className="text-[11px] text-ink" data-testid="isolation-unavailable">
-            {offer.unavailable_reason}. Both Instances would edit the same files.
+            {offer.unavailable_reason}. Both sessions would edit the same files.
           </p>
         )}
         <div role="radiogroup" aria-labelledby="isolation-title" className="flex flex-col gap-1.5">
@@ -111,7 +111,7 @@ export function IsolationOfferDialog(): JSX.Element | null {
               <span className="font-medium text-ink">Its own worktree (recommended)</span>
               <span id="isolation-worktree-desc" className="text-muted">
                 {offer.available
-                  ? `A separate checkout on a new branch ${offer.proposed_branch}${offer.base_branch ? ` from ${offer.base_branch}` : ""} — neither Instance can overwrite the other's files.`
+                  ? `A separate checkout on a new branch ${offer.proposed_branch}${offer.base_branch ? ` from ${offer.base_branch}` : ""} — neither session can overwrite the other's files.`
                   : "Not possible here."}
               </span>
               {offer.available && choice === "worktree" && (
@@ -146,7 +146,7 @@ export function IsolationOfferDialog(): JSX.Element | null {
             <span>
               <span className="block font-medium text-ink">Share the checkout</span>
               <span id="isolation-shared-desc" className="text-muted">
-                Both Instances edit the same files — one can silently overwrite the other's work.
+                Both sessions edit the same files — one can silently overwrite the other's work.
               </span>
             </span>
           </label>

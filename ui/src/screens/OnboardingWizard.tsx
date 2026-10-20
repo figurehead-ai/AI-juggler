@@ -1253,7 +1253,7 @@ export function OnboardingWizard({
       </p>
       {policyWriteFailed && (
         <p className="text-[11px] text-danger" role="alert">
-          Your pack choice couldn't be saved — set it in Accounts → Pack secrets.
+          Your pack choice couldn't be saved — set it in Settings › Context packs & secrets.
         </p>
       )}
       {created.map((entry) => (

@@ -17,11 +17,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and the rest behind a Filters button that says when one is on. A row
   shows its state in words and adds a note only when it matters (low
   quota, parked, uncommitted files, a sign-in to check, a stale value).
+- The app says **session** for what it used to call an Instance — in
+  every screen, message and the guide (D-25). A session's conversation
+  record is a "conversation". The code keeps its names.
 - Home answers "what needs me?": sessions that need you, what's running,
   each account's runway, and where you left off.
-- The session view opens on a short summary; everything else is under
-  Details. Announcements say what happened ("waiting for your reply"),
+- The session view opens on where the session runs (its branch or
+  folder), its state, project, account and how long; Switch account… sits
+  beside Stop, and the ranked list of accounts is one click (or ⌘⇧H)
+  away instead of always open. Everything else is under Details. Announcements say what happened ("waiting for your reply"),
   not rule codes.
+- Accounts shows each account's runway in words — the 5-hour window
+  and the week, when each resets, and when this pace would run out — plus
+  what runs on it and the best account for new work. Usage leads with the
+  same runway and explains itself when nothing is set up yet.
+- Add account finds what's already on this Mac and isn't in AI Juggler
+  yet, the same way first run does, and goes straight to a fresh account
+  when there's nothing new.
+- When an account hits its limit, one decision: continue now on the best
+  other account, park the session until the reset (it's offered back;
+  nothing restarts on its own), or choose another.
 - List density moved to Settings › Appearance, with each choice
   described.
 - First run, when there are no accounts yet: what's already on this Mac
@@ -44,6 +59,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tests pass unchanged).
 
 ### Fixed
+
+- A session's resource history stopped updating after five minutes, so
+  its sparkline froze and the "this uses a lot" check looked at old
+  numbers. It now keeps the latest five minutes.
+- When a session ended, a helper it left running could drop out of the
+  snapshot that protects heavy helpers from automatic cleanup. The last
+  live view is now kept until the session is fully finished.
+- Project names in the top bar show as written ("ai-juggler", not
+  "Ai-Juggler").
 
 - The More menu opened underneath the page, so only its first item
   could be clicked; it now paints above everything and closes on Escape

@@ -4365,7 +4365,7 @@ export async function instanceReplay(sessionId: string): Promise<ReplayInfo> {
     historyCall(`replay:${sessionId}`);
     const seeded = historySeams().__AIJ_REPLAY__;
     if (seeded) return { ...seeded, session_id: sessionId };
-    throw new Error("No transcript recorded for this Instance");
+    throw new Error("No transcript recorded for this session");
   }
   return invoke<ReplayInfo>("instance_replay", { sessionId });
 }

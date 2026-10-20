@@ -677,7 +677,7 @@ function Permissions({
     {
       id: "view",
       title: "View only",
-      body: `${peerLabel} can see this Mac's accounts, Instances and usage — it can't change anything.`,
+      body: `${peerLabel} can see this Mac's accounts, sessions and usage — it can't change anything.`,
     },
     {
       id: "control",

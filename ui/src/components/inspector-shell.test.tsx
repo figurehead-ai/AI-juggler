@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render } from "@testing-library/react";
+import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { INSPECTOR_TABS, RightInspector, type InspectorSelection } from "./RightInspector";
 import type {
@@ -128,8 +128,10 @@ beforeEach(() => {
 
 describe("AJ-E406 the shell across the five selection types (D-06)", () => {
   const kinds: { kind: InspectorSelection; name: string; type: string }[] = [
-    { kind: { kind: "instance", id: "sess-1" }, name: "Work Max", type: "Instance" },
-    { kind: { kind: "session", id: "conv-1" }, name: "Conversation", type: "Session" },
+    // D-25: on screen an Instance is a "session", a Session a "conversation".
+    // D-25: a session is titled by its place (branch, else folder).
+    { kind: { kind: "instance", id: "sess-1" }, name: "main", type: "Session" },
+    { kind: { kind: "session", id: "conv-1" }, name: "Conversation", type: "Conversation" },
     { kind: { kind: "provider", id: "claude-code" }, name: "claude-code", type: "Provider" },
     { kind: { kind: "account", id: "claude-work" }, name: "Work Max", type: "Account" },
     { kind: { kind: "project", id: "proj-1" }, name: "alpha", type: "Project" },
@@ -212,6 +214,26 @@ describe("AJ-E406 keyboard + honest empties + footers", () => {
     // Still in the DOM (hidden panel) — no unmount, no focus steal.
     expect(container.querySelector('[data-testid="instance-terminal"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="instance-terminal"]')!.closest("section")!.hasAttribute("hidden")).toBe(true);
+  });
+
+  it("the session header says where and on which account, and offers Switch account…", () => {
+    const { getByTestId } = shell({ kind: "instance", id: "sess-1" });
+    expect(getByTestId("session-subline").textContent).toContain("Work Max");
+    expect(getByTestId("session-subline").textContent).toMatch(/started .+ ago/);
+    expect(getByTestId("header-switch").textContent).toBe("Switch account…");
+  });
+
+  it("the switch list is one step away: closed, opened by Switch account…; open when the limit hit", async () => {
+    const { getByTestId } = shell({ kind: "instance", id: "sess-1" });
+    const section = getByTestId("handover-section") as HTMLDetailsElement;
+    expect(section.open).toBe(false);
+    await act(async () => {
+      fireEvent.click(getByTestId("header-switch"));
+    });
+    expect((getByTestId("handover-section") as HTMLDetailsElement).open).toBe(true);
+    cleanup();
+    const blocked = shell({ kind: "instance", id: "sess-1" }, { instance: { ...instance, status: "quota_blocked" } });
+    expect((blocked.getByTestId("handover-section") as HTMLDetailsElement).open).toBe(true);
   });
 
   it("empty selection renders nothing here — the work area is Home (D-25)", () => {

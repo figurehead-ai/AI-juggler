@@ -66,7 +66,7 @@ export function StorageRetentionCard(): JSX.Element {
           >
             <span className="min-w-0 flex-1 truncate font-medium text-ink">{row.label}</span>
             <span className="order-last w-full text-muted" data-testid="storage-usage">
-              {row.instances} {row.instances === 1 ? "Instance" : "Instances"} · {row.history_events} history events ·{" "}
+              {row.instances} {row.instances === 1 ? "session" : "sessions"} · {row.history_events} history events ·{" "}
               {row.index_lines.toLocaleString()} indexed lines · transcripts {size(row.transcript_bytes)}
             </span>
             <label className="flex items-center gap-1.5 text-muted">
@@ -116,7 +116,7 @@ export function StorageRetentionCard(): JSX.Element {
           onClose={(deleted) => {
             setPreview(null);
             if (deleted !== null) {
-              setStatus(`Removed AI Juggler's records for ${deleted} ${deleted === 1 ? "Instance" : "Instances"}.`);
+              setStatus(`Removed AI Juggler's records for ${deleted} ${deleted === 1 ? "session" : "sessions"}.`);
               load();
             }
           }}
@@ -158,12 +158,12 @@ function RetentionDryRun({
         </h3>
         {n === 0 ? (
           <p className="text-[11px] text-ink" data-testid="dry-run-nothing">
-            Nothing to remove — no ended Instance is past the policy.
+            Nothing to remove — no ended session is past the policy.
           </p>
         ) : (
           <div className="text-[11px] text-ink">
             <p className="font-medium">
-              Would permanently remove AI Juggler's records for {n} {n === 1 ? "Instance" : "Instances"}:
+              Would permanently remove AI Juggler's records for {n} {n === 1 ? "session" : "sessions"}:
             </p>
             <ul className="ml-4 list-disc" data-testid="dry-run-deletes">
               {preview.deletes.map((row) => (
