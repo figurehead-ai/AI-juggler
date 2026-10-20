@@ -307,14 +307,31 @@ pub fn uuid_set(bytes: &[u8]) -> BTreeSet<String> {
 /// The naive vendor mangle (`/` → `-`) — ONLY a flagged fallback
 /// when discovery finds no target dir (H-3); documented as
 /// collision-prone (`/a/b.c` vs `/a/b-c`).
+///
+/// Always one plain folder name: `\\` is a separator too, and a name of
+/// only dots (`.`, `..`) or nothing becomes dashes, so the fallback can
+/// never point at the config root or above it.
 #[must_use]
 pub fn mangled_dir(cwd: &str) -> String {
-    cwd.replace('/', "-")
+    let name = cwd.replace(['/', '\\'], "-");
+    if name.chars().all(|c| c == '.') {
+        return "-".repeat(name.len().max(1));
+    }
+    name
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_fallback_name_never_climbs_out() {
+        assert_eq!(mangled_dir("/Users/dev/app"), "-Users-dev-app");
+        assert_eq!(mangled_dir(".."), "--");
+        assert_eq!(mangled_dir("."), "-");
+        assert_eq!(mangled_dir(""), "-");
+        assert_eq!(mangled_dir("..\\..\\x"), "..-..-x");
+    }
 
     fn line(uuid: &str, parent: Option<&str>, session: &str, cwd: &str) -> String {
         serde_json::json!({
