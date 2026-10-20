@@ -15,6 +15,8 @@ import {
   appSettingSet,
   cleanupDefaultGet,
   cleanupDefaultSet,
+  cleanupPauseSet,
+  cleanupStatus,
   errorText,
   fleetPeers,
   fleetSetPermission,
@@ -53,10 +55,26 @@ function Status({ status, error }: { status: string | null; error: string | null
  * Accounts is off unless the user picks it. */
 export function CleanupSettingsCard({ accounts }: { accounts: AccountInfo[] }): JSX.Element {
   const [defaultOn, setDefaultOn] = useState<boolean | null>(null);
+  const [paused, setPaused] = useState<boolean | null>(null);
+  // The pause switch reads the live status; if that fails it says so and
+  // offers a retry instead of sitting disabled.
+  const [pausedError, setPausedError] = useState<string | null>(null);
+  const loadPaused = () => {
+    setPausedError(null);
+    void cleanupStatus().then(
+      (now) => setPaused(now.paused),
+      (cause) => {
+        setPaused(null);
+        setPausedError(errorText(cause));
+      },
+    );
+  };
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     void cleanupDefaultGet().then(setDefaultOn, (cause) => setError(errorText(cause)));
+    loadPaused();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on open
   }, []);
   return (
     <Card className="flex flex-col gap-3 p-5" data-testid="settings-cleanup">
@@ -96,6 +114,39 @@ export function CleanupSettingsCard({ accounts }: { accounts: AccountInfo[] }): 
           <option value="tidy">Tidy left-behind dev servers</option>
         </select>
       </label>
+      {/* AJ-E508 Req.4: the global kill-switch, here and in Cleanup's ⋯. */}
+      <label className="flex items-start gap-2 text-xs">
+        <input
+          type="checkbox"
+          checked={paused === true}
+          disabled={paused === null}
+          onChange={(event) => {
+            const next = event.target.checked;
+            setError(null);
+            void cleanupPauseSet(next).then(
+              (now) => {
+                setPaused(now.paused);
+                setStatus(now.paused ? "Automatic cleanup is paused." : "Automatic cleanup is on again for the Accounts that have it.");
+              },
+              (cause) => setError(errorText(cause)),
+            );
+          }}
+          className="mt-0.5 size-3.5 accent-[var(--color-accent)]"
+          data-testid="settings-cleanup-pause"
+        />
+        <span className="flex flex-col gap-0.5">
+          <span className="font-medium text-ink">Pause automatic cleanup</span>
+          <span className="text-muted">For every Account, until you turn this off. Nothing is stopped by itself while paused.</span>
+        </span>
+      </label>
+      {pausedError && (
+        <p className="flex flex-wrap items-center gap-2 text-xs text-danger" role="alert" data-testid="settings-cleanup-pause-error">
+          Couldn't read whether automatic cleanup is paused: {pausedError}
+          <Button size="sm" variant="secondary" onClick={loadPaused}>
+            Try again
+          </Button>
+        </p>
+      )}
       <Status status={status} error={error} />
       <div className="flex flex-col divide-y divide-hairline" data-testid="cleanup-accounts">
         {accounts.length === 0 ? (

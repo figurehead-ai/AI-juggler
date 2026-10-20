@@ -295,7 +295,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/");
     await goTo(page, "Accounts");
-    await page.getByRole("button", { name: "Inspect claude-code" }).first().click();
+    await page.getByRole("button", { name: "Inspect Claude Code" }).first().click();
     await expect(page.getByTestId("account-tier-toggles")).toBeVisible();
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
@@ -378,6 +378,34 @@ for (const theme of ["dark", "light"] as const) {
       throw new Error(`axe violations on the tier-2 notice (${theme}):\n${summary}`);
     }
     expect(serious).toHaveLength(0);
+  });
+
+  // #75 review: Re-confirm that fails says why on the banner and keeps
+  // focus on Re-confirm.
+  test(`cleanup — Re-confirm failed — axe 0 critical/serious — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ fixture, t0, theme: t }) => {
+        const w = window as unknown as Record<string, unknown>;
+        w.__AIJ_FIXTURE__ = fixture;
+        w.__AIJ_CLEANUP_STATUS__ = { paused: false, suspended: true, suspended_until_ms: t0 + 86_400_000, tier2_pending: [] };
+        w.__AIJ_CLEANUP_RESUME_ERROR__ = "the supervisor isn't answering";
+        localStorage.setItem("aij.theme", t);
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        sessionStorage.setItem("aij.ready.skipped", "1");
+        Date.now = () => t0;
+      },
+      { fixture: allStatuses, t0: T0, theme },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await goTo(page, "Cleanup");
+    const reconfirm = page.getByTestId("cleanup-resume-button");
+    await reconfirm.click();
+    await expect(page.getByTestId("cleanup-resume-error")).toHaveText("Couldn't resume: the supervisor isn't answering");
+    await expect(page.getByTestId("cleanup-suspended-banner")).toBeVisible();
+    await expect(reconfirm).toBeFocused();
+    expect(await scanSeriousWithConfirm(page)).toEqual([]);
   });
 }
 

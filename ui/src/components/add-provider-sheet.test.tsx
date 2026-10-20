@@ -115,3 +115,55 @@ describe("AJ-E306 flow (c) — Add account's tool choice", () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 });
+
+describe("AJ-E1023 the tool choice is a real modal dialog (WCAG 2.4.3)", () => {
+  it("a parent re-render with a new onClose doesn't pull focus off the card the user is on", async () => {
+    const { container, rerender } = render(<AddProviderSheet onClose={() => {}} onChoose={() => {}} />);
+    await waitFor(() => expect(container.querySelectorAll("[data-testid='provider-choose']").length).toBe(2));
+    const second = container.querySelectorAll<HTMLButtonElement>("[data-testid='provider-choose']")[1]!;
+    second.focus();
+    // App passes a fresh arrow on every render (its 15 s clock, session events).
+    rerender(<AddProviderSheet onClose={() => {}} onChoose={() => {}} />);
+    rerender(<AddProviderSheet onClose={() => {}} onChoose={() => {}} />);
+    expect(document.activeElement).toBe(second);
+  });
+
+  it("Tab and Shift+Tab stay inside it", async () => {
+    const { container } = render(<AddProviderSheet onClose={() => {}} onChoose={() => {}} />);
+    await waitFor(() => expect(container.querySelectorAll("[data-testid='provider-choose']").length).toBe(2));
+    const focusables = Array.from(
+      container.querySelectorAll<HTMLElement>("[role='dialog'] button:not(:disabled), [role='dialog'] a[href]"),
+    );
+    const first = focusables[0]!;
+    const last = focusables[focusables.length - 1]!;
+    last.focus();
+    fireEvent.keyDown(window, { key: "Tab" });
+    expect(document.activeElement).toBe(first);
+    fireEvent.keyDown(window, { key: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(last);
+  });
+
+  it("closing returns focus to what opened it", async () => {
+    const opener = document.createElement("button");
+    opener.textContent = "Add account";
+    document.body.append(opener);
+    opener.focus();
+    const view = render(<AddProviderSheet onClose={() => {}} onChoose={() => {}} />);
+    await waitFor(() => expect(view.container.querySelectorAll("[data-testid='provider-card']").length).toBe(3));
+    expect(document.activeElement).not.toBe(opener);
+    view.unmount();
+    expect(document.activeElement).toBe(opener);
+    opener.remove();
+  });
+
+  it("the latest onClose runs on Escape", async () => {
+    const first = vi.fn();
+    const latest = vi.fn();
+    const { container, rerender } = render(<AddProviderSheet onClose={first} onChoose={() => {}} />);
+    await waitFor(() => expect(container.querySelectorAll("[data-testid='provider-card']").length).toBe(3));
+    rerender(<AddProviderSheet onClose={latest} onChoose={() => {}} />);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(first).not.toHaveBeenCalled();
+    expect(latest).toHaveBeenCalledOnce();
+  });
+});

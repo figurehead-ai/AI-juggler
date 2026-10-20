@@ -14,6 +14,7 @@
  * timeline; long chains scroll horizontally.
  */
 import { useCallback, useEffect, useRef, useState, type JSX } from "react";
+import { providerDisplayName } from "../lib/providers";
 import type { EpochNodeData, GraphEdgeData, WorkGraphData } from "../lib/bridge";
 import { epochResume, packExport, switchGraphOverview, errorText,} from "../lib/bridge";
 import { providerMark } from "./indicator";
@@ -43,7 +44,7 @@ function GraphNode({
       aria-pressed={open}
       aria-expanded={open}
       onClick={onToggle}
-      title={`${epoch.account_label} on ${epoch.provider}${epoch.resumable ? " — resumable" : ""}`}
+      title={`${epoch.account_label} on ${providerDisplayName(epoch.provider)}${epoch.resumable ? " — resumable" : ""}`}
       className={
         "flex shrink-0 flex-col items-center gap-1 rounded-lg border px-2.5 py-2 text-center text-[11px] transition-colors focus:outline-none focus:ring-2 focus:ring-accent " +
         (open

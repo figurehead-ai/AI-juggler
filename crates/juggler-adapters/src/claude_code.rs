@@ -642,9 +642,20 @@ pub(crate) fn prepare_managed_dir_for(
     state_dir: &Path,
     provider: &str,
 ) -> Result<(), AdapterError> {
-    create_private_dir(state_dir).map_err(|error| AdapterError::AccountDir {
-        path: state_dir.to_path_buf(),
-        message: error.to_string(),
+    // A failure after creating the folder removes it again — only when
+    // this call created it (an existing folder is never removed).
+    let created_here = !state_dir.exists();
+    let undo = || {
+        if created_here {
+            let _ = std::fs::remove_dir_all(state_dir);
+        }
+    };
+    create_private_dir(state_dir).map_err(|error| {
+        undo();
+        AdapterError::AccountDir {
+            path: state_dir.to_path_buf(),
+            message: error.to_string(),
+        }
     })?;
     // Marker identifies the directory as ours — guardrail primitive for
     // "never touch unmanaged dirs" checks (ADR-0003).
@@ -654,9 +665,12 @@ pub(crate) fn prepare_managed_dir_for(
         format!("managed-by: ai-juggler\nharness: {provider}\n"),
     )
     .and_then(|()| restrict_to_owner(&marker))
-    .map_err(|error| AdapterError::AccountDir {
-        path: state_dir.to_path_buf(),
-        message: format!("cannot write marker: {error}"),
+    .map_err(|error| {
+        undo();
+        AdapterError::AccountDir {
+            path: state_dir.to_path_buf(),
+            message: format!("cannot write marker: {error}"),
+        }
     })
 }
 
