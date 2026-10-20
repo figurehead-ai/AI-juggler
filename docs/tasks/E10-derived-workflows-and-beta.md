@@ -315,3 +315,16 @@
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1020/`.
 **Visual testing**: Gallery `69-rail-narrow` (folded at 390 and 860, opened at 860; both themes).
 **Research basis**: D-25; the 390 px captures (rail cramped); WCAG 1.4.10 reflow.
+### AJ-E1021 Triage and Overview fold into Home (D-25 amendment) | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: AJ-E1005, AJ-E1014
+**Goal**: One place answers "who needs me, what's parked, what's running, what's left to look at" — Home — instead of three screens that repeat each other.
+**User story**: As a developer starting the day with a dozen sessions, I want Home to be my triage: the blockers, the parked work with Resume when it's ready, and what ended that I haven't looked at, all from the keyboard.
+**Requirements**:
+1. Home SHALL show "Parked until a reset" when a session is parked (how long until the reset, or that it's reached; Resume once reached), and a parked session SHALL NOT show under Needs you.
+2. "Pick up where you left off" SHALL list what ended in the last 7 days and isn't reviewed or archived: three, then Show all; each has Open and Mark reviewed (recorded in its history, AJ-E1007).
+3. Home SHALL be keyboard operable: J/K or arrows move between rows, Enter opens, A runs the row's action; one quiet line names the keys.
+4. The ledger-degraded banner SHALL show on Home, only while process tracking is degraded.
+5. Triage and Overview SHALL leave More; the decision log records the evidence and the amendment. AJ-E1005's requirements are met on Home; sorting is the rail's.
+**Quality gates**: vitest (`home.test.tsx`: grouping, parked, reviewed, keyboard, 50 sessions < 300 ms); the a11y triage-on-Home test (axe 0, J/K); the full Playwright suite; baselines re-rendered with notes, Triage's and Overview's removed.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1021/`.
+**Visual testing**: Gallery `55-triage` re-captured on Home (populated and empty, both themes and densities); `17-ledger` on Home.
+**Research basis**: D-25 (one place per question; calm until it matters); the overlap measured in the amendment.

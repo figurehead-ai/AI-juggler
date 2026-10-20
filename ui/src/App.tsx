@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Button, Card, Chip, QuotaBar, QuotaRing, StatCard } from "./components/primitives";
-import { SessionCard, WorkflowRail, type Freshness } from "./components/WorkflowRail";
+import { Button, Card, Chip } from "./components/primitives";
+import { WorkflowRail, type Freshness } from "./components/WorkflowRail";
 import { GoToPalette } from "./components/GoToPalette";
 import { PortWarningSheet } from "./components/PortMap";
 import { RecoverySummaryDialog } from "./components/RecoverySummaryDialog";
@@ -9,11 +9,7 @@ import { UsageStatsReconsent } from "./components/UsageStatsReconsent";
 import { CrashReportPrompt } from "./components/CrashReports";
 import { CleanupCentre, focusCleanupFilter } from "./screens/CleanupCentre";
 import { launchPortWarning, type PortWarningInfo,} from "./lib/bridge";
-import {
-  IconFleet,
-  IconJuggler,
-  IconTerminal,
-} from "./components/icons";
+import { IconJuggler, IconTerminal } from "./components/icons";
 import { AttentionAnnouncer, IndicatorLegend, RenewalAnnouncer } from "./components/indicator";
 import {
   DENSITY_EVENT,
@@ -33,9 +29,9 @@ import {
 import { isHandoverShortcut, isStopShortcut } from "./lib/shortcuts";
 import { cleanupAlerts, fleetPeers, statsEvent, statsGauge } from "./lib/bridge";
 
-/** AJ-E1103: the schema's screen names (Triage and History aren't counted). */
+/** AJ-E1103: the schema's screen names (History isn't counted; Home and
+ * the retired Overview aren't either — the schema keeps the name). */
 const STAT_SCREENS: Partial<Record<string, string>> = {
-  overview: "overview",
   accounts: "accounts",
   usage: "usage",
   fleet: "fleet",
@@ -51,7 +47,6 @@ function shortcutUsed(shortcut: string): void {
 /** AJ-E1103: the board became interactive once, after launch. */
 let boardInteractiveCounted = false;
 import { ProfilesScreen } from "./screens/Profiles";
-import { Triage } from "./screens/Triage";
 import { History } from "./screens/History";
 import { OnboardingWizard } from "./screens/OnboardingWizard";
 import { FirstRun } from "./screens/FirstRun";
@@ -91,14 +86,12 @@ import {
   goToHotkeySet,
   onGoToHotkey,
   type LaunchRecipeInfo,
-  dashboardStats,
   fetchAppInfo,
   onAppReady,
   type AccountInfo,
   type AppInfo,
   type ProjectInfo,
   type InstanceInfo,
-  type StatsInfo,
 } from "./lib/bridge";
 
 /**
@@ -109,9 +102,7 @@ import {
  */
 
 const GLOBAL_NAV = [
-  // AJ-E1005: the morning question first — who needs me?
-  { id: "triage", label: "Triage" },
-  { id: "overview", label: "Overview" },
+  // D-25 amendment (AJ-E1021): Triage and Overview folded into Home.
   // AJ-E1007: every ended Instance — search, archive, replay.
   { id: "history", label: "History" },
   { id: "accounts", label: "Accounts" },
@@ -136,8 +127,6 @@ const PRIMARY_NAV: Array<{ id: GlobalId | "home"; label: string }> = [
   { id: "settings", label: "Settings" },
 ];
 const MORE_NAV: Array<{ id: GlobalId; label: string; hint: string }> = [
-  { id: "triage", label: "Triage", hint: "Every session that needs you, sorted" },
-  { id: "overview", label: "Overview", hint: "All sessions as cards" },
   { id: "usage", label: "Usage", hint: "Quota, cost and the two clocks per account" },
   { id: "fleet", label: "Fleet", hint: "Your other Macs" },
   { id: "cleanup", label: "Cleanup", hint: "Processes left behind, and the audit log" },
@@ -985,31 +974,9 @@ export default function App() {
                 }}
               />
             </div>
-          ) : global === "triage" ? (
-            <div className="h-full overflow-y-auto">
-              <Triage
-                sessions={sessions}
-                projects={projects}
-                density={density}
-                onOpenSession={selectSession}
-                onChanged={() => void refresh()}
-              />
-            </div>
           ) : global === "history" ? (
             <div className="h-full overflow-y-auto">
               <History sessions={sessions} projects={projects} onChanged={() => void refresh()} />
-            </div>
-          ) : global === "overview" ? (
-            <div className="h-full overflow-y-auto">
-              <Overview
-                sessions={sessions}
-                projects={projects}
-                onSelectSession={selectSession}
-                onInspectProvider={(provider) => {
-                  setGlobal(null);
-                  setSelection({ kind: "provider", id: provider });
-                }}
-              />
             </div>
           ) : global === "usage" ? (
             <div className="h-full overflow-y-auto">
@@ -1112,6 +1079,7 @@ export default function App() {
                     onLimit={setLimitFor}
                     openLoginTerminal={openLoginTerminal}
                     onAccountsChanged={() => void refresh()}
+                    onChanged={() => void refresh()}
                   />
                 </div>
               ) : (
@@ -1506,142 +1474,3 @@ function LegendPopover() {
     </span>
   );
 }
-
-function Overview({
-  sessions,
-  projects,
-  onSelectSession,
-  onInspectProvider,
-}: {
-  sessions: InstanceInfo[];
-  projects: ProjectInfo[];
-  onSelectSession: (id: string) => void;
-  onInspectProvider: (provider: string) => void;
-}) {
-  const [stats, setStats] = useState<StatsInfo | null>(null);
-  useEffect(() => {
-    void dashboardStats().then(setStats);
-  }, []);
-  void stats;
-  const live = sessions.filter((s) => s.status === "running" || s.status === "starting");
-
-  return (
-    <div className="flex flex-col gap-6">
-      {/* AJ-E501: the ledger-degraded banner (the Cleanup Centre stub's
-          only surface until AJ-E506 builds the Centre). */}
-      {stats?.ledger_degraded === true && (
-        <div
-          role="alert"
-          data-testid="ledger-degraded-banner"
-          className="flex items-center gap-2.5 rounded-lg border border-warning/25 bg-warning-soft px-4 py-3 text-[12.5px] text-ink"
-        >
-          <span aria-hidden>⚠</span>
-          Process tracking degraded — cleanup is read-only until restart.
-        </div>
-      )}
-      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-        <StatCard
-          label="Live sessions"
-          value={String(live.length)}
-          hint={`${sessions.length} total recorded`}
-          tone="live"
-          icon={<IconTerminal width={15} height={15} />}
-        />
-        <StatCard
-          label="Projects"
-          value={String(projects.length)}
-          hint="directories juggled"
-          icon={<IconJuggler width={15} height={15} />}
-        />
-        <StatCard
-          label="Machine"
-          value="OK"
-          hint="RAM · CPU · disk nominal (live gauges: M3)"
-          tone="success"
-          icon={<IconFleet width={15} height={15} />}
-        />
-        <StatCard
-          label="Fleet"
-          value="1"
-          hint="this-mac only"
-          icon={<IconFleet width={15} height={15} />}
-        />
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <Card className="p-5 xl:col-span-2">
-          <div className="mb-4 flex items-center justify-between">
-            <div className="flex items-start gap-2">
-              <div>
-                <h2 className="text-sm font-semibold">Live sessions</h2>
-                <p className="text-xs text-muted">Select one to open its panel</p>
-              </div>
-              {/* Overview-header legend (AJ-E403 Req.6, surface 2 of 3). */}
-              <LegendPopover />
-            </div>
-            <Chip tone="neutral" dot>
-              {live.length} live
-            </Chip>
-          </div>
-          {live.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-hairline py-10">
-              <span className="flex size-10 items-center justify-center rounded-xl border border-accent/20 bg-accent-soft text-accent-hi">
-                <IconTerminal width={19} height={19} />
-              </span>
-              <p className="text-sm text-muted">
-                Nothing running — start one from the rail's New session.
-              </p>
-            </div>
-          ) : (
-            /* The card variant (AJ-E402 Req.4): identical I-01..I-11 to the
-               rail row — no number exists here the rail cannot explain. */
-            <div className="flex flex-col divide-y divide-hairline/50">
-              {live.map((s) => (
-                <SessionCard key={s.id} session={s} onSelect={onSelectSession} />
-              ))}
-            </div>
-          )}
-        </Card>
-
-        <Card className="flex flex-col items-start justify-center gap-3 p-5">
-          <h2 className="self-start text-sm font-semibold">Quota windows</h2>
-          {/* Honest I-05 (AJ-E402 Req.3): the fabricated percent={0} rings
-              are gone — each live Account renders its measured quota, and
-              with no feed the exact `Quota: no data` empty state shows. */}
-          {live.some((s) => s.quota !== null) ? (
-            <div className="flex w-full flex-col gap-3 pt-1">
-              {live
-                .filter((s) => s.quota !== null)
-                .map((s) => (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => onInspectProvider(s.provider)}
-                    className="flex flex-col items-start gap-1 rounded-lg outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
-                  >
-                    <span className="text-[11px] text-muted hover:text-ink">
-                      {s.account_label} · {s.provider}
-                    </span>
-                    <QuotaBar quota={s.quota} />
-                  </button>
-                ))}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center gap-3 self-stretch py-2">
-              <div className="flex items-center justify-around gap-4">
-                <QuotaRing percent={null} label="5h" />
-                <QuotaRing percent={null} label="week" />
-              </div>
-              <p className="text-center text-[11px] text-faint">
-                {live.length === 0
-                  ? "No live sessions — quota shows per account once one runs"
-                  : "Quota: no data — feeds land with the usage engine"}
-              </p>
-            </div>
-          )}
-        </Card>
-      </div>
-    </div>
-  );
-}
-

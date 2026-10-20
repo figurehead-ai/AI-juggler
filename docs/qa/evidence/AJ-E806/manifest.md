@@ -264,6 +264,12 @@
   carries the fix. The gate passes locally (939 states, 0 serious). One
   capture timed out while the visual container ran beside it and passed
   twice alone.
+- **Flake record, 2026-10-20 (open, local only).** vitest
+  `sorting.test.tsx` › "sort+filter of 200 rows stays inside one frame
+  (<16 ms)" took 89 ms once while a full Playwright run of another
+  checkout (and other projects' suites) loaded the Mac (load average
+  ≈ 20–25). Alone it passed 15/15 at once. The budget is untouched. If it recurs in CI, measure the
+  median of several runs instead of one.
 - A real security bug found by review (2026-10-20, review of Codex PR #64,
   pre-existing in the Claude adapter since AJ-E203/E706):
   `ClaudeCodeAdapter::install_bundle` joined each bundle file's name and
