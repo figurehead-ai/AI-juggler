@@ -70,6 +70,7 @@
 4. Switching SHALL be a header segmented control plus `Cmd/Ctrl+D` cycling; the inspector SHALL NOT change with density.
 5. Any value older than 2x its refresh interval SHALL render dimmed with caption `stale - Nm` (minutes, integer); it SHALL never render as fresh.
 6. The legend (9 states, quota hatch=tier, sparkline solid=RAM/outline=CPU) SHALL appear identically in rail-footer `?` popover, Inspector Overview header, and the empty-Inbox "All clear" explainer.
+   *Amended 2026-10-20 (D-25, AJ-E1021):* Overview folded into Home, so the legend appears identically in the rail footer's `?` and in Home's header `?` (Home is the "All clear" explainer). The session view explains its states in words on the row itself, so it carries no legend.
 **UI/UX reasoning**: Apple HIG (consistency and standards; persistent user preference) and WCAG 2.2 1.3.3 (instructions not by shape/colour alone). Shortcut `Cmd/Ctrl+D` must not collide with browser bookmark on web preview — use Tauri menu accelerator in app, `Ctrl+D` only. Copy exact: legend strings from pass2/04 §4.1 table.
 **Performance budget**: Density switch re-layout < 50 ms at 50 rows; stale check runs on the existing 15 s tick, no new timers (< 1 extra wakeup/min); legend popover opens < 100 ms.
 **Quality gates**: `just verify`; unit tests for stale threshold (119 s fresh at 60 s interval, 121 s stale); keyboard-only density cycle test.

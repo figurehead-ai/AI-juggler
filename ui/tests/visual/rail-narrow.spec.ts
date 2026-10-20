@@ -1,7 +1,8 @@
 /**
  * D-25 stage 4 (AJ-E1020): below 900 px the rail folds to its icon
- * column by itself and comes back when the window widens. The stored
- * density never changes; ⌘B opens the list for now while narrow.
+ * column by itself and comes back when the window widens. In a narrow
+ * window ⌘B and the density shortcut only open or close the list for now
+ * and never write Settings › Appearance, whatever is stored.
  * Gallery 69-rail-narrow, each state scanned with axe (0 critical/serious).
  */
 import AxeBuilder from "@axe-core/playwright";
@@ -105,3 +106,84 @@ for (const theme of ["dark", "light"] as const) {
     await axeClean(page, "opened rail 860");
   });
 }
+
+test("compact: folds when narrow, ⌘B opens it as compact, and widening shows compact", async ({ page }) => {
+  await seed(page, "dark", 860, 800, "compact");
+  await expect(rail(page)).toHaveAttribute("data-density", "minimal");
+  await page.keyboard.press("ControlOrMeta+b");
+  await expect(rail(page)).toHaveAttribute("data-density", "compact");
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await expect(rail(page)).toHaveAttribute("data-density", "compact");
+  expect(await page.evaluate(() => localStorage.getItem("aij.density"))).toBe("compact");
+});
+
+const stored = (page: Page) => page.evaluate(() => localStorage.getItem("aij.density"));
+
+test("the density shortcut while narrow only opens and closes the list; Settings is never written", async ({ page }) => {
+  await seed(page, "dark", 860, 800);
+  await expect(rail(page)).toHaveAttribute("data-density", "minimal");
+  await page.keyboard.press("Control+d");
+  await expect(rail(page)).toHaveAttribute("data-density", "comfortable");
+  expect(await stored(page)).toBe("comfortable");
+  await page.keyboard.press("Control+d");
+  await expect(rail(page)).toHaveAttribute("data-density", "minimal");
+  expect(await stored(page)).toBe("comfortable");
+});
+
+test("a stored Minimal, narrow: ⌘B opens the list as Comfortable and closes it again; Settings keeps Minimal", async ({ page }) => {
+  await seed(page, "dark", 860, 800, "minimal");
+  await expect(rail(page)).toHaveAttribute("data-density", "minimal");
+  await page.keyboard.press("ControlOrMeta+b");
+  await expect(rail(page)).toHaveAttribute("data-density", "comfortable");
+  expect(await stored(page)).toBe("minimal");
+  await page.keyboard.press("ControlOrMeta+b");
+  await expect(rail(page)).toHaveAttribute("data-density", "minimal");
+  expect(await stored(page)).toBe("minimal");
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await expect(rail(page)).toHaveAttribute("data-density", "minimal");
+});
+
+test("a stored Minimal, narrow: the density shortcut opens and closes the list; Settings keeps Minimal", async ({ page }) => {
+  await seed(page, "dark", 860, 800, "minimal");
+  await page.keyboard.press("Control+d");
+  await expect(rail(page)).toHaveAttribute("data-density", "comfortable");
+  expect(await stored(page)).toBe("minimal");
+  await page.keyboard.press("Control+d");
+  await expect(rail(page)).toHaveAttribute("data-density", "minimal");
+  expect(await stored(page)).toBe("minimal");
+});
+
+test("at full width the density shortcut still changes the setting", async ({ page }) => {
+  await seed(page, "dark", 1280, 800);
+  await page.keyboard.press("Control+d");
+  await expect(rail(page)).toHaveAttribute("data-density", "compact");
+  expect(await stored(page)).toBe("compact");
+});
+
+test("narrow: double-clicking the rail's edge closes the list it opened; Settings is never written", async ({ page }) => {
+  await seed(page, "dark", 860, 800);
+  await page.keyboard.press("ControlOrMeta+b");
+  await expect(rail(page)).toHaveAttribute("data-density", "comfortable");
+  await page.getByRole("separator", { name: "Resize navigator" }).dblclick();
+  await expect(rail(page)).toHaveAttribute("data-density", "minimal");
+  expect(await stored(page)).toBe("comfortable");
+});
+
+test("Ctrl+D typed in the terminal or a text field is the typing's, not the rail's", async ({ page }) => {
+  await seed(page, "dark", 1280, 800);
+  await expect(rail(page)).toHaveAttribute("data-density", "comfortable");
+  // A text field: the rail's search.
+  await page.getByRole("searchbox").first().focus();
+  await page.keyboard.press("Control+d");
+  await expect(rail(page)).toHaveAttribute("data-density", "comfortable");
+  // The terminal (Ctrl+D is end-of-input there).
+  await page.getByRole("button", { name: /Work Max/ }).first().click();
+  await page.locator(".xterm-helper-textarea").first().focus();
+  await page.keyboard.press("Control+d");
+  await expect(rail(page)).toHaveAttribute("data-density", "comfortable");
+  expect(await stored(page)).toBe("comfortable");
+  // Elsewhere it still cycles.
+  await page.locator(".xterm-helper-textarea").first().blur();
+  await page.keyboard.press("Control+d");
+  await expect(rail(page)).toHaveAttribute("data-density", "compact");
+});

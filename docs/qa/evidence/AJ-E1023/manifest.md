@@ -33,3 +33,21 @@ reviewer claude-opus.
 
 - A real second tool: with only Claude Code installed on this Mac, the
   choice is exercised through fixtures until the Codex adapter lands.
+
+## Post-merge review fixes (2026-10-20)
+
+- **Focus.** The tool choice moves focus in once, on open. Before, its
+  effect depended on `onClose`, a new arrow on each App render (the 15 s
+  clock, session events), so focus jumped back to the frame. It now
+  keeps Tab and Shift+Tab inside the dialog and returns focus to what
+  opened it. `onClose` is held in a ref. Covered by four vitest tests: a
+  re-render doesn't move focus, Tab and Shift+Tab wrap, focus returns on
+  close, and Escape calls the latest `onClose`.
+- **One way in.** Home's and Usage's "Find my accounts" go through the
+  same Add account entry as Accounts, so they get the tool choice when
+  more than one tool is installed.
+- **Cursors.** The hand cursor shows on the tool cards and on Home's
+  Resume, Mark reviewed and Show all (`cursor.spec.ts`, after #73).
+- **Walked by hand** (vite preview with two tools, 1280×800, dark): Tab
+  to "Codex →", wait 17 s, focus still there; Tab twice wraps inside
+  (Close → "Claude Code →"); Escape returns focus to Add account.

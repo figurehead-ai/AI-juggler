@@ -6,6 +6,8 @@
  * sessions, what ended and isn't reviewed, J/K/Enter/A (from AJ-E1005).
  */
 import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HomeScreen, needOf, needWords, placeOf, runwayOf, toReview } from "./Home";
 import type { AccountInfo, InstanceInfo, ProjectInfo, QuotaDisplayData } from "../lib/bridge";
@@ -215,6 +217,8 @@ describe("AJ-E1021 Home as the morning triage (from AJ-E1005)", () => {
     expect(toReview(mk("d", { status: "stopped", lifecycle: "archived" }), NOW)).toBe(false);
     expect(toReview(mk("e", { status: "finished", last_activity_ms: NOW - 8 * 24 * 3_600_000 }), NOW)).toBe(false);
     expect(toReview(mk("f", { status: "running" }), NOW)).toBe(false);
+    // It goes on in another session; that one is what to pick up.
+    expect(toReview(mk("g", { status: "handed_over" }), NOW)).toBe(false);
   });
 
   it("a parked session waits in its own section, not under Needs you; at the reset it offers Resume", async () => {
@@ -256,27 +260,104 @@ describe("AJ-E1021 Home as the morning triage (from AJ-E1005)", () => {
   });
 
   it("is keyboard operable: J/K or arrows move, A runs the row's action, Enter opens", async () => {
+    const user = userEvent.setup();
     const opened: string[] = [];
-    const { container } = renderHome(
-      [mk("w", { status: "waiting_user" }), mk("r"), mk("d", { status: "finished" })],
-      { onOpenSession: (id) => opened.push(id) },
-    );
+    // The parent refreshes after an action: a reviewed session leaves the list.
+    function Stateful() {
+      const [rows, setRows] = useState([
+        mk("w", { status: "waiting_user" }),
+        mk("r"),
+        mk("d1", { status: "finished", last_activity_ms: NOW - 60_000 }),
+        mk("d2", { status: "finished", last_activity_ms: NOW - 120_000 }),
+      ]);
+      return (
+        <HomeScreen
+          sessions={rows}
+          accounts={ACCOUNTS}
+          projects={PROJECTS}
+          now={NOW}
+          onOpenSession={(id) => opened.push(id)}
+          onNewSession={() => null}
+          onAddAccounts={() => null}
+          onChanged={() => setRows((current) => current.filter((row) => !calls().some((call) => call === `reviewed:${row.id}`)))}
+        />
+      );
+    }
+    const { container } = render(<Stateful />);
     const rows = () => Array.from(container.querySelectorAll<HTMLElement>("[data-home-row]"));
-    expect(rows()).toHaveLength(3);
+    expect(rows()).toHaveLength(4);
     rows()[0]!.focus();
-    fireEvent.keyDown(rows()[0]!, { key: "j" });
+    await user.keyboard("j");
     expect(document.activeElement).toBe(rows()[1]);
-    fireEvent.keyDown(document.activeElement!, { key: "ArrowDown" });
+    await user.keyboard("{ArrowDown}");
     expect(document.activeElement).toBe(rows()[2]);
-    await act(async () => {
-      fireEvent.keyDown(document.activeElement!, { key: "a" });
-    });
-    expect(calls()).toEqual(["reviewed:d"]);
-    fireEvent.keyDown(document.activeElement!, { key: "k" });
-    fireEvent.keyDown(document.activeElement!, { key: "k" });
-    fireEvent.click(document.activeElement!);
+    // A marks d1 reviewed; its row disappears; focus lands on the row now
+    // in its place (d2), not on <body>, and the keys go on working.
+    await user.keyboard("a");
+    await waitFor(() => expect(rows()).toHaveLength(3));
+    expect(calls()).toEqual(["reviewed:d1"]);
+    await waitFor(() => expect(document.activeElement).toBe(rows()[2]));
+    await user.keyboard("k");
+    expect(document.activeElement).toBe(rows()[1]);
+    await user.keyboard("k");
+    await user.keyboard("{Enter}");
     expect(opened).toEqual(["w"]);
     expect(container.querySelector("[data-testid='home-keys']")!.textContent).toContain("runs the row's action");
+  });
+
+  it("A on a row's own Mark reviewed button acts on that row; J moves on from it", async () => {
+    const user = userEvent.setup();
+    const { container, getAllByRole } = renderHome([mk("d1", { status: "finished" }), mk("d2", { status: "finished", last_activity_ms: NOW - 120_000 })]);
+    const markFirst = getAllByRole("button", { name: /^Mark reviewed/ })[0]!;
+    markFirst.focus();
+    await user.keyboard("a");
+    await waitFor(() => expect(calls()).toEqual(["reviewed:d1"]));
+    markFirst.focus();
+    await user.keyboard("j");
+    expect(document.activeElement).toBe(container.querySelectorAll<HTMLElement>("[data-home-row]")[1]);
+  });
+
+  it("keys still work after focus fell to <body> while Home is shown", async () => {
+    const user = userEvent.setup();
+    const { container } = renderHome([mk("w", { status: "waiting_user" }), mk("r")]);
+    (document.activeElement as HTMLElement | null)?.blur();
+    expect(document.activeElement).toBe(document.body);
+    await user.keyboard("j");
+    expect(document.activeElement).toBe(container.querySelectorAll<HTMLElement>("[data-home-row]")[0]);
+  });
+
+  it("a dialog over Home owns the keys, even with focus on <body>", async () => {
+    const user = userEvent.setup();
+    const { container } = renderHome([mk("d1", { status: "finished" }), mk("d2", { status: "finished", last_activity_ms: NOW - 120_000 })]);
+    const modal = document.createElement("div");
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    document.body.appendChild(modal);
+    try {
+      (document.activeElement as HTMLElement | null)?.blur();
+      await user.keyboard("j");
+      expect(document.activeElement).toBe(document.body);
+      // A reaches no row behind the dialog either.
+      container.querySelectorAll<HTMLElement>("[data-home-row]")[0]!.focus();
+      (document.activeElement as HTMLElement).blur();
+      await user.keyboard("a");
+      expect(calls()).toEqual([]);
+    } finally {
+      modal.remove();
+    }
+    // Gone, the keys work again.
+    await user.keyboard("j");
+    expect(document.activeElement).toBe(container.querySelectorAll<HTMLElement>("[data-home-row]")[0]);
+  });
+
+  it("a key another handler already took isn't run again from <body>", () => {
+    const { container } = renderHome([mk("w", { status: "waiting_user" })]);
+    (document.activeElement as HTMLElement | null)?.blur();
+    const event = new KeyboardEvent("keydown", { key: "j", bubbles: true, cancelable: true });
+    event.preventDefault();
+    window.dispatchEvent(event);
+    expect(document.activeElement).toBe(document.body);
+    expect(container.querySelectorAll("[data-home-row]").length).toBe(1);
   });
 
   it("renders 50 sessions well inside 300 ms", () => {

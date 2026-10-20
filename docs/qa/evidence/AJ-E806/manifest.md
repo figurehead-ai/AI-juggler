@@ -89,6 +89,33 @@
   half-written. Fix: the stub writes a temporary file and renames it into
   place. It passed 15/15 standalone before the fix; the assertion is
   unchanged.
+- **Flake record, 2026-10-20 (infrastructure; no change).** On PR #59
+  (AJ-E1301) the CI `ui` job failed in its first step, `corepack prepare
+  pnpm@10 --activate`: "Internal Error: Error when performing the request
+  to https://registry.npmjs.org/pnpm/10.34.7" (run 39438483215, job
+  118681742197). No project code had run; install, component tests and
+  build were skipped. The job is re-run unchanged; CI is the arbiter.
+- **Defect record, 2026-10-20 (found by review; fixed).** PR #60's shared
+  import walk (`claude_environment.rs`) used `DirEntry::metadata`, which
+  does not follow links, and then copied every non-directory with
+  `std::fs::copy`, which does: a linked folder failed the whole import, a
+  link to a file outside the home (e.g. a key) was copied in, and the
+  size ceiling counted the link, not its target. This affected Claude
+  imports too. Fixed on main by #73 (a linked folder is kept as a link, a
+  linked file copied by content, a broken link left out); #60's own
+  skip-the-link fix was replaced by that shared rule.
+  The same review found Codex's `auth.json` copy would share a
+  single-use refresh token (now kept back).
+- **Defect record, 2026-10-20 (found by review; fixed before merge).**
+  PR #61's transcript linking (`handover_source` → `oldest_since`) took
+  the oldest file in the session's folder created after its start and
+  WROTE it down — even from a preflight. Two sessions of one account in
+  one folder (Codex writes a rollout only on the first turn) could be
+  given the other's conversation; Claude sessions too. Now: files linked
+  to other sessions are excluded, two matches find nothing, another live
+  unlinked session in the same folder makes it ambiguous (the switch
+  asks), only the switch itself persists, and the scan runs outside the
+  storage lock. Tests for Codex and Claude.
 - a11y seeded failure is recorded DEFERRED with owning task AJ-E804 —
   the gate is named in QUALITY.md vocabulary now; its absence is
   explicit, never a silent pass (per the quarantine/deferral rule).
@@ -298,3 +325,31 @@
   brief quotes each turn so text in a turn can't pose as another turn.
   Regression: `claude_handover :: an_untrusted_bundle_cannot_write_outside_the_target`
   (fails on the old code) and `a_turn_cannot_forge_another_turn_in_the_brief`.
+- Real bugs found while building AJ-E1024 (2026-10-20, the maintainer's
+  bring-in report plus code reading):
+  1. A launch setting with a model replaced the account's whole
+     `settings.json` with `{"model": …}` on every launch, wiping hooks,
+     permissions and the status line in copies. Now `claude --model`.
+     Regression: `in_place_accounts :: a_copy_keeps_its_settings_file_when_a_profile_sets_a_model`.
+  2. One failed setup trapped the bring-in: no Continue, "Try again"
+     reran all of them and lost the others' sign-ins, and closing
+     mid-way kept importing unseen. Regressions: `first-run.test.tsx`
+     (Continue, Try again, Stop).
+  3. A copy whose account record failed to save left its copied folder
+     behind (no sweep). It is now removed at once (marked copies only).
+  4. Found by the review of AJ-E1024, pre-existing since AJ-E607: the
+     managed status line `command` was the bare wrapper path under
+     "~/Library/Application Support/AI Juggler/…". Claude runs it through
+     the shell, which split it at the space, so the wrapper never ran and
+     no Measured quota sample was ever captured on a real Mac (the
+     maintainer's five copies had empty `quota-spool/`). The command and
+     the spool path are one quoted shell word now; old installs are
+     re-pointed with the user's chained line kept. Regression:
+     `quota_ingest :: the_status_line_runs_from_a_folder_with_spaces`
+     (fails on the old code) and `an_unquoted_install_is_repaired_and_keeps_the_chain`.
+- **Flake record, 2026-10-20 (local only, load average 33–45 while three
+  sessions ran full suites).** `processes :: processes_command_reports_tree_orphans_and_stops`
+  ("never saw the child") and `reconciler :: helper_exiting_inside_grace_never_surfaces`
+  timed out once each in a `cargo test --workspace` run; both passed
+  alone at once (3/3 each). No budget changed.
+

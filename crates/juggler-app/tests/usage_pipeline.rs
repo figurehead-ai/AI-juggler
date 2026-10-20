@@ -35,6 +35,13 @@ fn app_state(dir: &Path) -> Arc<AppState> {
 fn seed_claude_account(state: &Arc<AppState>, dir: &Path) {
     let managed = dir.join("managed-claude");
     std::fs::create_dir_all(managed.join("projects")).unwrap();
+    // AI Juggler's own copy carries its marker (the status line is only
+    // ever installed into a marked folder — ADR-0018).
+    std::fs::write(
+        managed.join(juggler_adapters::claude_code::MANAGED_MARKER),
+        "",
+    )
+    .unwrap();
     // settings.json WITHOUT a prior statusline (a fresh managed dir).
     std::fs::write(
         managed.join("settings.json"),
@@ -76,6 +83,7 @@ fn seed_claude_account(state: &Arc<AppState>, dir: &Path) {
             import_source_path: None,
             import_origin: None,
             imported_at: None,
+            in_place: false,
         })
         .unwrap();
     state

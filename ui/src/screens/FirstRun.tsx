@@ -8,9 +8,14 @@
  *    saying where it's open right now (the desktop app and/or a terminal:
  *    a folder isn't tied to one tool), preselected (signed in or used in
  *    the last 30 days), one
- *    button to bring them in. Imports are copies; originals are never
- *    touched. "Where we looked" shows every place the scan checked.
- * 2. **Sign in where needed.** One card per copy that still needs the
+ *    button to bring them in. ADR-0018: by default each is used where it
+ *    is (same sign-in and history as the Claude app; AI Juggler writes
+ *    nothing of its own there); "Make separate copies" is one click away.
+ *    Each setup comes in or doesn't on its own: the result offers Continue
+ *    with the ones that came in, Try again, or — for a failed copy — Use
+ *    it where it is instead; Stop keeps what finished. "Where we looked"
+ *    shows every place the scan checked.
+ * 2. **Sign in where needed.** One card per account that still needs the
  *    vendor's own sign-in (the shared login-queue card).
  * 3. **OS access.** Whatever this platform lists (D-25), each with one line
  *    of why and one Allow; polled so an entry flips the moment the user
@@ -55,6 +60,17 @@ import {
 
 type Step = "found" | "fresh" | "folder" | "signin" | "access";
 type Group = "profiles" | "default" | "other" | "codex";
+
+/** A group's title for this tool: the profile and "other" words name
+ * Claude only for Claude Code (review of #72: Codex said "Other Claude
+ * setups"). */
+export function groupTitle(group: Group, toolName: string, provider: string): string {
+  // Codex homes are their own group in every list (AJ-E1301).
+  if (group === "codex") return "Codex";
+  if (group === "default") return "The default setup";
+  if (provider !== "claude-code") return group === "profiles" ? `Your ${toolName} profiles` : `Other ${toolName} setups`;
+  return group === "profiles" ? "Your Claude profiles" : "Other Claude setups";
+}
 
 const GROUPS: { id: Group; title: string }[] = [
   { id: "profiles", title: "Your Claude profiles" },
@@ -176,7 +192,58 @@ function Check({ className = "" }: { className?: string }): JSX.Element {
   );
 }
 
-type ImportState = { state: "pending" | "working" | "done" | "failed"; error?: string };
+type ImportState = {
+  state: "pending" | "working" | "done" | "already" | "failed";
+  error?: string;
+  placement?: Placement;
+};
+
+/** ADR-0018: how a setup comes in. */
+export type Placement = "in_place" | "copy";
+
+/** The error, without the internal "account directory error at <path>:"
+ * prefix — the row already says which setup it is. */
+export function plainImportError(text: string): string {
+  const plain = text.replace(/^account directory error at .+?: (?=\S)/, "");
+  return plain.charAt(0).toUpperCase() + plain.slice(1);
+}
+
+/** The result line: what came in, what didn't, what already was. */
+export function outcomeWords({
+  stopped,
+  done,
+  waiting,
+  failed,
+  already,
+}: {
+  stopped: boolean;
+  done: number;
+  waiting: number;
+  failed: number;
+  already: string[];
+}): string {
+  const parts: string[] = [];
+  if (stopped) parts.push(`Stopped. ${done} brought in${waiting > 0 ? `, ${waiting} still to go` : ""}.`);
+  else if (done > 0 || failed === 0) parts.push(done === 1 ? "1 brought in." : `${done} brought in.`);
+  if (failed > 0) parts.push(failed === 1 ? "1 couldn't come in." : `${failed} couldn't come in.`);
+  if (already.length === 1) parts.push(`${already[0]} was already in AI Juggler.`);
+  else if (already.length > 1) parts.push(`${already.length} were already in AI Juggler.`);
+  if (done === 0 && failed === 0 && !stopped && already.length > 0) return parts.slice(1).join(" ");
+  return parts.join(" ");
+}
+
+const PLACEMENTS: { id: Placement; title: string; detail: string }[] = [
+  {
+    id: "in_place",
+    title: "Use them where they are",
+    detail: "Same sign-in, settings and history as your Claude app. AI Juggler adds nothing of its own to them.",
+  },
+  {
+    id: "copy",
+    title: "Make separate copies",
+    detail: "A fresh copy for AI Juggler only; your originals stay as they are. Each copy needs one sign-in.",
+  },
+];
 
 function FoundStep({
   report,
@@ -188,6 +255,8 @@ function FoundStep({
   onImported,
   onAddFresh,
   onImportFolder,
+  stopRef,
+  onBusy,
 }: {
   report: ScanReportData | null;
   cli: ProviderInstallData | null;
@@ -201,6 +270,10 @@ function FoundStep({
   onImported: (signins: Signin[]) => void;
   onAddFresh: () => void;
   onImportFolder: () => void;
+  /** Set by Stop (the Close button or Esc while bringing in): the setup
+   * in progress finishes, the rest wait. */
+  stopRef: { current: boolean };
+  onBusy: (busy: boolean) => void;
 }): JSX.Element {
   const now = useMemo(nowSecs, []);
   const installs = useMemo(
@@ -234,19 +307,47 @@ function FoundStep({
   const [busy, setBusy] = useState(false);
   const [showLooked, setShowLooked] = useState(false);
 
-  const chosen = installs.filter((found) => picked[found.path] && !found.managed);
-  const bringIn = async () => {
+  // ADR-0018: only a tool whose adapter can use a folder where it is
+  // offers it (Codex comes in as a copy until its adapter can).
+  const canInPlace = provider === "claude-code";
+  const [placement, setPlacement] = useState<Placement>(canInPlace ? "in_place" : "copy");
+  // A failed copy can be retried "where it is" on its own.
+  const [rowPlacement, setRowPlacement] = useState<Record<string, Placement>>({});
+  // Only Claude Code setups can be used where they are; a Codex row in
+  // first run's every-tool list always comes in as a copy (AJ-E1301).
+  const placementOf = (found: DiscoveredInfo): Placement =>
+    found.harness === "claude-code" ? (rowPlacement[found.path] ?? placement) : "copy";
+  // Sign-ins of the ones that came in survive retries.
+  const signinsRef = useRef<Map<string, Signin>>(new Map());
+  const [stopped, setStopped] = useState(false);
+  const [sawAlready, setSawAlready] = useState(false);
+
+  const isDone = (found: DiscoveredInfo) => {
+    const state = progress[found.path]?.state;
+    return state === "done" || state === "already";
+  };
+  const chosen = installs.filter((found) => picked[found.path] && !found.managed && !isDone(found));
+  const runImports = async (rows: DiscoveredInfo[], how: (found: DiscoveredInfo) => Placement = placementOf) => {
+    stopRef.current = false;
+    setStopped(false);
     setBusy(true);
+    onBusy(true);
     funnelEvent("import_started");
-    const signins: Signin[] = [];
     let failed = 0;
-    for (const found of chosen) {
-      setProgress((current) => ({ ...current, [found.path]: { state: "working" } }));
+    let already = 0;
+    let wasStopped = false;
+    for (const found of rows) {
+      if (stopRef.current) {
+        wasStopped = true;
+        break;
+      }
+      const mode = how(found);
+      setProgress((current) => ({ ...current, [found.path]: { state: "working", placement: mode } }));
       try {
-        const result = await accountImport(found.harness, found.path, labelOf(found), null, found.origin);
+        const result = await accountImport(found.harness, found.path, labelOf(found), null, found.origin, false, mode === "in_place");
         if (result.login === "expired") countLogin(found.harness, "expired");
         if (result.login !== "logged_in") {
-          signins.push({
+          signinsRef.current.set(result.account.id, {
             accountId: result.account.id,
             label: result.account.label,
             loginNote: result.login_note,
@@ -254,28 +355,53 @@ function FoundStep({
             colour: colourAt(installs.indexOf(found)),
           });
         }
-        setProgress((current) => ({ ...current, [found.path]: { state: "done" } }));
+        setProgress((current) => ({ ...current, [found.path]: { state: "done", placement: mode } }));
       } catch (cause) {
         const code = (cause as { code?: string })?.code;
         if (code === "already_imported") {
-          setProgress((current) => ({ ...current, [found.path]: { state: "done" } }));
+          already += 1;
+          // Nothing to do — and not "brought in": it already was (as a copy,
+          // perhaps; the error says which).
+          setProgress((current) => ({
+            ...current,
+            [found.path]: { state: "already", error: errorText(cause), placement: mode },
+          }));
         } else {
           failed += 1;
-          setProgress((current) => ({ ...current, [found.path]: { state: "failed", error: errorText(cause) } }));
+          setProgress((current) => ({
+            ...current,
+            [found.path]: { state: "failed", error: plainImportError(errorText(cause)), placement: mode },
+          }));
         }
       }
     }
-    funnelEvent(failed === 0 ? "import_completed" : "import_failed");
+    funnelEvent(failed === 0 && !wasStopped ? "import_completed" : "import_failed");
     setBusy(false);
-    if (failed === 0) onImported(signins);
+    onBusy(false);
+    if (wasStopped) setStopped(true);
+    // Something already in: say so before moving on.
+    if (already > 0) setSawAlready(true);
+    if (failed === 0 && !wasStopped && already === 0) onImported([...signinsRef.current.values()]);
   };
-  const failedAny = Object.values(progress).some((row) => row.state === "failed");
+  const failedRows = installs.filter((found) => progress[found.path]?.state === "failed");
+  const doneCount = installs.filter((found) => progress[found.path]?.state === "done").length;
+  const waiting = chosen.filter((found) => progress[found.path] === undefined);
+  const alreadyRows = installs.filter((found) => progress[found.path]?.state === "already");
+  const showOutcome = !busy && (failedRows.length > 0 || stopped || sawAlready);
+  const continueNow = () => onImported([...signinsRef.current.values()]);
+  // The result takes focus (the button the user pressed is gone).
+  const continueRef = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    if (showOutcome) continueRef.current?.focus();
+  }, [showOutcome]);
 
   if (report === null) {
     return (
       <div className="flex flex-col gap-3" role="status" data-testid="first-run-scanning">
         <h1 className="text-[28px] font-semibold tracking-tight">Looking for {toolName} on this Mac…</h1>
-        <p className="text-sm text-muted">Your default setup, your Claude profiles and anything else that looks like one. Nothing is changed.</p>
+        <p className="text-sm text-muted">{provider === "claude-code"
+            ? "Your default setup, your Claude profiles and anything else that looks like one. Nothing is changed."
+            : "Your default setup and anything else that looks like one. Nothing is changed."}</p>
       </div>
     );
   }
@@ -293,7 +419,9 @@ function FoundStep({
         <p className="max-w-2xl text-[15px] leading-relaxed text-muted">
           {installs.length === 0
             ? `Add your first account and AI Juggler sets it up in its own folder. You'll sign in with ${toolName}'s own sign-in.`
-            : "Pick the ones to bring in. AI Juggler makes its own copy of each; your originals are never changed, and you can keep using them as before."}
+            : placement === "in_place"
+              ? "Pick the ones to bring in. AI Juggler uses each one where it is, so it stays signed in and keeps its history, the same as everywhere else you use it."
+              : "Pick the ones to bring in. AI Juggler makes its own copy of each; your originals are never changed, and you can keep using them as before."}
         </p>
       </div>
 
@@ -332,10 +460,10 @@ function FoundStep({
             if (rows.length === 0) return null;
             return (
               <fieldset key={group.id} className="border-b border-hairline last:border-b-0" data-testid={`first-run-group-${group.id}`}>
-                <legend className="sr-only">{group.title}</legend>
+                <legend className="sr-only">{groupTitle(group.id, toolName, provider)}</legend>
                 <div aria-hidden="true" className="flex items-center justify-between gap-3 bg-surface-2 px-5 py-2.5 text-xs">
                   <span className="font-semibold text-ink">
-                    {group.title} <span className="font-normal text-faint">· {rows.length}</span>
+                    {groupTitle(group.id, toolName, provider)} <span className="font-normal text-faint">· {rows.length}</span>
                   </span>
                   {group.id === "default" && cli && cli.status !== "not_installed" && (
                     <span className="text-faint">{toolName} {cli.version ?? ""} installed</span>
@@ -385,6 +513,8 @@ function FoundStep({
                           <span className="text-muted">Bringing in…</span>
                         ) : row?.state === "done" ? (
                           <span className="flex items-center gap-1.5 text-success"><Check />Brought in</span>
+                        ) : row?.state === "already" ? (
+                          <span className="text-muted" title={row.error}>Already in AI Juggler</span>
                         ) : row?.state === "failed" ? (
                           <span className="text-danger">Couldn't bring in</span>
                         ) : found.managed ? (
@@ -404,16 +534,101 @@ function FoundStep({
         </div>
       )}
 
-      {failedAny && (
-        <ul className="flex flex-col gap-1 text-xs text-danger" role="alert">
-          {installs
-            .filter((found) => progress[found.path]?.state === "failed")
-            .map((found) => (
-              <li key={found.path}>
-                {labelOf(found)}: {progress[found.path]?.error}
-              </li>
-            ))}
-        </ul>
+      {installs.length > 0 && !showOutcome && canInPlace && (
+        <div role="radiogroup" aria-label="How AI Juggler uses them" className="grid gap-2 sm:grid-cols-2" data-testid="first-run-placement">
+          {PLACEMENTS.map((option) => (
+            <label
+              key={option.id}
+              className={
+                "flex cursor-pointer gap-3 rounded-xl border px-4 py-3 " +
+                (placement === option.id ? "border-accent bg-accent-soft/40" : "border-hairline bg-surface hover:bg-surface-2/60")
+              }
+              data-testid={`first-run-placement-${option.id}`}
+            >
+              <input
+                type="radio"
+                name="first-run-placement"
+                value={option.id}
+                aria-labelledby={`first-run-placement-${option.id}-title`}
+                aria-describedby={`first-run-placement-${option.id}-detail`}
+                checked={placement === option.id}
+                disabled={busy}
+                onChange={() => setPlacement(option.id)}
+                className="mt-0.5 size-4 shrink-0 accent-[var(--color-accent)]"
+              />
+              <span className="flex flex-col gap-0.5">
+                <span id={`first-run-placement-${option.id}-title`} className="text-sm font-medium text-ink">
+                  {option.title}
+                  {option.id === "in_place" && <span className="ml-1.5 text-xs font-normal text-muted">Recommended</span>}
+                </span>
+                <span id={`first-run-placement-${option.id}-detail`} className="text-xs leading-relaxed text-muted">{option.detail}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+      )}
+      {installs.length > 0 && !showOutcome && canInPlace && codexCount > 0 && (
+        <p className="-mt-3 text-xs text-muted" data-testid="first-run-codex-copies">
+          Codex setups always come in as copies.
+        </p>
+      )}
+
+      {showOutcome && (
+        <div
+          className="flex flex-col gap-3 rounded-2xl border border-hairline bg-surface px-5 py-4"
+          role="alert"
+          data-testid="first-run-outcome"
+        >
+          <p className="text-[15px] font-medium text-ink">
+            {outcomeWords({
+              stopped,
+              done: doneCount,
+              waiting: waiting.length,
+              failed: failedRows.length,
+              already: alreadyRows.map(labelOf),
+            })}
+          </p>
+          {failedRows.length > 0 && (
+            <ul className="flex flex-col gap-2" data-testid="first-run-failed">
+              {failedRows.map((found) => (
+                <li key={found.path} className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1 text-sm">
+                  <span className="min-w-0 flex-1">
+                    <span className="font-medium text-ink">{labelOf(found)}</span>
+                    <span className="block text-xs leading-relaxed text-danger">{progress[found.path]?.error}</span>
+                  </span>
+                  {progress[found.path]?.placement === "copy" && found.harness === "claude-code" && (
+                    <button
+                      type="button"
+                      className="shrink-0 text-xs text-accent-hi hover:underline"
+                      data-testid="first-run-use-in-place"
+                      onClick={() => {
+                        setRowPlacement((current) => ({ ...current, [found.path]: "in_place" }));
+                        void runImports([found], () => "in_place");
+                      }}
+                    >
+                      Use it where it is instead
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            {failedRows.length > 0 && (
+              <Button onClick={() => void runImports(failedRows)} data-testid="first-run-retry">
+                {failedRows.length === 1 ? "Try again" : `Try again for ${failedRows.length}`}
+              </Button>
+            )}
+            {stopped && waiting.length > 0 && (
+              <Button onClick={() => void runImports(waiting)} data-testid="first-run-rest">
+                Bring in the rest
+              </Button>
+            )}
+            <Button variant="primary" onClick={continueNow} data-testid="first-run-continue" ref={continueRef}>
+              {doneCount === 0 ? (failedRows.length > 0 || waiting.length > 0 ? "Continue without them" : "Continue") : doneCount === 1 ? "Continue with 1 account" : `Continue with ${doneCount} accounts`}
+            </Button>
+          </div>
+        </div>
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -435,22 +650,20 @@ function FoundStep({
             </button>
           )}
         </div>
-        {installs.length > 0 && (
+        {installs.length > 0 && !showOutcome && (
           <div className="flex items-center gap-3">
             <span className="hidden text-xs text-faint md:inline">Names and plans can be changed later.</span>
             <Button
               variant="primary"
               disabled={chosen.length === 0 || busy}
-              onClick={() => void bringIn()}
+              onClick={() => void runImports(chosen)}
               data-testid="first-run-bring-in"
             >
               {busy
                 ? "Bringing them in…"
-                : failedAny
-                  ? "Try again"
-                  : chosen.length === 1
-                    ? "Bring in 1 account"
-                    : `Bring in ${chosen.length} accounts`}
+                : chosen.length === 1
+                  ? "Bring in 1 account"
+                  : `Bring in ${chosen.length} accounts`}
             </Button>
           </div>
         )}
@@ -628,9 +841,14 @@ function SigninStep({
               : `${left.length} accounts need a quick sign-in.`}
         </h1>
         <p className="max-w-2xl text-[15px] leading-relaxed text-muted">
-          {queue.some((entry) => entry.provider === "codex")
-            ? "Every copy signs in once, in its own folder, with the provider's own sign-in — Claude's or OpenAI's. AI Juggler never sees your password and notices when you're done."
-            : "macOS ties each Claude sign-in to its own folder, so every copy signs in once. Each opens Claude's own sign-in; AI Juggler never sees your password and notices when you're done."}
+          {(() => {
+            // One tool: its own sign-in by name. First run with every tool
+            // (AJ-E1301): each account opens its own tool's sign-in.
+            const tools = [...new Set(queue.map((entry) => entry.provider || provider))];
+            return tools.length > 1
+              ? `Each opens its own tool's sign-in (${tools.map((tool) => `${providerDisplayName(tool)}'s`).join(" or ")}), for that account's folder; AI Juggler never sees your password and notices when you're done.`
+              : `Each opens ${providerDisplayName(tools[0] ?? provider)}'s own sign-in, for that account's folder; AI Juggler never sees your password and notices when you're done.`;
+          })()}
         </p>
       </div>
       <ul className="overflow-hidden rounded-2xl border border-hairline bg-surface">
@@ -1094,6 +1312,19 @@ export function FirstRun({
   const [codexCli, setCodexCli] = useState<ProviderInstallData | null>(null);
   const [queue, setQueue] = useState<Signin[]>([]);
   const [access, setAccess] = useState<OsAccessInfo[] | null>(null);
+  // ADR-0018 §5: while a bring-in runs, Close and Esc mean Stop — the
+  // setup in progress finishes cleanly and what came in stays.
+  const stopRef = useRef(false);
+  const [importing, setImporting] = useState(false);
+  const [stopping, setStopping] = useState(false);
+  const leave = useCallback(() => {
+    if (importing) {
+      stopRef.current = true;
+      setStopping(true);
+      return;
+    }
+    onDone();
+  }, [importing, onDone]);
 
   useEffect(() => {
     if (mode === "first-run") funnelStep("a-first-install", "found");
@@ -1134,11 +1365,11 @@ export function FirstRun({
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       // A popover inside that already took the Escape keeps the screen open.
-      if (event.key === "Escape" && !event.defaultPrevented) onDone();
+      if (event.key === "Escape" && !event.defaultPrevented) leave();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onDone]);
+  }, [leave]);
 
   // D-25: adding, with nothing new on this Mac to bring in — go straight
   // to a fresh account rather than show an empty list.
@@ -1204,11 +1435,12 @@ export function FirstRun({
         <Button
           size="sm"
           variant="secondary"
-          onClick={onDone}
+          onClick={leave}
+          disabled={stopping}
           aria-keyshortcuts="Escape"
           data-testid="first-run-close"
         >
-          {mode === "add" ? "Close" : "Not now"}
+          {stopping ? "Stopping after this one…" : importing ? "Stop" : mode === "add" ? "Close" : "Not now"}
         </Button>
       </div>
       <div className="flex flex-1 justify-center px-6 pb-16 pt-6">
@@ -1224,6 +1456,11 @@ export function FirstRun({
               codexCli={codexCli}
               onAddFresh={() => setStep("fresh")}
               onImportFolder={() => void pickFolder()}
+              stopRef={stopRef}
+              onBusy={(busy) => {
+                setImporting(busy);
+                if (!busy) setStopping(false);
+              }}
               onImported={(signins) => {
                 onAccountsChanged?.();
                 setQueue(signins);

@@ -354,3 +354,20 @@
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1023/`.
 **Research basis**: D-25 (progressive disclosure); the Codex adapter in progress (another session) — no adapter code touched.
 
+### AJ-E1024 Use setups where they are; partial bring-in is the user's call (ADR-0018) | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E1018, AJ-E307
+**Goal**: Bringing in a setup doesn't make a second, diverging world, and one failure never traps the user.
+**User story**: As someone with six Claude setups, I want AI Juggler to work with the ones I have (same sign-in, same history as my Claude app) unless I ask for a copy, and when one of six can't come in, to go on with the five.
+**Requirements**:
+1. The bring-in screen SHALL offer, in view, "Use them where they are" (default, recommended) and "Make separate copies", one line each on what it means.
+2. In place, AI Juggler SHALL write nothing of its own into the folder: no marker, no permission change, no `settings.json` edits, no status line wrapper or spool. Its launch settings and capture SHALL live under the data dir's `overlays/<account-id>/` and go in with `claude --settings`.
+3. A profile's model SHALL go in as `claude --model` for every account; `settings.json` SHALL never be rewritten for it (it wiped hooks and permissions in copies).
+4. The default `~/.claude` in place SHALL launch and sign in with `CLAUDE_CONFIG_DIR` unset (its Keychain entry and `~/.claude.json`); any other folder with its exact path.
+5. Each pick SHALL come in or not on its own. The result SHALL list the failed ones in plain words with Try again (those only), "Use it where it is instead" (a failed copy) and Continue with the ones that came in; sign-ins of the ones that came in survive retries.
+6. While bringing in, Close and Esc SHALL mean Stop: the setup in progress finishes, what came in stays, and the result offers Bring in the rest or Continue.
+7. A copy whose account record can't be saved SHALL remove its copied folder. In-place folders SHALL count as "Already in AI Juggler" in the scan; the isolation checklist SHALL describe them honestly; the Accounts card SHALL say "uses ~/x where it is" or "a copy of ~/x".
+8. A copied account SHALL be able to switch to its original folder ("Use the original instead", confirmed, nothing deleted), refused while a session runs on it or when another account already uses that folder.
+9. Launches and sign-ins SHALL NOT inherit `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN` or `CLAUDE_CODE_OAUTH_TOKEN` from AI Juggler's own environment.
+**Quality gates**: Rust `in_place_accounts` (nothing in the folder changes — sizes and mtimes — through bring-in, launch, the usage pass and the checklist; `--model`/`--settings`; a copy's settings survive a model launch; our own copy and non-setups refused), `vendor_default_folder`, the supervisor's env-unset test; vitest `first-run.test.tsx` (default in place, Continue, Try again, use in place instead, Stop) and the placement words; the full Playwright suite; the accessibility gate; walked by hand.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1024/`.
+**Research basis**: maintainer, 2026-10-20: "most of people don't want 10s of different profiles confusing everywhere"; "we should always give option to the user if they want to continue with partial import or try again. We can't be forceful to users". ADR-0018.
+

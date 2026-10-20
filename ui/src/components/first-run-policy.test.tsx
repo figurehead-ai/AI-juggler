@@ -9,7 +9,7 @@
  *  - the pack restatement words; env overrides refuse isolation and
  *    credential keys inline.
  */
-import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, within, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { FirstRun } from "../screens/FirstRun";
 import { packPolicyRestatement } from "./PackPolicyChooser";
@@ -56,6 +56,8 @@ describe("D-14 — first run never asks about pack secrets", () => {
     );
     await findByTestId("first-run-found");
     expect(container.textContent).not.toMatch(PACK_QUESTION);
+    // Copies, so the sign-in step shows too (used where they are, they keep theirs).
+    fireEvent.click(within(getByTestId("first-run-placement-copy")).getByRole("radio"));
     fireEvent.click(getByTestId("first-run-bring-in"));
     await findByTestId("first-run-signin");
     expect(container.textContent).not.toMatch(PACK_QUESTION);
@@ -88,6 +90,7 @@ describe("AJ-E309 Req.6 — funnel events carry no paths, labels, or credentials
     w().__AIJ_PICK_DIRECTORY__ = "/Users/you/old-claude";
     const run = render(<FirstRun onDone={() => null} openLoginTerminal={() => null} />);
     await run.findByTestId("first-run-found");
+    fireEvent.click(within(run.getByTestId("first-run-placement-copy")).getByRole("radio"));
     await act(async () => {
       fireEvent.click(run.getByTestId("first-run-bring-in"));
     });
