@@ -120,6 +120,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A rail row now notes a session's memory or CPU only while that session
   is heavy. The session view shows "CPU 12% · 1.1 GB · 3 helpers" under
   its title instead of keeping it under Details (AJ-E1405).
+- New session now answers "Has this Mac got room?" beside the account's
+  own verdict (E14, AJ-E1406/E1407): OK, Tight or Not now, with the
+  reasons and what would make room ("Closing feat/read-model frees about
+  3.2 GB"). It learns from your own sessions how heavy each launch setting
+  is (the median peak, after three sessions; until then it says "not
+  measured yet"). It never stops you starting a session.
 - Three update channels (decision D-20): **Nightly** (built from the latest
   code every day), **Beta** and **Stable** (each promoted with the
   maintainer's approval). Choose Stable or Beta in Settings › About &

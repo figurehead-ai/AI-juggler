@@ -248,6 +248,9 @@ pub struct MachineWatch {
     pub sampler: MachineSampler,
     ticks: u32,
     tools: Vec<RunningTool>,
+    /// Running peaks per session / observed tree (AJ-E1406), written as
+    /// footprints every 10 min and when the tree ends.
+    peaks: std::collections::HashMap<String, TreePeaks>,
 }
 
 impl Default for MachineWatch {
@@ -256,6 +259,7 @@ impl Default for MachineWatch {
             sampler: MachineSampler::new(),
             ticks: 0,
             tools: Vec::new(),
+            peaks: std::collections::HashMap::new(),
         }
     }
 }
@@ -279,15 +283,16 @@ const TOOLS_EVERY: u32 = 15;
 /// the 30 s disk cadence alone, and the collector's lock after the watch's
 /// is released.
 pub fn tick(state: &Arc<AppState>, now_ms: i64) {
-    let refresh_tools = {
+    let ticks = {
         let Ok(mut watch) = state.machine.lock() else {
             return;
         };
         watch.ticks = watch.ticks.wrapping_add(1);
         watch.sampler.tick(now_ms, || paths_in_use(state));
-        watch.ticks == 1 || watch.ticks.is_multiple_of(TOOLS_EVERY)
+        watch.ticks
     };
-    if !refresh_tools {
+    track_footprints(state, now_ms, ticks.is_multiple_of(FOOTPRINT_EVERY));
+    if !(ticks == 1 || ticks.is_multiple_of(TOOLS_EVERY)) {
         return;
     }
     // Classified from the collector's own table (no second full refresh);
@@ -306,6 +311,364 @@ pub fn tick(state: &Arc<AppState>, now_ms: i64) {
     }
     if let Ok(mut collector) = state.resources.lock() {
         collector.set_observed_roots(roots);
+    }
+}
+
+// --- AJ-E1407: the machine launch advisor --------------------------------
+
+/// Before 3 footprints exist, a launch is assumed to take this much.
+const UNMEASURED_PROJECTION: u64 = 1_000_000_000;
+/// Projections need this many footprints of the launch setting.
+const MIN_FOOTPRINTS: u32 = 3;
+
+/// "Can this Mac take another session?" for one launch setting (AJ-E1407).
+#[derive(Clone, PartialEq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct MachineAdviceInfo {
+    /// The launch setting.
+    pub recipe_id: String,
+    /// `ok` | `tight` | `no`.
+    pub verdict: String,
+    /// The verdict in words ("This Mac can take another session").
+    pub words: String,
+    /// Why, in words; empty for a plain OK.
+    pub reasons: Vec<String>,
+    /// What a session of this setting is expected to take, bytes.
+    #[ts(type = "number")]
+    pub projected_bytes: u64,
+    /// How many of this setting's sessions the projection learned from;
+    /// 0 = not measured yet (the default is used).
+    pub based_on: u32,
+    /// The heaviest running session, when closing it would help.
+    pub relief_session_id: Option<String>,
+    /// Memory that closing it would free, bytes.
+    #[ts(type = "number | null")]
+    pub relief_bytes: Option<u64>,
+}
+
+/// Pure (AJ-E1407 Req.1–2): the verdict for one setting on this Mac.
+#[must_use]
+#[allow(clippy::cast_precision_loss)] // shares for display
+pub fn advise(
+    machine: &MachineHealthInfo,
+    recipe_id: &str,
+    footprint: Option<&juggler_core::storage::FootprintStats>,
+    heaviest: Option<(&str, u64)>,
+) -> MachineAdviceInfo {
+    let measured = footprint.filter(|stats| stats.count >= MIN_FOOTPRINTS);
+    let projected = measured.map_or(UNMEASURED_PROJECTION, |stats| stats.median_peak_rss);
+    let based_on = measured.map_or(0, |stats| stats.count);
+    let total = machine.memory_total.max(1) as f64;
+    let after = machine.memory_available.saturating_sub(projected);
+    let after_share = after as f64 / total;
+    let mut no = Vec::new();
+    let mut tight = Vec::new();
+    match machine.pressure.as_deref() {
+        Some("critical") => no.push("macOS reports critical memory pressure".to_string()),
+        Some("warning") => tight.push("macOS reports memory pressure".to_string()),
+        _ => {}
+    }
+    if machine.sampled && machine.memory_total > 0 {
+        let left = format!("it would leave about {} of memory free", bytes_words(after));
+        if after_share < 0.05 {
+            no.push(left);
+        } else if after_share < 0.15 {
+            tight.push(left);
+        }
+    }
+    for reason in &machine.summary.reasons {
+        if matches!(reason.kind.as_str(), "cpu" | "thermal" | "swap") {
+            if reason.level == "pressure" {
+                no.push(reason.words.clone());
+            } else {
+                tight.push(reason.words.clone());
+            }
+        }
+    }
+    let (verdict, words, reasons) = if !no.is_empty() {
+        ("no", "Not now — this Mac is short of room", no)
+    } else if !tight.is_empty() {
+        ("tight", "Tight — this Mac can take it, just", tight)
+    } else {
+        ("ok", "This Mac can take another session", Vec::new())
+    };
+    let relief = (verdict != "ok")
+        .then_some(heaviest)
+        .flatten()
+        .filter(|(_, bytes)| *bytes >= 500_000_000);
+    MachineAdviceInfo {
+        recipe_id: recipe_id.to_string(),
+        verdict: verdict.to_string(),
+        words: words.to_string(),
+        reasons,
+        projected_bytes: projected,
+        based_on,
+        relief_session_id: relief.map(|(id, _)| id.to_string()),
+        relief_bytes: relief.map(|(_, bytes)| bytes),
+    }
+}
+
+/// The advice for every launch setting (AJ-E1407).
+///
+/// # Errors
+///
+/// [`AppError::StatePoisoned`] when a lock is poisoned; storage errors.
+pub fn machine_advice_impl(state: &Arc<AppState>) -> AppResult<Vec<MachineAdviceInfo>> {
+    let mac = this_mac_impl(state, crate::commands::now_millis())?;
+    let (recipes, footprints) = {
+        let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
+        let mut recipes = Vec::new();
+        for account in storage.accounts().list()? {
+            recipes.extend(storage.profiles().list_by_account(&account.id)?);
+        }
+        (recipes, storage.footprints().stats()?)
+    };
+    let heaviest = mac
+        .top
+        .iter()
+        .find_map(|tree| tree.session_id.as_deref().map(|id| (id, tree.rss_bytes)));
+    Ok(recipes
+        .iter()
+        .map(|recipe| {
+            let key = format!("recipe:{}", recipe.id);
+            advise(
+                &mac.machine,
+                recipe.id.as_str(),
+                footprints.iter().find(|stats| stats.key == key),
+                heaviest,
+            )
+        })
+        .collect())
+}
+
+/// "Can this Mac take another session?" per launch setting (AJ-E1407).
+/// Warns; never blocks a launch.
+///
+/// # Errors
+///
+/// As [`machine_advice_impl`].
+#[tauri::command]
+pub fn machine_advice(state: tauri::State<'_, Arc<AppState>>) -> AppResult<Vec<MachineAdviceInfo>> {
+    machine_advice_impl(state.inner())
+}
+
+// --- AJ-E1406: footprints -------------------------------------------------
+
+/// Footprints are written every 300th tick (10 min) while a tree runs, so
+/// a crash still leaves one, and once more when it ends.
+const FOOTPRINT_EVERY: u32 = 300;
+/// CPU samples kept per tree for its p95: the last hour of 2 s samples.
+const CPU_SAMPLES: usize = 1_800;
+
+/// One tree's running peaks.
+#[derive(Debug, Clone)]
+struct TreePeaks {
+    key: String,
+    provider: String,
+    account_id: Option<String>,
+    first_ms: i64,
+    last_ms: i64,
+    max_rss: u64,
+    max_helpers: u32,
+    cpu: std::collections::VecDeque<f64>,
+}
+
+impl TreePeaks {
+    fn new(key: String, provider: String, account_id: Option<String>, now_ms: i64) -> Self {
+        Self {
+            key,
+            provider,
+            account_id,
+            first_ms: now_ms,
+            last_ms: now_ms,
+            max_rss: 0,
+            max_helpers: 0,
+            cpu: std::collections::VecDeque::new(),
+        }
+    }
+
+    fn observe(&mut self, stats: &LiveProcessStats, now_ms: i64) {
+        self.last_ms = now_ms;
+        self.max_rss = self.max_rss.max(stats.rss_bytes);
+        self.max_helpers = self.max_helpers.max(stats.child_count);
+        if let Some(cpu) = stats.cpu_pct {
+            self.cpu.push_back(cpu);
+            while self.cpu.len() > CPU_SAMPLES {
+                self.cpu.pop_front();
+            }
+        }
+    }
+
+    fn footprint(&self, id: &str) -> juggler_core::storage::Footprint {
+        juggler_core::storage::Footprint {
+            key: self.key.clone(),
+            session_id: id.to_string(),
+            provider: self.provider.clone(),
+            account_id: self.account_id.clone(),
+            peak_rss: self.max_rss,
+            p95_cpu: p95(&self.cpu),
+            peak_helpers: self.max_helpers,
+            duration_ms: self.last_ms - self.first_ms,
+            recorded_at: self.last_ms,
+        }
+    }
+}
+
+/// Pure: the 95th percentile (nearest rank) of a set of samples.
+#[must_use]
+#[allow(
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss
+)]
+pub fn p95(samples: &std::collections::VecDeque<f64>) -> Option<f64> {
+    if samples.is_empty() {
+        return None;
+    }
+    let mut sorted: Vec<f64> = samples.iter().copied().collect();
+    sorted.sort_by(f64::total_cmp);
+    let rank = ((sorted.len() as f64) * 0.95).ceil() as usize;
+    sorted.get(rank.saturating_sub(1)).copied()
+}
+
+/// Peaks for sessions seen for the first time, keyed by their launch
+/// setting (one storage read each, once per session).
+fn peaks_for_new_sessions(
+    state: &Arc<AppState>,
+    live: &std::collections::HashMap<String, LiveProcessStats>,
+    now_ms: i64,
+) -> Vec<(String, TreePeaks)> {
+    let unknown: Vec<String> = state.machine.lock().map_or_else(
+        |_| Vec::new(),
+        |watch| {
+            live.keys()
+                .filter(|id| !watch.peaks.contains_key(*id))
+                .cloned()
+                .collect()
+        },
+    );
+    if unknown.is_empty() {
+        return Vec::new();
+    }
+    let contexts: std::collections::HashMap<String, juggler_supervisor::tree::SpawnContext> = state
+        .supervisor
+        .spawn_contexts_snapshot()
+        .into_iter()
+        .map(|(session, ctx)| (session.as_str().to_string(), ctx))
+        .collect();
+    let Ok(storage) = state.storage.lock() else {
+        return Vec::new();
+    };
+    unknown
+        .into_iter()
+        .map(|id| {
+            let recipe = storage
+                .sessions()
+                .get(&juggler_core::model::SessionId::new(id.as_str()))
+                .map_or_else(
+                    |_| "unknown".to_string(),
+                    |record| record.profile.to_string(),
+                );
+            let ctx = contexts.get(&id);
+            let peaks = TreePeaks::new(
+                format!("recipe:{recipe}"),
+                ctx.map_or_else(|| "unknown".to_string(), |ctx| ctx.provider.clone()),
+                ctx.and_then(|ctx| ctx.account_id.clone()),
+                now_ms,
+            );
+            (id, peaks)
+        })
+        .collect()
+}
+
+/// Every tick: fold the live trees into their peaks; write footprints for
+/// trees that ended (and, every 10 min, for every running one).
+fn track_footprints(state: &Arc<AppState>, now_ms: i64, periodic: bool) {
+    let Ok((sessions, observed)) = state
+        .resources
+        .lock()
+        .map(|collector| (collector.stats_snapshot(), collector.observed_snapshot()))
+    else {
+        return;
+    };
+    let live: std::collections::HashMap<String, LiveProcessStats> = sessions
+        .into_iter()
+        .filter(|(_, tree)| tree.rss_bytes > 0)
+        .map(|(session, tree)| (session.as_str().to_string(), tree))
+        .collect();
+    let fresh = peaks_for_new_sessions(state, &live, now_ms);
+    let mut writes = Vec::new();
+    {
+        let Ok(mut watch) = state.machine.lock() else {
+            return;
+        };
+        for (id, peak) in fresh {
+            watch.peaks.insert(id, peak);
+        }
+        let places: std::collections::HashMap<u32, &'static str> = watch
+            .tools
+            .iter()
+            .map(|tool| (tool.pid, tool.place))
+            .collect();
+        for (root, tree) in &observed {
+            let id = format!("observed:{root}");
+            let place = places.get(root).copied().unwrap_or("desktop");
+            watch
+                .peaks
+                .entry(id)
+                .or_insert_with(|| {
+                    TreePeaks::new(
+                        format!("observed:{place}"),
+                        "claude-code".into(),
+                        None,
+                        now_ms,
+                    )
+                })
+                .observe(&tree.stats, now_ms);
+        }
+        for (id, tree) in &live {
+            if let Some(peaks) = watch.peaks.get_mut(id) {
+                peaks.observe(tree, now_ms);
+            }
+        }
+        // Ended: written once more, then forgotten.
+        let ended: Vec<String> = watch
+            .peaks
+            .keys()
+            .filter(|id| match id.strip_prefix("observed:") {
+                Some(root) => root
+                    .parse::<u32>()
+                    .map_or(true, |root| !observed.contains_key(&root)),
+                None => !live.contains_key(*id),
+            })
+            .cloned()
+            .collect();
+        for id in ended {
+            if let Some(peak) = watch.peaks.remove(&id) {
+                writes.push(footprint_of(&id, &peak));
+            }
+        }
+        if periodic {
+            writes.extend(watch.peaks.iter().map(|(id, peak)| footprint_of(id, peak)));
+        }
+    }
+    if writes.is_empty() {
+        return;
+    }
+    if let Ok(storage) = state.storage.lock() {
+        for footprint in writes.iter().filter(|footprint| footprint.peak_rss > 0) {
+            let _ = storage.footprints().record(footprint);
+        }
+    }
+}
+
+/// An observed tree's footprint id carries when it was first seen, so a
+/// reused pid never merges two different trees.
+fn footprint_of(id: &str, peak: &TreePeaks) -> juggler_core::storage::Footprint {
+    if id.starts_with("observed:") {
+        peak.footprint(&format!("{id}@{}", peak.first_ms))
+    } else {
+        peak.footprint(id)
     }
 }
 
@@ -731,6 +1094,116 @@ mod tests {
             info.swap_growth_mb_per_min, None,
             "4 s is too little history"
         );
+    }
+
+    fn machine(available: u64, pressure: &str, reasons: Vec<(&str, &str)>) -> MachineHealthInfo {
+        let mut info = health_of(&MachineSnapshot::default(), &RoomThresholds::default());
+        info.sampled = true;
+        info.memory_total = 32 * G;
+        info.memory_available = available;
+        info.memory_used = 32 * G - available;
+        info.pressure = Some(pressure.to_string());
+        info.summary.reasons = reasons
+            .into_iter()
+            .map(|(kind, level)| RoomReasonInfo {
+                kind: kind.into(),
+                level: level.into(),
+                words: format!("{kind} words"),
+            })
+            .collect();
+        info
+    }
+
+    fn learned(count: u32, median: u64) -> juggler_core::storage::FootprintStats {
+        juggler_core::storage::FootprintStats {
+            key: "recipe:r".into(),
+            count,
+            median_peak_rss: median,
+            median_p95_cpu: Some(30.0),
+        }
+    }
+
+    #[test]
+    fn the_advisor_says_ok_tight_or_no_and_why() {
+        let roomy = advise(
+            &machine(12 * G, "normal", vec![]),
+            "r",
+            Some(&learned(6, 2 * G)),
+            None,
+        );
+        assert_eq!(roomy.verdict, "ok");
+        assert_eq!(roomy.words, "This Mac can take another session");
+        assert_eq!((roomy.projected_bytes, roomy.based_on), (2 * G, 6));
+        assert!(roomy.reasons.is_empty());
+        // 6 GB free − 2 GB = 4 GB = 12.5 % of 32 GB: tight.
+        let tight = advise(
+            &machine(6 * G, "normal", vec![]),
+            "r",
+            Some(&learned(6, 2 * G)),
+            Some(("s-heavy", 3 * G)),
+        );
+        assert_eq!(tight.verdict, "tight");
+        assert_eq!(
+            tight.reasons,
+            ["it would leave about 4.0 GB of memory free"]
+        );
+        assert_eq!(tight.relief_session_id.as_deref(), Some("s-heavy"));
+        assert_eq!(tight.relief_bytes, Some(3 * G));
+        // Under 5 % left after the launch: no.
+        let no = advise(
+            &machine(3 * G, "normal", vec![]),
+            "r",
+            Some(&learned(6, 2 * G)),
+            None,
+        );
+        assert_eq!(no.verdict, "no");
+        assert_eq!(no.words, "Not now — this Mac is short of room");
+        // The kernel's own pressure decides too.
+        assert_eq!(
+            advise(&machine(20 * G, "warning", vec![]), "r", None, None).verdict,
+            "tight"
+        );
+        assert_eq!(
+            advise(&machine(20 * G, "critical", vec![]), "r", None, None).verdict,
+            "no"
+        );
+        // Busy CPU or a hot Mac is tight; a memory reason is already counted.
+        let busy = advise(
+            &machine(
+                20 * G,
+                "normal",
+                vec![("cpu", "tight"), ("memory", "tight")],
+            ),
+            "r",
+            None,
+            None,
+        );
+        assert_eq!(busy.verdict, "tight");
+        assert_eq!(busy.reasons, ["cpu words"]);
+    }
+
+    #[test]
+    fn until_three_sessions_are_measured_the_projection_is_the_default() {
+        let fresh = advise(
+            &machine(12 * G, "normal", vec![]),
+            "r",
+            Some(&learned(2, 5 * G)),
+            None,
+        );
+        assert_eq!(
+            (fresh.projected_bytes, fresh.based_on),
+            (UNMEASURED_PROJECTION, 0)
+        );
+        let none = advise(&machine(12 * G, "normal", vec![]), "r", None, None);
+        assert_eq!(none.based_on, 0);
+    }
+
+    #[test]
+    fn p95_is_the_nearest_rank() {
+        let samples: std::collections::VecDeque<f64> = (1..=100).map(f64::from).collect();
+        assert_eq!(p95(&samples), Some(95.0));
+        assert_eq!(p95(&std::collections::VecDeque::new()), None);
+        assert_eq!(p95(&[7.0].into_iter().collect()), Some(7.0));
     }
 
     fn ring(cpu: f64, rss: u64, seconds: i64) -> Vec<TreeSample> {

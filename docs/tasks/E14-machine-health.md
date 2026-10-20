@@ -116,7 +116,7 @@
 **Research basis**: D-25.
 **Handover note**: The rail is shared with ux-stage4's narrow-rail work; keep the note in one span that folds away when the rail is narrow.
 
-### AJ-E1406 Footprints per launch setting, learned from history | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1401
+### AJ-E1406 Footprints per launch setting, learned from history | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E1401
 **Goal**: AI Juggler learns how heavy each kind of session really is on this Mac.
 **User story**: As a user, the advice I get is based on what my sessions actually used, not a guess.
 **Requirements**:
@@ -132,7 +132,7 @@
 **Research basis**: PROPOSAL §6.5 "per-recipe historical footprints"; SPEC §12 storage.
 **Handover note**: Footprints are local only; they never travel in a backup's shareable parts or in usage stats.
 
-### AJ-E1407 The machine launch advisor in New session | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1401, AJ-E1406
+### AJ-E1407 The machine launch advisor in New session | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E1401, AJ-E1406
 **Goal**: Before starting a session, the user knows whether this Mac can take it.
 **User story**: As a user about to start another session, the sheet tells me "This Mac can take it", "Tight" or "Not now", and why.
 **Requirements**:

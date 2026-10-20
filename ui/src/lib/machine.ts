@@ -10,6 +10,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { createContext, useContext, useEffect, useState } from "react";
 import { hasLiveBackend, instancesList, type InstanceInfo } from "./bridge";
+import type { MachineAdviceInfo } from "../types/generated/MachineAdviceInfo";
 import type { MachineHealthInfo } from "../types/generated/MachineHealthInfo";
 import type { MachinePointInfo } from "../types/generated/MachinePointInfo";
 import type { RoomReasonInfo } from "../types/generated/RoomReasonInfo";
@@ -282,4 +283,45 @@ export function reasonSentence(words: string[]): string {
 export function shortHeavy(note: string): string {
   const parts = note.split(" · ");
   return parts[parts.length - 1] ?? note;
+}
+
+// --- AJ-E1407: the machine launch advisor ---------------------------------
+
+export type { MachineAdviceInfo };
+
+/** The preview's advice: the machine fixture decides the verdict; "Deep
+ * work" (p-1) has a learned footprint, the rest are not measured yet. */
+export function mockMachineAdvice(recipeIds: string[], machine: MachineHealthInfo, heaviest: { id: string; bytes: number } | null): MachineAdviceInfo[] {
+  const level = machine.summary.level;
+  const verdict = level === "pressure" ? "no" : level === "tight" ? "tight" : "ok";
+  const words =
+    verdict === "no" ? "Not now — this Mac is short of room" : verdict === "tight" ? "Tight — this Mac can take it, just" : "This Mac can take another session";
+  const reasons = machine.summary.reasons.slice(0, 2).map((reason) => reason.words);
+  return recipeIds.map((id, index) => ({
+    recipe_id: id,
+    verdict,
+    words,
+    reasons: verdict === "ok" ? [] : reasons,
+    projected_bytes: index === 0 ? 2_100_000_000 : 1_000_000_000,
+    based_on: index === 0 ? 6 : 0,
+    relief_session_id: verdict !== "ok" && heaviest ? heaviest.id : null,
+    relief_bytes: verdict !== "ok" && heaviest ? heaviest.bytes : null,
+  }));
+}
+
+/** "Can this Mac take another session?" for every launch setting. */
+export async function machineAdvice(): Promise<MachineAdviceInfo[]> {
+  if (!hasLiveBackend()) {
+    const seeded = (window as unknown as { __AIJ_ADVICE__?: MachineAdviceInfo[] }).__AIJ_ADVICE__;
+    if (seeded) return structuredClone(seeded);
+    const { launchRecipesList } = await import("./bridge");
+    const [recipes, mac] = await Promise.all([launchRecipesList(), thisMac()]);
+    const top = mac.top.find((tree) => tree.session_id !== null);
+    return mockMachineAdvice(
+      recipes.map((recipe) => recipe.id),
+      mac.machine,
+      top ? { id: top.session_id!, bytes: top.rss_bytes } : null,
+    );
+  }
+  return invoke<MachineAdviceInfo[]>("machine_advice");
 }
