@@ -50,7 +50,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonHTMLAttributes<HTMLBut
       type={type ?? "button"}
       className={`inline-flex items-center justify-center font-medium
         transition-all duration-150 disabled:opacity-40 disabled:pointer-events-none
-        cursor-default select-none ${buttonVariants[variant]} ${buttonSizes[size]} ${className}`}
+        cursor-pointer disabled:cursor-default select-none ${buttonVariants[variant]} ${buttonSizes[size]} ${className}`}
       {...props}
     />
   );
