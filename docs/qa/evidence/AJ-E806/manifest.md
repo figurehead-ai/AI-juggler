@@ -129,6 +129,14 @@
   and still marked the source handed over; a fork whose file name lacked
   its id rewrote the original; `rename` could replace an existing
   rollout; a turn could forge another in the prime. Each has a test.
+- **Flake record, 2026-10-20 (known class; no change).** While verifying
+  the E13 stack locally, `juggler-supervisor --test reconciler ::
+  fifty_instance_soak_and_construction_regression` failed once in the
+  full `just verify` (p95 tick 179 ms against its 100 ms budget, load
+  average 18.6 / 20.5 / 23.3 while an a11y gate ran in parallel). It
+  passed 3/3 alone at the same load and in the full `just verify` re-run
+  straight after (load 9.8). Budget and assertion unchanged; CI is the
+  arbiter.
 - a11y seeded failure is recorded DEFERRED with owning task AJ-E804 —
   the gate is named in QUALITY.md vocabulary now; its absence is
   explicit, never a silent pass (per the quarantine/deferral rule).
