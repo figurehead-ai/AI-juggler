@@ -181,9 +181,9 @@ describe("AJ-E309 Req.1 — the policy question, no pre-selected default", () =>
   });
 
   it.each([
-    ["strip", "Packs: strip secrets (all Providers)"],
-    ["keep", "Packs: keep secrets — packs stay on this Mac (all Providers)"],
-    ["ask", "Packs: ask each time (all Providers)"],
+    ["strip", "Packs: strip secrets (all tools)"],
+    ["keep", "Packs: keep secrets — packs stay on this Mac (all tools)"],
+    ["ask", "Packs: ask each time (all tools)"],
   ])("choosing %s writes the global once on the accept click and restates it", async (value, restated) => {
     const { container } = await openProposal();
     fireEvent.click(radio(container, value));
@@ -202,7 +202,7 @@ describe("AJ-E309 Req.1 — the policy question, no pre-selected default", () =>
     await acceptAndReachSummary(container);
     expect(w().__AIJ_REDACTION_SET_GLOBAL__).toBeUndefined();
     expect(container.querySelector("[data-testid='policy-restatement']")!.textContent).toBe(
-      "Packs: keep secrets — packs stay on this Mac (all Providers)",
+      "Packs: keep secrets — packs stay on this Mac (all tools)",
     );
   });
 

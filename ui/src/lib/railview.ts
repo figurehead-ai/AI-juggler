@@ -19,7 +19,7 @@ export const SORT_LABELS: { id: SortMode; label: string }[] = [
   { id: "needs", label: "Needs me" },
   { id: "quota", label: "Quota risk (quota only)" },
   { id: "project", label: "Project" },
-  { id: "provider", label: "Provider" },
+  { id: "provider", label: "Tool" },
   { id: "account", label: "Account" },
   { id: "age", label: "Age" },
   { id: "name", label: "Name" },
@@ -29,7 +29,7 @@ export const GROUP_LABELS: { id: GroupBy; label: string }[] = [
   { id: "none", label: "None" },
   { id: "project", label: "Project" },
   { id: "account", label: "Account" },
-  { id: "provider", label: "Provider" },
+  { id: "provider", label: "Tool" },
 ];
 
 export type ChipFilters = { chips: ChipId[]; provider: string | null; account: string | null; project: string | null; machine: string | null };

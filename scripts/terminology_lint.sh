@@ -26,6 +26,13 @@ while IFS= read -r jsx; do
   # D-25: on screen it is a "session" (the code keeps Instance).
   check "$jsx" '>[^<>{}]*\b[Ii]nstances?\b[^<>{}]*<' 'NONE^' "Instance on screen in JSX (say session)"
   check "$jsx" '(aria-label|title|placeholder|label|alt)=("|\{`)[^"`$]*\b[Ii]nstances?\b' 'NONE^' "Instance in a visible attribute (say session)"
+  # D-25: on screen it is the tool (Claude Code, Codex); the code keeps Provider.
+  check "$jsx" '>[^<>{}]*\bProviders?\b[^<>{}]*<' 'NONE^' "Provider on screen in JSX (say tool)"
+  check "$jsx" '^\s*[A-Z][^=;{}<>]*\bProviders?\b[^=;{}<>]*$' '^[0-9]+:\s*(//|\*|/\*)|AJ-E|D-[0-9]' "Provider in JSX text (say tool)"
+  check "$jsx" '(aria-label|title|placeholder|label|alt|reason|hint)=("|\{`)[^"`$]*\bProviders?\b' 'NONE^' "Provider in a visible attribute (say tool)"
+  case "$jsx" in *.test.tsx) ;; *)
+    check "$jsx" '"[^"]*\b(a|the|each|all|other|this|another|every|per) Providers?\b[^"]*"' '^[0-9]+:\s*(//|\*|/\*)' "Provider in a user-facing string (say tool)" ;;
+  esac
 done < <(find ui/src -name "*.tsx" | grep -v types/generated)
 
 [ "$fail" -eq 0 ] && echo "terminology-lint: OK"
