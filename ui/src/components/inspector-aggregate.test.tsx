@@ -122,13 +122,16 @@ const open = (container: HTMLElement, tab: string) =>
   fireEvent.click(container.querySelector(`#inspector-tab-${tab}`)!);
 
 describe("AJ-E408 Provider (§5.3, Req.1-2)", () => {
-  it("Overview: counts, worst-first aggregate, honest version/capability badges", () => {
+  it("Overview: counts, worst-first aggregate, what's installed (no placeholders)", async () => {
     const { container } = shell("provider", "claude-code");
     expect(container.querySelector('[data-testid="provider-overview"]')).not.toBeNull();
     expect(container.textContent).toContain("2 accounts");
     expect(container.textContent).toContain("1 running");
-    expect(container.textContent).toContain("version: No data");
-    expect(container.textContent).toContain("capabilities: No data");
+    // D-25: the installed version and tested range, read from this Mac —
+    // not "version: No data".
+    await waitFor(() => expect(container.querySelector('[data-testid="provider-install"]')).not.toBeNull());
+    expect(container.querySelector('[data-testid="provider-install"]')!.textContent).toMatch(/^Version \S+/);
+    expect(container.textContent).not.toContain("No data");
     // Worst first: Personal (95% used → 5% left) ABOVE Work Max (55% → 45%).
     const aggregate = container.querySelector('[data-testid="provider-aggregate"]')!;
     const order = [...aggregate.querySelectorAll("span")].map((n) => n.textContent ?? "");
@@ -144,14 +147,24 @@ describe("AJ-E408 Provider (§5.3, Req.1-2)", () => {
     expect(container.textContent).toContain("mixed");
   });
 
-  it("Actions: Add account real; update-check disabled with the never-auto-update reason", () => {
+  it("Actions: Add account is real; actions not built yet aren't shown (D-25)", () => {
     const { container } = shell("provider", "claude-code");
     open(container, "actions");
     expect(container.querySelector('[data-testid="provider-actions"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="action-add-account"] button')!.getAttribute("disabled")).toBeNull();
-    const update = container.querySelector('[data-testid="action-check-for-an-update"]')!;
-    expect(update.querySelector("button")!.getAttribute("disabled")).not.toBeNull();
-    expect(update.textContent).toContain("never updates a tool by itself");
+    expect(container.querySelector('[data-testid="action-check-for-an-update"]')).toBeNull();
+    expect(container.querySelector('[data-testid="action-open-tool-settings"]')).toBeNull();
+  });
+
+  it("no tab of the tool, account or project views shows a task code (D-25)", () => {
+    for (const [kind, id] of [["provider", "claude-code"], ["account", "claude-work"], ["project", "proj-1"]] as const) {
+      const { container } = shell(kind, id);
+      for (const tab of ["overview", "usage", "history", "quality", "processes", "actions"]) {
+        open(container, tab);
+        expect(container.textContent ?? "", `${kind} › ${tab}`).not.toMatch(/\bAJ-E\d+|\bE\d+\+|\(E\d+\)|\bD-\d{2}\b/);
+      }
+      cleanup();
+    }
   });
 });
 
@@ -199,7 +212,7 @@ describe("AJ-E408 Account (§5.4, Req.3-4)", () => {
       "Both off by default",
     );
     expect(container.querySelector('[data-testid="account-overview"]')!.textContent).toContain(
-      "audit-logged (D-08)",
+      "every stop is written to the log",
     );
   });
 
@@ -210,7 +223,7 @@ describe("AJ-E408 Account (§5.4, Req.3-4)", () => {
     expect(container.textContent).toContain("signed out");
   });
 
-  it("History groups sessions Today; Actions honour D-10 (`New launch settings…`)", () => {
+  it("History groups sessions Today; Actions honour D-10 and show only what works (D-25)", () => {
     const { container } = shell("account", "claude-work");
     open(container, "history");
     expect(container.querySelector('[data-testid="account-history"]')).not.toBeNull();
@@ -218,11 +231,13 @@ describe("AJ-E408 Account (§5.4, Req.3-4)", () => {
     cleanup();
     const actions = shell("account", "claude-work");
     open(actions.container, "actions");
-    const newSettings = actions.container.querySelector('[data-testid="action-new-launch-settings"]');
-    expect(newSettings?.textContent ?? "").toContain("launch settings");
+    expect(actions.container.querySelector('[data-testid="action-launch-session"]')).not.toBeNull();
     expect(actions.container.textContent).not.toContain("New profile");
-    // Delete keeps the managed-dir note adjacent (deep 02 PF-08).
-    expect(actions.container.querySelector('[data-testid="action-delete-account"]')?.textContent).toContain("directory is kept");
+    // Not built yet, so not shown: New launch settings…, Rename, Delete
+    // account… (when Delete lands it keeps the managed-dir note, PF-08).
+    for (const id of ["action-new-launch-settings", "action-rename", "action-delete-account"]) {
+      expect(actions.container.querySelector(`[data-testid="${id}"]`)).toBeNull();
+    }
   });
 });
 
@@ -237,13 +252,13 @@ describe("AJ-E408 Project (§5.5, Req.5-6)", () => {
     expect(summary.textContent).toContain("imported sessions: 2");
   });
 
-  it("a missing directory renders the danger banner + Relocate…", () => {
+  it("a missing directory renders the danger banner (Relocate… comes when it works)", () => {
     const { container } = shell("project", "proj-2");
     const banner = container.querySelector('[data-testid="project-missing-banner"]');
     expect(banner).not.toBeNull();
     expect(banner!.getAttribute("role")).toBe("alert");
     expect(banner!.textContent).toContain("missing");
-    expect(banner!.textContent).toContain("Relocate…");
+    expect(banner!.querySelector("button")).toBeNull();
   });
 
   it("Actions: ranked by headroom with the `Usual` star", () => {

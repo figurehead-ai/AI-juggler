@@ -184,11 +184,13 @@ describe("AJ-E407 Instance Actions (Req.4)", () => {
   it("offers real actions; irrelevant ones disabled WITH reason (never hidden)", () => {
     const { container } = shell(mk());
     open(container, "actions");
-    for (const label of [
-      "focus-terminal", "stop", "resume", "hand-over", "queue-resume-at-reset",
-      "export-pack", "archive", "delete",
-    ]) {
+    for (const label of ["focus-terminal", "stop", "resume", "hand-over"]) {
       expect(container.querySelector(`[data-testid="action-${label}"]`)).not.toBeNull();
+    }
+    // D-25 amendment of Req.4: actions not built yet aren't shown at all
+    // (Archive lives in History; parking is the limit decision on Home).
+    for (const label of ["queue-resume-at-reset", "export-pack", "archive", "delete"]) {
+      expect(container.querySelector(`[data-testid="action-${label}"]`)).toBeNull();
     }
     // Running: Stop enabled, Resume disabled-with-reason.
     const stop = container.querySelector('[data-testid="action-stop"] button')! as HTMLButtonElement;
@@ -206,12 +208,15 @@ describe("AJ-E407 Instance Actions (Req.4)", () => {
     expect(stop.textContent).toContain("not running");
   });
 
-  it("destructive/pending actions name their owning tasks", () => {
-    const { container } = shell(mk());
-    open(container, "actions");
-    expect(container.querySelector('[data-testid="action-export-pack"]')!.textContent).toContain("AJ-E202");
-    expect(container.querySelector('[data-testid="action-archive"]')!.textContent).toContain("AJ-E1007");
-    expect(container.querySelector('[data-testid="action-delete"]')!.textContent).toContain("guarded");
+  it("no tab of the session view shows a task or decision code (D-25)", () => {
+    for (const status of ["running", "finished", "quota_blocked"]) {
+      const { container } = shell(mk({ status }));
+      for (const tab of ["overview", "usage", "history", "quality", "processes", "actions"]) {
+        open(container, tab);
+        expect(container.textContent ?? "", `${status} › ${tab}`).not.toMatch(/\bAJ-E\d+|\bE\d+\+|\(E\d+\)|\bD-\d{2}\b/);
+      }
+      cleanup();
+    }
   });
 });
 

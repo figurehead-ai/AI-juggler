@@ -850,7 +850,23 @@ export default function App() {
         >
           <div className="flex min-w-0 flex-1 basis-0 items-center gap-3">
             <h1 className="min-w-0 truncate text-sm font-semibold tracking-wide">{contextTitle}</h1>
-            {contextProvider && <Chip tone="accent">{contextProvider}</Chip>}
+            {/* The tool's own view (what's installed, its accounts and
+                their quota): one click from a session that runs on it. */}
+            {contextProvider && contextProviderId && (
+              <button
+                type="button"
+                onClick={() => {
+                  setGlobal(null);
+                  setSelection({ kind: "provider", id: contextProviderId });
+                }}
+                aria-label={`About ${contextProvider}`}
+                title={`About ${contextProvider}`}
+                className="rounded-full outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
+                data-testid="context-tool"
+              >
+                <Chip tone="accent">{contextProvider}</Chip>
+              </button>
+            )}
           </div>
 
           <div className="ml-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-0.5 xl:gap-1.5" data-tauri-drag-region={false}>
