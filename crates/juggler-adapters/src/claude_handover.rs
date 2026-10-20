@@ -108,6 +108,28 @@ impl juggler_adapter::handover::HandoverSupport for ClaudeCodeAdapter {
         bundle: &SessionBundle,
         target: &Account,
     ) -> Result<InstallOutcome, AdapterError> {
+        // A bundle can arrive from a paired Mac (TakeHandover), so its
+        // names are untrusted: one plain file name each, and a session
+        // id that can't steer a path. Refused before anything is written.
+        if !is_safe_session_id(&bundle.manifest.native_id) {
+            return Err(AdapterError::AccountDir {
+                path: target.state_dir.clone(),
+                message: format!(
+                    "refused: {:?} is not a session id",
+                    bundle.manifest.native_id
+                ),
+            });
+        }
+        if let Some(bad) = bundle
+            .files
+            .iter()
+            .find(|file| !is_plain_file_name(&file.name))
+        {
+            return Err(AdapterError::AccountDir {
+                path: target.state_dir.clone(),
+                message: format!("refused: {:?} is not a plain file name", bad.name),
+            });
+        }
         let cwd_key = bundle.manifest.cwd.to_string_lossy().into_owned();
         let (dir_b, fallback) = discover_project_dir(&target.state_dir.join("projects"), &cwd_key);
 
@@ -156,7 +178,26 @@ impl juggler_adapter::handover::HandoverSupport for ClaudeCodeAdapter {
                 }
             })?;
         }
-        for entry in std::fs::read_dir(&staging).into_iter().flatten().flatten() {
+        // Never replace a file the target already has (copy, never
+        // overwrite): refuse the whole install before moving anything.
+        let staged: Vec<_> = std::fs::read_dir(&staging)
+            .into_iter()
+            .flatten()
+            .flatten()
+            .collect();
+        if let Some(existing) = staged
+            .iter()
+            .map(|entry| dir_b.join(entry.file_name()))
+            .find(|to| to.exists())
+        {
+            let _ = std::fs::remove_dir_all(&staging);
+            return Err(AdapterError::AccountDir {
+                path: existing,
+                message: "refused: the target already has this file; nothing was replaced"
+                    .to_owned(),
+            });
+        }
+        for entry in staged {
             let from = entry.path();
             let to = dir_b.join(entry.file_name());
             std::fs::rename(&from, &to).map_err(|error| AdapterError::AccountDir {
@@ -190,11 +231,37 @@ impl juggler_adapter::handover::HandoverSupport for ClaudeCodeAdapter {
             "Below is the distilled history — continue from here.\n"
         );
         for turn in turns {
-            let _ = writeln!(out, "[{}]: {}", turn.role, turn.text);
+            // Each turn's text is quoted line by line, so text inside a
+            // turn can't pose as another "[user]:" turn.
+            let _ = writeln!(out, "[{}]:", turn.role);
+            for line in turn.text.lines() {
+                let _ = writeln!(out, "> {line}");
+            }
             let _ = writeln!(out);
         }
         Ok(out)
     }
+}
+
+/// One path component that names a file: no separators, no `..`, not
+/// hidden (staging names are ours), not absolute.
+pub(crate) fn is_plain_file_name(name: &str) -> bool {
+    !name.is_empty()
+        && name.len() <= 255
+        && !name.starts_with('.')
+        && !name.contains(['/', '\\', '\0'])
+        && std::path::Path::new(name).components().count() == 1
+}
+
+/// A session id that can safely appear in a file name and on a command
+/// line: letters, digits, `-` and `_`, not starting with `-`.
+pub(crate) fn is_safe_session_id(id: &str) -> bool {
+    !id.is_empty()
+        && id.len() <= 128
+        && !id.starts_with('-')
+        && id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
 }
 
 /// Discovers the target project dir for `cwd`: scan `projects/*`,

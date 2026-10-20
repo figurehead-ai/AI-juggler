@@ -264,3 +264,15 @@
   carries the fix. The gate passes locally (939 states, 0 serious). One
   capture timed out while the visual container ran beside it and passed
   twice alone.
+- A real security bug found by review (2026-10-20, review of Codex PR #64,
+  pre-existing in the Claude adapter since AJ-E203/E706):
+  `ClaudeCodeAdapter::install_bundle` joined each bundle file's name and
+  the manifest's session id into paths unchecked. A bundle can arrive from
+  a paired Mac (Fleet `TakeHandover`), so a name like `../../…` or an
+  absolute path could write outside the target account's folder, and an
+  existing file could be replaced. Now: only one plain file name per file
+  and a safe session id are accepted, refused before anything is written;
+  an install never replaces a file the target already has; the replay
+  brief quotes each turn so text in a turn can't pose as another turn.
+  Regression: `claude_handover :: an_untrusted_bundle_cannot_write_outside_the_target`
+  (fails on the old code) and `a_turn_cannot_forge_another_turn_in_the_brief`.
