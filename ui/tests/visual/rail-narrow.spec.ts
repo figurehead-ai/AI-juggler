@@ -159,3 +159,31 @@ test("at full width the density shortcut still changes the setting", async ({ pa
   await expect(rail(page)).toHaveAttribute("data-density", "compact");
   expect(await stored(page)).toBe("compact");
 });
+
+test("narrow: double-clicking the rail's edge closes the list it opened; Settings is never written", async ({ page }) => {
+  await seed(page, "dark", 860, 800);
+  await page.keyboard.press("ControlOrMeta+b");
+  await expect(rail(page)).toHaveAttribute("data-density", "comfortable");
+  await page.getByRole("separator", { name: "Resize navigator" }).dblclick();
+  await expect(rail(page)).toHaveAttribute("data-density", "minimal");
+  expect(await stored(page)).toBe("comfortable");
+});
+
+test("Ctrl+D typed in the terminal or a text field is the typing's, not the rail's", async ({ page }) => {
+  await seed(page, "dark", 1280, 800);
+  await expect(rail(page)).toHaveAttribute("data-density", "comfortable");
+  // A text field: the rail's search.
+  await page.getByRole("searchbox").first().focus();
+  await page.keyboard.press("Control+d");
+  await expect(rail(page)).toHaveAttribute("data-density", "comfortable");
+  // The terminal (Ctrl+D is end-of-input there).
+  await page.getByRole("button", { name: /Work Max/ }).first().click();
+  await page.locator(".xterm-helper-textarea").first().focus();
+  await page.keyboard.press("Control+d");
+  await expect(rail(page)).toHaveAttribute("data-density", "comfortable");
+  expect(await stored(page)).toBe("comfortable");
+  // Elsewhere it still cycles.
+  await page.locator(".xterm-helper-textarea").first().blur();
+  await page.keyboard.press("Control+d");
+  await expect(rail(page)).toHaveAttribute("data-density", "compact");
+});

@@ -14,6 +14,7 @@ import { LegendPopover } from "./components/LegendPopover";
 import {
   DENSITY_EVENT,
   isDensityShortcut as isDensityShortcutEvent,
+  isTypingTarget,
   nextDensity,
   readDensity,
   storeDensity,
@@ -661,7 +662,8 @@ export default function App() {
         event.preventDefault();
         window.dispatchEvent(new Event("aij:focus-search"));
       }
-      if (isDensityShortcutEvent(event, hasLiveBackend())) {
+      // Ctrl+D typed in the terminal is end-of-input, not the rail.
+      if (isDensityShortcutEvent(event, hasLiveBackend()) && !isTypingTarget(event.target)) {
         event.preventDefault();
         shortcutUsed("other");
         cycleDensity();

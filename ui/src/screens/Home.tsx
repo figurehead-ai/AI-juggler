@@ -283,6 +283,10 @@ export function HomeScreen({
   });
   useEffect(() => {
     const fromBody = (event: globalThis.KeyboardEvent) => {
+      // Never behind a dialog: a modal over Home (the limit dialog, the
+      // usage-stats question) owns the keys, even when a click on its
+      // text dropped focus to <body>.
+      if (event.defaultPrevented || document.querySelector('[aria-modal="true"]')) return;
       if (document.activeElement === document.body) handleKey(event);
     };
     window.addEventListener("keydown", fromBody);

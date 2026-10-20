@@ -6,6 +6,7 @@ import type { InstanceInfo } from "../lib/bridge";
 import {
   DENSITY_ORDER,
   isDensityShortcut,
+  isTypingTarget,
   nextDensity,
   readDensity,
   staleCaption,
@@ -188,6 +189,19 @@ describe("AJ-E403 density field presence per mode", () => {
 });
 
 describe("AJ-E403 keyboard cycle", () => {
+  it("a key typed in a field, an editable element or the terminal isn't a shortcut", () => {
+    const host = document.createElement("div");
+    host.innerHTML =
+      '<input id="i"><textarea id="t"></textarea><div contenteditable="true" id="e"><b id="eb">x</b></div>' +
+      '<div class="xterm"><textarea class="xterm-helper-textarea" id="x"></textarea><span id="xs">$</span></div><button id="b">ok</button>';
+    document.body.appendChild(host);
+    for (const id of ["i", "t", "e", "eb", "x", "xs"]) expect(isTypingTarget(document.getElementById(id)), id).toBe(true);
+    expect(isTypingTarget(document.getElementById("b"))).toBe(false);
+    expect(isTypingTarget(document.body)).toBe(false);
+    expect(isTypingTarget(null)).toBe(false);
+    host.remove();
+  });
+
   it("Ctrl+D qualifies everywhere; Cmd+D only inside the app (web bookmark stays free)", () => {
     const d = (overrides: Partial<KeyboardEvent>) =>
       ({ key: "d", ctrlKey: false, metaKey: false, shiftKey: false, altKey: false, ...overrides }) as KeyboardEvent;

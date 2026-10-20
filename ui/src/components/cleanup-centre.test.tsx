@@ -898,6 +898,34 @@ describe("D-25: the ⋯ menu keeps keyboard focus (WCAG 2.4.3)", () => {
     view.unmount();
   });
 
+  it("Re-confirm that fails keeps the banner, says why, and keeps focus on Re-confirm", async () => {
+    const now = { paused: false, suspended: true, suspended_until_ms: 1, tier2_pending: [] as never[] };
+    let fail = true;
+    const bridge: CleanupStatusBridge = {
+      status: () => Promise.resolve(now),
+      pause: () => Promise.resolve(now),
+      resume: () => (fail ? Promise.reject(new Error("the supervisor isn't answering")) : Promise.resolve({ ...now, suspended: false, suspended_until_ms: null as never })),
+      tier2Decide: () => Promise.resolve(now),
+    };
+    const view = render(<CleanupCentre bridge={{ load: () => Promise.resolve(empty) }} statusBridge={bridge} />);
+    const reconfirm = await view.findByTestId("cleanup-resume-button");
+    reconfirm.focus();
+    fireEvent.click(reconfirm);
+    const why = await view.findByTestId("cleanup-resume-error");
+    expect(why.textContent).toContain("the supervisor isn't answering");
+    expect(why.getAttribute("role")).toBe("alert");
+    expect(view.getByTestId("cleanup-suspended-banner")).toBeTruthy();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(document.activeElement).toBe(reconfirm);
+    // Trying again clears the reason and, once it works, moves on to ⋯.
+    fail = false;
+    fireEvent.click(reconfirm);
+    await waitFor(() => expect(view.queryByTestId("cleanup-suspended-banner")).toBeNull());
+    expect(view.queryByTestId("cleanup-resume-error")).toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(more(view)));
+    view.unmount();
+  });
+
   it("Pause from the menu, then Resume on the banner: focus lands on ⋯ each time, never on <body>", async () => {
     const view = render(<CleanupCentre bridge={{ load: () => Promise.resolve(empty) }} statusBridge={statusOf(false)} />);
     await waitFor(() => expect(view.getByTestId("cleanup-empty")).toBeTruthy());

@@ -258,6 +258,9 @@ export function CleanupCentre(props: {
   const [machineScope, setMachineScope] = useState<"this" | "all">("this");
   const [data, setData] = useState<CleanupInventoryData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Re-confirm after a crash: why it didn't resume, if it didn't.
+  const [resumeError, setResumeError] = useState<string | null>(null);
+  const resuming = useRef(false);
   const [killTarget, setKillTarget] = useState<{
     session: string;
     pid: number;
@@ -483,17 +486,31 @@ export function CleanupCentre(props: {
             size="sm"
             variant="secondary"
             onClick={() => {
-              // The banner (and this button) goes once resumed: focus to ⋯.
-              closeMenu(true);
+              if (resuming.current) return;
+              resuming.current = true;
+              setResumeError(null);
               void statusBridge
                 .resume()
-                .then(setStatus)
-                .catch(() => undefined);
+                .then((next) => {
+                  setStatus(next);
+                  // The banner (and this button) goes once resumed: focus
+                  // to ⋯. Until then focus stays here.
+                  if (!next.suspended) closeMenu(true);
+                })
+                .catch((cause) => setResumeError(errorText(cause)))
+                .finally(() => {
+                  resuming.current = false;
+                });
             }}
             data-testid="cleanup-resume-button"
           >
             Re-confirm
           </Button>
+          {resumeError !== null && (
+            <span role="alert" className="text-danger" data-testid="cleanup-resume-error">
+              Couldn't resume: {resumeError}
+            </span>
+          )}
         </p>
       )}
       {status !== null && status.tier2_pending.length > 0 && (
