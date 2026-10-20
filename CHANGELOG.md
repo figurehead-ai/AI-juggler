@@ -60,6 +60,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Release builds ride out a short outage at Apple's signing services: a
+  missing timestamp or an unanswered notary or ticket request is retried
+  (up to four tries); any other signing failure still stops the build.
+
 - A session's resource history stopped updating after five minutes, so
   its sparkline froze and the "this uses a lot" check looked at old
   numbers. It now keeps the latest five minutes.

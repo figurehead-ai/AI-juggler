@@ -116,6 +116,12 @@ commit subjects (`scripts/nightly_notes.py`; only `feat`, `perf` and `fix`
 commits, with task IDs and PR numbers removed). To build now, run
 **Nightly** by hand (`workflow_dispatch`, optionally with `force`).
 
+Signing talks to Apple's timestamp, notary and ticket services, which can
+fail for a few minutes. `scripts/apple_retry.py` wraps those steps: it
+retries only Apple's known transient failures (up to four tries, 30 s,
+60 s, 120 s apart) and fails at once on anything else. If a run still
+fails on one of them, re-run its failed jobs from the run page.
+
 **Promoting a version to beta:**
 
 1. **Pick the build.** Any `vX.Y.Z` pre-release on GitHub that nightly

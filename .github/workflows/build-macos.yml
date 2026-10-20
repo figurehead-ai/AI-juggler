@@ -156,7 +156,9 @@ jobs:
           )
           # From the repository root, as `just app` does: that's where the
           # Tauri CLI finds the UI project (ui/) and runs `pnpm build` in it.
-          cargo tauri build --target universal-apple-darwin --config "$config"
+          # Signing reaches Apple's timestamp and notary services; a blip
+          # there is retried, any other failure stops the build at once.
+          python3 scripts/apple_retry.py -- cargo tauri build --target universal-apple-darwin --config "$config"
 
       - name: Notarize and staple the disk image
         # Tauri notarizes and staples the app; the .dmg around it is
@@ -168,10 +170,11 @@ jobs:
         run: |
           set -euo pipefail
           dmg="$(ls target/universal-apple-darwin/release/bundle/dmg/*.dmg | head -1)"
-          xcrun notarytool submit "$dmg" \
+          python3 scripts/apple_retry.py -- xcrun notarytool submit "$dmg" \
             --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" --team-id "$APPLE_TEAM_ID" \
             --wait --timeout 90m
-          xcrun stapler staple "$dmg"
+          # A fresh ticket can take a moment to reach Apple's CDN.
+          python3 scripts/apple_retry.py -- xcrun stapler staple "$dmg"
 
       - name: Verify the signatures, notarization and updater signature
         run: |
@@ -180,10 +183,10 @@ jobs:
           app="$(ls -d "$bundle"/macos/*.app | head -1)"
           dmg="$(ls "$bundle"/dmg/*.dmg | head -1)"
           codesign --verify --deep --strict --verbose=2 "$app"
-          spctl --assess --type execute --verbose=4 "$app"
+          python3 scripts/apple_retry.py -- spctl --assess --type execute --verbose=4 "$app"
           xcrun stapler validate "$app"
           xcrun stapler validate "$dmg"
-          spctl --assess --type open --context context:primary-signature --verbose=4 "$dmg"
+          python3 scripts/apple_retry.py -- spctl --assess --type open --context context:primary-signature --verbose=4 "$dmg"
           ls "$bundle"/macos/*.app.tar.gz "$bundle"/macos/*.app.tar.gz.sig
 
       - name: Collect this edition's assets
