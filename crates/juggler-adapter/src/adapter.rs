@@ -222,6 +222,13 @@ pub trait HarnessAdapter: Send + Sync {
         ))
     }
 
+    /// Environment variables every launch removes from what it inherits
+    /// (credentials that would override the account's own sign-in).
+    /// Default: none.
+    fn launch_unset_keys(&self) -> &'static [&'static str] {
+        &[]
+    }
+
     /// The value of the first isolation key for `state_dir`, or `None`
     /// when the folder runs with that key unset (ADR-0018: the vendor's
     /// own default folder). Default: the path.
@@ -267,23 +274,34 @@ pub fn shell_snippet(
     extra_env: &std::collections::BTreeMap<String, String>,
 ) -> Option<String> {
     let command = adapter.shell_command()?;
-    let mut parts: Vec<String> = adapter
-        .isolation_env_keys()
-        .iter()
-        .take(1)
-        .map(|key| match adapter.isolation_env_value(state_dir) {
-            Some(dir) => format!("{key}={}", shell_quote(&dir)),
-            // Run as the vendor runs it, even if the shell exports the key.
-            None => format!("env -u {key}"),
-        })
-        .collect();
+    // What AI Juggler's own launches remove, the line removes too: the
+    // default folder's key (run as the vendor runs it) and any inherited
+    // credentials.
+    let mut unset: Vec<String> = Vec::new();
+    let mut parts: Vec<String> = Vec::new();
+    if let Some(key) = adapter.isolation_env_keys().first() {
+        match adapter.isolation_env_value(state_dir) {
+            Some(dir) => parts.push(format!("{key}={}", shell_quote(&dir))),
+            None => unset.push((*key).to_owned()),
+        }
+    }
+    unset.extend(
+        adapter
+            .launch_unset_keys()
+            .iter()
+            .map(|key| (*key).to_owned()),
+    );
     for (key, value) in extra_env {
         if !adapter.isolation_env_keys().contains(&key.as_str()) {
             parts.push(format!("{key}={}", shell_quote(value)));
         }
     }
     parts.push(command.to_owned());
-    Some(parts.join(" "))
+    if unset.is_empty() {
+        return Some(parts.join(" "));
+    }
+    let flags: Vec<String> = unset.iter().map(|key| format!("-u {key}")).collect();
+    Some(format!("env {} {}", flags.join(" "), parts.join(" ")))
 }
 
 /// Shared adapter handle type used by the registry and supervisor.

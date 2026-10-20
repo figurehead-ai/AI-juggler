@@ -483,7 +483,8 @@ function UseOriginalModal({
         </p>
         <p className="leading-relaxed text-muted">
           {account.label} will use your original folder: the same sign-in, settings and history as your Claude app.
-          AI Juggler's copy stays where it is (nothing is deleted), and sessions you started in the copy stay in it.
+          AI Juggler's copy stays where it is (nothing is deleted); sessions you started in the copy stay in the copy, and
+          won't resume from the original.
         </p>
         {error && (
           <p className="text-xs text-danger" role="alert">

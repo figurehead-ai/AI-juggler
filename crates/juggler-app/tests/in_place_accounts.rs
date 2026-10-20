@@ -341,3 +341,72 @@ fn a_copy_can_switch_to_its_original_folder() {
     let fresh = commands::create_account(&state, CLAUDE_CODE_ID, "Fresh", None).unwrap();
     assert!(commands::account_use_original_impl(&state, &fresh.id).is_err());
 }
+
+/// A session still open on the copy — stuck, or waiting for its limit to
+/// reset — would later resume against the original, which doesn't have
+/// its history: the switch waits until it's done.
+#[test]
+fn a_copy_with_an_open_session_does_not_switch() {
+    use juggler_core::model::{
+        InstanceKind, InstanceRecord, MachineId, SessionId, SessionStatus, Timestamp,
+    };
+    let work = tempfile::tempdir().unwrap();
+    let (stub, _) = claude_stub(work.path());
+    let state = app_state(work.path(), &stub);
+    let folder = users_setup(work.path());
+    let copy = commands::account_import_impl(
+        &state,
+        CLAUDE_CODE_ID,
+        folder.to_str().unwrap(),
+        "Work A",
+        None,
+        None,
+        false,
+    )
+    .unwrap();
+    let storage = state.storage.lock().unwrap();
+    let profile = storage
+        .profiles()
+        .list_by_account(&juggler_core::model::AccountId::new(
+            copy.account.id.clone(),
+        ))
+        .unwrap()
+        .remove(0);
+    for (n, status) in [SessionStatus::Stuck, SessionStatus::QuotaBlocked]
+        .into_iter()
+        .enumerate()
+    {
+        storage
+            .sessions()
+            .insert(&InstanceRecord {
+                id: SessionId::new(format!("s-{n}")),
+                conversation: None,
+                profile: profile.id.clone(),
+                machine: MachineId::new("this-mac"),
+                kind: InstanceKind::Terminal,
+                project: None,
+                cwd: work.path().to_path_buf(),
+                status,
+                started_at: Timestamp::now(),
+                last_activity: None,
+                usage: Default::default(),
+                attention: None,
+                running: None,
+                transcript_ref: None,
+                window: None,
+            })
+            .unwrap();
+    }
+    drop(storage);
+    let refused = commands::account_use_original_impl(&state, &copy.account.id).unwrap_err();
+    assert!(
+        refused.wire().user_message.contains("still open"),
+        "{}",
+        refused.wire().user_message
+    );
+    assert_ne!(
+        state_dir(&state, &copy.account.id),
+        folder,
+        "still the copy"
+    );
+}

@@ -81,6 +81,13 @@ pub fn shell_word(text: &str) -> String {
     format!("'{}'", text.replace('\'', "'\\''"))
 }
 
+/// A status line command to chain — never one of AI Juggler's own
+/// wrappers (quoted or not): chaining one would run the wrapper inside
+/// itself on every refresh (a mixed-version backup can hold one).
+fn not_ours(command: Option<String>) -> Option<String> {
+    command.filter(|command| !command.contains(WRAPPER_NAME))
+}
+
 /// Writes `bytes` only when the file differs, atomically — running
 /// sessions read the wrapper every few hundred milliseconds.
 fn write_if_changed(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
@@ -190,6 +197,7 @@ pub fn install_statusline(config_dir: &Path) -> Result<bool, String> {
     } else {
         existing_command
     };
+    let chain = not_ours(chain);
     write_if_changed(
         &wrapper,
         statusline_script(&spool, chain.as_deref()).as_bytes(),
@@ -835,6 +843,7 @@ pub fn ensure_launch_overlay(
                 .and_then(serde_json::Value::as_str)
                 .map(str::to_owned)
         });
+    let chain = not_ours(chain);
     let wrapper = dir.join(WRAPPER_NAME);
     write_if_changed(
         &wrapper,

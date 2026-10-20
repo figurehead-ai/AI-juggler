@@ -351,6 +351,19 @@ pub fn source_health(state: &Arc<AppState>) -> Vec<SourceHealthInfo> {
         .collect()
 }
 
+/// ADR-0018: an account's folder changed (a copy switched to its
+/// original): drop its read offsets so the next pass reads the new place
+/// from the start; the store's `(account, msg_uuid)` dedupe absorbs repeats.
+pub fn forget_account_offsets(state: &Arc<AppState>, account: &str) {
+    let mut ingest = load_state(state);
+    if ingest.offsets.remove(account).is_none() {
+        return;
+    }
+    if let (Ok(storage), Ok(blob)) = (state.storage.lock(), serde_json::to_string(&ingest)) {
+        let _ = storage.app_settings().set(INGEST_STATE_KEY, &blob);
+    }
+}
+
 /// Reads the persisted state (missing/corrupt ⇒ fresh — worst case a
 /// one-time full re-tail whose duplicates the store dedupes).
 fn load_state(state: &Arc<AppState>) -> IngestState {

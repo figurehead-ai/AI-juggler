@@ -556,3 +556,37 @@ fn an_unquoted_install_is_repaired_and_keeps_the_chain() {
         Some(user_command.as_str())
     );
 }
+
+/// Review of ADR-0018: a backup that holds one of our own wrappers (a
+/// mixed-version install) must never be chained — the wrapper would run
+/// inside itself on every refresh.
+#[test]
+fn our_own_wrapper_is_never_chained() {
+    let root = tempfile::tempdir().unwrap();
+    let dir = root.path().join("Application Support/acct");
+    std::fs::create_dir_all(&dir).unwrap();
+    let wrapper = dir.join("juggler-statusline.sh");
+    write_settings(
+        &dir,
+        Some(
+            serde_json::json!({ "type": "command", "command": format!("'{}'", wrapper.display()) }),
+        ),
+    );
+    // settings.json points at a quoted wrapper of ours that isn't the
+    // expected command form (an older/newer build): treat it as ours.
+    std::fs::write(
+        dir.join("juggler-statusline-backup.json"),
+        serde_json::to_vec(&serde_json::json!({ "statusLine": { "type": "command", "command": format!("'{}'", wrapper.display()) } })).unwrap(),
+    )
+    .unwrap();
+    write_settings(
+        &dir,
+        Some(serde_json::json!({ "type": "command", "command": wrapper.to_string_lossy() })),
+    );
+    install_statusline(&dir).unwrap();
+    let script = std::fs::read_to_string(&wrapper).unwrap();
+    assert!(
+        !script.contains("CHAIN="),
+        "no chain to ourselves: {script}"
+    );
+}

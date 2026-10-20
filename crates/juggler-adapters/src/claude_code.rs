@@ -371,6 +371,10 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         &[ENV_CONFIG_DIR, ENV_BIN_OVERRIDE]
     }
 
+    fn launch_unset_keys(&self) -> &'static [&'static str] {
+        &INHERITED_CREDENTIAL_KEYS
+    }
+
     fn isolation_env_value(&self, state_dir: &Path) -> Option<String> {
         let value = config_dir_value(state_dir);
         (value != juggler_adapter::launch::ENV_UNSET).then_some(value)

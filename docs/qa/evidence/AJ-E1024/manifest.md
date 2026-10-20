@@ -34,6 +34,13 @@ Task: `docs/tasks/E10-derived-workflows-and-beta.md` AJ-E1024 (ADR-0018). Status
 - **The status line** is only ever installed into a folder with AI Juggler's marker.
 - **The result panel** is a live region and takes focus.
 
+## Second review, fixed
+
+- **"Use the original instead" kept the path exactly.** `~/.claude` stays `~/.claude` even if it's a link, so the sign-in matches. It now waits for any open session (running, stuck, or waiting for its limit), not just running ones. It also resets the account's usage offsets.
+- **AI Juggler's own wrapper is never chained**, quoted or not. A mixed-version backup could otherwise make it run inside itself.
+- **The Expert line drops inherited credentials too**: `env -u ANTHROPIC_API_KEY -u ANTHROPIC_AUTH_TOKEN -u CLAUDE_CODE_OAUTH_TOKEN …`.
+- **Wording.** "Adds nothing of its own to them". The dialog says copy sessions won't resume from the original. "Continue" when everything was already in.
+
 ## Proof
 
 | Requirement | Proof | Result |
@@ -44,7 +51,7 @@ Task: `docs/tasks/E10-derived-workflows-and-beta.md` AJ-E1024 (ADR-0018). Status
 | Refusals | `ai_juggler_s_own_copy_or_a_non_setup_cannot_be_used_in_place` (our own copy, a non-setup, a missing folder). | PASS |
 | Req.5–6 the user decides | vitest `first-run.test.tsx`: default in place and no sign-in step; Continue with the ones that came in; Try again only the failed, keeping sign-ins (3 rows); a failed copy in place instead; Stop via Esc ("Stopped. 1 brought in, 2 still to go."), then Bring in the rest. Plain error words. | PASS |
 | Req.7 placement words | vitest `account-runway.test.tsx` "where an account lives". | PASS |
-| Req.8 use the original | Rust `in_place_accounts :: a_copy_can_switch_to_its_original_folder` (switched, the copy kept, a launch points at the original, the original untouched, a fresh account refused). Playwright `accounts-gallery` "a copy switches to its original folder" (both themes, axe 0): the placement lines, the confirmation, the card after. | PASS |
+| Req.8 use the original | Rust `in_place_accounts :: a_copy_can_switch_to_its_original_folder` and `a_copy_with_an_open_session_does_not_switch` (stuck and limit-waiting sessions block it) (switched, the copy kept, a launch points at the original, the original untouched, a fresh account refused). Playwright `accounts-gallery` "a copy switches to its original folder" (both themes, axe 0): the placement lines, the confirmation, the card after. | PASS |
 | Req.9 no inherited keys | `vendor_default_folder :: inherited_credentials_never_reach_a_launch` (launch and sign-in specs remove the three keys); the supervisor's `the_unset_marker_removes_the_variable`. | PASS |
 | Walked by hand | Browser preview (1280×800, dark): the choice in view with in place picked; a copy failing for one of two → "1 brought in. 1 couldn't come in." with Use it where it is instead / Try again / Continue; Use it where it is instead → on to sign-in for the remaining copy only; Stop with a real click mid-way → "Stopped. 1 brought in, 1 still to go." with Bring in the rest / Continue. | PASS |
 

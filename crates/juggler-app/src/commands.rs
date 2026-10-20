@@ -2930,17 +2930,24 @@ pub fn account_use_original_impl(
             .into_iter()
             .map(|profile| profile.id)
             .collect();
-        let busy = storage.sessions().list(None)?.into_iter().any(|record| {
+        // Anything that may still run or resume in the copy (stuck,
+        // waiting for its limit to reset) would resume against the
+        // original, which doesn't have its history.
+        let open = storage.sessions().list(None)?.into_iter().any(|record| {
             profiles.contains(&record.profile)
                 && matches!(
                     record.status,
-                    SessionStatus::Starting | SessionStatus::Running | SessionStatus::WaitingUser
+                    SessionStatus::Starting
+                        | SessionStatus::Running
+                        | SessionStatus::WaitingUser
+                        | SessionStatus::Stuck
+                        | SessionStatus::QuotaBlocked
                 )
         });
-        if busy {
+        if open {
             return Err(AppError::Validation {
                 subject: "account",
-                message: "a session is running on this account — stop it first, then switch".into(),
+                message: "a session on this account is still open (running, stuck or waiting for its limit) — finish or stop it first, then switch".into(),
             });
         }
         let target = canonical(std::path::Path::new(&source));
@@ -2957,11 +2964,21 @@ pub fn account_use_original_impl(
         .registry
         .get(&account.harness)
         .ok_or_else(|| AppError::UnknownHarness(account.harness.to_string()))?;
-    adapter.adopt_account(std::path::Path::new(&source))?;
+    // The exact path, not the resolved one the provenance keeps: the
+    // default folder is `~/.claude` itself even when it's a link (its
+    // sign-in is named for the unset variable).
+    let folder = dirs::home_dir()
+        .map(|home| home.join(".claude"))
+        .filter(|default| canonical(default) == canonical(std::path::Path::new(&source)))
+        .unwrap_or_else(|| std::path::PathBuf::from(&source));
+    adapter.adopt_account(&folder)?;
     let mut updated = account;
-    updated.state_dir = std::path::PathBuf::from(&source);
+    updated.state_dir = folder;
     updated.in_place = true;
     lock_storage_arc(state)?.accounts().update(&updated)?;
+    // Its usage is read from a new place now: start the offsets fresh
+    // (the store dedupes anything read twice).
+    crate::usage_pipeline::forget_account_offsets(state, updated.id.as_str());
     Ok(account_info_of(&updated))
 }
 

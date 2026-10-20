@@ -228,7 +228,7 @@ const PLACEMENTS: { id: Placement; title: string; detail: string }[] = [
   {
     id: "in_place",
     title: "Use them where they are",
-    detail: "Same sign-in, settings and history as your Claude app. AI Juggler doesn't change your files.",
+    detail: "Same sign-in, settings and history as your Claude app. AI Juggler adds nothing of its own to them.",
   },
   {
     id: "copy",
@@ -576,7 +576,7 @@ function FoundStep({
               </Button>
             )}
             <Button variant="primary" onClick={continueNow} data-testid="first-run-continue" ref={continueRef}>
-              {doneCount === 0 ? "Continue without them" : doneCount === 1 ? "Continue with 1 account" : `Continue with ${doneCount} accounts`}
+              {doneCount === 0 ? (failedRows.length > 0 || waiting.length > 0 ? "Continue without them" : "Continue") : doneCount === 1 ? "Continue with 1 account" : `Continue with ${doneCount} accounts`}
             </Button>
           </div>
         </div>
