@@ -55,6 +55,16 @@ const ENV_BIN_OVERRIDE: &str = "AI_JUGGLER_CODEX_BIN";
 /// bills that key, whatever the account signed in as).
 const INHERITED_KEYS: &[&str] = &["CODEX_API_KEY", "OPENAI_API_KEY"];
 
+/// Sets every [`INHERITED_KEYS`] entry to the env-unset marker.
+fn unset_inherited_keys(env: &mut EnvMap) {
+    for key in INHERITED_KEYS {
+        env.insert(
+            (*key).to_owned(),
+            juggler_adapter::launch::ENV_UNSET.to_owned(),
+        );
+    }
+}
+
 /// Keeps the TUI off the background app-server (see module docs).
 const NO_DAEMON: &str = "--no-daemon";
 
@@ -152,10 +162,13 @@ impl CodexAdapter {
     /// [`AdapterError::InvalidLaunch`] when no codex binary resolves.
     pub fn login_spec_inherent(&self, state_dir: &Path) -> Result<LaunchSpec, AdapterError> {
         let bin = self.require_bin()?;
+        let mut env = home_env(state_dir);
+        // The vendor sign-in signs THIS account in, never a key's owner.
+        unset_inherited_keys(&mut env);
         Ok(LaunchSpec {
             program: bin,
             args: vec!["login".into()],
-            env: home_env(state_dir),
+            env,
             cwd: state_dir.to_path_buf(),
             needs_pty: true,
         })
@@ -565,14 +578,10 @@ impl HarnessAdapter for CodexAdapter {
         let mut env: EnvMap = profile.settings_overlay.env.clone();
         env.extend(home_env(&account.state_dir));
         // An API key in the environment would bill every managed account
-        // to that key, whatever it signed in as. None may come from Launch
-        // settings. One inherited from the app's own environment is still
-        // passed on by the supervisor until the env-unset marker
-        // (`juggler_adapter::launch::ENV_UNSET`) lands; then these become
-        // explicit unsets.
-        for key in INHERITED_KEYS {
-            env.remove(*key);
-        }
+        // to that key, whatever it signed in as: unset for the launch —
+        // from Launch settings and from what the app itself inherited
+        // (the supervisor removes a variable set to `ENV_UNSET`).
+        unset_inherited_keys(&mut env);
         if let LaunchMode::Resume { session_id, .. } = mode {
             refuse_option_like(session_id)?;
         }
@@ -705,6 +714,12 @@ impl HarnessAdapter for CodexAdapter {
 
     fn isolation_env_keys(&self) -> &'static [&'static str] {
         &[ENV_CODEX_HOME, ENV_SQLITE_HOME, ENV_BIN_OVERRIDE]
+    }
+
+    /// `CODEX_API_KEY` / `OPENAI_API_KEY`: unset for every launch and in
+    /// the copyable snippet (an inherited key would bill every account).
+    fn launch_unset_keys(&self) -> &'static [&'static str] {
+        INHERITED_KEYS
     }
 
     /// Both the home and the SQLite home point at the Account's folder —

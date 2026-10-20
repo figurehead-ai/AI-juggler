@@ -355,7 +355,7 @@ fn isolation_keys_and_snippet() {
     .unwrap();
     assert_eq!(
         snippet,
-        "CODEX_HOME='/tmp/acct one' CODEX_SQLITE_HOME='/tmp/acct one' codex"
+        "env -u CODEX_API_KEY -u OPENAI_API_KEY CODEX_HOME='/tmp/acct one' CODEX_SQLITE_HOME='/tmp/acct one' codex"
     );
     assert_eq!(
         adapter.pinned_env_keys(),
@@ -400,6 +400,10 @@ fn codex_home_aliases_come_from_the_shell_files() {
 #[cfg(unix)]
 #[test]
 fn an_api_key_never_rides_along_into_a_launch() {
+    assert_eq!(
+        CodexAdapter::new().launch_unset_keys(),
+        ["CODEX_API_KEY", "OPENAI_API_KEY"]
+    );
     let dir = tempfile::tempdir().unwrap();
     let stub = version_stub(dir.path(), "codex-cli 0.163.0");
     let adapter = CodexAdapter::with_bin(&stub);
@@ -418,8 +422,14 @@ fn an_api_key_never_rides_along_into_a_launch() {
         let spec = adapter
             .launch_spec(&acct, &profile(&acct, overlay.clone()), dir.path(), &mode)
             .unwrap();
-        assert!(!spec.env.contains_key("CODEX_API_KEY"));
-        assert!(!spec.env.contains_key("OPENAI_API_KEY"));
+        // Explicit unsets: the supervisor removes them from what the
+        // launch inherits, not only from the overlay.
+        for key in ["CODEX_API_KEY", "OPENAI_API_KEY"] {
+            assert_eq!(
+                spec.env.get(key).map(String::as_str),
+                Some(juggler_adapter::launch::ENV_UNSET)
+            );
+        }
     }
 }
 
