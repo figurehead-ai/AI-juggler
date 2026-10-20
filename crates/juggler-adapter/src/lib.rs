@@ -31,7 +31,9 @@ pub use juggler_core::model;
 pub use adapter::{HarnessAdapter, SharedAdapter};
 pub use capabilities::Capabilities;
 pub use discovery::{DiscoveryReport, InstallStatus, VerificationStatus};
-pub use environment::{DiscoveredInstall, ImportOutcome, InstallOrigin, LoginProbe, LoginUrl};
+pub use environment::{
+    DiscoveredInstall, ImportOutcome, InstallOrigin, LoginProbe, LoginState, LoginUrl,
+};
 pub use error::AdapterError;
 pub use identity::IdentityProbe;
 pub use launch::{DesktopLaunch, EnvMap, LaunchMode, LaunchSpec};
