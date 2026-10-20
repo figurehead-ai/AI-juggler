@@ -399,14 +399,9 @@ fn a_copy_with_an_open_session_does_not_switch() {
     }
     drop(storage);
     let refused = commands::account_use_original_impl(&state, &copy.account.id).unwrap_err();
+    assert!(refused.wire().user_message.contains("still open"));
     assert!(
-        refused.wire().user_message.contains("still open"),
-        "{}",
-        refused.wire().user_message
-    );
-    assert_ne!(
-        state_dir(&state, &copy.account.id),
-        folder,
+        state_dir(&state, &copy.account.id) != folder,
         "still the copy"
     );
 }
