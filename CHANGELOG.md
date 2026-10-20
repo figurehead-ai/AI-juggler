@@ -107,6 +107,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The session list no longer shows every project from your Claude
+  history as a bare row with a "0". Projects you haven't run anything in
+  yet sit under a short **Projects** heading. Each reads like a session:
+  a folder mark, the name, and when you last worked there, how many
+  conversations, and with which accounts. Worktrees count as their
+  repository, clones of one repository are grouped, and every group
+  folds (and stays folded).
+
 - Switching a session you started in the app no longer stops at
   "Couldn't tell which file is this session": AI Juggler finds the
   session's own file (same folder, started after the launch) when you
