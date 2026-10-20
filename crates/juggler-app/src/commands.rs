@@ -9156,6 +9156,9 @@ pub fn processes_tick(state: &Arc<AppState>) {
             }
         }
     }
+    // AJ-E1401: the machine's own signals, on the same tick (its own
+    // lock — never under the collector's).
+    crate::machine_health::tick(state, now);
     auto_cleanup_sweep(state, now);
 }
 
