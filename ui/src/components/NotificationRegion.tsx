@@ -5,7 +5,7 @@
  * countdown / ready states + an explicit Resume click (the click is
  * the ONLY action; nothing here launches by itself).
  */
-import { useEffect, useState, type JSX } from "react";
+import { useContext, useEffect, useState, type JSX } from "react";
 import {
   alertsTick,
   instancesList,
@@ -22,7 +22,7 @@ import {
   onUpdateStatus,
   statsEvent,
 } from "../lib/bridge";
-import { alertSubject, machineAlertsTake } from "../lib/machine";
+import { alertSubject, keptNotices, machineAlertsTake, ThisMacContext, type MachineNotice } from "../lib/machine";
 
 /** AJ-E1103: an alert kind as the schema names it. */
 function alertKind(kind: string): string {
@@ -35,11 +35,6 @@ function notification(kind: string, action: "shown" | "clicked" | "dismissed"): 
   statsEvent("ui.notification", { kind, action });
 }
 
-/** AJ-E1408: a told overload alert, until dismissed. */
-interface MachineNotice {
-  key: string;
-  text: string;
-}
 let machineNotices: MachineNotice[] = [];
 const machineListeners = new Set<(notices: MachineNotice[]) => void>();
 function publishMachineNotices(next: MachineNotice[]): void {
@@ -63,6 +58,15 @@ export function NotificationRegion({
   // AJ-E1408: overload alerts — told once, dismissable, never an action
   // on anything (passive only).
   const [machineAlerts, setMachineAlertsState] = useState<MachineNotice[]>(() => machineNotices);
+  // A notice whose condition has ended goes (This Mac's alerts are the
+  // ones still on, 45 s grace included).
+  const thisMac = useContext(ThisMacContext);
+  useEffect(() => {
+    if (!thisMac || machineNotices.length === 0) return;
+    const active = new Set(thisMac.alerts.map((alert) => alert.key));
+    const kept = keptNotices(machineNotices, active, Date.now());
+    if (kept.length !== machineNotices.length) publishMachineNotices(kept);
+  }, [thisMac]);
   useEffect(() => {
     machineListeners.add(setMachineAlertsState);
     setMachineAlertsState(machineNotices);
@@ -141,14 +145,22 @@ export function NotificationRegion({
           fresh.forEach(() => notification("other", "shown"));
           // Kept outside the component: a drained alert survives a
           // remount (switching screens) until it is dismissed.
+          const toldAt = Date.now();
           publishMachineNotices(
-            [
-              ...fresh.map((alert) => ({
-                key: `${alert.key}-${alert.since_ms}`,
-                text: [`${alert.title} — ${alert.detail}`, alertSubject(alert, nameOf)].filter(Boolean).join(". "),
-              })),
-              ...machineNotices,
-            ].slice(0, 3),
+            keptNotices(
+              [
+                ...[...fresh].reverse().map((alert) => ({
+                  key: `${alert.key}-${alert.since_ms}`,
+                  alertKey: alert.key,
+                  kind: alert.kind,
+                  text: [`${alert.title} — ${alert.detail}`, alertSubject(alert, nameOf)].filter(Boolean).join(". "),
+                  toldAt,
+                })),
+                ...machineNotices,
+              ],
+              null,
+              toldAt,
+            ).slice(0, 3),
           );
         })
         .catch(() => null);

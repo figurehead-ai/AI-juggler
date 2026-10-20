@@ -34,7 +34,9 @@ pub use cleanup_audit::{
 };
 pub use cleanup_settings::{CleanupSettingsRepo, CleanupTierSettings};
 pub use fleet_sync::{FleetSyncRepo, SyncEntry};
-pub use footprints::{FOOTPRINTS_PER_KEY, Footprint, FootprintStats, FootprintsRepo};
+pub use footprints::{
+    FOOTPRINTS_PER_KEY, Footprint, FootprintStats, FootprintsRepo, MIN_FOOTPRINT_MS,
+};
 pub use identity::{IdentityAssertion, IdentityRepo};
 pub use process_ledger::{
     EXEC_SETTLE_MS, LedgerRow, ProcessLedgerRepo, ROLE_HELPER, ROLE_LOGIN, ROLE_ROOT, STATE_EXITED,

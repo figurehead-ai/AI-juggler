@@ -30,7 +30,7 @@ session_id: string | null,
  */
 place: string | null, 
 /**
- * The contributor's memory, bytes.
+ * The contributor's memory, bytes — only when memory is what's high.
  */
 subject_bytes: number | null, 
 /**
@@ -39,7 +39,8 @@ subject_bytes: number | null,
  */
 subject_estimate: boolean, 
 /**
- * The contributor's CPU, percent of one core.
+ * The contributor's CPU, percent of one core — only when CPU is
+ * what's high.
  */
 subject_cpu: number | null, 
 /**

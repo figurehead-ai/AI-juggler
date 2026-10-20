@@ -5,7 +5,9 @@
 //! `observed:terminal`). Never a command line, folder or name.
 //!
 //! One row per session, updated in place while it runs (so a crash still
-//! leaves its latest footprint); the newest 50 per key are kept. Local only.
+//! leaves its latest footprint); the newest 50 per key are kept, and a
+//! deleted launch setting's or Account's go with it. Medians skip sessions
+//! shorter than a minute and sessions that failed. Local only.
 
 use rusqlite::{Connection, params};
 
@@ -13,6 +15,8 @@ use crate::error::CoreError;
 
 /// How many footprints are kept per key.
 pub const FOOTPRINTS_PER_KEY: i64 = 50;
+/// A session counts toward the medians once it has run this long.
+pub const MIN_FOOTPRINT_MS: i64 = 60_000;
 
 /// One session's footprint.
 #[derive(Clone, Debug, PartialEq)]
@@ -150,16 +154,21 @@ impl FootprintsRepo<'_> {
     }
 
     /// What every key's footprints say (median peak memory, median p95
-    /// CPU, how many), keys sorted.
+    /// CPU, how many), keys sorted. A session shorter than
+    /// [`MIN_FOOTPRINT_MS`], or one that failed, isn't counted: neither is
+    /// what a launch setting typically weighs.
     ///
     /// # Errors
     ///
     /// Returns [`CoreError::Storage`] on SQLite failures.
     pub fn stats(&self) -> Result<Vec<FootprintStats>, CoreError> {
-        let mut stmt = self
-            .conn
-            .prepare("SELECT key, peak_rss, p95_cpu FROM footprints ORDER BY key")?;
-        let rows = stmt.query_map([], |row| {
+        let mut stmt = self.conn.prepare(
+            "SELECT f.key, f.peak_rss, f.p95_cpu FROM footprints f
+             LEFT JOIN instances i ON i.id = f.session_id
+             WHERE f.duration_ms >= ?1 AND (i.status IS NULL OR i.status != 'failed')
+             ORDER BY f.key",
+        )?;
+        let rows = stmt.query_map(params![MIN_FOOTPRINT_MS], |row| {
             Ok((
                 row.get::<_, String>(0)?,
                 u64::try_from(row.get::<_, i64>(1)?).unwrap_or(0),
@@ -189,6 +198,23 @@ impl FootprintsRepo<'_> {
                 }
             })
             .collect())
+    }
+}
+
+impl FootprintsRepo<'_> {
+    /// Deletes the footprints of launch settings and Accounts that no
+    /// longer exist; returns how many went.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn forget_deleted(&self) -> Result<usize, CoreError> {
+        Ok(self.conn.execute(
+            "DELETE FROM footprints
+             WHERE (key LIKE 'recipe:%' AND substr(key, 8) NOT IN (SELECT id FROM launch_recipes))
+                OR (account_id IS NOT NULL AND account_id NOT IN (SELECT id FROM accounts))",
+            [],
+        )?)
     }
 }
 

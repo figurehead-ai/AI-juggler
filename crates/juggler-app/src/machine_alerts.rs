@@ -3,9 +3,12 @@
 //! working it hard — told once, calmly, while it's happening.
 //!
 //! Passive only (PROPOSAL §6.4): an alert is a notification and a Needs
-//! you entry, nothing more — no stop, pause or launch, at any tier. Each
-//! kind fires at most once per 30 minutes, after its condition has held
-//! for its hold time, and clears when the condition clears. Like the other
+//! you entry, nothing more — no stop, pause or launch, at any tier. An
+//! alert turns on after its condition has held for its hold time, and
+//! clears only after it has been gone for 45 s (a swap or CPU alert stays
+//! on while a lower level holds), so a Mac hovering near a line doesn't
+//! flap. Each key, and each kind, is told at most once per 30 minutes;
+//! while it's on it stays in Needs you. Like the other
 //! immediate alerts (a quota wall), it is not held for quiet hours — those
 //! delay the hourly digest only.
 
@@ -30,13 +33,14 @@ pub struct OverloadAlertInfo {
     pub session_id: Option<String>,
     /// … or a tool AI Juggler didn't start (`desktop` | `terminal`).
     pub place: Option<String>,
-    /// The contributor's memory, bytes.
+    /// The contributor's memory, bytes — only when memory is what's high.
     #[ts(type = "number | null")]
     pub subject_bytes: Option<u64>,
     /// Whether `subject_bytes` is an estimate (a tool AI Juggler didn't
     /// start: its helpers share memory the sum counts more than once).
     pub subject_estimate: bool,
-    /// The contributor's CPU, percent of one core.
+    /// The contributor's CPU, percent of one core — only when CPU is
+    /// what's high.
     pub subject_cpu: Option<f64>,
     /// When the condition started, epoch ms.
     #[ts(type = "number")]
@@ -51,10 +55,22 @@ const PRESSURE_HOLD_MS: i64 = 30_000;
 const SWAP_HOLD_MS: i64 = 60_000;
 /// Swap growth that counts as thrashing, MB a minute.
 const SWAP_THRASH_MB_PER_MIN: f64 = 200.0;
+/// Once on, a swap alert stays on above this, MB a minute.
+const SWAP_STAY_MB_PER_MIN: f64 = 100.0;
 /// Whole-Mac CPU above this …
 const CPU_BUSY_PCT: f64 = 90.0;
 /// … for this long.
 const CPU_WINDOW_MS: i64 = 120_000;
+/// Once on, a CPU alert stays on while the last 30 s average above this.
+const CPU_STAY_PCT: f64 = 80.0;
+/// The stay level's window.
+const CPU_STAY_WINDOW_MS: i64 = 30_000;
+/// An alert clears only after its condition has been gone this long.
+const CLEAR_AFTER_MS: i64 = 45_000;
+/// A tool AI Juggler didn't start sums memory its helpers share, so it's
+/// blamed for memory only when it's still the largest at this share of
+/// its sum.
+const ESTIMATE_DISCOUNT: f64 = 0.5;
 
 /// A condition, as evaluated now.
 #[derive(Debug, Clone)]
@@ -65,6 +81,10 @@ struct Condition {
     title: String,
     detail: String,
     subject: Option<ToolTreeInfo>,
+    /// Which of the subject's figures to tell (a CPU-heavy session's
+    /// memory isn't what's high).
+    tell_cpu: bool,
+    tell_memory: bool,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -72,18 +92,41 @@ struct Track {
     since: Option<i64>,
     active: bool,
     last_fired: Option<i64>,
+    /// While on: when its condition went away (it clears 45 s later).
+    gone_since: Option<i64>,
+    /// While on: the alert as last seen, kept through the 45 s.
+    last: Option<OverloadAlertInfo>,
 }
 
 /// The alert state machine (one per app, inside the machine watch).
 #[derive(Debug, Default)]
 pub struct AlertEngine {
     tracks: HashMap<String, Track>,
+    /// When each kind was last told (one `heavy:` notice per 30 minutes,
+    /// whichever session it is).
+    kind_fired: HashMap<&'static str, i64>,
     active: Vec<OverloadAlertInfo>,
     fresh: Vec<OverloadAlertInfo>,
 }
 
+/// The tree to name for memory: measured memory first. A tool AI Juggler
+/// didn't start is named only when it's still the largest at half its
+/// summed size.
+#[allow(clippy::cast_precision_loss)]
 fn by_memory(mac: &ThisMacInfo) -> Option<ToolTreeInfo> {
-    mac.top.first().cloned()
+    let weight = |tree: &ToolTreeInfo| {
+        let bytes = tree.rss_bytes as f64;
+        if tree.memory_estimate {
+            bytes * ESTIMATE_DISCOUNT
+        } else {
+            bytes
+        }
+    };
+    mac.top
+        .iter()
+        .chain(mac.heavy.iter())
+        .max_by(|a, b| weight(a).total_cmp(&weight(b)))
+        .cloned()
 }
 
 fn by_cpu(mac: &ThisMacInfo) -> Option<ToolTreeInfo> {
@@ -117,8 +160,22 @@ fn cpu_sustained(mac: &ThisMacInfo, limit: f64, window_ms: i64) -> Option<f64> {
         .then(|| values.iter().sum::<f64>() / values.len() as f64)
 }
 
-/// Pure: what holds right now.
-fn conditions(mac: &ThisMacInfo) -> Vec<Condition> {
+/// Whole-Mac CPU averaged over the last `window_ms`.
+#[allow(clippy::cast_precision_loss)]
+fn cpu_mean(mac: &ThisMacInfo, window_ms: i64) -> Option<f64> {
+    let series = &mac.machine.series;
+    let newest = series.last()?;
+    let values: Vec<f64> = series
+        .iter()
+        .filter(|point| newest.at_ms - point.at_ms <= window_ms)
+        .filter_map(|point| point.cpu_pct)
+        .collect();
+    (!values.is_empty()).then(|| values.iter().sum::<f64>() / values.len() as f64)
+}
+
+/// Pure: what holds right now. `on` is the keys already on: a swap or CPU
+/// alert that's on stays on at a lower level.
+fn conditions(mac: &ThisMacInfo, on: &std::collections::HashSet<String>) -> Vec<Condition> {
     let machine = &mac.machine;
     let mut out = Vec::new();
     if !machine.sampled {
@@ -140,11 +197,18 @@ fn conditions(mac: &ThisMacInfo) -> Vec<Condition> {
                 "macOS reports memory pressure".into()
             },
             subject: by_memory(mac),
+            tell_cpu: false,
+            tell_memory: true,
         });
     }
+    let swap_level = if on.contains("swap") {
+        SWAP_STAY_MB_PER_MIN
+    } else {
+        SWAP_THRASH_MB_PER_MIN
+    };
     if let Some(rate) = machine
         .swap_growth_mb_per_min
-        .filter(|rate| *rate > SWAP_THRASH_MB_PER_MIN)
+        .filter(|rate| *rate > swap_level)
     {
         out.push(Condition {
             key: "swap".into(),
@@ -153,9 +217,17 @@ fn conditions(mac: &ThisMacInfo) -> Vec<Condition> {
             title: "Your Mac is swapping hard".into(),
             detail: format!("swap is growing — {rate:.0} MB a minute"),
             subject: by_memory(mac),
+            tell_cpu: false,
+            tell_memory: true,
         });
     }
-    if let Some(mean) = cpu_sustained(mac, CPU_BUSY_PCT, CPU_WINDOW_MS) {
+    let cpu = cpu_sustained(mac, CPU_BUSY_PCT, CPU_WINDOW_MS).or_else(|| {
+        on.contains("cpu")
+            .then(|| cpu_mean(mac, CPU_STAY_WINDOW_MS))
+            .flatten()
+            .filter(|mean| *mean > CPU_STAY_PCT)
+    });
+    if let Some(mean) = cpu {
         out.push(Condition {
             key: "cpu".into(),
             kind: "cpu",
@@ -163,6 +235,8 @@ fn conditions(mac: &ThisMacInfo) -> Vec<Condition> {
             title: "The processor has been flat out for minutes".into(),
             detail: format!("{mean:.0}% busy for over two minutes"),
             subject: by_cpu(mac),
+            tell_cpu: true,
+            tell_memory: false,
         });
     }
     if let Some(state) = machine
@@ -181,6 +255,8 @@ fn conditions(mac: &ThisMacInfo) -> Vec<Condition> {
                 "macOS is slowing it to cool off".into()
             },
             subject: by_cpu(mac),
+            tell_cpu: true,
+            tell_memory: false,
         });
     }
     // Only a disk that's really out of room (the pressure level, < 5 GB) is
@@ -205,19 +281,25 @@ fn conditions(mac: &ThisMacInfo) -> Vec<Condition> {
             title: format!("{volume} is running out of space"),
             detail: reason.words.clone(),
             subject: None,
+            tell_cpu: false,
+            tell_memory: false,
         });
     }
     for tree in &mac.heavy {
         let Some(session) = tree.session_id.as_deref() else {
             continue; // tools AI Juggler didn't start: This Mac shows them
         };
+        let note = tree.heavy_note.as_deref().unwrap_or_default();
         out.push(Condition {
             key: format!("heavy:{session}"),
             kind: "heavy",
             hold_ms: 0, // the heavy rule is already a minute long
             title: "A session is working your Mac hard".into(),
-            detail: tree.heavy_note.clone().unwrap_or_default(),
+            detail: note.to_string(),
             subject: Some(tree.clone()),
+            // The note says what's high: "CPU 96%", "3.2 GB", or both.
+            tell_cpu: note.split(" · ").any(|part| part.starts_with("CPU ")),
+            tell_memory: note.split(" · ").any(|part| !part.starts_with("CPU ")),
         });
     }
     out
@@ -225,21 +307,40 @@ fn conditions(mac: &ThisMacInfo) -> Vec<Condition> {
 
 impl AlertEngine {
     /// One evaluation (the 5 s This Mac cadence): conditions that held
-    /// for their hold time become active; a newly active kind is told
-    /// unless it was told in the last 30 minutes; cleared ones go.
+    /// for their hold time turn on; a newly on key is told unless it, or
+    /// another of its kind, was told in the last 30 minutes; one that's
+    /// been gone for 45 s clears.
     pub fn evaluate(&mut self, mac: &ThisMacInfo, now_ms: i64) {
-        let now: Vec<Condition> = conditions(mac);
+        let on: std::collections::HashSet<String> = self
+            .tracks
+            .iter()
+            .filter(|(_, track)| track.active)
+            .map(|(key, _)| key.clone())
+            .collect();
+        let now: Vec<Condition> = conditions(mac, &on);
         let holding: std::collections::HashSet<&str> =
             now.iter().map(|condition| condition.key.as_str()).collect();
+        let mut fading = Vec::new();
         for (key, track) in &mut self.tracks {
-            if !holding.contains(key.as_str()) {
-                track.since = None;
-                track.active = false;
+            if holding.contains(key.as_str()) {
+                continue;
             }
+            if track.active {
+                let gone = *track.gone_since.get_or_insert(now_ms);
+                if now_ms - gone < CLEAR_AFTER_MS {
+                    fading.extend(track.last.clone());
+                    continue;
+                }
+            }
+            track.since = None;
+            track.active = false;
+            track.gone_since = None;
+            track.last = None;
         }
         let mut active = Vec::new();
         for condition in now {
             let track = self.tracks.entry(condition.key.clone()).or_default();
+            track.gone_since = None;
             let since = *track.since.get_or_insert(now_ms);
             if now_ms - since < condition.hold_ms {
                 continue;
@@ -254,27 +355,48 @@ impl AlertEngine {
                     .as_ref()
                     .and_then(|s| s.session_id.clone()),
                 place: condition.subject.as_ref().and_then(|s| s.place.clone()),
-                subject_bytes: condition.subject.as_ref().map(|s| s.rss_bytes),
+                subject_bytes: condition
+                    .subject
+                    .as_ref()
+                    .filter(|_| condition.tell_memory)
+                    .map(|s| s.rss_bytes),
                 subject_estimate: condition
                     .subject
                     .as_ref()
-                    .is_some_and(|s| s.memory_estimate),
-                subject_cpu: condition.subject.as_ref().and_then(|s| s.cpu_pct),
+                    .is_some_and(|s| condition.tell_memory && s.memory_estimate),
+                subject_cpu: condition
+                    .subject
+                    .as_ref()
+                    .filter(|_| condition.tell_cpu)
+                    .and_then(|s| s.cpu_pct),
                 since_ms: since,
             };
             if !track.active {
                 track.active = true;
-                let quiet = track
-                    .last_fired
-                    .is_some_and(|fired| now_ms - fired < ALERT_EVERY_MS);
+                let recent = |fired: &i64| now_ms - fired < ALERT_EVERY_MS;
+                let quiet = track.last_fired.as_ref().is_some_and(recent)
+                    || self.kind_fired.get(condition.kind).is_some_and(recent);
                 if !quiet {
                     track.last_fired = Some(now_ms);
+                    self.kind_fired.insert(condition.kind, now_ms);
                     self.fresh.push(alert.clone());
                 }
             }
+            track.last = Some(alert.clone());
             active.push(alert);
         }
+        fading.sort_by(|a, b| a.key.cmp(&b.key));
+        active.extend(fading);
         self.active = active;
+        // An ended session's `heavy:` key (and any other) is forgotten once
+        // it's off and its 30 minutes have passed.
+        self.tracks.retain(|_, track| {
+            track.active
+                || track.since.is_some()
+                || track
+                    .last_fired
+                    .is_some_and(|fired| now_ms - fired < ALERT_EVERY_MS)
+        });
     }
 
     /// The alerts active now (Home's Needs you).
@@ -411,16 +533,82 @@ mod tests {
     }
 
     #[test]
-    fn a_tool_we_did_not_start_is_named_with_its_memory_as_an_estimate() {
+    fn a_tool_we_did_not_start_is_blamed_only_when_clearly_the_largest() {
         let mut mac = calm();
         mac.machine.pressure = Some("warning".into());
-        mac.top.reverse(); // the Claude app first
-        let mut engine = AlertEngine::default();
-        let told = run(&mut engine, &mac, 0, 60);
+        // The Claude app's 6 GB is summed over helpers that share pages:
+        // our measured 4 GB session is named, not the app.
+        mac.top = vec![
+            tree(None, Some("desktop"), 6 * G, 20.0, None),
+            tree(Some("s-big"), None, 4 * G, 30.0, None),
+        ];
+        let told = run(&mut AlertEngine::default(), &mac, 0, 60);
+        assert_eq!(told[0].session_id.as_deref(), Some("s-big"));
+        // At 12 GB it's the largest even at half: named, as an estimate.
+        mac.top[0].rss_bytes = 12 * G;
+        let told = run(&mut AlertEngine::default(), &mac, 0, 60);
         assert_eq!(told.len(), 1);
         assert_eq!(told[0].place.as_deref(), Some("desktop"));
-        assert_eq!(told[0].subject_bytes, Some(2 * G));
+        assert_eq!(told[0].subject_bytes, Some(12 * G));
         assert!(told[0].subject_estimate);
+    }
+
+    #[test]
+    fn a_flicker_neither_clears_nor_retells_it() {
+        let mut pressured = calm();
+        pressured.machine.pressure = Some("warning".into());
+        let mut engine = AlertEngine::default();
+        assert_eq!(run(&mut engine, &pressured, 0, 60).len(), 1);
+        let since = engine.active()[0].since_ms;
+        // One calm sample, then pressure again: still on, same start, not
+        // told again.
+        engine.evaluate(&calm(), 65_000);
+        assert_eq!(engine.active().len(), 1, "still on through a flicker");
+        assert!(run(&mut engine, &pressured, 70_000, 60).is_empty());
+        assert_eq!(engine.active()[0].since_ms, since);
+        // 45 s calm clears it.
+        run(&mut engine, &calm(), 140_000, 45);
+        assert!(engine.active().is_empty());
+    }
+
+    #[test]
+    fn busy_cpu_stays_on_while_it_hovers_above_eighty() {
+        let busy = |cpu: f64| {
+            let mut mac = calm();
+            for point in &mut mac.machine.series {
+                point.cpu_pct = Some(cpu);
+            }
+            mac
+        };
+        let mut engine = AlertEngine::default();
+        assert_eq!(run(&mut engine, &busy(97.0), 0, 0).len(), 1);
+        // 85 % for minutes: on, not retold.
+        assert!(run(&mut engine, &busy(85.0), 5_000, 300).is_empty());
+        assert_eq!(engine.active().len(), 1);
+        // Under 80 % for 45 s: off.
+        run(&mut engine, &busy(40.0), 310_000, 50);
+        assert!(engine.active().is_empty());
+    }
+
+    #[test]
+    fn a_session_dipping_in_and_out_is_told_once_per_kind() {
+        let heavy = |session: &str| {
+            let mut mac = calm();
+            mac.heavy = vec![tree(Some(session), None, G, 96.0, Some("CPU 96%"))];
+            mac
+        };
+        let mut engine = AlertEngine::default();
+        assert_eq!(run(&mut engine, &heavy("s-1"), 0, 0).len(), 1);
+        run(&mut engine, &calm(), 5_000, 60);
+        assert!(engine.active().is_empty());
+        // Another session (or the same build in a new session) within 30
+        // minutes: in Needs you, but no second notice.
+        assert!(run(&mut engine, &heavy("s-2"), 70_000, 0).is_empty());
+        assert_eq!(engine.active().len(), 1);
+        run(&mut engine, &calm(), 75_000, 60);
+        // The ended sessions' keys are forgotten after their 30 minutes.
+        run(&mut engine, &calm(), 2_000_000, 0);
+        assert!(engine.tracks.is_empty(), "{:?}", engine.tracks.keys());
     }
 
     #[test]
@@ -429,15 +617,15 @@ mod tests {
         pressured.machine.pressure = Some("critical".into());
         let mut engine = AlertEngine::default();
         assert_eq!(run(&mut engine, &pressured, 0, 60).len(), 1);
-        // Clears …
-        run(&mut engine, &calm(), 65_000, 10);
+        // Clears (45 s gone) …
+        run(&mut engine, &calm(), 65_000, 45);
         assert!(engine.active().is_empty());
         // … comes back ten minutes later: active again, but not retold.
         let again = run(&mut engine, &pressured, 600_000, 60);
         assert!(again.is_empty());
         assert_eq!(engine.active().len(), 1, "still in Needs you");
         // After 30 minutes it may be told again.
-        run(&mut engine, &calm(), 700_000, 10);
+        run(&mut engine, &calm(), 700_000, 45);
         assert_eq!(run(&mut engine, &pressured, 2_000_000, 60).len(), 1);
     }
 
@@ -518,6 +706,33 @@ mod tests {
         assert_eq!(told[1].title, "Macintosh HD is running out of space");
         assert_eq!(told[2].session_id.as_deref(), Some("s-hog"));
         assert_eq!(told[2].detail, "CPU 96% · 3.2 GB");
+        assert_eq!(told[2].subject_cpu, Some(96.0));
+        assert_eq!(told[2].subject_bytes, Some(3_200_000_000));
+    }
+
+    #[test]
+    fn a_cpu_heavy_session_is_told_by_its_cpu_not_its_memory() {
+        let mut mac = calm();
+        mac.heavy = vec![tree(
+            Some("s-cc"),
+            None,
+            1_100_000_000,
+            96.0,
+            Some("CPU 96%"),
+        )];
+        let told = run(&mut AlertEngine::default(), &mac, 0, 0);
+        assert_eq!(told[0].subject_cpu, Some(96.0));
+        assert_eq!(told[0].subject_bytes, None, "1.1 GB isn't what's high");
+        mac.heavy = vec![tree(
+            Some("s-mem"),
+            None,
+            3_200_000_000,
+            20.0,
+            Some("3.2 GB"),
+        )];
+        let told = run(&mut AlertEngine::default(), &mac, 0, 0);
+        assert_eq!(told[0].subject_cpu, None);
+        assert_eq!(told[0].subject_bytes, Some(3_200_000_000));
     }
 
     #[test]

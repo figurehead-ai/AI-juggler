@@ -231,13 +231,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   own verdict (E14, AJ-E1406/E1407): OK, Tight or Not now, with the
   reasons and what would make room ("Closing feat/read-model frees about
   3.2 GB"). It learns from your own sessions how heavy each launch setting
-  is (the median peak, after three sessions; until then it says "not
-  measured yet"). It never stops you starting a session.
+  is (the median peak of sessions that ran at least a minute and didn't
+  fail, after three; until then it says "not measured yet", with a Tight
+  or Not now verdict too). A deleted launch setting's or Account's
+  measurements go with it. It never stops you starting a session.
+  **Downgrade note:** this adds database schema v29. An older build
+  refuses a v29 database (`SchemaTooNew`) rather than risk it, so going
+  back to a build before this one needs the database backup taken before
+  the upgrade.
 - AI Juggler tells you when your Mac is struggling (E14, AJ-E1408): memory
   pressure that lasts, swap that keeps growing, a processor flat out for
   minutes, a hot Mac, a disk running out of space, or a session working
-  it hard. Each is said once, with what's using the most, and stays
-  under Needs you while it lasts. It never stops anything by itself.
+  it hard. Each is said once (at most one of a kind every 30 minutes),
+  with what's using the most and what of it is high, and stays under
+  Needs you while it lasts. A Mac hovering near a line doesn't flap: an
+  alert, and a heavy session, clear only after 45 s back under it. A
+  notice goes once its condition has ended. It never stops anything by
+  itself.
 - This Mac gives advice from your own sessions (AJ-E1409): how many
   sessions it comfortably runs at once, and which launch setting is the
   heaviest. It shows only once there are enough sessions to go on.

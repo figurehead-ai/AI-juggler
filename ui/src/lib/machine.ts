@@ -132,11 +132,11 @@ function previewAlerts(sessionId: string | null): OverloadAlertInfo[] {
   const kind = previewParam("aij_alert");
   if (kind === "memory")
     return [
-      { key: "memory_pressure", kind: "memory_pressure", title: "Your Mac is under memory pressure", detail: "macOS reports memory pressure", session_id: sessionId, place: null, subject_bytes: 3_200_000_000, subject_estimate: false, subject_cpu: 12, since_ms: Date.now() - 45_000 },
+      { key: "memory_pressure", kind: "memory_pressure", title: "Your Mac is under memory pressure", detail: "macOS reports memory pressure", session_id: sessionId, place: null, subject_bytes: 3_200_000_000, subject_estimate: false, subject_cpu: null, since_ms: Date.now() - 45_000 },
     ];
   if (kind === "cpu")
     return [
-      { key: "cpu", kind: "cpu", title: "The processor has been flat out for minutes", detail: "97% busy for over two minutes", session_id: null, place: "desktop", subject_bytes: 1_600_000_000, subject_estimate: true, subject_cpu: 140, since_ms: Date.now() - 150_000 },
+      { key: "cpu", kind: "cpu", title: "The processor has been flat out for minutes", detail: "97% busy for over two minutes", session_id: null, place: "desktop", subject_bytes: null, subject_estimate: false, subject_cpu: 140, since_ms: Date.now() - 150_000 },
     ];
   return [];
 }
@@ -386,8 +386,35 @@ export async function machineAlertsTake(): Promise<OverloadAlertInfo[]> {
   return invoke<OverloadAlertInfo[]>("machine_alerts_take");
 }
 
-/** Who an alert is about, in words ("feat/read-model is using 3.2 GB",
- * "The Claude app is using CPU 140%"). */
+/** AJ-E1408: a told overload alert, until dismissed or its condition
+ * ends. */
+export interface MachineNotice {
+  key: string;
+  /** The engine's key (`memory_pressure`, `heavy:<session>`, …). */
+  alertKey: string;
+  kind: string;
+  text: string;
+  /** When it was told here, epoch ms. */
+  toldAt: number;
+}
+/** A told notice stays at least this long before This Mac's (5 s) read can
+ * end it — that read may predate the alert. */
+const NOTICE_SETTLE_MS = 10_000;
+
+/** Pure: the notices to keep — the newest one per kind (alerts queued while
+ * the window was hidden land together), none whose condition has ended. */
+export function keptNotices(notices: MachineNotice[], activeKeys: Set<string> | null, now: number): MachineNotice[] {
+  const seen = new Set<string>();
+  return notices.filter((notice) => {
+    if (seen.has(notice.kind)) return false;
+    seen.add(notice.kind);
+    return activeKeys === null || activeKeys.has(notice.alertKey) || now - notice.toldAt < NOTICE_SETTLE_MS;
+  });
+}
+/** Who an alert is about, and what of theirs is high ("feat/read-model is
+ * using 3.2 GB", "The Claude app is using CPU 140%"): the engine sends only
+ * the figures that are high, so a CPU-heavy session isn't told by its
+ * memory. */
 export function alertSubject(alert: OverloadAlertInfo, nameOf: (sessionId: string) => string | null): string | null {
   const who = alert.session_id
     ? (nameOf(alert.session_id) ?? "a session")
@@ -397,17 +424,16 @@ export function alertSubject(alert: OverloadAlertInfo, nameOf: (sessionId: strin
         : "claude in a terminal"
       : null;
   if (!who) return null;
-  const what =
-    alert.kind === "cpu" || alert.kind === "thermal"
-      ? alert.subject_cpu !== null
-        ? `CPU ${Math.round(alert.subject_cpu)}%`
-        : null
-      : alert.subject_bytes !== null
-        ? // A tool AI Juggler didn't start: its helpers share memory the
-          // sum counts more than once (AJ-E1402).
-          `${alert.subject_estimate ? "about " : ""}${bytesWords(alert.subject_bytes)}`
-        : null;
-  if (!what) return null;
+  const figures = [
+    alert.subject_cpu !== null ? `CPU ${Math.round(alert.subject_cpu)}%` : null,
+    alert.subject_bytes !== null
+      ? // A tool AI Juggler didn't start: its helpers share memory the
+        // sum counts more than once (AJ-E1402).
+        `${alert.subject_estimate ? "about " : ""}${bytesWords(alert.subject_bytes)}`
+      : null,
+  ].filter((figure): figure is string => figure !== null);
+  if (figures.length === 0) return null;
+  const what = figures.join(" and ");
   // A session's name keeps its own case ("feat/read-model").
   return `${who} is using ${what}`;
 }

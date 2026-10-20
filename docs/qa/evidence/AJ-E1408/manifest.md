@@ -31,6 +31,19 @@ is evaluated with This Mac on the 5 s cadence, so it adds no work of its own.
   are immediate; quiet hours only delay the hourly digest. Usage stats count
   them as `ui.notification` kind `other`, because the closed schema has no
   machine kind. Adding one is a schema change for the maintainer.
+- After the AJ-E1408 review:
+  - An alert clears only after its condition has been gone for 45 s. A
+    swap or CPU alert stays on above a lower level (100 MB a minute; 80 %
+    over 30 s).
+  - Each key, and each kind, is told at most once per 30 minutes. A
+    track that's off is forgotten after its 30 minutes, ended sessions'
+    `heavy:` keys included.
+  - Memory blame prefers measured memory. A tool AI Juggler didn't start
+    is named only when it's still the largest at half its sum.
+  - An alert tells only the figures that are high: a CPU-heavy session is
+    told by its CPU.
+  - A notice goes once This Mac no longer has its alert (after 10 s to
+    settle). Notices queued while hidden collapse to the newest per kind.
 - After AJ-E1402's review (memory honesty), an alert naming a tool AI
   Juggler didn't start carries `subject_estimate`. The words then say
   "about 2.0 GB", because that tree's sum counts shared memory more than
@@ -56,6 +69,8 @@ is evaluated with This Mac on the 5 s cadence, so it adds no work of its own.
 | Req.2 once per 30 min, clears, names the contributor | same (`it_clears_and_is_not_retold_within_thirty_minutes`, `memory_pressure_is_told_once…`) | pass | pass | PASS | 42012b58+ | 2026-10-20 | claude-opus |
 | Req.3 Needs you + the notice | `pnpm --dir ui exec vitest run src/components/this-mac.test.tsx` (alert in Needs you with "busy-one is using 3.2 GB", amber when tight; the notice told once and dismissed) | pass | 12 passed | PASS | 42012b58+ | 2026-10-20 | claude-opus |
 | Memory honesty (AJ-E1402 review) | `cargo test -p juggler-app --lib -- machine_alerts` (`a_tool_we_did_not_start_is_named_with_its_memory_as_an_estimate`); vitest "says a tool we didn't start uses about its memory…" | pass | pass | PASS | be61a592+ | 2026-10-20 | claude-opus |
+| No flapping, per-kind limit, blame (review) | `cargo test -p juggler-app --lib -- machine_alerts`: `a_flicker_neither_clears_nor_retells_it` (fails on the old code: one calm sample cleared it), `busy_cpu_stays_on_while_it_hovers_above_eighty`, `a_session_dipping_in_and_out_is_told_once_per_kind` (tracks forgotten after 30 min), `a_tool_we_did_not_start_is_blamed_only_when_clearly_the_largest`, `a_cpu_heavy_session_is_told_by_its_cpu_not_its_memory` | pass | 13 passed | PASS | @@SHA@@ | 2026-10-20 | claude-opus |
+| Stale notices (review) | `this-mac.test.tsx`: "keeps the newest notice per kind, and lets one go once its condition ends", "clears a told notice when This Mac no longer has its alert", "tells a CPU-heavy session by its CPU, not its memory" | pass | pass | PASS | @@SHA@@ | 2026-10-20 | claude-opus |
 | Gallery + axe | `pnpm --dir ui exec playwright test tests/visual/overload-gallery.spec.ts` → [`_gallery/74-overload/`](docs/qa/evidence/_gallery/74-overload/) | 0 critical/serious | 6 passed | PASS | 42012b58+ | 2026-10-20 | claude-opus |
 | Walked by hand | built-in browser, 1440×900 dark and light, `?aij_machine=tight&aij_alert=cpu` / `pressure&aij_alert=memory`: the notice shows once; it survives Accounts → Home; dismiss clears it; Needs you item and headline | as described | as described | PASS | 42012b58+ | 2026-10-20 | claude-opus |
 

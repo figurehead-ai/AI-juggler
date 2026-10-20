@@ -43,6 +43,8 @@ export function MachineAdviceLine({
       </span>
       <span className="text-muted">
         {advice.verdict === "ok" ? basisWords(advice) : `${reasonSentence(advice.reasons)}.`}
+        {/* A Tight or Not-now verdict on the 1 GB default says so too. */}
+        {advice.verdict !== "ok" && advice.based_on === 0 && ` Assumes ${basisWords(advice)}.`}
         {advice.verdict !== "ok" && ` ${relief ?? ""} You can still start it.`}
       </span>
     </div>

@@ -41,6 +41,19 @@ describe("the advice line", () => {
     expect(line.textContent).not.toContain("You can still start it");
   });
 
+  it("says a tight or no verdict on the default size is not measured yet", () => {
+    render(
+      <MachineAdviceLine
+        advice={advice({ verdict: "tight", words: "Tight — this Mac can take it, just", reasons: ["memory is getting tight"], based_on: 0, projected_bytes: 1e9 })}
+        nameOf={() => null}
+      />,
+    );
+    expect(screen.getByTestId("machine-advice").textContent).toContain("Assumes about 1.0 GB a session — not measured yet.");
+    cleanup();
+    render(<MachineAdviceLine advice={advice({ verdict: "no", words: "Not now", reasons: ["memory is short"] })} nameOf={() => null} />);
+    expect(screen.getByTestId("machine-advice").textContent).not.toContain("not measured yet");
+  });
+
   it("explains a tight or no verdict, names what would make room, and never forbids", () => {
     render(
       <MachineAdviceLine

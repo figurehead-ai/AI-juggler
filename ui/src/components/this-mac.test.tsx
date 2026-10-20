@@ -10,7 +10,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ThisMacPanel } from "./ThisMacPanel";
 import { RailRow } from "./WorkflowRail";
 import { HomeScreen } from "../screens/Home";
-import { ThisMacContext, mockMachineHealth, type ThisMacInfo, type ToolTreeInfo } from "../lib/machine";
+import { ThisMacContext, keptNotices, mockMachineHealth, type MachineNotice, type ThisMacInfo, type ToolTreeInfo } from "../lib/machine";
 import type { AccountInfo, InstanceInfo, ProjectInfo } from "../lib/bridge";
 
 const NOW = 1_728_800_000_000;
@@ -261,7 +261,7 @@ describe("overload alerts and recommendations (AJ-E1408, AJ-E1409)", () => {
     place: null,
     subject_bytes: 3_200_000_000,
     subject_estimate: false,
-    subject_cpu: 40,
+    subject_cpu: null,
     since_ms: NOW,
     ...overrides,
   });
@@ -298,7 +298,7 @@ describe("overload alerts and recommendations (AJ-E1408, AJ-E1409)", () => {
   it("tells a fresh alert once in the notification region, and dismisses it", async () => {
     const { NotificationRegion } = await import("./NotificationRegion");
     (window as unknown as Record<string, unknown>).__AIJ_ALERTS_FRESH__ = [
-      alert({ key: "cpu", kind: "cpu", title: "The processor has been flat out for minutes", detail: "97% busy for over two minutes", session_id: null, place: "desktop", subject_cpu: 140 }),
+      alert({ key: "cpu", kind: "cpu", title: "The processor has been flat out for minutes", detail: "97% busy for over two minutes", session_id: null, place: "desktop", subject_bytes: null, subject_cpu: 140 }),
     ];
     render(<NotificationRegion />);
     const notice = await screen.findByTestId("machine-alert");
@@ -306,6 +306,54 @@ describe("overload alerts and recommendations (AJ-E1408, AJ-E1409)", () => {
     fireEvent.click(within(notice).getByRole("button", { name: "dismiss" }));
     expect(screen.queryByTestId("machine-alert")).toBeNull();
     delete (window as unknown as Record<string, unknown>).__AIJ_ALERTS_FRESH__;
+  });
+
+  it("tells a CPU-heavy session by its CPU, not its memory", async () => {
+    const { alertSubject } = await import("../lib/machine");
+    const heavy = alert({ key: "heavy:busy-one", kind: "heavy", title: "A session is working your Mac hard", detail: "CPU 96%", subject_bytes: null, subject_cpu: 96 });
+    expect(alertSubject(heavy, (id) => id)).toBe("busy-one is using CPU 96%");
+    expect(alertSubject({ ...heavy, detail: "CPU 96% · 3.2 GB", subject_bytes: 3_200_000_000 }, (id) => id)).toBe("busy-one is using CPU 96% and 3.2 GB");
+  });
+
+  it("keeps the newest notice per kind, and lets one go once its condition ends", () => {
+    const notice = (alertKey: string, kind: string, toldAt: number): MachineNotice => ({ key: `${alertKey}-${toldAt}`, alertKey, kind, text: alertKey, toldAt });
+    // Queued while hidden: two heavy sessions land together — the newest stays.
+    const queued = [notice("heavy:b", "heavy", 200), notice("heavy:a", "heavy", 100), notice("cpu", "cpu", 100)];
+    expect(keptNotices(queued, null, 300).map((n) => n.alertKey)).toEqual(["heavy:b", "cpu"]);
+    // This Mac says only cpu is still on: after the settle time, heavy:b goes …
+    expect(keptNotices(queued, new Set(["cpu"]), 20_000).map((n) => n.alertKey)).toEqual(["cpu"]);
+    // … but not in its first 10 s (that read may predate the alert).
+    expect(keptNotices(queued, new Set(["cpu"]), 5_000).map((n) => n.alertKey)).toEqual(["heavy:b", "cpu"]);
+  });
+
+  it("clears a told notice when This Mac no longer has its alert", async () => {
+    const { NotificationRegion } = await import("./NotificationRegion");
+    (window as unknown as Record<string, unknown>).__AIJ_ALERTS_FRESH__ = [alert({})];
+    const pressured = info("tight", []);
+    pressured.alerts = [alert({})];
+    const { rerender } = render(
+      <ThisMacContext.Provider value={pressured}>
+        <NotificationRegion />
+      </ThisMacContext.Provider>,
+    );
+    await screen.findByTestId("machine-alert");
+    delete (window as unknown as Record<string, unknown>).__AIJ_ALERTS_FRESH__;
+    // Still under pressure: it stays.
+    rerender(
+      <ThisMacContext.Provider value={{ ...pressured }}>
+        <NotificationRegion />
+      </ThisMacContext.Provider>,
+    );
+    expect(screen.queryByTestId("machine-alert")).not.toBeNull();
+    // The pressure ended (and the notice is past its first 10 s): it goes.
+    const later = Date.now() + 15_000;
+    vi.spyOn(Date, "now").mockReturnValue(later);
+    rerender(
+      <ThisMacContext.Provider value={{ ...info("plenty", []), alerts: [] }}>
+        <NotificationRegion />
+      </ThisMacContext.Provider>,
+    );
+    expect(screen.queryByTestId("machine-alert")).toBeNull();
   });
 
   it("shows advice from history only when there is some", () => {

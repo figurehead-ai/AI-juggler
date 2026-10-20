@@ -36,6 +36,7 @@ about 2.1 GB a session, from your last 6".
 | Req.3 warns, never blocks | `pnpm --dir ui exec vitest run src/components/machine-advice.test.tsx` (a "no" verdict: Launch enabled and launches); gallery spec asserts Launch enabled in every state | pass | 4 passed; 8 passed | PASS | 49722aad+ | 2026-10-20 | claude-opus |
 | Req.4 projection ±20 % (SPEC §1) | `cargo test -p juggler-app --test machine_fixtures -- --nocapture`: three real memory-hog sessions of one setting (260, 300, 340 MB) teach the footprint; a fourth (330 MB) is checked | ≤ 20 % | projection 312 MB vs observed peak 342 MB, error 8.8 % (twice, identical) | PASS | 49722aad+ | 2026-10-20 | claude-opus |
 | Gallery + axe | `pnpm --dir ui exec playwright test tests/visual/launch-advisor-gallery.spec.ts` → [`_gallery/73-launch-advisor/`](docs/qa/evidence/_gallery/73-launch-advisor/) (ok, not measured, tight, no × light/dark) | 0 critical/serious | 8 passed | PASS | 49722aad+ | 2026-10-20 | claude-opus |
+| Not measured, any verdict (review) | `machine-advice.test.tsx` "says a tight or no verdict on the default size is not measured yet": a Tight verdict on the 1 GB default adds "Assumes about 1.0 GB a session — not measured yet." | pass | pass | PASS | @@SHA@@ | 2026-10-20 | claude-opus |
 
 ## Redaction checklist (tick before commit)
 

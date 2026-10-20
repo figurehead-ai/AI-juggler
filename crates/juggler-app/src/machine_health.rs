@@ -273,7 +273,25 @@ pub struct MachineWatch {
     alerts: crate::machine_alerts::AlertEngine,
     /// Whether a running-tools scan has read a process table yet.
     tools_scanned: bool,
+    /// Bumped whenever footprints are written or pruned.
+    footprints_written: u64,
+    /// What This Mac's recommendations read from storage (AJ-E1409),
+    /// re-read only when footprints changed or after a minute (names).
+    advice_inputs: Option<AdviceInputs>,
 }
+
+/// The storage half of the recommendations, cached between 5 s reads.
+#[derive(Debug, Clone)]
+struct AdviceInputs {
+    footprints_written: u64,
+    read_ms: i64,
+    stats: Vec<juggler_core::storage::FootprintStats>,
+    names: std::collections::HashMap<String, String>,
+}
+
+/// Launch-setting names may change without a footprint write; the cached
+/// advice inputs are re-read at least this often.
+const ADVICE_INPUTS_MAX_AGE_MS: i64 = 60_000;
 
 impl Default for MachineWatch {
     fn default() -> Self {
@@ -284,6 +302,8 @@ impl Default for MachineWatch {
             peaks: std::collections::HashMap::new(),
             alerts: crate::machine_alerts::AlertEngine::default(),
             tools_scanned: false,
+            footprints_written: 0,
+            advice_inputs: None,
         }
     }
 }
@@ -326,7 +346,11 @@ pub fn tick(state: &Arc<AppState>, now_ms: i64) {
             watch.sampler.finish_disks(work, volumes);
         }
     }
-    track_footprints(state, now_ms, ticks.is_multiple_of(FOOTPRINT_EVERY));
+    track_footprints(
+        state,
+        now_ms,
+        ticks == 1 || ticks.is_multiple_of(FOOTPRINT_EVERY),
+    );
     if !scan {
         return;
     }
@@ -645,7 +669,9 @@ fn peaks_for_new_sessions(
 }
 
 /// Every tick: fold the live trees into their peaks; write footprints for
-/// trees that ended (and, every 10 min, for every running one).
+/// trees that ended (and, every 10 min, for every running one). At start
+/// and every 10 min, a deleted launch setting's or Account's footprints
+/// are forgotten.
 fn track_footprints(state: &Arc<AppState>, now_ms: i64, periodic: bool) {
     let Ok((sessions, observed)) = state
         .resources
@@ -715,13 +741,19 @@ fn track_footprints(state: &Arc<AppState>, now_ms: i64, periodic: bool) {
             writes.extend(watch.peaks.iter().map(|(id, peak)| footprint_of(id, peak)));
         }
     }
-    if writes.is_empty() {
+    if writes.is_empty() && !periodic {
         return;
     }
     if let Ok(storage) = state.storage.lock() {
         for footprint in writes.iter().filter(|footprint| footprint.peak_rss > 0) {
             let _ = storage.footprints().record(footprint);
         }
+        if periodic {
+            let _ = storage.footprints().forget_deleted();
+        }
+    }
+    if let Ok(mut watch) = state.machine.lock() {
+        watch.footprints_written = watch.footprints_written.wrapping_add(1);
     }
 }
 
@@ -1140,7 +1172,7 @@ pub fn this_mac_impl(state: &Arc<AppState>, now_ms: i64) -> AppResult<ThisMacInf
         .unwrap_or(u32::MAX),
     );
     let mut info = assemble(machine, &trees, leftovers);
-    info.recommendations = recommendations_for(state, &info);
+    info.recommendations = recommendations_for(state, &info, now_ms);
     if let Ok(mut watch) = state.machine.lock() {
         watch.alerts.evaluate(&info, now_ms);
         info.alerts = watch.alerts.active();
@@ -1196,9 +1228,17 @@ pub fn recommendations<S: std::hash::BuildHasher>(
     footprints: &[juggler_core::storage::FootprintStats],
     names: &std::collections::HashMap<String, String, S>,
 ) -> Vec<String> {
+    // Only launch settings that still exist (a deleted one's footprints
+    // are pruned within 10 minutes; until then they don't count).
     let measured: Vec<&juggler_core::storage::FootprintStats> = footprints
         .iter()
-        .filter(|stats| stats.key.starts_with("recipe:") && stats.count >= MIN_FOOTPRINTS)
+        .filter(|stats| {
+            stats
+                .key
+                .strip_prefix("recipe:")
+                .is_some_and(|id| names.contains_key(id))
+                && stats.count >= MIN_FOOTPRINTS
+        })
         .collect();
     if measured.is_empty() || !machine.sampled || machine.memory_total == 0 {
         return Vec::new();
@@ -1214,11 +1254,13 @@ pub fn recommendations<S: std::hash::BuildHasher>(
     // as it is now. Only our trees' memory is measured — a tool AI Juggler
     // didn't start is an estimate that counts shared memory more than once
     // (AJ-E1402), so it stays in "the rest" rather than inflate the room.
-    // Used = total − free on the reading's own basis (free falls back to
-    // the OS's available figure only when used couldn't be read).
-    let used = machine
-        .memory_total
-        .saturating_sub(machine.memory_available);
+    // Used as the reading measured it; total − available only when it
+    // couldn't (the OS's available figure is then the best there is).
+    let used = machine.memory_used.unwrap_or_else(|| {
+        machine
+            .memory_total
+            .saturating_sub(machine.memory_available)
+    });
     let others = used.saturating_sub(ours_rss) as f64;
     let room = machine.memory_total as f64 * 0.8 - others;
     if typical > 0.0 {
@@ -1256,30 +1298,65 @@ pub fn recommendations<S: std::hash::BuildHasher>(
     out
 }
 
-fn recommendations_for(state: &Arc<AppState>, info: &ThisMacInfo) -> Vec<String> {
-    let Ok(storage) = state.storage.lock() else {
-        return Vec::new();
+fn recommendations_for(state: &Arc<AppState>, info: &ThisMacInfo, now_ms: i64) -> Vec<String> {
+    let (cached, written) = match state.machine.lock() {
+        Ok(watch) => (watch.advice_inputs.clone(), watch.footprints_written),
+        Err(_) => return Vec::new(),
     };
-    let Ok(footprints) = storage.footprints().stats() else {
-        return Vec::new();
-    };
-    if footprints.is_empty() {
-        return Vec::new();
-    }
-    let mut names = std::collections::HashMap::new();
-    for account in storage.accounts().list().unwrap_or_default() {
-        for recipe in storage
-            .profiles()
-            .list_by_account(&account.id)
-            .unwrap_or_default()
+    let inputs = match cached {
+        Some(inputs)
+            if inputs.footprints_written == written
+                && now_ms - inputs.read_ms < ADVICE_INPUTS_MAX_AGE_MS =>
         {
-            names.insert(
-                recipe.id.to_string(),
-                format!("\u{201c}{}\u{201d} ({})", recipe.name, account.label),
-            );
+            inputs
+        }
+        _ => {
+            let Some(inputs) = read_advice_inputs(state, written, now_ms) else {
+                return Vec::new();
+            };
+            if let Ok(mut watch) = state.machine.lock() {
+                watch.advice_inputs = Some(inputs.clone());
+            }
+            inputs
+        }
+    };
+    recommendations(
+        &info.machine,
+        info.ours.rss_bytes,
+        &inputs.stats,
+        &inputs.names,
+    )
+}
+
+/// The footprint medians and launch-setting names, from storage.
+fn read_advice_inputs(
+    state: &Arc<AppState>,
+    footprints_written: u64,
+    now_ms: i64,
+) -> Option<AdviceInputs> {
+    let storage = state.storage.lock().ok()?;
+    let stats = storage.footprints().stats().ok()?;
+    let mut names = std::collections::HashMap::new();
+    if !stats.is_empty() {
+        for account in storage.accounts().list().unwrap_or_default() {
+            for recipe in storage
+                .profiles()
+                .list_by_account(&account.id)
+                .unwrap_or_default()
+            {
+                names.insert(
+                    recipe.id.to_string(),
+                    format!("\u{201c}{}\u{201d} ({})", recipe.name, account.label),
+                );
+            }
         }
     }
-    recommendations(&info.machine, info.ours.rss_bytes, &footprints, &names)
+    Some(AdviceInputs {
+        footprints_written,
+        read_ms: now_ms,
+        stats,
+        names,
+    })
 }
 
 /// This Mac (AJ-E1403): the machine, AI tools' share, the heaviest
@@ -1579,8 +1656,11 @@ mod tests {
         // 32 GB Mac, 20 GB in use of which 6 GB are AI tools: 14 GB is
         // everything else; 80 % of 32 = 25.6 → 11.6 GB for sessions.
         let machine = machine(12 * G, "normal", vec![]);
-        let names: std::collections::HashMap<String, String> =
-            [("deep".to_string(), "“Deep work” (Work Max)".to_string())].into();
+        let names: std::collections::HashMap<String, String> = [
+            ("deep".to_string(), "“Deep work” (Work Max)".to_string()),
+            ("quick".to_string(), "“Quick” (Work Max)".to_string()),
+        ]
+        .into();
         assert!(
             recommendations(&machine, 6 * G, &[stats("recipe:deep", 2, 2 * G)], &names).is_empty(),
             "two sessions are not enough"
@@ -1606,6 +1686,22 @@ mod tests {
         assert_eq!(
             two[1],
             "“Deep work” (Work Max) is the heaviest launch setting — about 3.0 GB a session"
+        );
+        // A deleted launch setting (no name) doesn't count.
+        let gone = recommendations(
+            &machine,
+            6 * G,
+            &[
+                stats("recipe:deep", 4, 2 * G),
+                stats("recipe:gone", 9, 8 * G),
+            ],
+            &names,
+        );
+        assert_eq!(
+            gone,
+            [
+                "This Mac comfortably runs about 5 sessions at once (about 2.0 GB each, from your last 4)"
+            ]
         );
         // Close weights name no heaviest one.
         let close = recommendations(
