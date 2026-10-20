@@ -432,7 +432,7 @@ function SignedOut({
         You can do everything in AI Juggler without an account. A free Figurehead account adds
         Cloud features you choose to turn on — encrypted backups you can restore on another Mac,
         and finding your own Macs for Fleet without a pairing code. Your sign-ins to Claude,
-        Codex and other Providers never leave this Mac.
+        Codex and other tools never leave this Mac.
       </p>
       <label className="flex flex-col gap-1 text-[11px] font-medium">
         This Mac's name on Figurehead

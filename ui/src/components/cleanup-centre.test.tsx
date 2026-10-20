@@ -100,7 +100,7 @@ describe("CleanupCentre (AJ-E506)", () => {
     expect(view.getByTestId("cleanup-state-8123").textContent ?? "").toMatch(/⚑/);
     // Attribution columns.
     expect(view.getByTestId("cleanup-group-sess-orphan").textContent ?? "").toContain(
-      "claude-code · Work Max · web",
+      "Claude Code · Work Max · web",
     );
     expect(view.getByTestId("cleanup-row-8123").textContent ?? "").toContain(":5173");
     view.unmount();
@@ -484,17 +484,24 @@ describe("Cleanup automation status (AJ-E508)", () => {
     expect(view.getByTestId("cleanup-paused-banner").textContent).toBe(
       "Automatic cleanup is paused.",
     );
+    // D-25: while paused, Resume sits on the banner itself.
     expect(view.getByTestId("cleanup-pause-toggle").textContent).toContain("Resume");
+    fireEvent.click(view.getByRole("button", { name: "More cleanup options" }));
+    expect(view.getAllByTestId("cleanup-pause-toggle")).toHaveLength(1);
     view.unmount();
   });
 
-  it("default state: no banners, the pause button offered", async () => {
+  it("default state: no banners, the pause offered one step away behind ⋯", async () => {
     const view = render(
       <CleanupCentre
         bridge={{ load: () => Promise.resolve(data()) }}
         statusBridge={statusBridgeOf({ ...tier0 })}
       />,
     );
+    await waitFor(() => expect(view.getByTestId("cleanup-more")).toBeTruthy());
+    // Calm until it matters: the switch isn't on the screen by default.
+    expect(view.queryByTestId("cleanup-pause-toggle")).toBeNull();
+    fireEvent.click(view.getByRole("button", { name: "More cleanup options" }));
     await waitFor(() => expect(view.getByTestId("cleanup-pause-toggle")).toBeTruthy());
     expect(view.getByTestId("cleanup-pause-toggle").textContent).toContain("Pause");
     expect(view.queryByTestId("cleanup-paused-banner")).toBeNull();
@@ -603,7 +610,7 @@ describe("AJ-E512 passive alerts (hog + idle nudge)", () => {
               alerts: [
                 {
                   kind: "hog",
-                  text: "node (vite) under Work Max holds 3.1 GiB — review in Cleanup Centre.",
+                  text: "node (vite) under Work Max holds 3.1 GiB — review it in Cleanup.",
                   pid: 8123,
                   session: "sess-orphan",
                 },
@@ -624,7 +631,7 @@ describe("AJ-E512 passive alerts (hog + idle nudge)", () => {
     const region = view.getByRole("status", { name: "Passive cleanup alerts" });
     expect(region.getAttribute("aria-live")).toBe("polite");
     expect(view.getByTestId("hog-alert-8123").textContent).toContain(
-      "node (vite) under Work Max holds 3.1 GiB — review in Cleanup Centre.",
+      "node (vite) under Work Max holds 3.1 GiB — review it in Cleanup.",
     );
     // Staging opens the SAME verified sheet the rows use — the only
     // kill path (app prepares, user executes).
@@ -643,7 +650,7 @@ describe("AJ-E512 passive alerts (hog + idle nudge)", () => {
               alerts: [
                 {
                   kind: "idle",
-                  text: "python3 has been idle for 2h — review it in the Cleanup Centre.",
+                  text: "python3 has been idle for 2h — review it in Cleanup.",
                   pid: 8124,
                   session: "sess-orphan",
                 },
@@ -757,10 +764,23 @@ describe("AJ-E511 fleet machine dimension", () => {
     view.unmount();
   });
 
+  it("D-25: with no other Mac, there is no machine filter", async () => {
+    const view = render(
+      <CleanupCentre
+        bridge={{ load: () => Promise.resolve(data()) }}
+        machinesBridge={{ others: () => Promise.resolve(0) }}
+      />,
+    );
+    await waitFor(() => expect(view.getByTestId("cleanup-group-sess-orphan")).toBeTruthy());
+    expect(view.queryByRole("combobox", { name: "Machine filter" })).toBeNull();
+    view.unmount();
+  });
+
   it("the machine filter is a labelled combobox, defaults to This machine, and widens the load", async () => {
     const calls: Array<[string, "this" | "all"]> = [];
     const view = render(
       <CleanupCentre
+        machinesBridge={{ others: () => Promise.resolve(1) }}
         bridge={{
           load: async (filter, machineScope) => {
             calls.push([filter, machineScope]);
@@ -771,10 +791,55 @@ describe("AJ-E511 fleet machine dimension", () => {
     );
     await waitFor(() => expect(view.getByTestId("cleanup-group-sess-orphan")).toBeTruthy());
     expect(calls[0][1]).toBe("this");
-    const select = view.getByRole("combobox", { name: "Machine filter" });
+    const select = await view.findByRole("combobox", { name: "Machine filter" });
     expect((select as HTMLSelectElement).value).toBe("this");
     fireEvent.change(select, { target: { value: "all" } });
     await waitFor(() => expect(calls.at(-1)).toEqual(["needs-attention", "all"]));
     view.unmount();
+  });
+});
+
+describe("D-25: Cleanup in plain words", () => {
+  const empty: CleanupInventoryData = {
+    groups: [],
+    local_machine: "machine-local",
+    clean_instances: 2,
+    ledger_degraded: false,
+    history: null,
+  };
+
+  it("is titled Cleanup, with no internal tier names on screen", async () => {
+    const view = render(<CleanupCentre bridge={{ load: () => Promise.resolve(empty) }} />);
+    await waitFor(() => expect(view.getByTestId("cleanup-empty")).toBeTruthy());
+    expect(view.getByTestId("cleanup-empty").textContent).toBe("Nothing left behind — 2 sessions running clean.");
+    expect(view.getByRole("heading", { level: 2 }).textContent).toBe("Cleanup");
+    const text = view.getByTestId("cleanup-centre").textContent ?? "";
+    expect(text).not.toMatch(/Tier \d|Centre|observe ·|manual kills/);
+    view.unmount();
+  });
+
+  it("⋯ › Cleanup settings… opens Settings on its Cleanup section", async () => {
+    const opened: Array<string | undefined> = [];
+    const listen = (event: Event) => opened.push((event as CustomEvent<{ section?: string }>).detail?.section);
+    window.addEventListener("aij:open-settings", listen);
+    const view = render(<CleanupCentre bridge={{ load: () => Promise.resolve(empty) }} />);
+    fireEvent.click(view.getByRole("button", { name: "More cleanup options" }));
+    fireEvent.click(view.getByTestId("cleanup-open-settings"));
+    expect(opened).toEqual(["cleanup"]);
+    expect(view.queryByTestId("cleanup-open-settings")).toBeNull();
+    window.removeEventListener("aij:open-settings", listen);
+    view.unmount();
+  });
+});
+
+describe("D-25: the empty inventory in plain words", () => {
+  it("none running says only that nothing is left; one is singular", async () => {
+    const { CleanupEmpty } = await import("./ProcessRow");
+    const none = render(<CleanupEmpty cleanInstances={0} />);
+    expect(none.getByTestId("cleanup-empty").textContent).toBe("Nothing left behind.");
+    none.unmount();
+    const one = render(<CleanupEmpty cleanInstances={1} />);
+    expect(one.getByTestId("cleanup-empty").textContent).toBe("Nothing left behind — 1 session running clean.");
+    one.unmount();
   });
 });

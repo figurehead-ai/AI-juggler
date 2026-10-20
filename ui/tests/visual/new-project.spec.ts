@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { allStatuses, type FixtureSet } from "./fixtures";
+import { allStatuses, type FixtureSet, expectRail } from "./fixtures";
 
 /**
  * AJ-E305 quality gate — flow (b) as a TESTED CONTRACT: New project
@@ -51,7 +51,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await expect(page.getByTestId("instance-board")).toBeVisible();
+    await expectRail(page); // D-25: the list, or its icon column when narrow
 
     // ⌘N is a keyboard summon — not a click.
     // The ⌘N handler mounts with the shell — wait for it (AJ-E806:
