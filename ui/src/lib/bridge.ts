@@ -32,6 +32,7 @@ import type { LastBackupInfo } from "../types/generated/LastBackupInfo";
 import type { VaultStatusInfo } from "../types/generated/VaultStatusInfo";
 import type { RecoveryCodeInfo } from "../types/generated/RecoveryCodeInfo";
 import type { UpdateStatusInfo } from "../types/generated/UpdateStatusInfo";
+import type { GoingBackInfo } from "../types/generated/GoingBackInfo";
 import type { AnnouncedInfo } from "../types/generated/AnnouncedInfo";
 import type { BackupExportInfo } from "../types/generated/BackupExportInfo";
 import type { RestorePlanInfo } from "../types/generated/RestorePlanInfo";
@@ -121,6 +122,7 @@ export type {
   VaultStatusInfo,
   RecoveryCodeInfo,
   UpdateStatusInfo,
+  GoingBackInfo,
   AnnouncedInfo,
   BackupExportInfo,
   RestorePlanInfo,
@@ -4560,6 +4562,28 @@ export async function updateRestart(): Promise<void> {
     return;
   }
   return invoke<void>("update_restart");
+}
+
+/** AJ-E1010: the earlier versions this install can go back to (the
+ * copies kept before upgrading the data). */
+export async function goingBackOptions(): Promise<GoingBackInfo[]> {
+  if (!hasBackend) {
+    return [...((window as unknown as { __AIJ_GOING_BACK__?: GoingBackInfo[] }).__AIJ_GOING_BACK__ ?? [])];
+  }
+  return invoke<GoingBackInfo[]>("going_back_options");
+}
+
+/** AJ-E1010: puts the data back as the version reading `schema` left it,
+ * keeps the data as it is now beside it, and quits. Refused while a
+ * switch, a bring-in or a session would be cut short. */
+export async function goingBackPrepare(schema: number): Promise<void> {
+  if (!hasBackend) {
+    updateCall(`going-back:${schema}`);
+    const error = (window as unknown as { __AIJ_GOING_BACK_ERROR__?: string }).__AIJ_GOING_BACK_ERROR__;
+    if (error) throw new Error(error);
+    return;
+  }
+  return invoke<void>("going_back_prepare", { schema });
 }
 
 /** Update status changes pushed by the backend. */

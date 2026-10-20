@@ -16,6 +16,8 @@ import { Card } from "./primitives";
 import { ReleaseNotes } from "./ReleaseNotes";
 import {
   errorText,
+  goingBackOptions,
+  goingBackPrepare,
   onUpdateStatus,
   updateCheck,
   updateInstall,
@@ -23,6 +25,7 @@ import {
   updateSetChannel,
   updateSetCheckOnLaunch,
   updateStatus,
+  type GoingBackInfo,
   type UpdateChannel,
   type UpdateStatusInfo,
 } from "../lib/bridge";
@@ -79,17 +82,125 @@ const FAILED_TITLE: Record<string, string> = {
   disk: "Couldn't make the backup",
 };
 
-/** A refused update step in plain words: the backend's "invalid update:"
+/** A refused step in plain words: the backend's "invalid <subject>:"
  * framing (and a thrown Error's prefix) dropped, the sentence capitalised. */
 export function updateErrorText(cause: unknown): string {
   const text = errorText(cause)
     .replace(/^Error:\s*/, "")
-    .replace(/^invalid update( channel)?:\s*/, "");
+    .replace(/^invalid [a-z][a-z ]*:\s*/, "");
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 function when(ms: number): string {
   return new Date(ms).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+}
+
+/** AJ-E1010 Req.2: "Go back to an earlier version" — shown only when a
+ * copy of the data from before an upgrade is kept. Each choice explains
+ * what is lost (what changed since) and what is kept, then asks once,
+ * inline: going back puts that copy in place and quits, so the earlier
+ * version can be installed and opened. */
+function GoingBack({ appName }: { appName: string }): JSX.Element | null {
+  const [options, setOptions] = useState<GoingBackInfo[]>([]);
+  const [chosen, setChosen] = useState<GoingBackInfo | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const question = useRef<HTMLParagraphElement>(null);
+  const returnTo = useRef<number | null>(null);
+  useEffect(() => {
+    void goingBackOptions().then(setOptions, () => setOptions([]));
+  }, []);
+  // Focus follows the choice: into the question, back to its button.
+  useEffect(() => {
+    if (chosen) question.current?.focus();
+    else if (returnTo.current !== null)
+      document.querySelector<HTMLElement>(`[data-testid='going-back-${returnTo.current}']`)?.focus();
+  }, [chosen]);
+  if (options.length === 0) return null;
+  const name = (option: GoingBackInfo) => option.version ?? "the version before the update";
+  const go = async (option: GoingBackInfo) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await goingBackPrepare(option.schema);
+    } catch (cause) {
+      setError(updateErrorText(cause));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <details className="text-[11px]" data-testid="going-back">
+      <summary className="w-fit cursor-pointer text-ink underline">Go back to an earlier version</summary>
+      <div className="mt-2 flex flex-col gap-2">
+        {options.map((option) =>
+          chosen?.schema === option.schema ? (
+            <div
+              key={option.schema}
+              className="flex flex-col gap-2 rounded-lg border border-hairline p-3"
+              data-testid="going-back-confirm"
+            >
+              <p ref={question} tabIndex={-1} className="font-medium text-ink outline-none">
+                Go back to {name(option)}?
+              </p>
+              <p className="text-muted">
+                Your data goes back to how it was on {when(option.kept_at_ms)}, when {appName} was updated. What changed
+                since — accounts brought in, sessions, settings — isn't in it. The data as it is now is kept beside it in
+                the data folder; nothing is deleted.
+              </p>
+              <p className="text-muted">
+                {appName} then quits. Install {name(option)} from the releases page and open it. Opening this version
+                again instead upgrades that data again.
+              </p>
+              {error && (
+                <p role="alert" className="text-ink" data-testid="going-back-error">
+                  {error}
+                </p>
+              )}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void go(option)}
+                  className="rounded-lg border border-accent/60 px-3 py-1.5 text-xs font-medium text-ink"
+                  data-testid="going-back-go"
+                >
+                  Go back and quit
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => {
+                    returnTo.current = option.schema;
+                    setChosen(null);
+                    setError(null);
+                  }}
+                  className="rounded-lg border border-hairline px-3 py-1.5 text-xs text-ink"
+                  data-testid="going-back-cancel"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div key={option.schema} className="flex flex-wrap items-center gap-2">
+              <span className="min-w-0 flex-1 text-muted">
+                The data from before the update on {when(option.kept_at_ms)} is kept, for {name(option)}.
+              </span>
+              <button
+                type="button"
+                onClick={() => setChosen(option)}
+                className="rounded-lg border border-hairline px-3 py-1.5 text-xs text-ink"
+                data-testid={`going-back-${option.schema}`}
+              >
+                Prepare to go back to {name(option)}
+              </button>
+            </div>
+          ),
+        )}
+      </div>
+    </details>
+  );
 }
 
 export function UpdatesCard({ focus = false }: { focus?: boolean } = {}): JSX.Element {
@@ -318,6 +429,7 @@ export function UpdatesCard({ focus = false }: { focus?: boolean } = {}): JSX.El
           </div>
         </>
       )}
+      <GoingBack appName={status.app_name} />
     </Card>
   );
 }

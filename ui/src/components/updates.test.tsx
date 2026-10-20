@@ -37,6 +37,8 @@ const available = { version: "0.2.0", notes: "## New\n- **History**: find any pa
 afterEach(cleanup);
 beforeEach(() => {
   for (const key of Object.keys(w()).filter((key) => key.startsWith("__AIJ_UPDATE"))) delete w()[key];
+  delete w().__AIJ_GOING_BACK__;
+  delete w().__AIJ_GOING_BACK_ERROR__;
   localStorage.removeItem("aij.update.noticed");
   localStorage.removeItem("aij.update.restart.later");
 });
@@ -299,5 +301,50 @@ describe("AJ-E1010 update prompts on Home", () => {
       await new Promise((resolve) => setTimeout(resolve, 30));
     });
     expect(again.container.querySelector("[data-testid='update-ready']")).toBeNull();
+  });
+});
+
+describe("AJ-E1010 going back to an earlier version", () => {
+  it("is hidden while no copy from before an update is kept", async () => {
+    w().__AIJ_UPDATE_STATUS__ = base;
+    const { container } = render(<UpdatesCard />);
+    await waitFor(() => expect(container.querySelector("[data-testid='update-check']")).not.toBeNull());
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+    expect(container.querySelector("[data-testid='going-back']")).toBeNull();
+  });
+
+  it("says what is lost and kept, asks once, and only then goes back", async () => {
+    w().__AIJ_UPDATE_STATUS__ = base;
+    w().__AIJ_GOING_BACK__ = [{ schema: 27, version: "0.0.7", kept_at_ms: 1_800_000_000_000 }];
+    const { container } = render(<UpdatesCard />);
+    await waitFor(() => expect(container.querySelector("[data-testid='going-back']")).not.toBeNull());
+    const details = container.querySelector<HTMLDetailsElement>("[data-testid='going-back']")!;
+    expect(details.open, "behind a disclosure").toBe(false);
+    const prepare = container.querySelector<HTMLButtonElement>("[data-testid='going-back-27']")!;
+    expect(prepare.textContent).toBe("Prepare to go back to 0.0.7");
+    fireEvent.click(prepare);
+    const confirm = container.querySelector("[data-testid='going-back-confirm']")!;
+    expect(confirm.textContent).toContain("What changed since");
+    expect(confirm.textContent).toContain("nothing is deleted");
+    expect(confirm.textContent).toContain("Install 0.0.7 from the releases page");
+    expect(document.activeElement?.textContent).toBe("Go back to 0.0.7?");
+    expect(calls()).toEqual([]);
+    // Cancel returns focus to the choice; nothing happened.
+    fireEvent.click(container.querySelector("[data-testid='going-back-cancel']")!);
+    expect(document.activeElement?.getAttribute("data-testid")).toBe("going-back-27");
+    expect(calls()).toEqual([]);
+    // Refused while something would be cut short — said plainly.
+    w().__AIJ_GOING_BACK_ERROR__ =
+      "invalid going back: 1 session is still running — stopping AI Juggler would stop it. Going back is possible once it has finished.";
+    fireEvent.click(container.querySelector("[data-testid='going-back-27']")!);
+    await act(async () => {
+      fireEvent.click(container.querySelector("[data-testid='going-back-go']")!);
+    });
+    expect(calls()).toEqual(["going-back:27"]);
+    expect(container.querySelector("[data-testid='going-back-error']")!.textContent).toBe(
+      "1 session is still running — stopping AI Juggler would stop it. Going back is possible once it has finished.",
+    );
   });
 });
