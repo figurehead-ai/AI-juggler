@@ -116,8 +116,8 @@
 | AJ-E1015 | The screen says "session" (D-25) | E10-derived-workflows-and-beta.md | P1 | S | AJ-E1014 |
 | AJ-E1016 | Accounts with runway, a Usage screen that explains itself, the limit decision (D-25) | E10-derived-workflows-and-beta.md | P0 | M | AJ-E1014, AJ-E610, AJ-E1003, AJ-E206 |
 | AJ-E1017 | The session view leads with where and what (D-25) | E10-derived-workflows-and-beta.md | P1 | S | AJ-E1014, AJ-E209 |
-| AJ-E1018 | Cleanup in plain words; "tool" on screen instead of "Provider" (D-25) | E10-derived-workflows-and-beta.md | P1 | S | AJ-E506, AJ-E508, AJ-E1015 |
-| AJ-E1019 | The rail folds to icons in a narrow window (D-25) | E10-derived-workflows-and-beta.md | P1 | S | AJ-E403, AJ-E1014 |
+| AJ-E1019 | Cleanup in plain words; "tool" on screen instead of "Provider" (D-25) | E10-derived-workflows-and-beta.md | P1 | S | AJ-E506, AJ-E508, AJ-E1015 |
+| AJ-E1020 | The rail folds to icons in a narrow window (D-25) | E10-derived-workflows-and-beta.md | P1 | S | AJ-E403, AJ-E1014 |
 | AJ-E1101 | Decision D-19, ADR-0015, doc amendments, the schema copy | E11-usage-statistics.md | P0 | S | — |
 | AJ-E1102 | The juggler-stats crate: modes, overrides, counting, local store, the cargo feature | E11-usage-statistics.md | P0 | M | AJ-E1101 |
 | AJ-E1103 | Wire the events into the app | E11-usage-statistics.md | P0 | M | AJ-E1102 |

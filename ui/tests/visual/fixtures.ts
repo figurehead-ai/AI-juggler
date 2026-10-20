@@ -428,7 +428,7 @@ export async function openSwitch(page: import("@playwright/test").Page): Promise
 }
 
 /**
- * D-25 (AJ-E1019): the rail is the list at 900 px and wider (unless the
+ * D-25 (AJ-E1020): the rail is the list at 900 px and wider (unless the
  * density is Minimal); narrower, it folds to its icon column by itself.
  * Waits for the rail and, where it is the list, for the list.
  */
@@ -441,7 +441,7 @@ export async function expectRail(page: import("@playwright/test").Page): Promise
 }
 
 /**
- * D-25 (AJ-E1019): a narrow window folds the rail to session icons; a
+ * D-25 (AJ-E1020): a narrow window folds the rail to session icons; a
  * project row needs the list, which ⌘B opens for now. No-op when the
  * list already shows.
  */

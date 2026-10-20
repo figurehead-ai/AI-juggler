@@ -64,7 +64,7 @@ async function menusOnScreen(page: Page) {
 
 async function walk(page: Page, theme: string, label: string) {
   await menusOnScreen(page);
-  // Rail. D-25 (AJ-E1019): at 200 % (640 px wide) it folds to its icon
+  // Rail. D-25 (AJ-E1020): at 200 % (640 px wide) it folds to its icon
   // column by itself; at full width it is the list.
   const narrow = (page.viewportSize()?.width ?? 1280) < 900;
   await expect(page.getByTestId("rail")).toHaveAttribute("data-density", narrow ? "minimal" : "comfortable");

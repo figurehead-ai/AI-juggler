@@ -280,7 +280,7 @@
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1017/`.
 **Research basis**: D-25 and the "AI Juggler UX vision" canvas (Session board).
 
-### AJ-E1018 Cleanup in plain words; "tool" on screen instead of "Provider" (D-25) | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: AJ-E506, AJ-E508, AJ-E1015
+### AJ-E1019 Cleanup in plain words; "tool" on screen instead of "Provider" (D-25) | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: AJ-E506, AJ-E508, AJ-E1015
 **Goal**: Cleanup says what it is in a sentence, keeps its switches one step away, and no screen uses the internal word "Provider".
 **User story**: As a developer who opens Cleanup because a pill said something was left running, I want to see what was left and what I can do — not "Tier 0 observe · verified manual kills".
 **Requirements**:
@@ -290,10 +290,10 @@
 4. Groups SHALL name the tool ("Claude Code"), not its id; the backend's alerts say "review it in Cleanup".
 5. On screen, "Provider" SHALL read "tool" (History's search line, Settings, pack secrets, the rail's Filters, the session details, backup's list of what isn't included, quota's "no verified source"). The code keeps `Provider`. `scripts/terminology_lint.sh` SHALL refuse "Provider" in JSX text, visible attributes and user-facing strings.
 **Quality gates**: vitest (`cleanup-centre.test.tsx`: title and no tier words, ⋯ menu, Resume on the banner, no machine filter without another Mac); terminology lint; the full Playwright suite; baselines re-rendered with notes.
-**Evidence/validation proof**: `docs/qa/evidence/AJ-E1018/`.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1019/`.
 **Research basis**: D-25 (plain words; depth on request; calm until it matters).
 
-### AJ-E1019 The rail folds to icons in a narrow window (D-25) | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: AJ-E403, AJ-E1014
+### AJ-E1020 The rail folds to icons in a narrow window (D-25) | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: AJ-E403, AJ-E1014
 **Goal**: Below 900 px the rail stops crowding the screen by itself and comes back when the window widens.
 **User story**: As a developer with AI Juggler in a narrow side window, I want the session list to fold to its icon column on its own, without changing my density setting.
 **Requirements**:
@@ -301,6 +301,6 @@
 2. While narrow, ⌘B (and the logo button) SHALL open the list for now; widening forgets it.
 3. A chosen Minimal stays minimal at every width.
 **Quality gates**: `rail-narrow.spec.ts` (fold, restore, compact kept, ⌘B while narrow, stored density untouched, axe on each gallery state); the 390 px captures and the 200 % zoom walk expect the folded rail.
-**Evidence/validation proof**: `docs/qa/evidence/AJ-E1019/`.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1020/`.
 **Visual testing**: Gallery `69-rail-narrow` (folded at 390 and 860, opened at 860; both themes).
 **Research basis**: D-25; the 390 px captures (rail cramped); WCAG 1.4.10 reflow.

@@ -1,5 +1,5 @@
 /**
- * D-25 stage 4 (AJ-E1019): below 900 px the rail folds to its icon
+ * D-25 stage 4 (AJ-E1020): below 900 px the rail folds to its icon
  * column by itself and comes back when the window widens. The stored
  * density never changes; ⌘B opens the list for now while narrow.
  * Gallery 69-rail-narrow, each state scanned with axe (0 critical/serious).

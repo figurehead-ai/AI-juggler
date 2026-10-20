@@ -78,7 +78,7 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       if (vp.width < 900) {
-        // D-25 (AJ-E1019): narrow windows fold the rail to its icon column.
+        // D-25 (AJ-E1020): narrow windows fold the rail to its icon column.
         await expect(page.getByTestId("rail")).toHaveAttribute("data-density", "minimal");
         await expect(page.getByTestId("rail").getByRole("button", { name: /Work Max/ }).first()).toBeVisible();
       } else {
@@ -105,7 +105,7 @@ for (const theme of THEMES) {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
-      // D-25 (AJ-E1019): below 900 px the rail is its icon column.
+      // D-25 (AJ-E1020): below 900 px the rail is its icon column.
       await expect(page.getByTestId("rail")).toHaveAttribute("data-density", vp.width < 900 ? "minimal" : "comfortable");
       // The row carries its account in the aria-label (initials disc on
       // screen) — click by accessible name (AJ-E402).
