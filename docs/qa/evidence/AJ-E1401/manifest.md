@@ -38,8 +38,47 @@ AJ-E1404/E1405/E1407.
   storage costs ~1 µs. The sampler lists every 10 minutes and refreshes only
   the disks in use every 30 s.
 
+## Review fixes (coordinating session's review of PR #67, 2026-10-20)
+
+1. **No main-thread stall.** The sampler's `tick` now does only the cheap
+   part under its lock: CPU, memory, pressure, swap, and power/thermal on
+   their cadence. When disks are due it hands back a `DiskWork`. The folders
+   in use (now one SQL query for sessions that haven't ended,
+   `SessionsRepo::active_cwds`, instead of the whole history) and the disk
+   listing (50–150 ms) run outside the lock, and the result is put back.
+   The `machine_health` command is async (`spawn_blocking`), so it never
+   runs on the main thread. Measured: under the lock p95 38–114 µs, max
+   208–304 µs (was up to 150 ms whenever the list was rebuilt).
+2. **"Memory used" is Activity Monitor's figure.** That is app memory
+   (anonymous pages minus purgeable) plus wired plus what the compressor
+   occupies, read through sysctl (`vm.page_pageable_internal_count`,
+   `vm.page_purgeable_count`, `vm.page_wired_count`,
+   `vm.compressor_bytes_used`, `hw.pagesize`). On the reference Mac it is
+   82.3 GB of 103.1 GB, where total − available said 54.0 GB.
+   `sysinfo`'s total − available stays as the fallback on other OSes. The
+   preview mock now uses a realistic 22 of 32 GB.
+3. **A disk is never credited to the wrong volume.** A folder under
+   `/Volumes/` that matches only "/" (a disk plugged in since the list was
+   built, or a network share `sysinfo` doesn't list) triggers an early
+   rebuild of the list, at most every 5 minutes. If it still matches only
+   "/", it is left out rather than counted as Macintosh HD.
+4. **The macOS-only readings now run in CI:** the `build-macos` job runs
+   `cargo test -p juggler-supervisor --lib machine` and `--test machine`.
+5. **Disk threshold, kept absolute (20 GB tight, 5 GB pressure).**
+   - A share would be wrong both ways: 5 % of a 1 TB disk (50 GB) is
+     comfortable, and a proportional rule such as min(20 GB, 10 %) changes
+     nothing for a 256 GB Mac (10 % = 25.6 GB). It would only relax small
+     disks, where 15 GB free is genuinely tight for development builds
+     (one Rust `target/` is 10–20 GB).
+   - So a 256 GB Mac kept under 20 GB free does read "Getting tight". That
+     is the calm level: an amber word in This Mac, never Needs you, never a
+     notification. Disk alerts (AJ-E1408) fire only at the pressure level
+     (under 5 GB).
+
 | Claim / Req ID | Command / fixture / live step (exact) | Threshold | Observed | Verdict | Commit SHA | Date | Reviewer |
 |---|---|---|---|---|---|---|---|
+| Review fix 1 — lock held briefly | `cargo test -p juggler-supervisor --test machine -- --nocapture` (lock-held time per tick, disk half done outside) | p95 < 2 ms, max < 20 ms | p95 38–114 µs, max 208–304 µs (3 runs) | PASS | (see PR) | 2026-10-20 | claude-opus |
+| Review fixes 2–3 | `cargo test -p juggler-supervisor --lib machine` (`an_unlisted_disk_is_never_credited_to_the_startup_disk`, host `memory_used`), `cargo test -p juggler-app --lib -- machine_health` (`memory_used_is_activity_monitors_figure…`), `cargo test -p juggler-core --test storage_roundtrip active_cwds` | pass | pass; live: memory used 82.3 GB of 103.1 GB | PASS | (see PR) | 2026-10-20 | claude-opus |
 | Req.1 signals, Req.2 ring | `cargo test -p juggler-supervisor --test machine` (real OS: one System, real memory, CPU from tick 2, a volume) and `--lib machine` (ring keeps 150) | all pass | 2 + 14 passed | PASS | 63cf65d9+ | 2026-10-20 | claude-opus |
 | Req.3 summary rules | `cargo test -p juggler-supervisor --lib machine`: each reason alone (pressure warning/critical, memory 6 %/3 %, swap 120 MB/min, sustained CPU, thermal, disk 15 GB/1 GB), spike ≠ sustained, unmeasured CPU never busy, too-short history, missing values, worst-first order | all pass | 14 passed | PASS | 63cf65d9+ | 2026-10-20 | claude-opus |
 | Req.4 read model + mock | `cargo test -p juggler-app --lib machine_health` (unsampled, words/series/volumes); `pnpm --dir ui exec vitest run src/lib/machine.test.ts` | all pass | 2 + 3 passed | PASS | 63cf65d9+ | 2026-10-20 | claude-opus |

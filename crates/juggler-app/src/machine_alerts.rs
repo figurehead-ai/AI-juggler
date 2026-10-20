@@ -180,7 +180,15 @@ fn conditions(mac: &ThisMacInfo) -> Vec<Condition> {
             subject: by_cpu(mac),
         });
     }
-    for reason in machine.summary.reasons.iter().filter(|r| r.kind == "disk") {
+    // Only a disk that's really out of room (the pressure level, < 5 GB) is
+    // an alert; "Getting tight" (< 20 GB) stays a calm word in This Mac —
+    // a 256 GB Mac that lives under 20 GB free is never nagged.
+    for reason in machine
+        .summary
+        .reasons
+        .iter()
+        .filter(|r| r.kind == "disk" && r.level == "pressure")
+    {
         let volume = reason
             .words
             .split(" has only ")
@@ -457,8 +465,14 @@ mod tests {
         mac.machine.thermal = Some("serious".into());
         mac.machine.summary.reasons.push(RoomReasonInfo {
             kind: "disk".into(),
+            level: "pressure".into(),
+            words: "Macintosh HD has only 3.0 GB free".into(),
+        });
+        // A disk that's only getting tight is not an alert.
+        mac.machine.summary.reasons.push(RoomReasonInfo {
+            kind: "disk".into(),
             level: "tight".into(),
-            words: "Macintosh HD has only 14 GB free".into(),
+            words: "Work has only 14 GB free".into(),
         });
         mac.heavy = vec![
             tree(

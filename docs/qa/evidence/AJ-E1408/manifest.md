@@ -14,7 +14,7 @@ is evaluated with This Mac on the 5 s cadence, so it adds no work of its own.
 | swap | swap growing > 200 MB a minute (its rate is over the last minute) | +60 s (≈ 2 min) |
 | cpu | whole-Mac CPU > 90 % for every sample of 2 minutes | — |
 | thermal | thermal serious/critical | — |
-| disk | a volume in use under 20 GB free | — |
+| disk | a volume in use under 5 GB free (the pressure level; under 20 GB is a calm "Getting tight" in This Mac, never an alert — review of #67) | — |
 | heavy | a session's heavy rule (already a minute long) | — |
 
 - Each alert names its biggest contributor: memory for memory, swap and

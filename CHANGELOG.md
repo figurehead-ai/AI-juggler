@@ -120,7 +120,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   state, sampled every 2 seconds with five minutes of history. One plain
   summary — "Plenty of room", "Getting tight" or "Under pressure", with
   the reasons — is what Home, the launch advisor and the alerts will show.
-  Old swap doesn't count against you; swap that keeps growing does.
+  Old swap doesn't count against you; swap that keeps growing does. Memory
+  in use is the figure Activity Monitor shows.
 - AI Juggler now also measures the Claude tools it didn't start (E14,
   AJ-E1402/E1403): each Claude desktop app window and each `claude` in a
   terminal, over all the processes it runs, matched to your account by the
