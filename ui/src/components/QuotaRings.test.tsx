@@ -102,7 +102,7 @@ describe("TwoClocks separation + unavailability (Req.2/4)", () => {
 
   it("unavailable-with-reason (Gemini pre-verification)", () => {
     const screen = render(
-      <TwoClocks display={display({ five_hour: undefined, weekly: undefined, unavailable_reason: "No verified quota source for this Provider yet" })} />,
+      <TwoClocks display={display({ five_hour: undefined, weekly: undefined, unavailable_reason: "No verified quota source for this tool yet" })} />,
     );
     expect(screen.getByTestId("quota-unavailable").textContent).toContain("No verified quota source");
   });
@@ -164,7 +164,7 @@ describe("QuotaChip (NewSession rows)", () => {
     expect(none.getByText("no quota data")).toBeTruthy();
     const learning = render(<QuotaChip display={display({ five_hour: window({ state: "learning", percentage: undefined }) })} />);
     expect(learning.getByText("learning")).toBeTruthy();
-    const gemini = render(<QuotaChip display={display({ unavailable_reason: "No verified quota source for this Provider yet" })} />);
+    const gemini = render(<QuotaChip display={display({ unavailable_reason: "No verified quota source for this tool yet" })} />);
     expect(gemini.getByText("quota unavailable")).toBeTruthy();
   });
 });

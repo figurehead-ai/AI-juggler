@@ -64,9 +64,9 @@ const seam = <T,>(page: Page, name: string) =>
   page.evaluate((key) => (window as unknown as Record<string, unknown>)[key], name) as Promise<T>;
 
 for (const [value, restated] of [
-  ["strip", "Packs: strip secrets (all Providers)"],
-  ["keep", "Packs: keep secrets — packs stay on this Mac (all Providers)"],
-  ["ask", "Packs: ask each time (all Providers)"],
+  ["strip", "Packs: strip secrets (all tools)"],
+  ["keep", "Packs: keep secrets — packs stay on this Mac (all tools)"],
+  ["ask", "Packs: ask each time (all tools)"],
   ["decide_later", "Packs: not chosen yet — your first switch asks before any pack is built"],
 ] as const) {
   test(`first run — choose "${value}" → Summary restates it`, async ({ page }) => {
