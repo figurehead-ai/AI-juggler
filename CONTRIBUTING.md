@@ -119,7 +119,26 @@ Releases are cut by the maintainer: [docs/RELEASING.md](./docs/RELEASING.md)
 has the signing setup, the release-notes rules, and the rollback steps.
 Contributors only add their change to `CHANGELOG.md` under `[Unreleased]`.
 
-## Licensing
+## Licensing and sign-off
 
 By contributing, you agree that your contributions are licensed under
-the [MIT License](./LICENSE) that covers this repository.
+the [MIT License](./LICENSE) that covers this repository. You keep the
+copyright to your contribution.
+
+**Sign off every commit** with the
+[Developer Certificate of Origin](https://developercertificate.org)
+(DCO). It's one line at the end of the commit message:
+
+```
+Signed-off-by: Your Name <you@example.com>
+```
+
+`git commit -s` adds it for you. The sign-off certifies that you wrote
+the change, or otherwise have the right to submit it under the
+project's license. Use a name you're known by. Your GitHub `noreply`
+address is fine if you'd rather not publish your e-mail. Forgot? Run
+`git commit --amend -s` for the last commit, or
+`git rebase --signoff main` for a branch.
+
+Contributing doesn't grant rights to the AI Juggler or Figurehead names,
+logos or app icon. See [TRADEMARKS.md](./TRADEMARKS.md).
