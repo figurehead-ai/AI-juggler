@@ -316,8 +316,8 @@ fn this_mac_at_fifty_instances() {
     let mut trees = 0;
     for _ in 0..5 {
         let started = Instant::now();
-        let info = juggler_app::machine_health::this_mac_impl(&state, Timestamp::now().millis())
-            .unwrap();
+        let info =
+            juggler_app::machine_health::this_mac_impl(&state, Timestamp::now().millis()).unwrap();
         runs.push(started.elapsed());
         trees = info.ours.count;
     }

@@ -31,11 +31,15 @@ fn alive(pid: u32) -> bool {
 #[test]
 fn every_stop_path_refuses_a_tool_we_did_not_start() {
     let dir = tempfile::tempdir().unwrap();
-    let state =
-        Arc::new(AppState::init_with_registry(dir.path().join("app-data"), AdapterRegistry::new()).unwrap());
+    let state = Arc::new(
+        AppState::init_with_registry(dir.path().join("app-data"), AdapterRegistry::new()).unwrap(),
+    );
     // Stands in for the Claude app or a terminal `claude`: started
     // outside AI Juggler, so there is no ledger row and no session.
-    let mut tool = std::process::Command::new("/bin/sleep").arg("30").spawn().unwrap();
+    let mut tool = std::process::Command::new("/bin/sleep")
+        .arg("30")
+        .spawn()
+        .unwrap();
     let pid = tool.id();
 
     // It is measured (observed) … (after the first tick: that tick's own
@@ -80,8 +84,8 @@ fn every_stop_path_refuses_a_tool_we_did_not_start() {
             execute.as_ref().map_or(true, |info| info.refusal.is_some()),
             "the kill sheet refuses it"
         );
-        let stop = commands::orphan_stop_inner(&state, &SessionId::new(session.to_string()), pid)
-            .unwrap();
+        let stop =
+            commands::orphan_stop_inner(&state, &SessionId::new(session.to_string()), pid).unwrap();
         assert_ne!(stop.state, "stopped", "the leftover stop refuses it");
     }
     // The automatic tiers never see it either (no ledger row).
