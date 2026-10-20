@@ -279,3 +279,14 @@
 **Quality gates**: vitest (`inspector-shell.test.tsx`); the full Playwright suite (keyboard flows reach the list with ⌘⇧H); baselines re-rendered with notes.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1017/`.
 **Research basis**: D-25 and the "AI Juggler UX vision" canvas (Session board).
+
+### AJ-E1018 0.0.6 dogfood fixes: the legend, where setups are open, sign-ins on Home | Status: DONE-EVIDENCED | Priority P0 | Effort S | Depends: AJ-E1013, AJ-E1014
+**Goal**: Fix what the maintainer hit in the first minutes of using 0.0.6.
+**User story**: As the maintainer trying the beta, I want the "?" to show me what the icons mean, first run to see my six Claude desktop windows for what they are, and Home to tell me when an account needs its sign-in.
+**Requirements**:
+1. The rail's "?" SHALL open a legend that is fully in view and on top, matches the rail's words (no internal codes), and closes on Escape or a click elsewhere (focus returns to "?").
+2. The scan SHALL report, for each setup, where it is open right now (the Claude desktop app and/or a terminal), read from the running Claude processes (only `CLAUDE_CONFIG_DIR` is read); first run SHALL group by kind of setup (profiles / the default / others), name the default "Default" (not "Terminal"), and show where each is open. Probe labels SHALL be plain words.
+3. An account that needs its sign-in SHALL be a "Needs you" item on Home whose Sign in opens the login terminal and clears by itself when the sign-in completes; the old "Get your accounts ready" screen is retired.
+**Quality gates**: vitest; Rust tests (the running-setups classifier); the full Playwright suite; the accessibility gate; visual baselines re-rendered with notes; walked by hand in the browser.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1018/`.
+**Research basis**: maintainer reports 2026-10-20 (screenshots of first run and the rail; "clicking on the question mark … does nothing").

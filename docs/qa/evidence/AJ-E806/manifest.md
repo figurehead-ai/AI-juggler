@@ -251,10 +251,14 @@
   The wizard steps in that file now wait up to 5 s. No assertion changed.
 - Real accessibility bugs found by the release gate (2026-10-20, Promote
   for 0.0.5, `a11y (1/4)`): the D-25 rail rows failed WCAG contrast on
-  every screen. The second line and time used the faint grey (3.29:1
-  dark, 2.84:1 light), the desktop "app" tag used light accent text, and
-  ended rows were faded with opacity. Now they use the muted grey
-  (≥ 5.8:1), and ended rows have a quieter title instead of opacity. The
+  every screen. Ended rows were faded with opacity-70, which took their
+  faint-grey second line to 3.29:1 (dark) and 2.84:1 (light), and the
+  desktop "app" tag used light accent text at 9.5 px (4.33:1 / 3.3:1).
+  Now ended rows have a quieter title instead of opacity (the real fix),
+  the tag uses muted text, and the second line also moved to the muted
+  grey (≥ 5.8:1; the faint grey alone passes). Corrected 2026-10-20: the
+  first note blamed the faint grey; a seeded regression showed the grey
+  alone passes and the opacity is what fails. The
   wizard's "unverified" chip blended to 4.22:1 on the selected row in
   light mode and now has a solid backing. 0.0.5 is not promoted; 0.0.6
   carries the fix. The gate passes locally (939 states, 0 serious). One
