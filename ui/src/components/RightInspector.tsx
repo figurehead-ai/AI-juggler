@@ -1086,7 +1086,7 @@ function InstanceOverview(props: PanelProps) {
           className="group flex flex-col gap-2"
           data-testid="handover-section"
         >
-          <summary className="cursor-default list-none text-[11px] uppercase tracking-wider text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
+          <summary className="cursor-pointer list-none text-[11px] uppercase tracking-wider text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
             <span aria-hidden="true" className="mr-1 inline-block transition-transform group-open:rotate-90">▸</span>
             Continue on another account
           </summary>
