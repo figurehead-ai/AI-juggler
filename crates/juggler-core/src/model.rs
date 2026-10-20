@@ -456,6 +456,10 @@ pub struct ProjectHistory {
     pub accounts: Vec<String>,
     /// Native sessions discovered in imported transcripts.
     pub native_sessions: u64,
+    /// When the newest of those transcripts was last written, epoch ms —
+    /// when the user last worked here (not when AI Juggler looked).
+    #[serde(default)]
+    pub last_used_ms: Option<i64>,
 }
 
 /// A tracked local project — the juggling anchor (ADR-0007): the

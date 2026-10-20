@@ -40,6 +40,7 @@ pub use process_ledger::{
 };
 pub use profiles::ProfilesRepo;
 pub use projects::ProjectsRepo;
+pub use projects::worktree_repo_root;
 pub use sessions::SessionsRepo;
 pub use settings::AppSettingsRepo;
 pub use switch_graph::{SwitchGraphRepo, WorkGraph};

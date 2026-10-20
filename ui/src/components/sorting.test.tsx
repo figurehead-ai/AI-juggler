@@ -72,8 +72,8 @@ const FIXTURE: InstanceInfo[] = [
 ];
 
 const PROJECTS: ProjectInfo[] = [
-  { id: "proj-1", root: "/w/alpha", name: "alpha", last_activity_ms: null, active_instance: null, accounts_used: [], instance_count: 0, history_sessions: 0, missing: false },
-  { id: "proj-2", root: "/w/beta", name: "beta", last_activity_ms: null, active_instance: null, accounts_used: [], instance_count: 0, history_sessions: 0, missing: false },
+  { id: "proj-1", root: "/w/alpha", name: "alpha", last_activity_ms: null, active_instance: null, accounts_used: [], instance_count: 0, history_sessions: 0, history_last_used_ms: null, repo: null, missing: false },
+  { id: "proj-2", root: "/w/beta", name: "beta", last_activity_ms: null, active_instance: null, accounts_used: [], instance_count: 0, history_sessions: 0, history_last_used_ms: null, repo: null, missing: false },
 ];
 
 function renderBoard(rows: InstanceInfo[] = FIXTURE, snooze: SnoozeState = {}, projects: ProjectInfo[] = PROJECTS) {

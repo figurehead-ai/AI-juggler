@@ -650,7 +650,7 @@ function InspectorPanel(props: {
                 active_instance: null,
                 accounts_used: [],
                 instance_count: 0,
-                history_sessions: 0,
+                history_sessions: 0, history_last_used_ms: null, repo: null,
                 missing: false,
               })
             }
@@ -1700,7 +1700,7 @@ function SessionActions(props: PanelProps) {
                   active_instance: null,
                   accounts_used: [],
                   instance_count: 0,
-                  history_sessions: 0,
+                  history_sessions: 0, history_last_used_ms: null, repo: null,
                   missing: false,
                 })
             : undefined
@@ -1940,7 +1940,7 @@ function AccountActions(props: PanelProps) {
             ? () =>
                 props.onLaunch(first, {
                   id: "launch", root: first.default_cwd ?? "", name: "launch", last_activity_ms: null,
-                  active_instance: null, accounts_used: [], instance_count: 0, history_sessions: 0, missing: false,
+                  active_instance: null, accounts_used: [], instance_count: 0, history_sessions: 0, history_last_used_ms: null, repo: null, missing: false,
                 })
             : undefined
         }
@@ -2062,7 +2062,7 @@ function ProjectActions(props: PanelProps) {
             onClick={() =>
               props.onLaunch(recipe, {
                 id: project.id, root: project.root, name: project.name, last_activity_ms: null,
-                active_instance: null, accounts_used: [], instance_count: 0, history_sessions: 0, missing: project.missing,
+                active_instance: null, accounts_used: [], instance_count: 0, history_sessions: 0, history_last_used_ms: null, repo: null, missing: project.missing,
               })
             }
             title={ready ? undefined : "Needs sign-in first"}

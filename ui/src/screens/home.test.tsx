@@ -55,7 +55,7 @@ const ACCOUNTS: AccountInfo[] = [
   { id: "personal", provider: "claude-code", label: "Personal", plan: null, login_state: "logged_in" },
 ] as AccountInfo[];
 const PROJECTS: ProjectInfo[] = [
-  { id: "proj-1", root: "/w/ai-juggler", name: "ai-juggler", last_activity_ms: null, active_instance: null, accounts_used: [], instance_count: 0, history_sessions: 0, missing: false },
+  { id: "proj-1", root: "/w/ai-juggler", name: "ai-juggler", last_activity_ms: null, active_instance: null, accounts_used: [], instance_count: 0, history_sessions: 0, history_last_used_ms: null, repo: null, missing: false },
 ];
 
 afterEach(cleanup);

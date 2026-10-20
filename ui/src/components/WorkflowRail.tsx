@@ -308,6 +308,18 @@ export function InstanceBoard({
   const [moreFilters, setMoreFilters] = useState(false);
   const [filters, setFilters] = useState<ChipFilters>(NO_CHIP_FILTERS);
   const [query, setQuery] = useState("");
+  // Folded groups (a project's sessions, or "Your projects"): remembered.
+  const [folded, setFolded] = useState<Set<string>>(readFolded);
+  const toggleFold = useCallback((id: string) => {
+    setFolded((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      writeFolded(next);
+      return next;
+    });
+  }, []);
+  const [allProjects, setAllProjects] = useState(false);
   // AJ-E709 Req.2: machines filter the board; "All machines" is the
   // default and the choice persists across restarts.
   const [machineFilter, setMachineFilter] = useState<string>(() => {
@@ -569,7 +581,7 @@ export function InstanceBoard({
                the footer's "?". */
             <div className="flex flex-col gap-1.5 px-3 py-6" data-testid="rail-empty">
               <p className="text-[12px] font-medium text-ink">No sessions yet</p>
-              <p className="text-[11px] leading-relaxed text-muted">Start one with New session below; it shows up here under its project.</p>
+              <p className="text-[11px] leading-relaxed text-muted">Start one with New session.</p>
             </div>
           ) : (
             <div className="flex flex-col items-center gap-2 px-2 py-8 text-center">
@@ -611,28 +623,38 @@ export function InstanceBoard({
         ) : (
           groups.map((entry) => (
             <div key={entry.id} className="mb-1 flex flex-col gap-0.5">
-              {entry.label !== "" &&
-                (effectiveGroup === "project" && onSelectProject && projects.some((p) => p.id === entry.id) ? (
-                  <button
-                    type="button"
-                    onClick={() => onSelectProject(entry.id)}
-                    title={entry.rollup || undefined}
-                    className="flex w-full min-w-0 items-baseline justify-between gap-2 rounded-md px-2.5 pb-0.5 pt-2 text-left text-[11.5px] font-semibold text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
-                    data-testid="rail-project"
-                  >
-                    <span className="min-w-0 truncate">{entry.label}</span>
-                    <span className="shrink-0 text-[10px] font-normal text-faint">{entry.rows.length}</span>
-                  </button>
-                ) : (
-                  <p
-                    className="flex min-w-0 items-baseline justify-between gap-2 px-2.5 pb-0.5 pt-2 text-[11.5px] font-semibold text-muted"
-                    title={entry.rollup || undefined}
-                  >
-                    <span className="min-w-0 truncate">{entry.label}</span>
-                    {entry.rollup && <span className="sr-only">· {entry.rollup}</span>}
-                    <span className="shrink-0 text-[10px] font-normal text-faint">{entry.rows.length}</span>
-                  </p>
-                ))}
+              {entry.label !== "" && (
+                <div className="flex min-w-0 items-center gap-0.5 pt-1.5">
+                  <FoldButton
+                    open={!folded.has(entry.id)}
+                    label={entry.label}
+                    controls={`rail-group-${entry.id}`}
+                    onToggle={() => toggleFold(entry.id)}
+                  />
+                  {effectiveGroup === "project" && onSelectProject && projects.some((p) => p.id === entry.id) ? (
+                    <button
+                      type="button"
+                      onClick={() => onSelectProject(entry.id)}
+                      title={entry.rollup || undefined}
+                      className="flex min-w-0 flex-1 items-baseline justify-between gap-2 rounded-md py-0.5 pl-1 pr-2.5 text-left text-[11.5px] font-semibold text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+                      data-testid="rail-project"
+                    >
+                      <span className="min-w-0 truncate">{entry.label}</span>
+                      <span className="shrink-0 text-[10px] font-normal text-faint">{entry.rows.length}</span>
+                    </button>
+                  ) : (
+                    <p
+                      className="flex min-w-0 flex-1 items-baseline justify-between gap-2 py-0.5 pl-1 pr-2.5 text-[11.5px] font-semibold text-muted"
+                      title={entry.rollup || undefined}
+                    >
+                      <span className="min-w-0 truncate">{entry.label}</span>
+                      {entry.rollup && <span className="sr-only">· {entry.rollup}</span>}
+                      <span className="shrink-0 text-[10px] font-normal text-faint">{entry.rows.length}</span>
+                    </p>
+                  )}
+                </div>
+              )}
+              <div id={`rail-group-${entry.id}`} className="flex flex-col gap-0.5" hidden={folded.has(entry.id)}>
               {entry.rows.map((row) => (
                 <BoardRow
                   key={row.id}
@@ -646,21 +668,82 @@ export function InstanceBoard({
                   onContextMenu={openMenu}
                 />
               ))}
+              </div>
             </div>
           ))
         )}
-        {idleProjects.map((project) => (
-          <button
-            key={project.id}
-            type="button"
-            onClick={() => onSelectProject?.(project.id)}
-            className="flex w-full min-w-0 items-baseline justify-between gap-2 rounded-md px-2.5 pb-0.5 pt-2 text-left text-[11.5px] font-semibold text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
-            data-testid="rail-project"
-          >
-            <span className="min-w-0 truncate">{project.name}</span>
-            <span className="shrink-0 text-[10px] font-normal text-faint">0</span>
-          </button>
-        ))}
+        {idleProjects.length > 0 && (
+          /* Projects with no session here yet (from the setups' history):
+             the same rows as sessions, a folder mark instead of a state,
+             and what was done there instead of a state line. Clones of one
+             repository group like sessions group under a project. */
+          <div className="mt-1 flex flex-col gap-0.5" data-testid="rail-history-projects">
+            <div className="flex min-w-0 items-center gap-0.5 pt-1.5">
+              <FoldButton
+                open={!folded.has(HISTORY_GROUP)}
+                label="Projects"
+                controls="rail-history-list"
+                onToggle={() => toggleFold(HISTORY_GROUP)}
+              />
+              <p className="flex min-w-0 flex-1 items-baseline justify-between gap-2 py-0.5 pl-1 pr-2.5 text-[11.5px] font-semibold text-muted">
+                <span className="min-w-0 truncate">Projects</span>
+                <span className="shrink-0 text-[10px] font-normal text-faint">{idleProjects.length}</span>
+              </p>
+            </div>
+            <div id="rail-history-list" className="flex flex-col gap-0.5" hidden={folded.has(HISTORY_GROUP)}>
+              {repoGroups(idleProjects)
+                .slice(0, allProjects ? undefined : HISTORY_SHOWN)
+                .map((group) =>
+                  group.projects.length === 1 ? (
+                    <ProjectRow
+                      key={group.key}
+                      project={group.projects[0]!}
+                      density={effectiveDensity === "compact" ? "compact" : "comfortable"}
+                      now={now}
+                      onSelect={(id) => onSelectProject?.(id)}
+                    />
+                  ) : (
+                    <div key={group.key} className="flex flex-col gap-0.5" data-testid="rail-repo-group">
+                      <div className="flex min-w-0 items-center gap-0.5 pl-3">
+                        <FoldButton
+                          open={!folded.has(group.key)}
+                          label={group.name}
+                          controls={`rail-repo-${group.key}`}
+                          onToggle={() => toggleFold(group.key)}
+                        />
+                        <p className="flex min-w-0 flex-1 items-baseline justify-between gap-2 py-0.5 pl-1 pr-2.5 text-[11.5px] font-semibold text-muted" title={group.key}>
+                          <span className="min-w-0 truncate">{group.name}</span>
+                          <span className="shrink-0 text-[10px] font-normal text-faint">{group.projects.length}</span>
+                        </p>
+                      </div>
+                      <div id={`rail-repo-${group.key}`} className="flex flex-col gap-0.5 pl-3" hidden={folded.has(group.key)}>
+                        {group.projects.map((project) => (
+                          <ProjectRow
+                            key={project.id}
+                            project={project}
+                            density={effectiveDensity === "compact" ? "compact" : "comfortable"}
+                            now={now}
+                            onSelect={(id) => onSelectProject?.(id)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ),
+                )}
+              {repoGroups(idleProjects).length > HISTORY_SHOWN && (
+                <button
+                  type="button"
+                  onClick={() => setAllProjects((open) => !open)}
+                  className="self-start rounded-md py-1 pl-7 pr-2 text-[11px] text-accent-hi outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
+                  aria-expanded={allProjects}
+                  data-testid="rail-history-all"
+                >
+                  {allProjects ? "Show fewer" : `Show all ${repoGroups(idleProjects).length}`}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
         {remoteShown.map((machine) => (
           <RemoteBoardSection
             key={machine.machine_id}
@@ -1698,3 +1781,146 @@ function RemoteBoardSection({
     </div>
   );
 }
+
+const FOLDED_KEY = "aij.rail.folded";
+const HISTORY_GROUP = "history-projects";
+/** How many history projects show before "Show all". */
+const HISTORY_SHOWN = 5;
+
+function readFolded(): Set<string> {
+  try {
+    const raw = JSON.parse(localStorage.getItem(FOLDED_KEY) ?? "[]") as unknown;
+    return new Set(Array.isArray(raw) ? raw.filter((id): id is string => typeof id === "string") : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function writeFolded(folded: Set<string>): void {
+  try {
+    localStorage.setItem(FOLDED_KEY, JSON.stringify([...folded]));
+  } catch {
+    /* a private window: folding still works for this visit */
+  }
+}
+
+/** When a project was last worked in: here or, before that, elsewhere. */
+function lastWorked(project: ProjectInfo): number {
+  return project.history_last_used_ms ?? project.last_activity_ms ?? 0;
+}
+
+/** Projects grouped by repository (clones and checkouts of one remote
+ * together), the most recently worked-in group first. */
+export function repoGroups(projects: ProjectInfo[]): { key: string; name: string; projects: ProjectInfo[] }[] {
+  const groups = new Map<string, ProjectInfo[]>();
+  for (const project of projects) {
+    const key = project.repo ?? `folder:${project.id}`;
+    groups.set(key, [...(groups.get(key) ?? []), project]);
+  }
+  return [...groups.entries()]
+    .map(([key, members]) => {
+      const sorted = [...members].sort((a, b) => lastWorked(b) - lastWorked(a));
+      const name = members.length > 1 && key.includes("/") ? (key.split("/").pop() ?? sorted[0]!.name) : sorted[0]!.name;
+      return { key, name, projects: sorted };
+    })
+    .sort((a, b) => lastWorked(b.projects[0]!) - lastWorked(a.projects[0]!));
+}
+
+/** The second line of a project row: what was done there, in a few words. */
+export function projectStats(project: ProjectInfo, now: number): string[] {
+  // When first (a narrow rail cuts from the end), then how much, then who.
+  const parts: string[] = [];
+  const at = lastWorked(project);
+  if (at > 0) parts.push(ago(at, now) === "now" ? "just now" : `${ago(at, now)} ago`);
+  const conversations = project.history_sessions + project.instance_count;
+  if (conversations > 0) parts.push(conversations === 1 ? "1 conversation" : `${conversations} conversations`);
+  const accounts = project.accounts_used.length;
+  if (accounts > 1) parts.push(`${accounts} accounts`);
+  else if (accounts === 1) parts.push(project.accounts_used[0]!);
+  return parts;
+}
+
+/**
+ * A project in the rail, built like a session row (RailRow): the same
+ * size, spacing, hover and selection; a folder mark tinted for the
+ * project where a session shows its state; what was done there where a
+ * session shows its state line.
+ */
+function ProjectRow({
+  project,
+  density,
+  now,
+  onSelect,
+}: {
+  project: ProjectInfo;
+  density: "comfortable" | "compact";
+  now: number;
+  onSelect: (id: string) => void;
+}): JSX.Element {
+  const stats = projectStats(project, now);
+  const when = stats[0]?.endsWith("ago") ? stats[0] : null;
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(project.id)}
+      title={project.root}
+      className={
+        "relative flex w-full min-w-0 items-center gap-2.5 rounded-lg pl-2.5 pr-2 text-left outline-none transition-colors hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60 " +
+        (density === "compact" ? "py-1.5" : "py-2")
+      }
+      data-testid="rail-history-project"
+    >
+      <span aria-hidden="true" className="flex w-4 shrink-0 justify-center" style={{ color: `hsl(${hueOf(project.id)} 60% 66%)` }}>
+        <IconProjects width={13} height={13} />
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="flex min-w-0 items-baseline gap-1.5">
+          <span className={"min-w-0 truncate text-[12.5px] font-medium " + (project.missing ? "text-muted" : "text-ink")}>{project.name}</span>
+          {project.missing && <span className="shrink-0 text-[9.5px] font-medium uppercase tracking-wide text-muted">moved</span>}
+          {density === "compact" && when && <span className="ml-auto shrink-0 font-mono text-[10px] text-muted">{when.replace(" ago", "")}</span>}
+        </span>
+        {density === "comfortable" && stats.length > 0 && (
+          <span className="min-w-0 truncate text-[11px] text-muted" data-testid="rail-project-stats">
+            {stats.join(" · ")}
+          </span>
+        )}
+      </span>
+    </button>
+  );
+}
+
+/** A group's fold toggle: a chevron, named for screen readers. */
+function FoldButton({
+  open,
+  label,
+  controls,
+  onToggle,
+}: {
+  open: boolean;
+  label: string;
+  controls: string;
+  onToggle: () => void;
+}): JSX.Element {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={open}
+      aria-controls={controls}
+      aria-label={open ? `Fold ${label}` : `Unfold ${label}`}
+      className="flex size-6 shrink-0 items-center justify-center rounded-md text-faint outline-none hover:bg-surface/60 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+      data-testid="rail-fold"
+    >
+      <svg
+        aria-hidden="true"
+        width="10"
+        height="10"
+        viewBox="0 0 10 10"
+        className={"transition-transform motion-reduce:transition-none " + (open ? "rotate-90" : "")}
+      >
+        <path d="M3.5 2 L7 5 L3.5 8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </button>
+  );
+}
+
