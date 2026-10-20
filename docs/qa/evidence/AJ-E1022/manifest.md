@@ -44,7 +44,7 @@ without the old wizard: a fresh account, a folder, D-25). Status:
 | Req.4 one place, no pack question | vitest `first-run-policy.test.tsx`: bring-in, fresh and folder steps never show the pack question and write no policy; `new-project-sheet.test.tsx` and `new-project.spec.ts` (detour over the sheet; Escape returns, folder kept); `keyboard-flows` first run end to end | PASS |
 | Req.5 funnel, flow (d) | vitest: every event of all three paths has allow-listed, free-text-free fields; `flows-cde.spec.ts` flow (d) = 3 primary clicks to the sign-in | PASS |
 | Req.6 retired with tests | the inventory in the PR maps each wizard test to "survives (where)" or "went with the wizard" | PASS |
-| Full suites | counts in the PR | PASS |
+| Full suites | vitest 450/450; Playwright 813/813 (the wizard-only tests are gone, see the PR); a11y gate 828 states, 0 critical/serious; visual gate re-rendered (Accounts: the separate tool button is gone) | PASS |
 
 Gallery: `39-import/`, `37-flows/b-detour-*`, `71-add-account/`.
 
