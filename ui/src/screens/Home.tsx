@@ -350,28 +350,6 @@ export function HomeScreen({
                     </Button>
                   </li>
                 )}
-                {heavy.map((tree) => {
-                  const session = sessions.find((s) => s.id === tree.session_id)!;
-                  const place = placeOf(session, projects);
-                  return (
-                    <li key={`heavy-${tree.session_id}`} className="flex flex-wrap items-center gap-x-3.5 gap-y-2 rounded-xl border border-hairline bg-surface px-4 py-3.5" data-testid="home-heavy">
-                      <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-warning-soft font-bold text-warning">
-                        ▲
-                      </span>
-                      <span className="flex min-w-0 flex-1 basis-40 flex-col gap-0.5">
-                        <span className="text-[15px] font-medium text-ink">Working your Mac hard — {tree.heavy_note}</span>
-                        <span className="truncate text-xs text-muted">
-                          {place.title}
-                          {place.detail ? ` · ${place.detail}` : ""}
-                          {tree.helpers > 0 ? ` · ${tree.helpers === 1 ? "1 helper" : `${tree.helpers} helpers`}` : ""}
-                        </span>
-                      </span>
-                      <Button size="sm" variant="secondary" className="ml-auto" onClick={() => onOpenSession(tree.session_id)}>
-                        Take a look <span className="sr-only">— {place.title}</span>
-                      </Button>
-                    </li>
-                  );
-                })}
                 {needs.map(({ session, need }) => {
                   const words = needWords(need, session);
                   const glyph = NEED_GLYPH[need];
@@ -397,6 +375,28 @@ export function HomeScreen({
                       >
                         {words.action}{" "}
                         <span className="sr-only">— {place.title}</span>
+                      </Button>
+                    </li>
+                  );
+                })}
+                {heavy.map((tree) => {
+                  const session = sessions.find((s) => s.id === tree.session_id)!;
+                  const place = placeOf(session, projects);
+                  return (
+                    <li key={`heavy-${tree.session_id}`} className="flex flex-wrap items-center gap-x-3.5 gap-y-2 rounded-xl border border-hairline bg-surface px-4 py-3.5" data-testid="home-heavy">
+                      <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-warning-soft font-bold text-warning">
+                        ▲
+                      </span>
+                      <span className="flex min-w-0 flex-1 basis-40 flex-col gap-0.5">
+                        <span className="text-[15px] font-medium text-ink">Working your Mac hard — {tree.heavy_note}</span>
+                        <span className="truncate text-xs text-muted">
+                          {place.title}
+                          {place.detail ? ` · ${place.detail}` : ""}
+                          {tree.helpers > 0 ? ` · ${tree.helpers === 1 ? "1 helper" : `${tree.helpers} helpers`}` : ""}
+                        </span>
+                      </span>
+                      <Button size="sm" variant="secondary" className="ml-auto" onClick={() => onOpenSession(tree.session_id)}>
+                        Take a look <span className="sr-only">— {place.title}</span>
                       </Button>
                     </li>
                   );

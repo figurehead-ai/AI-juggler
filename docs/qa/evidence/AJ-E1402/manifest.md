@@ -1,9 +1,7 @@
 # Evidence manifest — AJ-E1402
 
 Task: `docs/tasks/E14-machine-health.md` AJ-E1402 (see the AI tools AI
-Juggler didn't start, read-only). Status: **IN-PROGRESS**. Req.1–4 are
-evidenced here. Req.5 (whether they get rail rows, the D-25 amendment) is
-decided with the This Mac panel, by walking the rail both ways (AJ-E1404).
+Juggler didn't start, read-only). Status: **DONE-EVIDENCED**.
 
 ## What exists now
 
@@ -30,6 +28,7 @@ decided with the This Mac panel, by walking the rail both ways (AJ-E1404).
 | Req.3 never managed (D-08) | `cargo test -p juggler-app --test observed_guard`: an observed pid is refused by `kill_verify_inner`, `kill_execute_audited` and `orphan_stop_inner` (any claimed session), the automatic sweep runs, and the process is still alive | refused, alive | refused, alive | PASS | 583c2f0d+ | 2026-10-20 | claude-opus |
 | Req.4 environment read limited | code review: `config_dirs_of` keeps only `CLAUDE_CONFIG_DIR` of root pids; nothing logged; the live probe prints counts only | — | as stated | PASS | 583c2f0d+ | 2026-10-20 | claude-opus |
 | Budget: scan ≤ 10 ms p95 | `cargo test -p juggler-app --lib machine_health::live -- --ignored --nocapture` (reference Mac) | ≤ 10 ms | first design (every environment): median 107 ms, max 1.39 s. Rebuilt two-phase: median 3.0 ms, max 4.1 ms | PASS | 583c2f0d+ | 2026-10-20 | claude-opus |
+| Req.5 rail rows? (D-25 amendment) | Walked the rail at 1440×900 as built, and with a quiet "Also running · not started by AI Juggler" group of six rows (this Mac's real count; a throwaway DOM mock-up in the preview): [mock-up](docs/qa/evidence/AJ-E1402/req5-rail-mockup-1f0b5cd1.jpg) | a decision with evidence | No rail rows. The six rows pushed the user's own sessions down, looked openable with nothing to open, and repeated This Mac. Recorded as the D-25 amendment of 2026-10-20 | PASS | 40293b45+ | 2026-10-20 | claude-opus |
 | Live reading (reference Mac) | same probe | real values | 6 Claude desktop trees, 132–191 helpers, 16–28 GB, 2.2–12.7 cores (it varies with what those windows' sessions run; the windows' own Claude Code sessions, e.g. cargo builds, belong to the app's tree); 0 terminal `claude` | PASS | 583c2f0d+ | 2026-10-20 | claude-opus |
 
 ## Redaction checklist (tick before commit)

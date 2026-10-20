@@ -49,7 +49,7 @@
 **Research basis**: PROPOSAL §6.5 "Monitor"; SPEC §5.3; Apple `ProcessInfo.thermalState`, `IOPSGetTimeRemainingEstimate`, `kern.memorystatus_vm_pressure_level`.
 **Handover note**: Pressure level is the kernel's own judgement — trust it over "used memory", which on macOS is always high (file cache). Swap *used* stays high for days after a squeeze; swap *growth* is the thrash signal.
 
-### AJ-E1402 See the AI tools AI Juggler didn't start (read-only) | Status: IN-PROGRESS | Priority P0 | Effort M | Depends: AJ-E1401, `running_setups` (PR #62)
+### AJ-E1402 See the AI tools AI Juggler didn't start (read-only) | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E1401, `running_setups` (PR #62)
 **Goal**: The Claude desktop app's windows and `claude` running in a terminal count in "what your AI tools use", attributed to the Account whose folder they use, without ever being treated as ours.
 **User story**: As someone who also opens Claude in its own app and in a terminal, AI Juggler's numbers include those too, and say plainly which ones it didn't start.
 **Requirements**:
@@ -83,7 +83,7 @@
 **Research basis**: SPEC §5.3 budget; AJ-E512 hog rules.
 **Handover note**: Reuse `hog_facts`; never add a second definition of "too much".
 
-### AJ-E1404 Home: the This Mac panel and heavy sessions under Needs you | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1403
+### AJ-E1404 Home: the This Mac panel and heavy sessions under Needs you | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E1403
 **Goal**: Home answers "is my Mac OK with all this?" at a glance, and a session hogging the machine shows up where things that need you show up.
 **User story**: As a user, I see on Home how much my AI tools use, the heaviest sessions, leftovers to clean, and the Mac's state in words; a runaway session appears under Needs you.
 **Requirements**:
@@ -100,7 +100,7 @@
 **Research basis**: D-25 Home structure; PROPOSAL §6.5.
 **Handover note**: Home's three questions stay first; This Mac sits with Runway, never above Needs you.
 
-### AJ-E1405 The rail notes a heavy session; the session header shows CPU · memory · helpers | Status: TODO | Priority P0 | Effort S | Depends: AJ-E1403
+### AJ-E1405 The rail notes a heavy session; the session header shows CPU · memory · helpers | Status: DONE-EVIDENCED | Priority P0 | Effort S | Depends: AJ-E1403
 **Goal**: Resource use is visible where the session is, without cluttering calm rows.
 **User story**: As a user scanning the rail, a heavy session tells me so; inside a session I see its CPU, memory and helpers without opening Details.
 **Requirements**:
