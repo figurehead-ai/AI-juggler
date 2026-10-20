@@ -262,3 +262,24 @@ input[type="checkbox"] {
   margin: 5px;
   flex-shrink: 0;
 }
+
+/* Everything you can click shows the hand (0.0.7 dogfood: the reset
+   gives buttons the arrow). Disabled controls keep the arrow. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  a[href],
+  summary,
+  select:not(:disabled),
+  label:has(> input[type="checkbox"]:not(:disabled)),
+  label:has(> input[type="radio"]:not(:disabled)),
+  label[for],
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled) {
+    cursor: pointer;
+  }
+  button:disabled,
+  select:disabled {
+    cursor: default;
+  }
+}
