@@ -1335,9 +1335,9 @@ fn read_advice_inputs(
     now_ms: i64,
 ) -> Option<AdviceInputs> {
     let storage = state.storage.lock().ok()?;
-    let stats = storage.footprints().stats().ok()?;
+    let medians = storage.footprints().stats().ok()?;
     let mut names = std::collections::HashMap::new();
-    if !stats.is_empty() {
+    if !medians.is_empty() {
         for account in storage.accounts().list().unwrap_or_default() {
             for recipe in storage
                 .profiles()
@@ -1354,7 +1354,7 @@ fn read_advice_inputs(
     Some(AdviceInputs {
         footprints_written,
         read_ms: now_ms,
-        stats,
+        stats: medians,
         names,
     })
 }

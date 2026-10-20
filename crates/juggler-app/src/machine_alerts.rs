@@ -259,10 +259,17 @@ fn conditions(mac: &ThisMacInfo, on: &std::collections::HashSet<String>) -> Vec<
             tell_memory: false,
         });
     }
-    // Only a disk that's really out of room (the pressure level, < 5 GB) is
-    // an alert; "Getting tight" (< 20 GB) stays a calm word in This Mac —
-    // a 256 GB Mac that lives under 20 GB free is never nagged.
-    for reason in machine
+    disk_conditions(mac, &mut out);
+    heavy_conditions(mac, &mut out);
+    out
+}
+
+/// Only a disk that's really out of room (the pressure level, < 5 GB) is
+/// an alert; "Getting tight" (< 20 GB) stays a calm word in This Mac — a
+/// 256 GB Mac that lives under 20 GB free is never nagged.
+fn disk_conditions(mac: &ThisMacInfo, out: &mut Vec<Condition>) {
+    for reason in mac
+        .machine
         .summary
         .reasons
         .iter()
@@ -285,6 +292,10 @@ fn conditions(mac: &ThisMacInfo, on: &std::collections::HashSet<String>) -> Vec<
             tell_memory: false,
         });
     }
+}
+
+/// A session AI Juggler started that's working the Mac hard.
+fn heavy_conditions(mac: &ThisMacInfo, out: &mut Vec<Condition>) {
     for tree in &mac.heavy {
         let Some(session) = tree.session_id.as_deref() else {
             continue; // tools AI Juggler didn't start: This Mac shows them
@@ -302,7 +313,6 @@ fn conditions(mac: &ThisMacInfo, on: &std::collections::HashSet<String>) -> Vec<
             tell_memory: note.split(" · ").any(|part| !part.starts_with("CPU ")),
         });
     }
-    out
 }
 
 impl AlertEngine {
