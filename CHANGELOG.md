@@ -62,8 +62,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Switching a session you started in the app no longer stops at
   "Couldn't tell which file is this session": AI Juggler finds the
-  session's own file (same folder, started after the launch) the first
-  time it is needed and remembers it — for Claude Code and Codex alike.
+  session's own file (same folder, started after the launch) when you
+  switch and remembers it — for Claude Code and Codex alike. It never
+  guesses: when two sessions of one account share a folder, or two files
+  could be the one, it still asks.
 - Bringing in a setup that contains links no longer fails or copies what
   a link points to: links are listed and left behind (Claude Code and
   Codex).

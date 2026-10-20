@@ -435,8 +435,8 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         state_dir: &Path,
         cwd: &Path,
         since_ms: i64,
+        taken: &[PathBuf],
     ) -> Option<juggler_core::model::TranscriptRef> {
-        let want = cwd.to_string_lossy();
         let mut candidates = Vec::new();
         for project in std::fs::read_dir(state_dir.join("projects"))
             .ok()?
@@ -452,8 +452,9 @@ impl HarnessAdapter for ClaudeCodeAdapter {
                 }
             }
         }
-        oldest_since(candidates, since_ms, |bytes| {
-            juggler_adapter::handover::embedded_cwd(bytes).is_some_and(|found| found == want)
+        only_since(candidates, since_ms, taken, |bytes| {
+            juggler_adapter::handover::embedded_cwd(bytes)
+                .is_some_and(|found| same_folder(&found, cwd))
         })
         .map(|path| juggler_core::model::TranscriptRef {
             native_id: Some(file_stem(&path)),
@@ -654,6 +655,9 @@ pub(crate) struct ClaudeTranscriptWatcher {
     _watcher: notify::RecommendedWatcher,
     events: std::sync::mpsc::Receiver<notify::Result<notify::Event>>,
     seen: BTreeMap<PathBuf, usize>,
+    /// (size, mtime) at the last read: an unchanged file is not read
+    /// again (Codex keeps every past rollout under `sessions/`).
+    stamps: BTreeMap<PathBuf, (u64, Option<std::time::SystemTime>)>,
     pending: std::collections::VecDeque<SessionEvent>,
 }
 
@@ -679,6 +683,7 @@ impl ClaudeTranscriptWatcher {
             _watcher: watcher,
             events,
             seen: BTreeMap::new(),
+            stamps: BTreeMap::new(),
             pending: std::collections::VecDeque::new(),
         })
     }
@@ -703,6 +708,13 @@ impl ClaudeTranscriptWatcher {
         collect_jsonl(&self.root, &mut files, 0);
         files.sort();
         for path in files {
+            let stamp = std::fs::metadata(&path)
+                .map(|meta| (meta.len(), meta.modified().ok()))
+                .unwrap_or_default();
+            if self.stamps.get(&path) == Some(&stamp) {
+                continue;
+            }
+            self.stamps.insert(path.clone(), stamp);
             let lines = std::fs::read(&path).map_or(0, |bytes| count_lines(&bytes));
             let known = self.seen.entry(path.clone()).or_insert(0);
             if *known == 0 && lines > 0 {
@@ -750,12 +762,13 @@ pub(crate) fn collect_jsonl(dir: &Path, out: &mut Vec<PathBuf>, depth: usize) {
     }
 }
 
-/// Of `candidates` created at or after `since_ms` (2 s of clock slack)
-/// whose bytes satisfy `matches`, the oldest — the first session the
-/// launch produced, not a later one in the same folder.
-pub(crate) fn oldest_since(
+/// The ONE file of `candidates` created at or after `since_ms` (2 s of
+/// clock slack), not in `taken`, whose head satisfies `matches` — `None`
+/// when there is none or more than one (never a guess between two).
+pub(crate) fn only_since(
     candidates: Vec<PathBuf>,
     since_ms: i64,
+    taken: &[PathBuf],
     matches: impl Fn(&[u8]) -> bool,
 ) -> Option<PathBuf> {
     let born_ms = |path: &Path| {
@@ -764,20 +777,37 @@ pub(crate) fn oldest_since(
         let since = time.duration_since(std::time::UNIX_EPOCH).ok()?;
         i64::try_from(since.as_millis()).ok()
     };
-    candidates
+    let mut found = candidates
         .into_iter()
+        .filter(|path| !taken.contains(path))
         .filter_map(|path| Some((born_ms(&path)?, path)))
         .filter(|(born, _)| *born >= since_ms.saturating_sub(2_000))
         .filter(|(_, path)| {
-            // Only the head is needed for the cwd (bounded read).
+            // The head carries the cwd; a first line can be large (a
+            // rollout's `session_meta` holds the base instructions), so
+            // the bound is generous but finite.
             use std::io::Read as _;
             let mut head = Vec::new();
             std::fs::File::open(path)
-                .and_then(|file| file.take(64 * 1024).read_to_end(&mut head))
+                .and_then(|file| file.take(HEAD_LIMIT).read_to_end(&mut head))
                 .is_ok_and(|_| matches(&head))
         })
-        .min_by_key(|(born, _)| *born)
-        .map(|(_, path)| path)
+        .map(|(_, path)| path);
+    let first = found.next()?;
+    found.next().is_none().then_some(first)
+}
+
+/// How much of a transcript's head the cwd match reads.
+const HEAD_LIMIT: u64 = 8 * 1024 * 1024;
+
+/// The same folder, symlinks resolved when both sides exist (`/var` vs
+/// `/private/var`), else the exact string.
+pub(crate) fn same_folder(recorded: &str, cwd: &Path) -> bool {
+    let recorded = Path::new(recorded);
+    match (recorded.canonicalize(), cwd.canonicalize()) {
+        (Ok(a), Ok(b)) => a == b,
+        _ => recorded == cwd,
+    }
 }
 
 pub(crate) fn count_lines(bytes: &[u8]) -> usize {

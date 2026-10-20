@@ -4245,7 +4245,12 @@ fn scan_rollout_line(
                     .and_then(chrono_like_ms)
                     .unwrap_or(now),
                 tokens: juggler_core::model::TokenCounts {
-                    input: usage["input_tokens"].as_u64().unwrap_or(0),
+                    // Fresh prompt only (`input_tokens` includes the
+                    // cached history), as Claude's lines count it.
+                    input: usage["input_tokens"]
+                        .as_u64()
+                        .unwrap_or(0)
+                        .saturating_sub(usage["cached_input_tokens"].as_u64().unwrap_or(0)),
                     output: usage["output_tokens"].as_u64().unwrap_or(0),
                     cache_read: usage["cached_input_tokens"].as_u64().unwrap_or(0),
                     cache_write: 0,
@@ -5100,37 +5105,112 @@ pub(crate) fn handover_source(
     state: &Arc<AppState>,
     session_id: &str,
 ) -> AppResult<(juggler_core::model::InstanceRecord, Account)> {
-    let storage = lock_storage_arc(state)?;
-    let source = storage
-        .sessions()
-        .get(&SessionId::new(session_id))
-        .map_err(|error| not_found_or_core(error, "session", session_id))?;
-    let source_profile = storage
-        .profiles()
-        .get(&source.profile)
-        .map_err(|error| not_found_or_core(error, "profile", &source.profile.to_string()))?;
-    let account_a = storage
-        .accounts()
-        .get(&source_profile.account)
-        .map_err(|error| {
-            not_found_or_core(error, "account", &source_profile.account.to_string())
-        })?;
-    let mut source = source;
-    // AJ-E1303: a session the app launched has no transcript link yet —
-    // the Provider finds the file it created (cwd + start time) and the
-    // link is kept, so the user is never asked to pick it.
-    if source.transcript_ref.is_none()
-        && let Some(adapter) = state.registry.get(&account_a.harness)
-        && let Some(found) = adapter.locate_transcript(
+    resolve_source(state, session_id, false)
+}
+
+/// [`handover_source`] that KEEPS the transcript link it finds — only
+/// the switch itself does this (a preflight or a ranking look never
+/// writes a guess down).
+///
+/// # Errors
+///
+/// As [`handover_source`].
+pub(crate) fn handover_source_linked(
+    state: &Arc<AppState>,
+    session_id: &str,
+) -> AppResult<(juggler_core::model::InstanceRecord, Account)> {
+    resolve_source(state, session_id, true)
+}
+
+/// AJ-E1303: a session the app launched has no transcript link yet; the
+/// Provider finds the file it created (same folder, created after the
+/// launch). Never a guess: files linked to other sessions are excluded,
+/// two matches find nothing, and another live, unlinked session of the
+/// same account in the same folder makes it ambiguous (its file could
+/// be the only one so far) — the switch then asks. The filesystem scan
+/// runs without the storage lock.
+fn resolve_source(
+    state: &Arc<AppState>,
+    session_id: &str,
+    persist: bool,
+) -> AppResult<(juggler_core::model::InstanceRecord, Account)> {
+    let (mut source, account_a, taken, ambiguous) = {
+        let storage = lock_storage_arc(state)?;
+        let source = storage
+            .sessions()
+            .get(&SessionId::new(session_id))
+            .map_err(|error| not_found_or_core(error, "session", session_id))?;
+        let source_profile = storage
+            .profiles()
+            .get(&source.profile)
+            .map_err(|error| not_found_or_core(error, "profile", &source.profile.to_string()))?;
+        let account_a = storage
+            .accounts()
+            .get(&source_profile.account)
+            .map_err(|error| {
+                not_found_or_core(error, "account", &source_profile.account.to_string())
+            })?;
+        if source.transcript_ref.is_some() {
+            return Ok((source, account_a));
+        }
+        let others: Vec<juggler_core::model::InstanceRecord> = storage
+            .sessions()
+            .list(None)?
+            .into_iter()
+            .filter(|other| other.id != source.id)
+            .collect();
+        let account_recipes: std::collections::HashSet<String> = storage
+            .profiles()
+            .list_by_account(&account_a.id)?
+            .into_iter()
+            .map(|recipe| recipe.id.to_string())
+            .collect();
+        let taken: Vec<PathBuf> = others
+            .iter()
+            .filter_map(|other| other.transcript_ref.as_ref().map(|r| r.path.clone()))
+            .collect();
+        let ambiguous = others.iter().any(|other| {
+            account_recipes.contains(other.profile.as_str())
+                && other.transcript_ref.is_none()
+                && other.cwd == source.cwd
+                && !ended_before(other, source.started_at.millis())
+        });
+        (source, account_a, taken, ambiguous)
+    };
+    if ambiguous {
+        return Ok((source, account_a));
+    }
+    let Some(found) = state.registry.get(&account_a.harness).and_then(|adapter| {
+        adapter.locate_transcript(
             &account_a.state_dir,
             &source.cwd,
             source.started_at.millis(),
+            &taken,
         )
-    {
-        source.transcript_ref = Some(found);
-        storage.sessions().update(&source)?;
+    }) else {
+        return Ok((source, account_a));
+    };
+    source.transcript_ref = Some(found);
+    if persist {
+        lock_storage_arc(state)?.sessions().update(&source)?;
     }
     Ok((source, account_a))
+}
+
+/// Whether `session` had ended before `at_ms` (its last activity — a
+/// session that ended earlier could not have written a file after it).
+fn ended_before(session: &juggler_core::model::InstanceRecord, at_ms: i64) -> bool {
+    let ended = matches!(
+        session.status,
+        SessionStatus::Finished
+            | SessionStatus::Stopped
+            | SessionStatus::Failed
+            | SessionStatus::HandedOver
+    );
+    ended
+        && session
+            .last_activity
+            .is_some_and(|last| last.millis() < at_ms.saturating_sub(2_000))
 }
 
 /// Resumes the session under the target account (see the module docs).
@@ -5658,7 +5738,7 @@ fn switch_execute_core(
         FreezeChoice::FinishTurnThenSwitch
     };
     let (profile_b, account_b) = find_profile_with_account_arc(state, target_profile_id)?;
-    let (source, account_a) = handover_source(state, session_id)?;
+    let (source, account_a) = handover_source_linked(state, session_id)?;
     if source.project.is_none() {
         return Err(AppError::Io {
             context: "hand over",

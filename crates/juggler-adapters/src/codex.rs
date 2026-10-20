@@ -527,16 +527,17 @@ impl HarnessAdapter for CodexAdapter {
         state_dir: &Path,
         cwd: &Path,
         since_ms: i64,
+        taken: &[PathBuf],
     ) -> Option<juggler_core::model::TranscriptRef> {
-        let want = cwd.to_string_lossy();
         let mut files = Vec::new();
         crate::claude_code::collect_jsonl(&state_dir.join("sessions"), &mut files, 0);
         files.retain(|path| {
             path.file_name()
                 .is_some_and(|name| name.to_string_lossy().starts_with("rollout-"))
         });
-        crate::claude_code::oldest_since(files, since_ms, |bytes| {
-            crate::codex_transcript::rollout_cwd(bytes).is_some_and(|found| found == want)
+        crate::claude_code::only_since(files, since_ms, taken, |bytes| {
+            crate::codex_transcript::rollout_cwd(bytes)
+                .is_some_and(|found| crate::claude_code::same_folder(&found, cwd))
         })
         .map(|path| juggler_core::model::TranscriptRef {
             native_id: Some(rollout_native_id(&path)),

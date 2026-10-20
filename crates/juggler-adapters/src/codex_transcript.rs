@@ -33,6 +33,9 @@ pub fn parse_rollout(bytes: &[u8]) -> ParsedTranscript {
     let mut parsed = ParsedTranscript::default();
     let mut session_id: Option<String> = None;
     let mut model: Option<String> = None;
+    // One usage row per response: a forked or resumed rollout repeats
+    // its parent's rows (the usage pipeline's dedupe key).
+    let mut counted: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
     for (index, line) in bytes.split(|b| *b == b'\n').enumerate() {
         if line.iter().all(u8::is_ascii_whitespace) {
             continue;
@@ -55,7 +58,12 @@ pub fn parse_rollout(bytes: &[u8]) -> ParsedTranscript {
             "session_meta" => session_id = text(&payload, "id").or(session_id),
             "turn_context" => model = text(&payload, "model").or(model),
             "token_usage_record" => {
-                if let Some(usage) = payload.get("usage") {
+                let key = ["thread_id", "turn_id", "response_id"]
+                    .map(|field| text(&payload, field).unwrap_or_default())
+                    .join("/");
+                if let Some(usage) = payload.get("usage")
+                    && counted.insert(key)
+                {
                     accumulate(&mut parsed.usage, usage);
                 }
             }
@@ -77,7 +85,14 @@ pub fn parse_rollout(bytes: &[u8]) -> ParsedTranscript {
                 parsed.messages.push(ParsedMessage {
                     // Rollouts are append-only: the line number is a
                     // stable identity when the item carries no id.
-                    uuid: text(&payload, "id").or_else(|| Some(format!("line:{index}"))),
+                    // Scoped by thread: line numbers repeat across
+                    // rollouts, ids from two files must never collide.
+                    uuid: text(&payload, "id").or_else(|| {
+                        Some(format!(
+                            "{}:line:{index}",
+                            session_id.as_deref().unwrap_or("rollout")
+                        ))
+                    }),
                     parent_uuid: None,
                     session_id: session_id.clone(),
                     role,
@@ -166,6 +181,10 @@ fn message_text(content: Option<&serde_json::Value>) -> String {
     }
 }
 
+/// Adds one response's usage in the same sense as Claude's: `input` is
+/// the FRESH prompt (`OpenAI`'s `input_tokens` includes the cached part,
+/// which is the re-sent history), `cache_read` the cached part. Summing
+/// raw `input_tokens` would grow with the square of the conversation.
 fn accumulate(total: &mut TokenCounts, usage: &serde_json::Value) {
     let read = |key: &str| {
         usage
@@ -173,9 +192,10 @@ fn accumulate(total: &mut TokenCounts, usage: &serde_json::Value) {
             .and_then(serde_json::Value::as_u64)
             .unwrap_or_default()
     };
-    total.input += read("input_tokens");
+    let cached = read("cached_input_tokens");
+    total.input += read("input_tokens").saturating_sub(cached);
     total.output += read("output_tokens");
-    total.cache_read += read("cached_input_tokens");
+    total.cache_read += cached;
     total.cache_write += read("cache_write_input_tokens");
     total.reasoning += read("reasoning_output_tokens");
 }
