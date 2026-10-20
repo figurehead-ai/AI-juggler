@@ -89,6 +89,12 @@
   half-written. Fix: the stub writes a temporary file and renames it into
   place. It passed 15/15 standalone before the fix; the assertion is
   unchanged.
+- **Flake record, 2026-10-20 (infrastructure; no change).** On PR #59
+  (AJ-E1301) the CI `ui` job failed in its first step, `corepack prepare
+  pnpm@10 --activate`: "Internal Error: Error when performing the request
+  to https://registry.npmjs.org/pnpm/10.34.7" (run 39438483215, job
+  118681742197). No project code had run; install, component tests and
+  build were skipped. The job is re-run unchanged; CI is the arbiter.
 - a11y seeded failure is recorded DEFERRED with owning task AJ-E804 —
   the gate is named in QUALITY.md vocabulary now; its absence is
   explicit, never a silent pass (per the quarantine/deferral rule).
