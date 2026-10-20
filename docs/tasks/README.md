@@ -12,7 +12,7 @@
 1. [AGENT-HANDOVER.md](AGENT-HANDOVER.md) — state snapshot, invariants,
    claiming protocol, compaction-recovery steps.
 2. [../review/decision-log.md](../review/decision-log.md) — settled
-   decisions D-01..D-18. Do not re-litigate them; supersede only via a
+   decisions D-01..D-25. Do not re-litigate them; supersede only via a
    new recorded decision.
 3. [TASK-CATALOG.md](TASK-CATALOG.md) — every task ID, epic, priority.
 4. The epic file for the task you claim (E1-E13 below).
@@ -32,7 +32,7 @@
 | [E7-fleet-at-launch.md](E7-fleet-at-launch.md) | Fleet at launch (beta) | AJ-E701-E711 |
 | [E8-validation-visual-performance-quality.md](E8-validation-visual-performance-quality.md) | Evidence, visual, a11y, perf, gates | AJ-E801-E811 |
 | [E9-docs-adrs-and-plan-rewrite.md](E9-docs-adrs-and-plan-rewrite.md) | Stage-1 docs, ADRs, plan rewrite | AJ-E901-E910 |
-| [E10-derived-workflows-and-beta.md](E10-derived-workflows-and-beta.md) | Derived workflows, safety nets, beta ops | AJ-E1001-E1011 |
+| [E10-derived-workflows-and-beta.md](E10-derived-workflows-and-beta.md) | Derived workflows, safety nets, beta ops | AJ-E1001-E1024 |
 | [E11-usage-statistics.md](E11-usage-statistics.md) | Opt-in usage statistics | AJ-E1101-E1109 |
 | [E12-optional-account.md](E12-optional-account.md) | Optional Figurehead account (two paths) | AJ-E1201-E1207 |
 | [E13-codex-adapter.md](E13-codex-adapter.md) | Codex, the second Provider | AJ-E1301-E1305 |
@@ -52,7 +52,7 @@ defective — fix the task before starting work (see CRITIC-CHECKS.md).
 
 ## Status workflow
 
-- `TODO` — not started (initial state of all 107 tasks).
+- `TODO` — not started (every task's initial state).
 - `IN-PROGRESS (agent, date)` — claimed; record who/when in the status.
 - `BLOCKED (reason, task-ID)` — only with the blocking task or decision
   named.

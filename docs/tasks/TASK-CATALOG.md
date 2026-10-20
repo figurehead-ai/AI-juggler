@@ -145,5 +145,5 @@
 | AJ-E1304 | Switch with Codex (beta): transplant and cross-Provider replay | E13-codex-adapter.md | P0 | L | AJ-E1303, AJ-E204, AJ-E205 |
 | AJ-E1305 | Live validation on real accounts and the docs | E13-codex-adapter.md | P1 | M | AJ-E1304, AJ-E808 |
 
-Total: 141 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+Total: 142 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.
