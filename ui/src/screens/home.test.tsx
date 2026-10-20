@@ -307,6 +307,40 @@ describe("AJ-E1021 Home as the morning triage (from AJ-E1005)", () => {
     expect(document.activeElement).toBe(container.querySelectorAll<HTMLElement>("[data-home-row]")[0]);
   });
 
+  it("a dialog over Home owns the keys, even with focus on <body>", async () => {
+    const user = userEvent.setup();
+    const { container } = renderHome([mk("d1", { status: "finished" }), mk("d2", { status: "finished", last_activity_ms: NOW - 120_000 })]);
+    const modal = document.createElement("div");
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    document.body.appendChild(modal);
+    try {
+      (document.activeElement as HTMLElement | null)?.blur();
+      await user.keyboard("j");
+      expect(document.activeElement).toBe(document.body);
+      // A reaches no row behind the dialog either.
+      container.querySelectorAll<HTMLElement>("[data-home-row]")[0]!.focus();
+      (document.activeElement as HTMLElement).blur();
+      await user.keyboard("a");
+      expect(calls()).toEqual([]);
+    } finally {
+      modal.remove();
+    }
+    // Gone, the keys work again.
+    await user.keyboard("j");
+    expect(document.activeElement).toBe(container.querySelectorAll<HTMLElement>("[data-home-row]")[0]);
+  });
+
+  it("a key another handler already took isn't run again from <body>", () => {
+    const { container } = renderHome([mk("w", { status: "waiting_user" })]);
+    (document.activeElement as HTMLElement | null)?.blur();
+    const event = new KeyboardEvent("keydown", { key: "j", bubbles: true, cancelable: true });
+    event.preventDefault();
+    window.dispatchEvent(event);
+    expect(document.activeElement).toBe(document.body);
+    expect(container.querySelectorAll("[data-home-row]").length).toBe(1);
+  });
+
   it("renders 50 sessions well inside 300 ms", () => {
     const statuses = ["waiting_user", "stuck", "running", "finished", "quota_blocked"];
     const sessions = Array.from({ length: 50 }, (_, n) => mk(`s-${n}`, { status: statuses[n % 5]! }));

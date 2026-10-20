@@ -40,13 +40,13 @@ in the inspector views; no task codes on screen, D-25). Status:
   that wraps onto its own line, in a visible attribute (`aria-label`,
   `title`, `reason`, `hint`, …) or in a user-facing string; comments may cite
   them. It also catches "instances" as a line-start label. The selftest has
-  one bad line per form (8) and good lines for comments and code.
+  one bad line per form (8, plus #75's four provider lines) and good lines for comments and code.
 
 ## Proof
 
 | Requirement | Proof | Result |
 |---|---|---|
-| Req.1 no codes, the lint | `terminology_lint.sh` OK on the tree, selftest 8/8 bad lines flagged, 0 good lines; on #75's RightInspector, SwitchFlow and ProcessRow it flags 44 lines | PASS |
+| Req.1 no codes, the lint | `terminology_lint.sh` OK on the tree, selftest 12/12 bad lines flagged (with #75's four provider lines), 0 good lines; on #75's RightInspector, SwitchFlow and ProcessRow it flags 44 lines | PASS |
 | Req.2 empties, actions | vitest `inspector-shell` (empties in plain words), `inspector-instance` (real actions present, unbuilt absent; no code on any tab of running/finished/limit sessions), `inspector-session`, `inspector-aggregate` (no code, raw id, "instance", "No data" or "now ago" on any tab of the tool, account and both projects) | PASS |
 | Req.3 names and words | vitest: "names the tool, not its id, and the state in the rail's words"; `quality-tab`, `running-model` ("not reported by Claude Code"); `tier-toggles` | PASS |
 | Req.4 install words, entry | vitest `installWords` (all four outcomes); capture `72-tool-view` at 1280×800 and 1024×680, light and dark: the session's "About Claude Code" opens the tool view, header "Claude Code", no self-link, "Version …", no code on any tab, axe 0 on every capture | PASS |
