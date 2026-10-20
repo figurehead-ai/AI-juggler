@@ -246,7 +246,7 @@ describe("AJ-E302 the 10-signal scan in the wizard", () => {
     );
     const details = container.querySelector("[data-testid='scan-details']")!;
     expect(details.textContent).toContain("checked");
-    expect(details.textContent).toContain("Config directories");
+    expect(details.textContent).toContain("Folders named .claude");
   });
 
   it("a denied probe with an empty result NEVER reads 'No existing setups found'", async () => {
@@ -286,6 +286,7 @@ describe("AJ-E303 candidate cards — inference, inline edit, ignore", () => {
         bytes: 9_000_000,
         last_used_secs: Math.floor(Date.now() / 1000) - 86_400,
         managed: false,
+        in_use: [],
         notes: ["note one", "note two — never truncated"],
         inference: {
           purpose: "Work",
@@ -307,6 +308,7 @@ describe("AJ-E303 candidate cards — inference, inline edit, ignore", () => {
         bytes: 1,
         last_used_secs: Math.floor(Date.now() / 1000) - 91 * 86_400,
         managed: true,
+        in_use: [],
         notes: [],
         inference: {
           purpose: "Managed",

@@ -71,6 +71,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The "?" at the bottom of the session list now opens the guide to what
+  the icons and words mean (it opened out of sight), in the list's own
+  words.
+- First run says where each Claude setup is open right now (the Claude
+  app or a terminal) and calls the default ~/.claude "Default"; it no
+  longer guesses "Terminal" for a folder the desktop app uses.
+- An account that needs its sign-in shows on Home under Needs you, with
+  Sign in right there, instead of replacing Home with a separate screen.
+
 - Session rows are readable at the WCAG contrast minimum in both themes:
   their second line and time use the stronger grey, and ended sessions
   are shown by a quieter title instead of being faded.

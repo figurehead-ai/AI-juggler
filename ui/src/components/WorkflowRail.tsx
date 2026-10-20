@@ -32,6 +32,7 @@ import {
   GitBadge,
   StaleChip,
   gitWords,
+  STATE_WORDS,
   attentionBadge,
   attentionSuffix,
   attentionTooltip,
@@ -752,17 +753,8 @@ function BoardRow({
 }
 
 /** D-25: what a rail row says about its state, in plain words. */
-const RAIL_STATE: Record<string, string> = {
-  starting: "Starting",
-  running: "Running",
-  waiting_user: "Waiting for you",
-  stuck: "Looks stuck",
-  quota_blocked: "Hit its limit",
-  finished: "Done",
-  stopped: "Stopped",
-  failed: "Failed",
-  handed_over: "Handed over",
-};
+// D-25: the state words live in indicator.tsx (shared with the legend).
+const RAIL_STATE = STATE_WORDS;
 
 function ago(ms: number, now: number): string {
   const m = Math.max(0, Math.round((now - ms) / 60_000));

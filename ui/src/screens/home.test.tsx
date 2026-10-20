@@ -137,6 +137,28 @@ describe("D-25 Home — the screen", () => {
     expect(getByTestId("home").textContent).toContain("Not measured yet");
   });
 
+  it("an account that needs its sign-in is a Needs you item; Sign in opens the login terminal", async () => {
+    const opened: string[] = [];
+    const accounts = [{ ...ACCOUNTS[0]!, login_state: "logged_out" }, ACCOUNTS[1]!] as AccountInfo[];
+    const { getByTestId } = render(
+      <HomeScreen
+        sessions={[]}
+        accounts={accounts}
+        projects={PROJECTS}
+        now={NOW}
+        onOpenSession={() => null}
+        onNewSession={() => null}
+        onAddAccounts={() => null}
+        openLoginTerminal={(_id, title) => opened.push(title)}
+      />,
+    );
+    expect(getByTestId("home").textContent).toContain("Work Max needs its sign-in");
+    const item = getByTestId("home-signin");
+    fireEvent.click(within(item).getByRole("button", { name: /^Sign in/ }));
+    await waitFor(() => expect(opened).toEqual(["Sign in · Work Max"]));
+    expect(item.textContent).toContain("Finish signing in in the terminal that opened");
+  });
+
   it("no accounts: one plain next step", () => {
     const onAddAccounts = vi.fn();
     const { getByTestId, getByRole } = renderHome([], [], { onAddAccounts });
