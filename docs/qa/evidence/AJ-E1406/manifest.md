@@ -28,8 +28,8 @@ setting, learned from history). Status: **DONE-EVIDENCED**.
 | Req.2 table, medians, retention | `cargo test -p juggler-core --lib footprints` (one row per session, peaks never drop; medians per key incl. even counts; newest 50 kept, other keys untouched); migration tests bumped to v29 | pass | 3 passed; core suite green | PASS | 49722aad+ | 2026-10-20 | claude-opus |
 | Req.3 observed by place only | code review of `track_footprints` (key `observed:<place>`, no Account, no command line) | — | as stated | PASS | 49722aad+ | 2026-10-20 | claude-opus |
 | p95 rule | `cargo test -p juggler-app --lib -- machine_health` (`p95_is_the_nearest_rank`) | pass | pass | PASS | 49722aad+ | 2026-10-20 | claude-opus |
-| Retention (review) | `cargo test -p juggler-core --test storage_roundtrip footprints` (`footprints_skip_short_and_failed_sessions_and_go_with_their_setting`): a failed and a 20 s session don't count toward the median; a deleted launch setting's footprints are forgotten. `cargo test -p juggler-app --lib -- machine_health` (`recommendations_come_from_enough_real_sessions`: a deleted setting doesn't count) | pass | pass | PASS | @@SHA@@ | 2026-10-20 | claude-opus |
-| Downgrade | An older build refuses a v29 database with `SchemaTooNew`; the CHANGELOG carries the downgrade note | as described | as described | PASS | @@SHA@@ | 2026-10-20 | claude-opus |
+| Retention (review) | `cargo test -p juggler-core --test storage_roundtrip footprints` (`footprints_skip_short_and_failed_sessions_and_go_with_their_setting`): a failed and a 20 s session don't count toward the median; a deleted launch setting's footprints are forgotten. `cargo test -p juggler-app --lib -- machine_health` (`recommendations_come_from_enough_real_sessions`: a deleted setting doesn't count) | pass | pass | PASS | 4a03078c | 2026-10-20 | claude-opus |
+| Downgrade | An older build refuses a v29 database with `SchemaTooNew`; the CHANGELOG carries the downgrade note | as described | as described | PASS | 4a03078c | 2026-10-20 | claude-opus |
 
 ## Redaction checklist (tick before commit)
 

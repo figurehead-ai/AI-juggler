@@ -24,7 +24,7 @@ as AI tools. A tool AI Juggler didn't start is an estimate, so it stays in
 |---|---|---|---|---|---|---|---|
 | Req.1–2 | `cargo test -p juggler-app --lib -- machine_health` (`recommendations_come_from_enough_real_sessions`: nothing from 2 sessions; "about 5 sessions" on a 32 GB Mac with 14 GB of other use; the heaviest named at ≥ 1.5×; close weights name none; observed footprints never count) | pass | pass | PASS | 42012b58+ | 2026-10-20 | claude-opus |
 | Shown only with history | `this-mac.test.tsx` "shows advice from history only when there is some"; gallery `_gallery/74-overload/recommendations-*` | pass | pass | PASS | 42012b58+ | 2026-10-20 | claude-opus |
-| Used basis, cache (review) | `recommendations` reads used as measured (`memory_used`), total − available only when it's unknown; the storage half is cached in the machine watch and re-read when footprints are written or after 60 s, not every 5 s | as described | as described | PASS | @@SHA@@ | 2026-10-20 | claude-opus |
+| Used basis, cache (review) | `recommendations` reads used as measured (`memory_used`), total − available only when it's unknown; the storage half is cached in the machine watch and re-read when footprints are written or after 60 s, not every 5 s | as described | as described | PASS | 4a03078c | 2026-10-20 | claude-opus |
 
 ## Redaction checklist (tick before commit)
 
