@@ -16,6 +16,8 @@ import { useEffect, useMemo, useState, type JSX } from "react";
 import { Button } from "../components/primitives";
 import { hueOf } from "../components/indicator";
 import { MorningSummary } from "../components/MorningSummary";
+import { ThisMacPanel } from "../components/ThisMacPanel";
+import { reasonSentence, type ThisMacInfo } from "../lib/machine";
 import { accountLoginState, errorText, quotaDisplayAll, signedIn, terminalSpawnLogin, type AccountInfo, type InstanceInfo, type ProjectInfo, type QuotaDisplayData, type WindowDisplay } from "../lib/bridge";
 
 const NEEDS = ["waiting_user", "stuck", "quota_blocked", "failed"] as const;
@@ -140,6 +142,8 @@ export function HomeScreen({
   onLimit,
   openLoginTerminal,
   onAccountsChanged,
+  thisMac = null,
+  onOpenCleanup,
 }: {
   sessions: InstanceInfo[];
   accounts: AccountInfo[];
@@ -155,6 +159,10 @@ export function HomeScreen({
   openLoginTerminal?: (id: string, title: string) => void;
   /** Called when a sign-in started here completes (the app refreshes). */
   onAccountsChanged?: () => void;
+  /** E14: This Mac (the app's one subscription; `null` before the first sample). */
+  thisMac?: ThisMacInfo | null;
+  /** E14: opens Cleanup (This Mac's leftovers line). */
+  onOpenCleanup?: () => void;
 }): JSX.Element {
   const [quota, setQuota] = useState<QuotaDisplayData[]>([]);
   useEffect(() => {
@@ -177,6 +185,17 @@ export function HomeScreen({
     [sessions],
   );
   const running = sessions.filter((s) => (s.status === "running" || s.status === "starting") && needOf(s) === null);
+  // E14 (AJ-E1404 Req.3): a session hogging the Mac needs you too — unless
+  // it is already listed for another reason — and so does a Mac under
+  // pressure. Tools AI Juggler didn't start are shown in This Mac only.
+  const listed = new Set(needs.map((row) => row.session.id));
+  const heavy = (thisMac?.heavy ?? []).filter(
+    (tree): tree is typeof tree & { session_id: string } =>
+      tree.session_id !== null && !listed.has(tree.session_id) && sessions.some((s) => s.id === tree.session_id),
+  );
+  const heavyIds = new Set(heavy.map((tree) => tree.session_id));
+  const calmRunning = running.filter((session) => !heavyIds.has(session.id));
+  const macPressure = thisMac?.machine.sampled && thisMac.machine.summary.level === "pressure" ? thisMac.machine.summary : null;
   const signIns = accounts.filter((account) => !signedIn(account.login_state));
   // D-25: Sign in opens Claude's own sign-in straight away (first run's
   // rule); the row then says where to finish it.
@@ -234,11 +253,14 @@ export function HomeScreen({
     );
   }
 
+  const sessionNeeds = needs.length + heavy.length;
   const headline =
-    needs.length > 0
-      ? needs.length === 1
+    sessionNeeds > 0
+      ? sessionNeeds === 1
         ? "1 session needs you"
-        : `${needs.length} sessions need you`
+        : `${sessionNeeds} sessions need you`
+      : macPressure
+        ? "Your Mac is under pressure"
       : signIns.length > 0
         ? signIns.length === 1
           ? `${signIns[0]!.label} needs its sign-in`
@@ -277,7 +299,7 @@ export function HomeScreen({
 
       <div className="flex flex-wrap gap-6">
         <div className="flex min-w-0 flex-[3_1_420px] flex-col gap-6">
-          {needs.length + signIns.length > 0 && (
+          {needs.length + signIns.length + heavy.length + (macPressure ? 1 : 0) > 0 && (
             <section aria-labelledby="home-needs" className="flex flex-col gap-2.5" data-testid="home-needs">
               <SectionTitle id="home-needs">Needs you</SectionTitle>
               <ul className="flex flex-col gap-2.5">
@@ -303,6 +325,53 @@ export function HomeScreen({
                     </span>
                   </li>
                 ))}
+                {macPressure && (
+                  <li className="flex flex-wrap items-center gap-x-3.5 gap-y-2 rounded-xl border border-hairline bg-surface px-4 py-3.5" data-testid="home-mac-pressure">
+                    <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-danger-soft font-bold text-danger">
+                      ■
+                    </span>
+                    <span className="flex min-w-0 flex-1 basis-40 flex-col gap-0.5">
+                      <span className="text-[15px] font-medium text-ink">Your Mac is under pressure</span>
+                      <span className="text-xs text-muted">
+                        {reasonSentence(macPressure.reasons.slice(0, 2).map((reason) => reason.words))}
+                      </span>
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="ml-auto"
+                      onClick={() => {
+                        const panel = document.getElementById("this-mac");
+                        panel?.scrollIntoView({ block: "start" });
+                        panel?.focus({ preventScroll: true });
+                      }}
+                    >
+                      See what's using it
+                    </Button>
+                  </li>
+                )}
+                {heavy.map((tree) => {
+                  const session = sessions.find((s) => s.id === tree.session_id)!;
+                  const place = placeOf(session, projects);
+                  return (
+                    <li key={`heavy-${tree.session_id}`} className="flex flex-wrap items-center gap-x-3.5 gap-y-2 rounded-xl border border-hairline bg-surface px-4 py-3.5" data-testid="home-heavy">
+                      <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-warning-soft font-bold text-warning">
+                        ▲
+                      </span>
+                      <span className="flex min-w-0 flex-1 basis-40 flex-col gap-0.5">
+                        <span className="text-[15px] font-medium text-ink">Working your Mac hard — {tree.heavy_note}</span>
+                        <span className="truncate text-xs text-muted">
+                          {place.title}
+                          {place.detail ? ` · ${place.detail}` : ""}
+                          {tree.helpers > 0 ? ` · ${tree.helpers === 1 ? "1 helper" : `${tree.helpers} helpers`}` : ""}
+                        </span>
+                      </span>
+                      <Button size="sm" variant="secondary" className="ml-auto" onClick={() => onOpenSession(tree.session_id)}>
+                        Take a look <span className="sr-only">— {place.title}</span>
+                      </Button>
+                    </li>
+                  );
+                })}
                 {needs.map(({ session, need }) => {
                   const words = needWords(need, session);
                   const glyph = NEED_GLYPH[need];
@@ -336,11 +405,11 @@ export function HomeScreen({
             </section>
           )}
 
-          {running.length > 0 && (
+          {calmRunning.length > 0 && (
             <section aria-labelledby="home-running" className="flex flex-col gap-2.5" data-testid="home-running">
               <SectionTitle id="home-running">Running</SectionTitle>
               <ul className="overflow-hidden rounded-xl border border-hairline bg-surface">
-                {running.map((session) => {
+                {calmRunning.map((session) => {
                   const place = placeOf(session, projects);
                   return (
                     <li key={session.id} className="border-t border-hairline/60 first:border-t-0">
@@ -368,7 +437,8 @@ export function HomeScreen({
           )}
         </div>
 
-        <section aria-labelledby="home-runway" className="flex min-w-0 flex-[2_1_280px] flex-col gap-2.5" data-testid="home-runway">
+        <div className="flex min-w-0 flex-[2_1_280px] flex-col gap-6">
+        <section aria-labelledby="home-runway" className="flex min-w-0 flex-col gap-2.5" data-testid="home-runway">
           <SectionTitle id="home-runway">Runway</SectionTitle>
           <div className="flex flex-col rounded-xl border border-hairline bg-surface px-4 py-1.5">
             {runway.map((row) => (
@@ -407,6 +477,16 @@ export function HomeScreen({
             )}
           </div>
         </section>
+        <ThisMacPanel
+          info={thisMac}
+          nameOf={(id) => {
+            const session = sessions.find((s) => s.id === id);
+            return session ? placeOf(session, projects).title : "A session";
+          }}
+          onOpenSession={onOpenSession}
+          onOpenCleanup={onOpenCleanup}
+        />
+        </div>
       </div>
 
       {recent.length > 0 && (

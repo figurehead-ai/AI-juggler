@@ -205,11 +205,14 @@ impl Default for RoomThresholds {
 const GB: u64 = 1_000_000_000;
 const MB: f64 = 1_000_000.0;
 
-/// Bytes in plain words ("3.2 GB", "640 MB").
+/// Bytes in plain words ("3.2 GB", "640 MB", "under 1 MB").
 #[must_use]
 #[allow(clippy::cast_precision_loss)] // display rounding only
 pub fn bytes_words(bytes: u64) -> String {
     let value = bytes as f64;
+    if value < 1e6 {
+        return "under 1 MB".to_string();
+    }
     if value >= 1e9 {
         let gb = value / 1e9;
         if gb >= 10.0 {
@@ -866,6 +869,7 @@ mod tests {
         assert_eq!(bytes_words(3_200_000_000), "3.2 GB");
         assert_eq!(bytes_words(24_000_000_000), "24 GB");
         assert_eq!(bytes_words(640_000_000), "640 MB");
+        assert_eq!(bytes_words(123_456), "under 1 MB");
     }
 
     #[cfg(target_os = "macos")]

@@ -8,7 +8,7 @@
  */
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { hasLiveBackend, instancesList, type InstanceInfo } from "./bridge";
 import type { MachineHealthInfo } from "../types/generated/MachineHealthInfo";
 import type { MachinePointInfo } from "../types/generated/MachinePointInfo";
@@ -108,17 +108,25 @@ export function mockMachineHealth(fixture: MachineFixture, now = Date.now()): Ma
   }
 }
 
+/** Walking states by hand in the preview: `?aij_machine=tight`,
+ * `?aij_load=heavy` (the first live session heavy, two leftovers). */
+function previewParam<T extends string>(name: string): T | undefined {
+  if (typeof location === "undefined") return undefined;
+  return (new URLSearchParams(location.search).get(name) as T | null) ?? undefined;
+}
+
 /** How the Mac is doing now. */
 export async function machineHealth(): Promise<MachineHealthInfo> {
   if (!hasLiveBackend()) {
-    const seeded = machineSeams().__AIJ_MACHINE__ ?? "plenty";
+    const seeded = machineSeams().__AIJ_MACHINE__ ?? previewParam("aij_machine") ?? "plenty";
     return typeof seeded === "string" ? mockMachineHealth(seeded) : structuredClone(seeded);
   }
   return invoke<MachineHealthInfo>("machine_health");
 }
 
-/** Bytes in plain words ("3.2 GB", "640 MB") — the same rounding as the backend. */
+/** Bytes in plain words ("3.2 GB", "640 MB", "under 1 MB") — the same rounding as the backend. */
 export function bytesWords(bytes: number): string {
+  if (bytes < 1e6) return "under 1 MB";
   if (bytes >= 1e9) {
     const gb = bytes / 1e9;
     return gb >= 10 ? `${gb.toFixed(0)} GB` : `${gb.toFixed(1)} GB`;
@@ -199,7 +207,14 @@ export async function thisMac(): Promise<ThisMacInfo> {
   if (!hasLiveBackend()) {
     const seams = thisMacSeams();
     if (seams.__AIJ_THIS_MAC__) return structuredClone(seams.__AIJ_THIS_MAC__);
-    return mockThisMac(await instancesList(), await machineHealth(), seams.__AIJ_OBSERVED__, seams.__AIJ_LEFTOVERS__);
+    let sessions = await instancesList();
+    let leftovers = seams.__AIJ_LEFTOVERS__;
+    if (previewParam("aij_load") === "heavy") {
+      const first = sessions.findIndex((session) => session.status === "running");
+      sessions = sessions.map((session, at) => (at === first ? { ...session, cpu_pct: 96, rss_bytes: 3_200_000_000, child_count: 5 } : session));
+      leftovers = leftovers ?? [2, 1];
+    }
+    return mockThisMac(sessions, await machineHealth(), seams.__AIJ_OBSERVED__, leftovers);
   }
   return invoke<ThisMacInfo>("this_mac");
 }
@@ -218,7 +233,9 @@ export function useThisMac(refreshKey?: unknown): ThisMacInfo | null {
     return () => {
       alive = false;
     };
-  }, [refreshKey]);
+    // Live, the event keeps it current; the preview re-reads with the
+    // sessions on screen.
+  }, [hasLiveBackend() ? 0 : refreshKey]);
   useEffect(() => {
     if (!hasLiveBackend()) return;
     let unlisten: (() => void) | null = null;
@@ -243,4 +260,26 @@ export function resourceLine(cpu: number | null, rss: number | null, helpers: nu
     helpers === null ? "helpers —" : helpers === 1 ? "1 helper" : `${helpers} helpers`,
   ];
   return parts.join(" · ");
+}
+
+/** This Mac for components deep in the tree (the rail rows): the app
+ * provides its one subscription here. */
+export const ThisMacContext = createContext<ThisMacInfo | null>(null);
+
+/** A session's heavy note ("CPU 95%", "3.2 GB"), only while it's heavy. */
+export function useHeavyNote(sessionId: string): string | null {
+  const info = useContext(ThisMacContext);
+  return info?.heavy.find((tree) => tree.session_id === sessionId)?.heavy_note ?? null;
+}
+
+/** Reasons joined as one sentence ("macOS …" keeps its lower-case m). */
+export function reasonSentence(words: string[]): string {
+  const joined = words.join("; ");
+  return joined.startsWith("macOS") ? joined : joined.replace(/^./, (first) => first.toUpperCase());
+}
+
+/** The rail's short form of a heavy note: one figure (memory first). */
+export function shortHeavy(note: string): string {
+  const parts = note.split(" · ");
+  return parts[parts.length - 1] ?? note;
 }

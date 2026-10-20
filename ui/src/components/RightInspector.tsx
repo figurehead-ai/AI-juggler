@@ -28,7 +28,8 @@ import { TwoClocks, WindowRing } from "./QuotaRings";
 import { accountSetFee, quotaDisplay, switchTargets, type QuotaDisplayData, type SwitchBackSuggestionData, type SwitchTargetData, errorText,
   signedIn,
 } from "../lib/bridge";
-import { formatBytes, stateChip } from "./indicator";
+import { formatBytes, isActiveStatus, stateChip } from "./indicator";
+import { resourceLine, useHeavyNote } from "../lib/machine";
 import { SwitchGraph } from "./SwitchGraph";
 import { SwitchTargetRows } from "./SwitchTargetRows";
 import { RemoteSwitchTargets } from "./RemoteSwitchTargets";
@@ -152,6 +153,17 @@ function KindIcon({ kind }: { kind: InspectorKind }) {
     case "machine":
       return <IconFleet {...props} />;
   }
+}
+
+/** E14 (AJ-E1405): "CPU 12% · 1.1 GB · 3 helpers", amber while heavy. */
+function SessionResources({ session }: { session: InstanceInfo }) {
+  const heavy = useHeavyNote(session.id);
+  return (
+    <p className={"-mt-2 font-mono text-[11px] " + (heavy ? "text-warning" : "text-faint")} data-testid="session-resources">
+      {resourceLine(session.cpu_pct, session.rss_bytes, session.child_count)}
+      {heavy && <span className="font-sans"> — working your Mac hard</span>}
+    </p>
+  );
 }
 
 /** D-25: a session is named by its place — branch, else folder. */
@@ -436,6 +448,10 @@ export function RightInspector({
         <p className="-mt-2 text-xs text-muted" data-testid="session-subline">
           {sessionSubline(data.instance, projects, now)}
         </p>
+      )}
+      {/* E14 (AJ-E1405): what this session uses, in view — not under Details. */}
+      {!remote && kind === "instance" && data.instance && isActiveStatus(data.instance.status) && (
+        <SessionResources session={data.instance} />
       )}
 
       {remote && (

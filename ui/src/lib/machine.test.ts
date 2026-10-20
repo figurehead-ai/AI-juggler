@@ -23,6 +23,7 @@ describe("machine health (AJ-E1401)", () => {
     expect(bytesWords(3_200_000_000)).toBe("3.2 GB");
     expect(bytesWords(24_000_000_000)).toBe("24 GB");
     expect(bytesWords(640_000_000)).toBe("640 MB");
+    expect(bytesWords(123_456)).toBe("under 1 MB");
   });
 });
 

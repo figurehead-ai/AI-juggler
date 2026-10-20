@@ -71,6 +71,7 @@ import { NotificationRegion } from "./components/NotificationRegion";
 import { SwitchFlow, SwitchUndoToast } from "./components/SwitchFlow";
 import { SwitchBackFlow } from "./components/SwitchBackFlow";
 import { RightInspector } from "./components/RightInspector";
+import { ThisMacContext, useThisMac } from "./lib/machine";
 import {
   accountsList,
   type SwitchBackSuggestionData,
@@ -697,6 +698,8 @@ export default function App() {
           ?.find((machine) => machine.machine_id === selection.machineId)
           ?.instances.find((row) => row.id === selection.instanceId)?.provider ?? null)
       : null;
+  // E14: This Mac — one subscription for Home, the rail and the header.
+  const thisMacInfo = useThisMac(sessions);
   const contextProviderId =
     global !== null
       ? null
@@ -720,6 +723,7 @@ export default function App() {
             : "Home";
 
   return (
+    <ThisMacContext.Provider value={thisMacInfo}>
     <div className="flex h-screen w-screen overflow-hidden">
       <AttentionAnnouncer sessions={sessions} />
       <RenewalAnnouncer accounts={accounts} />
@@ -1074,6 +1078,8 @@ export default function App() {
                     onLimit={setLimitFor}
                     openLoginTerminal={openLoginTerminal}
                     onAccountsChanged={() => void refresh()}
+                    thisMac={thisMacInfo}
+                    onOpenCleanup={() => setGlobal("cleanup")}
                   />
                 </div>
               ) : (
@@ -1386,6 +1392,7 @@ export default function App() {
         />
       )}
     </div>
+    </ThisMacContext.Provider>
   );
 }
 
