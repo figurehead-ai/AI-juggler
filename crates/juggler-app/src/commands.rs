@@ -4636,7 +4636,7 @@ pub(crate) fn is_terminal(status: SessionStatus) -> bool {
 
 /// An active status: the row carries live-state expectations (resource
 /// ticks and quota ticks only ever emit for these).
-fn is_active(status: SessionStatus) -> bool {
+pub(crate) fn is_active(status: SessionStatus) -> bool {
     !is_terminal(status)
 }
 
@@ -8658,6 +8658,9 @@ pub fn processes_tick(state: &Arc<AppState>) {
             }
         }
     }
+    // AJ-E1401: the machine's own signals, on the same tick (its own
+    // lock — never under the collector's).
+    crate::machine_health::tick(state, now);
     auto_cleanup_sweep(state, now);
 }
 

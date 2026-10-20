@@ -16,6 +16,7 @@ pub mod group;
 pub mod heuristics;
 pub mod journal;
 pub mod lifecycle;
+pub mod machine;
 pub mod orphans;
 pub mod ports;
 pub mod ring;
@@ -29,6 +30,10 @@ pub use heuristics::{
 };
 pub use journal::{AdoptedProcess, Journal};
 pub use lifecycle::{ExitKind, LifecycleEvent};
+pub use machine::{
+    MachineSample, MachineSampler, MachineSnapshot, PowerState, PressureLevel, RoomLevel,
+    RoomReason, RoomSummary, RoomThresholds, ThermalState, VolumeSample, summarize,
+};
 pub use orphans::{
     AUTO_CLEANUP_GRACE_MS, DescendantRow, ExitSnapshot, ORPHAN_GRACE_MS, Orphan, OrphanTracker,
     OwnerState, StopOutcome, process_alive, stop_pid_ladder, verify_owner,
