@@ -8,7 +8,7 @@ import { BetaMatrix } from "../components/BetaMatrix";
 import { ExpertSetup } from "../components/ExpertSetup";
 import { EnvOverlayEditor } from "../components/EnvOverlayEditor";
 import { AccountRunway, runwayLines } from "../components/AccountRunway";
-import { providerDisplayName } from "../lib/providers";
+import { ownSignIn, providerDisplayName } from "../lib/providers";
 import {
   accountUseOriginal,
   accountsList,
@@ -623,7 +623,7 @@ function LoginModal({
   return (
     <Modal
       title={`Log in · ${account.label}`}
-      subtitle={`${providerDisplayName(account.provider)}'s own sign-in, opened for you — AI Juggler never sees your credentials.`}
+      subtitle={`${ownSignIn(account.provider)}, opened for you — AI Juggler never sees your credentials.`}
       onClose={onClose}
     >
       {/* AJ-E308 Req.3: the ONE shared queue card — no alerts, no

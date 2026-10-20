@@ -617,3 +617,190 @@ describe("AJ-E1103 onboarding.login — how first run's sign-ins end", () => {
     spy.mockRestore();
   });
 });
+
+describe("AJ-E1301 — Codex setups in first run", () => {
+  const codex = (path: string, origin: string, extra: Partial<DiscoveredInfo> = {}) =>
+    found(path, origin, { harness: "codex", ...extra });
+
+  it("groups Codex homes under their own heading and names the standard one", () => {
+    expect(groupOf(codex("/Users/you/.codex", "vendor-default"))).toBe("codex");
+    expect(labelOf(codex("/Users/you/.codex", "vendor-default"))).toBe("Codex");
+    expect(labelOf(codex("/Users/you/.codex-work", "home-pattern"))).toBe("codex-work");
+  });
+
+  it("lists Codex beside Claude, preselected, and says Codex isn't installed when it isn't", async () => {
+    w().__AIJ_SCAN_REPORT__ = {
+      ...SCAN,
+      installs: [...SCAN.installs, codex("/Users/you/.codex", "vendor-default")],
+    };
+    const view = render(<FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />);
+    const group = await view.findByTestId("first-run-group-codex");
+    expect(within(group).getByTestId("first-run-row").textContent).toContain("~/.codex");
+    const box = within(group).getByRole("checkbox") as HTMLInputElement;
+    expect(box.checked).toBe(true);
+    expect(view.getByRole("heading", { level: 1 }).textContent).toBe(
+      "You already have 6 setups on this Mac.",
+    );
+    // The default mock has Codex not installed.
+    expect((await view.findByTestId("first-run-no-codex")).textContent).toContain("npm install -g @openai/codex");
+  });
+
+  it("keeps the Claude-only screen exactly as it was", async () => {
+    const view = render(<FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />);
+    await view.findByTestId("first-run-found");
+    expect(view.queryByTestId("first-run-group-codex")).toBeNull();
+    expect(view.queryByTestId("first-run-no-codex")).toBeNull();
+    expect(view.getByRole("heading", { level: 1 }).textContent).toBe(
+      "You already have 5 Claude Code setups on this Mac.",
+    );
+  });
+
+  it("Codex rows always come in as copies; the sign-in step names each tool", async () => {
+    w().__AIJ_SCAN_REPORT__ = {
+      ...SCAN,
+      installs: [...SCAN.installs, codex("/Users/you/.codex", "vendor-default")],
+    };
+    const bridge = await import("../lib/bridge");
+    const spy = vi.spyOn(bridge, "accountImport");
+    const { findByTestId, getByTestId } = render(
+      <FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />,
+    );
+    await findByTestId("first-run-group-codex");
+    expect(getByTestId("first-run-codex-copies").textContent).toContain("Codex setups always come in as copies");
+    // The subtitle says which ones are used where they are.
+    expect(getByTestId("first-run-found").textContent).toContain(
+      "uses your Claude Code setups where they are, so they stay signed in and keep their history, and makes its own copy of each Codex one",
+    );
+    // Default "where they are": Claude rows in place, the Codex row a copy.
+    await act(async () => {
+      fireEvent.click(getByTestId("first-run-bring-in"));
+    });
+    const codexCall = spy.mock.calls.find((call) => call[0] === "codex");
+    expect(codexCall?.[6]).toBe(false);
+    expect(spy.mock.calls.some((call) => call[0] === "claude-code" && call[6] === true)).toBe(true);
+    const signin = await findByTestId("first-run-signin");
+    expect(signin.textContent).toContain("Codex's own sign-in (OpenAI)");
+    spy.mockRestore();
+  });
+
+  it("with copies of both tools, the sign-in step names both", async () => {
+    w().__AIJ_SCAN_REPORT__ = {
+      ...SCAN,
+      installs: [...SCAN.installs, codex("/Users/you/.codex", "vendor-default")],
+    };
+    const { findByTestId, getByTestId } = render(
+      <FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />,
+    );
+    await findByTestId("first-run-group-codex");
+    fireEvent.click(getByTestId("first-run-placement-copy").querySelector("input")!);
+    await act(async () => {
+      fireEvent.click(getByTestId("first-run-bring-in"));
+    });
+    const signin = await findByTestId("first-run-signin");
+    expect(signin.textContent).toContain("Claude Code's or Codex's (OpenAI)");
+  });
+
+  it("adding for one tool lists only that tool's setups", async () => {
+    w().__AIJ_SCAN_REPORT__ = {
+      ...SCAN,
+      installs: [...SCAN.installs, codex("/Users/you/.codex", "vendor-default")],
+    };
+    const codexOnly = render(<FirstRun mode="add" provider="codex" onDone={() => null} openLoginTerminal={() => null} />);
+    await codexOnly.findByTestId("first-run-group-codex");
+    expect(codexOnly.getAllByTestId("first-run-row")).toHaveLength(1);
+    expect(codexOnly.queryByTestId("first-run-group-profiles")).toBeNull();
+    cleanup();
+    const claudeOnly = render(<FirstRun mode="add" provider="claude-code" onDone={() => null} openLoginTerminal={() => null} />);
+    await claudeOnly.findByTestId("first-run-found");
+    expect(claudeOnly.queryByTestId("first-run-group-codex")).toBeNull();
+  });
+
+  it("first-run sign-in counts are by each account's own tool, no names", async () => {
+    w().__AIJ_SCAN_REPORT__ = {
+      ...SCAN,
+      installs: [
+        found("/Users/you/.claude-old", "home-pattern", { login: "logged_out" }),
+        codex("/Users/you/.codex", "vendor-default", { login: "logged_out" }),
+      ],
+    };
+    const { findByTestId, getByTestId } = render(<FirstRun onDone={() => null} openLoginTerminal={() => null} />);
+    await findByTestId("first-run-group-codex");
+    // Copies, so both tools' accounts need their sign-in.
+    fireEvent.click(getByTestId("first-run-placement-copy").querySelector("input")!);
+    await act(async () => {
+      fireEvent.click(getByTestId("first-run-bring-in"));
+    });
+    await findByTestId("first-run-signin");
+    await act(async () => {
+      fireEvent.click(getByTestId("first-run-signin-next"));
+    });
+    const providers = ((w().__AIJ_STATS_EVENTS__ as { metric: string; dims: Record<string, string> }[] | undefined) ?? [])
+      .filter((event) => event.metric === "onboarding.login")
+      .map((event) => event.dims.provider)
+      .sort();
+    expect(providers).toEqual(["claude-code", "codex"]);
+  });
+
+  it("an all-Codex machine is named for Codex", async () => {
+    w().__AIJ_SCAN_REPORT__ = { ...SCAN, installs: [codex("/Users/you/.codex", "vendor-default")] };
+    const view = render(<FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />);
+    await view.findByTestId("first-run-group-codex");
+    expect(view.getByRole("heading", { level: 1 }).textContent).toBe(
+      "You already have a Codex setup on this Mac.",
+    );
+  });
+
+  it("a Codex-only first run offers no placement choice and says copies", async () => {
+    w().__AIJ_SCAN_REPORT__ = { ...SCAN, installs: [codex("/Users/you/.codex", "vendor-default")] };
+    // Neither tool installed: only Codex's note, over its own rows.
+    w().__AIJ_PROVIDER_INSTALLS__ = [
+      { provider: "claude-code", display_name: "Claude Code", install_url: null, status: "not_installed", version: null, binary: null, notes: [] },
+      { provider: "codex", display_name: "Codex", install_url: null, status: "not_installed", version: null, binary: null, notes: [] },
+    ];
+    const bridge = await import("../lib/bridge");
+    const spy = vi.spyOn(bridge, "accountImport");
+    const view = render(<FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />);
+    await view.findByTestId("first-run-group-codex");
+    expect(view.queryByTestId("first-run-placement")).toBeNull();
+    expect(view.queryByTestId("first-run-codex-copies")).toBeNull();
+    const text = view.getByTestId("first-run-found").textContent ?? "";
+    expect(text).toContain("AI Juggler makes its own copy of each; your originals are never changed");
+    expect(text).not.toContain("where it is");
+    expect(await view.findByTestId("first-run-no-codex")).toBeTruthy();
+    expect(view.queryByTestId("first-run-no-cli")).toBeNull();
+    expect(text).not.toContain("Claude Code itself isn't installed");
+    await act(async () => {
+      fireEvent.click(view.getByTestId("first-run-bring-in"));
+    });
+    expect(spy.mock.calls.map((call) => [call[0], call[6]])).toEqual([["codex", false]]);
+    spy.mockRestore();
+  });
+
+  it("a failed Codex copy has no 'where it is' retry, and Try again stays a copy", async () => {
+    w().__AIJ_SCAN_REPORT__ = {
+      ...SCAN,
+      installs: [...SCAN.installs, codex("/Users/you/.codex", "vendor-default")],
+    };
+    w().__AIJ_IMPORT_FAIL_PATHS__ = ["/Users/you/.codex"];
+    const bridge = await import("../lib/bridge");
+    const spy = vi.spyOn(bridge, "accountImport");
+    const { findByTestId, getByTestId, queryByTestId } = render(
+      <FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />,
+    );
+    await findByTestId("first-run-group-codex");
+    await act(async () => {
+      fireEvent.click(getByTestId("first-run-bring-in"));
+    });
+    const failed = await findByTestId("first-run-failed");
+    expect(failed.textContent).toContain("Codex");
+    expect(queryByTestId("first-run-use-in-place")).toBeNull();
+    expect(failed.textContent).not.toContain("Use it where it is instead");
+    spy.mockClear();
+    w().__AIJ_IMPORT_FAIL_PATHS__ = [];
+    await act(async () => {
+      fireEvent.click(getByTestId("first-run-retry"));
+    });
+    expect(spy.mock.calls.map((call) => [call[0], call[6]])).toEqual([["codex", false]]);
+    spy.mockRestore();
+  });
+});
