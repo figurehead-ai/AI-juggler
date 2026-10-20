@@ -18,11 +18,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   way, and Settings says what it is waiting for; nothing restarts by
   itself. Every update prompt carries the channel's label (**Beta**).
   Review on the update notice opens Settings on the update itself.
-- An older AI Juggler that opens data a newer one saved now says so in a
-  window and offers the backup made before the update (the newer data is
-  kept beside it), instead of quitting at launch without a word.
-  `docs/RELEASING.md` § Rollback has the way back, including from 0.0.8
-  to 0.0.7, and 0.0.8's notes carry the downgrade note.
+- Going back to an earlier version works: before AI Juggler upgrades its
+  database it keeps a copy of it (the two newest are kept), and Settings ›
+  About & updates › **Go back to an earlier version** puts that copy back
+  — after saying what changed since won't be in it — keeps today's data
+  beside it, and quits so the earlier version can be installed. An older
+  AI Juggler that opens newer data now says so in a window and offers the
+  copy or the pre-update backup, instead of quitting at launch without a
+  word. A release whose database changes can't ship without a downgrade
+  note in its release notes.
+- The session, account, project and tool views say what they show in
+  plain words: no task codes ("lands with AJ-E606+"), no "No data"
+  placeholders, tools by name ("Claude Code") and states in the rail's
+  words. Actions that don't work yet aren't shown; ones that don't apply
+  right now stay greyed with the reason. The tool chip in a session's or
+  an account's header opens the tool's own view: what's installed and its
+  accounts' quota. An account's history says how long ago each session
+  started (it said "now ago"), in days once it's more than two. A quota
+  with no reading says "Not measured yet" everywhere, as Accounts does.
 - On Home, J/K keep working after you mark a session reviewed or resume
   it, and A works from a row's own Mark reviewed button. Handed-over
   sessions no longer show under "Pick up where you left off". Home's
@@ -121,6 +134,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A switch that replays a conversation always carries at least its
+  newest turn (cut to fit when it alone is too long) and refuses — before
+  starting anything — when there is no conversation to carry; each
+  replayed turn is quoted, so text inside a turn can't pose as another
+  turn. A session copied in from another Mac can only land as a plain
+  session file in its account, and a copy never overwrites a file.
+
 - Switching a session you started in the app no longer stops at
   "Couldn't tell which file is this session": AI Juggler finds the
   session's own file (same folder, started after the launch) when you
@@ -216,6 +236,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the model each turn ran, tokens, compaction and errors come from
   Codex's own session files, in both of its history formats. The
   account's identity check uses Codex's account id (never a token).
+- Switching with Codex, in beta (AJ-E1304). Between two Codex accounts
+  the session's file is copied into the other account and resumed
+  there — the original is never changed, and a session that already
+  exists there gets a new id instead of overwriting. Between Claude Code
+  and Codex the conversation is replayed into a new session on the other
+  side (with secrets handled the way you chose — a replay waits until
+  you have chosen). Every Codex switch is labelled Beta: none has been
+  checked on real accounts yet.
 - AI Juggler now watches the Mac itself, not only its sessions (E14,
   AJ-E1401): processor and memory use, macOS's own memory-pressure level,
   swap, free space on the disks your sessions use, power and thermal
@@ -283,6 +311,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Autonomous build runbook (docs/plan/RUNBOOK.md): the operating
   contract for unattended build runs — PR flow, DoD, gate stops, hard
   rails.
+- First run and Add accounts list the Codex setups found on this Mac in
+  their own **Codex** group, beside the Claude ones, and say when the
+  Codex CLI still needs installing (AJ-E1301). Machines with only Claude
+  setups see the screen exactly as before. Codex setups always come in
+  as copies: the "use them where they are" choice shows only when a
+  Claude Code setup is on the list, and a Codex-only first run says
+  copies throughout. Sign-in steps (First run, Home and Accounts) name a
+  Codex account's sign-in the same way everywhere: "Codex's own sign-in
+  (OpenAI)".
 
 ### Added (M0-1)
 

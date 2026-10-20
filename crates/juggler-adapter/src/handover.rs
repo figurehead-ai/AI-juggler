@@ -205,9 +205,9 @@ pub fn tail_parses(bytes: &[u8]) -> bool {
         .is_some_and(|line| serde_json::from_str::<serde_json::Value>(line).is_ok())
 }
 
-/// Reads the embedded `"cwd"` from the first lines of a Claude JSONL
-/// (the discovery key — decoding the mangled directory name is
-/// ambiguous on dots/dashes, H-3).
+/// Reads the embedded `"cwd"` from the first lines of a Claude JSONL, or
+/// the `payload.cwd` of a Codex rollout (the discovery key — decoding the
+/// mangled directory name is ambiguous on dots/dashes, H-3).
 #[must_use]
 pub fn embedded_cwd(bytes: &[u8]) -> Option<String> {
     let text = String::from_utf8_lossy(bytes);
@@ -216,6 +216,15 @@ pub fn embedded_cwd(bytes: &[u8]) -> Option<String> {
             continue;
         };
         if let Some(cwd) = value.get("cwd").and_then(serde_json::Value::as_str) {
+            return Some(cwd.to_owned());
+        }
+        // A Codex rollout keeps it in the envelope's payload
+        // (`session_meta` / `turn_context`, AJ-E1304).
+        if let Some(cwd) = value
+            .get("payload")
+            .and_then(|payload| payload.get("cwd"))
+            .and_then(serde_json::Value::as_str)
+        {
             return Some(cwd.to_owned());
         }
     }
@@ -252,7 +261,8 @@ pub fn fork_session_id(bytes: &[u8], new_id: &str) -> Vec<u8> {
     out.into_bytes()
 }
 
-/// Rewrites every top-level `"cwd"` that is `from` (or inside it) to
+/// Rewrites every top-level `"cwd"` (a Codex line's `payload.cwd`) that
+/// is `from` (or inside it) to
 /// the same place under `to` (AJ-E706: the user-confirmed path mapping
 /// for a cross-machine transplant — never applied without that
 /// confirmation). Lines that fail to parse, and paths outside `from`,
@@ -267,7 +277,14 @@ pub fn remap_cwd(bytes: &[u8], from: &str, to: &str) -> Vec<u8> {
         let remapped = serde_json::from_str::<serde_json::Value>(line)
             .ok()
             .and_then(|mut value| {
-                let cwd = value.get("cwd")?.as_str()?.to_owned();
+                // Claude: top-level `cwd`; Codex: the envelope's
+                // `payload.cwd` (AJ-E1304).
+                let holder = if value.get("cwd").is_some() {
+                    value.as_object_mut()?
+                } else {
+                    value.get_mut("payload")?.as_object_mut()?
+                };
+                let cwd = holder.get("cwd")?.as_str()?.to_owned();
                 let rest = if cwd == from {
                     ""
                 } else if cwd.starts_with(&format!("{from}/")) {
@@ -275,7 +292,7 @@ pub fn remap_cwd(bytes: &[u8], from: &str, to: &str) -> Vec<u8> {
                 } else {
                     return None;
                 };
-                value.as_object_mut()?.insert(
+                holder.insert(
                     "cwd".to_owned(),
                     serde_json::Value::String(format!("{to}{rest}")),
                 );

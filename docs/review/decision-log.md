@@ -461,6 +461,21 @@
     banner moves to Home. Triage and Overview leave More (Usage, Fleet,
     Cleanup remain). AJ-E1005's requirements stand, met on Home; sorting
     is the rail's.
+- **Amendment — no internal codes on screen; unbuilt actions wait**
+  (2026-10-20, AJ-E1025):
+  - *Evidence.* The session, account, project and tool views showed task
+    and decision codes as text ("lands with AJ-E606+", "Switch Graph =
+    E2", "audit-logged (D-08)"), raw ids ("claude-code", "quota_blocked"),
+    "version: No data" chips, and a dozen disabled actions whose only
+    reason was the task that would build them.
+  - *Decision.* What the user reads names things in plain words; codes
+    stay in comments, docs and tests (`scripts/terminology_lint.sh` fails
+    on a task or decision code in JSX text, a visible attribute or a
+    string). An action that isn't built yet isn't shown; one that exists
+    but doesn't apply now stays disabled with its reason (AJ-E407 Req.4,
+    amended). A row with nothing to show waits until it has data. The
+    tool view (what's installed, its accounts' quota) opens from the tool
+    chip in a session's or an account's header.
 
 ## Unresolved (in discussion order)
 

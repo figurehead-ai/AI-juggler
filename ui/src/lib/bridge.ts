@@ -3836,6 +3836,9 @@ const DEFAULT_PROVIDER_INSTALLS: ProviderInstallData[] = [
  * missing binary is a ROW, never an error. */
 export async function providersDiscover(): Promise<ProviderInstallData[]> {
   if (!hasBackend) {
+    // Test seam: the probe itself fails.
+    const failure = (window as unknown as { __AIJ_PROVIDER_INSTALLS_ERROR__?: unknown }).__AIJ_PROVIDER_INSTALLS_ERROR__;
+    if (failure !== undefined) throw failure;
     return (
       (window as unknown as { __AIJ_PROVIDER_INSTALLS__?: ProviderInstallData[] })
         .__AIJ_PROVIDER_INSTALLS__ ?? DEFAULT_PROVIDER_INSTALLS

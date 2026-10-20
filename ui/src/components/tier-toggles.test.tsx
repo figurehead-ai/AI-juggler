@@ -41,7 +41,8 @@ describe("TierToggles (AJ-E508)", () => {
     const text = view.getByTestId("account-tier-toggles").textContent ?? "";
     expect(text).toContain("Both off by default");
     expect(text).toContain("never touched automatically");
-    expect(text).toContain("audit-logged");
+    expect(text).toContain("every stop is written to the log");
+    expect(text).not.toMatch(/\bD-\d{2}\b/);
     expect(text).toContain("Undo window");
     view.unmount();
   });

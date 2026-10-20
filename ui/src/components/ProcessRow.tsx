@@ -208,7 +208,7 @@ export function ProcessRow(props: {
             </dd>
           </dl>
           <p className="text-faint">
-            Verified stop actions run through the staged sheet (AJ-E507) — never a one-click kill.
+            Stopping a verified process always asks you to confirm first — never a one-click kill.
           </p>
         </div>
       )}

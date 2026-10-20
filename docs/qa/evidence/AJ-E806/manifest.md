@@ -95,6 +95,13 @@
   to https://registry.npmjs.org/pnpm/10.34.7" (run 39438483215, job
   118681742197). No project code had run; install, component tests and
   build were skipped. The job is re-run unchanged; CI is the arbiter.
+- **Flake record, 2026-10-20 (known class; no change).** On PR #61
+  (AJ-E1303, Rust-only — no `ui/` change) the CI `ui` job failed one of
+  466 vitest tests: `first-run-policy.test.tsx` › "Decide later writes
+  NOTHING, stages no pack, and Summary says so" — `Test timed out in
+  5000ms` (5014 ms). The same UI code passed on #59 and #60 the same
+  hour. The failed job is re-run unchanged; the 5 s budget stays; CI is
+  the arbiter.
 - **Defect record, 2026-10-20 (found by review; fixed).** PR #60's shared
   import walk (`claude_environment.rs`) used `DirEntry::metadata`, which
   does not follow links, and then copied every non-directory with
@@ -116,6 +123,21 @@
   unlinked session in the same folder makes it ambiguous (the switch
   asks), only the switch itself persists, and the scan runs outside the
   storage lock. Tests for Codex and Claude.
+- **Defect record, 2026-10-20 (found by review; fixed before merge).**
+  PR #64: `codex_handover::install_bundle` joined a peer-supplied file
+  name and session id into paths unchecked (path traversal from a paired
+  Mac); a replay whose newest turn exceeded the limit dropped every turn
+  and still marked the source handed over; a fork whose file name lacked
+  its id rewrote the original; `rename` could replace an existing
+  rollout; a turn could forge another in the prime. Each has a test.
+- **Flake record, 2026-10-20 (known class; no change).** While verifying
+  the E13 stack locally, `juggler-supervisor --test reconciler ::
+  fifty_instance_soak_and_construction_regression` failed once in the
+  full `just verify` (p95 tick 179 ms against its 100 ms budget, load
+  average 18.6 / 20.5 / 23.3 while an a11y gate ran in parallel). It
+  passed 3/3 alone at the same load and in the full `just verify` re-run
+  straight after (load 9.8). Budget and assertion unchanged; CI is the
+  arbiter.
 - a11y seeded failure is recorded DEFERRED with owning task AJ-E804 —
   the gate is named in QUALITY.md vocabulary now; its absence is
   explicit, never a silent pass (per the quarantine/deferral rule).
