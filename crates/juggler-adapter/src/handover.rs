@@ -153,7 +153,7 @@ pub trait HandoverSupport: HarnessAdapter {
 }
 
 /// Renders replay turns as data: each turn's text is quoted line by line
-/// (`> …`), so a turn that itself contains "[user]: …" can never pass
+/// (`> …`), so a turn that itself contains `[user]: …` can never pass
 /// for a turn of its own in the prime (a forged turn stays inside its
 /// quote).
 #[must_use]
