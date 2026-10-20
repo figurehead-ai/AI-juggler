@@ -962,7 +962,7 @@ function MenuButton({ onClick, disabled, title, children }: { onClick: () => voi
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className="rounded-lg px-2 py-1 text-left text-[11.5px] text-ink outline-none transition-colors hover:bg-surface-2 focus-visible:ring-1 focus-visible:ring-accent/60 disabled:cursor-pointer disabled:text-faint disabled:hover:bg-transparent"
+      className="rounded-lg px-2 py-1 text-left text-[11.5px] text-ink outline-none transition-colors hover:bg-surface-2 focus-visible:ring-1 focus-visible:ring-accent/60 disabled:cursor-default disabled:text-faint disabled:hover:bg-transparent"
     >
       {children}
     </button>

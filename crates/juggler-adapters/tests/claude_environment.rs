@@ -447,70 +447,95 @@ fn snapshot_tree(dir: &Path) -> Vec<(String, u64)> {
 
 /// 0.0.7 dogfood (2026-10-20): a symlinked `skills/<name>` made the whole
 /// import fail ("neither a regular file nor a symlink to a regular file").
-/// Links are now recreated as links — never followed, so nothing outside
-/// the setup is copied; links inside the setup point into the copy; a
-/// linked sign-in file is not linked (the copy signs in once).
+/// 0.0.7 dogfood: a linked FOLDER (`skills/x` → dotfiles) is kept as a
+/// link — never followed, nothing outside copied — and points where it
+/// really points from the copy too. A linked FILE is copied by content, so
+/// the copy never shares a file with the original.
 #[test]
 #[cfg(unix)]
-fn symlinks_are_recreated_as_links_never_followed() {
+fn linked_folders_stay_links_and_linked_files_are_copied() {
     use std::os::unix::fs::symlink;
     let work = tempfile::tempdir().unwrap();
     let home = work.path().join("home");
     let source = existing_setup(&home, ".claude-links");
-    // Outside the setup: a skill folder and a secret file.
-    let dotfiles = work.path().join("dotfiles/ego-browser");
-    std::fs::create_dir_all(&dotfiles).unwrap();
-    std::fs::write(dotfiles.join("SKILL.md"), "a skill").unwrap();
-    let secret = work.path().join("id_ed25519");
-    std::fs::write(&secret, "PRIVATE KEY").unwrap();
+    let dotfiles = work.path().join("dotfiles");
+    let skill = dotfiles.join("ego-browser");
+    std::fs::create_dir_all(&skill).unwrap();
+    std::fs::write(skill.join("SKILL.md"), "a skill").unwrap();
+    std::fs::write(dotfiles.join("CLAUDE.md"), "my notes").unwrap();
     std::fs::create_dir_all(source.join("skills")).unwrap();
-    symlink(&dotfiles, source.join("skills/ego-browser")).unwrap();
-    symlink(&secret, source.join("skills/key")).unwrap();
-    // Inside the setup, absolute and relative; and a dangling link.
+    std::fs::create_dir_all(source.join("agents/shared")).unwrap();
+    // Folders: absolute outside; relative outside (GNU Stow style); an
+    // absolute target with `..`; relative and absolute inside; dangling.
+    symlink(&skill, source.join("skills/ego-browser")).unwrap();
+    let up =
+        "../".repeat(source.join("skills").components().count() - work.path().components().count());
     symlink(
-        source.join("settings.json"),
-        source.join("skills/settings-abs"),
+        format!("{up}dotfiles/ego-browser"),
+        source.join("skills/stowed"),
     )
     .unwrap();
-    symlink("../settings.json", source.join("skills/settings-rel")).unwrap();
+    symlink(
+        source.join("../../dotfiles/ego-browser"),
+        source.join("skills/dotted"),
+    )
+    .unwrap();
+    symlink("../agents/shared", source.join("skills/shared-rel")).unwrap();
+    symlink(
+        source.join("agents/shared"),
+        source.join("skills/shared-abs"),
+    )
+    .unwrap();
     symlink(work.path().join("gone"), source.join("skills/dangling")).unwrap();
-    // A linked sign-in file.
-    std::fs::remove_file(source.join(".credentials.json")).ok();
-    symlink(&secret, source.join(".credentials.json")).unwrap();
+    // A file: copied, not shared.
+    symlink(dotfiles.join("CLAUDE.md"), source.join("CLAUDE.md")).unwrap();
 
     let dest = work.path().join("managed");
     let outcome = import_claude_config(&source, &dest, &|_| LoginProbe::LoggedOut).unwrap();
 
     let link = |name: &str| std::fs::read_link(dest.join(name)).unwrap();
+    let real = |path: std::path::PathBuf| std::fs::canonicalize(path).unwrap();
     assert!(
         std::fs::symlink_metadata(dest.join("skills/ego-browser"))
             .unwrap()
             .file_type()
             .is_symlink()
     );
+    assert_eq!(real(dest.join("skills/ego-browser")), real(skill.clone()));
     assert_eq!(
-        link("skills/ego-browser"),
-        dotfiles,
-        "an outside link keeps its target and isn't copied"
+        real(dest.join("skills/stowed")),
+        real(skill.clone()),
+        "a relative link outside still resolves from the copy"
+    );
+    assert!(link("skills/stowed").is_absolute());
+    assert_eq!(real(dest.join("skills/dotted")), real(skill.clone()));
+    assert_eq!(
+        link("skills/shared-rel"),
+        std::path::PathBuf::from("../agents/shared")
     );
     assert_eq!(
-        link("skills/key"),
-        secret,
-        "the secret's contents were not copied into the managed home"
-    );
-    assert_eq!(
-        link("skills/settings-abs"),
-        dest.join("settings.json"),
+        link("skills/shared-abs"),
+        dest.join("agents/shared"),
         "an inside link points into the copy"
     );
-    assert_eq!(
-        link("skills/settings-rel"),
-        std::path::PathBuf::from("../settings.json")
-    );
-    assert_eq!(link("skills/dangling"), work.path().join("gone"));
+    assert!(!dest.join("skills/dangling").exists());
     assert!(
-        !dest.join(".credentials.json").exists(),
-        "a linked sign-in is not carried over"
+        outcome
+            .skipped
+            .iter()
+            .any(|note| note.contains("skills/dangling (a broken link"))
+    );
+    // The linked file is a plain copy: changing it leaves the original.
+    assert!(
+        !std::fs::symlink_metadata(dest.join("CLAUDE.md"))
+            .unwrap()
+            .file_type()
+            .is_symlink()
+    );
+    std::fs::write(dest.join("CLAUDE.md"), "changed in the copy").unwrap();
+    assert_eq!(
+        std::fs::read_to_string(dotfiles.join("CLAUDE.md")).unwrap(),
+        "my notes"
     );
     assert!(
         outcome
@@ -521,6 +546,6 @@ fn symlinks_are_recreated_as_links_never_followed() {
     // Copy-never-move: the source's links are untouched.
     assert_eq!(
         std::fs::read_link(source.join("skills/ego-browser")).unwrap(),
-        dotfiles
+        skill
     );
 }

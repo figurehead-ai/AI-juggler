@@ -338,7 +338,9 @@ describe("D-25 first run — the flow", () => {
 
   it("an Escape a popover inside already handled leaves the screen open", async () => {
     const onDone = vi.fn();
-    const { findByTestId } = renderIt({ onDone });
+    const { findByTestId } = render(
+      <FirstRun mode="add" onDone={onDone} onAddFresh={() => null} onImportFolder={() => null} openLoginTerminal={() => null} />,
+    );
     await findByTestId("first-run-found");
     const event = new KeyboardEvent("keydown", { key: "Escape", cancelable: true });
     event.preventDefault();
