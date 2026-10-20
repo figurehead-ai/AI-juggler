@@ -171,12 +171,13 @@ impl juggler_adapter::handover::HandoverSupport for ClaudeCodeAdapter {
             } else {
                 file.name.clone()
             };
-            std::fs::write(staging.join(&name), &bytes).map_err(|error| {
-                AdapterError::AccountDir {
+            if let Err(error) = std::fs::write(staging.join(&name), &bytes) {
+                let _ = std::fs::remove_dir_all(&staging);
+                return Err(AdapterError::AccountDir {
                     path: staging.join(&name),
                     message: error.to_string(),
-                }
-            })?;
+                });
+            }
         }
         // Never replace a file the target already has (copy, never
         // overwrite): refuse the whole install before moving anything.
@@ -188,7 +189,8 @@ impl juggler_adapter::handover::HandoverSupport for ClaudeCodeAdapter {
         if let Some(existing) = staged
             .iter()
             .map(|entry| dir_b.join(entry.file_name()))
-            .find(|to| to.exists())
+            // symlink_metadata: a dangling link at the name counts too.
+            .find(|to| to.symlink_metadata().is_ok())
         {
             let _ = std::fs::remove_dir_all(&staging);
             return Err(AdapterError::AccountDir {
@@ -200,10 +202,17 @@ impl juggler_adapter::handover::HandoverSupport for ClaudeCodeAdapter {
         for entry in staged {
             let from = entry.path();
             let to = dir_b.join(entry.file_name());
-            std::fs::rename(&from, &to).map_err(|error| AdapterError::AccountDir {
-                path: to,
-                message: error.to_string(),
-            })?;
+            // hard_link refuses an existing name (no window where a file
+            // that appeared since the check gets replaced); staging is
+            // inside the target, so it's the same volume.
+            if let Err(error) = std::fs::hard_link(&from, &to) {
+                let _ = std::fs::remove_dir_all(&staging);
+                return Err(AdapterError::AccountDir {
+                    path: to,
+                    message: error.to_string(),
+                });
+            }
+            let _ = std::fs::remove_file(&from);
         }
         let _ = std::fs::remove_dir_all(&staging);
 
@@ -233,11 +242,7 @@ impl juggler_adapter::handover::HandoverSupport for ClaudeCodeAdapter {
         for turn in turns {
             // Each turn's text is quoted line by line, so text inside a
             // turn can't pose as another "[user]:" turn.
-            let _ = writeln!(out, "[{}]:", turn.role);
-            for line in turn.text.lines() {
-                let _ = writeln!(out, "> {line}");
-            }
-            let _ = writeln!(out);
+            let _ = writeln!(out, "{}", turn.quoted());
         }
         Ok(out)
     }

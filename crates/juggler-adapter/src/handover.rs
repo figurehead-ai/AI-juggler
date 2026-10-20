@@ -101,6 +101,28 @@ pub struct TurnText {
     pub text: String,
 }
 
+impl TurnText {
+    /// This turn as it goes into a replay brief: a `[role]:` line, then
+    /// the text quoted line by line with `> `, so nothing inside a turn
+    /// can pose as another speaker's turn. Every line break a model may
+    /// read as one (`\r`, NEL, the Unicode line and paragraph
+    /// separators) starts a new quoted line.
+    #[must_use]
+    pub fn quoted(&self) -> String {
+        let mut out = format!("[{}]:\n", self.role);
+        let text = self
+            .text
+            .replace("\r\n", "\n")
+            .replace(['\r', '\u{85}', '\u{2028}', '\u{2029}'], "\n");
+        for line in text.split('\n') {
+            out.push_str("> ");
+            out.push_str(line);
+            out.push('\n');
+        }
+        out
+    }
+}
+
 /// The install result: where the session landed plus the honesty
 /// flags the manifest/UI must carry (H-3's flagged fallback, F-H-03's
 /// fork notice).
