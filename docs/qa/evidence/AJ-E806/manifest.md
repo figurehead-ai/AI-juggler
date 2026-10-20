@@ -277,12 +277,34 @@
   The wizard steps in that file now wait up to 5 s. No assertion changed.
 - Real accessibility bugs found by the release gate (2026-10-20, Promote
   for 0.0.5, `a11y (1/4)`): the D-25 rail rows failed WCAG contrast on
-  every screen. The second line and time used the faint grey (3.29:1
-  dark, 2.84:1 light), the desktop "app" tag used light accent text, and
-  ended rows were faded with opacity. Now they use the muted grey
-  (≥ 5.8:1), and ended rows have a quieter title instead of opacity. The
+  every screen. Ended rows were faded with opacity-70, which took their
+  faint-grey second line to 3.29:1 (dark) and 2.84:1 (light), and the
+  desktop "app" tag used light accent text at 9.5 px (4.33:1 / 3.3:1).
+  Now ended rows have a quieter title instead of opacity (the real fix),
+  the tag uses muted text, and the second line also moved to the muted
+  grey (≥ 5.8:1; the faint grey alone passes). Corrected 2026-10-20: the
+  first note blamed the faint grey; a seeded regression showed the grey
+  alone passes and the opacity is what fails. The
   wizard's "unverified" chip blended to 4.22:1 on the selected row in
   light mode and now has a solid backing. 0.0.5 is not promoted; 0.0.6
   carries the fix. The gate passes locally (939 states, 0 serious). One
   capture timed out while the visual container ran beside it and passed
   twice alone.
+- **Flake record, 2026-10-20 (open, local only).** vitest
+  `sorting.test.tsx` › "sort+filter of 200 rows stays inside one frame
+  (<16 ms)" took 89 ms once while a full Playwright run of another
+  checkout (and other projects' suites) loaded the Mac (load average
+  ≈ 20–25). Alone it passed 15/15 at once. The budget is untouched. If it recurs in CI, measure the
+  median of several runs instead of one.
+- A real security bug found by review (2026-10-20, review of Codex PR #64,
+  pre-existing in the Claude adapter since AJ-E203/E706):
+  `ClaudeCodeAdapter::install_bundle` joined each bundle file's name and
+  the manifest's session id into paths unchecked. A bundle can arrive from
+  a paired Mac (Fleet `TakeHandover`), so a name like `../../…` or an
+  absolute path could write outside the target account's folder, and an
+  existing file could be replaced. Now: only one plain file name per file
+  and a safe session id are accepted, refused before anything is written;
+  an install never replaces a file the target already has; the replay
+  brief quotes each turn so text in a turn can't pose as another turn.
+  Regression: `claude_handover :: an_untrusted_bundle_cannot_write_outside_the_target`
+  (fails on the old code) and `a_turn_cannot_forge_another_turn_in_the_brief`.

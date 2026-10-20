@@ -42,7 +42,9 @@ reviewer claude-opus.
 | Req.3 `CODEX_HOME` and `CODEX_SQLITE_HOME` pinned after overrides — in launches, in the Expert snippet (`HarnessAdapter::pinned_env_keys`, both keys) and in the isolation row (both checked) | `launch_specs_per_mode` (an override of both is ignored), `isolation_keys_and_snippet`; app `codex_provider` (snippet and row name both) | PASS |
 | Req.4 argv per mode, model flag, `--no-daemon`; user text after `--` (a prompt or delta starting with "-" stays text); a resume id starting with "-" is refused (Claude too) | `launch_specs_per_mode`, `model_override_rides_the_command_line`, Claude `a_resume_id_that_looks_like_an_option_is_refused`; real-binary parse above and below | PASS |
 | Req.5 sign-in state through `HarnessAdapter::login_state`, field names only, `auth_mode` first, damaged = unknown, Keychain item naming | `login_state_reads_field_shape_only`, `keychain_account_matches_codex_naming`; Claude's suite unchanged (`claude_code_adapter`) | PASS |
-| Req.6 vendor `codex login` in a PTY; snippet `CODEX_HOME='…' codex --no-daemon` | `login_spec_runs_the_vendor_flow_in_the_isolated_home`, `isolation_keys_and_snippet` | PASS |
+| Req.6 vendor `codex login` in a PTY; snippet `CODEX_HOME='…' CODEX_SQLITE_HOME='…' codex` (plain `codex` runs on every version); no API key rides along in a launch | `login_spec_runs_the_vendor_flow_in_the_isolated_home`, `isolation_keys_and_snippet`, `an_api_key_never_rides_along_into_a_launch` | PASS |
+| Review 2: the sign-in probe streams `auth.json` into a presence-only shape (no value stored or held — ADR-0003) | `the_sign_in_probe_never_needs_a_value`, `login_state_reads_field_shape_only` | PASS |
+| Review 2: the alias test goes through `scan_shell_aliases()` (home pointed at a fixture) | `codex_home_aliases_come_from_the_shell_files` | PASS |
 | Req.7 registry and `providers_list` include Codex; isolation check passes on Codex's pinned keys; `CODEX_HOME` aliases found in the shell files become Codex candidates; Keychain-bound inference uses `auth.json` | `juggler-app` `codex_provider` (3 tests); aliases through a real `.zshrc` in a temp home: `codex_adapter::codex_home_aliases_come_from_the_shell_files`, `codex_provider::a_codex_shell_alias_becomes_a_codex_candidate` | PASS |
 | Req.8 First run and Add account offer Codex | UI change pending (coordinated with the D-25 screens work) | UNPROVEN |
 
@@ -66,6 +68,15 @@ X"` parses — checked with a throwaway `CODEX_HOME`, no credentials; the
 refused with 401). Claude prompts are unchanged: whether the Claude CLI
 honours `--` was not verified (running it could reach a real sign-in), so
 only its resume-id check was added.
+
+## Known limit (review 2)
+
+A `CODEX_API_KEY` / `OPENAI_API_KEY` exported in the environment AI
+Juggler itself was started from is still inherited by launches: the
+adapter can keep keys out of its own overlay (tested) but cannot remove
+an inherited variable until the supervisor's env-unset marker
+(`juggler_adapter::launch::ENV_UNSET`, in a pending PR) lands — then
+these become explicit unsets.
 
 ## Not claimed
 

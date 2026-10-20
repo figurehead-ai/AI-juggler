@@ -18,7 +18,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { atScale, goTo } from "./fixtures";
+import { atScale, goTo, expectRail } from "./fixtures";
 
 const T0 = 1_728_800_000_000;
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/AJ-E805");
@@ -61,7 +61,7 @@ async function timed(page: Page, act: () => Promise<void>, done: () => Promise<v
 /** Opens the board; its row count is taken once, then expected every time. */
 let rowCount = 0;
 async function boardRows(page: Page): Promise<number> {
-  await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
+  await expectRail(page); // D-25: the list, or its icon column when narrow
   await expect(page.locator(ROWS).first()).toBeVisible();
   if (rowCount === 0) {
     await page.waitForTimeout(300);
@@ -117,7 +117,7 @@ test("rail renders 50 Instances in under 300 ms", async ({ page }) => {
 test("inspector paints a selection in under 200 ms", async ({ page }) => {
   await open(page);
   const n = await boardRows(page);
-  await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
+  await expectRail(page); // D-25: the list, or its icon column when narrow
   const rows = page.locator(ROWS);
   await expect(rows).toHaveCount(n);
   const runs: number[] = [];
@@ -143,7 +143,7 @@ test("inspector paints a selection in under 200 ms", async ({ page }) => {
 test("search filters 50 Instances in under 200 ms", async ({ page }) => {
   await open(page);
   const n = await boardRows(page);
-  await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
+  await expectRail(page); // D-25: the list, or its icon column when narrow
   const search = page.getByRole("searchbox").or(page.getByPlaceholder("Search ⌘K")).first();
   const runs: number[] = [];
   for (let i = 0; i < 5; i++) {
@@ -166,7 +166,7 @@ test("the Cleanup inventory opens in under 300 ms", async ({ page }) => {
   const n = await boardRows(page);
   const runs: number[] = [];
   for (let i = 0; i < 5; i++) {
-    await goTo(page, "Overview");
+    await goTo(page, "Home");
     runs.push(
       await timed(
         page,

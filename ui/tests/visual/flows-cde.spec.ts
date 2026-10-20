@@ -1,12 +1,14 @@
 import { expect, test } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { allStatuses, honestEmpty, goTo } from "./fixtures";
+import { allStatuses, honestEmpty, goTo, expectRail } from "./fixtures";
 
 /**
  * AJ-E306 quality gates — the three daily flows as click-count
- * contracts: (c) add Provider ≤ 4 PRIMARY clicks, (d) add Account
- * ≤ 3, (e) launch ≤ 2. Primary activations are counted by the
+ * contracts: (c) add an account for another tool ≤ 4 PRIMARY clicks,
+ * (d) add Account ≤ 3, (e) launch ≤ 2. Since AJ-E1022/AJ-E1023 both (c)
+ * and (d) start at Add account (the tool choice appears only when more
+ * than one tool is installed) and count to the account's sign-in. Primary activations are counted by the
  * spec's own clicks; the funnel seam records each flow's steps.
  * Also: the launch sheet never uses "Profile" as a noun.
  */
@@ -17,7 +19,7 @@ test.beforeAll(() => {
   mkdirSync(resolve(GALLERY, "38-flows-cde"), { recursive: true });
 });
 
-test("flow (c): add a Provider ≤ 4 primary clicks", async ({ page }) => {
+test("flow (c): an account for another tool ≤ 4 primary clicks", async ({ page }) => {
   await page.addInitScript(
     ({ fixture }) => {
       const w = window as unknown as Record<string, unknown>;
@@ -48,20 +50,6 @@ test("flow (c): add a Provider ≤ 4 primary clicks", async ({ page }) => {
           single_instance_note: null,
         },
       ];
-      w.__AIJ_RECOMMENDATION__ = {
-        items: [
-          {
-            provider: "codex",
-            label: "Codex",
-            action: "add",
-            rationale: "Add Codex (installed, not set up)",
-            default_on: true,
-            path: null,
-          },
-        ],
-        summary: "Your juggling set: Codex ×1 (signed in).",
-        start_here: null,
-      };
       localStorage.setItem("aij.theme", "dark");
       localStorage.setItem("aij.onboarding.dismissed", "1");
       sessionStorage.setItem("aij.ready.skipped", "1");
@@ -80,8 +68,8 @@ test("flow (c): add a Provider ≤ 4 primary clicks", async ({ page }) => {
   await goTo(page, "Accounts");
 
   let primaryClicks = 0;
-  // Click 1: Add Provider (flow c entry).
-  await page.getByTestId("add-provider").click();
+  // Click 1: Add account — two tools are installed, so it asks which.
+  await page.getByTestId("add-account").click();
   primaryClicks += 1;
   await expect(page.getByTestId("provider-cards")).toBeVisible();
   // Click 2: the installed Codex card.
@@ -90,31 +78,27 @@ test("flow (c): add a Provider ≤ 4 primary clicks", async ({ page }) => {
     .nth(1)
     .click();
   primaryClicks += 1;
-  // The LOCKED wizard opens straight at the provider-scoped scan.
-  await expect(page.getByTestId("onboarding-wizard")).toBeVisible();
-  await expect(page.getByTestId("wizard-step-install")).toHaveCount(0);
-  await expect(page.getByTestId("proposal-teaser")).toBeVisible();
-  // Click 3: accept the proposal.
-  await page.getByTestId("use-recommended").click();
+  // Add account for Codex: nothing of Codex's on this Mac yet, so it
+  // opens at a fresh account, its name filled in (0 typed).
+  await expect(page.getByTestId("first-run")).toHaveAttribute("data-mode", "add");
+  await expect(page.getByTestId("first-run-fresh-name")).toHaveValue("Codex");
+  // Click 3: Create and sign in.
+  await page.getByTestId("first-run-fresh-create").click();
   primaryClicks += 1;
-  await page.getByTestId("accept-setup").click();
+  // Click 4: Codex's own sign-in.
+  const row = page.getByTestId("first-run-signin-row");
+  await expect(row).toContainText("Codex");
+  await row.getByRole("button", { name: /^Sign in/ }).click();
   primaryClicks += 1;
-  // The add is logged_in-unknown → the sign-ins queue; Skip walks.
-  await expect(page.getByTestId("signin-queue")).toBeVisible();
-  await page.getByTestId("signin-skip").click();
-  await expect(page.getByTestId("summary-exits")).toBeVisible();
-  // Click 4 was the accept; Done is the 5th interaction but the
-  // budget counts PRIMARY path clicks to a ready set: 4 used.
   expect(primaryClicks).toBeLessThanOrEqual(4);
   const funnel = (await page.evaluate(() =>
     (window as unknown as { __funnelLog: string[] }).__funnelLog,
   )) as string[];
   expect(funnel).toContain("c-add-provider:open");
   expect(funnel).toContain("c-add-provider:choose");
-  expect(funnel).toContain("a-first-install:scan");
 });
 
-test("flow (d): add an Account ≤ 3 primary clicks (Provider locked, no gate)", async ({
+test("flow (d): add an Account ≤ 3 primary clicks (one tool: no choice, no gate)", async ({
   page,
 }) => {
   await page.addInitScript(
@@ -132,7 +116,6 @@ test("flow (d): add an Account ≤ 3 primary clicks (Provider locked, no gate)",
           notes: [],
         },
       ];
-      w.__AIJ_RECOMMENDATION__ = { items: [], summary: "", start_here: null };
       w.__AIJ_SCAN_REPORT__ = {
         installs: [],
         probes: [],
@@ -152,22 +135,21 @@ test("flow (d): add an Account ≤ 3 primary clicks (Provider locked, no gate)",
   await goTo(page, "Accounts");
 
   let primaryClicks = 0;
-  // Click 1: Add account — the Provider is LOCKED (Req.4): no gate.
+  // Click 1: Add account — one tool installed: no choice, no gate.
   await page.getByTestId("add-account").click();
   primaryClicks += 1;
-  await expect(page.getByTestId("onboarding-wizard")).toBeVisible();
-  await expect(page.getByTestId("wizard-step-install")).toHaveCount(0);
-  // Zero-found collapses to the single locked create (no picker).
-  await expect(page.getByTestId("zero-found")).toBeVisible();
-  // No multi-Provider picker: the list is hidden, not merely empty.
-  await expect(page.locator("[data-testid='zero-found-provider']")).toBeHidden();
-  // Click 2: create (the label arrives PRE-FILLED — 0 typed).
-  await page.getByTestId("zero-found-create").click();
+  await expect(page.getByTestId("provider-cards")).toHaveCount(0);
+  // Nothing new on this Mac: straight to a fresh account, the name
+  // PRE-FILLED (0 typed).
+  await expect(page.getByTestId("first-run-fresh")).toBeVisible();
+  await expect(page.getByTestId("first-run-fresh-name")).toHaveValue("Claude Code");
+  // Click 2: Create and sign in.
+  await page.getByTestId("first-run-fresh-create").click();
   primaryClicks += 1;
-  const input = page.locator("input[placeholder^='e.g. Work']");
-  await expect(input).toHaveValue("Main");
-  // Click 3: Create account.
-  await page.getByRole("button", { name: "Create account" }).click();
+  // Click 3: the account's own sign-in.
+  const row = page.getByTestId("first-run-signin-row");
+  await expect(row).toContainText("Claude Code");
+  await row.getByRole("button", { name: /^Sign in/ }).click();
   primaryClicks += 1;
   expect(primaryClicks).toBeLessThanOrEqual(3);
 });
@@ -200,7 +182,7 @@ test("flow (e): launch ≤ 2 clicks; Profile never a sheet noun; verdict words n
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark" });
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/");
-  await expect(page.getByTestId("instance-board")).toBeVisible();
+  await expectRail(page); // D-25: the list, or its icon column when narrow
   // The launch sheet opens (⌘N opens New project; the header New
   // button opens the launch sheet — flow (e)'s surface).
   await page.getByRole("banner").getByRole("button", { name: "New session", exact: true }).click();

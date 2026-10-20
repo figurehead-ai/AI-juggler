@@ -1,5 +1,6 @@
 import { identityWords } from "../lib/identity";
 import { parkedWords } from "../lib/parked";
+import { providerDisplayName } from "../lib/providers";
 import { ReactNode, useCallback, useEffect, useId, useRef, useState, type JSX } from "react";
 import { IconProjects, IconTerminal } from "./icons";
 import type { AccountInfo, InstanceInfo, ProjectInfo, RemoteInstanceInfo, RemoteMachineInfo } from "../lib/bridge";
@@ -31,6 +32,7 @@ import {
   GitBadge,
   StaleChip,
   gitWords,
+  STATE_WORDS,
   attentionBadge,
   attentionSuffix,
   attentionTooltip,
@@ -164,6 +166,8 @@ export function WorkflowRail({
 
   return (
     <aside
+      data-testid="rail"
+      data-density={density}
       style={{ width: minimal ? 60 : width }}
       className={
         "relative flex h-full shrink-0 select-none flex-col border-r border-hairline bg-surface/30 backdrop-blur-xl transition-[width] duration-150 ease-out " +
@@ -493,10 +497,10 @@ export function InstanceBoard({
           <Select ariaLabel="Sort by" value={sort} onChange={(value) => setSort(value as SortMode)} options={SORT_LABELS.map((entry) => ({ value: entry.id, label: `Sort: ${entry.label}` }))} />
           <Select ariaLabel="Group by" value={group} onChange={(value) => setGroup(value as GroupBy)} options={GROUP_LABELS.map((entry) => ({ value: entry.id, label: `Group: ${entry.label}` }))} />
           <Select
-            ariaLabel="Filter by provider"
+            ariaLabel="Filter by tool"
             value={filters.provider ?? ""}
             onChange={(value) => setFilters((current) => ({ ...current, provider: value || null }))}
-            options={[{ value: "", label: "Provider: all" }, ...unique(sessions, (row) => row.provider).map((value) => ({ value, label: value }))]}
+            options={[{ value: "", label: "Tool: all" }, ...unique(sessions, (row) => row.provider).map((value) => ({ value, label: providerDisplayName(value) }))]}
           />
           <Select
             ariaLabel="Filter by account"
@@ -749,17 +753,8 @@ function BoardRow({
 }
 
 /** D-25: what a rail row says about its state, in plain words. */
-const RAIL_STATE: Record<string, string> = {
-  starting: "Starting",
-  running: "Running",
-  waiting_user: "Waiting for you",
-  stuck: "Looks stuck",
-  quota_blocked: "Hit its limit",
-  finished: "Done",
-  stopped: "Stopped",
-  failed: "Failed",
-  handed_over: "Handed over",
-};
+// D-25: the state words live in indicator.tsx (shared with the legend).
+const RAIL_STATE = STATE_WORDS;
 
 function ago(ms: number, now: number): string {
   const m = Math.max(0, Math.round((now - ms) / 60_000));

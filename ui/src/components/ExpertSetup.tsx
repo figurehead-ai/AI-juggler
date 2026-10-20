@@ -37,7 +37,7 @@ export function ExpertSetup({
    * several (a set accept), the panel offers a picker. */
   accounts?: { id: string; label: string }[];
   /** Where the hatch lives (the `expert_opened{surface}` field). */
-  surface: "wizard" | "launch" | "new-project" | "accounts";
+  surface: "launch" | "new-project" | "accounts";
   onImportFolder?: () => void;
   onManageLaunchSettings?: () => void;
   showMetricsExport?: boolean;

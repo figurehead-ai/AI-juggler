@@ -211,23 +211,6 @@ export const readyHome: FixtureSet = {
 };
 
 /**
- * AJ-E309: answers the first-run pack-policy question (it rides the
- * Confirm of the UNLOCKED wizard while no global choice exists — every
- * first-run spec meets it). Auto-waits for the radio; returns once
- * the choice is made. Default "strip" — specs about other behaviour
- * just need the question answered.
- */
-export async function answerPolicy(
-  page: import("@playwright/test").Page,
-  value: "strip" | "keep" | "ask" | "decide_later" = "strip",
-): Promise<void> {
-  await page
-    .getByTestId("policy-panel")
-    .locator(`input[type='radio'][value='${value}']`)
-    .check();
-}
-
-/**
  * AJ-E805: the product's promised scale — 10 Accounts over three
  * Providers, 50 Instances in every status, 20 Projects.
  */
@@ -425,4 +408,31 @@ export async function openSwitch(page: import("@playwright/test").Page): Promise
   if (await section.evaluate((node) => (node as HTMLDetailsElement).open).catch(() => false)) return;
   await page.getByTestId("header-switch").click();
   await expect(section).toHaveJSProperty("open", true);
+}
+
+/**
+ * D-25 (AJ-E1020): the rail is the list at 900 px and wider (unless the
+ * density is Minimal); narrower, it folds to its icon column by itself.
+ * Waits for the rail and, where it is the list, for the list.
+ */
+export async function expectRail(page: import("@playwright/test").Page): Promise<void> {
+  const rail = page.getByTestId("rail");
+  await expect(rail).toBeVisible();
+  if ((await rail.getAttribute("data-density")) !== "minimal") {
+    await expect(page.getByTestId("instance-board")).toBeVisible();
+  }
+}
+
+/**
+ * D-25 (AJ-E1020): a narrow window folds the rail to session icons; a
+ * project row needs the list, which ⌘B opens for now. No-op when the
+ * list already shows.
+ */
+export async function openRailList(page: import("@playwright/test").Page): Promise<void> {
+  const rail = page.getByTestId("rail");
+  await expect(rail).toBeVisible();
+  if ((await rail.getAttribute("data-density")) === "minimal") {
+    await page.keyboard.press("ControlOrMeta+b");
+    await expect(page.getByTestId("instance-board")).toBeVisible();
+  }
 }

@@ -79,7 +79,8 @@ for (const theme of THEMES) {
         await expect(page).toHaveScreenshot(`inspector-instance-${cell}.png`, SCREEN);
       });
 
-      for (const screen of ["Triage", "Overview", "History", "Accounts", "Usage", "Fleet", "Cleanup", "Settings"] as const) {
+      // D-25 amendment (AJ-E1021): Triage and Overview folded into Home.
+      for (const screen of ["History", "Accounts", "Usage", "Fleet", "Cleanup", "Settings"] as const) {
         test(`${screen.toLowerCase()} — ${cell}`, async ({ page }) => {
           await open(page, theme, density, vp);
           await goTo(page, screen); // D-25: some screens sit under More

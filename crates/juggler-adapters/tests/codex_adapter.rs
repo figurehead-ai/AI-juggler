@@ -354,7 +354,7 @@ fn isolation_keys_and_snippet() {
     .unwrap();
     assert_eq!(
         snippet,
-        "CODEX_HOME='/tmp/acct one' CODEX_SQLITE_HOME='/tmp/acct one' codex --no-daemon"
+        "CODEX_HOME='/tmp/acct one' CODEX_SQLITE_HOME='/tmp/acct one' codex"
     );
     assert_eq!(
         adapter.pinned_env_keys(),
@@ -384,10 +384,67 @@ fn codex_home_aliases_come_from_the_shell_files() {
         ),
     )
     .unwrap();
-    let hints = juggler_adapters::codex::codex_aliases(home.path());
+    // Through the adapter's own scan (with the home pointed at the
+    // fixture) — dropping the override would find nothing.
+    let hints = CodexAdapter::new()
+        .with_home(home.path())
+        .scan_shell_aliases();
     assert_eq!(hints.len(), 1, "only CODEX_HOME belongs to Codex");
     assert_eq!(hints[0].variable, "CODEX_HOME");
     assert_eq!(hints[0].path, target);
     assert!(hints[0].target_exists);
     assert_eq!(hints[0].line, 2);
+}
+
+#[cfg(unix)]
+#[test]
+fn an_api_key_never_rides_along_into_a_launch() {
+    let dir = tempfile::tempdir().unwrap();
+    let stub = version_stub(dir.path(), "codex-cli 0.163.0");
+    let adapter = CodexAdapter::with_bin(&stub);
+    let acct = account(&dir.path().join("acct"));
+    let mut overlay = SettingsOverlay::default();
+    overlay
+        .env
+        .insert("CODEX_API_KEY".into(), "sk-fixture".into());
+    overlay
+        .env
+        .insert("OPENAI_API_KEY".into(), "sk-fixture".into());
+    for mode in [
+        LaunchMode::Interactive,
+        LaunchMode::Headless { prompt: "x".into() },
+    ] {
+        let spec = adapter
+            .launch_spec(&acct, &profile(&acct, overlay.clone()), dir.path(), &mode)
+            .unwrap();
+        assert!(!spec.env.contains_key("CODEX_API_KEY"));
+        assert!(!spec.env.contains_key("OPENAI_API_KEY"));
+    }
+}
+
+#[test]
+fn the_sign_in_probe_never_needs_a_value() {
+    // Values of any type are skipped; only presence decides.
+    let dir = tempfile::tempdir().unwrap();
+    let state = dir.path().join("acct");
+    CodexAdapter::new().prepare_account(&state).unwrap();
+    let auth = state.join("auth.json");
+    std::fs::write(
+        &auth,
+        br#"{"auth_mode":"chatgpt","tokens":{"refresh_token":{"nested":true}},"extra":[1,2,3]}"#,
+    )
+    .unwrap();
+    assert_eq!(
+        CodexAdapter::new().login_state(&state),
+        LoginState::SignedIn
+    );
+    std::fs::write(
+        &auth,
+        br#"{"auth_mode":"chatgpt","tokens":{"refresh_token":42}}"#,
+    )
+    .unwrap();
+    assert_eq!(
+        CodexAdapter::new().login_state(&state),
+        LoginState::LoggedOut
+    );
 }

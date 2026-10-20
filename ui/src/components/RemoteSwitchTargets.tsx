@@ -20,7 +20,7 @@ export function readinessText(target: RemoteSwitchTargetInfo): string {
     case "t2_blocked":
       return "Same conversation can't move — full-story replay offered";
     case "t3_only":
-      return "Another Provider — full-story replay";
+      return "Another tool — full-story replay";
     default:
       return target.blockers[0] ?? "Unavailable";
   }

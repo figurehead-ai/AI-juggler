@@ -1,14 +1,6 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-import { allStatuses, answerPolicy, honestEmpty, type FixtureSet, goTo, openFilters, openSwitch } from "./fixtures";
-
-// D-25: a fresh install opens first run; these captures document the
-// Add-account wizard, so they open it the way Add account does.
-test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => {
-    (window as unknown as { __AIJ_FIRST_RUN__?: string }).__AIJ_FIRST_RUN__ = "wizard";
-  });
-});
+import { allStatuses, honestEmpty, type FixtureSet, goTo, openFilters, openSwitch, expectRail, openRailList } from "./fixtures";
 
 /**
  * AJ-E402 quality gate: axe-core reports 0 critical/serious violations on
@@ -64,8 +56,8 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/");
-    await expect(page.getByTestId("instance-board")).toBeVisible();
-    await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
+    await expectRail(page); // D-25: the list, or its icon column when narrow
+    await expectRail(page); // D-25: the list, or its icon column when narrow
     await expect(page.getByText("Handed over").first()).toBeVisible();
 
     // AJ-E405: the badge tooltip carries the structured reason (rule +
@@ -115,7 +107,7 @@ test("rail — no row overflows its width", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/");
-  await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
+  await expectRail(page); // D-25: the list, or its icon column when narrow
   await expect(page.getByText("Handed over").first()).toBeVisible();
   const overflows = await page.evaluate(() => {
     const bad: string[] = [];
@@ -478,13 +470,13 @@ for (const theme of ["dark", "light"] as const) {
           alerts: [
             {
               kind: "hog",
-              text: "node (vite) under Work Max holds 3.1 GiB — review in Cleanup Centre.",
+              text: "node (vite) under Work Max holds 3.1 GiB — review it in Cleanup.",
               pid: 8123,
               session: "s-1",
             },
             {
               kind: "idle",
-              text: "python3 has been idle for 2h — review it in the Cleanup Centre.",
+              text: "python3 has been idle for 2h — review it in Cleanup.",
               pid: 8124,
               session: "s-1",
             },
@@ -538,6 +530,12 @@ for (const theme of ["dark", "light"] as const) {
         const w = window as unknown as Record<string, unknown>;
         w.__AIJ_FIXTURE__ = fixture;
         w.__AIJ_CLEANUP__ = cleanup;
+        // D-25: the machine filter shows once another Mac is paired.
+        w.__AIJ_FLEET_PEERS__ = [{
+          machine_id: "machine-studio", label: "Mac Studio", fingerprint: "11AA 22BB 33CC 44DD 55EE 66FF 7788 99AA",
+          permission: "view", permission_label: "View only", ask_each_time: false, paired_via: "code",
+          paired_at_ms: t0, last_seen_ms: t0, connection: "connected", protocol: "v1.0", connection_detail: null,
+        }];
         localStorage.setItem("aij.theme", t);
         localStorage.setItem("aij.onboarding.dismissed", "1");
         sessionStorage.setItem("aij.ready.skipped", "1");
@@ -767,7 +765,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
+    await expectRail(page); // D-25: the list, or its icon column when narrow
     await page.getByRole("button", { name: /Work Max/ }).first().click();
     await openSwitch(page);
     await page.getByTestId("handover-section")
@@ -842,7 +840,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
+    await expectRail(page); // D-25: the list, or its icon column when narrow
     await page.getByRole("button", { name: /Work Max/ }).first().click();
     await openSwitch(page);
     await page.getByTestId("handover-section")
@@ -916,7 +914,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
+    await expectRail(page); // D-25: the list, or its icon column when narrow
     await page.getByRole("button", { name: /Work Max/ }).first().click();
     await expect(page.getByTestId("switch-back-card")).toBeVisible();
     const cardScan = await new AxeBuilder({ page })
@@ -989,7 +987,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
+    await expectRail(page); // D-25: the list, or its icon column when narrow
     await page.getByRole("button", { name: /Work Max/ }).first().click();
     await openSwitch(page);
     await page.getByTestId("handover-section")
@@ -1024,7 +1022,7 @@ for (const theme of ["dark", "light"] as const) {
       }
     });
     await page.reload();
-    await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
+    await expectRail(page); // D-25: the list, or its icon column when narrow
     await page.getByRole("button", { name: /Work Max/ }).first().click();
     await openSwitch(page);
     await page.getByTestId("handover-section")
@@ -1094,7 +1092,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
+    await expectRail(page); // D-25: the list, or its icon column when narrow
     await page.getByRole("button", { name: /Work Max/ }).first().click();
 
     // The ranked entry: scoped scan (the rows + their explanations).
@@ -1105,6 +1103,7 @@ for (const theme of ["dark", "light"] as const) {
       .analyze();
 
     // The graph: scoped scan on the project panel.
+    await openRailList(page); // D-25: a project row needs the list
     await page.getByRole("button", { name: /ai-juggler/ }).first().click();
     await expect(page.getByTestId("switch-graph")).toBeVisible();
     const graphScan = await new AxeBuilder({ page })
@@ -1193,305 +1192,6 @@ for (const theme of ["dark", "light"] as const) {
 }
 
 /**
- * AJ-E301 a11y gate: the wizard dialog — role=dialog + aria-modal +
- * labelled, axe 0 critical/serious on Step 0 in both themes, the
- * keyboard walkthrough (Tab cycles inside the trap, the not-installed
- * row opens install help, Esc closes only when idle), and focus lands
- * on the primary button after a step change.
- */
-for (const theme of ["dark", "light"] as const) {
-  test(`wizard step0 — dialog semantics, axe 0, keyboard — ${theme}`, async ({ page }) => {
-    await page.addInitScript(
-      ({ fixture, installs, t0, theme: t }) => {
-        const w = window as unknown as Record<string, unknown>;
-        w.__AIJ_FIXTURE__ = fixture;
-        w.__AIJ_PROVIDER_INSTALLS__ = installs;
-        localStorage.setItem("aij.theme", t);
-        sessionStorage.setItem("aij.ready.skipped", "1");
-        Date.now = () => t0;
-      },
-      {
-        fixture: honestEmpty,
-        theme,
-        t0: 1_728_800_000_000,
-        installs: [
-          {
-            provider: "claude-code",
-            display_name: "Claude Code",
-            install_url: "https://claude.com/download",
-            status: "not_installed",
-            version: null,
-            binary: null,
-            notes: [],
-          },
-          {
-            provider: "codex",
-            display_name: "Codex",
-            install_url: "https://developers.openai.com/codex",
-            status: "installed",
-            version: "0.9.4",
-            binary: "/opt/homebrew/bin/codex",
-            notes: [],
-          },
-        ],
-      },
-    );
-    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
-    await page.setViewportSize({ width: 1280, height: 800 });
-    // First-run wizard — the gate only lives on this path now (the
-    // Accounts entry is flow (d)'s LOCKED wizard since AJ-E306).
-    await page.goto("/");
-    const dialog = page.getByTestId("onboarding-wizard");
-    await expect(dialog).toBeVisible();
-    await expect(dialog).toHaveAttribute("role", "dialog");
-    await expect(dialog).toHaveAttribute("aria-modal", "true");
-
-    // The gate: Continue disabled with the missing provider; the row
-    // opens install help keyboard-first.
-    await expect(page.getByTestId("install-continue")).toBeDisabled();
-    await page.locator("[data-testid='provider-row'] button").first().focus();
-    await page.keyboard.press("Enter");
-    await expect(page.getByTestId("install-help")).toContainText("Install Claude Code →");
-
-    // AJ-E806 (recorded 2026-10-17): under suite load the FIRST scan
-    // can catch the theme class mid-application (dark ink on light
-    // canvas, 1.11:1) — it self-heals within the settle beat and the
-    // confirmatory re-scan is the verdict; a real violation
-    // reproduces deterministically and still fails.
-    const confirmed = await scanSeriousWithConfirm(page);
-    expect(confirmed).toHaveLength(0);
-
-    // Tab stays inside the dialog (the trap): after several tabs the
-    // focused element is still a descendant.
-    for (let i = 0; i < 12; i += 1) {
-      await page.keyboard.press("Tab");
-    }
-    await expect(dialog.locator(":focus")).toHaveCount(1);
-
-    // Esc closes when idle.
-    await page.keyboard.press("Escape");
-    await expect(dialog).toHaveCount(0);
-  });
-}
-
-/**
- * AJ-E303 a11y gate: the candidate cards — confidence words + login
- * state + activity in TEXT (never colour alone), descriptive
- * aria-labels on the import actions, the managed card disabled with
- * its inline label, and axe 0 critical/serious on the Detect step.
- */
-for (const theme of ["dark", "light"] as const) {
-  test(`candidate cards — text tiers, aria labels, axe 0 — ${theme}`, async ({ page }) => {
-    await page.addInitScript(
-      ({ fixture, theme: t }) => {
-        const w = window as unknown as Record<string, unknown>;
-        w.__AIJ_FIXTURE__ = fixture;
-        w.__AIJ_PROVIDER_INSTALLS__ = [
-          {
-            provider: "claude-code",
-            display_name: "Claude Code",
-            install_url: "https://claude.com/download",
-            status: "installed",
-            version: "2.1.296",
-            binary: "/usr/local/bin/claude",
-            notes: [],
-          },
-        ];
-        w.__AIJ_SCAN_REPORT__ = {
-          installs: [
-            {
-              harness: "claude-code",
-              path: "/Users/you/.claude-work",
-              origin: "home-pattern",
-              login: "logged_in",
-              bytes: 9,
-              last_used_secs: Math.floor(Date.now() / 1000) - 86_400,
-              managed: false,
-              notes: [],
-              inference: {
-                purpose: "Work",
-                purpose_confidence: "likely",
-                login: "signed-in",
-                login_confidence: "found",
-                activity: "active",
-                activity_confidence: "found",
-                activity_words: "Active this week",
-                keychain_bound: false,
-              },
-              signals: ["home-pattern"],
-            },
-            {
-              harness: "claude-code",
-              path: "/Users/you/.claude-managed",
-              origin: "home-pattern",
-              login: "logged_in",
-              bytes: 1,
-              last_used_secs: Math.floor(Date.now() / 1000) - 86_400,
-              managed: true,
-              notes: [],
-              inference: {
-                purpose: "Managed",
-                purpose_confidence: "guessed",
-                login: "signed-in",
-                login_confidence: "found",
-                activity: "active",
-                activity_confidence: "found",
-                activity_words: "Active this week",
-                keychain_bound: false,
-              },
-              signals: ["home-pattern"],
-            },
-          ],
-          probes: [],
-          seeds: [],
-          desktop_apps: [],
-          cancelled: false,
-        };
-        localStorage.setItem("aij.theme", t);
-        sessionStorage.setItem("aij.ready.skipped", "1");
-      },
-      { fixture: honestEmpty, theme },
-    );
-    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
-    await page.setViewportSize({ width: 1280, height: 800 });
-    // First-run wizard (Accounts is flow (d)'s locked entry now).
-    await page.goto("/");
-    await page.getByTestId("install-continue").click();
-    const cards = page.getByTestId("candidate-cards");
-    await expect(cards).toBeVisible();
-    // Words, not colours: the tier + login + activity all in text.
-    await expect(cards).toContainText("Likely: Work");
-    await expect(cards).toContainText("Signed in");
-    await expect(cards).toContainText("Active this week");
-    // Descriptive aria-label on the import action, starting with the
-    // words shown (WCAG 2.5.3).
-    await expect(cards.getByTestId("import-as").first()).toHaveAttribute(
-      "aria-label",
-      /^Import as “Work” — /,
-    );
-    // The managed card is disabled inline with its label.
-    const managedImport = cards.locator(
-      "[data-testid='candidate-card'][data-managed='true'] [data-testid='import-as']",
-    );
-    await expect(managedImport).toBeDisabled();
-    await expect(managedImport).toContainText("Already in AI Juggler");
-    const scan = await new AxeBuilder({ page })
-      .include("[data-testid='onboarding-wizard']")
-      .analyze();
-    const serious = scan.violations.filter((v) =>
-      ["serious", "critical"].includes(v.impact ?? ""),
-    );
-    if (serious.length > 0) {
-      await page.waitForTimeout(400);
-      const recheck = await new AxeBuilder({ page })
-        .include("[data-testid='onboarding-wizard']")
-        .analyze();
-      const still = recheck.violations.filter((v) =>
-        ["serious", "critical"].includes(v.impact ?? ""),
-      );
-      expect(still).toHaveLength(0);
-    }
-    expect(serious).toHaveLength(0);
-  });
-}
-
-/**
- * AJ-E304 a11y gate: the recommended-set proposal reads as a list —
- * every checkbox carries a descriptive aria-label (label + rationale),
- * the item rows are list items, and the accept-progress list announces
- * itself politely. Axe 0 critical/serious on the Detect step in BOTH
- * themes (D-16), confirmatory re-scan per AJ-E806.
- */
-for (const theme of ["dark", "light"] as const) {
-  test(`recommendation proposal — list semantics, aria labels, axe 0 — ${theme}`, async ({
-    page,
-  }) => {
-    await page.addInitScript(
-      ({ fixture, theme: t }) => {
-        const w = window as unknown as Record<string, unknown>;
-        w.__AIJ_FIXTURE__ = fixture;
-        w.__AIJ_PROVIDER_INSTALLS__ = [
-          {
-            provider: "claude-code",
-            display_name: "Claude Code",
-            install_url: "https://claude.com/download",
-            status: "installed",
-            version: "2.1.296",
-            binary: "/usr/local/bin/claude",
-            notes: [],
-          },
-        ];
-        w.__AIJ_SCAN_REPORT__ = {
-          installs: [],
-          probes: [],
-          seeds: [],
-          desktop_apps: [],
-          cancelled: false,
-        };
-        w.__AIJ_RECOMMENDATION__ = {
-          items: [
-            {
-              provider: "claude-code",
-              label: "Work",
-              action: "import",
-              rationale: "Signed in — import keeps history",
-              default_on: true,
-              path: "/Users/you/.claude-work",
-            },
-            {
-              provider: "claude-code",
-              label: "Lab",
-              action: "import",
-              rationale: "Dormant — include when you want it",
-              default_on: false,
-              path: "/Users/you/.claude-lab",
-            },
-          ],
-          summary: "Your juggling set: Claude ×1 (Work — signed in).",
-          start_here: "-users-dev-api",
-        };
-        localStorage.setItem("aij.theme", t);
-        sessionStorage.setItem("aij.ready.skipped", "1");
-      },
-      { fixture: honestEmpty, theme },
-    );
-    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
-    await page.setViewportSize({ width: 1280, height: 800 });
-    // First-run wizard (the Accounts entry is flow (d)'s LOCKED path
-    // since AJ-E306 — no gate there to continue through).
-    await page.goto("/");
-    await page.getByTestId("install-continue").click();
-    await expect(page.getByTestId("proposal-teaser")).toBeVisible();
-    // The teaser buttons carry their own names.
-    await expect(page.getByTestId("use-recommended")).toHaveAccessibleName(
-      "Use recommended setup →",
-    );
-    // Customise exposes the checkbox list: list items, one per account.
-    await page.getByTestId("proposal-customise").click();
-    const block = page.getByTestId("proposal-block");
-    await expect(block).toBeVisible();
-    await expect(page.getByTestId("proposal-item")).toHaveCount(2);
-    const toggles = page.getByTestId("proposal-toggle");
-    await expect(toggles).toHaveCount(2);
-    // Descriptive labels — label AND rationale, not "import".
-    await expect(toggles.nth(0)).toHaveAccessibleName(
-      "Work: Signed in — import keeps history",
-    );
-    await expect(toggles.nth(1)).toHaveAccessibleName(
-      "Lab: Dormant — include when you want it",
-    );
-    await expect(page.getByTestId("accept-setup")).toHaveAccessibleName(
-      /Accept setup → \(1\)/,
-    );
-    // AJ-E806: one confirmatory re-scan after a settle beat — a load
-    // race (theme mid-application) doesn't survive it; a real violation
-    // reproduces deterministically and still fails the gate.
-    const confirmed = await scanSeriousWithConfirm(page);
-    expect(confirmed).toHaveLength(0);
-  });
-}
-
-/**
  * AJ-E305 a11y gate: flow (b) completes FULLY from the keyboard
  * (⌘N → arrow keys over the tiles → Enter → Tab to Start session →
  * Enter), and every step of flow (a) scans axe-clean
@@ -1512,7 +1212,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await expect(page.getByTestId("instance-board")).toBeVisible();
+    await expectRail(page); // D-25: the list, or its icon column when narrow
     // Summon by keyboard alone.
     // The ⌘N handler mounts with the shell — wait for it (AJ-E806:
     // pressing during the first frames after load is a test race).
@@ -1539,74 +1239,6 @@ for (const theme of ["dark", "light"] as const) {
     await page.keyboard.press("Enter");
     await expect(page.getByText("Preview mode — no backend connected.")).toBeVisible();
   });
-
-  test(`flow (a) — axe 0 on every step — ${theme}`, async ({ page }) => {
-    await page.addInitScript(
-      ({ fixture, theme: t }) => {
-        const w = window as unknown as Record<string, unknown>;
-        w.__AIJ_FIXTURE__ = fixture;
-        w.__AIJ_PROVIDER_INSTALLS__ = [
-          {
-            provider: "claude-code",
-            display_name: "Claude Code",
-            install_url: "https://claude.com/download",
-            status: "installed",
-            version: "2.1.296",
-            binary: "/usr/local/bin/claude",
-            notes: [],
-          },
-        ];
-        w.__AIJ_RECOMMENDATION__ = {
-          items: [
-            {
-              provider: "claude-code",
-              label: "Work",
-              action: "import",
-              rationale: "Signed in — import keeps history",
-              default_on: true,
-              path: "/Users/you/.claude-work",
-            },
-            {
-              provider: "claude-code",
-              label: "Side",
-              action: "import",
-              rationale: "Active — you'll sign in after import",
-              default_on: true,
-              path: "/Users/you/.claude-side",
-            },
-          ],
-          summary: "Your juggling set: Claude ×2 (Work — signed in; Side — needs sign-in).",
-          start_here: "/Users/you/dev-api",
-        };
-        localStorage.setItem("aij.theme", t);
-        sessionStorage.setItem("aij.ready.skipped", "1");
-      },
-      { fixture: honestEmpty, theme },
-    );
-    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
-    await page.setViewportSize({ width: 1280, height: 800 });
-    // First-run wizard (the Accounts entry is flow (d)'s LOCKED
-    // path since AJ-E306 — no Step-0 gate to scan there).
-    await page.goto("/");
-    await expect(page.getByTestId("wizard-step-install")).toBeVisible();
-    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
-    await page.getByTestId("install-continue").click();
-    await expect(page.getByTestId("proposal-teaser")).toBeVisible();
-    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
-    await page.getByTestId("proposal-customise").click();
-    await expect(page.getByTestId("proposal-block")).toBeVisible();
-    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
-    // AJ-E309: the first-run policy question rides this Confirm.
-    await answerPolicy(page, "strip");
-    await page.getByTestId("accept-setup").click();
-    await expect(page.getByTestId("signin-queue")).toBeVisible();
-    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
-    for (let card = 0; card < 2; card += 1) {
-      await page.getByTestId("signin-skip").click();
-    }
-    await expect(page.getByTestId("summary-exits")).toBeVisible();
-    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
-  });
 }
 
 /**
@@ -1629,7 +1261,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await expect(page.getByTestId("instance-board")).toBeVisible();
+    await expectRail(page); // D-25: the list, or its icon column when narrow
     // The summoning button is where focus must RETURN.
     const summon = page.getByRole("banner").getByRole("button", { name: "New session", exact: true });
     await summon.click();
@@ -1651,7 +1283,7 @@ for (const theme of ["dark", "light"] as const) {
     await expect(summon).toBeFocused();
   });
 
-  test(`Add Provider sheet — axe 0, cards reachable by keyboard — ${theme}`, async ({ page }) => {
+  test(`Add account's tool choice — axe 0, cards reachable by keyboard — ${theme}`, async ({ page }) => {
     await page.addInitScript(
       ({ fixture, installs, theme: t }) => {
         const w = window as unknown as Record<string, unknown>;
@@ -1681,9 +1313,9 @@ for (const theme of ["dark", "light"] as const) {
             provider: "codex",
             display_name: "Codex",
             install_url: "https://developers.openai.com/codex",
-            status: "not_installed",
-            version: null,
-            binary: null,
+            status: "installed",
+            version: "0.9.4",
+            binary: "/opt/homebrew/bin/codex",
             notes: [],
             verified_against: [],
             kind: "terminal",
@@ -1696,22 +1328,27 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     await goTo(page, "Accounts");
-    await page.getByTestId("add-provider").click();
+    // AJ-E1023: with two tools installed, Add account asks which first.
+    await page.getByTestId("add-account").click();
     await expect(page.getByTestId("provider-cards")).toBeVisible();
     const confirmed = await scanSeriousWithConfirm(page);
     expect(confirmed).toHaveLength(0);
     // Keyboard operable: focusing a card's action and pressing Enter
-    // runs it (the wizard opens) — cards are real buttons, not
-    // click-only divs.
-    await page.locator("button[data-testid='provider-choose']").focus();
-    await expect(page.locator("button[data-testid='provider-choose']")).toBeFocused();
+    // runs it (Add account opens for that tool) — cards are real
+    // buttons, not click-only divs.
+    const codex = page.locator("button[data-testid='provider-choose']").nth(1);
+    await codex.focus();
+    await expect(codex).toBeFocused();
     await page.keyboard.press("Enter");
-    await expect(page.getByTestId("onboarding-wizard")).toBeVisible();
+    await expect(page.getByTestId("first-run")).toHaveAttribute("data-mode", "add");
+    await expect(page.getByTestId("first-run-fresh-name")).toHaveValue("Codex");
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
   });
 }
 
 /**
- * AJ-E307 a11y gate: the Confirm-source panel — the breakdown is
+ * AJ-E307 a11y gate (first run's folder step since AJ-E1022): the
+ * check of a picked folder — the breakdown is
  * real list markup, failure states announce via role="alert", and
  * the step scans axe-clean (0 critical/serious) in both themes.
  */
@@ -1761,7 +1398,7 @@ for (const theme of ["dark", "light"] as const) {
           desktop_apps: [],
           cancelled: false,
         };
-        w.__AIJ_RECOMMENDATION__ = { items: [], summary: "", start_here: null };
+        w.__AIJ_PICK_DIRECTORY__ = "/Users/you/.claude-manual";
         w.__AIJ_SOURCE_INSPECT__ = {
           total_bytes: 46_000_000,
           file_count: 128,
@@ -1784,10 +1421,11 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await page.getByTestId("install-continue").click();
-    await page.getByTestId("import-as").first().click();
-    const panel = page.getByTestId("confirm-source");
+    // AJ-E1022: first run's folder step (picker → check → copy).
+    await page.getByRole("button", { name: "Import from another folder…" }).click();
+    const panel = page.getByTestId("first-run-folder-check");
     await expect(panel).toBeVisible();
+    await panel.getByText("What's in it").click();
     // The breakdown is a real list with items a screen reader counts.
     const breakdown = page.getByTestId("source-breakdown");
     await expect(breakdown).toBeVisible();
@@ -1796,87 +1434,24 @@ for (const theme of ["dark", "light"] as const) {
     await expect(panel).toContainText("projects/");
     const confirmed = await scanSeriousWithConfirm(page);
     expect(confirmed).toHaveLength(0);
+    // A rejected folder announces itself (role=alert) and stays axe-clean.
+    await page.evaluate(() => {
+      const w = window as unknown as Record<string, unknown>;
+      w.__AIJ_SOURCE_INSPECT__ = { ...(w.__AIJ_SOURCE_INSPECT__ as object), is_config: false };
+      w.__AIJ_PICK_DIRECTORY__ = "/Users/you/notes";
+    });
+    await page.getByTestId("first-run-folder-again").click();
+    await expect(page.getByRole("alert").filter({ hasText: "doesn't look like" })).toBeVisible();
+    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
   });
 }
 
 /**
- * AJ-E309 a11y gates (D-16, both themes): the policy question is a
- * labelled radio group (fieldset + legend, every option's consequence
- * wired by aria-describedby); the renewal date input is labelled; the
- * Expert hatch is a disclosure (aria-expanded/aria-controls); the
- * Summary restatement and Accounts → Pack secrets scan axe-clean.
+ * AJ-E309 a11y gate (D-16, both themes): Accounts → Pack secrets and
+ * the env overrides scan axe-clean. (The first-run pack question went
+ * with the old account wizard — D-14: the first switch asks.)
  */
 for (const theme of ["dark", "light"] as const) {
-  test(`first-run policy, renewal, expert, summary — axe 0 — ${theme}`, async ({ page }) => {
-    await page.addInitScript(
-      ({ fixture, theme: t }) => {
-        const w = window as unknown as Record<string, unknown>;
-        w.__AIJ_FIXTURE__ = fixture;
-        w.__AIJ_PROVIDER_INSTALLS__ = [
-          {
-            provider: "claude-code",
-            display_name: "Claude Code",
-            install_url: "https://claude.com/download",
-            status: "installed",
-            version: "2.1.296",
-            binary: "/usr/local/bin/claude",
-            notes: [],
-          },
-        ];
-        w.__AIJ_RECOMMENDATION__ = {
-          items: [
-            { provider: "claude-code", label: "Work", action: "import", rationale: "Signed in — import keeps history", default_on: true, path: "/Users/you/.claude-work" },
-          ],
-          summary: "Your juggling set: Claude ×1 (Work — signed in).",
-          start_here: null,
-        };
-        w.__AIJ_LOGIN_STATE__ = "signed_in";
-        localStorage.setItem("aij.theme", t);
-        sessionStorage.setItem("aij.ready.skipped", "1");
-      },
-      { fixture: honestEmpty, theme },
-    );
-    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
-    await page.setViewportSize({ width: 1280, height: 800 });
-    await page.goto("/");
-    await page.getByTestId("install-continue").click();
-    await page.getByTestId("use-recommended").click();
-
-    // The radio group: a named group, four labelled radios, none checked.
-    const group = page.getByRole("group", { name: "How should context packs handle secrets?" });
-    await expect(group).toBeVisible();
-    await expect(group.getByRole("radio")).toHaveCount(4);
-    await expect(group.getByRole("radio", { checked: true })).toHaveCount(0);
-    await expect(group.getByRole("radio", { name: "Strip — replace keys with •••" })).toHaveAccessibleDescription(
-      /replaced with •••/,
-    );
-    await expect(page.getByTestId("accept-setup")).toHaveAccessibleDescription(/Decide later/);
-
-    // The renewal date: a labelled native date input.
-    await page.getByTestId("renewal-date-add").click();
-    await expect(page.getByLabel("Renewal date for Work (optional)")).toHaveAttribute("type", "date");
-    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
-
-    // The Expert hatch: a disclosure whose panel scans clean.
-    const hatch = page.getByTestId("expert-hatch");
-    await hatch.click();
-    await expect(hatch).toHaveAttribute("aria-expanded", "true");
-    const controls = await hatch.getAttribute("aria-controls");
-    expect(controls).toBeTruthy();
-    await expect(page.locator(`[id="${controls}"]`)).toBeVisible();
-    await expect(page.getByLabel("State folder (read-only)")).toHaveAttribute("readonly", "");
-    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
-
-    // Keyboard: the radios are reachable and choosable by keyboard.
-    await group.getByRole("radio").first().focus();
-    await page.keyboard.press("Space");
-    await expect(group.getByRole("radio", { checked: true })).toHaveCount(1);
-    await page.getByTestId("accept-setup").click();
-    await expect(page.getByTestId("summary-exits")).toBeVisible();
-    await expect(page.getByTestId("policy-restatement")).toBeVisible();
-    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
-  });
-
   test(`Accounts → Pack secrets + env overrides — axe 0 — ${theme}`, async ({ page }) => {
     await page.addInitScript(
       ({ fixture, theme: t }) => {
@@ -1901,7 +1476,7 @@ for (const theme of ["dark", "light"] as const) {
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
     // D-25: the pack-secrets choice is one link away, in Settings.
     await page.getByTestId("accounts-pack-settings").click();
-    await expect(page.getByRole("group", { name: "Your choice (all Providers)" })).toBeVisible();
+    await expect(page.getByRole("group", { name: "Your choice (all tools)" })).toBeVisible();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
   });
 }
@@ -2126,7 +1701,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
+    await expectRail(page); // D-25: the list, or its icon column when narrow
     await expect(page.getByTestId("board-remote-row")).toBeVisible();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
     await goTo(page, "Fleet");
@@ -2274,7 +1849,7 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("fleet-last-known")).toBeVisible();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
     await page.reload();
-    await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
+    await expectRail(page); // D-25: the list, or its icon column when narrow
     await openFilters(page);
     await page.getByLabel("Filter by machine").selectOption("machine-mini");
     await expect(page.getByTestId("board-remote-row").first()).toContainText("was running");
@@ -2320,7 +1895,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
+    await expectRail(page); // D-25: the list, or its icon column when narrow
     await page.getByRole("button", { name: /Work Max/ }).first().click();
     await expect(page.getByTestId("remote-switch-target")).toBeVisible();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
@@ -2381,7 +1956,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
+    await expectRail(page); // D-25: the list, or its icon column when narrow
     await expect(page.getByTestId("rail-identity").first()).toHaveAttribute("aria-label", /verified|first seen|unverified|Not signed in/);
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
     await page.getByRole("button", { name: /Work Max/ }).first().click();
@@ -2433,7 +2008,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
+    await expectRail(page); // D-25: the list, or its icon column when narrow
     await expect(page.getByTestId("git-badge").first()).toHaveAttribute("title", /3 uncommitted files/);
     await page.getByRole("button", { name: /Work Max/ }).first().click();
     await page.getByTestId("worktree-remove").click();
@@ -2474,7 +2049,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
+    await expectRail(page); // D-25: the list, or its icon column when narrow
     await expect(page.getByTestId("rail-parked").first()).toContainText("Parked (est.)");
     await page.getByTestId("parked-offer-resume").focus();
     await page.keyboard.press("Tab");
@@ -2526,7 +2101,7 @@ for (const theme of ["dark", "light"] as const) {
  * action named on each row with its shortcut — scans axe-clean and
  * needs no mouse: j moves, A runs the action. */
 for (const theme of ["dark", "light"] as const) {
-  test(`triage — axe 0 and keyboard only — ${theme}`, async ({ page }) => {
+  test(`triage on Home — axe 0 and keyboard only — ${theme}`, async ({ page }) => {
     await page.addInitScript(
       ({ fixture, theme: t }) => {
         const w = window as unknown as Record<string, unknown>;
@@ -2540,11 +2115,14 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await goTo(page, "Triage");
+    // AJ-E1021: the morning triage lives on Home.
     await expect(page.getByRole("region", { name: /Needs you/ })).toBeVisible();
-    await page.getByTestId("triage-row").first().locator("button").first().focus();
+    const rows = page.getByTestId("home").locator("[data-home-row]");
+    await rows.first().focus();
     await page.keyboard.press("j");
-    await expect(page.getByTestId("triage-row").nth(1).locator("button").first()).toBeFocused();
+    await expect(rows.nth(1)).toBeFocused();
+    await page.keyboard.press("k");
+    await expect(rows.first()).toBeFocused();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
   });
 }
