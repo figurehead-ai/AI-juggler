@@ -640,7 +640,7 @@ pub fn adopt_claude_config(
     let canonical = source
         .canonicalize()
         .map_err(|error| dir_error(&error.to_string()))?;
-    if !is_claude_config_dir(&canonical) {
+    if !CLAUDE_LAYOUT.is_config_dir(&canonical) {
         return Err(dir_error(
             "this folder does not look like a Claude Code configuration (no settings, credentials, or session history found)",
         ));
