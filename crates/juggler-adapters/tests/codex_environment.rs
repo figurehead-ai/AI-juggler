@@ -224,7 +224,10 @@ fn import_refuses_what_it_must_not_copy() {
     std::fs::create_dir_all(&not_codex).unwrap();
     std::fs::write(not_codex.join("notes.txt"), "x").unwrap();
     let err = import_codex_home(&not_codex, &tmp.path().join("d1"), &logged_in).unwrap_err();
-    assert!(err.to_string().contains("Codex home"), "{err}");
+    assert!(
+        err.to_string().contains("Codex home"),
+        "the refusal says it is not a Codex home"
+    );
 
     // An existing destination is never overwritten.
     let source = codex_home(tmp.path(), ".codex");
