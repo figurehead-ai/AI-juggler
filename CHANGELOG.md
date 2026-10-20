@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Adding an account is short: name it and sign in, or pick a folder,
+  see what's in it (size, sign-in, a too-large history offers settings
+  only) and bring it in as a copy. First run, Accounts › Add account and
+  New project's "Add an account" all use these steps; the old setup
+  wizard is gone. Add account asks which tool only when more than one is
+  installed, so the separate "Add Provider" button is gone too.
 - Cleanup says what it is in one line instead of "Tier 0 observe ·
   verified manual kills". Pause automatic cleanup and Cleanup settings
   sit behind ⋯, and Resume is on the "paused" banner. The machine filter
@@ -89,6 +95,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   menus, filters, checkboxes and links all showed the arrow.
 - The bring-in screen can always be closed: **Not now** at first run,
   **Close** from Accounts › Add account, or Esc.
+- Security: a switch arriving from a paired Mac can no longer write files
+  outside the target account's folder or replace a file it already has —
+  names and session ids in a switch bundle are now checked before
+  anything is written. (Only possible with Fleet pairing, which is beta.)
+
 - The "?" at the bottom of the session list now opens the guide to what
   the icons and words mean (it opened out of sight), in the list's own
   words.
