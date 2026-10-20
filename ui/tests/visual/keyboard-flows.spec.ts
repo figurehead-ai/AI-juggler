@@ -12,14 +12,6 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { allStatuses, cleanupFixture, DOOR_ONECLICK, DOOR_WIZARD, honestEmpty, type FixtureSet } from "./fixtures";
 
-// D-25: a fresh install opens first run; these captures document the
-// Add-account wizard, so they open it the way Add account does.
-test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => {
-    (window as unknown as { __AIJ_FIRST_RUN__?: string }).__AIJ_FIRST_RUN__ = "wizard";
-  });
-});
-
 const T0 = 1_728_800_000_000;
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/AJ-E804/keyboard");
 // The traversal records are written under `just a11y-gate` only; every
@@ -277,45 +269,59 @@ test("cleanup — Terminate opens the confirm sheet; Esc returns to the row", as
   ]);
 });
 
+// AJ-E1022: first run is the onboarding flow (the old account wizard is
+// gone): what's here → bring in → sign in later → computer access → Home,
+// then Add account's fresh account by keyboard alone.
 const FIRST_RUN = {
   __AIJ_PROVIDER_INSTALLS__: [
     { provider: "claude-code", display_name: "Claude Code", install_url: "https://claude.com/download", status: "installed", version: "2.1.296", binary: "/usr/local/bin/claude", notes: [] },
   ],
-  __AIJ_SCAN_REPORT__: { installs: [], probes: [], seeds: ["/Users/you/dev-api"], desktop_apps: [], cancelled: false },
-  __AIJ_RECOMMENDATION__: {
-    items: [
-      { provider: "claude-code", label: "Work", action: "import", rationale: "Signed in — import keeps history", default_on: true, path: "/Users/you/.claude-work" },
-      { provider: "claude-code", label: "Side", action: "import", rationale: "Active — you'll sign in after import", default_on: true, path: "/Users/you/.claude-side" },
+  __AIJ_SCAN_REPORT__: {
+    installs: [
+      {
+        harness: "claude-code", path: "/Users/you/.claude-work", origin: "home-pattern", login: "logged_out", bytes: 9_000_000,
+        last_used_secs: Math.floor(T0 / 1000) - 3600, managed: false, notes: [], signals: ["home-pattern"],
+        inference: { purpose: "Work", purpose_confidence: "found", login: "signed-out", login_confidence: "found", activity: "active", activity_confidence: "found", activity_words: "Active this week", keychain_bound: false },
+      },
     ],
-    summary: "Your juggling set: Claude ×2 (Work — signed in; Side — needs sign-in).",
-    start_here: "/Users/you/dev-api",
+    probes: [], seeds: [], desktop_apps: [], cancelled: false,
   },
 };
 
-test("onboarding — the first-run wizard end to end by keyboard", async ({ page }) => {
+test("onboarding — first run end to end by keyboard", async ({ page }) => {
   await open(page, honestEmpty, FIRST_RUN, false);
-  await expect(page.getByTestId("onboarding-wizard")).toBeVisible();
+  await expect(page.getByTestId("first-run-found")).toBeVisible();
   const stops: Stop[] = [];
-  const press = async (testId: string, then: string) => {
-    await tabToEl(page, stops, `[data-testid='${testId}']`, { max: 40 });
+  const press = async (selector: string, then: string) => {
+    await tabToEl(page, stops, selector, { max: 40 });
     await page.keyboard.press("Enter");
     await expect(page.getByTestId(then)).toBeVisible();
   };
-  await press("install-continue", "proposal-teaser");
-  await press("use-recommended", "proposal-block");
-  // The pack-policy question: reach the radio group, choose with Space.
-  await tabToEl(page, stops, "[data-testid='policy-panel'] input[type='radio']", { max: 40 });
-  await page.keyboard.press("Space");
-  await expect(page.getByTestId("accept-setup")).toBeEnabled();
-  await press("accept-setup", "signin-queue");
-  for (let card = 0; card < 2; card++) {
-    await tabToEl(page, stops, "[data-testid='signin-skip']", { max: 40 });
-    await page.keyboard.press("Enter");
-  }
-  await expect(page.getByTestId("summary-exits")).toBeVisible();
-  await tabToEl(page, stops, "[data-testid='launch-first-session']", { max: 40 });
+  // The found setup is preselected; Tab reaches its checkbox and the button.
+  await tabToEl(page, stops, "[data-testid='first-run-row'] input[type='checkbox']", { max: 40 });
+  await press("[data-testid='first-run-bring-in']", "first-run-signin");
+  await press("[data-testid='first-run-signin-next']", "first-run-access");
+  await press("[data-testid='first-run-start']", "home-empty-accounts");
   record("onboarding", stops, [
-    "Gate → recommended setup → pack policy (radio, Space) → accept → both sign-ins skipped → summary; every control reached by Tab.",
-    "The final Launch first session button is reachable by keyboard.",
+    "First run: the found setup's checkbox → Bring in → Sign in later → computer access → Start working → Home; every control reached by Tab.",
+  ]);
+});
+
+test("onboarding — Add account's fresh account by keyboard", async ({ page }) => {
+  await open(page, honestEmpty, { ...FIRST_RUN, __AIJ_SCAN_REPORT__: { installs: [], probes: [], seeds: [], desktop_apps: [], cancelled: false } });
+  const stops: Stop[] = [];
+  await page.getByRole("navigation", { name: "Main" }).getByRole("button", { name: "Accounts", exact: true }).click();
+  await tabToEl(page, stops, "[data-testid='add-account']", { max: 60 });
+  await page.keyboard.press("Enter");
+  // Nothing new on this Mac: straight to the name, focused and filled in.
+  await expect(page.getByTestId("first-run-fresh-name")).toBeFocused();
+  await expect(page.getByTestId("first-run-fresh-name")).toHaveValue("Claude Code");
+  await page.keyboard.press("Enter"); // submits: Create and sign in
+  await expect(page.getByTestId("first-run-signin-row")).toContainText("Claude Code");
+  await tabToEl(page, stops, "[data-testid='first-run-signin-row'] button", { max: 40 });
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("first-run")).toHaveCount(0);
+  record("add-account", stops, [
+    "Accounts (clicked) → Add account → the name (focused, filled in) → Enter creates it → its Sign in reachable by Tab → Escape closes.",
   ]);
 });
