@@ -83,3 +83,26 @@ in the inspector views; no task codes on screen, D-25). Status:
   screens; follow-up.
 - `primitives.tsx` ("Quota: no data" on an empty quota bar, the "MEAS" tag)
   and `FirstRun.tsx` wait for #76.
+
+## Review fixes (2026-10-20, #80 review)
+
+- Focus follows the tool chip into the inspector (App-level vitest
+  `app-tool-chip.test.tsx`; fails without the fix).
+- The install row says "Couldn't check what's installed" when the probe
+  fails or doesn't know the tool, and never shows the previous tool's
+  version while checking (renderHook test).
+- "Not measured yet" replaces "Quota: no data" / "no data": the quota bar,
+  ring labels (also the account rings' screen-reader text), the rail's
+  tooltip and aria text, and the quota-risk group.
+- The lint catches bare epic codes, one-digit decisions, single-quoted
+  strings and `.ts` files. A tokenizer reads strings, so trailing comments
+  and `data-testid="AJ-E…"` are clean. Selftest: 16 bad `.tsx` lines, plus
+  a `.ts` pair.
+- `since()` counts days past 48 h.
+- Window drag: Tauri 2.12.4's `isDragRegion` (from `drag.js`), run on the
+  built app's DOM, says the chip and its text never start a drag. The
+  header's empty area still does. Not yet tried in the Dev edition (no
+  disk for the build).
+- Gates on the head with main merged in (#76, #61, #77): vitest 490/490;
+  Playwright 836/836; a11y gate 836 states, 0 critical/serious/moderate/
+  minor; visual gate (compare) 73/73, no baseline changes.
