@@ -229,3 +229,30 @@ fn unmanaged_dirs_are_recognizable() {
     assert!(!juggler_adapters::claude_code::is_managed_dir(dir.path()));
     let _guard: BTreeMap<(), ()> = BTreeMap::new(); // keep import used on all targets
 }
+
+#[cfg(unix)]
+#[test]
+fn a_resume_id_that_looks_like_an_option_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let stub = version_stub(dir.path(), "claude", "2.1.296 (Claude Code)");
+    let adapter = ClaudeCodeAdapter::with_bin(&stub);
+    let acct = account(&dir.path().join("acct"));
+    let profile = Profile {
+        id: ProfileId::new("p1"),
+        name: "p1".into(),
+        account: acct.id.clone(),
+        settings_overlay: SettingsOverlay::default(),
+        default_cwd: None,
+    };
+    for id in ["--continue", "-x"] {
+        let mode = LaunchMode::Resume {
+            session_id: id.into(),
+            delta_prompt: None,
+        };
+        assert!(
+            adapter
+                .launch_spec(&acct, &profile, dir.path(), &mode)
+                .is_err()
+        );
+    }
+}

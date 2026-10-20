@@ -397,7 +397,9 @@ impl HarnessAdapter for ClaudeCodeAdapter {
                 delta_prompt,
             } => {
                 // `--resume <id> "<delta>"` — the resumed conversation
-                // receives the delta as its next user turn (E207).
+                // receives the delta as its next user turn (E207). An id
+                // that looks like an option is refused, never passed.
+                crate::codex::refuse_option_like(session_id)?;
                 let mut args = vec!["--resume".into(), session_id.clone()];
                 if let Some(delta) = delta_prompt {
                     args.push(delta.clone());
