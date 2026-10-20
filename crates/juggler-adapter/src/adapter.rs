@@ -148,6 +148,21 @@ pub trait HarnessAdapter: Send + Sync {
         ))
     }
 
+    /// ADR-0018: checks an existing config dir can be used where it is
+    /// (an in-place account) and reports its sign-in — nothing is copied
+    /// or written. Default: unsupported, so the UI offers only a copy.
+    ///
+    /// # Errors
+    ///
+    /// [`AdapterError::Unsupported`] by default; otherwise
+    /// [`AdapterError::AccountDir`] with the plain-language reason.
+    fn adopt_account(&self, source: &Path) -> Result<ImportOutcome, AdapterError> {
+        let _ = source;
+        Err(AdapterError::Unsupported(
+            "this tool's setups can only be copied for now".into(),
+        ))
+    }
+
     /// AJ-E307 Req.3: the pre-copy source inspection — metadata-only;
     /// the Confirm-source step's data (sizes, breakdown, evidence).
     ///

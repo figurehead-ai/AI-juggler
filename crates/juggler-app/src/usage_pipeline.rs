@@ -93,9 +93,15 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
         }
         match harness.as_str() {
             "claude-code" => {
+                // ADR-0018: an in-place account's capture lives in AI
+                // Juggler's own folder; its folder is never written.
+                let spool = account
+                    .in_place
+                    .then(|| juggler_adapters::overlay_spool_path(&state.overlays_dir(), &account_id));
                 ingest_claude(
                     &account_id,
                     &dir,
+                    spool,
                     &mut ingest,
                     &mut store_batch,
                     &mut sample_batch,
@@ -133,6 +139,7 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
 fn ingest_claude(
     account: &str,
     dir: &Path,
+    in_place_spool: Option<PathBuf>,
     ingest: &mut IngestState,
     store: &mut Vec<juggler_core::quota::UsageEvent>,
     samples: &mut Vec<(
@@ -144,17 +151,21 @@ fn ingest_claude(
     // Req.1: the managed wrapper is ensured idempotently — a missing
     // or drifted install self-heals; a user who uninstalled sees it
     // return only because the account remains managed by Juggler.
-    if let Err(error) = juggler_adapters::install_statusline(dir) {
-        record_health(
-            ingest,
-            account,
-            "statusline",
-            None,
-            0,
-            &format!("install: {error}"),
-        );
-    }
-    let spool = juggler_adapters::spool_path(dir);
+    let spool = if let Some(spool) = in_place_spool {
+        spool
+    } else {
+        if let Err(error) = juggler_adapters::install_statusline(dir) {
+            record_health(
+                ingest,
+                account,
+                "statusline",
+                None,
+                0,
+                &format!("install: {error}"),
+            );
+        }
+        juggler_adapters::spool_path(dir)
+    };
     juggler_adapters::rotate_spool_if_needed(&spool);
     let offsets = ingest.offsets.entry(account.to_owned()).or_default();
     let outcome = juggler_adapters::tail_spool(&spool, offsets.spool);

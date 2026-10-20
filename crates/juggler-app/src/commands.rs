@@ -1430,6 +1430,8 @@ pub struct AccountInfo {
     /// Import completion time, epoch ms (None = never imported).
     #[ts(optional = nullable)]
     pub imported_at: Option<i64>,
+    /// ADR-0018: the account uses the user's own folder where it is.
+    pub in_place: bool,
 }
 
 /// A Launch settings row for the UI (AJ-E107).
@@ -1964,6 +1966,7 @@ pub fn create_account(
         import_source_path: None,
         import_origin: None,
         imported_at: None,
+        in_place: false,
     };
     lock_storage_arc(state)?.accounts().insert(&account)?;
     crate::settings_policy::apply_cleanup_default(state, account.id.as_str());
@@ -2411,6 +2414,14 @@ pub fn expert_reveal_target(
     account_id: Option<&str>,
 ) -> AppResult<std::path::PathBuf> {
     let info = expert_setup_info_impl(state, provider, account_id, None)?;
+    // ADR-0018: an in-place account's folder is the user's own — reveal it.
+    if let Some(id) = account_id
+        && let Ok(account) = find_account_arc(state, id)
+        && account.in_place
+        && account.state_dir.is_dir()
+    {
+        return Ok(account.state_dir);
+    }
     let mut target = std::path::PathBuf::from(info.state_dir);
     while !target.is_dir() && target != state.data_dir {
         if !target.pop() {
@@ -2599,6 +2610,9 @@ pub fn isolation_check_impl(
             .get(&AccountId::new(account_id.to_owned()))?
     };
     let dir = account.state_dir.clone();
+    if account.in_place {
+        return in_place_isolation_rows(state, &account);
+    }
     let mut rows = Vec::new();
 
     // 1. The managed dir is owner-private (0700). The mask IS the
@@ -2708,6 +2722,80 @@ pub fn isolation_check_impl(
     Ok(rows)
 }
 
+/// ADR-0018: the checklist for an account that uses the user's folder
+/// where it is. "Owner-only" and "marker present" are promises about AI
+/// Juggler's own copies; here the promises are that AI Juggler put
+/// nothing of its own in the folder and launches point only at it.
+fn in_place_isolation_rows(
+    state: &Arc<AppState>,
+    account: &Account,
+) -> AppResult<Vec<IsolationRowInfo>> {
+    let dir = account.state_dir.clone();
+    let mut rows = vec![IsolationRowInfo {
+        id: "in_place_folder_present",
+        label: "Uses your folder where it is".into(),
+        pass: dir.is_dir(),
+        detail: format!("{}", dir.display()),
+    }];
+    let ours = [
+        juggler_adapters::claude_code::MANAGED_MARKER,
+        "juggler-statusline.sh",
+        "juggler-statusline-backup.json",
+        "quota-spool",
+    ];
+    let untouched = ours.iter().all(|name| !dir.join(name).exists());
+    rows.push(IsolationRowInfo {
+        id: "in_place_no_juggler_files",
+        label: "AI Juggler put nothing of its own in your folder".into(),
+        pass: untouched,
+        detail: "its launch settings and usage capture live in AI Juggler's own folder".into(),
+    });
+    let adapter = state
+        .registry
+        .get(&account.harness)
+        .ok_or_else(|| AppError::UnknownHarness(account.harness.as_str().to_owned()))?;
+    let default_folder = juggler_adapters::claude_code::is_vendor_default_dir(&dir);
+    let env_ok = adapter
+        .launch_spec(
+            account,
+            &Profile {
+                id: ProfileId::new("check"),
+                name: "check".into(),
+                account: account.id.clone(),
+                settings_overlay: SettingsOverlay::default(),
+                default_cwd: None,
+            },
+            std::path::Path::new("/"),
+            &juggler_adapter::LaunchMode::Interactive,
+        )
+        .is_ok_and(|spec| match spec.env.get("CLAUDE_CONFIG_DIR") {
+            Some(value) if default_folder => value == juggler_adapter::launch::ENV_UNSET,
+            Some(value) => std::path::Path::new(value) == dir,
+            None => false,
+        });
+    rows.push(IsolationRowInfo {
+        id: "launch_env_managed_only",
+        label: "Launch environment points only at this account's folder".into(),
+        pass: env_ok,
+        detail: if default_folder {
+            "the default folder runs as Claude runs it (CLAUDE_CONFIG_DIR unset)".into()
+        } else {
+            "CLAUDE_CONFIG_DIR is this folder, exactly".into()
+        },
+    });
+    let probe_state = login_state_of(account);
+    rows.push(IsolationRowInfo {
+        id: "probe_independence",
+        label: "Login state reads only this account's folder".into(),
+        pass: !matches!(probe_state, juggler_adapters::LoginState::Unknown),
+        detail: format!(
+            "probe classified this dir as {}",
+            login_state_name(probe_state)
+        ),
+    });
+    Ok(rows)
+}
+
 /// Inspects a candidate import source BEFORE any copy (metadata-only).
 #[tauri::command]
 ///
@@ -2760,14 +2848,16 @@ pub fn source_inspect_impl(
     })
 }
 
-/// Imports a discovered setup as a new managed account: byte-copies the
-/// config into an isolated dir (source untouched), creates a default
-/// "Main" profile so the account is immediately launchable.
+/// Brings a discovered setup in as a new account, and creates a default
+/// "Main" profile so it is launchable at once. `in_place` (ADR-0018):
+/// use the folder where it is — nothing copied or written; otherwise a
+/// byte copy into an isolated dir (source untouched).
 #[tauri::command]
 ///
 /// # Errors
 ///
 /// Returns the typed [`AppError`] message on failure.
+#[allow(clippy::too_many_arguments)] // the Tauri command's flat wire args
 pub fn account_import(
     state: tauri::State<'_, Arc<AppState>>,
     harness: String,
@@ -2776,25 +2866,42 @@ pub fn account_import(
     plan: Option<String>,
     origin: Option<String>,
     degraded: Option<bool>,
+    in_place: Option<bool>,
 ) -> AppResult<ImportResult> {
-    let imported = account_import_impl(
+    let imported = account_import_mode_impl(
         state.inner(),
         &harness,
         &source_path,
         &label,
-        plan,
-        origin,
-        degraded.unwrap_or(false),
+        ImportRequest {
+            plan,
+            origin,
+            degraded: degraded.unwrap_or(false),
+            in_place: in_place.unwrap_or(false),
+        },
     );
     crate::usage_stats::import_finished(&harness, imported.as_ref().err());
     imported
 }
 
-/// Core implementation shared with integration tests.
+/// How a setup comes in (ADR-0018).
+#[derive(Clone, Debug, Default)]
+pub struct ImportRequest {
+    /// Vendor plan tier, if known.
+    pub plan: Option<String>,
+    /// The discovery origin.
+    pub origin: Option<String>,
+    /// AJ-E307 Req.4: settings only, history skipped (copies).
+    pub degraded: bool,
+    /// Use the folder where it is instead of copying it.
+    pub in_place: bool,
+}
+
+/// Core implementation shared with integration tests (a copy).
 ///
 /// # Errors
 ///
-/// Returns the typed [`AppError`] message on failure.
+/// As [`account_import_mode_impl`].
 pub fn account_import_impl(
     state: &Arc<AppState>,
     harness: &str,
@@ -2804,6 +2911,38 @@ pub fn account_import_impl(
     origin: Option<String>,
     degraded: bool,
 ) -> AppResult<ImportResult> {
+    account_import_mode_impl(
+        state,
+        harness,
+        source_path,
+        label,
+        ImportRequest {
+            plan,
+            origin,
+            degraded,
+            in_place: false,
+        },
+    )
+}
+
+/// Brings a setup in, copied or where it is (ADR-0018).
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] message on failure.
+pub fn account_import_mode_impl(
+    state: &Arc<AppState>,
+    harness: &str,
+    source_path: &str,
+    label: &str,
+    request: ImportRequest,
+) -> AppResult<ImportResult> {
+    let ImportRequest {
+        plan,
+        origin,
+        degraded,
+        in_place,
+    } = request;
     let adapter = state
         .registry
         .get(&juggler_core::model::HarnessId::new(harness))
@@ -2826,11 +2965,21 @@ pub fn account_import_impl(
         }
     }
     let id = AccountId::new(format!("{harness}-{}", unique_suffix()));
-    let state_dir = state.accounts_dir().join(harness).join(id.as_str());
-    let outcome = if degraded {
-        adapter.import_account_degraded(std::path::Path::new(source_path), &state_dir)?
+    let (state_dir, outcome) = if in_place {
+        // The folder exactly as found (Claude's Keychain name hashes the
+        // path string), without a trailing separator.
+        let trimmed = source_path.trim_end_matches(['/', '\\']);
+        let folder = std::path::PathBuf::from(if trimmed.is_empty() { source_path } else { trimmed });
+        let outcome = adapter.adopt_account(&folder)?;
+        (folder, outcome)
     } else {
-        adapter.import_account(std::path::Path::new(source_path), &state_dir)?
+        let state_dir = state.accounts_dir().join(harness).join(id.as_str());
+        let outcome = if degraded {
+            adapter.import_account_degraded(std::path::Path::new(source_path), &state_dir)?
+        } else {
+            adapter.import_account(std::path::Path::new(source_path), &state_dir)?
+        };
+        (state_dir, outcome)
     };
     let account = Account {
         id,
@@ -2846,8 +2995,9 @@ pub fn account_import_impl(
         import_source_path: Some(canonical_source),
         import_origin: origin,
         imported_at: Some(juggler_core::model::Timestamp::now().millis()),
+        in_place,
     };
-    {
+    let saved = (|| -> AppResult<()> {
         let storage = lock_storage_arc(state)?;
         storage.accounts().insert(&account)?;
         // A default profile makes the imported account launchable in one
@@ -2859,6 +3009,18 @@ pub fn account_import_impl(
             settings_overlay: SettingsOverlay::default(),
             default_cwd: None,
         })?;
+        Ok(())
+    })();
+    if let Err(error) = saved {
+        // ADR-0018 §5: a copy whose record can't be saved doesn't linger
+        // (only ever our own marked copy — never an in-place folder).
+        if !in_place && juggler_adapters::claude_code::is_managed_dir(&account.state_dir) {
+            let _ = std::fs::remove_dir_all(&account.state_dir);
+        }
+        if let Ok(storage) = lock_storage_arc(state) {
+            let _ = storage.accounts().delete(&account.id);
+        }
+        return Err(error);
     }
     crate::settings_policy::apply_cleanup_default(state, account.id.as_str());
     let account = find_account_arc(state, account.id.as_str()).unwrap_or(account);
@@ -3221,14 +3383,8 @@ pub fn launch_profile(
     use juggler_adapter::LaunchMode;
 
     let (profile, account) = find_profile_with_account_arc(state, profile_id)?;
-    if profile.settings_overlay.model.is_some()
-        && account.harness.as_str() == juggler_adapters::CLAUDE_CODE_ID
-    {
-        juggler_adapters::claude_code::write_settings_overlay(
-            &account.state_dir,
-            &profile.settings_overlay,
-        )?;
-    }
+    // The profile's model goes in as `claude --model` (the adapter's
+    // launch spec); settings.json is never rewritten (ADR-0018 §3).
     let adapter = state
         .registry
         .get(&account.harness)
@@ -4519,6 +4675,7 @@ fn account_info_of(account: &Account) -> AccountInfo {
         import_source_path: account.import_source_path.clone(),
         import_origin: account.import_origin.clone(),
         imported_at: account.imported_at,
+        in_place: account.in_place,
     }
 }
 
@@ -9751,6 +9908,7 @@ mod tests {
                 import_source_path: None,
                 import_origin: None,
                 imported_at: None,
+                in_place: false,
             })
             .expect("seed account");
         for (id, model) in [("rec-1", Some("opus")), ("rec-2", None)] {
@@ -9999,6 +10157,7 @@ mod tests {
                 import_source_path: None,
                 import_origin: None,
                 imported_at: None,
+                in_place: false,
             })
             .expect("seed account");
         storage
@@ -12824,6 +12983,24 @@ pub fn environment_scan_full_impl(
     let (alias_installs, _alias_health, dangling) = alias_installs_of(&alias_rows, &mut installs);
     installs.extend(alias_installs);
     tick(&mut done); // S5
+
+    // ADR-0018: a folder an in-place account uses is already in, though
+    // it carries no marker (nothing is written into it).
+    if let Ok(storage) = state.storage.lock()
+        && let Ok(accounts) = storage.accounts().list()
+    {
+        let canonical = |path: &std::path::Path| path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+        let in_place: Vec<std::path::PathBuf> = accounts
+            .iter()
+            .filter(|account| account.in_place)
+            .map(|account| canonical(&account.state_dir))
+            .collect();
+        for install in &mut installs {
+            if in_place.contains(&canonical(std::path::Path::new(&install.path))) {
+                install.managed = true;
+            }
+        }
+    }
 
     // Where each setup is open right now (one process-table read).
     if let Some(home) = dirs::home_dir() {

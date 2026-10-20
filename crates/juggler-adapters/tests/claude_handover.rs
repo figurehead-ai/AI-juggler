@@ -37,6 +37,7 @@ fn account(state_dir: &Path, label: &str) -> Account {
         import_source_path: None,
         import_origin: None,
         imported_at: None,
+        in_place: false,
     }
 }
 

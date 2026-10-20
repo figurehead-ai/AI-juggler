@@ -1295,14 +1295,8 @@ pub(crate) fn launch_here(
     transcript: Option<TranscriptRef>,
     moment: &str,
 ) -> AppResult<(SessionId, u32)> {
-    if profile.settings_overlay.model.is_some()
-        && account.harness.as_str() == juggler_adapters::CLAUDE_CODE_ID
-    {
-        juggler_adapters::claude_code::write_settings_overlay(
-            &account.state_dir,
-            &profile.settings_overlay,
-        )?;
-    }
+    // The profile's model goes in as `claude --model` (the adapter's
+    // launch spec); settings.json is never rewritten (ADR-0018 §3).
     let adapter = state
         .registry
         .get(&account.harness)

@@ -5,7 +5,7 @@
  */
 import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { FirstRun, groupOf, labelOf, preselected, usedWords } from "./FirstRun";
+import { FirstRun, groupOf, labelOf, plainImportError, preselected, usedWords } from "./FirstRun";
 import type { DiscoveredInfo } from "../lib/bridge";
 
 const w = () => window as unknown as Record<string, unknown>;
@@ -84,6 +84,15 @@ describe("D-25 first run — the pure rules", () => {
     expect(usedWords(found("/x", "home-pattern", { in_use: ["desktop", "terminal"] }), NOW)).toBe("Open in the Claude app and a terminal");
   });
 
+  it("an import error drops the internal path prefix; the row already names the setup", () => {
+    expect(
+      plainImportError(
+        "account directory error at /Users/you/Library/Application Support/AI Juggler/accounts/claude-code/x/skills/a: cannot copy skills/a — the partial import was removed",
+      ),
+    ).toBe("Cannot copy skills/a — the partial import was removed");
+    expect(plainImportError("Disk full — this one couldn't be copied.")).toBe("Disk full — this one couldn't be copied.");
+  });
+
   it("says how recently each was used in plain words", () => {
     expect(usedWords(SCAN.installs[1]!, NOW)).toBe("In use now");
     expect(usedWords(SCAN.installs[0]!, NOW)).toBe("Used today");
@@ -121,12 +130,13 @@ describe("D-25 first run — the flow", () => {
     expect(getByTestId("first-run-looked").textContent).toContain("Claude desktop profiles checked — 3 profiles");
   });
 
-  it("brings them in, then lists each sign-in once, with Sign in to all", async () => {
+  it("copies: brings them in, then lists each sign-in once, with Sign in to all", async () => {
     const opened: string[] = [];
     const { findByTestId, getByTestId, findAllByTestId } = renderIt({
       openLoginTerminal: (_id, title) => opened.push(title),
     });
     await findByTestId("first-run-found");
+    fireEvent.click(within(getByTestId("first-run-placement-copy")).getByRole("radio"));
     await act(async () => {
       fireEvent.click(getByTestId("first-run-bring-in"));
     });
@@ -149,9 +159,6 @@ describe("D-25 first run — the flow", () => {
     await findByTestId("first-run-found");
     await act(async () => {
       fireEvent.click(getByTestId("first-run-bring-in"));
-    });
-    await act(async () => {
-      fireEvent.click(await findByTestId("first-run-signin-next"));
     });
     const access = await findByTestId("first-run-access");
     expect(access.textContent).toContain("2 optional permissions make it smoother.");
@@ -181,9 +188,6 @@ describe("D-25 first run — the flow", () => {
     await act(async () => {
       fireEvent.click(getByTestId("first-run-bring-in"));
     });
-    await act(async () => {
-      fireEvent.click(await findByTestId("first-run-signin-next"));
-    });
     const entry = await findByTestId("first-run-access-focus");
     await act(async () => {
       fireEvent.click(within(entry).getByRole("button", { name: /Open System Settings/ }));
@@ -200,10 +204,104 @@ describe("D-25 first run — the flow", () => {
     await act(async () => {
       fireEvent.click(getByTestId("first-run-bring-in"));
     });
-    await act(async () => {
-      fireEvent.click(await findByTestId("first-run-signin-next"));
-    });
     await waitFor(() => expect(onDone).toHaveBeenCalledOnce());
+  });
+
+  it("ADR-0018: uses them where they are by default — the choice is in view, and signed-in setups stay signed in", async () => {
+    w().__AIJ_OS_ACCESS__ = [];
+    const onDone = vi.fn();
+    const { findByTestId, getByTestId, queryByTestId } = renderIt({ onDone });
+    const found = await findByTestId("first-run-found");
+    const inPlace = within(getByTestId("first-run-placement-in_place")).getByRole("radio") as HTMLInputElement;
+    const copy = within(getByTestId("first-run-placement-copy")).getByRole("radio") as HTMLInputElement;
+    expect(inPlace.checked).toBe(true);
+    expect(copy.checked).toBe(false);
+    expect(found.textContent).toContain("uses each one where it is");
+    fireEvent.click(copy);
+    expect(found.textContent).toContain("makes its own copy of each");
+    fireEvent.click(inPlace);
+    await act(async () => {
+      fireEvent.click(getByTestId("first-run-bring-in"));
+    });
+    // Nothing to sign in to: straight on (no access step on this OS).
+    await waitFor(() => expect(onDone).toHaveBeenCalledOnce());
+    expect(queryByTestId("first-run-signin")).toBeNull();
+  });
+
+  it("one failing never blocks the rest: Continue with the ones that came in", async () => {
+    w().__AIJ_IMPORT_FAIL_PATHS__ = ["work-a"];
+    const { findByTestId, getByTestId, queryByTestId } = renderIt();
+    await findByTestId("first-run-found");
+    fireEvent.click(within(getByTestId("first-run-placement-copy")).getByRole("radio"));
+    await act(async () => {
+      fireEvent.click(getByTestId("first-run-bring-in"));
+    });
+    const outcome = await findByTestId("first-run-outcome");
+    expect(outcome.textContent).toContain("2 brought in. 1 couldn't come in.");
+    expect(within(getByTestId("first-run-failed")).getByText("work-a")).toBeTruthy();
+    expect(queryByTestId("first-run-bring-in")).toBeNull();
+    await act(async () => {
+      fireEvent.click(getByTestId("first-run-continue"));
+    });
+    // The two copies that came in go on to their sign-ins.
+    expect((await findByTestId("first-run-signin")).textContent).toMatch(/sign-in/);
+    expect((await findByTestId("first-run-signin")).textContent).not.toContain("work-a");
+  });
+
+  it("Try again retries only the failed ones and keeps the others' sign-ins", async () => {
+    w().__AIJ_IMPORT_FAIL_PATHS__ = ["work-a"];
+    const { findByTestId, getByTestId, findAllByTestId } = renderIt();
+    await findByTestId("first-run-found");
+    fireEvent.click(within(getByTestId("first-run-placement-copy")).getByRole("radio"));
+    await act(async () => {
+      fireEvent.click(getByTestId("first-run-bring-in"));
+    });
+    await findByTestId("first-run-outcome");
+    w().__AIJ_IMPORT_FAIL_PATHS__ = [];
+    await act(async () => {
+      fireEvent.click(getByTestId("first-run-retry"));
+    });
+    await findByTestId("first-run-signin");
+    expect(await findAllByTestId("first-run-signin-row")).toHaveLength(3);
+  });
+
+  it("a failed copy can come in where it is instead", async () => {
+    w().__AIJ_IMPORT_FAIL_PATHS__ = ["work-a"];
+    const { findByTestId, getByTestId, findAllByTestId } = renderIt();
+    await findByTestId("first-run-found");
+    fireEvent.click(within(getByTestId("first-run-placement-copy")).getByRole("radio"));
+    await act(async () => {
+      fireEvent.click(getByTestId("first-run-bring-in"));
+    });
+    await findByTestId("first-run-outcome");
+    await act(async () => {
+      fireEvent.click(getByTestId("first-run-use-in-place"));
+    });
+    // work-a is in, signed in where it is; the two copies still sign in.
+    await findByTestId("first-run-signin");
+    expect(await findAllByTestId("first-run-signin-row")).toHaveLength(2);
+  });
+
+  it("Stop (Close or Esc while bringing in) finishes the one in progress and keeps what came in", async () => {
+    w().__AIJ_IMPORT_DELAY_MS__ = 40;
+    const onDone = vi.fn();
+    const { findByTestId, getByTestId } = renderIt({ onDone });
+    await findByTestId("first-run-found");
+    act(() => {
+      fireEvent.click(getByTestId("first-run-bring-in"));
+    });
+    const close = getByTestId("first-run-close");
+    await waitFor(() => expect(close.textContent).toBe("Stop"));
+    fireEvent.keyDown(window, { key: "Escape" });
+    await waitFor(() => expect(close.textContent).toBe("Stopping after this one…"));
+    const outcome = await findByTestId("first-run-outcome", {}, { timeout: 2000 });
+    expect(outcome.textContent).toContain("Stopped. 1 brought in, 2 still to go.");
+    expect(onDone).not.toHaveBeenCalled();
+    expect(close.textContent).toBe("Not now");
+    await act(async () => {
+      fireEvent.click(getByTestId("first-run-rest"));
+    });
+    await waitFor(() => expect(getByTestId("first-run-close").textContent).toBe("Not now"), { timeout: 2000 });
   });
 
   it("add mode (Accounts › Add account): closable, labelled, the same list", async () => {
@@ -264,9 +362,6 @@ describe("D-25 first run — the flow", () => {
     await findByTestId("first-run-found");
     await act(async () => {
       fireEvent.click(getByTestId("first-run-bring-in"));
-    });
-    await act(async () => {
-      fireEvent.click(await findByTestId("first-run-signin-next"));
     });
     await waitFor(() => expect(onDone).toHaveBeenCalledOnce());
   });

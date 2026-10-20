@@ -750,3 +750,74 @@ pub fn tail_rollout(path: &Path, account: &str, offset: u64) -> TailOutcome {
 pub fn spool_path(config_dir: &Path) -> PathBuf {
     config_dir.join(SPOOL_DIR_NAME).join(SPOOL_FILE_NAME)
 }
+
+// ---------------------------------------------------------------------------
+// ADR-0018: in-place accounts — the capture lives in AI Juggler's data
+// ---------------------------------------------------------------------------
+
+/// The settings file AI Juggler passes with `claude --settings` for an
+/// in-place account.
+const OVERLAY_SETTINGS_NAME: &str = "launch-settings.json";
+
+/// Where AI Juggler keeps an in-place account's own files (wrapper,
+/// spool, launch settings): `<overlays root>/<account id>/`. Never the
+/// user's folder.
+#[must_use]
+pub fn overlay_dir(overlays_root: &Path, account_id: &str) -> PathBuf {
+    overlays_root.join(account_id)
+}
+
+/// The spool of an in-place account (see [`overlay_dir`]).
+#[must_use]
+pub fn overlay_spool_path(overlays_root: &Path, account_id: &str) -> PathBuf {
+    spool_path(&overlay_dir(overlays_root, account_id))
+}
+
+/// Writes the in-place account's status line capture into AI Juggler's
+/// own folder and returns the settings file to pass with `--settings`.
+/// The user's folder is only READ: their own status line (from their
+/// `settings.json`) is chained, so what they see is unchanged.
+///
+/// # Errors
+///
+/// Returns a message when AI Juggler's overlay folder can't be written.
+pub fn ensure_launch_overlay(
+    overlays_root: &Path,
+    account_id: &str,
+    config_dir: &Path,
+) -> Result<PathBuf, String> {
+    let dir = overlay_dir(overlays_root, account_id);
+    let spool_dir = dir.join(SPOOL_DIR_NAME);
+    std::fs::create_dir_all(&spool_dir).map_err(|error| format!("overlay dir: {error}"))?;
+    let chain = std::fs::read(config_dir.join("settings.json"))
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
+        .and_then(|settings| {
+            settings
+                .get("statusLine")
+                .and_then(|line| line.get("command"))
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_owned)
+        });
+    let wrapper = dir.join(WRAPPER_NAME);
+    std::fs::write(
+        &wrapper,
+        statusline_script(&spool_dir.join(SPOOL_FILE_NAME), chain.as_deref()),
+    )
+    .map_err(|error| format!("wrapper write: {error}"))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        let _ = std::fs::set_permissions(&wrapper, std::fs::Permissions::from_mode(0o755));
+    }
+    let settings = serde_json::json!({
+        "statusLine": { "type": "command", "command": wrapper.to_string_lossy() }
+    });
+    let path = dir.join(OVERLAY_SETTINGS_NAME);
+    std::fs::write(
+        &path,
+        serde_json::to_vec_pretty(&settings).map_err(|error| error.to_string())?,
+    )
+    .map_err(|error| format!("settings write: {error}"))?;
+    Ok(path)
+}

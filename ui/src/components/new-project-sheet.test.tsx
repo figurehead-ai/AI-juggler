@@ -71,7 +71,7 @@ describe("AJ-E305 NewProjectSheet — flow (b) in ≤3 clicks", () => {
   });
 
   const accounts = [
-    { id: "acc-a", provider: "claude-code", label: "Work", plan: null, login_state: "logged_in", cleanup_opt_in: false, renewal_date: null, preview_opt_in: false },
+    { id: "acc-a", provider: "claude-code", label: "Work", plan: null, login_state: "logged_in", cleanup_opt_in: false, renewal_date: null, preview_opt_in: false, in_place: false },
   ];
 
   const mountSheet = (extra: { recipes?: LaunchRecipeInfo[] } = {}) => {
@@ -147,7 +147,7 @@ describe("AJ-E305 NewProjectSheet — flow (b) in ≤3 clicks", () => {
 
   it("an unsigned-in recommendation disables Start and says why (honest before commit)", async () => {
     const signedOut = [
-      { id: "acc-a", provider: "claude-code", label: "Work", plan: null, login_state: "logged_out", cleanup_opt_in: false, renewal_date: null, preview_opt_in: false },
+      { id: "acc-a", provider: "claude-code", label: "Work", plan: null, login_state: "logged_out", cleanup_opt_in: false, renewal_date: null, preview_opt_in: false, in_place: false },
     ];
     const launchSpy = vi
       .spyOn(bridgeModule, "launchSession")

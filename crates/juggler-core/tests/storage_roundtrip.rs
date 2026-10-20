@@ -56,6 +56,7 @@ fn arb_account() -> impl Strategy<Value = Account> {
             import_source_path: None,
             import_origin: None,
             imported_at: None,
+            in_place: false,
         })
 }
 
@@ -192,6 +193,7 @@ fn seed_chain(storage: &Storage) -> (Account, Profile) {
         import_source_path: None,
         import_origin: None,
         imported_at: None,
+        in_place: false,
     };
     let profile = Profile {
         id: ProfileId::new("seed-profile"),
@@ -622,6 +624,7 @@ fn account_renewal_date_roundtrip_and_default_none() {
             import_source_path: None,
             import_origin: None,
             imported_at: None,
+            in_place: false,
         })
         .unwrap();
     // A row stored WITHOUT the field loads as None — never a guess (D-12).
@@ -1111,6 +1114,7 @@ fn account_provenance_roundtrip_e307() {
         import_source_path: Some("/Users/you/.cc-switch/profiles/work".into()),
         import_origin: Some("cc-switch".into()),
         imported_at: Some(1_728_800_000_000),
+        in_place: false,
     };
     storage.accounts().insert(&account).unwrap();
     let loaded = storage.accounts().get(&AccountId::new("acc-prov")).unwrap();
