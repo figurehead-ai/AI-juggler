@@ -2,10 +2,13 @@
  * D-25 vitest — first run: what's already here (grouped, preselected,
  * one button), the sign-in list (one row each, Sign in to all), and the
  * platform's computer access (polled; skipped when the OS needs none).
+ * AJ-E1022: a fresh account (a free name filled in → the same sign-in)
+ * and a folder (the picker → a check of what's in it → a copy), which
+ * replaced the old account wizard.
  */
 import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { FirstRun, groupOf, labelOf, preselected, usedWords } from "./FirstRun";
+import { FirstRun, freeLabel, groupOf, labelOf, preselected, usedWords } from "./FirstRun";
 import type { DiscoveredInfo } from "../lib/bridge";
 
 const w = () => window as unknown as Record<string, unknown>;
@@ -95,9 +98,9 @@ describe("D-25 first run — the flow", () => {
   const renderIt = (props: Partial<Parameters<typeof FirstRun>[0]> = {}) =>
     render(
       <FirstRun
+        mode={props.mode}
         onDone={props.onDone ?? (() => null)}
-        onAddFresh={props.onAddFresh ?? (() => null)}
-        onImportFolder={props.onImportFolder ?? (() => null)}
+        onAccountsChanged={props.onAccountsChanged}
         openLoginTerminal={props.openLoginTerminal ?? (() => null)}
       />,
     );
@@ -209,7 +212,7 @@ describe("D-25 first run — the flow", () => {
   it("add mode (Accounts › Add account): closable, labelled, the same list", async () => {
     const onDone = vi.fn();
     const { findByTestId, getByTestId } = render(
-      <FirstRun mode="add" onDone={onDone} onAddFresh={() => null} onImportFolder={() => null} openLoginTerminal={() => null} />,
+      <FirstRun mode="add" onDone={onDone} openLoginTerminal={() => null} />,
     );
     expect((await findByTestId("first-run-found")).textContent).toContain("You already have 5 Claude Code setups");
     expect(getByTestId("first-run").getAttribute("aria-label")).toBe("Add accounts");
@@ -219,9 +222,11 @@ describe("D-25 first run — the flow", () => {
 
   it("add mode with nothing new to bring in goes straight to a fresh account", async () => {
     w().__AIJ_SCAN_REPORT__ = { ...SCAN, installs: [found(`${PROFILES}/already`, "manager-tool", { managed: true })] };
-    const onAddFresh = vi.fn();
-    render(<FirstRun mode="add" onDone={() => null} onAddFresh={onAddFresh} onImportFolder={() => null} openLoginTerminal={() => null} />);
-    await waitFor(() => expect(onAddFresh).toHaveBeenCalledOnce());
+    const { findByTestId, queryByRole } = render(<FirstRun mode="add" onDone={() => null} openLoginTerminal={() => null} />);
+    expect((await findByTestId("first-run-fresh")).textContent).toContain("Add a fresh account.");
+    // Nothing to go back to; a folder is still one link away.
+    expect(queryByRole("button", { name: "Back" })).toBeNull();
+    expect(queryByRole("button", { name: "Import from a folder instead…" })).not.toBeNull();
   });
 
   it("everything already allowed: no access step", async () => {
@@ -240,12 +245,208 @@ describe("D-25 first run — the flow", () => {
     await waitFor(() => expect(onDone).toHaveBeenCalledOnce());
   });
 
-  it("nothing found: a plain start, and Add an account", async () => {
+  it("nothing found: a plain start, and Add an account opens the fresh step", async () => {
     w().__AIJ_SCAN_REPORT__ = { ...SCAN, installs: [], probes: [] };
-    const onAddFresh = vi.fn();
-    const { findByTestId, getByRole } = renderIt({ onAddFresh });
+    const { findByTestId, getByRole } = renderIt();
     expect((await findByTestId("first-run-found")).textContent).toContain("No Claude Code setups found yet.");
     fireEvent.click(getByRole("button", { name: "Add an account" }));
-    expect(onAddFresh).toHaveBeenCalledOnce();
+    expect(await findByTestId("first-run-fresh")).toBeTruthy();
+  });
+});
+
+describe("AJ-E1022 a fresh account", () => {
+  it("a free name: the tool's name, numbered past the ones taken", () => {
+    expect(freeLabel("Claude Code", ["Work"])).toBe("Claude Code");
+    expect(freeLabel("Claude Code", ["claude code", "Claude Code 2"])).toBe("Claude Code 3");
+  });
+
+  it("name it (filled in), Create and sign in, then the one sign-in row", async () => {
+    w().__AIJ_FIXTURE__ = undefined;
+    const changed = vi.fn();
+    const opened: string[] = [];
+    const { findByTestId, getByRole, getByTestId, findAllByTestId } = render(
+      <FirstRun mode="add" onDone={() => null} onAccountsChanged={changed} openLoginTerminal={(_id, title) => opened.push(title)} />,
+    );
+    await findByTestId("first-run-found");
+    fireEvent.click(getByRole("button", { name: "Add a fresh account instead" }));
+    const name = (await findByTestId("first-run-fresh-name")) as HTMLInputElement;
+    await waitFor(() => expect(name.value).toMatch(/^Claude Code/));
+    expect(document.activeElement).toBe(name);
+    fireEvent.change(name, { target: { value: "Side project" } });
+    await act(async () => {
+      fireEvent.click(getByTestId("first-run-fresh-create"));
+    });
+    const rows = await findAllByTestId("first-run-signin-row");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.textContent).toContain("Side project");
+    expect(changed).toHaveBeenCalledOnce();
+    await act(async () => {
+      fireEvent.click(within(rows[0]!).getByRole("button", { name: /^Sign in/ }));
+    });
+    await waitFor(() => expect(opened).toEqual(["Sign in · Side project"]));
+  });
+
+  it("an empty name can't be created", async () => {
+    const { findByTestId, getByRole, getByTestId } = render(<FirstRun mode="add" onDone={() => null} openLoginTerminal={() => null} />);
+    await findByTestId("first-run-found");
+    fireEvent.click(getByRole("button", { name: "Add a fresh account instead" }));
+    fireEvent.change(await findByTestId("first-run-fresh-name"), { target: { value: "  " } });
+    expect((getByTestId("first-run-fresh-create") as HTMLButtonElement).disabled).toBe(true);
+  });
+});
+
+describe("AJ-E1022 another folder", () => {
+  const INSPECT = {
+    total_bytes: 46_000_000,
+    file_count: 128,
+    folders: [
+      { name: "projects/", bytes: 40_000_000 },
+      { name: "settings.json", bytes: 60 },
+    ],
+    truncated: false,
+    ceiling_bytes: 2_000_000_000,
+    is_config: true,
+    already_managed: false,
+    login: "logged_in",
+    keychain_bound: true,
+  };
+  const openFolder = async () => {
+    const view = render(<FirstRun mode="add" onDone={onDone} openLoginTerminal={() => null} />);
+    await view.findByTestId("first-run-found");
+    await act(async () => {
+      fireEvent.click(view.getByRole("button", { name: "Import from another folder…" }));
+    });
+    return view;
+  };
+  let onDone = vi.fn();
+  beforeEach(() => {
+    onDone = vi.fn();
+    w().__AIJ_PICK_DIRECTORY__ = "/Users/you/old-claude";
+    w().__AIJ_SOURCE_INSPECT__ = INSPECT;
+  });
+
+  it("the picker cancelled changes nothing", async () => {
+    delete w().__AIJ_PICK_DIRECTORY__;
+    const view = await openFolder();
+    expect(view.queryByTestId("first-run-folder")).toBeNull();
+    expect(view.getByTestId("first-run-found")).toBeTruthy();
+  });
+
+  it("checks what's in it before copying: size, sign-in, the Keychain note, the breakdown on request", async () => {
+    const view = await openFolder();
+    const check = await view.findByTestId("first-run-folder-check");
+    await waitFor(() => expect(check.textContent).toContain("128 files · 43.9 MB"));
+    expect(check.textContent).toContain("~/old-claude");
+    expect(check.textContent).toContain("Signed in");
+    expect(view.getByTestId("first-run-folder-keychain").textContent).toContain("macOS Keychain");
+    expect(view.getByTestId("source-breakdown").textContent).toContain("projects/");
+    expect((view.getByTestId("first-run-folder-name") as HTMLInputElement).value).toBe("old-claude");
+  });
+
+  it("Bring it in copies it and asks for the sign-in the Keychain needs", async () => {
+    const view = await openFolder();
+    await act(async () => {
+      fireEvent.click(await view.findByTestId("first-run-folder-bring-in"));
+    });
+    const rows = await view.findAllByTestId("first-run-signin-row");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.textContent).toContain("old-claude");
+  });
+
+  it("too large: settings only, or a fresh account — nothing else", async () => {
+    w().__AIJ_SOURCE_INSPECT__ = { ...INSPECT, total_bytes: 40_000_000_000 };
+    const view = await openFolder();
+    expect((await view.findByTestId("first-run-folder-large")).textContent).toContain("Bring in the settings only");
+    expect(view.getByTestId("first-run-folder-bring-in").textContent).toBe("Bring in settings only");
+    fireEvent.click(view.getByRole("button", { name: "Add a fresh account instead" }));
+    expect(await view.findByTestId("first-run-fresh")).toBeTruthy();
+  });
+
+  it("not a setup: says so plainly and offers another folder, no Bring it in", async () => {
+    w().__AIJ_SOURCE_INSPECT__ = { ...INSPECT, is_config: false };
+    const view = await openFolder();
+    const alert = await view.findByTestId("source-not-config");
+    expect(alert.getAttribute("role")).toBe("alert");
+    expect(alert.textContent).toContain("doesn't look like a Claude Code setup");
+    expect(view.queryByTestId("first-run-folder-bring-in")).toBeNull();
+    expect(view.getByTestId("first-run-folder-again")).toBeTruthy();
+  });
+
+  it("already brought in: the error names it, and Done closes", async () => {
+    w().__AIJ_IMPORT_DUPLICATE_LABEL__ = "Work";
+    const view = await openFolder();
+    await act(async () => {
+      fireEvent.click(await view.findByTestId("first-run-folder-bring-in"));
+    });
+    const dup = await view.findByTestId("first-run-folder-duplicate");
+    expect(dup.textContent).toContain("Already imported as «Work»");
+    fireEvent.click(within(dup).getByRole("button", { name: "Done" }));
+    expect(onDone).toHaveBeenCalledOnce();
+  });
+
+  it("moved or gone since the pick: says so, and the picker is one click away", async () => {
+    w().__AIJ_IMPORT_ERROR__ = { code: "io", retryable: false, user_message: "/Users/you/old-claude does not exist" };
+    const view = await openFolder();
+    await act(async () => {
+      fireEvent.click(await view.findByTestId("first-run-folder-bring-in"));
+    });
+    expect((await view.findByTestId("first-run-folder-moved")).textContent).toContain("That folder moved or is gone.");
+    w().__AIJ_PICK_DIRECTORY__ = "/Users/you/other-claude";
+    delete w().__AIJ_IMPORT_ERROR__;
+    await act(async () => {
+      fireEvent.click(view.getByTestId("first-run-folder-again"));
+    });
+    await waitFor(() => expect(view.getByTestId("first-run-folder-check").textContent).toContain("~/other-claude"));
+  });
+});
+
+describe("AJ-E1103 onboarding.login — how first run's sign-ins end", () => {
+  const events = () =>
+    ((w().__AIJ_STATS_EVENTS__ as { metric: string; dims: Record<string, string> }[] | undefined) ?? []).filter(
+      (event) => event.metric === "onboarding.login",
+    );
+
+  it("Sign in later counts each one left as skipped, with the tool and no names", async () => {
+    const { findByTestId, getByTestId } = render(<FirstRun onDone={() => null} openLoginTerminal={() => null} />);
+    await findByTestId("first-run-found");
+    await act(async () => {
+      fireEvent.click(getByTestId("first-run-bring-in"));
+    });
+    const rows = await waitFor(() => {
+      const found = document.querySelectorAll("[data-testid='first-run-signin-row']");
+      expect(found.length).toBeGreaterThan(0);
+      return found;
+    });
+    await act(async () => {
+      fireEvent.click(getByTestId("first-run-signin-next"));
+    });
+    expect(events()).toHaveLength(rows.length);
+    for (const event of events()) expect(event.dims).toEqual({ provider: "claude-code", outcome: "skipped" });
+  });
+
+  it("a folder whose sign-in has expired counts as expired", async () => {
+    w().__AIJ_PICK_DIRECTORY__ = "/Users/you/old-claude";
+    const { findByTestId, getByRole } = render(<FirstRun mode="add" onDone={() => null} openLoginTerminal={() => null} />);
+    await findByTestId("first-run-found");
+    // The preview import reports logged_out; an expired one is the backend's word.
+    const bridge = await import("../lib/bridge");
+    const spy = vi.spyOn(bridge, "accountImport").mockResolvedValue({
+      account: { id: "acct-x", provider: "claude-code", label: "old-claude", plan: null, login_state: "expired", cleanup_opt_in: false, renewal_date: null, preview_opt_in: false },
+      files_copied: 1,
+      bytes_copied: 1,
+      folders: [],
+      degraded: false,
+      skipped: [],
+      login: "expired",
+      login_note: null,
+    } as unknown as Awaited<ReturnType<typeof bridge.accountImport>>);
+    await act(async () => {
+      fireEvent.click(getByRole("button", { name: "Import from another folder…" }));
+    });
+    await act(async () => {
+      fireEvent.click(await findByTestId("first-run-folder-bring-in"));
+    });
+    await waitFor(() => expect(events()).toEqual([{ metric: "onboarding.login", dims: { provider: "claude-code", outcome: "expired" }, value: undefined }]));
+    spy.mockRestore();
   });
 });

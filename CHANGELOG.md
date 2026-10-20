@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Adding an account is short: name it and sign in, or pick a folder,
+  see what's in it (size, sign-in, a too-large history offers settings
+  only) and bring it in as a copy. First run, Accounts › Add account and
+  New project's "Add an account" all use these steps; the old setup
+  wizard is gone. Add account asks which tool only when more than one is
+  installed, so the separate "Add Provider" button is gone too.
 - Cleanup says what it is in one line instead of "Tier 0 observe ·
   verified manual kills". Pause automatic cleanup and Cleanup settings
   sit behind ⋯, and Resume is on the "paused" banner. The machine filter
