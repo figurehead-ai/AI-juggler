@@ -221,7 +221,7 @@ export function FleetScreen({
           </p>
           {self.trust_reason && (
             <details className="text-[11px] text-muted">
-              <summary className="cursor-default">Details</summary>
+              <summary className="cursor-pointer">Details</summary>
               <p className="mt-1">{self.trust_reason}</p>
             </details>
           )}

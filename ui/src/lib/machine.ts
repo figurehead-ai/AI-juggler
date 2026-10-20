@@ -46,11 +46,12 @@ export function mockMachineHealth(fixture: MachineFixture, now = Date.now()): Ma
     cores: 10,
     cpu_pct: 18,
     memory_total: 32 * GB,
-    // Activity Monitor's "Memory Used" (app + wired + compressed): high on
-    // a working Mac, and not total − available (inactive pages count as
-    // available).
+    // macOS's app + wired + compressed (close to Activity Monitor's
+    // "Memory Used"): high on a working Mac. Free is on the same basis, so
+    // used + free = total.
     memory_used: 22 * GB,
-    memory_available: 13 * GB,
+    memory_basis: "app_wired_compressed",
+    memory_available: 10 * GB,
     pressure: "normal",
     swap_total: 4 * GB,
     swap_used: 1.2 * GB,

@@ -301,7 +301,8 @@ mod tests {
                 cores: 10,
                 cpu_pct: Some(20.0),
                 memory_total: 32 * G,
-                memory_used: 20 * G,
+                memory_used: Some(20 * G),
+                memory_basis: Some("app_wired_compressed".into()),
                 memory_available: 12 * G,
                 pressure: Some("normal".into()),
                 swap_total: 4 * G,
@@ -323,7 +324,7 @@ mod tests {
                     .map(|i| MachinePointInfo {
                         at_ms: i * 2_000,
                         cpu_pct: Some(20.0),
-                        memory_used: 20 * G,
+                        memory_used: Some(20 * G),
                     })
                     .collect(),
             },

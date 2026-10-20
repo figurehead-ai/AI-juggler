@@ -121,6 +121,20 @@ describe("This Mac panel (AJ-E1404)", () => {
     expect(within(theirs!).queryByRole("button")).toBeNull();
   });
 
+  it("names what memory in use counts, and shows nothing when it couldn't be read", () => {
+    const measured = info("plenty", []);
+    const { unmount } = render(<ThisMacPanel info={measured} nameOf={nameOf} onOpenSession={vi.fn()} />);
+    const line = screen.getByTestId("this-mac-memory");
+    expect(line.getAttribute("title")).toContain("app memory, wired and compressed");
+    expect(screen.getByRole("meter").getAttribute("aria-label")).toContain("close to Activity Monitor");
+    unmount();
+    const unread = info("plenty", []);
+    unread.machine = { ...unread.machine, memory_used: null, memory_basis: null };
+    render(<ThisMacPanel info={unread} nameOf={nameOf} onOpenSession={vi.fn()} />);
+    expect(screen.queryByRole("meter")).toBeNull();
+    expect(screen.getByTestId("this-mac-memory").textContent).toBe("Memory: 32 GB");
+  });
+
   it("offers Clean up only when something was left running", () => {
     const clean = vi.fn();
     render(<ThisMacPanel info={info("plenty", [tree({})], [2, 1])} nameOf={nameOf} onOpenSession={vi.fn()} onOpenCleanup={clean} />);

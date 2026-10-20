@@ -1,31 +1,37 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button, Card, Chip } from "../components/primitives";
 import { IconJuggler } from "../components/icons";
 import { funnelStep } from "../lib/funnel";
-import { OnboardingWizard } from "./OnboardingWizard";
 import { providersDiscover, type ProviderInstallData } from "../lib/bridge";
 
 /**
- * AJ-E306 flow (c): add a Provider in ≤ 4 clicks. One card per
- * adapter with its install state, verified-range badge and kind —
- * desktop cards state their single-instance limit BEFORE selection
- * (Req.3); not-installed cards offer [Install →] and are never
- * selectable (Req.1). Choosing a card runs the provider-scoped
- * wizard (LOCKED — flows (d)'s machinery: scan → proposal/identity →
- * queued sign-ins → Summary with its [Launch] and [Add another
- * account on this Provider] exits, Req.2).
+ * AJ-E306 flow (c), folded into Add account (D-25 stage 4, AJ-E1023):
+ * when more than one tool is installed, Add account first asks which
+ * tool the account is for. One card per tool with its install state,
+ * verified-range badge and kind — desktop cards state their
+ * single-instance limit BEFORE selection (Req.3); not-installed cards
+ * offer [Install →] and are never selectable (Req.1). Choosing a card
+ * hands the tool to Add account (find → bring in or a fresh account →
+ * sign in), which keeps flow (c) within 4 clicks.
  */
 export function AddProviderSheet({
   onClose,
-  onAccountCreated,
-  openLoginTerminal,
+  onChoose,
 }: {
   onClose: () => void;
-  onAccountCreated: () => void;
-  openLoginTerminal: (id: string, title: string) => void;
+  onChoose: (provider: string) => void;
 }) {
   const [installs, setInstalls] = useState<ProviderInstallData[] | null>(null);
-  const [chosen, setChosen] = useState<ProviderInstallData | null>(null);
+  const frameRef = useRef<HTMLDivElement | null>(null);
+  // A modal dialog takes focus and closes on Escape (WCAG 2.4.3).
+  useEffect(() => {
+    frameRef.current?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
   useEffect(() => {
     funnelStep("c-add-provider", "open");
@@ -40,19 +46,25 @@ export function AddProviderSheet({
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6 outline-none backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Add an account: which tool?"
+      ref={frameRef}
+      tabIndex={-1}
+    >
       <Card className="flex max-h-[86vh] w-full max-w-xl flex-col overflow-hidden p-0">
         <div className="flex items-center gap-3 border-b border-hairline/60 px-6 py-4">
           <span className="text-accent">
             <IconJuggler width={16} height={16} />
           </span>
-          <h3 className="text-sm font-semibold">Add a tool</h3>
+          <h3 className="text-sm font-semibold">Add an account</h3>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5" data-testid="provider-cards">
           <p className="text-xs leading-relaxed text-muted">
-            One card per tool AI Juggler knows. Installed tools are ready to set up;
-            others link to their install page.
+            Which tool is it for? Installed tools are ready; others link to their install page.
           </p>
           {installs === null && <p className="mt-4 text-xs text-muted">Checking your machine…</p>}
           <ul className="mt-3 flex flex-col gap-2">
@@ -98,11 +110,11 @@ export function AddProviderSheet({
                       variant="primary"
                       onClick={() => {
                         funnelStep("c-add-provider", "choose");
-                        setChosen(row);
+                        onChoose(row.provider);
                       }}
                       data-testid="provider-choose"
                     >
-                      Set up {row.display_name} →
+                      {row.display_name} →
                     </Button>
                   ) : (
                     row.status === "not_installed" &&
@@ -130,18 +142,6 @@ export function AddProviderSheet({
         </div>
       </Card>
 
-      {/* The chosen card runs the provider-scoped wizard INLINE —
-          LOCKED (no multi-Provider gate), reusing the AJ-E305
-          sign-ins queue and the Summary exits (Req.2). */}
-      {chosen !== null && (
-        <OnboardingWizard
-          provider={chosen.provider}
-          locked
-          onClose={() => setChosen(null)}
-          onAccountCreated={onAccountCreated}
-          openLoginTerminal={openLoginTerminal}
-        />
-      )}
     </div>
   );
 }

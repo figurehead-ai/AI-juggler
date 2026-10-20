@@ -3,7 +3,7 @@ import { Button, Card, Chip } from "../components/primitives";
 import { IconProjects, IconTerminal } from "../components/icons";
 import { funnelStep } from "../lib/funnel";
 import { ExpertSetup } from "../components/ExpertSetup";
-import { OnboardingWizard } from "./OnboardingWizard";
+import { FirstRun } from "./FirstRun";
 import {
   launchRecipesList,
   launchSession,
@@ -395,10 +395,10 @@ export function NewProjectSheet({
           pending project launch (Req.7): same directory, refreshed
           accounts. */}
       {detour && (
-        <OnboardingWizard
-          provider="claude-code"
-          onClose={() => setDetour(false)}
-          onAccountCreated={() => {
+        <FirstRun
+          mode="add"
+          onDone={() => setDetour(false)}
+          onAccountsChanged={() => {
             onAccountsChanged();
             reload();
             void import("../lib/bridge").then((bridge) =>
