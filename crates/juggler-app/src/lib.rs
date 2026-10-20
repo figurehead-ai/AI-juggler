@@ -26,6 +26,7 @@ pub mod history;
 pub mod identity;
 pub mod lifecycle;
 pub mod link;
+pub mod machine_health;
 pub mod newer_data;
 pub mod os_access;
 pub mod overnight;
@@ -359,6 +360,7 @@ pub fn run() {
             commands::desktop_focus,
             commands::app_setting_get,
             commands::app_setting_set,
+            machine_health::machine_health,
             os_access::os_access_list,
             os_access::os_access_request,
             os_access::os_access_open_settings,

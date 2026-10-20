@@ -440,6 +440,61 @@ fn session_list_without_filter_returns_all() {
     assert_eq!(all[0].id, session.id);
 }
 
+/// AJ-E1401: the machine sampler's disks-in-use read asks for the folders
+/// of this Mac's sessions that haven't ended — one query, never the whole
+/// history, never another Mac's paths.
+#[test]
+fn active_cwds_skip_ended_sessions_and_dedupe() {
+    let storage = Storage::open_in_memory().unwrap();
+    let (_, profile) = seed_chain(&storage);
+    let rows = [
+        ("s-run", "/w/a", SessionStatus::Running),
+        ("s-wait", "/w/a", SessionStatus::WaitingUser),
+        ("s-stuck", "/Volumes/Work/b", SessionStatus::Stuck),
+        ("s-done", "/w/old", SessionStatus::Finished),
+        ("s-stop", "/w/old2", SessionStatus::Stopped),
+        ("s-fail", "/w/old3", SessionStatus::Failed),
+        ("s-handed", "/w/old4", SessionStatus::HandedOver),
+        // Synced from another Mac: its paths are not this Mac's disks.
+        ("s-remote", "/Volumes/Theirs/c", SessionStatus::Running),
+    ];
+    for (id, cwd, status) in rows {
+        let mut session = SessionRecord {
+            id: SessionId::new(id),
+            conversation: None,
+            profile: profile.id.clone(),
+            machine: MachineId::new(if id == "s-remote" {
+                "other-mac"
+            } else {
+                "this-mac"
+            }),
+            kind: juggler_core::model::InstanceKind::Terminal,
+            project: None,
+            cwd: PathBuf::from(cwd),
+            status: SessionStatus::Starting,
+            started_at: Timestamp::from_millis(7),
+            last_activity: None,
+            usage: UsageSnapshot::default(),
+            attention: None,
+            running: None,
+            window: None,
+            transcript_ref: None,
+        };
+        storage.sessions().insert(&session).unwrap();
+        session.status = status;
+        storage.sessions().update(&session).unwrap();
+    }
+    let mut cwds = storage
+        .sessions()
+        .active_cwds(&MachineId::new("this-mac"))
+        .unwrap();
+    cwds.sort();
+    assert_eq!(
+        cwds,
+        [PathBuf::from("/Volumes/Work/b"), PathBuf::from("/w/a")]
+    );
+}
+
 #[test]
 fn projects_touch_creates_then_refreshes_activity() {
     let storage = Storage::open_in_memory().unwrap();

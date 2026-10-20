@@ -352,6 +352,16 @@
   ("never saw the child") and `reconciler :: helper_exiting_inside_grace_never_surfaces`
   timed out once each in a `cargo test --workspace` run; both passed
   alone at once (3/3 each). No budget changed.
+- Observed, no change (2026-10-20, E14 review fixes on PR #67, with three
+  other sessions building on the same Mac at load average 18–31):
+  `reconciler :: fifty_instance_soak_and_construction_regression` missed
+  its wall-time p95 (854 ms against 100 ms, load 18.1/20.2/23.4). In one
+  earlier full run, `orphan :: orphan_detected_after_grace_and_stopped_gone`
+  and `orphan :: stop_ladder_escalates_when_sigterm_ignored` timed out
+  their waits (load 30.7). Re-run alone, `--test orphan` passed 5/5; the
+  rest of the workspace passed (117 suites with `--no-fail-fast`). Neither
+  binary touches the E14 change: the machine sampler is not in either. No
+  budget, timeout or assertion changed; CI decides.
 
 - **Bug record, 2026-10-20 (fixed; AJ-E1010).** An older AI Juggler that
   meets data a newer one saved (schema too new) **quit at launch with no

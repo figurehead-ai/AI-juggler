@@ -216,6 +216,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the model each turn ran, tokens, compaction and errors come from
   Codex's own session files, in both of its history formats. The
   account's identity check uses Codex's account id (never a token).
+- AI Juggler now watches the Mac itself, not only its sessions (E14,
+  AJ-E1401): processor and memory use, macOS's own memory-pressure level,
+  swap, free space on the disks your sessions use, power and thermal
+  state, sampled every 2 seconds with five minutes of history. One plain
+  summary — "Plenty of room", "Getting tight" or "Under pressure", with
+  the reasons — is what Home, the launch advisor and the alerts will show.
+  Old swap doesn't count against you; swap that keeps growing does. Memory
+  in use counts app memory, wired and compressed data, close to the
+  figure Activity Monitor shows.
 - Three update channels (decision D-20): **Nightly** (built from the latest
   code every day), **Beta** and **Stable** (each promoted with the
   maintainer's approval). Choose Stable or Beta in Settings › About &
