@@ -213,7 +213,7 @@ export function GoToPalette({
               onClick={() => choose(entry)}
               onMouseEnter={() => setActive(index)}
               className={
-                "flex w-full cursor-default items-center gap-2 rounded-md px-2.5 py-2 text-left text-[11.5px] transition-colors " +
+                "flex w-full cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-left text-[11.5px] transition-colors " +
                 (index === active ? "bg-accent-soft text-accent-hi" : "text-ink hover:bg-surface")
               }
             >
