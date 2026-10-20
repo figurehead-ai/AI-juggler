@@ -1354,7 +1354,7 @@ function InstanceOverview(props: PanelProps) {
             </p>
           ))}
           {providerAccounts.length === 0 && (
-            <p className="text-xs text-muted">No accounts on this provider yet.</p>
+            <p className="text-xs text-muted">No accounts for this tool yet.</p>
           )}
         </Card>
       </div>
@@ -1769,7 +1769,7 @@ function ProviderOverview(props: PanelProps) {
       <Card className="flex flex-col gap-1.5 p-4" data-testid="provider-aggregate">
         <p className="text-[11px] uppercase tracking-wider text-muted">Aggregate quota (worst account first)</p>
         {perAccount.length === 0 ? (
-          <p className="text-[11.5px] text-muted">No accounts on this provider yet.</p>
+          <p className="text-[11.5px] text-muted">No accounts for this tool yet.</p>
         ) : (
           perAccount.map(({ account, worst }) => (
             <div key={account.id} className="flex flex-col gap-1 py-0.5">

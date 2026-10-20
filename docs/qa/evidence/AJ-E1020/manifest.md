@@ -33,3 +33,24 @@ Gallery: `docs/qa/evidence/_gallery/69-rail-narrow/`.
 
 - The icon column lists sessions only. A project row needs the list (⌘B),
   as it always did in Minimal.
+
+## Review fixes (2026-10-20, after #63)
+
+- **The view never writes Settings by itself.** While the rail is
+  folded, the density shortcut (Ctrl+D, ⌘D in the app, a double-click on
+  the rail) opens the list instead of silently cycling Settings ›
+  Appearance. Open, it cycles for real and shows what it stored. With
+  Minimal stored, ⌘B in a narrow window stores Comfortable (as it does
+  wide), so the rail and Settings always agree.
+- **Stricter shared check.** `expectRail` (the shared check of about 70
+  captures) now asserts that a rail at 900 px or wider shows exactly the
+  stored density, and that narrower it is folded unless Minimal is
+  stored. It no longer accepts a folded rail at any width.
+- **New tests.** `rail-narrow.spec.ts`: compact folds, opens as compact
+  and comes back as compact; the shortcut while folded leaves storage
+  alone; a stored Minimal and ⌘B agree with Settings.
+- **Walked by hand** at 860×700, dark. Folded → Ctrl+D opened the list
+  (storage still comfortable) → Ctrl+D again gave compact (stored
+  compact) → ⌘B folded (storage compact). I chose Minimal in Settings,
+  then ⌘B: rail and Settings both Comfortable. Widening to 1280 showed
+  Comfortable.

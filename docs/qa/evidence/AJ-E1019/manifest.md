@@ -48,3 +48,34 @@ plain words; "tool" on screen instead of "Provider", D-25). Status:
   "Re-adopted" matches the recovery summary's word for the same thing.
 - The Rust string changes are verified by CI (no local Rust build, to
   save disk).
+
+## Review fixes (2026-10-20, after #63)
+
+- **Focus.** Opening ⋯ focuses its first item. Escape, Pause and the
+  banner's Resume hand focus back to ⋯, never to `<body>` (WCAG 2.4.3).
+  A click elsewhere closes it without moving focus. Cleanup settings…
+  opens Settings, which focuses its Cleanup heading. vitest
+  `cleanup-centre.test.tsx` "the ⋯ menu keeps keyboard focus" covers
+  open, Escape, Pause, then Resume.
+- **AJ-E508 Req.4** ("in Settings AND in the Cleanup Centre header";
+  pausing takes effect within one tick; a persistent banner). The header
+  switch is one step away behind ⋯, still in the header. The banner text
+  is unchanged and carries Resume. Settings never had the switch, so the
+  requirement didn't hold before #63 either. Settings › Cleanup now has
+  "Pause automatic cleanup" (off by default, shows a pause made
+  elsewhere). Proof: vitest `settings-sections.test.tsx` (two Req.4 tests).
+- **Lint.** The "Provider" rules match `[Pp]roviders?`. The lowercase
+  leftovers now say "tool":
+  - "No accounts for this tool yet."
+  - the rail search's name "…model or tool"
+  - the session panel's "tool:"
+  - "per pair of tools"
+  - "All N tool pairs ship in beta"
+
+  Tooltips show tool names, not ids (switch graph, rail rows, the
+  Accounts glyph).
+- **Walked by hand** (vite preview with the mock bridge, 1280×800 dark
+  and light). In Cleanup I opened ⋯ (focus on Pause), pressed Escape
+  (focus on ⋯), Enter then Enter (paused, the banner shows, focus on ⋯),
+  Resume (the banner goes, focus on ⋯), ⋯ › Cleanup settings… (Settings
+  at Cleanup, heading focused), then ticked Settings' Pause switch ("paused").

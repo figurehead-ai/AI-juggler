@@ -28,7 +28,7 @@ const PEER = {
 
 afterEach(cleanup);
 beforeEach(() => {
-  for (const key of ["__AIJ_APP_SETTINGS__", "__AIJ_NOTIFICATION_PREFS__", "__AIJ_CLEANUP_DEFAULT__", "__AIJ_FLEET_PEERS__"]) {
+  for (const key of ["__AIJ_APP_SETTINGS__", "__AIJ_NOTIFICATION_PREFS__", "__AIJ_CLEANUP_DEFAULT__", "__AIJ_FLEET_PEERS__", "__AIJ_CLEANUP_STATUS__"]) {
     delete w()[key];
   }
 });
@@ -76,6 +76,24 @@ describe("wireframe 26 — Settings sections", () => {
     });
     expect(w().__AIJ_CLEANUP_DEFAULT__).toBe(true);
     expect(getByTestId("settings-cleanup").textContent).toContain("Existing Accounts keep their own choice");
+  });
+
+  it("AJ-E508 Req.4: Settings › Cleanup has the global pause switch, off by default, and pausing says so", async () => {
+    const { getByTestId } = render(<SettingsScreen />);
+    const pause = getByTestId("settings-cleanup-pause") as HTMLInputElement;
+    await waitFor(() => expect(pause.disabled).toBe(false));
+    expect(pause.checked).toBe(false);
+    await act(async () => {
+      fireEvent.click(pause);
+    });
+    await waitFor(() => expect(pause.checked).toBe(true));
+    expect(getByTestId("settings-cleanup").textContent).toContain("Automatic cleanup is paused.");
+  });
+
+  it("AJ-E508 Req.4: a pause made elsewhere shows as on", async () => {
+    w().__AIJ_CLEANUP_STATUS__ = { paused: true, suspended: false, suspended_until_ms: null, tier2_pending: [] };
+    const { getByTestId } = render(<SettingsScreen />);
+    await waitFor(() => expect((getByTestId("settings-cleanup-pause") as HTMLInputElement).checked).toBe(true));
   });
 
   it("D-12: renewal reminders default to 7 days and every Account shows its own date, or that it has none", async () => {

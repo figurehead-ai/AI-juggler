@@ -105,3 +105,35 @@ for (const theme of ["dark", "light"] as const) {
     await axeClean(page, "opened rail 860");
   });
 }
+
+test("compact: folds when narrow, ⌘B opens it as compact, and widening shows compact", async ({ page }) => {
+  await seed(page, "dark", 860, 800, "compact");
+  await expect(rail(page)).toHaveAttribute("data-density", "minimal");
+  await page.keyboard.press("ControlOrMeta+b");
+  await expect(rail(page)).toHaveAttribute("data-density", "compact");
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await expect(rail(page)).toHaveAttribute("data-density", "compact");
+  expect(await page.evaluate(() => localStorage.getItem("aij.density"))).toBe("compact");
+});
+
+test("the density shortcut while folded opens the list and leaves Settings alone", async ({ page }) => {
+  await seed(page, "dark", 860, 800);
+  await expect(rail(page)).toHaveAttribute("data-density", "minimal");
+  await page.keyboard.press("Control+d");
+  await expect(rail(page)).toHaveAttribute("data-density", "comfortable");
+  expect(await page.evaluate(() => localStorage.getItem("aij.density"))).toBe("comfortable");
+  // Open, it changes the density for real — and shows what it stored.
+  await page.keyboard.press("Control+d");
+  await expect(rail(page)).toHaveAttribute("data-density", "compact");
+  expect(await page.evaluate(() => localStorage.getItem("aij.density"))).toBe("compact");
+});
+
+test("a stored Minimal: ⌘B while narrow stores Comfortable, so the rail and Settings agree", async ({ page }) => {
+  await seed(page, "dark", 860, 800, "minimal");
+  await expect(rail(page)).toHaveAttribute("data-density", "minimal");
+  await page.keyboard.press("ControlOrMeta+b");
+  await expect(rail(page)).toHaveAttribute("data-density", "comfortable");
+  expect(await page.evaluate(() => localStorage.getItem("aij.density"))).toBe("comfortable");
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await expect(rail(page)).toHaveAttribute("data-density", "comfortable");
+});

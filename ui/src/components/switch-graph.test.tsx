@@ -276,7 +276,7 @@ describe("AJ-E209 copy lint — beta is never lossless (D-04/D-11)", () => {
   it("cross-Provider badges always carry the beta qualifier in copy and fixtures", () => {
     // Component copy says it explicitly…
     expect(rowsSource).toContain("Not yet validated");
-    expect(rowsSource).toContain("Badges are per provider pair and beta-validated");
+    expect(rowsSource).toContain("Badges are per pair of tools and beta-validated");
     // …and the bridge fixtures honour it (cross-Provider ⇒ Beta).
     const badges = Array.from(bridgeSource.matchAll(/badge: "(F\d[^"]*)"/g)).map(
       (m) => m[1] as string,

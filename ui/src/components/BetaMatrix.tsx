@@ -56,7 +56,7 @@ export function BetaMatrix(): JSX.Element {
         <p className="text-[11px] uppercase tracking-wider text-muted">Beta validation</p>
         <p className="mt-1 text-xs text-muted" data-testid="beta-matrix-summary">
           {validated === 0
-            ? `All ${rows.length} provider pairs ship in beta — none validated yet. `
+            ? `All ${rows.length} tool pairs ship in beta — none validated yet. `
             : `${validated} of ${rows.length} pairs validated · ${openDebt} still open beta debt. `}
           Badges say what carried, never more: a pair graduates only when its CI row is green
           AND one live dogfood cell passed on real binaries.

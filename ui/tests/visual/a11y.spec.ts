@@ -295,7 +295,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/");
     await goTo(page, "Accounts");
-    await page.getByRole("button", { name: "Inspect claude-code" }).first().click();
+    await page.getByRole("button", { name: "Inspect Claude Code" }).first().click();
     await expect(page.getByTestId("account-tier-toggles")).toBeVisible();
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])

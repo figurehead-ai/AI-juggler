@@ -190,7 +190,7 @@ export default function App() {
     window.addEventListener("aij:theme-changed", report);
     return () => window.removeEventListener("aij:theme-changed", report);
   }, []);
-  const cycleDensity = useCallback(() => {
+  const cycleStoredDensity = useCallback(() => {
     setDensity((current) => {
       const next = nextDensity(current);
       storeDensity(next);
@@ -211,17 +211,25 @@ export default function App() {
   useEffect(() => {
     if (!narrow) setNarrowOpen(false);
   }, [narrow]);
-  const railDensity: Density = narrow
-    ? narrowOpen
-      ? density === "minimal"
-        ? "comfortable"
-        : density
-      : "minimal"
-    : density;
+  // What the rail shows is always the stored density, except folded to
+  // icons while narrow; nothing that only changes the view writes Settings.
+  const folded = narrow && !narrowOpen && density !== "minimal";
+  const railDensity: Density = folded ? "minimal" : density;
   const toggleRail = useCallback(() => {
-    if (narrow) setNarrowOpen((open) => !open);
-    else setDensityAndStore(density === "minimal" ? "comfortable" : "minimal");
+    if (narrow && density !== "minimal") {
+      setNarrowOpen((open) => !open);
+      return;
+    }
+    // Minimal is a choice: ⌘B changes it, as it does in a wide window.
+    setDensityAndStore(density === "minimal" ? "comfortable" : "minimal");
+    if (narrow) setNarrowOpen(density === "minimal");
   }, [narrow, density, setDensityAndStore]);
+  // The density shortcut (and a double-click on the rail) while folded
+  // opens the list instead of silently changing Settings › Appearance.
+  const cycleDensity = useCallback(() => {
+    if (folded) setNarrowOpen(true);
+    else cycleStoredDensity();
+  }, [folded, cycleStoredDensity]);
 
   // The stale-data tick (AJ-E403 Req.5): ONE shared 15 s timer for the
   // whole app — staleness captions recompute against `now` without any

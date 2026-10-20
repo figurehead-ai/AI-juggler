@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Settings › Cleanup has the "Pause automatic cleanup" switch too. In
+  Cleanup, keyboard focus stays on the ⋯ button after you pause, resume
+  or press Escape. While the rail is folded in a narrow window, the
+  density shortcut opens the list instead of quietly changing your
+  setting.
 - Adding an account is short: name it and sign in, or pick a folder,
   see what's in it (size, sign-in, a too-large history offers settings
   only) and bring it in as a copy. First run, Accounts › Add account and
