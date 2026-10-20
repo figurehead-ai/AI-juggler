@@ -31,6 +31,10 @@ is evaluated with This Mac on the 5 s cadence, so it adds no work of its own.
   are immediate; quiet hours only delay the hourly digest. Usage stats count
   them as `ui.notification` kind `other`, because the closed schema has no
   machine kind. Adding one is a schema change for the maintainer.
+- After AJ-E1402's review (memory honesty), an alert naming a tool AI
+  Juggler didn't start carries `subject_estimate`. The words then say
+  "about 2.0 GB", because that tree's sum counts shared memory more than
+  once.
 
 ## Fixture corpus (SPEC §5.3, §12)
 
@@ -51,6 +55,7 @@ is evaluated with This Mac on the 5 s cadence, so it adds no work of its own.
 | Req.1, Req.4 rules on the corpus | `cargo test -p juggler-app --lib -- machine_alerts` | every alert fires on its fixture, none on calm | 7 passed | PASS | 42012b58+ | 2026-10-20 | claude-opus |
 | Req.2 once per 30 min, clears, names the contributor | same (`it_clears_and_is_not_retold_within_thirty_minutes`, `memory_pressure_is_told_once…`) | pass | pass | PASS | 42012b58+ | 2026-10-20 | claude-opus |
 | Req.3 Needs you + the notice | `pnpm --dir ui exec vitest run src/components/this-mac.test.tsx` (alert in Needs you with "busy-one is using 3.2 GB", amber when tight; the notice told once and dismissed) | pass | 12 passed | PASS | 42012b58+ | 2026-10-20 | claude-opus |
+| Memory honesty (AJ-E1402 review) | `cargo test -p juggler-app --lib -- machine_alerts` (`a_tool_we_did_not_start_is_named_with_its_memory_as_an_estimate`); vitest "says a tool we didn't start uses about its memory…" | pass | pass | PASS | be61a592+ | 2026-10-20 | claude-opus |
 | Gallery + axe | `pnpm --dir ui exec playwright test tests/visual/overload-gallery.spec.ts` → [`_gallery/74-overload/`](docs/qa/evidence/_gallery/74-overload/) | 0 critical/serious | 6 passed | PASS | 42012b58+ | 2026-10-20 | claude-opus |
 | Walked by hand | built-in browser, 1440×900 dark and light, `?aij_machine=tight&aij_alert=cpu` / `pressure&aij_alert=memory`: the notice shows once; it survives Accounts → Home; dismiss clears it; Needs you item and headline | as described | as described | PASS | 42012b58+ | 2026-10-20 | claude-opus |
 

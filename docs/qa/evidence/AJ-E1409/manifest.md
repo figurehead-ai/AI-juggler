@@ -16,6 +16,10 @@ counting only launch settings with ≥ 3 measured sessions:
 
 This Mac shows them under "From your history", only when they exist.
 
+After AJ-E1402's review, the room counts only our sessions' measured memory
+as AI tools. A tool AI Juggler didn't start is an estimate, so it stays in
+"the rest" rather than enlarge the room.
+
 | Claim / Req ID | Command / fixture / live step (exact) | Threshold | Observed | Verdict | Commit SHA | Date | Reviewer |
 |---|---|---|---|---|---|---|---|
 | Req.1–2 | `cargo test -p juggler-app --lib -- machine_health` (`recommendations_come_from_enough_real_sessions`: nothing from 2 sessions; "about 5 sessions" on a 32 GB Mac with 14 GB of other use; the heaviest named at ≥ 1.5×; close weights name none; observed footprints never count) | pass | pass | PASS | 42012b58+ | 2026-10-20 | claude-opus |
