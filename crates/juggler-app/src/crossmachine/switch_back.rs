@@ -125,15 +125,25 @@ fn delta_of(
         .as_ref()
         .and_then(|reference| std::fs::read(&reference.path).ok())
         .unwrap_or_default();
-    let parsed = juggler_adapters::claude_transcript::parse_transcript(&bytes);
+    let parsed = juggler_adapters::parse_any(&bytes);
     // The base: what arrived (T2) — or, for a replay, its prime turn.
     let base_uuids: HashSet<String> = match &base {
         Some(row) => {
             let cut = usize::try_from(row.bytes)
                 .unwrap_or(usize::MAX)
                 .min(bytes.len());
-            juggler_adapter::handover::uuid_set(&bytes[..cut])
+            // Claude lines carry `uuid`; Codex messages get their id
+            // from the parser (item id or line) — both, so either
+            // Provider's base is complete (AJ-E1303).
+            let prefix = &bytes[..cut];
+            juggler_adapter::handover::uuid_set(prefix)
                 .into_iter()
+                .chain(
+                    juggler_adapters::parse_any(prefix)
+                        .messages
+                        .into_iter()
+                        .filter_map(|message| message.uuid),
+                )
                 .collect()
         }
         None => parsed

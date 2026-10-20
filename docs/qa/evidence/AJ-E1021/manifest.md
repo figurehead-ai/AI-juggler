@@ -46,3 +46,37 @@ Gallery: `55-triage/home-populated-*` and `home-empty-*` (1440×900 and
 - The tool inspector (selection kind "provider") was opened only from
   Overview's quota windows; it stays for Accounts to link to once a
   second tool is set up.
+
+## Post-merge review fixes (2026-10-20)
+
+- **J/K after A.** Marking a session reviewed or resuming it removes or
+  disables its row, which dropped focus to `<body>`, and the next key
+  went nowhere. Focus now goes to the row in its place (for a few seconds
+  after the action, so it doesn't take focus back later). The keys also
+  work from `<body>` while Home is shown. A pressed on a row's own Mark
+  reviewed button acts on that row.
+- **The keyboard test** now really tests it. The parent removes the
+  reviewed row, Enter is a real key press (user-event), and it covers A
+  on Mark reviewed and keys from `<body>`. All four fail on the code
+  before this fix.
+- **Handed-over sessions** are no longer "to review". The session goes
+  on elsewhere, as Triage had it.
+- **Legend (AJ-E403 Req.6).** Overview's legend surface went with
+  Overview, so Home's header has the same `?` (Home is the "All clear"
+  explainer). The popover is shared (`components/LegendPopover.tsx`) and
+  opens below on Home. Req.6 is amended in the E4 task file.
+  `home-gallery.spec.ts` checks both surfaces: in view, on top, axe,
+  Escape returns focus.
+- **Home's lower half** has a baseline. `home scrolled` scrolls Home
+  (with a parked session whose reset passed) to show Parked, Pick up
+  where you left off and the keys line, at all 8 cells.
+- **The tool view (selection "provider")** is deliberately left without
+  a way in. As built, it shows placeholders ("version: No data", "lands
+  with AJ-E606+"), and with one tool installed it adds nothing that
+  Accounts doesn't show. Removing the inspector's internal placeholder
+  text, and deciding whether a tool view is worth having once Codex
+  ships, is a follow-up.
+
+Walked by hand (vite preview, 1280×800, dark): J twice → A on an ended
+session (its row went, focus on the row in its place) → K. Home's "?"
+legend opens below, in view, and Escape returns focus to it.

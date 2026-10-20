@@ -23,15 +23,43 @@ export function AddProviderSheet({
 }) {
   const [installs, setInstalls] = useState<ProviderInstallData[] | null>(null);
   const frameRef = useRef<HTMLDivElement | null>(null);
-  // A modal dialog takes focus and closes on Escape (WCAG 2.4.3).
+  // The parent passes a new onClose on every render (App re-renders on
+  // its clock and on every session event): keep the latest in a ref so
+  // the effects below run once, and focus never jumps back to the frame.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  // A modal dialog (WCAG 2.4.3): focus moves in once, Tab stays inside,
+  // Escape closes it, and focus goes back to what opened it.
   useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
     frameRef.current?.focus();
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") {
+        onCloseRef.current();
+        return;
+      }
+      if (event.key !== "Tab" || !frameRef.current) return;
+      const focusables = Array.from(
+        frameRef.current.querySelectorAll<HTMLElement>("button:not(:disabled), a[href], [tabindex]:not([tabindex='-1'])"),
+      );
+      if (focusables.length === 0) return;
+      const first = focusables[0]!;
+      const last = focusables[focusables.length - 1]!;
+      const inside = frameRef.current.contains(document.activeElement);
+      if (event.shiftKey && (document.activeElement === first || !inside || document.activeElement === frameRef.current)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !inside)) {
+        event.preventDefault();
+        first.focus();
+      }
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      if (opener && opener.isConnected) opener.focus();
+    };
+  }, []);
 
   useEffect(() => {
     funnelStep("c-add-provider", "open");
