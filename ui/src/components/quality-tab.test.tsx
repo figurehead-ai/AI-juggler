@@ -134,7 +134,7 @@ describe("AJ-E409 Quality tab signals (D-07)", () => {
     expect(container.querySelector('[data-testid="quality-tokens"]')!.textContent).toContain("Measured");
     expect(container.querySelector('[data-testid="quality-errors"]')!.textContent).toContain("2 errors / 41 turns");
     expect(container.querySelector('[data-testid="quality-context"]')!.textContent).toContain(
-      "Context: not reported by claude-code",
+      "Context: not reported by Claude Code",
     );
     expect(container.querySelector('[data-testid="quality-context"]')!.textContent).toContain("cumulative, not context");
     expect(container.querySelector('[data-testid="quality-cost"]')!.textContent).toContain("Est · value-equiv.");
@@ -157,7 +157,7 @@ describe("AJ-E409 Quality tab signals (D-07)", () => {
   it("no transcript at all renders the `no data` state", async () => {
     const { container } = qualityShell(instance("unknown"));
     await waitFor(() => expect(container.querySelector('[data-testid="quality-tab"]')).not.toBeNull());
-    expect(container.textContent).toContain("no data — no transcript usage events yet");
+    expect(container.textContent).toContain("Nothing measured yet — this fills in as the session works.");
   });
 
   it("View as table swaps the chart for a text alternative (a11y)", async () => {

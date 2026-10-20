@@ -195,7 +195,8 @@ describe("AJ-E406 keyboard + honest empties + footers", () => {
     const { container } = shell({ kind: "account", id: "claude-work" });
     fireEvent.click(container.querySelector("#inspector-tab-usage")!);
     expect(container.textContent).toContain("Unavailable");
-    expect(container.textContent).toContain("usage engine");
+    expect(container.textContent).toContain("No usage measured for this yet.");
+    expect(container.textContent).not.toMatch(/lands with|\bAJ-E\d+/);
   });
 
   it("every tab footer names the field's real source (Req.5)", () => {

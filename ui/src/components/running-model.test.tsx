@@ -173,7 +173,7 @@ describe("AJ-E412 Instance Overview model line (Req.3/5)", () => {
   it("no launch and no observation renders Model: not reported by {Provider}", () => {
     const { container } = overviewShell(instance({ model_source: "unknown" }));
     expect(container.querySelector('[data-testid="instance-model-line"]')!.textContent).toBe(
-      "Model: not reported by claude-code",
+      "Model: not reported by Claude Code",
     );
   });
 });

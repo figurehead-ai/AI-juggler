@@ -104,8 +104,9 @@ fn a_codex_account_gets_its_own_home_and_real_sign_in_state() {
         commands::expert_setup_info_impl(&state, CODEX_ID, Some(&created.id), None).unwrap();
     let snippet = expert.shell_snippet.unwrap();
     assert!(
-        snippet.starts_with("CODEX_HOME='") && snippet.contains(" CODEX_SQLITE_HOME='"),
-        "the snippet pins the home and the SQLite home"
+        snippet.starts_with("env -u CODEX_API_KEY -u OPENAI_API_KEY CODEX_HOME='")
+            && snippet.contains(" CODEX_SQLITE_HOME='"),
+        "the snippet unsets inherited keys and pins the home and the SQLite home"
     );
     assert!(
         snippet.ends_with(" codex"),

@@ -128,6 +128,49 @@ for (const theme of ["dark", "light"] as const) {
   });
 }
 
+// AJ-E1301: first run on a fresh install lists every tool's setups — a
+// Codex home gets its own group beside the Claude ones (and the "Codex
+// isn't installed" note while the CLI is missing). Adding an account for
+// one tool lists only that tool (#72).
+const FOUND_WITH_CODEX = {
+  ...FOUND,
+  installs: [
+    ...FOUND.installs,
+    {
+      ...FOUND.installs[0],
+      harness: "codex",
+      path: "/Users/you/.codex",
+      origin: "vendor-default",
+      signals: ["vendor-default"],
+      inference: { ...FOUND.installs[0].inference, purpose: "Codex" },
+    },
+  ],
+};
+
+for (const theme of ["dark", "light"] as const) {
+  test(`first run — Claude and Codex found — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ scan, theme, t0 }) => {
+        const w = window as unknown as Record<string, unknown>;
+        w.__AIJ_FIXTURE__ = { accounts: [], profiles: [], sessions: [], projects: [] };
+        w.__AIJ_SCAN_REPORT__ = scan;
+        localStorage.setItem("aij.theme", theme);
+        Date.now = () => t0;
+      },
+      { scan: FOUND_WITH_CODEX, theme, t0: T0 },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    const found = page.getByTestId("first-run-found");
+    await expect(found.getByTestId("first-run-group-codex")).toBeVisible();
+    await expect(found.getByTestId("first-run-no-codex")).toBeVisible();
+    await expect(found.getByTestId("first-run-bring-in")).toHaveText("Bring in 3 accounts");
+    await page.screenshot({ path: resolve(OUT, `first-run-codex-1280x800-${theme}.png`) });
+    await axeClean(page, "first run with Codex");
+  });
+}
+
 // ADR-0018: an account brought in as a copy (0.0.7 and before) can switch
 // to its original folder; each card says where its account lives.
 for (const theme of ["dark", "light"] as const) {

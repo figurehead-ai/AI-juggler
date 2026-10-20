@@ -3,7 +3,8 @@
  * window, as the vision canvas shows them.
  *
  * 1. **What's already here.** The scan, grouped by kind of setup — your
- *    Claude profiles, the default setup (~/.claude), other setups — each
+ *    Claude profiles, the default setup (~/.claude), other setups, and
+ *    Codex homes (AJ-E1301, only when one is found) — each
  *    saying where it's open right now (the desktop app and/or a terminal:
  *    a folder isn't tied to one tool), preselected (signed in or used in
  *    the last 30 days), one
@@ -31,7 +32,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { Button } from "../components/primitives";
-import { providerDisplayName } from "../lib/providers";
+import { ownSignIn, providerDisplayName } from "../lib/providers";
 import { funnelEvent, funnelStep, reasonCode } from "../lib/funnel";
 import {
   accountImport,
@@ -58,12 +59,14 @@ import {
 } from "../lib/bridge";
 
 type Step = "found" | "fresh" | "folder" | "signin" | "access";
-type Group = "profiles" | "default" | "other";
+type Group = "profiles" | "default" | "other" | "codex";
 
 /** A group's title for this tool: the profile and "other" words name
  * Claude only for Claude Code (review of #72: Codex said "Other Claude
  * setups"). */
 export function groupTitle(group: Group, toolName: string, provider: string): string {
+  // Codex homes are their own group in every list (AJ-E1301).
+  if (group === "codex") return "Codex";
   if (group === "default") return "The default setup";
   if (provider !== "claude-code") return group === "profiles" ? `Your ${toolName} profiles` : `Other ${toolName} setups`;
   return group === "profiles" ? "Your Claude profiles" : "Other Claude setups";
@@ -73,8 +76,11 @@ const GROUPS: { id: Group; title: string }[] = [
   { id: "profiles", title: "Your Claude profiles" },
   { id: "default", title: "The default setup" },
   { id: "other", title: "Other Claude setups" },
+  { id: "codex", title: "Codex" },
 ];
 
+/** The tools first run on a fresh install brings in (AJ-E1301). */
+const FIRST_RUN_TOOLS = ["claude-code", "codex"];
 /** A name for a new account that no account has yet ("Claude Code 2"). */
 export function freeLabel(base: string, taken: string[]): string {
   const used = new Set(taken.map((label) => label.trim().toLowerCase()));
@@ -92,8 +98,9 @@ function humanBytes(bytes: number): string {
 /** Grouped by kind of setup, not by tool: the same folder can be used by
  * the Claude desktop app and by `claude` in a terminal (0.0.6 dogfood —
  * the default ~/.claude was called "Terminal" while the desktop app had
- * it open). */
+ * it open). Codex homes are their own kind (AJ-E1301). */
 export function groupOf(found: DiscoveredInfo): Group {
+  if (found.harness === "codex") return "codex";
   if (found.path.includes("/ClaudeCodeProfiles/")) return "profiles";
   if (found.origin === "vendor-default") return "default";
   return "other";
@@ -104,6 +111,7 @@ const folderOf = (path: string) => path.replace(/\/+$/, "").split("/").pop() ?? 
 /** The name it's brought in as (changeable later in Accounts). */
 export function labelOf(found: DiscoveredInfo): string {
   const folder = folderOf(found.path);
+  if (groupOf(found) === "codex") return folder === ".codex" ? "Codex" : folder.replace(/^\./, "");
   if (groupOf(found) === "default") return "Default";
   return folder.replace(/^\./, "");
 }
@@ -242,6 +250,8 @@ function FoundStep({
   cli,
   toolName,
   provider,
+  tools,
+  codexCli,
   onImported,
   onAddFresh,
   onImportFolder,
@@ -252,6 +262,11 @@ function FoundStep({
   cli: ProviderInstallData | null;
   toolName: string;
   provider: string;
+  /** The tools whose setups this list brings in: the chosen one when
+   * adding, every supported one on first run (AJ-E1301). */
+  tools: string[];
+  /** Codex's install row when Codex rides along beside another tool. */
+  codexCli: ProviderInstallData | null;
   onImported: (signins: Signin[]) => void;
   onAddFresh: () => void;
   onImportFolder: () => void;
@@ -262,9 +277,27 @@ function FoundStep({
 }): JSX.Element {
   const now = useMemo(nowSecs, []);
   const installs = useMemo(
-    () => (report?.installs ?? []).filter((found) => found.harness === provider),
-    [report, provider],
+    () => (report?.installs ?? []).filter((found) => tools.includes(found.harness)),
+    [report, tools],
   );
+  // Named by Provider when they are all one kind; mixed, just "setups".
+  const codexCount = installs.filter((found) => found.harness === "codex").length;
+  const claudeCount = installs.filter((found) => found.harness === "claude-code").length;
+  // Rows of the chosen tool itself (its "not installed" note covers these).
+  const ownCount = installs.filter((found) => found.harness === provider).length;
+  // Codex's install row: the chosen tool's when adding Codex, else the
+  // one that rides along on first run.
+  const codexRow = provider === "codex" ? cli : codexCli;
+  // One tool: its name. Every tool (first run): named when the setups are
+  // all one kind, else just "setups".
+  const kind =
+    tools.length === 1
+      ? toolName
+      : codexCount === 0
+        ? "Claude Code"
+        : codexCount === installs.length
+          ? "Codex"
+          : "";
   // The defaults come straight from the scan (ready on first paint);
   // the user's ticks override them.
   const defaults = useMemo(
@@ -278,12 +311,18 @@ function FoundStep({
   const [showLooked, setShowLooked] = useState(false);
 
   // ADR-0018: only a tool whose adapter can use a folder where it is
-  // offers it (Codex comes in as a copy until its adapter can).
-  const canInPlace = provider === "claude-code";
-  const [placement, setPlacement] = useState<Placement>(canInPlace ? "in_place" : "copy");
+  // offers it (Codex comes in as a copy until its adapter can) — and only
+  // when one of its setups is on the list: a Codex-only first run has no
+  // choice to make.
+  const canInPlace = provider === "claude-code" && claudeCount > 0;
+  const [chosenPlacement, setPlacement] = useState<Placement>("in_place");
+  const placement: Placement = canInPlace ? chosenPlacement : "copy";
   // A failed copy can be retried "where it is" on its own.
   const [rowPlacement, setRowPlacement] = useState<Record<string, Placement>>({});
-  const placementOf = (found: DiscoveredInfo): Placement => rowPlacement[found.path] ?? placement;
+  // Only Claude Code setups can be used where they are; a Codex row in
+  // first run's every-tool list always comes in as a copy (AJ-E1301).
+  const placementOf = (found: DiscoveredInfo): Placement =>
+    found.harness === "claude-code" ? (rowPlacement[found.path] ?? placement) : "copy";
   // Sign-ins of the ones that came in survive retries.
   const signinsRef = useRef<Map<string, Signin>>(new Map());
   const [stopped, setStopped] = useState(false);
@@ -318,6 +357,7 @@ function FoundStep({
             accountId: result.account.id,
             label: result.account.label,
             loginNote: result.login_note,
+            provider: found.harness,
             colour: colourAt(installs.indexOf(found)),
           });
         }
@@ -379,21 +419,33 @@ function FoundStep({
           {installs.length === 0
             ? `No ${toolName} setups found yet.`
             : installs.length === 1
-              ? `You already have a ${toolName} setup on this Mac.`
-              : `You already have ${installs.length} ${toolName} setups on this Mac.`}
+              ? `You already have a ${kind} setup on this Mac.`
+              : `You already have ${installs.length} ${kind ? `${kind} setups` : "setups"} on this Mac.`}
         </h1>
         <p className="max-w-2xl text-[15px] leading-relaxed text-muted">
           {installs.length === 0
-            ? `Add your first account and AI Juggler sets it up in its own folder. You'll sign in with ${toolName}'s own sign-in.`
-            : placement === "in_place"
-              ? "Pick the ones to bring in. AI Juggler uses each one where it is, so it stays signed in and keeps its history, the same as everywhere else you use it."
-              : "Pick the ones to bring in. AI Juggler makes its own copy of each; your originals are never changed, and you can keep using them as before."}
+            ? `Add your first account and AI Juggler sets it up in its own folder. You'll sign in with ${ownSignIn(provider)}.`
+            : placement === "in_place" && codexCount > 0
+              ? "Pick the ones to bring in. AI Juggler uses your Claude Code setups where they are, so they stay signed in and keep their history, and makes its own copy of each Codex one; your originals are never changed."
+              : placement === "in_place"
+                ? "Pick the ones to bring in. AI Juggler uses each one where it is, so it stays signed in and keeps its history, the same as everywhere else you use it."
+                : "Pick the ones to bring in. AI Juggler makes its own copy of each; your originals are never changed, and you can keep using them as before."}
         </p>
       </div>
 
-      {cli && cli.status === "not_installed" && (
+      {codexCount > 0 && codexCli && codexCli.status === "not_installed" && (
+        <p className="rounded-xl border border-warning/40 bg-warning-soft px-4 py-3 text-sm text-ink" data-testid="first-run-no-codex">
+          Codex itself isn't installed yet. You can bring these in now; to start sessions, install it first:{" "}
+          <span className="font-mono text-xs">npm install -g @openai/codex</span>
+        </p>
+      )}
+
+      {/* The chosen tool's own note — not over rows of another tool (a
+          Codex-only first run has the Codex note above). */}
+      {cli && cli.status === "not_installed" && (ownCount > 0 || installs.length === 0) && (
         <p className="rounded-xl border border-warning/40 bg-warning-soft px-4 py-3 text-sm text-ink" data-testid="first-run-no-cli">
-          {toolName} itself isn't installed yet. You can bring these in now; to start sessions, install it first
+          {toolName} itself isn't installed yet.{" "}
+          {ownCount > 0 ? "You can bring these in now; to start sessions, install it first" : "To start sessions, install it first"}
           {provider === "claude-code" ? (
             <>
               :{" "}<span className="font-mono text-xs">npm install -g @anthropic-ai/claude-code</span>
@@ -426,6 +478,9 @@ function FoundStep({
                   </span>
                   {group.id === "default" && cli && cli.status !== "not_installed" && (
                     <span className="text-faint">{toolName} {cli.version ?? ""} installed</span>
+                  )}
+                  {group.id === "codex" && codexRow && codexRow.status !== "not_installed" && (
+                    <span className="text-faint">Codex {codexRow.version ?? ""} installed</span>
                   )}
                 </div>
                 {rows.map((found) => {
@@ -522,6 +577,11 @@ function FoundStep({
             </label>
           ))}
         </div>
+      )}
+      {installs.length > 0 && !showOutcome && canInPlace && codexCount > 0 && (
+        <p className="-mt-3 text-xs text-muted" data-testid="first-run-codex-copies">
+          Codex setups always come in as copies.
+        </p>
       )}
 
       {showOutcome && (
@@ -638,7 +698,7 @@ function FoundStep({
   );
 }
 
-type Signin = { accountId: string; label: string; loginNote: string | null; colour: string };
+type Signin = { accountId: string; label: string; loginNote: string | null; colour: string; provider: string };
 
 /** AJ-E1103 `onboarding.login`: how a first-run sign-in ended (the schema's
  * provider names; anything else is "other"). */
@@ -773,7 +833,7 @@ function SigninStep({
     [openLoginTerminal],
   );
   const markReady = (entry: Signin) => {
-    if (!ready[entry.accountId]) countLogin(provider, "completed");
+    if (!ready[entry.accountId]) countLogin(entry.provider || provider, "completed");
     setReady((current) => ({ ...current, [entry.accountId]: true }));
     if (runAll) {
       const next = queue.find((other) => other.accountId !== entry.accountId && !ready[other.accountId]);
@@ -792,7 +852,14 @@ function SigninStep({
               : `${left.length} accounts need a quick sign-in.`}
         </h1>
         <p className="max-w-2xl text-[15px] leading-relaxed text-muted">
-          Each opens {providerDisplayName(provider)}'s own sign-in, for that account's folder; AI Juggler never sees your password and notices when you're done.
+          {(() => {
+            // One tool: its own sign-in by name. First run with every tool
+            // (AJ-E1301): each account opens its own tool's sign-in.
+            const tools = [...new Set(queue.map((entry) => entry.provider || provider))];
+            return tools.length > 1
+              ? `Each opens its own tool's sign-in — ${tools.map((tool) => (tool === "codex" ? "Codex's (OpenAI)" : `${providerDisplayName(tool)}'s`)).join(" or ")} — for that account's folder; AI Juggler never sees your password and notices when you're done.`
+              : `Each opens ${ownSignIn(tools[0] ?? provider)}, for that account's folder; AI Juggler never sees your password and notices when you're done.`;
+          })()}
         </p>
       </div>
       <ul className="overflow-hidden rounded-2xl border border-hairline bg-surface">
@@ -800,7 +867,7 @@ function SigninStep({
           <SigninRow
             onSkip={() => {
               setSkippedIds((current) => ({ ...current, [entry.accountId]: true }));
-              countLogin(provider, "skipped");
+              countLogin(entry.provider || provider, "skipped");
             }}
             key={entry.accountId}
             entry={entry}
@@ -818,7 +885,7 @@ function SigninStep({
       <div className="flex flex-wrap items-center justify-between gap-4">
         {left.length > 0 ? (
           <button type="button" className="text-sm text-muted hover:text-ink hover:underline" onClick={() => {
-              for (const entry of left) if (!skippedIds[entry.accountId]) countLogin(provider, "skipped");
+              for (const entry of left) if (!skippedIds[entry.accountId]) countLogin(entry.provider || provider, "skipped");
               onDone();
             }} data-testid="first-run-signin-next">
             Sign in later
@@ -975,7 +1042,7 @@ function FreshStep({
       onCreated(
         signedIn(account.login_state)
           ? null
-          : { accountId: account.id, label: account.label, loginNote: null, colour: colourAt(taken?.length ?? 0) },
+          : { accountId: account.id, label: account.label, loginNote: null, colour: colourAt(taken?.length ?? 0), provider },
       );
     } catch (cause) {
       setError(errorText(cause));
@@ -995,7 +1062,7 @@ function FreshStep({
         <h1 className="text-[28px] font-semibold leading-tight tracking-tight">Add a fresh account.</h1>
         <p className="max-w-2xl text-[15px] leading-relaxed text-muted">
           AI Juggler sets it up in its own folder, apart from anything you already use. Next you sign in with{" "}
-          {toolName}'s own sign-in; AI Juggler never sees your password.
+          {ownSignIn(provider)}; AI Juggler never sees your password.
         </p>
       </div>
       <label className="flex max-w-md flex-col gap-1.5 text-sm font-medium text-ink">
@@ -1083,7 +1150,7 @@ function FolderStep({
       onImported(
         signedIn(result.login)
           ? null
-          : { accountId: result.account.id, label: result.account.label, loginNote: result.login_note, colour: colourAt(0) },
+          : { accountId: result.account.id, label: result.account.label, loginNote: result.login_note, colour: colourAt(0), provider },
       );
     } catch (cause) {
       funnelEvent("import_failed", { reason_code: reasonCode(cause) });
@@ -1227,7 +1294,7 @@ export function FirstRun({
   openLoginTerminal,
   onAccountsChanged,
   mode = "first-run",
-  provider = "claude-code",
+  provider,
 }: {
   /** First run is over: Home. */
   onDone: () => void;
@@ -1235,7 +1302,8 @@ export function FirstRun({
    * account — closable, and not counted as a first install. */
   mode?: "first-run" | "add";
   /** AJ-E1023: the tool the account is for (chosen before, when more
-   * than one is installed). */
+   * than one is installed). Absent — first run on a fresh install — the
+   * list brings in every supported tool's setups (AJ-E1301). */
   provider?: string;
   /** An account was created or brought in (the caller refreshes). */
   onAccountsChanged?: () => void;
@@ -1244,9 +1312,15 @@ export function FirstRun({
   const [step, setStep] = useState<Step>("found");
   const [folder, setFolder] = useState<string | null>(null);
   const [taken, setTaken] = useState<string[] | null>(null);
-  const toolName = providerDisplayName(provider);
+  // AJ-E1301: adding names its tool; first run on a fresh install brings
+  // in every supported tool's setups (a fresh account or a folder import
+  // there is Claude Code's, as before).
+  const primary = provider ?? "claude-code";
+  const tools = useMemo(() => (provider ? [provider] : FIRST_RUN_TOOLS), [provider]);
+  const toolName = providerDisplayName(primary);
   const [report, setReport] = useState<ScanReportData | null>(null);
   const [cli, setCli] = useState<ProviderInstallData | null>(null);
+  const [codexCli, setCodexCli] = useState<ProviderInstallData | null>(null);
   const [queue, setQueue] = useState<Signin[]>([]);
   const [access, setAccess] = useState<OsAccessInfo[] | null>(null);
   // ADR-0018 §5: while a bring-in runs, Close and Esc mean Stop — the
@@ -1274,7 +1348,15 @@ export function FirstRun({
       () => setReport({ installs: [], probes: [], seeds: [], desktop_apps: [], cancelled: false } as unknown as ScanReportData),
     );
     void providersDiscover().then(
-      (rows) => setCli(rows.find((row) => row.provider === provider) ?? null),
+      (rows) => {
+        setCli(rows.find((row) => row.provider === primary) ?? null);
+        // First run with every tool: Codex's own row for its group.
+        setCodexCli(
+          tools.includes("codex") && primary !== "codex"
+            ? (rows.find((row) => row.provider === "codex") ?? null)
+            : null,
+        );
+      },
       () => setCli(null),
     );
     void accountsList().then(
@@ -1302,7 +1384,7 @@ export function FirstRun({
 
   // D-25: adding, with nothing new on this Mac to bring in — go straight
   // to a fresh account rather than show an empty list.
-  const nothingNew = report !== null && !report.installs.some((found) => found.harness === provider && !found.managed);
+  const nothingNew = report !== null && !report.installs.some((found) => tools.includes(found.harness) && !found.managed);
   const autoFresh = useRef(false);
   useEffect(() => {
     if (mode === "add" && nothingNew && !autoFresh.current) {
@@ -1380,7 +1462,9 @@ export function FirstRun({
               report={report}
               cli={cli}
               toolName={toolName}
-              provider={provider}
+              provider={primary}
+              tools={tools}
+              codexCli={codexCli}
               onAddFresh={() => setStep("fresh")}
               onImportFolder={() => void pickFolder()}
               stopRef={stopRef}
@@ -1404,7 +1488,7 @@ export function FirstRun({
           {step === "fresh" && (
             <FreshStep
               toolName={toolName}
-              provider={provider}
+              provider={primary}
               taken={taken}
               canGoBack={!nothingNew || mode === "first-run"}
               onBack={() => setStep("found")}
@@ -1415,7 +1499,7 @@ export function FirstRun({
           {step === "folder" && folder !== null && (
             <FolderStep
               path={folder}
-              provider={provider}
+              provider={primary}
               toolName={toolName}
               onBack={() => setStep(mode === "add" && nothingNew ? "fresh" : "found")}
               onPickAgain={() => void pickFolder()}
@@ -1424,7 +1508,7 @@ export function FirstRun({
               onDone={onDone}
             />
           )}
-          {step === "signin" && <SigninStep queue={queue} provider={provider} openLoginTerminal={openLoginTerminal} onDone={toAccess} />}
+          {step === "signin" && <SigninStep queue={queue} provider={primary} openLoginTerminal={openLoginTerminal} onDone={toAccess} />}
           {step === "access" && access !== null && <AccessStep entries={access} setEntries={setAccess} onDone={finish} />}
         </div>
       </div>

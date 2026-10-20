@@ -69,7 +69,16 @@ refused with 401). Claude prompts are unchanged: whether the Claude CLI
 honours `--` was not verified (running it could reach a real sign-in), so
 only its resume-id check was added.
 
-## Known limit (review 2)
+## Known limit (review 2) — resolved in AJ-E1304's PR (#64)
+
+With the supervisor's env-unset marker on main (#76), Codex now lists
+`CODEX_API_KEY` / `OPENAI_API_KEY` in `launch_unset_keys`: every launch
+and the sign-in set them to `ENV_UNSET` (removed from what the launch
+inherits) and the copyable snippet starts `env -u CODEX_API_KEY -u
+OPENAI_API_KEY` — `codex_adapter::an_api_key_never_rides_along_into_a_launch`,
+`isolation_keys_and_snippet`. The original note follows.
+
+### Original note
 
 A `CODEX_API_KEY` / `OPENAI_API_KEY` exported in the environment AI
 Juggler itself was started from is still inherited by launches: the

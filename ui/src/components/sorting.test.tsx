@@ -170,14 +170,15 @@ function snoozeHas(row: InstanceInfo, snooze: SnoozeState, now: number): number 
 }
 
 describe("AJ-E404 Quota risk sort", () => {
-  it("orders by lowest % left and groups the no-quota rows under `no data` last", () => {
+  it("orders by lowest % left and groups the no-quota rows under `Not measured yet` last", () => {
     const { container } = renderBoard();
     // D-25 groups by project by default; the no-data bucket is the
     // ungrouped quota view.
     setSelect(container, "Group by", "none");
     setSelect(container, "Sort by", "quota");
     const groups = [...container.querySelectorAll("p")].map((p) => p.textContent ?? "");
-    expect(groups.some((text) => text.includes("no data"))).toBe(true);
+    expect(groups.some((text) => text.includes("Not measured yet"))).toBe(true);
+    expect(groups.some((text) => /no data/i.test(text))).toBe(false);
     // s2 (0% left) first among known; s7 (no quota) inside the last group.
     const ids = renderedIds(container);
     expect(ids[0]).toBe("s2");
@@ -318,7 +319,7 @@ describe("AJ-E404 row still renders its full fields under the board", () => {
     );
     // Compact quota is bar-only by spec (AJ-E403): the honesty copy rides
     // in the dashed bar's title, and I-09 stays visible.
-    expect(container.querySelector('[title="Quota: no data"]')).not.toBeNull();
+    expect(container.querySelector('[title="Quota: not measured yet"]')).not.toBeNull();
     expect(container.textContent).toContain("main");
   });
 });
