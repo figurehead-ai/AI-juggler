@@ -83,6 +83,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Security: a switch arriving from a paired Mac can no longer write files
+  outside the target account's folder or replace a file it already has —
+  names and session ids in a switch bundle are now checked before
+  anything is written. (Only possible with Fleet pairing, which is beta.)
+
 - The "?" at the bottom of the session list now opens the guide to what
   the icons and words mean (it opened out of sight), in the list's own
   words.
