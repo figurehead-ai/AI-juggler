@@ -242,3 +242,50 @@ describe("D-25 first run — the flow", () => {
     expect(onAddFresh).toHaveBeenCalledOnce();
   });
 });
+
+describe("AJ-E1301 — Codex setups in first run", () => {
+  const codex = (path: string, origin: string, extra: Partial<DiscoveredInfo> = {}) =>
+    found(path, origin, { harness: "codex", ...extra });
+
+  it("groups Codex homes under their own heading and names the standard one", () => {
+    expect(groupOf(codex("/Users/you/.codex", "vendor-default"))).toBe("codex");
+    expect(labelOf(codex("/Users/you/.codex", "vendor-default"))).toBe("Codex");
+    expect(labelOf(codex("/Users/you/.codex-work", "home-pattern"))).toBe("codex-work");
+  });
+
+  it("lists Codex beside Claude, preselected, and says Codex isn't installed when it isn't", async () => {
+    w().__AIJ_SCAN_REPORT__ = {
+      ...SCAN,
+      installs: [...SCAN.installs, codex("/Users/you/.codex", "vendor-default")],
+    };
+    const view = render(<FirstRun mode="first-run" onDone={() => null} onAddFresh={() => null} onImportFolder={() => null} openLoginTerminal={() => null} />);
+    const group = await view.findByTestId("first-run-group-codex");
+    expect(within(group).getByTestId("first-run-row").textContent).toContain("~/.codex");
+    const box = within(group).getByRole("checkbox") as HTMLInputElement;
+    expect(box.checked).toBe(true);
+    expect(view.getByRole("heading", { level: 1 }).textContent).toBe(
+      "You already have 6 setups on this Mac.",
+    );
+    // The default mock has Codex not installed.
+    expect((await view.findByTestId("first-run-no-codex")).textContent).toContain("npm install -g @openai/codex");
+  });
+
+  it("keeps the Claude-only screen exactly as it was", async () => {
+    const view = render(<FirstRun mode="first-run" onDone={() => null} onAddFresh={() => null} onImportFolder={() => null} openLoginTerminal={() => null} />);
+    await view.findByTestId("first-run-found");
+    expect(view.queryByTestId("first-run-group-codex")).toBeNull();
+    expect(view.queryByTestId("first-run-no-codex")).toBeNull();
+    expect(view.getByRole("heading", { level: 1 }).textContent).toBe(
+      "You already have 5 Claude Code setups on this Mac.",
+    );
+  });
+
+  it("an all-Codex machine is named for Codex", async () => {
+    w().__AIJ_SCAN_REPORT__ = { ...SCAN, installs: [codex("/Users/you/.codex", "vendor-default")] };
+    const view = render(<FirstRun mode="first-run" onDone={() => null} onAddFresh={() => null} onImportFolder={() => null} openLoginTerminal={() => null} />);
+    await view.findByTestId("first-run-group-codex");
+    expect(view.getByRole("heading", { level: 1 }).textContent).toBe(
+      "You already have a Codex setup on this Mac.",
+    );
+  });
+});

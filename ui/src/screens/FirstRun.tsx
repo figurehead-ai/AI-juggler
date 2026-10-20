@@ -4,7 +4,8 @@
  *
  * 1. **What's already here.** The scan, grouped the way the user thinks of
  *    it — Claude desktop app profiles, Claude Code in the terminal, other
- *    setups — preselected (signed in or used in the last 30 days), one
+ *    setups, Codex (AJ-E1301, only when one is found) — preselected
+ *    (signed in or used in the last 30 days), one
  *    button to bring them in. Imports are copies; originals are never
  *    touched. "Where we looked" shows every place the scan checked.
  * 2. **Sign in where needed.** One card per copy that still needs the
@@ -38,16 +39,21 @@ import {
 } from "../lib/bridge";
 
 type Step = "found" | "signin" | "access";
-type Group = "desktop" | "terminal" | "other";
+type Group = "desktop" | "terminal" | "other" | "codex";
 
 const GROUPS: Array<{ id: Group; title: string }> = [
   { id: "desktop", title: "Claude desktop app profiles" },
   { id: "terminal", title: "Claude Code in the terminal" },
   { id: "other", title: "Other Claude setups" },
+  { id: "codex", title: "Codex" },
 ];
+
+/** The Providers First run brings in (AJ-E1301). */
+const PROVIDERS = ["claude-code", "codex"];
 
 /** Where a found setup belongs, as the user thinks of it. */
 export function groupOf(found: DiscoveredInfo): Group {
+  if (found.harness === "codex") return "codex";
   if (found.path.includes("/ClaudeCodeProfiles/")) return "desktop";
   if (found.origin === "vendor-default" || found.origin === "env-override") return "terminal";
   return "other";
@@ -59,6 +65,7 @@ const folderOf = (path: string) => path.replace(/\/+$/, "").split("/").pop() ?? 
 export function labelOf(found: DiscoveredInfo): string {
   const folder = folderOf(found.path);
   if (groupOf(found) === "terminal" && folder === ".claude") return "Terminal";
+  if (groupOf(found) === "codex" && folder === ".codex") return "Codex";
   return folder.replace(/^\./, "");
 }
 
@@ -136,21 +143,27 @@ type ImportState = { state: "pending" | "working" | "done" | "failed"; error?: s
 function FoundStep({
   report,
   cli,
+  codexCli,
   onImported,
   onAddFresh,
   onImportFolder,
 }: {
   report: ScanReportData | null;
   cli: ProviderInstallData | null;
+  codexCli: ProviderInstallData | null;
   onImported: (signins: Signin[]) => void;
   onAddFresh: () => void;
   onImportFolder: () => void;
 }): JSX.Element {
   const now = useMemo(nowSecs, []);
   const installs = useMemo(
-    () => (report?.installs ?? []).filter((found) => found.harness === "claude-code"),
+    () => (report?.installs ?? []).filter((found) => PROVIDERS.includes(found.harness)),
     [report],
   );
+  // Named by Provider when they are all one kind; mixed, just "setups".
+  const codexCount = installs.filter((found) => found.harness === "codex").length;
+  const kind =
+    codexCount === 0 ? "Claude Code" : codexCount === installs.length ? "Codex" : "";
   // The defaults come straight from the scan (ready on first paint);
   // the user's ticks override them.
   const defaults = useMemo(
@@ -214,8 +227,8 @@ function FoundStep({
           {installs.length === 0
             ? "No Claude Code setups found yet."
             : installs.length === 1
-              ? "You already have a Claude Code setup on this Mac."
-              : `You already have ${installs.length} Claude Code setups on this Mac.`}
+              ? `You already have a ${kind} setup on this Mac.`
+              : `You already have ${installs.length} ${kind ? `${kind} setups` : "setups"} on this Mac.`}
         </h1>
         <p className="max-w-2xl text-[15px] leading-relaxed text-muted">
           {installs.length === 0
@@ -223,6 +236,13 @@ function FoundStep({
             : "Pick the ones to bring in. AI Juggler makes its own copy of each; your originals are never changed, and you can keep using them as before."}
         </p>
       </div>
+
+      {codexCount > 0 && codexCli && codexCli.status === "not_installed" && (
+        <p className="rounded-xl border border-warning/40 bg-warning-soft px-4 py-3 text-sm text-ink" data-testid="first-run-no-codex">
+          Codex itself isn't installed yet. You can bring these in now; to start sessions, install it first:{" "}
+          <span className="font-mono text-xs">npm install -g @openai/codex</span>
+        </p>
+      )}
 
       {cli && cli.status === "not_installed" && (
         <p className="rounded-xl border border-warning/40 bg-warning-soft px-4 py-3 text-sm text-ink" data-testid="first-run-no-cli">
@@ -245,6 +265,9 @@ function FoundStep({
                   </span>
                   {group.id === "terminal" && cli && cli.status !== "not_installed" && (
                     <span className="text-faint">Claude Code {cli.version ?? ""} installed</span>
+                  )}
+                  {group.id === "codex" && codexCli && codexCli.status !== "not_installed" && (
+                    <span className="text-faint">Codex {codexCli.version ?? ""} installed</span>
                   )}
                 </div>
                 {rows.map((found) => {
@@ -671,6 +694,7 @@ export function FirstRun({
   const [step, setStep] = useState<Step>("found");
   const [report, setReport] = useState<ScanReportData | null>(null);
   const [cli, setCli] = useState<ProviderInstallData | null>(null);
+  const [codexCli, setCodexCli] = useState<ProviderInstallData | null>(null);
   const [queue, setQueue] = useState<Signin[]>([]);
   const [access, setAccess] = useState<OsAccessInfo[] | null>(null);
 
@@ -685,7 +709,10 @@ export function FirstRun({
       () => setReport({ installs: [], probes: [], seeds: [], desktop_apps: [], cancelled: false } as unknown as ScanReportData),
     );
     void providersDiscover().then(
-      (rows) => setCli(rows.find((row) => row.provider === "claude-code") ?? null),
+      (rows) => {
+        setCli(rows.find((row) => row.provider === "claude-code") ?? null);
+        setCodexCli(rows.find((row) => row.provider === "codex") ?? null);
+      },
       () => setCli(null),
     );
     void osAccessList().then(setAccess, () => setAccess([]));
@@ -753,6 +780,7 @@ export function FirstRun({
             <FoundStep
               report={report}
               cli={cli}
+              codexCli={codexCli}
               onAddFresh={onAddFresh}
               onImportFolder={onImportFolder}
               onImported={(signins) => {

@@ -127,3 +127,39 @@ for (const theme of ["dark", "light"] as const) {
     await expect(dialog).toHaveCount(0);
   });
 }
+
+// AJ-E1301: a Codex home found beside the Claude profiles gets its own
+// group (and the "Codex isn't installed" note while the CLI is missing).
+const FOUND_WITH_CODEX = {
+  ...FOUND,
+  installs: [
+    ...FOUND.installs,
+    {
+      ...FOUND.installs[0],
+      harness: "codex",
+      path: "/Users/you/.codex",
+      origin: "vendor-default",
+      signals: ["vendor-default"],
+      inference: { ...FOUND.installs[0].inference, purpose: "Codex" },
+    },
+  ],
+};
+
+for (const theme of ["dark", "light"] as const) {
+  test(`add accounts — Codex found too — ${theme}`, async ({ page }) => {
+    await page.addInitScript((scan) => {
+      (window as unknown as Record<string, unknown>).__AIJ_SCAN_REPORT__ = scan;
+    }, FOUND_WITH_CODEX);
+    await seed(page, allStatuses, theme);
+    await goTo(page, "Accounts");
+    await page.getByTestId("add-account").click();
+    const dialog = page.getByRole("dialog", { name: "Add accounts" });
+    await expect(dialog.getByTestId("first-run-group-codex")).toBeVisible();
+    await expect(dialog.getByTestId("first-run-no-codex")).toBeVisible();
+    await expect(dialog.getByTestId("first-run-bring-in")).toHaveText("Bring in 3 accounts");
+    await page.screenshot({ path: resolve(OUT, `add-accounts-codex-1280x800-${theme}.png`) });
+    await axeClean(page, "add accounts with Codex");
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+  });
+}

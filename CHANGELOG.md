@@ -146,6 +146,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Autonomous build runbook (docs/plan/RUNBOOK.md): the operating
   contract for unattended build runs — PR flow, DoD, gate stops, hard
   rails.
+- First run and Add accounts list the Codex setups found on this Mac in
+  their own **Codex** group, beside the Claude ones, and say when the
+  Codex CLI still needs installing (AJ-E1301). Machines with only Claude
+  setups see the screen exactly as before.
 
 ### Added (M0-1)
 
