@@ -845,7 +845,7 @@ export function RailRow({
           {density === "compact" && <span className="ml-auto shrink-0 font-mono text-[10px] text-muted">{when}</span>}
         </span>
         {density === "comfortable" && (
-          <span className="flex min-w-0 items-center gap-1 overflow-hidden text-[11px] text-muted">
+          <span className="flex min-w-0 items-center gap-1 overflow-hidden text-[11px] text-faint">
             <span
               title={parked ? parked.long : attentionTooltip(session)}
               data-testid={parked ? "rail-parked" : undefined}
