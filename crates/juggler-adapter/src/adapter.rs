@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use crate::capabilities::Capabilities;
 use crate::discovery::DiscoveryReport;
-use crate::environment::{DiscoveredInstall, ImportOutcome, LoginUrl};
+use crate::environment::{DiscoveredInstall, ImportOutcome, LoginState, LoginUrl};
 use crate::error::AdapterError;
 use crate::launch::{DesktopLaunch, EnvMap, LaunchMode, LaunchSpec};
 use crate::model::{Account, HarnessId, Profile};
@@ -99,6 +99,15 @@ pub trait HarnessAdapter: Send + Sync {
         crate::identity::IdentityProbe::Unverifiable {
             reason: "this Provider exposes no account metadata".into(),
         }
+    }
+
+    /// AJ-E308/AJ-E1301: the Account's sign-in state, probed from its
+    /// state dir without reading credential contents (ADR-0003). The
+    /// default — `LoggedOut` — is what Providers without a probe have
+    /// always reported; an adapter that can tell overrides it.
+    fn login_state(&self, state_dir: &Path) -> LoginState {
+        let _ = state_dir;
+        LoginState::LoggedOut
     }
 
     /// Creates a watcher over the account's transcript root.
@@ -218,6 +227,16 @@ pub trait HarnessAdapter: Send + Sync {
         &[]
     }
 
+    /// The isolation keys pinned to the Account's state dir itself —
+    /// every one the shell snippet sets and the isolation check
+    /// verifies. Default: the first isolation key (one variable points
+    /// the Provider at its state); Codex also pins `CODEX_SQLITE_HOME`.
+    #[must_use]
+    fn pinned_env_keys(&self) -> &'static [&'static str] {
+        let keys = self.isolation_env_keys();
+        &keys[..keys.len().min(1)]
+    }
+
     /// The command a user types to start this Provider against
     /// `state_dir` by hand — the Expert-setup snippet and the
     /// external-terminal login fallback (AJ-E309 Req.5). `None` when
@@ -236,8 +255,8 @@ pub fn shell_quote(value: &str) -> String {
 }
 
 /// Builds the copyable shell line for `adapter` against `state_dir`
-/// plus any extra environment (Launch-settings overrides), isolation
-/// keys first. `None` when the Provider has no terminal entry point.
+/// plus any extra environment (Launch-settings overrides), every pinned
+/// isolation key first. `None` when the Provider has no terminal entry point.
 #[must_use]
 pub fn shell_snippet(
     adapter: &dyn HarnessAdapter,
@@ -247,9 +266,8 @@ pub fn shell_snippet(
     let command = adapter.shell_command()?;
     let dir = state_dir.to_string_lossy();
     let mut parts: Vec<String> = adapter
-        .isolation_env_keys()
+        .pinned_env_keys()
         .iter()
-        .take(1)
         .map(|key| format!("{key}={}", shell_quote(&dir)))
         .collect();
     for (key, value) in extra_env {

@@ -16,6 +16,7 @@ pub mod claude_code;
 pub mod claude_environment;
 pub mod claude_handover;
 pub mod claude_transcript;
+pub mod codex;
 pub mod fake;
 pub mod inference;
 pub mod quota_ingest;
@@ -25,6 +26,7 @@ pub use claude_code::{CLAUDE_CODE_ID, ClaudeCodeAdapter, LoginState};
 pub use claude_transcript::{
     MessageRole, ParsedMessage, ParsedTranscript, dedupe_messages, parse_transcript,
 };
+pub use codex::{CODEX_ID, CodexAdapter};
 pub use fake::{FAKE_HARNESS_ID, FakeHarnessAdapter};
 pub use quota_ingest::{
     SourceHealth, TailOutcome, install_statusline, rollout_events, rotate_spool_if_needed,
