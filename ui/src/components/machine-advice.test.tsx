@@ -52,6 +52,9 @@ describe("the advice line", () => {
     cleanup();
     render(<MachineAdviceLine advice={advice({ verdict: "no", words: "Not now", reasons: ["memory is short"] })} nameOf={() => null} />);
     expect(screen.getByTestId("machine-advice").textContent).not.toContain("not measured yet");
+    cleanup();
+    render(<MachineChip advice={advice({ verdict: "tight", words: "Tight", reasons: ["memory is getting tight"], based_on: 0, projected_bytes: 1e9 })} />);
+    expect(screen.getByTestId("machine-chip").getAttribute("title")).toContain("not measured yet");
   });
 
   it("explains a tight or no verdict, names what would make room, and never forbids", () => {

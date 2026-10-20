@@ -56,7 +56,10 @@ export function MachineChip({ advice }: { advice: MachineAdviceInfo | undefined 
   if (!advice || advice.verdict === "ok") return null;
   return (
     <Chip tone="neutral">
-      <span data-testid="machine-chip" title={`${advice.words}. ${reasonSentence(advice.reasons)}.`}>
+      <span
+        data-testid="machine-chip"
+        title={`${advice.words}. ${reasonSentence(advice.reasons)}.${advice.based_on === 0 ? ` Assumes ${basisWords(advice)}.` : ""}`}
+      >
         This Mac: {advice.verdict === "no" ? "not now" : "tight"}
       </span>
     </Chip>

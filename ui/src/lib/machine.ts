@@ -349,8 +349,9 @@ export function mockMachineAdvice(recipeIds: string[], machine: MachineHealthInf
     reasons: verdict === "ok" ? [] : reasons,
     projected_bytes: index === 0 ? 2_100_000_000 : 1_000_000_000,
     based_on: index === 0 ? 6 : 0,
-    relief_session_id: verdict !== "ok" && heaviest ? heaviest.id : null,
-    relief_bytes: verdict !== "ok" && heaviest ? heaviest.bytes : null,
+    // As the backend: closing a session is offered only when it frees 500 MB.
+    relief_session_id: verdict !== "ok" && heaviest && heaviest.bytes >= 500_000_000 ? heaviest.id : null,
+    relief_bytes: verdict !== "ok" && heaviest && heaviest.bytes >= 500_000_000 ? heaviest.bytes : null,
   }));
 }
 
