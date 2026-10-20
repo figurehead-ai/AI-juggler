@@ -287,6 +287,59 @@ pub struct LiveStatsCollector {
     cached_listeners: Vec<crate::ports::Listener>,
     /// Tick index of the last enumeration.
     last_port_probe_tick: u32,
+    /// Roots of AI tools AI Juggler did NOT start (AJ-E1402): the Claude
+    /// desktop app, `claude` in a terminal. Measured read-only; never
+    /// written to the ledger, never reconciled, never signalled (D-08).
+    observed_roots: Vec<ObservedRoot>,
+    /// The observed trees' latest stats and rings, by root pid.
+    observed: HashMap<u32, ObservedTree>,
+}
+
+/// One process as the running-tools scan needs it (no environment).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProcessBrief {
+    /// Process id.
+    pub pid: u32,
+    /// Parent pid, when known.
+    pub ppid: Option<u32>,
+    /// Process name.
+    pub name: String,
+    /// Executable path, when the OS reports it.
+    pub exe: Option<String>,
+    /// The command line, joined.
+    pub cmd: String,
+    /// Kernel start time, epoch seconds (pins a root against pid reuse).
+    pub start_time: i64,
+}
+
+/// One AI tool AI Juggler did not start, measured over its whole process
+/// tree (AJ-E1402). Read-only by construction: it has no session, no
+/// ledger row and no stop path.
+#[derive(Debug, Clone, Default)]
+pub struct ObservedTree {
+    /// Tree sums (root + descendants).
+    pub stats: LiveProcessStats,
+    /// 2 s samples, 5 minutes (the heavy rule's sustained window).
+    pub ring: std::collections::VecDeque<TreeSample>,
+    /// Every pid of the tree at the last tick: all of them are refreshed
+    /// on every tick, so each process's CPU delta covers the same
+    /// interval as the refresh it's divided by (`sysinfo` divides a delta
+    /// since the process's OWN last refresh by the time since the last
+    /// refresh call — a helper refreshed only on full scans read ~5× high
+    /// and then froze).
+    pub pids: Vec<u32>,
+}
+
+/// A root to observe, pinned to the process the scan saw: a pid reused by
+/// another process (different start time) is dropped, never measured as
+/// the tool.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ObservedRoot {
+    /// The root pid.
+    pub pid: u32,
+    /// Its kernel start time (epoch seconds) when the scan saw it; `None`
+    /// when unknown (then only liveness is checked).
+    pub start_time: Option<i64>,
 }
 
 impl Default for LiveStatsCollector {
@@ -306,6 +359,8 @@ impl Default for LiveStatsCollector {
             ports_degraded: None,
             cached_listeners: Vec::new(),
             last_port_probe_tick: 0,
+            observed_roots: Vec::new(),
+            observed: HashMap::new(),
         }
     }
 }
@@ -343,6 +398,15 @@ impl LiveStatsCollector {
                 .chain(roots.iter().map(|(_, pid, _)| *pid))
                 .collect();
             self.refresh_pids(&known);
+            // Observed trees need CPU and memory only (never the exe or
+            // command line, which feed the ledger): ~130 helpers of the
+            // Claude app cost a few milliseconds this way.
+            let observed: Vec<u32> = self
+                .observed_pids()
+                .into_iter()
+                .filter(|pid| !known.contains(pid))
+                .collect();
+            self.refresh_pids_usage(&observed);
             // Targeted refresh keeps parent edges of known pids fresh;
             // brand-new children appear at the next full scan.
         }
@@ -350,6 +414,7 @@ impl LiveStatsCollector {
         // the single shared refresh — every downstream reader uses it.
         let table = std::sync::Arc::new(process_table(&self.system));
         self.rebuild_trees(&roots, &table.parents, now_ms);
+        self.rebuild_observed(&table.parents, now_ms);
         supervisor.publish_table(std::sync::Arc::clone(&table));
         self.ledger_upserts(supervisor, now_ms);
         // ONE candidates read per tick feeds BOTH the reconciler and
@@ -845,6 +910,25 @@ impl LiveStatsCollector {
         );
     }
 
+    /// Targeted refresh of CPU and memory only (observed trees).
+    fn refresh_pids_usage(&mut self, pids: &[u32]) {
+        use sysinfo::{ProcessRefreshKind, ProcessesToUpdate};
+        if pids.is_empty() {
+            return;
+        }
+        let mut targets: Vec<sysinfo::Pid> = pids
+            .iter()
+            .map(|pid| sysinfo::Pid::from_u32(*pid))
+            .collect();
+        targets.sort_unstable();
+        targets.dedup();
+        self.system.refresh_processes_specifics(
+            ProcessesToUpdate::Some(&targets),
+            true,
+            ProcessRefreshKind::nothing().with_cpu().with_memory(),
+        );
+    }
+
     /// Targeted refresh of specific pids (orphan liveness probes).
     ///
     /// Each pid is listed once: sysinfo drops a process it is asked to
@@ -917,6 +1001,113 @@ impl LiveStatsCollector {
             );
             self.stats.insert((*session).clone(), stats);
         }
+    }
+
+    /// Sets the roots of AI tools AI Juggler did not start (AJ-E1402).
+    /// A root inside a supervised tree is ignored at the next tick (no
+    /// double count); trees for roots no longer listed are dropped.
+    pub fn set_observed_roots(&mut self, roots: Vec<ObservedRoot>) {
+        self.observed
+            .retain(|root, _| roots.iter().any(|pinned| pinned.pid == *root));
+        self.observed_roots = roots;
+    }
+
+    /// The observed trees as of the last tick, by root pid.
+    #[must_use]
+    pub fn observed_snapshot(&self) -> HashMap<u32, ObservedTree> {
+        self.observed.clone()
+    }
+
+    /// Every process from the collector's table — pid, parent, name,
+    /// executable, command line; never the environment (AJ-E1402: the
+    /// running-tools scan classifies from this instead of a second full
+    /// refresh). New processes appear after the next full scan (≤ 10 s).
+    #[must_use]
+    pub fn process_briefs(&self) -> Vec<ProcessBrief> {
+        self.system
+            .processes()
+            .values()
+            .map(|process| ProcessBrief {
+                pid: process.pid().as_u32(),
+                ppid: process.parent().map(sysinfo::Pid::as_u32),
+                name: process.name().to_string_lossy().into_owned(),
+                exe: process.exe().map(|exe| exe.to_string_lossy().into_owned()),
+                cmd: process
+                    .cmd()
+                    .iter()
+                    .map(|part| part.to_string_lossy())
+                    .collect::<Vec<_>>()
+                    .join(" "),
+                start_time: i64::try_from(process.start_time()).unwrap_or_default(),
+            })
+            .collect()
+    }
+
+    fn observed_pids(&self) -> Vec<u32> {
+        // Every pid of every observed tree is refreshed on the hot path,
+        // so per-process CPU deltas stay real between full scans.
+        self.observed_roots
+            .iter()
+            .map(|root| root.pid)
+            .chain(
+                self.observed
+                    .values()
+                    .flat_map(|tree| tree.pids.iter().copied()),
+            )
+            .collect()
+    }
+
+    fn rebuild_observed(&mut self, parents: &HashMap<u32, Vec<u32>>, now_ms: i64) {
+        // Excluded: every supervised pid and AI Juggler itself (a dev
+        // build may run under a terminal `claude`; its sessions are ours).
+        let supervised: std::collections::HashSet<u32> = self
+            .trees
+            .values()
+            .flat_map(|tree| tree.rows.iter().map(|row| row.pid))
+            .chain(std::iter::once(std::process::id()))
+            .collect();
+        let roots = self.observed_roots.clone();
+        let sampled = self.sampled;
+        let mut reused = Vec::new();
+        for pinned in roots {
+            let root = pinned.pid;
+            let process = self.system.process(sysinfo::Pid::from_u32(root));
+            let alive =
+                process.is_some_and(|process| process.status() != sysinfo::ProcessStatus::Zombie);
+            // The pid now names another process: never measure it as the
+            // tool (and stop watching it until the next scan).
+            let same = process.is_none_or(|process| {
+                pinned.start_time.is_none_or(|started| {
+                    i64::try_from(process.start_time()).is_ok_and(|now| now == started)
+                })
+            });
+            if !same {
+                reused.push(root);
+            }
+            if supervised.contains(&root) || !alive || !same {
+                self.observed.remove(&root);
+                continue;
+            }
+            let (rows, _) = tree_rows(&self.system, parents, root);
+            // A supervised subtree never also counts as observed.
+            let mut stats = observed_sums(&rows, &supervised);
+            if !sampled {
+                stats.cpu_pct = None; // no delta yet — never a fake idle
+            }
+            let tree = self.observed.entry(root).or_default();
+            tree.stats = stats;
+            tree.pids = rows.iter().map(|row| row.pid).collect();
+            push_ring_sample(
+                &mut tree.ring,
+                TreeSample {
+                    at_ms: now_ms,
+                    cpu_pct: stats.cpu_pct,
+                    rss_bytes: stats.rss_bytes,
+                },
+            );
+        }
+        self.observed_roots
+            .retain(|pinned| !reused.contains(&pinned.pid));
     }
 
     /// The listener-probe degrade note for the LAST tick, when the
@@ -994,6 +1185,38 @@ fn parents_map(system: &sysinfo::System) -> HashMap<u32, Vec<u32>> {
         }
     }
     parents
+}
+
+/// Pure (AJ-E1402): an observed tree's sums with every excluded pid and
+/// its whole subtree pruned. `rows` is breadth-first (parents before
+/// children), as [`tree_rows`] returns them.
+#[doc(hidden)]
+#[must_use]
+pub fn observed_sums<S: std::hash::BuildHasher>(
+    rows: &[ProcessRow],
+    excluded: &std::collections::HashSet<u32, S>,
+) -> LiveProcessStats {
+    let mut pruned: std::collections::HashSet<u32> = std::collections::HashSet::new();
+    let mut stats = LiveProcessStats {
+        child_count: 0,
+        cpu_pct: Some(0.0),
+        rss_bytes: 0,
+    };
+    for (index, row) in rows.iter().enumerate() {
+        let under_pruned = row
+            .parent_pid
+            .is_some_and(|parent| pruned.contains(&parent));
+        if excluded.contains(&row.pid) || under_pruned {
+            pruned.insert(row.pid);
+            continue;
+        }
+        stats.rss_bytes += row.rss_bytes;
+        stats.cpu_pct = stats.cpu_pct.map(|sum| sum + row.cpu_pct.unwrap_or(0.0));
+        if index > 0 {
+            stats.child_count += 1;
+        }
+    }
+    stats
 }
 
 /// Per-process rows (root first, breadth-first over descendants) plus

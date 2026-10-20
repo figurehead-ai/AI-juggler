@@ -56,6 +56,8 @@ pub const EVENT_SESSIONS_UPDATED: &str = "session://updated";
 /// Name of the 5 s resource tick (I-07/I-08 deltas, AJ-E401): one
 /// coalesced payload per tick for every active Instance.
 pub const EVENT_SESSIONS_RESOURCES: &str = "session://resources";
+/// This Mac (AJ-E1403) on the 5 s resource cadence.
+pub const EVENT_THIS_MAC: &str = "machine://this-mac";
 
 /// Name of the 30 s quota tick (I-05 deltas, AJ-E401): one coalesced
 /// payload per tick; per-Instance `quota` stays `null` until a feed
@@ -350,6 +352,7 @@ pub fn run() {
             commands::app_setting_get,
             commands::app_setting_set,
             machine_health::machine_health,
+            machine_health::this_mac,
             os_access::os_access_list,
             os_access::os_access_request,
             os_access::os_access_open_settings,
@@ -487,6 +490,7 @@ fn spawn_read_model_ticks(
         loop {
             std::thread::sleep(std::time::Duration::from_secs(5));
             let _ = commands::emit_resources(&app, &resource_state);
+            let _ = machine_health::emit_this_mac(&app, &resource_state);
         }
     });
     // The 2 s per-tree sampling tick (AJ-E410): collector rings/rows,
