@@ -32,7 +32,7 @@ History, Settings; Cleanup and Fleet when relevant).
 | Req.4 banner | capture `17-ledger/degraded-banner-*` on Home, copy exact | PASS |
 | Req.5 More | `home-gallery.spec.ts` More lists Usage, Fleet, Cleanup; the regression gate no longer has Triage or Overview (their 16 baselines removed) | PASS |
 | Budget | vitest: 50 sessions render well inside 300 ms | PASS |
-| Full suites | vitest 470/470; Playwright 919/919; a11y gate 940 states, 0 critical/serious; visual gate 65/65 (re-rendered; only Triage's and Overview's 16 baselines removed, the rest unchanged within threshold) | PASS |
+| Full suites | vitest 472/472; Playwright 921/921; a11y gate 940 states, 0 critical/serious; visual gate re-rendered: Triage's and Overview's 16 baselines removed, 20 others re-rendered with a sub-threshold difference and no visible change | PASS |
 
 Gallery: `55-triage/home-populated-*` and `home-empty-*` (1440×900 and
 1024×680, both themes and densities).
