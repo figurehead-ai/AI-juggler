@@ -412,16 +412,6 @@ pub fn probe_codex_identity(state_dir: &Path) -> juggler_adapter::IdentityProbe 
     }
     // Streamed into a shape that keeps ONLY `tokens.account_id` (an id,
     // not a credential); every token value is skipped (ADR-0003).
-    #[derive(Default, serde::Deserialize)]
-    #[serde(default)]
-    struct IdShape {
-        tokens: Option<IdTokens>,
-    }
-    #[derive(Default, serde::Deserialize)]
-    #[serde(default)]
-    struct IdTokens {
-        account_id: Option<String>,
-    }
     let account_id = std::fs::File::open(state_dir.join("auth.json"))
         .ok()
         .and_then(|file| serde_json::from_reader::<_, IdShape>(std::io::BufReader::new(file)).ok())
@@ -447,6 +437,20 @@ pub fn probe_codex_identity(state_dir: &Path) -> juggler_adapter::IdentityProbe 
             reason: "this Codex sign-in records no account id Juggler can read".into(),
         },
     }
+}
+
+/// The part of `auth.json` the identity probe keeps: the account id.
+#[derive(Default, serde::Deserialize)]
+#[serde(default)]
+struct IdShape {
+    tokens: Option<IdTokens>,
+}
+
+/// `tokens.account_id` only — the token values are skipped.
+#[derive(Default, serde::Deserialize)]
+#[serde(default)]
+struct IdTokens {
+    account_id: Option<String>,
 }
 
 /// The scan-side sign-in axis stays binary (the inference vocabulary);
