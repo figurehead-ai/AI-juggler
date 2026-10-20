@@ -626,6 +626,13 @@ impl MachineSampler {
     /// A sampler on the given OS readings (tests).
     #[must_use]
     pub fn with_readings(os: Box<dyn OsReadings>) -> Self {
+        // The first call into the power and thermal APIs loads their
+        // frameworks — hundreds of milliseconds in a large app binary.
+        // Pay it here, at construction (app start, outside any lock), so
+        // no tick ever holds the sampler's lock over it.
+        let _ = os.power();
+        let _ = os.thermal();
+        let _ = os.pressure();
         let system = crate::new_system();
         let cores = u32::try_from(
             std::thread::available_parallelism().map_or(1, std::num::NonZeroUsize::get),
