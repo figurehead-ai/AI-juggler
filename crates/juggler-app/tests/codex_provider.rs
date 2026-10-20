@@ -83,8 +83,8 @@ fn a_codex_account_gets_its_own_home_and_real_sign_in_state() {
         .unwrap();
     assert!(env_row.pass, "{rows:#?}");
     assert!(
-        env_row.detail.contains("CODEX_HOME"),
-        "the row names CODEX_HOME"
+        env_row.detail.contains("CODEX_HOME") && env_row.detail.contains("CODEX_SQLITE_HOME"),
+        "the row checks both pinned variables"
     );
     let probe = rows
         .iter()
@@ -104,8 +104,8 @@ fn a_codex_account_gets_its_own_home_and_real_sign_in_state() {
         commands::expert_setup_info_impl(&state, CODEX_ID, Some(&created.id), None).unwrap();
     let snippet = expert.shell_snippet.unwrap();
     assert!(
-        snippet.starts_with("CODEX_HOME='"),
-        "the snippet sets the home"
+        snippet.starts_with("CODEX_HOME='") && snippet.contains(" CODEX_SQLITE_HOME='"),
+        "the snippet pins the home and the SQLite home"
     );
     assert!(
         snippet.ends_with("codex --no-daemon"),
@@ -120,17 +120,18 @@ fn a_codex_account_gets_its_own_home_and_real_sign_in_state() {
 
 #[test]
 fn a_codex_shell_alias_becomes_a_codex_candidate() {
+    // Through the adapter's real rc-file scan, not a hand-built hint.
     let work = tempfile::tempdir().unwrap();
     let target = work.path().join(".codex-work");
     std::fs::create_dir_all(&target).unwrap();
-    let hint = juggler_adapter::environment::AliasHint {
-        variable: "CODEX_HOME".into(),
-        path: target.clone(),
-        source_file: "~/.zshrc".into(),
-        line: 3,
-        target_exists: true,
-    };
-    let (rows, _, dangling) = commands::alias_installs_of(&[hint], &mut []);
+    std::fs::write(
+        work.path().join(".zshrc"),
+        format!("export CODEX_HOME=\"{}\"\n", target.display()),
+    )
+    .unwrap();
+    let hints = juggler_adapters::codex::codex_aliases(work.path());
+    assert_eq!(hints.len(), 1);
+    let (rows, _, dangling) = commands::alias_installs_of(&hints, &mut []);
     assert_eq!(dangling, 0);
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].harness, CODEX_ID);
@@ -179,7 +180,17 @@ fn importing_a_codex_home_copies_it_and_leaves_the_original_alone() {
 
     assert_eq!(listing(&source), before, "the original is byte-identical");
     assert_eq!(imported.account.provider, CODEX_ID);
-    assert_eq!(imported.account.login_state, "signed_in");
+    // The sign-in stays with the original (single-use refresh tokens):
+    // the copy signs in once, and says so.
+    assert_eq!(imported.account.login_state, "logged_out");
+    assert!(
+        !state
+            .accounts_dir()
+            .join(CODEX_ID)
+            .join(&imported.account.id)
+            .join("auth.json")
+            .exists()
+    );
     let dir = state
         .accounts_dir()
         .join(CODEX_ID)

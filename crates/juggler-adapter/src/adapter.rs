@@ -242,6 +242,16 @@ pub trait HarnessAdapter: Send + Sync {
         &[]
     }
 
+    /// The isolation keys pinned to the Account's state dir itself —
+    /// every one the shell snippet sets and the isolation check
+    /// verifies. Default: the first isolation key (one variable points
+    /// the Provider at its state); Codex also pins `CODEX_SQLITE_HOME`.
+    #[must_use]
+    fn pinned_env_keys(&self) -> &'static [&'static str] {
+        let keys = self.isolation_env_keys();
+        &keys[..keys.len().min(1)]
+    }
+
     /// The command a user types to start this Provider against
     /// `state_dir` by hand — the Expert-setup snippet and the
     /// external-terminal login fallback (AJ-E309 Req.5). `None` when
@@ -260,8 +270,8 @@ pub fn shell_quote(value: &str) -> String {
 }
 
 /// Builds the copyable shell line for `adapter` against `state_dir`
-/// plus any extra environment (Launch-settings overrides), isolation
-/// keys first. `None` when the Provider has no terminal entry point.
+/// plus any extra environment (Launch-settings overrides), every pinned
+/// isolation key first. `None` when the Provider has no terminal entry point.
 #[must_use]
 pub fn shell_snippet(
     adapter: &dyn HarnessAdapter,
@@ -271,9 +281,8 @@ pub fn shell_snippet(
     let command = adapter.shell_command()?;
     let dir = state_dir.to_string_lossy();
     let mut parts: Vec<String> = adapter
-        .isolation_env_keys()
+        .pinned_env_keys()
         .iter()
-        .take(1)
         .map(|key| format!("{key}={}", shell_quote(&dir)))
         .collect();
     for (key, value) in extra_env {

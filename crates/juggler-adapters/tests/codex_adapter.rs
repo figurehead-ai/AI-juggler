@@ -266,13 +266,13 @@ fn launch_specs_per_mode() {
     let primed = spec(LaunchMode::Primed {
         prompt: "continue".into(),
     });
-    assert_eq!(primed.args, vec!["--no-daemon", "continue"]);
+    assert_eq!(primed.args, vec!["--no-daemon", "--", "continue"]);
 
     let headless = spec(LaunchMode::Headless {
         prompt: "fix it".into(),
     });
     assert!(!headless.needs_pty);
-    assert_eq!(headless.args, vec!["exec", "--json", "fix it"]);
+    assert_eq!(headless.args, vec!["exec", "--json", "--", "fix it"]);
 
     let resume = spec(LaunchMode::Resume {
         session_id: "019a0000-0000-7000-8000-000000000001".into(),
@@ -287,9 +287,32 @@ fn launch_specs_per_mode() {
             "-C",
             here.as_str(),
             "--no-daemon",
+            "--",
             "while you were away"
         ]
     );
+
+    // User text that looks like an option stays text (after `--`).
+    let bullet = spec(LaunchMode::Primed {
+        prompt: "- fix X".into(),
+    });
+    assert_eq!(bullet.args, vec!["--no-daemon", "--", "- fix X"]);
+    // A session id that looks like an option is refused, never passed.
+    for id in ["--last", "-x", ""] {
+        assert!(
+            adapter
+                .launch_spec(
+                    &acct,
+                    &recipe,
+                    dir.path(),
+                    &LaunchMode::Resume {
+                        session_id: id.into(),
+                        delta_prompt: None,
+                    },
+                )
+                .is_err()
+        );
+    }
 }
 
 #[cfg(unix)]
@@ -315,7 +338,7 @@ fn model_override_rides_the_command_line() {
         .unwrap();
     assert_eq!(
         spec.args,
-        vec!["--no-daemon", "--model", "gpt-5-codex", "go"]
+        vec!["--no-daemon", "--model", "gpt-5-codex", "--", "go"]
     );
 }
 
@@ -329,7 +352,14 @@ fn isolation_keys_and_snippet() {
         &std::collections::BTreeMap::new(),
     )
     .unwrap();
-    assert_eq!(snippet, "CODEX_HOME='/tmp/acct one' codex --no-daemon");
+    assert_eq!(
+        snippet,
+        "CODEX_HOME='/tmp/acct one' CODEX_SQLITE_HOME='/tmp/acct one' codex --no-daemon"
+    );
+    assert_eq!(
+        adapter.pinned_env_keys(),
+        ["CODEX_HOME", "CODEX_SQLITE_HOME"]
+    );
 }
 
 #[test]
@@ -339,4 +369,25 @@ fn keychain_account_matches_codex_naming() {
     assert!(account.starts_with("cli|"), "the account is `cli|<hash>`");
     assert_eq!(account.len(), "cli|".len() + 16);
     assert!(juggler_adapters::codex::keychain_account(&dir.path().join("missing")).is_none());
+}
+
+#[test]
+fn codex_home_aliases_come_from_the_shell_files() {
+    let home = tempfile::tempdir().unwrap();
+    let target = home.path().join(".codex-work");
+    std::fs::create_dir_all(&target).unwrap();
+    std::fs::write(
+        home.path().join(".zshrc"),
+        format!(
+            "export PATH=/usr/bin\nexport CODEX_HOME=\"{}\"\nexport CLAUDE_CONFIG_DIR=~/.claude-x\n",
+            target.display()
+        ),
+    )
+    .unwrap();
+    let hints = juggler_adapters::codex::codex_aliases(home.path());
+    assert_eq!(hints.len(), 1, "only CODEX_HOME belongs to Codex");
+    assert_eq!(hints[0].variable, "CODEX_HOME");
+    assert_eq!(hints[0].path, target);
+    assert!(hints[0].target_exists);
+    assert_eq!(hints[0].line, 2);
 }

@@ -64,6 +64,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   "Couldn't tell which file is this session": AI Juggler finds the
   session's own file (same folder, started after the launch) the first
   time it is needed and remembers it — for Claude Code and Codex alike.
+- Bringing in a setup that contains links no longer fails or copies what
+  a link points to: links are listed and left behind (Claude Code and
+  Codex).
+
+- A message to Codex that starts with "-" (a list item, say) is passed as
+  text, never read as an option; a session id that looks like an option
+  is refused instead of resuming something else (Codex and Claude Code).
+  The Expert-setup line for a Codex account now pins its SQLite folder
+  too, and First run finds a `CODEX_HOME=` line in your shell files.
 
 - Session rows are readable at the WCAG contrast minimum in both themes:
   their second line and time use the stronger grey, and ended sessions
@@ -102,9 +111,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - First run finds your existing Codex setups (`~/.codex`, `$CODEX_HOME`,
   any `~/.codex-…` folder, `CODEX_HOME=` in your shell files) and brings
   one in as a copy — the original keeps working, untouched (AJ-E1302).
-  Codex's own databases stay behind (Codex rebuilds them from the copied
-  history); the light import leaves the history behind too and lists
-  what it skipped.
+  Your sign-in stays with the original (a Codex sign-in can't be shared
+  between two folders without signing one out), so each copy signs in
+  once. Codex's own databases stay behind (Codex rebuilds them from the
+  copied history); the light import leaves the history behind too and
+  lists what it skipped.
 - Codex sessions read like Claude ones (AJ-E1303): the conversation,
   the model each turn ran, tokens, compaction and errors come from
   Codex's own session files, in both of its history formats. The
