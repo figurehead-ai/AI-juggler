@@ -264,3 +264,19 @@
   carries the fix. The gate passes locally (939 states, 0 serious). One
   capture timed out while the visual container ran beside it and passed
   twice alone.
+- Real bugs found by the maintainer on 0.0.7 (2026-10-20, dogfood),
+  none caught by a suite:
+  1. Bringing in six Claude setups failed at `skills/ego-browser`, a
+     symlink to a folder: the import copied only regular files and links
+     to regular files. It now recreates each link as a link (never
+     followed; an absolute link inside the setup is pointed at the copy)
+     and lists it in the result. Regression:
+     `claude_environment :: symlinks_are_recreated_as_links_never_followed`.
+  2. No hand cursor anywhere: the shared Button and several rows set
+     `cursor-default`. Fixed at the source and in a base rule for every
+     native control. Regression: `cursor.spec.ts` checks every enabled
+     clickable element on each main screen, the More menu and the legend;
+     it failed with 115 elements on the old styles.
+  3. The bring-in screen had no way out at first run (Close only in add
+     mode, Escape only in add mode). Regression: `first-run.test.tsx ::
+     first run can be left too…`.

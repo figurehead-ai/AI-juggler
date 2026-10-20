@@ -382,16 +382,40 @@ pub fn import_with_cap_skips(
         bytes_copied += std::fs::metadata(&to).map(|m| m.len()).unwrap_or_default();
     }
 
-    for (relative, target) in &links {
+    recreate_links(&source, dest, &links, &mut skipped)?;
+
+    let (login, login_note) = login_carryover(source_login, login_probe(dest));
+
+    Ok(ImportOutcome {
+        files_copied,
+        bytes_copied,
+        skipped,
+        login,
+        login_note,
+        folders,
+        degraded: false,
+    })
+}
+
+/// Recreate each collected symlink in the copy as a link — never followed,
+/// never copied through. A link into the setup is pointed at the copy.
+fn recreate_links(
+    source: &Path,
+    dest: &Path,
+    links: &[(PathBuf, PathBuf)],
+    skipped: &mut Vec<String>,
+) -> Result<(), juggler_adapter::AdapterError> {
+    for (relative, target) in links {
         let to = dest.join(relative);
         // A link that points inside the setup now points inside the copy;
         // any other link keeps pointing where it did (it's not copied).
         let retargeted = if target.is_absolute() {
             // Compare resolved paths too (on macOS /var is /private/var).
-            let resolved_source = std::fs::canonicalize(&source).unwrap_or_else(|_| source.clone());
+            let resolved_source =
+                std::fs::canonicalize(source).unwrap_or_else(|_| source.to_path_buf());
             let resolved_target = std::fs::canonicalize(target).unwrap_or_else(|_| target.clone());
             target
-                .strip_prefix(&source)
+                .strip_prefix(source)
                 .or_else(|_| target.strip_prefix(&resolved_source))
                 .or_else(|_| resolved_target.strip_prefix(&resolved_source))
                 .map_or_else(|_| target.clone(), |inside| dest.join(inside))
@@ -403,7 +427,7 @@ pub fn import_with_cap_skips(
         }
         if let Err(e) = make_link(&retargeted, &to) {
             cleanup_partial(dest);
-            return Err(AdapterError::AccountDir {
+            return Err(juggler_adapter::AdapterError::AccountDir {
                 path: to.clone(),
                 message: format!(
                     "cannot recreate the link {} — the partial import was removed; retry or pick a different folder ({e})",
@@ -417,18 +441,7 @@ pub fn import_with_cap_skips(
             retargeted.display()
         ));
     }
-
-    let (login, login_note) = login_carryover(source_login, login_probe(dest));
-
-    Ok(ImportOutcome {
-        files_copied,
-        bytes_copied,
-        skipped,
-        login,
-        login_note,
-        folders,
-        degraded: false,
-    })
+    Ok(())
 }
 
 /// The post-copy login carryover pair (destination probe + the

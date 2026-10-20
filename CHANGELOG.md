@@ -71,6 +71,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Bringing in a Claude setup that has a linked folder (for example a
+  skill under `skills/` that is a link to somewhere else) no longer fails
+  with "cannot copy skills/…". The link is kept as a link — AI Juggler
+  never follows it or copies what it points to — and the import says
+  which links it kept. A link to a sign-in file is skipped; sign in once
+  instead.
+- Everything you can click shows the pointing hand: buttons, rows,
+  menus, filters, checkboxes and links all showed the arrow.
+- The bring-in screen can always be closed: **Not now** at first run,
+  **Close** from Accounts › Add account, or Esc.
 - The "?" at the bottom of the session list now opens the guide to what
   the icons and words mean (it opened out of sight), in the list's own
   words.
