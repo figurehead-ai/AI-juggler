@@ -233,7 +233,7 @@ fn restart_reconciler_closes_dead_desktop_rows_never_fake_live() {
 #[test]
 fn providers_without_a_desktop_app_are_refused_by_name() {
     let dir = tempfile::tempdir().unwrap();
-    // Default registry: Claude Code only — no DESKTOP_APP capability.
+    // Default registry: Claude Code and Codex — neither has DESKTOP_APP.
     let state = Arc::new(
         AppState::init_with_registry(
             dir.path().join("app-data"),
