@@ -6580,7 +6580,7 @@ fn unavailable_processes(reason: &str) -> ProcessesInfo {
 
 // --- AJ-E505: the port occupancy map ----------------------------------
 
-fn now_millis() -> i64 {
+pub(crate) fn now_millis() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|dur| i64::try_from(dur.as_millis()).unwrap_or_default())
@@ -6735,7 +6735,7 @@ fn all_ledger_rows(state: &Arc<AppState>) -> Vec<juggler_core::storage::LedgerRo
     rows
 }
 
-fn local_ledger_rows(state: &Arc<AppState>) -> Vec<juggler_core::storage::LedgerRow> {
+pub(crate) fn local_ledger_rows(state: &Arc<AppState>) -> Vec<juggler_core::storage::LedgerRow> {
     use juggler_supervisor::tree::LedgerStore as _;
     let machine = local_machine_id(state);
     let mut rows = Vec::new();
@@ -7241,7 +7241,7 @@ pub fn port_inventory_inner(state: &Arc<AppState>) -> PortInventoryInfo {
 /// rule needs ≥3 Provider trees to compare against (an honest floor;
 /// smaller populations never fire it).
 #[allow(clippy::similar_names)] // state/stats read naturally here
-fn hog_facts(state: &Arc<AppState>, now_ms: i64) -> Vec<HogFactInfo> {
+pub(crate) fn hog_facts(state: &Arc<AppState>, now_ms: i64) -> Vec<HogFactInfo> {
     const HOG_WINDOW_MS: i64 = 60_000;
     // AJ-E512: the thresholds are settings-backed (defaults per SPEC
     // §10) so tests can lower them without faking gigabytes; the

@@ -6,6 +6,11 @@
 //! one shared summary ("Plenty of room" / "Getting tight" / "Under
 //! pressure") and its reasons in words.
 //!
+//! AJ-E1402: the AI tools AI Juggler did not start (the Claude app,
+//! `claude` in a terminal) are found every 30 s and measured read-only
+//! over their whole tree; they count in the totals, labelled as not ours,
+//! and have no stop or cleanup path of any kind (D-08).
+//!
 //! Passive only: nothing here stops, pauses or launches anything.
 
 // Tauri command signatures take State/values by value (as in commands.rs).
@@ -15,9 +20,12 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use juggler_supervisor::machine::{
-    MachineSnapshot, PowerState, PressureLevel, RoomLevel, RoomThresholds, ThermalState, summarize,
-    swap_growth_mb_per_min,
+    MachineSampler, MachineSnapshot, PowerState, PressureLevel, RoomLevel, RoomThresholds,
+    ThermalState, bytes_words, summarize, swap_growth_mb_per_min,
 };
+use juggler_supervisor::{LiveProcessStats, TreeSample};
+
+use crate::running_setups::RunningTool;
 
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
@@ -233,34 +241,431 @@ fn paths_in_use(state: &Arc<AppState>) -> Vec<PathBuf> {
     paths
 }
 
-/// The 2 s tick's machine half (AJ-E1401 Req.1). Takes only the sampler's
-/// lock; the storage lock is taken (briefly, inside) on the 30 s disk
-/// cadence alone.
+/// The machine watch behind `AppState::machine`: the sampler plus the AI
+/// tools AI Juggler did not start (AJ-E1402), re-read every 30 s.
+pub struct MachineWatch {
+    /// The machine sampler (AJ-E1401).
+    pub sampler: MachineSampler,
+    ticks: u32,
+    tools: Vec<RunningTool>,
+}
+
+impl Default for MachineWatch {
+    fn default() -> Self {
+        Self {
+            sampler: MachineSampler::new(),
+            ticks: 0,
+            tools: Vec::new(),
+        }
+    }
+}
+
+impl std::fmt::Debug for MachineWatch {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MachineWatch")
+            .field("ticks", &self.ticks)
+            .field("tools", &self.tools.len())
+            .finish_non_exhaustive()
+    }
+}
+
+/// Which running tools are re-read every 15th tick (30 s): the read
+/// covers every process's environment (only `CLAUDE_CONFIG_DIR` is kept),
+/// so it never rides every tick.
+const TOOLS_EVERY: u32 = 15;
+
+/// The 2 s tick's machine half (AJ-E1401 Req.1, AJ-E1402 Req.1–2). Takes
+/// only the watch's lock; the storage lock is taken (briefly, inside) on
+/// the 30 s disk cadence alone, and the collector's lock after the watch's
+/// is released.
 pub fn tick(state: &Arc<AppState>, now_ms: i64) {
-    let Ok(mut sampler) = state.machine.lock() else {
-        return;
+    let refresh_tools = {
+        let Ok(mut watch) = state.machine.lock() else {
+            return;
+        };
+        watch.ticks = watch.ticks.wrapping_add(1);
+        watch.sampler.tick(now_ms, || paths_in_use(state));
+        watch.ticks == 1 || watch.ticks.is_multiple_of(TOOLS_EVERY)
     };
-    sampler.tick(now_ms, || paths_in_use(state));
+    if !refresh_tools {
+        return;
+    }
+    // Classified from the collector's own table (no second full refresh);
+    // only the roots' `CLAUDE_CONFIG_DIR` is read.
+    let briefs = state
+        .resources
+        .lock()
+        .map(|collector| collector.process_briefs())
+        .unwrap_or_default();
+    let tools = dirs::home_dir().map_or_else(Vec::new, |home| {
+        crate::running_setups::tools_from(&briefs, &home)
+    });
+    let roots: Vec<u32> = tools.iter().map(|tool| tool.pid).collect();
+    if let Ok(mut watch) = state.machine.lock() {
+        watch.tools = tools;
+    }
+    if let Ok(mut collector) = state.resources.lock() {
+        collector.set_observed_roots(roots);
+    }
 }
 
 /// The read model now.
 ///
 /// # Errors
 ///
-/// [`AppError::StatePoisoned`] when the sampler's lock is poisoned.
+/// [`AppError::StatePoisoned`] when the watch's lock is poisoned.
 pub fn machine_health_impl(state: &Arc<AppState>) -> AppResult<MachineHealthInfo> {
-    let sampler = state.machine.lock().map_err(|_| AppError::StatePoisoned)?;
-    Ok(health_of(sampler.snapshot(), &RoomThresholds::default()))
+    let watch = state.machine.lock().map_err(|_| AppError::StatePoisoned)?;
+    Ok(health_of(
+        watch.sampler.snapshot(),
+        &RoomThresholds::default(),
+    ))
 }
 
 /// How the Mac is doing (AJ-E1401 Req.4).
 ///
 /// # Errors
 ///
-/// [`AppError::StatePoisoned`] when the sampler's lock is poisoned.
+/// [`AppError::StatePoisoned`] when the watch's lock is poisoned.
 #[tauri::command]
 pub fn machine_health(state: tauri::State<'_, Arc<AppState>>) -> AppResult<MachineHealthInfo> {
     machine_health_impl(state.inner())
+}
+
+// --- AJ-E1403: the This Mac read model ------------------------------------
+
+/// A session is heavy above this (percent of one core, the AJ-E512 rule)…
+const HEAVY_CPU_PCT: f64 = 90.0;
+/// … or above this much memory …
+const HEAVY_RSS_BYTES: u64 = 2_000_000_000;
+/// … for every sample of the last minute.
+const HEAVY_WINDOW_MS: i64 = 60_000;
+
+/// One process tree on This Mac: a session AI Juggler started, or an AI
+/// tool it did not (read-only; no actions).
+#[derive(Clone, PartialEq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct ToolTreeInfo {
+    /// The session id for a session AI Juggler started; `null` for a tool
+    /// it did not start.
+    pub session_id: Option<String>,
+    /// For a tool AI Juggler did not start: `desktop` (the Claude app) or
+    /// `terminal` (`claude` in a terminal).
+    pub place: Option<String>,
+    /// The Account it uses, when one of yours matches.
+    pub account_label: Option<String>,
+    /// CPU summed over the tree, percent of ONE core (can pass 100);
+    /// `null` until measured.
+    pub cpu_pct: Option<f64>,
+    /// Memory summed over the tree, bytes.
+    #[ts(type = "number")]
+    pub rss_bytes: u64,
+    /// Helper processes (the tree minus its root).
+    pub helpers: u32,
+    /// "CPU 95%", "3.2 GB" — only when the tree is heavy.
+    pub heavy_note: Option<String>,
+}
+
+/// AI tools' share of the Mac.
+#[derive(Clone, PartialEq, Debug, Default, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct ToolTotalsInfo {
+    /// How many trees.
+    pub count: u32,
+    /// Share of the whole Mac's CPU (all cores), percent; `null` until
+    /// measured.
+    pub cpu_pct: Option<f64>,
+    /// Memory, bytes.
+    #[ts(type = "number")]
+    pub rss_bytes: u64,
+}
+
+/// Home's This Mac panel (AJ-E1403).
+#[derive(Clone, PartialEq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct ThisMacInfo {
+    /// How the Mac is doing.
+    pub machine: MachineHealthInfo,
+    /// Every AI tool together.
+    pub tools: ToolTotalsInfo,
+    /// The sessions AI Juggler started.
+    pub ours: ToolTotalsInfo,
+    /// The AI tools it did not start (the Claude app, `claude` in a
+    /// terminal).
+    pub theirs: ToolTotalsInfo,
+    /// The heaviest trees by memory, at most three.
+    pub top: Vec<ToolTreeInfo>,
+    /// Every heavy tree (the rail's notes, Home's Needs you).
+    pub heavy: Vec<ToolTreeInfo>,
+    /// Processes left running after their session closed.
+    pub leftover_processes: u32,
+    /// Ports those leftovers hold.
+    pub leftover_ports: u32,
+}
+
+/// One tree, as the pure assembly sees it.
+#[derive(Clone, Debug, Default)]
+pub struct TreeInput {
+    /// Session id (ours) or `None` (observed).
+    pub session_id: Option<String>,
+    /// `desktop` | `terminal` for observed trees.
+    pub place: Option<&'static str>,
+    /// The matched Account's label.
+    pub account_label: Option<String>,
+    /// Tree sums.
+    pub stats: LiveProcessStats,
+    /// The tree's 2 s ring.
+    pub ring: Vec<TreeSample>,
+    /// AJ-E512 hog rules that fired for it.
+    pub hog_rules: Vec<String>,
+}
+
+/// Sustained = every sample of the last minute passes, and the ring
+/// really spans (nearly) a minute.
+fn sustained(ring: &[TreeSample], passes: impl Fn(&TreeSample) -> bool) -> bool {
+    let Some(newest) = ring.last() else {
+        return false;
+    };
+    let window: Vec<&TreeSample> = ring
+        .iter()
+        .filter(|sample| newest.at_ms - sample.at_ms <= HEAVY_WINDOW_MS)
+        .collect();
+    let span = window.first().map_or(0, |first| newest.at_ms - first.at_ms);
+    span >= HEAVY_WINDOW_MS * 9 / 10 && window.iter().all(|sample| passes(sample))
+}
+
+/// Pure: the rail's note for a tree, only when it's heavy.
+#[must_use]
+pub fn heavy_note(tree: &TreeInput) -> Option<String> {
+    let cpu_hog = tree
+        .hog_rules
+        .iter()
+        .any(|rule| rule.starts_with("tree-cpu"));
+    let rss_hog = tree
+        .hog_rules
+        .iter()
+        .any(|rule| !rule.starts_with("tree-cpu"));
+    let cpu_heavy = cpu_hog
+        || sustained(&tree.ring, |sample| {
+            sample.cpu_pct.is_some_and(|cpu| cpu > HEAVY_CPU_PCT)
+        });
+    let rss_heavy = rss_hog || sustained(&tree.ring, |sample| sample.rss_bytes > HEAVY_RSS_BYTES);
+    let mut parts = Vec::new();
+    if cpu_heavy && let Some(cpu) = tree.stats.cpu_pct {
+        parts.push(format!("CPU {cpu:.0}%"));
+    }
+    if rss_heavy {
+        parts.push(bytes_words(tree.stats.rss_bytes));
+    }
+    (!parts.is_empty()).then(|| parts.join(" · "))
+}
+
+fn tree_info(tree: &TreeInput) -> ToolTreeInfo {
+    ToolTreeInfo {
+        session_id: tree.session_id.clone(),
+        place: tree.place.map(str::to_string),
+        account_label: tree.account_label.clone(),
+        cpu_pct: tree.stats.cpu_pct,
+        rss_bytes: tree.stats.rss_bytes,
+        helpers: tree.stats.child_count,
+        heavy_note: heavy_note(tree),
+    }
+}
+
+#[allow(clippy::cast_precision_loss)] // shares for display
+fn totals(trees: &[&TreeInput], cores: u32) -> ToolTotalsInfo {
+    let measured: Vec<f64> = trees.iter().filter_map(|tree| tree.stats.cpu_pct).collect();
+    ToolTotalsInfo {
+        count: u32::try_from(trees.len()).unwrap_or(u32::MAX),
+        cpu_pct: (!trees.is_empty() && measured.len() == trees.len())
+            .then(|| (measured.iter().sum::<f64>() / f64::from(cores.max(1))).min(100.0))
+            .or_else(|| trees.is_empty().then_some(0.0)),
+        rss_bytes: trees.iter().map(|tree| tree.stats.rss_bytes).sum(),
+    }
+}
+
+/// Pure: This Mac from its parts (AJ-E1403 Req.1–2).
+#[must_use]
+pub fn assemble(
+    machine: MachineHealthInfo,
+    trees: &[TreeInput],
+    leftovers: (u32, u32),
+) -> ThisMacInfo {
+    let cores = machine.cores;
+    let all: Vec<&TreeInput> = trees.iter().collect();
+    let ours: Vec<&TreeInput> = trees.iter().filter(|t| t.session_id.is_some()).collect();
+    let theirs: Vec<&TreeInput> = trees.iter().filter(|t| t.session_id.is_none()).collect();
+    let mut by_memory = all.clone();
+    by_memory.sort_by_key(|tree| std::cmp::Reverse(tree.stats.rss_bytes));
+    ThisMacInfo {
+        tools: totals(&all, cores),
+        ours: totals(&ours, cores),
+        theirs: totals(&theirs, cores),
+        top: by_memory
+            .iter()
+            .take(3)
+            .map(|tree| tree_info(tree))
+            .collect(),
+        heavy: by_memory
+            .iter()
+            .map(|tree| tree_info(tree))
+            .filter(|info| info.heavy_note.is_some())
+            .collect(),
+        leftover_processes: leftovers.0,
+        leftover_ports: leftovers.1,
+        machine,
+    }
+}
+
+/// The Account whose folder a running tool uses (its managed folder or
+/// the folder it was brought in from).
+fn account_for(
+    tool: &RunningTool,
+    accounts: &[juggler_core::model::Account],
+    home: &std::path::Path,
+) -> Option<String> {
+    accounts
+        .iter()
+        .find(|account| {
+            crate::running_setups::uses_folder(tool, &account.state_dir.to_string_lossy(), home)
+                || account
+                    .import_source_path
+                    .as_deref()
+                    .is_some_and(|source| crate::running_setups::uses_folder(tool, source, home))
+        })
+        .map(|account| account.label.clone())
+}
+
+/// This Mac now (AJ-E1403).
+///
+/// # Errors
+///
+/// [`AppError::StatePoisoned`] when a lock is poisoned; storage errors.
+pub fn this_mac_impl(state: &Arc<AppState>, now_ms: i64) -> AppResult<ThisMacInfo> {
+    let (machine, tools) = {
+        let watch = state.machine.lock().map_err(|_| AppError::StatePoisoned)?;
+        (
+            health_of(watch.sampler.snapshot(), &RoomThresholds::default()),
+            watch.tools.clone(),
+        )
+    };
+    let (accounts, live, labels) = {
+        let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
+        let accounts = storage.accounts().list()?;
+        let live: std::collections::HashSet<String> = storage
+            .sessions()
+            .list(None)?
+            .into_iter()
+            .filter(|record| crate::commands::is_active(record.status))
+            .map(|record| record.id.to_string())
+            .collect();
+        let labels: std::collections::HashMap<String, String> = accounts
+            .iter()
+            .map(|account| (account.id.to_string(), account.label.clone()))
+            .collect();
+        (accounts, live, labels)
+    };
+    let mut hogs: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
+    for hog in crate::commands::hog_facts(state, now_ms) {
+        hogs.entry(hog.session).or_default().push(hog.rule);
+    }
+    let contexts: std::collections::HashMap<String, Option<String>> = state
+        .supervisor
+        .spawn_contexts_snapshot()
+        .into_iter()
+        .map(|(session, ctx)| (session.as_str().to_string(), ctx.account_id))
+        .collect();
+    let home = dirs::home_dir().unwrap_or_default();
+    let mut trees = Vec::new();
+    {
+        let collector = state
+            .resources
+            .lock()
+            .map_err(|_| AppError::StatePoisoned)?;
+        for (session, stats) in collector.stats_snapshot() {
+            let id = session.as_str().to_string();
+            if !live.contains(&id) {
+                continue;
+            }
+            trees.push(TreeInput {
+                account_label: contexts
+                    .get(&id)
+                    .and_then(Option::as_ref)
+                    .and_then(|account| labels.get(account).cloned()),
+                ring: collector.ring(&session),
+                hog_rules: hogs.remove(&id).unwrap_or_default(),
+                session_id: Some(id),
+                place: None,
+                stats,
+            });
+        }
+        let observed = collector.observed_snapshot();
+        for tool in &tools {
+            let Some(tree) = observed.get(&tool.pid) else {
+                continue; // not measured yet, or it is one of ours
+            };
+            trees.push(TreeInput {
+                session_id: None,
+                place: Some(tool.place),
+                account_label: account_for(tool, &accounts, &home),
+                stats: tree.stats,
+                ring: tree.ring.iter().copied().collect(),
+                hog_rules: Vec::new(),
+            });
+        }
+    }
+    let rows = crate::commands::local_ledger_rows(state);
+    let orphaned: Vec<_> = rows
+        .iter()
+        .filter(|row| row.state == "orphaned" && row.role == "helper")
+        .collect();
+    let leftovers = (
+        u32::try_from(orphaned.len()).unwrap_or(u32::MAX),
+        u32::try_from(
+            orphaned
+                .iter()
+                .filter(|row| row.listens_on.is_some())
+                .count(),
+        )
+        .unwrap_or(u32::MAX),
+    );
+    Ok(assemble(machine, &trees, leftovers))
+}
+
+/// This Mac (AJ-E1403): the machine, AI tools' share, the heaviest
+/// trees, leftovers.
+///
+/// # Errors
+///
+/// [`AppError::StatePoisoned`] when a lock is poisoned; storage errors.
+#[tauri::command]
+pub fn this_mac(state: tauri::State<'_, Arc<AppState>>) -> AppResult<ThisMacInfo> {
+    this_mac_impl(state.inner(), crate::commands::now_millis())
+}
+
+/// The summary level last emitted (an idle app emits only on a change).
+static LAST_EMITTED_LEVEL: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
+
+/// Emits This Mac on the 5 s resource cadence (`machine://this-mac`), so
+/// Home, the rail and the session header refresh without a UI timer.
+/// Like the resource tick, an idle app costs the UI nothing: with no AI
+/// tool running, it emits only when the machine's level changes.
+///
+/// # Errors
+///
+/// As [`this_mac_impl`].
+pub fn emit_this_mac(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResult<()> {
+    use tauri::Emitter;
+    let payload = this_mac_impl(state, crate::commands::now_millis())?;
+    let level = payload.machine.summary.level.clone();
+    let changed = LAST_EMITTED_LEVEL.lock().map_or(true, |mut last| {
+        last.replace(level.clone()).as_ref() != Some(&level)
+    });
+    if payload.tools.count == 0 && !changed {
+        return Ok(());
+    }
+    let _ = app.emit(crate::EVENT_THIS_MAC, payload);
+    Ok(())
 }
 
 #[cfg(test)]
@@ -326,5 +731,157 @@ mod tests {
             info.swap_growth_mb_per_min, None,
             "4 s is too little history"
         );
+    }
+
+    fn ring(cpu: f64, rss: u64, seconds: i64) -> Vec<TreeSample> {
+        (0..=seconds / 2)
+            .map(|i| TreeSample {
+                at_ms: i * 2_000,
+                cpu_pct: Some(cpu),
+                rss_bytes: rss,
+            })
+            .collect()
+    }
+
+    fn tree(session: Option<&str>, cpu: f64, rss: u64, seconds: i64) -> TreeInput {
+        TreeInput {
+            session_id: session.map(str::to_string),
+            place: session.is_none().then_some("desktop"),
+            account_label: Some("Work Max".into()),
+            stats: LiveProcessStats {
+                child_count: 3,
+                cpu_pct: Some(cpu),
+                rss_bytes: rss,
+            },
+            ring: ring(cpu, rss, seconds),
+            hog_rules: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn heavy_means_sustained_for_a_minute() {
+        assert_eq!(
+            heavy_note(&tree(Some("a"), 95.0, G, 60)).as_deref(),
+            Some("CPU 95%")
+        );
+        assert_eq!(
+            heavy_note(&tree(Some("a"), 20.0, 3_200_000_000, 60)).as_deref(),
+            Some("3.2 GB")
+        );
+        assert_eq!(
+            heavy_note(&tree(Some("a"), 120.0, 3_200_000_000, 60)).as_deref(),
+            Some("CPU 120% · 3.2 GB")
+        );
+        // Twenty seconds of it is a spike, not a heavy session.
+        assert_eq!(heavy_note(&tree(Some("a"), 99.0, 5 * G, 20)), None);
+        // A quiet session is never noted.
+        assert_eq!(heavy_note(&tree(Some("a"), 12.0, G, 300)), None);
+        // An AJ-E512 hog rule counts on its own.
+        let mut hog = tree(Some("a"), 40.0, 2_500_000_000, 10);
+        hog.hog_rules = vec!["tree-rss>p95(provider)".into()];
+        assert_eq!(heavy_note(&hog).as_deref(), Some("2.5 GB"));
+    }
+
+    #[test]
+    fn this_mac_splits_ours_from_theirs_and_ranks_by_memory() {
+        let machine = health_of(
+            &MachineSnapshot {
+                cores: 10,
+                ..MachineSnapshot::default()
+            },
+            &RoomThresholds::default(),
+        );
+        let trees = vec![
+            tree(Some("s1"), 50.0, G, 60),
+            tree(Some("s2"), 95.0, 3 * G, 60),
+            tree(None, 30.0, 2 * G - 1, 60),
+            tree(Some("s3"), 5.0, 500_000_000, 60),
+        ];
+        let info = assemble(machine, &trees, (2, 1));
+        assert_eq!(info.tools.count, 4);
+        assert_eq!(info.ours.count, 3);
+        assert_eq!(info.theirs.count, 1);
+        assert_eq!(info.tools.rss_bytes, 6_500_000_000 - 1);
+        // 180 % of one core over 10 cores = 18 % of the Mac.
+        assert!((info.tools.cpu_pct.unwrap() - 18.0).abs() < 1e-9);
+        assert!((info.theirs.cpu_pct.unwrap() - 3.0).abs() < 1e-9);
+        let top: Vec<Option<&str>> = info.top.iter().map(|t| t.session_id.as_deref()).collect();
+        assert_eq!(top, [Some("s2"), None, Some("s1")]);
+        assert_eq!(info.top[1].place.as_deref(), Some("desktop"));
+        assert_eq!(info.heavy.len(), 1);
+        assert_eq!(
+            info.heavy[0].heavy_note.as_deref(),
+            Some("CPU 95% · 3.0 GB")
+        );
+        assert_eq!((info.leftover_processes, info.leftover_ports), (2, 1));
+    }
+
+    #[test]
+    fn an_unmeasured_tree_leaves_the_cpu_total_unknown_never_zero() {
+        let machine = health_of(
+            &MachineSnapshot {
+                cores: 8,
+                ..MachineSnapshot::default()
+            },
+            &RoomThresholds::default(),
+        );
+        let mut fresh = tree(Some("s1"), 0.0, G, 0);
+        fresh.stats.cpu_pct = None;
+        let info = assemble(machine.clone(), &[fresh], (0, 0));
+        assert_eq!(info.tools.cpu_pct, None);
+        let empty = assemble(machine, &[], (0, 0));
+        assert_eq!(
+            empty.tools.cpu_pct,
+            Some(0.0),
+            "nothing running uses nothing"
+        );
+        assert!(empty.top.is_empty());
+    }
+}
+
+/// A by-hand probe on a real Mac (read-only, AJ-E1402 evidence): the scan's
+/// cost and the AI tools AI Juggler did not start, by place, with their
+/// tree totals. Prints no paths, names or environments.
+/// `cargo test -p juggler-app --lib machine_health::live -- --ignored --nocapture`
+#[cfg(test)]
+mod live {
+    #[test]
+    #[ignore = "reads this Mac's real process table; run by hand"]
+    fn print_observed_tools() {
+        let home = dirs::home_dir().unwrap_or_default();
+        let mut costs = Vec::new();
+        let mut tools = Vec::new();
+        let supervisor = juggler_supervisor::Supervisor::new();
+        let mut collector = juggler_supervisor::LiveStatsCollector::new();
+        collector.tick(&supervisor, 0); // a full scan fills the table
+        for _ in 0..5 {
+            let started = std::time::Instant::now();
+            tools = crate::running_setups::tools_from(&collector.process_briefs(), &home);
+            costs.push(started.elapsed().as_micros());
+        }
+        costs.sort_unstable();
+        println!("scan: median {} µs, max {} µs (5 runs)", costs[2], costs[4]);
+        collector.set_observed_roots(tools.iter().map(|tool| tool.pid).collect());
+        for tick in 1..4 {
+            collector.tick(&supervisor, tick * 2_000);
+            std::thread::sleep(std::time::Duration::from_millis(700));
+        }
+        let observed = collector.observed_snapshot();
+        for place in ["desktop", "terminal"] {
+            let trees: Vec<_> = tools
+                .iter()
+                .filter(|tool| tool.place == place)
+                .filter_map(|tool| observed.get(&tool.pid))
+                .collect();
+            let rss: u64 = trees.iter().map(|tree| tree.stats.rss_bytes).sum();
+            let cpu: f64 = trees.iter().filter_map(|tree| tree.stats.cpu_pct).sum();
+            let helpers: u32 = trees.iter().map(|tree| tree.stats.child_count).sum();
+            println!(
+                "{place}: {} trees, {} helpers, CPU {cpu:.0}% of one core, {}",
+                trees.len(),
+                helpers,
+                juggler_supervisor::machine::bytes_words(rss)
+            );
+        }
     }
 }

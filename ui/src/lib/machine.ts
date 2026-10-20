@@ -7,10 +7,15 @@
  * ("plenty" | "tight" | "pressure" | "unsampled", or a full payload).
  */
 import { invoke } from "@tauri-apps/api/core";
-import { hasLiveBackend } from "./bridge";
+import { listen } from "@tauri-apps/api/event";
+import { useEffect, useState } from "react";
+import { hasLiveBackend, instancesList, type InstanceInfo } from "./bridge";
 import type { MachineHealthInfo } from "../types/generated/MachineHealthInfo";
 import type { MachinePointInfo } from "../types/generated/MachinePointInfo";
 import type { RoomReasonInfo } from "../types/generated/RoomReasonInfo";
+import type { ThisMacInfo } from "../types/generated/ThisMacInfo";
+import type { ToolTreeInfo } from "../types/generated/ToolTreeInfo";
+import type { ToolTotalsInfo } from "../types/generated/ToolTotalsInfo";
 
 export type { MachineHealthInfo, MachinePointInfo, RoomReasonInfo };
 
@@ -119,4 +124,123 @@ export function bytesWords(bytes: number): string {
     return gb >= 10 ? `${gb.toFixed(0)} GB` : `${gb.toFixed(1)} GB`;
   }
   return `${(bytes / 1e6).toFixed(0)} MB`;
+}
+
+// --- AJ-E1403: This Mac ------------------------------------------------------
+
+
+export type { ThisMacInfo, ToolTreeInfo, ToolTotalsInfo };
+
+interface ThisMacSeams {
+  /** A full payload (tests), or nothing for the derived mock. */
+  __AIJ_THIS_MAC__?: ThisMacInfo;
+  /** The AI tools AI Juggler did not start, for the derived mock
+   * (default: one Claude app window). */
+  __AIJ_OBSERVED__?: ToolTreeInfo[];
+  /** Leftover processes/ports for the derived mock (default 0/0). */
+  __AIJ_LEFTOVERS__?: [number, number];
+}
+const thisMacSeams = () => window as unknown as ThisMacSeams;
+
+const HEAVY_CPU = 90;
+const HEAVY_RSS = 2e9;
+
+/** The rail's note for a tree, only when it's heavy (the backend rule,
+ * on the current sample — the mock has no minute of history). */
+export function mockHeavyNote(cpu: number | null, rss: number): string | null {
+  const parts: string[] = [];
+  if (cpu !== null && cpu > HEAVY_CPU) parts.push(`CPU ${Math.round(cpu)}%`);
+  if (rss > HEAVY_RSS) parts.push(bytesWords(rss));
+  return parts.length ? parts.join(" · ") : null;
+}
+
+function totals(trees: ToolTreeInfo[], cores: number): ToolTotalsInfo {
+  const measured = trees.every((tree) => tree.cpu_pct !== null);
+  return {
+    count: trees.length,
+    cpu_pct: measured ? Math.min(100, trees.reduce((sum, tree) => sum + (tree.cpu_pct ?? 0), 0) / cores) : null,
+    rss_bytes: trees.reduce((sum, tree) => sum + tree.rss_bytes, 0),
+  };
+}
+
+const MOCK_OBSERVED: ToolTreeInfo[] = [
+  { session_id: null, place: "desktop", account_label: "Personal", cpu_pct: 14, rss_bytes: 1_600_000_000, helpers: 21, heavy_note: null },
+];
+
+/** The preview's This Mac, derived from the sessions on screen. */
+export function mockThisMac(sessions: InstanceInfo[], machine: MachineHealthInfo, observed: ToolTreeInfo[] = MOCK_OBSERVED, leftovers: [number, number] = [0, 0]): ThisMacInfo {
+  const live = sessions.filter((session) => !["finished", "stopped", "handed_over", "failed"].includes(session.status));
+  const ours: ToolTreeInfo[] = live
+    .filter((session) => session.rss_bytes !== null)
+    .map((session) => ({
+      session_id: session.id,
+      place: null,
+      account_label: session.account_label,
+      cpu_pct: session.cpu_pct,
+      rss_bytes: session.rss_bytes ?? 0,
+      helpers: session.child_count ?? 0,
+      heavy_note: mockHeavyNote(session.cpu_pct, session.rss_bytes ?? 0),
+    }));
+  const all = [...ours, ...observed].sort((a, b) => b.rss_bytes - a.rss_bytes);
+  return {
+    machine,
+    tools: totals(all, machine.cores),
+    ours: totals(ours, machine.cores),
+    theirs: totals(observed, machine.cores),
+    top: all.slice(0, 3),
+    heavy: all.filter((tree) => tree.heavy_note !== null),
+    leftover_processes: leftovers[0],
+    leftover_ports: leftovers[1],
+  };
+}
+
+/** This Mac now. */
+export async function thisMac(): Promise<ThisMacInfo> {
+  if (!hasLiveBackend()) {
+    const seams = thisMacSeams();
+    if (seams.__AIJ_THIS_MAC__) return structuredClone(seams.__AIJ_THIS_MAC__);
+    return mockThisMac(await instancesList(), await machineHealth(), seams.__AIJ_OBSERVED__, seams.__AIJ_LEFTOVERS__);
+  }
+  return invoke<ThisMacInfo>("this_mac");
+}
+
+/**
+ * This Mac, kept current by the backend's 5 s `machine://this-mac`
+ * emission (no UI timer). `refreshKey` re-reads it on demand — the
+ * preview has no events, so callers pass something that changes with
+ * the sessions on screen.
+ */
+export function useThisMac(refreshKey?: unknown): ThisMacInfo | null {
+  const [info, setInfo] = useState<ThisMacInfo | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void thisMac().then((data) => alive && setInfo(data), () => null);
+    return () => {
+      alive = false;
+    };
+  }, [refreshKey]);
+  useEffect(() => {
+    if (!hasLiveBackend()) return;
+    let unlisten: (() => void) | null = null;
+    let alive = true;
+    void listen<ThisMacInfo>("machine://this-mac", (event) => alive && setInfo(event.payload)).then((stop) => {
+      if (alive) unlisten = stop;
+      else stop();
+    });
+    return () => {
+      alive = false;
+      unlisten?.();
+    };
+  }, []);
+  return info;
+}
+
+/** "CPU 12% · 1.1 GB · 3 helpers" for a live session ("—" where unmeasured). */
+export function resourceLine(cpu: number | null, rss: number | null, helpers: number | null): string {
+  const parts = [
+    `CPU ${cpu !== null ? `${Math.round(cpu)}%` : "—"}`,
+    rss !== null ? bytesWords(rss) : "memory —",
+    helpers === null ? "helpers —" : helpers === 1 ? "1 helper" : `${helpers} helpers`,
+  ];
+  return parts.join(" · ");
 }
