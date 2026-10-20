@@ -46,12 +46,12 @@ export function AddProviderSheet({
           <span className="text-accent">
             <IconJuggler width={16} height={16} />
           </span>
-          <h3 className="text-sm font-semibold">Add a Provider</h3>
+          <h3 className="text-sm font-semibold">Add a tool</h3>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5" data-testid="provider-cards">
           <p className="text-xs leading-relaxed text-muted">
-            One card per tool AI Juggler knows. Installed Providers are ready to set up;
+            One card per tool AI Juggler knows. Installed tools are ready to set up;
             others link to their install page.
           </p>
           {installs === null && <p className="mt-4 text-xs text-muted">Checking your machine…</p>}
@@ -88,7 +88,7 @@ export function AddProviderSheet({
                     </span>
                     {desktop && row.single_instance_note && (
                       <span className="text-[10px] leading-relaxed text-muted">
-                        {row.single_instance_note} — one session at a time on this Provider.
+                        {row.single_instance_note} — one session at a time with this tool.
                       </span>
                     )}
                   </div>

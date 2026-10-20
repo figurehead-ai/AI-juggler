@@ -452,10 +452,10 @@ fn export_from(
         files,
         withheld,
         excluded: vec![
-            "Sign-ins to Claude, Codex and other Providers (the Account folders) — sign in again after a restore".to_owned(),
+            "Sign-ins to Claude, Codex and other tools (the account folders) — sign in again after a restore".to_owned(),
             "This Mac's Fleet identity and paired machines — a restored Mac keeps its own and pairs again".to_owned(),
             "Process records — their process ids belong to the Mac that wrote them".to_owned(),
-            "The Providers' own transcripts — they stay where each Provider keeps them".to_owned(),
+            "Each tool's own transcripts — they stay where the tool keeps them".to_owned(),
         ],
     };
 

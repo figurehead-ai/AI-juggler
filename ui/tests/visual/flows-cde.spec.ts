@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { allStatuses, honestEmpty, goTo } from "./fixtures";
+import { allStatuses, honestEmpty, goTo, expectRail } from "./fixtures";
 
 /**
  * AJ-E306 quality gates — the three daily flows as click-count
@@ -200,7 +200,7 @@ test("flow (e): launch ≤ 2 clicks; Profile never a sheet noun; verdict words n
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark" });
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/");
-  await expect(page.getByTestId("instance-board")).toBeVisible();
+  await expectRail(page); // D-25: the list, or its icon column when narrow
   // The launch sheet opens (⌘N opens New project; the header New
   // button opens the launch sheet — flow (e)'s surface).
   await page.getByRole("banner").getByRole("button", { name: "New session", exact: true }).click();

@@ -636,7 +636,7 @@ describe("AJ-E305 flow (a) — first install in ≤5 primary clicks, 0 typed fie
     // The Summary restates the choice (Nielsen H3), written ONCE on
     // the accept click.
     expect(container.querySelector("[data-testid='policy-restatement']")!.textContent).toBe(
-      "Packs: strip secrets (all Providers)",
+      "Packs: strip secrets (all tools)",
     );
     expect(w().__AIJ_REDACTION_SET_GLOBAL__).toEqual(["strip"]);
     // Click 4 (primary): Launch first session → carries Start here.

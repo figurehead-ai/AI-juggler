@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Cleanup says what it is in one line instead of "Tier 0 observe ·
+  verified manual kills". Pause automatic cleanup and Cleanup settings
+  sit behind ⋯, and Resume is on the "paused" banner. The machine filter
+  only appears once another Mac is paired. Groups name the tool ("Claude
+  Code"), and alerts point to "Cleanup".
+- The app says **tool** where it said "Provider": History's search,
+  Settings, pack secrets, the rail's filters, the session details and the
+  backup's "not included" list.
+- In a window narrower than 900 px, the rail folds to its icon column by
+  itself and comes back when the window is wider. Your density setting
+  doesn't change; ⌘B opens the list while the window is narrow.
 - A calmer app, rebuilt around what you need first (decision D-25). The
   top bar is Home, Accounts, History and Settings; Triage, Overview, Usage,
   Fleet and Cleanup are under More, and Cleanup and Fleet show up by

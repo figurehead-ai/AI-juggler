@@ -58,13 +58,12 @@ export function PackSecretsCard({ providers }: { providers: string[] }): JSX.Ele
         <h3 className="text-sm font-semibold">Pack secrets</h3>
         <p className="mt-0.5 text-xs leading-relaxed text-muted">
           Context packs carry your work to another account when you switch. Choose how keys and
-          tokens found in them are handled — remembered for every Provider unless one overrides
-          it.
+          tokens found in them are handled — remembered for every tool unless one has its own.
         </p>
       </div>
       <fieldset className="flex flex-col gap-1.5" data-testid="pack-secrets-global">
         <legend className="mb-1 text-[11px] font-medium uppercase tracking-wider text-muted">
-          Your choice (all Providers)
+          Your choice (all tools)
         </legend>
         {global === null && (
           <p className="text-[11px] text-muted" data-testid="pack-secrets-unset">
@@ -102,7 +101,7 @@ export function PackSecretsCard({ providers }: { providers: string[] }): JSX.Ele
       {providers.length > 0 && (
         <div className="flex flex-col gap-1.5" data-testid="pack-secrets-overrides">
           <p className="text-[11px] font-medium uppercase tracking-wider text-muted">
-            Per-Provider override
+            Per-tool choice
           </p>
           {providers.map((provider) => {
             const row = info[provider];
