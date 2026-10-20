@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Updates (beta): a failed update says why in plain words — no
+  connection, a download that didn't pass the signature check, one signed
+  for another version, the backup — with the technical reason behind
+  Details and **Try again**; the running version is never touched.
+  **Restart to update** (Settings and a prompt on Home) appears only when
+  no session is running, no switch is in flight and no bring-in is under
+  way, and Settings says what it is waiting for; nothing restarts by
+  itself. Every update prompt carries the channel's label (**Beta**).
+  Review on the update notice opens Settings on the update itself.
+- An older AI Juggler that opens data a newer one saved now says so in a
+  window and offers the backup made before the update (the newer data is
+  kept beside it), instead of quitting at launch without a word.
+  `docs/RELEASING.md` § Rollback has the way back, including from 0.0.8
+  to 0.0.7, and 0.0.8's notes carry the downgrade note.
 - On Home, J/K keep working after you mark a session reviewed or resume
   it, and A works from a row's own Mark reviewed button. Handed-over
   sessions no longer show under "Pick up where you left off". Home's

@@ -1,0 +1,15 @@
+# pnpm --dir ui exec vitest run src/components/updates.test.tsx (2026-10-20)
+ ✓ src/components/updates.test.tsx > AJ-E1010 updates > a development build shows the version and Beta, and never checks 18ms
+ ✓ src/components/updates.test.tsx > AJ-E1010 updates > a check shows the version and changes; install is the user's click 21ms
+ ✓ src/components/updates.test.tsx > AJ-E1010 updates > a failed install says why in plain words, keeps the reason behind Details, and offers Try again 9ms
+ ✓ src/components/updates.test.tsx > AJ-E1010 updates > a failed check says so, and Try again checks again 6ms
+ ✓ src/components/updates.test.tsx > AJ-E1010 updates > Restart to update waits, with the reason, until it is safe — never forced 9ms
+ ✓ src/components/updates.test.tsx > AJ-E1010 updates > the launch-time check can be turned off 6ms
+ ✓ src/components/updates.test.tsx > AJ-E1010 updates > D-20/D-23: AI Juggler offers stable and beta with what each means; switching forgets the found update 8ms
+ ✓ src/components/updates.test.tsx > AJ-E1010 updates > a development build offers no channel (it never checks) 3ms
+ ✓ src/components/updates.test.tsx > AJ-E1010 updates > D-23: AI Juggler Nightly names itself, follows nightly with no picker, and says its data is separate 4ms
+ ✓ src/components/updates.test.tsx > AJ-E1010 updates > D-23: AI Juggler Dev says what it is once, with no channel and no check 3ms
+ ✓ src/components/updates.test.tsx > AJ-E1010 update prompts on Home > an available update is announced with its Beta label; nothing installs 58ms
+ ✓ src/components/updates.test.tsx > AJ-E1010 update prompts on Home > Restart to update is offered only once it is safe, and Later puts it away 70ms
+ Test Files  1 passed (1)
+      Tests  12 passed (12)

@@ -76,9 +76,17 @@ overlay `tauri.conf.json`); a debug build is always Dev. So:
 - **Installing** first writes a backup of AI Juggler's data (`backups/` in the
   data folder). It then downloads the package, checks it against the release
   signature, and installs it. If any step fails, the running version is left
-  as it was, with a reason and **Retry**.
-- **Restarting** into the new version is offered, never forced. It waits until
-  no Instance is running, and an install waits while a switch is in flight.
+  as it was, the user reads why in plain words (the network, a signature that
+  doesn't check out, a package signed for another version, the backup), the
+  technical reason is behind **Details**, and **Try again** repeats the step.
+  An install waits while a switch is in flight.
+- **Restarting** into the new version is offered, never forced: **Restart to
+  update** (Settings and a prompt on Home) appears only while no session is
+  running, no switch is in flight and no bring-in is under way; until then
+  Settings says what it is waiting for. Quitting normally also starts the new
+  version next time.
+- **The prompts are labelled** with the channel: **Beta** on the beta channel
+  (D-04/D-11), in About and on every update prompt.
 - **Development builds** (anything built without the key, and AI Juggler
   Dev) never check.
 
@@ -183,23 +191,76 @@ A release is never deleted to roll it back. Instead:
      `gh release upload nightly-channel latest.json --clobber`.
 
    Installs that have not updated are then offered nothing new.
-2. **For users who already installed it**, the release notes of a follow-up
-   version say how to go back:
-   - download the previous version's `.dmg` from GitHub Releases and install it;
-   - if that version cannot open the newer data (it says so: "made by a newer
-     AI Juggler"), restore the backup the update wrote in `backups/`
-     (Settings › Backup & restore).
-3. **Fix forward** with a new version. Version numbers only go up, and the
+2. **Fix forward** with a new version. Version numbers only go up, and the
    updater refuses a downgrade (`requireSignedVersion`).
+3. **For users who already installed it**, the release notes of the bad
+   version (Known issues, edited on the release) and of the fix say how to go
+   back, as below.
 
-**Rehearse this once**, before the first beta reaches users: let nightly
-build two versions, update to the second, point the channel back at the
-first, install the first from its `.dmg` and restore the pre-update backup.
-Record the run in `docs/qa/evidence/AJ-E1010/`.
+### How a user goes back to the previous version
+
+Every update writes a backup first:
+`~/Library/Application Support/AI Juggler/backups/before-update-<from>-to-<to>-<time>.ajbackup`
+(the Nightly app uses `AI Juggler Nightly`). Data from before the update is
+in it; accounts brought in after the update are not, and the folders they
+use are never touched.
+
+- **If the previous version opens the data** (the release added no
+  database change): download its `.dmg` from GitHub Releases and install
+  it over the newer one. Nothing else to do.
+- **If it doesn't** — the release added a database change, and its notes
+  carry a downgrade note:
+  - **Going back to a version that says so** (every version built after
+    the newer-data alert landed): when it opens it says "This data is from
+    a newer AI Juggler" and offers **Use the backup from \<date\>**. The
+    newer data is moved aside in the data folder
+    (`juggler.sqlite.from-newer-<time>`, never deleted), the backup is checked
+    and restored, and the app opens on it. Without a readable backup it says
+    what to do instead, with **Show the data folder**.
+  - **Going back to 0.0.7**, or any version that quits at once on newer
+    data without a message:
+    1. Quit AI Juggler.
+    2. In `~/Library/Application Support/AI Juggler`, rename `juggler.sqlite`
+       to `juggler.sqlite.from-0.0.8` (and `juggler.sqlite-wal` /
+       `juggler.sqlite-shm` the same way, if they are there).
+    3. Install 0.0.7 from its `.dmg` and open it. If the welcome screen
+       shows, close it.
+    4. Settings › Data: backup & retention › **Restore from a backup…**, pick
+       the `before-update-0.0.7-to-0.0.8-….ajbackup` in the `backups` folder
+       (⌘⇧G and paste the folder path), then **Restore** and restart.
+
+   To return to the newer version later, quit, put the renamed
+   `juggler.sqlite` back, and install the newer version again.
+
+### Rehearse it
+
+Once per release channel, and whenever a release changes the database:
+build or install the previous version and the new one as AI Juggler Dev with
+a throwaway `HOME`, let the previous one write data and its pre-update
+backup, open the data with the new one, then go back as above. Record it in
+`docs/qa/evidence/AJ-E1010/` (the first run:
+`rollback-rehearsal.md`). On a signed build, do it with the real feed:
+update to the second version, point the channel back at the first, install
+the first from its `.dmg`, and go back as above.
 
 ## Database changes between versions
 
-Migrations only go forward. Every release states either "opens data from
-the previous version" (the default: migrations run on start) or carries a
-downgrade note, listed under Known issues, when an older build can no longer
-open the data. The backup written before each update is the way back.
+Migrations only go forward, and an older build refuses data a newer one
+saved (it never risks it). So a release that adds a migration ships a
+**downgrade note** under Known issues: which previous version can't open
+the data, and the way back above. Releases with no migration say nothing.
+Check before writing the notes:
+
+```bash
+git diff vPREVIOUS..HEAD --stat -- crates/juggler-core/src/storage/mod.rs
+```
+
+| Version | Schema | Opens the previous version's data | The previous version opens its data |
+|---|---|---|---|
+| 0.0.7 | 27 | yes | — |
+| 0.0.8 | 28 (accounts used in place) | yes | **no** — downgrade note in 0.0.8's notes |
+
+The backup written before each update is the way back
+(`cargo test -p juggler-app --test newer_data` is the migration fixture: a
+newer schema is refused, the backup is offered and restored, and a failed
+restore leaves the newer data as it was).

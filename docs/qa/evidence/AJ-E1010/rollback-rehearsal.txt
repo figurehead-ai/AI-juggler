@@ -1,0 +1,37 @@
+# AJ-E1010 rollback rehearsal on AI Juggler Dev — 2026-10-20
+# Debug builds are AI Juggler Dev (D-23). 0.0.7 = source of tag v0.0.7 (schema 27);
+# branch = claude/e1010-updates-6d9e7f (schema 28). HOME = a throwaway folder;
+# no real data folder, Keychain item or ~/.claude was read or written.
+# Script: the steps below, as run (rehearse.sh, kept in the session scratch).
+
+== 1. AI Juggler Dev from 0.0.7's source: data with two accounts, and the pre-update backup (0.0.7's own backup code)
+BACKUP <home>/Library/Application Support/AI Juggler Dev/backups/before-update-0.0.7-to-0.0.8-1792535328156.ajbackup schema 27
+ACCOUNTS ["Personal", "Work Max"] schema 27
+  schema on disk: 27
+$ HOME=<throwaway> 0.0.7-dev   (left running up to 8 s)
+  -> still running after 8 s (started); stopped by the rehearsal
+== 2. Update: this branch's AI Juggler Dev opens the same data
+$ HOME=<throwaway> branch-dev   (left running up to 10 s)
+  -> still running after 10 s (started); stopped by the rehearsal
+  schema on disk: 28
+== 3. Go back: 0.0.7 on the newer data
+$ HOME=<throwaway> 0.0.7-dev-on-newer   (left running up to 8 s)
+  -> exited by itself with code 1
+  stderr: ai-juggler: fatal: database schema version 28 is newer than supported version 27; update AI Juggler
+== 4. The documented way back for 0.0.7: move the newer database aside, restore the pre-update backup
+  in the data folder: juggler.sqlite.from-0.0.8
+RESTORED counts {"accounts": 2, "epochs": 0, "history_events": 0, "instances": 0, "launch_settings": 0, "projects": 0, "switch_edges": 0} kept ["<home>/Library/Application Support/AI Juggler Dev/juggler.sqlite.before-restore-1792535347484"]
+ACCOUNTS ["Personal", "Work Max"] schema 27
+  schema on disk: 27
+$ HOME=<throwaway> 0.0.7-dev-restored   (left running up to 8 s)
+  -> still running after 8 s (started); stopped by the rehearsal
+== 5. The new launch path (a later downgrade): this branch on data from a newer build (schema 29)
+$ HOME=<throwaway> branch-dev-again   (left running up to 10 s)
+  -> still running after 10 s (started); stopped by the rehearsal
+  schema on disk: 28
+  schema set to: 29  (as a newer build would leave it)
+$ HOME=<throwaway> branch-dev-on-newer   (left running up to 6 s)
+  -> still running after 6 s (started); stopped by the rehearsal
+  stderr: ai-juggler: the data in <scratch>/rehearsal-home/Library/Application Support/AI Juggler Dev is schema 29; this build reads up to 28
+  backups this build can offer:
+    before-update-0.0.7-to-0.0.8-1792535328156.ajbackup

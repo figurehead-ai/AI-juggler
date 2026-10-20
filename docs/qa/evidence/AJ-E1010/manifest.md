@@ -104,3 +104,37 @@ Four runs to the first good one, each failure fixed at its cause:
 2. Run 39264342560 (0.0.2): `stamp` left the crates' internal dependency requirements at 0.0.1 → it rewrites them too (#46).
 3. Run 39270091506 (0.0.3): app built, signed, **notarized (Accepted, 43 min)**; the DMG itself wasn't notarized → DMG notarized and stapled, editions built in parallel (#47).
 4. Run 39288351167 (0.0.4): **success**, 25 minutes end to end.
+
+## Finishing the beta update path (2026-10-20)
+
+What a beta user needed that wasn't there yet: failures said in plain
+words, no restart offered mid-switch or mid-bring-in, the Beta label on
+every prompt, proof at the socket and with the real updater plugin, and a
+way back that works. Walked by hand in the browser preview (vite, mock
+bridge) and rehearsed on AI Juggler Dev.
+
+| Claim | Threshold | Observed | Verdict | Date | Reviewer |
+|---|---|---|---|---|---|
+| Check on launch; off = zero network calls | Req.1 / perf | `updates_plugin :: check_off_means_zero_connections_and_on_reaches_the_feed`: the **real updater plugin** against a local feed counting connections at the socket — off: **0**; on, the same call: 1, version and notes reported, nothing downloaded. Removing the setting's gate makes it fail (left 1, right 0) | PASS | 2026-10-20 | claude-opus |
+| Version and that version's notes before installing; never silent | Req.1 | The notes are `docs/releases/X.Y.Z.md`, put into the feed by `promote.yml`. Card and Home notice show version, notes and the Beta chip before Install (vitest `updates.test.tsx`, gallery `58-updates/available`, `home-available`). Review opens Settings on the update, focused | PASS | 2026-10-20 | claude-opus |
+| Beta labelled in About and every update prompt | Req.3 | One chip component: About, the available box, the Home notice and the restart prompt (vitest; Playwright asserts the chip on both Home prompts). The notice no longer says "(beta)" on any channel | PASS | 2026-10-20 | claude-opus |
+| Failed update leaves the running version untouched, says why in plain words, with Try again | Req.4 | `updates_plugin :: a_package_that_fails_its_signature_never_installs`: packages signed in the test (minisign format) — changed after signing, signed with another key, signed for another version (downgrade), garbage signature, a download that breaks off — **none installs**; a throwaway `Fixture.app` stays byte for byte; each says why. Control: correctly signed, it installs and replaces the bundle. `updates :: every_failure_is_said_in_plain_words…`: one sentence per kind, the running version named, the technical reason kept for Details | PASS | 2026-10-20 | claude-opus |
+| Download progress at least every 5 % | perf | Same plugin test: a 4 MB package arriving in pieces, progress steps ≤ 5 %, ending at 100 | PASS | 2026-10-20 | claude-opus |
+| No restart prompt mid-switch or during a bring-in; offered, deferred, never forced | UI/UX | `updates :: restart_waits_for_a_bring_in_and_is_offered_once_safe` (a real import holds it; seconds after the last import it is offered; a staged switch holds it again; nothing restarts) and `…restart_for_live_instances`. After an install the app re-reads every 3 s and tells the window when it changes. vitest: no button and the reason while held; the Home prompt only when safe; Later puts it away | PASS | 2026-10-20 | claude-opus |
+| Rollback documented and rehearsed; migration fixture or downgrade note | Req.2 | [`rollback-rehearsal.md`](docs/qa/evidence/AJ-E1010/rollback-rehearsal.md): 0.0.7 on 0.0.8's data **quit silently** (a bug, AJ-E806 ledger); the documented way back restores both accounts. Downgrade note in `docs/releases/0.0.8.md` (Known issues). New launch path tested by `newer_data` (3) and seen in the rehearsal (step 5). The alert's buttons weren't clicked by hand | PASS (Dev); signed-build rehearsal pending | 2026-10-20 | claude-opus |
+| Gallery 1280×800, both themes; axe 0; no modal trap; hand cursor | visual / a11y | `58-updates`: available, downloading, failed, check-failed, restart-waiting, restart-ready, up-to-date, development, the two editions, home-available, home-restart-ready. a11y: 5 card states + 2 Home prompts × 2 themes, axe 0 serious/critical; the long-notes box is a focusable named region (axe flagged it before); Tab moves past each prompt. `cursor.spec.ts › the update UI`: every control in 4 card states and both prompts shows the hand | PASS | 2026-10-20 | claude-opus |
+
+Test logs: [`update-tests.txt`](docs/qa/evidence/AJ-E1010/update-tests.txt) (11),
+[`update-vitest.txt`](docs/qa/evidence/AJ-E1010/update-vitest.txt) (12).
+
+**Walked by hand** (browser preview, mock bridge): idle → Check now →
+available (notes, Beta) → Install → signature failure (Details opened,
+technical reason) → Try again → installed while a switch runs (no button,
+the reason) → Home: Restart to update → refused because a session started
+(plain words) → launch notice → Review lands on the update → Install →
+downloading → a failed check → Try again → up to date.
+
+**Still the maintainer's:** the four requirements on a real signed beta
+build (install a build with this change, then update it from the beta
+feed), and clicking "Use the backup from …" once on a Dev build
+(rehearsal step 5).
