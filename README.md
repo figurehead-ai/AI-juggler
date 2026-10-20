@@ -118,6 +118,6 @@ For questions, see [SUPPORT.md](./SUPPORT.md).
 The code is [MIT](./LICENSE) © Faruk Brbovic and AI Juggler contributors.
 
 The names **AI Juggler** and **Figurehead**, the logos and the app icon
-are trademarks. The MIT License doesn't cover them. You can use the
+are trademarks of Vuxtra LLC. The MIT License doesn't cover them. You can use the
 code for anything and refer to the project by name. A modified build you
 distribute needs its own name and icon. See [TRADEMARKS.md](./TRADEMARKS.md).

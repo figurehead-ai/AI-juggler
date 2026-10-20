@@ -14,7 +14,7 @@ doesn't cover them, and contributing doesn't grant rights to them.
 - The Figurehead logo.
 - Names, logos and icons similar enough to be confused with these.
 
-AI Juggler™ and Figurehead™ are trademarks of Faruk Brbovic.
+AI Juggler™ and Figurehead™ are trademarks of Vuxtra LLC.
 
 The code that draws the logo in the app (for example
 `ui/src/components/icons.tsx`) is MIT-licensed like the rest of the
