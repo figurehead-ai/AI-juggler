@@ -438,7 +438,10 @@
   none — then the step is skipped. Anything skipped is asked for in
   context, once.
 - **Consequences**: the existing wizard stays for Accounts › Add account
-  until it is simplified in a later stage; screens are rebuilt in stages
+  until it is simplified in a later stage (done 2026-10-20, AJ-E1022: a
+  fresh account and a folder import are first run's own steps, the
+  wizard is retired; AJ-E1023: Add account asks which tool only when
+  more than one is installed); screens are rebuilt in stages
   (first run; Home and rail; the session view, Accounts and the rest), each
   walked as a real journey before it merges.
 - **Amendment (2026-10-20, E14 / AJ-E1402): AI tools AI Juggler didn't

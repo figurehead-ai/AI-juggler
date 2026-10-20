@@ -33,8 +33,9 @@ pub struct AppState {
     /// The machine's own signals (AJ-E1401): CPU, memory and pressure,
     /// swap, disks in use, power, thermal — sampled on the same 2 s tick —
     /// and the AI tools AI Juggler did not start (AJ-E1402).
-    /// Lock ordering: never held together with `resources`; `storage` is
-    /// taken inside it only on the 30 s disk cadence.
+    /// Lock ordering: never held together with `resources` or `storage`;
+    /// held only for the cheap part of a tick (the disk work, the storage
+    /// read and the running-tools scan run outside it).
     pub machine: Mutex<crate::machine_health::MachineWatch>,
     /// Exit snapshots → confirmed orphans + stop states (AJ-E410).
     /// Interior-mutex: safe to read without the collector lock.

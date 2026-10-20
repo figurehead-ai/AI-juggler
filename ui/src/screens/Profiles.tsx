@@ -3,8 +3,6 @@ import { Button, Card, Chip, type ChipTone } from "../components/primitives";
 import { renewalLabel, renewalRowVisible } from "../lib/renewal";
 import { Field, Input, Modal } from "../components/form";
 import { IconProfiles, IconTerminal } from "../components/icons";
-import { OnboardingWizard } from "./OnboardingWizard";
-import { AddProviderSheet } from "./AddProviderSheet";
 import { LoginQueueCard } from "../components/LoginQueueCard";
 import { BetaMatrix } from "../components/BetaMatrix";
 import { ExpertSetup } from "../components/ExpertSetup";
@@ -69,26 +67,20 @@ export function bestForNewWork(
 export function ProfilesScreen({
   openTerminal,
   onInspectAccount,
-  onLaunchFirstSession,
   sessions = [],
   onAddAccounts,
 }: {
-  /** D-25: Add account opens the find → bring in → sign in flow. Without
-   * it, the account wizard opens (as before). */
-  onAddAccounts?: () => void;
+  /** D-25: Add account opens the find → bring in (or a fresh account, or
+   * a folder) → sign in flow; with more than one tool installed it asks
+   * which tool first (AJ-E1023). */
+  onAddAccounts: () => void;
   openTerminal: (id: string, title: string) => void;
   /** D-25: what runs where (activity line, runway fallback). */
   sessions?: InstanceInfo[];
   onInspectAccount?: (id: string) => void;
-  /** AJ-E305: the wizard's [Launch first session →] opens the launch
-   * sheet with the Start-here project preselected. */
-  onLaunchFirstSession?: (startHere: string | null) => void;
 }) {
   const [accounts, setAccounts] = useState<AccountInfo[] | null>(null);
   const [profiles, setProfiles] = useState<LaunchRecipeInfo[] | null>(null);
-  const [addAccount, setAddAccount] = useState(false);
-  // AJ-E306 flow (c): the Provider picker sheet.
-  const [addProvider, setAddProvider] = useState(false);
   const [newProfileFor, setNewProfileFor] = useState<AccountInfo | null>(null);
   const [loginFor, setLoginFor] = useState<AccountInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -158,11 +150,7 @@ export function ProfilesScreen({
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
-        <Button variant="secondary" size="sm" onClick={() => setAddProvider(true)} data-testid="add-provider">
-          <IconProfiles width={14} height={14} />
-          Add a tool
-        </Button>
-        <Button variant="primary" size="sm" onClick={() => (onAddAccounts ? onAddAccounts() : setAddAccount(true))} data-testid="add-account">
+        <Button variant="primary" size="sm" onClick={onAddAccounts} data-testid="add-account">
           <IconProfiles width={14} height={14} />
           Add account
         </Button>
@@ -176,7 +164,7 @@ export function ProfilesScreen({
       )}
 
       {accounts.length === 0 ? (
-        <EmptyAccounts onAdd={() => (onAddAccounts ? onAddAccounts() : setAddAccount(true))} />
+        <EmptyAccounts onAdd={onAddAccounts} />
       ) : (
         <div className="flex flex-col gap-4">
           {accounts.map((account) => (
@@ -215,40 +203,13 @@ export function ProfilesScreen({
         .
       </p>
       <details className="group" data-testid="accounts-beta-matrix">
-        <summary className="cursor-default text-xs text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
+        <summary className="cursor-pointer text-xs text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
           Which switches between accounts are proven (Beta)
         </summary>
         <div className="mt-3">
           <BetaMatrix />
         </div>
       </details>
-
-      {addAccount && (
-        <OnboardingWizard
-          provider="claude-code"
-          locked
-          onClose={() => setAddAccount(false)}
-          onAccountCreated={() => void refresh()}
-          openLoginTerminal={openTerminal}
-          onLaunchFirstSession={(startHere) => {
-            setAddAccount(false);
-            onLaunchFirstSession?.(startHere);
-          }}
-          onAddAnother={() => {
-            // Reopen fresh: unmount + remount resets the wizard.
-            setAddAccount(false);
-            window.setTimeout(() => setAddAccount(true), 0);
-          }}
-        />
-      )}
-
-      {addProvider && (
-        <AddProviderSheet
-          onClose={() => setAddProvider(false)}
-          onAccountCreated={() => void refresh()}
-          openLoginTerminal={openTerminal}
-        />
-      )}
 
       {newProfileFor && (
         <NewProfileModal

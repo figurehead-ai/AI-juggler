@@ -439,7 +439,8 @@ fn session_list_without_filter_returns_all() {
 }
 
 /// AJ-E1401: the machine sampler's disks-in-use read asks for the folders
-/// of sessions that haven't ended — one query, never the whole history.
+/// of this Mac's sessions that haven't ended — one query, never the whole
+/// history, never another Mac's paths.
 #[test]
 fn active_cwds_skip_ended_sessions_and_dedupe() {
     let storage = Storage::open_in_memory().unwrap();
@@ -452,13 +453,19 @@ fn active_cwds_skip_ended_sessions_and_dedupe() {
         ("s-stop", "/w/old2", SessionStatus::Stopped),
         ("s-fail", "/w/old3", SessionStatus::Failed),
         ("s-handed", "/w/old4", SessionStatus::HandedOver),
+        // Synced from another Mac: its paths are not this Mac's disks.
+        ("s-remote", "/Volumes/Theirs/c", SessionStatus::Running),
     ];
     for (id, cwd, status) in rows {
         let mut session = SessionRecord {
             id: SessionId::new(id),
             conversation: None,
             profile: profile.id.clone(),
-            machine: MachineId::new("this-mac"),
+            machine: MachineId::new(if id == "s-remote" {
+                "other-mac"
+            } else {
+                "this-mac"
+            }),
             kind: juggler_core::model::InstanceKind::Terminal,
             project: None,
             cwd: PathBuf::from(cwd),
@@ -475,7 +482,10 @@ fn active_cwds_skip_ended_sessions_and_dedupe() {
         session.status = status;
         storage.sessions().update(&session).unwrap();
     }
-    let mut cwds = storage.sessions().active_cwds().unwrap();
+    let mut cwds = storage
+        .sessions()
+        .active_cwds(&MachineId::new("this-mac"))
+        .unwrap();
     cwds.sort();
     assert_eq!(
         cwds,

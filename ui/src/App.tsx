@@ -48,7 +48,7 @@ function shortcutUsed(shortcut: string): void {
 let boardInteractiveCounted = false;
 import { ProfilesScreen } from "./screens/Profiles";
 import { History } from "./screens/History";
-import { OnboardingWizard } from "./screens/OnboardingWizard";
+import { AddProviderSheet } from "./screens/AddProviderSheet";
 import { FirstRun } from "./screens/FirstRun";
 import { HomeScreen } from "./screens/Home";
 import { UsageScreen } from "./screens/Usage";
@@ -69,6 +69,7 @@ import { RightInspector } from "./components/RightInspector";
 import { ThisMacContext, useThisMac } from "./lib/machine";
 import {
   accountsList,
+  providersDiscover,
   type SwitchBackSuggestionData,
   launchRecipesList,
   onSessionsQuota,
@@ -324,10 +325,20 @@ export default function App() {
   const [newSession, setNewSession] = useState(false);
   // AJ-E205: the executing switch flow (freeze dialog → stages →
   // source-safe failure banner). Null = closed.
-  // D-25: Accounts › Add account reuses first run's three steps.
-  const [addAccounts, setAddAccounts] = useState(false);
-  // The wizard opened from Accounts is locked to its Provider (AJ-E306).
-  const [wizardLocked, setWizardLocked] = useState(false);
+  // D-25: Accounts › Add account reuses first run's steps, for this tool
+  // (AJ-E1023: chosen first only when more than one is installed).
+  const [addAccounts, setAddAccounts] = useState<string | null>(null);
+  const [chooseTool, setChooseTool] = useState(false);
+  const startAddAccount = useCallback(() => {
+    void providersDiscover().then(
+      (rows) => {
+        const ready = rows.filter((row) => row.status === "installed" || row.status === "unverified");
+        if (ready.length > 1) setChooseTool(true);
+        else setAddAccounts(ready[0]?.provider ?? "claude-code");
+      },
+      () => setAddAccounts("claude-code"),
+    );
+  }, []);
   const [accountsNonce, setAccountsNonce] = useState(0);
   // D-25: the account-limit decision, for this session id.
   const [limitFor, setLimitFor] = useState<string | null>(null);
@@ -349,13 +360,9 @@ export default function App() {
   // hotkey (backend event) or in-app ⌘K; the binding is rebindable.
   const [goToOpen, setGoToOpen] = useState(false);
   const [goToHotkey, setGoToHotkey] = useState("Alt+Space");
-  const [wizard, setWizard] = useState(false);
   // D-25: a fresh install opens on first run (what's here → sign in →
-  // computer access); the wizard stays for Accounts › Add account.
+  // computer access); a fresh account and a folder import are its steps.
   const [firstRun, setFirstRun] = useState(false);
-  // AJ-E305: [Add another account] reopens the wizard fresh — the
-  // nonce remounts it (no stale step state).
-  const [wizardNonce, setWizardNonce] = useState(0);
   // AJ-E305 flow (b): the New project sheet. Null = closed; a string
   // pre-selects that directory (the Summary's Start here).
   const [newProjectDir, setNewProjectDir] = useState<string | null>(null);
@@ -393,15 +400,8 @@ export default function App() {
   // D-25), once per dismissal.
   useEffect(() => {
     if (localStorage.getItem("aij.onboarding.dismissed") === "1") return;
-    // Test seam (browser preview only): open the Add-account wizard
-    // instead, as if the user clicked Add account — its gallery and
-    // accessibility captures start from a fresh install.
-    const seam = (window as unknown as { __AIJ_FIRST_RUN__?: string }).__AIJ_FIRST_RUN__;
     void accountsList().then((accounts) => {
-      if (accounts.length === 0) {
-        if (seam === "wizard") setWizard(true);
-        else setFirstRun(true);
-      }
+      if (accounts.length === 0) setFirstRun(true);
     });
   }, []);
 
@@ -966,12 +966,8 @@ export default function App() {
               <ProfilesScreen
                 key={accountsNonce}
                 sessions={sessions}
-                onAddAccounts={() => setAddAccounts(true)}
+                onAddAccounts={startAddAccount}
                 openTerminal={openLoginTerminal}
-                onLaunchFirstSession={(startHere) => {
-                  setNewSession(true);
-                  setNewSessionDir(startHere);
-                }}
                 onInspectAccount={(id) => {
                   setGlobal(null);
                   setSelection({ kind: "account", id });
@@ -1227,63 +1223,31 @@ export default function App() {
             setFirstRun(false);
             void refresh();
           }}
-          onAddFresh={() => {
-            setFirstRun(false);
-            setWizard(true);
-          }}
-          onImportFolder={() => {
-            setFirstRun(false);
-            setWizard(true);
+          onAccountsChanged={() => void refresh()}
+        />
+      )}
+
+      {chooseTool && (
+        <AddProviderSheet
+          onClose={() => setChooseTool(false)}
+          onChoose={(provider) => {
+            setChooseTool(false);
+            setAddAccounts(provider);
           }}
         />
       )}
 
-      {addAccounts && (
+      {addAccounts !== null && (
         <FirstRun
           mode="add"
+          provider={addAccounts}
           openLoginTerminal={openLoginTerminal}
           onDone={() => {
-            setAddAccounts(false);
+            setAddAccounts(null);
             setAccountsNonce((n) => n + 1);
             void refresh();
           }}
-          onAddFresh={() => {
-            setAddAccounts(false);
-            setWizardLocked(true);
-            setWizard(true);
-          }}
-          onImportFolder={() => {
-            setAddAccounts(false);
-            setWizardLocked(true);
-            setWizard(true);
-          }}
-        />
-      )}
-
-      {wizard && (
-        <OnboardingWizard
-          key={wizardNonce}
-          provider="claude-code"
-          locked={wizardLocked}
-          onClose={() => {
-            localStorage.setItem("aij.onboarding.dismissed", "1");
-            setWizard(false);
-            setWizardLocked(false);
-            setAccountsNonce((n) => n + 1);
-          }}
-          onAccountCreated={() => void refresh()}
-          onConnectCloud={openCloudSettings}
-          openLoginTerminal={openLoginTerminal}
-          onLaunchFirstSession={(startHere) => {
-            setWizard(false);
-            setNewSession(true);
-            setNewSessionDir(startHere);
-          }}
-          onAddAnother={() => {
-            setWizard(false);
-            setWizardNonce((nonce) => nonce + 1);
-            setWizard(true);
-          }}
+          onAccountsChanged={() => void refresh()}
         />
       )}
 

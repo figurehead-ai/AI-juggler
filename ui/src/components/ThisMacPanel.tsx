@@ -18,6 +18,15 @@ const LEVEL: Record<string, { glyph: string; tone: string }> = {
   pressure: { glyph: "■", tone: "text-danger" },
 };
 
+/** What "in use" counts, in words (the backend's `memory_basis`). */
+export function memoryBasisWords(basis: string | null): string {
+  return basis === "app_wired_compressed"
+    ? "app memory, wired and compressed — close to Activity Monitor's Memory Used"
+    : basis === "total_minus_available"
+      ? "everything the system doesn't list as available"
+      : "not measured";
+}
+
 /** A tool AI Juggler didn't start, in words. */
 export function placeWords(place: string | null): string {
   return place === "desktop" ? "Claude app" : place === "terminal" ? "claude in a terminal" : "Claude";
@@ -92,7 +101,11 @@ export function ThisMacPanel({
   const calm = machine.summary.level === "plenty";
   const total = machine.memory_total;
   const toolsShare = total > 0 ? Math.min(100, (info.tools.rss_bytes / total) * 100) : 0;
-  const usedShare = total > 0 ? Math.min(100, (machine.memory_used / total) * 100) : 0;
+  // Memory in use only when it was read, on its stated basis — never a
+  // different measure under the same name.
+  const used = machine.memory_used;
+  const basis = memoryBasisWords(machine.memory_basis);
+  const usedShare = total > 0 && used !== null ? Math.min(100, (used / total) * 100) : 0;
   const otherShare = Math.max(0, usedShare - toolsShare);
   const nothing = info.tools.count === 0;
   const reasons = machine.summary.reasons.slice(0, 2).map((reason) => reason.words);
@@ -123,22 +136,27 @@ export function ThisMacPanel({
 
         {total > 0 && (
           <div className="flex flex-col gap-1.5">
+            {used !== null && (
             <div
               className="flex h-1.5 overflow-hidden rounded-full bg-surface-3"
               role="meter"
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={Math.round(usedShare)}
-              aria-label={`Memory: ${bytesWords(machine.memory_used)} of ${bytesWords(total)} in use, ${bytesWords(info.tools.rss_bytes)} by AI tools`}
+              aria-label={`Memory: ${bytesWords(used)} of ${bytesWords(total)} in use (${basis}), ${bytesWords(info.tools.rss_bytes)} by AI tools`}
+              title={`In use: ${basis}`}
             >
               {/* The tools' share keeps its own colour: the Mac's state is
                   the status line's to say, not a blame on this segment. */}
               <div className="h-full bg-accent" style={{ width: `${toolsShare}%` }} />
               <div className="h-full bg-faint/40" style={{ width: `${otherShare}%` }} />
             </div>
-            <span className="text-[11px] text-muted" data-testid="this-mac-memory">
+            )}
+            <span className="text-[11px] text-muted" data-testid="this-mac-memory" title={used !== null ? `In use: ${basis}` : undefined}>
               {nothing
-                ? `Memory: ${bytesWords(machine.memory_used)} of ${bytesWords(total)} in use`
+                ? used !== null
+                  ? `Memory: ${bytesWords(used)} of ${bytesWords(total)} in use`
+                  : `Memory: ${bytesWords(total)}`
                 : `AI tools: ${bytesWords(info.tools.rss_bytes)} of ${bytesWords(total)} memory · ${
                     info.tools.cpu_pct === null ? "CPU —" : `${Math.round(info.tools.cpu_pct)}% of all CPU cores`
                   }`}
