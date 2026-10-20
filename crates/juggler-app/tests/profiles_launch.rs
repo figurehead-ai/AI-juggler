@@ -110,7 +110,10 @@ fn two_accounts_launch_in_parallel_with_full_isolation() {
         .join(CLAUDE_CODE_ID)
         .join(&account_b.id)
         .join("settings.json");
-    assert!(!settings_a.is_file(), "no settings.json written for A's model");
+    assert!(
+        !settings_a.is_file(),
+        "no settings.json written for A's model"
+    );
     assert!(!settings_b.is_file(), "nor for B");
 
     // Cross-talk: each stub wrote its OWN config dir path into its
