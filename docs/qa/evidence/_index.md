@@ -23,6 +23,7 @@
 | AJ-E1019 | PASS6 | 2026-10-20 | [manifest](AJ-E1019/manifest.md) |
 | AJ-E102 | PASS2 | 2026-10-13 | [manifest](AJ-E102/manifest.md) |
 | AJ-E1020 | PASS6 | 2026-10-20 | [manifest](AJ-E1020/manifest.md) |
+| AJ-E1021 | PASS7 | 2026-10-20 | [manifest](AJ-E1021/manifest.md) |
 | AJ-E103 | PASS2 | 2026-10-13 | [manifest](AJ-E103/manifest.md) |
 | AJ-E104 | PASS6 | 2026-10-13 | [manifest](AJ-E104/manifest.md) |
 | AJ-E105 | PASS5 | 2026-10-13 | [manifest](AJ-E105/manifest.md) |
