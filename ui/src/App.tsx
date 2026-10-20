@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Button, Card, Chip, QuotaBar, QuotaRing, StatCard } from "./components/primitives";
 import { SessionCard, WorkflowRail, type Freshness } from "./components/WorkflowRail";
 import { GoToPalette } from "./components/GoToPalette";
@@ -65,7 +66,6 @@ import { FleetPromptDialog } from "./components/FleetPromptDialog";
 import { IdentityMismatchDialog } from "./components/IdentityMismatchDialog";
 import { IsolationOfferDialog } from "./components/IsolationOfferDialog";
 import { funnelEvent } from "./lib/funnel";
-import { ReadyHome } from "./screens/ReadyHome";
 import { SessionPanel } from "./screens/WorkPanels";
 import { NotificationRegion } from "./components/NotificationRegion";
 import { SwitchFlow, SwitchUndoToast } from "./components/SwitchFlow";
@@ -289,9 +289,6 @@ export default function App() {
   const railSessions = useMemo(() => sessions.filter((row) => row.lifecycle !== "archived"), [sessions]);
   const [accounts, setAccounts] = useState<AccountInfo[]>([]);
   const [profiles, setProfiles] = useState<LaunchRecipeInfo[]>([]);
-  const [readySkipped, setReadySkipped] = useState(
-    () => sessionStorage.getItem("aij.ready.skipped") === "1",
-  );
   const [newSessionDir, setNewSessionDir] = useState<string | null>(null);
   const [loginTerminals, setLoginTerminals] = useState<
     { id: string; title: string; ended: boolean }[]
@@ -574,11 +571,6 @@ export default function App() {
         : null,
     [selection, loginTerminals],
   );
-  const showReadyHome =
-    global === null &&
-    accounts.length > 0 &&
-    accounts.some((a) => a.login_state !== "logged_in") &&
-    !readySkipped;
 
   const selectedAccount = useMemo(
     () => (selection.kind === "account" ? (accounts.find((a) => a.id === selection.id) ?? null) : null),
@@ -1059,15 +1051,6 @@ export default function App() {
                 />
               );
             })()
-          ) : showReadyHome && selection.kind === "none" ? (
-            <ReadyHome
-              accounts={accounts}
-              openTerminal={openLoginTerminal}
-              onSkip={() => {
-                sessionStorage.setItem("aij.ready.skipped", "1");
-                setReadySkipped(true);
-              }}
-            />
           ) : (
             <>
               {/* AJ-E611: the alert/notification region — polite
@@ -1089,6 +1072,8 @@ export default function App() {
                     onNewSession={() => setNewSession(true)}
                     onAddAccounts={() => setFirstRun(true)}
                     onLimit={setLimitFor}
+                    openLoginTerminal={openLoginTerminal}
+                    onAccountsChanged={() => void refresh()}
                   />
                 </div>
               ) : (
@@ -1404,24 +1389,81 @@ export default function App() {
   );
 }
 
-/** The `?` legend popover button + panel (AJ-E403 Req.6). */
+/** The `?` legend popover button + panel (AJ-E403 Req.6). The panel is
+ * fixed-positioned above the button and portalled to the body: the
+ * footer row clips overflow and the rail is its own stacking layer, so
+ * a panel placed inside it opened out of sight (0.0.6 dogfood). */
 function LegendPopover() {
   const [open, setOpen] = useState(false);
+  const [place, setPlace] = useState<{ left: number; bottom: number; maxHeight: number } | null>(null);
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const toggle = () => {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    const rect = buttonRef.current?.getBoundingClientRect();
+    if (rect) {
+      const width = 320;
+      setPlace({
+        left: Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)),
+        bottom: window.innerHeight - rect.top + 8,
+        maxHeight: Math.max(160, rect.top - 16),
+      });
+    }
+    setOpen(true);
+  };
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (!panelRef.current?.contains(target) && !buttonRef.current?.contains(target)) setOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+        buttonRef.current?.focus();
+      }
+    };
+    window.addEventListener("mousedown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("mousedown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
   return (
-    <span className="relative ml-auto shrink-0">
+    <span className="ml-auto shrink-0">
       <button
+        ref={buttonRef}
         type="button"
         aria-expanded={open}
+        aria-controls="indicator-legend"
         aria-label="Indicator legend"
-        onClick={() => setOpen((value) => !value)}
-        className="flex size-4 items-center justify-center rounded-full border border-hairline text-[9px] font-bold text-muted outline-none transition-colors hover:bg-surface hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+        onClick={toggle}
+        // A 24 px target around the 16 px glyph (WCAG 2.5.8), same layout.
+        className="group -my-1 flex p-1 outline-none"
       >
-        ?
-      </button>
-      {open && (
-        <span className="absolute bottom-full left-0 z-40 mb-2 block w-64 rounded-xl border border-hairline bg-surface p-3 shadow-card">
-          <IndicatorLegend />
+        <span className="flex size-4 items-center justify-center rounded-full border border-hairline text-[9px] font-bold text-muted transition-colors group-hover:bg-surface group-hover:text-ink group-focus-visible:ring-1 group-focus-visible:ring-accent/60">
+          ?
         </span>
+      </button>
+      {open && place && createPortal(
+        <div
+          ref={panelRef}
+          id="indicator-legend"
+          role="dialog"
+          aria-label="What the icons mean"
+          data-testid="indicator-legend"
+          style={{ left: place.left, bottom: place.bottom, maxHeight: place.maxHeight }}
+          className="fixed z-50 w-80 overflow-y-auto rounded-xl border border-hairline bg-surface p-3 shadow-card"
+        >
+          <IndicatorLegend />
+        </div>,
+        // At the top of the page: the rail is its own stacking layer, so
+        // anything placed inside it paints under the work area.
+        document.body,
       )}
     </span>
   );
