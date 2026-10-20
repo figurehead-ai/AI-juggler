@@ -315,3 +315,42 @@
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1020/`.
 **Visual testing**: Gallery `69-rail-narrow` (folded at 390 and 860, opened at 860; both themes).
 **Research basis**: D-25; the 390 px captures (rail cramped); WCAG 1.4.10 reflow.
+### AJ-E1021 Triage and Overview fold into Home (D-25 amendment) | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: AJ-E1005, AJ-E1014
+**Goal**: One place answers "who needs me, what's parked, what's running, what's left to look at" — Home — instead of three screens that repeat each other.
+**User story**: As a developer starting the day with a dozen sessions, I want Home to be my triage: the blockers, the parked work with Resume when it's ready, and what ended that I haven't looked at, all from the keyboard.
+**Requirements**:
+1. Home SHALL show "Parked until a reset" when a session is parked (how long until the reset, or that it's reached; Resume once reached), and a parked session SHALL NOT show under Needs you.
+2. "Pick up where you left off" SHALL list what ended in the last 7 days and isn't reviewed or archived: three, then Show all; each has Open and Mark reviewed (recorded in its history, AJ-E1007).
+3. Home SHALL be keyboard operable: J/K or arrows move between rows, Enter opens, A runs the row's action; one quiet line names the keys.
+4. The ledger-degraded banner SHALL show on Home, only while process tracking is degraded.
+5. Triage and Overview SHALL leave More; the decision log records the evidence and the amendment. AJ-E1005's requirements are met on Home; sorting is the rail's.
+**Quality gates**: vitest (`home.test.tsx`: grouping, parked, reviewed, keyboard, 50 sessions < 300 ms); the a11y triage-on-Home test (axe 0, J/K); the full Playwright suite; baselines re-rendered with notes, Triage's and Overview's removed.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1021/`.
+**Visual testing**: Gallery `55-triage` re-captured on Home (populated and empty, both themes and densities); `17-ledger` on Home.
+**Research basis**: D-25 (one place per question; calm until it matters); the overlap measured in the amendment.
+### AJ-E1022 Add account without the old wizard: a fresh account, a folder (D-25) | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E1013, AJ-E1016, AJ-E307
+**Goal**: Every way into a new account is a short step of first run's own frame; the 2.4k-line account wizard is retired.
+**User story**: As a developer adding my third subscription, I want to name it and sign in — or point at a folder and bring it in — without a gate, a proposal or a policy question.
+**Requirements**:
+1. **A fresh account** SHALL be: a name (a free one filled in, e.g. "Claude Code 2"; focused; Enter creates), Create and sign in, then the same sign-in step first run uses. Back returns to the list when there was one; "Import from a folder instead…" is one link away.
+2. **A folder** SHALL be: the system's folder picker (cancel changes nothing), then a check before anything is copied — the path, file count and size, signed in or not, the Keychain note when its sign-in can't move, the breakdown behind "What's in it" — then Bring it in (a copy; the folder is untouched) and its sign-in when needed.
+3. The folder check SHALL say plainly when a folder isn't a setup (role=alert, no Bring it in), when it's already in AI Juggler, when its history is too large (only "Bring in settings only" or "Add a fresh account instead"), when it was already brought in ("Already imported as «…»", Done), and when it moved or vanished since the pick (pick it again).
+4. First run, Accounts › Add account (straight to a fresh account when nothing new is on this Mac) and New project's no-account detour (over the sheet, which keeps its folder) SHALL all use these steps. Nothing in them asks how packs handle secrets (D-14: the first switch asks).
+5. Funnel events SHALL carry no paths, labels or credentials. Flow (d) stays ≤ 3 primary clicks (Add account → Create and sign in → Sign in).
+6. The wizard and what only it used (the install gate, candidate cards, set proposal, isolation checklist, the first-run pack question and renewal date, the `__AIJ_FIRST_RUN__` seam, `recommendationFor`/`scanCancel`/`isolationCheck`, the `PackPolicyChooser` component) SHALL be removed with their tests; behaviour that survives keeps a test.
+**Quality gates**: vitest (`first-run.test.tsx` fresh and folder steps, `first-run-policy.test.tsx` D-14 and funnel, `new-project-sheet.test.tsx`); `flows-cde.spec.ts` (d); `keyboard-flows.spec.ts` (first run and Add account by keyboard); a11y folder check; captures 39-import, 37-flows/b-detour, 71-add-account; the full Playwright suite.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1022/`.
+**Visual testing**: Gallery `39-import` (normal, oversize, not a setup, duplicate, moved, the sign-in after), `37-flows/b-detour`, `71-add-account`.
+**Research basis**: D-25 (first run in three steps; depth on request); the inventory of the wizard's tests in the PR.
+
+### AJ-E1023 Choosing a tool inside Add account (D-25) | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: AJ-E306, AJ-E1022
+**Goal**: "Add Provider" stops being a separate button; Add account asks which tool only when more than one is installed.
+**User story**: As someone with only Claude Code, I never see a tool picker; once Codex is installed, Add account asks which tool the account is for.
+**Requirements**:
+1. Accounts SHALL have one Add account button. With more than one tool installed (or found but unverified), it SHALL first show the tool cards (install state, verified range, kind, a desktop tool's one-session limit, Install → for missing ones); choosing one opens Add account for that tool (its scan, a fresh account named after it, its sign-in).
+2. With one tool, Add account SHALL open directly, with no choice shown.
+3. The card sheet is a labelled modal dialog that takes focus and closes on Escape; flow (c) stays ≤ 4 primary clicks (Add account → the tool → Create and sign in → Sign in).
+**Quality gates**: vitest `add-provider-sheet.test.tsx`; `flows-cde.spec.ts` (c); the a11y tool-choice scan (keyboard Enter on a card); capture 38-flows-cde/c-provider-cards.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1023/`.
+**Research basis**: D-25 (progressive disclosure); the Codex adapter in progress (another session) — no adapter code touched.
+
