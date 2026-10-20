@@ -95,6 +95,13 @@
   to https://registry.npmjs.org/pnpm/10.34.7" (run 39438483215, job
   118681742197). No project code had run; install, component tests and
   build were skipped. The job is re-run unchanged; CI is the arbiter.
+- **Flake record, 2026-10-20 (known class; no change).** On PR #61
+  (AJ-E1303, Rust-only — no `ui/` change) the CI `ui` job failed one of
+  466 vitest tests: `first-run-policy.test.tsx` › "Decide later writes
+  NOTHING, stages no pack, and Summary says so" — `Test timed out in
+  5000ms` (5014 ms). The same UI code passed on #59 and #60 the same
+  hour. The failed job is re-run unchanged; the 5 s budget stays; CI is
+  the arbiter.
 - a11y seeded failure is recorded DEFERRED with owning task AJ-E804 —
   the gate is named in QUALITY.md vocabulary now; its absence is
   explicit, never a silent pass (per the quarantine/deferral rule).
