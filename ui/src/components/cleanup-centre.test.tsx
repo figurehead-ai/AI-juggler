@@ -843,3 +843,101 @@ describe("D-25: the empty inventory in plain words", () => {
     one.unmount();
   });
 });
+
+describe("D-25: the ⋯ menu keeps keyboard focus (WCAG 2.4.3)", () => {
+  const empty: CleanupInventoryData = {
+    groups: [],
+    local_machine: "machine-local",
+    clean_instances: 0,
+    ledger_degraded: false,
+    history: null,
+  };
+  const statusOf = (paused: boolean): CleanupStatusBridge => {
+    let now = { paused, suspended: false, suspended_until_ms: null, tier2_pending: [] };
+    return {
+      status: () => Promise.resolve(now),
+      pause: (next) => {
+        now = { ...now, paused: next };
+        return Promise.resolve(now);
+      },
+      resume: () => Promise.resolve(now),
+      tier2Decide: () => Promise.resolve(now),
+    };
+  };
+  const more = (view: ReturnType<typeof render>) => view.getByRole("button", { name: "More cleanup options" });
+
+  it("opening focuses the first item; Escape closes and returns focus to ⋯", async () => {
+    const view = render(<CleanupCentre bridge={{ load: () => Promise.resolve(empty) }} statusBridge={statusOf(false)} />);
+    await waitFor(() => expect(view.getByTestId("cleanup-empty")).toBeTruthy());
+    more(view).focus();
+    fireEvent.click(more(view));
+    await waitFor(() => expect(document.activeElement).toBe(view.getByTestId("cleanup-pause-toggle")));
+    fireEvent.keyDown(window, { key: "Escape" });
+    await waitFor(() => expect(document.activeElement).toBe(more(view)));
+    expect(view.queryByTestId("cleanup-pause-toggle")).toBeNull();
+    view.unmount();
+  });
+
+  it("Re-confirm on the suspended banner removes the banner and puts focus on ⋯", async () => {
+    let now = { paused: false, suspended: true, suspended_until_ms: 1, tier2_pending: [] as never[] };
+    const bridge: CleanupStatusBridge = {
+      status: () => Promise.resolve(now),
+      pause: () => Promise.resolve(now),
+      resume: () => {
+        now = { ...now, suspended: false, suspended_until_ms: null as never };
+        return Promise.resolve(now);
+      },
+      tier2Decide: () => Promise.resolve(now),
+    };
+    const view = render(<CleanupCentre bridge={{ load: () => Promise.resolve(empty) }} statusBridge={bridge} />);
+    const reconfirm = await view.findByTestId("cleanup-resume-button");
+    reconfirm.focus();
+    fireEvent.click(reconfirm);
+    await waitFor(() => expect(view.queryByTestId("cleanup-suspended-banner")).toBeNull());
+    await waitFor(() => expect(document.activeElement).toBe(more(view)));
+    view.unmount();
+  });
+
+  it("Re-confirm that fails keeps the banner, says why, and keeps focus on Re-confirm", async () => {
+    const now = { paused: false, suspended: true, suspended_until_ms: 1, tier2_pending: [] as never[] };
+    let fail = true;
+    const bridge: CleanupStatusBridge = {
+      status: () => Promise.resolve(now),
+      pause: () => Promise.resolve(now),
+      resume: () => (fail ? Promise.reject(new Error("the supervisor isn't answering")) : Promise.resolve({ ...now, suspended: false, suspended_until_ms: null as never })),
+      tier2Decide: () => Promise.resolve(now),
+    };
+    const view = render(<CleanupCentre bridge={{ load: () => Promise.resolve(empty) }} statusBridge={bridge} />);
+    const reconfirm = await view.findByTestId("cleanup-resume-button");
+    reconfirm.focus();
+    fireEvent.click(reconfirm);
+    const why = await view.findByTestId("cleanup-resume-error");
+    expect(why.textContent).toContain("the supervisor isn't answering");
+    expect(why.getAttribute("role")).toBe("alert");
+    expect(view.getByTestId("cleanup-suspended-banner")).toBeTruthy();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(document.activeElement).toBe(reconfirm);
+    // Trying again clears the reason and, once it works, moves on to ⋯.
+    fail = false;
+    fireEvent.click(reconfirm);
+    await waitFor(() => expect(view.queryByTestId("cleanup-suspended-banner")).toBeNull());
+    expect(view.queryByTestId("cleanup-resume-error")).toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(more(view)));
+    view.unmount();
+  });
+
+  it("Pause from the menu, then Resume on the banner: focus lands on ⋯ each time, never on <body>", async () => {
+    const view = render(<CleanupCentre bridge={{ load: () => Promise.resolve(empty) }} statusBridge={statusOf(false)} />);
+    await waitFor(() => expect(view.getByTestId("cleanup-empty")).toBeTruthy());
+    fireEvent.click(more(view));
+    fireEvent.click(await view.findByTestId("cleanup-pause-toggle"));
+    await waitFor(() => expect(view.getByTestId("cleanup-paused-banner")).toBeTruthy());
+    await waitFor(() => expect(document.activeElement).toBe(more(view)));
+    const resume = view.getByTestId("cleanup-pause-toggle");
+    resume.focus();
+    fireEvent.click(resume);
+    await waitFor(() => expect(view.queryByTestId("cleanup-paused-banner")).toBeNull());
+    await waitFor(() => expect(document.activeElement).toBe(more(view)));
+    view.unmount();
+  });
+});

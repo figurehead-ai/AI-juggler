@@ -344,7 +344,7 @@ for (const vp of INSPECTOR_VIEWPORTS) {
   test(`inspector — Account / Usage honest empty — ${vp.name}`, async ({ page }) => {
     await seedInspectorPage(page, vp);
     await goTo(page, "Accounts");
-    await page.getByRole("button", { name: "Inspect claude-code" }).first().click();
+    await page.getByRole("button", { name: "Inspect Claude Code" }).first().click();
     await expect(page.getByRole("tab", { name: "Usage" })).toBeVisible();
     await page.getByRole("tab", { name: "Usage" }).click();
     await expect(page.getByText("No measured usage yet", { exact: false })).toBeVisible();
@@ -420,7 +420,7 @@ test("inspector — Account Overview rings + forecast", async ({ page }) => {
   );
   await seedInspectorPage(page, { width: 1440, height: 900 });
   await goTo(page, "Accounts");
-  await page.getByRole("button", { name: "Inspect claude-code" }).first().click();
+  await page.getByRole("button", { name: "Inspect Claude Code" }).first().click();
   await expect(page.getByTestId("account-rings")).toBeVisible();
   await expect(page.getByText(/5-hour window · Measured/)).toBeVisible();
   await page.screenshot({ path: resolve(GALLERY, "08-inspector-aggregate/account-overview-1440x900.png") });
@@ -447,7 +447,7 @@ test("inspector — Account logged-out collapse", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/");
   await goTo(page, "Accounts");
-  await page.getByRole("button", { name: "Inspect claude-code" }).nth(1).click();
+  await page.getByRole("button", { name: "Inspect Claude Code" }).nth(1).click();
   await expect(page.getByTestId("account-signin-card")).toBeVisible();
   await page.screenshot({ path: resolve(GALLERY, "08-inspector-aggregate/account-logged-out-1280x800.png") });
 });
@@ -561,7 +561,7 @@ async function seedRenewalPage(
 
 async function openAccountOverview(page: import("@playwright/test").Page) {
   await goTo(page, "Accounts");
-  await page.getByRole("button", { name: "Inspect claude-code" }).first().click();
+  await page.getByRole("button", { name: "Inspect Claude Code" }).first().click();
   await expect(page.getByTestId("account-overview")).toBeVisible();
 }
 
@@ -3224,7 +3224,7 @@ for (const theme of THEMES) {
     test(`beta — matrix, all pairs open debt — ${vp.name} — ${theme}`, async ({ page }) => {
       await openProfiles(page);
       await expect(page.getByTestId("beta-matrix-summary")).toContainText(
-        "All 11 provider pairs ship in beta",
+        "All 11 tool pairs ship in beta",
       );
       await expect(page.getByTestId("beta-matrix-row").first()).toContainText(
         "Beta — not yet validated",

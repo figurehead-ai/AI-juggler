@@ -640,7 +640,7 @@ fn build_bundle(
             }
         };
         let bytes = std::fs::read(&reference.path).map_err(|e| io(e.to_string()))?;
-        let parsed = juggler_adapters::claude_transcript::parse_transcript(&bytes);
+        let parsed = juggler_adapters::parse_any(&bytes);
         let turns: Vec<(&'static str, String)> = parsed
             .messages
             .iter()

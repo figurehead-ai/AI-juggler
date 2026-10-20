@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RemoteCleanup } from "../components/RemoteCleanup";
 import { KillSheet, type KillBridge } from "../components/KillSheet";
 import { Button, CleanupEmpty, ProcessRow, type CleanupRowInfo } from "../components/ProcessRow";
@@ -224,14 +224,26 @@ export function CleanupCentre(props: {
   }, [machinesBridge]);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const moreRef = useRef<HTMLButtonElement>(null);
+  // Closing the menu from the keyboard (an item, Escape) — or a control
+  // that unmounts itself (Resume on the banner) — hands focus back to ⋯,
+  // never to <body> (WCAG 2.4.3).
+  const closeMenu = useCallback((refocus: boolean) => {
+    setMenuOpen(false);
+    if (refocus) window.setTimeout(() => moreRef.current?.focus(), 0);
+  }, []);
+  // Opening it moves focus to its first item.
+  useEffect(() => {
+    if (menuOpen) menuRef.current?.querySelector<HTMLElement>("#cleanup-more button")?.focus();
+  }, [menuOpen]);
   // The ⋯ menu closes on a click elsewhere or Escape, like the top bar's More.
   useEffect(() => {
     if (!menuOpen) return;
     const onDown = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) setMenuOpen(false);
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) closeMenu(false);
     };
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMenuOpen(false);
+      if (event.key === "Escape") closeMenu(true);
     };
     window.addEventListener("mousedown", onDown);
     window.addEventListener("keydown", onKey);
@@ -239,13 +251,16 @@ export function CleanupCentre(props: {
       window.removeEventListener("mousedown", onDown);
       window.removeEventListener("keydown", onKey);
     };
-  }, [menuOpen]);
+  }, [menuOpen, closeMenu]);
   const [filter, setFilter] = useState<CleanupFilterId>("needs-attention");
   // AJ-E511: the machine dimension — "This machine" by default so
   // single-machine users see no fleet complexity.
   const [machineScope, setMachineScope] = useState<"this" | "all">("this");
   const [data, setData] = useState<CleanupInventoryData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Re-confirm after a crash: why it didn't resume, if it didn't.
+  const [resumeError, setResumeError] = useState<string | null>(null);
+  const resuming = useRef(false);
   const [killTarget, setKillTarget] = useState<{
     session: string;
     pid: number;
@@ -325,7 +340,7 @@ export function CleanupCentre(props: {
   const visibleGroups = useMemo(() => data?.groups ?? [], [data]);
 
   const togglePause = () => {
-    setMenuOpen(false);
+    closeMenu(true);
     void statusBridge
       .pause(!(status?.paused ?? false))
       .then(setStatus)
@@ -396,6 +411,7 @@ export function CleanupCentre(props: {
             aria-label="More cleanup options"
             aria-expanded={menuOpen}
             aria-controls="cleanup-more"
+            ref={moreRef}
             onClick={() => setMenuOpen((open) => !open)}
             className="rounded-md px-2 py-1 text-muted outline-none hover:bg-surface hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
             data-testid="cleanup-more"
@@ -406,9 +422,6 @@ export function CleanupCentre(props: {
             <div
               id="cleanup-more"
               className="absolute right-0 top-full z-40 mt-1.5 flex w-64 flex-col rounded-xl border border-hairline bg-surface p-1.5 shadow-xl"
-              onKeyDown={(event) => {
-                if (event.key === "Escape") setMenuOpen(false);
-              }}
             >
               {!status?.paused && (
                 <button
@@ -424,6 +437,7 @@ export function CleanupCentre(props: {
               <button
                 type="button"
                 onClick={() => {
+                  // Settings opens and takes focus at its Cleanup heading.
                   setMenuOpen(false);
                   window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "cleanup" } }));
                 }}
@@ -472,15 +486,31 @@ export function CleanupCentre(props: {
             size="sm"
             variant="secondary"
             onClick={() => {
+              if (resuming.current) return;
+              resuming.current = true;
+              setResumeError(null);
               void statusBridge
                 .resume()
-                .then(setStatus)
-                .catch(() => undefined);
+                .then((next) => {
+                  setStatus(next);
+                  // The banner (and this button) goes once resumed: focus
+                  // to ⋯. Until then focus stays here.
+                  if (!next.suspended) closeMenu(true);
+                })
+                .catch((cause) => setResumeError(errorText(cause)))
+                .finally(() => {
+                  resuming.current = false;
+                });
             }}
             data-testid="cleanup-resume-button"
           >
             Re-confirm
           </Button>
+          {resumeError !== null && (
+            <span role="alert" className="text-danger" data-testid="cleanup-resume-error">
+              Couldn't resume: {resumeError}
+            </span>
+          )}
         </p>
       )}
       {status !== null && status.tier2_pending.length > 0 && (

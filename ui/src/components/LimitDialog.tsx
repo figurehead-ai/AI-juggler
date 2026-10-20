@@ -111,6 +111,8 @@ export function LimitDialog({
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
+        // A click on the dialog's text keeps focus inside it.
+        tabIndex={-1}
         aria-labelledby="limit-title"
         aria-describedby="limit-what"
         data-testid="limit-dialog"
@@ -132,7 +134,7 @@ export function LimitDialog({
             }
           }
         }}
-        className="sheen flex w-full max-w-lg flex-col gap-4 rounded-card border border-hairline bg-surface p-6 shadow-[0_24px_80px_-24px_rgba(0,0,0,0.8)]"
+        className="sheen flex w-full max-w-lg flex-col gap-4 rounded-card border border-hairline bg-surface p-6 outline-none shadow-[0_24px_80px_-24px_rgba(0,0,0,0.8)]"
       >
         <header className="flex flex-col gap-1">
           <h2 id="limit-title" className="text-base font-semibold">

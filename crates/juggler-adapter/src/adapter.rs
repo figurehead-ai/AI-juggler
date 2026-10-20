@@ -110,6 +110,23 @@ pub trait HarnessAdapter: Send + Sync {
         LoginState::LoggedOut
     }
 
+    /// AJ-E1303: finds the transcript of a session this Account started
+    /// in `cwd` at or after `since_ms` (epoch ms) — the file the vendor
+    /// created for it, read-only. Files in `taken` (linked to other
+    /// sessions) are never candidates, and more than one remaining match
+    /// is an honest `None`: a guess could hand one session another's
+    /// conversation. Default: `None` (the switch then asks).
+    fn locate_transcript(
+        &self,
+        state_dir: &Path,
+        cwd: &Path,
+        since_ms: i64,
+        taken: &[std::path::PathBuf],
+    ) -> Option<juggler_core::model::TranscriptRef> {
+        let _ = (state_dir, cwd, since_ms, taken);
+        None
+    }
+
     /// Creates a watcher over the account's transcript root.
     ///
     /// # Errors

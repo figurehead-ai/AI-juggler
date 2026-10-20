@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- On Home, J/K keep working after you mark a session reviewed or resume
+  it, and A works from a row's own Mark reviewed button. Handed-over
+  sessions no longer show under "Pick up where you left off". Home's
+  header has the legend "?" too. "Find my accounts" on Home and Usage
+  asks which tool when more than one is installed, like Accounts does.
+  The tool choice keeps keyboard focus where you put it.
+- Settings › Cleanup has the "Pause automatic cleanup" switch too. In
+  Cleanup, keyboard focus stays on the ⋯ button after you pause, resume
+  or press Escape. In a narrow window, ⌘B and the density shortcut only
+  open or close the list for now; they never change your setting.
 - Adding an account is short: name it and sign in, or pick a folder,
   see what's in it (size, sign-in, a too-large history offers settings
   only) and bring it in as a copy. First run, Accounts › Add account and
@@ -83,6 +93,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Switching a session you started in the app no longer stops at
+  "Couldn't tell which file is this session": AI Juggler finds the
+  session's own file (same folder, started after the launch) when you
+  switch and remembers it — for Claude Code and Codex alike. It never
+  guesses: when two sessions of one account share a folder, or two files
+  could be the one, it still asks.
+
 - A message to Codex that starts with "-" (a list item, say) is passed as
   text, never read as an option; a session id that looks like an option
   is refused instead of resuming something else (Codex and Claude Code).
@@ -147,7 +164,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in with OpenAI's own `codex login`, and starts, resumes or runs Codex
   in it. Sessions run without Codex's background server, so stopping a
   session stops all of it. Verified against Codex CLI 0.163.0. Watching
-  sessions, bringing in existing setups and switching follow (E13).
+  sessions and switching follow (E13).
+- First run finds your existing Codex setups (`~/.codex`, `$CODEX_HOME`,
+  any `~/.codex-…` folder, `CODEX_HOME=` in your shell files) and brings
+  one in as a copy — the original keeps working, untouched (AJ-E1302).
+  Your sign-in stays with the original (a Codex sign-in can't be shared
+  between two folders without signing one out), so each copy signs in
+  once. Codex's own databases stay behind (Codex rebuilds them from the
+  copied history); the light import leaves the history behind too and
+  lists what it skipped.
+- Codex sessions read like Claude ones (AJ-E1303): the conversation,
+  the model each turn ran, tokens, compaction and errors come from
+  Codex's own session files, in both of its history formats. The
+  account's identity check uses Codex's account id (never a token).
 - AI Juggler now watches the Mac itself, not only its sessions (E14,
   AJ-E1401): processor and memory use, macOS's own memory-pressure level,
   swap, free space on the disks your sessions use, power and thermal
