@@ -122,6 +122,13 @@
   unlinked session in the same folder makes it ambiguous (the switch
   asks), only the switch itself persists, and the scan runs outside the
   storage lock. Tests for Codex and Claude.
+- **Defect record, 2026-10-20 (found by review; fixed before merge).**
+  PR #64: `codex_handover::install_bundle` joined a peer-supplied file
+  name and session id into paths unchecked (path traversal from a paired
+  Mac); a replay whose newest turn exceeded the limit dropped every turn
+  and still marked the source handed over; a fork whose file name lacked
+  its id rewrote the original; `rename` could replace an existing
+  rollout; a turn could forge another in the prime. Each has a test.
 - a11y seeded failure is recorded DEFERRED with owning task AJ-E804 —
   the gate is named in QUALITY.md vocabulary now; its absence is
   explicit, never a silent pass (per the quarantine/deferral rule).

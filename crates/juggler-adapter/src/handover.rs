@@ -152,6 +152,24 @@ pub trait HandoverSupport: HarnessAdapter {
     fn prime_prompt(&self, turns: &[TurnText]) -> Result<String, AdapterError>;
 }
 
+/// Renders replay turns as data: each turn's text is quoted line by line
+/// (`> …`), so a turn that itself contains "[user]: …" can never pass
+/// for a turn of its own in the prime (a forged turn stays inside its
+/// quote).
+#[must_use]
+pub fn fence_turns(turns: &[TurnText]) -> String {
+    use std::fmt::Write as _;
+    let mut out = String::new();
+    for turn in turns {
+        let _ = writeln!(out, "[{}]:", turn.role);
+        for line in turn.text.lines() {
+            let _ = writeln!(out, "> {line}");
+        }
+        out.push('\n');
+    }
+    out
+}
+
 /// Lists the `<stem>*` sibling set in `dir` (the main file plus
 /// subagent transcripts, spill, file-history inventory) — F-H-04's
 /// honest inventory. Sorted for determinism.

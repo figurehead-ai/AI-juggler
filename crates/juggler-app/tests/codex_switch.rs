@@ -230,10 +230,10 @@ fn claude_to_codex_replays_the_redacted_conversation() {
     assert_eq!(args[0], "--no-daemon", "a primed interactive Codex session");
     let prompt = args[1..].join("\n");
     assert!(
-        prompt.contains("[user]: Deploy with key"),
+        prompt.contains("[user]:\n> Deploy with key"),
         "the conversation travels"
     );
-    assert!(prompt.contains("[assistant]: Deployed."));
+    assert!(prompt.contains("[assistant]:\n> Deployed."));
     assert!(
         !prompt.contains(SECRET),
         "the key is stripped before it leaves"
@@ -271,8 +271,8 @@ fn codex_to_claude_replays_too() {
     .unwrap();
 
     let prompt = args_of(&s.target_home).join("\n");
-    assert!(prompt.contains("[user]: Add a health check endpoint"));
-    assert!(prompt.contains("[assistant]: Added GET /health."));
+    assert!(prompt.contains("[user]:\n> Add a health check endpoint"));
+    assert!(prompt.contains("[assistant]:\n> Added GET /health."));
     assert_eq!(sha256_hex(&std::fs::read(&source).unwrap()), before);
     assert_eq!(
         mechanism_of(&s.state, &info.edge_id),
@@ -312,6 +312,72 @@ fn a_replay_waits_for_a_secret_policy() {
             &[],
         )
         .is_err()
+    );
+    assert!(
+        !s.target_home.join("last-args").exists(),
+        "nothing launched"
+    );
+    assert_ne!(
+        status_of(&s.state, &s.source_session),
+        SessionStatus::HandedOver
+    );
+}
+
+#[test]
+fn an_oversized_newest_turn_still_travels_cut_to_fit() {
+    let work = tempfile::tempdir().unwrap();
+    let s = setup(work.path(), CLAUDE_CODE_ID, CODEX_ID);
+    let dir = s.source_home.join("projects").join(s.cwd.replace('/', "-"));
+    std::fs::create_dir_all(&dir).unwrap();
+    let huge = "é".repeat(70_000); // multi-byte: the cut must respect chars
+    std::fs::write(
+        dir.join("claude-sess-1.jsonl"),
+        format!(
+            "{{\"type\":\"user\",\"uuid\":\"u1\",\"cwd\":\"{}\",\"message\":{{\"role\":\"user\",\"content\":\"{huge}\"}}}}\n",
+            s.cwd
+        ),
+    )
+    .unwrap();
+    commands::switch_execute_impl(
+        &s.state,
+        &s.source_session,
+        &s.target_recipe,
+        "finish-turn",
+        Some("keep"),
+        &[],
+    )
+    .unwrap();
+    let prompt = args_of(&s.target_home).join("\n");
+    assert!(
+        prompt.contains("cut to fit"),
+        "the newest turn travels, cut"
+    );
+    assert!(prompt.contains(&"é".repeat(1_000)));
+}
+
+#[test]
+fn a_session_with_no_conversation_is_not_replayed() {
+    let work = tempfile::tempdir().unwrap();
+    let s = setup(work.path(), CLAUDE_CODE_ID, CODEX_ID);
+    let dir = s.source_home.join("projects").join(s.cwd.replace('/', "-"));
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(
+        dir.join("claude-sess-1.jsonl"),
+        format!("{{\"type\":\"system\",\"cwd\":\"{}\"}}\n", s.cwd),
+    )
+    .unwrap();
+    let error = commands::switch_execute_impl(
+        &s.state,
+        &s.source_session,
+        &s.target_recipe,
+        "finish-turn",
+        Some("keep"),
+        &[],
+    )
+    .unwrap_err();
+    assert!(
+        error.to_string().contains("no conversation"),
+        "refused in plain words"
     );
     assert!(
         !s.target_home.join("last-args").exists(),

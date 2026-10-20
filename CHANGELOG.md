@@ -60,6 +60,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A switch that replays a conversation always carries at least its
+  newest turn (cut to fit when it alone is too long) and refuses — before
+  starting anything — when there is no conversation to carry; each
+  replayed turn is quoted, so text inside a turn can't pose as another
+  turn. A session copied in from another Mac can only land as a plain
+  session file in its account, and a copy never overwrites a file.
+
 - Switching a session you started in the app no longer stops at
   "Couldn't tell which file is this session": AI Juggler finds the
   session's own file (same folder, started after the launch) when you
