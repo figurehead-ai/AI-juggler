@@ -222,3 +222,25 @@
   spec passed 81/81 on the host. No threshold, timeout or assertion
   changed; CI runs the gate natively. If it recurs in CI, it becomes a
   fix.
+- Real bugs found through a CI failure (2026-10-20, PR #53 `verify` on
+  ubuntu): `guardrails :: hog_is_never_auto_signalled…` failed its
+  regression assertion ("a frozen hog tree stays a hog"). Two causes in
+  the resource collector:
+  1. A tick that ran after a session's root died, but before the
+     supervisor marked it finished, rebuilt the tree from the dead root.
+     Its helpers had been reparented, so the rows lost them, and those
+     rows were then frozen as the session's last snapshot. The hog guard
+     and the orphan snapshot both read them. Now a tree whose root is
+     gone keeps its last live rows until it is finished.
+  2. The 5-minute sample ring used `VecDeque::truncate`, which drops the
+     newest sample. After 150 samples a session's ring stopped advancing:
+     the sparkline froze and the hog window read 5-minute-old samples.
+     It now drops the oldest. Regression:
+     `supervisor :: the_sample_ring_keeps_the_newest_five_minutes`
+     (fails with the old code).
+  No threshold or assertion changed.
+- A test-design fix (2026-10-20, a full-suite run for PR #53):
+  `keyboard-flows :: switch, 1-click` tabbed toward the ranked switch
+  rows while they were still loading under load ("never reached …").
+  It now waits for the rows to be visible, then tabs; the keyboard path
+  and its assertions are unchanged.

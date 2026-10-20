@@ -189,6 +189,8 @@ async function toSwitchRow(page: Page, stops: Stop[]) {
   await page.keyboard.press("ControlOrMeta+Shift+H");
   await expect(page.locator("[data-testid='handover-section'] > summary")).toBeFocused();
   stops.push(await focused(page));
+  // The ranked rows load asynchronously; tab once they are there.
+  await expect(page.locator("[data-testid='handover-section'] button[data-row]:not(:disabled)").first()).toBeVisible();
   await tabToEl(page, stops, "[data-testid='handover-section'] button[data-row]:not(:disabled)", { max: 120 });
 }
 

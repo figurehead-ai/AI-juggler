@@ -222,6 +222,17 @@ pub struct TreeState {
 /// Ring capacity: 150 samples × 2 s = the 5-minute retention budget.
 const RING_CAPACITY: usize = 150;
 
+/// Appends one sample, dropping the OLDEST past capacity. (`truncate`
+/// would drop the newest: the ring stopped advancing after 5 minutes,
+/// freezing the sparkline and the hog window on stale samples.)
+#[doc(hidden)]
+pub fn push_ring_sample(ring: &mut std::collections::VecDeque<TreeSample>, sample: TreeSample) {
+    ring.push_back(sample);
+    while ring.len() > RING_CAPACITY {
+        ring.pop_front();
+    }
+}
+
 /// Full-table discovery cadence: every 5th tick (a full scan finds NEW
 /// descendants; the 2 s hot path refreshes only known pids). The first
 /// three ticks are full scans too (warmup: a fast-moving fixture's
@@ -880,14 +891,30 @@ impl LiveStatsCollector {
                     .insert((*session).clone(), LiveProcessStats::dead());
                 continue;
             }
+            // The root died but the supervisor hasn't marked the session
+            // finished yet: its helpers have been reparented, so a
+            // rebuild from the dead root would lose them — and freeze
+            // that (the hog guard and the orphan snapshot read these
+            // rows). Keep the last live rows until it is finished.
+            let root_gone = self
+                .system
+                .process(sysinfo::Pid::from_u32(*root))
+                .is_none_or(|process| process.status() == sysinfo::ProcessStatus::Zombie);
+            if root_gone && !tree.rows.is_empty() {
+                self.stats
+                    .insert((*session).clone(), LiveProcessStats::dead());
+                continue;
+            }
             let (rows, stats) = tree_rows(&self.system, parents, *root);
             tree.rows = rows;
-            tree.ring.push_back(TreeSample {
-                at_ms: now_ms,
-                cpu_pct: stats.cpu_pct,
-                rss_bytes: stats.rss_bytes,
-            });
-            tree.ring.truncate(RING_CAPACITY);
+            push_ring_sample(
+                &mut tree.ring,
+                TreeSample {
+                    at_ms: now_ms,
+                    cpu_pct: stats.cpu_pct,
+                    rss_bytes: stats.rss_bytes,
+                },
+            );
             self.stats.insert((*session).clone(), stats);
         }
     }

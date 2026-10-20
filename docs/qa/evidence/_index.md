@@ -115,7 +115,7 @@
 | AJ-E803 | PASS6 | 2026-10-19 | [manifest](AJ-E803/manifest.md) |
 | AJ-E804 | PASS6 | 2026-10-19 | [manifest](AJ-E804/manifest.md) |
 | AJ-E805 | PASS15 | 2026-10-19 | [manifest](AJ-E805/manifest.md) |
-| AJ-E806 | PASS4 | 2026-10-19 | [manifest](AJ-E806/manifest.md) |
+| AJ-E806 | PASS4 | 2026-10-20 | [manifest](AJ-E806/manifest.md) |
 | AJ-E807 | PASS7 | 2026-10-19 | [manifest](AJ-E807/manifest.md) |
 | AJ-E808 | PASS4 | 2026-10-19 | [manifest](AJ-E808/manifest.md) |
 | AJ-E809 | PASS4 | 2026-10-19 | [manifest](AJ-E809/manifest.md) |

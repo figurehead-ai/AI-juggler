@@ -60,6 +60,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A session's resource history stopped updating after five minutes, so
+  its sparkline froze and the "this uses a lot" check looked at old
+  numbers. It now keeps the latest five minutes.
+- When a session ended, a helper it left running could drop out of the
+  snapshot that protects heavy helpers from automatic cleanup. The last
+  live view is now kept until the session is fully finished.
+- Project names in the top bar show as written ("ai-juggler", not
+  "Ai-Juggler").
+
 - The More menu opened underneath the page, so only its first item
   could be clicked; it now paints above everything and closes on Escape
   or a click elsewhere.

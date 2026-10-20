@@ -679,3 +679,25 @@ fn ladder_cancel_mid_grace_leaves_survivor_running() {
     );
     kill9(pid);
 }
+
+/// AJ-E410 regression: the 5-minute ring keeps the NEWEST samples. It
+/// used `truncate`, which drops from the back — after 150 samples every
+/// new one was discarded, freezing the sparkline and the hog window.
+#[test]
+fn the_sample_ring_keeps_the_newest_five_minutes() {
+    use juggler_supervisor::supervisor::{TreeSample, push_ring_sample};
+    let mut ring = std::collections::VecDeque::new();
+    for at in 0..200_i64 {
+        push_ring_sample(
+            &mut ring,
+            TreeSample {
+                at_ms: at,
+                cpu_pct: None,
+                rss_bytes: 0,
+            },
+        );
+    }
+    assert_eq!(ring.len(), 150);
+    assert_eq!(ring.front().unwrap().at_ms, 50, "the oldest samples go");
+    assert_eq!(ring.back().unwrap().at_ms, 199, "the newest sample stays");
+}

@@ -821,7 +821,7 @@ export default function App() {
           className="relative z-30 flex min-h-14 shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-hairline bg-surface/50 px-5 py-2 backdrop-blur-xl"
         >
           <div className="flex min-w-0 flex-1 basis-0 items-center gap-3">
-            <h1 className="min-w-0 truncate text-sm font-semibold capitalize tracking-wide">{contextTitle}</h1>
+            <h1 className="min-w-0 truncate text-sm font-semibold tracking-wide">{contextTitle}</h1>
             {contextProvider && <Chip tone="accent">{contextProvider}</Chip>}
           </div>
 
