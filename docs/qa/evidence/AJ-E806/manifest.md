@@ -270,6 +270,22 @@
   checkout (and other projects' suites) loaded the Mac (load average
   ≈ 20–25). Alone it passed 15/15 at once. The budget is untouched. If it recurs in CI, measure the
   median of several runs instead of one.
+- Real bugs found by the maintainer on 0.0.7 (2026-10-20, dogfood),
+  none caught by a suite:
+  1. Bringing in six Claude setups failed at `skills/ego-browser`, a
+     symlink to a folder: the import copied only regular files and links
+     to regular files. It now recreates each link as a link (never
+     followed; an absolute link inside the setup is pointed at the copy)
+     and lists it in the result. Regression:
+     `claude_environment :: linked_folders_stay_links_and_linked_files_are_copied`.
+  2. No hand cursor anywhere: the shared Button and several rows set
+     `cursor-default`. Fixed at the source and in a base rule for every
+     native control. Regression: `cursor.spec.ts` checks every enabled
+     clickable element on each main screen, the More menu and the legend;
+     it failed with 115 elements on the old styles.
+  3. The bring-in screen had no way out at first run (Close only in add
+     mode, Escape only in add mode). Regression: `first-run.test.tsx ::
+     first run can be left too…`.
 - A real security bug found by review (2026-10-20, review of Codex PR #64,
   pre-existing in the Claude adapter since AJ-E203/E706):
   `ClaudeCodeAdapter::install_bundle` joined each bundle file's name and
