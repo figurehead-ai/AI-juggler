@@ -121,7 +121,9 @@ jobs:
       - name: Accessibility gate, shard ${{ matrix.shard }}/4
         env:
           A11Y_SKIP_SUMMARY: "1"
-        run: ./scripts/a11y_gate.sh --shard=${{ matrix.shard }}/4
+        # Split by test, not by file: the gate is mostly one large spec, so
+        # file-level shards left shards 2–4 empty and shard 1 near its timeout.
+        run: ./scripts/a11y_gate.sh --fully-parallel --shard=${{ matrix.shard }}/4
       - name: Scans
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

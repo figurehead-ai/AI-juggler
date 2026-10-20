@@ -86,3 +86,27 @@ for (const theme of ["dark", "light"] as const) {
     await expect(menu).toHaveCount(0);
   });
 }
+
+// 0.0.6 dogfood: the rail's "?" opened a legend that was clipped out of
+// sight — the suites checked it opened, never that it could be seen.
+for (const theme of ["dark", "light"] as const) {
+  test(`legend — "?" shows it on top, in view, and closes — ${theme}`, async ({ page }) => {
+    await seed(page, allStatuses, theme, { width: 1280, height: 800 });
+    await page.getByRole("button", { name: "Indicator legend" }).click();
+    const legend = page.getByRole("dialog", { name: "What the icons mean" });
+    await expect(legend).toBeInViewport({ ratio: 1 });
+    // Nothing paints over it: the topmost element at its centre is inside it.
+    const onTop = await legend.evaluate((node) => {
+      const box = node.getBoundingClientRect();
+      const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+      return hit !== null && node.contains(hit);
+    });
+    expect(onTop, "the legend is covered by another layer").toBe(true);
+    await expect(legend).toContainText("Waiting for you");
+    await page.screenshot({ path: resolve(OUT, `legend-1280x800-${theme}.png`) });
+    await axeClean(page, "legend");
+    await page.keyboard.press("Escape");
+    await expect(legend).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Indicator legend" })).toBeFocused();
+  });
+}

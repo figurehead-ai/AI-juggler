@@ -16,7 +16,7 @@ import { useEffect, useMemo, useState, type JSX } from "react";
 import { Button } from "../components/primitives";
 import { hueOf } from "../components/indicator";
 import { MorningSummary } from "../components/MorningSummary";
-import { quotaDisplayAll, type AccountInfo, type InstanceInfo, type ProjectInfo, type QuotaDisplayData, type WindowDisplay } from "../lib/bridge";
+import { accountLoginState, errorText, quotaDisplayAll, signedIn, terminalSpawnLogin, type AccountInfo, type InstanceInfo, type ProjectInfo, type QuotaDisplayData, type WindowDisplay } from "../lib/bridge";
 
 const NEEDS = ["waiting_user", "stuck", "quota_blocked", "failed"] as const;
 type Need = (typeof NEEDS)[number];
@@ -138,6 +138,8 @@ export function HomeScreen({
   onNewSession,
   onAddAccounts,
   onLimit,
+  openLoginTerminal,
+  onAccountsChanged,
 }: {
   sessions: InstanceInfo[];
   accounts: AccountInfo[];
@@ -148,6 +150,11 @@ export function HomeScreen({
   onAddAccounts: () => void;
   /** D-25: a session stopped by its limit opens the decision dialog. */
   onLimit?: (id: string) => void;
+  /** D-25: an account that needs its sign-in is a "Needs you" item; its
+   * Sign in opens the vendor's own login in an embedded terminal. */
+  openLoginTerminal?: (id: string, title: string) => void;
+  /** Called when a sign-in started here completes (the app refreshes). */
+  onAccountsChanged?: () => void;
 }): JSX.Element {
   const [quota, setQuota] = useState<QuotaDisplayData[]>([]);
   useEffect(() => {
@@ -170,6 +177,40 @@ export function HomeScreen({
     [sessions],
   );
   const running = sessions.filter((s) => (s.status === "running" || s.status === "starting") && needOf(s) === null);
+  const signIns = accounts.filter((account) => !signedIn(account.login_state));
+  // D-25: Sign in opens the Provider's own sign-in straight away (first run's
+  // rule); the row then says where to finish it.
+  const [signingIn, setSigningIn] = useState<string | null>(null);
+  const [signInError, setSignInError] = useState<string | null>(null);
+  // Every 2 s while waiting (the login-queue rule): the row clears the
+  // moment the sign-in completes, even if its terminal stays open.
+  useEffect(() => {
+    if (!signingIn) return;
+    let alive = true;
+    const timer = window.setInterval(() => {
+      void accountLoginState(signingIn).then(
+        (state) => {
+          if (alive && signedIn(state)) {
+            setSigningIn(null);
+            onAccountsChanged?.();
+          }
+        },
+        () => null,
+      );
+    }, 2000);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+    };
+  }, [signingIn, onAccountsChanged]);
+  const startSignIn = (account: AccountInfo) => {
+    setSignInError(null);
+    setSigningIn(account.id);
+    void terminalSpawnLogin(account.id).then(
+      (terminal) => openLoginTerminal?.(terminal.id, `Sign in · ${account.label}`),
+      (cause) => setSignInError(errorText(cause)),
+    );
+  };
   const recent = sessions
     .filter((s) => ENDED.includes(s.status))
     .sort((a, b) => (b.last_activity_ms ?? b.started_at_ms) - (a.last_activity_ms ?? a.started_at_ms))
@@ -198,6 +239,10 @@ export function HomeScreen({
       ? needs.length === 1
         ? "1 session needs you"
         : `${needs.length} sessions need you`
+      : signIns.length > 0
+        ? signIns.length === 1
+          ? `${signIns[0]!.label} needs its sign-in`
+          : `${signIns.length} accounts need their sign-in`
       : running.length > 0
         ? "All clear — nothing needs you"
         : sessions.length === 0
@@ -232,10 +277,32 @@ export function HomeScreen({
 
       <div className="flex flex-wrap gap-6">
         <div className="flex min-w-0 flex-[3_1_420px] flex-col gap-6">
-          {needs.length > 0 && (
+          {needs.length + signIns.length > 0 && (
             <section aria-labelledby="home-needs" className="flex flex-col gap-2.5" data-testid="home-needs">
               <SectionTitle id="home-needs">Needs you</SectionTitle>
               <ul className="flex flex-col gap-2.5">
+                {signIns.map((account) => (
+                  <li key={`signin-${account.id}`} className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface px-4 py-3.5" data-testid="home-signin">
+                    <span className="flex flex-wrap items-center gap-x-3.5 gap-y-2">
+                      <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-accent-soft font-bold text-accent-hi">
+                        →
+                      </span>
+                      <span className="flex min-w-0 flex-1 basis-40 flex-col gap-0.5">
+                        <span className="text-[15px] font-medium text-ink">{account.label} needs its sign-in</span>
+                        <span className="text-xs text-muted" role="status">
+                          {signingIn === account.id
+                            ? "Finish signing in in the terminal that opened — this clears by itself when you're done."
+                            : `${account.provider === "codex" ? "OpenAI's" : "Claude's"} own sign-in, in a terminal here — about thirty seconds. AI Juggler never sees your password.`}
+                        </span>
+                        {signingIn === account.id && signInError && <span className="text-xs text-danger">{signInError}</span>}
+                      </span>
+                      <Button size="sm" variant={signingIn === account.id ? "ghost" : "secondary"} className="ml-auto" onClick={() => startSignIn(account)}>
+                        {signingIn === account.id ? "Open again" : "Sign in"}{" "}
+                        <span className="sr-only">— {account.label}</span>
+                      </Button>
+                    </span>
+                  </li>
+                ))}
                 {needs.map(({ session, need }) => {
                   const words = needWords(need, session);
                   const glyph = NEED_GLYPH[need];

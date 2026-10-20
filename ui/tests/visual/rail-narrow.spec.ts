@@ -1,0 +1,107 @@
+/**
+ * D-25 stage 4 (AJ-E1020): below 900 px the rail folds to its icon
+ * column by itself and comes back when the window widens. The stored
+ * density never changes; ⌘B opens the list for now while narrow.
+ * Gallery 69-rail-narrow, each state scanned with axe (0 critical/serious).
+ */
+import AxeBuilder from "@axe-core/playwright";
+import { expect, test, type Page } from "@playwright/test";
+import { mkdirSync } from "node:fs";
+import { resolve } from "node:path";
+import { allStatuses } from "./fixtures";
+
+const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/69-rail-narrow");
+const T0 = 1_728_800_000_000;
+
+test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
+
+async function seed(page: Page, theme: "dark" | "light", width: number, height: number, density = "comfortable") {
+  await page.addInitScript(
+    ({ fixture, theme, t0, density }) => {
+      const w = window as unknown as Record<string, unknown>;
+      w.__AIJ_FIXTURE__ = fixture;
+      localStorage.setItem("aij.theme", theme);
+      localStorage.setItem("aij.density", density);
+      localStorage.setItem("aij.onboarding.dismissed", "1");
+      sessionStorage.setItem("aij.ready.skipped", "1");
+      Date.now = () => t0;
+    },
+    { fixture: allStatuses, theme, t0: T0, density },
+  );
+  await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+  await page.setViewportSize({ width, height });
+  await page.goto("/");
+  await expect(page.getByTestId("rail")).toBeVisible();
+}
+
+async function axeClean(page: Page, what: string) {
+  const results = await new AxeBuilder({ page }).analyze();
+  const bad = results.violations.filter((v) => v.impact === "critical" || v.impact === "serious");
+  expect(bad.map((v) => `${v.id}: ${v.nodes[0]?.target}`), `axe on ${what}`).toEqual([]);
+}
+
+const rail = (page: Page) => page.getByTestId("rail");
+
+test("the rail folds below 900 px and comes back when wider; the stored density stays", async ({ page }) => {
+  await seed(page, "dark", 1280, 800);
+  await expect(rail(page)).toHaveAttribute("data-density", "comfortable");
+  await page.setViewportSize({ width: 899, height: 800 });
+  await expect(rail(page)).toHaveAttribute("data-density", "minimal");
+  await expect(rail(page)).toHaveCSS("width", "60px");
+  await page.setViewportSize({ width: 900, height: 800 });
+  await expect(rail(page)).toHaveAttribute("data-density", "comfortable");
+  expect(await page.evaluate(() => localStorage.getItem("aij.density"))).toBe("comfortable");
+});
+
+test("compact is restored as compact, not comfortable", async ({ page }) => {
+  await seed(page, "dark", 390, 844, "compact");
+  await expect(rail(page)).toHaveAttribute("data-density", "minimal");
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await expect(rail(page)).toHaveAttribute("data-density", "compact");
+});
+
+test("⌘B opens the list while narrow, without changing the setting; widening forgets it", async ({ page }) => {
+  await seed(page, "dark", 860, 800);
+  await expect(rail(page)).toHaveAttribute("data-density", "minimal");
+  await page.keyboard.press("ControlOrMeta+b");
+  await expect(rail(page)).toHaveAttribute("data-density", "comfortable");
+  expect(await page.evaluate(() => localStorage.getItem("aij.density"))).toBe("comfortable");
+  await page.keyboard.press("ControlOrMeta+b");
+  await expect(rail(page)).toHaveAttribute("data-density", "minimal");
+  await page.keyboard.press("ControlOrMeta+b");
+  await expect(rail(page)).toHaveAttribute("data-density", "comfortable");
+  await page.setViewportSize({ width: 1280, height: 800 });
+  // Let the wide width paint (two frames), as a real resize does.
+  await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
+  await expect(rail(page)).toHaveAttribute("data-density", "comfortable");
+  await page.setViewportSize({ width: 860, height: 800 });
+  await expect(rail(page)).toHaveAttribute("data-density", "minimal");
+});
+
+test("a chosen Minimal stays minimal at every width", async ({ page }) => {
+  await seed(page, "dark", 1280, 800, "minimal");
+  await expect(rail(page)).toHaveAttribute("data-density", "minimal");
+  await page.setViewportSize({ width: 600, height: 800 });
+  await expect(rail(page)).toHaveAttribute("data-density", "minimal");
+});
+
+for (const theme of ["dark", "light"] as const) {
+  for (const vp of [
+    { name: "390x844", width: 390, height: 844 },
+    { name: "860x700", width: 860, height: 700 },
+  ]) {
+    test(`gallery — folded rail — ${vp.name} — ${theme}`, async ({ page }) => {
+      await seed(page, theme, vp.width, vp.height);
+      await expect(rail(page)).toHaveAttribute("data-density", "minimal");
+      await page.screenshot({ path: resolve(OUT, `folded-${vp.name}-${theme}.png`) });
+      await axeClean(page, `folded rail ${vp.name}`);
+    });
+  }
+  test(`gallery — opened with ⌘B while narrow — 860x700 — ${theme}`, async ({ page }) => {
+    await seed(page, theme, 860, 700);
+    await page.keyboard.press("ControlOrMeta+b");
+    await expect(rail(page)).toHaveAttribute("data-density", "comfortable");
+    await page.screenshot({ path: resolve(OUT, `opened-860x700-${theme}.png`) });
+    await axeClean(page, "opened rail 860");
+  });
+}

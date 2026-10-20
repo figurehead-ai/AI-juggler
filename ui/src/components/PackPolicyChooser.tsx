@@ -49,7 +49,7 @@ export function PackPolicyChooser({
   value,
   onChange,
   legend = "How should context packs handle secrets?",
-  hint = "Packs carry your work between accounts when you switch. You choose once; it's remembered, and each Provider can override it in Accounts.",
+  hint = "Packs carry your work between accounts when you switch. You choose once; it's remembered, and each tool can have its own in Settings.",
   allowDecideLater = true,
   name = "pack-policy",
   testId = "policy-panel",
@@ -117,7 +117,7 @@ export function PackPolicyChooser({
 
 /**
  * The Summary restatement (Nielsen H3): the ACTIVE choice in one line
- * — "Packs: strip secrets (all Providers)". `null` is said plainly:
+ * — "Packs: strip secrets (all tools)". `null` is said plainly:
  * nothing chosen, the first switch asks.
  */
 export function packPolicyRestatement(
@@ -128,7 +128,7 @@ export function packPolicyRestatement(
   if (effective === null) {
     return "Packs: not chosen yet — your first switch asks before any pack is built";
   }
-  const scope = source === "override" ? `${providerName} override` : "all Providers";
+  const scope = source === "override" ? `${providerName} override` : "all tools";
   const words =
     effective === "strip"
       ? "strip secrets"

@@ -279,3 +279,39 @@
 **Quality gates**: vitest (`inspector-shell.test.tsx`); the full Playwright suite (keyboard flows reach the list with ⌘⇧H); baselines re-rendered with notes.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1017/`.
 **Research basis**: D-25 and the "AI Juggler UX vision" canvas (Session board).
+
+### AJ-E1018 0.0.6 dogfood fixes: the legend, where setups are open, sign-ins on Home | Status: DONE-EVIDENCED | Priority P0 | Effort S | Depends: AJ-E1013, AJ-E1014
+**Goal**: Fix what the maintainer hit in the first minutes of using 0.0.6.
+**User story**: As the maintainer trying the beta, I want the "?" to show me what the icons mean, first run to see my six Claude desktop windows for what they are, and Home to tell me when an account needs its sign-in.
+**Requirements**:
+1. The rail's "?" SHALL open a legend that is fully in view and on top, matches the rail's words (no internal codes), and closes on Escape or a click elsewhere (focus returns to "?").
+2. The scan SHALL report, for each setup, where it is open right now (the Claude desktop app and/or a terminal), read from the running Claude processes (only `CLAUDE_CONFIG_DIR` is read); first run SHALL group by kind of setup (profiles / the default / others), name the default "Default" (not "Terminal"), and show where each is open. Probe labels SHALL be plain words.
+3. An account that needs its sign-in SHALL be a "Needs you" item on Home whose Sign in opens the login terminal and clears by itself when the sign-in completes; the old "Get your accounts ready" screen is retired.
+**Quality gates**: vitest; Rust tests (the running-setups classifier); the full Playwright suite; the accessibility gate; visual baselines re-rendered with notes; walked by hand in the browser.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1018/`.
+**Research basis**: maintainer reports 2026-10-20 (screenshots of first run and the rail; "clicking on the question mark … does nothing").
+
+### AJ-E1019 Cleanup in plain words; "tool" on screen instead of "Provider" (D-25) | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: AJ-E506, AJ-E508, AJ-E1015
+**Goal**: Cleanup says what it is in a sentence, keeps its switches one step away, and no screen uses the internal word "Provider".
+**User story**: As a developer who opens Cleanup because a pill said something was left running, I want to see what was left and what I can do — not "Tier 0 observe · verified manual kills".
+**Requirements**:
+1. The screen SHALL be titled "Cleanup" with one plain line (what was left running; nothing is stopped unless chosen or turned on). No tier names on screen; the tiers stay in Settings › Cleanup.
+2. Pause automatic cleanup SHALL sit behind the header's ⋯ (with Cleanup settings…, opening Settings at its Cleanup section); while paused, the banner carries Resume. The kill-switch stays in the header (AJ-E508 Req.4).
+3. The machine filter SHALL show only once another Mac is paired or reporting (AJ-E511's default stays This machine).
+4. Groups SHALL name the tool ("Claude Code"), not its id; the backend's alerts say "review it in Cleanup".
+5. On screen, "Provider" SHALL read "tool" (History's search line, Settings, pack secrets, the rail's Filters, the session details, backup's list of what isn't included, quota's "no verified source"). The code keeps `Provider`. `scripts/terminology_lint.sh` SHALL refuse "Provider" in JSX text, visible attributes and user-facing strings.
+**Quality gates**: vitest (`cleanup-centre.test.tsx`: title and no tier words, ⋯ menu, Resume on the banner, no machine filter without another Mac); terminology lint; the full Playwright suite; baselines re-rendered with notes.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1019/`.
+**Research basis**: D-25 (plain words; depth on request; calm until it matters).
+
+### AJ-E1020 The rail folds to icons in a narrow window (D-25) | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: AJ-E403, AJ-E1014
+**Goal**: Below 900 px the rail stops crowding the screen by itself and comes back when the window widens.
+**User story**: As a developer with AI Juggler in a narrow side window, I want the session list to fold to its icon column on its own, without changing my density setting.
+**Requirements**:
+1. Below 900 px the rail SHALL show its minimal (icon) density; at 900 px and wider, the density chosen in Settings › Appearance. The stored density SHALL NOT change.
+2. While narrow, ⌘B (and the logo button) SHALL open the list for now; widening forgets it.
+3. A chosen Minimal stays minimal at every width.
+**Quality gates**: `rail-narrow.spec.ts` (fold, restore, compact kept, ⌘B while narrow, stored density untouched, axe on each gallery state); the 390 px captures and the 200 % zoom walk expect the folded rail.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1020/`.
+**Visual testing**: Gallery `69-rail-narrow` (folded at 390 and 860, opened at 860; both themes).
+**Research basis**: D-25; the 390 px captures (rail cramped); WCAG 1.4.10 reflow.

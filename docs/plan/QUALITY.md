@@ -168,7 +168,7 @@ Structure & naming · layering conformance · error handling · test quality (no
 | ui | `pnpm --dir ui build` (tsc + vite) | every PR |
 | visual | `pnpm --dir ui visual:compare` (AJ-E803, thresholds + triptychs) | UI-changing PRs |
 | visual-sweep | `just visual-sweep` / the `visual-sweep` workflow (D-21, AJ-E811; a report, not a pass/fail) | on demand — the maintainer's choice |
-| a11y | `pnpm --dir ui a11y` (AJ-E804, axe 0 critical, both themes) | UI-changing PRs |
+| a11y | `just a11y-gate` (`scripts/a11y_gate.sh`; AJ-E804: axe 0 critical and 0 serious on every gallery state in both themes, keyboard flows, 200 % zoom, reduced motion, contrast) | UI-changing PRs (CI `a11y`, four shards) and every Promote |
 | perf | AJ-E805 measured table | milestones |
 | evidence | `./scripts/evidence_check.sh` | inside verify |
 

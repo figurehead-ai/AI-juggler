@@ -58,15 +58,16 @@ beforeEach(() => {
 });
 
 describe("D-25 first run — the pure rules", () => {
-  it("groups as the user thinks of it: desktop profiles, the terminal, other setups", () => {
-    expect(groupOf(SCAN.installs[0]!)).toBe("terminal");
-    expect(groupOf(SCAN.installs[1]!)).toBe("desktop");
-    expect(groupOf(found(`${PROFILES}/x`, "env-override"))).toBe("desktop");
+  it("groups by kind of setup — profiles, the default, others — not by tool", () => {
+    expect(groupOf(SCAN.installs[0]!)).toBe("default");
+    expect(groupOf(SCAN.installs[1]!)).toBe("profiles");
+    expect(groupOf(found(`${PROFILES}/x`, "env-override"))).toBe("profiles");
+    expect(groupOf(found("/Users/you/.claude-work", "env-override"))).toBe("other");
     expect(groupOf(SCAN.installs[3]!)).toBe("other");
   });
 
-  it("names: the terminal default reads 'Terminal'; others keep their folder name", () => {
-    expect(labelOf(SCAN.installs[0]!)).toBe("Terminal");
+  it("names: the default ~/.claude reads 'Default' (it isn't only the terminal's); others keep their folder name", () => {
+    expect(labelOf(SCAN.installs[0]!)).toBe("Default");
     expect(labelOf(SCAN.installs[1]!)).toBe("work-a");
     expect(labelOf(SCAN.installs[3]!)).toBe("claude-old");
   });
@@ -75,6 +76,12 @@ describe("D-25 first run — the pure rules", () => {
     expect(preselected(SCAN.installs[1]!, NOW)).toBe(true);
     expect(preselected(SCAN.installs[3]!, NOW)).toBe(false);
     expect(preselected(SCAN.installs[4]!, NOW)).toBe(false);
+  });
+
+  it("says where a setup is open right now, from the running processes", () => {
+    expect(usedWords(found("/Users/you/.claude", "vendor-default", { in_use: ["desktop"] }), NOW)).toBe("Open in the Claude app");
+    expect(usedWords(found("/x", "home-pattern", { in_use: ["terminal"] }), NOW)).toBe("Running in a terminal");
+    expect(usedWords(found("/x", "home-pattern", { in_use: ["desktop", "terminal"] }), NOW)).toBe("Open in the Claude app and a terminal");
   });
 
   it("says how recently each was used in plain words", () => {
@@ -99,8 +106,8 @@ describe("D-25 first run — the flow", () => {
     const { findByTestId, getByTestId } = renderIt();
     const list = await findByTestId("first-run-found");
     expect(list.textContent).toContain("You already have 5 Claude Code setups on this Mac.");
-    expect(getByTestId("first-run-group-desktop").textContent).toContain("work-a");
-    expect(getByTestId("first-run-group-terminal").textContent).toContain("Terminal");
+    expect(getByTestId("first-run-group-profiles").textContent).toContain("work-a");
+    expect(getByTestId("first-run-group-default").textContent).toContain("Default");
     expect(getByTestId("first-run-group-other").textContent).toContain("claude-old");
     expect(list.textContent).toContain("Already in AI Juggler");
     expect(getByTestId("first-run-bring-in").textContent).toBe("Bring in 3 accounts");
@@ -278,6 +285,23 @@ describe("AJ-E1301 — Codex setups in first run", () => {
     expect(view.getByRole("heading", { level: 1 }).textContent).toBe(
       "You already have 5 Claude Code setups on this Mac.",
     );
+  });
+
+  it("the sign-in step names both vendors when a Codex copy needs one", async () => {
+    w().__AIJ_SCAN_REPORT__ = {
+      ...SCAN,
+      installs: [...SCAN.installs, codex("/Users/you/.codex", "vendor-default")],
+    };
+    const { findByTestId, getByTestId } = render(
+      <FirstRun mode="first-run" onDone={() => null} onAddFresh={() => null} onImportFolder={() => null} openLoginTerminal={() => null} />,
+    );
+    await findByTestId("first-run-group-codex");
+    await act(async () => {
+      fireEvent.click(getByTestId("first-run-bring-in"));
+    });
+    const signin = await findByTestId("first-run-signin");
+    expect(signin.textContent).toContain("Claude's or OpenAI's");
+    expect(signin.textContent).not.toContain("macOS ties each Claude sign-in");
   });
 
   it("an all-Codex machine is named for Codex", async () => {

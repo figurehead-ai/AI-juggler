@@ -149,8 +149,9 @@ describe("AJ-E408 Provider (§5.3, Req.1-2)", () => {
     open(container, "actions");
     expect(container.querySelector('[data-testid="provider-actions"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="action-add-account"] button')!.getAttribute("disabled")).toBeNull();
-    const update = container.querySelector('[data-testid="action-check-for-provider-update"]')!;
-    expect(update.textContent).toContain("never auto-update");
+    const update = container.querySelector('[data-testid="action-check-for-an-update"]')!;
+    expect(update.querySelector("button")!.getAttribute("disabled")).not.toBeNull();
+    expect(update.textContent).toContain("never updates a tool by itself");
   });
 });
 

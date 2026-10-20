@@ -220,7 +220,9 @@ export function ProcessRow(props: {
 export function CleanupEmpty(props: { cleanInstances: number }) {
   return (
     <p className="text-[12px] text-muted" data-testid="cleanup-empty">
-      Nothing left behind — {props.cleanInstances} sessions running clean.
+      {props.cleanInstances === 0
+        ? "Nothing left behind."
+        : `Nothing left behind — ${props.cleanInstances} ${props.cleanInstances === 1 ? "session" : "sessions"} running clean.`}
     </p>
   );
 }

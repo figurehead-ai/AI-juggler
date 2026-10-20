@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Cleanup says what it is in one line instead of "Tier 0 observe ·
+  verified manual kills". Pause automatic cleanup and Cleanup settings
+  sit behind ⋯, and Resume is on the "paused" banner. The machine filter
+  only appears once another Mac is paired. Groups name the tool ("Claude
+  Code"), and alerts point to "Cleanup".
+- The app says **tool** where it said "Provider": History's search,
+  Settings, pack secrets, the rail's filters, the session details and the
+  backup's "not included" list.
+- In a window narrower than 900 px, the rail folds to its icon column by
+  itself and comes back when the window is wider. Your density setting
+  doesn't change; ⌘B opens the list while the window is narrow.
 - A calmer app, rebuilt around what you need first (decision D-25). The
   top bar is Home, Accounts, History and Settings; Triage, Overview, Usage,
   Fleet and Cleanup are under More, and Cleanup and Fleet show up by
@@ -59,6 +70,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tests pass unchanged).
 
 ### Fixed
+
+- The "?" at the bottom of the session list now opens the guide to what
+  the icons and words mean (it opened out of sight), in the list's own
+  words.
+- First run says where each Claude setup is open right now (the Claude
+  app or a terminal) and calls the default ~/.claude "Default"; it no
+  longer guesses "Terminal" for a folder the desktop app uses.
+- An account that needs its sign-in shows on Home under Needs you, with
+  Sign in right there, instead of replacing Home with a separate screen.
 
 - Session rows are readable at the WCAG contrast minimum in both themes:
   their second line and time use the stronger grey, and ended sessions
@@ -149,7 +169,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - First run and Add accounts list the Codex setups found on this Mac in
   their own **Codex** group, beside the Claude ones, and say when the
   Codex CLI still needs installing (AJ-E1301). Machines with only Claude
-  setups see the screen exactly as before.
+  setups see the screen exactly as before. Sign-in steps (First run and
+  Home) name the right vendor's sign-in for a Codex account — OpenAI's,
+  not Claude's.
 
 ### Added (M0-1)
 

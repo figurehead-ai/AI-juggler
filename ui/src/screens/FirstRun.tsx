@@ -2,10 +2,12 @@
  * D-25 — first run, when no Account exists: three calm steps in one
  * window, as the vision canvas shows them.
  *
- * 1. **What's already here.** The scan, grouped the way the user thinks of
- *    it — Claude desktop app profiles, Claude Code in the terminal, other
- *    setups, Codex (AJ-E1301, only when one is found) — preselected
- *    (signed in or used in the last 30 days), one
+ * 1. **What's already here.** The scan, grouped by kind of setup — your
+ *    Claude profiles, the default setup (~/.claude), other setups, and
+ *    Codex homes (AJ-E1301, only when one is found) — each
+ *    saying where it's open right now (the desktop app and/or a terminal:
+ *    a folder isn't tied to one tool), preselected (signed in or used in
+ *    the last 30 days), one
  *    button to bring them in. Imports are copies; originals are never
  *    touched. "Where we looked" shows every place the scan checked.
  * 2. **Sign in where needed.** One card per copy that still needs the
@@ -39,11 +41,11 @@ import {
 } from "../lib/bridge";
 
 type Step = "found" | "signin" | "access";
-type Group = "desktop" | "terminal" | "other" | "codex";
+type Group = "profiles" | "default" | "other" | "codex";
 
-const GROUPS: Array<{ id: Group; title: string }> = [
-  { id: "desktop", title: "Claude desktop app profiles" },
-  { id: "terminal", title: "Claude Code in the terminal" },
+const GROUPS: { id: Group; title: string }[] = [
+  { id: "profiles", title: "Your Claude profiles" },
+  { id: "default", title: "The default setup" },
   { id: "other", title: "Other Claude setups" },
   { id: "codex", title: "Codex" },
 ];
@@ -51,11 +53,14 @@ const GROUPS: Array<{ id: Group; title: string }> = [
 /** The Providers First run brings in (AJ-E1301). */
 const PROVIDERS = ["claude-code", "codex"];
 
-/** Where a found setup belongs, as the user thinks of it. */
+/** Grouped by kind of setup, not by tool: the same folder can be used by
+ * the Claude desktop app and by `claude` in a terminal (0.0.6 dogfood —
+ * the default ~/.claude was called "Terminal" while the desktop app had
+ * it open). Codex homes are their own kind (AJ-E1301). */
 export function groupOf(found: DiscoveredInfo): Group {
   if (found.harness === "codex") return "codex";
-  if (found.path.includes("/ClaudeCodeProfiles/")) return "desktop";
-  if (found.origin === "vendor-default" || found.origin === "env-override") return "terminal";
+  if (found.path.includes("/ClaudeCodeProfiles/")) return "profiles";
+  if (found.origin === "vendor-default") return "default";
   return "other";
 }
 
@@ -64,13 +69,18 @@ const folderOf = (path: string) => path.replace(/\/+$/, "").split("/").pop() ?? 
 /** The name it's brought in as (changeable later in Accounts). */
 export function labelOf(found: DiscoveredInfo): string {
   const folder = folderOf(found.path);
-  if (groupOf(found) === "terminal" && folder === ".claude") return "Terminal";
-  if (groupOf(found) === "codex" && folder === ".codex") return "Codex";
+  if (groupOf(found) === "codex") return folder === ".codex" ? "Codex" : folder.replace(/^\./, "");
+  if (groupOf(found) === "default") return "Default";
   return folder.replace(/^\./, "");
 }
 
 /** "In use now" / "Used today" / "Used 3 days ago" / the scan's words. */
 export function usedWords(found: DiscoveredInfo, nowSecs: number): string {
+  // Open right now, and where: read from the running processes.
+  const open = found.in_use ?? [];
+  if (open.includes("desktop") && open.includes("terminal")) return "Open in the Claude app and a terminal";
+  if (open.includes("desktop")) return "Open in the Claude app";
+  if (open.includes("terminal")) return "Running in a terminal";
   const last = found.last_used_secs;
   if (last === null || last === undefined) return found.inference.activity_words || "Not used yet";
   const age = Math.max(0, nowSecs - last);
@@ -191,6 +201,7 @@ function FoundStep({
             accountId: result.account.id,
             label: result.account.label,
             loginNote: result.login_note,
+            provider: found.harness,
             colour: colourAt(installs.indexOf(found)),
           });
         }
@@ -215,7 +226,7 @@ function FoundStep({
     return (
       <div className="flex flex-col gap-3" role="status" data-testid="first-run-scanning">
         <h1 className="text-[28px] font-semibold tracking-tight">Looking for Claude Code on this Mac…</h1>
-        <p className="text-sm text-muted">Your standard setup, Claude desktop profiles and anything else that looks like one. Nothing is changed.</p>
+        <p className="text-sm text-muted">Your default setup, your Claude profiles and anything else that looks like one. Nothing is changed.</p>
       </div>
     );
   }
@@ -263,7 +274,7 @@ function FoundStep({
                   <span className="font-semibold text-ink">
                     {group.title} <span className="font-normal text-faint">· {rows.length}</span>
                   </span>
-                  {group.id === "terminal" && cli && cli.status !== "not_installed" && (
+                  {group.id === "default" && cli && cli.status !== "not_installed" && (
                     <span className="text-faint">Claude Code {cli.version ?? ""} installed</span>
                   )}
                   {group.id === "codex" && codexCli && codexCli.status !== "not_installed" && (
@@ -303,7 +314,7 @@ function FoundStep({
                           {found.path.replace(/^\/Users\/[^/]+/, "~")}
                         </span>
                       </span>
-                      <span className={"shrink-0 text-xs " + (usedWords(found, now) === "In use now" ? "text-live" : "text-muted")}>
+                      <span className={"shrink-0 text-xs " + ((found.in_use ?? []).length > 0 || usedWords(found, now) === "In use now" ? "text-live" : "text-muted")}>
                         {usedWords(found, now)}
                       </span>
                       <span className="flex w-32 shrink-0 items-center justify-end gap-1.5 text-xs">
@@ -400,7 +411,7 @@ function FoundStep({
   );
 }
 
-type Signin = { accountId: string; label: string; loginNote: string | null; colour: string };
+type Signin = { accountId: string; label: string; loginNote: string | null; colour: string; provider: string };
 
 /** One account's sign-in: status, Sign in, and the rest behind More. */
 function SigninRow({
@@ -538,7 +549,9 @@ function SigninStep({
               : `${left.length} accounts need a quick sign-in.`}
         </h1>
         <p className="max-w-2xl text-[15px] leading-relaxed text-muted">
-          macOS ties each Claude sign-in to its own folder, so every copy signs in once. Each opens Claude's own sign-in; AI Juggler never sees your password and notices when you're done.
+          {queue.some((entry) => entry.provider === "codex")
+            ? "Every copy signs in once, in its own folder, with the provider's own sign-in — Claude's or OpenAI's. AI Juggler never sees your password and notices when you're done."
+            : "macOS ties each Claude sign-in to its own folder, so every copy signs in once. Each opens Claude's own sign-in; AI Juggler never sees your password and notices when you're done."}
         </p>
       </div>
       <ul className="overflow-hidden rounded-2xl border border-hairline bg-surface">

@@ -106,7 +106,7 @@ pub(crate) struct Assertion {
 fn probe(state: &Arc<AppState>, account: &Account) -> IdentityProbe {
     state.registry.get(&account.harness).map_or_else(
         || IdentityProbe::Unverifiable {
-            reason: "this Provider isn't installed here".into(),
+            reason: "this tool isn't installed here".into(),
         },
         |adapter| adapter.probe_identity(account),
     )

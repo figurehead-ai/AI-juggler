@@ -547,7 +547,7 @@ pub fn quota_display_inner(
     let mut unavailable_reason = None;
     let (five_hour, five_hour_reason, weekly, weekly_reason) = match provider {
         "gemini" | "antigravity" => {
-            unavailable_reason = Some("No verified quota source for this Provider yet".to_owned());
+            unavailable_reason = Some("No verified quota source for this tool yet".to_owned());
             (None, None, None, None)
         }
         // Codex Pro has no 5 h limit (AJ-E603): omit that ring with
@@ -1828,6 +1828,10 @@ pub struct DiscoveredInfo {
     /// AJ-E303: every signal that found this dir (merged duplicates:
     /// alias + home-pattern → ONE candidate with both signals).
     pub signals: Vec<String>,
+    /// Where this setup is open right now: `desktop` (the Claude desktop
+    /// app) and/or `terminal` (`claude` outside it), from the running
+    /// processes ([`crate::running_setups`]). Empty = not open now.
+    pub in_use: Vec<String>,
 }
 
 /// AJ-E303: the inference block on one candidate (rule-table fields,
@@ -9090,7 +9094,7 @@ pub fn cleanup_alerts_inner(state: &Arc<AppState>) -> CleanupAlertsInfo {
             alerts.push(CleanupAlertInfo {
                 kind: "hog".into(),
                 text: format!(
-                    "{helper} under {instance} holds {} — review in Cleanup Centre.",
+                    "{helper} under {instance} holds {} — review it in Cleanup.",
                     rss_text(top.rss_bytes)
                 ),
                 pid: top.pid,
@@ -9150,7 +9154,7 @@ pub fn cleanup_alerts_inner(state: &Arc<AppState>) -> CleanupAlertsInfo {
         alerts.push(CleanupAlertInfo {
             kind: "idle".into(),
             text: format!(
-                "{helper} has been idle for {} — review it in the Cleanup Centre.",
+                "{helper} has been idle for {} — review it in Cleanup.",
                 age_text(age)
             ),
             pid,
@@ -12689,7 +12693,7 @@ static SCAN_CANCEL: AtomicBool = AtomicBool::new(false);
 pub struct ProbeInfo {
     /// Probe id (`s1-config-dirs` … `s10-desktop`).
     pub id: String,
-    /// Human label ("Config directories").
+    /// Human label ("Folders named .claude…").
     pub label: String,
     /// `ok` | `partial` | `denied` | `cancelled`.
     pub health: String,
@@ -12718,15 +12722,21 @@ pub struct ScanReportInfo {
 
 /// The ten probe labels (progress: "n of 10 checks").
 const PROBE_LABELS: [(&str, &str); 10] = [
-    ("s1-config-dirs", "Config directories"),
-    ("s2-env-overrides", "Environment overrides"),
-    ("s3-manager-t3", "t3 profiles"),
-    ("s4-manager-cc-switch", "cc-switch database"),
-    ("s5-shell-aliases", "Shell aliases"),
-    ("s6-installed-clis", "Installed CLIs"),
-    ("s7-login-metadata", "Login metadata"),
-    ("s8-usage-recency", "Usage recency"),
-    ("s9-projects", "Projects"),
+    ("s1-config-dirs", "Folders named .claude…"),
+    (
+        "s2-env-overrides",
+        "A config folder set for this app (CLAUDE_CONFIG_DIR)",
+    ),
+    ("s3-manager-t3", "Claude profiles (ClaudeCodeProfiles)"),
+    ("s4-manager-cc-switch", "cc-switch profiles"),
+    (
+        "s5-shell-aliases",
+        "Your shell settings (aliases, CLAUDE_CONFIG_DIR)",
+    ),
+    ("s6-installed-clis", "Claude Code installed"),
+    ("s7-login-metadata", "Sign-in status"),
+    ("s8-usage-recency", "When each was last used"),
+    ("s9-projects", "Recent projects"),
     ("s10-desktop", "Desktop apps"),
 ];
 
@@ -12814,6 +12824,15 @@ pub fn environment_scan_full_impl(
     let (alias_installs, _alias_health, dangling) = alias_installs_of(&alias_rows, &mut installs);
     installs.extend(alias_installs);
     tick(&mut done); // S5
+
+    // Where each setup is open right now (one process-table read).
+    if let Some(home) = dirs::home_dir() {
+        let open =
+            crate::running_setups::classify(&crate::running_setups::running_processes(), &home);
+        for install in &mut installs {
+            install.in_use = crate::running_setups::in_use_for(&open, &install.path, &home);
+        }
+    }
 
     // S4: the cc-switch health rides its manager hint.
     let cc_health = managers
@@ -12947,6 +12966,7 @@ fn discovered_info_of(found: juggler_adapter::environment::DiscoveredInstall) ->
         bytes: found.bytes,
         last_used_secs: found.last_used_secs,
         managed: found.managed,
+        in_use: Vec::new(),
         notes: found.notes,
     }
 }
@@ -13025,6 +13045,7 @@ pub fn alias_installs_of(
             bytes: 0,
             last_used_secs: None,
             managed: false,
+            in_use: Vec::new(),
             notes: vec![format!(
                 "Set by {} in your shell — {}:{}.",
                 hint.variable, hint.source_file, hint.line
