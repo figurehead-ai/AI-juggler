@@ -455,6 +455,23 @@
   what This Mac already says. The rail stays "your projects and their
   sessions". A resource figure shows on a rail row only while that session
   is heavy (the same rule as low quota).
+- **Amendment — Triage and Overview fold into Home** (2026-10-20,
+  AJ-E1021; the maintainer's brief for stage 4 asked for the evidence):
+  - *Evidence.* Triage's four groups were Home's Needs you and Running plus
+    two extensions: parked sessions (which Home showed as "hit its limit",
+    a decision already made) and ended-but-not-reviewed (Home's "Pick up
+    where you left off", without the reviewed step). Its sort duplicated
+    the rail's Sort (needs, quota risk, project). Overview repeated
+    Running and Runway as cards, and two of its four cards were fixed
+    values ("Machine OK", "Fleet 1"). Both sat under More, outside D-25's
+    structure.
+  - *Decision.* Home gains "Parked until a reset" (Resume once the reset is
+    reached), lists what ended this week and isn't reviewed (three, then
+    Show all; Mark reviewed takes one off), and keeps AJ-E1005's keyboard
+    (J/K or arrows, Enter, A), named in one quiet line. The ledger-degraded
+    banner moves to Home. Triage and Overview leave More (Usage, Fleet,
+    Cleanup remain). AJ-E1005's requirements stand, met on Home; sorting
+    is the rail's.
 
 ## Unresolved (in discussion order)
 
