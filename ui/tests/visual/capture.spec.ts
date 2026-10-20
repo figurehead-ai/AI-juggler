@@ -347,7 +347,7 @@ for (const vp of INSPECTOR_VIEWPORTS) {
     await page.getByRole("button", { name: "Inspect Claude Code" }).first().click();
     await expect(page.getByRole("tab", { name: "Usage" })).toBeVisible();
     await page.getByRole("tab", { name: "Usage" }).click();
-    await expect(page.getByText("No measured usage yet", { exact: false })).toBeVisible();
+    await expect(page.getByText("No usage measured for this yet.", { exact: false })).toBeVisible();
     await page.screenshot({ path: resolve(GALLERY, `06-inspector/account-usage-${vp.name}.png`) });
   });
 
@@ -383,7 +383,12 @@ test("inspector — Instance Actions disabled-with-reason", async ({ page }) => 
   await expectRail(page); // D-25: the list, or its icon column when narrow
   await page.getByRole("button", { name: /Work Max/ }).first().click();
   await page.getByRole("tab", { name: "Actions" }).click();
-  await expect(page.getByText("AJ-E202").first()).toBeVisible();
+  // AJ-E1025: an action that doesn't apply (Stop, once ended) is disabled
+  // with its reason; unbuilt actions aren't shown.
+  const panel = page.getByRole("tabpanel", { name: "Actions" });
+  await expect(panel.getByRole("button", { name: /^Stop/ })).toBeDisabled();
+  await expect(panel.getByText("not running")).toBeVisible();
+  await expect(page.getByTestId("action-export-pack")).toHaveCount(0);
   await page.screenshot({ path: resolve(GALLERY, "07-inspector-content/instance-actions.png") });
 });
 
@@ -640,7 +645,7 @@ test("model — not reported by Provider inspector state", async ({ page }) => {
   await expectRail(page); // D-25: the list, or its icon column when narrow
   await page.getByRole("button", { name: /Personal/ }).first().click();
   await expect(page.getByTestId("instance-model-line")).toContainText(
-    "Model: not reported by claude-code",
+    "Model: not reported by Claude Code",
   );
   await page.screenshot({ path: resolve(GALLERY, "12-model/not-reported-1440x900.png") });
 });
@@ -3802,7 +3807,7 @@ for (const theme of THEMES) {
   }
 }
 
-// AJ-E1024 — 72-tool-view: the tool's own view, opened from a session's
+// AJ-E1025 — 72-tool-view: the tool's own view, opened from a session's
 // tool chip in the header ("About Claude Code"). It reads what is
 // installed in plain words and shows no task or decision code on any tab
 // (D-25) — 1280×800 + 1024×680 (the Tauri minimum) × light+dark.

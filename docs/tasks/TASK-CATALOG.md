@@ -122,6 +122,7 @@
 | AJ-E1021 | Triage and Overview fold into Home (D-25 amendment) | E10-derived-workflows-and-beta.md | P1 | S | AJ-E1005, AJ-E1014 |
 | AJ-E1022 | Add account without the old wizard: a fresh account, a folder (D-25) | E10-derived-workflows-and-beta.md | P0 | M | AJ-E1013, AJ-E1016, AJ-E307 |
 | AJ-E1023 | Choosing a tool inside Add account (D-25) | E10-derived-workflows-and-beta.md | P1 | S | AJ-E306, AJ-E1022 |
+| AJ-E1025 | Plain words in the inspector views; no task codes on screen (D-25) | E10-derived-workflows-and-beta.md | P1 | S | AJ-E407, AJ-E408, AJ-E1019 |
 | AJ-E1101 | Decision D-19, ADR-0015, doc amendments, the schema copy | E11-usage-statistics.md | P0 | S | — |
 | AJ-E1102 | The juggler-stats crate: modes, overrides, counting, local store, the cargo feature | E11-usage-statistics.md | P0 | M | AJ-E1101 |
 | AJ-E1103 | Wire the events into the app | E11-usage-statistics.md | P0 | M | AJ-E1102 |
@@ -139,5 +140,5 @@
 | AJ-E1206 | Fleet discovery via account | E12-optional-account.md | P1 | M | AJ-E1202, AJ-E704 |
 | AJ-E1207 | Guardrail tests and visual captures | E12-optional-account.md | P0 | M | AJ-E1202, AJ-E1203, AJ-E1205 |
 
-Total: 136 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+Total: 137 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

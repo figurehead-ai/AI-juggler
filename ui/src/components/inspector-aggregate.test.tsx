@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { RightInspector } from "./RightInspector";
+import { RightInspector, installWords } from "./RightInspector";
 import { providerDisplayName } from "../lib/providers";
 import type {
   AccountInfo,
@@ -155,6 +155,17 @@ describe("AJ-E408 Provider (§5.3, Req.1-2)", () => {
     expect(container.querySelector('[data-testid="action-add-account"] button')!.getAttribute("disabled")).toBeNull();
     expect(container.querySelector('[data-testid="action-check-for-an-update"]')).toBeNull();
     expect(container.querySelector('[data-testid="action-open-tool-settings"]')).toBeNull();
+  });
+
+  it("says what's installed in plain words", () => {
+    const base = { provider: "claude-code", display_name: "Claude Code", install_url: "", binary: null, notes: [], kind: "terminal", single_instance_note: null } as const;
+    expect(installWords({ ...base, status: "installed", version: "2.1.296", verified_against: ["2.1.x"] } as never)).toBe("Version 2.1.296 · tested with 2.1.x");
+    expect(installWords({ ...base, status: "installed", version: null, verified_against: [] } as never)).toBe("Installed");
+    expect(installWords({ ...base, status: "unverified", version: "3.0.0", verified_against: ["2.1.x"] } as never)).toBe(
+      "Version 3.0.0 · newer than AI Juggler has been tested with",
+    );
+    expect(installWords({ ...base, status: "not_installed", version: null, verified_against: [] } as never)).toBe("Not installed on this Mac");
+    expect(installWords({ ...base, status: "error", version: null, verified_against: [] } as never)).toBe("Couldn't check what's installed");
   });
 
   it("no tab of the tool, account or project views shows a task code or an internal id (D-25)", () => {
