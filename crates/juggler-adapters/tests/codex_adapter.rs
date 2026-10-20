@@ -336,7 +336,7 @@ fn isolation_keys_and_snippet() {
 fn keychain_account_matches_codex_naming() {
     let dir = tempfile::tempdir().unwrap();
     let account = juggler_adapters::codex::keychain_account(dir.path()).unwrap();
-    assert!(account.starts_with("cli|"), "{account}");
+    assert!(account.starts_with("cli|"), "the account is `cli|<hash>`");
     assert_eq!(account.len(), "cli|".len() + 16);
     assert!(juggler_adapters::codex::keychain_account(&dir.path().join("missing")).is_none());
 }
