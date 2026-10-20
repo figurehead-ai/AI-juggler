@@ -825,9 +825,7 @@ export function RailRow({
         "relative flex w-full min-w-0 items-center gap-2.5 rounded-lg pl-2.5 pr-2 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
         (density === "compact" ? "py-1.5 " : "py-2 ") +
         (selected ? "bg-surface" : "hover:bg-surface/60") +
-        // Ended rows are quieter by their title colour, never by opacity:
-        // faded small text would fall below 4.5:1 (WCAG 1.4.3).
-        ""
+        (ended ? " opacity-70" : "")
       }
     >
       {selected && <span aria-hidden="true" className="absolute left-0.5 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-full bg-accent" />}
