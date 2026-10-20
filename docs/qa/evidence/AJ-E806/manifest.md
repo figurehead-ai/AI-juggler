@@ -320,4 +320,9 @@
      re-pointed with the user's chained line kept. Regression:
      `quota_ingest :: the_status_line_runs_from_a_folder_with_spaces`
      (fails on the old code) and `an_unquoted_install_is_repaired_and_keeps_the_chain`.
+- **Flake record, 2026-10-20 (local only, load average 33–45 while three
+  sessions ran full suites).** `processes :: processes_command_reports_tree_orphans_and_stops`
+  ("never saw the child") and `reconciler :: helper_exiting_inside_grace_never_surfaces`
+  timed out once each in a `cargo test --workspace` run; both passed
+  alone at once (3/3 each). No budget changed.
 
