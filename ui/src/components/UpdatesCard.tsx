@@ -185,7 +185,8 @@ function GoingBack({ appName }: { appName: string }): JSX.Element | null {
           ) : (
             <div key={option.schema} className="flex flex-wrap items-center gap-2">
               <span className="min-w-0 flex-1 text-muted">
-                The data from before the update on {when(option.kept_at_ms)} is kept, for {name(option)}.
+                A copy of your data from before the update on {when(option.kept_at_ms)} is kept: {name(option)} can
+                open it.
               </span>
               <button
                 type="button"

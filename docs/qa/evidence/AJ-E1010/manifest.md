@@ -138,3 +138,15 @@ downloading → a failed check → Try again → up to date.
 build (install a build with this change, then update it from the beta
 feed), and clicking "Use the backup from …" once on a Dev build
 (rehearsal step 5).
+
+### Going back, made reliable (2026-10-20, coordinator's request)
+
+0.0.8 reached beta with schema 28 and no way back but a backup taken by
+the in-app updater. Added to this PR:
+
+| Claim | Proof | Verdict |
+|---|---|---|
+| Before any migration touches an existing database, a consistent copy is kept (`juggler.sqlite.before-v<N>`, SQLite's backup API, written under a temporary name first); the two newest are kept; a fresh or current database makes none; if the copy can't be written, nothing is migrated | `cargo test -p juggler-core --test pre_migration_copy` (4): the v27 copy read back read-only has exactly the rows of every table the database had, at schema 27; retention keeps 27 and 26 of {19, 20, 26, 27} and clears a half-written copy; no copy for new, current or in-memory databases; a blocked copy fails the open with "nothing was changed" and the database stays at 27 | PASS |
+| The newer build offers "Go back to an earlier version": says what is lost (changes since the update) and kept, asks once inline, puts the copy back as it is, keeps the data as it was (`juggler.sqlite.from-v<N>-<ms>`), quits; refused while a switch, a bring-in or a session would be cut short | `newer_data :: the_newer_build_prepares_going_back_to_the_version_before` (a v27 database upgraded by this build, an account added after, then: the older build reads schema 27 with the old account only; the kept file has both); vitest (hidden without a copy; confirm text; focus into the question and back on Cancel; refusal in plain words); a11y `going-back` both themes (keyboard only, axe 0); cursor; gallery `58-updates/going-back-confirm`; walked by hand in the preview | PASS |
+| An older build at launch offers the copy kept before the upgrade (or a backup) | `newer_data :: the_launch_offers_the_copy_kept_before_the_upgrade` | PASS |
+| A release whose schema is newer than where users come from can't ship without a downgrade note | `scripts/downgrade_note.py` (self-test in `just release-selftest`), called by `release_notes_check.sh`: 0.0.5–0.0.7 "no note needed"; 0.0.8 "27 → 28, the note is there"; 0.0.8 notes without the note fail. Nightly compares with the previous nightly and `nightly_notes.py` writes the line itself; Promote fetches tags and compares with the version the channel serves | PASS |
