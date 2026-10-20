@@ -265,11 +265,11 @@ fn expert_setup_reports_managed_paths_and_a_quoted_shell_line() {
         info.shell_snippet.as_deref(),
         Some(
             format!(
-                "CLAUDE_CONFIG_DIR='{dir}' CLAUDE_CODE_MAX_OUTPUT_TOKENS='8000' NOTE='it'\\''s fine' claude"
+                "env -u ANTHROPIC_API_KEY -u ANTHROPIC_AUTH_TOKEN -u CLAUDE_CODE_OAUTH_TOKEN CLAUDE_CONFIG_DIR='{dir}' CLAUDE_CODE_MAX_OUTPUT_TOKENS='8000' NOTE='it'\\''s fine' claude"
             )
             .as_str()
         ),
-        "isolation first, overrides quoted, the vendor command last"
+        "inherited credentials removed, isolation first, overrides quoted, the vendor command last"
     );
     assert_eq!(
         commands::expert_reveal_target(&state, CLAUDE_CODE_ID, Some(&account.id)).unwrap(),

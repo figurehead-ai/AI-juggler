@@ -299,11 +299,11 @@ test("onboarding — first run end to end by keyboard", async ({ page }) => {
   };
   // The found setup is preselected; Tab reaches its checkbox and the button.
   await tabToEl(page, stops, "[data-testid='first-run-row'] input[type='checkbox']", { max: 40 });
-  await press("[data-testid='first-run-bring-in']", "first-run-signin");
-  await press("[data-testid='first-run-signin-next']", "first-run-access");
+  // ADR-0018: used where it is, a signed-in setup needs no sign-in step.
+  await press("[data-testid='first-run-bring-in']", "first-run-access");
   await press("[data-testid='first-run-start']", "home-empty-accounts");
   record("onboarding", stops, [
-    "First run: the found setup's checkbox → Bring in → Sign in later → computer access → Start working → Home; every control reached by Tab.",
+    "First run: the found setup's checkbox → the placement choice → Bring in → computer access → Start working → Home; every control reached by Tab.",
   ]);
 });
 

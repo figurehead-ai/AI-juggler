@@ -215,6 +215,21 @@ pub struct Account {
     pub import_origin: Option<String>,
     /// Import completion time, epoch ms. `None` = never imported.
     pub imported_at: Option<i64>,
+    /// ADR-0018: the account uses the user's own folder where it is
+    /// (`state_dir` is that folder, as found), not a copy in AI Juggler's
+    /// data. AI Juggler writes nothing of its own there and never deletes
+    /// it.
+    pub in_place: bool,
+}
+
+impl Account {
+    /// ADR-0018: an in-place account on the vendor's default folder is
+    /// launched without `CLAUDE_CONFIG_DIR`, as the vendor itself runs —
+    /// its Keychain sign-in is named for the unset variable.
+    #[must_use]
+    pub fn is_vendor_default_in_place(&self, home: &std::path::Path) -> bool {
+        self.in_place && self.state_dir == home.join(".claude")
+    }
 }
 
 /// Settings applied on top of an account's defaults when launching a profile.

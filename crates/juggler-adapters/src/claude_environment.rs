@@ -617,6 +617,50 @@ fn lexical_normal(path: &Path) -> PathBuf {
     out
 }
 
+/// ADR-0018: use an existing setup where it is. Checks it is a Claude
+/// Code folder and not one of AI Juggler's own copies, and reports its
+/// sign-in — read-only: nothing is copied, marked or written. The login
+/// is probed at `source` exactly as given (Claude's Keychain name hashes
+/// that path string).
+///
+/// # Errors
+///
+/// [`juggler_adapter::AdapterError::AccountDir`] with a plain reason.
+pub fn adopt_claude_config(
+    source: &Path,
+    login_probe: &dyn Fn(&Path) -> LoginProbe,
+) -> Result<ImportOutcome, juggler_adapter::AdapterError> {
+    let dir_error = |message: &str| juggler_adapter::AdapterError::AccountDir {
+        path: source.to_path_buf(),
+        message: message.to_owned(),
+    };
+    if !source.is_dir() {
+        return Err(dir_error("that folder isn't there any more — rescan"));
+    }
+    let canonical = source
+        .canonicalize()
+        .map_err(|error| dir_error(&error.to_string()))?;
+    if !CLAUDE_LAYOUT.is_config_dir(&canonical) {
+        return Err(dir_error(
+            "this folder does not look like a Claude Code configuration (no settings, credentials, or session history found)",
+        ));
+    }
+    if is_managed_dir(&canonical) {
+        return Err(dir_error(
+            "this is one of AI Juggler's own copies — it's already in AI Juggler",
+        ));
+    }
+    Ok(ImportOutcome {
+        files_copied: 0,
+        bytes_copied: 0,
+        skipped: Vec::new(),
+        login: login_probe(source),
+        login_note: None,
+        folders: Vec::new(),
+        degraded: false,
+    })
+}
+
 /// The post-copy login carryover pair (destination probe + the
 /// plain-language note when the login could not move).
 fn login_carryover(

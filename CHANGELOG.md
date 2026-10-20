@@ -34,6 +34,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   New project's "Add an account" all use these steps; the old setup
   wizard is gone. Add account asks which tool only when more than one is
   installed, so the separate "Add Provider" button is gone too.
+- Bringing in your Claude setups now **uses them where they are** by
+  default: your Claude app and AI Juggler share one sign-in, one history
+  and one set of settings, and AI Juggler doesn't change your files.
+  Signed-in setups stay signed in. **Make separate copies** is right
+  next to it if you want an isolated sandbox. Each account in Accounts
+  says which it is.
+- When some setups come in and some don't, you choose: **Continue** with
+  the ones that came in, **Try again** for the others, or — for a copy
+  that failed — **Use it where it is instead**. Close or Esc while
+  bringing them in means **Stop**: the one in progress finishes and the
+  rest wait.
+- An account you brought in as a copy can switch to the folder it came
+  from: **Use the original instead** on its card in Accounts. It then
+  shares that folder's sign-in and history; the copy stays on disk.
 - Cleanup says what it is in one line instead of "Tier 0 observe ·
   verified manual kills". Pause automatic cleanup and Cleanup settings
   sit behind ⋯, and Resume is on the "paused" banner. The machine filter
@@ -102,12 +116,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Switching a session you started in the app no longer stops at
+  "Couldn't tell which file is this session": AI Juggler finds the
+  session's own file (same folder, started after the launch) when you
+  switch and remembers it — for Claude Code and Codex alike. It never
+  guesses: when two sessions of one account share a folder, or two files
+  could be the one, it still asks.
 
 - A message to Codex that starts with "-" (a list item, say) is passed as
   text, never read as an option; a session id that looks like an option
   is refused instead of resuming something else (Codex and Claude Code).
   The Expert-setup line for a Codex account now pins its SQLite folder
   too, and First run finds a `CODEX_HOME=` line in your shell files.
+- Measured quota from Claude's status line works on a real Mac. The
+  status line command pointed at a path under "Application Support"
+  without quotes, so the shell split it at the space and the capture
+  never ran. Existing installs are repaired the next time AI Juggler
+  checks them, and your own status line stays chained.
+- Started from a terminal that exports `ANTHROPIC_API_KEY` (or an auth
+  token), AI Juggler ran every account on that one key. Each account now
+  signs in as itself; a key set in an account's own settings still works.
+- A launch setting that picks a model no longer rewrites the account's
+  `settings.json` (it replaced the whole file, losing hooks and
+  permissions); the model goes in as Claude's own `--model` option.
 - Bringing in a Claude setup that has a linked folder (for example a
   skill under `skills/` that is a link to somewhere else) no longer fails
   with "cannot copy skills/…". The folder is kept as a link that points
@@ -176,6 +207,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   once. Codex's own databases stay behind (Codex rebuilds them from the
   copied history); the light import leaves the history behind too and
   lists what it skipped.
+- Codex sessions read like Claude ones (AJ-E1303): the conversation,
+  the model each turn ran, tokens, compaction and errors come from
+  Codex's own session files, in both of its history formats. The
+  account's identity check uses Codex's account id (never a token).
 - Three update channels (decision D-20): **Nightly** (built from the latest
   code every day), **Beta** and **Stable** (each promoted with the
   maintainer's approval). Choose Stable or Beta in Settings › About &

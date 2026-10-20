@@ -258,6 +258,7 @@ fn install_waits_for_a_switch_in_flight_and_restart_for_live_instances() {
             import_source_path: None,
             import_origin: None,
             imported_at: None,
+            in_place: false,
         })
         .unwrap();
     storage

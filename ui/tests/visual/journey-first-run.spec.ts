@@ -90,10 +90,9 @@ test("first run on a Mac with Claude Code already set up", async ({ page }) => {
   primaryClicks += 1;
   await page.waitForTimeout(1200);
   await page.screenshot({ path: `${OUT}/after-bring-in-1280x800-dark.png` });
-  const next = page.getByTestId("first-run-signin");
-  await expect(next).toBeVisible();
-  await axeClean(page, "sign-in");
-  await page.getByTestId("first-run-signin-next").click();
+  // ADR-0018: used where they are, signed-in setups stay signed in — no
+  // sign-in step.
+  await expect(page.getByTestId("first-run-signin")).toHaveCount(0);
   const access = page.getByTestId("first-run-access");
   await expect(access).toBeVisible();
   await page.screenshot({ path: `${OUT}/access-1280x800-dark.png` });
@@ -110,3 +109,54 @@ test("first run on a Mac with Claude Code already set up", async ({ page }) => {
   await page.screenshot({ path: `${OUT}/home-after-first-run-1280x800-dark.png` });
   await axeClean(page, "Home");
 });
+
+test("first run, choosing separate copies: each copy signs in once", async ({ page }) => {
+  await page.addInitScript((scan) => {
+    const w = window as unknown as Record<string, unknown>;
+    w.__AIJ_FIXTURE__ = { accounts: [], profiles: [], sessions: [], projects: [] };
+    w.__AIJ_SCAN_REPORT__ = scan;
+  }, SCAN);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/");
+  await expect(page.getByTestId("first-run-found")).toBeVisible();
+  await page.getByRole("radio", { name: "Make separate copies" }).check();
+  await expect(page.getByTestId("first-run-found")).toContainText("makes its own copy of each");
+  await page.screenshot({ path: `${OUT}/found-copies-1280x800-dark.png` });
+  await axeClean(page, "copies chosen");
+  await page.getByTestId("first-run-bring-in").click();
+  const signin = page.getByTestId("first-run-signin");
+  await expect(signin).toBeVisible();
+  await page.screenshot({ path: `${OUT}/after-bring-in-copies-1280x800-dark.png` });
+  await axeClean(page, "sign-in");
+  await page.getByTestId("first-run-signin-next").click();
+  await expect(page.getByTestId("first-run-access")).toBeVisible();
+});
+
+// ADR-0018 §5: one setup that can't come in never blocks the rest — the
+// user decides (Continue, Try again, or use it where it is instead).
+for (const theme of ["dark", "light"] as const) {
+  test(`first run — one copy fails, the user decides — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ scan, theme }) => {
+        const w = window as unknown as Record<string, unknown>;
+        w.__AIJ_FIXTURE__ = { accounts: [], profiles: [], sessions: [], projects: [] };
+        w.__AIJ_SCAN_REPORT__ = scan;
+        w.__AIJ_IMPORT_FAIL_PATHS__ = [scan.installs[0].path];
+        localStorage.setItem("aij.theme", theme);
+      },
+      { scan: SCAN, theme },
+    );
+    await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await page.getByRole("radio", { name: "Make separate copies" }).check();
+    await page.getByTestId("first-run-bring-in").click();
+    const outcome = page.getByTestId("first-run-outcome");
+    await expect(outcome).toContainText("5 brought in. 1 couldn't come in.");
+    await expect(outcome.getByRole("button", { name: "Use it where it is instead" })).toBeVisible();
+    await expect(outcome.getByRole("button", { name: "Continue with 5 accounts" })).toBeVisible();
+    await page.screenshot({ path: `${OUT}/one-failed-1280x800-${theme}.png`, fullPage: true });
+    await axeClean(page, `one failed (${theme})`);
+  });
+}
+
