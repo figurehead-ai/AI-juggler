@@ -825,7 +825,9 @@ export function RailRow({
         "relative flex w-full min-w-0 items-center gap-2.5 rounded-lg pl-2.5 pr-2 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
         (density === "compact" ? "py-1.5 " : "py-2 ") +
         (selected ? "bg-surface" : "hover:bg-surface/60") +
-        (ended ? " opacity-70" : "")
+        // Ended rows are quieter by their title colour, never by opacity:
+        // faded small text would fall below 4.5:1 (WCAG 1.4.3).
+        ""
       }
     >
       {selected && <span aria-hidden="true" className="absolute left-0.5 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-full bg-accent" />}
@@ -834,16 +836,16 @@ export function RailRow({
       </span>
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="flex min-w-0 items-baseline gap-1.5">
-          <span className="min-w-0 truncate text-[12.5px] font-medium text-ink">{title}</span>
+          <span className={"min-w-0 truncate text-[12.5px] font-medium " + (ended ? "text-muted" : "text-ink")}>{title}</span>
           {session.kind === "desktop" && (
-            <span title="Runs in the Claude desktop app" data-testid="rail-app-chip" className="shrink-0 text-[9.5px] font-medium uppercase tracking-wide text-accent-hi">
+            <span title="Runs in the Claude desktop app" data-testid="rail-app-chip" className="shrink-0 text-[9.5px] font-medium uppercase tracking-wide text-muted">
               app
             </span>
           )}
-          {density === "compact" && <span className="ml-auto shrink-0 font-mono text-[10px] text-faint">{when}</span>}
+          {density === "compact" && <span className="ml-auto shrink-0 font-mono text-[10px] text-muted">{when}</span>}
         </span>
         {density === "comfortable" && (
-          <span className="flex min-w-0 items-center gap-1 overflow-hidden text-[11px] text-faint">
+          <span className="flex min-w-0 items-center gap-1 overflow-hidden text-[11px] text-muted">
             <span
               title={parked ? parked.long : attentionTooltip(session)}
               data-testid={parked ? "rail-parked" : undefined}

@@ -133,7 +133,13 @@ function ProviderRow({
         {install.status === "installed" && (
           <Chip tone="success">Installed v{install.version}</Chip>
         )}
-        {unverified && <Chip tone="warning">Installed (v{install.version}, unverified)</Chip>}
+        {/* A solid backing: on the selected row's tint the soft warning
+            fill would blend below 4.5:1 (AJ-E804, light theme). */}
+        {unverified && (
+          <span className="rounded-full bg-canvas">
+            <Chip tone="warning">Installed (v{install.version}, unverified)</Chip>
+          </span>
+        )}
         {missing && <Chip tone="neutral">Not installed</Chip>}
         {install.status === "probe_failed" && <Chip tone="warning">Couldn't check</Chip>}
       </button>
