@@ -13,7 +13,7 @@ at_ms: number,
  */
 cpu_pct: number | null, 
 /**
- * Memory in use as Activity Monitor counts it (app + wired +
- * compressed), bytes; total − available where the OS has no figure.
+ * Memory in use, bytes, on `MachineHealthInfo::memory_basis`; `null`
+ * when it couldn't be read.
  */
-memory_used: number, };
+memory_used: number | null, };

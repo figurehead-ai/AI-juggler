@@ -49,7 +49,7 @@ AJ-E1404/E1405/E1407.
    The `machine_health` command is async (`spawn_blocking`), so it never
    runs on the main thread. Measured: under the lock p95 38–114 µs, max
    208–304 µs (was up to 150 ms whenever the list was rebuilt).
-2. **"Memory used" is Activity Monitor's figure.** That is app memory
+2. **"Memory used" is app + wired + compressed** (see the re-review below for the exact label). That is app memory
    (anonymous pages minus purgeable) plus wired plus what the compressor
    occupies, read through sysctl (`vm.page_pageable_internal_count`,
    `vm.page_purgeable_count`, `vm.page_wired_count`,
@@ -74,6 +74,38 @@ AJ-E1404/E1405/E1407.
      is the calm level: an amber word in This Mac, never Needs you, never a
      notification. Disk alerts (AJ-E1408) fire only at the pressure level
      (under 5 GB).
+
+## Re-review fixes (2026-10-20, at 4d481d8d)
+
+- **An honest label for memory.** `vm.compressor_bytes_used` is the
+  compressor's *bytes*. Activity Monitor counts the *pages* the compressor
+  occupies, which only `host_statistics64` reports, and that call needs
+  `unsafe` FFI, which the workspace forbids. So the figure is named for what
+  it is: `memory_basis = app_wired_compressed`, "close to Activity Monitor's
+  Memory Used, a few percent lower" (≈ 5 % on the reviewer's Mac). Off macOS
+  the basis is `total_minus_available`. If any part of the macOS reading
+  fails, `memory_used` is `null` and nothing is shown, never the other
+  measure under the same name. A partial sum is never taken either: every
+  part is required.
+- **Free memory on the same basis.** Free is total − used, so used + free =
+  total; "only X of memory free" uses it. The OS's own "available" figure is
+  used only when used couldn't be read. The mock is now 22 + 10 = 32 GB.
+- **This Mac's folders only.** `active_cwds(machine)` filters to this Mac,
+  so a session synced from another Mac with a `/Volumes/` path can't force
+  rebuilds.
+- **Stale disk work dropped.** A disk generation counter: work from an older
+  hand-out never overwrites newer volumes (unit test).
+- **Tests.**
+  - `machine_lock.rs` holds storage for 800 ms while the first tick (a disk
+    tick that also builds the disk list) waits on it. `try_lock` on the
+    machine lock succeeds the whole time, then the volumes land.
+  - `an_unknown_volume_rebuilds_the_list_at_most_every_five_minutes` gives 1
+    list in 160 ticks and 2 by tick 170.
+  - The macOS host test checks the parts: app, wired and compressed are each
+    ≤ total, used ≤ total, and used is within 2 % of the parts' sum. The
+    sampler test checks used + free = total.
+- Small: the stale lock comment in `state.rs` is fixed, and `is_active` is
+  private again.
 
 | Claim / Req ID | Command / fixture / live step (exact) | Threshold | Observed | Verdict | Commit SHA | Date | Reviewer |
 |---|---|---|---|---|---|---|---|

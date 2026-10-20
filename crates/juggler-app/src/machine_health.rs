@@ -15,8 +15,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use juggler_supervisor::machine::{
-    MachineSnapshot, PowerState, PressureLevel, RoomLevel, RoomThresholds, ThermalState, summarize,
-    swap_growth_mb_per_min,
+    MachineSnapshot, MemoryBasis, PowerState, PressureLevel, RoomLevel, RoomThresholds,
+    ThermalState, summarize, swap_growth_mb_per_min,
 };
 
 use crate::error::{AppError, AppResult};
@@ -55,10 +55,10 @@ pub struct MachinePointInfo {
     pub at_ms: i64,
     /// Whole-Mac CPU, percent of all cores; `null` when unmeasured.
     pub cpu_pct: Option<f64>,
-    /// Memory in use as Activity Monitor counts it (app + wired +
-    /// compressed), bytes; total − available where the OS has no figure.
-    #[ts(type = "number")]
-    pub memory_used: u64,
+    /// Memory in use, bytes, on `MachineHealthInfo::memory_basis`; `null`
+    /// when it couldn't be read.
+    #[ts(type = "number | null")]
+    pub memory_used: Option<u64>,
 }
 
 /// A volume in use and its free space.
@@ -102,11 +102,18 @@ pub struct MachineHealthInfo {
     /// Physical memory, bytes.
     #[ts(type = "number")]
     pub memory_total: u64,
-    /// Memory in use as Activity Monitor counts it (app + wired +
-    /// compressed), bytes; total − available where the OS has no figure.
-    #[ts(type = "number")]
-    pub memory_used: u64,
-    /// Memory the OS can hand out without swapping, bytes.
+    /// Memory in use, bytes, measured as `memory_basis` says; `null` when
+    /// the reading failed (nothing is shown then — never another measure
+    /// under the same name).
+    #[ts(type = "number | null")]
+    pub memory_used: Option<u64>,
+    /// What `memory_used` measures: `app_wired_compressed` (macOS: app
+    /// memory + wired + the compressor's data — close to Activity Monitor's
+    /// "Memory Used", a few percent lower) | `total_minus_available`
+    /// (other systems); `null` when it couldn't be read.
+    pub memory_basis: Option<String>,
+    /// Memory free on the same basis (total − used, so used + free =
+    /// total); the OS's own "available" only when used couldn't be read.
     #[ts(type = "number")]
     pub memory_available: u64,
     /// `normal` | `warning` | `critical`; `null` where the OS has none.
@@ -166,13 +173,12 @@ fn power_info(power: PowerState) -> PowerInfo {
     }
 }
 
-/// Memory in use as Activity Monitor counts it, where the OS gives it;
-/// total − available otherwise.
-fn memory_used_of(sample: &juggler_supervisor::machine::MachineSample) -> u64 {
-    sample
-        .memory_used
-        .unwrap_or_else(|| sample.memory_total.saturating_sub(sample.memory_available))
-        .min(sample.memory_total)
+const fn basis_key(basis: MemoryBasis) -> Option<&'static str> {
+    match basis {
+        MemoryBasis::AppWiredCompressed => Some("app_wired_compressed"),
+        MemoryBasis::TotalMinusAvailable => Some("total_minus_available"),
+        MemoryBasis::Unknown => None,
+    }
 }
 
 /// Pure: the read model from a sampler snapshot.
@@ -185,8 +191,12 @@ pub fn health_of(snapshot: &MachineSnapshot, thresholds: &RoomThresholds) -> Mac
         cores: snapshot.cores,
         cpu_pct: latest.cpu_pct,
         memory_total: latest.memory_total,
-        memory_used: memory_used_of(&latest),
-        memory_available: latest.memory_available,
+        memory_used: latest.memory_used,
+        memory_basis: latest
+            .memory_used
+            .and(basis_key(latest.memory_basis))
+            .map(str::to_string),
+        memory_available: latest.memory_free(),
         pressure: latest.pressure.map(|level| pressure_key(level).to_string()),
         swap_total: latest.swap_total,
         swap_used: latest.swap_used,
@@ -221,7 +231,7 @@ pub fn health_of(snapshot: &MachineSnapshot, thresholds: &RoomThresholds) -> Mac
             .map(|sample| MachinePointInfo {
                 at_ms: sample.at_ms,
                 cpu_pct: sample.cpu_pct,
-                memory_used: memory_used_of(sample),
+                memory_used: sample.memory_used,
             })
             .collect(),
     }
@@ -231,8 +241,10 @@ pub fn health_of(snapshot: &MachineSnapshot, thresholds: &RoomThresholds) -> Mac
 /// session's working folder (one query for active sessions only).
 fn paths_in_use(state: &Arc<AppState>) -> Vec<PathBuf> {
     let mut paths = vec![state.data_dir.clone()];
+    // Resolved before the storage lock below (it takes that lock itself).
+    let machine = crate::commands::local_machine_id(state);
     if let Ok(storage) = state.storage.lock()
-        && let Ok(cwds) = storage.sessions().active_cwds()
+        && let Ok(cwds) = storage.sessions().active_cwds(&machine)
     {
         paths.extend(cwds);
     }
@@ -312,8 +324,9 @@ mod tests {
                 at_ms: i * 2_000,
                 cpu_pct: (i > 0).then_some(25.0),
                 memory_total: 32 * G,
-                memory_available: 2 * G,
-                memory_used: None,
+                memory_available: 5 * G,
+                memory_used: Some(30 * G),
+                memory_basis: MemoryBasis::TotalMinusAvailable,
                 pressure: Some(PressureLevel::Warning),
                 swap_total: 4 * G,
                 swap_used: G,
@@ -334,7 +347,13 @@ mod tests {
         };
         let info = health_of(&snapshot, &RoomThresholds::default());
         assert!(info.sampled);
-        assert_eq!(info.memory_used, 30 * G);
+        assert_eq!(info.memory_used, Some(30 * G));
+        assert_eq!(info.memory_basis.as_deref(), Some("total_minus_available"));
+        assert_eq!(
+            info.memory_available,
+            2 * G,
+            "free on the same basis as used"
+        );
         assert_eq!(info.pressure.as_deref(), Some("warning"));
         assert_eq!(info.thermal.as_deref(), Some("nominal"));
         assert_eq!(info.summary.words, "Getting tight");
@@ -355,11 +374,12 @@ mod tests {
     }
 
     #[test]
-    fn memory_used_is_activity_monitors_figure_when_the_os_gives_it() {
+    fn memory_says_what_it_measures_and_free_adds_up() {
         let sample = MachineSample {
             memory_total: 32 * G,
             memory_available: 20 * G,
             memory_used: Some(26 * G),
+            memory_basis: MemoryBasis::AppWiredCompressed,
             ..MachineSample::default()
         };
         let snapshot = MachineSnapshot {
@@ -369,7 +389,34 @@ mod tests {
             ..MachineSnapshot::default()
         };
         let info = health_of(&snapshot, &RoomThresholds::default());
-        assert_eq!(info.memory_used, 26 * G, "not total − available (12 GB)");
-        assert_eq!(info.series[0].memory_used, 26 * G);
+        assert_eq!(
+            info.memory_used,
+            Some(26 * G),
+            "not total − available (12 GB)"
+        );
+        assert_eq!(info.memory_basis.as_deref(), Some("app_wired_compressed"));
+        assert_eq!(info.memory_available, 6 * G, "used + free = total");
+        assert_eq!(info.series[0].memory_used, Some(26 * G));
+    }
+
+    #[test]
+    fn a_failed_reading_shows_nothing_rather_than_another_measure() {
+        let sample = MachineSample {
+            memory_total: 32 * G,
+            memory_available: 20 * G,
+            memory_used: None,
+            memory_basis: MemoryBasis::Unknown,
+            ..MachineSample::default()
+        };
+        let snapshot = MachineSnapshot {
+            cores: 8,
+            latest: Some(sample),
+            ring: vec![sample],
+            ..MachineSnapshot::default()
+        };
+        let info = health_of(&snapshot, &RoomThresholds::default());
+        assert_eq!(info.memory_used, None);
+        assert_eq!(info.memory_basis, None);
+        assert_eq!(info.series[0].memory_used, None);
     }
 }

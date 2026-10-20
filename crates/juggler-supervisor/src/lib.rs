@@ -31,8 +31,8 @@ pub use heuristics::{
 pub use journal::{AdoptedProcess, Journal};
 pub use lifecycle::{ExitKind, LifecycleEvent};
 pub use machine::{
-    MachineSample, MachineSampler, MachineSnapshot, PowerState, PressureLevel, RoomLevel,
-    RoomReason, RoomSummary, RoomThresholds, ThermalState, VolumeSample, summarize,
+    MachineSample, MachineSampler, MachineSnapshot, MemoryBasis, PowerState, PressureLevel,
+    RoomLevel, RoomReason, RoomSummary, RoomThresholds, ThermalState, VolumeSample, summarize,
 };
 pub use orphans::{
     AUTO_CLEANUP_GRACE_MS, DescendantRow, ExitSnapshot, ORPHAN_GRACE_MS, Orphan, OrphanTracker,

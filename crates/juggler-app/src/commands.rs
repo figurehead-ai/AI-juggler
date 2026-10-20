@@ -4640,7 +4640,7 @@ pub(crate) fn is_terminal(status: SessionStatus) -> bool {
 
 /// An active status: the row carries live-state expectations (resource
 /// ticks and quota ticks only ever emit for these).
-pub(crate) fn is_active(status: SessionStatus) -> bool {
+fn is_active(status: SessionStatus) -> bool {
     !is_terminal(status)
 }
 

@@ -144,7 +144,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   summary — "Plenty of room", "Getting tight" or "Under pressure", with
   the reasons — is what Home, the launch advisor and the alerts will show.
   Old swap doesn't count against you; swap that keeps growing does. Memory
-  in use is the figure Activity Monitor shows.
+  in use counts app memory, wired and compressed data, close to the
+  figure Activity Monitor shows.
 - Three update channels (decision D-20): **Nightly** (built from the latest
   code every day), **Beta** and **Stable** (each promoted with the
   maintainer's approval). Choose Stable or Beta in Settings › About &
