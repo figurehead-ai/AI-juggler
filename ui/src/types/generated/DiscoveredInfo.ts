@@ -48,4 +48,10 @@ inference: InferenceInfo,
  * AJ-E303: every signal that found this dir (merged duplicates:
  * alias + home-pattern → ONE candidate with both signals).
  */
-signals: Array<string>, };
+signals: Array<string>, 
+/**
+ * Where this setup is open right now: `desktop` (the Claude desktop
+ * app) and/or `terminal` (`claude` outside it), from the running
+ * processes ([`crate::running_setups`]). Empty = not open now.
+ */
+in_use: Array<string>, };

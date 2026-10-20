@@ -146,7 +146,8 @@ for (const theme of THEMES) {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
-      await expect(page.getByText("Get your accounts ready")).toBeVisible();
+      // D-25: an account that needs its sign-in is a "Needs you" item on Home.
+      await expect(page.getByTestId("home-signin").first()).toContainText("needs its sign-in");
       await page.screenshot({
         path: resolve(GALLERY, `01-rail/ready-home-${vp.name}-${theme}.png`),
       });
@@ -4544,7 +4545,6 @@ for (const theme of THEMES) {
             const w = window as unknown as Record<string, unknown>;
             w.__AIJ_FIXTURE__ = fixture;
             w.__AIJ_LOGIN_STATE__ = loginState;
-            // Ready Home IS the surface — do not skip it.
             localStorage.setItem("aij.theme", t);
           },
           { fixture: readyHome, state, theme },
@@ -4552,8 +4552,9 @@ for (const theme of THEMES) {
         await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme as "dark" | "light" });
         await page.setViewportSize({ width: vp.width, height: vp.height });
         await page.goto("/");
-        // Ready Home lists the not-signed account; expanding its
-        // card renders the shared queue card in the probed state.
+        // D-25: Accounts › Sign in opens the shared queue card (Home's
+        // Sign in goes straight to the login terminal instead).
+        await goTo(page, "Accounts");
         const signIn = page.getByRole("button", { name: /^Sign in$/ }).first();
         await expect(signIn).toBeVisible();
         await signIn.click();
