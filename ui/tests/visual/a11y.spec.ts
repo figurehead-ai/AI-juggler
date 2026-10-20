@@ -2253,6 +2253,7 @@ const A11Y_UPDATE_STATES: Record<string, Record<string, unknown>> = {
     restart_wait: "A switch is in progress. Restart to update is offered once it finishes.",
   },
   "restart-ready": { ...A11Y_UPDATE_BASE, state: "installed", available: A11Y_LONG_NOTES, progress: 100 },
+  "going-back": { ...A11Y_UPDATE_BASE, state: "up_to_date" },
 };
 for (const theme of ["dark", "light"] as const) {
   for (const [name, status] of Object.entries(A11Y_UPDATE_STATES)) {
@@ -2262,6 +2263,7 @@ for (const theme of ["dark", "light"] as const) {
           const w = window as unknown as Record<string, unknown>;
           w.__AIJ_FIXTURE__ = fixture;
           w.__AIJ_UPDATE_STATUS__ = seeded;
+          w.__AIJ_GOING_BACK__ = [{ schema: 27, version: "0.0.7", kept_at_ms: 1_792_000_000_000 }];
           localStorage.setItem("aij.theme", t);
           localStorage.setItem("aij.onboarding.dismissed", "1");
           sessionStorage.setItem("aij.ready.skipped", "1");
@@ -2273,6 +2275,20 @@ for (const theme of ["dark", "light"] as const) {
       await page.goto("/");
       await page.getByRole("button", { name: "Settings" }).click();
       await expect(page.getByTestId("beta-label")).toBeVisible();
+      if (name === "going-back") {
+        // Keyboard only: open the disclosure, choose, confirm is focused,
+        // Cancel returns to the choice.
+        const summary = page.getByText("Go back to an earlier version", { exact: true });
+        await summary.focus();
+        await page.keyboard.press("Enter");
+        await page.getByTestId("going-back-27").focus();
+        await page.keyboard.press("Enter");
+        await expect(page.getByText("Go back to 0.0.7?", { exact: true })).toBeFocused();
+        expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+        await page.getByTestId("going-back-cancel").focus();
+        await page.keyboard.press("Enter");
+        await expect(page.getByTestId("going-back-27")).toBeFocused();
+      }
       if (name === "available") {
         // The notes box scrolls, and is reachable and named for it.
         const notes = page.getByRole("region", { name: "What's new in 0.2.0" });

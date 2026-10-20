@@ -54,6 +54,9 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: main
+          # Tags: the downgrade-note check compares the database schema of
+          # this version with the version the channel serves now.
+          fetch-depth: 0
       - name: The build, its notes, its history
         id: check
         env:
@@ -64,7 +67,10 @@ jobs:
           [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::$VERSION is not X.Y.Z"; exit 1; }
           ref="$(gh release view "v$VERSION" --repo "$REPO" --json targetCommitish --jq .targetCommitish)" \
             || { echo "::error::no build v$VERSION — nightly.yml makes builds"; exit 1; }
-          ./scripts/release_notes_check.sh "$VERSION"
+          # Users on the channel come from the version it serves now: a
+          # database change since then needs a downgrade note.
+          serving="$(git tag -l "$CHANNEL/v*" | sed "s|^$CHANNEL/||" | sort -V | tail -1)"
+          ./scripts/release_notes_check.sh "$VERSION" ${serving:+"$serving"}
           # D-24: the channel's requirements, decided by promotion_rules.py.
           built_at="$(gh release view "v$VERSION" --repo "$REPO" --json publishedAt --jq .publishedAt)"
           beta_at=""

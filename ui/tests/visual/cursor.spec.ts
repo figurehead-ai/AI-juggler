@@ -136,7 +136,10 @@ test("every clickable control shows the hand — the update UI", async ({ page }
     "restart-ready": { ...base, state: "installed", available, progress: 100 },
   };
   for (const [name, status] of Object.entries(states)) {
-    await seed(page, allStatuses, { __AIJ_UPDATE_STATUS__: status });
+    await seed(page, allStatuses, {
+      __AIJ_UPDATE_STATUS__: status,
+      __AIJ_GOING_BACK__: [{ schema: 27, version: "0.0.7", kept_at_ms: T0 - 86_400_000 }],
+    });
     const prompt = name === "available" ? "update-notice" : name === "restart-ready" ? "update-ready" : null;
     if (prompt) {
       await expect(page.getByTestId(prompt)).toBeVisible();
@@ -145,6 +148,12 @@ test("every clickable control shows the hand — the update UI", async ({ page }
     await page.getByRole("navigation", { name: "Main" }).getByRole("button", { name: "Settings", exact: true }).click();
     await page.getByTestId("settings-updates").evaluate((card) => card.scrollIntoView({ block: "start" }));
     await expect(page.getByTestId("beta-label")).toBeVisible();
+    if (name === "available") {
+      // Go back to an earlier version: the disclosure, the choice, the confirm.
+      await page.getByText("Go back to an earlier version", { exact: true }).click();
+      await page.getByTestId("going-back-27").click();
+      await expect(page.getByTestId("going-back-confirm")).toBeVisible();
+    }
     await expectHands(page, `About & updates — ${name}`);
     const pointer = await page.evaluate(() => {
       const card = document.querySelector("[data-testid='settings-updates']")!;

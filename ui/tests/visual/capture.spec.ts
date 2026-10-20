@@ -5183,6 +5183,9 @@ const updateStates: Record<string, Record<string, unknown>> = {
   },
   "restart-ready": { ...updateBase, state: "installed", available: updateAvailable, progress: 100, backup_path: updateBackup },
   "up-to-date": { ...updateBase, state: "up_to_date" },
+  // Go back to an earlier version: the copy kept before the upgrade, the
+  // choice asked once, inline.
+  "going-back-confirm": { ...updateBase, state: "up_to_date" },
   development: { ...updateBase, configured: false, state: "idle" },
   // D-23: the editions installed next to AI Juggler.
   "nightly-edition": {
@@ -5215,11 +5218,12 @@ for (const theme of THEMES) {
   for (const [name, status] of Object.entries({ ...updateStates, ...updateHomeStates })) {
     test(`58 updates — ${name} — ${theme}`, async ({ page }) => {
       await page.addInitScript(
-        ({ fixture, t, t0, seeded, info }) => {
+        ({ fixture, t, t0, seeded, info, goingBack }) => {
           const w = window as unknown as Record<string, unknown>;
           w.__AIJ_FIXTURE__ = fixture;
           w.__AIJ_UPDATE_STATUS__ = seeded;
           if (info) w.__AIJ_APP_INFO__ = info;
+          if (goingBack) w.__AIJ_GOING_BACK__ = goingBack;
           localStorage.setItem("aij.theme", t);
           localStorage.setItem("aij.onboarding.dismissed", "1");
           sessionStorage.setItem("aij.ready.skipped", "1");
@@ -5230,6 +5234,7 @@ for (const theme of THEMES) {
           // decides: those captures have only ended sessions.
           fixture: name.endsWith("restart-ready") ? updateNothingLive : allStatuses,
           t: theme, t0: T0, seeded: status, info: editionAppInfo[name] ?? null,
+          goingBack: name.startsWith("going-back") ? [{ schema: 27, version: "0.0.7", kept_at_ms: T0 - 3 * 86_400_000 }] : null,
         },
       );
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
@@ -5243,6 +5248,11 @@ for (const theme of THEMES) {
         await page.getByRole("button", { name: "Settings" }).click();
         await expect(page.getByTestId("beta-label")).toBeVisible();
         await page.getByTestId("settings-updates").evaluate((card) => card.scrollIntoView({ block: "start" }));
+        if (name === "going-back-confirm") {
+          await page.getByText("Go back to an earlier version", { exact: true }).click();
+          await page.getByTestId("going-back-27").click();
+          await expect(page.getByTestId("going-back-confirm")).toBeVisible();
+        }
       }
       await page.screenshot({ path: resolve(GALLERY, `58-updates/${name}-1280x800-${theme}.png`) });
     });

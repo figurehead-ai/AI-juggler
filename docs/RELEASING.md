@@ -199,35 +199,49 @@ A release is never deleted to roll it back. Instead:
 
 ### How a user goes back to the previous version
 
-Every update writes a backup first:
-`~/Library/Application Support/AI Juggler/backups/before-update-<from>-to-<to>-<time>.ajbackup`
-(the Nightly app uses `AI Juggler Nightly`). Data from before the update is
-in it; accounts brought in after the update are not, and the folders they
-use are never touched.
+Two things make it possible:
 
-- **If the previous version opens the data** (the release added no
-  database change): download its `.dmg` from GitHub Releases and install
-  it over the newer one. Nothing else to do.
-- **If it doesn't** — the release added a database change, and its notes
-  carry a downgrade note:
-  - **Going back to a version that says so** (every version built after
-    the newer-data alert landed): when it opens it says "This data is from
-    a newer AI Juggler" and offers **Use the backup from \<date\>**. The
-    newer data is moved aside in the data folder
-    (`juggler.sqlite.from-newer-<time>`, never deleted), the backup is checked
-    and restored, and the app opens on it. Without a readable backup it says
-    what to do instead, with **Show the data folder**.
-  - **Going back to 0.0.7**, or any version that quits at once on newer
-    data without a message:
+- **A copy before every database upgrade** (from the release after 0.0.8):
+  before AI Juggler upgrades its database it keeps a copy beside it,
+  `juggler.sqlite.before-v<N>` (N: the schema it had), the two newest only.
+  If the copy can't be written, nothing is upgraded.
+- **A backup before every update** installed from inside the app:
+  `backups/before-update-<from>-to-<to>-<time>.ajbackup` in the data folder
+  (`~/Library/Application Support/AI Juggler`; the Nightly app uses `AI
+  Juggler Nightly`).
+
+Then:
+
+- **If the previous version opens the data** (no database change between
+  the two): install its `.dmg` from GitHub Releases over the newer one.
+- **If it doesn't** (the release notes carry a downgrade note):
+  - **In the newer version**: Settings › About & updates › **Go back to an
+    earlier version** › **Prepare to go back to \<version\>**. It says what
+    is lost (what changed since the update), puts the copy from before the
+    upgrade in place, keeps the data as it is now beside it
+    (`juggler.sqlite.from-v<N>-<time>`), and quits. Install the earlier
+    version and open it. It waits while a switch, a bring-in or a session
+    would be cut short.
+  - **In the older version**, if it has the newer-data alert (built after
+    this change): when it opens on newer data it says "This data is from a
+    newer AI Juggler" and offers **Use the data from \<date\>** (the copy) or
+    **Use the backup from \<date\>**. The newer data is moved aside
+    (`juggler.sqlite.from-newer-<time>`, never deleted) and the app opens on
+    the copy or the restored backup.
+  - **Going back to 0.0.7** (neither exists there; 0.0.7 quits at once on
+    newer data, without a message):
     1. Quit AI Juggler.
     2. In `~/Library/Application Support/AI Juggler`, rename `juggler.sqlite`
        to `juggler.sqlite.from-0.0.8` (and `juggler.sqlite-wal` /
        `juggler.sqlite-shm` the same way, if they are there).
     3. Install 0.0.7 from its `.dmg` and open it. If the welcome screen
        shows, close it.
-    4. Settings › Data: backup & retention › **Restore from a backup…**, pick
-       the `before-update-0.0.7-to-0.0.8-….ajbackup` in the `backups` folder
-       (⌘⇧G and paste the folder path), then **Restore** and restart.
+    4. If there is a `before-update-0.0.7-to-0.0.8-….ajbackup` in the
+       `backups` folder (it was updated from inside the app): Settings ›
+       Data: backup & retention › **Restore from a backup…**, pick it (⌘⇧G
+       and paste the folder path), then **Restore** and restart. Without
+       one, 0.0.7 starts empty: bring the Claude setups in again (they
+       were never changed).
 
    To return to the newer version later, quit, put the renamed
    `juggler.sqlite` back, and install the newer version again.
@@ -246,21 +260,31 @@ the first from its `.dmg`, and go back as above.
 ## Database changes between versions
 
 Migrations only go forward, and an older build refuses data a newer one
-saved (it never risks it). So a release that adds a migration ships a
-**downgrade note** under Known issues: which previous version can't open
-the data, and the way back above. Releases with no migration say nothing.
-Check before writing the notes:
+saved (it never risks it). So:
 
-```bash
-git diff vPREVIOUS..HEAD --stat -- crates/juggler-core/src/storage/mod.rs
-```
+- **Every release whose database schema is newer than the version users
+  come from ships a downgrade note** in `docs/releases/X.Y.Z.md`: a bullet
+  under `## Known issues` that starts with "Going back to" and says how.
+  `scripts/release_notes_check.sh` enforces it (`scripts/downgrade_note.py`
+  counts the migrations at the release and at the version users come
+  from): nightly builds compare with the previous nightly, and their
+  generated notes add the line by themselves; **Promote** compares with the
+  version the channel serves now. A release can't skip it.
+- Storage keeps a copy of the database before every upgrade
+  (`juggler.sqlite.before-v<N>`, the two newest), which is what "Go back to
+  an earlier version" puts back.
+- When a release changes the schema, add it to the table below and to
+  `SCHEMA_RELEASES` in `crates/juggler-app/src/newer_data.rs` (it names the
+  version in "Prepare to go back to …").
 
 | Version | Schema | Opens the previous version's data | The previous version opens its data |
 |---|---|---|---|
 | 0.0.7 | 27 | yes | — |
 | 0.0.8 | 28 (accounts used in place) | yes | **no** — downgrade note in 0.0.8's notes |
 
-The backup written before each update is the way back
-(`cargo test -p juggler-app --test newer_data` is the migration fixture: a
-newer schema is refused, the backup is offered and restored, and a failed
-restore leaves the newer data as it was).
+Tests: `cargo test -p juggler-core --test pre_migration_copy` (the copy
+holds exactly the rows the database had, two are kept, a fresh database
+makes none, no copy means no upgrade) and `cargo test -p juggler-app
+--test newer_data` (a newer schema is refused and the copy or backup
+offered and restored; the newer build prepares going back; a failed
+attempt leaves the data as it was).

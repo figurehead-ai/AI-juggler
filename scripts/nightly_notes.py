@@ -30,7 +30,14 @@ def clean(text: str) -> str:
     return text[:1].upper() + text[1:] if text else text
 
 
-def notes(subjects: list[str], date: str) -> str:
+DOWNGRADE = (
+    "- **Going back to an earlier nightly** after this one: this build upgrades AI Juggler "
+    "Nightly's data, which earlier builds can't open. Settings › About & updates › Go back to "
+    "an earlier version puts the data from before the upgrade back."
+)
+
+
+def notes(subjects: list[str], date: str, schema_changed: bool = False) -> str:
     grouped: dict[str, list[str]] = {heading: [] for heading in SECTIONS.values()}
     for subject in subjects:
         match = SUBJECT.match(subject.strip())
@@ -46,6 +53,8 @@ def notes(subjects: list[str], date: str) -> str:
     for heading in ("## New", "## Improved", "## Fixed"):
         if grouped[heading]:
             out += ["", heading, *grouped[heading]]
+    if schema_changed:
+        out += ["", "## Known issues", DOWNGRADE]
     return "\n".join(out) + "\n"
 
 
@@ -69,6 +78,9 @@ def selftest() -> int:
     assert "maintainer rulings" not in text and "dependency" not in text, text
     assert text.index("## New") < text.index("## Improved") < text.index("## Fixed")
     assert "No user-facing changes" in notes(["docs: x (#1)"], "2026-10-20")
+    changed = notes(["feat: x (#1)"], "2026-10-20", schema_changed=True)
+    assert changed.rstrip().endswith(DOWNGRADE) and "## Known issues" in changed, changed
+    assert "## Known issues" not in notes(["feat: x (#1)"], "2026-10-20")
     print("nightly-notes selftest: OK")
     return 0
 
@@ -90,7 +102,12 @@ def main() -> int:
     ).stdout.strip()
     target = ROOT / "docs/releases" / f"{version}.md"
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(notes(log, date))
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from downgrade_note import schema_at  # noqa: E402
+
+    before, now = (schema_at(start), schema_at(end)) if start else (None, None)
+    changed = before is not None and now is not None and now > before
+    target.write_text(notes(log, date, schema_changed=changed))
     print(target.relative_to(ROOT))
     return 0
 
