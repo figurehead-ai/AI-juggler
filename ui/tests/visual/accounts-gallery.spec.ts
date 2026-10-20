@@ -128,8 +128,10 @@ for (const theme of ["dark", "light"] as const) {
   });
 }
 
-// AJ-E1301: a Codex home found beside the Claude profiles gets its own
-// group (and the "Codex isn't installed" note while the CLI is missing).
+// AJ-E1301: first run on a fresh install lists every tool's setups — a
+// Codex home gets its own group beside the Claude ones (and the "Codex
+// isn't installed" note while the CLI is missing). Adding an account for
+// one tool lists only that tool (#72).
 const FOUND_WITH_CODEX = {
   ...FOUND,
   installs: [
@@ -146,20 +148,25 @@ const FOUND_WITH_CODEX = {
 };
 
 for (const theme of ["dark", "light"] as const) {
-  test(`add accounts — Codex found too — ${theme}`, async ({ page }) => {
-    await page.addInitScript((scan) => {
-      (window as unknown as Record<string, unknown>).__AIJ_SCAN_REPORT__ = scan;
-    }, FOUND_WITH_CODEX);
-    await seed(page, allStatuses, theme);
-    await goTo(page, "Accounts");
-    await page.getByTestId("add-account").click();
-    const dialog = page.getByRole("dialog", { name: "Add accounts" });
-    await expect(dialog.getByTestId("first-run-group-codex")).toBeVisible();
-    await expect(dialog.getByTestId("first-run-no-codex")).toBeVisible();
-    await expect(dialog.getByTestId("first-run-bring-in")).toHaveText("Bring in 3 accounts");
-    await page.screenshot({ path: resolve(OUT, `add-accounts-codex-1280x800-${theme}.png`) });
-    await axeClean(page, "add accounts with Codex");
-    await page.keyboard.press("Escape");
-    await expect(dialog).toHaveCount(0);
+  test(`first run — Claude and Codex found — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ scan, theme, t0 }) => {
+        const w = window as unknown as Record<string, unknown>;
+        w.__AIJ_FIXTURE__ = { accounts: [], profiles: [], sessions: [], projects: [] };
+        w.__AIJ_SCAN_REPORT__ = scan;
+        localStorage.setItem("aij.theme", theme);
+        Date.now = () => t0;
+      },
+      { scan: FOUND_WITH_CODEX, theme, t0: T0 },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    const found = page.getByTestId("first-run-found");
+    await expect(found.getByTestId("first-run-group-codex")).toBeVisible();
+    await expect(found.getByTestId("first-run-no-codex")).toBeVisible();
+    await expect(found.getByTestId("first-run-bring-in")).toHaveText("Bring in 3 accounts");
+    await page.screenshot({ path: resolve(OUT, `first-run-codex-1280x800-${theme}.png`) });
+    await axeClean(page, "first run with Codex");
   });
 }
