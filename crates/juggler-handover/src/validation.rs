@@ -8,9 +8,10 @@
 //!    OUR mechanism; they NEVER promote a fidelity badge (the
 //!    handover rule: stub/fake results never validate a pair).
 //! 2. **`ci_green`** — both sides' REAL adapters have green fixture
-//!    rows (version-tagged corpus). Today that is `claude-code` only;
-//!    Codex/ZCode rows record `ci_green: false` — unproven, never
-//!    silently skipped.
+//!    rows (version-tagged corpus). Today that is `claude-code` and
+//!    `codex` (AJ-E1304: synthetic 0.163.0 rollouts through the real
+//!    adapter and the app's switch); `ZCode` rows record
+//!    `ci_green: false` — unproven, never silently skipped.
 //! 3. **`dogfood`** — one live cell on real binaries, recorded by a
 //!    human (before/after sha256 + continuity verdict). A FAILING
 //!    cell lowers the advertised ceiling one level until fixed
@@ -195,6 +196,9 @@ impl PairCell {
     }
 }
 
+/// Providers whose real adapters carry green fixture rows in CI.
+const REAL_ADAPTERS: [&str; 2] = ["claude-code", "codex"];
+
 /// The researched matrix (pass2/02 §10 pairs). `mechanism_green` and
 /// `ci_green` are release facts asserted by the
 /// `validation_matrix` test — this table and that test move together.
@@ -207,7 +211,7 @@ pub fn validation_matrix() -> Vec<PairCell> {
         researched_ceiling: ceiling,
         mechanism: PairMechanism::Transplant,
         mechanism_green: true, // fake-shape fixtures run for every row (the matrix test)
-        ci_green: from == "claude-code" && to == "claude-code",
+        ci_green: REAL_ADAPTERS.contains(&from) && REAL_ADAPTERS.contains(&to),
         dogfood: None, // live cells are RECORDED, never asserted here
         notes,
     };
@@ -221,7 +225,7 @@ pub fn validation_matrix() -> Vec<PairCell> {
         "codex",
         "codex",
         FidelityLabel::F1,
-        vec!["codex adapter not landed — mechanism fixtures only".to_owned()],
+        vec!["transplant proven on synthetic 0.163.0 rollouts only (AJ-E1304); resuming a copied paginated rollout is unproven until a live cell".to_owned()],
     ));
     rows.push(same(
         "zcode",
@@ -236,13 +240,13 @@ pub fn validation_matrix() -> Vec<PairCell> {
             "claude-code",
             "codex",
             FidelityLabel::F1,
-            "codex target adapter not landed",
+            "replay into a primed Codex session, proven against stub binaries (AJ-E1304)",
         ),
         (
             "codex",
             "claude-code",
             FidelityLabel::F1,
-            "codex source adapter not landed",
+            "replay of a Codex rollout, proven against stub binaries (AJ-E1304)",
         ),
         (
             "claude-code",
@@ -260,13 +264,13 @@ pub fn validation_matrix() -> Vec<PairCell> {
             "codex",
             "zcode",
             FidelityLabel::F0,
-            "both adapters not landed; zcode target prime F0",
+            "zcode adapter not landed; zcode target prime F0",
         ),
         (
             "zcode",
             "codex",
             FidelityLabel::F1,
-            "both adapters not landed",
+            "zcode adapter not landed",
         ),
     ] {
         rows.push(PairCell {
@@ -275,7 +279,7 @@ pub fn validation_matrix() -> Vec<PairCell> {
             researched_ceiling: ceiling,
             mechanism: PairMechanism::Replay,
             mechanism_green: true,
-            ci_green: false,
+            ci_green: REAL_ADAPTERS.contains(&from) && REAL_ADAPTERS.contains(&to),
             dogfood: None,
             notes: vec![note.to_owned()],
         });
@@ -461,7 +465,10 @@ mod tests {
         );
 
         let codex = with_dogfood(pair_cell("codex", "codex").unwrap(), passing_cell());
-        assert!(!codex.validated(), "fake-only rows never validate");
+        assert!(
+            !codex.validated(),
+            "no pair validates while its register cells are unvalidated"
+        );
         assert_eq!(codex.badge(), "F1 · Beta");
         assert!(
             codex.status_words().contains("stays Beta"),

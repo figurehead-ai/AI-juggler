@@ -55,24 +55,25 @@ ZCode follows the same five steps later (its own epic).
 **Research basis**: research/codex.md §2–§3 and §10; codex-rs `utils/home-dir/src/lib.rs`, `login/src/auth/storage.rs`, `tui/src/daemon_startup.rs` at `rust-v0.163.0`.
 **Handover note**: Trap — `OPENAI_API_KEY` being set does not mean an API-key account. Trap — `codex --version` prints the name first; Claude's parser takes the first token. Never run the real binary against `~/.codex`; use a scratch `CODEX_HOME`.
 
-### AJ-E1302 Find and bring in existing Codex setups | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1301, AJ-E307
+### AJ-E1302 Find and bring in existing Codex setups | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E1301, AJ-E307
 **Goal**: First run finds the user's existing Codex homes and brings each in as a copy, the original untouched.
 **User story**: As a Codex user with `~/.codex` and a `~/.codex-work` I made by hand, I see both in First run and bring them in with one click each; my originals keep working exactly as before.
 **Requirements**:
 1. `scan_environment` SHALL report `~/.codex`, `$CODEX_HOME`, `~/.codex*` home patterns and `CODEX_HOME=` shell-rc targets that look like a Codex home (`config.toml`, `auth.json`, `sessions/`, `history.jsonl`, `version.json`), metadata only (sizes, times, the AJ-E1301 sign-in probe).
 2. `inspect_source`, `import_account` and `import_account_degraded` SHALL copy byte for byte into a fresh managed home, skipping rebuildable state (`.tmp/`, `tmp/`, `log/`, SQLite `*.sqlite*`, `app-server-*`, `packages/`) and, for the settings-only import, the history (`sessions/`, `archived_sessions/`, `history.jsonl`, `session_index.jsonl`); every skip is listed with its size.
 3. The source SHALL be byte-identical before and after (fs-fixture test hashing every file) and SHALL never receive the managed marker.
-4. When the sign-in carries over, the import SHALL say plainly that the copy and the original now share one sign-in and that signing in again inside AI Juggler gives the copy its own; a Keychain-stored sign-in (no `auth.json`) SHALL say it does not carry over.
+4. The sign-in (`auth.json`) SHALL NOT be copied: a ChatGPT refresh token is single-use (codex-rs `login/src/auth/manager.rs:207`, `:1688`, `:1604-1618`), so two homes sharing one would sign each other out. The skip SHALL be listed with its reason and the import note SHALL say the copy signs in once. (A copy-on-explicit-opt-in with a "one of the two will be signed out" warning is a possible follow-up, not built.)
+5. Links inside the source SHALL follow the shared rule (#73): a linked folder kept as a link (never followed or copied through), a linked file copied by content, a broken link left out with a note — and a linked `auth.json` is still kept back. Codex's skip names SHALL apply to the home's top level only.
 **UI/UX reasoning**: Nielsen #1 (visibility): the Confirm-source step shows sizes and what stays behind; Nielsen #3 (user control): copy, never adopt in place.
 **Performance budget**: Scan of a home with 10k session files ≤ 2 s (bounded walk); copy ≥ 100 MB/s locally.
 **Quality gates**: as AJ-E1301 (Rust only unless UI copy changes).
 **Evidence/validation proof**: `cargo test -p juggler-adapters --test codex_environment` (fixture homes, source hash before/after) and an app-level import test; `docs/qa/evidence/AJ-E1302/manifest.md`.
 **Visual testing**: none unless copy changes (the existing import screens are Provider-neutral).
 **Files to touch**: new `crates/juggler-adapters/src/codex_environment.rs`, `codex.rs`, tests and fixtures under `crates/juggler-adapters/tests/fixtures/codex/`.
-**Research basis**: research/codex.md §3 (Codex docs sanction copying `auth.json` to another machine), §10 (home contents); `claude_environment.rs` as the pattern.
-**Handover note**: Trap — the SQLite state is a projection Codex rebuilds from the rollouts; copying a live database can copy a torn WAL. Skip it.
+**Research basis**: research/codex.md §3, §10 (home contents, single-use refresh tokens); `claude_environment.rs` as the pattern.
+**Handover note**: Trap — Codex's `state_5.sqlite` stores ABSOLUTE rollout paths: a copied index would point the new account at the original's session files, and a resume would write into the original. It is a projection Codex rebuilds from `sessions/` (filename scan + read-repair), so every `*.sqlite*` stays behind — memories and queued messages kept in SQLite do not travel (listed in the skips). The copy machinery is shared with Claude through `claude_environment::Layout`.
 
-### AJ-E1303 Watch Codex sessions: rollout parser, linking, identity | Status: TODO | Priority P0 | Effort L | Depends: AJ-E1301
+### AJ-E1303 Watch Codex sessions: rollout parser, linking, identity | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E1301
 **Goal**: The app sees Codex sessions appear and grow, reads their conversation into the neutral parsed form every feature uses, and knows which account a home is signed in as.
 **User story**: As a user running Codex, the session shows its conversation, model and tokens like a Claude session does, and a switch can find its file.
 **Requirements**:
@@ -89,9 +90,9 @@ ZCode follows the same five steps later (its own epic).
 **Visual testing**: none (data only); the existing session view captures cover rendering.
 **Files to touch**: new `crates/juggler-adapters/src/codex_transcript.rs`, `codex.rs`, `crates/juggler-app/src/{commands,crossmachine}.rs`, `crossmachine/switch_back.rs`.
 **Research basis**: research/codex.md §4, §10 (rollout schema, paginated mode since 0.158); codex-rs `rollout/src/policy.rs`, `protocol/src/protocol.rs`.
-**Handover note**: Trap — paginated rollouts no longer write `event_msg` `user_message`/`agent_message`; read `response_item`. Trap — the `id_token` is a credential: never decode it for an email.
+**Handover note**: Trap — paginated rollouts no longer write `event_msg` `user_message`/`agent_message`; read `response_item`. Trap — the `id_token` is a credential: never decode it for an email. Found while building it: no Provider linked a session the app launched to its transcript (Claude included — tests pinned it by hand, "the watcher's job in production", but no production code calls `watcher()`); `HarnessAdapter::locate_transcript` + the lazy link in `handover_source` now do it for both. `parse_any` recognises the format from the bytes, so sites that hold only a file (switch-back, cross-machine) need no Provider.
 
-### AJ-E1304 Switch with Codex (beta): transplant and cross-Provider replay | Status: TODO | Priority P0 | Effort L | Depends: AJ-E1303, AJ-E204, AJ-E205
+### AJ-E1304 Switch with Codex (beta): transplant and cross-Provider replay | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E1303, AJ-E204, AJ-E205
 **Goal**: A session moves Codex→Codex by copying its rollout into the target home, and Claude↔Codex by replaying its conversation into a primed session — every one labelled beta.
 **User story**: As a user whose Plus account hit its limit, I switch the session to my Pro account and carry on; from Claude Code I can continue the same work in Codex, knowing it is a beta replay, not the same conversation.
 **Requirements**:
@@ -107,7 +108,7 @@ ZCode follows the same five steps later (its own epic).
 **Visual testing**: none unless copy changes.
 **Files to touch**: new `crates/juggler-adapters/src/codex_handover.rs`, `crates/juggler-app/src/{state,commands}.rs`, `crossmachine.rs`, `crossmachine/switch_back.rs`.
 **Research basis**: research/codex.md §10 (lookup scans `sessions/` and read-repairs its DB); deep/09 §H1–§H4 (transplant rules).
-**Handover note**: Trap — `switch_execute_core` used the TARGET's support on the SOURCE file and always said Transplant; a Claude→Codex switch must never hand a Claude file to Codex.
+**Handover note**: Trap — `switch_execute_core` used the TARGET's support on the SOURCE file and always said Transplant; a Claude→Codex switch must never hand a Claude file to Codex. Now a cross-Provider switch takes the replay branch (`switch_replay`): the source is read in its own format through the preview's segments, redacted under the user's policy for the target Provider — unset, or "Ask each time" with no answer, BLOCKS (the conversation leaves the Provider) — bounded to 60k characters with the dropped-turn count stated, primed through the target's `prime_prompt`, and launched in the source's folder; the edge is recorded as Replay with the source hash as a `replay` manifest row. The E210 matrix now marks Codex pairs `ci_green` (real-adapter fixtures); badges stay Beta until a live cell and the register agree.
 
 ### AJ-E1305 Live validation on real accounts and the docs | Status: TODO | Priority P1 | Effort M | Depends: AJ-E1304, AJ-E808
 **Goal**: The Codex claims are checked on real binaries with sacrificial projects, and the docs say what is verified.

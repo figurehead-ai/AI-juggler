@@ -92,7 +92,7 @@ describe("AJ-E210 BetaMatrix — the disclosure table", () => {
       expect(container.querySelector('[data-testid="beta-matrix-summary"]')).not.toBeNull(),
     );
     expect(container.querySelector('[data-testid="beta-matrix-summary"]')!.textContent).toContain(
-      "All 3 provider pairs ship in beta",
+      "All 3 tool pairs ship in beta",
     );
     // The failed cell's disclosure: advertised F0, researched F1,
     // the reason visible.
@@ -142,7 +142,7 @@ describe("AJ-E210 BetaMatrix — the disclosure table", () => {
       expect(container.querySelectorAll('[data-testid="beta-matrix-row"]').length).toBe(11),
     );
     expect(container.querySelector('[data-testid="beta-matrix-summary"]')!.textContent).toContain(
-      "All 11 provider pairs ship in beta",
+      "All 11 tool pairs ship in beta",
     );
     expect(container.textContent).not.toMatch(/lossless/i);
     expect(container.textContent).toContain("real row green");

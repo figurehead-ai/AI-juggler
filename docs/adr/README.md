@@ -9,7 +9,7 @@ ADRs capture the *why* behind non-obvious decisions: context, decision, alternat
 | [0003](./0003-automation-policy-compliance-guardrails.md) | Automation policy & compliance guardrails | Accepted |
 | [0004](./0004-fleet-transport-grpc-mtls.md) | Fleet transport: gRPC over mTLS + mDNS pairing | Accepted |
 | [0005](./0005-mit-license.md) | License: MIT | Accepted |
-| [0006 — Smart onboarding: environment scan and config import](0006-smart-onboarding-scan-and-import.md) | Accepted |
+| [0006 — Smart onboarding: environment scan and config import](0006-smart-onboarding-scan-and-import.md) | Accepted (§2 as the only mode superseded by 0018) |
 | [0007 — Instance-centric information architecture](0007-instance-centric-information-architecture.md) | Accepted |
 | [0008](./0008-terminology-charter.md) | Terminology charter: Providers/Accounts/Instances; Profile demoted | Accepted |
 | [0009](./0009-portable-context-pack-v2.md) | Portable context pack v2; user-owned redaction policy | Accepted |
@@ -21,5 +21,6 @@ ADRs capture the *why* behind non-obvious decisions: context, decision, alternat
 | [0015](./0015-usage-statistics.md) | Opt-in usage statistics: on-device counters, weekly identifier-free reports, a closed schema | Accepted |
 | [0016](./0016-backup-archive-format.md) | Backup archive format v1: allowlisted, scrubbed, verified before restore | Accepted |
 | [0017](./0017-encrypted-cloud-backup-container.md) | Encrypted Cloud backup container (FHB1): vault key, recovery code, XChaCha20-Poly1305 | Accepted |
+| [0018](./0018-use-setups-where-they-are.md) | Use setups where they are (in-place accounts); partial bring-in is the user's call | Accepted |
 
 To add one: copy `0000-template.md`, number sequentially, PR it with the change that implements the decision.

@@ -23,6 +23,7 @@
 
 use std::path::{Path, PathBuf};
 
+use juggler_adapter::environment::{DiscoveredInstall, ImportOutcome, LoginProbe};
 use juggler_adapter::{
     AdapterError, Capabilities, DiscoveryReport, EnvMap, HarnessAdapter, InstallStatus, LaunchMode,
     LaunchSpec, SessionWatcher, VerificationStatus,
@@ -30,7 +31,7 @@ use juggler_adapter::{
 use juggler_core::model::{Account, HarnessId, Profile};
 
 use crate::claude_code::{
-    LoginState, existing, find_on_path, home_relative, prepare_managed_dir_for,
+    LoginState, existing, find_on_path, home_dir, home_relative, prepare_managed_dir_for,
 };
 
 /// Provider id: `codex`.
@@ -53,6 +54,16 @@ const ENV_BIN_OVERRIDE: &str = "AI_JUGGLER_CODEX_BIN";
 /// Variables that would sign a launch in as someone else (an API key
 /// bills that key, whatever the account signed in as).
 const INHERITED_KEYS: &[&str] = &["CODEX_API_KEY", "OPENAI_API_KEY"];
+
+/// Sets every [`INHERITED_KEYS`] entry to the env-unset marker.
+fn unset_inherited_keys(env: &mut EnvMap) {
+    for key in INHERITED_KEYS {
+        env.insert(
+            (*key).to_owned(),
+            juggler_adapter::launch::ENV_UNSET.to_owned(),
+        );
+    }
+}
 
 /// Keeps the TUI off the background app-server (see module docs).
 const NO_DAEMON: &str = "--no-daemon";
@@ -151,10 +162,13 @@ impl CodexAdapter {
     /// [`AdapterError::InvalidLaunch`] when no codex binary resolves.
     pub fn login_spec_inherent(&self, state_dir: &Path) -> Result<LaunchSpec, AdapterError> {
         let bin = self.require_bin()?;
+        let mut env = home_env(state_dir);
+        // The vendor sign-in signs THIS account in, never a key's owner.
+        unset_inherited_keys(&mut env);
         Ok(LaunchSpec {
             program: bin,
             args: vec!["login".into()],
-            env: home_env(state_dir),
+            env,
             cwd: state_dir.to_path_buf(),
             needs_pty: true,
         })
@@ -377,6 +391,95 @@ pub fn keychain_account(state_dir: &Path) -> Option<String> {
     Some(format!("cli|{hex}"))
 }
 
+/// The vendor session id of a rollout file: the thread UUID in its name
+/// (falls back to the stem for anything unexpected).
+fn rollout_native_id(path: &Path) -> String {
+    path.file_name()
+        .and_then(|name| crate::codex_transcript::thread_id_from_name(&name.to_string_lossy()))
+        .unwrap_or_else(|| crate::claude_code::file_stem(path))
+}
+
+/// See [`CodexAdapter::probe_identity`]: field names and the account id
+/// only; API-key and Keychain sign-ins cannot be told apart and say so.
+#[must_use]
+pub fn probe_codex_identity(state_dir: &Path) -> juggler_adapter::IdentityProbe {
+    use juggler_adapter::IdentityProbe;
+    match codex_login_state(state_dir) {
+        LoginState::SignedIn => {}
+        LoginState::ApiKey => {
+            return IdentityProbe::Unverifiable {
+                reason: "API-key sign-ins carry no account id".into(),
+            };
+        }
+        LoginState::Unknown => {
+            return IdentityProbe::Unverifiable {
+                reason: "Codex's sign-in file couldn't be read".into(),
+            };
+        }
+        LoginState::Partial
+        | LoginState::Expired
+        | LoginState::SsoPending
+        | LoginState::LoggedOut => {
+            return IdentityProbe::SignedOut;
+        }
+    }
+    // Streamed into a shape that keeps ONLY `tokens.account_id` (an id,
+    // not a credential); every token value is skipped (ADR-0003).
+    let account_id = std::fs::File::open(state_dir.join("auth.json"))
+        .ok()
+        .and_then(|file| serde_json::from_reader::<_, IdShape>(std::io::BufReader::new(file)).ok())
+        .and_then(|shape| shape.tokens?.account_id)
+        .filter(|id| !id.is_empty());
+    match account_id {
+        Some(subject) => {
+            let tail: String = subject
+                .chars()
+                .rev()
+                .take(4)
+                .collect::<Vec<_>>()
+                .into_iter()
+                .rev()
+                .collect();
+            IdentityProbe::SignedIn {
+                label: format!("ChatGPT account …{tail}"),
+                subject,
+            }
+        }
+        // Signed in through the Keychain, or a file without the id.
+        None => IdentityProbe::Unverifiable {
+            reason: "this Codex sign-in records no account id Juggler can read".into(),
+        },
+    }
+}
+
+/// The part of `auth.json` the identity probe keeps: the account id.
+#[derive(Default, serde::Deserialize)]
+#[serde(default)]
+struct IdShape {
+    tokens: Option<IdTokens>,
+}
+
+/// `tokens.account_id` only — the token values are skipped.
+#[derive(Default, serde::Deserialize)]
+#[serde(default)]
+struct IdTokens {
+    account_id: Option<String>,
+}
+
+/// The scan-side sign-in axis stays binary (the inference vocabulary);
+/// the account wire carries the full taxonomy (AJ-E308), as for Claude.
+fn scan_probe(path: &Path) -> LoginProbe {
+    match codex_login_state(path) {
+        LoginState::SignedIn => LoginProbe::LoggedIn,
+        LoginState::Partial
+        | LoginState::Expired
+        | LoginState::SsoPending
+        | LoginState::ApiKey
+        | LoginState::LoggedOut
+        | LoginState::Unknown => LoginProbe::LoggedOut,
+    }
+}
+
 /// The isolation overlay: the home, and the SQLite home pinned inside it
 /// so an inherited `CODEX_SQLITE_HOME` can never join two accounts.
 fn home_env(state_dir: &Path) -> EnvMap {
@@ -393,7 +496,11 @@ impl HarnessAdapter for CodexAdapter {
     }
 
     fn capabilities(&self) -> Capabilities {
-        Capabilities::HEADLESS | Capabilities::RESUME | Capabilities::FORK
+        Capabilities::HEADLESS
+            | Capabilities::RESUME
+            | Capabilities::FORK
+            | Capabilities::TRANSCRIPT_WATCH
+            | Capabilities::USAGE_TOKENS
     }
 
     fn verified_against(&self) -> &'static [&'static str] {
@@ -471,14 +578,10 @@ impl HarnessAdapter for CodexAdapter {
         let mut env: EnvMap = profile.settings_overlay.env.clone();
         env.extend(home_env(&account.state_dir));
         // An API key in the environment would bill every managed account
-        // to that key, whatever it signed in as. None may come from Launch
-        // settings. One inherited from the app's own environment is still
-        // passed on by the supervisor until the env-unset marker
-        // (`juggler_adapter::launch::ENV_UNSET`) lands; then these become
-        // explicit unsets.
-        for key in INHERITED_KEYS {
-            env.remove(*key);
-        }
+        // to that key, whatever it signed in as: unset for the launch —
+        // from Launch settings and from what the app itself inherited
+        // (the supervisor removes a variable set to `ENV_UNSET`).
+        unset_inherited_keys(&mut env);
         if let LaunchMode::Resume { session_id, .. } = mode {
             refuse_option_like(session_id)?;
         }
@@ -531,19 +634,92 @@ impl HarnessAdapter for CodexAdapter {
         codex_login_state(state_dir)
     }
 
+    /// AJ-E1303: watches `<home>/sessions`; the native id is the thread
+    /// UUID `codex resume` takes (from the rollout's name).
     fn watcher(&self, transcript_root: &Path) -> Result<Box<dyn SessionWatcher>, AdapterError> {
-        let _ = transcript_root;
-        Err(AdapterError::Unsupported(
-            "Codex session watching arrives with AJ-E1303".into(),
-        ))
+        crate::claude_code::ClaudeTranscriptWatcher::with_ids(transcript_root, rollout_native_id)
+            .map(|watcher| Box::new(watcher) as Box<dyn SessionWatcher>)
+    }
+
+    /// AJ-E1303: the rollout under `sessions/YYYY/MM/DD/` whose
+    /// `session_meta` cwd is `cwd`, created at or after `since_ms`.
+    fn locate_transcript(
+        &self,
+        state_dir: &Path,
+        cwd: &Path,
+        since_ms: i64,
+        taken: &[PathBuf],
+    ) -> Option<juggler_core::model::TranscriptRef> {
+        let mut files = Vec::new();
+        crate::claude_code::collect_jsonl(&state_dir.join("sessions"), &mut files, 0);
+        files.retain(|path| {
+            path.file_name()
+                .is_some_and(|name| name.to_string_lossy().starts_with("rollout-"))
+        });
+        crate::claude_code::only_since(files, since_ms, taken, |bytes| {
+            crate::codex_transcript::rollout_cwd(bytes)
+                .is_some_and(|found| crate::claude_code::same_folder(&found, cwd))
+        })
+        .map(|path| juggler_core::model::TranscriptRef {
+            native_id: Some(rollout_native_id(&path)),
+            path,
+        })
+    }
+
+    /// AJ-E1303: the `tokens.account_id` field of `auth.json` is the
+    /// subject; the label is that id masked. No token is decoded — the
+    /// email and plan exist only inside the `id_token`, a credential.
+    fn probe_identity(&self, account: &Account) -> juggler_adapter::IdentityProbe {
+        probe_codex_identity(&account.state_dir)
     }
 
     fn login_spec(&self, state_dir: &Path) -> Result<LaunchSpec, AdapterError> {
         self.login_spec_inherent(state_dir)
     }
 
+    /// AJ-E1302: `~/.codex`, `$CODEX_HOME` and `~/.codex*` homes —
+    /// metadata only (the sign-in probe reads field names, never values).
+    fn scan_environment(&self) -> Vec<DiscoveredInstall> {
+        let Some(home) = self.home.clone().or_else(home_dir) else {
+            return Vec::new();
+        };
+        let env_override = std::env::var_os(ENV_CODEX_HOME)
+            .filter(|value| !value.is_empty())
+            .map(PathBuf::from);
+        crate::codex_environment::scan_codex_environment(
+            &home,
+            env_override.as_deref(),
+            &scan_probe,
+        )
+    }
+
+    fn import_account(&self, source: &Path, dest: &Path) -> Result<ImportOutcome, AdapterError> {
+        crate::codex_environment::import_codex_home(source, dest, &scan_probe)
+    }
+
+    fn inspect_source(
+        &self,
+        source: &Path,
+    ) -> Result<juggler_adapter::environment::SourceInspect, AdapterError> {
+        crate::codex_environment::inspect_codex_source(source, &scan_probe)
+    }
+
+    fn import_account_degraded(
+        &self,
+        source: &Path,
+        dest: &Path,
+    ) -> Result<ImportOutcome, AdapterError> {
+        crate::codex_environment::import_codex_settings_only(source, dest, &scan_probe)
+    }
+
     fn isolation_env_keys(&self) -> &'static [&'static str] {
         &[ENV_CODEX_HOME, ENV_SQLITE_HOME, ENV_BIN_OVERRIDE]
+    }
+
+    /// `CODEX_API_KEY` / `OPENAI_API_KEY`: unset for every launch and in
+    /// the copyable snippet (an inherited key would bill every account).
+    fn launch_unset_keys(&self) -> &'static [&'static str] {
+        INHERITED_KEYS
     }
 
     /// Both the home and the SQLite home point at the Account's folder —

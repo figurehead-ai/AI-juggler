@@ -222,8 +222,8 @@ function renewalFixtureInDays(days: number): string {
 }
 
 const MOCK_ACCOUNTS: AccountInfo[] = [
-  { id: "claude-work", provider: "claude-code", label: "Work Max", plan: Some("max-20x"), login_state: "logged_in", cleanup_opt_in: false, renewal_date: Some(renewalFixtureInDays(6)), preview_opt_in: false },
-  { id: "claude-personal", provider: "claude-code", label: "Personal", plan: None(), login_state: "logged_out", cleanup_opt_in: false, renewal_date: None(), preview_opt_in: false },
+  { id: "claude-work", provider: "claude-code", label: "Work Max", plan: Some("max-20x"), login_state: "logged_in", cleanup_opt_in: false, renewal_date: Some(renewalFixtureInDays(6)), preview_opt_in: false, in_place: false },
+  { id: "claude-personal", provider: "claude-code", label: "Personal", plan: None(), login_state: "logged_out", cleanup_opt_in: false, renewal_date: None(), preview_opt_in: false, in_place: false },
 ];
 
 const MOCK_PROFILES: LaunchRecipeInfo[] = [
@@ -478,6 +478,21 @@ export async function providersList(): Promise<ProviderInfo[]> {
 /** @deprecated legacy alias (AJ-E107) — use providersList. */
 export const harnessesList = providersList;
 
+/** ADR-0018: a copied account switches to its original folder, used
+ * where it is; the copy stays on disk. Mock: the account, in place. */
+export async function accountUseOriginal(accountId: string): Promise<AccountInfo> {
+  if (!hasBackend) {
+    const fail = (window as unknown as { __AIJ_USE_ORIGINAL_FAIL__?: string }).__AIJ_USE_ORIGINAL_FAIL__;
+    if (fail) throw { code: "validation", retryable: false, user_message: fail };
+    const accounts = await accountsList();
+    const account = accounts.find((row) => row.id === accountId);
+    if (!account) throw { code: "not_found", retryable: false, user_message: "That account isn't there any more." };
+    account.in_place = true; // the preview's list reflects it on refresh
+    return account;
+  }
+  return invoke<AccountInfo>("account_use_original", { accountId });
+}
+
 export async function accountsList(): Promise<AccountInfo[]> {
   if (!hasBackend) {
     return seeded.accounts ?? MOCK_ACCOUNTS;
@@ -500,6 +515,7 @@ export async function createAccount(
       cleanup_opt_in: false,
       renewal_date: null,
       preview_opt_in: false,
+      in_place: false,
     };
   }
   return invoke<AccountInfo>("account_create", { harness, label, plan });
@@ -575,8 +591,13 @@ export async function accountImport(
   plan: string | null,
   origin: string | null = null,
   degraded = false,
+  inPlace = false,
 ): Promise<ImportResult> {
   if (!hasBackend) {
+    // ADR-0018 test seam: a delay per import, so Stop and the progress
+    // rows are reviewable in a plain browser.
+    const delay = (window as unknown as { __AIJ_IMPORT_DELAY_MS__?: number }).__AIJ_IMPORT_DELAY_MS__;
+    if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
     // AJ-E304 test seam: substrings of source paths that reject with a
     // coded error, so the partial-failure accept flow (one item fails,
     // the rest complete) is reviewable in a plain browser.
@@ -597,7 +618,8 @@ export async function accountImport(
     const failPaths =
       (window as unknown as { __AIJ_IMPORT_FAIL_PATHS__?: string[] })
         .__AIJ_IMPORT_FAIL_PATHS__ ?? [];
-    for (const needle of failPaths) {
+    // Copies can fail halfway; using a folder where it is copies nothing.
+    for (const needle of inPlace ? [] : failPaths) {
       if (sourcePath.includes(needle)) {
         throw {
           code: "io",
@@ -612,13 +634,14 @@ export async function accountImport(
         provider: harness,
         label,
         plan,
-        login_state: "logged_out",
+        login_state: inPlace ? "logged_in" : "logged_out",
         cleanup_opt_in: false,
         renewal_date: null,
         preview_opt_in: false,
+        in_place: inPlace,
       },
-      files_copied: degraded ? 8 : 128,
-      bytes_copied: degraded ? 6_000_000 : 46_000_000,
+      files_copied: inPlace ? 0 : degraded ? 8 : 128,
+      bytes_copied: inPlace ? 0 : degraded ? 6_000_000 : 46_000_000,
       folders: degraded
         ? [{ name: "settings.json", bytes: 60 }, { name: ".credentials.json", bytes: 40 }]
         : [
@@ -630,9 +653,10 @@ export async function accountImport(
       skipped: degraded
         ? ["projects/ (37.3 GiB history — skipped at your choice)", "shell-snapshots/ (rebuildable cache)"]
         : ["shell-snapshots/ (rebuildable cache)", "statsig/ (rebuildable cache)"],
-      login: "logged_out",
-      login_note:
-        "Your Claude login lives in the macOS Keychain, locked to the original folder — it can't (and shouldn't) be moved. Sign in once inside the imported account; it takes a few seconds.",
+      login: inPlace ? "logged_in" : "logged_out",
+      login_note: inPlace
+        ? null
+        : "Your Claude login lives in the macOS Keychain, locked to the original folder — it can't (and shouldn't) be moved. Sign in once inside the imported account; it takes a few seconds.",
     };
   }
   return invoke<ImportResult>("account_import", {
@@ -642,6 +666,7 @@ export async function accountImport(
     plan,
     origin,
     degraded,
+    inPlace,
   });
 }
 
@@ -1594,6 +1619,9 @@ export async function recoverySummaryDismiss(): Promise<void> {
 /** Reads the automation status (Tier 0's fallback — never signals). */
 export async function cleanupStatus(): Promise<CleanupStatusData> {
   if (!hasBackend) {
+    // Test seam: the status read fails (Settings shows the error and a retry).
+    const failure = (window as unknown as { __AIJ_CLEANUP_STATUS_ERROR__?: unknown }).__AIJ_CLEANUP_STATUS_ERROR__;
+    if (failure !== undefined) throw failure;
     return (
       (window as unknown as { __AIJ_CLEANUP_STATUS__?: CleanupStatusData }).__AIJ_CLEANUP_STATUS__
       ?? { paused: false, suspended: false, suspended_until_ms: null, tier2_pending: [] }
@@ -1629,6 +1657,9 @@ export async function cleanupTier2Decide(
 /** Re-confirms automation after the 24 h crash suspension. */
 export async function cleanupResumeAfterCrash(): Promise<CleanupStatusData> {
   if (!hasBackend) {
+    // Test seam: Re-confirm fails (the banner stays and says why).
+    const failure = (window as unknown as { __AIJ_CLEANUP_RESUME_ERROR__?: unknown }).__AIJ_CLEANUP_RESUME_ERROR__;
+    if (failure !== undefined) throw failure;
     return { paused: false, suspended: false, suspended_until_ms: null, tier2_pending: [] };
   }
   return invoke<CleanupStatusData>("cleanup_resume_after_crash");
@@ -1856,7 +1887,7 @@ export async function accountSetRenewal(
         login_state: "logged_out",
         cleanup_opt_in: false,
         renewal_date: date,
-        preview_opt_in: false,
+        preview_opt_in: false, in_place: false,
       };
     }
     return { ...account, renewal_date: date };

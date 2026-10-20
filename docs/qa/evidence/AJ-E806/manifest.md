@@ -89,6 +89,55 @@
   half-written. Fix: the stub writes a temporary file and renames it into
   place. It passed 15/15 standalone before the fix; the assertion is
   unchanged.
+- **Flake record, 2026-10-20 (infrastructure; no change).** On PR #59
+  (AJ-E1301) the CI `ui` job failed in its first step, `corepack prepare
+  pnpm@10 --activate`: "Internal Error: Error when performing the request
+  to https://registry.npmjs.org/pnpm/10.34.7" (run 39438483215, job
+  118681742197). No project code had run; install, component tests and
+  build were skipped. The job is re-run unchanged; CI is the arbiter.
+- **Flake record, 2026-10-20 (known class; no change).** On PR #61
+  (AJ-E1303, Rust-only — no `ui/` change) the CI `ui` job failed one of
+  466 vitest tests: `first-run-policy.test.tsx` › "Decide later writes
+  NOTHING, stages no pack, and Summary says so" — `Test timed out in
+  5000ms` (5014 ms). The same UI code passed on #59 and #60 the same
+  hour. The failed job is re-run unchanged; the 5 s budget stays; CI is
+  the arbiter.
+- **Defect record, 2026-10-20 (found by review; fixed).** PR #60's shared
+  import walk (`claude_environment.rs`) used `DirEntry::metadata`, which
+  does not follow links, and then copied every non-directory with
+  `std::fs::copy`, which does: a linked folder failed the whole import, a
+  link to a file outside the home (e.g. a key) was copied in, and the
+  size ceiling counted the link, not its target. This affected Claude
+  imports too. Fixed on main by #73 (a linked folder is kept as a link, a
+  linked file copied by content, a broken link left out); #60's own
+  skip-the-link fix was replaced by that shared rule.
+  The same review found Codex's `auth.json` copy would share a
+  single-use refresh token (now kept back).
+- **Defect record, 2026-10-20 (found by review; fixed before merge).**
+  PR #61's transcript linking (`handover_source` → `oldest_since`) took
+  the oldest file in the session's folder created after its start and
+  WROTE it down — even from a preflight. Two sessions of one account in
+  one folder (Codex writes a rollout only on the first turn) could be
+  given the other's conversation; Claude sessions too. Now: files linked
+  to other sessions are excluded, two matches find nothing, another live
+  unlinked session in the same folder makes it ambiguous (the switch
+  asks), only the switch itself persists, and the scan runs outside the
+  storage lock. Tests for Codex and Claude.
+- **Defect record, 2026-10-20 (found by review; fixed before merge).**
+  PR #64: `codex_handover::install_bundle` joined a peer-supplied file
+  name and session id into paths unchecked (path traversal from a paired
+  Mac); a replay whose newest turn exceeded the limit dropped every turn
+  and still marked the source handed over; a fork whose file name lacked
+  its id rewrote the original; `rename` could replace an existing
+  rollout; a turn could forge another in the prime. Each has a test.
+- **Flake record, 2026-10-20 (known class; no change).** While verifying
+  the E13 stack locally, `juggler-supervisor --test reconciler ::
+  fifty_instance_soak_and_construction_regression` failed once in the
+  full `just verify` (p95 tick 179 ms against its 100 ms budget, load
+  average 18.6 / 20.5 / 23.3 while an a11y gate ran in parallel). It
+  passed 3/3 alone at the same load and in the full `just verify` re-run
+  straight after (load 9.8). Budget and assertion unchanged; CI is the
+  arbiter.
 - a11y seeded failure is recorded DEFERRED with owning task AJ-E804 —
   the gate is named in QUALITY.md vocabulary now; its absence is
   explicit, never a silent pass (per the quarantine/deferral rule).
@@ -298,3 +347,41 @@
   brief quotes each turn so text in a turn can't pose as another turn.
   Regression: `claude_handover :: an_untrusted_bundle_cannot_write_outside_the_target`
   (fails on the old code) and `a_turn_cannot_forge_another_turn_in_the_brief`.
+- Real bugs found while building AJ-E1024 (2026-10-20, the maintainer's
+  bring-in report plus code reading):
+  1. A launch setting with a model replaced the account's whole
+     `settings.json` with `{"model": …}` on every launch, wiping hooks,
+     permissions and the status line in copies. Now `claude --model`.
+     Regression: `in_place_accounts :: a_copy_keeps_its_settings_file_when_a_profile_sets_a_model`.
+  2. One failed setup trapped the bring-in: no Continue, "Try again"
+     reran all of them and lost the others' sign-ins, and closing
+     mid-way kept importing unseen. Regressions: `first-run.test.tsx`
+     (Continue, Try again, Stop).
+  3. A copy whose account record failed to save left its copied folder
+     behind (no sweep). It is now removed at once (marked copies only).
+  4. Found by the review of AJ-E1024, pre-existing since AJ-E607: the
+     managed status line `command` was the bare wrapper path under
+     "~/Library/Application Support/AI Juggler/…". Claude runs it through
+     the shell, which split it at the space, so the wrapper never ran and
+     no Measured quota sample was ever captured on a real Mac (the
+     maintainer's five copies had empty `quota-spool/`). The command and
+     the spool path are one quoted shell word now; old installs are
+     re-pointed with the user's chained line kept. Regression:
+     `quota_ingest :: the_status_line_runs_from_a_folder_with_spaces`
+     (fails on the old code) and `an_unquoted_install_is_repaired_and_keeps_the_chain`.
+- **Flake record, 2026-10-20 (local only, load average 33–45 while three
+  sessions ran full suites).** `processes :: processes_command_reports_tree_orphans_and_stops`
+  ("never saw the child") and `reconciler :: helper_exiting_inside_grace_never_surfaces`
+  timed out once each in a `cargo test --workspace` run; both passed
+  alone at once (3/3 each). No budget changed.
+- Observed, no change (2026-10-20, E14 review fixes on PR #67, with three
+  other sessions building on the same Mac at load average 18–31):
+  `reconciler :: fifty_instance_soak_and_construction_regression` missed
+  its wall-time p95 (854 ms against 100 ms, load 18.1/20.2/23.4). In one
+  earlier full run, `orphan :: orphan_detected_after_grace_and_stopped_gone`
+  and `orphan :: stop_ladder_escalates_when_sigterm_ignored` timed out
+  their waits (load 30.7). Re-run alone, `--test orphan` passed 5/5; the
+  rest of the workspace passed (117 suites with `--no-fail-fast`). Neither
+  binary touches the E14 change: the machine sampler is not in either. No
+  budget, timeout or assertion changed; CI decides.
+

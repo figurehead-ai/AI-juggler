@@ -62,9 +62,9 @@ function mk(id: string, overrides: Partial<InstanceInfo> = {}): InstanceInfo {
 }
 
 const ACCOUNTS: AccountInfo[] = [
-  { id: "claude-work", provider: "claude-code", label: "Work Max", plan: "max-20x", login_state: "logged_in", cleanup_opt_in: false, renewal_date: null, preview_opt_in: false },
-  { id: "claude-personal", provider: "claude-code", label: "Personal", plan: null, login_state: "logged_in", cleanup_opt_in: false, renewal_date: null, preview_opt_in: false },
-  { id: "z-glm", provider: "zcode", label: "GLM Pro", plan: "glm-pro", login_state: "logged_out", cleanup_opt_in: false, renewal_date: null, preview_opt_in: false },
+  { id: "claude-work", provider: "claude-code", label: "Work Max", plan: "max-20x", login_state: "logged_in", cleanup_opt_in: false, renewal_date: null, preview_opt_in: false, in_place: false },
+  { id: "claude-personal", provider: "claude-code", label: "Personal", plan: null, login_state: "logged_in", cleanup_opt_in: false, renewal_date: null, preview_opt_in: false, in_place: false },
+  { id: "z-glm", provider: "zcode", label: "GLM Pro", plan: "glm-pro", login_state: "logged_out", cleanup_opt_in: false, renewal_date: null, preview_opt_in: false, in_place: false },
 ];
 
 const SESSIONS: InstanceInfo[] = [

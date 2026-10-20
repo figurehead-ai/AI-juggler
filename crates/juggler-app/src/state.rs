@@ -30,6 +30,12 @@ pub struct AppState {
     /// owns the persistent process table so CPU% deltas survive ticks.
     /// Lock ordering: never held together with `storage`.
     pub resources: Mutex<LiveStatsCollector>,
+    /// The machine's own signals (AJ-E1401): CPU, memory and pressure,
+    /// swap, disks in use, power, thermal — sampled on the same 2 s tick.
+    /// Lock ordering: never held together with `resources` or `storage`;
+    /// held only for the cheap part of a tick (the disk work and the
+    /// storage read run outside it).
+    pub machine: Mutex<juggler_supervisor::MachineSampler>,
     /// Exit snapshots → confirmed orphans + stop states (AJ-E410).
     /// Interior-mutex: safe to read without the collector lock.
     pub orphans: OrphanTracker,
@@ -99,7 +105,8 @@ impl AppState {
     /// Returns [`crate::error::AppError`] when storage or the supervision
     /// journal cannot be opened.
     pub fn init(data_dir: PathBuf) -> Result<Self, crate::error::AppError> {
-        Self::init_with_registry(data_dir, default_registry())
+        let registry = default_registry_with_overlays(data_dir.join(OVERLAYS_DIR));
+        Self::init_with_registry(data_dir, registry)
     }
 
     /// Builds the state with an explicit adapter registry (tests inject
@@ -209,6 +216,7 @@ impl AppState {
             registry,
             storage: Mutex::new(storage),
             resources: Mutex::new(LiveStatsCollector::new()),
+            machine: Mutex::new(juggler_supervisor::MachineSampler::new()),
             orphans: OrphanTracker::new(),
             model_offsets: Mutex::new(std::collections::HashMap::new()),
             heuristics: HeuristicEngine::new(load_thresholds(&data_dir)),
@@ -234,6 +242,13 @@ impl AppState {
     #[must_use]
     pub fn accounts_dir(&self) -> PathBuf {
         self.data_dir.join("accounts")
+    }
+
+    /// ADR-0018: AI Juggler's own files for in-place accounts (launch
+    /// settings, status line capture) — never the user's folder.
+    #[must_use]
+    pub fn overlays_dir(&self) -> PathBuf {
+        self.data_dir.join(OVERLAYS_DIR)
     }
 
     /// Registers a kill-ladder attempt's cancel flag (AJ-E507): the
@@ -279,18 +294,34 @@ pub struct LaunchFacts {
     pub recovered: bool,
 }
 
+/// Where in-place accounts' overlays live, under the data dir.
+pub const OVERLAYS_DIR: &str = "overlays";
+
 /// The built-in adapter set (community manifests arrive post-v1).
 #[must_use]
 pub fn default_registry() -> AdapterRegistry {
+    registry_with(juggler_adapters::ClaudeCodeAdapter::new())
+}
+
+/// The built-in adapters, with in-place accounts' launch overlays under
+/// `overlays_root` (ADR-0018).
+#[must_use]
+pub fn default_registry_with_overlays(overlays_root: PathBuf) -> AdapterRegistry {
+    registry_with(juggler_adapters::ClaudeCodeAdapter::new().with_overlays_root(overlays_root))
+}
+
+fn registry_with(claude: juggler_adapters::ClaudeCodeAdapter) -> AdapterRegistry {
     let mut registry = AdapterRegistry::new();
-    let claude = std::sync::Arc::new(juggler_adapters::ClaudeCodeAdapter::new());
+    let claude = std::sync::Arc::new(claude);
     registry.register(claude.clone());
     // AJ-E204: the same adapter, coerced to the optional handover
     // sub-trait (transplant mechanics live behind it).
     registry.register_handover(claude);
-    // AJ-E1301: Codex, the second Provider (switching support lands
-    // with AJ-E1304).
-    registry.register(std::sync::Arc::new(juggler_adapters::CodexAdapter::new()));
+    // AJ-E1301: Codex, the second Provider; AJ-E1304: its transplant
+    // and prime support (every Codex pair stays unvalidated, beta).
+    let codex = std::sync::Arc::new(juggler_adapters::CodexAdapter::new());
+    registry.register(codex.clone());
+    registry.register_handover(codex);
     registry
 }
 
