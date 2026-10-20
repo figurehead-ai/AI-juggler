@@ -301,6 +301,13 @@ jobs:
           echo "" | clang -dynamiclib -o target/debug/libswift_Concurrency.dylib \
             -install_name @rpath/libswift_Concurrency.dylib -x c -
           cargo test -p juggler-app --test guardrails
+      # AJ-E1401: the machine signals on the real macOS APIs (memory
+      # pressure, Activity Monitor's memory used, power, thermal) — the
+      # Linux `verify` job can only run their fallbacks.
+      - name: Machine signals on macOS (AJ-E1401)
+        run: |
+          cargo test -p juggler-supervisor --lib machine
+          cargo test -p juggler-supervisor --test machine
 
   build-linux:
     name: build-linux

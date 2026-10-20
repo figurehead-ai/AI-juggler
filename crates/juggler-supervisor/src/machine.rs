@@ -94,6 +94,10 @@ pub struct MachineSample {
     pub memory_total: u64,
     /// Memory the OS can hand out without swapping, bytes.
     pub memory_available: u64,
+    /// Memory in use as Activity Monitor counts it (app memory + wired +
+    /// compressed), bytes; `None` where the OS has no such figure (then
+    /// total − available stands in).
+    pub memory_used: Option<u64>,
     /// The kernel's pressure level; `None` where the OS has none.
     pub pressure: Option<PressureLevel>,
     /// Swap size, bytes.
@@ -397,6 +401,23 @@ pub trait OsReadings: Send {
     fn power(&self) -> Option<PowerState>;
     /// Thermal state.
     fn thermal(&self) -> Option<ThermalState>;
+    /// Memory in use as Activity Monitor counts it, bytes.
+    fn memory_used(&self) -> Option<u64> {
+        None
+    }
+}
+
+/// Reads one numeric sysctl (macOS).
+#[cfg(target_os = "macos")]
+fn sysctl_u64(name: &str) -> Option<u64> {
+    use sysctl::Sysctl as _;
+    match sysctl::Ctl::new(name).ok()?.value().ok()? {
+        sysctl::CtlValue::Int(value) => u64::try_from(value).ok(),
+        sysctl::CtlValue::Uint(value) => Some(u64::from(value)),
+        sysctl::CtlValue::S64(value) | sysctl::CtlValue::Long(value) => u64::try_from(value).ok(),
+        sysctl::CtlValue::U64(value) | sysctl::CtlValue::Ulong(value) => Some(value),
+        _ => None,
+    }
 }
 
 /// The real readings on this OS.
@@ -450,6 +471,25 @@ impl OsReadings for HostReadings {
         })
     }
 
+    /// Activity Monitor's "Memory Used": app memory (anonymous pages not
+    /// purgeable) + wired + what the compressor occupies. `sysinfo`'s
+    /// total − available is far lower on macOS (inactive app pages count
+    /// as available), so it understated what users see elsewhere.
+    fn memory_used(&self) -> Option<u64> {
+        let page = sysctl_u64("hw.pagesize")?;
+        let internal = sysctl_u64("vm.page_pageable_internal_count")?;
+        let purgeable = sysctl_u64("vm.page_purgeable_count").unwrap_or(0);
+        let wired = sysctl_u64("vm.page_wired_count")?;
+        let compressed = sysctl_u64("vm.compressor_bytes_used").unwrap_or(0);
+        Some(
+            internal
+                .saturating_sub(purgeable)
+                .saturating_add(wired)
+                .saturating_mul(page)
+                .saturating_add(compressed),
+        )
+    }
+
     fn thermal(&self) -> Option<ThermalState> {
         use objc2_foundation::{NSProcessInfo, NSProcessInfoThermalState};
         let state = NSProcessInfo::processInfo().thermalState();
@@ -484,6 +524,9 @@ pub struct MachineSampler {
     disks: Option<sysinfo::Disks>,
     os: Box<dyn OsReadings>,
     ticks: u32,
+    /// The tick the disk list was last rebuilt (an unknown `/Volumes/…`
+    /// folder may ask for an early rebuild, at most every 5 minutes).
+    last_relist: Option<u32>,
     cpu_primed: bool,
     snapshot: MachineSnapshot,
     ring: VecDeque<MachineSample>,
@@ -524,6 +567,7 @@ impl MachineSampler {
             disks: None,
             os,
             ticks: 0,
+            last_relist: None,
             cpu_primed: false,
             snapshot: MachineSnapshot {
                 cores,
@@ -533,10 +577,14 @@ impl MachineSampler {
         }
     }
 
-    /// One tick. `paths_in_use` lists the folders whose volumes matter
-    /// (the data folder, running sessions' folders); it is called only on
-    /// the disk cadence.
-    pub fn tick(&mut self, now_ms: i64, paths_in_use: impl FnOnce() -> Vec<PathBuf>) {
+    /// One tick — the cheap part only (CPU, memory, pressure, swap; power
+    /// and thermal on their cadence): microseconds, safe under a lock the
+    /// UI also reads. When the disk cadence is due it hands back a
+    /// [`DiskWork`]: do it OUTSIDE the lock (listing disks costs 50–150 ms,
+    /// and finding the folders in use reads storage), then give the result
+    /// to [`MachineSampler::finish_disks`].
+    #[must_use]
+    pub fn tick(&mut self, now_ms: i64) -> Option<DiskWork> {
         self.ticks = self.ticks.wrapping_add(1);
         let first = self.ticks == 1;
         self.system.refresh_cpu_usage();
@@ -552,6 +600,7 @@ impl MachineSampler {
             cpu_pct,
             memory_total: self.system.total_memory(),
             memory_available: self.system.available_memory(),
+            memory_used: self.os.memory_used(),
             pressure: self.os.pressure(),
             swap_total: self.system.total_swap(),
             swap_used: self.system.used_swap(),
@@ -559,13 +608,41 @@ impl MachineSampler {
         push_machine_sample(&mut self.ring, sample);
         self.snapshot.latest = Some(sample);
         self.snapshot.ring = self.ring.iter().copied().collect();
-        if first || self.ticks.is_multiple_of(DISKS_EVERY) {
-            let paths = paths_in_use();
-            self.snapshot.volumes = self.volumes_for(&paths);
-        }
         if first || self.ticks.is_multiple_of(POWER_EVERY) {
             self.snapshot.power = self.os.power();
             self.snapshot.thermal = self.os.thermal();
+        }
+        (first || self.ticks.is_multiple_of(DISKS_EVERY)).then(|| {
+            let due = self.disks.is_none() || self.ticks.is_multiple_of(DISK_LIST_EVERY);
+            let early_allowed = self
+                .last_relist
+                .is_none_or(|at| self.ticks.wrapping_sub(at) >= EARLY_RELIST_EVERY);
+            DiskWork {
+                disks: self.disks.take(),
+                relist: due,
+                early_relist_allowed: early_allowed,
+                relisted: false,
+            }
+        })
+    }
+
+    /// Puts the disk work back: the (maybe rebuilt) disk list and the
+    /// volumes in use.
+    pub fn finish_disks(&mut self, work: DiskWork, volumes: Vec<VolumeSample>) {
+        if work.relisted {
+            self.last_relist = Some(self.ticks);
+        }
+        self.disks = work.disks;
+        self.snapshot.volumes = volumes;
+    }
+
+    /// A tick with its disk work done inline (tests, and callers without a
+    /// lock to keep short). `paths_in_use` lists the folders whose volumes
+    /// matter; it is called only on the disk cadence.
+    pub fn tick_with(&mut self, now_ms: i64, paths_in_use: impl FnOnce() -> Vec<PathBuf>) {
+        if let Some(mut work) = self.tick(now_ms) {
+            let volumes = work.volumes(&paths_in_use());
+            self.finish_disks(work, volumes);
         }
     }
 
@@ -574,25 +651,58 @@ impl MachineSampler {
     pub fn snapshot(&self) -> &MachineSnapshot {
         &self.snapshot
     }
+}
 
-    fn volumes_for(&mut self, paths: &[PathBuf]) -> Vec<VolumeSample> {
-        if self.disks.is_none() || self.ticks.is_multiple_of(DISK_LIST_EVERY) {
-            self.disks = Some(sysinfo::Disks::new_with_refreshed_list());
+/// An unknown `/Volumes/…` folder may rebuild the disk list early, at most
+/// every 150th tick (5 minutes).
+const EARLY_RELIST_EVERY: u32 = 150;
+
+/// The disk half of a tick, done outside the sampler's lock (AJ-E1401).
+#[derive(Debug)]
+pub struct DiskWork {
+    disks: Option<sysinfo::Disks>,
+    relist: bool,
+    early_relist_allowed: bool,
+    relisted: bool,
+}
+
+impl DiskWork {
+    /// The volumes holding `paths`, with free space refreshed for those
+    /// alone (about a microsecond each). The disk list is rebuilt on its
+    /// 10-minute cadence, or early when a folder under `/Volumes/` matches
+    /// no listed volume (a disk plugged in since); a folder still unknown
+    /// after that is left out, never credited to the startup disk.
+    pub fn volumes(&mut self, paths: &[PathBuf]) -> Vec<VolumeSample> {
+        if self.relist || self.disks.is_none() {
+            self.relist();
         }
-        let Some(disks) = self.disks.as_mut() else {
-            return Vec::new();
-        };
-        let listed: Vec<VolumeSample> = disks.list().iter().map(volume_of).collect();
-        let in_use = volumes_in_use(listed, paths);
-        // Refresh only the disks in use (a microsecond each).
+        let (_, unknown) = volumes_in_use(self.listed(), paths);
+        if unknown && self.early_relist_allowed && !self.relisted {
+            self.relist();
+        }
+        let (in_use, _) = volumes_in_use(self.listed(), paths);
         let refresh = sysinfo::DiskRefreshKind::nothing().with_storage();
-        for disk in disks.list_mut() {
-            let mount = disk.mount_point().to_string_lossy();
-            if in_use.iter().any(|volume| volume.mount_point == mount) {
-                disk.refresh_specifics(refresh);
+        if let Some(disks) = self.disks.as_mut() {
+            for disk in disks.list_mut() {
+                let mount = disk.mount_point().to_string_lossy();
+                if in_use.iter().any(|volume| volume.mount_point == mount) {
+                    disk.refresh_specifics(refresh);
+                }
             }
         }
-        volumes_in_use(disks.list().iter().map(volume_of), paths)
+        volumes_in_use(self.listed(), paths).0
+    }
+
+    fn relist(&mut self) {
+        self.disks = Some(sysinfo::Disks::new_with_refreshed_list());
+        self.relisted = true;
+    }
+
+    fn listed(&self) -> Vec<VolumeSample> {
+        self.disks
+            .as_ref()
+            .map(|disks| disks.list().iter().map(volume_of).collect())
+            .unwrap_or_default()
     }
 }
 
@@ -615,19 +725,30 @@ pub fn push_machine_sample(ring: &mut VecDeque<MachineSample>, sample: MachineSa
 }
 
 /// Pure: the volumes holding `paths` (longest mount-point prefix wins),
-/// each once, in first-use order.
+/// each once, in first-use order — and whether some folder under
+/// `/Volumes/` matched no volume of its own (only the startup disk's
+/// "/"): such a folder is left out rather than credited to the wrong disk
+/// (a disk plugged in since the list was built, or a network share
+/// `sysinfo` does not list).
 #[must_use]
 pub fn volumes_in_use(
     volumes: impl IntoIterator<Item = VolumeSample>,
     paths: &[PathBuf],
-) -> Vec<VolumeSample> {
+) -> (Vec<VolumeSample>, bool) {
     let all: Vec<VolumeSample> = volumes.into_iter().collect();
     let mut out: Vec<VolumeSample> = Vec::new();
+    let mut unknown = false;
     for path in paths {
         let best = all
             .iter()
             .filter(|volume| path.starts_with(Path::new(&volume.mount_point)))
             .max_by_key(|volume| volume.mount_point.len());
+        let mis_credited =
+            best.is_none_or(|volume| volume.mount_point == "/") && path.starts_with("/Volumes/");
+        if mis_credited {
+            unknown = true;
+            continue;
+        }
         if let Some(volume) = best
             && !out
                 .iter()
@@ -636,7 +757,7 @@ pub fn volumes_in_use(
             out.push(volume.clone());
         }
     }
-    out
+    (out, unknown)
 }
 
 #[cfg(test)]
@@ -651,6 +772,7 @@ mod tests {
             cpu_pct: cpu,
             memory_total: 32 * G,
             memory_available: available,
+            memory_used: None,
             pressure: Some(PressureLevel::Normal),
             swap_total: 8 * G,
             swap_used,
@@ -860,8 +982,32 @@ mod tests {
                 PathBuf::from("/Users/you/code"),
             ],
         );
-        let names: Vec<&str> = used.iter().map(|v| v.name.as_str()).collect();
+        let names: Vec<&str> = used.0.iter().map(|v| v.name.as_str()).collect();
         assert_eq!(names, ["Macintosh HD", "Work"]);
+        assert!(!used.1, "every folder found its volume");
+    }
+
+    #[test]
+    fn an_unlisted_disk_is_never_credited_to_the_startup_disk() {
+        // A disk plugged in (or a share mounted) since the list was built:
+        // /Volumes/Fresh matches only "/" — it must not count as
+        // Macintosh HD, and the caller is told to look again.
+        let volumes = vec![VolumeSample {
+            name: "Macintosh HD".into(),
+            mount_point: "/".into(),
+            total_bytes: 1_000 * G,
+            available_bytes: 300 * G,
+        }];
+        let (used, unknown) = volumes_in_use(
+            volumes,
+            &[
+                PathBuf::from("/Users/you/code"),
+                PathBuf::from("/Volumes/Fresh/repo"),
+            ],
+        );
+        assert_eq!(used.len(), 1);
+        assert_eq!(used[0].name, "Macintosh HD");
+        assert!(unknown);
     }
 
     #[test]
@@ -881,6 +1027,8 @@ mod tests {
             "kern.memorystatus_vm_pressure_level"
         );
         assert!(host.thermal().is_some());
+        let used = host.memory_used().expect("Activity Monitor's memory used");
+        assert!(used > 0, "app + wired + compressed");
         assert!(host.power().is_some());
     }
 }

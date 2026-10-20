@@ -44,7 +44,10 @@ export function mockMachineHealth(fixture: MachineFixture, now = Date.now()): Ma
     cores: 10,
     cpu_pct: 18,
     memory_total: 32 * GB,
-    memory_used: 19 * GB,
+    // Activity Monitor's "Memory Used" (app + wired + compressed): high on
+    // a working Mac, and not total − available (inactive pages count as
+    // available).
+    memory_used: 22 * GB,
     memory_available: 13 * GB,
     pressure: "normal",
     swap_total: 4 * GB,
@@ -54,7 +57,7 @@ export function mockMachineHealth(fixture: MachineFixture, now = Date.now()): Ma
     power: { on_battery: false, minutes_left: null, battery_low: false, low_power_mode: false },
     thermal: "nominal",
     summary: { level: "plenty", words: "Plenty of room", reasons: [] },
-    series: series(now, (i) => 14 + ((i * 7) % 9), (i) => 19 * GB + ((i * 13) % 5) * 40_000_000),
+    series: series(now, (i) => 14 + ((i * 7) % 9), (i) => 22 * GB + ((i * 13) % 5) * 40_000_000),
   };
   switch (fixture) {
     case "unsampled":

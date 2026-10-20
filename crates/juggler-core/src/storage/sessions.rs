@@ -248,6 +248,26 @@ impl SessionsRepo<'_> {
             .ok_or_else(|| super::accounts::not_found("session", id.as_str()))
     }
 
+    /// The working folders of sessions that haven't ended (one cheap query:
+    /// the machine sampler's disks-in-use read, AJ-E1401 — never the whole
+    /// history).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn active_cwds(&self) -> Result<Vec<std::path::PathBuf>, CoreError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT DISTINCT cwd FROM instances
+             WHERE status NOT IN ('finished', 'stopped', 'failed', 'handed_over')",
+        )?;
+        let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
+        rows.map(|row| {
+            row.map(std::path::PathBuf::from)
+                .map_err(CoreError::Storage)
+        })
+        .collect()
+    }
+
     /// Lists sessions, newest first, optionally filtered by profile.
     ///
     /// # Errors

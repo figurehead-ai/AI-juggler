@@ -93,7 +93,7 @@ describe("This Mac panel (AJ-E1404)", () => {
     expect((screen.getByRole("status"))!.textContent).toContain("Nothing running — your Mac has room");
     expect(screen.queryByTestId("this-mac-reasons")).toBeNull();
     expect(screen.queryByTestId("this-mac-leftovers")).toBeNull();
-    expect((screen.getByTestId("this-mac-memory"))!.textContent).toContain("Memory: 19 GB of 32 GB in use");
+    expect((screen.getByTestId("this-mac-memory"))!.textContent).toContain("Memory: 22 GB of 32 GB in use");
   });
 
   it("names the state, its reasons, and splits ours from the tools we didn't start", () => {
