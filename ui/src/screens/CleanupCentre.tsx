@@ -3,9 +3,11 @@ import { RemoteCleanup } from "../components/RemoteCleanup";
 import { KillSheet, type KillBridge } from "../components/KillSheet";
 import { Button, CleanupEmpty, ProcessRow, type CleanupRowInfo } from "../components/ProcessRow";
 import { errorText, statsEvent } from "../lib/bridge";
+import { providerDisplayName } from "../lib/providers";
 
 /**
- * AJ-E506/E507: the global Cleanup Centre — the read-only inventory
+ * AJ-E506/E507: the global Cleanup screen (D-25: "Cleanup" on screen;
+ * the tiers' names stay in Settings › Cleanup) — the read-only inventory
  * (Tier 0, D-08 default: what Instances left behind, what it costs,
  * and WHY Juggler thinks it is theirs) plus the ONE manual kill path:
  * verified rows offer `Terminate…`, which opens the staged
@@ -104,6 +106,24 @@ export const defaultCleanupStatusBridge: CleanupStatusBridge = {
     import("../lib/bridge").then((bridge) => bridge.cleanupTier2Decide(pid, keep)),
 };
 
+/** AJ-E511 / D-25: how many other Macs this one knows (paired, or
+ * reporting) — the machine filter shows only when there is one. */
+export type CleanupMachinesBridge = {
+  others: () => Promise<number>;
+};
+
+// Dynamic import (the vi.mock TDZ rule).
+export const defaultCleanupMachinesBridge: CleanupMachinesBridge = {
+  others: () =>
+    import("../lib/bridge").then(async (bridge) => {
+      const [peers, remote] = await Promise.all([
+        bridge.fleetPeers().catch(() => []),
+        bridge.fleetRemote().catch(() => []),
+      ]);
+      return Math.max(peers.length, remote.length);
+    }),
+};
+
 // Dynamic import (the vi.mock TDZ rule).
 export const defaultCleanupBridge: CleanupBridge = {
   load: (filter, machineScope) =>
@@ -136,7 +156,7 @@ function GroupBlock(props: {
             {collapsed ? "▸" : "▾"}
           </span>
           <span className="truncate text-[11.5px] font-medium text-ink">
-            {group.provider}
+            {providerDisplayName(group.provider)}
             {group.account !== null ? ` · ${group.account}` : ""}
             {group.project !== null ? ` · ${group.project}` : ""}
           </span>
@@ -184,11 +204,42 @@ export function CleanupCentre(props: {
   killBridge?: KillBridge;
   statusBridge?: CleanupStatusBridge;
   alertsBridge?: CleanupAlertsBridge;
+  machinesBridge?: CleanupMachinesBridge;
 }) {
   const bridge = props.bridge ?? defaultCleanupBridge;
   const killBridge = props.killBridge;
   const alertsBridge = props.alertsBridge ?? defaultCleanupAlertsBridge;
   const statusBridge = props.statusBridge ?? defaultCleanupStatusBridge;
+  const machinesBridge = props.machinesBridge ?? defaultCleanupMachinesBridge;
+  const [otherMacs, setOtherMacs] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    machinesBridge
+      .others()
+      .then((count) => alive && setOtherMacs(count > 0))
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [machinesBridge]);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  // The ⋯ menu closes on a click elsewhere or Escape, like the top bar's More.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDown = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) setMenuOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+    window.addEventListener("mousedown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("mousedown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
   const [filter, setFilter] = useState<CleanupFilterId>("needs-attention");
   // AJ-E511: the machine dimension — "This machine" by default so
   // single-machine users see no fleet complexity.
@@ -273,27 +324,26 @@ export function CleanupCentre(props: {
 
   const visibleGroups = useMemo(() => data?.groups ?? [], [data]);
 
+  const togglePause = () => {
+    setMenuOpen(false);
+    void statusBridge
+      .pause(!(status?.paused ?? false))
+      .then(setStatus)
+      .catch(() => undefined);
+  };
+
   return (
     <div className="flex h-full min-h-0 flex-col gap-3" data-testid="cleanup-centre">
-      <div className="flex items-center gap-2">
-        <h2 className="text-sm font-semibold tracking-wide">Cleanup Centre</h2>
-        <span className="rounded-full border border-hairline px-1.5 py-[1px] text-[9.5px] text-muted">
-          Tier 0 observe · verified manual kills
-        </span>
-        {/* The global kill-switch lives IN the header (Req.4). */}
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={() => {
-            void statusBridge
-              .pause(!(status?.paused ?? false))
-              .then(setStatus)
-              .catch(() => undefined);
-          }}
-          data-testid="cleanup-pause-toggle"
-        >
-          {status?.paused ? "Resume automatic cleanup" : "Pause automatic cleanup"}
-        </Button>
+      {/* D-25: the title and one plain line; the switches sit behind ⋯
+          (the per-account tiers live in Settings › Cleanup). */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="flex min-w-0 flex-col">
+          <h2 className="text-lg font-semibold tracking-tight">Cleanup</h2>
+          <p className="text-xs text-muted" data-testid="cleanup-summary">
+            What your sessions left running. You choose what to stop; automatic cleanup is off unless you
+            turned it on.
+          </p>
+        </div>
         {/* ⌘F lands here (2.1.1/2.4.7 keyboard-complete + visible). */}
         <div
           ref={filterRef}
@@ -319,21 +369,73 @@ export function CleanupCentre(props: {
             </button>
           ))}
         </div>
-        <label className="ml-2 flex items-center gap-1 text-[10.5px] text-muted">
-          Machine
-          <select
-            aria-label="Machine filter"
-            value={machineScope}
-            onChange={(event) =>
-              setMachineScope(event.target.value === "all" ? "all" : "this")
-            }
-            className="rounded-md border border-hairline bg-surface px-1.5 py-1 text-[10.5px] text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
-            data-testid="cleanup-machine-filter"
+        {/* AJ-E511: the machine dimension appears once another Mac is
+            paired (D-25: Fleet shows up when it has something). */}
+        {(otherMacs || machineScope === "all") && (
+          <label className="flex items-center gap-1 text-[10.5px] text-muted">
+            Machine
+            <select
+              aria-label="Machine filter"
+              value={machineScope}
+              onChange={(event) =>
+                setMachineScope(event.target.value === "all" ? "all" : "this")
+              }
+              className="rounded-md border border-hairline bg-surface px-1.5 py-1 text-[10.5px] text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
+              data-testid="cleanup-machine-filter"
+            >
+              <option value="this">This machine</option>
+              <option value="all">All machines</option>
+            </select>
+          </label>
+        )}
+        {/* AJ-E508 Req.4: the global kill-switch stays in the header,
+            one step away behind ⋯; while paused, Resume is on the banner. */}
+        <div className="relative" ref={menuRef}>
+          <button
+            type="button"
+            aria-label="More cleanup options"
+            aria-expanded={menuOpen}
+            aria-controls="cleanup-more"
+            onClick={() => setMenuOpen((open) => !open)}
+            className="rounded-md px-2 py-1 text-muted outline-none hover:bg-surface hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+            data-testid="cleanup-more"
           >
-            <option value="this">This machine</option>
-            <option value="all">All machines</option>
-          </select>
-        </label>
+            ⋯
+          </button>
+          {menuOpen && (
+            <div
+              id="cleanup-more"
+              className="absolute right-0 top-full z-40 mt-1.5 flex w-64 flex-col rounded-xl border border-hairline bg-surface p-1.5 shadow-xl"
+              onKeyDown={(event) => {
+                if (event.key === "Escape") setMenuOpen(false);
+              }}
+            >
+              {!status?.paused && (
+                <button
+                  type="button"
+                  onClick={togglePause}
+                  className="flex flex-col items-start gap-0.5 rounded-lg px-3 py-2 text-left hover:bg-surface-2"
+                  data-testid="cleanup-pause-toggle"
+                >
+                  <span className="text-xs font-medium text-ink">Pause automatic cleanup</span>
+                  <span className="text-[11px] text-muted">For every account, until you resume it</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false);
+                  window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "cleanup" } }));
+                }}
+                className="flex flex-col items-start gap-0.5 rounded-lg px-3 py-2 text-left hover:bg-surface-2"
+                data-testid="cleanup-open-settings"
+              >
+                <span className="text-xs font-medium text-ink">Cleanup settings…</span>
+                <span className="text-[11px] text-muted">What each account may clean up by itself</span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Filter changes announced politely (4.1.3). */}
@@ -347,13 +449,14 @@ export function CleanupCentre(props: {
 
       {/* Req.4/5: the persistent banners — shown, never silent. */}
       {status?.paused && (
-        <p
-          className="rounded-lg border border-warning/40 bg-warning/5 p-2 text-[11px] text-ink"
-          role="status"
-          data-testid="cleanup-paused-banner"
-        >
-          Automatic cleanup is paused.
-        </p>
+        <div className="flex items-center gap-2 rounded-lg border border-warning/40 bg-warning/5 p-2 text-[11px] text-ink">
+          <p role="status" className="min-w-0 flex-1" data-testid="cleanup-paused-banner">
+            Automatic cleanup is paused.
+          </p>
+          <Button size="sm" variant="secondary" onClick={togglePause} data-testid="cleanup-pause-toggle">
+            Resume automatic cleanup
+          </Button>
+        </div>
       )}
       {status?.suspended && (
         <p

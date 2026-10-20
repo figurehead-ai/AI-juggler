@@ -132,7 +132,7 @@ describe("AJ-E406 the shell across the five selection types (D-06)", () => {
     // D-25: a session is titled by its place (branch, else folder).
     { kind: { kind: "instance", id: "sess-1" }, name: "main", type: "Session" },
     { kind: { kind: "session", id: "conv-1" }, name: "Conversation", type: "Conversation" },
-    { kind: { kind: "provider", id: "claude-code" }, name: "claude-code", type: "Provider" },
+    { kind: { kind: "provider", id: "claude-code" }, name: "claude-code", type: "Tool" },
     { kind: { kind: "account", id: "claude-work" }, name: "Work Max", type: "Account" },
     { kind: { kind: "project", id: "proj-1" }, name: "alpha", type: "Project" },
   ];

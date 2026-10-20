@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-import { allStatuses, answerPolicy, honestEmpty, type FixtureSet, goTo, openFilters, openSwitch } from "./fixtures";
+import { allStatuses, answerPolicy, honestEmpty, type FixtureSet, goTo, openFilters, openSwitch, expectRail, openRailList } from "./fixtures";
 
 // D-25: a fresh install opens first run; these captures document the
 // Add-account wizard, so they open it the way Add account does.
@@ -64,8 +64,8 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/");
-    await expect(page.getByTestId("instance-board")).toBeVisible();
-    await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
+    await expectRail(page); // D-25: the list, or its icon column when narrow
+    await expectRail(page); // D-25: the list, or its icon column when narrow
     await expect(page.getByText("Handed over").first()).toBeVisible();
 
     // AJ-E405: the badge tooltip carries the structured reason (rule +
@@ -115,7 +115,7 @@ test("rail — no row overflows its width", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/");
-  await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
+  await expectRail(page); // D-25: the list, or its icon column when narrow
   await expect(page.getByText("Handed over").first()).toBeVisible();
   const overflows = await page.evaluate(() => {
     const bad: string[] = [];
@@ -478,13 +478,13 @@ for (const theme of ["dark", "light"] as const) {
           alerts: [
             {
               kind: "hog",
-              text: "node (vite) under Work Max holds 3.1 GiB — review in Cleanup Centre.",
+              text: "node (vite) under Work Max holds 3.1 GiB — review it in Cleanup.",
               pid: 8123,
               session: "s-1",
             },
             {
               kind: "idle",
-              text: "python3 has been idle for 2h — review it in the Cleanup Centre.",
+              text: "python3 has been idle for 2h — review it in Cleanup.",
               pid: 8124,
               session: "s-1",
             },
@@ -538,6 +538,12 @@ for (const theme of ["dark", "light"] as const) {
         const w = window as unknown as Record<string, unknown>;
         w.__AIJ_FIXTURE__ = fixture;
         w.__AIJ_CLEANUP__ = cleanup;
+        // D-25: the machine filter shows once another Mac is paired.
+        w.__AIJ_FLEET_PEERS__ = [{
+          machine_id: "machine-studio", label: "Mac Studio", fingerprint: "11AA 22BB 33CC 44DD 55EE 66FF 7788 99AA",
+          permission: "view", permission_label: "View only", ask_each_time: false, paired_via: "code",
+          paired_at_ms: t0, last_seen_ms: t0, connection: "connected", protocol: "v1.0", connection_detail: null,
+        }];
         localStorage.setItem("aij.theme", t);
         localStorage.setItem("aij.onboarding.dismissed", "1");
         sessionStorage.setItem("aij.ready.skipped", "1");
@@ -767,7 +773,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
+    await expectRail(page); // D-25: the list, or its icon column when narrow
     await page.getByRole("button", { name: /Work Max/ }).first().click();
     await openSwitch(page);
     await page.getByTestId("handover-section")
@@ -842,7 +848,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
+    await expectRail(page); // D-25: the list, or its icon column when narrow
     await page.getByRole("button", { name: /Work Max/ }).first().click();
     await openSwitch(page);
     await page.getByTestId("handover-section")
@@ -916,7 +922,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
+    await expectRail(page); // D-25: the list, or its icon column when narrow
     await page.getByRole("button", { name: /Work Max/ }).first().click();
     await expect(page.getByTestId("switch-back-card")).toBeVisible();
     const cardScan = await new AxeBuilder({ page })
@@ -989,7 +995,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
+    await expectRail(page); // D-25: the list, or its icon column when narrow
     await page.getByRole("button", { name: /Work Max/ }).first().click();
     await openSwitch(page);
     await page.getByTestId("handover-section")
@@ -1024,7 +1030,7 @@ for (const theme of ["dark", "light"] as const) {
       }
     });
     await page.reload();
-    await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
+    await expectRail(page); // D-25: the list, or its icon column when narrow
     await page.getByRole("button", { name: /Work Max/ }).first().click();
     await openSwitch(page);
     await page.getByTestId("handover-section")
@@ -1094,7 +1100,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
+    await expectRail(page); // D-25: the list, or its icon column when narrow
     await page.getByRole("button", { name: /Work Max/ }).first().click();
 
     // The ranked entry: scoped scan (the rows + their explanations).
@@ -1105,6 +1111,7 @@ for (const theme of ["dark", "light"] as const) {
       .analyze();
 
     // The graph: scoped scan on the project panel.
+    await openRailList(page); // D-25: a project row needs the list
     await page.getByRole("button", { name: /ai-juggler/ }).first().click();
     await expect(page.getByTestId("switch-graph")).toBeVisible();
     const graphScan = await new AxeBuilder({ page })
@@ -1512,7 +1519,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await expect(page.getByTestId("instance-board")).toBeVisible();
+    await expectRail(page); // D-25: the list, or its icon column when narrow
     // Summon by keyboard alone.
     // The ⌘N handler mounts with the shell — wait for it (AJ-E806:
     // pressing during the first frames after load is a test race).
@@ -1629,7 +1636,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await expect(page.getByTestId("instance-board")).toBeVisible();
+    await expectRail(page); // D-25: the list, or its icon column when narrow
     // The summoning button is where focus must RETURN.
     const summon = page.getByRole("banner").getByRole("button", { name: "New session", exact: true });
     await summon.click();
@@ -1901,7 +1908,7 @@ for (const theme of ["dark", "light"] as const) {
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
     // D-25: the pack-secrets choice is one link away, in Settings.
     await page.getByTestId("accounts-pack-settings").click();
-    await expect(page.getByRole("group", { name: "Your choice (all Providers)" })).toBeVisible();
+    await expect(page.getByRole("group", { name: "Your choice (all tools)" })).toBeVisible();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
   });
 }
@@ -2126,7 +2133,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
+    await expectRail(page); // D-25: the list, or its icon column when narrow
     await expect(page.getByTestId("board-remote-row")).toBeVisible();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
     await goTo(page, "Fleet");
@@ -2274,7 +2281,7 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("fleet-last-known")).toBeVisible();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
     await page.reload();
-    await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
+    await expectRail(page); // D-25: the list, or its icon column when narrow
     await openFilters(page);
     await page.getByLabel("Filter by machine").selectOption("machine-mini");
     await expect(page.getByTestId("board-remote-row").first()).toContainText("was running");
@@ -2320,7 +2327,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
+    await expectRail(page); // D-25: the list, or its icon column when narrow
     await page.getByRole("button", { name: /Work Max/ }).first().click();
     await expect(page.getByTestId("remote-switch-target")).toBeVisible();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
@@ -2381,7 +2388,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
+    await expectRail(page); // D-25: the list, or its icon column when narrow
     await expect(page.getByTestId("rail-identity").first()).toHaveAttribute("aria-label", /verified|first seen|unverified|Not signed in/);
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
     await page.getByRole("button", { name: /Work Max/ }).first().click();
@@ -2433,7 +2440,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
+    await expectRail(page); // D-25: the list, or its icon column when narrow
     await expect(page.getByTestId("git-badge").first()).toHaveAttribute("title", /3 uncommitted files/);
     await page.getByRole("button", { name: /Work Max/ }).first().click();
     await page.getByTestId("worktree-remove").click();
@@ -2474,7 +2481,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
+    await expectRail(page); // D-25: the list, or its icon column when narrow
     await expect(page.getByTestId("rail-parked").first()).toContainText("Parked (est.)");
     await page.getByTestId("parked-offer-resume").focus();
     await page.keyboard.press("Tab");

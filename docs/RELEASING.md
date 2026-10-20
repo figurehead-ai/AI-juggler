@@ -146,7 +146,8 @@ fails on one of them, re-run its failed jobs from the run page.
    It checks the build, the notes and the D-24 requirements
    (`scripts/promotion_rules.py`: 3+ days since the build was published, no
    open `blocker`), runs the accessibility gate on the exact commit
-   (`just a11y-gate`, AJ-E804), then waits for your approval in the run. Approving points the beta feed at the build, puts the notes on
+   (`just a11y-gate`, AJ-E804; pull requests that change the interface
+   already ran it in CI), then waits for your approval in the run. Approving points the beta feed at the build, puts the notes on
    the release and in its feed, and tags it `beta/vX.Y.Z`.
 5. **Check it.** Install the `.dmg` on a clean Mac and open it: Gatekeeper
    must not complain. Settings › About & updates shows the version.

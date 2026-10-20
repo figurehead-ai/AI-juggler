@@ -143,6 +143,25 @@ const MORE_NAV: Array<{ id: GlobalId; label: string; hint: string }> = [
   { id: "cleanup", label: "Cleanup", hint: "Processes left behind, and the audit log" },
 ];
 
+/** D-25: below this width the rail folds to icons by itself. */
+const NARROW_RAIL_PX = 900;
+
+/** True while the window is narrower than `px` (follows resizes). */
+function useNarrowWindow(px: number): boolean {
+  const query = `(max-width: ${px - 1}px)`;
+  const read = () => typeof window.matchMedia === "function" && window.matchMedia(query).matches;
+  const [narrow, setNarrow] = useState(read);
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const list = window.matchMedia(query);
+    const follow = () => setNarrow(list.matches);
+    follow();
+    list.addEventListener("change", follow);
+    return () => list.removeEventListener("change", follow);
+  }, [query]);
+  return narrow;
+}
+
 /** Display names for the header's Provider chip. */
 const PROVIDER_NAMES: Record<string, string> = {
   "claude-code": "Claude Code",
@@ -194,6 +213,25 @@ export default function App() {
     storeDensity(next);
     window.dispatchEvent(new Event(DENSITY_EVENT));
   }, []);
+  // D-25: below 900 px the rail folds to its icon column by itself and
+  // comes back when the window widens; the stored density never changes.
+  // ⌘B (or the logo) opens it for now while narrow.
+  const narrow = useNarrowWindow(NARROW_RAIL_PX);
+  const [narrowOpen, setNarrowOpen] = useState(false);
+  useEffect(() => {
+    if (!narrow) setNarrowOpen(false);
+  }, [narrow]);
+  const railDensity: Density = narrow
+    ? narrowOpen
+      ? density === "minimal"
+        ? "comfortable"
+        : density
+      : "minimal"
+    : density;
+  const toggleRail = useCallback(() => {
+    if (narrow) setNarrowOpen((open) => !open);
+    else setDensityAndStore(density === "minimal" ? "comfortable" : "minimal");
+  }, [narrow, density, setDensityAndStore]);
 
   // The stale-data tick (AJ-E403 Req.5): ONE shared 15 s timer for the
   // whole app — staleness captions recompute against `now` without any
@@ -579,7 +617,7 @@ export default function App() {
   const selectedProvider = useMemo(() => {
     if (selection.kind !== "provider") return null;
     const providerAccounts = accounts.filter((a) => a.provider === selection.id);
-    return { id: selection.id, name: selection.id, accounts: providerAccounts };
+    return { id: selection.id, name: PROVIDER_NAMES[selection.id] ?? selection.id, accounts: providerAccounts };
   }, [selection, accounts]);
 
 
@@ -592,7 +630,7 @@ export default function App() {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "b") {
         event.preventDefault();
         shortcutUsed("toggle_rail");
-        setDensityAndStore(density === "minimal" ? "comfortable" : "minimal");
+        toggleRail();
       }
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "n") {
         event.preventDefault();
@@ -642,7 +680,7 @@ export default function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [cycleDensity, density, setDensityAndStore]);
+  }, [cycleDensity, toggleRail]);
 
   useEffect(() => {
     void appSettingGet("go_to_hotkey").then((stored) => {
@@ -724,7 +762,7 @@ export default function App() {
       <AttentionAnnouncer sessions={sessions} />
       <RenewalAnnouncer accounts={accounts} />
       <WorkflowRail
-        density={density}
+        density={railDensity}
         onCycleDensity={cycleDensity}
         projects={projects}
         sessions={railSessions}
@@ -753,8 +791,8 @@ export default function App() {
           >
             <button
               type="button"
-              title={minimal ? "Comfortable (⌘B)" : "Minimal (⌘B)"}
-              onClick={() => setDensityAndStore(density === "minimal" ? "comfortable" : "minimal")}
+              title={minimal ? "Show the list (⌘B)" : "Icons only (⌘B)"}
+              onClick={toggleRail}
               className="shrink-0 rounded-md p-1 text-accent hover:bg-surface"
             >
               <span className="block drop-shadow-[0_0_10px_#7c7cf466]">

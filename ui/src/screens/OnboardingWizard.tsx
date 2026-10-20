@@ -1522,7 +1522,7 @@ export function OnboardingWizard({
                   <div>
                     <p className="text-sm font-medium">Create your first account</p>
                     <p className="mt-1 text-xs leading-relaxed text-muted">
-                      Nothing to import{locked ? ` — start a fresh ${providerName} account` : " — pick the Provider to start with. You can add more anytime"}.
+                      Nothing to import{locked ? ` — start a fresh ${providerName} account` : " — pick the tool to start with. You can add more anytime"}.
                     </p>
                   </div>
                   {locked && (
