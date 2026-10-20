@@ -1892,10 +1892,14 @@ pub struct ImportResult {
 ///
 /// Returns the typed [`AppError`] message on failure.
 pub fn harnesses_list() -> Vec<ProviderInfo> {
-    vec![ProviderInfo {
-        id: juggler_adapters::CLAUDE_CODE_ID.to_string(),
-        name: "Claude Code".to_string(),
-    }]
+    crate::state::default_registry()
+        .ids()
+        .into_iter()
+        .map(|id| ProviderInfo {
+            name: provider_display(id.as_str()).0,
+            id: id.to_string(),
+        })
+        .collect()
 }
 
 /// Lists accounts with their login state.
@@ -2632,6 +2636,9 @@ pub fn isolation_check_impl(
         .registry
         .get(&account.harness)
         .ok_or_else(|| AppError::UnknownHarness(account.harness.as_str().to_owned()))?;
+    // The Provider's own isolation variable (`CLAUDE_CONFIG_DIR`,
+    // `CODEX_HOME`, …) — the first isolation key (AJ-E309).
+    let isolation_key = adapter.isolation_env_keys().first().copied();
     let env_ok = adapter
         .launch_spec(
             &account,
@@ -2646,15 +2653,20 @@ pub fn isolation_check_impl(
             &juggler_adapter::LaunchMode::Interactive,
         )
         .is_ok_and(|spec| {
-            spec.env
-                .get("CLAUDE_CONFIG_DIR")
-                .is_some_and(|value| std::path::Path::new(value) == dir)
+            isolation_key.is_some_and(|key| {
+                spec.env
+                    .get(key)
+                    .is_some_and(|value| std::path::Path::new(value) == dir)
+            })
         });
     rows.push(IsolationRowInfo {
         id: "launch_env_managed_only",
         label: "Launch environment points only at this account's folder".into(),
         pass: env_ok,
-        detail: "CLAUDE_CONFIG_DIR resolves to the managed dir".into(),
+        detail: format!(
+            "{} resolves to the managed dir",
+            isolation_key.unwrap_or("the Provider's state variable")
+        ),
     });
 
     // 4. The import SOURCE carries no AI Juggler writes (no marker,
@@ -2737,7 +2749,7 @@ pub fn source_inspect_impl(
     // cannot move — E303's caveat, surfaced at Confirm-source).
     let keychain_bound = inspect.login == juggler_adapter::environment::LoginProbe::LoggedIn
         && !std::path::Path::new(source_path)
-            .join(".credentials.json")
+            .join(credentials_file_of(harness))
             .exists();
     Ok(SourceInspectInfo {
         total_bytes: inspect.total_bytes,
@@ -4542,11 +4554,15 @@ fn login_state_name(state: juggler_adapters::LoginState) -> &'static str {
     }
 }
 
+/// The Account's sign-in state from its own Provider's adapter (the
+/// built-in set is stateless and cheap to build — no I/O until the
+/// probe itself). Unknown Providers report logged out, as before.
 fn login_state_of(account: &Account) -> juggler_adapters::LoginState {
-    if account.harness.as_str() == juggler_adapters::CLAUDE_CODE_ID {
-        return juggler_adapters::ClaudeCodeAdapter::new().login_state(&account.state_dir);
-    }
-    juggler_adapters::LoginState::LoggedOut
+    crate::state::default_registry()
+        .get(&account.harness)
+        .map_or(juggler_adapters::LoginState::LoggedOut, |adapter| {
+            adapter.login_state(&account.state_dir)
+        })
 }
 
 /// Profile rows with denormalized account labels/harnesses.
@@ -12917,9 +12933,10 @@ fn scan_walk(state: &Arc<AppState>) -> ScanWalk {
 
 /// The wire form of one discovered install.
 fn discovered_info_of(found: juggler_adapter::environment::DiscoveredInstall) -> DiscoveredInfo {
-    let credentials_len = std::fs::metadata(found.path.join(".credentials.json"))
-        .ok()
-        .map(|meta| meta.len());
+    let credentials_len =
+        std::fs::metadata(found.path.join(credentials_file_of(found.harness.as_str())))
+            .ok()
+            .map(|meta| meta.len());
     let now_secs = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|span| span.as_secs())
@@ -12982,6 +12999,24 @@ fn inference_info_of(
     }
 }
 
+/// The file a Provider keeps its sign-in in when it is file-based (its
+/// absence while signed in means the sign-in lives in the Keychain and
+/// cannot move with a copy). Size metadata only — never read.
+fn credentials_file_of(provider: &str) -> &'static str {
+    match provider {
+        juggler_adapters::CODEX_ID => "auth.json",
+        _ => ".credentials.json",
+    }
+}
+
+/// The Provider whose state dir a shell variable points at (S5).
+fn provider_of_variable(variable: &str) -> &'static str {
+    match variable {
+        juggler_adapters::codex::ENV_CODEX_HOME => juggler_adapters::CODEX_ID,
+        _ => juggler_adapters::CLAUDE_CODE_ID,
+    }
+}
+
 /// S5 + the duplicate merge (Req.2): an alias whose target exists
 /// MERGES into the known candidate as an extra signal (alias +
 /// home-pattern → ONE candidate, signals listed); only a target no
@@ -13012,13 +13047,14 @@ pub fn alias_installs_of(
             }
             continue;
         }
-        let credentials_len = std::fs::metadata(hint.path.join(".credentials.json"))
+        let harness = provider_of_variable(&hint.variable);
+        let credentials_len = std::fs::metadata(hint.path.join(credentials_file_of(harness)))
             .ok()
             .map(|meta| meta.len());
         out.push(DiscoveredInfo {
             inference: inference_info_of(&hint.path, None, false, credentials_len, None, false),
             signals: vec!["shell-alias".to_owned()],
-            harness: "claude-code".to_owned(),
+            harness: harness.to_owned(),
             path,
             origin: "shell-alias".to_owned(),
             login: "logged_out".to_owned(),

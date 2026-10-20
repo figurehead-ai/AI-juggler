@@ -288,6 +288,9 @@ pub fn default_registry() -> AdapterRegistry {
     // AJ-E204: the same adapter, coerced to the optional handover
     // sub-trait (transplant mechanics live behind it).
     registry.register_handover(claude);
+    // AJ-E1301: Codex, the second Provider (switching support lands
+    // with AJ-E1304).
+    registry.register(std::sync::Arc::new(juggler_adapters::CodexAdapter::new()));
     registry
 }
 

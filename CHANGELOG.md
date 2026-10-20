@@ -88,6 +88,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Codex** is the second Provider (AJ-E1301). AI Juggler finds the Codex
+  CLI, gives each Codex account its own folder (`CODEX_HOME`), signs it
+  in with OpenAI's own `codex login`, and starts, resumes or runs Codex
+  in it. Sessions run without Codex's background server, so stopping a
+  session stops all of it. Verified against Codex CLI 0.163.0. Watching
+  sessions, bringing in existing setups and switching follow (E13).
 - Three update channels (decision D-20): **Nightly** (built from the latest
   code every day), **Beta** and **Stable** (each promoted with the
   maintainer's approval). Choose Stable or Beta in Settings › About &

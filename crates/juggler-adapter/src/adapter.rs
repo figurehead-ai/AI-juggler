@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use crate::capabilities::Capabilities;
 use crate::discovery::DiscoveryReport;
-use crate::environment::{DiscoveredInstall, ImportOutcome, LoginUrl};
+use crate::environment::{DiscoveredInstall, ImportOutcome, LoginState, LoginUrl};
 use crate::error::AdapterError;
 use crate::launch::{DesktopLaunch, EnvMap, LaunchMode, LaunchSpec};
 use crate::model::{Account, HarnessId, Profile};
@@ -99,6 +99,15 @@ pub trait HarnessAdapter: Send + Sync {
         crate::identity::IdentityProbe::Unverifiable {
             reason: "this Provider exposes no account metadata".into(),
         }
+    }
+
+    /// AJ-E308/AJ-E1301: the Account's sign-in state, probed from its
+    /// state dir without reading credential contents (ADR-0003). The
+    /// default — `LoggedOut` — is what Providers without a probe have
+    /// always reported; an adapter that can tell overrides it.
+    fn login_state(&self, state_dir: &Path) -> LoginState {
+        let _ = state_dir;
+        LoginState::LoggedOut
     }
 
     /// Creates a watcher over the account's transcript root.

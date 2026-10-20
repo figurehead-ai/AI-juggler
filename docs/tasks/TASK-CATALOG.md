@@ -132,6 +132,11 @@
 | AJ-E1205 | Cloud backup upload, schedule, restore | E12-optional-account.md | P0 | M | AJ-E1202, AJ-E1204 |
 | AJ-E1206 | Fleet discovery via account | E12-optional-account.md | P1 | M | AJ-E1202, AJ-E704 |
 | AJ-E1207 | Guardrail tests and visual captures | E12-optional-account.md | P0 | M | AJ-E1202, AJ-E1203, AJ-E1205 |
+| AJ-E1301 | Codex Provider: discovery, isolated home, launch, sign-in, registration | E13-codex-adapter.md | P0 | M | AJ-E301, AJ-E308 |
+| AJ-E1302 | Find and bring in existing Codex setups | E13-codex-adapter.md | P0 | M | AJ-E1301, AJ-E307 |
+| AJ-E1303 | Watch Codex sessions: rollout parser, linking, identity | E13-codex-adapter.md | P0 | L | AJ-E1301 |
+| AJ-E1304 | Switch with Codex (beta): transplant and cross-Provider replay | E13-codex-adapter.md | P0 | L | AJ-E1303, AJ-E204, AJ-E205 |
+| AJ-E1305 | Live validation on real accounts and the docs | E13-codex-adapter.md | P1 | M | AJ-E1304, AJ-E808 |
 
-Total: 123 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+Total: 135 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

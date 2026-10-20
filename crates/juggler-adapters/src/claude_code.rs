@@ -422,36 +422,19 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         probe_claude_identity(&account.state_dir)
     }
 
+    fn login_state(&self, state_dir: &Path) -> LoginState {
+        ClaudeCodeAdapter::login_state(self, state_dir)
+    }
+
     fn watcher(&self, transcript_root: &Path) -> Result<Box<dyn SessionWatcher>, AdapterError> {
         ClaudeTranscriptWatcher::new(transcript_root)
             .map(|watcher| Box::new(watcher) as Box<dyn SessionWatcher>)
     }
 }
 
-/// Login state of a managed account, detected without reading credential
-/// contents.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LoginState {
-    /// Credentials are present and structurally usable.
-    SignedIn,
-    /// A credentials file exists but is EMPTY — an OAuth abandoned
-    /// halfway in this dir ("Sign-in didn't finish").
-    Partial,
-    /// Credentials exist with a PAST expiry claim (the documented
-    /// field is parsed; token contents are never read or logged).
-    Expired,
-    /// An SSO session marker exists without completed credentials —
-    /// finish in the browser/IdP window, then return.
-    SsoPending,
-    /// An API-key account (settings metadata NAMES a key — the value
-    /// is never read; subscription rings never apply).
-    ApiKey,
-    /// No credentials found for this config dir.
-    LoggedOut,
-    /// The probe itself failed (unreadable dir) — NEVER renders as
-    /// [`LoginState::LoggedOut`] (AJ-E308 Req.1).
-    Unknown,
-}
+/// The AJ-E308 sign-in taxonomy — moved to the adapter contract for
+/// AJ-E1301 (re-exported here so existing paths keep working).
+pub use juggler_adapter::environment::LoginState;
 
 /// Current epoch seconds (std-only).
 fn epoch_secs() -> i64 {
@@ -577,6 +560,20 @@ pub fn is_managed_dir(state_dir: &Path) -> bool {
 /// Returns [`AdapterError::AccountDir`] when the dir or marker cannot be
 /// written.
 pub(crate) fn prepare_managed_dir(state_dir: &Path) -> Result<(), AdapterError> {
+    prepare_managed_dir_for(state_dir, CLAUDE_CODE_ID)
+}
+
+/// [`prepare_managed_dir`] for any Provider: the marker names the
+/// Provider whose state the directory holds.
+///
+/// # Errors
+///
+/// Returns [`AdapterError::AccountDir`] when the dir or marker cannot be
+/// written.
+pub(crate) fn prepare_managed_dir_for(
+    state_dir: &Path,
+    provider: &str,
+) -> Result<(), AdapterError> {
     create_private_dir(state_dir).map_err(|error| AdapterError::AccountDir {
         path: state_dir.to_path_buf(),
         message: error.to_string(),
@@ -584,12 +581,15 @@ pub(crate) fn prepare_managed_dir(state_dir: &Path) -> Result<(), AdapterError> 
     // Marker identifies the directory as ours — guardrail primitive for
     // "never touch unmanaged dirs" checks (ADR-0003).
     let marker = state_dir.join(MANAGED_MARKER);
-    std::fs::write(&marker, "managed-by: ai-juggler\nharness: claude-code\n")
-        .and_then(|()| restrict_to_owner(&marker))
-        .map_err(|error| AdapterError::AccountDir {
-            path: state_dir.to_path_buf(),
-            message: format!("cannot write marker: {error}"),
-        })
+    std::fs::write(
+        &marker,
+        format!("managed-by: ai-juggler\nharness: {provider}\n"),
+    )
+    .and_then(|()| restrict_to_owner(&marker))
+    .map_err(|error| AdapterError::AccountDir {
+        path: state_dir.to_path_buf(),
+        message: format!("cannot write marker: {error}"),
+    })
 }
 
 /// notify-based watcher over the account's transcript tree
@@ -674,7 +674,7 @@ impl SessionWatcher for ClaudeTranscriptWatcher {
 
 /// Bounded recursive collection of `.jsonl` files (depth cap guards against
 /// pathological symlink loops).
-fn collect_jsonl(dir: &Path, out: &mut Vec<PathBuf>, depth: usize) {
+pub(crate) fn collect_jsonl(dir: &Path, out: &mut Vec<PathBuf>, depth: usize) {
     const MAX_DEPTH: usize = 8;
     if depth > MAX_DEPTH {
         return;
@@ -692,11 +692,11 @@ fn collect_jsonl(dir: &Path, out: &mut Vec<PathBuf>, depth: usize) {
     }
 }
 
-fn count_lines(bytes: &[u8]) -> usize {
+pub(crate) fn count_lines(bytes: &[u8]) -> usize {
     bytes.split(|b| *b == b'\n').count().saturating_sub(1)
 }
 
-fn file_stem(path: &Path) -> String {
+pub(crate) fn file_stem(path: &Path) -> String {
     path.file_stem()
         .map(|stem| stem.to_string_lossy().into_owned())
         .unwrap_or_default()
@@ -704,7 +704,7 @@ fn file_stem(path: &Path) -> String {
 
 // ---- helpers -------------------------------------------------------------
 
-fn find_on_path(program: &str) -> Option<PathBuf> {
+pub(crate) fn find_on_path(program: &str) -> Option<PathBuf> {
     let path_var = std::env::var_os("PATH")?;
     let exe = if cfg!(windows) {
         format!("{program}.exe")
@@ -717,18 +717,18 @@ fn find_on_path(program: &str) -> Option<PathBuf> {
 }
 
 /// The user's home dir (`HOME` / `USERPROFILE`).
-fn home_dir() -> Option<PathBuf> {
+pub(crate) fn home_dir() -> Option<PathBuf> {
     std::env::var_os("HOME")
         .or_else(|| std::env::var_os("USERPROFILE"))
         .map(PathBuf::from)
 }
 
-fn home_relative(relative: &str) -> Option<PathBuf> {
+pub(crate) fn home_relative(relative: &str) -> Option<PathBuf> {
     let home = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE"))?;
     Some(PathBuf::from(home).join(relative))
 }
 
-fn existing(candidates: &[&str]) -> Option<PathBuf> {
+pub(crate) fn existing(candidates: &[&str]) -> Option<PathBuf> {
     candidates.iter().map(PathBuf::from).find(|p| p.is_file())
 }
 
