@@ -204,32 +204,33 @@ export default function App() {
     window.dispatchEvent(new Event(DENSITY_EVENT));
   }, []);
   // D-25: below 900 px the rail folds to its icon column by itself and
-  // comes back when the window widens; the stored density never changes.
-  // ⌘B (or the logo) opens it for now while narrow.
+  // comes back when the window widens. In a narrow window ⌘B, the logo,
+  // the density shortcut and a double-click on the rail only open or
+  // close the list for now — they never write Settings › Appearance,
+  // whatever is stored. Changing the density is for Settings and for a
+  // wide window.
   const narrow = useNarrowWindow(NARROW_RAIL_PX);
   const [narrowOpen, setNarrowOpen] = useState(false);
   useEffect(() => {
     if (!narrow) setNarrowOpen(false);
   }, [narrow]);
-  // What the rail shows is always the stored density, except folded to
-  // icons while narrow; nothing that only changes the view writes Settings.
-  const folded = narrow && !narrowOpen && density !== "minimal";
-  const railDensity: Density = folded ? "minimal" : density;
+  // Open in a narrow window: the stored density, or Comfortable when the
+  // stored one is Minimal (the icons are what "closed" already shows).
+  const railDensity: Density = narrow
+    ? narrowOpen
+      ? density === "minimal"
+        ? "comfortable"
+        : density
+      : "minimal"
+    : density;
   const toggleRail = useCallback(() => {
-    if (narrow && density !== "minimal") {
-      setNarrowOpen((open) => !open);
-      return;
-    }
-    // Minimal is a choice: ⌘B changes it, as it does in a wide window.
-    setDensityAndStore(density === "minimal" ? "comfortable" : "minimal");
-    if (narrow) setNarrowOpen(density === "minimal");
+    if (narrow) setNarrowOpen((open) => !open);
+    else setDensityAndStore(density === "minimal" ? "comfortable" : "minimal");
   }, [narrow, density, setDensityAndStore]);
-  // The density shortcut (and a double-click on the rail) while folded
-  // opens the list instead of silently changing Settings › Appearance.
   const cycleDensity = useCallback(() => {
-    if (folded) setNarrowOpen(true);
+    if (narrow) setNarrowOpen((open) => !open);
     else cycleStoredDensity();
-  }, [folded, cycleStoredDensity]);
+  }, [narrow, cycleStoredDensity]);
 
   // The stale-data tick (AJ-E403 Req.5): ONE shared 15 s timer for the
   // whole app — staleness captions recompute against `now` without any

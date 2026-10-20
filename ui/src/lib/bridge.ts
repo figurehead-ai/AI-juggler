@@ -1594,6 +1594,9 @@ export async function recoverySummaryDismiss(): Promise<void> {
 /** Reads the automation status (Tier 0's fallback — never signals). */
 export async function cleanupStatus(): Promise<CleanupStatusData> {
   if (!hasBackend) {
+    // Test seam: the status read fails (Settings shows the error and a retry).
+    const failure = (window as unknown as { __AIJ_CLEANUP_STATUS_ERROR__?: unknown }).__AIJ_CLEANUP_STATUS_ERROR__;
+    if (failure !== undefined) throw failure;
     return (
       (window as unknown as { __AIJ_CLEANUP_STATUS__?: CleanupStatusData }).__AIJ_CLEANUP_STATUS__
       ?? { paused: false, suspended: false, suspended_until_ms: null, tier2_pending: [] }

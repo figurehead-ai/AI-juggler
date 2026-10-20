@@ -18,7 +18,12 @@ for f in docs/SPEC.md docs/PROPOSAL.md docs/plan/EPICS.md; do
   check "$f" '\bprofiles?\b' "$ALLOW_PROFILE" "profile-as-account (use Account/Launch settings)"
 done
 
-while IFS= read -r jsx; do
+# A lowercase "provider" in code — `session.provider`, `provider < 3`,
+# `fn(provider)` — is an identifier, not words on screen.
+CODE_PROVIDER='[.(]providers?\b|\bproviders?[[:space:]]*([<>=!&|?)]|\]|\.[A-Za-z_(]|\()'
+
+jsx_checks() { # $1=file
+  local jsx=$1
   check "$jsx" '>[^<>{}]*\bharness(es)?[^<>{}]*<' 'vendor|claude' "user-facing harness in JSX"
   # "Claude (desktop) profiles" names the profile folders themselves (a
   # profile manager's ClaudeCodeProfiles), not accounts.
@@ -27,12 +32,44 @@ while IFS= read -r jsx; do
   check "$jsx" '>[^<>{}]*\b[Ii]nstances?\b[^<>{}]*<' 'NONE^' "Instance on screen in JSX (say session)"
   check "$jsx" '(aria-label|title|placeholder|label|alt)=("|\{`)[^"`$]*\b[Ii]nstances?\b' 'NONE^' "Instance in a visible attribute (say session)"
   # D-25: on screen it is the tool (Claude Code, Codex); the code keeps Provider.
-  check "$jsx" '>[^<>{}]*\b[Pp]roviders?\b[^<>{}]*<' 'NONE^' "Provider on screen in JSX (say tool)"
-  check "$jsx" '^\s*[A-Z][^=;{}<>]*\b[Pp]roviders?\b[^=;{}<>]*$' '^[0-9]+:\s*(//|\*|/\*)|AJ-E|D-[0-9]' "Provider in JSX text (say tool)"
+  check "$jsx" '>[^<>{}]*\bProviders?\b[^<>{}]*<' 'NONE^' "Provider on screen in JSX (say tool)"
+  check "$jsx" '>[^<>{}]*\bproviders?\b[^<>{}]*<' "$CODE_PROVIDER" "provider on screen in JSX (say tool)"
+  check "$jsx" '^\s*[A-Z][^=;{}<>]*\b[Pp]roviders?\b[^=;{}<>]*$' "^[0-9]+:\\s*(//|\\*|/\\*)|AJ-E|D-[0-9]|$CODE_PROVIDER" "Provider in JSX text (say tool)"
   check "$jsx" '(aria-label|title|placeholder|label|alt|reason|hint)=("|\{`)[^"`$]*\b[Pp]roviders?\b' 'NONE^' "Provider in a visible attribute (say tool)"
   case "$jsx" in *.test.tsx) ;; *)
     check "$jsx" '"[^"]*\b(a|the|each|all|other|this|another|every|per) [Pp]roviders?\b[^"]*"' '^[0-9]+:\s*(//|\*|/\*)' "Provider in a user-facing string (say tool)" ;;
   esac
+}
+
+# Self-test: the rules flag words on screen and leave code alone.
+selftest() {
+  local dir hits
+  dir="$(mktemp -d)"
+  cat > "$dir/bad.tsx" <<'BAD'
+<p className="text-xs">No accounts on this provider yet.</p>
+<p>Each Provider has its own sign-in.</p>
+          Pick the provider you use most
+BAD
+  cat > "$dir/good.tsx" <<'GOOD'
+{list.length > 0 && provider < 3 ? <b>x</b> : null}
+          Boolean(session.provider)
+<span title={providerDisplayName(row.provider)}>Tool</span>
+<b>{row.provider}</b>
+GOOD
+  hits="$(fail=0; jsx_checks "$dir/bad.tsx"; true)"
+  if [ "$(printf '%s\n' "$hits" | grep -c '^TERMINOLOGY:')" -ne 3 ]; then
+    echo "terminology-lint selftest: expected 3 hits in bad.tsx, got:"; printf '%s\n' "$hits"; rm -rf "$dir"; exit 2
+  fi
+  hits="$(fail=0; jsx_checks "$dir/good.tsx"; true)"
+  if [ -n "$hits" ]; then
+    echo "terminology-lint selftest: code flagged as words:"; printf '%s\n' "$hits"; rm -rf "$dir"; exit 2
+  fi
+  rm -rf "$dir"
+}
+selftest
+
+while IFS= read -r jsx; do
+  jsx_checks "$jsx"
 done < <(find ui/src -name "*.tsx" | grep -v types/generated)
 
 [ "$fail" -eq 0 ] && echo "terminology-lint: OK"

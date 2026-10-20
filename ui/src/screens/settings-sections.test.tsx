@@ -28,7 +28,7 @@ const PEER = {
 
 afterEach(cleanup);
 beforeEach(() => {
-  for (const key of ["__AIJ_APP_SETTINGS__", "__AIJ_NOTIFICATION_PREFS__", "__AIJ_CLEANUP_DEFAULT__", "__AIJ_FLEET_PEERS__", "__AIJ_CLEANUP_STATUS__"]) {
+  for (const key of ["__AIJ_APP_SETTINGS__", "__AIJ_NOTIFICATION_PREFS__", "__AIJ_CLEANUP_DEFAULT__", "__AIJ_FLEET_PEERS__", "__AIJ_CLEANUP_STATUS__", "__AIJ_CLEANUP_STATUS_ERROR__"]) {
     delete w()[key];
   }
 });
@@ -88,6 +88,21 @@ describe("wireframe 26 — Settings sections", () => {
     });
     await waitFor(() => expect(pause.checked).toBe(true));
     expect(getByTestId("settings-cleanup").textContent).toContain("Automatic cleanup is paused.");
+  });
+
+  it("AJ-E508 Req.4: if the status can't be read, it says so and Try again recovers", async () => {
+    w().__AIJ_CLEANUP_STATUS_ERROR__ = { code: "io", retryable: true, user_message: "The status could not be read." };
+    const { getByTestId, findByTestId } = render(<SettingsScreen />);
+    const error = await findByTestId("settings-cleanup-pause-error");
+    expect(error.getAttribute("role")).toBe("alert");
+    expect(error.textContent).toContain("The status could not be read.");
+    expect((getByTestId("settings-cleanup-pause") as HTMLInputElement).disabled).toBe(true);
+    delete w().__AIJ_CLEANUP_STATUS_ERROR__;
+    await act(async () => {
+      fireEvent.click(within(error).getByRole("button", { name: "Try again" }));
+    });
+    await waitFor(() => expect((getByTestId("settings-cleanup-pause") as HTMLInputElement).disabled).toBe(false));
+    expect(document.querySelector("[data-testid='settings-cleanup-pause-error']")).toBeNull();
   });
 
   it("AJ-E508 Req.4: a pause made elsewhere shows as on", async () => {

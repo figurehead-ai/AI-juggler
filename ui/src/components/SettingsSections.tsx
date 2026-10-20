@@ -56,11 +56,25 @@ function Status({ status, error }: { status: string | null; error: string | null
 export function CleanupSettingsCard({ accounts }: { accounts: AccountInfo[] }): JSX.Element {
   const [defaultOn, setDefaultOn] = useState<boolean | null>(null);
   const [paused, setPaused] = useState<boolean | null>(null);
+  // The pause switch reads the live status; if that fails it says so and
+  // offers a retry instead of sitting disabled.
+  const [pausedError, setPausedError] = useState<string | null>(null);
+  const loadPaused = () => {
+    setPausedError(null);
+    void cleanupStatus().then(
+      (now) => setPaused(now.paused),
+      (cause) => {
+        setPaused(null);
+        setPausedError(errorText(cause));
+      },
+    );
+  };
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     void cleanupDefaultGet().then(setDefaultOn, (cause) => setError(errorText(cause)));
-    void cleanupStatus().then((now) => setPaused(now.paused), () => setPaused(null));
+    loadPaused();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on open
   }, []);
   return (
     <Card className="flex flex-col gap-3 p-5" data-testid="settings-cleanup">
@@ -125,6 +139,14 @@ export function CleanupSettingsCard({ accounts }: { accounts: AccountInfo[] }): 
           <span className="text-muted">For every Account, until you turn this off. Nothing is stopped by itself while paused.</span>
         </span>
       </label>
+      {pausedError && (
+        <p className="flex flex-wrap items-center gap-2 text-xs text-danger" role="alert" data-testid="settings-cleanup-pause-error">
+          Couldn't read whether automatic cleanup is paused: {pausedError}
+          <Button size="sm" variant="secondary" onClick={loadPaused}>
+            Try again
+          </Button>
+        </p>
+      )}
       <Status status={status} error={error} />
       <div className="flex flex-col divide-y divide-hairline" data-testid="cleanup-accounts">
         {accounts.length === 0 ? (

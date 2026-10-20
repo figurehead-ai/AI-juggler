@@ -483,6 +483,8 @@ export function CleanupCentre(props: {
             size="sm"
             variant="secondary"
             onClick={() => {
+              // The banner (and this button) goes once resumed: focus to ⋯.
+              closeMenu(true);
               void statusBridge
                 .resume()
                 .then(setStatus)

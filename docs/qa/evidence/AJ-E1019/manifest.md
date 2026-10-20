@@ -64,7 +64,16 @@ plain words; "tool" on screen instead of "Provider", D-25). Status:
   requirement didn't hold before #63 either. Settings › Cleanup now has
   "Pause automatic cleanup" (off by default, shows a pause made
   elsewhere). Proof: vitest `settings-sections.test.tsx` (two Req.4 tests).
+- **More focus.** Re-confirm on the "suspended after a crash" banner
+  also returns focus to ⋯ (vitest).
+- **Settings pause switch.** If its status can't be read, it says so
+  (role=alert) with Try again, instead of staying disabled with no
+  word (vitest).
 - **Lint.** The "Provider" rules match `[Pp]roviders?`. The lowercase
+  rule skips code contexts (`session.provider`, `provider < 3`,
+  `fn(provider)`). The script now self-tests at every run against a
+  fixture of words that must be flagged and code that must not, and it
+  fails if either drifts. The lowercase
   leftovers now say "tool":
   - "No accounts for this tool yet."
   - the rail search's name "…model or tool"
@@ -79,3 +88,9 @@ plain words; "tool" on screen instead of "Provider", D-25). Status:
   (focus on ⋯), Enter then Enter (paused, the banner shows, focus on ⋯),
   Resume (the banner goes, focus on ⋯), ⋯ › Cleanup settings… (Settings
   at Cleanup, heading focused), then ticked Settings' Pause switch ("paused").
+- **Walked by hand after the #75 review** (vite preview, 1280×800,
+  dark). In Cleanup, Re-confirm on the suspended banner removed the
+  banner and left focus on ⋯. In Settings › Cleanup, with the status read
+  failing (mock seam), it said "Couldn't read whether automatic cleanup is
+  paused: …" with Try again, and the switch was disabled. After Try again
+  the message went and the switch was enabled.

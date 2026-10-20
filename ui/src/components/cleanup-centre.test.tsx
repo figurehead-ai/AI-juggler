@@ -878,6 +878,26 @@ describe("D-25: the ⋯ menu keeps keyboard focus (WCAG 2.4.3)", () => {
     view.unmount();
   });
 
+  it("Re-confirm on the suspended banner removes the banner and puts focus on ⋯", async () => {
+    let now = { paused: false, suspended: true, suspended_until_ms: 1, tier2_pending: [] as never[] };
+    const bridge: CleanupStatusBridge = {
+      status: () => Promise.resolve(now),
+      pause: () => Promise.resolve(now),
+      resume: () => {
+        now = { ...now, suspended: false, suspended_until_ms: null as never };
+        return Promise.resolve(now);
+      },
+      tier2Decide: () => Promise.resolve(now),
+    };
+    const view = render(<CleanupCentre bridge={{ load: () => Promise.resolve(empty) }} statusBridge={bridge} />);
+    const reconfirm = await view.findByTestId("cleanup-resume-button");
+    reconfirm.focus();
+    fireEvent.click(reconfirm);
+    await waitFor(() => expect(view.queryByTestId("cleanup-suspended-banner")).toBeNull());
+    await waitFor(() => expect(document.activeElement).toBe(more(view)));
+    view.unmount();
+  });
+
   it("Pause from the menu, then Resume on the banner: focus lands on ⋯ each time, never on <body>", async () => {
     const view = render(<CleanupCentre bridge={{ load: () => Promise.resolve(empty) }} statusBridge={statusOf(false)} />);
     await waitFor(() => expect(view.getByTestId("cleanup-empty")).toBeTruthy());

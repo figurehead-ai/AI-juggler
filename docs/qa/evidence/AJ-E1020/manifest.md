@@ -34,23 +34,36 @@ Gallery: `docs/qa/evidence/_gallery/69-rail-narrow/`.
 - The icon column lists sessions only. A project row needs the list (⌘B),
   as it always did in Minimal.
 
-## Review fixes (2026-10-20, after #63)
+## Review fixes (2026-10-20, after #63; revised after the #75 review)
 
-- **The view never writes Settings by itself.** While the rail is
-  folded, the density shortcut (Ctrl+D, ⌘D in the app, a double-click on
-  the rail) opens the list instead of silently cycling Settings ›
-  Appearance. Open, it cycles for real and shows what it stored. With
-  Minimal stored, ⌘B in a narrow window stores Comfortable (as it does
-  wide), so the rail and Settings always agree.
+- **In a narrow window the view never writes Settings.** ⌘B, the logo,
+  the density shortcut (Ctrl+D, or ⌘D in the app) and a double-click on
+  the rail only open or close the list for now, whatever is stored:
+  - Open, the list shows the stored density, or Comfortable when Minimal
+    is stored.
+  - Closed, it shows icons.
+  - Settings › Appearance changes only in Settings and in a wide window.
+
+  The first version of this fix stored Comfortable when ⌘B was pressed
+  with Minimal stored, and let Ctrl+D cycle a stored Minimal unseen. The
+  #75 review caught both.
 - **Stricter shared check.** `expectRail` (the shared check of about 70
-  captures) now asserts that a rail at 900 px or wider shows exactly the
+  captures) asserts that at 900 px and wider the rail shows exactly the
   stored density, and that narrower it is folded unless Minimal is
-  stored. It no longer accepts a folded rail at any width.
-- **New tests.** `rail-narrow.spec.ts`: compact folds, opens as compact
-  and comes back as compact; the shortcut while folded leaves storage
-  alone; a stored Minimal and ⌘B agree with Settings.
-- **Walked by hand** at 860×700, dark. Folded → Ctrl+D opened the list
-  (storage still comfortable) → Ctrl+D again gave compact (stored
-  compact) → ⌘B folded (storage compact). I chose Minimal in Settings,
-  then ⌘B: rail and Settings both Comfortable. Widening to 1280 showed
-  Comfortable.
+  stored.
+- **Regression tests in `rail-narrow.spec.ts`.** Each of these fails on
+  the code before its fix:
+  - the shortcut while narrow only opens and closes the list, and
+    storage stays as it was
+  - with Minimal stored, ⌘B opens the list (as Comfortable) and closes
+    it, Settings keeps Minimal, and widening shows Minimal
+  - with Minimal stored, Ctrl+D does the same
+
+  Also new, and passing on the old code too (so not counted as
+  regression proof): compact opens and widens as compact; at full width
+  the shortcut still changes the setting.
+- **Walked by hand** (vite preview, 860×700 then 1280×800, dark).
+  Folded with Comfortable stored: Ctrl+D opened the list, Ctrl+D closed
+  it, storage stayed comfortable. Then Minimal stored: ⌘B opened the
+  list as Comfortable, ⌘B closed it, Ctrl+D the same, storage stayed
+  minimal. Widened: Minimal.
