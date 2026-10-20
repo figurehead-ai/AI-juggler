@@ -207,11 +207,13 @@ fn a_turn_cannot_forge_another_turn() {
     );
 }
 
-fn malicious_bundle(name: &str, id: &str) -> juggler_adapter::handover::SessionBundle {
+fn malicious_bundle(
+    tmp: &tempfile::TempDir,
+    name: &str,
+    id: &str,
+) -> juggler_adapter::handover::SessionBundle {
     let mut bundle = CodexAdapter::new()
-        .bundle_session(&reference(&source_rollout(
-            &tempfile::tempdir().unwrap().keep().join("src"),
-        )))
+        .bundle_session(&reference(&source_rollout(&tmp.path().join("src"))))
         .unwrap();
     bundle.manifest.native_id = id.to_owned();
     bundle.files[0].name = name.to_owned();
@@ -222,6 +224,8 @@ fn malicious_bundle(name: &str, id: &str) -> juggler_adapter::handover::SessionB
 fn a_bundle_from_a_peer_can_never_name_a_path() {
     let tmp = tempfile::tempdir().unwrap();
     let target = account(&tmp.path().join("b"));
+    // Kept alive for the test (no leaked temp dirs).
+    let source_dir = tempfile::tempdir().unwrap();
     let good = format!("rollout-2026-10-20T08-00-00-{THREAD}.jsonl");
     for (name, id) in [
         ("../../.zshrc-x".to_owned(), THREAD.to_owned()),
@@ -241,7 +245,7 @@ fn a_bundle_from_a_peer_can_never_name_a_path() {
         (good.clone(), "../../x".to_owned()),
         (good.clone(), "--last".to_owned()),
     ] {
-        let bundle = malicious_bundle(&name, &id);
+        let bundle = malicious_bundle(&source_dir, &name, &id);
         assert!(
             CodexAdapter::new()
                 .install_bundle(&bundle, &target)

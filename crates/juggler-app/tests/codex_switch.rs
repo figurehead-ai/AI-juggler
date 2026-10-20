@@ -329,7 +329,10 @@ fn an_oversized_newest_turn_still_travels_cut_to_fit() {
     let s = setup(work.path(), CLAUDE_CODE_ID, CODEX_ID);
     let dir = s.source_home.join("projects").join(s.cwd.replace('/', "-"));
     std::fs::create_dir_all(&dir).unwrap();
-    let huge = "é".repeat(70_000); // multi-byte: the cut must respect chars
+    // ~300 KB of 3-byte characters in short lines (quoting adds bytes per
+    // line): far over one argv entry's limit.
+    let line = "語".repeat(40);
+    let huge = vec![line.as_str(); 2_500].join("\\n");
     std::fs::write(
         dir.join("claude-sess-1.jsonl"),
         format!(
@@ -347,12 +350,28 @@ fn an_oversized_newest_turn_still_travels_cut_to_fit() {
         &[],
     )
     .unwrap();
+    // The stub writes each argument on its own line(s); the prompt is all
+    // of it but `--no-daemon` and `--`.
+    let record = s.target_home.join("last-args");
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    while !record.is_file() {
+        assert!(std::time::Instant::now() < deadline, "the stub never ran");
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    let raw = std::fs::read(&record).unwrap();
+    let prompt_bytes = raw.len() - "--no-daemon\n--\n".len();
+    let cap = if cfg!(windows) { 24 * 1024 } else { 96 * 1024 };
+    assert!(
+        prompt_bytes <= cap,
+        "one argv entry stays under the OS limit: {prompt_bytes}"
+    );
     let prompt = args_of(&s.target_home).join("\n");
     assert!(
         prompt.contains("cut to fit"),
         "the newest turn travels, cut"
     );
-    assert!(prompt.contains(&"é".repeat(1_000)));
+    assert!(prompt.contains(&"語".repeat(40)), "whole characters only");
+    assert!(std::str::from_utf8(&raw).is_ok());
 }
 
 #[test]

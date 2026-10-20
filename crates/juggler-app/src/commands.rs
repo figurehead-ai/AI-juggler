@@ -5950,10 +5950,16 @@ fn switch_sides(
     })
 }
 
-/// The most conversation a replay carries, in characters (newest turns
-/// kept, the newest always): a prime prompt is one message, not a
-/// transcript.
-const REPLAY_PROMPT_CHARS: usize = 60_000;
+/// The most a replay brief may weigh, in BYTES: it reaches the target as
+/// ONE command-line argument, and Linux caps one argument at 128 KiB
+/// (`MAX_ARG_STRLEN`) while Windows caps a whole command line at 32,767
+/// characters — over that the launch fails (E2BIG) and the session could
+/// never switch. Newest turns are kept, the newest always.
+const REPLAY_PROMPT_BYTES: usize = if cfg!(windows) { 24 * 1024 } else { 96 * 1024 };
+
+/// What the brief's own words (the Provider's header, the "earlier turns
+/// are not included" line) may take on top of the turns.
+const REPLAY_HEADER_BYTES: usize = 2 * 1024;
 
 /// AJ-E1304: a cross-Provider switch (T3 replay, beta — D-04/D-11). The
 /// source conversation is read in ITS format, redacted under the user's
@@ -6180,7 +6186,8 @@ fn record_replay_succeeded(
 }
 
 /// The replay's turns: user and assistant text after redaction, the
-/// newest kept within [`REPLAY_PROMPT_CHARS`]; when older turns are left
+/// newest kept within [`REPLAY_PROMPT_BYTES`] as they will be rendered
+/// (quoted); when older turns are left
 /// out the first line says how many (never a silent cut).
 fn replay_turns(
     turns: &[juggler_handover::pack::IrTurn],
@@ -6199,24 +6206,42 @@ fn replay_turns(
             text,
         })
         .collect();
-    // Newest first, while they fit (counted in characters).
+    let budget = REPLAY_PROMPT_BYTES - REPLAY_HEADER_BYTES;
+    // Newest first, while they fit — measured as rendered (quoted) bytes.
+    let rendered = |turn: &TurnText| turn.quoted().len() + 1;
     let mut total = 0usize;
     let mut keep_from = out.len();
     for (index, turn) in out.iter().enumerate().rev() {
-        let chars = turn.text.chars().count();
-        if total + chars > REPLAY_PROMPT_CHARS {
+        let size = rendered(turn);
+        if total + size > budget {
             break;
         }
-        total += chars;
+        total += size;
         keep_from = index;
     }
-    // The newest turn always travels — cut to the limit on a character
-    // boundary when it alone is larger (never an empty replay).
+    // The newest turn always travels — cut on a character boundary until
+    // its rendering fits (never an empty replay).
     if keep_from == out.len()
         && let Some(last) = out.last_mut()
     {
-        let cut: String = last.text.chars().take(REPLAY_PROMPT_CHARS).collect();
-        last.text = format!("{cut}\n(… the rest of this turn is cut to fit.)");
+        let note = "\n(… the rest of this turn is cut to fit.)";
+        let mut keep = last.text.len().min(budget);
+        loop {
+            while !last.text.is_char_boundary(keep) {
+                keep -= 1;
+            }
+            let candidate = TurnText {
+                uuid: None,
+                role: last.role,
+                text: format!("{}{note}", &last.text[..keep]),
+            };
+            if rendered(&candidate) <= budget || keep == 0 {
+                last.text = candidate.text;
+                break;
+            }
+            // Quoting adds bytes per line: shrink by the overshoot.
+            keep = keep.saturating_sub((rendered(&candidate) - budget).max(64));
+        }
         keep_from = out.len() - 1;
     }
     if keep_from > 0 {
