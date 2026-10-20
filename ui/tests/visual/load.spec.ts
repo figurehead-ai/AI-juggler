@@ -166,7 +166,7 @@ test("the Cleanup inventory opens in under 300 ms", async ({ page }) => {
   const n = await boardRows(page);
   const runs: number[] = [];
   for (let i = 0; i < 5; i++) {
-    await goTo(page, "Overview");
+    await goTo(page, "Home");
     runs.push(
       await timed(
         page,

@@ -2533,7 +2533,7 @@ for (const theme of ["dark", "light"] as const) {
  * action named on each row with its shortcut — scans axe-clean and
  * needs no mouse: j moves, A runs the action. */
 for (const theme of ["dark", "light"] as const) {
-  test(`triage — axe 0 and keyboard only — ${theme}`, async ({ page }) => {
+  test(`triage on Home — axe 0 and keyboard only — ${theme}`, async ({ page }) => {
     await page.addInitScript(
       ({ fixture, theme: t }) => {
         const w = window as unknown as Record<string, unknown>;
@@ -2547,11 +2547,14 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await goTo(page, "Triage");
+    // AJ-E1021: the morning triage lives on Home.
     await expect(page.getByRole("region", { name: /Needs you/ })).toBeVisible();
-    await page.getByTestId("triage-row").first().locator("button").first().focus();
+    const rows = page.getByTestId("home").locator("[data-home-row]");
+    await rows.first().focus();
     await page.keyboard.press("j");
-    await expect(page.getByTestId("triage-row").nth(1).locator("button").first()).toBeFocused();
+    await expect(rows.nth(1)).toBeFocused();
+    await page.keyboard.press("k");
+    await expect(rows.first()).toBeFocused();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
   });
 }
