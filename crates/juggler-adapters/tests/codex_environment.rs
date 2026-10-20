@@ -289,65 +289,80 @@ fn the_adapter_routes_scan_and_import_through_codex() {
 
 #[cfg(unix)]
 #[test]
-fn links_are_listed_and_never_followed() {
+fn links_follow_the_shared_rule_and_the_sign_in_stays_back() {
+    // #73's rule, shared with Claude: a linked folder is kept as a link
+    // (never followed or copied through), a linked file is copied by
+    // content, a broken link is left out with a note. Codex's sign-in
+    // stays with the original even when it is a link.
     use std::os::unix::fs::symlink;
     let tmp = tempfile::tempdir().unwrap();
     let source = codex_home(tmp.path(), ".codex");
+    std::fs::remove_file(source.join("auth.json")).unwrap();
     let outside = tmp.path().join("outside");
     std::fs::create_dir_all(outside.join("dir")).unwrap();
-    std::fs::write(outside.join("id_ed25519"), "PRIVATE KEY BYTES").unwrap();
     std::fs::write(outside.join("dir/x"), "outside dir content").unwrap();
-    std::fs::create_dir_all(source.join("skills/real")).unwrap();
-    std::fs::write(source.join("skills/real/SKILL.md"), "a skill").unwrap();
-    symlink(
-        source.join("skills/real"),
-        source.join("skills/inside-link"),
+    std::fs::write(outside.join("notes.md"), "my notes").unwrap();
+    std::fs::write(
+        outside.join("auth.json"),
+        r#"{"tokens":{"refresh_token":"fixture"}}"#,
     )
     .unwrap();
+    std::fs::create_dir_all(source.join("skills/real")).unwrap();
+    std::fs::write(source.join("skills/real/SKILL.md"), "a skill").unwrap();
+    symlink("real", source.join("skills/inside-link")).unwrap();
     symlink(outside.join("dir"), source.join("skills/outside-dir")).unwrap();
-    symlink(outside.join("id_ed25519"), source.join("key-link")).unwrap();
-    symlink(tmp.path().join("nowhere"), source.join("dangling")).unwrap();
+    symlink(outside.join("notes.md"), source.join("AGENTS.md")).unwrap();
+    symlink(outside.join("auth.json"), source.join("auth.json")).unwrap();
+    symlink(tmp.path().join("nowhere"), source.join("skills/dangling")).unwrap();
     let before = snapshot_no_links(&source);
     let dest = tmp.path().join("acct");
 
     let outcome = import_codex_home(&source, &dest, &logged_in).unwrap();
 
-    let copied = files(&dest);
-    assert!(copied.contains(&"skills/real/SKILL.md".to_string()));
-    for link in [
-        "skills/inside-link",
-        "skills/outside-dir",
-        "key-link",
-        "dangling",
-    ] {
-        assert!(
-            !dest.join(link).exists() && std::fs::symlink_metadata(dest.join(link)).is_err(),
-            "{link} must not be copied"
-        );
-        assert!(
-            outcome
-                .skipped
-                .iter()
-                .any(|s| s == &format!("{link} (a link — not copied)")),
-            "{link} not listed: {:?}",
-            outcome.skipped
-        );
-    }
-    for file in &copied {
-        let bytes = std::fs::read(dest.join(file)).unwrap();
-        assert!(
-            !String::from_utf8_lossy(&bytes).contains("PRIVATE KEY BYTES"),
-            "a link target leaked into {file}"
-        );
-    }
+    let is_link = |rel: &str| {
+        std::fs::symlink_metadata(dest.join(rel)).is_ok_and(|meta| meta.file_type().is_symlink())
+    };
+    assert!(
+        is_link("skills/inside-link"),
+        "a linked folder stays a link"
+    );
+    assert_eq!(
+        std::fs::read_link(dest.join("skills/inside-link")).unwrap(),
+        Path::new("real"),
+        "a relative link inside keeps pointing inside the copy"
+    );
+    assert!(is_link("skills/outside-dir"));
+    assert_eq!(
+        std::fs::canonicalize(dest.join("skills/outside-dir")).unwrap(),
+        std::fs::canonicalize(outside.join("dir")).unwrap()
+    );
+    // A linked file: a plain copy, not shared.
+    assert!(!is_link("AGENTS.md"));
+    assert_eq!(
+        std::fs::read_to_string(dest.join("AGENTS.md")).unwrap(),
+        "my notes"
+    );
+    // The sign-in never travels, linked or not.
+    assert!(std::fs::symlink_metadata(dest.join("auth.json")).is_err());
+    assert!(
+        outcome
+            .skipped
+            .iter()
+            .any(|s| s.starts_with("auth.json (your sign-in"))
+    );
+    // A broken link is left out, with a note; the import succeeds.
+    assert!(std::fs::symlink_metadata(dest.join("skills/dangling")).is_err());
+    assert!(
+        outcome
+            .skipped
+            .iter()
+            .any(|s| s.contains("skills/dangling (a broken link"))
+    );
     assert_eq!(
         snapshot_no_links(&source),
         before,
         "the source is untouched"
     );
-    // The size estimate and the inspection never follow links either.
-    let inspect = inspect_codex_source(&source, &logged_in).unwrap();
-    assert!(!inspect.folders.iter().any(|(name, _)| name == "key-link"));
 }
 
 #[test]

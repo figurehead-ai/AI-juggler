@@ -301,13 +301,14 @@ fn inspect_walk(
         let name = entry.file_name();
         let name = name.to_string_lossy().into_owned();
         let top_level = dir == root;
-        // Links are never followed (they are not copied either).
-        if meta.file_type().is_symlink()
-            || layout.skips(&name, top_level)
-            || layout.kept_back(&name, top_level).is_some()
-        {
+        if layout.skips(&name, top_level) || layout.kept_back(&name, top_level).is_some() {
             continue;
         }
+        // As the copy treats them: a linked file counts at its content's
+        // size, a linked folder (kept as a link) counts nothing.
+        let Some(meta) = as_copied(&entry, meta) else {
+            continue;
+        };
         if meta.is_dir() {
             inspect_walk(layout, root, &entry.path(), entries, inspect)?;
         } else {
@@ -461,6 +462,7 @@ pub(crate) fn import_with_layout(
     // tree exceeds the ceiling.
     let mut acc = CollectAccum {
         files: Vec::new(),
+        links: Vec::new(),
         skipped: Vec::new(),
         total: 0,
         folders: Vec::new(),
@@ -468,7 +470,8 @@ pub(crate) fn import_with_layout(
     collect_files(layout, &source, &source, &mut acc, max_bytes, extra_skips).map_err(dir_error)?;
     let CollectAccum {
         files,
-        skipped,
+        links,
+        mut skipped,
         folders,
         ..
     } = acc;
@@ -516,6 +519,8 @@ pub(crate) fn import_with_layout(
         bytes_copied += std::fs::metadata(&to).map(|m| m.len()).unwrap_or_default();
     }
 
+    recreate_links(&source, dest, &links, &mut skipped);
+
     let (login, login_note) = login_carryover(layout, source_login, login_probe(dest));
 
     Ok(ImportOutcome {
@@ -527,6 +532,89 @@ pub(crate) fn import_with_layout(
         folders,
         degraded: false,
     })
+}
+
+/// Recreate each collected symlink in the copy as a link — never followed,
+/// never copied through. A link into the setup is pointed at the copy.
+fn recreate_links(
+    source: &Path,
+    dest: &Path,
+    links: &[(PathBuf, PathBuf)],
+    skipped: &mut Vec<String>,
+) {
+    let resolved_source = std::fs::canonicalize(source).unwrap_or_else(|_| source.to_path_buf());
+    for (relative, target) in links {
+        let to = dest.join(relative);
+        // Where the link really points, from its own folder, with `..`
+        // collapsed.
+        let link_dir = source.join(relative);
+        let link_dir = link_dir.parent().unwrap_or(source);
+        let absolute = lexical_normal(&if target.is_absolute() {
+            target.clone()
+        } else {
+            link_dir.join(target)
+        });
+        let resolved = std::fs::canonicalize(&absolute).unwrap_or_else(|_| absolute.clone());
+        let inside = absolute
+            .strip_prefix(source)
+            .or_else(|_| absolute.strip_prefix(&resolved_source))
+            .or_else(|_| resolved.strip_prefix(&resolved_source))
+            .ok()
+            .map(Path::to_path_buf);
+        // Inside the setup: point at the same place in the copy (a
+        // relative link keeps working as it is). Outside: the real place,
+        // absolute, so it still resolves from the copy.
+        let retargeted = match inside {
+            Some(_) if !target.is_absolute() => target.clone(),
+            Some(inside) => dest.join(inside),
+            None => resolved,
+        };
+        if let Some(parent) = to.parent() {
+            let _ = crate::claude_code::create_private_dir(parent);
+        }
+        // A link that can't be made (no permission for links, on Windows)
+        // leaves that folder out rather than failing the whole import.
+        if let Err(e) = make_link(&retargeted, &to) {
+            skipped.push(format!(
+                "{}/ (a linked folder — left out: {e})",
+                relative.display()
+            ));
+            continue;
+        }
+        skipped.push(format!(
+            "{} (kept as a link to {})",
+            relative.display(),
+            retargeted.display()
+        ));
+    }
+}
+
+/// An entry as the copy sees it: a plain entry as is; a link to a FILE
+/// as its target (copied by content); a link to a folder or a broken
+/// link as nothing (kept as a link, or left out) — so sizes and the
+/// inspection agree with what the import does.
+fn as_copied(entry: &std::fs::DirEntry, meta: std::fs::Metadata) -> Option<std::fs::Metadata> {
+    if !meta.file_type().is_symlink() {
+        return Some(meta);
+    }
+    std::fs::metadata(entry.path())
+        .ok()
+        .filter(std::fs::Metadata::is_file)
+}
+
+/// `path` with `.` and `..` collapsed, without touching the disk.
+fn lexical_normal(path: &Path) -> PathBuf {
+    let mut out = PathBuf::new();
+    for component in path.components() {
+        match component {
+            std::path::Component::CurDir => {}
+            std::path::Component::ParentDir => {
+                out.pop();
+            }
+            other => out.push(other),
+        }
+    }
+    out
 }
 
 /// The post-copy login carryover pair (destination probe + the
@@ -553,9 +641,9 @@ fn size_tree(dir: &Path, total: &mut u64) {
         let Ok(meta) = entry.metadata() else {
             continue;
         };
-        if meta.file_type().is_symlink() {
+        let Some(meta) = as_copied(&entry, meta) else {
             continue;
-        }
+        };
         if meta.is_dir() {
             size_tree(&entry.path(), total);
         } else {
@@ -636,9 +724,9 @@ pub(crate) fn estimate_bytes(layout: &Layout, dir: &Path) -> u64 {
                 continue;
             }
             let Ok(meta) = entry.metadata() else { continue };
-            if meta.file_type().is_symlink() {
+            let Some(meta) = as_copied(&entry, meta) else {
                 continue;
-            }
+            };
             if meta.is_dir() {
                 if depth < layout.estimate_depth {
                     stack.push((entry.path(), depth + 1));
@@ -672,6 +760,11 @@ pub(crate) fn newest_mtime_secs(dir: &Path) -> Option<u64> {
 /// argument list inside clippy's budget).
 struct CollectAccum {
     files: Vec<(PathBuf, u64)>,
+    /// Symlinks in the source, as (relative path, link target). They're
+    /// recreated as links in the copy — never followed, so nothing
+    /// outside the setup is copied (0.0.7 dogfood: a symlinked
+    /// `skills/<name>` made the whole import fail).
+    links: Vec<(PathBuf, PathBuf)>,
     skipped: Vec<String>,
     total: u64,
     folders: Vec<(String, u64)>,
@@ -699,18 +792,36 @@ fn collect_files(
             Err(_) => entry.path(),
         };
         let top_level = relative.components().count() == 1;
-        // `DirEntry::metadata` does not follow links: a link is listed
-        // and left behind — never followed, so a link to `~/.ssh/…` or
-        // outside the home can never pull its target into the copy.
-        if meta.file_type().is_symlink() {
-            acc.skipped
-                .push(format!("{} (a link — not copied)", relative.display()));
-            continue;
-        }
+        // Kept back first (Codex's `auth.json`): never copied, linked or not.
         if let Some(why) = layout.kept_back(&name, top_level) {
             acc.skipped.push(format!("{} ({why})", relative.display()));
             continue;
         }
+        // A linked FILE is copied by content, as before (the copy never
+        // shares a file with the original). A linked FOLDER is kept as a
+        // link — never followed or copied through (0.0.7 dogfood: a
+        // `skills/` folder linked to dotfiles failed the whole import).
+        let meta = if meta.file_type().is_symlink() {
+            if layout.skips(&name, top_level) || extra_skips.contains(&name.as_str()) {
+                continue;
+            }
+            match std::fs::metadata(entry.path()) {
+                Ok(target) if target.is_file() => target,
+                Ok(target) if target.is_dir() => {
+                    if let Ok(link) = std::fs::read_link(entry.path()) {
+                        acc.links.push((relative, link));
+                    }
+                    continue;
+                }
+                _ => {
+                    acc.skipped
+                        .push(format!("{} (a broken link — left out)", relative.display()));
+                    continue;
+                }
+            }
+        } else {
+            meta
+        };
         if meta.is_dir() {
             if layout.skips(&name, top_level) {
                 acc.skipped
@@ -774,4 +885,15 @@ fn collect_files(
         }
     }
     Ok(())
+}
+
+#[cfg(unix)]
+fn make_link(target: &Path, link: &Path) -> std::io::Result<()> {
+    std::os::unix::fs::symlink(target, link)
+}
+
+#[cfg(not(unix))]
+fn make_link(target: &Path, link: &Path) -> std::io::Result<()> {
+    // Only linked folders are kept as links (files are copied).
+    std::os::windows::fs::symlink_dir(target, link)
 }

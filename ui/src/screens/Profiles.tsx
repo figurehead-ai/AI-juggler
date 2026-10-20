@@ -203,7 +203,7 @@ export function ProfilesScreen({
         .
       </p>
       <details className="group" data-testid="accounts-beta-matrix">
-        <summary className="cursor-default text-xs text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
+        <summary className="cursor-pointer text-xs text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
           Which switches between accounts are proven (Beta)
         </summary>
         <div className="mt-3">
