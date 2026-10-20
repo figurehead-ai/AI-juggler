@@ -560,3 +560,35 @@ fn a_failed_prepare_never_removes_a_folder_it_did_not_create() {
     assert!(ClaudeCodeAdapter::new().prepare_account(&state).is_err());
     assert!(state.join("keep.txt").is_file(), "an existing folder stays");
 }
+
+/// The positive case: a folder `prepare` DID create is removed again when
+/// the marker can't be written. The folder's path sits just under the
+/// OS path limit, so the folder can be made but the marker inside it
+/// can't (`ENAMETOOLONG`).
+#[cfg(unix)]
+#[test]
+fn a_failed_prepare_removes_the_folder_it_created() {
+    let path_max: usize = if cfg!(target_os = "macos") {
+        1024
+    } else {
+        4096
+    };
+    let tmp = tempfile::tempdir().unwrap();
+    // Parents made here; `prepare` creates only the last folder.
+    let mut parent = tmp.path().to_path_buf();
+    let leaf_len = 40;
+    while parent.as_os_str().len() + 1 + 200 + 1 + leaf_len < path_max - 8 {
+        parent.push("p".repeat(200));
+    }
+    let room = path_max - 8 - parent.as_os_str().len() - 1;
+    std::fs::create_dir_all(&parent).unwrap();
+    let state = parent.join("s".repeat(room.min(255)));
+    assert!(!state.exists());
+    assert!(
+        state.join(".ai-juggler-managed").as_os_str().len() >= path_max,
+        "the marker's path must exceed the limit"
+    );
+    assert!(ClaudeCodeAdapter::new().prepare_account(&state).is_err());
+    assert!(!state.exists(), "the folder it created is removed again");
+    assert!(parent.is_dir(), "nothing it did not create is touched");
+}
