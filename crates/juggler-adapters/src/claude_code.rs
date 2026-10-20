@@ -371,6 +371,11 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         &[ENV_CONFIG_DIR, ENV_BIN_OVERRIDE]
     }
 
+    fn isolation_env_value(&self, state_dir: &Path) -> Option<String> {
+        let value = config_dir_value(state_dir);
+        (value != juggler_adapter::launch::ENV_UNSET).then_some(value)
+    }
+
     fn shell_command(&self) -> Option<&'static str> {
         Some("claude")
     }
@@ -598,11 +603,20 @@ impl ClaudeCodeAdapter {
         };
         let mut env = EnvMap::new();
         env.insert(ENV_CONFIG_DIR.to_string(), config_dir_value(state_dir));
+        // Not the config folder itself: Claude would treat it as a project
+        // (a trust prompt, a projects/ entry for the folder) — an empty
+        // folder of AI Juggler's own, when there is one.
+        let cwd = self
+            .overlays_root
+            .as_ref()
+            .map(|root| root.join("sign-in"))
+            .filter(|dir| std::fs::create_dir_all(dir).is_ok())
+            .unwrap_or_else(|| state_dir.to_path_buf());
         Ok(LaunchSpec {
             program: bin,
             args: Vec::new(),
             env,
-            cwd: state_dir.to_path_buf(),
+            cwd,
             needs_pty: true,
         })
     }
@@ -778,16 +792,12 @@ pub fn is_vendor_default_dir(dir: &Path) -> bool {
 }
 
 /// [`is_vendor_default_dir`] for an explicit home folder (pure, testable).
+/// The exact path only — not a link to it: a launch through a link sets
+/// `CLAUDE_CONFIG_DIR` to the link, and that sign-in is namespaced.
 #[must_use]
 pub fn is_vendor_default_dir_in(dir: &Path, home: &Path) -> bool {
-    let default = home.join(".claude");
-    if dir == default {
-        return true;
-    }
-    match (std::fs::canonicalize(dir), std::fs::canonicalize(&default)) {
-        (Ok(a), Ok(b)) => a == b,
-        _ => false,
-    }
+    let trimmed = PathBuf::from(dir.to_string_lossy().trim_end_matches('/'));
+    trimmed == home.join(".claude")
 }
 
 /// The `CLAUDE_CONFIG_DIR` value for a folder: its exact path (Claude's
@@ -823,11 +833,12 @@ pub fn claude_state_file(dir: &Path) -> PathBuf {
 /// [`claude_state_file`] for an explicit home folder (pure, testable).
 #[must_use]
 pub fn claude_state_file_in(dir: &Path, home: &Path) -> PathBuf {
-    let inside = dir.join(".claude.json");
-    if !inside.exists() && is_vendor_default_dir_in(dir, home) {
+    // Unset, Claude keeps it at ~/.claude.json — prefer that over any
+    // stale ~/.claude/.claude.json.
+    if is_vendor_default_dir_in(dir, home) && home.join(".claude.json").exists() {
         return home.join(".claude.json");
     }
-    inside
+    dir.join(".claude.json")
 }
 
 fn home_dir() -> Option<PathBuf> {

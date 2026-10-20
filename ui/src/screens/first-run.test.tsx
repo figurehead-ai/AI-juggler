@@ -5,7 +5,7 @@
  */
 import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { FirstRun, groupOf, labelOf, plainImportError, preselected, usedWords } from "./FirstRun";
+import { FirstRun, groupOf, labelOf, outcomeWords, plainImportError, preselected, usedWords } from "./FirstRun";
 import type { DiscoveredInfo } from "../lib/bridge";
 
 const w = () => window as unknown as Record<string, unknown>;
@@ -91,6 +91,15 @@ describe("D-25 first run — the pure rules", () => {
       ),
     ).toBe("Cannot copy skills/a — the partial import was removed");
     expect(plainImportError("Disk full — this one couldn't be copied.")).toBe("Disk full — this one couldn't be copied.");
+  });
+
+  it("the result line says what came in, what didn't and what already was", () => {
+    const base = { stopped: false, done: 0, waiting: 0, failed: 0, already: [] as string[] };
+    expect(outcomeWords({ ...base, done: 5, failed: 1 })).toBe("5 brought in. 1 couldn't come in.");
+    expect(outcomeWords({ ...base, failed: 2 })).toBe("2 couldn't come in.");
+    expect(outcomeWords({ ...base, stopped: true, done: 1, waiting: 2 })).toBe("Stopped. 1 brought in, 2 still to go.");
+    expect(outcomeWords({ ...base, already: ["work-a", "work-b"] })).toBe("2 were already in AI Juggler.");
+    expect(outcomeWords({ ...base, done: 2, already: ["Default"] })).toBe("2 brought in. Default was already in AI Juggler.");
   });
 
   it("says how recently each was used in plain words", () => {
@@ -298,10 +307,23 @@ describe("D-25 first run — the flow", () => {
     expect(outcome.textContent).toContain("Stopped. 1 brought in, 2 still to go.");
     expect(onDone).not.toHaveBeenCalled();
     expect(close.textContent).toBe("Not now");
+    expect(document.activeElement).toBe(getByTestId("first-run-continue"));
     await act(async () => {
       fireEvent.click(getByTestId("first-run-rest"));
     });
-    await waitFor(() => expect(getByTestId("first-run-close").textContent).toBe("Not now"), { timeout: 2000 });
+    // The other two come in, then it goes on (in place: no sign-ins).
+    expect(await findByTestId("first-run-access", {}, { timeout: 2000 })).toBeTruthy();
+  });
+
+  it("a setup already in AI Juggler (as a copy) isn't called brought in", async () => {
+    w().__AIJ_IMPORT_DUPLICATE_LABEL__ = "work-a, a copy";
+    const { findByTestId, getByTestId, getAllByText } = renderIt();
+    await findByTestId("first-run-found");
+    await act(async () => {
+      fireEvent.click(getByTestId("first-run-bring-in"));
+    });
+    await waitFor(() => expect(getAllByText("Already in AI Juggler").length).toBeGreaterThan(0));
+    expect((await findByTestId("first-run-outcome")).textContent).toContain("were already in AI Juggler.");
   });
 
   it("add mode (Accounts › Add account): closable, labelled, the same list", async () => {

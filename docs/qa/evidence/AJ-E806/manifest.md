@@ -292,4 +292,14 @@
      (Continue, Try again, Stop).
   3. A copy whose account record failed to save left its copied folder
      behind (no sweep). It is now removed at once (marked copies only).
+  4. Found by the review of AJ-E1024, pre-existing since AJ-E607: the
+     managed status line `command` was the bare wrapper path under
+     "~/Library/Application Support/AI Juggler/…". Claude runs it through
+     the shell, which split it at the space, so the wrapper never ran and
+     no Measured quota sample was ever captured on a real Mac (the
+     maintainer's five copies had empty `quota-spool/`). The command and
+     the spool path are one quoted shell word now; old installs are
+     re-pointed with the user's chained line kept. Regression:
+     `quota_ingest :: the_status_line_runs_from_a_folder_with_spaces`
+     (fails on the old code) and `an_unquoted_install_is_repaired_and_keeps_the_chain`.
 

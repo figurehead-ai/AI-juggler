@@ -24,12 +24,17 @@ fn the_default_folder_runs_unset_and_others_run_exactly() {
     std::fs::write(home.path().join(".claude.json"), "{}").unwrap();
     let other = home.path().join("profiles/work-a");
     std::fs::create_dir_all(&other).unwrap();
-    // A link to the default folder is the default folder.
+    // A link to the default folder is NOT it: launched through the link,
+    // CLAUDE_CONFIG_DIR is the link and its sign-in is namespaced.
     let link = home.path().join("claude-link");
     std::os::unix::fs::symlink(&default, &link).unwrap();
 
     assert!(is_vendor_default_dir_in(&default, home.path()));
-    assert!(is_vendor_default_dir_in(&link, home.path()));
+    assert!(!is_vendor_default_dir_in(&link, home.path()));
+    assert!(is_vendor_default_dir_in(
+        &home.path().join(".claude/"),
+        home.path()
+    ));
     assert!(!is_vendor_default_dir_in(&other, home.path()));
 
     assert_eq!(config_dir_value_in(&default, home.path()), ENV_UNSET);
@@ -38,7 +43,9 @@ fn the_default_folder_runs_unset_and_others_run_exactly() {
         other.to_str().unwrap()
     );
 
-    // Claude keeps the default folder's state file beside it.
+    // Claude keeps the default folder's state file beside it — even when a
+    // stale one sits inside.
+    std::fs::write(default.join(".claude.json"), "{\"stale\":true}").unwrap();
     assert_eq!(
         claude_state_file_in(&default, home.path()),
         home.path().join(".claude.json")

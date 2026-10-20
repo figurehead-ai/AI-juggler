@@ -72,6 +72,24 @@ pub struct TailOutcome {
 // Managed statusline capture (Req.1)
 // ---------------------------------------------------------------------------
 
+/// One shell word: single-quoted, with `'` escaped. Claude runs a status
+/// line `command` through the shell, and AI Juggler's data folder is
+/// under "Application Support" — unquoted, the path split at the space
+/// and the wrapper never ran (found in the ADR-0018 review).
+#[must_use]
+pub fn shell_word(text: &str) -> String {
+    format!("'{}'", text.replace('\'', "'\\''"))
+}
+
+/// Writes `bytes` only when the file differs, atomically — running
+/// sessions read the wrapper every few hundred milliseconds.
+fn write_if_changed(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    if std::fs::read(path).is_ok_and(|current| current == bytes) {
+        return Ok(());
+    }
+    juggler_core::fs::atomic_write(path, bytes)
+}
+
 /// Renders the pass-through wrapper. `chain` is the user's own
 /// statusline command, verbatim, when one pre-exists — it runs AFTER
 /// the spool append on the SAME stdin bytes, so the user's display is
@@ -92,11 +110,11 @@ pub fn statusline_script(spool_path: &Path, chain: Option<&str>) -> String {
          # Appends the statusline stdin JSON to Juggler's local spool, then\n\
          # chains the user's own statusline with the SAME stdin bytes.\n\
          # Uninstalling (AI Juggler) restores the prior statusline exactly.\n\
-         SPOOL='{spool}'\n\
+         SPOOL={spool}\n\
          payload=$(cat)\n\
          printf '%s\\t%s\\n' \"$(date +%s)000\" \"$payload\" >> \"$SPOOL\"\n\
          {chain_line}\n",
-        spool = spool_path.to_string_lossy(),
+        spool = shell_word(&spool_path.to_string_lossy()),
         chain_line = chain_line
     )
 }
@@ -128,19 +146,26 @@ pub fn install_statusline(config_dir: &Path) -> Result<bool, String> {
     let spool = spool_dir.join(SPOOL_FILE_NAME);
 
     let existing = settings.get("statusLine").cloned();
-    let wrapper_str = wrapper.to_string_lossy();
-    let already_ours = existing.as_ref().is_some_and(|value| {
+    let wrapper_str = wrapper.to_string_lossy().into_owned();
+    let wrapper_command = shell_word(&wrapper_str);
+    let existing_command = existing.as_ref().and_then(|value| {
         value
             .get("command")
             .and_then(serde_json::Value::as_str)
-            .is_some_and(|command| command == wrapper_str)
+            .map(str::to_owned)
     });
-    if already_ours {
+    if existing_command.as_deref() == Some(wrapper_command.as_str()) {
         return Ok(false); // idempotent — nothing to do
     }
+    // An older install wrote the path unquoted (it never ran from a path
+    // with a space). It's ours: re-point it, and keep the backup — that
+    // still holds the user's own status line.
+    let stale_ours = existing_command.as_deref() == Some(wrapper_str.as_str());
 
     // Backup BEFORE any mutation; the backup is the uninstall truth.
-    if existing.is_some() {
+    if stale_ours {
+        // keep the existing backup as it is
+    } else if existing.is_some() {
         let backup = serde_json::json!({ "statusLine": existing });
         std::fs::write(
             config_dir.join(BACKUP_NAME),
@@ -151,14 +176,25 @@ pub fn install_statusline(config_dir: &Path) -> Result<bool, String> {
         let _ = std::fs::remove_file(config_dir.join(BACKUP_NAME));
     }
 
-    let chain = existing.as_ref().and_then(|value| {
-        value
-            .get("command")
-            .and_then(serde_json::Value::as_str)
-            .map(str::to_owned)
-    });
-    std::fs::write(&wrapper, statusline_script(&spool, chain.as_deref()))
-        .map_err(|error| format!("wrapper write: {error}"))?;
+    let chain = if stale_ours {
+        std::fs::read(config_dir.join(BACKUP_NAME))
+            .ok()
+            .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
+            .and_then(|backup| {
+                backup
+                    .get("statusLine")
+                    .and_then(|line| line.get("command"))
+                    .and_then(serde_json::Value::as_str)
+                    .map(str::to_owned)
+            })
+    } else {
+        existing_command
+    };
+    write_if_changed(
+        &wrapper,
+        statusline_script(&spool, chain.as_deref()).as_bytes(),
+    )
+    .map_err(|error| format!("wrapper write: {error}"))?;
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt as _;
@@ -170,7 +206,7 @@ pub fn install_statusline(config_dir: &Path) -> Result<bool, String> {
         .ok_or("settings.json is not an object")?;
     object.insert(
         "statusLine".into(),
-        serde_json::json!({ "type": "command", "command": wrapper.to_string_lossy() }),
+        serde_json::json!({ "type": "command", "command": wrapper_command }),
     );
     std::fs::write(
         &settings_path,
@@ -800,9 +836,9 @@ pub fn ensure_launch_overlay(
                 .map(str::to_owned)
         });
     let wrapper = dir.join(WRAPPER_NAME);
-    std::fs::write(
+    write_if_changed(
         &wrapper,
-        statusline_script(&spool_dir.join(SPOOL_FILE_NAME), chain.as_deref()),
+        statusline_script(&spool_dir.join(SPOOL_FILE_NAME), chain.as_deref()).as_bytes(),
     )
     .map_err(|error| format!("wrapper write: {error}"))?;
     #[cfg(unix)]
@@ -811,12 +847,12 @@ pub fn ensure_launch_overlay(
         let _ = std::fs::set_permissions(&wrapper, std::fs::Permissions::from_mode(0o755));
     }
     let settings = serde_json::json!({
-        "statusLine": { "type": "command", "command": wrapper.to_string_lossy() }
+        "statusLine": { "type": "command", "command": shell_word(&wrapper.to_string_lossy()) }
     });
     let path = dir.join(OVERLAY_SETTINGS_NAME);
-    std::fs::write(
+    write_if_changed(
         &path,
-        serde_json::to_vec_pretty(&settings).map_err(|error| error.to_string())?,
+        &serde_json::to_vec_pretty(&settings).map_err(|error| error.to_string())?,
     )
     .map_err(|error| format!("settings write: {error}"))?;
     Ok(path)

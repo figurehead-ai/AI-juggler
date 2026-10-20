@@ -22,6 +22,18 @@ Task: `docs/tasks/E10-derived-workflows-and-beta.md` AJ-E1024 (ADR-0018). Status
    - A copy whose record can't be saved removes its copied folder.
 7. **Elsewhere.** The scan marks in-place folders as already in, from the account list. The isolation checklist has honest rows for in-place accounts. "Reveal" opens the user's folder. The Accounts card says "uses ~/x where it is" or "a copy of ~/x".
 
+## Review findings fixed (independent review, before the PR)
+
+- **The status line never ran** from a path with a space; this predates the change and broke copies too. It is now a quoted command, and old installs are repaired (see AJ-E806).
+- **A folder already copied** was preselected, and "use it where it is" then reported it as brought in. Sources of copies now show "Already in AI Juggler", and an `already_imported` result is said as such.
+- **The default folder** is the exact `~/.claude` only, not a link to it. Its state file prefers `~/.claude.json`.
+- **The sign-in terminal** runs in an empty AI Juggler folder, not in the config folder (it would become a "project").
+- **The Expert snippet** for the default folder is `env -u CLAUDE_CONFIG_DIR claude`.
+- **The wrapper and launch settings** are written atomically, and only when changed.
+- **A failed save** deletes the account row only if it was inserted.
+- **The status line** is only ever installed into a folder with AI Juggler's marker.
+- **The result panel** is a live region and takes focus.
+
 ## Proof
 
 | Requirement | Proof | Result |

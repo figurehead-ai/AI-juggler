@@ -82,7 +82,10 @@ fn snapshot(root: &Path) -> Vec<(String, u64, std::time::SystemTime)> {
             }
         }
     }
-    let mut out = Vec::new();
+    // The folder's own entry too: its mtime changes when anything is
+    // created or removed directly inside it.
+    let meta = std::fs::metadata(root).unwrap();
+    let mut out = vec![(".".to_owned(), meta.len(), meta.modified().unwrap())];
     walk(root, root, &mut out);
     out.sort();
     out

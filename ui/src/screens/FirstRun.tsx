@@ -146,7 +146,11 @@ function Check({ className = "" }: { className?: string }): JSX.Element {
   );
 }
 
-type ImportState = { state: "pending" | "working" | "done" | "failed"; error?: string; placement?: Placement };
+type ImportState = {
+  state: "pending" | "working" | "done" | "already" | "failed";
+  error?: string;
+  placement?: Placement;
+};
 
 /** ADR-0018: how a setup comes in. */
 export type Placement = "in_place" | "copy";
@@ -156,6 +160,30 @@ export type Placement = "in_place" | "copy";
 export function plainImportError(text: string): string {
   const plain = text.replace(/^account directory error at .+?: (?=\S)/, "");
   return plain.charAt(0).toUpperCase() + plain.slice(1);
+}
+
+/** The result line: what came in, what didn't, what already was. */
+export function outcomeWords({
+  stopped,
+  done,
+  waiting,
+  failed,
+  already,
+}: {
+  stopped: boolean;
+  done: number;
+  waiting: number;
+  failed: number;
+  already: string[];
+}): string {
+  const parts: string[] = [];
+  if (stopped) parts.push(`Stopped. ${done} brought in${waiting > 0 ? `, ${waiting} still to go` : ""}.`);
+  else if (done > 0 || failed === 0) parts.push(done === 1 ? "1 brought in." : `${done} brought in.`);
+  if (failed > 0) parts.push(failed === 1 ? "1 couldn't come in." : `${failed} couldn't come in.`);
+  if (already.length === 1) parts.push(`${already[0]} was already in AI Juggler.`);
+  else if (already.length > 1) parts.push(`${already.length} were already in AI Juggler.`);
+  if (done === 0 && failed === 0 && !stopped && already.length > 0) return parts.slice(1).join(" ");
+  return parts.join(" ");
 }
 
 const PLACEMENTS: { id: Placement; title: string; detail: string }[] = [
@@ -214,8 +242,12 @@ function FoundStep({
   // Sign-ins of the ones that came in survive retries.
   const signinsRef = useRef<Map<string, Signin>>(new Map());
   const [stopped, setStopped] = useState(false);
+  const [sawAlready, setSawAlready] = useState(false);
 
-  const isDone = (found: DiscoveredInfo) => progress[found.path]?.state === "done";
+  const isDone = (found: DiscoveredInfo) => {
+    const state = progress[found.path]?.state;
+    return state === "done" || state === "already";
+  };
   const chosen = installs.filter((found) => picked[found.path] && !found.managed && !isDone(found));
   const runImports = async (rows: DiscoveredInfo[], how: (found: DiscoveredInfo) => Placement = placementOf) => {
     stopRef.current = false;
@@ -224,6 +256,7 @@ function FoundStep({
     onBusy(true);
     funnelEvent("import_started");
     let failed = 0;
+    let already = 0;
     let wasStopped = false;
     for (const found of rows) {
       if (stopRef.current) {
@@ -246,7 +279,13 @@ function FoundStep({
       } catch (cause) {
         const code = (cause as { code?: string })?.code;
         if (code === "already_imported") {
-          setProgress((current) => ({ ...current, [found.path]: { state: "done", placement: mode } }));
+          already += 1;
+          // Nothing to do — and not "brought in": it already was (as a copy,
+          // perhaps; the error says which).
+          setProgress((current) => ({
+            ...current,
+            [found.path]: { state: "already", error: errorText(cause), placement: mode },
+          }));
         } else {
           failed += 1;
           setProgress((current) => ({
@@ -260,13 +299,21 @@ function FoundStep({
     setBusy(false);
     onBusy(false);
     if (wasStopped) setStopped(true);
-    if (failed === 0 && !wasStopped) onImported([...signinsRef.current.values()]);
+    // Something already in: say so before moving on.
+    if (already > 0) setSawAlready(true);
+    if (failed === 0 && !wasStopped && already === 0) onImported([...signinsRef.current.values()]);
   };
   const failedRows = installs.filter((found) => progress[found.path]?.state === "failed");
-  const doneCount = installs.filter(isDone).length;
+  const doneCount = installs.filter((found) => progress[found.path]?.state === "done").length;
   const waiting = chosen.filter((found) => progress[found.path] === undefined);
-  const showOutcome = !busy && (failedRows.length > 0 || stopped);
+  const alreadyRows = installs.filter((found) => progress[found.path]?.state === "already");
+  const showOutcome = !busy && (failedRows.length > 0 || stopped || sawAlready);
   const continueNow = () => onImported([...signinsRef.current.values()]);
+  // The result takes focus (the button the user pressed is gone).
+  const continueRef = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    if (showOutcome) continueRef.current?.focus();
+  }, [showOutcome]);
 
   if (report === null) {
     return (
@@ -360,6 +407,8 @@ function FoundStep({
                           <span className="text-muted">Bringing in…</span>
                         ) : row?.state === "done" ? (
                           <span className="flex items-center gap-1.5 text-success"><Check />Brought in</span>
+                        ) : row?.state === "already" ? (
+                          <span className="text-muted" title={row.error}>Already in AI Juggler</span>
                         ) : row?.state === "failed" ? (
                           <span className="text-danger">Couldn't bring in</span>
                         ) : found.managed ? (
@@ -414,13 +463,19 @@ function FoundStep({
       )}
 
       {showOutcome && (
-        <div className="flex flex-col gap-3 rounded-2xl border border-hairline bg-surface px-5 py-4" role="status" data-testid="first-run-outcome">
+        <div
+          className="flex flex-col gap-3 rounded-2xl border border-hairline bg-surface px-5 py-4"
+          role="alert"
+          data-testid="first-run-outcome"
+        >
           <p className="text-[15px] font-medium text-ink">
-            {stopped
-              ? `Stopped. ${doneCount} brought in${waiting.length > 0 ? `, ${waiting.length} still to go` : ""}.`
-              : doneCount === 0
-                ? `None came in yet — ${failedRows.length === 1 ? "this one" : `these ${failedRows.length}`} couldn't.`
-                : `${doneCount} brought in. ${failedRows.length === 1 ? "1 couldn't come in." : `${failedRows.length} couldn't come in.`}`}
+            {outcomeWords({
+              stopped,
+              done: doneCount,
+              waiting: waiting.length,
+              failed: failedRows.length,
+              already: alreadyRows.map(labelOf),
+            })}
           </p>
           {failedRows.length > 0 && (
             <ul className="flex flex-col gap-2" data-testid="first-run-failed">
@@ -458,7 +513,7 @@ function FoundStep({
                 Bring in the rest
               </Button>
             )}
-            <Button variant="primary" onClick={continueNow} data-testid="first-run-continue">
+            <Button variant="primary" onClick={continueNow} data-testid="first-run-continue" ref={continueRef}>
               {doneCount === 0 ? "Continue without them" : doneCount === 1 ? "Continue with 1 account" : `Continue with ${doneCount} accounts`}
             </Button>
           </div>

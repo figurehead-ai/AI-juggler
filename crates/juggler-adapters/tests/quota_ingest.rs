@@ -302,7 +302,8 @@ fn install_chains_and_uninstall_restores_exactly() {
     let wrapper = dir.path().join("juggler-statusline.sh");
     assert_eq!(
         settings["statusLine"]["command"].as_str().unwrap(),
-        wrapper.to_string_lossy()
+        format!("'{}'", wrapper.to_string_lossy()),
+        "one shell word"
     );
     assert!(dir.path().join("juggler-statusline-backup.json").exists());
     // The wrapper embeds the user's command as the chain.
@@ -470,4 +471,88 @@ fn no_http_client_anywhere_in_the_adapters_crate() {
             }
         }
     }
+}
+
+/// Runs a status line `command` the way Claude Code does — through the
+/// shell — with `payload` on stdin.
+fn run_status_command(command: &str, payload: &str) -> std::process::Output {
+    use std::io::Write as _;
+    let mut child = std::process::Command::new("/bin/sh")
+        .args(["-c", command])
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(payload.as_bytes())
+        .unwrap();
+    child.wait_with_output().unwrap()
+}
+
+/// Review of ADR-0018: AI Juggler's data folder is under "Application
+/// Support". The installed command was the bare path, so the shell split
+/// it at the space and the wrapper never ran — no quota was ever captured
+/// on a real Mac. Installed into a folder with a space (and a quote), the
+/// command now runs, captures, and still shows the user's own line.
+#[test]
+fn the_status_line_runs_from_a_folder_with_spaces() {
+    let root = tempfile::tempdir().unwrap();
+    let dir = root.path().join("Application Support/AI Juggler/it's here");
+    std::fs::create_dir_all(&dir).unwrap();
+    let user_command = format!("{} marker", fixture("user-statusline.sh").to_string_lossy());
+    write_settings(
+        &dir,
+        Some(serde_json::json!({ "type": "command", "command": user_command })),
+    );
+    install_statusline(&dir).unwrap();
+    let settings: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(dir.join("settings.json")).unwrap()).unwrap();
+    let command = settings["statusLine"]["command"].as_str().unwrap();
+    let payload = r#"{"session_id":"s","rate_limits":{"five_hour":{"used_percentage":9.0}}}"#;
+    let output = run_status_command(command, payload);
+    assert!(output.status.success(), "{output:?}");
+    let direct = run_status_command(&user_command, payload);
+    assert_eq!(output.stdout, direct.stdout, "the user's line still shows");
+    let spool = std::fs::read_to_string(spool_path(&dir)).unwrap();
+    assert!(
+        spool.contains("\"used_percentage\":9.0"),
+        "captured: {spool}"
+    );
+}
+
+/// An install from before the fix (the bare path) is re-pointed, and the
+/// user's own status line — still in the backup — stays chained.
+#[test]
+fn an_unquoted_install_is_repaired_and_keeps_the_chain() {
+    let root = tempfile::tempdir().unwrap();
+    let dir = root.path().join("Application Support/acct");
+    std::fs::create_dir_all(&dir).unwrap();
+    let user_command = format!("{} marker", fixture("user-statusline.sh").to_string_lossy());
+    write_settings(
+        &dir,
+        Some(serde_json::json!({ "type": "command", "command": user_command })),
+    );
+    install_statusline(&dir).unwrap();
+    // Make it look like the old install: the bare path in settings.json.
+    let wrapper = dir.join("juggler-statusline.sh");
+    write_settings(
+        &dir,
+        Some(serde_json::json!({ "type": "command", "command": wrapper.to_string_lossy() })),
+    );
+    assert!(install_statusline(&dir).unwrap(), "repaired");
+    let script = std::fs::read_to_string(&wrapper).unwrap();
+    assert!(
+        script.contains("user-statusline.sh"),
+        "the user's line is still chained: {script}"
+    );
+    assert!(uninstall_statusline(&dir).unwrap());
+    let restored: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(dir.join("settings.json")).unwrap()).unwrap();
+    assert_eq!(
+        restored["statusLine"]["command"].as_str(),
+        Some(user_command.as_str())
+    );
 }

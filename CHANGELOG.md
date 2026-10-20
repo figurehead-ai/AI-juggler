@@ -82,6 +82,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Measured quota from Claude's status line works on a real Mac. The
+  status line command pointed at a path under "Application Support"
+  without quotes, so the shell split it at the space and the capture
+  never ran. Existing installs are repaired the next time AI Juggler
+  checks them, and your own status line stays chained.
 - A launch setting that picks a model no longer rewrites the account's
   `settings.json` (it replaced the whole file, losing hooks and
   permissions); the model goes in as Claude's own `--model` option.

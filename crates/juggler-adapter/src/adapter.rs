@@ -222,6 +222,13 @@ pub trait HarnessAdapter: Send + Sync {
         ))
     }
 
+    /// The value of the first isolation key for `state_dir`, or `None`
+    /// when the folder runs with that key unset (ADR-0018: the vendor's
+    /// own default folder). Default: the path.
+    fn isolation_env_value(&self, state_dir: &Path) -> Option<String> {
+        Some(state_dir.to_string_lossy().into_owned())
+    }
+
     /// The environment variables that fence an Account's isolated
     /// state for this Provider (AJ-E309). Launch-settings overrides
     /// may never set them — an override that repointed the config
@@ -260,12 +267,15 @@ pub fn shell_snippet(
     extra_env: &std::collections::BTreeMap<String, String>,
 ) -> Option<String> {
     let command = adapter.shell_command()?;
-    let dir = state_dir.to_string_lossy();
     let mut parts: Vec<String> = adapter
         .isolation_env_keys()
         .iter()
         .take(1)
-        .map(|key| format!("{key}={}", shell_quote(&dir)))
+        .map(|key| match adapter.isolation_env_value(state_dir) {
+            Some(dir) => format!("{key}={}", shell_quote(&dir)),
+            // Run as the vendor runs it, even if the shell exports the key.
+            None => format!("env -u {key}"),
+        })
         .collect();
     for (key, value) in extra_env {
         if !adapter.isolation_env_keys().contains(&key.as_str()) {

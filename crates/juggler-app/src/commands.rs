@@ -2959,7 +2959,11 @@ pub fn account_import_mode_impl(
         for existing in storage.accounts().list()? {
             if existing.import_source_path.as_deref() == Some(canonical_source.as_str()) {
                 return Err(AppError::AlreadyImported {
-                    label: existing.label.clone(),
+                    label: if existing.in_place {
+                        existing.label.clone()
+                    } else {
+                        format!("{}, a copy", existing.label)
+                    },
                 });
             }
         }
@@ -3001,9 +3005,11 @@ pub fn account_import_mode_impl(
         imported_at: Some(juggler_core::model::Timestamp::now().millis()),
         in_place,
     };
+    let mut inserted = false;
     let saved = (|| -> AppResult<()> {
         let storage = lock_storage_arc(state)?;
         storage.accounts().insert(&account)?;
+        inserted = true;
         // A default profile makes the imported account launchable in one
         // click — the wizard's promise.
         storage.profiles().insert(&Profile {
@@ -3021,7 +3027,7 @@ pub fn account_import_mode_impl(
         if !in_place && juggler_adapters::claude_code::is_managed_dir(&account.state_dir) {
             let _ = std::fs::remove_dir_all(&account.state_dir);
         }
-        if let Ok(storage) = lock_storage_arc(state) {
+        if inserted && let Ok(storage) = lock_storage_arc(state) {
             let _ = storage.accounts().delete(&account.id);
         }
         return Err(error);
@@ -12995,13 +13001,22 @@ pub fn environment_scan_full_impl(
     {
         let canonical =
             |path: &std::path::Path| path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
-        let in_place: Vec<std::path::PathBuf> = accounts
+        // …and so is the source of a copy: bringing it in again (either
+        // way) is refused, so it isn't offered (review of ADR-0018).
+        let already: Vec<std::path::PathBuf> = accounts
             .iter()
-            .filter(|account| account.in_place)
-            .map(|account| canonical(&account.state_dir))
+            .flat_map(|account| {
+                let source = account
+                    .import_source_path
+                    .as_deref()
+                    .map(std::path::Path::new)
+                    .map(canonical);
+                let own = account.in_place.then(|| canonical(&account.state_dir));
+                source.into_iter().chain(own)
+            })
             .collect();
         for install in &mut installs {
-            if in_place.contains(&canonical(std::path::Path::new(&install.path))) {
+            if already.contains(&canonical(std::path::Path::new(&install.path))) {
                 install.managed = true;
             }
         }

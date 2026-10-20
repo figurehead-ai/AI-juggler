@@ -153,6 +153,10 @@ fn ingest_claude(
     // return only because the account remains managed by Juggler.
     let spool = if let Some(spool) = in_place_spool {
         spool
+    } else if !juggler_adapters::claude_code::is_managed_dir(dir) {
+        // Only ever into AI Juggler's own marked copies — never a folder
+        // that isn't ours, whatever the account row says.
+        juggler_adapters::spool_path(dir)
     } else {
         if let Err(error) = juggler_adapters::install_statusline(dir) {
             record_health(
