@@ -62,14 +62,15 @@ ZCode follows the same five steps later (its own epic).
 1. `scan_environment` SHALL report `~/.codex`, `$CODEX_HOME`, `~/.codex*` home patterns and `CODEX_HOME=` shell-rc targets that look like a Codex home (`config.toml`, `auth.json`, `sessions/`, `history.jsonl`, `version.json`), metadata only (sizes, times, the AJ-E1301 sign-in probe).
 2. `inspect_source`, `import_account` and `import_account_degraded` SHALL copy byte for byte into a fresh managed home, skipping rebuildable state (`.tmp/`, `tmp/`, `log/`, SQLite `*.sqlite*`, `app-server-*`, `packages/`) and, for the settings-only import, the history (`sessions/`, `archived_sessions/`, `history.jsonl`, `session_index.jsonl`); every skip is listed with its size.
 3. The source SHALL be byte-identical before and after (fs-fixture test hashing every file) and SHALL never receive the managed marker.
-4. When the sign-in carries over, the import SHALL say plainly that the copy and the original now share one sign-in and that signing in again inside AI Juggler gives the copy its own; a Keychain-stored sign-in (no `auth.json`) SHALL say it does not carry over.
+4. The sign-in (`auth.json`) SHALL NOT be copied: a ChatGPT refresh token is single-use (codex-rs `login/src/auth/manager.rs:207`, `:1688`, `:1604-1618`), so two homes sharing one would sign each other out. The skip SHALL be listed with its reason and the import note SHALL say the copy signs in once. (A copy-on-explicit-opt-in with a "one of the two will be signed out" warning is a possible follow-up, not built.)
+5. Links inside the source SHALL be listed and never followed (shared with Claude's import); Codex's skip names SHALL apply to the home's top level only.
 **UI/UX reasoning**: Nielsen #1 (visibility): the Confirm-source step shows sizes and what stays behind; Nielsen #3 (user control): copy, never adopt in place.
 **Performance budget**: Scan of a home with 10k session files ≤ 2 s (bounded walk); copy ≥ 100 MB/s locally.
 **Quality gates**: as AJ-E1301 (Rust only unless UI copy changes).
 **Evidence/validation proof**: `cargo test -p juggler-adapters --test codex_environment` (fixture homes, source hash before/after) and an app-level import test; `docs/qa/evidence/AJ-E1302/manifest.md`.
 **Visual testing**: none unless copy changes (the existing import screens are Provider-neutral).
 **Files to touch**: new `crates/juggler-adapters/src/codex_environment.rs`, `codex.rs`, tests and fixtures under `crates/juggler-adapters/tests/fixtures/codex/`.
-**Research basis**: research/codex.md §3 (Codex docs sanction copying `auth.json` to another machine), §10 (home contents); `claude_environment.rs` as the pattern.
+**Research basis**: research/codex.md §3, §10 (home contents, single-use refresh tokens); `claude_environment.rs` as the pattern.
 **Handover note**: Trap — Codex's `state_5.sqlite` stores ABSOLUTE rollout paths: a copied index would point the new account at the original's session files, and a resume would write into the original. It is a projection Codex rebuilds from `sessions/` (filename scan + read-repair), so every `*.sqlite*` stays behind — memories and queued messages kept in SQLite do not travel (listed in the skips). The copy machinery is shared with Claude through `claude_environment::Layout`.
 
 ### AJ-E1303 Watch Codex sessions: rollout parser, linking, identity | Status: TODO | Priority P0 | Effort L | Depends: AJ-E1301

@@ -46,6 +46,15 @@ pub(crate) struct Layout {
     pub(crate) skip_names: &'static [&'static str],
     /// File-name suffixes skipped as rebuildable state.
     pub(crate) skip_suffixes: &'static [&'static str],
+    /// The skips apply to the home's own top-level entries only (a
+    /// `log/` or `packages/` deeper down is user content, kept).
+    pub(crate) top_level_skips_only: bool,
+    /// How deep the scan's size estimate walks (Claude keeps its bulk
+    /// two levels down; Codex's sessions sit at `sessions/Y/M/D/`).
+    pub(crate) estimate_depth: usize,
+    /// Top-level files never copied, with the plain reason listed in
+    /// the skips (Codex's `auth.json`: see `codex_environment`).
+    pub(crate) kept_back: &'static [(&'static str, &'static str)],
     /// Top-level names that make a directory a real config home.
     pub(crate) config_evidence: &'static [&'static str],
     /// Top-level history entries the settings-only import leaves behind.
@@ -61,13 +70,29 @@ pub(crate) struct Layout {
 }
 
 impl Layout {
-    /// Whether `name` is rebuildable state, never copied.
-    pub(crate) fn skips(&self, name: &str) -> bool {
+    /// Whether `name` (at the top level of the home, or deeper) is
+    /// rebuildable state, never copied.
+    pub(crate) fn skips(&self, name: &str, top_level: bool) -> bool {
+        if self.top_level_skips_only && !top_level {
+            return false;
+        }
         self.skip_names.contains(&name)
             || self
                 .skip_suffixes
                 .iter()
                 .any(|suffix| name.ends_with(suffix))
+    }
+
+    /// Why a top-level file stays with the original, when it does.
+    pub(crate) fn kept_back(&self, name: &str, top_level: bool) -> Option<&'static str> {
+        top_level
+            .then(|| {
+                self.kept_back
+                    .iter()
+                    .find(|(kept, _)| *kept == name)
+                    .map(|(_, why)| *why)
+            })
+            .flatten()
     }
 
     /// Whether `dir` carries evidence of a real config home.
@@ -83,6 +108,9 @@ pub(crate) const CLAUDE_LAYOUT: Layout = Layout {
     provider: CLAUDE_CODE_ID,
     skip_names: SKIP_ON_IMPORT,
     skip_suffixes: &[],
+    top_level_skips_only: false,
+    estimate_depth: 2,
+    kept_back: &[],
     config_evidence: CONFIG_EVIDENCE,
     history: HISTORY_DIRS,
     private_files: &[".credentials.json"],
@@ -272,7 +300,12 @@ fn inspect_walk(
         };
         let name = entry.file_name();
         let name = name.to_string_lossy().into_owned();
-        if layout.skips(&name) {
+        let top_level = dir == root;
+        // Links are never followed (they are not copied either).
+        if meta.file_type().is_symlink()
+            || layout.skips(&name, top_level)
+            || layout.kept_back(&name, top_level).is_some()
+        {
             continue;
         }
         if meta.is_dir() {
@@ -520,6 +553,9 @@ fn size_tree(dir: &Path, total: &mut u64) {
         let Ok(meta) = entry.metadata() else {
             continue;
         };
+        if meta.file_type().is_symlink() {
+            continue;
+        }
         if meta.is_dir() {
             size_tree(&entry.path(), total);
         } else {
@@ -576,8 +612,10 @@ fn origin_notes(origin: InstallOrigin, login: LoginProbe) -> Vec<String> {
     notes
 }
 
-/// Sums file sizes to depth 2 (config dirs keep bulk under `projects/`),
-/// bounded by [`MAX_WALK_ENTRIES`]; skips the same noise the import skips.
+/// Sums FILE sizes down to the layout's `estimate_depth` (a folder's own
+/// metadata size is never counted — it differs by file system), bounded
+/// by [`MAX_WALK_ENTRIES`]; skips the same noise and links the import
+/// skips.
 pub(crate) fn estimate_bytes(layout: &Layout, dir: &Path) -> u64 {
     let mut total = 0u64;
     let mut entries_seen = 0usize;
@@ -593,12 +631,18 @@ pub(crate) fn estimate_bytes(layout: &Layout, dir: &Path) -> u64 {
             }
             let name = entry.file_name();
             let name = name.to_string_lossy().into_owned();
-            if layout.skips(&name) {
+            let top_level = depth == 0;
+            if layout.skips(&name, top_level) || layout.kept_back(&name, top_level).is_some() {
                 continue;
             }
             let Ok(meta) = entry.metadata() else { continue };
-            if meta.is_dir() && depth < 2 {
-                stack.push((entry.path(), depth + 1));
+            if meta.file_type().is_symlink() {
+                continue;
+            }
+            if meta.is_dir() {
+                if depth < layout.estimate_depth {
+                    stack.push((entry.path(), depth + 1));
+                }
             } else {
                 total += meta.len();
             }
@@ -654,8 +698,21 @@ fn collect_files(
             Ok(relative) => relative.to_path_buf(),
             Err(_) => entry.path(),
         };
+        let top_level = relative.components().count() == 1;
+        // `DirEntry::metadata` does not follow links: a link is listed
+        // and left behind — never followed, so a link to `~/.ssh/…` or
+        // outside the home can never pull its target into the copy.
+        if meta.file_type().is_symlink() {
+            acc.skipped
+                .push(format!("{} (a link — not copied)", relative.display()));
+            continue;
+        }
+        if let Some(why) = layout.kept_back(&name, top_level) {
+            acc.skipped.push(format!("{} ({why})", relative.display()));
+            continue;
+        }
         if meta.is_dir() {
-            if layout.skips(&name) {
+            if layout.skips(&name, top_level) {
                 acc.skipped
                     .push(format!("{}/ (rebuildable cache)", relative.display()));
                 continue;
@@ -674,7 +731,7 @@ fn collect_files(
                 continue;
             }
             collect_files(layout, root, &entry.path(), acc, max_bytes, extra_skips)?;
-        } else if layout.skips(&name) {
+        } else if layout.skips(&name, top_level) {
             acc.skipped
                 .push(format!("{} (rebuildable)", relative.display()));
         } else if relative.components().count() == 1 && extra_skips.contains(&name.as_str()) {

@@ -59,6 +59,7 @@ fn codex_home(root: &Path, name: &str) -> PathBuf {
     std::fs::write(home.join("state_5.sqlite"), "sqlite bytes").unwrap();
     std::fs::write(home.join("state_5.sqlite-wal"), "wal").unwrap();
     std::fs::write(home.join("logs_2.sqlite"), "logs").unwrap();
+    std::fs::write(home.join("installation_id"), "per-install").unwrap();
     for dir in [
         ".tmp",
         "log",
@@ -126,7 +127,14 @@ fn scan_finds_default_override_and_home_patterns() {
     assert!(origins.contains(&(".codex-work".into(), InstallOrigin::HomePattern)));
     assert!(found.iter().all(|f| f.harness.as_str() == "codex"));
     // The size estimate leaves the databases and noise out.
-    assert!(found[0].bytes > 0);
+    // Exactly the importable files: config, the rollout, history, the
+    // index and version — no sign-in, no databases, no noise.
+    let expected = "model = \"gpt-5-codex\"\n".len()
+        + ROLLOUT.len()
+        + "{\"text\":\"hi\"}\n".len()
+        + "{}\n".len()
+        + "{}".len();
+    assert_eq!(found[0].bytes, expected as u64);
 }
 
 #[test]
@@ -147,7 +155,6 @@ fn import_copies_config_and_history_and_leaves_the_source_identical() {
     let copied = files(&dest);
     for kept in [
         "config.toml",
-        "auth.json",
         "history.jsonl",
         "session_index.jsonl",
         "version.json",
@@ -159,7 +166,13 @@ fn import_copies_config_and_history_and_leaves_the_source_identical() {
             "{kept} missing: {copied:?}"
         );
     }
-    for dropped in ["state_5.sqlite", "state_5.sqlite-wal", "logs_2.sqlite"] {
+    for dropped in [
+        "auth.json",
+        "installation_id",
+        "state_5.sqlite",
+        "state_5.sqlite-wal",
+        "logs_2.sqlite",
+    ] {
         assert!(!copied.contains(&dropped.to_string()), "{dropped} copied");
     }
     assert!(copied.iter().all(|f| !f.starts_with(".tmp")
@@ -177,18 +190,21 @@ fn import_copies_config_and_history_and_leaves_the_source_identical() {
         after[Path::new("config.toml")],
         before[Path::new("config.toml")]
     );
-    // The sign-in carried over — and the note says it is shared.
-    assert_eq!(outcome.login, LoginProbe::LoggedIn);
-    assert!(outcome.login_note.unwrap().contains("share one sign-in"));
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let mode = std::fs::metadata(dest.join("auth.json"))
-            .unwrap()
-            .permissions()
-            .mode();
-        assert_eq!(mode & 0o777, 0o600, "the copied sign-in stays owner-only");
-    }
+    // The sign-in stays with the original (a ChatGPT refresh token is
+    // single-use: two homes sharing one sign each other out) — listed,
+    // and the copy signs in once.
+    assert!(
+        outcome
+            .skipped
+            .iter()
+            .any(|s| s.starts_with("auth.json (your sign-in")),
+        "{:?}",
+        outcome.skipped
+    );
+    assert_eq!(outcome.login, LoginProbe::LoggedOut);
+    let note = outcome.login_note.unwrap();
+    assert!(note.contains("stays with the original"), "{note}");
+    assert!(note.contains("Sign in once"), "{note}");
 }
 
 #[test]
@@ -204,7 +220,7 @@ fn settings_only_import_leaves_history_behind_and_lists_it() {
     assert!(outcome.degraded);
     let copied = files(&dest);
     assert!(copied.contains(&"config.toml".to_string()));
-    assert!(copied.contains(&"auth.json".to_string()));
+    assert!(!copied.contains(&"auth.json".to_string()));
     assert!(copied.iter().all(|f| !f.starts_with("sessions")));
     assert!(!copied.contains(&"history.jsonl".to_string()));
     assert!(!copied.contains(&"session_index.jsonl".to_string()));
@@ -269,4 +285,126 @@ fn the_adapter_routes_scan_and_import_through_codex() {
         .import_account_degraded(&source, &tmp.path().join("acct2"))
         .unwrap();
     assert!(light.degraded);
+}
+
+#[cfg(unix)]
+#[test]
+fn links_are_listed_and_never_followed() {
+    use std::os::unix::fs::symlink;
+    let tmp = tempfile::tempdir().unwrap();
+    let source = codex_home(tmp.path(), ".codex");
+    let outside = tmp.path().join("outside");
+    std::fs::create_dir_all(outside.join("dir")).unwrap();
+    std::fs::write(outside.join("id_ed25519"), "PRIVATE KEY BYTES").unwrap();
+    std::fs::write(outside.join("dir/x"), "outside dir content").unwrap();
+    std::fs::create_dir_all(source.join("skills/real")).unwrap();
+    std::fs::write(source.join("skills/real/SKILL.md"), "a skill").unwrap();
+    symlink(
+        source.join("skills/real"),
+        source.join("skills/inside-link"),
+    )
+    .unwrap();
+    symlink(outside.join("dir"), source.join("skills/outside-dir")).unwrap();
+    symlink(outside.join("id_ed25519"), source.join("key-link")).unwrap();
+    symlink(tmp.path().join("nowhere"), source.join("dangling")).unwrap();
+    let before = snapshot_no_links(&source);
+    let dest = tmp.path().join("acct");
+
+    let outcome = import_codex_home(&source, &dest, &logged_in).unwrap();
+
+    let copied = files(&dest);
+    assert!(copied.contains(&"skills/real/SKILL.md".to_string()));
+    for link in [
+        "skills/inside-link",
+        "skills/outside-dir",
+        "key-link",
+        "dangling",
+    ] {
+        assert!(
+            !dest.join(link).exists() && std::fs::symlink_metadata(dest.join(link)).is_err(),
+            "{link} must not be copied"
+        );
+        assert!(
+            outcome
+                .skipped
+                .iter()
+                .any(|s| s == &format!("{link} (a link — not copied)")),
+            "{link} not listed: {:?}",
+            outcome.skipped
+        );
+    }
+    for file in &copied {
+        let bytes = std::fs::read(dest.join(file)).unwrap();
+        assert!(
+            !String::from_utf8_lossy(&bytes).contains("PRIVATE KEY BYTES"),
+            "a link target leaked into {file}"
+        );
+    }
+    assert_eq!(
+        snapshot_no_links(&source),
+        before,
+        "the source is untouched"
+    );
+    // The size estimate and the inspection never follow links either.
+    let inspect = inspect_codex_source(&source, &logged_in).unwrap();
+    assert!(!inspect.folders.iter().any(|(name, _)| name == "key-link"));
+}
+
+#[test]
+fn skip_names_apply_to_the_top_level_only() {
+    let tmp = tempfile::tempdir().unwrap();
+    let source = codex_home(tmp.path(), ".codex");
+    // The user's own content that happens to share a skipped name.
+    for nested in [
+        "skills/x/packages/p.json",
+        "skills/x/log/notes.md",
+        "skills/x/tmp/t.txt",
+    ] {
+        let path = source.join(nested);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, "user content").unwrap();
+    }
+    std::fs::write(source.join("skills/x/data.sqlite"), "a skill's own db").unwrap();
+    let dest = tmp.path().join("acct");
+    import_codex_home(&source, &dest, &logged_in).unwrap();
+    let copied = files(&dest);
+    for nested in [
+        "skills/x/packages/p.json",
+        "skills/x/log/notes.md",
+        "skills/x/tmp/t.txt",
+        "skills/x/data.sqlite",
+    ] {
+        assert!(copied.contains(&nested.to_string()), "{nested} dropped");
+    }
+    assert!(
+        !copied
+            .iter()
+            .any(|f| f.starts_with("packages/") || f.starts_with("log/"))
+    );
+}
+
+/// [`snapshot`] that skips links (they cannot be hashed by content).
+fn snapshot_no_links(root: &Path) -> BTreeMap<PathBuf, String> {
+    fn walk(root: &Path, dir: &Path, out: &mut BTreeMap<PathBuf, String>) {
+        for entry in std::fs::read_dir(dir).unwrap().flatten() {
+            let path = entry.path();
+            let kind = entry.file_type().unwrap();
+            if kind.is_symlink() {
+                out.insert(
+                    path.strip_prefix(root).unwrap().to_path_buf(),
+                    format!("link→{}", std::fs::read_link(&path).unwrap().display()),
+                );
+            } else if kind.is_dir() {
+                walk(root, &path, out);
+            } else {
+                out.insert(
+                    path.strip_prefix(root).unwrap().to_path_buf(),
+                    juggler_adapter::handover::sha256_hex(&std::fs::read(&path).unwrap()),
+                );
+            }
+        }
+    }
+    let mut out = BTreeMap::new();
+    walk(root, root, &mut out);
+    out
 }

@@ -95,6 +95,16 @@
   to https://registry.npmjs.org/pnpm/10.34.7" (run 39438483215, job
   118681742197). No project code had run; install, component tests and
   build were skipped. The job is re-run unchanged; CI is the arbiter.
+- **Defect record, 2026-10-20 (found by review; fixed).** PR #60's shared
+  import walk (`claude_environment.rs`) used `DirEntry::metadata`, which
+  does not follow links, and then copied every non-directory with
+  `std::fs::copy`, which does: a linked folder failed the whole import, a
+  link to a file outside the home (e.g. a key) was copied in, and the
+  size ceiling counted the link, not its target. This affected Claude
+  imports too. Links are now listed and never followed, with tests for a
+  folder inside, a folder outside, a file outside and a dangling link.
+  The same review found Codex's `auth.json` copy would share a
+  single-use refresh token (now kept back).
 - a11y seeded failure is recorded DEFERRED with owning task AJ-E804 —
   the gate is named in QUALITY.md vocabulary now; its absence is
   explicit, never a silent pass (per the quarantine/deferral rule).

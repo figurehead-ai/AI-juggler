@@ -43,7 +43,7 @@
 | AJ-E1206 | PASS8 | 2026-10-18 | [manifest](AJ-E1206/manifest.md) |
 | AJ-E1207 | PASS8 | 2026-10-18 | [manifest](AJ-E1207/manifest.md) |
 | AJ-E1301 | PASS14 UNPROVEN1 | 2026-10-20 | [manifest](AJ-E1301/manifest.md) |
-| AJ-E1302 | PASS6 | 2026-10-20 | [manifest](AJ-E1302/manifest.md) |
+| AJ-E1302 | PASS10 | 2026-10-20 | [manifest](AJ-E1302/manifest.md) |
 | AJ-E201 | PASS8 | 2026-10-16 | [manifest](AJ-E201/manifest.md) |
 | AJ-E202 | PASS7 | 2026-10-16 | [manifest](AJ-E202/manifest.md) |
 | AJ-E203 | PASS9 | 2026-10-16 | [manifest](AJ-E203/manifest.md) |

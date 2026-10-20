@@ -180,7 +180,17 @@ fn importing_a_codex_home_copies_it_and_leaves_the_original_alone() {
 
     assert_eq!(listing(&source), before, "the original is byte-identical");
     assert_eq!(imported.account.provider, CODEX_ID);
-    assert_eq!(imported.account.login_state, "signed_in");
+    // The sign-in stays with the original (single-use refresh tokens):
+    // the copy signs in once, and says so.
+    assert_eq!(imported.account.login_state, "logged_out");
+    assert!(
+        !state
+            .accounts_dir()
+            .join(CODEX_ID)
+            .join(&imported.account.id)
+            .join("auth.json")
+            .exists()
+    );
     let dir = state
         .accounts_dir()
         .join(CODEX_ID)

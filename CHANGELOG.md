@@ -60,6 +60,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Bringing in a setup that contains links no longer fails or copies what
+  a link points to: links are listed and left behind (Claude Code and
+  Codex).
+
 - A message to Codex that starts with "-" (a list item, say) is passed as
   text, never read as an option; a session id that looks like an option
   is refused instead of resuming something else (Codex and Claude Code).
@@ -103,9 +107,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - First run finds your existing Codex setups (`~/.codex`, `$CODEX_HOME`,
   any `~/.codex-…` folder, `CODEX_HOME=` in your shell files) and brings
   one in as a copy — the original keeps working, untouched (AJ-E1302).
-  Codex's own databases stay behind (Codex rebuilds them from the copied
-  history); the light import leaves the history behind too and lists
-  what it skipped.
+  Your sign-in stays with the original (a Codex sign-in can't be shared
+  between two folders without signing one out), so each copy signs in
+  once. Codex's own databases stay behind (Codex rebuilds them from the
+  copied history); the light import leaves the history behind too and
+  lists what it skipped.
 - Three update channels (decision D-20): **Nightly** (built from the latest
   code every day), **Beta** and **Stable** (each promoted with the
   maintainer's approval). Choose Stable or Beta in Settings › About &
