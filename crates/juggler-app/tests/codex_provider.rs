@@ -108,8 +108,8 @@ fn a_codex_account_gets_its_own_home_and_real_sign_in_state() {
         "the snippet pins the home and the SQLite home"
     );
     assert!(
-        snippet.ends_with("codex --no-daemon"),
-        "the snippet runs codex without the daemon"
+        snippet.ends_with(" codex"),
+        "the snippet runs plain codex (any version)"
     );
     assert!(
         expert
