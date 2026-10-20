@@ -53,6 +53,12 @@ pub struct LaunchSpec {
     pub needs_pty: bool,
 }
 
+/// An env-overlay value meaning "remove this variable" rather than set
+/// it (ADR-0018: the vendor's default folder runs without
+/// `CLAUDE_CONFIG_DIR`, as the vendor itself does). NUL can't occur in a
+/// real environment value, so this never collides with one.
+pub const ENV_UNSET: &str = "\u{0}unset";
+
 /// Convenience constructor used by adapters.
 #[must_use]
 pub fn headless_spec(program: PathBuf, args: Vec<String>, env: EnvMap, cwd: PathBuf) -> LaunchSpec {

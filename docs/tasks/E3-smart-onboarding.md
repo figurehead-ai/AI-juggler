@@ -317,9 +317,11 @@ is, choose "Import settings only", and finish — instead of a
 6. Partial failure (disk full mid-copy) SHALL clean up or mark
    the incomplete managed dir and offer [Remove] / [Retry];
    orphan managed dirs SHALL NOT accumulate silently.
-7. "Just track it" (adopt-in-place, no copy) SHALL NOT be
+7. ~~"Just track it" (adopt-in-place, no copy) SHALL NOT be
    offered unless its own ADR lands; the default and only
-   default-path mode is copy-import via `import_account`.
+   default-path mode is copy-import via `import_account`.~~
+   Superseded 2026-10-20 by ADR-0018 (AJ-E1024): using a setup
+   where it is is the default, copying is the option.
 8. The keychain re-login note SHALL appear at Confirm-source
    time for keychain-bound sources, not first at Login.
 **UI/UX reasoning**:

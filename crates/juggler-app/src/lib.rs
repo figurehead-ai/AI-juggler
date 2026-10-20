@@ -187,6 +187,7 @@ pub fn run() {
             commands::account_login_command,
             commands::environment_scan,
             commands::account_import,
+            commands::account_use_original,
             commands::source_inspect,
             commands::isolation_check,
             fleet::fleet_self,

@@ -487,9 +487,13 @@ CREATE TABLE artifact_manifests (
 );
 ";
 
-/// v28 (AJ-E1406): footprints — how heavy each launch setting's sessions
+/// Schema version 28 (ADR-0018): an account can use the user's own
+/// folder where it is. Existing accounts are copies (0).
+const V28: &str = "ALTER TABLE accounts ADD COLUMN in_place INTEGER NOT NULL DEFAULT 0;";
+
+/// v29 (AJ-E1406): footprints — how heavy each launch setting's sessions
 /// really are on this Mac (one row per session, the newest 50 per key).
-const V28: &str = "
+const V29: &str = "
 CREATE TABLE footprints (
     session_id   TEXT PRIMARY KEY,
     key          TEXT NOT NULL,
@@ -506,7 +510,7 @@ CREATE INDEX idx_footprints_key ON footprints(key, recorded_at);
 
 const MIGRATIONS: &[&str] = &[
     V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21,
-    V22, V23, V24, V25, V26, V27, V28,
+    V22, V23, V24, V25, V26, V27, V28, V29,
 ];
 
 /// An opened AI Juggler database with typed repositories.
@@ -652,7 +656,7 @@ impl Storage {
         IdentityRepo::new(&self.conn)
     }
 
-    /// Repository for footprints (schema v28, AJ-E1406).
+    /// Repository for footprints (schema v29, AJ-E1406).
     #[must_use]
     pub fn footprints(&self) -> FootprintsRepo<'_> {
         FootprintsRepo::new(&self.conn)

@@ -29,6 +29,9 @@ pub struct ProcFacts {
     pub cmd: String,
     /// `CLAUDE_CONFIG_DIR` from its environment, if set.
     pub config_dir: Option<String>,
+    /// Kernel start time, epoch seconds, when known (pins a measured root
+    /// against pid reuse).
+    pub start_time: Option<i64>,
 }
 
 /// Where a setup is in use: `desktop` (the Claude desktop app) and/or
@@ -76,6 +79,8 @@ pub struct RunningTool {
     pub place: &'static str,
     /// The config folder it uses, normalised.
     pub config_dir: PathBuf,
+    /// The root's kernel start time, when known.
+    pub start_time: Option<i64>,
 }
 
 /// Pure: the running Claude tools, one per tree. A `claude` started by
@@ -130,6 +135,7 @@ pub fn tools(processes: &[ProcFacts], home: &Path) -> Vec<RunningTool> {
             pid: process.pid,
             place,
             config_dir,
+            start_time: process.start_time,
         });
     }
     out
@@ -185,6 +191,7 @@ pub fn running_processes() -> Vec<ProcFacts> {
                     .and_then(|entry| entry.strip_prefix("CLAUDE_CONFIG_DIR="))
                     .map(str::to_owned)
             }),
+            start_time: i64::try_from(process.start_time()).ok(),
         })
         .collect()
 }
@@ -203,6 +210,7 @@ pub fn tools_from(briefs: &[juggler_supervisor::ProcessBrief], home: &Path) -> V
             name: brief.name.clone(),
             cmd: brief.cmd.clone(),
             config_dir: None,
+            start_time: Some(brief.start_time),
         })
         .collect();
     let roots: Vec<u32> = tools(&processes, home)
@@ -268,6 +276,7 @@ mod tests {
             name: name.to_owned(),
             cmd: exe.to_owned(),
             config_dir: config.map(str::to_owned),
+            start_time: None,
         }
     }
 
@@ -365,6 +374,7 @@ mod tool_roots {
             name: name.to_owned(),
             cmd: exe.to_owned(),
             config_dir: config.map(str::to_owned),
+            start_time: None,
         }
     }
 

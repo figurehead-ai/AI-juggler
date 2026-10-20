@@ -83,6 +83,7 @@ fn nothing_the_user_owns_reaches_the_stats_store_or_a_report() {
                 import_source_path: None,
                 import_origin: None,
                 imported_at: None,
+                in_place: false,
             })
             .unwrap();
         storage

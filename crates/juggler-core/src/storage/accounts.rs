@@ -26,8 +26,8 @@ impl AccountsRepo<'_> {
     /// (e.g. a duplicate id).
     pub fn insert(&self, account: &Account) -> Result<(), CoreError> {
         self.conn.execute(
-            "INSERT INTO accounts (id, provider_id, label, plan, state_dir, created_at, cleanup_opt_in, renewal_date, preview_opt_in, import_source_path, import_origin, imported_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+            "INSERT INTO accounts (id, provider_id, label, plan, state_dir, created_at, cleanup_opt_in, renewal_date, preview_opt_in, import_source_path, import_origin, imported_at, in_place)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
             params![
                 account.id.as_str(),
                 account.harness.as_str(),
@@ -41,6 +41,7 @@ impl AccountsRepo<'_> {
                 account.import_source_path,
                 account.import_origin,
                 account.imported_at,
+                i64::from(account.in_place),
             ],
         )?;
         Ok(())
@@ -56,7 +57,7 @@ impl AccountsRepo<'_> {
         let changed = self.conn.execute(
             "UPDATE accounts SET provider_id = ?2, label = ?3, plan = ?4, state_dir = ?5,
              cleanup_opt_in = ?6, renewal_date = ?7, preview_opt_in = ?8,
-             import_source_path = ?9, import_origin = ?10, imported_at = ?11
+             import_source_path = ?9, import_origin = ?10, imported_at = ?11, in_place = ?12
              WHERE id = ?1",
             params![
                 account.id.as_str(),
@@ -70,6 +71,7 @@ impl AccountsRepo<'_> {
                 account.import_source_path,
                 account.import_origin,
                 account.imported_at,
+                i64::from(account.in_place),
             ],
         )?;
         require_changed(changed, "account", account.id.as_str())
@@ -158,5 +160,6 @@ fn map_account(row: &Row<'_>) -> rusqlite::Result<Account> {
         import_source_path: row.get("import_source_path")?,
         import_origin: row.get("import_origin")?,
         imported_at: row.get("imported_at")?,
+        in_place: row.get::<_, i64>("in_place")? != 0,
     })
 }

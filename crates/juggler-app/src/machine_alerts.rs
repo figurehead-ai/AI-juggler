@@ -33,6 +33,9 @@ pub struct OverloadAlertInfo {
     /// The contributor's memory, bytes.
     #[ts(type = "number | null")]
     pub subject_bytes: Option<u64>,
+    /// Whether `subject_bytes` is an estimate (a tool AI Juggler didn't
+    /// start: its helpers share memory the sum counts more than once).
+    pub subject_estimate: bool,
     /// The contributor's CPU, percent of one core.
     pub subject_cpu: Option<f64>,
     /// When the condition started, epoch ms.
@@ -252,6 +255,10 @@ impl AlertEngine {
                     .and_then(|s| s.session_id.clone()),
                 place: condition.subject.as_ref().and_then(|s| s.place.clone()),
                 subject_bytes: condition.subject.as_ref().map(|s| s.rss_bytes),
+                subject_estimate: condition
+                    .subject
+                    .as_ref()
+                    .is_some_and(|s| s.memory_estimate),
                 subject_cpu: condition.subject.as_ref().and_then(|s| s.cpu_pct),
                 since_ms: since,
             };
@@ -356,6 +363,7 @@ mod tests {
             account_label: None,
             cpu_pct: Some(cpu),
             rss_bytes: rss,
+            memory_estimate: place.is_some(),
             helpers: 2,
             heavy_note: note.map(str::to_string),
         }
@@ -398,7 +406,21 @@ mod tests {
         assert_eq!(told[0].title, "Your Mac is under memory pressure");
         assert_eq!(told[0].session_id.as_deref(), Some("s-big"));
         assert_eq!(told[0].subject_bytes, Some(4 * G));
+        assert!(!told[0].subject_estimate, "our tree's memory is measured");
         assert_eq!(engine.active().len(), 1);
+    }
+
+    #[test]
+    fn a_tool_we_did_not_start_is_named_with_its_memory_as_an_estimate() {
+        let mut mac = calm();
+        mac.machine.pressure = Some("warning".into());
+        mac.top.reverse(); // the Claude app first
+        let mut engine = AlertEngine::default();
+        let told = run(&mut engine, &mac, 0, 60);
+        assert_eq!(told.len(), 1);
+        assert_eq!(told[0].place.as_deref(), Some("desktop"));
+        assert_eq!(told[0].subject_bytes, Some(2 * G));
+        assert!(told[0].subject_estimate);
     }
 
     #[test]

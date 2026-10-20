@@ -77,6 +77,7 @@ fn seed(state: &Arc<AppState>, data: &Path) {
                 import_source_path: None,
                 import_origin: None,
                 imported_at: None,
+                in_place: false,
             })
             .unwrap();
         let mut overlay = SettingsOverlay::default();
@@ -469,6 +470,7 @@ fn damaged_newer_and_unsafe_archives_are_refused_with_the_reason() {
                 import_source_path: None,
                 import_origin: None,
                 imported_at: None,
+                in_place: false,
             })
             .unwrap();
         storage

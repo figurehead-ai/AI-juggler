@@ -34,6 +34,11 @@ place: string | null,
  */
 subject_bytes: number | null, 
 /**
+ * Whether `subject_bytes` is an estimate (a tool AI Juggler didn't
+ * start: its helpers share memory the sum counts more than once).
+ */
+subject_estimate: boolean, 
+/**
  * The contributor's CPU, percent of one core.
  */
 subject_cpu: number | null, 

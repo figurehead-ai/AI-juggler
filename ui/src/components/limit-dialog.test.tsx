@@ -82,6 +82,16 @@ describe("D-25 limit decision — the dialog", () => {
     expect(w().__AIJ_PARK_CALLS__).toBeUndefined();
   });
 
+  it("a click on the dialog's text keeps focus inside it", async () => {
+    const { default: userEvent } = await import("@testing-library/user-event");
+    const user = userEvent.setup();
+    const { getByTestId, getByText } = renderIt();
+    const dialog = getByTestId("limit-dialog");
+    await user.click(getByText(/nothing is lost/));
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    expect(document.activeElement).not.toBe(document.body);
+  });
+
   it("shows what doesn't carry over, on request", async () => {
     w().__AIJ_SWITCH_TARGETS__ = [target("acct-personal", "Personal")];
     const { findByRole, getByTestId } = renderIt();

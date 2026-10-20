@@ -56,6 +56,7 @@ fn arb_account() -> impl Strategy<Value = Account> {
             import_source_path: None,
             import_origin: None,
             imported_at: None,
+            in_place: false,
         })
 }
 
@@ -192,6 +193,7 @@ fn seed_chain(storage: &Storage) -> (Account, Profile) {
         import_source_path: None,
         import_origin: None,
         imported_at: None,
+        in_place: false,
     };
     let profile = Profile {
         id: ProfileId::new("seed-profile"),
@@ -604,8 +606,8 @@ fn v4_database_upgrades_in_place_to_v5_with_identical_values() {
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
     assert_eq!(
-        version, 28,
-        "v4 → current (v28, AJ-E1406 footprints) exactly once, on open"
+        version, 29,
+        "v4 → current (v29, AJ-E1406 footprints) exactly once, on open"
     );
 
     let account = storage.accounts().get(&AccountId::new("acc-1")).unwrap();
@@ -632,7 +634,7 @@ fn v4_database_upgrades_in_place_to_v5_with_identical_values() {
         .raw_conn()
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(version, 28);
+    assert_eq!(version, 29);
     assert!(storage.sessions().get(&SessionId::new("sess-1")).is_ok());
 }
 
@@ -677,6 +679,7 @@ fn account_renewal_date_roundtrip_and_default_none() {
             import_source_path: None,
             import_origin: None,
             imported_at: None,
+            in_place: false,
         })
         .unwrap();
     // A row stored WITHOUT the field loads as None — never a guess (D-12).
@@ -1127,8 +1130,8 @@ fn v12_ledger_upgrades_in_place_to_v13() {
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
     assert_eq!(
-        version, 28,
-        "v12 → current (v28, AJ-E1406) exactly once, on open"
+        version, 29,
+        "v12 → current (v29, AJ-E1406) exactly once, on open"
     );
     drop(storage);
 
@@ -1166,6 +1169,7 @@ fn account_provenance_roundtrip_e307() {
         import_source_path: Some("/Users/you/.cc-switch/profiles/work".into()),
         import_origin: Some("cc-switch".into()),
         imported_at: Some(1_728_800_000_000),
+        in_place: false,
     };
     storage.accounts().insert(&account).unwrap();
     let loaded = storage.accounts().get(&AccountId::new("acc-prov")).unwrap();

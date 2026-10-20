@@ -45,6 +45,9 @@ const ENV_BIN_OVERRIDE: &str = "AI_JUGGLER_CLAUDE_BIN";
 #[derive(Debug, Clone, Default)]
 pub struct ClaudeCodeAdapter {
     bin: Option<PathBuf>,
+    /// ADR-0018: where in-place accounts' launch overlays live (AI
+    /// Juggler's data). `None` = no status line capture for them.
+    overlays_root: Option<PathBuf>,
 }
 
 impl ClaudeCodeAdapter {
@@ -59,7 +62,16 @@ impl ClaudeCodeAdapter {
     pub fn with_bin(bin: impl Into<PathBuf>) -> Self {
         Self {
             bin: Some(bin.into()),
+            overlays_root: None,
         }
+    }
+
+    /// ADR-0018: in-place accounts get their status line capture from a
+    /// `--settings` file under `root` instead of edits to their folder.
+    #[must_use]
+    pub fn with_overlays_root(mut self, root: impl Into<PathBuf>) -> Self {
+        self.overlays_root = Some(root.into());
+        self
     }
 
     fn resolve_bin(&self) -> Option<PathBuf> {
@@ -297,6 +309,15 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         claude_environment::import_claude_config(source, dest, &probe)
     }
 
+    fn adopt_account(&self, source: &Path) -> Result<ImportOutcome, AdapterError> {
+        let adapter = ClaudeCodeAdapter::new();
+        let probe = move |path: &Path| match adapter.login_state(path) {
+            LoginState::SignedIn => LoginProbe::LoggedIn,
+            _ => LoginProbe::LoggedOut,
+        };
+        claude_environment::adopt_claude_config(source, &probe)
+    }
+
     fn inspect_source(
         &self,
         source: &Path,
@@ -350,6 +371,15 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         &[ENV_CONFIG_DIR, ENV_BIN_OVERRIDE]
     }
 
+    fn launch_unset_keys(&self) -> &'static [&'static str] {
+        &INHERITED_CREDENTIAL_KEYS
+    }
+
+    fn isolation_env_value(&self, state_dir: &Path) -> Option<String> {
+        let value = config_dir_value(state_dir);
+        (value != juggler_adapter::launch::ENV_UNSET).then_some(value)
+    }
+
     fn shell_command(&self) -> Option<&'static str> {
         Some("claude")
     }
@@ -376,9 +406,10 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         let mut env: EnvMap = profile.settings_overlay.env.clone();
         env.insert(
             ENV_CONFIG_DIR.to_string(),
-            account.state_dir.to_string_lossy().into_owned(),
+            config_dir_value(&account.state_dir),
         );
-        let (args, needs_pty) = match mode {
+        unset_inherited_credentials(&mut env);
+        let (mut args, needs_pty) = match mode {
             LaunchMode::Interactive => (Vec::new(), true),
             // `claude "<prompt>"` — an interactive session whose first
             // turn is the prompt (AJ-E706 T3 replay).
@@ -397,7 +428,9 @@ impl HarnessAdapter for ClaudeCodeAdapter {
                 delta_prompt,
             } => {
                 // `--resume <id> "<delta>"` — the resumed conversation
-                // receives the delta as its next user turn (E207).
+                // receives the delta as its next user turn (E207). An id
+                // that looks like an option is refused, never passed.
+                crate::codex::refuse_option_like(session_id)?;
                 let mut args = vec!["--resume".into(), session_id.clone()];
                 if let Some(delta) = delta_prompt {
                     args.push(delta.clone());
@@ -405,6 +438,28 @@ impl HarnessAdapter for ClaudeCodeAdapter {
                 (args, true)
             }
         };
+        // Per-launch settings go in as flags, never as edits to the
+        // folder's settings.json (ADR-0018 §3): the profile's model, and
+        // for an in-place account the status line capture in AI Juggler's
+        // own folder.
+        let mut leading = Vec::new();
+        if let Some(model) = &profile.settings_overlay.model {
+            leading.extend(["--model".to_owned(), model.clone()]);
+        }
+        if account.in_place
+            && let Some(root) = &self.overlays_root
+            && let Ok(settings) = crate::quota_ingest::ensure_launch_overlay(
+                root,
+                account.id.as_str(),
+                &account.state_dir,
+            )
+        {
+            leading.extend([
+                "--settings".to_owned(),
+                settings.to_string_lossy().into_owned(),
+            ]);
+        }
+        args.splice(0..0, leading);
         Ok(LaunchSpec {
             program: bin,
             args,
@@ -422,36 +477,53 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         probe_claude_identity(&account.state_dir)
     }
 
+    fn login_state(&self, state_dir: &Path) -> LoginState {
+        ClaudeCodeAdapter::login_state(self, state_dir)
+    }
+
+    /// Claude keeps `projects/<mangled cwd>/<session>.jsonl`; the cwd
+    /// is read from the file (never decoded from the name, H-3).
+    fn locate_transcript(
+        &self,
+        state_dir: &Path,
+        cwd: &Path,
+        since_ms: i64,
+        taken: &[PathBuf],
+    ) -> Option<juggler_core::model::TranscriptRef> {
+        let mut candidates = Vec::new();
+        for project in std::fs::read_dir(state_dir.join("projects"))
+            .ok()?
+            .flatten()
+        {
+            let Ok(files) = std::fs::read_dir(project.path()) else {
+                continue;
+            };
+            for file in files.flatten() {
+                let path = file.path();
+                if path.extension().is_some_and(|ext| ext == "jsonl") {
+                    candidates.push(path);
+                }
+            }
+        }
+        only_since(candidates, since_ms, taken, |bytes| {
+            juggler_adapter::handover::embedded_cwd(bytes)
+                .is_some_and(|found| same_folder(&found, cwd))
+        })
+        .map(|path| juggler_core::model::TranscriptRef {
+            native_id: Some(file_stem(&path)),
+            path,
+        })
+    }
+
     fn watcher(&self, transcript_root: &Path) -> Result<Box<dyn SessionWatcher>, AdapterError> {
         ClaudeTranscriptWatcher::new(transcript_root)
             .map(|watcher| Box::new(watcher) as Box<dyn SessionWatcher>)
     }
 }
 
-/// Login state of a managed account, detected without reading credential
-/// contents.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LoginState {
-    /// Credentials are present and structurally usable.
-    SignedIn,
-    /// A credentials file exists but is EMPTY — an OAuth abandoned
-    /// halfway in this dir ("Sign-in didn't finish").
-    Partial,
-    /// Credentials exist with a PAST expiry claim (the documented
-    /// field is parsed; token contents are never read or logged).
-    Expired,
-    /// An SSO session marker exists without completed credentials —
-    /// finish in the browser/IdP window, then return.
-    SsoPending,
-    /// An API-key account (settings metadata NAMES a key — the value
-    /// is never read; subscription rings never apply).
-    ApiKey,
-    /// No credentials found for this config dir.
-    LoggedOut,
-    /// The probe itself failed (unreadable dir) — NEVER renders as
-    /// [`LoginState::LoggedOut`] (AJ-E308 Req.1).
-    Unknown,
-}
+/// The AJ-E308 sign-in taxonomy — moved to the adapter contract for
+/// AJ-E1301 (re-exported here so existing paths keep working).
+pub use juggler_adapter::environment::LoginState;
 
 /// Current epoch seconds (std-only).
 fn epoch_secs() -> i64 {
@@ -495,6 +567,12 @@ impl ClaudeCodeAdapter {
         }
         #[cfg(target_os = "macos")]
         if keychain_entry_exists(&namespaced_service(state_dir)) {
+            return LoginState::SignedIn;
+        }
+        // The vendor's default folder runs without CLAUDE_CONFIG_DIR, and
+        // its sign-in has the un-namespaced name (ADR-0018 §3).
+        #[cfg(target_os = "macos")]
+        if is_vendor_default_dir(state_dir) && keychain_entry_exists(SHARED_SERVICE) {
             return LoginState::SignedIn;
         }
         LoginState::LoggedOut
@@ -548,15 +626,22 @@ impl ClaudeCodeAdapter {
             ));
         };
         let mut env = EnvMap::new();
-        env.insert(
-            ENV_CONFIG_DIR.to_string(),
-            state_dir.to_string_lossy().into_owned(),
-        );
+        env.insert(ENV_CONFIG_DIR.to_string(), config_dir_value(state_dir));
+        unset_inherited_credentials(&mut env);
+        // Not the config folder itself: Claude would treat it as a project
+        // (a trust prompt, a projects/ entry for the folder) — an empty
+        // folder of AI Juggler's own, when there is one.
+        let cwd = self
+            .overlays_root
+            .as_ref()
+            .map(|root| root.join("sign-in"))
+            .filter(|dir| std::fs::create_dir_all(dir).is_ok())
+            .unwrap_or_else(|| state_dir.to_path_buf());
         Ok(LaunchSpec {
             program: bin,
             args: Vec::new(),
             env,
-            cwd: state_dir.to_path_buf(),
+            cwd,
             needs_pty: true,
         })
     }
@@ -577,19 +662,50 @@ pub fn is_managed_dir(state_dir: &Path) -> bool {
 /// Returns [`AdapterError::AccountDir`] when the dir or marker cannot be
 /// written.
 pub(crate) fn prepare_managed_dir(state_dir: &Path) -> Result<(), AdapterError> {
-    create_private_dir(state_dir).map_err(|error| AdapterError::AccountDir {
-        path: state_dir.to_path_buf(),
-        message: error.to_string(),
+    prepare_managed_dir_for(state_dir, CLAUDE_CODE_ID)
+}
+
+/// [`prepare_managed_dir`] for any Provider: the marker names the
+/// Provider whose state the directory holds.
+///
+/// # Errors
+///
+/// Returns [`AdapterError::AccountDir`] when the dir or marker cannot be
+/// written.
+pub(crate) fn prepare_managed_dir_for(
+    state_dir: &Path,
+    provider: &str,
+) -> Result<(), AdapterError> {
+    // A failure after creating the folder removes it again — only when
+    // this call created it (an existing folder is never removed).
+    let created_here = !state_dir.exists();
+    let undo = || {
+        if created_here {
+            let _ = std::fs::remove_dir_all(state_dir);
+        }
+    };
+    create_private_dir(state_dir).map_err(|error| {
+        undo();
+        AdapterError::AccountDir {
+            path: state_dir.to_path_buf(),
+            message: error.to_string(),
+        }
     })?;
     // Marker identifies the directory as ours — guardrail primitive for
     // "never touch unmanaged dirs" checks (ADR-0003).
     let marker = state_dir.join(MANAGED_MARKER);
-    std::fs::write(&marker, "managed-by: ai-juggler\nharness: claude-code\n")
-        .and_then(|()| restrict_to_owner(&marker))
-        .map_err(|error| AdapterError::AccountDir {
+    std::fs::write(
+        &marker,
+        format!("managed-by: ai-juggler\nharness: {provider}\n"),
+    )
+    .and_then(|()| restrict_to_owner(&marker))
+    .map_err(|error| {
+        undo();
+        AdapterError::AccountDir {
             path: state_dir.to_path_buf(),
             message: format!("cannot write marker: {error}"),
-        })
+        }
+    })
 }
 
 /// notify-based watcher over the account's transcript tree
@@ -597,16 +713,27 @@ pub(crate) fn prepare_managed_dir(state_dir: &Path) -> Result<(), AdapterError> 
 /// `.jsonl` file; new files emit [`SessionEvent::Discovered`], growth emits
 /// [`SessionEvent::MessageAppended`]. Content is never parsed here — the
 /// transcript parser runs downstream on demand (spec §4.1).
-struct ClaudeTranscriptWatcher {
+pub(crate) struct ClaudeTranscriptWatcher {
     root: PathBuf,
+    /// The vendor session id of a transcript file (Claude: the stem;
+    /// Codex: the thread UUID inside the rollout name).
+    id_of: fn(&Path) -> String,
     _watcher: notify::RecommendedWatcher,
     events: std::sync::mpsc::Receiver<notify::Result<notify::Event>>,
     seen: BTreeMap<PathBuf, usize>,
+    /// (size, mtime) at the last read: an unchanged file is not read
+    /// again (Codex keeps every past rollout under `sessions/`).
+    stamps: BTreeMap<PathBuf, (u64, Option<std::time::SystemTime>)>,
     pending: std::collections::VecDeque<SessionEvent>,
 }
 
 impl ClaudeTranscriptWatcher {
     fn new(root: &Path) -> Result<Self, AdapterError> {
+        Self::with_ids(root, file_stem)
+    }
+
+    /// A watcher whose native ids come from `id_of` (shared by Codex).
+    pub(crate) fn with_ids(root: &Path, id_of: fn(&Path) -> String) -> Result<Self, AdapterError> {
         use notify::Watcher;
         let (tx, events) = std::sync::mpsc::channel();
         let mut watcher = notify::recommended_watcher(tx)
@@ -618,9 +745,11 @@ impl ClaudeTranscriptWatcher {
             })?;
         Ok(Self {
             root: root.to_path_buf(),
+            id_of,
             _watcher: watcher,
             events,
             seen: BTreeMap::new(),
+            stamps: BTreeMap::new(),
             pending: std::collections::VecDeque::new(),
         })
     }
@@ -645,16 +774,23 @@ impl ClaudeTranscriptWatcher {
         collect_jsonl(&self.root, &mut files, 0);
         files.sort();
         for path in files {
+            let stamp = std::fs::metadata(&path)
+                .map(|meta| (meta.len(), meta.modified().ok()))
+                .unwrap_or_default();
+            if self.stamps.get(&path) == Some(&stamp) {
+                continue;
+            }
+            self.stamps.insert(path.clone(), stamp);
             let lines = std::fs::read(&path).map_or(0, |bytes| count_lines(&bytes));
             let known = self.seen.entry(path.clone()).or_insert(0);
             if *known == 0 && lines > 0 {
                 self.pending.push_back(SessionEvent::Discovered {
-                    native_id: file_stem(&path),
+                    native_id: (self.id_of)(&path),
                     transcript_path: path.clone(),
                 });
             } else if lines > *known {
                 self.pending.push_back(SessionEvent::MessageAppended {
-                    native_id: file_stem(&path),
+                    native_id: (self.id_of)(&path),
                     transcript_path: path.clone(),
                 });
             }
@@ -674,7 +810,7 @@ impl SessionWatcher for ClaudeTranscriptWatcher {
 
 /// Bounded recursive collection of `.jsonl` files (depth cap guards against
 /// pathological symlink loops).
-fn collect_jsonl(dir: &Path, out: &mut Vec<PathBuf>, depth: usize) {
+pub(crate) fn collect_jsonl(dir: &Path, out: &mut Vec<PathBuf>, depth: usize) {
     const MAX_DEPTH: usize = 8;
     if depth > MAX_DEPTH {
         return;
@@ -692,11 +828,59 @@ fn collect_jsonl(dir: &Path, out: &mut Vec<PathBuf>, depth: usize) {
     }
 }
 
-fn count_lines(bytes: &[u8]) -> usize {
+/// The ONE file of `candidates` created at or after `since_ms` (2 s of
+/// clock slack), not in `taken`, whose head satisfies `matches` — `None`
+/// when there is none or more than one (never a guess between two).
+pub(crate) fn only_since(
+    candidates: Vec<PathBuf>,
+    since_ms: i64,
+    taken: &[PathBuf],
+    matches: impl Fn(&[u8]) -> bool,
+) -> Option<PathBuf> {
+    let born_ms = |path: &Path| {
+        let meta = std::fs::metadata(path).ok()?;
+        let time = meta.created().or_else(|_| meta.modified()).ok()?;
+        let since = time.duration_since(std::time::UNIX_EPOCH).ok()?;
+        i64::try_from(since.as_millis()).ok()
+    };
+    let mut found = candidates
+        .into_iter()
+        .filter(|path| !taken.contains(path))
+        .filter_map(|path| Some((born_ms(&path)?, path)))
+        .filter(|(born, _)| *born >= since_ms.saturating_sub(2_000))
+        .filter(|(_, path)| {
+            // The head carries the cwd; a first line can be large (a
+            // rollout's `session_meta` holds the base instructions), so
+            // the bound is generous but finite.
+            use std::io::Read as _;
+            let mut head = Vec::new();
+            std::fs::File::open(path)
+                .and_then(|file| file.take(HEAD_LIMIT).read_to_end(&mut head))
+                .is_ok_and(|_| matches(&head))
+        })
+        .map(|(_, path)| path);
+    let first = found.next()?;
+    found.next().is_none().then_some(first)
+}
+
+/// How much of a transcript's head the cwd match reads.
+const HEAD_LIMIT: u64 = 8 * 1024 * 1024;
+
+/// The same folder, symlinks resolved when both sides exist (`/var` vs
+/// `/private/var`), else the exact string.
+pub(crate) fn same_folder(recorded: &str, cwd: &Path) -> bool {
+    let recorded = Path::new(recorded);
+    match (recorded.canonicalize(), cwd.canonicalize()) {
+        (Ok(a), Ok(b)) => a == b,
+        _ => recorded == cwd,
+    }
+}
+
+pub(crate) fn count_lines(bytes: &[u8]) -> usize {
     bytes.split(|b| *b == b'\n').count().saturating_sub(1)
 }
 
-fn file_stem(path: &Path) -> String {
+pub(crate) fn file_stem(path: &Path) -> String {
     path.file_stem()
         .map(|stem| stem.to_string_lossy().into_owned())
         .unwrap_or_default()
@@ -704,7 +888,7 @@ fn file_stem(path: &Path) -> String {
 
 // ---- helpers -------------------------------------------------------------
 
-fn find_on_path(program: &str) -> Option<PathBuf> {
+pub(crate) fn find_on_path(program: &str) -> Option<PathBuf> {
     let path_var = std::env::var_os("PATH")?;
     let exe = if cfg!(windows) {
         format!("{program}.exe")
@@ -717,18 +901,103 @@ fn find_on_path(program: &str) -> Option<PathBuf> {
 }
 
 /// The user's home dir (`HOME` / `USERPROFILE`).
-fn home_dir() -> Option<PathBuf> {
+/// The un-namespaced Keychain service Claude Code uses when
+/// `CLAUDE_CONFIG_DIR` is unset (the vendor's default folder).
+#[cfg(target_os = "macos")]
+const SHARED_SERVICE: &str = "Claude Code-credentials";
+
+/// ADR-0018: true for the vendor's own default folder, `~/.claude`.
+/// Only an in-place account can have it (copies live in AI Juggler's
+/// data), and it is launched as the vendor runs it: with
+/// `CLAUDE_CONFIG_DIR` unset, so its sign-in and state are the same.
+#[must_use]
+pub fn is_vendor_default_dir(dir: &Path) -> bool {
+    home_dir().is_some_and(|home| is_vendor_default_dir_in(dir, &home))
+}
+
+/// [`is_vendor_default_dir`] for an explicit home folder (pure, testable).
+/// The exact path only — not a link to it: a launch through a link sets
+/// `CLAUDE_CONFIG_DIR` to the link, and that sign-in is namespaced.
+#[must_use]
+pub fn is_vendor_default_dir_in(dir: &Path, home: &Path) -> bool {
+    let trimmed = PathBuf::from(dir.to_string_lossy().trim_end_matches('/'));
+    trimmed == home.join(".claude")
+}
+
+/// Credentials Claude Code takes from the environment ahead of the
+/// folder's own sign-in. Started from a terminal that exports one, AI
+/// Juggler would otherwise run EVERY account on that one key.
+pub const INHERITED_CREDENTIAL_KEYS: [&str; 3] = [
+    "ANTHROPIC_API_KEY",
+    "ANTHROPIC_AUTH_TOKEN",
+    "CLAUDE_CODE_OAUTH_TOKEN",
+];
+
+/// Each account signs in as itself: remove [`INHERITED_CREDENTIAL_KEYS`]
+/// from what the launch inherits (an account set up with a key keeps it
+/// in its own settings, which this doesn't touch).
+fn unset_inherited_credentials(env: &mut EnvMap) {
+    for key in INHERITED_CREDENTIAL_KEYS {
+        env.insert(
+            key.to_owned(),
+            juggler_adapter::launch::ENV_UNSET.to_owned(),
+        );
+    }
+}
+
+/// The `CLAUDE_CONFIG_DIR` value for a folder: its exact path (Claude's
+/// Keychain name hashes that string), or unset for the default folder.
+fn config_dir_value(dir: &Path) -> String {
+    home_dir().map_or_else(
+        || dir.to_string_lossy().into_owned(),
+        |home| config_dir_value_in(dir, &home),
+    )
+}
+
+/// The `CLAUDE_CONFIG_DIR` value for an explicit home folder (pure, testable).
+#[must_use]
+pub fn config_dir_value_in(dir: &Path, home: &Path) -> String {
+    if is_vendor_default_dir_in(dir, home) {
+        juggler_adapter::launch::ENV_UNSET.to_owned()
+    } else {
+        dir.to_string_lossy().into_owned()
+    }
+}
+
+/// Claude Code's state file for a folder: inside it, or `~/.claude.json`
+/// for the vendor's default folder (where Claude keeps it when
+/// `CLAUDE_CONFIG_DIR` is unset).
+#[must_use]
+pub fn claude_state_file(dir: &Path) -> PathBuf {
+    home_dir().map_or_else(
+        || dir.join(".claude.json"),
+        |home| claude_state_file_in(dir, &home),
+    )
+}
+
+/// [`claude_state_file`] for an explicit home folder (pure, testable).
+#[must_use]
+pub fn claude_state_file_in(dir: &Path, home: &Path) -> PathBuf {
+    // Unset, Claude keeps it at ~/.claude.json — prefer that over any
+    // stale ~/.claude/.claude.json.
+    if is_vendor_default_dir_in(dir, home) && home.join(".claude.json").exists() {
+        return home.join(".claude.json");
+    }
+    dir.join(".claude.json")
+}
+
+pub(crate) fn home_dir() -> Option<PathBuf> {
     std::env::var_os("HOME")
         .or_else(|| std::env::var_os("USERPROFILE"))
         .map(PathBuf::from)
 }
 
-fn home_relative(relative: &str) -> Option<PathBuf> {
+pub(crate) fn home_relative(relative: &str) -> Option<PathBuf> {
     let home = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE"))?;
     Some(PathBuf::from(home).join(relative))
 }
 
-fn existing(candidates: &[&str]) -> Option<PathBuf> {
+pub(crate) fn existing(candidates: &[&str]) -> Option<PathBuf> {
     candidates.iter().map(PathBuf::from).find(|p| p.is_file())
 }
 
@@ -817,7 +1086,7 @@ pub fn write_settings_overlay(
 #[must_use]
 pub fn probe_claude_identity(state_dir: &Path) -> juggler_adapter::IdentityProbe {
     use juggler_adapter::IdentityProbe;
-    let Ok(raw) = std::fs::read(state_dir.join(".claude.json")) else {
+    let Ok(raw) = std::fs::read(claude_state_file(state_dir)) else {
         return IdentityProbe::SignedOut;
     };
     let Ok(value) = serde_json::from_slice::<serde_json::Value>(&raw) else {

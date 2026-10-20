@@ -18,6 +18,11 @@ const LEVEL: Record<string, { glyph: string; tone: string }> = {
   pressure: { glyph: "■", tone: "text-danger" },
 };
 
+/** Why a tool AI Juggler didn't start shows "about": its helpers share
+ * memory, and the sum counts that once per helper. */
+const ESTIMATE_WORDS =
+  "An estimate: the sum of each helper's memory, so memory they share is counted more than once";
+
 /** What "in use" counts, in words (the backend's `memory_basis`). */
 export function memoryBasisWords(basis: string | null): string {
   return basis === "app_wired_compressed"
@@ -51,7 +56,12 @@ function TreeRow({
   const detail = [tree.account_label, ours ? null : "not started by AI Juggler"].filter(Boolean).join(" · ");
   const numbers = (
     <span className="ml-auto flex shrink-0 flex-col items-end gap-0.5 font-mono text-xs">
-      <span className={tree.heavy_note ? "font-semibold text-warning" : "text-ink"}>{bytesWords(tree.rss_bytes)}</span>
+      <span
+        className={tree.heavy_note ? "font-semibold text-warning" : "text-ink"}
+        title={tree.memory_estimate ? ESTIMATE_WORDS : undefined}
+      >
+        {tree.memory_estimate ? `about ${bytesWords(tree.rss_bytes)}` : bytesWords(tree.rss_bytes)}
+      </span>
       <span className="text-faint" title="As Activity Monitor counts it: 100% is one core busy">
         {cpuWords(tree.cpu_pct)}
       </span>
@@ -157,7 +167,7 @@ export function ThisMacPanel({
                 ? used !== null
                   ? `Memory: ${bytesWords(used)} of ${bytesWords(total)} in use`
                   : `Memory: ${bytesWords(total)}`
-                : `AI tools: ${bytesWords(info.tools.rss_bytes)} of ${bytesWords(total)} memory · ${
+                : `AI tools: ${info.tools.memory_estimate ? "about " : ""}${bytesWords(info.tools.rss_bytes)} of ${bytesWords(total)} memory · ${
                     info.tools.cpu_pct === null ? "CPU —" : `${Math.round(info.tools.cpu_pct)}% of all CPU cores`
                   }`}
             </span>

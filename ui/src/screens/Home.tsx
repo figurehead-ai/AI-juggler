@@ -25,6 +25,7 @@ import { hueOf } from "../components/indicator";
 import { MorningSummary } from "../components/MorningSummary";
 import { ThisMacPanel } from "../components/ThisMacPanel";
 import { alertSubject, reasonSentence, type ThisMacInfo } from "../lib/machine";
+import { LegendPopover } from "../components/LegendPopover";
 import { parkedWords } from "../lib/parked";
 import {
   accountLoginState,
@@ -50,9 +51,12 @@ const TO_REVIEW_WINDOW_MS = 7 * 24 * 3_600_000;
 /** "Pick up where you left off" shows this many, the rest on request. */
 const RECENT_SHOWN = 3;
 
-/** Ended this week and not yet marked reviewed (or archived). */
+/** Ended this week (not handed over) and not yet marked reviewed or archived. */
 export function toReview(session: InstanceInfo, now: number): boolean {
   if (!ENDED.includes(session.status)) return false;
+  // A handed-over session goes on elsewhere; its successor is the one to
+  // pick up (as Triage had it).
+  if (session.status === "handed_over") return false;
   if (session.lifecycle === "reviewed" || session.lifecycle === "archived") return false;
   return now - (session.last_activity_ms ?? session.started_at_ms) <= TO_REVIEW_WINDOW_MS;
 }
@@ -224,8 +228,12 @@ export function HomeScreen({
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
+  // Set when Mark reviewed or Resume starts; the parent's refresh can
+  // remove the row a moment later, so it holds for a few seconds.
+  const restoreUntil = useRef(0);
   const act = useCallback(
     async (session: InstanceInfo, what: "resume" | "reviewed") => {
+      restoreUntil.current = Date.now() + 3000;
       setBusy(session.id);
       try {
         if (what === "resume") await parkedResume(session.id);
@@ -242,14 +250,20 @@ export function HomeScreen({
   );
 
   // AJ-E1005 Req.3 on Home: J/K or the arrows move between rows, Enter
-  // opens (each row's first control is a button), A runs the row's action.
+  // opens (each row's first control is a button), A runs the row's action
+  // — also from the row's own action button (Mark reviewed).
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+  const rowsNow = () => Array.from(rootRef.current?.querySelectorAll<HTMLElement>("[data-home-row]") ?? []);
+  const rowIndexOf = (el: Element | null): number => {
+    const item = el?.closest("[data-home-item]");
+    return item ? rowsNow().findIndex((row) => row.closest("[data-home-item]") === item) : -1;
+  };
+  const handleKey = (event: { key: string; metaKey: boolean; ctrlKey: boolean; altKey: boolean; target: EventTarget | null; preventDefault: () => void }) => {
     if (event.metaKey || event.ctrlKey || event.altKey) return;
-    const target = event.target as HTMLElement;
-    if (target.tagName === "SELECT" || target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
-    const rows = Array.from(rootRef.current?.querySelectorAll<HTMLElement>("[data-home-row]") ?? []);
-    const at = rows.findIndex((row) => row === document.activeElement);
+    const target = event.target as HTMLElement | null;
+    if (target && (target.tagName === "SELECT" || target.tagName === "INPUT" || target.tagName === "TEXTAREA")) return;
+    const rows = rowsNow();
+    const at = rowIndexOf(document.activeElement);
     const focusRow = (index: number) => rows[Math.max(0, Math.min(rows.length - 1, index))]?.focus();
     if (event.key === "j" || (event.key === "ArrowDown" && at >= 0)) {
       event.preventDefault();
@@ -264,6 +278,28 @@ export function HomeScreen({
       action.click();
     }
   };
+  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => handleKey(event);
+  // Marking a row reviewed or resuming it removes or disables it, and its
+  // focus falls to <body>: put focus back on the row now at that place,
+  // and keep the keys working from <body> while Home is shown.
+  const lastRow = useRef<number | null>(null);
+  useEffect(() => {
+    if (busy !== null || Date.now() > restoreUntil.current || lastRow.current === null) return;
+    if (document.activeElement !== document.body) return;
+    const rows = rowsNow();
+    if (rows.length > 0) rows[Math.min(lastRow.current, rows.length - 1)]!.focus();
+  });
+  useEffect(() => {
+    const fromBody = (event: globalThis.KeyboardEvent) => {
+      // Never behind a dialog: a modal over Home (the limit dialog, the
+      // usage-stats question) owns the keys, even when a click on its
+      // text dropped focus to <body>.
+      if (event.defaultPrevented || document.querySelector('[aria-modal="true"]')) return;
+      if (document.activeElement === document.body) handleKey(event);
+    };
+    window.addEventListener("keydown", fromBody);
+    return () => window.removeEventListener("keydown", fromBody);
+  });
 
   const needs = useMemo(
     () =>
@@ -396,9 +432,21 @@ export function HomeScreen({
     .join(" · ");
 
   return (
-    <div ref={rootRef} onKeyDown={onKeyDown} className="mx-auto flex w-full max-w-5xl flex-col gap-7 py-2" data-testid="home">
+    <div
+      ref={rootRef}
+      onKeyDown={onKeyDown}
+      onFocus={(event) => {
+        const index = rowIndexOf(event.target as Element);
+        if (index >= 0) lastRow.current = index;
+      }}
+      className="mx-auto flex w-full max-w-5xl flex-col gap-7 py-2" data-testid="home">
       <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">{headline}</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight">{headline}</h1>
+          {/* AJ-E403 Req.6: the legend's Home surface (the "All clear"
+              explainer), the same panel as the rail footer's "?". */}
+          <LegendPopover className="shrink-0" placement="below" />
+        </div>
         {subline && <p className="text-sm text-muted">{subline}</p>}
       </header>
       <p className="sr-only" aria-live="polite" data-testid="home-status">

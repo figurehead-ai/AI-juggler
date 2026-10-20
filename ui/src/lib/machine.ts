@@ -132,11 +132,11 @@ function previewAlerts(sessionId: string | null): OverloadAlertInfo[] {
   const kind = previewParam("aij_alert");
   if (kind === "memory")
     return [
-      { key: "memory_pressure", kind: "memory_pressure", title: "Your Mac is under memory pressure", detail: "macOS reports memory pressure", session_id: sessionId, place: null, subject_bytes: 3_200_000_000, subject_cpu: 12, since_ms: Date.now() - 45_000 },
+      { key: "memory_pressure", kind: "memory_pressure", title: "Your Mac is under memory pressure", detail: "macOS reports memory pressure", session_id: sessionId, place: null, subject_bytes: 3_200_000_000, subject_estimate: false, subject_cpu: 12, since_ms: Date.now() - 45_000 },
     ];
   if (kind === "cpu")
     return [
-      { key: "cpu", kind: "cpu", title: "The processor has been flat out for minutes", detail: "97% busy for over two minutes", session_id: null, place: "desktop", subject_bytes: 1_600_000_000, subject_cpu: 140, since_ms: Date.now() - 150_000 },
+      { key: "cpu", kind: "cpu", title: "The processor has been flat out for minutes", detail: "97% busy for over two minutes", session_id: null, place: "desktop", subject_bytes: 1_600_000_000, subject_estimate: true, subject_cpu: 140, since_ms: Date.now() - 150_000 },
     ];
   return [];
 }
@@ -198,13 +198,14 @@ function totals(trees: ToolTreeInfo[], cores: number): ToolTotalsInfo {
   const measured = trees.every((tree) => tree.cpu_pct !== null);
   return {
     count: trees.length,
+    memory_estimate: trees.some((tree) => tree.memory_estimate),
     cpu_pct: measured ? Math.min(100, trees.reduce((sum, tree) => sum + (tree.cpu_pct ?? 0), 0) / cores) : null,
     rss_bytes: trees.reduce((sum, tree) => sum + tree.rss_bytes, 0),
   };
 }
 
 const MOCK_OBSERVED: ToolTreeInfo[] = [
-  { session_id: null, place: "desktop", account_label: "Personal", cpu_pct: 14, rss_bytes: 1_600_000_000, helpers: 21, heavy_note: null },
+  { session_id: null, place: "desktop", account_label: "Personal", cpu_pct: 14, rss_bytes: 1_600_000_000, helpers: 21, heavy_note: null, memory_estimate: true },
 ];
 
 /** The preview's This Mac, derived from the sessions on screen. */
@@ -227,6 +228,7 @@ export function mockThisMac(
       rss_bytes: session.rss_bytes ?? 0,
       helpers: session.child_count ?? 0,
       heavy_note: mockHeavyNote(session.cpu_pct, session.rss_bytes ?? 0),
+      memory_estimate: false,
     }));
   const all = [...ours, ...observed].sort((a, b) => b.rss_bytes - a.rss_bytes);
   return {
@@ -401,7 +403,9 @@ export function alertSubject(alert: OverloadAlertInfo, nameOf: (sessionId: strin
         ? `CPU ${Math.round(alert.subject_cpu)}%`
         : null
       : alert.subject_bytes !== null
-        ? bytesWords(alert.subject_bytes)
+        ? // A tool AI Juggler didn't start: its helpers share memory the
+          // sum counts more than once (AJ-E1402).
+          `${alert.subject_estimate ? "about " : ""}${bytesWords(alert.subject_bytes)}`
         : null;
   if (!what) return null;
   // A session's name keeps its own case ("feat/read-model").

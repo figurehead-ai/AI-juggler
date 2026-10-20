@@ -308,6 +308,7 @@ fn migration_up_from_earlier_schema_preserves_rows() {
                  DROP TABLE switch_edges;
                  DROP TABLE epochs;
                  DROP TABLE work_items;
+                 ALTER TABLE accounts DROP COLUMN in_place;
                  ALTER TABLE accounts DROP COLUMN import_source_path;
                  ALTER TABLE accounts DROP COLUMN import_origin;
                  ALTER TABLE accounts DROP COLUMN imported_at;

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { providerDisplayName } from "../lib/providers";
 import { Button, Card, Chip, type ChipTone } from "../components/primitives";
 import { TerminalView } from "../components/TerminalView";
 import { IconProjects, IconTerminal } from "../components/icons";
@@ -179,7 +180,7 @@ export function SessionPanel({
             )}
           </div>
           <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[11px] text-faint">
-            <span>provider: <span className="text-muted">{session.provider}</span></span>
+            <span>tool: <span className="text-muted">{providerDisplayName(session.provider)}</span></span>
             <span>age: <span className="text-muted">{since(session.started_at_ms)}</span></span>
             <span className="ml-auto">context moves with the session — transcript copied, then resumed</span>
           </div>

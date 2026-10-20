@@ -58,11 +58,17 @@ const tree = (overrides: Partial<ToolTreeInfo>): ToolTreeInfo => ({
   rss_bytes: 1_600_000_000,
   helpers: 21,
   heavy_note: null,
+  memory_estimate: overrides.session_id ? false : true,
   ...overrides,
 });
 
 function info(level: "plenty" | "tight" | "pressure", trees: ToolTreeInfo[], leftovers: [number, number] = [0, 0]): ThisMacInfo {
-  const total = (list: ToolTreeInfo[]) => ({ count: list.length, cpu_pct: 5, rss_bytes: list.reduce((sum, t) => sum + t.rss_bytes, 0) });
+  const total = (list: ToolTreeInfo[]) => ({
+    count: list.length,
+    cpu_pct: 5,
+    rss_bytes: list.reduce((sum, t) => sum + t.rss_bytes, 0),
+    memory_estimate: list.some((t) => t.memory_estimate),
+  });
   return {
     machine: mockMachineHealth(level, NOW),
     tools: total(trees),
@@ -119,6 +125,10 @@ describe("This Mac panel (AJ-E1404)", () => {
     expect((theirs)!.textContent).toContain("Claude app");
     expect((theirs)!.textContent).toContain("Personal · not started by AI Juggler");
     expect(within(theirs!).queryByRole("button")).toBeNull();
+    // Its memory is summed over helpers that share pages: an estimate.
+    expect(theirs!.textContent).toContain("about 1.6 GB");
+    expect(ours!.textContent).not.toContain("about");
+    expect(screen.getByTestId("this-mac-memory").textContent).toContain("AI tools: about 4.8 GB");
   });
 
   it("names what memory in use counts, and shows nothing when it couldn't be read", () => {
@@ -250,6 +260,7 @@ describe("overload alerts and recommendations (AJ-E1408, AJ-E1409)", () => {
     session_id: "busy-one",
     place: null,
     subject_bytes: 3_200_000_000,
+    subject_estimate: false,
     subject_cpu: 40,
     since_ms: NOW,
     ...overrides,
@@ -275,6 +286,13 @@ describe("overload alerts and recommendations (AJ-E1408, AJ-E1409)", () => {
     expect(item.textContent).toContain("macOS reports memory pressure. busy-one is using 3.2 GB");
     // A tight Mac with a sustained alert is amber, not red.
     expect(item.textContent).toContain("▲");
+  });
+
+  it("says a tool we didn't start uses about its memory, since that sum is an estimate", async () => {
+    const { alertSubject } = await import("../lib/machine");
+    const theirs = alert({ session_id: null, place: "desktop", subject_bytes: 2_000_000_000, subject_estimate: true });
+    expect(alertSubject(theirs, () => null)).toBe("The Claude app is using about 2.0 GB");
+    expect(alertSubject(alert({}), (id) => id)).toBe("busy-one is using 3.2 GB");
   });
 
   it("tells a fresh alert once in the notification region, and dismisses it", async () => {

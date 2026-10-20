@@ -848,7 +848,8 @@ fn rank_candidates_for(
         let projected_usd = projected_usd.map(|usd| usd + switch_cost);
         candidates.push(juggler_core::ranking::Candidate {
             account: account.id.as_str().to_owned(),
-            logged_out: login_state_of(account) == juggler_adapters::LoginState::LoggedOut,
+            logged_out: login_state_of(&state.registry, account)
+                == juggler_adapters::LoginState::LoggedOut,
             wrong_provider: false, // request-restriction surface rides E210's pair gating
             exhausted_no_reset,
             headroom_pct,
@@ -1430,6 +1431,8 @@ pub struct AccountInfo {
     /// Import completion time, epoch ms (None = never imported).
     #[ts(optional = nullable)]
     pub imported_at: Option<i64>,
+    /// ADR-0018: the account uses the user's own folder where it is.
+    pub in_place: bool,
 }
 
 /// A Launch settings row for the UI (AJ-E107).
@@ -1896,10 +1899,14 @@ pub struct ImportResult {
 ///
 /// Returns the typed [`AppError`] message on failure.
 pub fn harnesses_list() -> Vec<ProviderInfo> {
-    vec![ProviderInfo {
-        id: juggler_adapters::CLAUDE_CODE_ID.to_string(),
-        name: "Claude Code".to_string(),
-    }]
+    crate::state::default_registry()
+        .ids()
+        .into_iter()
+        .map(|id| ProviderInfo {
+            name: provider_display(id.as_str()).0,
+            id: id.to_string(),
+        })
+        .collect()
 }
 
 /// Lists accounts with their login state.
@@ -1912,7 +1919,7 @@ pub fn accounts_list(state: tauri::State<'_, Arc<AppState>>) -> AppResult<Vec<Ac
     let storage = lock_storage(&state)?;
     let mut out = Vec::new();
     for account in storage.accounts().list()? {
-        out.push(account_info_of(&account));
+        out.push(account_info_of(&state.registry, &account));
     }
     Ok(out)
 }
@@ -1964,10 +1971,12 @@ pub fn create_account(
         import_source_path: None,
         import_origin: None,
         imported_at: None,
+        in_place: false,
     };
     lock_storage_arc(state)?.accounts().insert(&account)?;
     crate::settings_policy::apply_cleanup_default(state, account.id.as_str());
     Ok(account_info_of(
+        &state.registry,
         &find_account_arc(state, account.id.as_str()).unwrap_or(account),
     ))
 }
@@ -1983,7 +1992,7 @@ pub fn account_login_state(
     account_id: String,
 ) -> AppResult<String> {
     let account = find_account(&state, &account_id)?;
-    Ok(login_state_name(login_state_of(&account)).to_string())
+    Ok(login_state_name(login_state_of(&state.registry, &account)).to_string())
 }
 
 /// The copyable shell command that runs the vendor's own login against this
@@ -2411,6 +2420,14 @@ pub fn expert_reveal_target(
     account_id: Option<&str>,
 ) -> AppResult<std::path::PathBuf> {
     let info = expert_setup_info_impl(state, provider, account_id, None)?;
+    // ADR-0018: an in-place account's folder is the user's own — reveal it.
+    if let Some(id) = account_id
+        && let Ok(account) = find_account_arc(state, id)
+        && account.in_place
+        && account.state_dir.is_dir()
+    {
+        return Ok(account.state_dir);
+    }
     let mut target = std::path::PathBuf::from(info.state_dir);
     while !target.is_dir() && target != state.data_dir {
         if !target.pop() {
@@ -2599,6 +2616,9 @@ pub fn isolation_check_impl(
             .get(&AccountId::new(account_id.to_owned()))?
     };
     let dir = account.state_dir.clone();
+    if account.in_place {
+        return in_place_isolation_rows(state, &account);
+    }
     let mut rows = Vec::new();
 
     // 1. The managed dir is owner-private (0700). The mask IS the
@@ -2636,29 +2656,40 @@ pub fn isolation_check_impl(
         .registry
         .get(&account.harness)
         .ok_or_else(|| AppError::UnknownHarness(account.harness.as_str().to_owned()))?;
-    let env_ok = adapter
-        .launch_spec(
-            &account,
-            &Profile {
-                id: ProfileId::new("check"),
-                name: "check".into(),
-                account: account.id.clone(),
-                settings_overlay: SettingsOverlay::default(),
-                default_cwd: None,
-            },
-            std::path::Path::new("/"),
-            &juggler_adapter::LaunchMode::Interactive,
-        )
-        .is_ok_and(|spec| {
-            spec.env
-                .get("CLAUDE_CONFIG_DIR")
-                .is_some_and(|value| std::path::Path::new(value) == dir)
-        });
+    // Every variable the Provider pins to the account's folder
+    // (`CLAUDE_CONFIG_DIR`; `CODEX_HOME` and `CODEX_SQLITE_HOME`) —
+    // AJ-E309.
+    let pinned = adapter.pinned_env_keys();
+    let env_ok = !pinned.is_empty()
+        && adapter
+            .launch_spec(
+                &account,
+                &Profile {
+                    id: ProfileId::new("check"),
+                    name: "check".into(),
+                    account: account.id.clone(),
+                    settings_overlay: SettingsOverlay::default(),
+                    default_cwd: None,
+                },
+                std::path::Path::new("/"),
+                &juggler_adapter::LaunchMode::Interactive,
+            )
+            .is_ok_and(|spec| {
+                pinned.iter().all(|key| {
+                    spec.env
+                        .get(*key)
+                        .is_some_and(|value| std::path::Path::new(value) == dir)
+                })
+            });
     rows.push(IsolationRowInfo {
         id: "launch_env_managed_only",
         label: "Launch environment points only at this account's folder".into(),
         pass: env_ok,
-        detail: "CLAUDE_CONFIG_DIR resolves to the managed dir".into(),
+        detail: if pinned.is_empty() {
+            "the Provider names no state variable".to_owned()
+        } else {
+            format!("{} resolve to the managed dir", pinned.join(" and "))
+        },
     });
 
     // 4. The import SOURCE carries no AI Juggler writes (no marker,
@@ -2680,7 +2711,7 @@ pub fn isolation_check_impl(
 
     // 5. Per-dir probe independence: this dir's login classification
     //    reads ONLY this dir (structural: single-path probe).
-    let probe_state = login_state_of(&account);
+    let probe_state = login_state_of(&state.registry, &account);
     rows.push(IsolationRowInfo {
         id: "probe_independence",
         label: "Login state reads only this account's folder".into(),
@@ -2705,6 +2736,80 @@ pub fn isolation_check_impl(
         detail: "the accounts root holds only account folders".into(),
     });
 
+    Ok(rows)
+}
+
+/// ADR-0018: the checklist for an account that uses the user's folder
+/// where it is. "Owner-only" and "marker present" are promises about AI
+/// Juggler's own copies; here the promises are that AI Juggler put
+/// nothing of its own in the folder and launches point only at it.
+fn in_place_isolation_rows(
+    state: &Arc<AppState>,
+    account: &Account,
+) -> AppResult<Vec<IsolationRowInfo>> {
+    let dir = account.state_dir.clone();
+    let mut rows = vec![IsolationRowInfo {
+        id: "in_place_folder_present",
+        label: "Uses your folder where it is".into(),
+        pass: dir.is_dir(),
+        detail: format!("{}", dir.display()),
+    }];
+    let ours = [
+        juggler_adapters::claude_code::MANAGED_MARKER,
+        "juggler-statusline.sh",
+        "juggler-statusline-backup.json",
+        "quota-spool",
+    ];
+    let untouched = ours.iter().all(|name| !dir.join(name).exists());
+    rows.push(IsolationRowInfo {
+        id: "in_place_no_juggler_files",
+        label: "AI Juggler put nothing of its own in your folder".into(),
+        pass: untouched,
+        detail: "its launch settings and usage capture live in AI Juggler's own folder".into(),
+    });
+    let adapter = state
+        .registry
+        .get(&account.harness)
+        .ok_or_else(|| AppError::UnknownHarness(account.harness.as_str().to_owned()))?;
+    let default_folder = juggler_adapters::claude_code::is_vendor_default_dir(&dir);
+    let env_ok = adapter
+        .launch_spec(
+            account,
+            &Profile {
+                id: ProfileId::new("check"),
+                name: "check".into(),
+                account: account.id.clone(),
+                settings_overlay: SettingsOverlay::default(),
+                default_cwd: None,
+            },
+            std::path::Path::new("/"),
+            &juggler_adapter::LaunchMode::Interactive,
+        )
+        .is_ok_and(|spec| match spec.env.get("CLAUDE_CONFIG_DIR") {
+            Some(value) if default_folder => value == juggler_adapter::launch::ENV_UNSET,
+            Some(value) => std::path::Path::new(value) == dir,
+            None => false,
+        });
+    rows.push(IsolationRowInfo {
+        id: "launch_env_managed_only",
+        label: "Launch environment points only at this account's folder".into(),
+        pass: env_ok,
+        detail: if default_folder {
+            "the default folder runs as Claude runs it (CLAUDE_CONFIG_DIR unset)".into()
+        } else {
+            "CLAUDE_CONFIG_DIR is this folder, exactly".into()
+        },
+    });
+    let probe_state = login_state_of(&state.registry, account);
+    rows.push(IsolationRowInfo {
+        id: "probe_independence",
+        label: "Login state reads only this account's folder".into(),
+        pass: !matches!(probe_state, juggler_adapters::LoginState::Unknown),
+        detail: format!(
+            "probe classified this dir as {}",
+            login_state_name(probe_state)
+        ),
+    });
     Ok(rows)
 }
 
@@ -2741,7 +2846,7 @@ pub fn source_inspect_impl(
     // cannot move — E303's caveat, surfaced at Confirm-source).
     let keychain_bound = inspect.login == juggler_adapter::environment::LoginProbe::LoggedIn
         && !std::path::Path::new(source_path)
-            .join(".credentials.json")
+            .join(credentials_file_of(harness))
             .exists();
     Ok(SourceInspectInfo {
         total_bytes: inspect.total_bytes,
@@ -2760,14 +2865,16 @@ pub fn source_inspect_impl(
     })
 }
 
-/// Imports a discovered setup as a new managed account: byte-copies the
-/// config into an isolated dir (source untouched), creates a default
-/// "Main" profile so the account is immediately launchable.
+/// Brings a discovered setup in as a new account, and creates a default
+/// "Main" profile so it is launchable at once. `in_place` (ADR-0018):
+/// use the folder where it is — nothing copied or written; otherwise a
+/// byte copy into an isolated dir (source untouched).
 #[tauri::command]
 ///
 /// # Errors
 ///
 /// Returns the typed [`AppError`] message on failure.
+#[allow(clippy::too_many_arguments)] // the Tauri command's flat wire args
 pub fn account_import(
     state: tauri::State<'_, Arc<AppState>>,
     harness: String,
@@ -2776,25 +2883,140 @@ pub fn account_import(
     plan: Option<String>,
     origin: Option<String>,
     degraded: Option<bool>,
+    in_place: Option<bool>,
 ) -> AppResult<ImportResult> {
-    let imported = account_import_impl(
+    let imported = account_import_mode_impl(
         state.inner(),
         &harness,
         &source_path,
         &label,
-        plan,
-        origin,
-        degraded.unwrap_or(false),
+        ImportRequest {
+            plan,
+            origin,
+            degraded: degraded.unwrap_or(false),
+            in_place: in_place.unwrap_or(false),
+        },
     );
     crate::usage_stats::import_finished(&harness, imported.as_ref().err());
     imported
+}
+
+/// ADR-0018: a copied account switches to its original folder, used
+/// where it is. The copy stays on disk untouched (nothing is deleted);
+/// sessions started in it stay in it.
+#[tauri::command]
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] message on failure.
+pub fn account_use_original(
+    state: tauri::State<'_, Arc<AppState>>,
+    account_id: String,
+) -> AppResult<AccountInfo> {
+    account_use_original_impl(state.inner(), &account_id)
 }
 
 /// Core implementation shared with integration tests.
 ///
 /// # Errors
 ///
-/// Returns the typed [`AppError`] message on failure.
+/// [`AppError::Validation`] when there is no original folder, a session
+/// is running on the account, or another account already uses it; the
+/// adapter's refusal when the folder is gone or isn't a setup.
+pub fn account_use_original_impl(
+    state: &Arc<AppState>,
+    account_id: &str,
+) -> AppResult<AccountInfo> {
+    let account = find_account_arc(state, account_id)?;
+    if account.in_place {
+        return Ok(account_info_of(&state.registry, &account));
+    }
+    let Some(source) = account.import_source_path.clone() else {
+        return Err(AppError::Validation {
+            subject: "account",
+            message: "this account was made in AI Juggler — it has no original folder".into(),
+        });
+    };
+    let canonical =
+        |path: &std::path::Path| path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+    {
+        let storage = lock_storage_arc(state)?;
+        let profiles: Vec<ProfileId> = storage
+            .profiles()
+            .list_by_account(&account.id)?
+            .into_iter()
+            .map(|profile| profile.id)
+            .collect();
+        // Anything that may still run or resume in the copy (stuck,
+        // waiting for its limit to reset) would resume against the
+        // original, which doesn't have its history.
+        let open = storage.sessions().list(None)?.into_iter().any(|record| {
+            profiles.contains(&record.profile)
+                && matches!(
+                    record.status,
+                    SessionStatus::Starting
+                        | SessionStatus::Running
+                        | SessionStatus::WaitingUser
+                        | SessionStatus::Stuck
+                        | SessionStatus::QuotaBlocked
+                )
+        });
+        if open {
+            return Err(AppError::Validation {
+                subject: "account",
+                message: "a session on this account is still open (running, stuck or waiting for its limit) — finish or stop it first, then switch".into(),
+            });
+        }
+        let target = canonical(std::path::Path::new(&source));
+        if let Some(other) = storage.accounts().list()?.into_iter().find(|other| {
+            other.id != account.id && other.in_place && canonical(&other.state_dir) == target
+        }) {
+            return Err(AppError::Validation {
+                subject: "account",
+                message: format!("«{}» already uses that folder", other.label),
+            });
+        }
+    }
+    let adapter = state
+        .registry
+        .get(&account.harness)
+        .ok_or_else(|| AppError::UnknownHarness(account.harness.to_string()))?;
+    // The exact path, not the resolved one the provenance keeps: the
+    // default folder is `~/.claude` itself even when it's a link (its
+    // sign-in is named for the unset variable).
+    let folder = dirs::home_dir()
+        .map(|home| home.join(".claude"))
+        .filter(|default| canonical(default) == canonical(std::path::Path::new(&source)))
+        .unwrap_or_else(|| std::path::PathBuf::from(&source));
+    adapter.adopt_account(&folder)?;
+    let mut updated = account;
+    updated.state_dir = folder;
+    updated.in_place = true;
+    lock_storage_arc(state)?.accounts().update(&updated)?;
+    // Its usage is read from a new place now: start the offsets fresh
+    // (the store dedupes anything read twice).
+    crate::usage_pipeline::forget_account_offsets(state, updated.id.as_str());
+    Ok(account_info_of(&state.registry, &updated))
+}
+
+/// How a setup comes in (ADR-0018).
+#[derive(Clone, Debug, Default)]
+pub struct ImportRequest {
+    /// Vendor plan tier, if known.
+    pub plan: Option<String>,
+    /// The discovery origin.
+    pub origin: Option<String>,
+    /// AJ-E307 Req.4: settings only, history skipped (copies).
+    pub degraded: bool,
+    /// Use the folder where it is instead of copying it.
+    pub in_place: bool,
+}
+
+/// Core implementation shared with integration tests (a copy).
+///
+/// # Errors
+///
+/// As [`account_import_mode_impl`].
 pub fn account_import_impl(
     state: &Arc<AppState>,
     harness: &str,
@@ -2804,6 +3026,38 @@ pub fn account_import_impl(
     origin: Option<String>,
     degraded: bool,
 ) -> AppResult<ImportResult> {
+    account_import_mode_impl(
+        state,
+        harness,
+        source_path,
+        label,
+        ImportRequest {
+            plan,
+            origin,
+            degraded,
+            in_place: false,
+        },
+    )
+}
+
+/// Brings a setup in, copied or where it is (ADR-0018).
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] message on failure.
+pub fn account_import_mode_impl(
+    state: &Arc<AppState>,
+    harness: &str,
+    source_path: &str,
+    label: &str,
+    request: ImportRequest,
+) -> AppResult<ImportResult> {
+    let ImportRequest {
+        plan,
+        origin,
+        degraded,
+        in_place,
+    } = request;
     let adapter = state
         .registry
         .get(&juggler_core::model::HarnessId::new(harness))
@@ -2820,17 +3074,35 @@ pub fn account_import_impl(
         for existing in storage.accounts().list()? {
             if existing.import_source_path.as_deref() == Some(canonical_source.as_str()) {
                 return Err(AppError::AlreadyImported {
-                    label: existing.label.clone(),
+                    label: if existing.in_place {
+                        existing.label.clone()
+                    } else {
+                        format!("{}, a copy", existing.label)
+                    },
                 });
             }
         }
     }
     let id = AccountId::new(format!("{harness}-{}", unique_suffix()));
-    let state_dir = state.accounts_dir().join(harness).join(id.as_str());
-    let outcome = if degraded {
-        adapter.import_account_degraded(std::path::Path::new(source_path), &state_dir)?
+    let (state_dir, outcome) = if in_place {
+        // The folder exactly as found (Claude's Keychain name hashes the
+        // path string), without a trailing separator.
+        let trimmed = source_path.trim_end_matches(['/', '\\']);
+        let folder = std::path::PathBuf::from(if trimmed.is_empty() {
+            source_path
+        } else {
+            trimmed
+        });
+        let outcome = adapter.adopt_account(&folder)?;
+        (folder, outcome)
     } else {
-        adapter.import_account(std::path::Path::new(source_path), &state_dir)?
+        let state_dir = state.accounts_dir().join(harness).join(id.as_str());
+        let outcome = if degraded {
+            adapter.import_account_degraded(std::path::Path::new(source_path), &state_dir)?
+        } else {
+            adapter.import_account(std::path::Path::new(source_path), &state_dir)?
+        };
+        (state_dir, outcome)
     };
     let account = Account {
         id,
@@ -2846,10 +3118,13 @@ pub fn account_import_impl(
         import_source_path: Some(canonical_source),
         import_origin: origin,
         imported_at: Some(juggler_core::model::Timestamp::now().millis()),
+        in_place,
     };
-    {
+    let mut inserted = false;
+    let saved = (|| -> AppResult<()> {
         let storage = lock_storage_arc(state)?;
         storage.accounts().insert(&account)?;
+        inserted = true;
         // A default profile makes the imported account launchable in one
         // click — the wizard's promise.
         storage.profiles().insert(&Profile {
@@ -2859,11 +3134,23 @@ pub fn account_import_impl(
             settings_overlay: SettingsOverlay::default(),
             default_cwd: None,
         })?;
+        Ok(())
+    })();
+    if let Err(error) = saved {
+        // ADR-0018 §5: a copy whose record can't be saved doesn't linger
+        // (only ever our own marked copy — never an in-place folder).
+        if !in_place && juggler_adapters::claude_code::is_managed_dir(&account.state_dir) {
+            let _ = std::fs::remove_dir_all(&account.state_dir);
+        }
+        if inserted && let Ok(storage) = lock_storage_arc(state) {
+            let _ = storage.accounts().delete(&account.id);
+        }
+        return Err(error);
     }
     crate::settings_policy::apply_cleanup_default(state, account.id.as_str());
     let account = find_account_arc(state, account.id.as_str()).unwrap_or(account);
     Ok(ImportResult {
-        account: account_info_of(&account),
+        account: account_info_of(&state.registry, &account),
         files_copied: outcome.files_copied,
         bytes_copied: outcome.bytes_copied,
         skipped: outcome.skipped,
@@ -3221,14 +3508,8 @@ pub fn launch_profile(
     use juggler_adapter::LaunchMode;
 
     let (profile, account) = find_profile_with_account_arc(state, profile_id)?;
-    if profile.settings_overlay.model.is_some()
-        && account.harness.as_str() == juggler_adapters::CLAUDE_CODE_ID
-    {
-        juggler_adapters::claude_code::write_settings_overlay(
-            &account.state_dir,
-            &profile.settings_overlay,
-        )?;
-    }
+    // The profile's model goes in as `claude --model` (the adapter's
+    // launch spec); settings.json is never rewritten (ADR-0018 §3).
     let adapter = state
         .registry
         .get(&account.harness)
@@ -3778,7 +4059,7 @@ pub fn account_set_preview_opt_in(
         storage.accounts().update(&account)?;
         account
     };
-    Ok(account_info_of(&account))
+    Ok(account_info_of(&state.registry, &account))
 }
 
 /// Reads one app-level setting (schema v10 kv); `None` = never set.
@@ -4185,7 +4466,8 @@ pub fn attention_recovery_drain(app: &tauri::AppHandle, state: &Arc<AppState>) -
 }
 
 /// The model a transcript line records for its turn — top-level
-/// `model` or nested `message.model` (both shapes ship in the wild).
+/// `model` or nested `message.model` (both shapes ship in the wild), or
+/// a Codex rollout's `turn_context` payload (AJ-E1303).
 fn line_model(value: &serde_json::Value) -> Option<String> {
     value
         .get("model")
@@ -4196,7 +4478,72 @@ fn line_model(value: &serde_json::Value) -> Option<String> {
                 .and_then(|message| message.get("model"))
                 .and_then(serde_json::Value::as_str)
         })
+        .or_else(|| {
+            (value.get("type").and_then(serde_json::Value::as_str) == Some("turn_context"))
+                .then(|| value.get("payload")?.get("model")?.as_str())
+                .flatten()
+        })
         .map(str::to_string)
+}
+
+/// AJ-E1303: one Codex rollout line's contribution to the quality scan —
+/// `token_usage_record` rows are turns with tokens, `token_count` events
+/// carry the context pair, `error` events count as errors.
+fn scan_rollout_line(
+    value: &serde_json::Value,
+    payload: &serde_json::Value,
+    model: &mut Option<String>,
+    scan: &mut TranscriptScan,
+    now: i64,
+) {
+    let kind = value.get("type").and_then(serde_json::Value::as_str);
+    let inner = payload.get("type").and_then(serde_json::Value::as_str);
+    match (kind, inner) {
+        (Some("turn_context"), _) => {
+            if let Some(name) = payload.get("model").and_then(serde_json::Value::as_str) {
+                *model = Some(name.to_owned());
+            }
+        }
+        (Some("token_usage_record"), _) => {
+            // Once per response, as the parser and the usage pipeline count.
+            let key = ["thread_id", "turn_id", "response_id"]
+                .map(|field| payload[field].as_str().unwrap_or_default())
+                .join("/");
+            if !scan.rollout_seen.insert(key) {
+                return;
+            }
+            let usage = &payload["usage"];
+            scan.turns += 1;
+            scan.events.push(juggler_core::quality::UsageEvent {
+                at_ms: value["timestamp"]
+                    .as_str()
+                    .and_then(chrono_like_ms)
+                    .unwrap_or(now),
+                tokens: juggler_core::model::TokenCounts {
+                    // Fresh prompt only (`input_tokens` includes the
+                    // cached history), as Claude's lines count it.
+                    input: usage["input_tokens"]
+                        .as_u64()
+                        .unwrap_or(0)
+                        .saturating_sub(usage["cached_input_tokens"].as_u64().unwrap_or(0)),
+                    output: usage["output_tokens"].as_u64().unwrap_or(0),
+                    cache_read: usage["cached_input_tokens"].as_u64().unwrap_or(0),
+                    cache_write: 0,
+                    reasoning: usage["reasoning_output_tokens"].as_u64().unwrap_or(0),
+                },
+                model: model.clone(),
+            });
+        }
+        (Some("event_msg"), Some("token_count")) => {
+            let info = &payload["info"];
+            if let Some(used) = info["last_token_usage"]["total_tokens"].as_u64() {
+                scan.context_used = Some(used);
+                scan.context_window = info["model_context_window"].as_u64();
+            }
+        }
+        (Some("event_msg"), Some("error" | "stream_error")) => scan.errors += 1,
+        _ => {}
+    }
 }
 
 /// Aggregated transcript facts feeding the quality signals.
@@ -4206,6 +4553,42 @@ struct TranscriptScan {
     turns: u64,
     context_used: Option<u64>,
     context_window: Option<u64>,
+    /// Codex usage rows already counted (thread/turn/response): a forked
+    /// or resumed rollout repeats its parent's rows.
+    rollout_seen: std::collections::BTreeSet<String>,
+}
+
+#[cfg(test)]
+mod rollout_scan_tests {
+    use super::{TranscriptScan, scan_rollout_line};
+
+    #[test]
+    fn a_repeated_usage_row_counts_once_in_the_quality_scan() {
+        let mut scan = TranscriptScan {
+            events: Vec::new(),
+            errors: 0,
+            turns: 0,
+            context_used: None,
+            context_window: None,
+            rollout_seen: std::collections::BTreeSet::new(),
+        };
+        let row: serde_json::Value = serde_json::json!({
+            "timestamp": "2026-10-20T08:00:00.000Z",
+            "type": "token_usage_record",
+            "payload": {"thread_id": "t", "turn_id": "1", "response_id": "r",
+                        "usage": {"input_tokens": 100, "cached_input_tokens": 40, "output_tokens": 10}}
+        });
+        let mut model = None;
+        for _ in 0..3 {
+            scan_rollout_line(&row, &row["payload"], &mut model, &mut scan, 0);
+        }
+        assert_eq!(
+            scan.turns, 1,
+            "a forked/resumed rollout's repeat is not a turn"
+        );
+        assert_eq!(scan.events.len(), 1);
+        assert_eq!(scan.events[0].tokens.input, 60);
+    }
 }
 
 /// Scans the native transcript JSONL for per-turn usage events,
@@ -4219,6 +4602,7 @@ fn scan_transcript(record: &SessionRecord, now: i64) -> TranscriptScan {
         turns: 0,
         context_used: None,
         context_window: None,
+        rollout_seen: std::collections::BTreeSet::new(),
     };
     let bytes = record
         .transcript_ref
@@ -4227,10 +4611,15 @@ fn scan_transcript(record: &SessionRecord, now: i64) -> TranscriptScan {
     let Some(bytes) = bytes else {
         return scan;
     };
+    let mut rollout_model = None;
     for line in String::from_utf8_lossy(&bytes).lines() {
         let Ok(value) = serde_json::from_str::<serde_json::Value>(line) else {
             continue;
         };
+        if let Some(payload) = value.get("payload") {
+            scan_rollout_line(&value, payload, &mut rollout_model, &mut scan, now);
+            continue;
+        }
         if value.get("usage").is_none() {
             continue;
         }
@@ -4506,9 +4895,9 @@ fn lock_storage<'a>(
     state.storage.lock().map_err(|_| AppError::StatePoisoned)
 }
 
-fn account_info_of(account: &Account) -> AccountInfo {
+fn account_info_of(registry: &juggler_adapter::AdapterRegistry, account: &Account) -> AccountInfo {
     AccountInfo {
-        login_state: login_state_name(login_state_of(account)).to_string(),
+        login_state: login_state_name(login_state_of(registry, account)).to_string(),
         id: account.id.to_string(),
         provider: account.harness.to_string(),
         label: account.label.clone(),
@@ -4519,6 +4908,7 @@ fn account_info_of(account: &Account) -> AccountInfo {
         import_source_path: account.import_source_path.clone(),
         import_origin: account.import_origin.clone(),
         imported_at: account.imported_at,
+        in_place: account.in_place,
     }
 }
 
@@ -4546,11 +4936,17 @@ fn login_state_name(state: juggler_adapters::LoginState) -> &'static str {
     }
 }
 
-fn login_state_of(account: &Account) -> juggler_adapters::LoginState {
-    if account.harness.as_str() == juggler_adapters::CLAUDE_CODE_ID {
-        return juggler_adapters::ClaudeCodeAdapter::new().login_state(&account.state_dir);
-    }
-    juggler_adapters::LoginState::LoggedOut
+/// The Account's sign-in state from its own Provider's adapter in the
+/// app's registry. Unknown Providers report logged out, as before.
+fn login_state_of(
+    registry: &juggler_adapter::AdapterRegistry,
+    account: &Account,
+) -> juggler_adapters::LoginState {
+    registry
+        .get(&account.harness)
+        .map_or(juggler_adapters::LoginState::LoggedOut, |adapter| {
+            adapter.login_state(&account.state_dir)
+        })
 }
 
 /// Profile rows with denormalized account labels/harnesses.
@@ -5022,22 +5418,121 @@ pub(crate) fn handover_source(
     state: &Arc<AppState>,
     session_id: &str,
 ) -> AppResult<(juggler_core::model::InstanceRecord, Account)> {
-    let storage = lock_storage_arc(state)?;
-    let source = storage
-        .sessions()
-        .get(&SessionId::new(session_id))
-        .map_err(|error| not_found_or_core(error, "session", session_id))?;
-    let source_profile = storage
-        .profiles()
-        .get(&source.profile)
-        .map_err(|error| not_found_or_core(error, "profile", &source.profile.to_string()))?;
-    let account_a = storage
-        .accounts()
-        .get(&source_profile.account)
-        .map_err(|error| {
-            not_found_or_core(error, "account", &source_profile.account.to_string())
-        })?;
+    resolve_source(state, session_id, false)
+}
+
+/// [`handover_source`] that KEEPS the transcript link it finds — only
+/// the switch itself does this (a preflight or a ranking look never
+/// writes a guess down).
+///
+/// # Errors
+///
+/// As [`handover_source`].
+pub(crate) fn handover_source_linked(
+    state: &Arc<AppState>,
+    session_id: &str,
+) -> AppResult<(juggler_core::model::InstanceRecord, Account)> {
+    resolve_source(state, session_id, true)
+}
+
+/// AJ-E1303: a session the app launched has no transcript link yet; the
+/// Provider finds the file it created (same folder, created after the
+/// launch). Never a guess: files linked to other sessions are excluded,
+/// two matches find nothing, and another live, unlinked session of the
+/// same account in the same folder makes it ambiguous (its file could
+/// be the only one so far) — the switch then asks. The filesystem scan
+/// runs without the storage lock.
+fn resolve_source(
+    state: &Arc<AppState>,
+    session_id: &str,
+    persist: bool,
+) -> AppResult<(juggler_core::model::InstanceRecord, Account)> {
+    let (mut source, account_a, taken, ambiguous) = {
+        let storage = lock_storage_arc(state)?;
+        let source = storage
+            .sessions()
+            .get(&SessionId::new(session_id))
+            .map_err(|error| not_found_or_core(error, "session", session_id))?;
+        let source_profile = storage
+            .profiles()
+            .get(&source.profile)
+            .map_err(|error| not_found_or_core(error, "profile", &source.profile.to_string()))?;
+        let account_a = storage
+            .accounts()
+            .get(&source_profile.account)
+            .map_err(|error| {
+                not_found_or_core(error, "account", &source_profile.account.to_string())
+            })?;
+        if source.transcript_ref.is_some() {
+            return Ok((source, account_a));
+        }
+        let others: Vec<juggler_core::model::InstanceRecord> = storage
+            .sessions()
+            .list(None)?
+            .into_iter()
+            .filter(|other| other.id != source.id)
+            .collect();
+        let account_recipes: std::collections::HashSet<String> = storage
+            .profiles()
+            .list_by_account(&account_a.id)?
+            .into_iter()
+            .map(|recipe| recipe.id.to_string())
+            .collect();
+        let taken: Vec<PathBuf> = others
+            .iter()
+            .filter_map(|other| other.transcript_ref.as_ref().map(|r| r.path.clone()))
+            .collect();
+        let ambiguous = others.iter().any(|other| {
+            account_recipes.contains(other.profile.as_str())
+                && other.transcript_ref.is_none()
+                && other.cwd == source.cwd
+                && !ended_before(other, source.started_at.millis())
+        });
+        (source, account_a, taken, ambiguous)
+    };
+    if ambiguous {
+        return Ok((source, account_a));
+    }
+    let Some(found) = state.registry.get(&account_a.harness).and_then(|adapter| {
+        adapter.locate_transcript(
+            &account_a.state_dir,
+            &source.cwd,
+            source.started_at.millis(),
+            &taken,
+        )
+    }) else {
+        return Ok((source, account_a));
+    };
+    source.transcript_ref = Some(found);
+    if persist {
+        // Re-read under the lock: the watcher may have changed the
+        // record (status, last activity) during the scan — only the link
+        // is written, and only if nothing linked it meanwhile.
+        let storage = lock_storage_arc(state)?;
+        let mut fresh = storage.sessions().get(&source.id)?;
+        if fresh.transcript_ref.is_none() {
+            fresh.transcript_ref.clone_from(&source.transcript_ref);
+            storage.sessions().update(&fresh)?;
+        }
+        source = fresh;
+    }
     Ok((source, account_a))
+}
+
+/// Whether `session` had ended before `at_ms` (its last activity — a
+/// session that ended earlier could not have written a file after it).
+fn ended_before(session: &juggler_core::model::InstanceRecord, at_ms: i64) -> bool {
+    let ended = matches!(
+        session.status,
+        SessionStatus::Finished
+            | SessionStatus::Stopped
+            | SessionStatus::Failed
+            | SessionStatus::HandedOver
+    );
+    ended
+        && session
+            .last_activity
+            .is_some_and(|last| last.millis() < at_ms.saturating_sub(2_000))
 }
 
 /// Resumes the session under the target account (see the module docs).
@@ -5165,9 +5660,8 @@ pub fn switch_preflight_impl(
     })?;
 
     // Compaction scan from the source transcript (the F2 signal).
-    let compacted = std::fs::read(&reference.path).is_ok_and(|bytes| {
-        juggler_adapters::claude_transcript::parse_transcript(&bytes).has_compact_boundary()
-    });
+    let compacted = std::fs::read(&reference.path)
+        .is_ok_and(|bytes| juggler_adapters::parse_any(&bytes).has_compact_boundary());
 
     // Target quota gate + the usual-account test (one storage pass).
     let now = Timestamp::now().millis();
@@ -5566,7 +6060,7 @@ fn switch_execute_core(
         FreezeChoice::FinishTurnThenSwitch
     };
     let (profile_b, account_b) = find_profile_with_account_arc(state, target_profile_id)?;
-    let (source, account_a) = handover_source(state, session_id)?;
+    let (source, account_a) = handover_source_linked(state, session_id)?;
     if source.project.is_none() {
         return Err(AppError::Io {
             context: "hand over",
@@ -8529,7 +9023,7 @@ pub fn account_set_cleanup_arc(
         storage.accounts().update(&account)?;
         account
     };
-    Ok(account_info_of(&account))
+    Ok(account_info_of(&state.registry, &account))
 }
 
 /// Sets or clears the optional user-entered renewal date (AJ-E411,
@@ -8577,7 +9071,7 @@ pub fn account_set_renewal_arc(
         storage.accounts().update(&account)?;
         account
     };
-    Ok(account_info_of(&account))
+    Ok(account_info_of(&state.registry, &account))
 }
 
 /// The exit-snapshot hook (AJ-E410 Req.3): freezes the pre-exit
@@ -9754,6 +10248,7 @@ mod tests {
                 import_source_path: None,
                 import_origin: None,
                 imported_at: None,
+                in_place: false,
             })
             .expect("seed account");
         for (id, model) in [("rec-1", Some("opus")), ("rec-2", None)] {
@@ -10002,6 +10497,7 @@ mod tests {
                 import_source_path: None,
                 import_origin: None,
                 imported_at: None,
+                in_place: false,
             })
             .expect("seed account");
         storage
@@ -10450,9 +10946,9 @@ fn transcript_side(
     std::collections::HashSet<String>,
     Vec<juggler_handover::pack::IrTurn>,
 )> {
-    use juggler_adapters::claude_transcript::{MessageRole, parse_transcript};
+    use juggler_adapters::claude_transcript::MessageRole;
     let bytes = std::fs::read(path).ok()?;
-    let parsed = parse_transcript(&bytes);
+    let parsed = juggler_adapters::parse_any(&bytes);
     let mut uuids = std::collections::HashSet::new();
     let mut turns = Vec::new();
     for message in parsed.messages {
@@ -11573,7 +12069,7 @@ fn switch_rank_context_of(
     }
     let source_replay_tokens = source.transcript_ref.as_ref().and_then(|reference| {
         std::fs::read(&reference.path).ok().map(|bytes| {
-            let parsed = juggler_adapters::claude_transcript::parse_transcript(&bytes);
+            let parsed = juggler_adapters::parse_any(&bytes);
             parsed.usage.input.saturating_add(parsed.usage.output)
         })
     });
@@ -12828,6 +13324,34 @@ pub fn environment_scan_full_impl(
     installs.extend(alias_installs);
     tick(&mut done); // S5
 
+    // ADR-0018: a folder an in-place account uses is already in, though
+    // it carries no marker (nothing is written into it).
+    if let Ok(storage) = state.storage.lock()
+        && let Ok(accounts) = storage.accounts().list()
+    {
+        let canonical =
+            |path: &std::path::Path| path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+        // …and so is the source of a copy: bringing it in again (either
+        // way) is refused, so it isn't offered (review of ADR-0018).
+        let already: Vec<std::path::PathBuf> = accounts
+            .iter()
+            .flat_map(|account| {
+                let source = account
+                    .import_source_path
+                    .as_deref()
+                    .map(std::path::Path::new)
+                    .map(canonical);
+                let own = account.in_place.then(|| canonical(&account.state_dir));
+                source.into_iter().chain(own)
+            })
+            .collect();
+        for install in &mut installs {
+            if already.contains(&canonical(std::path::Path::new(&install.path))) {
+                install.managed = true;
+            }
+        }
+    }
+
     // Where each setup is open right now (one process-table read).
     if let Some(home) = dirs::home_dir() {
         let open =
@@ -12939,9 +13463,10 @@ fn scan_walk(state: &Arc<AppState>) -> ScanWalk {
 
 /// The wire form of one discovered install.
 fn discovered_info_of(found: juggler_adapter::environment::DiscoveredInstall) -> DiscoveredInfo {
-    let credentials_len = std::fs::metadata(found.path.join(".credentials.json"))
-        .ok()
-        .map(|meta| meta.len());
+    let credentials_len =
+        std::fs::metadata(found.path.join(credentials_file_of(found.harness.as_str())))
+            .ok()
+            .map(|meta| meta.len());
     let now_secs = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|span| span.as_secs())
@@ -13005,6 +13530,24 @@ fn inference_info_of(
     }
 }
 
+/// The file a Provider keeps its sign-in in when it is file-based (its
+/// absence while signed in means the sign-in lives in the Keychain and
+/// cannot move with a copy). Size metadata only — never read.
+fn credentials_file_of(provider: &str) -> &'static str {
+    match provider {
+        juggler_adapters::CODEX_ID => "auth.json",
+        _ => ".credentials.json",
+    }
+}
+
+/// The Provider whose state dir a shell variable points at (S5).
+fn provider_of_variable(variable: &str) -> &'static str {
+    match variable {
+        juggler_adapters::codex::ENV_CODEX_HOME => juggler_adapters::CODEX_ID,
+        _ => juggler_adapters::CLAUDE_CODE_ID,
+    }
+}
+
 /// S5 + the duplicate merge (Req.2): an alias whose target exists
 /// MERGES into the known candidate as an extra signal (alias +
 /// home-pattern → ONE candidate, signals listed); only a target no
@@ -13035,13 +13578,14 @@ pub fn alias_installs_of(
             }
             continue;
         }
-        let credentials_len = std::fs::metadata(hint.path.join(".credentials.json"))
+        let harness = provider_of_variable(&hint.variable);
+        let credentials_len = std::fs::metadata(hint.path.join(credentials_file_of(harness)))
             .ok()
             .map(|meta| meta.len());
         out.push(DiscoveredInfo {
             inference: inference_info_of(&hint.path, None, false, credentials_len, None, false),
             signals: vec!["shell-alias".to_owned()],
-            harness: "claude-code".to_owned(),
+            harness: harness.to_owned(),
             path,
             origin: "shell-alias".to_owned(),
             login: "logged_out".to_owned(),

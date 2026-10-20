@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use crate::capabilities::Capabilities;
 use crate::discovery::DiscoveryReport;
-use crate::environment::{DiscoveredInstall, ImportOutcome, LoginUrl};
+use crate::environment::{DiscoveredInstall, ImportOutcome, LoginState, LoginUrl};
 use crate::error::AdapterError;
 use crate::launch::{DesktopLaunch, EnvMap, LaunchMode, LaunchSpec};
 use crate::model::{Account, HarnessId, Profile};
@@ -101,6 +101,32 @@ pub trait HarnessAdapter: Send + Sync {
         }
     }
 
+    /// AJ-E308/AJ-E1301: the Account's sign-in state, probed from its
+    /// state dir without reading credential contents (ADR-0003). The
+    /// default — `LoggedOut` — is what Providers without a probe have
+    /// always reported; an adapter that can tell overrides it.
+    fn login_state(&self, state_dir: &Path) -> LoginState {
+        let _ = state_dir;
+        LoginState::LoggedOut
+    }
+
+    /// AJ-E1303: finds the transcript of a session this Account started
+    /// in `cwd` at or after `since_ms` (epoch ms) — the file the vendor
+    /// created for it, read-only. Files in `taken` (linked to other
+    /// sessions) are never candidates, and more than one remaining match
+    /// is an honest `None`: a guess could hand one session another's
+    /// conversation. Default: `None` (the switch then asks).
+    fn locate_transcript(
+        &self,
+        state_dir: &Path,
+        cwd: &Path,
+        since_ms: i64,
+        taken: &[std::path::PathBuf],
+    ) -> Option<juggler_core::model::TranscriptRef> {
+        let _ = (state_dir, cwd, since_ms, taken);
+        None
+    }
+
     /// Creates a watcher over the account's transcript root.
     ///
     /// # Errors
@@ -145,6 +171,21 @@ pub trait HarnessAdapter: Send + Sync {
         let _ = (source, dest);
         Err(AdapterError::Unsupported(
             "this adapter cannot import existing configurations".into(),
+        ))
+    }
+
+    /// ADR-0018: checks an existing config dir can be used where it is
+    /// (an in-place account) and reports its sign-in — nothing is copied
+    /// or written. Default: unsupported, so the UI offers only a copy.
+    ///
+    /// # Errors
+    ///
+    /// [`AdapterError::Unsupported`] by default; otherwise
+    /// [`AdapterError::AccountDir`] with the plain-language reason.
+    fn adopt_account(&self, source: &Path) -> Result<ImportOutcome, AdapterError> {
+        let _ = source;
+        Err(AdapterError::Unsupported(
+            "this tool's setups can only be copied for now".into(),
         ))
     }
 
@@ -207,6 +248,20 @@ pub trait HarnessAdapter: Send + Sync {
         ))
     }
 
+    /// Environment variables every launch removes from what it inherits
+    /// (credentials that would override the account's own sign-in).
+    /// Default: none.
+    fn launch_unset_keys(&self) -> &'static [&'static str] {
+        &[]
+    }
+
+    /// The value of the pinned isolation keys for `state_dir`, or `None`
+    /// when the folder runs with that key unset (ADR-0018: the vendor's
+    /// own default folder). Default: the path.
+    fn isolation_env_value(&self, state_dir: &Path) -> Option<String> {
+        Some(state_dir.to_string_lossy().into_owned())
+    }
+
     /// The environment variables that fence an Account's isolated
     /// state for this Provider (AJ-E309). Launch-settings overrides
     /// may never set them — an override that repointed the config
@@ -216,6 +271,16 @@ pub trait HarnessAdapter: Send + Sync {
     #[must_use]
     fn isolation_env_keys(&self) -> &'static [&'static str] {
         &[]
+    }
+
+    /// The isolation keys pinned to the Account's state dir itself —
+    /// every one the shell snippet sets and the isolation check
+    /// verifies. Default: the first isolation key (one variable points
+    /// the Provider at its state); Codex also pins `CODEX_SQLITE_HOME`.
+    #[must_use]
+    fn pinned_env_keys(&self) -> &'static [&'static str] {
+        let keys = self.isolation_env_keys();
+        &keys[..keys.len().min(1)]
     }
 
     /// The command a user types to start this Provider against
@@ -236,8 +301,8 @@ pub fn shell_quote(value: &str) -> String {
 }
 
 /// Builds the copyable shell line for `adapter` against `state_dir`
-/// plus any extra environment (Launch-settings overrides), isolation
-/// keys first. `None` when the Provider has no terminal entry point.
+/// plus any extra environment (Launch-settings overrides), every pinned
+/// isolation key first. `None` when the Provider has no terminal entry point.
 #[must_use]
 pub fn shell_snippet(
     adapter: &dyn HarnessAdapter,
@@ -245,20 +310,35 @@ pub fn shell_snippet(
     extra_env: &std::collections::BTreeMap<String, String>,
 ) -> Option<String> {
     let command = adapter.shell_command()?;
-    let dir = state_dir.to_string_lossy();
-    let mut parts: Vec<String> = adapter
-        .isolation_env_keys()
-        .iter()
-        .take(1)
-        .map(|key| format!("{key}={}", shell_quote(&dir)))
-        .collect();
+    // What AI Juggler's own launches remove, the line removes too: the
+    // default folder's key (run as the vendor runs it) and any inherited
+    // credentials. Every pinned key points at the folder otherwise.
+    let mut unset: Vec<String> = Vec::new();
+    let mut parts: Vec<String> = Vec::new();
+    let value = adapter.isolation_env_value(state_dir);
+    for key in adapter.pinned_env_keys() {
+        match &value {
+            Some(dir) => parts.push(format!("{key}={}", shell_quote(dir))),
+            None => unset.push((*key).to_owned()),
+        }
+    }
+    unset.extend(
+        adapter
+            .launch_unset_keys()
+            .iter()
+            .map(|key| (*key).to_owned()),
+    );
     for (key, value) in extra_env {
         if !adapter.isolation_env_keys().contains(&key.as_str()) {
             parts.push(format!("{key}={}", shell_quote(value)));
         }
     }
     parts.push(command.to_owned());
-    Some(parts.join(" "))
+    if unset.is_empty() {
+        return Some(parts.join(" "));
+    }
+    let flags: Vec<String> = unset.iter().map(|key| format!("-u {key}")).collect();
+    Some(format!("env {} {}", flags.join(" "), parts.join(" ")))
 }
 
 /// Shared adapter handle type used by the registry and supervisor.

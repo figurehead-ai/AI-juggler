@@ -154,7 +154,7 @@ export function SwitchTargetRows({
         })}
       </ul>
       <p className="text-[10px] text-faint">
-        Badges are per provider pair and beta-validated by real fixtures — never assumed.
+        Badges are per pair of tools and beta-validated by real fixtures — never assumed.
       </p>
     </div>
   );

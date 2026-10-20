@@ -1,4 +1,4 @@
-//! Footprints (AJ-E1406, schema v28): how heavy each kind of session really
+//! Footprints (AJ-E1406, schema v29): how heavy each kind of session really
 //! is on this Mac — peak tree memory, p95 tree CPU, peak helpers, how long
 //! it ran — keyed by launch setting (`recipe:<id>`) or, for the AI tools AI
 //! Juggler didn't start, by place (`observed:desktop`,

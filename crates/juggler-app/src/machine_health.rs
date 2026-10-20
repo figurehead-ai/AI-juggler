@@ -271,6 +271,8 @@ pub struct MachineWatch {
     peaks: std::collections::HashMap<String, TreePeaks>,
     /// Overload alerts (AJ-E1408).
     alerts: crate::machine_alerts::AlertEngine,
+    /// Whether a running-tools scan has read a process table yet.
+    tools_scanned: bool,
 }
 
 impl Default for MachineWatch {
@@ -281,6 +283,7 @@ impl Default for MachineWatch {
             tools: Vec::new(),
             peaks: std::collections::HashMap::new(),
             alerts: crate::machine_alerts::AlertEngine::default(),
+            tools_scanned: false,
         }
     }
 }
@@ -294,9 +297,10 @@ impl std::fmt::Debug for MachineWatch {
     }
 }
 
-/// Which running tools are re-read every 15th tick (30 s): the read
-/// covers every process's environment (only `CLAUDE_CONFIG_DIR` is kept),
-/// so it never rides every tick.
+/// The running tools are re-read every 15th tick (30 s): the scan reads the
+/// collector's process table and, for the few roots it finds, one
+/// environment variable (`CLAUDE_CONFIG_DIR`) — cheap, but no need to run
+/// it every tick.
 const TOOLS_EVERY: u32 = 15;
 
 /// The 2 s tick's machine half (AJ-E1401 Req.1, AJ-E1402 Req.1–2). The
@@ -305,13 +309,16 @@ const TOOLS_EVERY: u32 = 15;
 /// listing the disks (50–150 ms) — and the running-tools scan run outside
 /// it, so a reader of the lock never waits on either.
 pub fn tick(state: &Arc<AppState>, now_ms: i64) {
-    let (work, ticks) = {
+    let (work, ticks, scan) = {
         let Ok(mut watch) = state.machine.lock() else {
             return;
         };
         watch.ticks = watch.ticks.wrapping_add(1);
         let work = watch.sampler.tick(now_ms);
-        (work, watch.ticks)
+        // Until a scan has found a process table to read, every tick tries
+        // (the collector may not have its first table yet).
+        let scan = !watch.tools_scanned || watch.ticks.is_multiple_of(TOOLS_EVERY);
+        (work, watch.ticks, scan)
     };
     if let Some(mut work) = work {
         let volumes = work.volumes(&paths_in_use(state));
@@ -320,7 +327,7 @@ pub fn tick(state: &Arc<AppState>, now_ms: i64) {
         }
     }
     track_footprints(state, now_ms, ticks.is_multiple_of(FOOTPRINT_EVERY));
-    if !(ticks == 1 || ticks.is_multiple_of(TOOLS_EVERY)) {
+    if !scan {
         return;
     }
     // Classified from the collector's own table (no second full refresh);
@@ -330,12 +337,32 @@ pub fn tick(state: &Arc<AppState>, now_ms: i64) {
         .lock()
         .map(|collector| collector.process_briefs())
         .unwrap_or_default();
-    let tools = dirs::home_dir().map_or_else(Vec::new, |home| {
-        crate::running_setups::tools_from(&briefs, &home)
-    });
-    let roots: Vec<u32> = tools.iter().map(|tool| tool.pid).collect();
+    if briefs.is_empty() {
+        return; // no table yet: try again next tick
+    }
+    // A `claude` AI Juggler started is ours even after its session ended
+    // and launchd adopted it: a pid with a ledger row is never "a tool AI
+    // Juggler didn't start" (it's a leftover, in the leftovers count).
+    let ours: std::collections::HashSet<u32> = crate::commands::local_ledger_rows(state)
+        .into_iter()
+        .filter_map(|row| row.pid)
+        .collect();
+    let tools = not_ours(
+        dirs::home_dir().map_or_else(Vec::new, |home| {
+            crate::running_setups::tools_from(&briefs, &home)
+        }),
+        &ours,
+    );
+    let roots: Vec<juggler_supervisor::ObservedRoot> = tools
+        .iter()
+        .map(|tool| juggler_supervisor::ObservedRoot {
+            pid: tool.pid,
+            start_time: tool.start_time,
+        })
+        .collect();
     if let Ok(mut watch) = state.machine.lock() {
         watch.tools = tools;
+        watch.tools_scanned = true;
     }
     if let Ok(mut collector) = state.resources.lock() {
         collector.set_observed_roots(roots);
@@ -708,6 +735,18 @@ fn footprint_of(id: &str, peak: &TreePeaks) -> juggler_core::storage::Footprint 
     }
 }
 
+/// Pure: the running tools minus any pid AI Juggler has a ledger row for.
+#[must_use]
+pub fn not_ours<S: std::hash::BuildHasher>(
+    tools: Vec<RunningTool>,
+    ours: &std::collections::HashSet<u32, S>,
+) -> Vec<RunningTool> {
+    tools
+        .into_iter()
+        .filter(|tool| !ours.contains(&tool.pid))
+        .collect()
+}
+
 /// The read model now.
 ///
 /// # Errors
@@ -772,6 +811,11 @@ pub struct ToolTreeInfo {
     pub helpers: u32,
     /// "CPU 95%", "3.2 GB" — only when the tree is heavy.
     pub heavy_note: Option<String>,
+    /// The memory is an estimate: helper RSS summed, so memory those
+    /// helpers share is counted once per helper (a tool AI Juggler didn't
+    /// start, whose exact footprint needs an unsafe OS call). Show it as
+    /// "about".
+    pub memory_estimate: bool,
 }
 
 /// AI tools' share of the Mac.
@@ -780,6 +824,8 @@ pub struct ToolTreeInfo {
 pub struct ToolTotalsInfo {
     /// How many trees.
     pub count: u32,
+    /// The memory includes estimates (a tool AI Juggler didn't start).
+    pub memory_estimate: bool,
     /// Share of the whole Mac's CPU (all cores), percent; `null` until
     /// measured.
     pub cpu_pct: Option<f64>,
@@ -862,7 +908,11 @@ pub fn heavy_note(tree: &TreeInput) -> Option<String> {
         || sustained(&tree.ring, |sample| {
             sample.cpu_pct.is_some_and(|cpu| cpu > HEAVY_CPU_PCT)
         });
-    let rss_heavy = rss_hog || sustained(&tree.ring, |sample| sample.rss_bytes > HEAVY_RSS_BYTES);
+    // A tool AI Juggler didn't start (the Claude app: Electron helpers that
+    // share pages) is summed RSS, an overcount — so its heaviness is CPU
+    // only, never a memory figure that flags every window.
+    let rss_heavy = tree.place.is_none()
+        && (rss_hog || sustained(&tree.ring, |sample| sample.rss_bytes > HEAVY_RSS_BYTES));
     let mut parts = Vec::new();
     if cpu_heavy && let Some(cpu) = tree.stats.cpu_pct {
         parts.push(format!("CPU {cpu:.0}%"));
@@ -882,6 +932,7 @@ fn tree_info(tree: &TreeInput) -> ToolTreeInfo {
         rss_bytes: tree.stats.rss_bytes,
         helpers: tree.stats.child_count,
         heavy_note: heavy_note(tree),
+        memory_estimate: tree.place.is_some(),
     }
 }
 
@@ -890,6 +941,7 @@ fn totals(trees: &[&TreeInput], cores: u32) -> ToolTotalsInfo {
     let measured: Vec<f64> = trees.iter().filter_map(|tree| tree.stats.cpu_pct).collect();
     ToolTotalsInfo {
         count: u32::try_from(trees.len()).unwrap_or(u32::MAX),
+        memory_estimate: trees.iter().any(|tree| tree.place.is_some()),
         cpu_pct: (!trees.is_empty() && measured.len() == trees.len())
             .then(|| (measured.iter().sum::<f64>() / f64::from(cores.max(1))).min(100.0))
             .or_else(|| trees.is_empty().then_some(0.0)),
@@ -1097,7 +1149,7 @@ pub async fn machine_alerts_take(
 )]
 pub fn recommendations<S: std::hash::BuildHasher>(
     machine: &MachineHealthInfo,
-    tools_rss: u64,
+    ours_rss: u64,
     footprints: &[juggler_core::storage::FootprintStats],
     names: &std::collections::HashMap<String, String, S>,
 ) -> Vec<String> {
@@ -1115,13 +1167,16 @@ pub fn recommendations<S: std::hash::BuildHasher>(
         .sum::<f64>()
         / f64::from(sessions);
     let mut out = Vec::new();
-    // Keep a fifth of memory free; what isn't AI tools stays as it is now.
+    // Keep a fifth of memory free; what isn't AI Juggler's sessions stays
+    // as it is now. Only our trees' memory is measured — a tool AI Juggler
+    // didn't start is an estimate that counts shared memory more than once
+    // (AJ-E1402), so it stays in "the rest" rather than inflate the room.
     // Used = total − free on the reading's own basis (free falls back to
     // the OS's available figure only when used couldn't be read).
     let used = machine
         .memory_total
         .saturating_sub(machine.memory_available);
-    let others = used.saturating_sub(tools_rss) as f64;
+    let others = used.saturating_sub(ours_rss) as f64;
     let room = machine.memory_total as f64 * 0.8 - others;
     if typical > 0.0 {
         let fits = (room / typical).floor().max(0.0) as u64;
@@ -1181,7 +1236,7 @@ fn recommendations_for(state: &Arc<AppState>, info: &ThisMacInfo) -> Vec<String>
             );
         }
     }
-    recommendations(&info.machine, info.tools.rss_bytes, &footprints, &names)
+    recommendations(&info.machine, info.ours.rss_bytes, &footprints, &names)
 }
 
 /// This Mac (AJ-E1403): the machine, AI tools' share, the heaviest
@@ -1204,13 +1259,25 @@ pub async fn this_mac(state: tauri::State<'_, Arc<AppState>>) -> AppResult<ThisM
     })?
 }
 
-/// The summary level last emitted (an idle app emits only on a change).
-static LAST_EMITTED_LEVEL: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
+/// What was last emitted: the machine's level and how many AI tools ran.
+static LAST_EMITTED: std::sync::Mutex<Option<(String, u32)>> = std::sync::Mutex::new(None);
+
+/// Pure: whether This Mac goes out this tick. Always while an AI tool
+/// runs; otherwise only when something changed — the level, or the count
+/// (so the step from one tool to none is told, and Home never keeps a
+/// stale "1 running").
+#[must_use]
+pub fn should_emit(last: &mut Option<(String, u32)>, level: &str, tools: u32) -> bool {
+    let now = (level.to_string(), tools);
+    let changed = last.as_ref() != Some(&now);
+    *last = Some(now);
+    tools > 0 || changed
+}
 
 /// Emits This Mac on the 5 s resource cadence (`machine://this-mac`), so
 /// Home, the rail and the session header refresh without a UI timer.
 /// Like the resource tick, an idle app costs the UI nothing: with no AI
-/// tool running, it emits only when the machine's level changes.
+/// tool running, it emits only when something changed (see [`should_emit`]).
 ///
 /// # Errors
 ///
@@ -1218,11 +1285,14 @@ static LAST_EMITTED_LEVEL: std::sync::Mutex<Option<String>> = std::sync::Mutex::
 pub fn emit_this_mac(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResult<()> {
     use tauri::Emitter;
     let payload = this_mac_impl(state, crate::commands::now_millis())?;
-    let level = payload.machine.summary.level.clone();
-    let changed = LAST_EMITTED_LEVEL.lock().map_or(true, |mut last| {
-        last.replace(level.clone()).as_ref() != Some(&level)
+    let emit = LAST_EMITTED.lock().map_or(true, |mut last| {
+        should_emit(
+            &mut last,
+            &payload.machine.summary.level,
+            payload.tools.count,
+        )
     });
-    if payload.tools.count == 0 && !changed {
+    if !emit {
         return Ok(());
     }
     let _ = app.emit(crate::EVENT_THIS_MAC, payload);
@@ -1565,6 +1635,70 @@ mod tests {
     }
 
     #[test]
+    fn a_tool_we_didnt_start_is_heavy_on_cpu_only_and_its_memory_is_an_estimate() {
+        // A Claude app window: 16 GB summed over helpers that share pages.
+        let mut app = tree(None, 20.0, 16 * G, 60);
+        assert_eq!(heavy_note(&app), None, "summed RSS never flags it");
+        app = tree(None, 140.0, 16 * G, 60);
+        assert_eq!(heavy_note(&app).as_deref(), Some("CPU 140%"));
+        let machine = health_of(
+            &MachineSnapshot {
+                cores: 10,
+                ..MachineSnapshot::default()
+            },
+            &RoomThresholds::default(),
+        );
+        let info = assemble(machine, &[app, tree(Some("s1"), 10.0, G, 60)], (0, 0));
+        let theirs = info.top.iter().find(|t| t.session_id.is_none()).unwrap();
+        assert!(theirs.memory_estimate);
+        assert!(
+            !info
+                .top
+                .iter()
+                .find(|t| t.session_id.is_some())
+                .unwrap()
+                .memory_estimate
+        );
+        assert!(info.tools.memory_estimate && info.theirs.memory_estimate);
+        assert!(!info.ours.memory_estimate);
+    }
+
+    #[test]
+    fn going_from_one_tool_to_none_is_told() {
+        let mut last = None;
+        assert!(should_emit(&mut last, "plenty", 1));
+        assert!(
+            should_emit(&mut last, "plenty", 1),
+            "always while a tool runs"
+        );
+        assert!(
+            should_emit(&mut last, "plenty", 0),
+            "the step to zero is told"
+        );
+        assert!(
+            !should_emit(&mut last, "plenty", 0),
+            "then an idle app is quiet"
+        );
+        assert!(should_emit(&mut last, "tight", 0), "a level change is told");
+        assert!(!should_emit(&mut last, "tight", 0));
+    }
+
+    #[test]
+    fn a_claude_we_started_is_never_counted_as_theirs() {
+        let tool = |pid| RunningTool {
+            pid,
+            place: "terminal",
+            config_dir: std::path::PathBuf::from("/Users/you/.claude"),
+            start_time: None,
+        };
+        // 42 is a leftover `claude` AI Juggler started (it has a ledger
+        // row), now adopted by launchd; 7 is the user's own terminal.
+        let ours: std::collections::HashSet<u32> = [42].into_iter().collect();
+        let left = not_ours(vec![tool(42), tool(7)], &ours);
+        assert_eq!(left.iter().map(|t| t.pid).collect::<Vec<_>>(), [7]);
+    }
+
+    #[test]
     fn this_mac_splits_ours_from_theirs_and_ranks_by_memory() {
         let machine = health_of(
             &MachineSnapshot {
@@ -1643,11 +1777,49 @@ mod live {
         }
         costs.sort_unstable();
         println!("scan: median {} µs, max {} µs (5 runs)", costs[2], costs[4]);
-        collector.set_observed_roots(tools.iter().map(|tool| tool.pid).collect());
+        collector.set_observed_roots(
+            tools
+                .iter()
+                .map(|tool| juggler_supervisor::ObservedRoot {
+                    pid: tool.pid,
+                    start_time: tool.start_time,
+                })
+                .collect(),
+        );
         for tick in 1..4 {
             collector.tick(&supervisor, tick * 2_000);
             std::thread::sleep(std::time::Duration::from_millis(700));
         }
+        // Baseline: the same ticks on a collector observing nothing.
+        let mut bare = juggler_supervisor::LiveStatsCollector::new();
+        let mut base = Vec::new();
+        for tick in 0..12 {
+            let started = std::time::Instant::now();
+            bare.tick(&supervisor, tick * 2_000);
+            if tick >= 4 {
+                base.push(started.elapsed().as_micros());
+            }
+            std::thread::sleep(std::time::Duration::from_millis(300));
+        }
+        base.sort_unstable();
+        println!(
+            "tick observing nothing: median {} µs, max {} µs",
+            base[4], base[7]
+        );
+        // The cost of the hot tick now that every helper of every observed
+        // tree is refreshed (review of #68).
+        let mut costs = Vec::new();
+        for tick in 4..12 {
+            let started = std::time::Instant::now();
+            collector.tick(&supervisor, tick * 2_000);
+            costs.push(started.elapsed().as_micros());
+            std::thread::sleep(std::time::Duration::from_millis(300));
+        }
+        costs.sort_unstable();
+        println!(
+            "tick with observed trees: median {} µs, max {} µs (8 ticks, full scans included)",
+            costs[4], costs[7]
+        );
         let observed = collector.observed_snapshot();
         for place in ["desktop", "terminal"] {
             let trees: Vec<_> = tools
