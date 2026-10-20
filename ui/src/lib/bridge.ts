@@ -491,11 +491,6 @@ export async function createAccount(
   plan: string | null,
 ): Promise<AccountInfo> {
   if (!hasBackend) {
-    // AJ-E301 test seam: a hanging create keeps the wizard "busy"
-    // (the close-guard visual).
-    if ((window as unknown as { __AIJ_CREATE_HANG__?: boolean }).__AIJ_CREATE_HANG__) {
-      return new Promise<AccountInfo>(() => {});
-    }
     return {
       id: `claude-${label.toLowerCase().replace(/\s+/g, "-")}`,
       provider: harness,
@@ -526,6 +521,7 @@ export async function environmentScan(): Promise<DiscoveredInfo[]> {
         bytes: 48_000_000,
         last_used_secs: Math.floor(Date.now() / 1000) - 86_400,
         managed: false,
+        in_use: [],
         inference: {
           purpose: "Main",
           purpose_confidence: "guessed",
@@ -550,6 +546,7 @@ export async function environmentScan(): Promise<DiscoveredInfo[]> {
         bytes: 1_200_000,
         last_used_secs: Math.floor(Date.now() / 1000) - 2_592_000,
         managed: false,
+        in_use: [],
         inference: {
           purpose: "Personal",
           purpose_confidence: "likely",
@@ -594,6 +591,9 @@ export async function accountImport(
         user_message: `Already imported as «${duplicateLabel}» — open it from Accounts instead of importing again`,
       };
     }
+    // AJ-E1022 test seam: reject with a given error (a moved folder…).
+    const forced = (window as unknown as { __AIJ_IMPORT_ERROR__?: unknown }).__AIJ_IMPORT_ERROR__;
+    if (forced !== undefined) throw forced;
     const failPaths =
       (window as unknown as { __AIJ_IMPORT_FAIL_PATHS__?: string[] })
         .__AIJ_IMPORT_FAIL_PATHS__ ?? [];
@@ -3737,32 +3737,6 @@ export async function fleetPromptDecide(id: number, allow: boolean): Promise<voi
   return invoke<void>("fleet_prompt_decide", { id, allow });
 }
 
-/** AJ-E308 Req.7: one named isolation-checklist row. */
-export interface IsolationRowData {
-  id: string;
-  label: string;
-  pass: boolean;
-  detail: string;
-}
-
-/** AJ-E308 Req.7: the post-import isolation checklist (6 rows). */
-export async function isolationCheck(accountId: string): Promise<IsolationRowData[]> {
-  if (!hasBackend) {
-    return (
-      (window as unknown as { __AIJ_ISOLATION__?: IsolationRowData[] })
-        .__AIJ_ISOLATION__ ?? [
-        { id: "managed_dir_private", label: "Account folder is owner-only (0700)", pass: true, detail: "checked" },
-        { id: "marker_present", label: "The managed-folder marker is present", pass: true, detail: "checked" },
-        { id: "launch_env_managed_only", label: "Launch environment points only at this account's folder", pass: true, detail: "checked" },
-        { id: "source_free_of_juggler_writes", label: "The imported-from folder is untouched (no AI Juggler writes)", pass: true, detail: "checked" },
-        { id: "probe_independence", label: "Login state reads only this account's folder", pass: true, detail: "checked" },
-        { id: "no_writes_outside_managed", label: "No stray files outside managed folders", pass: true, detail: "checked" },
-      ]
-    );
-  }
-  return invoke<IsolationRowData[]>("isolation_check", { accountId });
-}
-
 /**
  * AJ-E308: the ready-check across login-state generations — the
  * taxonomy's `signed_in` plus the legacy `logged_in` string (scan
@@ -3868,6 +3842,7 @@ const DEFAULT_SCAN_REPORT: ScanReportData = {
       bytes: 48_000_000,
       last_used_secs: Math.floor(Date.now() / 1000) - 86_400,
       managed: false,
+      in_use: [],
       notes: ["Claude Code's standard location — what a plain `claude` command uses."],
       inference: {
         purpose: "Main",
@@ -3889,6 +3864,7 @@ const DEFAULT_SCAN_REPORT: ScanReportData = {
       bytes: 1_200_000,
       last_used_secs: Math.floor(Date.now() / 1000) - 40 * 86_400,
       managed: false,
+      in_use: [],
       notes: ["A separate Claude configuration — created manually or by another tool."],
       inference: {
         purpose: "Personal",
@@ -3904,15 +3880,15 @@ const DEFAULT_SCAN_REPORT: ScanReportData = {
     },
   ],
   probes: [
-    ["s1-config-dirs", "Config directories", "1 candidate setup(s)"],
-    ["s2-env-overrides", "Environment overrides", "none set in this app's environment"],
-    ["s3-manager-t3", "t3 profiles", "not present"],
-    ["s4-manager-cc-switch", "cc-switch database", "not present"],
-    ["s5-shell-aliases", "Shell aliases", "0 assignment(s)"],
-    ["s6-installed-clis", "Installed CLIs", "claude-code: installed"],
-    ["s7-login-metadata", "Login metadata", "1 of 1 signed in"],
-    ["s8-usage-recency", "Usage recency", "1 setup(s) with recent activity"],
-    ["s9-projects", "Projects", "3 project name(s)"],
+    ["s1-config-dirs", "Folders named .claude…", "1 candidate setup(s)"],
+    ["s2-env-overrides", "A config folder set for this app (CLAUDE_CONFIG_DIR)", "none set in this app's environment"],
+    ["s3-manager-t3", "Claude profiles (ClaudeCodeProfiles)", "not present"],
+    ["s4-manager-cc-switch", "cc-switch profiles", "not present"],
+    ["s5-shell-aliases", "Your shell settings (aliases, CLAUDE_CONFIG_DIR)", "0 assignment(s)"],
+    ["s6-installed-clis", "Claude Code installed", "claude-code: installed"],
+    ["s7-login-metadata", "Sign-in status", "1 of 1 signed in"],
+    ["s8-usage-recency", "When each was last used", "1 setup(s) with recent activity"],
+    ["s9-projects", "Recent projects", "3 project name(s)"],
     ["s10-desktop", "Desktop apps", "Claude.app"],
   ].map(([id, label, detail]) => ({
     id,
@@ -3956,87 +3932,6 @@ export async function environmentScanFull(
   } finally {
     stop?.();
   }
-}
-
-/** AJ-E302: cancels a running scan (the wizard's close/unmount). */
-export async function scanCancel(): Promise<void> {
-  if (!hasBackend) {
-    const seams = window as unknown as { __AIJ_SCAN_CANCEL__?: number };
-    seams.__AIJ_SCAN_CANCEL__ = (seams.__AIJ_SCAN_CANCEL__ ?? 0) + 1;
-    return;
-  }
-  await invoke("scan_cancel");
-}
-
-/** AJ-E304: one recommended item (label + one-line rationale). */
-export interface RecommendedItemData {
-  provider: string;
-  label: string;
-  /** import | add */
-  action: string;
-  rationale: string;
-  default_on: boolean;
-  path?: string | null;
-}
-
-/** AJ-E304: the set-level proposal (one accept-click juggling set). */
-export interface RecommendationData {
-  items: RecommendedItemData[];
-  summary: string;
-  start_here?: string | null;
-}
-
-/** The no-backend proposal default: the §5 worked example. */
-const DEFAULT_RECOMMENDATION: RecommendationData = {
-  items: [
-    {
-      provider: "claude-code",
-      label: "Work",
-      action: "import",
-      rationale: "Signed in — import keeps history",
-      default_on: true,
-      path: "/Users/you/.claude-work",
-    },
-    {
-      provider: "claude-code",
-      label: "Personal",
-      action: "import",
-      rationale: "Signed in — import keeps history",
-      default_on: true,
-      path: "/Users/you/.claude-personal",
-    },
-    {
-      provider: "claude-code",
-      label: "Side",
-      action: "import",
-      rationale: "Active — you'll sign in after import",
-      default_on: true,
-      path: "/Users/you/.claude-side",
-    },
-    {
-      provider: "codex",
-      label: "Codex",
-      action: "add",
-      rationale: "Add Codex (installed, not set up)",
-      default_on: true,
-      path: null,
-    },
-  ],
-  summary:
-    "Your juggling set: Claude ×3 (Work — signed in; Personal — signed in; Side — needs sign-in) + Codex ×1 (signed in).",
-  start_here: "-users-dev-api",
-};
-
-/** AJ-E304: the set-level recommendation (staging only — the accept
- * click executes). */
-export async function recommendationFor(): Promise<RecommendationData> {
-  if (!hasBackend) {
-    return (
-      (window as unknown as { __AIJ_RECOMMENDATION__?: RecommendationData })
-        .__AIJ_RECOMMENDATION__ ?? DEFAULT_RECOMMENDATION
-    );
-  }
-  return invoke<RecommendationData>("recommendation_for");
 }
 
 // --- AJ-E706: cross-machine switching ------------------------------------

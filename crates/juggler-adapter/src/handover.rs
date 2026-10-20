@@ -101,6 +101,28 @@ pub struct TurnText {
     pub text: String,
 }
 
+impl TurnText {
+    /// This turn as it goes into a replay brief: a `[role]:` line, then
+    /// the text quoted line by line with `> `, so nothing inside a turn
+    /// can pose as another speaker's turn. Every line break a model may
+    /// read as one (`\r`, NEL, the Unicode line and paragraph
+    /// separators) starts a new quoted line.
+    #[must_use]
+    pub fn quoted(&self) -> String {
+        let mut out = format!("[{}]:\n", self.role);
+        let text = self
+            .text
+            .replace("\r\n", "\n")
+            .replace(['\r', '\u{85}', '\u{2028}', '\u{2029}'], "\n");
+        for line in text.split('\n') {
+            out.push_str("> ");
+            out.push_str(line);
+            out.push('\n');
+        }
+        out
+    }
+}
+
 /// The install result: where the session landed plus the honesty
 /// flags the manifest/UI must carry (H-3's flagged fallback, F-H-03's
 /// fork notice).
@@ -150,24 +172,6 @@ pub trait HandoverSupport: HarnessAdapter {
     /// [`AdapterError::Unsupported`] when the harness has no prime
     /// path.
     fn prime_prompt(&self, turns: &[TurnText]) -> Result<String, AdapterError>;
-}
-
-/// Renders replay turns as data: each turn's text is quoted line by line
-/// (`> …`), so a turn that itself contains `[user]: …` can never pass
-/// for a turn of its own in the prime (a forged turn stays inside its
-/// quote).
-#[must_use]
-pub fn fence_turns(turns: &[TurnText]) -> String {
-    use std::fmt::Write as _;
-    let mut out = String::new();
-    for turn in turns {
-        let _ = writeln!(out, "[{}]:", turn.role);
-        for line in turn.text.lines() {
-            let _ = writeln!(out, "> {line}");
-        }
-        out.push('\n');
-    }
-    out
 }
 
 /// Lists the `<stem>*` sibling set in `dir` (the main file plus
@@ -320,14 +324,31 @@ pub fn uuid_set(bytes: &[u8]) -> BTreeSet<String> {
 /// The naive vendor mangle (`/` → `-`) — ONLY a flagged fallback
 /// when discovery finds no target dir (H-3); documented as
 /// collision-prone (`/a/b.c` vs `/a/b-c`).
+///
+/// Always one plain folder name: `\\` is a separator too, and a name of
+/// only dots (`.`, `..`) or nothing becomes dashes, so the fallback can
+/// never point at the config root or above it.
 #[must_use]
 pub fn mangled_dir(cwd: &str) -> String {
-    cwd.replace('/', "-")
+    let name = cwd.replace(['/', '\\'], "-");
+    if name.chars().all(|c| c == '.') {
+        return "-".repeat(name.len().max(1));
+    }
+    name
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_fallback_name_never_climbs_out() {
+        assert_eq!(mangled_dir("/Users/dev/app"), "-Users-dev-app");
+        assert_eq!(mangled_dir(".."), "--");
+        assert_eq!(mangled_dir("."), "-");
+        assert_eq!(mangled_dir(""), "-");
+        assert_eq!(mangled_dir("..\\..\\x"), "..-..-x");
+    }
 
     fn line(uuid: &str, parent: Option<&str>, session: &str, cwd: &str) -> String {
         serde_json::json!({

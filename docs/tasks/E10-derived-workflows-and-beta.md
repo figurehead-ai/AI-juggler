@@ -279,3 +279,78 @@
 **Quality gates**: vitest (`inspector-shell.test.tsx`); the full Playwright suite (keyboard flows reach the list with ⌘⇧H); baselines re-rendered with notes.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1017/`.
 **Research basis**: D-25 and the "AI Juggler UX vision" canvas (Session board).
+
+### AJ-E1018 0.0.6 dogfood fixes: the legend, where setups are open, sign-ins on Home | Status: DONE-EVIDENCED | Priority P0 | Effort S | Depends: AJ-E1013, AJ-E1014
+**Goal**: Fix what the maintainer hit in the first minutes of using 0.0.6.
+**User story**: As the maintainer trying the beta, I want the "?" to show me what the icons mean, first run to see my six Claude desktop windows for what they are, and Home to tell me when an account needs its sign-in.
+**Requirements**:
+1. The rail's "?" SHALL open a legend that is fully in view and on top, matches the rail's words (no internal codes), and closes on Escape or a click elsewhere (focus returns to "?").
+2. The scan SHALL report, for each setup, where it is open right now (the Claude desktop app and/or a terminal), read from the running Claude processes (only `CLAUDE_CONFIG_DIR` is read); first run SHALL group by kind of setup (profiles / the default / others), name the default "Default" (not "Terminal"), and show where each is open. Probe labels SHALL be plain words.
+3. An account that needs its sign-in SHALL be a "Needs you" item on Home whose Sign in opens the login terminal and clears by itself when the sign-in completes; the old "Get your accounts ready" screen is retired.
+**Quality gates**: vitest; Rust tests (the running-setups classifier); the full Playwright suite; the accessibility gate; visual baselines re-rendered with notes; walked by hand in the browser.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1018/`.
+**Research basis**: maintainer reports 2026-10-20 (screenshots of first run and the rail; "clicking on the question mark … does nothing").
+
+### AJ-E1019 Cleanup in plain words; "tool" on screen instead of "Provider" (D-25) | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: AJ-E506, AJ-E508, AJ-E1015
+**Goal**: Cleanup says what it is in a sentence, keeps its switches one step away, and no screen uses the internal word "Provider".
+**User story**: As a developer who opens Cleanup because a pill said something was left running, I want to see what was left and what I can do — not "Tier 0 observe · verified manual kills".
+**Requirements**:
+1. The screen SHALL be titled "Cleanup" with one plain line (what was left running; nothing is stopped unless chosen or turned on). No tier names on screen; the tiers stay in Settings › Cleanup.
+2. Pause automatic cleanup SHALL sit behind the header's ⋯ (with Cleanup settings…, opening Settings at its Cleanup section); while paused, the banner carries Resume. The kill-switch stays in the header (AJ-E508 Req.4).
+3. The machine filter SHALL show only once another Mac is paired or reporting (AJ-E511's default stays This machine).
+4. Groups SHALL name the tool ("Claude Code"), not its id; the backend's alerts say "review it in Cleanup".
+5. On screen, "Provider" SHALL read "tool" (History's search line, Settings, pack secrets, the rail's Filters, the session details, backup's list of what isn't included, quota's "no verified source"). The code keeps `Provider`. `scripts/terminology_lint.sh` SHALL refuse "Provider" in JSX text, visible attributes and user-facing strings.
+**Quality gates**: vitest (`cleanup-centre.test.tsx`: title and no tier words, ⋯ menu, Resume on the banner, no machine filter without another Mac); terminology lint; the full Playwright suite; baselines re-rendered with notes.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1019/`.
+**Research basis**: D-25 (plain words; depth on request; calm until it matters).
+
+### AJ-E1020 The rail folds to icons in a narrow window (D-25) | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: AJ-E403, AJ-E1014
+**Goal**: Below 900 px the rail stops crowding the screen by itself and comes back when the window widens.
+**User story**: As a developer with AI Juggler in a narrow side window, I want the session list to fold to its icon column on its own, without changing my density setting.
+**Requirements**:
+1. Below 900 px the rail SHALL show its minimal (icon) density; at 900 px and wider, the density chosen in Settings › Appearance. The stored density SHALL NOT change.
+2. While narrow, ⌘B (and the logo button) SHALL open the list for now; widening forgets it.
+3. A chosen Minimal stays minimal at every width.
+**Quality gates**: `rail-narrow.spec.ts` (fold, restore, compact kept, ⌘B while narrow, stored density untouched, axe on each gallery state); the 390 px captures and the 200 % zoom walk expect the folded rail.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1020/`.
+**Visual testing**: Gallery `69-rail-narrow` (folded at 390 and 860, opened at 860; both themes).
+**Research basis**: D-25; the 390 px captures (rail cramped); WCAG 1.4.10 reflow.
+### AJ-E1021 Triage and Overview fold into Home (D-25 amendment) | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: AJ-E1005, AJ-E1014
+**Goal**: One place answers "who needs me, what's parked, what's running, what's left to look at" — Home — instead of three screens that repeat each other.
+**User story**: As a developer starting the day with a dozen sessions, I want Home to be my triage: the blockers, the parked work with Resume when it's ready, and what ended that I haven't looked at, all from the keyboard.
+**Requirements**:
+1. Home SHALL show "Parked until a reset" when a session is parked (how long until the reset, or that it's reached; Resume once reached), and a parked session SHALL NOT show under Needs you.
+2. "Pick up where you left off" SHALL list what ended in the last 7 days and isn't reviewed or archived: three, then Show all; each has Open and Mark reviewed (recorded in its history, AJ-E1007).
+3. Home SHALL be keyboard operable: J/K or arrows move between rows, Enter opens, A runs the row's action; one quiet line names the keys.
+4. The ledger-degraded banner SHALL show on Home, only while process tracking is degraded.
+5. Triage and Overview SHALL leave More; the decision log records the evidence and the amendment. AJ-E1005's requirements are met on Home; sorting is the rail's.
+**Quality gates**: vitest (`home.test.tsx`: grouping, parked, reviewed, keyboard, 50 sessions < 300 ms); the a11y triage-on-Home test (axe 0, J/K); the full Playwright suite; baselines re-rendered with notes, Triage's and Overview's removed.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1021/`.
+**Visual testing**: Gallery `55-triage` re-captured on Home (populated and empty, both themes and densities); `17-ledger` on Home.
+**Research basis**: D-25 (one place per question; calm until it matters); the overlap measured in the amendment.
+### AJ-E1022 Add account without the old wizard: a fresh account, a folder (D-25) | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E1013, AJ-E1016, AJ-E307
+**Goal**: Every way into a new account is a short step of first run's own frame; the 2.4k-line account wizard is retired.
+**User story**: As a developer adding my third subscription, I want to name it and sign in — or point at a folder and bring it in — without a gate, a proposal or a policy question.
+**Requirements**:
+1. **A fresh account** SHALL be: a name (a free one filled in, e.g. "Claude Code 2"; focused; Enter creates), Create and sign in, then the same sign-in step first run uses. Back returns to the list when there was one; "Import from a folder instead…" is one link away.
+2. **A folder** SHALL be: the system's folder picker (cancel changes nothing), then a check before anything is copied — the path, file count and size, signed in or not, the Keychain note when its sign-in can't move, the breakdown behind "What's in it" — then Bring it in (a copy; the folder is untouched) and its sign-in when needed.
+3. The folder check SHALL say plainly when a folder isn't a setup (role=alert, no Bring it in), when it's already in AI Juggler, when its history is too large (only "Bring in settings only" or "Add a fresh account instead"), when it was already brought in ("Already imported as «…»", Done), and when it moved or vanished since the pick (pick it again).
+4. First run, Accounts › Add account (straight to a fresh account when nothing new is on this Mac) and New project's no-account detour (over the sheet, which keeps its folder) SHALL all use these steps. Nothing in them asks how packs handle secrets (D-14: the first switch asks).
+5. Funnel events SHALL carry no paths, labels or credentials. Flow (d) stays ≤ 3 primary clicks (Add account → Create and sign in → Sign in).
+6. The wizard and what only it used (the install gate, candidate cards, set proposal, isolation checklist, the first-run pack question and renewal date, the `__AIJ_FIRST_RUN__` seam, `recommendationFor`/`scanCancel`/`isolationCheck`, the `PackPolicyChooser` component) SHALL be removed with their tests; behaviour that survives keeps a test.
+**Quality gates**: vitest (`first-run.test.tsx` fresh and folder steps, `first-run-policy.test.tsx` D-14 and funnel, `new-project-sheet.test.tsx`); `flows-cde.spec.ts` (d); `keyboard-flows.spec.ts` (first run and Add account by keyboard); a11y folder check; captures 39-import, 37-flows/b-detour, 71-add-account; the full Playwright suite.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1022/`.
+**Visual testing**: Gallery `39-import` (normal, oversize, not a setup, duplicate, moved, the sign-in after), `37-flows/b-detour`, `71-add-account`.
+**Research basis**: D-25 (first run in three steps; depth on request); the inventory of the wizard's tests in the PR.
+
+### AJ-E1023 Choosing a tool inside Add account (D-25) | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: AJ-E306, AJ-E1022
+**Goal**: "Add Provider" stops being a separate button; Add account asks which tool only when more than one is installed.
+**User story**: As someone with only Claude Code, I never see a tool picker; once Codex is installed, Add account asks which tool the account is for.
+**Requirements**:
+1. Accounts SHALL have one Add account button. With more than one tool installed (or found but unverified), it SHALL first show the tool cards (install state, verified range, kind, a desktop tool's one-session limit, Install → for missing ones); choosing one opens Add account for that tool (its scan, a fresh account named after it, its sign-in).
+2. With one tool, Add account SHALL open directly, with no choice shown.
+3. The card sheet is a labelled modal dialog that takes focus and closes on Escape; flow (c) stays ≤ 4 primary clicks (Add account → the tool → Create and sign in → Sign in).
+**Quality gates**: vitest `add-provider-sheet.test.tsx`; `flows-cde.spec.ts` (c); the a11y tool-choice scan (keyboard Enter on a card); capture 38-flows-cde/c-provider-cards.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1023/`.
+**Research basis**: D-25 (progressive disclosure); the Codex adapter in progress (another session) — no adapter code touched.
+
