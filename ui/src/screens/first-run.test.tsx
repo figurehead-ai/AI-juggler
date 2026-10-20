@@ -667,6 +667,10 @@ describe("AJ-E1301 — Codex setups in first run", () => {
     );
     await findByTestId("first-run-group-codex");
     expect(getByTestId("first-run-codex-copies").textContent).toContain("Codex setups always come in as copies");
+    // The subtitle says which ones are used where they are.
+    expect(getByTestId("first-run-found").textContent).toContain(
+      "uses your Claude Code setups where they are, so they stay signed in and keep their history, and makes its own copy of each Codex one",
+    );
     // Default "where they are": Claude rows in place, the Codex row a copy.
     await act(async () => {
       fireEvent.click(getByTestId("first-run-bring-in"));
@@ -675,7 +679,7 @@ describe("AJ-E1301 — Codex setups in first run", () => {
     expect(codexCall?.[6]).toBe(false);
     expect(spy.mock.calls.some((call) => call[0] === "claude-code" && call[6] === true)).toBe(true);
     const signin = await findByTestId("first-run-signin");
-    expect(signin.textContent).toContain("Codex's own sign-in");
+    expect(signin.textContent).toContain("Codex's own sign-in (OpenAI)");
     spy.mockRestore();
   });
 
@@ -693,7 +697,7 @@ describe("AJ-E1301 — Codex setups in first run", () => {
       fireEvent.click(getByTestId("first-run-bring-in"));
     });
     const signin = await findByTestId("first-run-signin");
-    expect(signin.textContent).toContain("Claude Code's or Codex's");
+    expect(signin.textContent).toContain("Claude Code's or Codex's (OpenAI)");
   });
 
   it("adding for one tool lists only that tool's setups", async () => {
@@ -744,5 +748,59 @@ describe("AJ-E1301 — Codex setups in first run", () => {
     expect(view.getByRole("heading", { level: 1 }).textContent).toBe(
       "You already have a Codex setup on this Mac.",
     );
+  });
+
+  it("a Codex-only first run offers no placement choice and says copies", async () => {
+    w().__AIJ_SCAN_REPORT__ = { ...SCAN, installs: [codex("/Users/you/.codex", "vendor-default")] };
+    // Neither tool installed: only Codex's note, over its own rows.
+    w().__AIJ_PROVIDER_INSTALLS__ = [
+      { provider: "claude-code", display_name: "Claude Code", install_url: null, status: "not_installed", version: null, binary: null, notes: [] },
+      { provider: "codex", display_name: "Codex", install_url: null, status: "not_installed", version: null, binary: null, notes: [] },
+    ];
+    const bridge = await import("../lib/bridge");
+    const spy = vi.spyOn(bridge, "accountImport");
+    const view = render(<FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />);
+    await view.findByTestId("first-run-group-codex");
+    expect(view.queryByTestId("first-run-placement")).toBeNull();
+    expect(view.queryByTestId("first-run-codex-copies")).toBeNull();
+    const text = view.getByTestId("first-run-found").textContent ?? "";
+    expect(text).toContain("AI Juggler makes its own copy of each; your originals are never changed");
+    expect(text).not.toContain("where it is");
+    expect(await view.findByTestId("first-run-no-codex")).toBeTruthy();
+    expect(view.queryByTestId("first-run-no-cli")).toBeNull();
+    expect(text).not.toContain("Claude Code itself isn't installed");
+    await act(async () => {
+      fireEvent.click(view.getByTestId("first-run-bring-in"));
+    });
+    expect(spy.mock.calls.map((call) => [call[0], call[6]])).toEqual([["codex", false]]);
+    spy.mockRestore();
+  });
+
+  it("a failed Codex copy has no 'where it is' retry, and Try again stays a copy", async () => {
+    w().__AIJ_SCAN_REPORT__ = {
+      ...SCAN,
+      installs: [...SCAN.installs, codex("/Users/you/.codex", "vendor-default")],
+    };
+    w().__AIJ_IMPORT_FAIL_PATHS__ = ["/Users/you/.codex"];
+    const bridge = await import("../lib/bridge");
+    const spy = vi.spyOn(bridge, "accountImport");
+    const { findByTestId, getByTestId, queryByTestId } = render(
+      <FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />,
+    );
+    await findByTestId("first-run-group-codex");
+    await act(async () => {
+      fireEvent.click(getByTestId("first-run-bring-in"));
+    });
+    const failed = await findByTestId("first-run-failed");
+    expect(failed.textContent).toContain("Codex");
+    expect(queryByTestId("first-run-use-in-place")).toBeNull();
+    expect(failed.textContent).not.toContain("Use it where it is instead");
+    spy.mockClear();
+    w().__AIJ_IMPORT_FAIL_PATHS__ = [];
+    await act(async () => {
+      fireEvent.click(getByTestId("first-run-retry"));
+    });
+    expect(spy.mock.calls.map((call) => [call[0], call[6]])).toEqual([["codex", false]]);
+    spy.mockRestore();
   });
 });

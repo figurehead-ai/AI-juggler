@@ -32,7 +32,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { Button } from "../components/primitives";
-import { providerDisplayName } from "../lib/providers";
+import { ownSignIn, providerDisplayName } from "../lib/providers";
 import { funnelEvent, funnelStep, reasonCode } from "../lib/funnel";
 import {
   accountImport,
@@ -282,6 +282,9 @@ function FoundStep({
   );
   // Named by Provider when they are all one kind; mixed, just "setups".
   const codexCount = installs.filter((found) => found.harness === "codex").length;
+  const claudeCount = installs.filter((found) => found.harness === "claude-code").length;
+  // Rows of the chosen tool itself (its "not installed" note covers these).
+  const ownCount = installs.filter((found) => found.harness === provider).length;
   // Codex's install row: the chosen tool's when adding Codex, else the
   // one that rides along on first run.
   const codexRow = provider === "codex" ? cli : codexCli;
@@ -308,9 +311,12 @@ function FoundStep({
   const [showLooked, setShowLooked] = useState(false);
 
   // ADR-0018: only a tool whose adapter can use a folder where it is
-  // offers it (Codex comes in as a copy until its adapter can).
-  const canInPlace = provider === "claude-code";
-  const [placement, setPlacement] = useState<Placement>(canInPlace ? "in_place" : "copy");
+  // offers it (Codex comes in as a copy until its adapter can) — and only
+  // when one of its setups is on the list: a Codex-only first run has no
+  // choice to make.
+  const canInPlace = provider === "claude-code" && claudeCount > 0;
+  const [chosenPlacement, setPlacement] = useState<Placement>("in_place");
+  const placement: Placement = canInPlace ? chosenPlacement : "copy";
   // A failed copy can be retried "where it is" on its own.
   const [rowPlacement, setRowPlacement] = useState<Record<string, Placement>>({});
   // Only Claude Code setups can be used where they are; a Codex row in
@@ -418,10 +424,12 @@ function FoundStep({
         </h1>
         <p className="max-w-2xl text-[15px] leading-relaxed text-muted">
           {installs.length === 0
-            ? `Add your first account and AI Juggler sets it up in its own folder. You'll sign in with ${toolName}'s own sign-in.`
-            : placement === "in_place"
-              ? "Pick the ones to bring in. AI Juggler uses each one where it is, so it stays signed in and keeps its history, the same as everywhere else you use it."
-              : "Pick the ones to bring in. AI Juggler makes its own copy of each; your originals are never changed, and you can keep using them as before."}
+            ? `Add your first account and AI Juggler sets it up in its own folder. You'll sign in with ${ownSignIn(provider)}.`
+            : placement === "in_place" && codexCount > 0
+              ? "Pick the ones to bring in. AI Juggler uses your Claude Code setups where they are, so they stay signed in and keep their history, and makes its own copy of each Codex one; your originals are never changed."
+              : placement === "in_place"
+                ? "Pick the ones to bring in. AI Juggler uses each one where it is, so it stays signed in and keeps its history, the same as everywhere else you use it."
+                : "Pick the ones to bring in. AI Juggler makes its own copy of each; your originals are never changed, and you can keep using them as before."}
         </p>
       </div>
 
@@ -432,9 +440,12 @@ function FoundStep({
         </p>
       )}
 
-      {cli && cli.status === "not_installed" && (
+      {/* The chosen tool's own note — not over rows of another tool (a
+          Codex-only first run has the Codex note above). */}
+      {cli && cli.status === "not_installed" && (ownCount > 0 || installs.length === 0) && (
         <p className="rounded-xl border border-warning/40 bg-warning-soft px-4 py-3 text-sm text-ink" data-testid="first-run-no-cli">
-          {toolName} itself isn't installed yet. You can bring these in now; to start sessions, install it first
+          {toolName} itself isn't installed yet.{" "}
+          {ownCount > 0 ? "You can bring these in now; to start sessions, install it first" : "To start sessions, install it first"}
           {provider === "claude-code" ? (
             <>
               :{" "}<span className="font-mono text-xs">npm install -g @anthropic-ai/claude-code</span>
@@ -846,8 +857,8 @@ function SigninStep({
             // (AJ-E1301): each account opens its own tool's sign-in.
             const tools = [...new Set(queue.map((entry) => entry.provider || provider))];
             return tools.length > 1
-              ? `Each opens its own tool's sign-in (${tools.map((tool) => `${providerDisplayName(tool)}'s`).join(" or ")}), for that account's folder; AI Juggler never sees your password and notices when you're done.`
-              : `Each opens ${providerDisplayName(tools[0] ?? provider)}'s own sign-in, for that account's folder; AI Juggler never sees your password and notices when you're done.`;
+              ? `Each opens its own tool's sign-in — ${tools.map((tool) => (tool === "codex" ? "Codex's (OpenAI)" : `${providerDisplayName(tool)}'s`)).join(" or ")} — for that account's folder; AI Juggler never sees your password and notices when you're done.`
+              : `Each opens ${ownSignIn(tools[0] ?? provider)}, for that account's folder; AI Juggler never sees your password and notices when you're done.`;
           })()}
         </p>
       </div>
@@ -1051,7 +1062,7 @@ function FreshStep({
         <h1 className="text-[28px] font-semibold leading-tight tracking-tight">Add a fresh account.</h1>
         <p className="max-w-2xl text-[15px] leading-relaxed text-muted">
           AI Juggler sets it up in its own folder, apart from anything you already use. Next you sign in with{" "}
-          {toolName}'s own sign-in; AI Juggler never sees your password.
+          {ownSignIn(provider)}; AI Juggler never sees your password.
         </p>
       </div>
       <label className="flex max-w-md flex-col gap-1.5 text-sm font-medium text-ink">

@@ -263,9 +263,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - First run and Add accounts list the Codex setups found on this Mac in
   their own **Codex** group, beside the Claude ones, and say when the
   Codex CLI still needs installing (AJ-E1301). Machines with only Claude
-  setups see the screen exactly as before. Sign-in steps (First run and
-  Home) name the right vendor's sign-in for a Codex account — OpenAI's,
-  not Claude's.
+  setups see the screen exactly as before. Codex setups always come in
+  as copies: the "use them where they are" choice shows only when a
+  Claude Code setup is on the list, and a Codex-only first run says
+  copies throughout. Sign-in steps (First run, Home and Accounts) name a
+  Codex account's sign-in the same way everywhere: "Codex's own sign-in
+  (OpenAI)".
 
 ### Added (M0-1)
 
