@@ -83,7 +83,7 @@ export function PackPolicyChooser({
             <label
               key={option.value}
               className={
-                "flex cursor-default items-start gap-2.5 rounded-lg border px-3 py-2 text-xs transition-colors " +
+                "flex cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-2 text-xs transition-colors " +
                 (checked
                   ? "border-accent/40 bg-accent-soft"
                   : "border-hairline hover:border-accent/30")

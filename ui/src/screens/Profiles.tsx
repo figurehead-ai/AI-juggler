@@ -215,7 +215,7 @@ export function ProfilesScreen({
         .
       </p>
       <details className="group" data-testid="accounts-beta-matrix">
-        <summary className="cursor-default text-xs text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
+        <summary className="cursor-pointer text-xs text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
           Which switches between accounts are proven (Beta)
         </summary>
         <div className="mt-3">
@@ -477,7 +477,7 @@ function HarnessGlyph({ provider, onClick }: { provider: string; onClick?: () =>
       onClick={onClick}
       disabled={!onClick}
       title={onClick ? `Inspect ${provider}` : provider}
-      className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-accent/20 bg-accent-soft text-accent-hi outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 enabled:hover:border-accent/40 disabled:cursor-default"
+      className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-accent/20 bg-accent-soft text-accent-hi outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 enabled:hover:border-accent/40 disabled:cursor-pointer"
     >
       <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
         <path d="M12 2.6c.5 3.9 2.4 6.6 6.9 8-4.5 1.4-6.4 4.1-6.9 8-.5-3.9-2.4-6.6-6.9-8 4.5-1.4 6.4-4.1 6.9-8Z" />

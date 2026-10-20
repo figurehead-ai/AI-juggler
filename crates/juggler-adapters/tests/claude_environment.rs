@@ -444,3 +444,83 @@ fn snapshot_tree(dir: &Path) -> Vec<(String, u64)> {
     out.sort();
     out
 }
+
+/// 0.0.7 dogfood (2026-10-20): a symlinked `skills/<name>` made the whole
+/// import fail ("neither a regular file nor a symlink to a regular file").
+/// Links are now recreated as links — never followed, so nothing outside
+/// the setup is copied; links inside the setup point into the copy; a
+/// linked sign-in file is not linked (the copy signs in once).
+#[test]
+#[cfg(unix)]
+fn symlinks_are_recreated_as_links_never_followed() {
+    use std::os::unix::fs::symlink;
+    let work = tempfile::tempdir().unwrap();
+    let home = work.path().join("home");
+    let source = existing_setup(&home, ".claude-links");
+    // Outside the setup: a skill folder and a secret file.
+    let dotfiles = work.path().join("dotfiles/ego-browser");
+    std::fs::create_dir_all(&dotfiles).unwrap();
+    std::fs::write(dotfiles.join("SKILL.md"), "a skill").unwrap();
+    let secret = work.path().join("id_ed25519");
+    std::fs::write(&secret, "PRIVATE KEY").unwrap();
+    std::fs::create_dir_all(source.join("skills")).unwrap();
+    symlink(&dotfiles, source.join("skills/ego-browser")).unwrap();
+    symlink(&secret, source.join("skills/key")).unwrap();
+    // Inside the setup, absolute and relative; and a dangling link.
+    symlink(
+        source.join("settings.json"),
+        source.join("skills/settings-abs"),
+    )
+    .unwrap();
+    symlink("../settings.json", source.join("skills/settings-rel")).unwrap();
+    symlink(work.path().join("gone"), source.join("skills/dangling")).unwrap();
+    // A linked sign-in file.
+    std::fs::remove_file(source.join(".credentials.json")).ok();
+    symlink(&secret, source.join(".credentials.json")).unwrap();
+
+    let dest = work.path().join("managed");
+    let outcome = import_claude_config(&source, &dest, &|_| LoginProbe::LoggedOut).unwrap();
+
+    let link = |name: &str| std::fs::read_link(dest.join(name)).unwrap();
+    assert!(
+        std::fs::symlink_metadata(dest.join("skills/ego-browser"))
+            .unwrap()
+            .file_type()
+            .is_symlink()
+    );
+    assert_eq!(
+        link("skills/ego-browser"),
+        dotfiles,
+        "an outside link keeps its target and isn't copied"
+    );
+    assert_eq!(
+        link("skills/key"),
+        secret,
+        "the secret's contents were not copied into the managed home"
+    );
+    assert_eq!(
+        link("skills/settings-abs"),
+        dest.join("settings.json"),
+        "an inside link points into the copy"
+    );
+    assert_eq!(
+        link("skills/settings-rel"),
+        std::path::PathBuf::from("../settings.json")
+    );
+    assert_eq!(link("skills/dangling"), work.path().join("gone"));
+    assert!(
+        !dest.join(".credentials.json").exists(),
+        "a linked sign-in is not carried over"
+    );
+    assert!(
+        outcome
+            .skipped
+            .iter()
+            .any(|note| note.contains("skills/ego-browser (kept as a link"))
+    );
+    // Copy-never-move: the source's links are untouched.
+    assert_eq!(
+        std::fs::read_link(source.join("skills/ego-browser")).unwrap(),
+        dotfiles
+    );
+}

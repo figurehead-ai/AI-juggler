@@ -325,6 +325,7 @@ pub fn import_with_cap_skips(
     // tree exceeds the ceiling.
     let mut acc = CollectAccum {
         files: Vec::new(),
+        links: Vec::new(),
         skipped: Vec::new(),
         total: 0,
         folders: Vec::new(),
@@ -332,7 +333,8 @@ pub fn import_with_cap_skips(
     collect_files(&source, &source, &mut acc, max_bytes, extra_skips).map_err(dir_error)?;
     let CollectAccum {
         files,
-        skipped,
+        links,
+        mut skipped,
         folders,
         ..
     } = acc;
@@ -378,6 +380,42 @@ pub fn import_with_cap_skips(
         }
         files_copied += 1;
         bytes_copied += std::fs::metadata(&to).map(|m| m.len()).unwrap_or_default();
+    }
+
+    for (relative, target) in &links {
+        let to = dest.join(relative);
+        // A link that points inside the setup now points inside the copy;
+        // any other link keeps pointing where it did (it's not copied).
+        let retargeted = if target.is_absolute() {
+            // Compare resolved paths too (on macOS /var is /private/var).
+            let resolved_source = std::fs::canonicalize(&source).unwrap_or_else(|_| source.clone());
+            let resolved_target = std::fs::canonicalize(target).unwrap_or_else(|_| target.clone());
+            target
+                .strip_prefix(&source)
+                .or_else(|_| target.strip_prefix(&resolved_source))
+                .or_else(|_| resolved_target.strip_prefix(&resolved_source))
+                .map_or_else(|_| target.clone(), |inside| dest.join(inside))
+        } else {
+            target.clone()
+        };
+        if let Some(parent) = to.parent() {
+            let _ = crate::claude_code::create_private_dir(parent);
+        }
+        if let Err(e) = make_link(&retargeted, &to) {
+            cleanup_partial(dest);
+            return Err(AdapterError::AccountDir {
+                path: to.clone(),
+                message: format!(
+                    "cannot recreate the link {} — the partial import was removed; retry or pick a different folder ({e})",
+                    relative.display()
+                ),
+            });
+        }
+        skipped.push(format!(
+            "{} (kept as a link to {})",
+            relative.display(),
+            retargeted.display()
+        ));
     }
 
     let (login, login_note) = login_carryover(source_login, login_probe(dest));
@@ -529,6 +567,11 @@ fn newest_mtime_secs(dir: &Path) -> Option<u64> {
 /// argument list inside clippy's budget).
 struct CollectAccum {
     files: Vec<(PathBuf, u64)>,
+    /// Symlinks in the source, as (relative path, link target). They're
+    /// recreated as links in the copy — never followed, so nothing
+    /// outside the setup is copied (0.0.7 dogfood: a symlinked
+    /// `skills/<name>` made the whole import fail).
+    links: Vec<(PathBuf, PathBuf)>,
     skipped: Vec<String>,
     total: u64,
     folders: Vec<(String, u64)>,
@@ -554,6 +597,24 @@ fn collect_files(
             Ok(relative) => relative.to_path_buf(),
             Err(_) => entry.path(),
         };
+        if meta.file_type().is_symlink() {
+            if SKIP_ON_IMPORT.contains(&name.as_str()) || extra_skips.contains(&name.as_str()) {
+                continue;
+            }
+            if name == ".credentials.json" {
+                // A linked sign-in would be shared with the original;
+                // the copy signs in once instead.
+                acc.skipped.push(format!(
+                    "{} (a link to a sign-in — sign in once instead)",
+                    relative.display()
+                ));
+                continue;
+            }
+            if let Ok(target) = std::fs::read_link(entry.path()) {
+                acc.links.push((relative, target));
+            }
+            continue;
+        }
         if meta.is_dir() {
             if SKIP_ON_IMPORT.contains(&name.as_str()) {
                 acc.skipped
@@ -608,4 +669,19 @@ fn collect_files(
         }
     }
     Ok(())
+}
+
+#[cfg(unix)]
+fn make_link(target: &Path, link: &Path) -> std::io::Result<()> {
+    std::os::unix::fs::symlink(target, link)
+}
+
+#[cfg(not(unix))]
+fn make_link(target: &Path, link: &Path) -> std::io::Result<()> {
+    // Windows needs to know whether the target is a directory.
+    if target.is_dir() {
+        std::os::windows::fs::symlink_dir(target, link)
+    } else {
+        std::os::windows::fs::symlink_file(target, link)
+    }
 }

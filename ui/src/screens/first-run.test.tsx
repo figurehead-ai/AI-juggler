@@ -217,6 +217,37 @@ describe("D-25 first run — the flow", () => {
     expect(onDone).toHaveBeenCalledOnce();
   });
 
+  it("first run can be left too — Not now, or Escape — in both modes (0.0.7 dogfood)", async () => {
+    const onDone = vi.fn();
+    const first = renderIt({ onDone });
+    await first.findByTestId("first-run-found");
+    const close = first.getByTestId("first-run-close");
+    expect(close.textContent).toBe("Not now");
+    fireEvent.click(close);
+    expect(onDone).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(onDone).toHaveBeenCalledTimes(2);
+    cleanup();
+
+    const onAddDone = vi.fn();
+    const add = render(
+      <FirstRun mode="add" onDone={onAddDone} onAddFresh={() => null} onImportFolder={() => null} openLoginTerminal={() => null} />,
+    );
+    await add.findByTestId("first-run-found");
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(onAddDone).toHaveBeenCalledOnce();
+  });
+
+  it("an Escape a popover inside already handled leaves the screen open", async () => {
+    const onDone = vi.fn();
+    const { findByTestId } = renderIt({ onDone });
+    await findByTestId("first-run-found");
+    const event = new KeyboardEvent("keydown", { key: "Escape", cancelable: true });
+    event.preventDefault();
+    window.dispatchEvent(event);
+    expect(onDone).not.toHaveBeenCalled();
+  });
+
   it("add mode with nothing new to bring in goes straight to a fresh account", async () => {
     w().__AIJ_SCAN_REPORT__ = { ...SCAN, installs: [found(`${PROFILES}/already`, "manager-tool", { managed: true })] };
     const onAddFresh = vi.fn();

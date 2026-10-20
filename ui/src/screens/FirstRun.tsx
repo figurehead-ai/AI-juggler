@@ -702,20 +702,20 @@ export function FirstRun({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on open
   }, []);
 
-  // A modal dialog takes focus when it opens (WCAG 2.4.3); adding can be
-  // left with Escape from anywhere in it.
+  // A modal dialog takes focus when it opens (WCAG 2.4.3) and can be left
+  // with Escape from anywhere in it.
   const frameRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     frameRef.current?.focus();
   }, []);
   useEffect(() => {
-    if (mode !== "add") return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onDone();
+      // A popover inside that already took the Escape keeps the screen open.
+      if (event.key === "Escape" && !event.defaultPrevented) onDone();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [mode, onDone]);
+  }, [onDone]);
 
   // D-25: adding, with nothing new on this Mac to bring in — go straight
   // to a fresh account rather than show an empty list.
@@ -750,11 +750,17 @@ export function FirstRun({
       tabIndex={-1}
     >
       <div data-tauri-drag-region className="flex h-11 shrink-0 items-center justify-end px-4">
-        {mode === "add" && (
-          <Button size="sm" variant="ghost" onClick={onDone} data-testid="first-run-close">
-            Close
-          </Button>
-        )}
+        {/* Always a visible way out (0.0.7 dogfood: "no way to close"):
+            first run → Home, which offers "Find my accounts" to come back. */}
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={onDone}
+          title="Esc"
+          data-testid="first-run-close"
+        >
+          {mode === "add" ? "Close" : "Not now"}
+        </Button>
       </div>
       <div className="flex flex-1 justify-center px-6 pb-16 pt-6">
         <div className="flex w-full max-w-3xl flex-col gap-7">
