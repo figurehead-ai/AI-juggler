@@ -83,8 +83,8 @@ fn a_codex_account_gets_its_own_home_and_real_sign_in_state() {
         .unwrap();
     assert!(env_row.pass, "{rows:#?}");
     assert!(
-        env_row.detail.contains("CODEX_HOME"),
-        "the row names CODEX_HOME"
+        env_row.detail.contains("CODEX_HOME") && env_row.detail.contains("CODEX_SQLITE_HOME"),
+        "the row checks both pinned variables"
     );
     let probe = rows
         .iter()
@@ -104,8 +104,8 @@ fn a_codex_account_gets_its_own_home_and_real_sign_in_state() {
         commands::expert_setup_info_impl(&state, CODEX_ID, Some(&created.id), None).unwrap();
     let snippet = expert.shell_snippet.unwrap();
     assert!(
-        snippet.starts_with("CODEX_HOME='"),
-        "the snippet sets the home"
+        snippet.starts_with("CODEX_HOME='") && snippet.contains(" CODEX_SQLITE_HOME='"),
+        "the snippet pins the home and the SQLite home"
     );
     assert!(
         snippet.ends_with("codex --no-daemon"),
@@ -120,17 +120,18 @@ fn a_codex_account_gets_its_own_home_and_real_sign_in_state() {
 
 #[test]
 fn a_codex_shell_alias_becomes_a_codex_candidate() {
+    // Through the adapter's real rc-file scan, not a hand-built hint.
     let work = tempfile::tempdir().unwrap();
     let target = work.path().join(".codex-work");
     std::fs::create_dir_all(&target).unwrap();
-    let hint = juggler_adapter::environment::AliasHint {
-        variable: "CODEX_HOME".into(),
-        path: target.clone(),
-        source_file: "~/.zshrc".into(),
-        line: 3,
-        target_exists: true,
-    };
-    let (rows, _, dangling) = commands::alias_installs_of(&[hint], &mut []);
+    std::fs::write(
+        work.path().join(".zshrc"),
+        format!("export CODEX_HOME=\"{}\"\n", target.display()),
+    )
+    .unwrap();
+    let hints = juggler_adapters::codex::codex_aliases(work.path());
+    assert_eq!(hints.len(), 1);
+    let (rows, _, dangling) = commands::alias_installs_of(&hints, &mut []);
     assert_eq!(dangling, 0);
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].harness, CODEX_ID);
@@ -179,7 +180,17 @@ fn importing_a_codex_home_copies_it_and_leaves_the_original_alone() {
 
     assert_eq!(listing(&source), before, "the original is byte-identical");
     assert_eq!(imported.account.provider, CODEX_ID);
-    assert_eq!(imported.account.login_state, "signed_in");
+    // The sign-in stays with the original (single-use refresh tokens):
+    // the copy signs in once, and says so.
+    assert_eq!(imported.account.login_state, "logged_out");
+    assert!(
+        !state
+            .accounts_dir()
+            .join(CODEX_ID)
+            .join(&imported.account.id)
+            .join("auth.json")
+            .exists()
+    );
     let dir = state
         .accounts_dir()
         .join(CODEX_ID)
@@ -252,17 +263,102 @@ fn a_launched_codex_session_is_linked_to_its_rollout_on_first_use() {
             .transcript_ref
             .is_none()
     );
-    // The preflight is the first thing that needs the file.
-    let _ = commands::switch_preflight_impl(&state, &launched.session_id, &profile_b.id);
-    let linked = state
-        .storage
-        .lock()
-        .unwrap()
-        .sessions()
-        .get(&session)
-        .unwrap()
-        .transcript_ref
-        .expect("linked on first use");
+    // The preflight reads the file but never writes the link down …
+    let preflight = commands::switch_preflight_impl(&state, &launched.session_id, &profile_b.id);
+    assert!(
+        !matches!(&preflight, Err(error) if error.to_string().contains("Couldn't tell which file")),
+        "the preflight found the session's own file"
+    );
+    let stored = |state: &Arc<AppState>| {
+        state
+            .storage
+            .lock()
+            .unwrap()
+            .sessions()
+            .get(&session)
+            .unwrap()
+            .transcript_ref
+    };
+    assert!(
+        stored(&state).is_none(),
+        "a preflight never persists a link"
+    );
+    // … the switch does (it may stop later — the link is the session's).
+    let _ = commands::switch_execute_impl(
+        &state,
+        &launched.session_id,
+        &profile_b.id,
+        "finish-turn",
+        None,
+        &[],
+    );
+    let linked = stored(&state).expect("linked by the switch");
     assert_eq!(linked.path, rollout);
     assert_eq!(linked.native_id.as_deref(), Some(thread));
+}
+
+/// Two sessions on one account in one folder: Codex writes a rollout only
+/// on the first turn, so the only file may be the OTHER session's.
+/// Linking must never guess — the switch asks instead.
+fn two_sessions_one_file(provider: &str, write: impl Fn(&Path, &str)) {
+    let work = tempfile::tempdir().unwrap();
+    let state = app_state(work.path());
+    let project = work.path().join("storefront");
+    std::fs::create_dir_all(&project).unwrap();
+    let cwd = project.to_string_lossy().into_owned();
+    let a = commands::create_account(&state, provider, "A", None).unwrap();
+    let b = commands::create_account(&state, provider, "B", None).unwrap();
+    let recipe_a = commands::create_profile(&state, &a.id, "Main", None, None).unwrap();
+    let recipe_b = commands::create_profile(&state, &b.id, "Main", None, None).unwrap();
+    let s1 = commands::launch_profile(&state, &recipe_a.id, Some(cwd.clone())).unwrap();
+    let s2 = commands::launch_profile(&state, &recipe_a.id, Some(cwd.clone())).unwrap();
+    // S1's file appears after both launches.
+    write(&state.accounts_dir().join(provider).join(&a.id), &cwd);
+
+    for session in [&s1.session_id, &s2.session_id] {
+        let error = commands::switch_preflight_impl(&state, session, &recipe_b.id).unwrap_err();
+        assert!(
+            error.to_string().contains("Couldn't tell which file"),
+            "ambiguous: the switch asks instead of guessing"
+        );
+        let _ =
+            commands::switch_execute_impl(&state, session, &recipe_b.id, "finish-turn", None, &[]);
+        let stored = state
+            .storage
+            .lock()
+            .unwrap()
+            .sessions()
+            .get(&juggler_core::model::SessionId::new(session.clone()))
+            .unwrap()
+            .transcript_ref;
+        assert!(stored.is_none(), "nothing persisted for an ambiguous match");
+    }
+}
+
+#[test]
+fn a_codex_switch_never_takes_another_sessions_rollout() {
+    two_sessions_one_file(CODEX_ID, |home, cwd| {
+        let day = home.join("sessions/2026/10/20");
+        std::fs::create_dir_all(&day).unwrap();
+        std::fs::write(
+            day.join("rollout-2026-10-20T08-00-00-019a0000-0000-7000-8000-0000000000e2.jsonl"),
+            format!(
+                "{{\"timestamp\":\"t\",\"type\":\"session_meta\",\"payload\":{{\"id\":\"019a0000-0000-7000-8000-0000000000e2\",\"cwd\":\"{cwd}\"}}}}\n"
+            ),
+        )
+        .unwrap();
+    });
+}
+
+#[test]
+fn a_claude_switch_never_takes_another_sessions_transcript() {
+    two_sessions_one_file(juggler_adapters::CLAUDE_CODE_ID, |home, cwd| {
+        let dir = home.join("projects").join(cwd.replace('/', "-"));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("claude-s1.jsonl"),
+            format!("{{\"type\":\"user\",\"cwd\":\"{cwd}\",\"message\":{{\"role\":\"user\",\"content\":\"hi\"}}}}\n"),
+        )
+        .unwrap();
+    });
 }

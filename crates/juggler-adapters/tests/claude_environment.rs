@@ -444,3 +444,42 @@ fn snapshot_tree(dir: &Path) -> Vec<(String, u64)> {
     out.sort();
     out
 }
+
+#[cfg(unix)]
+#[test]
+fn claude_import_skips_links_instead_of_failing_or_following() {
+    use std::os::unix::fs::symlink;
+    let tmp = tempfile::tempdir().unwrap();
+    let source = tmp.path().join("claude-src");
+    std::fs::create_dir_all(source.join("skills/real")).unwrap();
+    std::fs::write(source.join("settings.json"), "{}").unwrap();
+    std::fs::write(source.join("skills/real/SKILL.md"), "a skill").unwrap();
+    let outside = tmp.path().join("outside");
+    std::fs::create_dir_all(&outside).unwrap();
+    std::fs::write(outside.join("secret"), "PRIVATE").unwrap();
+    // A linked skills folder used to make the whole import fail.
+    symlink(&outside, source.join("skills/linked")).unwrap();
+    symlink(outside.join("secret"), source.join("secret-link")).unwrap();
+    let dest = tmp.path().join("acct");
+    let outcome = import_claude_config(&source, &dest, &logged_in_probe).unwrap();
+    assert!(dest.join("skills/real/SKILL.md").is_file());
+    assert!(std::fs::symlink_metadata(dest.join("skills/linked")).is_err());
+    assert!(std::fs::symlink_metadata(dest.join("secret-link")).is_err());
+    assert!(
+        outcome
+            .skipped
+            .iter()
+            .any(|s| s == "secret-link (a link — not copied)")
+    );
+}
+
+#[test]
+fn a_failed_prepare_never_removes_a_folder_it_did_not_create() {
+    let tmp = tempfile::tempdir().unwrap();
+    let state = tmp.path().join("existing");
+    // The marker path is taken by a folder: writing the marker fails.
+    std::fs::create_dir_all(state.join(".ai-juggler-managed")).unwrap();
+    std::fs::write(state.join("keep.txt"), "user file").unwrap();
+    assert!(ClaudeCodeAdapter::new().prepare_account(&state).is_err());
+    assert!(state.join("keep.txt").is_file(), "an existing folder stays");
+}

@@ -848,7 +848,8 @@ fn rank_candidates_for(
         let projected_usd = projected_usd.map(|usd| usd + switch_cost);
         candidates.push(juggler_core::ranking::Candidate {
             account: account.id.as_str().to_owned(),
-            logged_out: login_state_of(account) == juggler_adapters::LoginState::LoggedOut,
+            logged_out: login_state_of(&state.registry, account)
+                == juggler_adapters::LoginState::LoggedOut,
             wrong_provider: false, // request-restriction surface rides E210's pair gating
             exhausted_no_reset,
             headroom_pct,
@@ -1912,7 +1913,7 @@ pub fn accounts_list(state: tauri::State<'_, Arc<AppState>>) -> AppResult<Vec<Ac
     let storage = lock_storage(&state)?;
     let mut out = Vec::new();
     for account in storage.accounts().list()? {
-        out.push(account_info_of(&account));
+        out.push(account_info_of(&state.registry, &account));
     }
     Ok(out)
 }
@@ -1968,6 +1969,7 @@ pub fn create_account(
     lock_storage_arc(state)?.accounts().insert(&account)?;
     crate::settings_policy::apply_cleanup_default(state, account.id.as_str());
     Ok(account_info_of(
+        &state.registry,
         &find_account_arc(state, account.id.as_str()).unwrap_or(account),
     ))
 }
@@ -1983,7 +1985,7 @@ pub fn account_login_state(
     account_id: String,
 ) -> AppResult<String> {
     let account = find_account(&state, &account_id)?;
-    Ok(login_state_name(login_state_of(&account)).to_string())
+    Ok(login_state_name(login_state_of(&state.registry, &account)).to_string())
 }
 
 /// The copyable shell command that runs the vendor's own login against this
@@ -2636,37 +2638,40 @@ pub fn isolation_check_impl(
         .registry
         .get(&account.harness)
         .ok_or_else(|| AppError::UnknownHarness(account.harness.as_str().to_owned()))?;
-    // The Provider's own isolation variable (`CLAUDE_CONFIG_DIR`,
-    // `CODEX_HOME`, …) — the first isolation key (AJ-E309).
-    let isolation_key = adapter.isolation_env_keys().first().copied();
-    let env_ok = adapter
-        .launch_spec(
-            &account,
-            &Profile {
-                id: ProfileId::new("check"),
-                name: "check".into(),
-                account: account.id.clone(),
-                settings_overlay: SettingsOverlay::default(),
-                default_cwd: None,
-            },
-            std::path::Path::new("/"),
-            &juggler_adapter::LaunchMode::Interactive,
-        )
-        .is_ok_and(|spec| {
-            isolation_key.is_some_and(|key| {
-                spec.env
-                    .get(key)
-                    .is_some_and(|value| std::path::Path::new(value) == dir)
-            })
-        });
+    // Every variable the Provider pins to the account's folder
+    // (`CLAUDE_CONFIG_DIR`; `CODEX_HOME` and `CODEX_SQLITE_HOME`) —
+    // AJ-E309.
+    let pinned = adapter.pinned_env_keys();
+    let env_ok = !pinned.is_empty()
+        && adapter
+            .launch_spec(
+                &account,
+                &Profile {
+                    id: ProfileId::new("check"),
+                    name: "check".into(),
+                    account: account.id.clone(),
+                    settings_overlay: SettingsOverlay::default(),
+                    default_cwd: None,
+                },
+                std::path::Path::new("/"),
+                &juggler_adapter::LaunchMode::Interactive,
+            )
+            .is_ok_and(|spec| {
+                pinned.iter().all(|key| {
+                    spec.env
+                        .get(*key)
+                        .is_some_and(|value| std::path::Path::new(value) == dir)
+                })
+            });
     rows.push(IsolationRowInfo {
         id: "launch_env_managed_only",
         label: "Launch environment points only at this account's folder".into(),
         pass: env_ok,
-        detail: format!(
-            "{} resolves to the managed dir",
-            isolation_key.unwrap_or("the Provider's state variable")
-        ),
+        detail: if pinned.is_empty() {
+            "the Provider names no state variable".to_owned()
+        } else {
+            format!("{} resolve to the managed dir", pinned.join(" and "))
+        },
     });
 
     // 4. The import SOURCE carries no AI Juggler writes (no marker,
@@ -2688,7 +2693,7 @@ pub fn isolation_check_impl(
 
     // 5. Per-dir probe independence: this dir's login classification
     //    reads ONLY this dir (structural: single-path probe).
-    let probe_state = login_state_of(&account);
+    let probe_state = login_state_of(&state.registry, &account);
     rows.push(IsolationRowInfo {
         id: "probe_independence",
         label: "Login state reads only this account's folder".into(),
@@ -2871,7 +2876,7 @@ pub fn account_import_impl(
     crate::settings_policy::apply_cleanup_default(state, account.id.as_str());
     let account = find_account_arc(state, account.id.as_str()).unwrap_or(account);
     Ok(ImportResult {
-        account: account_info_of(&account),
+        account: account_info_of(&state.registry, &account),
         files_copied: outcome.files_copied,
         bytes_copied: outcome.bytes_copied,
         skipped: outcome.skipped,
@@ -3786,7 +3791,7 @@ pub fn account_set_preview_opt_in(
         storage.accounts().update(&account)?;
         account
     };
-    Ok(account_info_of(&account))
+    Ok(account_info_of(&state.registry, &account))
 }
 
 /// Reads one app-level setting (schema v10 kv); `None` = never set.
@@ -4240,7 +4245,12 @@ fn scan_rollout_line(
                     .and_then(chrono_like_ms)
                     .unwrap_or(now),
                 tokens: juggler_core::model::TokenCounts {
-                    input: usage["input_tokens"].as_u64().unwrap_or(0),
+                    // Fresh prompt only (`input_tokens` includes the
+                    // cached history), as Claude's lines count it.
+                    input: usage["input_tokens"]
+                        .as_u64()
+                        .unwrap_or(0)
+                        .saturating_sub(usage["cached_input_tokens"].as_u64().unwrap_or(0)),
                     output: usage["output_tokens"].as_u64().unwrap_or(0),
                     cache_read: usage["cached_input_tokens"].as_u64().unwrap_or(0),
                     cache_write: 0,
@@ -4573,9 +4583,9 @@ fn lock_storage<'a>(
     state.storage.lock().map_err(|_| AppError::StatePoisoned)
 }
 
-fn account_info_of(account: &Account) -> AccountInfo {
+fn account_info_of(registry: &juggler_adapter::AdapterRegistry, account: &Account) -> AccountInfo {
     AccountInfo {
-        login_state: login_state_name(login_state_of(account)).to_string(),
+        login_state: login_state_name(login_state_of(registry, account)).to_string(),
         id: account.id.to_string(),
         provider: account.harness.to_string(),
         label: account.label.clone(),
@@ -4613,11 +4623,13 @@ fn login_state_name(state: juggler_adapters::LoginState) -> &'static str {
     }
 }
 
-/// The Account's sign-in state from its own Provider's adapter (the
-/// built-in set is stateless and cheap to build — no I/O until the
-/// probe itself). Unknown Providers report logged out, as before.
-fn login_state_of(account: &Account) -> juggler_adapters::LoginState {
-    crate::state::default_registry()
+/// The Account's sign-in state from its own Provider's adapter in the
+/// app's registry. Unknown Providers report logged out, as before.
+fn login_state_of(
+    registry: &juggler_adapter::AdapterRegistry,
+    account: &Account,
+) -> juggler_adapters::LoginState {
+    registry
         .get(&account.harness)
         .map_or(juggler_adapters::LoginState::LoggedOut, |adapter| {
             adapter.login_state(&account.state_dir)
@@ -5093,37 +5105,112 @@ pub(crate) fn handover_source(
     state: &Arc<AppState>,
     session_id: &str,
 ) -> AppResult<(juggler_core::model::InstanceRecord, Account)> {
-    let storage = lock_storage_arc(state)?;
-    let source = storage
-        .sessions()
-        .get(&SessionId::new(session_id))
-        .map_err(|error| not_found_or_core(error, "session", session_id))?;
-    let source_profile = storage
-        .profiles()
-        .get(&source.profile)
-        .map_err(|error| not_found_or_core(error, "profile", &source.profile.to_string()))?;
-    let account_a = storage
-        .accounts()
-        .get(&source_profile.account)
-        .map_err(|error| {
-            not_found_or_core(error, "account", &source_profile.account.to_string())
-        })?;
-    let mut source = source;
-    // AJ-E1303: a session the app launched has no transcript link yet —
-    // the Provider finds the file it created (cwd + start time) and the
-    // link is kept, so the user is never asked to pick it.
-    if source.transcript_ref.is_none()
-        && let Some(adapter) = state.registry.get(&account_a.harness)
-        && let Some(found) = adapter.locate_transcript(
+    resolve_source(state, session_id, false)
+}
+
+/// [`handover_source`] that KEEPS the transcript link it finds — only
+/// the switch itself does this (a preflight or a ranking look never
+/// writes a guess down).
+///
+/// # Errors
+///
+/// As [`handover_source`].
+pub(crate) fn handover_source_linked(
+    state: &Arc<AppState>,
+    session_id: &str,
+) -> AppResult<(juggler_core::model::InstanceRecord, Account)> {
+    resolve_source(state, session_id, true)
+}
+
+/// AJ-E1303: a session the app launched has no transcript link yet; the
+/// Provider finds the file it created (same folder, created after the
+/// launch). Never a guess: files linked to other sessions are excluded,
+/// two matches find nothing, and another live, unlinked session of the
+/// same account in the same folder makes it ambiguous (its file could
+/// be the only one so far) — the switch then asks. The filesystem scan
+/// runs without the storage lock.
+fn resolve_source(
+    state: &Arc<AppState>,
+    session_id: &str,
+    persist: bool,
+) -> AppResult<(juggler_core::model::InstanceRecord, Account)> {
+    let (mut source, account_a, taken, ambiguous) = {
+        let storage = lock_storage_arc(state)?;
+        let source = storage
+            .sessions()
+            .get(&SessionId::new(session_id))
+            .map_err(|error| not_found_or_core(error, "session", session_id))?;
+        let source_profile = storage
+            .profiles()
+            .get(&source.profile)
+            .map_err(|error| not_found_or_core(error, "profile", &source.profile.to_string()))?;
+        let account_a = storage
+            .accounts()
+            .get(&source_profile.account)
+            .map_err(|error| {
+                not_found_or_core(error, "account", &source_profile.account.to_string())
+            })?;
+        if source.transcript_ref.is_some() {
+            return Ok((source, account_a));
+        }
+        let others: Vec<juggler_core::model::InstanceRecord> = storage
+            .sessions()
+            .list(None)?
+            .into_iter()
+            .filter(|other| other.id != source.id)
+            .collect();
+        let account_recipes: std::collections::HashSet<String> = storage
+            .profiles()
+            .list_by_account(&account_a.id)?
+            .into_iter()
+            .map(|recipe| recipe.id.to_string())
+            .collect();
+        let taken: Vec<PathBuf> = others
+            .iter()
+            .filter_map(|other| other.transcript_ref.as_ref().map(|r| r.path.clone()))
+            .collect();
+        let ambiguous = others.iter().any(|other| {
+            account_recipes.contains(other.profile.as_str())
+                && other.transcript_ref.is_none()
+                && other.cwd == source.cwd
+                && !ended_before(other, source.started_at.millis())
+        });
+        (source, account_a, taken, ambiguous)
+    };
+    if ambiguous {
+        return Ok((source, account_a));
+    }
+    let Some(found) = state.registry.get(&account_a.harness).and_then(|adapter| {
+        adapter.locate_transcript(
             &account_a.state_dir,
             &source.cwd,
             source.started_at.millis(),
+            &taken,
         )
-    {
-        source.transcript_ref = Some(found);
-        storage.sessions().update(&source)?;
+    }) else {
+        return Ok((source, account_a));
+    };
+    source.transcript_ref = Some(found);
+    if persist {
+        lock_storage_arc(state)?.sessions().update(&source)?;
     }
     Ok((source, account_a))
+}
+
+/// Whether `session` had ended before `at_ms` (its last activity — a
+/// session that ended earlier could not have written a file after it).
+fn ended_before(session: &juggler_core::model::InstanceRecord, at_ms: i64) -> bool {
+    let ended = matches!(
+        session.status,
+        SessionStatus::Finished
+            | SessionStatus::Stopped
+            | SessionStatus::Failed
+            | SessionStatus::HandedOver
+    );
+    ended
+        && session
+            .last_activity
+            .is_some_and(|last| last.millis() < at_ms.saturating_sub(2_000))
 }
 
 /// Resumes the session under the target account (see the module docs).
@@ -5786,7 +5873,7 @@ fn switch_sides(
     target_profile_id: &str,
 ) -> AppResult<SwitchSides> {
     let (profile_b, account_b) = find_profile_with_account_arc(state, target_profile_id)?;
-    let (source, account_a) = handover_source(state, session_id)?;
+    let (source, account_a) = handover_source_linked(state, session_id)?;
     if source.project.is_none() {
         return Err(AppError::Io {
             context: "hand over",
@@ -8941,7 +9028,7 @@ pub fn account_set_cleanup_arc(
         storage.accounts().update(&account)?;
         account
     };
-    Ok(account_info_of(&account))
+    Ok(account_info_of(&state.registry, &account))
 }
 
 /// Sets or clears the optional user-entered renewal date (AJ-E411,
@@ -8989,7 +9076,7 @@ pub fn account_set_renewal_arc(
         storage.accounts().update(&account)?;
         account
     };
-    Ok(account_info_of(&account))
+    Ok(account_info_of(&state.registry, &account))
 }
 
 /// The exit-snapshot hook (AJ-E410 Req.3): freezes the pre-exit

@@ -6,12 +6,23 @@
 //! never modified or marked.
 //!
 //! What is NOT copied, and why (codex-cli 0.163.0, research/codex.md
-//! §10): Codex's SQLite files record ABSOLUTE rollout paths — a copied
-//! `state_5.sqlite` would point the new account at the original home's
-//! session files, and resuming would write into the original. Codex
-//! rebuilds that index from `sessions/` on its own (a filename scan that
-//! read-repairs the database), so every `*.sqlite*` stays behind, as do
-//! locks, logs and the background server's state and package copy.
+//! §10):
+//! - `auth.json`, the sign-in. A `ChatGPT` sign-in renews its refresh
+//!   token on every refresh and the old one is then refused ("your
+//!   refresh token was already used. Please log out and sign in again",
+//!   codex-rs `login/src/auth/manager.rs:207`, `:1688`; the new token
+//!   replaces the stored one, `:1604-1618`). Two homes holding one token
+//!   would sign each other out — so the copy signs in on its own.
+//! - The SQLite files record ABSOLUTE rollout paths — a copied
+//!   `state_5.sqlite` would point the new account at the original home's
+//!   session files, and resuming would write into the original. Codex
+//!   rebuilds that index from `sessions/` on its own (a filename scan that
+//!   read-repairs the database), so every `*.sqlite*` stays behind, as do
+//!   locks, logs, the per-install id, shell snapshots and the background
+//!   server's state and package copy.
+//!
+//! Skips apply to the home's own top-level entries only: a `log/` or
+//! `packages/` inside, say, a skill is the user's and is copied.
 
 use std::path::{Path, PathBuf};
 
@@ -35,8 +46,18 @@ pub(crate) const CODEX_LAYOUT: Layout = Layout {
         "app-server-daemon",
         "packages",
         ".DS_Store",
+        "installation_id",
+        "shell_snapshots",
+        "thread-writer-locks",
+        ".sandbox_migration",
     ],
     skip_suffixes: &[".sqlite", ".sqlite-wal", ".sqlite-shm", ".sqlite-journal"],
+    top_level_skips_only: true,
+    estimate_depth: 6,
+    kept_back: &[(
+        "auth.json",
+        "your sign-in — it stays with the original; this account signs in once",
+    )],
     config_evidence: &[
         "config.toml",
         "auth.json",
@@ -52,8 +73,8 @@ pub(crate) const CODEX_LAYOUT: Layout = Layout {
     ],
     private_files: &["auth.json"],
     not_a_config: "this folder does not look like a Codex home (no config.toml, auth.json or sessions found)",
-    login_stays_note: "Your Codex sign-in is kept in the macOS Keychain for the original folder, so it can't move with a copy. Sign in once inside the imported account.",
-    login_moves_note: "Sign-in carried over: the copy and the original now share one sign-in. Signing in again inside AI Juggler gives this account its own.",
+    login_stays_note: "Your Codex sign-in stays with the original folder: a copied sign-in would sign one of the two out the next time either renews it. Sign in once inside the imported account.",
+    login_moves_note: "Sign-in found in the copy.",
 };
 
 /// Scans for existing Codex homes: `~/.codex`, `$CODEX_HOME`, and any

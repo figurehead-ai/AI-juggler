@@ -112,16 +112,18 @@ pub trait HarnessAdapter: Send + Sync {
 
     /// AJ-E1303: finds the transcript of a session this Account started
     /// in `cwd` at or after `since_ms` (epoch ms) — the file the vendor
-    /// created for it, oldest match first, read-only. Lets a session the
-    /// app launched be switched without the user picking a file. Default:
-    /// `None` (the switch then asks).
+    /// created for it, read-only. Files in `taken` (linked to other
+    /// sessions) are never candidates, and more than one remaining match
+    /// is an honest `None`: a guess could hand one session another's
+    /// conversation. Default: `None` (the switch then asks).
     fn locate_transcript(
         &self,
         state_dir: &Path,
         cwd: &Path,
         since_ms: i64,
+        taken: &[std::path::PathBuf],
     ) -> Option<juggler_core::model::TranscriptRef> {
-        let _ = (state_dir, cwd, since_ms);
+        let _ = (state_dir, cwd, since_ms, taken);
         None
     }
 
@@ -242,6 +244,16 @@ pub trait HarnessAdapter: Send + Sync {
         &[]
     }
 
+    /// The isolation keys pinned to the Account's state dir itself —
+    /// every one the shell snippet sets and the isolation check
+    /// verifies. Default: the first isolation key (one variable points
+    /// the Provider at its state); Codex also pins `CODEX_SQLITE_HOME`.
+    #[must_use]
+    fn pinned_env_keys(&self) -> &'static [&'static str] {
+        let keys = self.isolation_env_keys();
+        &keys[..keys.len().min(1)]
+    }
+
     /// The command a user types to start this Provider against
     /// `state_dir` by hand — the Expert-setup snippet and the
     /// external-terminal login fallback (AJ-E309 Req.5). `None` when
@@ -260,8 +272,8 @@ pub fn shell_quote(value: &str) -> String {
 }
 
 /// Builds the copyable shell line for `adapter` against `state_dir`
-/// plus any extra environment (Launch-settings overrides), isolation
-/// keys first. `None` when the Provider has no terminal entry point.
+/// plus any extra environment (Launch-settings overrides), every pinned
+/// isolation key first. `None` when the Provider has no terminal entry point.
 #[must_use]
 pub fn shell_snippet(
     adapter: &dyn HarnessAdapter,
@@ -271,9 +283,8 @@ pub fn shell_snippet(
     let command = adapter.shell_command()?;
     let dir = state_dir.to_string_lossy();
     let mut parts: Vec<String> = adapter
-        .isolation_env_keys()
+        .pinned_env_keys()
         .iter()
-        .take(1)
         .map(|key| format!("{key}={}", shell_quote(&dir)))
         .collect();
     for (key, value) in extra_env {

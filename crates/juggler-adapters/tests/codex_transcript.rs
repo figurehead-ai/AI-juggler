@@ -68,10 +68,11 @@ fn paginated_rollout_reads_the_conversation_without_injected_context() {
             .uuid
             .as_deref()
             .unwrap()
-            .starts_with("line:")
+            .starts_with(&format!("{THREAD}:line:"))
     );
     // Tokens: token_usage_record rows only (token_count is a rollup).
-    assert_eq!(parsed.usage.input, 2700);
+    // Fresh prompt only: input_tokens minus the cached (re-sent) part.
+    assert_eq!(parsed.usage.input, (1200 - 800) + (1500 - 1200));
     assert_eq!(parsed.usage.cache_read, 2000);
     assert_eq!(parsed.usage.output, 150);
     assert_eq!(parsed.usage.reasoning, 40);
@@ -163,24 +164,21 @@ fn write_rollout(home: &Path, thread: &str, cwd: &str) -> PathBuf {
 }
 
 #[test]
-fn a_launched_codex_session_finds_its_rollout() {
+fn a_launched_codex_session_finds_its_rollout_only_when_it_is_the_one() {
     let tmp = tempfile::tempdir().unwrap();
     let home = tmp.path();
     let adapter = CodexAdapter::new();
-    // Older session in the same folder, before the launch: not ours.
-    let old = write_rollout(home, "019a0000-0000-7000-8000-000000000001", "/work/app");
-    let _ = old;
-    std::thread::sleep(Duration::from_millis(2_100));
+    // Older session in the same folder, well before the launch (beyond
+    // the 2 s slack even with whole-second timestamps): not a candidate.
+    write_rollout(home, "019a0000-0000-7000-8000-000000000001", "/work/app");
+    std::thread::sleep(Duration::from_millis(3_100));
     let since = now_ms();
-    let other_dir = write_rollout(home, "019a0000-0000-7000-8000-000000000002", "/work/other");
-    let _ = other_dir;
+    write_rollout(home, "019a0000-0000-7000-8000-000000000002", "/work/other");
     let ours = write_rollout(home, "019a0000-0000-7000-8000-000000000003", "/work/app");
-    std::thread::sleep(Duration::from_millis(20));
-    let _later = write_rollout(home, "019a0000-0000-7000-8000-000000000004", "/work/app");
 
     let found = adapter
-        .locate_transcript(home, Path::new("/work/app"), since)
-        .expect("found");
+        .locate_transcript(home, Path::new("/work/app"), since, &[])
+        .expect("the one match");
     assert_eq!(found.path, ours);
     assert_eq!(
         found.native_id.as_deref(),
@@ -188,9 +186,88 @@ fn a_launched_codex_session_finds_its_rollout() {
     );
     assert!(
         adapter
-            .locate_transcript(home, Path::new("/nowhere"), since)
+            .locate_transcript(home, Path::new("/nowhere"), since, &[])
             .is_none()
     );
+
+    // A second session's rollout in the same folder: two matches are
+    // never guessed between …
+    let theirs = write_rollout(home, "019a0000-0000-7000-8000-000000000004", "/work/app");
+    assert!(
+        adapter
+            .locate_transcript(home, Path::new("/work/app"), since, &[])
+            .is_none()
+    );
+    // … unless the other is already linked to its own session.
+    let found = adapter
+        .locate_transcript(home, Path::new("/work/app"), since, &[theirs])
+        .expect("the other one is taken");
+    assert_eq!(found.path, ours);
+}
+
+#[test]
+fn a_huge_first_line_still_carries_the_cwd() {
+    let tmp = tempfile::tempdir().unwrap();
+    let since = now_ms();
+    let day = tmp.path().join("sessions/2026/10/20");
+    std::fs::create_dir_all(&day).unwrap();
+    let path = day.join(format!("rollout-2026-10-20T08-00-00-{THREAD}.jsonl"));
+    // session_meta carries the base instructions: one line, megabytes.
+    let instructions = "x".repeat(3 * 1024 * 1024);
+    std::fs::write(
+        &path,
+        format!(
+            "{{\"timestamp\":\"t\",\"type\":\"session_meta\",\"payload\":{{\"id\":\"{THREAD}\",\"cwd\":\"/work/app\",\"base_instructions\":\"{instructions}\"}}}}\n"
+        ),
+    )
+    .unwrap();
+    assert!(
+        CodexAdapter::new()
+            .locate_transcript(tmp.path(), Path::new("/work/app"), since, &[])
+            .is_some()
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn the_folder_matches_through_a_symlink() {
+    let tmp = tempfile::tempdir().unwrap();
+    let real = tmp.path().join("real");
+    std::fs::create_dir_all(&real).unwrap();
+    let link = tmp.path().join("link");
+    std::os::unix::fs::symlink(&real, &link).unwrap();
+    let since = now_ms();
+    let home = tmp.path().join("home");
+    write_rollout(&home, THREAD, &real.to_string_lossy());
+    assert!(
+        CodexAdapter::new()
+            .locate_transcript(&home, &link, since, &[])
+            .is_some(),
+        "the session's recorded folder and the launch folder are the same place"
+    );
+}
+
+#[test]
+fn a_repeated_usage_row_counts_once() {
+    let row = format!(
+        "{{\"timestamp\":\"t\",\"type\":\"token_usage_record\",\"payload\":{{\"thread_id\":\"{THREAD}\",\"turn_id\":\"t1\",\"response_id\":\"r1\",\"usage\":{{\"input_tokens\":100,\"cached_input_tokens\":40,\"output_tokens\":10}}}}}}\n"
+    );
+    let parsed = parse_rollout(format!("{row}{row}").as_bytes());
+    assert_eq!(parsed.usage.input, 60);
+    assert_eq!(parsed.usage.cache_read, 40);
+    assert_eq!(parsed.usage.output, 10);
+}
+
+#[test]
+fn ids_never_collide_across_rollouts() {
+    let one = |thread: &str| {
+        format!(
+            "{{\"timestamp\":\"t\",\"type\":\"session_meta\",\"payload\":{{\"id\":\"{thread}\"}}}}\n{{\"timestamp\":\"t\",\"type\":\"response_item\",\"payload\":{{\"type\":\"message\",\"role\":\"user\",\"content\":[{{\"type\":\"input_text\",\"text\":\"hi\"}}]}}}}\n"
+        )
+    };
+    let a = parse_rollout(one("019a0000-0000-7000-8000-00000000000a").as_bytes());
+    let b = parse_rollout(one("019a0000-0000-7000-8000-00000000000b").as_bytes());
+    assert_ne!(a.messages[0].uuid, b.messages[0].uuid);
 }
 
 #[test]
@@ -206,7 +283,7 @@ fn a_launched_claude_session_finds_its_transcript_too() {
     )
     .unwrap();
     let found = ClaudeCodeAdapter::new()
-        .locate_transcript(tmp.path(), Path::new("/work/app"), since)
+        .locate_transcript(tmp.path(), Path::new("/work/app"), since, &[])
         .expect("found");
     assert_eq!(found.path, path);
     assert_eq!(found.native_id.as_deref(), Some("abc-123"));
