@@ -106,6 +106,15 @@ AJ-E1404/E1405/E1407.
     sampler test checks used + free = total.
 - Small: the stale lock comment in `state.rs` is fixed, and `is_active` is
   private again.
+- **Found by the new lock test.** On the stack's top branch, under heavy
+  load, the first tick held the lock for ~358 ms. That is the one-time
+  cost of first calling the power and thermal APIs in a large app binary
+  (3 ms standalone). The sampler now makes those calls once when it is
+  built, at app start and outside any lock; the first tick then holds the
+  lock for 0.48 ms. The test no longer relies on timing. Storage stays held
+  until the test releases it, the test waits for the lock to come free,
+  and then it asserts the lock stays free for 300 ms while the tick waits
+  on storage.
 
 | Claim / Req ID | Command / fixture / live step (exact) | Threshold | Observed | Verdict | Commit SHA | Date | Reviewer |
 |---|---|---|---|---|---|---|---|
