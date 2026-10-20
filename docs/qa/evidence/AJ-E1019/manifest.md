@@ -40,7 +40,7 @@ plain words; "tool" on screen instead of "Provider", D-25). Status:
 | Req.3 machine filter | vitest: none without another Mac; with one, the labelled combobox widens the load; captures `24-fleet/machine-filter-*`, `48-remote-cleanup/*` and the a11y fleet scans seed a paired Mac | PASS |
 | Req.4 tool names, alert words | vitest attribution row; `crates/juggler-app/tests/guardrails.rs` suffixes updated with the strings (CI runs the Rust tests) | PASS |
 | Req.5 wording + lint | `./scripts/terminology_lint.sh` OK with the new rules; vitest `inspector-shell` (tool kind titled Tool), `inspector-aggregate` (update check disabled, says it never updates a tool by itself), `QuotaRings`; first-run-policy suites expect "(all tools)" | PASS |
-| Full suites | vitest 470/470; Playwright 919/919; a11y gate 940 states, 0 critical/serious; visual gate 81/81 after the re-render | PASS |
+| Full suites | vitest 472/472; Playwright 921/921 (on the merge with main); a11y gate 940 states, 0 critical/serious; visual gate 81/81 after the re-render | PASS |
 
 ## Not covered here
 
