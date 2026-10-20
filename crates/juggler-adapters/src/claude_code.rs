@@ -404,6 +404,7 @@ impl HarnessAdapter for ClaudeCodeAdapter {
             ENV_CONFIG_DIR.to_string(),
             config_dir_value(&account.state_dir),
         );
+        unset_inherited_credentials(&mut env);
         let (mut args, needs_pty) = match mode {
             LaunchMode::Interactive => (Vec::new(), true),
             // `claude "<prompt>"` — an interactive session whose first
@@ -603,6 +604,7 @@ impl ClaudeCodeAdapter {
         };
         let mut env = EnvMap::new();
         env.insert(ENV_CONFIG_DIR.to_string(), config_dir_value(state_dir));
+        unset_inherited_credentials(&mut env);
         // Not the config folder itself: Claude would treat it as a project
         // (a trust prompt, a projects/ entry for the folder) — an empty
         // folder of AI Juggler's own, when there is one.
@@ -798,6 +800,27 @@ pub fn is_vendor_default_dir(dir: &Path) -> bool {
 pub fn is_vendor_default_dir_in(dir: &Path, home: &Path) -> bool {
     let trimmed = PathBuf::from(dir.to_string_lossy().trim_end_matches('/'));
     trimmed == home.join(".claude")
+}
+
+/// Credentials Claude Code takes from the environment ahead of the
+/// folder's own sign-in. Started from a terminal that exports one, AI
+/// Juggler would otherwise run EVERY account on that one key.
+pub const INHERITED_CREDENTIAL_KEYS: [&str; 3] = [
+    "ANTHROPIC_API_KEY",
+    "ANTHROPIC_AUTH_TOKEN",
+    "CLAUDE_CODE_OAUTH_TOKEN",
+];
+
+/// Each account signs in as itself: remove [`INHERITED_CREDENTIAL_KEYS`]
+/// from what the launch inherits (an account set up with a key keeps it
+/// in its own settings, which this doesn't touch).
+fn unset_inherited_credentials(env: &mut EnvMap) {
+    for key in INHERITED_CREDENTIAL_KEYS {
+        env.insert(
+            key.to_owned(),
+            juggler_adapter::launch::ENV_UNSET.to_owned(),
+        );
+    }
 }
 
 /// The `CLAUDE_CONFIG_DIR` value for a folder: its exact path (Claude's

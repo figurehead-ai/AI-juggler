@@ -478,6 +478,21 @@ export async function providersList(): Promise<ProviderInfo[]> {
 /** @deprecated legacy alias (AJ-E107) — use providersList. */
 export const harnessesList = providersList;
 
+/** ADR-0018: a copied account switches to its original folder, used
+ * where it is; the copy stays on disk. Mock: the account, in place. */
+export async function accountUseOriginal(accountId: string): Promise<AccountInfo> {
+  if (!hasBackend) {
+    const fail = (window as unknown as { __AIJ_USE_ORIGINAL_FAIL__?: string }).__AIJ_USE_ORIGINAL_FAIL__;
+    if (fail) throw { code: "validation", retryable: false, user_message: fail };
+    const accounts = await accountsList();
+    const account = accounts.find((row) => row.id === accountId);
+    if (!account) throw { code: "not_found", retryable: false, user_message: "That account isn't there any more." };
+    account.in_place = true; // the preview's list reflects it on refresh
+    return account;
+  }
+  return invoke<AccountInfo>("account_use_original", { accountId });
+}
+
 export async function accountsList(): Promise<AccountInfo[]> {
   if (!hasBackend) {
     return seeded.accounts ?? MOCK_ACCOUNTS;

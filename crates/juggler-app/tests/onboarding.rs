@@ -478,7 +478,12 @@ fn duplicate_import_is_blocked_with_the_existing_label_e307() {
     .unwrap_err();
     let wire = err.wire();
     assert_eq!(wire.code, "already_imported");
-    assert!(wire.user_message.contains("Already imported as «Work, a copy»"), "{}", wire.user_message);
+    assert!(
+        wire.user_message
+            .contains("Already imported as «Work, a copy»"),
+        "{}",
+        wire.user_message
+    );
     let storage = state.storage.lock().unwrap();
     let accounts = storage.accounts().list().unwrap();
     assert_eq!(accounts.len(), 1, "no second account was created");

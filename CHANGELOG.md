@@ -26,6 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that failed — **Use it where it is instead**. Close or Esc while
   bringing them in means **Stop**: the one in progress finishes and the
   rest wait.
+- An account you brought in as a copy can switch to the folder it came
+  from: **Use the original instead** on its card in Accounts. It then
+  shares that folder's sign-in and history; the copy stays on disk.
 - Cleanup says what it is in one line instead of "Tier 0 observe ·
   verified manual kills". Pause automatic cleanup and Cleanup settings
   sit behind ⋯, and Resume is on the "paused" banner. The machine filter
@@ -99,6 +102,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   without quotes, so the shell split it at the space and the capture
   never ran. Existing installs are repaired the next time AI Juggler
   checks them, and your own status line stays chained.
+- Started from a terminal that exports `ANTHROPIC_API_KEY` (or an auth
+  token), AI Juggler ran every account on that one key. Each account now
+  signs in as itself; a key set in an account's own settings still works.
 - A launch setting that picks a model no longer rewrites the account's
   `settings.json` (it replaced the whole file, losing hooks and
   permissions); the model goes in as Claude's own `--model` option.

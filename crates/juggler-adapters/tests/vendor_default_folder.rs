@@ -55,3 +55,52 @@ fn the_default_folder_runs_unset_and_others_run_exactly() {
         other.join(".claude.json")
     );
 }
+
+/// Started from a terminal that exports a key, AI Juggler would run every
+/// account on it: launches and sign-ins remove those variables.
+#[test]
+fn inherited_credentials_never_reach_a_launch() {
+    use juggler_adapter::{HarnessAdapter, LaunchMode};
+    use juggler_adapters::ClaudeCodeAdapter;
+    use juggler_adapters::claude_code::INHERITED_CREDENTIAL_KEYS;
+    use juggler_core::model::{Account, AccountId, HarnessId, Profile, ProfileId, SettingsOverlay};
+    let dir = tempfile::tempdir().unwrap();
+    let account = Account {
+        id: AccountId::new("a"),
+        harness: HarnessId::new("claude-code"),
+        label: "A".into(),
+        plan: None,
+        state_dir: dir.path().to_path_buf(),
+        cleanup_opt_in: false,
+        renewal_date: None,
+        preview_opt_in: false,
+        import_source_path: None,
+        import_origin: None,
+        imported_at: None,
+        in_place: false,
+    };
+    let profile = Profile {
+        id: ProfileId::new("p"),
+        name: "Main".into(),
+        account: AccountId::new("a"),
+        settings_overlay: SettingsOverlay::default(),
+        default_cwd: None,
+    };
+    let adapter = ClaudeCodeAdapter::with_bin("/bin/true");
+    let spec = adapter
+        .launch_spec(&account, &profile, dir.path(), &LaunchMode::Interactive)
+        .unwrap();
+    let login = adapter.login_spec(dir.path()).unwrap();
+    for key in INHERITED_CREDENTIAL_KEYS {
+        assert_eq!(
+            spec.env.get(key).map(String::as_str),
+            Some(ENV_UNSET),
+            "{key}"
+        );
+        assert_eq!(
+            login.env.get(key).map(String::as_str),
+            Some(ENV_UNSET),
+            "{key}"
+        );
+    }
+}

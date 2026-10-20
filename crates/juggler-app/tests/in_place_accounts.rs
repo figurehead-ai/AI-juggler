@@ -282,3 +282,62 @@ fn ai_juggler_s_own_copy_or_a_non_setup_cannot_be_used_in_place() {
         "missing"
     );
 }
+
+/// A copy brought in before ADR-0018 can switch to its original folder:
+/// the account then uses the folder where it is, the copy stays on disk
+/// (nothing is deleted), and launches point at the original.
+#[test]
+fn a_copy_can_switch_to_its_original_folder() {
+    let work = tempfile::tempdir().unwrap();
+    let (stub, log) = claude_stub(work.path());
+    let state = app_state(work.path(), &stub);
+    let folder = users_setup(work.path());
+    let before = snapshot(&folder);
+    let copy = commands::account_import_impl(
+        &state,
+        CLAUDE_CODE_ID,
+        folder.to_str().unwrap(),
+        "Work A",
+        None,
+        None,
+        false,
+    )
+    .unwrap();
+    let copy_dir = state_dir(&state, &copy.account.id);
+
+    let switched = commands::account_use_original_impl(&state, &copy.account.id).unwrap();
+    assert!(switched.in_place);
+    assert_eq!(
+        state_dir(&state, &copy.account.id).canonicalize().unwrap(),
+        folder.canonicalize().unwrap()
+    );
+    assert!(
+        copy_dir.join("settings.json").exists(),
+        "the copy is kept, untouched"
+    );
+    // Again is a no-op.
+    assert!(
+        commands::account_use_original_impl(&state, &copy.account.id)
+            .unwrap()
+            .in_place
+    );
+
+    launch_and_wait(&state, &copy.account.id, None);
+    let lines = std::fs::read_to_string(&log).unwrap();
+    assert!(
+        lines.contains(&format!(
+            "dir={}\n",
+            folder.canonicalize().unwrap().display()
+        )),
+        "{lines}"
+    );
+    assert_eq!(
+        snapshot(&folder),
+        before,
+        "the original is still untouched by AI Juggler"
+    );
+
+    // An account made here has no original to switch to.
+    let fresh = commands::create_account(&state, CLAUDE_CODE_ID, "Fresh", None).unwrap();
+    assert!(commands::account_use_original_impl(&state, &fresh.id).is_err());
+}

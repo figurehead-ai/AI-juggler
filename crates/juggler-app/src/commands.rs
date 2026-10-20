@@ -2884,6 +2884,87 @@ pub fn account_import(
     imported
 }
 
+/// ADR-0018: a copied account switches to its original folder, used
+/// where it is. The copy stays on disk untouched (nothing is deleted);
+/// sessions started in it stay in it.
+#[tauri::command]
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] message on failure.
+pub fn account_use_original(
+    state: tauri::State<'_, Arc<AppState>>,
+    account_id: String,
+) -> AppResult<AccountInfo> {
+    account_use_original_impl(state.inner(), &account_id)
+}
+
+/// Core implementation shared with integration tests.
+///
+/// # Errors
+///
+/// [`AppError::Validation`] when there is no original folder, a session
+/// is running on the account, or another account already uses it; the
+/// adapter's refusal when the folder is gone or isn't a setup.
+pub fn account_use_original_impl(
+    state: &Arc<AppState>,
+    account_id: &str,
+) -> AppResult<AccountInfo> {
+    let account = find_account_arc(state, account_id)?;
+    if account.in_place {
+        return Ok(account_info_of(&account));
+    }
+    let Some(source) = account.import_source_path.clone() else {
+        return Err(AppError::Validation {
+            subject: "account",
+            message: "this account was made in AI Juggler — it has no original folder".into(),
+        });
+    };
+    let canonical =
+        |path: &std::path::Path| path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+    {
+        let storage = lock_storage_arc(state)?;
+        let profiles: Vec<ProfileId> = storage
+            .profiles()
+            .list_by_account(&account.id)?
+            .into_iter()
+            .map(|profile| profile.id)
+            .collect();
+        let busy = storage.sessions().list(None)?.into_iter().any(|record| {
+            profiles.contains(&record.profile)
+                && matches!(
+                    record.status,
+                    SessionStatus::Starting | SessionStatus::Running | SessionStatus::WaitingUser
+                )
+        });
+        if busy {
+            return Err(AppError::Validation {
+                subject: "account",
+                message: "a session is running on this account — stop it first, then switch".into(),
+            });
+        }
+        let target = canonical(std::path::Path::new(&source));
+        if let Some(other) = storage.accounts().list()?.into_iter().find(|other| {
+            other.id != account.id && other.in_place && canonical(&other.state_dir) == target
+        }) {
+            return Err(AppError::Validation {
+                subject: "account",
+                message: format!("«{}» already uses that folder", other.label),
+            });
+        }
+    }
+    let adapter = state
+        .registry
+        .get(&account.harness)
+        .ok_or_else(|| AppError::UnknownHarness(account.harness.to_string()))?;
+    adapter.adopt_account(std::path::Path::new(&source))?;
+    let mut updated = account;
+    updated.state_dir = std::path::PathBuf::from(&source);
+    updated.in_place = true;
+    lock_storage_arc(state)?.accounts().update(&updated)?;
+    Ok(account_info_of(&updated))
+}
+
 /// How a setup comes in (ADR-0018).
 #[derive(Clone, Debug, Default)]
 pub struct ImportRequest {
