@@ -526,6 +526,7 @@ export async function environmentScan(): Promise<DiscoveredInfo[]> {
         bytes: 48_000_000,
         last_used_secs: Math.floor(Date.now() / 1000) - 86_400,
         managed: false,
+        in_use: [],
         inference: {
           purpose: "Main",
           purpose_confidence: "guessed",
@@ -550,6 +551,7 @@ export async function environmentScan(): Promise<DiscoveredInfo[]> {
         bytes: 1_200_000,
         last_used_secs: Math.floor(Date.now() / 1000) - 2_592_000,
         managed: false,
+        in_use: [],
         inference: {
           purpose: "Personal",
           purpose_confidence: "likely",
@@ -3868,6 +3870,7 @@ const DEFAULT_SCAN_REPORT: ScanReportData = {
       bytes: 48_000_000,
       last_used_secs: Math.floor(Date.now() / 1000) - 86_400,
       managed: false,
+      in_use: [],
       notes: ["Claude Code's standard location — what a plain `claude` command uses."],
       inference: {
         purpose: "Main",
@@ -3889,6 +3892,7 @@ const DEFAULT_SCAN_REPORT: ScanReportData = {
       bytes: 1_200_000,
       last_used_secs: Math.floor(Date.now() / 1000) - 40 * 86_400,
       managed: false,
+      in_use: [],
       notes: ["A separate Claude configuration — created manually or by another tool."],
       inference: {
         purpose: "Personal",
@@ -3904,15 +3908,15 @@ const DEFAULT_SCAN_REPORT: ScanReportData = {
     },
   ],
   probes: [
-    ["s1-config-dirs", "Config directories", "1 candidate setup(s)"],
-    ["s2-env-overrides", "Environment overrides", "none set in this app's environment"],
-    ["s3-manager-t3", "t3 profiles", "not present"],
-    ["s4-manager-cc-switch", "cc-switch database", "not present"],
-    ["s5-shell-aliases", "Shell aliases", "0 assignment(s)"],
-    ["s6-installed-clis", "Installed CLIs", "claude-code: installed"],
-    ["s7-login-metadata", "Login metadata", "1 of 1 signed in"],
-    ["s8-usage-recency", "Usage recency", "1 setup(s) with recent activity"],
-    ["s9-projects", "Projects", "3 project name(s)"],
+    ["s1-config-dirs", "Folders named .claude…", "1 candidate setup(s)"],
+    ["s2-env-overrides", "A config folder set for this app (CLAUDE_CONFIG_DIR)", "none set in this app's environment"],
+    ["s3-manager-t3", "Claude profiles (ClaudeCodeProfiles)", "not present"],
+    ["s4-manager-cc-switch", "cc-switch profiles", "not present"],
+    ["s5-shell-aliases", "Your shell settings (aliases, CLAUDE_CONFIG_DIR)", "0 assignment(s)"],
+    ["s6-installed-clis", "Claude Code installed", "claude-code: installed"],
+    ["s7-login-metadata", "Sign-in status", "1 of 1 signed in"],
+    ["s8-usage-recency", "When each was last used", "1 setup(s) with recent activity"],
+    ["s9-projects", "Recent projects", "3 project name(s)"],
     ["s10-desktop", "Desktop apps", "Claude.app"],
   ].map(([id, label, detail]) => ({
     id,

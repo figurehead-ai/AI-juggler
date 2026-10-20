@@ -436,59 +436,76 @@ export function StaleChip({ caption }: { caption: string | null }) {
 
 // --- AJ-E403: the shared legend (identical in every surface) -------------------
 
-const LEGEND_STATES: { label: string; Icon: typeof IconStateRunning; tone: StateChipTone; meaning: string }[] = [
-  { label: "Starting", Icon: IconStateStarting, tone: "accent", meaning: "starting" },
-  { label: "Running", Icon: IconStateRunning, tone: "live", meaning: "running" },
-  { label: "Needs you", Icon: IconStateWaiting, tone: "warning", meaning: "waiting_user" },
-  { label: "Stuck?", Icon: IconStateStuck, tone: "warning", meaning: "stuck (heuristic)" },
-  { label: "Quota blocked", Icon: IconStateQuota, tone: "danger", meaning: "quota_blocked" },
-  { label: "Finished", Icon: IconStateFinished, tone: "success", meaning: "finished" },
-  { label: "Stopped", Icon: IconStateStopped, tone: "neutral", meaning: "stopped" },
-  { label: "Failed", Icon: IconStateFailed, tone: "danger", meaning: "failed" },
-  { label: "Handed over", Icon: IconStateHandover, tone: "accent", meaning: "handed_over" },
+/** D-25: the rail's own words for each state — one list, shared by the
+ * rail rows and the legend so the two can never drift apart. */
+export const STATE_WORDS: Record<string, string> = {
+  starting: "Starting",
+  running: "Running",
+  waiting_user: "Waiting for you",
+  stuck: "Looks stuck",
+  quota_blocked: "Hit its limit",
+  finished: "Done",
+  stopped: "Stopped",
+  failed: "Failed",
+  handed_over: "Handed over",
+};
+
+const LEGEND_STATES: { status: string; Icon: typeof IconStateRunning; tone: StateChipTone; meaning: string }[] = [
+  { status: "starting", Icon: IconStateStarting, tone: "accent", meaning: "opening up" },
+  { status: "running", Icon: IconStateRunning, tone: "live", meaning: "working" },
+  { status: "waiting_user", Icon: IconStateWaiting, tone: "warning", meaning: "asked you something" },
+  { status: "stuck", Icon: IconStateStuck, tone: "warning", meaning: "no output for a while" },
+  { status: "quota_blocked", Icon: IconStateQuota, tone: "danger", meaning: "the account ran out" },
+  { status: "finished", Icon: IconStateFinished, tone: "success", meaning: "ended normally" },
+  { status: "stopped", Icon: IconStateStopped, tone: "neutral", meaning: "you stopped it" },
+  { status: "failed", Icon: IconStateFailed, tone: "danger", meaning: "ended with an error" },
+  { status: "handed_over", Icon: IconStateHandover, tone: "accent", meaning: "moved to another account" },
+];
+
+/** The notes a rail row adds only when they matter (D-25). */
+const LEGEND_NOTES: { sample: string; tone: string; meaning: string }[] = [
+  { sample: "18% left", tone: "text-warning", meaning: "its account is running low" },
+  { sample: "Parked 2h 10m", tone: "text-ink", meaning: "waiting for the limit to reset" },
+  { sample: "3 changed", tone: "text-muted", meaning: "files not committed yet" },
+  { sample: "not signed in", tone: "text-muted", meaning: "the account needs its sign-in" },
+  { sample: "APP", tone: "text-muted", meaning: "runs in the Claude desktop app" },
 ];
 
 /**
- * The one legend (Req.6): 9 states as icon+text+colour, the quota bar
- * semantics (fill = used %, tier tag Meas/Comp/Est = confidence), and
- * the sparkline semantics (solid = RAM, outline = CPU%). Rendered
- * identically wherever it appears — rail footer `?` popover, Overview
- * header, and the all-clear empty state.
+ * The one legend (Req.6): what the rail's icons and words mean, and the
+ * notes a row adds when something needs a glance. Opened from the `?`
+ * in the rail's footer.
  */
 export function IndicatorLegend({ compact = false }: { compact?: boolean }) {
   return (
-    <div className={compact ? "flex flex-col gap-1.5 text-[10px]" : "flex flex-col gap-2 text-[11px]"} role="list" aria-label="Indicator legend">
-      <div className="grid grid-cols-1 gap-1">
+    <div className={compact ? "flex flex-col gap-1.5 text-[10px]" : "flex flex-col gap-2 text-[11px]"}>
+      <span className="text-[11px] font-semibold text-ink">What the session list shows</span>
+      <dl className="grid grid-cols-[auto_1fr] items-center gap-x-2 gap-y-1" aria-label="States">
         {LEGEND_STATES.map((state) => (
-          <span key={state.label} className="flex min-w-0 items-center gap-2" role="listitem">
-            <state.Icon width={12} height={12} className={legendTone(state.tone)} />
-            <span className="font-medium text-ink">{state.label}</span>
-            <span className="truncate text-faint">· {state.meaning}</span>
-          </span>
+          <div key={state.status} className="contents">
+            <dt className="flex items-center gap-2 whitespace-nowrap font-medium text-ink">
+              <state.Icon width={12} height={12} aria-hidden="true" className={legendTone(state.tone)} />
+              {STATE_WORDS[state.status]}
+            </dt>
+            <dd className="text-muted">{state.meaning}</dd>
+          </div>
         ))}
-      </div>
-      <span className="flex min-w-0 flex-wrap items-center gap-1.5 border-t border-hairline pt-1.5 text-muted" role="listitem">
-        <span className="relative inline-block h-1.5 w-10 overflow-hidden rounded-full bg-surface-3">
-          <span className="absolute inset-y-0 left-0 w-2/3 rounded-full bg-accent" />
-        </span>
-        <span>Quota fill = used %</span>
-        <span className="rounded border border-hairline px-1 text-[9px] uppercase text-faint">Meas/Comp/Est</span>
-        <span>= confidence</span>
-      </span>
-      <span className="flex min-w-0 items-center gap-2 text-muted" role="listitem">
-        <svg width={26} height={10} aria-hidden="true" focusable="false">
-          <polyline points="1,5 8,2 15,7 22,4 25,5" fill="none" stroke="var(--color-accent-hi)" strokeWidth={1.6} />
-        </svg>
-        <span>sparkline solid = RAM</span>
-        <svg width={26} height={10} aria-hidden="true" focusable="false">
-          <polyline points="1,5 8,7 15,3 22,6 25,4" fill="none" stroke="var(--color-live)" strokeWidth={1.2} strokeDasharray="2 1.6" />
-        </svg>
-        <span>outline = CPU%</span>
-      </span>
-      <span className="flex items-center gap-1.5 border-t border-hairline pt-1.5 text-faint" role="listitem">
-        <span className="inline-flex items-center rounded border border-warning/40 bg-warning-soft px-1 text-[9px] font-medium text-warning">stale - Nm</span>
-        <span>older than 2× refresh — never shown as fresh</span>
-      </span>
+      </dl>
+      <dl className="grid grid-cols-[auto_1fr] items-center gap-x-2 gap-y-1 border-t border-hairline pt-1.5" aria-label="Notes on a row">
+        {LEGEND_NOTES.map((note) => (
+          <div key={note.sample} className="contents">
+            <dt className={"whitespace-nowrap font-medium " + note.tone}>{note.sample}</dt>
+            <dd className="text-muted">{note.meaning}</dd>
+          </div>
+        ))}
+        <div className="contents">
+          <dt>
+            <span className="inline-flex items-center whitespace-nowrap rounded border border-warning/40 bg-warning-soft px-1 text-[9px] font-medium text-warning">stale - 3m</span>
+          </dt>
+          <dd className="text-muted">a reading stopped updating</dd>
+        </div>
+      </dl>
+      <span className="border-t border-hairline pt-1.5 text-muted">Each row's dot is its account's colour.</span>
     </div>
   );
 }

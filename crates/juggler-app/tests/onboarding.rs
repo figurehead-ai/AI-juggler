@@ -369,6 +369,7 @@ fn alias_and_pattern_merge_into_one_candidate() {
         notes: vec![],
         inference: Default::default(),
         signals: vec!["home-pattern".to_owned()],
+        in_use: Vec::new(),
     }];
     let hint = juggler_adapter::environment::AliasHint {
         variable: "CLAUDE_CONFIG_DIR".to_owned(),

@@ -32,6 +32,7 @@ pub mod overnight;
 pub mod parked;
 pub mod preview;
 pub mod remote;
+pub mod running_setups;
 pub mod settings_policy;
 pub mod state;
 pub mod terminal;
