@@ -27,3 +27,11 @@ nix = { version = "0.31.3", features = ["signal", "process"] }
 # AJ-E505: the listener table via the low-level OS APIs (libproc /
 # netlink) — lsof/netstat shell-outs are banned (pass2 §7).
 netstat2 = "0.11"
+
+# AJ-E1401: machine signals the OS reports outside `sysinfo` — the kernel's
+# memory-pressure level (sysctl), power and thermal state (safe IOKit and
+# Foundation bindings; no `unsafe` in this crate).
+[target."cfg(target_os = \"macos\")".dependencies]
+sysctl = "0.6"
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSProcessInfo"] }
+objc2-io-kit = { version = "0.3.2", default-features = false, features = ["std", "ps"] }
