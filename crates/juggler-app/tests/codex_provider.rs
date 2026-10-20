@@ -136,3 +136,83 @@ fn a_codex_shell_alias_becomes_a_codex_candidate() {
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].harness, CODEX_ID);
 }
+
+#[test]
+fn importing_a_codex_home_copies_it_and_leaves_the_original_alone() {
+    let work = tempfile::tempdir().unwrap();
+    let state = app_state(work.path());
+    let source = work.path().join(".codex-side");
+    std::fs::create_dir_all(source.join("sessions/2026/10/20")).unwrap();
+    std::fs::write(source.join("config.toml"), "model = \"gpt-5-codex\"\n").unwrap();
+    std::fs::write(
+        source.join("auth.json"),
+        r#"{"auth_mode":"chatgpt","tokens":{"refresh_token":"fixture"}}"#,
+    )
+    .unwrap();
+    std::fs::write(source.join("state_5.sqlite"), "absolute paths inside").unwrap();
+    let listing = |dir: &Path| {
+        let mut out: Vec<(String, Vec<u8>)> = Vec::new();
+        for entry in walk(dir) {
+            out.push((
+                entry
+                    .strip_prefix(dir)
+                    .unwrap()
+                    .to_string_lossy()
+                    .into_owned(),
+                std::fs::read(&entry).unwrap(),
+            ));
+        }
+        out.sort();
+        out
+    };
+    let before = listing(&source);
+
+    let imported = commands::account_import_impl(
+        &state,
+        CODEX_ID,
+        source.to_str().unwrap(),
+        "Side",
+        None,
+        Some("home-pattern".to_string()),
+        false,
+    )
+    .unwrap();
+
+    assert_eq!(listing(&source), before, "the original is byte-identical");
+    assert_eq!(imported.account.provider, CODEX_ID);
+    // The sign-in stays with the original (single-use refresh tokens):
+    // the copy signs in once, and says so.
+    assert_eq!(imported.account.login_state, "logged_out");
+    assert!(
+        !state
+            .accounts_dir()
+            .join(CODEX_ID)
+            .join(&imported.account.id)
+            .join("auth.json")
+            .exists()
+    );
+    let dir = state
+        .accounts_dir()
+        .join(CODEX_ID)
+        .join(&imported.account.id);
+    assert!(dir.join("config.toml").is_file());
+    assert!(
+        !dir.join("state_5.sqlite").exists(),
+        "a copied index would point at the original's sessions"
+    );
+    let rows = commands::isolation_check_impl(&state, &imported.account.id).unwrap();
+    assert!(rows.iter().all(|row| row.pass), "{rows:#?}");
+}
+
+fn walk(dir: &Path) -> Vec<std::path::PathBuf> {
+    let mut out = Vec::new();
+    for entry in std::fs::read_dir(dir).unwrap().flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            out.extend(walk(&path));
+        } else {
+            out.push(path);
+        }
+    }
+    out
+}
