@@ -249,3 +249,14 @@
   Testing Library's 1 s default for the wizard's summary, which follows
   two mocked imports; on a loaded runner it arrived after 1,049 ms.
   The wizard steps in that file now wait up to 5 s. No assertion changed.
+- Real accessibility bugs found by the release gate (2026-10-20, Promote
+  for 0.0.5, `a11y (1/4)`): the D-25 rail rows failed WCAG contrast on
+  every screen. The second line and time used the faint grey (3.29:1
+  dark, 2.84:1 light), the desktop "app" tag used light accent text, and
+  ended rows were faded with opacity. Now they use the muted grey
+  (≥ 5.8:1), and ended rows have a quieter title instead of opacity. The
+  wizard's "unverified" chip blended to 4.22:1 on the selected row in
+  light mode and now has a solid backing. 0.0.5 is not promoted; 0.0.6
+  carries the fix. The gate passes locally (939 states, 0 serious). One
+  capture timed out while the visual container ran beside it and passed
+  twice alone.

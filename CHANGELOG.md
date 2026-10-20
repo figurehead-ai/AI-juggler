@@ -60,6 +60,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Session rows are readable at the WCAG contrast minimum in both themes:
+  their second line and time use the stronger grey, and ended sessions
+  are shown by a quieter title instead of being faded.
+
 - Release builds ride out a short outage at Apple's signing services: a
   missing timestamp or an unanswered notary or ticket request is retried
   (up to four tries); any other signing failure still stops the build.
