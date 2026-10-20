@@ -60,6 +60,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Switching a session you started in the app no longer stops at
+  "Couldn't tell which file is this session": AI Juggler finds the
+  session's own file (same folder, started after the launch) the first
+  time it is needed and remembers it — for Claude Code and Codex alike.
+
 - Session rows are readable at the WCAG contrast minimum in both themes:
   their second line and time use the stronger grey, and ended sessions
   are shown by a quieter title instead of being faded.
@@ -100,6 +105,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Codex's own databases stay behind (Codex rebuilds them from the copied
   history); the light import leaves the history behind too and lists
   what it skipped.
+- Codex sessions read like Claude ones (AJ-E1303): the conversation,
+  the model each turn ran, tokens, compaction and errors come from
+  Codex's own session files, in both of its history formats. The
+  account's identity check uses Codex's account id (never a token).
 - Three update channels (decision D-20): **Nightly** (built from the latest
   code every day), **Beta** and **Stable** (each promoted with the
   maintainer's approval). Choose Stable or Beta in Settings › About &

@@ -72,7 +72,7 @@ ZCode follows the same five steps later (its own epic).
 **Research basis**: research/codex.md §3 (Codex docs sanction copying `auth.json` to another machine), §10 (home contents); `claude_environment.rs` as the pattern.
 **Handover note**: Trap — Codex's `state_5.sqlite` stores ABSOLUTE rollout paths: a copied index would point the new account at the original's session files, and a resume would write into the original. It is a projection Codex rebuilds from `sessions/` (filename scan + read-repair), so every `*.sqlite*` stays behind — memories and queued messages kept in SQLite do not travel (listed in the skips). The copy machinery is shared with Claude through `claude_environment::Layout`.
 
-### AJ-E1303 Watch Codex sessions: rollout parser, linking, identity | Status: TODO | Priority P0 | Effort L | Depends: AJ-E1301
+### AJ-E1303 Watch Codex sessions: rollout parser, linking, identity | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E1301
 **Goal**: The app sees Codex sessions appear and grow, reads their conversation into the neutral parsed form every feature uses, and knows which account a home is signed in as.
 **User story**: As a user running Codex, the session shows its conversation, model and tokens like a Claude session does, and a switch can find its file.
 **Requirements**:
@@ -89,7 +89,7 @@ ZCode follows the same five steps later (its own epic).
 **Visual testing**: none (data only); the existing session view captures cover rendering.
 **Files to touch**: new `crates/juggler-adapters/src/codex_transcript.rs`, `codex.rs`, `crates/juggler-app/src/{commands,crossmachine}.rs`, `crossmachine/switch_back.rs`.
 **Research basis**: research/codex.md §4, §10 (rollout schema, paginated mode since 0.158); codex-rs `rollout/src/policy.rs`, `protocol/src/protocol.rs`.
-**Handover note**: Trap — paginated rollouts no longer write `event_msg` `user_message`/`agent_message`; read `response_item`. Trap — the `id_token` is a credential: never decode it for an email.
+**Handover note**: Trap — paginated rollouts no longer write `event_msg` `user_message`/`agent_message`; read `response_item`. Trap — the `id_token` is a credential: never decode it for an email. Found while building it: no Provider linked a session the app launched to its transcript (Claude included — tests pinned it by hand, "the watcher's job in production", but no production code calls `watcher()`); `HarnessAdapter::locate_transcript` + the lazy link in `handover_source` now do it for both. `parse_any` recognises the format from the bytes, so sites that hold only a file (switch-back, cross-machine) need no Provider.
 
 ### AJ-E1304 Switch with Codex (beta): transplant and cross-Provider replay | Status: TODO | Priority P0 | Effort L | Depends: AJ-E1303, AJ-E204, AJ-E205
 **Goal**: A session moves Codex→Codex by copying its rollout into the target home, and Claude↔Codex by replaying its conversation into a primed session — every one labelled beta.

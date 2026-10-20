@@ -110,6 +110,21 @@ pub trait HarnessAdapter: Send + Sync {
         LoginState::LoggedOut
     }
 
+    /// AJ-E1303: finds the transcript of a session this Account started
+    /// in `cwd` at or after `since_ms` (epoch ms) — the file the vendor
+    /// created for it, oldest match first, read-only. Lets a session the
+    /// app launched be switched without the user picking a file. Default:
+    /// `None` (the switch then asks).
+    fn locate_transcript(
+        &self,
+        state_dir: &Path,
+        cwd: &Path,
+        since_ms: i64,
+    ) -> Option<juggler_core::model::TranscriptRef> {
+        let _ = (state_dir, cwd, since_ms);
+        None
+    }
+
     /// Creates a watcher over the account's transcript root.
     ///
     /// # Errors
