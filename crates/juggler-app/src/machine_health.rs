@@ -251,6 +251,8 @@ pub struct MachineWatch {
     /// Running peaks per session / observed tree (AJ-E1406), written as
     /// footprints every 10 min and when the tree ends.
     peaks: std::collections::HashMap<String, TreePeaks>,
+    /// Overload alerts (AJ-E1408).
+    alerts: crate::machine_alerts::AlertEngine,
 }
 
 impl Default for MachineWatch {
@@ -260,6 +262,7 @@ impl Default for MachineWatch {
             ticks: 0,
             tools: Vec::new(),
             peaks: std::collections::HashMap::new(),
+            alerts: crate::machine_alerts::AlertEngine::default(),
         }
     }
 }
@@ -764,6 +767,11 @@ pub struct ThisMacInfo {
     pub leftover_processes: u32,
     /// Ports those leftovers hold.
     pub leftover_ports: u32,
+    /// Overload alerts active now (AJ-E1408; Home's Needs you).
+    pub alerts: Vec<crate::machine_alerts::OverloadAlertInfo>,
+    /// Advice from this Mac's own history (AJ-E1409); empty until there
+    /// is enough of it.
+    pub recommendations: Vec<String>,
 }
 
 /// One tree, as the pure assembly sees it.
@@ -876,6 +884,8 @@ pub fn assemble(
             .collect(),
         leftover_processes: leftovers.0,
         leftover_ports: leftovers.1,
+        alerts: Vec::new(),
+        recommendations: Vec::new(),
         machine,
     }
 }
@@ -992,7 +1002,133 @@ pub fn this_mac_impl(state: &Arc<AppState>, now_ms: i64) -> AppResult<ThisMacInf
         )
         .unwrap_or(u32::MAX),
     );
-    Ok(assemble(machine, &trees, leftovers))
+    let mut info = assemble(machine, &trees, leftovers);
+    info.recommendations = recommendations_for(state, &info);
+    if let Ok(mut watch) = state.machine.lock() {
+        watch.alerts.evaluate(&info, now_ms);
+        info.alerts = watch.alerts.active();
+    }
+    Ok(info)
+}
+
+/// The alerts to tell since the last call (AJ-E1408; the notification
+/// region's poll drains them).
+///
+/// # Errors
+///
+/// [`AppError::StatePoisoned`] when the watch's lock is poisoned.
+pub fn machine_alerts_take_impl(
+    state: &Arc<AppState>,
+) -> AppResult<Vec<crate::machine_alerts::OverloadAlertInfo>> {
+    let mut watch = state.machine.lock().map_err(|_| AppError::StatePoisoned)?;
+    Ok(watch.alerts.take_fresh())
+}
+
+/// Overload alerts to tell now (AJ-E1408). Passive: a notification only.
+///
+/// # Errors
+///
+/// As [`machine_alerts_take_impl`].
+#[tauri::command]
+pub fn machine_alerts_take(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<Vec<crate::machine_alerts::OverloadAlertInfo>> {
+    machine_alerts_take_impl(state.inner())
+}
+
+// --- AJ-E1409: recommendations from real data -------------------------------
+
+/// Pure (AJ-E1409): advice from this Mac's own footprints. `names` maps a
+/// launch setting id to how the user knows it. Nothing until a setting has
+/// at least three measured sessions.
+#[must_use]
+#[allow(
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss
+)]
+pub fn recommendations<S: std::hash::BuildHasher>(
+    machine: &MachineHealthInfo,
+    tools_rss: u64,
+    footprints: &[juggler_core::storage::FootprintStats],
+    names: &std::collections::HashMap<String, String, S>,
+) -> Vec<String> {
+    let measured: Vec<&juggler_core::storage::FootprintStats> = footprints
+        .iter()
+        .filter(|stats| stats.key.starts_with("recipe:") && stats.count >= MIN_FOOTPRINTS)
+        .collect();
+    if measured.is_empty() || !machine.sampled || machine.memory_total == 0 {
+        return Vec::new();
+    }
+    let sessions: u32 = measured.iter().map(|stats| stats.count).sum();
+    let typical = measured
+        .iter()
+        .map(|stats| stats.median_peak_rss as f64 * f64::from(stats.count))
+        .sum::<f64>()
+        / f64::from(sessions);
+    let mut out = Vec::new();
+    // Keep a fifth of memory free; what isn't AI tools stays as it is now.
+    let others = machine.memory_used.saturating_sub(tools_rss) as f64;
+    let room = machine.memory_total as f64 * 0.8 - others;
+    if typical > 0.0 {
+        let fits = (room / typical).floor().max(0.0) as u64;
+        out.push(if fits == 0 {
+            format!(
+                "With what else is open, this Mac is short of room for even one session (about {} each, from your last {sessions})",
+                bytes_words(typical as u64)
+            )
+        } else {
+            format!(
+                "This Mac comfortably runs about {fits} session{} at once (about {} each, from your last {sessions})",
+                if fits == 1 { "" } else { "s" },
+                bytes_words(typical as u64)
+            )
+        });
+    }
+    if measured.len() >= 2 {
+        let mut by_weight = measured.clone();
+        by_weight.sort_by_key(|stats| std::cmp::Reverse(stats.median_peak_rss));
+        let heaviest = by_weight[0];
+        let next = by_weight[1];
+        if heaviest.median_peak_rss as f64 >= next.median_peak_rss as f64 * 1.5 {
+            let id = heaviest.key.trim_start_matches("recipe:");
+            let name = names
+                .get(id)
+                .cloned()
+                .unwrap_or_else(|| "One launch setting".into());
+            out.push(format!(
+                "{name} is the heaviest launch setting — about {} a session",
+                bytes_words(heaviest.median_peak_rss)
+            ));
+        }
+    }
+    out
+}
+
+fn recommendations_for(state: &Arc<AppState>, info: &ThisMacInfo) -> Vec<String> {
+    let Ok(storage) = state.storage.lock() else {
+        return Vec::new();
+    };
+    let Ok(footprints) = storage.footprints().stats() else {
+        return Vec::new();
+    };
+    if footprints.is_empty() {
+        return Vec::new();
+    }
+    let mut names = std::collections::HashMap::new();
+    for account in storage.accounts().list().unwrap_or_default() {
+        for recipe in storage
+            .profiles()
+            .list_by_account(&account.id)
+            .unwrap_or_default()
+        {
+            names.insert(
+                recipe.id.to_string(),
+                format!("\u{201c}{}\u{201d} ({})", recipe.name, account.label),
+            );
+        }
+    }
+    recommendations(&info.machine, info.tools.rss_bytes, &footprints, &names)
 }
 
 /// This Mac (AJ-E1403): the machine, AI tools' share, the heaviest
@@ -1196,6 +1332,61 @@ mod tests {
         );
         let none = advise(&machine(12 * G, "normal", vec![]), "r", None, None);
         assert_eq!(none.based_on, 0);
+    }
+
+    fn stats(key: &str, count: u32, median: u64) -> juggler_core::storage::FootprintStats {
+        juggler_core::storage::FootprintStats {
+            key: key.into(),
+            count,
+            median_peak_rss: median,
+            median_p95_cpu: None,
+        }
+    }
+
+    #[test]
+    fn recommendations_come_from_enough_real_sessions() {
+        // 32 GB Mac, 20 GB in use of which 6 GB are AI tools: 14 GB is
+        // everything else; 80 % of 32 = 25.6 → 11.6 GB for sessions.
+        let machine = machine(12 * G, "normal", vec![]);
+        let names: std::collections::HashMap<String, String> =
+            [("deep".to_string(), "“Deep work” (Work Max)".to_string())].into();
+        assert!(
+            recommendations(&machine, 6 * G, &[stats("recipe:deep", 2, 2 * G)], &names).is_empty(),
+            "two sessions are not enough"
+        );
+        let one = recommendations(&machine, 6 * G, &[stats("recipe:deep", 4, 2 * G)], &names);
+        assert_eq!(
+            one,
+            [
+                "This Mac comfortably runs about 5 sessions at once (about 2.0 GB each, from your last 4)"
+            ]
+        );
+        let two = recommendations(
+            &machine,
+            6 * G,
+            &[
+                stats("recipe:deep", 4, 3 * G),
+                stats("recipe:quick", 6, G),
+                stats("observed:desktop", 9, 9 * G),
+            ],
+            &names,
+        );
+        assert_eq!(two.len(), 2);
+        assert_eq!(
+            two[1],
+            "“Deep work” (Work Max) is the heaviest launch setting — about 3.0 GB a session"
+        );
+        // Close weights name no heaviest one.
+        let close = recommendations(
+            &machine,
+            6 * G,
+            &[
+                stats("recipe:deep", 4, 2 * G),
+                stats("recipe:quick", 4, 1_600_000_000),
+            ],
+            &names,
+        );
+        assert_eq!(close.len(), 1);
     }
 
     #[test]

@@ -149,7 +149,7 @@
 **Research basis**: PROPOSAL §6.5; SPEC §5.3 admission advisor; AJ-E306's quota verdict (kept separate: quota is the account's room, this is the Mac's).
 **Handover note**: Two verdicts, two questions: "Has this account got room?" and "Has this Mac got room?" Never merge them into one colour.
 
-### AJ-E1408 Runtime overload alerts | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1401, AJ-E1403
+### AJ-E1408 Runtime overload alerts | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E1401, AJ-E1403
 **Goal**: The user hears about overload while it's happening, before the Mac grinds.
 **User story**: As a user deep in work, I get one calm notification when my Mac comes under pressure, with what's using it.
 **Requirements**:
@@ -166,7 +166,7 @@
 **Research basis**: PROPOSAL §6.5 "runtime alerts"; SPEC §5.3; D-08 (no automatic action).
 **Handover note**: The AJ-E512 hog alerts stay the authority for "this session's tree is too heavy"; this task adds the machine-wide ones and feeds both to one place.
 
-### AJ-E1409 Recommendations from real data | Status: TODO | Priority P1 | Effort S | Depends: AJ-E1406
+### AJ-E1409 Recommendations from real data | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: AJ-E1406
 **Goal**: Turn footprints into advice the user can act on.
 **User story**: As a user, I learn how many sessions this Mac comfortably runs and which launch setting is heaviest.
 **Requirements**:
@@ -181,7 +181,7 @@
 **Research basis**: PROPOSAL §6.5 "Advise".
 **Handover note**: Never recommend from fewer than 3 sessions.
 
-### AJ-E1410 Budget proof and the M2 resource-manager gate | Status: TODO | Priority P1 | Effort S | Depends: AJ-E1401..AJ-E1409
+### AJ-E1410 Budget proof and the M2 resource-manager gate | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: AJ-E1401..AJ-E1409
 **Goal**: Show the resource manager meets its SPEC budgets on the reference Mac.
 **User story**: As the maintainer, I can see monitoring costs < 1 % CPU and the advisor's projections land within ±20 %.
 **Requirements**:

@@ -164,6 +164,14 @@ export function ThisMacPanel({
           </p>
         )}
 
+        {info.recommendations.length > 0 && (
+          <ul className="flex flex-col gap-1 border-t border-hairline/60 pt-3 text-xs text-muted" aria-label="From your history" data-testid="this-mac-recommendations">
+            {info.recommendations.map((line) => (
+              <li key={line}>{line}.</li>
+            ))}
+          </ul>
+        )}
+
         {info.leftover_processes > 0 && (
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-hairline/60 pt-3" data-testid="this-mac-leftovers">
             <span className="min-w-0 flex-1 basis-40 text-xs text-muted">

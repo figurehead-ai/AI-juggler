@@ -329,3 +329,80 @@ fn this_mac_at_fifty_instances() {
     assert_eq!(trees, 50, "every live tree counted");
     assert!(mid < Duration::from_millis(200), "{mid:?}");
 }
+
+/// AJ-E1410 budget (SPEC §1): resource monitoring costs < 1 % of one core.
+/// One minute of it, measured as this thread's CPU time: 30 of the 2 s
+/// ticks (the per-session collector with its full scans, the machine
+/// sampler with its disk and power cadences, the running-tools scan,
+/// footprints) and 12 of the 5 s This Mac emissions (with alerts and
+/// advice), with 5 live sessions — against the 60 s they stand for.
+#[test]
+fn monitoring_costs_under_one_percent_of_a_core() {
+    use cpu_time::ThreadTime;
+    let dir = tempfile::tempdir().unwrap();
+    seed(dir.path());
+    let state = open(dir.path());
+    let ctx = juggler_supervisor::tree::SpawnContext {
+        provider: "claude-code".into(),
+        account_id: Some("acc-0".into()),
+        project_id: None,
+        machine: commands::local_machine_id(&state),
+        role: "root",
+    };
+    let live: Vec<SessionId> = (0..5).map(|n| SessionId::new(format!("s-{n}"))).collect();
+    {
+        let storage = state.storage.lock().unwrap();
+        for session in &live {
+            let mut record = storage.sessions().get(session).unwrap();
+            record.status = SessionStatus::Running;
+            storage.sessions().update(&record).unwrap();
+        }
+    }
+    for session in &live {
+        state
+            .supervisor
+            .spawn(
+                session,
+                &LaunchSpec {
+                    program: PathBuf::from("/bin/sh"),
+                    args: vec!["-c".into(), "sleep 120 & wait".into()],
+                    env: EnvMap::new(),
+                    cwd: dir.path().to_path_buf(),
+                    needs_pty: false,
+                },
+                &ctx,
+            )
+            .unwrap();
+    }
+    // Warm-up: the first ticks list the disks and scan everything.
+    for _ in 0..4 {
+        commands::processes_tick(&state);
+    }
+    let started = ThreadTime::now();
+    for tick in 0..30 {
+        commands::processes_tick(&state);
+        if tick % 5 == 2 || tick % 5 == 4 {
+            // 12 emissions a minute (every 5 s).
+            juggler_app::machine_health::this_mac_impl(&state, Timestamp::now().millis()).unwrap();
+        }
+    }
+    let used = started.elapsed();
+    // The breakdown: E14's machine half (sampler, running tools,
+    // footprints, This Mac) on its own, over another minute.
+    let machine_started = ThreadTime::now();
+    for tick in 0..30 {
+        juggler_app::machine_health::tick(&state, Timestamp::now().millis() + tick * 2_000);
+        if tick % 5 == 2 || tick % 5 == 4 {
+            juggler_app::machine_health::this_mac_impl(&state, Timestamp::now().millis()).unwrap();
+        }
+    }
+    let machine_share = machine_started.elapsed().as_secs_f64() / 60.0 * 100.0;
+    for session in &live {
+        let _ = state.supervisor.stop(session, Duration::from_secs(2));
+    }
+    let share = used.as_secs_f64() / 60.0 * 100.0;
+    eprintln!(
+        "[perf] monitoring: {used:?} CPU per simulated minute = {share:.3} % of one core (5 sessions); the E14 machine half alone {machine_share:.3} %"
+    );
+    assert!(share < 1.0, "{share:.3} %");
+}

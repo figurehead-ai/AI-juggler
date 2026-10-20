@@ -126,6 +126,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   3.2 GB"). It learns from your own sessions how heavy each launch setting
   is (the median peak, after three sessions; until then it says "not
   measured yet"). It never stops you starting a session.
+- AI Juggler tells you when your Mac is struggling (E14, AJ-E1408): memory
+  pressure that lasts, swap that keeps growing, a processor flat out for
+  minutes, a hot Mac, a disk running out of space, or a session working
+  it hard. Each is said once, with what's using the most, and stays
+  under Needs you while it lasts. It never stops anything by itself.
+- This Mac gives advice from your own sessions (AJ-E1409): how many
+  sessions it comfortably runs at once, and which launch setting is the
+  heaviest. It shows only once there are enough sessions to go on.
 - Three update channels (decision D-20): **Nightly** (built from the latest
   code every day), **Beta** and **Stable** (each promoted with the
   maintainer's approval). Choose Stable or Beta in Settings › About &
