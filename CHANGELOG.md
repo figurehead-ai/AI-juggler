@@ -107,6 +107,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A switch that replays a conversation always carries at least its
+  newest turn (cut to fit when it alone is too long) and refuses — before
+  starting anything — when there is no conversation to carry; each
+  replayed turn is quoted, so text inside a turn can't pose as another
+  turn. A session copied in from another Mac can only land as a plain
+  session file in its account, and a copy never overwrites a file.
+
 - Switching a session you started in the app no longer stops at
   "Couldn't tell which file is this session": AI Juggler finds the
   session's own file (same folder, started after the launch) when you
@@ -202,6 +209,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the model each turn ran, tokens, compaction and errors come from
   Codex's own session files, in both of its history formats. The
   account's identity check uses Codex's account id (never a token).
+- Switching with Codex, in beta (AJ-E1304). Between two Codex accounts
+  the session's file is copied into the other account and resumed
+  there — the original is never changed, and a session that already
+  exists there gets a new id instead of overwriting. Between Claude Code
+  and Codex the conversation is replayed into a new session on the other
+  side (with secrets handled the way you chose — a replay waits until
+  you have chosen). Every Codex switch is labelled Beta: none has been
+  checked on real accounts yet.
 - AI Juggler now watches the Mac itself, not only its sessions (E14,
   AJ-E1401): processor and memory use, macOS's own memory-pressure level,
   swap, free space on the disks your sessions use, power and thermal
