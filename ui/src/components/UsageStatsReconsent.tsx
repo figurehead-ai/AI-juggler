@@ -46,7 +46,9 @@ export function UsageStatsReconsent(): JSX.Element | null {
     >
       <div
         ref={panelRef}
-        className="flex w-full max-w-md flex-col gap-3 rounded-xl border border-hairline bg-surface p-5 shadow-lg"
+        // A click on the panel's text keeps focus inside the dialog.
+        tabIndex={-1}
+        className="flex w-full max-w-md flex-col gap-3 rounded-xl border border-hairline bg-surface p-5 shadow-lg outline-none"
       >
         <h2 id="reconsent-title" className="text-sm font-semibold">
           Usage statistics changed

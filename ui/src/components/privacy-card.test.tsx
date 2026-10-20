@@ -159,6 +159,18 @@ describe("AJ-E1105 Settings › Privacy", () => {
 });
 
 describe("AJ-E1105 consent-version re-ask", () => {
+  it("a click on the question's text keeps focus inside it", async () => {
+    w().__AIJ_USAGE_STATS__ = overview({
+      info: { chosen: "share", effective: "share", decided_at_ms: 1, consent_version: 1, current_consent_version: 2 },
+    });
+    const { default: userEvent } = await import("@testing-library/user-event");
+    const user = userEvent.setup();
+    const { findByTestId, getByText } = render(<UsageStatsReconsent />);
+    const dialog = await findByTestId("usage-stats-reconsent");
+    await user.click(getByText("Usage statistics changed"));
+    expect(dialog.contains(document.activeElement)).toBe(true);
+  });
+
   it("asks again after a bump, with the current mode pre-selected", async () => {
     w().__AIJ_USAGE_STATS__ = overview({
       info: { chosen: "share", effective: "share", decided_at_ms: 1, consent_version: 1, current_consent_version: 2 },
