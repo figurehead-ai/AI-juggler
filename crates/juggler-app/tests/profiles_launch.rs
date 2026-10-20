@@ -96,7 +96,8 @@ fn two_accounts_launch_in_parallel_with_full_isolation() {
     }
     assert_eq!(exits, 2, "both sessions must exit");
 
-    // The model overlay wrote settings.json only into account A's dir.
+    // ADR-0018: the profile's model goes in as `claude --model`; neither
+    // account's settings.json is written for it.
     let settings_a = state
         .data_dir
         .join("accounts")
@@ -109,13 +110,8 @@ fn two_accounts_launch_in_parallel_with_full_isolation() {
         .join(CLAUDE_CODE_ID)
         .join(&account_b.id)
         .join("settings.json");
-    assert!(settings_a.is_file(), "overlay settings written for A");
-    assert!(!settings_b.is_file(), "no overlay for B");
-    assert!(
-        std::fs::read_to_string(&settings_a)
-            .unwrap()
-            .contains("opus")
-    );
+    assert!(!settings_a.is_file(), "no settings.json written for A's model");
+    assert!(!settings_b.is_file(), "nor for B");
 
     // Cross-talk: each stub wrote its OWN config dir path into its
     // transcript; A's file must not contain B's dir and vice versa.
