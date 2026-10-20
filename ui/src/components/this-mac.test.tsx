@@ -58,11 +58,17 @@ const tree = (overrides: Partial<ToolTreeInfo>): ToolTreeInfo => ({
   rss_bytes: 1_600_000_000,
   helpers: 21,
   heavy_note: null,
+  memory_estimate: overrides.session_id ? false : true,
   ...overrides,
 });
 
 function info(level: "plenty" | "tight" | "pressure", trees: ToolTreeInfo[], leftovers: [number, number] = [0, 0]): ThisMacInfo {
-  const total = (list: ToolTreeInfo[]) => ({ count: list.length, cpu_pct: 5, rss_bytes: list.reduce((sum, t) => sum + t.rss_bytes, 0) });
+  const total = (list: ToolTreeInfo[]) => ({
+    count: list.length,
+    cpu_pct: 5,
+    rss_bytes: list.reduce((sum, t) => sum + t.rss_bytes, 0),
+    memory_estimate: list.some((t) => t.memory_estimate),
+  });
   return {
     machine: mockMachineHealth(level, NOW),
     tools: total(trees),
@@ -117,6 +123,10 @@ describe("This Mac panel (AJ-E1404)", () => {
     expect((theirs)!.textContent).toContain("Claude app");
     expect((theirs)!.textContent).toContain("Personal · not started by AI Juggler");
     expect(within(theirs!).queryByRole("button")).toBeNull();
+    // Its memory is summed over helpers that share pages: an estimate.
+    expect(theirs!.textContent).toContain("about 1.6 GB");
+    expect(ours!.textContent).not.toContain("about");
+    expect(screen.getByTestId("this-mac-memory").textContent).toContain("AI tools: about 4.8 GB");
   });
 
   it("names what memory in use counts, and shows nothing when it couldn't be read", () => {
