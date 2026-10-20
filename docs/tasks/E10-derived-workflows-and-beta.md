@@ -267,3 +267,15 @@
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1016/`.
 **Visual testing**: Gallery `68-accounts` (Accounts full and signed out, Usage full and with no accounts, the limit decision; both themes).
 **Research basis**: D-25 and the "AI Juggler UX vision" canvas (Limit board); maintainer report 2026-10-19 (Usage blank).
+
+### AJ-E1017 The session view leads with where and what (D-25) | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: AJ-E1014, AJ-E209
+**Goal**: Opening a session says what it is and where, with the next move beside it; the ranked switch list is one step away.
+**User story**: As a developer with several sessions on one branch name or account, I want the session I opened named by where it runs, not by its account, and the switch list there when I want it — not on every visit.
+**Requirements**:
+1. The session header SHALL name the session by its place (branch, else folder) with its state, and a line with project · account · started · runway when low; the top bar SHALL name the project.
+2. Switch account… SHALL sit beside Stop. The ranked list SHALL fold behind "Continue on another account": open by itself when the session hit its limit or a way back is on offer; Switch account… and ⌘⇧H open it and move focus to it.
+3. The summary card SHALL not repeat the state or account the header shows.
+4. The six inspector tabs stay as D-06 fixes them.
+**Quality gates**: vitest (`inspector-shell.test.tsx`); the full Playwright suite (keyboard flows reach the list with ⌘⇧H); baselines re-rendered with notes.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1017/`.
+**Research basis**: D-25 and the "AI Juggler UX vision" canvas (Session board).

@@ -177,8 +177,7 @@ pub fn instance_park_impl(state: &Arc<AppState>, session_id: &str) -> AppResult<
     if session.status != SessionStatus::QuotaBlocked {
         return Err(AppError::Validation {
             subject: "park",
-            message: "only a session blocked by its quota can be parked until the reset"
-                .to_owned(),
+            message: "only a session blocked by its quota can be parked until the reset".to_owned(),
         });
     }
     let dir = state.data_dir.join("parked").join(session_id);

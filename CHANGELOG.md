@@ -22,8 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   record is a "conversation". The code keeps its names.
 - Home answers "what needs me?": sessions that need you, what's running,
   each account's runway, and where you left off.
-- The session view opens on a short summary; everything else is under
-  Details. Announcements say what happened ("waiting for your reply"),
+- The session view opens on where the session runs (its branch or
+  folder), its state, project, account and how long; Switch account… sits
+  beside Stop, and the ranked list of accounts is one click (or ⌘⇧H)
+  away instead of always open. Everything else is under Details. Announcements say what happened ("waiting for your reply"),
   not rule codes.
 - Accounts shows each account's runway in words — the 5-hour window
   and the week, when each resets, and when this pace would run out — plus
