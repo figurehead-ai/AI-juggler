@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Adding an account is short: name it and sign in, or pick a folder,
+  see what's in it (size, sign-in, a too-large history offers settings
+  only) and bring it in as a copy. First run, Accounts › Add account and
+  New project's "Add an account" all use these steps; the old setup
+  wizard is gone. Add account asks which tool only when more than one is
+  installed, so the separate "Add Provider" button is gone too.
 - Cleanup says what it is in one line instead of "Tier 0 observe ·
   verified manual kills". Pause automatic cleanup and Cleanup settings
   sit behind ⋯, and Resume is on the "paused" banner. The machine filter
@@ -77,6 +83,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Bringing in a Claude setup that has a linked folder (for example a
+  skill under `skills/` that is a link to somewhere else) no longer fails
+  with "cannot copy skills/…". The folder is kept as a link that points
+  where it did — AI Juggler never follows it or copies what it points to
+  — and the import says which links it kept. Linked files are still
+  copied, so the copy never shares a file with your original. A broken
+  link, or one this system won't let AI Juggler make, is left out with a
+  note instead of failing the import.
+- Everything you can click shows the pointing hand: buttons, rows,
+  menus, filters, checkboxes and links all showed the arrow.
+- The bring-in screen can always be closed: **Not now** at first run,
+  **Close** from Accounts › Add account, or Esc.
+- Security: a switch arriving from a paired Mac can no longer write files
+  outside the target account's folder or replace a file it already has —
+  names and session ids in a switch bundle are now checked before
+  anything is written. (Only possible with Fleet pairing, which is beta.)
+
 - The "?" at the bottom of the session list now opens the guide to what
   the icons and words mean (it opened out of sight), in the list's own
   words.
@@ -121,7 +144,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   summary — "Plenty of room", "Getting tight" or "Under pressure", with
   the reasons — is what Home, the launch advisor and the alerts will show.
   Old swap doesn't count against you; swap that keeps growing does. Memory
-  in use is the figure Activity Monitor shows.
+  in use counts app memory, wired and compressed data, close to the
+  figure Activity Monitor shows.
 - AI Juggler now also measures the Claude tools it didn't start (E14,
   AJ-E1402/E1403): each Claude desktop app window and each `claude` in a
   terminal, over all the processes it runs, matched to your account by the

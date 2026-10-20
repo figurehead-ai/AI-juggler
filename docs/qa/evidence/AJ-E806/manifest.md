@@ -270,3 +270,42 @@
   checkout (and other projects' suites) loaded the Mac (load average
   ≈ 20–25). Alone it passed 15/15 at once. The budget is untouched. If it recurs in CI, measure the
   median of several runs instead of one.
+- Real bugs found by the maintainer on 0.0.7 (2026-10-20, dogfood),
+  none caught by a suite:
+  1. Bringing in six Claude setups failed at `skills/ego-browser`, a
+     symlink to a folder: the import copied only regular files and links
+     to regular files. It now recreates each link as a link (never
+     followed; an absolute link inside the setup is pointed at the copy)
+     and lists it in the result. Regression:
+     `claude_environment :: linked_folders_stay_links_and_linked_files_are_copied`.
+  2. No hand cursor anywhere: the shared Button and several rows set
+     `cursor-default`. Fixed at the source and in a base rule for every
+     native control. Regression: `cursor.spec.ts` checks every enabled
+     clickable element on each main screen, the More menu and the legend;
+     it failed with 115 elements on the old styles.
+  3. The bring-in screen had no way out at first run (Close only in add
+     mode, Escape only in add mode). Regression: `first-run.test.tsx ::
+     first run can be left too…`.
+- A real security bug found by review (2026-10-20, review of Codex PR #64,
+  pre-existing in the Claude adapter since AJ-E203/E706):
+  `ClaudeCodeAdapter::install_bundle` joined each bundle file's name and
+  the manifest's session id into paths unchecked. A bundle can arrive from
+  a paired Mac (Fleet `TakeHandover`), so a name like `../../…` or an
+  absolute path could write outside the target account's folder, and an
+  existing file could be replaced. Now: only one plain file name per file
+  and a safe session id are accepted, refused before anything is written;
+  an install never replaces a file the target already has; the replay
+  brief quotes each turn so text in a turn can't pose as another turn.
+  Regression: `claude_handover :: an_untrusted_bundle_cannot_write_outside_the_target`
+  (fails on the old code) and `a_turn_cannot_forge_another_turn_in_the_brief`.
+- Observed, no change (2026-10-20, E14 review fixes on PR #67, with three
+  other sessions building on the same Mac at load average 18–31):
+  `reconciler :: fifty_instance_soak_and_construction_regression` missed
+  its wall-time p95 (854 ms against 100 ms, load 18.1/20.2/23.4). In one
+  earlier full run, `orphan :: orphan_detected_after_grace_and_stopped_gone`
+  and `orphan :: stop_ladder_escalates_when_sigterm_ignored` timed out
+  their waits (load 30.7). Re-run alone, `--test orphan` passed 5/5; the
+  rest of the workspace passed (117 suites with `--no-fail-fast`). Neither
+  binary touches the E14 change: the machine sampler is not in either. No
+  budget, timeout or assertion changed; CI decides.
+

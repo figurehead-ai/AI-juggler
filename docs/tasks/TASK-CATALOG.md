@@ -120,6 +120,8 @@
 | AJ-E1019 | Cleanup in plain words; "tool" on screen instead of "Provider" (D-25) | E10-derived-workflows-and-beta.md | P1 | S | AJ-E506, AJ-E508, AJ-E1015 |
 | AJ-E1020 | The rail folds to icons in a narrow window (D-25) | E10-derived-workflows-and-beta.md | P1 | S | AJ-E403, AJ-E1014 |
 | AJ-E1021 | Triage and Overview fold into Home (D-25 amendment) | E10-derived-workflows-and-beta.md | P1 | S | AJ-E1005, AJ-E1014 |
+| AJ-E1022 | Add account without the old wizard: a fresh account, a folder (D-25) | E10-derived-workflows-and-beta.md | P0 | M | AJ-E1013, AJ-E1016, AJ-E307 |
+| AJ-E1023 | Choosing a tool inside Add account (D-25) | E10-derived-workflows-and-beta.md | P1 | S | AJ-E306, AJ-E1022 |
 | AJ-E1101 | Decision D-19, ADR-0015, doc amendments, the schema copy | E11-usage-statistics.md | P0 | S | — |
 | AJ-E1102 | The juggler-stats crate: modes, overrides, counting, local store, the cargo feature | E11-usage-statistics.md | P0 | M | AJ-E1101 |
 | AJ-E1103 | Wire the events into the app | E11-usage-statistics.md | P0 | M | AJ-E1102 |
@@ -146,5 +148,5 @@
 | AJ-E1408 | Runtime overload alerts | E14-machine-health.md | P0 | M | AJ-E1401, AJ-E1403 |
 | AJ-E1409 | Recommendations from real data | E14-machine-health.md | P1 | S | AJ-E1406 |
 | AJ-E1410 | Budget proof and the M2 resource-manager gate | E14-machine-health.md | P1 | S | AJ-E1401..AJ-E1409 |
-Total: 144 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+Total: 146 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

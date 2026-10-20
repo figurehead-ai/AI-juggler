@@ -82,6 +82,44 @@ pub struct VolumeSample {
     pub available_bytes: u64,
 }
 
+/// What "memory in use" measures, so every surface can say so.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MemoryBasis {
+    /// macOS: app memory (anonymous pages not purgeable) + wired + the
+    /// compressor's compressed data. Close to Activity Monitor's "Memory
+    /// Used", a few percent lower: Activity Monitor counts the pages the
+    /// compressor occupies, which only `host_statistics64` (unsafe FFI)
+    /// reports.
+    AppWiredCompressed,
+    /// Elsewhere: total − what the OS lists as available.
+    TotalMinusAvailable,
+    /// The reading failed; nothing is shown.
+    #[default]
+    Unknown,
+}
+
+/// macOS memory in use, by part (bytes).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MemoryParts {
+    /// Anonymous pages that aren't purgeable.
+    pub app: u64,
+    /// Wired pages.
+    pub wired: u64,
+    /// The compressor's compressed data.
+    pub compressed: u64,
+}
+
+impl MemoryParts {
+    /// The parts together.
+    #[must_use]
+    pub const fn total(&self) -> u64 {
+        self.app
+            .saturating_add(self.wired)
+            .saturating_add(self.compressed)
+    }
+}
+
 /// One 2 s machine sample (the ring's element).
 #[derive(Debug, Clone, Copy, PartialEq, Default, serde::Serialize)]
 pub struct MachineSample {
@@ -94,16 +132,30 @@ pub struct MachineSample {
     pub memory_total: u64,
     /// Memory the OS can hand out without swapping, bytes.
     pub memory_available: u64,
-    /// Memory in use as Activity Monitor counts it (app memory + wired +
-    /// compressed), bytes; `None` where the OS has no such figure (then
-    /// total − available stands in).
+    /// Memory in use, bytes, measured as `memory_basis` says; `None` when
+    /// the OS reading failed (then nothing is shown — never a different
+    /// measure under the same name).
     pub memory_used: Option<u64>,
+    /// What `memory_used` measures.
+    pub memory_basis: MemoryBasis,
     /// The kernel's pressure level; `None` where the OS has none.
     pub pressure: Option<PressureLevel>,
     /// Swap size, bytes.
     pub swap_total: u64,
     /// Swap in use, bytes.
     pub swap_used: u64,
+}
+
+impl MachineSample {
+    /// Memory free, on the same basis as `memory_used` (total − used), so
+    /// used + free = total; the OS's available figure only when the
+    /// reading failed.
+    #[must_use]
+    pub fn memory_free(&self) -> u64 {
+        self.memory_used.map_or(self.memory_available, |used| {
+            self.memory_total.saturating_sub(used)
+        })
+    }
 }
 
 /// Everything the sampler knows right now.
@@ -285,7 +337,8 @@ pub fn summarize(snapshot: &MachineSnapshot, thresholds: &RoomThresholds) -> Roo
             _ => {}
         }
         if latest.memory_total > 0 {
-            let share = latest.memory_available as f64 / latest.memory_total as f64;
+            let free = latest.memory_free();
+            let share = free as f64 / latest.memory_total as f64;
             let level = if share < thresholds.memory_pressure_share {
                 Some(RoomLevel::Pressure)
             } else if share < thresholds.memory_tight_share {
@@ -297,10 +350,7 @@ pub fn summarize(snapshot: &MachineSnapshot, thresholds: &RoomThresholds) -> Roo
                 reasons.push(RoomReason {
                     kind: "memory",
                     level,
-                    words: format!(
-                        "only {} of memory free",
-                        bytes_words(latest.memory_available)
-                    ),
+                    words: format!("only {} of memory free", bytes_words(free)),
                 });
             }
         }
@@ -398,10 +448,31 @@ pub trait OsReadings: Send {
     fn power(&self) -> Option<PowerState>;
     /// Thermal state.
     fn thermal(&self) -> Option<ThermalState>;
-    /// Memory in use as Activity Monitor counts it, bytes.
-    fn memory_used(&self) -> Option<u64> {
-        None
+    /// Memory in use and what it measures, given `sysinfo`'s total and
+    /// available. By default (non-macOS): total − available.
+    fn memory_in_use(&self, total: u64, available: u64) -> (Option<u64>, MemoryBasis) {
+        (
+            Some(total.saturating_sub(available)),
+            MemoryBasis::TotalMinusAvailable,
+        )
     }
+}
+
+/// macOS: app memory, wired and compressed, read through sysctl. `None` if
+/// any part can't be read (never a partial sum).
+#[cfg(target_os = "macos")]
+#[must_use]
+pub fn memory_parts() -> Option<MemoryParts> {
+    let page = sysctl_u64("hw.pagesize")?;
+    let internal = sysctl_u64("vm.page_pageable_internal_count")?;
+    let purgeable = sysctl_u64("vm.page_purgeable_count")?;
+    let wired = sysctl_u64("vm.page_wired_count")?;
+    let compressed = sysctl_u64("vm.compressor_bytes_used")?;
+    Some(MemoryParts {
+        app: internal.saturating_sub(purgeable).saturating_mul(page),
+        wired: wired.saturating_mul(page),
+        compressed,
+    })
 }
 
 /// Reads one numeric sysctl (macOS).
@@ -468,23 +539,17 @@ impl OsReadings for HostReadings {
         })
     }
 
-    /// Activity Monitor's "Memory Used": app memory (anonymous pages not
-    /// purgeable) + wired + what the compressor occupies. `sysinfo`'s
+    /// App memory + wired + compressed ([`memory_parts`]). `sysinfo`'s
     /// total − available is far lower on macOS (inactive app pages count
-    /// as available), so it understated what users see elsewhere.
-    fn memory_used(&self) -> Option<u64> {
-        let page = sysctl_u64("hw.pagesize")?;
-        let internal = sysctl_u64("vm.page_pageable_internal_count")?;
-        let purgeable = sysctl_u64("vm.page_purgeable_count").unwrap_or(0);
-        let wired = sysctl_u64("vm.page_wired_count")?;
-        let compressed = sysctl_u64("vm.compressor_bytes_used").unwrap_or(0);
-        Some(
-            internal
-                .saturating_sub(purgeable)
-                .saturating_add(wired)
-                .saturating_mul(page)
-                .saturating_add(compressed),
-        )
+    /// as available). If the reading fails, nothing — not the other
+    /// measure under the same name.
+    fn memory_in_use(&self, total: u64, _available: u64) -> (Option<u64>, MemoryBasis) {
+        memory_parts().map_or((None, MemoryBasis::Unknown), |parts| {
+            (
+                Some(parts.total().min(total)),
+                MemoryBasis::AppWiredCompressed,
+            )
+        })
     }
 
     fn thermal(&self) -> Option<ThermalState> {
@@ -524,6 +589,13 @@ pub struct MachineSampler {
     /// The tick the disk list was last rebuilt (an unknown `/Volumes/…`
     /// folder may ask for an early rebuild, at most every 5 minutes).
     last_relist: Option<u32>,
+    /// Hands out disk work: a [`DiskWork`] from an older hand-out is
+    /// dropped at [`MachineSampler::finish_disks`], so two in flight can
+    /// never put stale volumes back (today one tick thread does all of
+    /// it; this makes that safe rather than assumed).
+    disk_generation: u64,
+    /// How many times the disk list was built (tests).
+    relists: u32,
     cpu_primed: bool,
     snapshot: MachineSnapshot,
     ring: VecDeque<MachineSample>,
@@ -565,6 +637,8 @@ impl MachineSampler {
             os,
             ticks: 0,
             last_relist: None,
+            disk_generation: 0,
+            relists: 0,
             cpu_primed: false,
             snapshot: MachineSnapshot {
                 cores,
@@ -592,12 +666,16 @@ impl MachineSampler {
             self.cpu_primed = true;
             None
         };
+        let total = self.system.total_memory();
+        let (memory_used, memory_basis) =
+            self.os.memory_in_use(total, self.system.available_memory());
         let sample = MachineSample {
             at_ms: now_ms,
             cpu_pct,
             memory_total: self.system.total_memory(),
             memory_available: self.system.available_memory(),
-            memory_used: self.os.memory_used(),
+            memory_used,
+            memory_basis,
             pressure: self.os.pressure(),
             swap_total: self.system.total_swap(),
             swap_used: self.system.used_swap(),
@@ -610,11 +688,13 @@ impl MachineSampler {
             self.snapshot.thermal = self.os.thermal();
         }
         (first || self.ticks.is_multiple_of(DISKS_EVERY)).then(|| {
+            self.disk_generation = self.disk_generation.wrapping_add(1);
             let due = self.disks.is_none() || self.ticks.is_multiple_of(DISK_LIST_EVERY);
             let early_allowed = self
                 .last_relist
                 .is_none_or(|at| self.ticks.wrapping_sub(at) >= EARLY_RELIST_EVERY);
             DiskWork {
+                generation: self.disk_generation,
                 disks: self.disks.take(),
                 relist: due,
                 early_relist_allowed: early_allowed,
@@ -625,12 +705,30 @@ impl MachineSampler {
 
     /// Puts the disk work back: the (maybe rebuilt) disk list and the
     /// volumes in use.
+    /// Work from an older hand-out is dropped (its disk list is kept only
+    /// if the sampler has none).
     pub fn finish_disks(&mut self, work: DiskWork, volumes: Vec<VolumeSample>) {
+        if work.relisted {
+            self.relists = self.relists.saturating_add(1);
+        }
+        if work.generation != self.disk_generation {
+            if self.disks.is_none() {
+                self.disks = work.disks;
+            }
+            return;
+        }
         if work.relisted {
             self.last_relist = Some(self.ticks);
         }
         self.disks = work.disks;
         self.snapshot.volumes = volumes;
+    }
+
+    /// How many times the disk list has been built (tests).
+    #[doc(hidden)]
+    #[must_use]
+    pub fn relists(&self) -> u32 {
+        self.relists
     }
 
     /// A tick with its disk work done inline (tests, and callers without a
@@ -657,6 +755,7 @@ const EARLY_RELIST_EVERY: u32 = 150;
 /// The disk half of a tick, done outside the sampler's lock (AJ-E1401).
 #[derive(Debug)]
 pub struct DiskWork {
+    generation: u64,
     disks: Option<sysinfo::Disks>,
     relist: bool,
     early_relist_allowed: bool,
@@ -770,6 +869,7 @@ mod tests {
             memory_total: 32 * G,
             memory_available: available,
             memory_used: None,
+            memory_basis: MemoryBasis::Unknown,
             pressure: Some(PressureLevel::Normal),
             swap_total: 8 * G,
             swap_used,
@@ -1008,6 +1108,46 @@ mod tests {
     }
 
     #[test]
+    fn free_memory_is_on_the_same_basis_as_used() {
+        let mut ring = calm_ring();
+        let last = ring.last_mut().unwrap();
+        last.memory_available = 12 * G; // the OS's figure
+        last.memory_used = Some(30 * G); // app + wired + compressed
+        last.memory_basis = MemoryBasis::AppWiredCompressed;
+        assert_eq!(last.memory_free(), 2 * G, "used + free = total");
+        let summary = summarize(&snapshot_of(ring), &RoomThresholds::default());
+        assert_eq!(summary.level, RoomLevel::Tight);
+        assert_eq!(summary.reasons[0].words, "only 2.0 GB of memory free");
+    }
+
+    #[test]
+    fn stale_disk_work_never_overwrites_newer_volumes() {
+        let mut sampler = MachineSampler::with_readings(Box::new(HostReadings));
+        let old = sampler.tick(0).expect("the first tick does disks");
+        // A second hand-out before the first came back (15 ticks later).
+        let mut newer = None;
+        for i in 1..=15 {
+            if let Some(work) = sampler.tick(i * 2_000) {
+                newer = Some(work);
+            }
+        }
+        let newer = newer.expect("the disk cadence handed out again");
+        let fresh = vec![VolumeSample {
+            name: "Fresh".into(),
+            mount_point: "/".into(),
+            total_bytes: 1,
+            available_bytes: 1,
+        }];
+        sampler.finish_disks(newer, fresh.clone());
+        sampler.finish_disks(old, Vec::new());
+        assert_eq!(
+            sampler.snapshot().volumes,
+            fresh,
+            "the stale result was dropped"
+        );
+    }
+
+    #[test]
     fn words_for_bytes() {
         assert_eq!(bytes_words(3_200_000_000), "3.2 GB");
         assert_eq!(bytes_words(24_000_000_000), "24 GB");
@@ -1023,8 +1163,25 @@ mod tests {
             "kern.memorystatus_vm_pressure_level"
         );
         assert!(host.thermal().is_some());
-        let used = host.memory_used().expect("Activity Monitor's memory used");
-        assert!(used > 0, "app + wired + compressed");
+        // The parts add up, and stay within the Mac's memory.
+        let total = {
+            let mut system = sysinfo::System::new();
+            system.refresh_memory();
+            system.total_memory()
+        };
+        let parts = memory_parts().expect("app, wired and compressed");
+        assert!(parts.app > 0 && parts.wired > 0, "{parts:?}");
+        assert!(parts.app <= total && parts.wired <= total && parts.compressed <= total);
+        let (used, basis) = host.memory_in_use(total, 0);
+        assert_eq!(basis, MemoryBasis::AppWiredCompressed);
+        let used = used.expect("read");
+        assert!(used <= total, "used {used} ≤ total {total}");
+        // Read a moment apart, so within 2 % of the parts' sum.
+        let sum = parts.total().min(total);
+        assert!(
+            used.abs_diff(sum) <= total / 50,
+            "used {used} vs parts {sum}"
+        );
         assert!(host.power().is_some());
     }
 }

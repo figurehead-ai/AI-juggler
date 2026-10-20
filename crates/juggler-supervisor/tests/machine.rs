@@ -44,6 +44,9 @@ fn the_sampler_constructs_one_system_and_reads_real_memory() {
     let latest = snapshot.latest.unwrap();
     assert!(latest.memory_total > 0, "real memory total");
     assert!(latest.memory_available <= latest.memory_total);
+    // Used and free on one basis: they add up to the Mac's memory.
+    let used = latest.memory_used.expect("total − available off the host");
+    assert_eq!(used + latest.memory_free(), latest.memory_total);
     assert_eq!(snapshot.ring.len(), 4);
     assert_eq!(snapshot.ring[0].cpu_pct, None, "first CPU is unmeasured");
     assert!(
@@ -129,4 +132,33 @@ fn tick_cost_stays_inside_the_budget() {
     // scheduler jitter on a loaded machine.
     assert!(locked_p95 < 2_000, "lock held p95 {locked_p95} µs");
     assert!(locked_max < 20_000, "lock held {locked_max} µs");
+}
+
+/// Review of #67: a folder on a disk that isn't listed (here, a
+/// `/Volumes/` path that isn't mounted) rebuilds the disk list early at
+/// most every 5 minutes (150 ticks), never on every 30 s disk tick, and is
+/// never credited to the startup disk.
+#[test]
+fn an_unknown_volume_rebuilds_the_list_at_most_every_five_minutes() {
+    let _serial = SERIAL
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut sampler = MachineSampler::new();
+    let unknown = std::path::PathBuf::from("/Volumes/E14-test-never-mounted/repo");
+    for tick in 1..=160 {
+        sampler.tick_with(i64::from(tick) * 2_000, || vec![unknown.clone()]);
+    }
+    assert_eq!(
+        sampler.relists(),
+        1,
+        "only the first list in the first 5 minutes"
+    );
+    assert!(
+        sampler.snapshot().volumes.is_empty(),
+        "never credited to the startup disk"
+    );
+    for tick in 161..=170 {
+        sampler.tick_with(i64::from(tick) * 2_000, || vec![unknown.clone()]);
+    }
+    assert_eq!(sampler.relists(), 2, "one early rebuild after 5 minutes");
 }

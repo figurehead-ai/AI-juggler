@@ -25,12 +25,21 @@ cpu_pct: number | null,
  */
 memory_total: number, 
 /**
- * Memory in use as Activity Monitor counts it (app + wired +
- * compressed), bytes; total − available where the OS has no figure.
+ * Memory in use, bytes, measured as `memory_basis` says; `null` when
+ * the reading failed (nothing is shown then — never another measure
+ * under the same name).
  */
-memory_used: number, 
+memory_used: number | null, 
 /**
- * Memory the OS can hand out without swapping, bytes.
+ * What `memory_used` measures: `app_wired_compressed` (macOS: app
+ * memory + wired + the compressor's data — close to Activity Monitor's
+ * "Memory Used", a few percent lower) | `total_minus_available`
+ * (other systems); `null` when it couldn't be read.
+ */
+memory_basis: string | null, 
+/**
+ * Memory free on the same basis (total − used, so used + free =
+ * total); the OS's own "available" only when used couldn't be read.
  */
 memory_available: number, 
 /**
