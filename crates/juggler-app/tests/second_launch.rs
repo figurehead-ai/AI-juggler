@@ -174,8 +174,13 @@ fn a_second_launch_says_a_frozen_app_isnt_answering() {
         return;
     }
     let (home, data, lock) = held_home();
-    let socket = juggler_app::handover::socket_path("ai.figurehead.juggler", &data);
-    let _ = std::fs::remove_file(&socket);
+    // The frozen app's socket, where the app puts it: a 0700 directory of
+    // ours in the per-user temp folder (the launch inherits our TMPDIR).
+    let socket = juggler_app::handover::socket_path("ai.figurehead.juggler", &data).unwrap();
+    let dir = socket.parent().unwrap().to_path_buf();
+    std::os::unix::fs::DirBuilderExt::mode(&mut std::fs::DirBuilder::new(), 0o700)
+        .create(&dir)
+        .unwrap();
     let listener = std::os::unix::net::UnixListener::bind(&socket).unwrap();
     let frozen = std::thread::spawn(move || {
         // Accept, read the ask, never reply (held well past the wait).
@@ -198,6 +203,7 @@ fn a_second_launch_says_a_frozen_app_isnt_answering() {
         .collect();
     assert_eq!(left, ["juggler.lock"], "the data folder is untouched");
     let _ = std::fs::remove_file(&socket);
+    let _ = std::fs::remove_dir(&dir);
     frozen.join().unwrap();
     drop(lock);
 }
@@ -210,12 +216,15 @@ fn a_second_launch_hands_over_to_an_app_that_answers() {
         return;
     }
     let (home, data, lock) = held_home();
-    let socket = juggler_app::handover::socket_path("ai.figurehead.juggler", &data);
-    juggler_app::handover::serve(&socket, || true);
+    let me = std::os::unix::fs::MetadataExt::uid(&std::fs::metadata(&data).unwrap());
+    let socket = juggler_app::handover::socket_path("ai.figurehead.juggler", &data).unwrap();
+    let handover = juggler_app::handover::Handover::at(socket.clone(), me);
+    handover.serve(|| true).unwrap();
     let (status, stderr, took) = second_launch(home.path());
     assert!(status.success(), "it handed over: {stderr}");
     assert!(!stderr.contains("isn't answering"), "{stderr}");
     assert!(took < Duration::from_secs(10), "{took:?}");
-    juggler_app::handover::stop(&socket);
+    handover.stop();
+    let _ = std::fs::remove_dir(socket.parent().unwrap());
     drop(lock);
 }
