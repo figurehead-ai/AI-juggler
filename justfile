@@ -27,6 +27,7 @@ verify:
 release-selftest:
     python3 scripts/release_version.py --selftest
     python3 scripts/nightly_notes.py --selftest
+    python3 scripts/downgrade_note.py --selftest
     python3 scripts/promotion_rules.py --selftest
     python3 scripts/apple_retry.py --selftest
 
