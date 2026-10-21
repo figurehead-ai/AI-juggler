@@ -94,15 +94,78 @@ impl AccountsRepo<'_> {
             .ok_or_else(|| not_found("account", id.as_str()))
     }
 
-    /// Lists all accounts, oldest first.
+    /// Lists the accounts in use, oldest first. A removed account
+    /// (AJ-E1501) is not among them; [`Self::get`] still finds it, so its
+    /// sessions' history keeps a name.
     ///
     /// # Errors
     ///
     /// Returns [`CoreError::Storage`] on SQLite failures.
     pub fn list(&self) -> Result<Vec<Account>, CoreError> {
+        self.query("SELECT * FROM accounts WHERE removed_at IS NULL ORDER BY created_at, id")
+    }
+
+    /// Lists every account, removed ones too, oldest first — for what
+    /// must cover all of them (history joins, a backup's redaction).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn list_all(&self) -> Result<Vec<Account>, CoreError> {
+        self.query("SELECT * FROM accounts ORDER BY created_at, id")
+    }
+
+    /// The ids of the removed accounts.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn removed_ids(&self) -> Result<std::collections::BTreeSet<String>, CoreError> {
         let mut stmt = self
             .conn
-            .prepare("SELECT * FROM accounts ORDER BY created_at, id")?;
+            .prepare("SELECT id FROM accounts WHERE removed_at IS NOT NULL")?;
+        let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
+        let mut out = std::collections::BTreeSet::new();
+        for row in rows {
+            out.insert(row?);
+        }
+        Ok(out)
+    }
+
+    /// Whether an account was removed.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::NotFound`] when missing, or
+    /// [`CoreError::Storage`] on SQLite failures.
+    pub fn is_removed(&self, id: &AccountId) -> Result<bool, CoreError> {
+        self.conn
+            .query_row(
+                "SELECT removed_at IS NOT NULL FROM accounts WHERE id = ?1",
+                params![id.as_str()],
+                |row| row.get::<_, bool>(0),
+            )
+            .optional()?
+            .ok_or_else(|| not_found("account", id.as_str()))
+    }
+
+    /// Forgets an account (AJ-E1501): it leaves [`Self::list`], its
+    /// launch settings and sessions stay, and nothing on disk is touched.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::NotFound`] when missing, or
+    /// [`CoreError::Storage`] on SQLite failures.
+    pub fn mark_removed(&self, id: &AccountId) -> Result<(), CoreError> {
+        let changed = self.conn.execute(
+            "UPDATE accounts SET removed_at = ?2 WHERE id = ?1 AND removed_at IS NULL",
+            params![id.as_str(), crate::model::Timestamp::now().millis()],
+        )?;
+        require_changed(changed, "account", id.as_str())
+    }
+
+    fn query(&self, sql: &str) -> Result<Vec<Account>, CoreError> {
+        let mut stmt = self.conn.prepare(sql)?;
         let rows = stmt.query_map([], map_account)?;
         let mut out = Vec::new();
         for row in rows {

@@ -8,6 +8,7 @@ import type { AppInfo } from "../types/generated/AppInfo";
 import type { NotificationPrefsInfo } from "../types/generated/NotificationPrefsInfo";
 import type { OsAccessInfo } from "../types/generated/OsAccessInfo";
 import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { AccountRemovedInfo } from "../types/generated/AccountRemovedInfo";
 import type { DiscoveredInfo } from "../types/generated/DiscoveredInfo";
 import type { ImportResult } from "../types/generated/ImportResult";
 import type { SourceInspectInfo } from "../types/generated/SourceInspectInfo";
@@ -93,6 +94,7 @@ export type {
   StopOutcomeInfo,
   OrphanVerifyInfo,
   AccountInfo,
+  AccountRemovedInfo,
   DiscoveredInfo,
   ImportResult,
   InstanceInfo,
@@ -495,9 +497,83 @@ export async function accountUseOriginal(accountId: string): Promise<AccountInfo
   return invoke<AccountInfo>("account_use_original", { accountId });
 }
 
+/** Preview-mode refusal, worded like the backend's (code `refused`). */
+function refused(user_message: string): { code: string; retryable: boolean; user_message: string } {
+  return { code: "refused", retryable: false, user_message };
+}
+
+/** AJ-E1501: rename an account and set its plan (blank clears it). */
+export async function accountRename(accountId: string, label: string, plan: string | null): Promise<AccountInfo> {
+  if (!hasBackend) {
+    const accounts = await accountsList();
+    const account = accounts.find((row) => row.id === accountId);
+    if (!account) throw { code: "not_found", retryable: false, user_message: "That account isn't there any more." };
+    const name = label.trim();
+    if (name === "") throw refused("Give the account a name");
+    const other = accounts.find((row) => row.id !== accountId && row.label.trim().toLowerCase() === name.toLowerCase());
+    if (other) throw refused(`Another account is already called «${other.label}» — pick another name`);
+    account.label = name;
+    account.plan = plan && plan.trim() !== "" ? plan.trim() : null;
+    for (const recipe of MOCK_PROFILES) if (recipe.account_id === accountId) recipe.account_label = name;
+    for (const row of MOCK_SESSIONS) if (row.account_id === accountId) row.account_label = name;
+    return account;
+  }
+  return invoke<AccountInfo>("account_rename", { accountId, label, plan });
+}
+
+/** AJ-E1501: remove (forget) an account. `folder` decides a copy's
+ * folder: `keep` it, or move it to the Trash. An account used where it
+ * is always keeps its folder. */
+export async function accountRemove(accountId: string, folder: "keep" | "trash"): Promise<AccountRemovedInfo> {
+  if (!hasBackend) {
+    const fail = (window as unknown as { __AIJ_REMOVE_FAIL__?: string }).__AIJ_REMOVE_FAIL__;
+    if (fail) throw refused(fail);
+    const accounts = seeded.accounts ?? MOCK_ACCOUNTS;
+    const index = accounts.findIndex((row) => row.id === accountId);
+    const account = accounts[index];
+    if (!account) throw { code: "not_found", retryable: false, user_message: "That account isn't there any more." };
+    const open = MOCK_SESSIONS.filter(
+      (row) => row.account_id === accountId && ["starting", "running", "waiting_user", "stuck", "quota_blocked"].includes(row.status),
+    ).map((row) => row.git_branch ?? ((row.cwd ?? "").split("/").pop() || row.account_label));
+    if (open.length > 0) {
+      const names = [...new Set(open)].sort().join(", ");
+      throw refused(
+        `«${account.label}» has ${open.length === 1 ? "a session" : `${open.length} sessions`} open: ${names}. Stop ${open.length === 1 ? "it" : "them"} first, then remove the account`,
+      );
+    }
+    accounts.splice(index, 1);
+    return { id: account.id, label: account.label, folder: account.in_place ? "untouched" : folder === "trash" ? "trashed" : "kept" };
+  }
+  return invoke<AccountRemovedInfo>("account_remove", { accountId, folder });
+}
+
+/** AJ-E1501: make an account the default for new sessions (`null`
+ * clears it: the most recently used account leads again). */
+export async function accountSetDefault(accountId: string | null): Promise<AccountInfo[]> {
+  if (!hasBackend) {
+    const accounts = await accountsList();
+    for (const row of accounts) row.is_default = row.id === accountId;
+    return accounts;
+  }
+  return invoke<AccountInfo[]>("account_set_default", { accountId });
+}
+
+/** AJ-E1501: the account a project's new sessions start with (`null`
+ * clears it). */
+export async function projectSetDefaultAccount(projectId: string, accountId: string | null): Promise<void> {
+  if (!hasBackend) {
+    const project = MOCK_PROJECTS.find((row) => row.id === projectId);
+    if (project) project.default_account_id = accountId;
+    return;
+  }
+  return invoke<void>("project_set_default_account", { projectId, accountId });
+}
+
 export async function accountsList(): Promise<AccountInfo[]> {
   if (!hasBackend) {
-    return seeded.accounts ?? MOCK_ACCOUNTS;
+    // A new array each time (the rows are shared): a change made in
+    // preview mode re-renders like a real refresh does.
+    return [...(seeded.accounts ?? MOCK_ACCOUNTS)];
   }
   return invoke<AccountInfo[]>("accounts_list");
 }
@@ -929,14 +1005,14 @@ export async function accountForgetIdentity(accountId: string): Promise<void> {
 /** Tracked projects — the juggling anchor (which instance is on each directory). */
 export async function projectsList(): Promise<ProjectInfo[]> {
   if (!hasBackend) {
-    return MOCK_PROJECTS;
+    return [...MOCK_PROJECTS];
   }
   return invoke<ProjectInfo[]>("projects_list");
 }
 
 export async function instancesList(): Promise<InstanceInfo[]> {
   if (!hasBackend) {
-    return MOCK_SESSIONS;
+    return [...MOCK_SESSIONS];
   }
   return invoke<InstanceInfo[]>("instances_list");
 }

@@ -27,7 +27,7 @@
 
 ## Wave 1 — daily driving and the same setup everywhere (toward 0.1)
 
-### AJ-E1501 Manage accounts: rename, remove, set default | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1024
+### AJ-E1501 Manage accounts: rename, remove, set default | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E1024
 **Goal**: An account can be renamed, removed, and made the default, without leaving AI Juggler.
 **User story**: As a user who brought in five setups, I tidy them up: rename "personal-max" to "Max (personal)", remove the one I no longer use, and pick which account new sessions start with.
 **Requirements**:

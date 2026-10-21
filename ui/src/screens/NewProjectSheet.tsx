@@ -39,6 +39,8 @@ const HEADROOM_RANK: Record<string, number> = {
 
 /**
  * The preselect rule (Req.6), pure so tests pin it directly:
+ * 0. the account the user picked: this project's own default, else the
+ *    global default (AJ-E1501);
  * 1. last-used on this dir (most recent use first);
  * 2. else the account with the most headroom (engine forecast);
  * 3. else the first recipe (backend order = most recent).
@@ -47,8 +49,14 @@ export function pickRecipe(
   recipes: LaunchRecipeInfo[],
   project: ProjectInfo | null,
   quotas: QuotaDisplayData[],
+  accounts: AccountInfo[] = [],
 ): LaunchRecipeInfo | null {
   if (recipes.length === 0) return null;
+  const picked = [project?.default_account_id ?? null, accounts.find((account) => account.is_default)?.id ?? null];
+  for (const id of picked) {
+    const hit = id !== null ? recipes.find((recipe) => recipe.account_id === id) : undefined;
+    if (hit !== undefined) return hit;
+  }
   const lastUsed = [...(project?.accounts_used ?? [])].reverse();
   for (const label of lastUsed) {
     const hit = recipes.find((recipe) => recipe.account_label === label);
@@ -119,8 +127,8 @@ export function NewProjectSheet({
   }, [quotas]);
 
   const recommended = useMemo(
-    () => (recipes !== null ? pickRecipe(recipes, project, quotas) : null),
-    [recipes, project, quotas],
+    () => (recipes !== null ? pickRecipe(recipes, project, quotas, accounts) : null),
+    [recipes, project, quotas, accounts],
   );
 
   const chooseDirectory = (dir: string) => {
@@ -296,9 +304,13 @@ export function NewProjectSheet({
                       </Chip>
                       <span className="text-muted">{recommended.name}</span>
                       <span className="ml-auto text-[10px] text-muted">
-                        {project !== null && project.accounts_used.includes(recommended.account_label)
-                          ? "last used here"
-                          : "recommended"}
+                        {project?.default_account_id === recommended.account_id
+                          ? "this project's default"
+                          : accounts.find((account) => account.is_default)?.id === recommended.account_id
+                            ? "your default"
+                            : project !== null && project.accounts_used.includes(recommended.account_label)
+                              ? "last used here"
+                              : "recommended"}
                       </span>
                     </div>
                     <div className="flex flex-wrap gap-2">

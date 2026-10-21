@@ -1433,6 +1433,10 @@ pub struct AccountInfo {
     pub imported_at: Option<i64>,
     /// ADR-0018: the account uses the user's own folder where it is.
     pub in_place: bool,
+    /// AJ-E1501: new sessions start with this account unless a project
+    /// names its own (set by the accounts list; `null` elsewhere).
+    #[ts(optional = nullable)]
+    pub is_default: Option<bool>,
 }
 
 /// A Launch settings row for the UI (AJ-E107).
@@ -1762,6 +1766,10 @@ pub struct ProjectInfo {
     /// True when the root directory no longer exists on disk (AJ-E408
     /// Overview danger banner + `Relocate…`).
     pub missing: bool,
+    /// AJ-E1501: the account this project's new sessions start with,
+    /// when the user picked one.
+    #[ts(optional = nullable)]
+    pub default_account_id: Option<String>,
 }
 
 /// Dashboard counts.
@@ -1923,10 +1931,25 @@ pub fn harnesses_list() -> Vec<ProviderInfo> {
 ///
 /// Returns the typed [`AppError`] message on failure.
 pub fn accounts_list(state: tauri::State<'_, Arc<AppState>>) -> AppResult<Vec<AccountInfo>> {
-    let storage = lock_storage(&state)?;
+    accounts_info(state.inner())
+}
+
+/// The accounts in use, each marked whether it is the default
+/// (AJ-E1501).
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] message on storage failures.
+pub fn accounts_info(state: &Arc<AppState>) -> AppResult<Vec<AccountInfo>> {
+    let storage = lock_storage_arc(state)?;
+    let default = storage
+        .app_settings()
+        .get(crate::manage::DEFAULT_ACCOUNT_KEY)?;
     let mut out = Vec::new();
     for account in storage.accounts().list()? {
-        out.push(account_info_of(&state.registry, &account));
+        let mut info = account_info_of(&state.registry, &account);
+        info.is_default = Some(default.as_deref() == Some(account.id.as_str()));
+        out.push(info);
     }
     Ok(out)
 }
@@ -3540,6 +3563,17 @@ pub fn launch_profile(
     use juggler_adapter::LaunchMode;
 
     let (profile, account) = find_profile_with_account_arc(state, profile_id)?;
+    // AJ-E1501: a removed account starts nothing (its folder may be in
+    // the Trash, or no longer the user's choice).
+    if lock_storage_arc(state)?
+        .accounts()
+        .is_removed(&account.id)?
+    {
+        return Err(AppError::Refused(format!(
+            "«{}» was removed — add it again to start a session on it",
+            account.label
+        )));
+    }
     // The profile's model goes in as `claude --model` (the adapter's
     // launch spec); settings.json is never rewritten (ADR-0018 §3).
     let adapter = state
@@ -4957,6 +4991,7 @@ fn account_info_of(registry: &juggler_adapter::AdapterRegistry, account: &Accoun
         import_origin: account.import_origin.clone(),
         imported_at: account.imported_at,
         in_place: account.in_place,
+        is_default: None,
     }
 }
 
@@ -5184,15 +5219,19 @@ type RecipeIndex = std::collections::BTreeMap<String, (String, String, Option<St
 ///
 /// Returns the typed [`AppError`] message on storage failures.
 fn session_join_indexes(storage: &Storage) -> AppResult<(AccountIndex, RecipeIndex)> {
+    // AJ-E1501: a removed account's sessions keep its name, marked.
+    let removed = storage.accounts().removed_ids()?;
     let account_index: AccountIndex = storage
         .accounts()
-        .list()?
+        .list_all()?
         .into_iter()
         .map(|account| {
-            (
-                account.id.to_string(),
-                (account.label, account.harness.to_string()),
-            )
+            let label = if removed.contains(account.id.as_str()) {
+                format!("{} (removed account)", account.label)
+            } else {
+                account.label
+            };
+            (account.id.to_string(), (label, account.harness.to_string()))
         })
         .collect();
     let mut recipe_index: RecipeIndex = std::collections::BTreeMap::new();
@@ -7293,6 +7332,7 @@ pub fn projects_list_impl(state: &Arc<AppState>) -> AppResult<Vec<ProjectInfo>> 
                 history_last_used_ms: project.history.last_used_ms,
                 repo: None,
                 missing: !project.root.exists(),
+                default_account_id: project.default_account.map(|id| id.to_string()),
             }
         })
         .collect();

@@ -479,6 +479,9 @@ pub struct ProjectRecord {
     pub last_activity: Option<Timestamp>,
     /// Pre-AI-Juggler history parsed from imported transcripts (v4).
     pub history: ProjectHistory,
+    /// The account this project's new sessions start with, when the
+    /// user picked one (v30, AJ-E1501).
+    pub default_account: Option<AccountId>,
 }
 
 /// ADR-0008 alias: wire strings unchanged; naming only.

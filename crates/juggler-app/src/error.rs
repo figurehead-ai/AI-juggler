@@ -70,6 +70,11 @@ pub enum AppError {
         /// The existing account's label.
         label: String,
     },
+    /// The user asked for something that can't be done now, said in the
+    /// app's own words (a duplicate name, a session still running), shown
+    /// as it is (AJ-E1501).
+    #[error("{0}")]
+    Refused(String),
 }
 
 impl AppError {
@@ -113,6 +118,7 @@ impl AppError {
             Self::Io { .. } => ("io".to_owned(), true),
             Self::StatePoisoned => ("state_poisoned".to_owned(), true),
             Self::AlreadyImported { .. } => ("already_imported".to_owned(), false),
+            Self::Refused(_) => ("refused".to_owned(), false),
             Self::IdentityMismatch { .. } => ("identity_mismatch".to_owned(), false),
         };
         ErrorWire {
