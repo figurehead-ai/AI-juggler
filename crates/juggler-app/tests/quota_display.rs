@@ -220,6 +220,39 @@ fn codex_shows_only_the_windows_it_reports() {
     assert_eq!(info.weekly_omitted_reason, None);
 }
 
+/// Rule 6 (QA's Codex readings): once the reading's reset has passed
+/// and nothing newer came, the window is `reset`: no percentage, no reset
+/// time, and the old reading's "as of" — never 0%, never the old number.
+#[test]
+fn a_window_past_its_reset_with_no_new_reading_is_reset() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    let now = Timestamp::now().millis();
+    let storage = state.storage.lock().unwrap();
+    let codex = account("codex", None);
+    let taken = now - 3 * 86_400_000;
+    storage
+        .usage()
+        .insert_sample(
+            codex.id.as_str(),
+            juggler_core::quota::WindowKind::Weekly { anchor_ms: None },
+            &juggler_core::quota::QuotaSample {
+                ts: taken,
+                used_pct: 88.0,
+                resets_at: Some(now - 3_600_000),
+                confidence: juggler_core::model::Confidence::Measured,
+            },
+        )
+        .unwrap();
+    let info = quota_display_inner(&storage, &codex, now);
+    let weekly = info.weekly.as_ref().unwrap();
+    assert_eq!(weekly.state, "reset");
+    assert_eq!(weekly.percentage, None);
+    assert_eq!(weekly.badge, None);
+    assert_eq!(weekly.resets_at_ms, None);
+    assert_eq!(weekly.measured_at_ms, Some(taken));
+}
+
 #[test]
 fn gemini_is_unavailable_with_reason() {
     let dir = tempfile::tempdir().unwrap();

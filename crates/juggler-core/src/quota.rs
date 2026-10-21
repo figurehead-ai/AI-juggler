@@ -251,6 +251,10 @@ pub enum QuotaState {
     Stale,
     /// The vendor (or a Measured 100%) says the pool is spent.
     Exhausted,
+    /// The window the vendor's last reading described has reset since,
+    /// and no reading of the new one exists: nothing is known about it
+    /// (D-06) — never 0%, never the old percentage.
+    ResetSinceReading,
 }
 
 /// What basis a percentage came from (decides the Measured vs
@@ -287,6 +291,47 @@ pub struct WindowReading {
     pub resets_at: Option<i64>,
     /// Where [`Self::resets_at`] came from, whenever it is set.
     pub reset_basis: Option<ResetBasis>,
+    /// When the vendor reading behind this window was taken (its "as
+    /// of"), when one is.
+    pub measured_at: Option<i64>,
+}
+
+/// Readings of one window whose `resets_at` differ by less than this are
+/// the same window: a vendor's reset time jitters between readings (QA,
+/// 2026-10-21: Codex's moved by up to 75 s, 2,474 times, against 27 real
+/// rollovers).
+pub const SAME_WINDOW_MS: i64 = 3_600_000;
+
+/// The reading that describes a window now, from all of its Measured
+/// readings — not simply the newest line (QA, 2026-10-21, on 30 days of
+/// Codex readings):
+/// - the window is the one with the latest `resets_at` (within
+///   [`SAME_WINDOW_MS`]): a session resumed days later reports its OLD
+///   window, so the newest line can describe a window already gone;
+/// - inside it, the highest `used_pct`: use only rises within a window,
+///   and a concurrent session's reading can lag by a point;
+/// - readings with no `resets_at` count only when none has one (newest).
+#[must_use]
+pub fn current_reading(samples: &[QuotaSample]) -> Option<&QuotaSample> {
+    let measured = || {
+        samples
+            .iter()
+            .filter(|sample| sample.confidence == Confidence::Measured)
+    };
+    let Some(latest_reset) = measured().filter_map(|sample| sample.resets_at).max() else {
+        return measured().max_by_key(|sample| sample.ts);
+    };
+    measured()
+        .filter(|sample| {
+            sample
+                .resets_at
+                .is_some_and(|at| latest_reset - at < SAME_WINDOW_MS)
+        })
+        .max_by(|a, b| {
+            a.used_pct
+                .total_cmp(&b.used_pct)
+                .then_with(|| a.ts.cmp(&b.ts))
+        })
 }
 
 /// Where a window's reset time came from. There is no "estimated":
@@ -500,10 +545,7 @@ pub fn evaluate_window(
         .filter(|event| event.account == account)
         .collect();
     let burn = window_burn(account_events.iter().copied(), account, kind, now_ms);
-    let latest_sample = samples
-        .iter()
-        .filter(|sample| sample.confidence == Confidence::Measured)
-        .max_by_key(|sample| sample.ts);
+    let latest_sample = current_reading(samples);
     let last_activity = account_events
         .iter()
         .map(|event| event.ts)
@@ -524,6 +566,24 @@ pub fn evaluate_window(
             burn,
             resets_at: sample.resets_at,
             reset_basis: sample.resets_at.map(|_| ResetBasis::Measured),
+            measured_at: Some(sample.ts),
+        };
+    }
+
+    // The reading's window has reset and nothing newer describes the new
+    // one: no percentage and no reset time (D-06).
+    if let Some(sample) = latest_sample
+        && sample.resets_at.is_some_and(|reset| reset <= now_ms)
+    {
+        return WindowReading {
+            state: QuotaState::ResetSinceReading,
+            percentage: None,
+            basis: None,
+            confidence: Confidence::default(),
+            burn,
+            resets_at: None,
+            reset_basis: None,
+            measured_at: Some(sample.ts),
         };
     }
 
@@ -551,7 +611,13 @@ pub fn evaluate_window(
             // sample-to-sample slope.
             let previous = samples
                 .iter()
-                .filter(|s| s.confidence == Confidence::Measured && s.ts < sample.ts)
+                .filter(|s| {
+                    s.confidence == Confidence::Measured
+                        && s.ts < sample.ts
+                        && s.resets_at
+                            .zip(sample.resets_at)
+                            .is_none_or(|(a, b)| (a - b).abs() < SAME_WINDOW_MS)
+                })
                 .max_by_key(|s| s.ts);
             let slope = previous.and_then(|prev| {
                 let between =
@@ -594,6 +660,9 @@ pub fn evaluate_window(
         burn,
         resets_at: reset.map(|(at, _)| at),
         reset_basis: reset.map(|(_, basis)| basis),
+        measured_at: (basis == Some(PercentageBasis::Measured))
+            .then(|| latest_sample.map(|sample| sample.ts))
+            .flatten(),
     }
 }
 

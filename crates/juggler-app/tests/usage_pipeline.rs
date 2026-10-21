@@ -249,9 +249,15 @@ fn codex_rollout_limits_reach_the_display_as_measured_with_credits() {
         week.percentage.is_some_and(|p| (p - 40.0).abs() < 1e-9),
         "{week:?}"
     );
+    // Its "as of" is the reading's own time (10:30).
+    assert_eq!(
+        five.measured_at_ms,
+        juggler_adapters::quota_ingest::iso_to_epoch_ms("2026-10-21T10:30:00.000Z")
+    );
     let credits = info.credits.as_ref().unwrap();
     assert_eq!(credits.balance.as_deref(), Some("16.25"));
     assert!(credits.has_credits && !credits.unlimited);
+    assert_eq!(credits.source, "Codex", "labelled with who reported it");
 }
 
 fn tokens_of(events: &[juggler_core::quota::UsageEvent]) -> (u64, u64, u64, u64) {

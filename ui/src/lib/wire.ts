@@ -16,6 +16,7 @@ export function windowDisplay(state: WindowDisplay["state"], over: Partial<Windo
     stale_note_ms: null,
     resets_at_ms: null,
     reset_basis: null,
+    measured_at_ms: null,
     burned_tokens: 0,
     burned_credits: null,
     headroom_tokens: null,

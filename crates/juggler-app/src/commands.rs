@@ -285,8 +285,10 @@ pub fn pricing_catalog_info(
 pub struct WindowDisplay {
     /// The §Q8 machine state (`unknown|learning|tracking|stale|exhausted`),
     /// or `unmeasured`: use was seen but there is no percentage (no
-    /// Measured sample, no confirmed cap). A state that reads as known
-    /// always carries its percentage (the 0.0.12 report).
+    /// Measured sample, no confirmed cap), or `reset`: the window the
+    /// vendor's last reading described has reset since (nothing is known
+    /// about the new one). A state that reads as known always carries its
+    /// percentage (the 0.0.12 report).
     pub state: String,
     /// Percent used, ONLY when the state carries one.
     pub percentage: Option<f64>,
@@ -296,10 +298,12 @@ pub struct WindowDisplay {
     pub stale_note_ms: Option<i64>,
     /// The reset instant, epoch ms, when there is one.
     pub resets_at_ms: Option<i64>,
-    /// Where `resets_at_ms` came from: `measured` (the vendor's),
-    /// `calendar` (an anchored weekly phase) or `estimated` (earliest
-    /// use + the window's width) — shown as a guess, never as the word.
+    /// Where `resets_at_ms` came from: `measured` (the vendor's) or
+    /// `calendar` (an anchored weekly phase).
     pub reset_basis: Option<String>,
+    /// When the vendor's reading behind this window was taken, epoch ms:
+    /// the "as of" every surface shows beside a measured percentage.
+    pub measured_at_ms: Option<i64>,
     /// Absolute burn inside the window (the honest floor).
     pub burned_tokens: u64,
     /// Burn in vendor credits, when the provider bills credits.
@@ -327,6 +331,7 @@ pub fn window_state_name(
         (QuotaState::Tracking, Some(_)) => "tracking",
         (QuotaState::Stale, Some(_)) => "stale",
         (QuotaState::Exhausted, _) => "exhausted",
+        (QuotaState::ResetSinceReading, _) => "reset",
     }
 }
 
@@ -399,14 +404,20 @@ pub struct CreditsDisplay {
     pub balance: Option<String>,
     /// When the tool reported it, epoch ms.
     pub as_of_ms: i64,
+    /// Who reported it: the tool's name ("Codex").
+    pub source: String,
 }
 
 /// The account's newest credits snapshot, when its tool reported one.
-fn credits_of(storage: &juggler_core::storage::Storage, account: &str) -> Option<CreditsDisplay> {
+fn credits_of(
+    storage: &juggler_core::storage::Storage,
+    account: &juggler_core::model::Account,
+) -> Option<CreditsDisplay> {
+    let id = account.id.as_str();
     let raw = storage
         .app_settings()
         .get(&format!(
-            "{}{account}",
+            "{}{id}",
             crate::usage_pipeline::CREDITS_KEY_PREFIX
         ))
         .ok()
@@ -417,6 +428,7 @@ fn credits_of(storage: &juggler_core::storage::Storage, account: &str) -> Option
         unlimited: snapshot.unlimited,
         balance: snapshot.balance,
         as_of_ms: snapshot.ts,
+        source: provider_name(account.harness.as_str()),
     })
 }
 
@@ -497,6 +509,7 @@ pub fn quota_display_inner(
             .map(|_| confidence_name(reading.confidence).to_owned()),
         stale_note_ms,
         resets_at_ms: reading.resets_at,
+        measured_at_ms: reading.measured_at,
         reset_basis: reading.reset_basis.map(|basis| {
             match basis {
                 quota::ResetBasis::Measured => "measured",
@@ -662,7 +675,7 @@ pub fn quota_display_inner(
         renewal,
         forecast,
         unavailable_reason,
-        credits: credits_of(storage, account_id),
+        credits: credits_of(storage, account),
     }
 }
 

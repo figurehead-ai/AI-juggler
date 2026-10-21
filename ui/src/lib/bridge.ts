@@ -1568,7 +1568,9 @@ export async function resetQueueDismiss(id: string): Promise<void> {
 /** AJ-E610: one window clock's typed rendered state. */
 export interface WindowDisplay {
   /** `unmeasured`: use seen, no percentage (no sample, no confirmed cap). */
-  state: "unknown" | "learning" | "unmeasured" | "tracking" | "stale" | "exhausted";
+  /** `reset`: the window the last reading described has reset since;
+   * nothing is known about the new one. */
+  state: "unknown" | "learning" | "unmeasured" | "tracking" | "stale" | "exhausted" | "reset";
   percentage: number | null;
   badge: string | null;
   stale_note_ms: number | null;
@@ -1576,6 +1578,9 @@ export interface WindowDisplay {
   /** Where `resets_at_ms` came from; null with it (a reset time is
    * known or absent, never estimated). */
   reset_basis: "measured" | "calendar" | null;
+  /** When the vendor's reading was taken: the "as of" beside a measured
+   * percentage. */
+  measured_at_ms: number | null;
   burned_tokens: number;
   burned_credits: number | null;
   headroom_tokens: number | null;
@@ -1617,6 +1622,8 @@ export interface CreditsDisplay {
   unlimited: boolean;
   balance: string | null;
   as_of_ms: number;
+  /** Who reported it: the tool's name ("Codex"). */
+  source: string;
 }
 
 /** AJ-E306: one window's token headroom (cap − burned) — present

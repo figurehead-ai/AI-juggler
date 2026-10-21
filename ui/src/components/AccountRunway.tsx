@@ -6,7 +6,7 @@
  */
 import type { JSX } from "react";
 import type { InstanceInfo, QuotaDisplayData, WindowDisplay } from "../lib/bridge";
-import { resetClock, windowView } from "../lib/quotaWindow";
+import { asOfWords, resetClock, windowView } from "../lib/quotaWindow";
 
 export type RunwayLine = {
   label: string;
@@ -44,12 +44,15 @@ export function runwayLines(display: QuotaDisplayData | undefined, sessions: Ins
   ];
 }
 
-/** The account's credits in words, when its tool reports them (Codex). */
+/** The account's credits in words, with who reported them and when,
+ * when its tool reports them ("Credits: 16.25 · reported by Codex, as of
+ * 12 min ago"). */
 export function creditsWords(display: QuotaDisplayData | undefined): string | null {
   const credits = display?.credits;
-  if (!credits?.has_credits) return null;
-  if (credits.unlimited) return "Unlimited credits";
-  return credits.balance ? `Credit balance: ${credits.balance}` : null;
+  if (credits == null) return null;
+  const amount = credits.unlimited ? "unlimited" : credits.balance;
+  if (amount == null) return null;
+  return `Credits: ${amount} · reported by ${credits.source}, ${asOfWords(credits.as_of_ms)}`;
 }
 
 /** "At this pace it runs out in about 40 min" — only when it will. */

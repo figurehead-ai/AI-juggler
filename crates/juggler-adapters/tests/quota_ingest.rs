@@ -377,6 +377,50 @@ fn codex_rate_limits_take_seconds_or_milliseconds_and_skip_odd_widths() {
     assert_eq!(credits.balance, None);
 }
 
+/// QA's 30 days of the real Codex account (2026-10-21): only `primary`,
+/// weekly (`window_minutes` 10080); `secondary` never appears; the plan
+/// can be null; odd readings carry `window_minutes` 0 or a null
+/// `primary`. Odd readings give no sample; a null plan is fine; the
+/// credits still count. Shapes from that analysis, values invented.
+#[test]
+fn codex_odd_readings_are_ignored_and_a_null_plan_is_fine() {
+    let line = |ts: &str, limits: &str| {
+        format!(
+            "{{\"timestamp\":\"{ts}\",\"type\":\"event_msg\",\"payload\":{{\"type\":\"token_count\",\"info\":null,\"rate_limits\":{limits}}}}}\n"
+        )
+    };
+    let credits = r#""credits":{"has_credits":true,"unlimited":false,"balance":"12.50"}"#;
+    let bytes = [
+        line(
+            "2026-10-21T10:00:00.000Z",
+            &format!(r#"{{"limit_id":"codex","plan_type":null,"primary":{{"used_percent":64,"window_minutes":10080,"resets_at":1793000000}},"secondary":null,{credits}}}"#),
+        ),
+        line(
+            "2026-10-21T10:00:14.000Z",
+            &format!(r#"{{"limit_id":"codex","plan_type":"pro","primary":{{"used_percent":0,"window_minutes":0,"resets_at":1793000000}},"secondary":null,{credits}}}"#),
+        ),
+        line(
+            "2026-10-21T10:00:28.000Z",
+            &format!(r#"{{"limit_id":"codex","plan_type":"pro","primary":null,"secondary":null,{credits}}}"#),
+        ),
+    ]
+    .concat();
+    let outcome = rollout_events("acc", bytes.as_bytes());
+    assert_eq!(outcome.samples.len(), 1, "{:?}", outcome.samples);
+    let (kind, sample) = &outcome.samples[0];
+    assert_eq!(*kind, WindowKind::Weekly { anchor_ms: None });
+    assert_eq!(sample.used_pct, 64.0);
+    assert_eq!(sample.resets_at, Some(1_793_000_000_000));
+    assert_eq!(
+        outcome.parse_errors, 0,
+        "an odd reading is not a broken line"
+    );
+    assert_eq!(
+        outcome.credits.as_ref().and_then(|c| c.balance.as_deref()),
+        Some("12.50")
+    );
+}
+
 // ---------------------------------------------------------------------------
 // Source: ZCode SQLite (read-only)
 // ---------------------------------------------------------------------------

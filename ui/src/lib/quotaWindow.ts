@@ -12,7 +12,10 @@
  *   in the window when there are any;
  * - a reset time shows only when it is known: the vendor's, or a known
  *   weekly schedule. The backend sends none otherwise (P12: a time guessed
- *   from local use read "now" under steady use).
+ *   from local use read "now" under steady use);
+ * - a measured percentage says when it was read ("as of 12 min ago"); once
+ *   the window it describes has reset with no newer reading, the window
+ *   says "Not measured since the reset" — never 0%, never the old number.
  */
 import type { WindowDisplay } from "./bridge";
 
@@ -31,6 +34,16 @@ export interface WindowView {
 /** "Wed 03:07 PM" — the clock words every window uses. */
 export function resetClock(ms: number): string {
   return new Date(ms).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" });
+}
+
+/** "as of 12 min ago" under an hour, "as of 3:12 PM" under a day, then
+ * "as of Oct 19": when a vendor's reading was taken. */
+export function asOfWords(ms: number, now: number = Date.now()): string {
+  const age = now - ms;
+  if (age < 60_000) return "as of just now";
+  if (age < 3_600_000) return `as of ${Math.round(age / 60_000)} min ago`;
+  if (age < 86_400_000) return `as of ${new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+  return `as of ${new Date(ms).toLocaleDateString([], { month: "short", day: "numeric" })}`;
 }
 
 /** The reset in words, when one is known. */
@@ -54,7 +67,8 @@ export function measured(window: WindowDisplay | null | undefined): window is Wi
     Number.isFinite(window.percentage) &&
     window.state !== "unknown" &&
     window.state !== "learning" &&
-    window.state !== "unmeasured"
+    window.state !== "unmeasured" &&
+    window.state !== "reset"
   );
 }
 
@@ -65,10 +79,14 @@ export function windowView(window: WindowDisplay | null | undefined, omitted?: s
   if (window.state === "learning") {
     return { left: null, words: "Measuring — shows after a little use", tone: "none", resets: null };
   }
+  if (window.state === "reset") {
+    return { left: null, words: "Not measured since the reset", tone: "none", resets: null };
+  }
   const resets = resetWords(window);
+  const asOf = window.measured_at_ms != null ? ` · ${asOfWords(window.measured_at_ms)}` : "";
   if (window.state === "exhausted") {
     const until = window.resets_at_ms != null ? ` until ${resetClock(window.resets_at_ms)}` : "";
-    return { left: 0, words: `Used up${until}`, tone: "out", resets };
+    return { left: 0, words: `Used up${until}${asOf}`, tone: "out", resets };
   }
   if (!measured(window)) {
     const used = window.burned_tokens > 0 ? ` · ${tokenWords(window.burned_tokens)} tokens used` : "";
@@ -77,12 +95,13 @@ export function windowView(window: WindowDisplay | null | undefined, omitted?: s
   }
   const left = Math.max(0, Math.round(100 - window.percentage));
   if (left === 0) {
-    return { left: 0, words: `Used up${window.resets_at_ms != null ? ` until ${resetClock(window.resets_at_ms)}` : ""}`, tone: "out", resets };
+    return { left: 0, words: `Used up${window.resets_at_ms != null ? ` until ${resetClock(window.resets_at_ms)}` : ""}${asOf}`, tone: "out", resets };
   }
-  const stale = window.state === "stale" ? " · last known" : "";
+  // The "as of" says how old a reading is; without one, stale says so.
+  const stale = !asOf && window.state === "stale" ? " · last known" : "";
   return {
     left,
-    words: `${left}% left${resets ? ` · ${resets}` : ""}${stale}`,
+    words: `${left}% left${resets ? ` · ${resets}` : ""}${asOf}${stale}`,
     tone: left <= 25 ? "low" : "ok",
     resets,
   };

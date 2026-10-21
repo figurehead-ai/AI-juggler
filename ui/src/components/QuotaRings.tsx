@@ -15,7 +15,7 @@
  */
 import type { JSX } from "react";
 import type { QuotaDisplayData, WindowDisplay } from "../lib/bridge";
-import { measured, windowView } from "../lib/quotaWindow";
+import { asOfWords, measured, windowView } from "../lib/quotaWindow";
 
 const badgeText = (badge?: string | null): string =>
   badge === "measured" ? "Measured" : badge === "computed" ? "Computed" : "Estimate";
@@ -63,7 +63,7 @@ export function WindowRing({
   if (window.state !== "exhausted" && window.state !== "learning" && !measured(window)) {
     const words = windowView(window).words;
     return (
-      <div data-testid={`ring-${kind}`} data-state="unmeasured" role="img" aria-label={`${label}: ${words}`}>
+      <div data-testid={`ring-${kind}`} data-state={window.state === "reset" ? "reset" : "unmeasured"} role="img" aria-label={`${label}: ${words}`}>
         <p className="text-xs text-muted">{words}</p>
       </div>
     );
@@ -82,10 +82,14 @@ export function WindowRing({
   const ringText =
     pct != null ? `${Math.round(pct)}%` : exhausted ? "100%" : "—";
   const reset = window.resets_at_ms == null ? "" : `resets ${clock(window.resets_at_ms)}`;
+  // When the vendor's reading was taken; without one, how long Measured
+  // has been quiet.
   const stale =
-    window.stale_note_ms != null
-      ? `last measured ${hoursAgo(window.stale_note_ms)} ago`
-      : "";
+    window.measured_at_ms != null
+      ? asOfWords(window.measured_at_ms)
+      : window.stale_note_ms != null
+        ? `last measured ${hoursAgo(window.stale_note_ms)} ago`
+        : "";
   const aria = `${label}: ${exhausted ? "exhausted" : `${ringText} used`}${
     pct != null ? `, ${badgeText(window.badge)}` : ""
   }${reset ? `, ${reset}` : ""}${stale ? `, ${stale}` : ""}`;
@@ -108,7 +112,7 @@ export function WindowRing({
         viewBox="0 0 36 36"
         role="img"
         aria-label={aria}
-        className={stale ? "opacity-60" : undefined}
+        className={window.stale_note_ms != null ? "opacity-60" : undefined}
       >
         <circle cx="18" cy="18" r={radius} fill="none" strokeWidth="3" className="stroke-hairline" />
         <circle
