@@ -93,23 +93,27 @@ pub fn run() {
     let launched = std::time::Instant::now();
     // D-23: the edition comes from the identifier this build carries, and
     // decides everything that must never be shared between editions.
-    let context = tauri::generate_context!();
+    let mut context = tauri::generate_context!();
     edition::set_current(edition::Edition::from_identifier(
         &context.config().identifier,
         cfg!(debug_assertions),
     ));
     let data_dir = bootstrap_data_dir();
-    // AJ-E1010: this edition's data folder is ours until we quit (taken
-    // before the data is opened; going back moves database files only
-    // while it is held).
-    let lock_held = newer_data::hold_instance_lock(&data_dir);
+    // AJ-E1010: this edition's data folder is ours until we quit, taken
+    // before the data is opened. A second launch while another AI Juggler
+    // of this edition holds it touches nothing — no migration, no
+    // recovery — and only hands over to the running one.
+    if !newer_data::hold_instance_lock(&data_dir) {
+        context.config_mut().app.windows.clear();
+        hand_over_to_the_running_instance(context);
+    }
     let app_state = Arc::new(match state::AppState::init(data_dir.clone()) {
         Ok(state) => state,
         // AJ-E1010: an older AI Juggler opened data a newer one saved — say
         // so, and offer the copy or backup from before the update (never a
         // silent quit).
         Err(error::AppError::Core(juggler_core::CoreError::SchemaTooNew { found, supported })) => {
-            newer_data::at_launch(&data_dir, found, supported, lock_held)
+            newer_data::at_launch(&data_dir, found, supported)
         }
         Err(error) => {
             eprintln!("ai-juggler: fatal: {error}");
@@ -430,6 +434,22 @@ pub fn run() {
 
 /// Resolves and creates the data dir, exiting with a plain-language
 /// message on failure (the shell entry point's first duty).
+/// A second launch while another AI Juggler of this edition runs: a bare
+/// app (no state, no windows) whose single-instance plugin tells the
+/// running one to come forward, then exits. If the running one doesn't
+/// answer (it is closing), say so instead of opening the data.
+fn hand_over_to_the_running_instance(context: tauri::Context<tauri::Wry>) -> ! {
+    let built = tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|_, _, _| {}))
+        .build(context);
+    drop(built);
+    newer_data::cannot_start(&format!(
+        "Another {} is open with this data, or still closing. Open it again in a moment.",
+        edition::current().app_name()
+    ));
+    std::process::exit(1);
+}
+
 fn bootstrap_data_dir() -> std::path::PathBuf {
     let data_dir = state::resolve_data_dir().unwrap_or_else(|message| {
         eprintln!("ai-juggler: cannot resolve data dir: {message}");

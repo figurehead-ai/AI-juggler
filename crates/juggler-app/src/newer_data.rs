@@ -457,21 +457,16 @@ pub fn hold_instance_lock(data_dir: &Path) -> bool {
 
 /// At launch: shows the alert and, if the user chooses to go back, goes
 /// back and returns the state to start with (after saying what is left to
-/// do). Quitting exits. Nothing is touched while another instance holds
-/// the data (`lock_held` false).
+/// do). Quitting exits. Only reached with the instance lock held (a second
+/// launch hands over before it opens any data), so moving the database
+/// files can't pull them from under another instance.
 #[must_use]
-pub fn at_launch(data_dir: &Path, found: i64, supported: i64, lock_held: bool) -> AppState {
+pub fn at_launch(data_dir: &Path, found: i64, supported: i64) -> AppState {
     eprintln!(
         "ai-juggler: the data in {} is schema {found}; this build reads up to {supported}",
         data_dir.display()
     );
     let app_name = crate::edition::current().app_name();
-    if !lock_held {
-        cannot_start(&format!(
-            "Another {app_name} is open with this data. Quit it first, then open this version again."
-        ));
-        std::process::exit(1);
-    }
     let offer = newest_restorable(data_dir);
     let (title, text, go_back_label) =
         launch_message(app_name, env!("CARGO_PKG_VERSION"), offer.as_ref());
