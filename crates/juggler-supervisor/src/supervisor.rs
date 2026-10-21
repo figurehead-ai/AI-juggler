@@ -1710,6 +1710,7 @@ impl Supervisor {
         }
 
         let mut command = Command::new(&launch.program);
+        command.env("PATH", launch_path(&launch.program));
         apply_env(&mut command, &launch.env);
         command
             .args(&launch.args)
@@ -1797,6 +1798,7 @@ impl Supervisor {
         use std::process::{Command, Stdio};
 
         let mut command = Command::new(&spec.program);
+        command.env("PATH", launch_path(&spec.program));
         apply_env(&mut command, &spec.env);
         command
             .args(&spec.args)
@@ -1925,6 +1927,7 @@ impl Supervisor {
         for (key, value) in std::env::vars_os() {
             builder.env(key, value);
         }
+        builder.env("PATH", launch_path(&spec.program));
         apply_pty_env(&mut builder, &spec.env);
         let mut child = pair
             .slave
@@ -2836,6 +2839,14 @@ fn tree_stats(
 #[must_use]
 pub fn default_journal_path(state_dir: &Path) -> PathBuf {
     state_dir.join("supervision.jsonl")
+}
+
+/// The `PATH` every launch runs with: the user's (an app opened from
+/// Finder inherits `/usr/bin:/bin:/usr/sbin:/sbin`, where an
+/// npm-installed CLI can't find `node`), the program's own folder first.
+/// Set before the overlay, so a `PATH` from Launch settings still wins.
+fn launch_path(program: &Path) -> std::ffi::OsString {
+    juggler_adapter::user_path::path_for(program)
 }
 
 /// The launch env overlay onto a command: set each value, or remove the

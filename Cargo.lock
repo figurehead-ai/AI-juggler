@@ -2742,6 +2742,7 @@ dependencies = [
  "juggler-core",
  "serde_json",
  "sha2 0.11.1",
+ "tempfile",
  "thiserror 2.0.21",
 ]
 
@@ -2889,6 +2890,7 @@ name = "juggler-supervisor"
 version = "0.0.1"
 dependencies = [
  "juggler-adapter",
+ "juggler-adapters",
  "juggler-core",
  "netstat2",
  "nix 0.31.3",

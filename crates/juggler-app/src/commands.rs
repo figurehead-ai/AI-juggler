@@ -13991,7 +13991,7 @@ type ScanWalk = (
     Vec<juggler_adapter::environment::DiscoveredInstall>,
     Vec<juggler_adapter::environment::AliasHint>,
     Vec<juggler_adapter::environment::ManagerHint>,
-    Vec<(String, bool)>,
+    Vec<(String, &'static str)>,
 );
 
 fn scan_walk(state: &Arc<AppState>) -> ScanWalk {
@@ -14015,8 +14015,15 @@ fn scan_walk(state: &Arc<AppState>) -> ScanWalk {
                         installs = adapter.scan_environment();
                         aliases = adapter.scan_shell_aliases();
                         manager_hints = adapter.scan_managers();
-                        discovery =
-                            Some((adapter.id().to_string(), adapter.discover().is_installed()));
+                        let report = adapter.discover();
+                        let words = if report.is_installed() {
+                            "installed"
+                        } else if report.is_found() {
+                            "found; couldn't check its version"
+                        } else {
+                            "missing"
+                        };
+                        discovery = Some((adapter.id().to_string(), words));
                     }
                     (installs, aliases, manager_hints, discovery)
                 })
@@ -14192,7 +14199,7 @@ fn scan_probe_rows(
     dangling: u32,
     managers: &[juggler_adapter::environment::ManagerHint],
     cc_health: juggler_adapter::environment::ScanHealth,
-    discoveries: &[(String, bool)],
+    discoveries: &[(String, &'static str)],
     seeds: &[String],
     desktop_apps: &[String],
     cancelled: bool,
@@ -14248,9 +14255,7 @@ fn scan_probe_rows(
             juggler_adapter::environment::ScanHealth::Ok,
             discoveries
                 .iter()
-                .map(|(id, installed)| {
-                    format!("{id}: {}", if *installed { "installed" } else { "missing" })
-                })
+                .map(|(id, words)| format!("{id}: {words}"))
                 .collect::<Vec<_>>()
                 .join(", "),
         ),

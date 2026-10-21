@@ -555,7 +555,11 @@ impl HarnessAdapter for CodexAdapter {
                 bin.display()
             ));
         }
-        match std::process::Command::new(&bin).arg("--version").output() {
+        // With the user's PATH: an npm-installed CLI runs on `node`.
+        match juggler_adapter::user_path::command(&bin)
+            .arg("--version")
+            .output()
+        {
             Ok(output) if output.status.success() => {
                 let stdout = String::from_utf8_lossy(&output.stdout);
                 let Some(version) = parse_version(&stdout) else {
@@ -804,5 +808,9 @@ impl HarnessAdapter for CodexAdapter {
     /// not one Juggler tracks — the daemon reasoning applies to launches.
     fn shell_command(&self) -> Option<&'static str> {
         Some("codex")
+    }
+
+    fn resolved_binary(&self) -> Option<PathBuf> {
+        self.resolve_bin()
     }
 }
