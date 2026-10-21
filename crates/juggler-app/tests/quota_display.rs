@@ -186,7 +186,7 @@ fn codex_shows_only_the_windows_it_reports() {
     let info = quota_display_inner(&storage, &codex, now);
     assert!(
         info.five_hour.is_none() && info.weekly.is_none(),
-        "{info:?}"
+        "no window is assumed"
     );
     for reason in [&info.five_hour_omitted_reason, &info.weekly_omitted_reason] {
         assert_eq!(
@@ -209,7 +209,7 @@ fn codex_shows_only_the_windows_it_reports() {
         )
         .unwrap();
     let info = quota_display_inner(&storage, &codex, now);
-    assert!(info.five_hour.is_none(), "never assumed: {info:?}");
+    assert!(info.five_hour.is_none(), "never assumed");
     assert_eq!(
         info.five_hour_omitted_reason.as_deref(),
         Some("Codex reports no five-hour limit for this account")

@@ -261,12 +261,7 @@ fn codex_tokens_are_counted_once() {
     );
     for (event, total) in outcome.events.iter().zip([52_581_u64, 1_280]) {
         let t = &event.tokens;
-        assert_eq!(
-            t.input + t.cache_read + t.output + t.reasoning,
-            total,
-            "{:?}",
-            event.msg_uuid
-        );
+        assert_eq!(t.input + t.cache_read + t.output + t.reasoning, total);
     }
 }
 
@@ -406,7 +401,11 @@ fn codex_odd_readings_are_ignored_and_a_null_plan_is_fine() {
     ]
     .concat();
     let outcome = rollout_events("acc", bytes.as_bytes());
-    assert_eq!(outcome.samples.len(), 1, "{:?}", outcome.samples);
+    assert_eq!(
+        outcome.samples.len(),
+        1,
+        "one reading: the odd ones give none"
+    );
     let (kind, sample) = &outcome.samples[0];
     assert_eq!(*kind, WindowKind::Weekly { anchor_ms: None });
     assert_eq!(sample.used_pct, 64.0);

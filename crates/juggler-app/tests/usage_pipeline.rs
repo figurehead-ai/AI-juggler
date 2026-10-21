@@ -352,7 +352,7 @@ fn rows_counted_per_content_block_are_read_again_once() {
             .collect::<Vec<_>>()
     };
     let session = read("sess-b");
-    assert_eq!(session.len(), 2, "one row per response: {session:?}");
+    assert_eq!(session.len(), 2, "one row per response");
     assert_eq!(tokens_of(&session), (10, 362, 24_800, 890));
     assert_eq!(read("sess-gone").len(), 1, "a gone file's rows stay");
 
@@ -429,7 +429,7 @@ fn codex_usage_keeps_its_turns_model_across_passes() {
         events
             .iter()
             .all(|event| event.model.as_deref() == Some("gpt-5-codex")),
-        "{events:?}"
+        "every row carries the turn's model"
     );
     // P14: each token once — the classes sum to Codex's total_tokens.
     for event in &events {
