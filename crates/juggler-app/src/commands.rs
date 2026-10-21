@@ -627,6 +627,17 @@ pub fn quota_display_inner(
             unavailable_reason = Some("No verified quota source for this tool yet".to_owned());
             (None, None, None, None)
         }
+        // A registered tool whose adapter declares no limits feed: the same
+        // capability Home and the provider list read, so every surface
+        // says the same thing (QA: Usage said "100% left" for a tool Home
+        // said doesn't report).
+        _ if !reports_limits(provider) => {
+            unavailable_reason = Some(format!(
+                "{} doesn't report its limits to AI Juggler yet",
+                provider_name(provider)
+            ));
+            (None, None, None, None)
+        }
         // P13: Codex's windows are the ones its own limit reading
         // names (`window_minutes`), never assumed from the tool or plan.
         "codex" => {
@@ -677,6 +688,34 @@ pub fn quota_display_inner(
         unavailable_reason,
         credits: credits_of(storage, account),
     }
+}
+
+/// True unless `harness` is a registered tool whose adapter declares no
+/// limits feed (`USAGE_QUOTA_FEED`) — what `providers_capabilities`
+/// reports as `reports_limits`, read once from the built-in adapters. A
+/// tool with no adapter here (`ZCode`'s computed credits) keeps its own
+/// rules.
+#[must_use]
+pub fn reports_limits(harness: &str) -> bool {
+    static NO_FEED: std::sync::OnceLock<std::collections::BTreeSet<String>> =
+        std::sync::OnceLock::new();
+    !NO_FEED
+        .get_or_init(|| {
+            let registry = crate::state::default_registry();
+            registry
+                .ids()
+                .into_iter()
+                .filter(|id| {
+                    registry.get(id).is_some_and(|adapter| {
+                        !adapter
+                            .capabilities()
+                            .contains(juggler_adapter::Capabilities::USAGE_QUOTA_FEED)
+                    })
+                })
+                .map(|id| id.to_string())
+                .collect()
+        })
+        .contains(harness)
 }
 
 /// Which windows Codex reported in the last week (a Measured sample

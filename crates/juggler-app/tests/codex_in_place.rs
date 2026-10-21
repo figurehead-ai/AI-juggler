@@ -416,6 +416,14 @@ fn providers_capabilities_says_which_tools_report_their_limits() {
             "{}",
             row.provider
         );
+        // The quota display reads the same capability (one source): a
+        // tool the provider list says doesn't report is unavailable there.
+        assert_eq!(
+            commands::reports_limits(&row.provider),
+            row.reports_limits,
+            "{}",
+            row.provider
+        );
     }
     let of = |id: &str| {
         rows.iter()

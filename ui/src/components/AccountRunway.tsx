@@ -61,6 +61,9 @@ export function runwayOf(
   display: QuotaDisplayData | undefined,
   sessions: InstanceInfo[] = [],
 ): { left: number | null; words: string; resets: string | null } {
+  // A tool that doesn't report its limits, or has no source: its reason,
+  // never a window's numbers.
+  if (display?.unavailable_reason) return { left: null, words: display.unavailable_reason, resets: null };
   const windows: Array<{ label: string; phrase: string; window: WindowDisplay | null | undefined }> = [
     { label: "5-hour window", phrase: "in the 5-hour window", window: display?.five_hour },
     { label: "Week", phrase: "this week", window: display?.weekly },

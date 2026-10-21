@@ -11,6 +11,7 @@ import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HomeScreen, needOf, needWords, placeOf, toReview } from "./Home";
 import { runwayOf } from "../components/AccountRunway";
+import { quotaDisplay } from "../lib/wire";
 import type { AccountInfo, InstanceInfo, ProjectInfo, QuotaDisplayData } from "../lib/bridge";
 
 const NOW = 1_728_800_000_000;
@@ -143,20 +144,20 @@ describe("D-25 Home — the screen", () => {
   });
 
   it("a tool without a limits feed keeps its Runway row and says so, from the backend's capability (0.0.11 walk, Q3)", async () => {
-    w().__AIJ_PROVIDER_CAPABILITIES__ = [
-      { provider: "claude-code", can_use_in_place: true, reports_limits: true },
-      { provider: "codex", can_use_in_place: true, reports_limits: false },
-    ];
+    // The backend reads the adapter's capability and sends the reason on
+    // the account's display; the one runway shows it (Home and the cards).
+    w().__AIJ_QUOTA_DISPLAY__ = [quotaDisplay("cx", { unavailable_reason: "Codex doesn't report its limits to AI Juggler yet" })];
     const accounts = [...ACCOUNTS, { id: "cx", provider: "codex", label: "Codex", plan: null, login_state: "logged_in" }] as AccountInfo[];
     const { getAllByTestId } = renderHome([mk("r")], accounts);
     await waitFor(() =>
-      expect(getAllByTestId("home-runway-account").at(-1)!.textContent).toContain("Codex doesn't report its limits to AI Juggler yet."),
+      expect(getAllByTestId("home-runway-account").at(-1)!.textContent).toContain("Codex doesn't report its limits to AI Juggler yet"),
     );
     const rows = getAllByTestId("home-runway-account");
     expect(rows).toHaveLength(3);
     expect(rows[1]!.textContent).toContain("Not measured yet");
     expect(rows[2]!.textContent).not.toContain("Not measured yet");
-    delete w().__AIJ_PROVIDER_CAPABILITIES__;
+    expect(rows[2]!.textContent).not.toMatch(/\d+\s*% left/);
+    delete w().__AIJ_QUOTA_DISPLAY__;
   });
 
   it("an account that needs its sign-in is a Needs you item; Sign in opens the login terminal", async () => {
