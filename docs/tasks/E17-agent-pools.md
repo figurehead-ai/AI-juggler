@@ -24,11 +24,11 @@
 > - **Work and personal stay apart (D-33).** The default pool covers one
 >   project and one identity.
 
-### AJ-E1701 The spike, ADR-0019 and the policy rulings | Status: TODO | Priority P0 | Effort S | Depends: —
+### AJ-E1701 The spike, ADR-0020 and the policy rulings | Status: TODO | Priority P0 | Effort S | Depends: —
 **Goal**: The bridge's approach is proven on real tools, and the policy is written before code relies on it.
 **User story**: As the maintainer, I rule on D-28 to D-33, and I see the bridge load in Claude Code and Codex without prompts.
 **Requirements**:
-1. ADR-0019 "Agent bridge", plus D-28–D-33 in the decision log, as the maintainer rules them (the plan doc has the recommendations).
+1. ADR-0020 "Agent bridge", plus D-28–D-33 in the decision log, as the maintainer rules them (the plan doc has the recommendations).
 2. A spike on spare accounts:
    - `--mcp-config` loads in Claude Code without an approval prompt;
    - Codex's `-c mcp_servers.*` with `env_vars` passes the token;
@@ -39,7 +39,7 @@
 **Quality gates**: the evidence standard.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1701/manifest.md`.
 **Visual testing**: n/a.
-**Files to touch**: `docs/adr/0019-agent-bridge.md`, `docs/review/decision-log.md`.
+**Files to touch**: `docs/adr/0020-agent-bridge.md`, `docs/review/decision-log.md`.
 **Research basis**: `pools-messaging-tasks.md` §2–3.
 **Handover note**: The live part of the spike needs spare accounts, which is the maintainer's step.
 

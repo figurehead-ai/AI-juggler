@@ -191,7 +191,7 @@
 | AJ-E1610 | Desktop apps, track-only | E16-more-tools.md | P1 | M | AJ-E413, AJ-E414 |
 | AJ-E1611 | Tool update checks | E16-more-tools.md | P1 | S | — |
 | AJ-E1612 | Live checks on spare accounts | E16-more-tools.md | P0 | M | AJ-E1601..AJ-E1609 |
-| AJ-E1701 | The spike, ADR-0019 and the policy rulings | E17-agent-pools.md | P0 | S | — |
+| AJ-E1701 | The spike, ADR-0020 and the policy rulings | E17-agent-pools.md | P0 | S | — |
 | AJ-E1702 | Pools, the default pool, roles and permissions | E17-agent-pools.md | P0 | M | — |
 | AJ-E1703 | Context cards | E17-agent-pools.md | P1 | S | AJ-E1702 |
 | AJ-E1704 | The agent bridge, read-only | E17-agent-pools.md | P0 | M | AJ-E1701, AJ-E1702 |
