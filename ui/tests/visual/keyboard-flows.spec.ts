@@ -274,7 +274,7 @@ test("cleanup — Terminate opens the confirm sheet; Esc returns to the row", as
 // then Add account's fresh account by keyboard alone.
 const FIRST_RUN = {
   __AIJ_PROVIDER_INSTALLS__: [
-    { provider: "claude-code", display_name: "Claude Code", install_url: "https://claude.com/download", status: "installed", version: "2.1.296", binary: "/usr/local/bin/claude", notes: [], can_use_in_place: true },
+    { provider: "claude-code", display_name: "Claude Code", install_url: "https://claude.com/download", status: "installed", version: "2.1.296", binary: "/usr/local/bin/claude", notes: [] },
   ],
   __AIJ_SCAN_REPORT__: {
     installs: [

@@ -1336,7 +1336,6 @@ for (const theme of ["dark", "light"] as const) {
             verified_against: ["2.1.x"],
             kind: "terminal",
             single_instance_note: null,
-            can_use_in_place: true,
           },
           {
             provider: "codex",
@@ -1349,7 +1348,6 @@ for (const theme of ["dark", "light"] as const) {
             verified_against: [],
             kind: "terminal",
             single_instance_note: null,
-            can_use_in_place: true,
           },
         ],
       },
@@ -1397,7 +1395,6 @@ for (const theme of ["dark", "light"] as const) {
             version: "2.1.296",
             binary: "/usr/local/bin/claude",
             notes: [],
-            can_use_in_place: true,
           },
         ];
         w.__AIJ_SCAN_REPORT__ = {

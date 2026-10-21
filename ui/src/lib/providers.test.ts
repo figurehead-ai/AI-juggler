@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inPlaceProviders, ownSignIn, providerDisplayName, sameAsWords } from "./providers";
+import { inPlaceProviders, ownSignIn, providerDisplayName, sameAsWords, supportsInPlace } from "./providers";
 
 describe("providers — copy helpers", () => {
   it("names tools by id, unknown ones as themselves", () => {
@@ -17,9 +17,11 @@ describe("providers — copy helpers", () => {
       { provider: "claude-code", can_use_in_place: true },
       { provider: "codex", can_use_in_place: true },
       { provider: "zcode", can_use_in_place: false },
-      { provider: "old-backend" },
     ]);
-    expect([...ids].sort()).toEqual(["claude-code", "codex"]);
+    expect(supportsInPlace(ids, "codex")).toBe(true);
+    expect(supportsInPlace(ids, "zcode")).toBe(false);
+    // The call failed: every tool keeps the choice.
+    expect(supportsInPlace("unknown", "zcode")).toBe(true);
   });
 
   it("says what 'the same' is the same as, per tool", () => {

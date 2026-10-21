@@ -361,3 +361,31 @@ fn the_in_place_flag_matches_what_each_adapter_supports() {
     let ids: Vec<String> = registry.ids().iter().map(ToString::to_string).collect();
     assert!(ids.contains(&"codex".to_owned()) && ids.contains(&"claude-code".to_owned()));
 }
+
+/// The UI reads the flag from `providers_capabilities`, which answers
+/// from the registry alone (no install probe), one row per Provider.
+#[test]
+fn providers_capabilities_reports_the_flag_without_probing() {
+    let work = tempfile::tempdir().unwrap();
+    let state = Arc::new(
+        AppState::init_with_registry(
+            work.path().join("app-data"),
+            juggler_app::state::default_registry(),
+        )
+        .unwrap(),
+    );
+    let rows = commands::providers_capabilities_impl(&state);
+    for row in &rows {
+        let adapter = state
+            .registry
+            .get(&juggler_core::model::HarnessId::new(row.provider.as_str()))
+            .unwrap();
+        assert_eq!(row.can_use_in_place, adapter.can_use_in_place());
+    }
+    let in_place: Vec<&str> = rows
+        .iter()
+        .filter(|row| row.can_use_in_place)
+        .map(|row| row.provider.as_str())
+        .collect();
+    assert!(in_place.contains(&"claude-code") && in_place.contains(&"codex"));
+}

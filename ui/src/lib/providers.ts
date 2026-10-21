@@ -23,13 +23,20 @@ export function ownSignIn(id: string): string {
 }
 
 /**
- * ADR-0018: the tools whose setups AI Juggler can use where they are,
- * as the backend reports them (`can_use_in_place` on each provider row —
- * the adapter adopts a folder without writing to it). Any other tool's
- * setups come in as copies.
+ * ADR-0018: which tools' setups AI Juggler can use where they are, as
+ * the backend reports them (`providers_capabilities` — the adapter adopts
+ * a folder without writing to it). `"unknown"` when that call failed:
+ * the choice then stays for every tool, in place first — the user
+ * always decides, and the backend refuses anything it can't adopt.
  */
-export function inPlaceProviders(rows: { provider: string; can_use_in_place?: boolean }[]): Set<string> {
+export type InPlaceSupport = ReadonlySet<string> | "unknown";
+
+export function inPlaceProviders(rows: { provider: string; can_use_in_place: boolean }[]): InPlaceSupport {
   return new Set(rows.filter((row) => row.can_use_in_place).map((row) => row.provider));
+}
+
+export function supportsInPlace(support: InPlaceSupport, id: string): boolean {
+  return support === "unknown" || support.has(id);
 }
 
 /** What "the same sign-in, settings and history" is the same AS, for a

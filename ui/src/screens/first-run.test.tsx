@@ -753,11 +753,36 @@ describe("AJ-E1301 — Codex setups in first run", () => {
     );
   });
 
+  it("when the capabilities call fails, the choice stays and in place is preselected", async () => {
+    w().__AIJ_SCAN_REPORT__ = {
+      ...SCAN,
+      installs: [...SCAN.installs, codex("/Users/you/.codex", "vendor-default")],
+    };
+    w().__AIJ_PROVIDER_CAPABILITIES_ERROR__ = { code: "io", user_message: "the app is still starting" };
+    // Install probes failing too changes nothing about the choice.
+    w().__AIJ_PROVIDER_INSTALLS_ERROR__ = { code: "io", user_message: "probe failed" };
+    const bridge = await import("../lib/bridge");
+    const spy = vi.spyOn(bridge, "accountImport");
+    const { findByTestId, getByTestId } = render(
+      <FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />,
+    );
+    await findByTestId("first-run-group-codex");
+    const inPlace = within(getByTestId("first-run-placement-in_place")).getByRole("radio") as HTMLInputElement;
+    expect(inPlace.checked).toBe(true);
+    expect(getByTestId("first-run-placement-copy")).toBeTruthy();
+    await act(async () => {
+      fireEvent.click(getByTestId("first-run-bring-in"));
+    });
+    expect(spy.mock.calls.length).toBeGreaterThan(0);
+    expect(spy.mock.calls.every((call) => call[6] === true)).toBe(true);
+    spy.mockRestore();
+  });
+
   it("a tool the backend can't use in place comes in as a copy, with no choice", async () => {
     w().__AIJ_SCAN_REPORT__ = { ...SCAN, installs: [codex("/Users/you/.codex", "vendor-default")] };
-    w().__AIJ_PROVIDER_INSTALLS__ = [
-      { provider: "claude-code", display_name: "Claude Code", install_url: null, status: "installed", version: null, binary: null, notes: [], can_use_in_place: true },
-      { provider: "codex", display_name: "Codex", install_url: null, status: "installed", version: null, binary: null, notes: [], can_use_in_place: false },
+    w().__AIJ_PROVIDER_CAPABILITIES__ = [
+      { provider: "claude-code", can_use_in_place: true },
+      { provider: "codex", can_use_in_place: false },
     ];
     const bridge = await import("../lib/bridge");
     const spy = vi.spyOn(bridge, "accountImport");
@@ -776,8 +801,8 @@ describe("AJ-E1301 — Codex setups in first run", () => {
     w().__AIJ_SCAN_REPORT__ = { ...SCAN, installs: [codex("/Users/you/.codex", "vendor-default")] };
     // Neither tool installed: only Codex's note, over its own rows.
     w().__AIJ_PROVIDER_INSTALLS__ = [
-      { provider: "claude-code", display_name: "Claude Code", install_url: null, status: "not_installed", version: null, binary: null, notes: [], can_use_in_place: true },
-      { provider: "codex", display_name: "Codex", install_url: null, status: "not_installed", version: null, binary: null, notes: [], can_use_in_place: true },
+      { provider: "claude-code", display_name: "Claude Code", install_url: null, status: "not_installed", version: null, binary: null, notes: [] },
+      { provider: "codex", display_name: "Codex", install_url: null, status: "not_installed", version: null, binary: null, notes: [] },
     ];
     const bridge = await import("../lib/bridge");
     const spy = vi.spyOn(bridge, "accountImport");

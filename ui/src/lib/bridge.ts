@@ -3807,8 +3807,6 @@ export interface ProviderInstallData {
   kind?: "terminal" | "desktop";
   /** The single-instance desktop limit, stated BEFORE selection. */
   single_instance_note?: string | null;
-  /** ADR-0018: its setups can be used where they are. */
-  can_use_in_place?: boolean;
 }
 
 /** The no-backend Step-0 default (preview mode shows an installed
@@ -3822,7 +3820,6 @@ const DEFAULT_PROVIDER_INSTALLS: ProviderInstallData[] = [
     version: "2.1.296",
     binary: "/usr/local/bin/claude",
     notes: [],
-    can_use_in_place: true,
   },
   {
     provider: "codex",
@@ -3832,7 +3829,6 @@ const DEFAULT_PROVIDER_INSTALLS: ProviderInstallData[] = [
     version: null,
     binary: null,
     notes: [],
-    can_use_in_place: true,
   },
 ];
 
@@ -3849,6 +3845,33 @@ export async function providersDiscover(): Promise<ProviderInstallData[]> {
     );
   }
   return invoke<ProviderInstallData[]>("providers_discover");
+}
+
+/** What a registered Provider supports — from the registry alone, no
+ * install probe (cheap on every screen). */
+export interface ProviderCapabilityData {
+  provider: string;
+  /** ADR-0018: its setups can be used where they are. */
+  can_use_in_place: boolean;
+}
+
+const DEFAULT_PROVIDER_CAPABILITIES: ProviderCapabilityData[] = [
+  { provider: "claude-code", can_use_in_place: true },
+  { provider: "codex", can_use_in_place: true },
+];
+
+/** ADR-0018: each registered Provider's static capabilities. */
+export async function providersCapabilities(): Promise<ProviderCapabilityData[]> {
+  if (!hasBackend) {
+    // Test seam: the call itself fails.
+    const failure = (window as unknown as { __AIJ_PROVIDER_CAPABILITIES_ERROR__?: unknown }).__AIJ_PROVIDER_CAPABILITIES_ERROR__;
+    if (failure !== undefined) throw failure;
+    return (
+      (window as unknown as { __AIJ_PROVIDER_CAPABILITIES__?: ProviderCapabilityData[] }).__AIJ_PROVIDER_CAPABILITIES__ ??
+      DEFAULT_PROVIDER_CAPABILITIES
+    );
+  }
+  return invoke<ProviderCapabilityData[]>("providers_capabilities");
 }
 
 /** AJ-E302: one probe's health row (S1–S10). */

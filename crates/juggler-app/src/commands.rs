@@ -13522,9 +13522,49 @@ pub struct ProviderInstallInfo {
     /// The single-instance desktop limit, stated BEFORE selection
     /// (Req.3) — the adapter's isolation claim verbatim.
     pub single_instance_note: Option<String>,
+}
+
+/// What a registered Provider supports, from the registry alone — no
+/// install probe, so it is cheap to ask on every screen that needs it.
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize)]
+pub struct ProviderCapabilityInfo {
+    /// Provider id.
+    pub provider: String,
     /// ADR-0018: its setups can be used where they are (the adapter
     /// adopts a folder without writing to it).
     pub can_use_in_place: bool,
+}
+
+/// ADR-0018: each registered Provider's static capabilities (no
+/// process is spawned — unlike [`providers_discover`]).
+///
+/// # Errors
+///
+/// Never in practice; typed for the command surface.
+#[tauri::command]
+pub fn providers_capabilities(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<Vec<ProviderCapabilityInfo>> {
+    Ok(providers_capabilities_impl(state.inner()))
+}
+
+/// Core implementation shared with integration tests.
+#[must_use]
+pub fn providers_capabilities_impl(state: &Arc<AppState>) -> Vec<ProviderCapabilityInfo> {
+    state
+        .registry
+        .ids()
+        .into_iter()
+        .filter_map(|id| {
+            state
+                .registry
+                .get(&id)
+                .map(|adapter| ProviderCapabilityInfo {
+                    provider: id.to_string(),
+                    can_use_in_place: adapter.can_use_in_place(),
+                })
+        })
+        .collect()
 }
 
 /// AJ-E301: probes every registered Provider in parallel (thread per
@@ -13673,9 +13713,6 @@ fn providers_discover_rows(state: &Arc<AppState>) -> Vec<ProviderInstallInfo> {
                 let adapter_meta = registry.get(&juggler_core::model::HarnessId::new(
                     report.adapter.as_str(),
                 ));
-                let can_use_in_place = adapter_meta
-                    .as_ref()
-                    .is_some_and(|adapter| adapter.can_use_in_place());
                 let (verified_against, kind, single_instance_note) = match adapter_meta {
                     Some(adapter) => (
                         adapter
@@ -13706,7 +13743,6 @@ fn providers_discover_rows(state: &Arc<AppState>) -> Vec<ProviderInstallInfo> {
                     verified_against,
                     kind,
                     single_instance_note,
-                    can_use_in_place,
                 }
             })
             .collect()

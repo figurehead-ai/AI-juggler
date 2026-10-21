@@ -8,7 +8,7 @@ import { BetaMatrix } from "../components/BetaMatrix";
 import { ExpertSetup } from "../components/ExpertSetup";
 import { EnvOverlayEditor } from "../components/EnvOverlayEditor";
 import { AccountRunway, runwayLines } from "../components/AccountRunway";
-import { inPlaceProviders, ownSignIn, providerDisplayName, sameAsWords } from "../lib/providers";
+import { inPlaceProviders, ownSignIn, providerDisplayName, sameAsWords, supportsInPlace, type InPlaceSupport } from "../lib/providers";
 import {
   accountUseOriginal,
   accountsList,
@@ -17,7 +17,7 @@ import {
   launchSession,
   launchRecipesList,
   pickDirectory,
-  providersDiscover,
+  providersCapabilities,
   type AccountInfo,
   type LaunchRecipeInfo,
   expertSetupInfo,
@@ -87,12 +87,16 @@ export function ProfilesScreen({
   const [loginFor, setLoginFor] = useState<AccountInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [displays, setDisplays] = useState<QuotaDisplayData[]>([]);
-  // ADR-0018: which tools' copies can switch to their original (the
-  // backend's provider rows decide).
-  const [inPlace, setInPlace] = useState<Set<string>>(() => new Set());
+  // ADR-0018: which tools' copies can switch to their original — the
+  // backend's static capabilities (no install probe). If the call fails
+  // the offer stays; the backend refuses what it can't adopt.
+  const [inPlace, setInPlace] = useState<InPlaceSupport | null>(null);
   useEffect(() => {
     let alive = true;
-    void providersDiscover().then((rows) => alive && setInPlace(inPlaceProviders(rows)), () => null);
+    void providersCapabilities().then(
+      (rows) => alive && setInPlace(inPlaceProviders(rows)),
+      () => alive && setInPlace("unknown"),
+    );
     return () => {
       alive = false;
     };
@@ -183,7 +187,7 @@ export function ProfilesScreen({
             <AccountCard
               key={account.id}
               account={account}
-              canUseInPlace={inPlace.has(account.provider)}
+              canUseInPlace={inPlace !== null && supportsInPlace(inPlace, account.provider)}
               profiles={profiles.filter((recipe) => recipe.account_id === account.id)}
               onLaunch={launch}
               onDeleteProfile={async (id) => {
