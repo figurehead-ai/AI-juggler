@@ -5241,7 +5241,7 @@ fn pinned_of(marks: &juggler_core::storage::SessionMarks, id: &str) -> Option<bo
 }
 
 /// Measured token counts for the wire; all-zero means unmeasured (null).
-fn tokens_info(t: juggler_core::model::TokenCounts) -> Option<TokenCountsInfo> {
+pub(crate) fn tokens_info(t: juggler_core::model::TokenCounts) -> Option<TokenCountsInfo> {
     (t != juggler_core::model::TokenCounts::default()).then_some(TokenCountsInfo {
         input: t.input,
         output: t.output,
@@ -5362,10 +5362,11 @@ fn session_infos(
         .collect())
 }
 
-/// Scans imported transcripts and backfills the projects rail with the
-/// user's REAL history: every project directory found in any account's
-/// `projects/` transcripts (cwd read from the transcript itself, never
-/// guessed from the encoded dir name), with per-account history merged.
+/// Backfills the projects rail with the user's REAL history: every folder
+/// any account's conversations ran in (AJ-E1529: both tools, read by
+/// their adapters into the conversation index), folded into its project
+/// (worktrees present, removed or pruned into their repository), with the
+/// accounts that worked there, how many conversations, and when last.
 /// Idempotent; safe to run at every startup.
 #[tauri::command]
 ///
@@ -5382,56 +5383,60 @@ pub fn projects_backfill(state: tauri::State<'_, Arc<AppState>>) -> AppResult<u3
 ///
 /// Returns the typed [`AppError`] message on failure.
 pub fn projects_backfill_impl(state: &Arc<AppState>) -> AppResult<u32> {
-    use std::collections::BTreeMap;
+    use std::collections::{BTreeMap, BTreeSet};
 
-    // root → (labels, native session count)
-    let mut found: BTreeMap<PathBuf, (Vec<String>, u64, Option<i64>)> = BTreeMap::new();
-    let accounts = lock_storage_arc(state)?.accounts().list()?;
-    for account in &accounts {
-        let projects_root = account.state_dir.join("projects");
-        let Ok(entries) = std::fs::read_dir(&projects_root) else {
-            continue;
+    /// What the conversations say about one project.
+    #[derive(Default)]
+    struct Found {
+        accounts: Vec<String>,
+        conversations: BTreeSet<(String, String)>,
+        last_ms: Option<i64>,
+    }
+
+    if state.conversations.all()?.is_empty() {
+        crate::features::conversations::refresh_impl(state)?;
+    }
+    let labels: std::collections::HashMap<String, String> = lock_storage_arc(state)?
+        .accounts()
+        .list()?
+        .into_iter()
+        .map(|account| (account.id.to_string(), account.label))
+        .collect();
+    let mut found: BTreeMap<PathBuf, Found> = BTreeMap::new();
+    for conversation in state.conversations.all()? {
+        let Some(folder) = conversation.folder.as_deref() else {
+            continue; // no folder recorded: nothing to attach it to
         };
-        for project_dir in entries.flatten().filter(|e| e.path().is_dir()) {
-            let jsonl = newest_jsonl(&project_dir.path());
-            let Some(jsonl) = jsonl else { continue };
-            let Some(cwd) = transcript_cwd(&jsonl) else {
-                continue; // cannot decode the dir name unambiguously
-            };
-            // A worktree's history is its repository's history.
-            let cwd = PathBuf::from(&cwd);
-            let root = juggler_core::storage::worktree_repo_root(&cwd).unwrap_or(cwd);
-            let written = std::fs::metadata(&jsonl)
-                .and_then(|meta| meta.modified())
-                .ok()
-                .and_then(|at| at.duration_since(std::time::UNIX_EPOCH).ok())
-                .and_then(|since| i64::try_from(since.as_millis()).ok());
-            let entry = found.entry(root).or_insert_with(|| (Vec::new(), 0, None));
-            if !entry.0.contains(&account.label) {
-                entry.0.push(account.label.clone());
-            }
-            entry.1 += count_jsonl(&project_dir.path());
-            entry.2 = entry.2.max(written);
+        let root = juggler_core::storage::project_root(folder);
+        let entry = found.entry(root).or_default();
+        if let Some(label) = labels.get(&conversation.account_id)
+            && !entry.accounts.contains(label)
+        {
+            entry.accounts.push(label.clone());
         }
+        entry
+            .conversations
+            .insert((conversation.tool.clone(), conversation.summary.id.clone()));
+        entry.last_ms = entry.last_ms.max(conversation.summary.last_ms);
     }
 
     let storage = lock_storage_arc(state)?;
-    // Rows an earlier backfill made for worktrees fold into their
-    // repository: removed when nothing refers to them.
+    // Rows an earlier backfill made for a worktree or a repository's
+    // subfolder fold into their project: removed when nothing refers to them.
     for project in storage.projects().list()? {
-        if juggler_core::storage::worktree_repo_root(&project.root).is_some() {
+        if juggler_core::storage::project_root(&project.root) != project.root {
             let _ = storage.projects().delete_if_unused(&project.id);
         }
     }
     let mut enriched = 0;
-    for (root, (labels, sessions, last_used_ms)) in found {
+    for (root, found) in found {
         let record = storage.projects().touch(&root, None)?;
         storage.projects().merge_history(
             &record.id,
             &juggler_core::model::ProjectHistory {
-                accounts: labels,
-                native_sessions: sessions,
-                last_used_ms,
+                accounts: found.accounts,
+                native_sessions: u64::try_from(found.conversations.len()).unwrap_or(u64::MAX),
+                last_used_ms: found.last_ms,
             },
         )?;
         enriched += 1;
@@ -5498,43 +5503,6 @@ pub fn normalise_remote(url: &str) -> Option<String> {
         .trim_end_matches(".git")
         .to_lowercase();
     (!host.is_empty() && !path.is_empty()).then(|| format!("{host}/{path}"))
-}
-
-/// Newest `.jsonl` in a project transcript dir by mtime.
-fn newest_jsonl(dir: &std::path::Path) -> Option<std::path::PathBuf> {
-    std::fs::read_dir(dir)
-        .ok()?
-        .flatten()
-        .filter(|entry| entry.path().extension().is_some_and(|e| e == "jsonl"))
-        .max_by_key(|entry| entry.metadata().ok().and_then(|m| m.modified().ok()))
-        .map(|entry| entry.path())
-}
-
-fn count_jsonl(dir: &std::path::Path) -> u64 {
-    std::fs::read_dir(dir)
-        .map(|entries| {
-            entries
-                .flatten()
-                .filter(|entry| entry.path().extension().is_some_and(|e| e == "jsonl"))
-                .count() as u64
-        })
-        .unwrap_or_default()
-}
-
-/// Reads a transcript's true working directory from its first lines
-/// (`"cwd"` is recorded on message records) — the only unambiguous decode.
-fn transcript_cwd(jsonl: &std::path::Path) -> Option<String> {
-    use std::io::BufRead;
-    let file = std::fs::File::open(jsonl).ok()?;
-    for line in std::io::BufReader::new(file).lines().take(25).flatten() {
-        if let Ok(value) = serde_json::from_str::<serde_json::Value>(&line)
-            && let Some(cwd) = value.get("cwd").and_then(|v| v.as_str())
-            && !cwd.is_empty()
-        {
-            return Some(cwd.to_string());
-        }
-    }
-    None
 }
 
 /// The juggle (spec §7 T1/T2 v0): move a live session's transcript to

@@ -134,6 +134,38 @@ pub trait HarnessAdapter: Send + Sync {
         None
     }
 
+    /// AJ-E1529: the conversation files this account's tool keeps under
+    /// `state_dir` (every one, AI Juggler's or not). Lists only; reads
+    /// nothing. Default: none (a tool without a readable history).
+    #[must_use]
+    fn conversation_files(&self, state_dir: &Path) -> crate::conversation::ConversationFiles {
+        let _ = state_dir;
+        Vec::new()
+    }
+
+    /// AJ-E1529: what one of [`HarnessAdapter::conversation_files`] says
+    /// about itself. Read-only; `None` when it isn't a conversation (empty,
+    /// damaged beyond reading, another tool's file).
+    #[must_use]
+    fn read_conversation(&self, path: &Path) -> Option<crate::conversation::ConversationSummary> {
+        let _ = path;
+        None
+    }
+
+    /// AJ-E1529: whether a running process (its executable and its
+    /// arguments, the first being the program) is one of this tool's
+    /// sessions, and which conversation it resumes. Helpers and a desktop
+    /// app's internals are not sessions. Default: never.
+    #[must_use]
+    fn session_process(
+        &self,
+        exe: Option<&Path>,
+        args: &[String],
+    ) -> Option<crate::conversation::SessionProcess> {
+        let _ = (exe, args);
+        None
+    }
+
     /// Creates a watcher over the account's transcript root.
     ///
     /// # Errors

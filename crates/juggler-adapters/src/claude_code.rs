@@ -400,6 +400,25 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         Some("claude")
     }
 
+    fn conversation_files(&self, state_dir: &Path) -> Vec<PathBuf> {
+        crate::claude_conversations::conversation_files(state_dir)
+    }
+
+    fn read_conversation(
+        &self,
+        path: &Path,
+    ) -> Option<juggler_adapter::conversation::ConversationSummary> {
+        crate::claude_conversations::read_conversation(path)
+    }
+
+    fn session_process(
+        &self,
+        exe: Option<&Path>,
+        args: &[String],
+    ) -> Option<juggler_adapter::conversation::SessionProcess> {
+        crate::claude_conversations::session_process(exe, args)
+    }
+
     fn resume_args(&self, conversation_id: &str) -> Option<Vec<String>> {
         crate::codex::refuse_option_like(conversation_id).ok()?;
         Some(vec!["--resume".into(), conversation_id.to_owned()])

@@ -13,10 +13,12 @@
 )]
 
 pub mod claude_code;
+pub mod claude_conversations;
 pub mod claude_environment;
 pub mod claude_handover;
 pub mod claude_transcript;
 pub mod codex;
+pub mod codex_conversations;
 pub mod codex_environment;
 pub mod codex_handover;
 pub mod codex_transcript;

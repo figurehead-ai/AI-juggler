@@ -1,0 +1,181 @@
+//! AJ-E1529: Codex's conversations on disk: `sessions/Y/M/D/rollout-*.jsonl`
+//! under its home, one per thread (a revert adds `…_<rollout>` files of the
+//! same thread). Read-only.
+
+use std::path::{Path, PathBuf};
+
+use juggler_adapter::conversation::{
+    ConversationSummary, SessionProcess, timestamp_ms, title_from, value_after,
+};
+
+use crate::claude_transcript::MessageRole;
+use crate::codex_transcript::{parse_rollout, rollout_cwd, rollout_thread_id};
+
+/// The longest title kept.
+const TITLE_MAX: usize = 80;
+
+/// Every `sessions/*/*/*/rollout-*.jsonl` under `home`.
+#[must_use]
+pub fn conversation_files(home: &Path) -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    let mut level = vec![home.join("sessions")];
+    for _ in 0..3 {
+        level = level
+            .iter()
+            .filter_map(|dir| std::fs::read_dir(dir).ok())
+            .flat_map(Iterator::flatten)
+            .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_dir()))
+            .map(|entry| entry.path())
+            .collect();
+    }
+    for day in level {
+        let Ok(entries) = std::fs::read_dir(&day) else {
+            continue;
+        };
+        out.extend(entries.flatten().map(|entry| entry.path()).filter(|path| {
+            path.extension().is_some_and(|ext| ext == "jsonl")
+                && path
+                    .file_name()
+                    .is_some_and(|name| name.to_string_lossy().starts_with("rollout-"))
+        }));
+    }
+    out
+}
+
+/// Reads one rollout: its thread id, folder, branch, title (the first
+/// thing the user asked, not the context Codex injects), first and last
+/// activity, and tokens (each response counted once).
+#[must_use]
+pub fn read_conversation(path: &Path) -> Option<ConversationSummary> {
+    let bytes = std::fs::read(path).ok()?;
+    if bytes.iter().all(u8::is_ascii_whitespace) {
+        return None;
+    }
+    let name = path.file_name()?.to_string_lossy().into_owned();
+    let parsed = parse_rollout(&bytes);
+    let mut summary = ConversationSummary {
+        id: rollout_thread_id(&bytes, &name)?,
+        cwd: rollout_cwd(&bytes).map(PathBuf::from),
+        tokens: parsed.usage,
+        title: parsed
+            .messages
+            .iter()
+            .find(|message| message.role == MessageRole::User)
+            .and_then(|message| title_from(&message.text, TITLE_MAX)),
+        ..ConversationSummary::default()
+    };
+    for line in String::from_utf8_lossy(&bytes).lines() {
+        let Ok(value) = serde_json::from_str::<serde_json::Value>(line) else {
+            continue;
+        };
+        if let Some(at) = value
+            .get("timestamp")
+            .and_then(serde_json::Value::as_str)
+            .and_then(timestamp_ms)
+        {
+            summary.started_ms = Some(summary.started_ms.map_or(at, |first| first.min(at)));
+            summary.last_ms = Some(summary.last_ms.map_or(at, |last| last.max(at)));
+        }
+        // `session_meta.payload.git.branch`, when Codex recorded the repo.
+        if value.get("type").and_then(serde_json::Value::as_str) == Some("session_meta")
+            && let Some(branch) = value
+                .pointer("/payload/git/branch")
+                .and_then(serde_json::Value::as_str)
+                .filter(|branch| !branch.is_empty())
+        {
+            summary.git_branch = Some(branch.to_owned());
+        }
+    }
+    Some(summary)
+}
+
+/// Codex subcommands that aren't a session: the desktop app's servers,
+/// MCP, sign-in and the like.
+const HELPERS: &[&str] = &[
+    "app-server",
+    "exec-server",
+    "mcp",
+    "mcp-server",
+    "proto",
+    "login",
+    "logout",
+    "completion",
+    "apply",
+];
+
+/// A `codex` CLI (the binary, or the npm package run by node) outside an
+/// app bundle, not one of its helper subcommands, is a session;
+/// `codex resume <id>` names its conversation.
+#[must_use]
+pub fn session_process(exe: Option<&Path>, args: &[String]) -> Option<SessionProcess> {
+    let in_app = exe.is_some_and(|exe| exe.to_string_lossy().contains(".app/"))
+        || args
+            .first()
+            .is_some_and(|program| program.contains(".app/"));
+    let cli = exe.is_some_and(|exe| exe.file_name().is_some_and(|name| name == "codex"))
+        || args.iter().any(|arg| arg.contains("@openai/codex"));
+    let subcommand = args
+        .iter()
+        .skip(1)
+        .find(|arg| !arg.starts_with('-') && !arg.contains("@openai/codex"));
+    let helper = subcommand.is_some_and(|word| HELPERS.contains(&word.as_str()));
+    (cli && !in_app && !helper).then(|| SessionProcess {
+        resumes: value_after(args, &["resume"]),
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_cli_session_is_told_from_the_apps_helpers() {
+        let args = |list: &[&str]| list.iter().map(|arg| (*arg).to_owned()).collect::<Vec<_>>();
+        let cli = Path::new("/opt/homebrew/bin/codex");
+        assert_eq!(
+            session_process(Some(cli), &args(&["codex"])),
+            Some(SessionProcess { resumes: None })
+        );
+        assert_eq!(
+            session_process(Some(cli), &args(&["codex", "resume", "0199a2b3"]))
+                .unwrap()
+                .resumes
+                .as_deref(),
+            Some("0199a2b3")
+        );
+        // ChatGPT's own Codex servers are the app's, not sessions.
+        let app = Path::new("/Applications/ChatGPT.app/Contents/Resources/codex");
+        assert!(session_process(Some(app), &args(&["codex", "app-server"])).is_none());
+        assert!(session_process(Some(cli), &args(&["codex", "exec-server"])).is_none());
+        assert!(session_process(Some(cli), &args(&["codex", "login"])).is_none());
+    }
+
+    #[test]
+    fn a_rollout_reads_its_thread_folder_branch_ask_times_and_tokens() {
+        let dir = tempfile::tempdir().unwrap();
+        let day = dir.path().join("sessions/2026/10/21");
+        std::fs::create_dir_all(&day).unwrap();
+        let path =
+            day.join("rollout-2026-10-21T10-00-00-0199a2b3-c4d5-7e6f-8a9b-0c1d2e3f4a5b.jsonl");
+        std::fs::write(
+            &path,
+            [
+                r#"{"timestamp":"2026-10-21T10:00:00.000Z","type":"session_meta","payload":{"id":"0199a2b3-c4d5-7e6f-8a9b-0c1d2e3f4a5b","cwd":"/w/api","git":{"branch":"main"}}}"#,
+                r#"{"timestamp":"2026-10-21T10:00:01.000Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"<environment_context>cwd</environment_context>"}]}}"#,
+                r#"{"timestamp":"2026-10-21T10:00:02.000Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Speed up the import job"}]}}"#,
+                r#"{"timestamp":"2026-10-21T10:00:09.000Z","type":"token_usage_record","payload":{"thread_id":"t","turn_id":"1","response_id":"r1","usage":{"input_tokens":100,"output_tokens":20}}}"#,
+                r#"{"timestamp":"2026-10-21T10:00:09.500Z","type":"token_usage_record","payload":{"thread_id":"t","turn_id":"1","response_id":"r1","usage":{"input_tokens":100,"output_tokens":20}}}"#,
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        let summary = read_conversation(&path).unwrap();
+        assert_eq!(summary.id, "0199a2b3-c4d5-7e6f-8a9b-0c1d2e3f4a5b");
+        assert_eq!(summary.cwd.as_deref(), Some(Path::new("/w/api")));
+        assert_eq!(summary.git_branch.as_deref(), Some("main"));
+        assert_eq!(summary.title.as_deref(), Some("Speed up the import job"));
+        assert_eq!(summary.last_ms.unwrap() - summary.started_ms.unwrap(), 9500);
+        assert_eq!((summary.tokens.input, summary.tokens.output), (100, 20));
+        assert_eq!(conversation_files(dir.path()), vec![path]);
+    }
+}

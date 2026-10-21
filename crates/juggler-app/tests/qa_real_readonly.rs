@@ -121,6 +121,15 @@ fn real_setup_read_models() {
         serde_json::to_value(&projects_before).unwrap(),
     );
     report.insert("projects_backfilled".into(), backfilled.into());
+    // AJ-E1529: every account's conversations, and which are live.
+    juggler_app::features::conversations::tick(&state).unwrap();
+    report.insert(
+        "conversations".into(),
+        serde_json::to_value(
+            juggler_app::features::conversations::commands::list_impl(&state).unwrap(),
+        )
+        .unwrap(),
+    );
     report.insert("projects".into(), serde_json::to_value(&projects).unwrap());
 
     let app = tauri::test::mock_builder()

@@ -215,6 +215,7 @@ pub fn run() {
             commands::app_info,
             features::tools::commands::tools_catalog,
             features::sessions::commands::sessions_resume_command,
+            features::conversations::commands::conversations_list,
             quit::app_quit_plan,
             quit::app_quit,
             quit::app_quit_ack,
@@ -661,6 +662,7 @@ fn spawn_read_model_ticks(
     }
     let quota_app = app.clone();
     let processes_app = app.clone();
+    let conversations_app = app.clone();
     let index_state = quota_state.clone();
     std::thread::spawn(move || {
         loop {
@@ -687,6 +689,21 @@ fn spawn_read_model_ticks(
             let _ = commands::emit_quota(&quota_app, &quota_state);
         }
     });
+    // AJ-E1529: every account's conversations and which are live, read
+    // from the tools' own files every 15 s (only changed files are read
+    // again); the UI hears of it only when something changed.
+    {
+        let conversations_state = index_state.clone();
+        std::thread::spawn(move || {
+            loop {
+                if let Ok(true) = features::conversations::tick(&conversations_state) {
+                    use tauri::Emitter;
+                    let _ = conversations_app.emit("conversations://changed", ());
+                }
+                std::thread::sleep(std::time::Duration::from_secs(15));
+            }
+        });
+    }
     // AJ-E1007: the transcript search index, kept up to date in the
     // background (incremental: unchanged transcripts cost one metadata
     // read), so a search never waits for a first build.

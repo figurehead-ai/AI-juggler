@@ -15,6 +15,7 @@
 
 pub mod adapter;
 pub mod capabilities;
+pub mod conversation;
 pub mod discovery;
 pub mod environment;
 pub mod error;

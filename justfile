@@ -155,6 +155,21 @@ replica-live minutes="60" *args="":
     cargo build -q -p juggler-adapters --bins
     python3 -I scripts/replica.py live --home {{replica_home}} --harness {{target_dir}}/debug/fake-harness --desktop {{target_dir}}/debug/fake-desktop --minutes {{minutes}} {{args}}
 
+# Compare the backend's read models with the oracle on the replica (AJ-E1529).
+replica-oracle:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cargo test -q -p juggler-app --test qa_real_readonly --no-run 2> /dev/null
+    bin=$(ls -t {{target_dir}}/debug/deps/qa_real_readonly-* | grep -v '\.d$' | sed -n 1p)
+    work=$(mktemp -d)
+    env -i HOME={{replica_home}} USER="$USER" TMPDIR="$TMPDIR" PATH=/usr/bin:/bin:/usr/sbin:/sbin \
+        AIJ_QA_REAL_DATA="$work/data" AIJ_QA_REAL_OUT="$work/harness.json" "$bin" --ignored --nocapture > "$work/harness.log" 2>&1
+    dirs=()
+    for d in {{replica_home}}/.claude-*/; do dirs+=(--claude-dir "$d"); done
+    for d in {{replica_home}}/.codex-*/; do dirs+=(--codex-dir "$d"); done
+    HOME={{replica_home}} python3 -I scripts/qa/real_truth.py "${dirs[@]}" --compare "$work/harness.json"
+    rm -rf "$work"
+
 # Cargo, rustup and corepack keep their own homes while HOME is the replica.
 # Run AI Juggler Dev on the replica HOME.
 replica-walk: dev-icon

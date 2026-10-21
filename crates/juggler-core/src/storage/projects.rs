@@ -308,6 +308,50 @@ pub fn worktree_repo_root(path: &Path) -> Option<std::path::PathBuf> {
     None
 }
 
+/// AJ-E1529: the project a folder belongs to.
+///
+/// - An agent worktree, `<repo>/.claude/worktrees/<name>/…` (or
+///   `.codex/…`), belongs to `<repo>` by its path: whether it is still
+///   there, was removed (only its transcripts remain) or was pruned (the
+///   folder remains, its `.git` file doesn't).
+/// - A linked worktree elsewhere belongs to its repository through its
+///   `.git` file ([`worktree_repo_root`]).
+/// - A folder inside a repository belongs to the repository.
+/// - Anything else is its own project.
+///
+/// Reads only `.git` entries; never writes.
+#[must_use]
+pub fn project_root(path: &Path) -> std::path::PathBuf {
+    if let Some(repo) = agent_worktree_repo(path) {
+        return repo;
+    }
+    if let Some(repo) = worktree_repo_root(path) {
+        return repo;
+    }
+    path.ancestors()
+        .skip(1)
+        .take(12)
+        .find(|ancestor| ancestor.join(".git").is_dir())
+        .map_or_else(
+            || path.to_path_buf(),
+            |repo| std::fs::canonicalize(repo).unwrap_or_else(|_| repo.to_path_buf()),
+        )
+}
+
+/// `<repo>` of `<repo>/.claude/worktrees/<name>[/…]` (or `.codex`), when
+/// `<repo>` is a repository on this Mac.
+fn agent_worktree_repo(path: &Path) -> Option<std::path::PathBuf> {
+    let parts: Vec<_> = path.components().collect();
+    let at = parts.windows(3).position(|window| {
+        matches!(window[0].as_os_str().to_str(), Some(".claude" | ".codex"))
+            && window[1].as_os_str() == "worktrees"
+    })?;
+    let repo: std::path::PathBuf = parts[..at].iter().collect();
+    repo.join(".git")
+        .exists()
+        .then(|| std::fs::canonicalize(&repo).unwrap_or(repo))
+}
+
 /// Maps a row to a [`ProjectRecord`].
 fn map_project(row: &Row<'_>) -> rusqlite::Result<ProjectRecord> {
     let id: String = row.get("id")?;
@@ -341,4 +385,93 @@ fn suffix(now: Timestamp) -> u128 {
     let seq = u128::from(COUNTER.fetch_add(1, Ordering::Relaxed));
     let millis = u128::from(now.millis().max(0).cast_unsigned()) % 1_000_000_000_000;
     millis * 1_000 + (seq % 1_000)
+}
+
+#[cfg(test)]
+mod project_root_tests {
+    use super::project_root;
+    use std::process::Command;
+
+    fn git(dir: &std::path::Path, args: &[&str]) {
+        let ok = Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args([
+                "-c",
+                "user.name=t",
+                "-c",
+                "user.email=t@example.test",
+                "-c",
+                "init.defaultBranch=main",
+            ])
+            .args(args)
+            .output()
+            .unwrap()
+            .status
+            .success();
+        assert!(ok, "git {args:?}");
+    }
+
+    /// AJ-E1529: every shape of worktree seen on a real Mac folds into its
+    /// repository: present, removed, pruned; and a subfolder of a repo.
+    #[test]
+    fn worktrees_present_removed_and_pruned_fold_into_their_repo() {
+        let dir = tempfile::tempdir().unwrap();
+        let repo = dir.path().join("app");
+        std::fs::create_dir_all(&repo).unwrap();
+        git(&repo, &["init", "-q"]);
+        std::fs::write(repo.join("a"), "a").unwrap();
+        git(&repo, &["add", "-A"]);
+        git(&repo, &["commit", "-q", "-m", "a"]);
+        let repo = std::fs::canonicalize(&repo).unwrap();
+        let present = repo.join(".claude/worktrees/present");
+        let removed = repo.join(".claude/worktrees/removed");
+        let pruned = repo.join(".claude/worktrees/pruned");
+        for (path, branch) in [(&present, "p"), (&removed, "r"), (&pruned, "q")] {
+            git(
+                &repo,
+                &[
+                    "worktree",
+                    "add",
+                    "-q",
+                    "-b",
+                    branch,
+                    path.to_str().unwrap(),
+                ],
+            );
+        }
+        git(
+            &repo,
+            &["worktree", "remove", "--force", removed.to_str().unwrap()],
+        );
+        std::fs::remove_file(pruned.join(".git")).unwrap();
+        assert_eq!(project_root(&present), repo);
+        assert_eq!(
+            project_root(&removed),
+            repo,
+            "removed: only its transcripts remain"
+        );
+        assert_eq!(
+            project_root(&pruned),
+            repo,
+            "pruned: the folder remains, git forgot it"
+        );
+        assert_eq!(project_root(&present.join("src")), repo);
+        std::fs::create_dir_all(repo.join("web/src")).unwrap();
+        assert_eq!(
+            project_root(&repo.join("web/src")),
+            repo,
+            "a folder inside a repo is the repo"
+        );
+        assert_eq!(project_root(&repo), repo);
+        let plain = dir.path().join("notes");
+        std::fs::create_dir_all(&plain).unwrap();
+        assert_eq!(project_root(&plain), plain, "not a repo: its own project");
+        let gone = dir.path().join("gone/.claude/worktrees/x");
+        assert_eq!(
+            project_root(&gone),
+            gone,
+            "a worktree path without its repo stays as it is"
+        );
+    }
 }

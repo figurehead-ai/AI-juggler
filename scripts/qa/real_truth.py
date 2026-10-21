@@ -278,7 +278,9 @@ def build(args) -> dict:
     session_usage = defaultdict(dict)  # session id → {(message id, request id): (ts, tokens)}
     session_totals = {}  # session id → its own tokens
     session_mtime = {}  # session id → newest write of its files
-    newest_in_folder = defaultdict(list)  # (account idx, encoded cwd) → [(mtime, session)]
+    # (account idx, the folder resolved) → [(mtime, session)]: a running
+    # CLI's folder (from lsof, resolved) finds its conversations by it.
+    newest_in_folder = defaultdict(list)
     for idx, (label, tool, folder) in enumerate(accounts):
         acc = {"label": label, "tool": tool, "conversations": 0, "empty_files": 0, "subagent_files": 0,
                "changed": {"1h": 0, "24h": 0}, "tokens": {}, "tokens_per_line": {}, "codex_limits": None}
@@ -300,7 +302,8 @@ def build(args) -> dict:
                 acc["changed"]["1h"] += age < 3600
                 acc["changed"]["24h"] += age < 86400
                 transcripts_by_session[conv["session"]] = (idx, conv)
-                newest_in_folder[(idx, path.parent.name)].append((conv["mtime"], conv["session"]))
+                if conv["cwd"]:
+                    newest_in_folder[(idx, os.path.realpath(conv["cwd"]))].append((conv["mtime"], conv["session"]))
                 records.update(conv["usage"])
                 lines += conv["usage_lines"]
                 if conv["messages"] == 0 or not conv["cwd"]:
@@ -325,6 +328,8 @@ def build(args) -> dict:
                 acc["active_threads"] = acc.get("active_threads", 0) + (age < args.live_minutes * 60)
                 acc["changed"]["1h"] += age < 3600
                 acc["changed"]["24h"] += age < 86400
+                if roll["session"] and roll["cwd"]:
+                    newest_in_folder[(idx, os.path.realpath(roll["cwd"]))].append((roll["mtime"], roll["session"]))
                 if roll["session"]:
                     transcripts_by_session[roll["session"]] = (idx, roll)
                     session_mtime[roll["session"]] = roll["mtime"]
@@ -356,11 +361,11 @@ def build(args) -> dict:
         if proc["resume"] and proc["resume"] in transcripts_by_session:
             entry["account"] = transcripts_by_session[proc["resume"]][0]
             entry["matched_by"] = "--resume id"
-        elif proc["cwd"] and proc["tool"] == "claude":
-            enc = encode_cwd(proc["cwd"])
+        elif proc["cwd"]:
+            here = os.path.realpath(proc["cwd"])
             best = None
-            for (idx, folder_name), items in newest_in_folder.items():
-                if folder_name != enc or accounts[idx][1] != "claude":
+            for (idx, folder), items in newest_in_folder.items():
+                if folder != here or accounts[idx][1] != proc["tool"]:
                     continue
                 mtime, _ = max(items)
                 if best is None or mtime > best[0]:
@@ -567,10 +572,16 @@ def compare(truth: dict, harness: dict) -> str:
     """Redacted OK / MISMATCH lines: the oracle against the backend's read models."""
     accounts = truth["accounts"]
     acc_name = {i: f"Account {letters(i)}" for i in range(len(accounts))}
-    folder_idx = {str(a[2]).rstrip("/"): i for i, a in enumerate(accounts)}
-    by_id = {a["id"]: folder_idx.get(str(a["state_dir"]).rstrip("/")) for a in harness["accounts"]}
+    # One spelling per folder: the backend resolves symlinks (/tmp is
+    # /private/tmp on a Mac), so the comparison does too.
+    def real(path) -> str:
+        return os.path.realpath(str(path)).rstrip("/")
+
+    folder_idx = {real(a[2]): i for i, a in enumerate(accounts)}
+    by_id = {a["id"]: folder_idx.get(real(a["state_dir"])) for a in harness["accounts"]}
     by_label = {a["label"]: by_id[a["id"]] for a in harness["accounts"]}
-    ranked = sorted(truth["projects"].items(), key=lambda kv: (-sum(kv[1]["per_account"].values()), kv[0]))
+    ranked = sorted(((real(root), p) for root, p in truth["projects"].items()),
+                    key=lambda kv: (-sum(kv[1]["per_account"].values()), kv[0]))
     proj_name = {root: f"Project {n + 1}" for n, (root, _) in enumerate(ranked)}
     now_ms = harness["generated_ms"]
     lines = []
@@ -579,7 +590,7 @@ def compare(truth: dict, harness: dict) -> str:
         lines.append(("OK        " if ok else "MISMATCH  ") + text)
 
     # First run: every setup found, every bring-in done.
-    found = {str(i["path"]).rstrip("/") for i in harness["scan"]["installs"]}
+    found = {real(i["path"]) for i in harness["scan"]["installs"]}
     missing = [acc_name[i] for f, i in folder_idx.items() if f not in found]
     verdict(not missing, f"setups found: {len(found)} of {len(accounts)}" + (f" (missing {', '.join(missing)})" if missing else ""))
     failed = [i for i in harness["imports"] if not i["ok"]]
@@ -588,7 +599,7 @@ def compare(truth: dict, harness: dict) -> str:
     # Projects: every backend row should be one oracle project; counts per project.
     rows = defaultdict(list)
     for row in harness["projects"]:
-        rows[project_of(row["root"])[0]].append(row)
+        rows[real(project_of(row["root"])[0])].append(row)
     verdict(len(harness["projects"]) == len(ranked),
             f"projects: backend {len(harness['projects'])} rows, oracle {len(ranked)}")
     for root, p in ranked:
@@ -596,7 +607,7 @@ def compare(truth: dict, harness: dict) -> str:
         codex_convs = sum(n for i, n in p["per_account"].items() if accounts[i][1] == "codex")
         got = rows.get(root, [])
         shown = sum(r["history_sessions"] or 0 for r in got)
-        extra = [r for r in got if project_of(r["root"])[0] != r["root"] or r["root"] != root]
+        extra = [r for r in got if real(project_of(r["root"])[0]) != real(r["root"]) or real(r["root"]) != root]
         names = sorted({acc_name[by_label[l]] for r in got for l in r["accounts_used"] if by_label.get(l) is not None})
         want = sorted({acc_name[i] for i in p["per_account"]})
         detail = (f"{proj_name[root]}: backend {shown} conversations in {len(got)} row(s)"
@@ -607,8 +618,26 @@ def compare(truth: dict, harness: dict) -> str:
     # Sessions: the rail's list against what is running.
     live = [l for l in truth["live"] if l["kind"] == "session"]
     threads = sum(truth["per_account"][i].get("active_threads", 0) for i in range(len(accounts)))
-    verdict(len(harness["sessions"]) >= len(live),
-            f"sessions listed: backend {len(harness['sessions'])}; running {len(live)} CLI sessions + {threads} active Codex threads")
+    convs = harness.get("conversations")
+    if convs is None:
+        verdict(len(harness["sessions"]) >= len(live),
+                f"sessions listed: backend {len(harness['sessions'])}; running {len(live)} CLI sessions + {threads} active Codex threads")
+    else:
+        # AJ-E1529: every account's conversations, and the live ones, from
+        # conversations_list (sessions started outside AI Juggler included).
+        per, on = defaultdict(int), defaultdict(int)
+        for c in convs:
+            i = by_id.get(c["account_id"])
+            per[i] += 1
+            on[i] += 1 if c["live"] else 0
+        running = defaultdict(int)
+        for l in live:
+            if l.get("account") is not None:
+                running[l["account"]] += 1
+        for i in range(len(accounts)):
+            want = truth["per_account"][i]["conversations"]
+            verdict(per[i] == want, f"{acc_name[i]} conversations: backend {per[i]}, oracle {want}")
+            verdict(on[i] == running[i], f"{acc_name[i]} live: backend {on[i]}, running {running[i]}")
 
     # Quota: percent, reset, tokens per window.
     for q in harness["quota_display_all"]:

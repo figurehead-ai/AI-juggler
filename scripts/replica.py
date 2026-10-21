@@ -414,23 +414,38 @@ def live(args: argparse.Namespace) -> None:
         shutil.copy2(args.desktop, target)
 
     procs: list[subprocess.Popen] = []
-    env_base = {**os.environ, "HOME": str(home)}
+    # A clean environment: nothing from the shell running this (above
+    # all no CLAUDE_* or CODEX_* pointing at a real setup).
+    env_base = {"HOME": str(home), "PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "LANG": "en_US.UTF-8",
+                "TMPDIR": os.environ.get("TMPDIR", "/tmp"), "USER": os.environ.get("USER", "replica")}
     claude_accounts = [a for a in truth["accounts"] if a["tool"] == "claude-code"]
     codex_accounts = [a for a in truth["accounts"] if a["tool"] == "codex"]
     projects = list(truth["projects"].values())
     truth["live"] = []
+    def writer(options: list[str]) -> str:
+        return "\x1f".join(options)
+
     for i in range(args.claude):
         account = claude_accounts[i % len(claude_accounts)]
         project = projects[(i * 3) % len(projects)]
-        session = str(uuid.UUID(int=rng.getrandbits(128)))
-        folder = Path(account["folder"]) / "projects" / claude_dir_name(project["path"])
         env = {**env_base}
         if account["label"] != "default":
             env["CLAUDE_CONFIG_DIR"] = account["folder"]
-        procs.append(subprocess.Popen(
-            [str(claude_bin), "write", "--format", "claude", "--file", str(folder / f"{session}.jsonl"),
-             "--cwd", project["path"], "--session-id", session, "--every-ms", "4000"],
-            cwd=project["path"], env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL))
+        # Every other one resumes a conversation it already had there
+        # (`claude --resume <id>`); the rest start fresh (`claude`).
+        earlier = [c for c in truth["conversations"]
+                   if c["tool"] == "claude-code" and c["account"] == account["label"] and c["cwd"] == project["path"]]
+        if i % 2 == 1 and earlier:
+            session = earlier[0]["id"]
+            argv = [str(claude_bin), "--resume", session]
+        else:
+            session = str(uuid.UUID(int=rng.getrandbits(128)))
+            argv = [str(claude_bin)]
+        folder = Path(account["folder"]) / "projects" / claude_dir_name(project["path"])
+        env["AIJ_REPLICA_WRITE"] = writer(["--format", "claude", "--file", str(folder / f"{session}.jsonl"),
+                                           "--cwd", project["path"], "--session-id", session, "--every-ms", "4000"])
+        procs.append(subprocess.Popen(argv, cwd=project["path"], env=env,
+                                      stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL))
         truth["live"].append({"tool": "claude-code", "account": account["label"], "project": Path(project["path"]).name,
                               "id": session, "pid": procs[-1].pid})
     for i in range(args.codex):
@@ -440,12 +455,12 @@ def live(args: argparse.Namespace) -> None:
         now = dt.datetime.now(dt.timezone.utc)
         day = Path(account["folder"]) / "sessions" / f"{now:%Y}" / f"{now:%m}" / f"{now:%d}"
         env = {**env_base, "CODEX_HOME": account["folder"]}
-        procs.append(subprocess.Popen(
-            [str(codex_bin), "write", "--format", "codex",
-             "--file", str(day / f"rollout-{now:%Y-%m-%dT%H-%M-%S}-{thread}.jsonl"),
-             "--cwd", project["path"], "--session-id", thread, "--every-ms", "5000",
-             "--used", str(account["limits"]["five_hour_used_percent"]), str(account["limits"]["weekly_used_percent"])],
-            cwd=project["path"], env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL))
+        env["AIJ_REPLICA_WRITE"] = writer([
+            "--format", "codex", "--file", str(day / f"rollout-{now:%Y-%m-%dT%H-%M-%S}-{thread}.jsonl"),
+            "--cwd", project["path"], "--session-id", thread, "--every-ms", "5000",
+            "--used", str(account["limits"]["five_hour_used_percent"]), str(account["limits"]["weekly_used_percent"])])
+        procs.append(subprocess.Popen([str(codex_bin)], cwd=project["path"], env=env,
+                                      stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL))
         truth["live"].append({"tool": "codex", "account": account["label"], "project": Path(project["path"]).name,
                               "id": thread, "pid": procs[-1].pid})
     if args.desktop_app:

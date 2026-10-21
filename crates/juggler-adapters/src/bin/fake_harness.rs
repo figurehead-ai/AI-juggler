@@ -40,6 +40,20 @@ mod replica_write;
 const VERSION: &str = "0.1.0";
 
 fn main() -> ExitCode {
+    // The replica's live sessions run as the real CLIs do (`claude`,
+    // `claude --resume <id>`, `codex resume <id>`) so every reader of the
+    // process table sees what it would see on a real Mac; what to write
+    // comes in `AIJ_REPLICA_WRITE` (the `write` options, unit-separated).
+    if let Ok(spec) = env::var("AIJ_REPLICA_WRITE") {
+        let options: Vec<String> = spec.split('\u{1f}').map(str::to_owned).collect();
+        return match replica_write::run(&options) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(message) => {
+                eprintln!("fake-harness (replica): {message}");
+                ExitCode::from(2)
+            }
+        };
+    }
     let args: Vec<String> = env::args().skip(1).collect();
     match args.first().map(String::as_str) {
         Some("--version" | "-V") => {
