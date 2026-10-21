@@ -389,3 +389,39 @@ fn providers_capabilities_reports_the_flag_without_probing() {
         .collect();
     assert!(in_place.contains(&"claude-code") && in_place.contains(&"codex"));
 }
+
+/// 0.0.11 walk (Q3): which tools report their own limits comes from the
+/// adapter's quota feed — Claude Code does, Codex doesn't (yet).
+#[test]
+fn providers_capabilities_says_which_tools_report_their_limits() {
+    let work = tempfile::tempdir().unwrap();
+    let state = Arc::new(
+        AppState::init_with_registry(
+            work.path().join("app-data"),
+            juggler_app::state::default_registry(),
+        )
+        .unwrap(),
+    );
+    let rows = commands::providers_capabilities_impl(&state);
+    for row in &rows {
+        let adapter = state
+            .registry
+            .get(&juggler_core::model::HarnessId::new(row.provider.as_str()))
+            .unwrap();
+        assert_eq!(
+            row.reports_limits,
+            adapter
+                .capabilities()
+                .contains(juggler_adapter::Capabilities::USAGE_QUOTA_FEED),
+            "{}",
+            row.provider
+        );
+    }
+    let of = |id: &str| {
+        rows.iter()
+            .find(|row| row.provider == id)
+            .map(|row| row.reports_limits)
+    };
+    assert_eq!(of("claude-code"), Some(true));
+    assert_eq!(of("codex"), Some(false));
+}
