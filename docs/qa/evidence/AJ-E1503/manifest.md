@@ -64,7 +64,19 @@ with undo, a quit warning, loading placeholders). Status:
 
 ## Gates
 
-GATES_PLACEHOLDER
+All on 2026-10-21. "Merged head" means the branch with main merged in
+(#96, #97, #100); "pre-merge" means before that.
+
+| Gate | Result | Verdict |
+|---|---|---|
+| `just verify` (fmt, clippy both feature sets, cargo test workspace, docs, evidence, terminology, task counts, stats, polling audit, release self-tests) | exit 0 (pre-merge; the merge touched no crate); evidence, terminology and task counts re-run on the merged head: OK | PASS |
+| `cargo deny check` | advisories, bans, licenses, sources ok | PASS |
+| vitest | 559/559 on the merged head (feedback 16, switch-flow 7) | PASS |
+| Playwright, full suite | 913 passed pre-merge; 915 passed on the merged head | PASS |
+| `scripts/a11y_gate.sh` | 686 tests; 860 gallery states with 0 critical, serious, moderate or minor | PASS |
+| `scripts/visual_gate.sh --update` (pinned container) | 32 new baselines (toast-stop, quit-sheet, loading-home, loading-accounts × 8 cells) and 8 `add-account-*` re-rendered (stale on main since #95; not this change) | PASS |
+| `scripts/visual_gate.sh` (compare, merged head) | 156 passed; 5 load timeouts with no pixel diff (load average 41 from other sessions' suites), all passed on re-run, the overview cells with `--timeout=120000` | PASS |
+| `scripts/evidence_index.sh` | regenerated | PASS |
 
 ## Walked by hand
 
