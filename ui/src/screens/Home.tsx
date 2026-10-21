@@ -400,7 +400,7 @@ export function HomeScreen({
       <div className="mx-auto flex w-full max-w-2xl flex-col items-start gap-4 py-16" data-testid="home-empty-accounts">
         <h1 className="text-2xl font-semibold tracking-tight">Bring in your accounts to start.</h1>
         <p className="text-[15px] leading-relaxed text-muted">
-          AI Juggler finds the Claude Code setups already on this computer and brings them in as copies; your originals stay as they are.
+          AI Juggler finds the setups already on this Mac and uses each one where it is, or makes its own copy if you prefer.
         </p>
         <Button variant="primary" onClick={onAddAccounts}>Find my accounts</Button>
       </div>
