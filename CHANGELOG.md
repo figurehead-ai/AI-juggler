@@ -242,6 +242,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Old swap doesn't count against you; swap that keeps growing does. Memory
   in use counts app memory, wired and compressed data, close to the
   figure Activity Monitor shows.
+- AI Juggler now also measures the Claude tools it didn't start (E14,
+  AJ-E1402/E1403): each Claude desktop app window and each `claude` in a
+  terminal, over all the processes it runs, matched to your account by the
+  folder it uses. They count in "what your AI tools use" and are always
+  labelled as not started by AI Juggler. They are never offered stop or
+  cleanup. A session is called heavy when it stays above 90 % of a core
+  or 2 GB for a minute.
 - Three update channels (decision D-20): **Nightly** (built from the latest
   code every day), **Beta** and **Stable** (each promoted with the
   maintainer's approval). Choose Stable or Beta in Settings › About &
