@@ -147,7 +147,6 @@ impl CleanupAuditRepo {
     /// Returns [`CoreError::Storage`] on SQLite failures.
     pub fn open(path: &std::path::Path) -> Result<Self, CoreError> {
         let conn = Connection::open(path)?;
-        super::wait_when_busy(&conn)?;
         conn.pragma_update(None, "journal_mode", "WAL")?;
         Self::init(conn)
     }

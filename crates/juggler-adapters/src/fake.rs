@@ -46,6 +46,13 @@ impl HarnessAdapter for FakeHarnessAdapter {
         HarnessId::new(FAKE_HARNESS_ID)
     }
 
+    fn spec(&self) -> juggler_adapter::ToolSpec {
+        juggler_adapter::ToolSpec {
+            display_name: "Fake harness (test)".to_owned(),
+            ..juggler_adapter::ToolSpec::generic(FAKE_HARNESS_ID)
+        }
+    }
+
     fn capabilities(&self) -> Capabilities {
         Capabilities::HEADLESS
             | Capabilities::RESUME

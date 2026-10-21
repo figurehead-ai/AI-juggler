@@ -179,5 +179,8 @@
 | AJ-E1521 | Robustness: a database busy timeout and an adapter conformance kit | E15-spec-gaps.md | P1 | S | — |
 | AJ-E1522 | Quality debt | E15-spec-gaps.md | P1 | M | AJ-E803 |
 | AJ-E1523 | North-star metric: weekly juggling loops completed | E15-spec-gaps.md | P2 | S | AJ-E1103 |
-Total: 177 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+| AJ-E1524 | A welcome Home for new installs | E15-spec-gaps.md | P0 | M | AJ-E1014 |
+| AJ-E1525 | ToolSpec: tools as data | E15-spec-gaps.md | P0 | M | — |
+| AJ-E1526 | Tool and company marks everywhere | E15-spec-gaps.md | P1 | M | AJ-E1525 |
+Total: 180 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

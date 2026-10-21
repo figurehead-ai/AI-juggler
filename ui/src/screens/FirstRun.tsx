@@ -32,7 +32,8 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { Button } from "../components/primitives";
-import { inPlaceProviders, ownSignIn, providerDisplayName, sameAsWords, supportsInPlace, type InPlaceSupport } from "../lib/providers";
+import { inPlaceProviders, ownSignIn, providerDisplayName, sameAsWords, shortSignIn, supportsInPlace, type InPlaceSupport } from "../lib/providers";
+import { firstRunToolIds, primaryToolId, toolSpec } from "../lib/tools";
 import { funnelEvent, funnelStep, reasonCode } from "../lib/funnel";
 import {
   accountImport,
@@ -60,28 +61,48 @@ import {
 } from "../lib/bridge";
 
 type Step = "found" | "fresh" | "folder" | "signin" | "access";
-type Group = "profiles" | "default" | "other" | "codex";
+/** AJ-E1525: first run's groups come from each tool's spec (its
+ * `setup_groups`, in order), never from a table here. */
+type Group = { key: string; id: string; tool: string; title: string; showsInstall: boolean };
 
-/** A group's title for this tool: the profile and "other" words name
- * Claude only for Claude Code (review of #72: Codex said "Other Claude
- * setups"). */
-export function groupTitle(group: Group, toolName: string, provider: string): string {
-  // Codex homes are their own group in every list (AJ-E1301).
-  if (group === "codex") return "Codex";
-  if (group === "default") return "The default setup";
-  if (provider !== "claude-code") return group === "profiles" ? `Your ${toolName} profiles` : `Other ${toolName} setups`;
-  return group === "profiles" ? "Your Claude profiles" : "Other Claude setups";
+/** How to install a tool, from its spec: its documented command, else its
+ * install page, else just the full stop. */
+function InstallHow({ tool, row }: { tool: string; row: ProviderInstallData | null }): JSX.Element {
+  const spec = toolSpec(tool);
+  if (spec.install_command) {
+    return (
+      <>
+        :{" "}<span className="font-mono text-xs">{spec.install_command}</span>
+      </>
+    );
+  }
+  const url = row?.install_url || spec.install_url;
+  if (url) {
+    return (
+      <>
+        {" "}from{" "}
+        <a className="underline" href={url} target="_blank" rel="noreferrer">
+          its install page
+        </a>
+        .
+      </>
+    );
+  }
+  return <>.</>;
 }
 
-const GROUPS: { id: Group; title: string }[] = [
-  { id: "profiles", title: "Your Claude profiles" },
-  { id: "default", title: "The default setup" },
-  { id: "other", title: "Other Claude setups" },
-  { id: "codex", title: "Codex" },
-];
-
-/** The tools first run on a fresh install brings in (AJ-E1301). */
-const FIRST_RUN_TOOLS = ["claude-code", "codex"];
+/** The groups for these tools, in the tools' order then each spec's. */
+export function groupsFor(tools: string[]): Group[] {
+  return tools.flatMap((tool) =>
+    toolSpec(tool).setup_groups.map((group) => ({
+      key: `${tool}:${group.id}`,
+      id: group.id,
+      tool,
+      title: group.title,
+      showsInstall: group.shows_install,
+    })),
+  );
+}
 /** A name for a new account that no account has yet ("Claude Code 2"). */
 export function freeLabel(base: string, taken: string[]): string {
   const used = new Set(taken.map((label) => label.trim().toLowerCase()));
@@ -96,33 +117,36 @@ function humanBytes(bytes: number): string {
   return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
 }
 
-/** Grouped by kind of setup, not by tool: the same folder can be used by
- * the Claude desktop app and by `claude` in a terminal (0.0.6 dogfood —
- * the default ~/.claude was called "Terminal" while the desktop app had
- * it open). Codex homes are their own kind (AJ-E1301). */
-export function groupOf(found: DiscoveredInfo): Group {
-  if (found.harness === "codex") return "codex";
-  if (found.path.includes("/ClaudeCodeProfiles/")) return "profiles";
-  if (found.origin === "vendor-default") return "default";
-  return "other";
+/** Grouped by kind of setup, as the tool's spec defines them: the first
+ * of its groups that matches the setup's path or scan origin, else its
+ * catch-all (the 0.0.6 dogfood: by kind of setup, not by app). */
+export function groupOf(found: DiscoveredInfo): string {
+  const groups = toolSpec(found.harness).setup_groups;
+  const match =
+    groups.find((group) => group.path_contains !== null && found.path.includes(group.path_contains)) ??
+    groups.find((group) => group.origin !== null && found.origin === group.origin) ??
+    groups.find((group) => group.path_contains === null && group.origin === null) ??
+    groups[0];
+  return `${found.harness}:${match?.id ?? "setups"}`;
 }
 
 const folderOf = (path: string) => path.replace(/\/+$/, "").split("/").pop() ?? path;
 
 /** The name it's brought in as (changeable later in Accounts). */
 export function labelOf(found: DiscoveredInfo): string {
-  const folder = folderOf(found.path);
-  if (groupOf(found) === "codex") return folder === ".codex" ? "Codex" : folder.replace(/^\./, "");
-  if (groupOf(found) === "default") return "Default";
-  return folder.replace(/^\./, "");
+  const defaultLabel = toolSpec(found.harness).default_label;
+  if (found.origin === "vendor-default" && defaultLabel) return defaultLabel;
+  return folderOf(found.path).replace(/^\./, "");
 }
 
 /** "In use now" / "Used today" / "Used 3 days ago" / the scan's words. */
 export function usedWords(found: DiscoveredInfo, nowSecs: number): string {
   // Open right now, and where: read from the running processes.
   const open = found.in_use ?? [];
-  if (open.includes("desktop") && open.includes("terminal")) return "Open in the Claude app and a terminal";
-  if (open.includes("desktop")) return "Open in the Claude app";
+  const app = toolSpec(found.harness).desktop_app;
+  const inApp = app ? `the ${app} app` : "its desktop app";
+  if (open.includes("desktop") && open.includes("terminal")) return `Open in ${inApp} and a terminal`;
+  if (open.includes("desktop")) return `Open in ${inApp}`;
   if (open.includes("terminal")) return "Running in a terminal";
   const last = found.last_used_secs;
   if (last === null || last === undefined) return found.inference.activity_words || "Not used yet";
@@ -258,7 +282,7 @@ function FoundStep({
   toolName,
   provider,
   tools,
-  codexCli,
+  installRows,
   onImported,
   onAddFresh,
   onImportFolder,
@@ -276,8 +300,8 @@ function FoundStep({
   /** The tools whose setups this list brings in: the chosen one when
    * adding, every supported one on first run (AJ-E1301). */
   tools: string[];
-  /** Codex's install row when Codex rides along beside another tool. */
-  codexCli: ProviderInstallData | null;
+  /** Each tool's install row (first run's other tools ride along). */
+  installRows: Record<string, ProviderInstallData>;
   onImported: (signins: Signin[]) => void;
   onAddFresh: () => void;
   onImportFolder: () => void;
@@ -291,23 +315,17 @@ function FoundStep({
     () => (report?.installs ?? []).filter((found) => tools.includes(found.harness)),
     [report, tools],
   );
-  // Named by Provider when they are all one kind; mixed, just "setups".
-  const codexCount = installs.filter((found) => found.harness === "codex").length;
   // Rows of the chosen tool itself (its "not installed" note covers these).
   const ownCount = installs.filter((found) => found.harness === provider).length;
-  // Codex's install row: the chosen tool's when adding Codex, else the
-  // one that rides along on first run.
-  const codexRow = provider === "codex" ? cli : codexCli;
   // One tool: its name. Every tool (first run): named when the setups are
-  // all one kind, else just "setups".
-  const kind =
-    tools.length === 1
-      ? toolName
-      : codexCount === 0
-        ? "Claude Code"
-        : codexCount === installs.length
-          ? "Codex"
-          : "";
+  // all one tool's, else just "setups".
+  const found = [...new Set(installs.map((row) => row.harness))];
+  const kind = tools.length === 1 ? toolName : found.length === 0 ? toolName : found.length === 1 ? providerDisplayName(found[0]!) : "";
+  // The other tools riding along whose setups are here but which aren't
+  // installed themselves.
+  const missingAlong = tools.filter(
+    (tool) => tool !== provider && installs.some((row) => row.harness === tool) && installRows[tool]?.status === "not_installed",
+  );
   // The defaults come straight from the scan (ready on first paint);
   // the user's ticks override them.
   const defaults = useMemo(
@@ -419,9 +437,7 @@ function FoundStep({
         <h1 className="text-[28px] font-semibold tracking-tight">
           {tools.length > 1 ? "Looking for your setups on this Mac…" : `Looking for ${toolName} on this Mac…`}
         </h1>
-        <p className="text-sm text-muted">{provider === "claude-code"
-            ? "Your default setup, your Claude profiles and anything else that looks like one. Nothing is changed."
-            : "Your default setup and anything else that looks like one. Nothing is changed."}</p>
+        <p className="text-sm text-muted">{toolSpec(provider).scan_hint}</p>
       </div>
     );
   }
@@ -449,12 +465,12 @@ function FoundStep({
         </p>
       </div>
 
-      {codexCount > 0 && codexCli && codexCli.status === "not_installed" && (
-        <p className="rounded-xl border border-warning/40 bg-warning-soft px-4 py-3 text-sm text-ink" data-testid="first-run-no-codex">
-          Codex itself isn't installed yet. You can bring these in now; to start sessions, install it first:{" "}
-          <span className="font-mono text-xs">npm install -g @openai/codex</span>
+      {missingAlong.map((tool) => (
+        <p key={tool} className="rounded-xl border border-warning/40 bg-warning-soft px-4 py-3 text-sm text-ink" data-testid={`first-run-no-${tool}`}>
+          {providerDisplayName(tool)} itself isn't installed yet. You can bring these in now; to start sessions, install it first
+          <InstallHow tool={tool} row={installRows[tool] ?? null} />
         </p>
-      )}
+      ))}
 
       {/* The chosen tool's own note — not over rows of another tool (a
           Codex-only first run has the Codex note above). */}
@@ -462,41 +478,25 @@ function FoundStep({
         <p className="rounded-xl border border-warning/40 bg-warning-soft px-4 py-3 text-sm text-ink" data-testid="first-run-no-cli">
           {toolName} itself isn't installed yet.{" "}
           {ownCount > 0 ? "You can bring these in now; to start sessions, install it first" : "To start sessions, install it first"}
-          {provider === "claude-code" ? (
-            <>
-              :{" "}<span className="font-mono text-xs">npm install -g @anthropic-ai/claude-code</span>
-            </>
-          ) : cli.install_url ? (
-            <>
-              {" "}from{" "}
-              <a className="underline" href={cli.install_url} target="_blank" rel="noreferrer">
-                its install page
-              </a>
-              .
-            </>
-          ) : (
-            "."
-          )}
+          <InstallHow tool={provider} row={cli} />
         </p>
       )}
 
       {installs.length > 0 && (
         <div className="overflow-hidden rounded-2xl border border-hairline bg-surface">
-          {GROUPS.map((group) => {
-            const rows = installs.filter((found) => groupOf(found) === group.id);
+          {groupsFor(tools).map((group) => {
+            const rows = installs.filter((found) => groupOf(found) === group.key);
             if (rows.length === 0) return null;
+            const install = installRows[group.tool];
             return (
-              <fieldset key={group.id} className="border-b border-hairline last:border-b-0" data-testid={`first-run-group-${group.id}`}>
-                <legend className="sr-only">{groupTitle(group.id, toolName, provider)}</legend>
+              <fieldset key={group.key} className="border-b border-hairline last:border-b-0" data-testid={`first-run-group-${group.id}`}>
+                <legend className="sr-only">{group.title}</legend>
                 <div aria-hidden="true" className="flex items-center justify-between gap-3 bg-surface-2 px-5 py-2.5 text-xs">
                   <span className="font-semibold text-ink">
-                    {groupTitle(group.id, toolName, provider)} <span className="font-normal text-faint">· {rows.length}</span>
+                    {group.title} <span className="font-normal text-faint">· {rows.length}</span>
                   </span>
-                  {group.id === "default" && cli && cli.status !== "not_installed" && (
-                    <span className="text-faint">{toolName} {cli.version ?? ""} installed</span>
-                  )}
-                  {group.id === "codex" && codexRow && codexRow.status !== "not_installed" && (
-                    <span className="text-faint">Codex {codexRow.version ?? ""} installed</span>
+                  {group.showsInstall && install && install.status !== "not_installed" && (
+                    <span className="text-faint">{providerDisplayName(group.tool)} {install.version ?? ""} installed</span>
                   )}
                 </div>
                 {rows.map((found) => {
@@ -716,11 +716,11 @@ function FoundStep({
 
 type Signin = { accountId: string; label: string; loginNote: string | null; colour: string; provider: string };
 
-/** AJ-E1103 `onboarding.login`: how a first-run sign-in ended (the schema's
- * provider names; anything else is "other"). */
+/** AJ-E1103 `onboarding.login`: how a first-run sign-in ended (the
+ * backend maps the tool to the schema's provider names, "other" for any
+ * it doesn't list). */
 function countLogin(provider: string, outcome: "completed" | "skipped" | "expired"): void {
-  const known = ["claude-code", "codex", "zcode"].includes(provider) ? provider : "other";
-  statsEvent("onboarding.login", { provider: known, outcome });
+  statsEvent("onboarding.login", { provider, outcome });
 }
 
 /** One account's sign-in: status, Sign in, and the rest behind More. */
@@ -873,7 +873,7 @@ function SigninStep({
             // (AJ-E1301): each account opens its own tool's sign-in.
             const tools = [...new Set(queue.map((entry) => entry.provider || provider))];
             return tools.length > 1
-              ? `Each opens its own tool's sign-in — ${tools.map((tool) => (tool === "codex" ? "Codex's (OpenAI)" : `${providerDisplayName(tool)}'s`)).join(" or ")} — for that account's folder; AI Juggler never sees your password and notices when you're done.`
+              ? `Each opens its own tool's sign-in — ${tools.map(shortSignIn).join(" or ")} — for that account's folder; AI Juggler never sees your password and notices when you're done.`
               : `Each opens ${ownSignIn(tools[0] ?? provider)}, for that account's folder; AI Juggler never sees your password and notices when you're done.`;
           })()}
         </p>
@@ -1331,12 +1331,12 @@ export function FirstRun({
   // AJ-E1301: adding names its tool; first run on a fresh install brings
   // in every supported tool's setups (a fresh account or a folder import
   // there is Claude Code's, as before).
-  const primary = provider ?? "claude-code";
-  const tools = useMemo(() => (provider ? [provider] : FIRST_RUN_TOOLS), [provider]);
+  const primary = provider ?? primaryToolId() ?? "";
+  const tools = useMemo(() => (provider ? [provider] : firstRunToolIds()), [provider]);
   const toolName = providerDisplayName(primary);
   const [report, setReport] = useState<ScanReportData | null>(null);
   const [cli, setCli] = useState<ProviderInstallData | null>(null);
-  const [codexCli, setCodexCli] = useState<ProviderInstallData | null>(null);
+  const [installRows, setInstallRows] = useState<Record<string, ProviderInstallData>>({});
   const [inPlace, setInPlace] = useState<InPlaceSupport | null>(null);
   const [queue, setQueue] = useState<Signin[]>([]);
   const [access, setAccess] = useState<OsAccessInfo[] | null>(null);
@@ -1367,12 +1367,8 @@ export function FirstRun({
     void providersDiscover().then(
       (rows) => {
         setCli(rows.find((row) => row.provider === primary) ?? null);
-        // First run with every tool: Codex's own row for its group.
-        setCodexCli(
-          tools.includes("codex") && primary !== "codex"
-            ? (rows.find((row) => row.provider === "codex") ?? null)
-            : null,
-        );
+        // Every tool's own row, for its group's heading and its note.
+        setInstallRows(Object.fromEntries(rows.map((row) => [row.provider, row])));
       },
       () => setCli(null),
     );
@@ -1491,7 +1487,7 @@ export function FirstRun({
               toolName={toolName}
               provider={primary}
               tools={tools}
-              codexCli={codexCli}
+              installRows={installRows}
               onAddFresh={() => setStep("fresh")}
               onImportFolder={() => void pickFolder()}
               stopRef={stopRef}

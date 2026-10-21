@@ -22,6 +22,7 @@ pub mod handover;
 pub mod identity;
 pub mod launch;
 pub mod registry;
+pub mod spec;
 pub mod watcher;
 
 /// Re-exported so adapter authors need only depend on this crate for types
@@ -38,4 +39,5 @@ pub use error::AdapterError;
 pub use identity::IdentityProbe;
 pub use launch::{DesktopLaunch, EnvMap, LaunchMode, LaunchSpec};
 pub use registry::AdapterRegistry;
+pub use spec::{SetupGroup, SignInWords, ToolFlags, ToolKind, ToolSpec};
 pub use watcher::{SessionEvent, SessionWatcher};

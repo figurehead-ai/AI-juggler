@@ -25,6 +25,8 @@ import {
   type RemoteCommandOutcomeInfo,
   type RemoteMachineInfo,
 } from "./lib/bridge";
+import { providerDisplayName } from "./lib/providers";
+import { primaryToolId } from "./lib/tools";
 import { matches, readInspectorFolded, storeInspectorFolded, type AppShortcutId } from "./lib/shortcuts";
 import { ShortcutSheet } from "./components/ShortcutSheet";
 import { holdStop, sessionLabel } from "./lib/stop";
@@ -155,14 +157,6 @@ function useNarrowWindow(px: number): boolean {
   }, [query]);
   return narrow;
 }
-
-/** Display names for the header's Provider chip. */
-const PROVIDER_NAMES: Record<string, string> = {
-  "claude-code": "Claude Code",
-  codex: "Codex",
-  "gemini-cli": "Gemini CLI",
-  zcode: "ZCode",
-};
 
 type Selection =
   | { kind: "none" }
@@ -349,9 +343,9 @@ export default function App() {
       (rows) => {
         const ready = rows.filter((row) => row.status === "installed" || row.status === "unverified");
         if (ready.length > 1) setChooseTool(true);
-        else setAddAccounts(ready[0]?.provider ?? "claude-code");
+        else setAddAccounts(ready[0]?.provider ?? primaryToolId() ?? "");
       },
-      () => setAddAccounts("claude-code"),
+      () => setAddAccounts(primaryToolId() ?? ""),
     );
   }, []);
   const [accountsNonce, setAccountsNonce] = useState(0);
@@ -623,7 +617,7 @@ export default function App() {
   const selectedProvider = useMemo(() => {
     if (selection.kind !== "provider") return null;
     const providerAccounts = accounts.filter((a) => a.provider === selection.id);
-    return { id: selection.id, name: PROVIDER_NAMES[selection.id] ?? selection.id, accounts: providerAccounts };
+    return { id: selection.id, name: providerDisplayName(selection.id), accounts: providerAccounts };
   }, [selection, accounts]);
 
 
@@ -778,7 +772,7 @@ export default function App() {
         selectedAccount?.provider ??
         remoteInstanceProvider ??
         (selection.kind === "provider" ? selection.id : null));
-  const contextProvider = contextProviderId ? (PROVIDER_NAMES[contextProviderId] ?? contextProviderId) : null;
+  const contextProvider = contextProviderId ? providerDisplayName(contextProviderId) : null;
 
   const contextTitle =
     global !== null

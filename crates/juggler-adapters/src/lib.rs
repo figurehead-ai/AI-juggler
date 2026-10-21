@@ -26,11 +26,11 @@ pub mod quota_ingest;
 pub mod scan_signals;
 pub mod transcript;
 
-pub use claude_code::{CLAUDE_CODE_ID, ClaudeCodeAdapter, LoginState};
+pub use claude_code::{CLAUDE_CODE_ID, ClaudeCodeAdapter, LoginState, claude_code_spec};
 pub use claude_transcript::{
     MessageRole, ParsedMessage, ParsedTranscript, dedupe_messages, parse_transcript,
 };
-pub use codex::{CODEX_ID, CodexAdapter};
+pub use codex::{CODEX_ID, CodexAdapter, codex_spec};
 pub use fake::{FAKE_HARNESS_ID, FakeHarnessAdapter};
 pub use quota_ingest::{
     SourceHealth, TailOutcome, ensure_launch_overlay, install_statusline, overlay_dir,

@@ -75,6 +75,27 @@ fn tick_until<F: FnMut() -> bool>(state: &Arc<AppState>, deadline_ms: u64, mut d
     false
 }
 
+/// Reaps the test's listeners however it ends: a failed assertion used
+/// to leave `python3 -m http.server` on :5173 and :8000, and every later
+/// run then failed against the leftovers.
+struct Reaper {
+    /// The supervised root's process group (setsid: pgid = root pid).
+    group: u32,
+    /// The unsupervised stranger.
+    stranger: u32,
+}
+
+impl Drop for Reaper {
+    fn drop(&mut self) {
+        let _ = std::process::Command::new("kill")
+            .args(["-9", "--", &format!("-{}", self.group)])
+            .status();
+        let _ = std::process::Command::new("kill")
+            .args(["-9", &self.stranger.to_string()])
+            .status();
+    }
+}
+
 #[test]
 fn port_inventory_classifies_orphan_and_unmanaged_listeners() {
     let dir = tempfile::tempdir().unwrap();
@@ -110,6 +131,10 @@ fn port_inventory_classifies_orphan_and_unmanaged_listeners() {
         .stderr(std::process::Stdio::null())
         .spawn()
         .unwrap();
+    let _reaper = Reaper {
+        group: spawned.pid,
+        stranger: stranger.id(),
+    };
 
     // (a) While the Instance lives: helper row carries listens_on=5173
     // (the tick join) and the inventory classifies BOTH rows.

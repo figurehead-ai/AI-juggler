@@ -121,6 +121,10 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         HarnessId::new(CLAUDE_CODE_ID)
     }
 
+    fn spec(&self) -> juggler_adapter::ToolSpec {
+        claude_code_spec()
+    }
+
     fn capabilities(&self) -> Capabilities {
         Capabilities::HEADLESS
             | Capabilities::RESUME
@@ -1124,4 +1128,54 @@ pub fn probe_claude_identity(state_dir: &Path) -> juggler_adapter::IdentityProbe
         label = format!("{label} · {org}");
     }
     IdentityProbe::SignedIn { subject, label }
+}
+
+/// ADR-0019: Claude Code, described as data (every screen and command
+/// reads this instead of the id).
+#[must_use]
+pub fn claude_code_spec() -> juggler_adapter::ToolSpec {
+    use juggler_adapter::{SetupGroup, SignInWords, ToolFlags, ToolKind, ToolSpec};
+    let group = |id: &str,
+                 title: &str,
+                 path_contains: Option<&str>,
+                 origin: Option<&str>,
+                 shows_install| SetupGroup {
+        id: id.to_owned(),
+        title: title.to_owned(),
+        path_contains: path_contains.map(str::to_owned),
+        origin: origin.map(str::to_owned),
+        shows_install,
+    };
+    ToolSpec {
+        id: CLAUDE_CODE_ID.to_owned(),
+        display_name: "Claude Code".to_owned(),
+        vendor: "Anthropic".to_owned(),
+        mark: Some("claude".to_owned()),
+        vendor_mark: Some("anthropic".to_owned()),
+        install_url: Some("https://claude.com/download".to_owned()),
+        install_command: Some("npm install -g @anthropic-ai/claude-code".to_owned()),
+        sign_in: SignInWords {
+            own: "Claude Code's own sign-in".to_owned(),
+            short: "Claude Code's".to_owned(),
+        },
+        same_as: "as your Claude app".to_owned(),
+        desktop_app: Some("Claude".to_owned()),
+        kinds: vec![ToolKind::Cli, ToolKind::Desktop],
+        rules_files: vec!["CLAUDE.md".to_owned()],
+        scan_hint: "Your default setup, your Claude profiles and anything else that looks like one. Nothing is changed."
+            .to_owned(),
+        // Grouped by kind of setup, not by app: the same folder serves the
+        // Claude desktop app and `claude` in a terminal (0.0.6 dogfood).
+        setup_groups: vec![
+            group("profiles", "Your Claude profiles", Some("/ClaudeCodeProfiles/"), None, false),
+            group("default", "The default setup", None, Some("vendor-default"), true),
+            group("other", "Other Claude setups", None, None, false),
+        ],
+        default_label: Some("Default".to_owned()),
+        flags: ToolFlags {
+            first_run: true,
+            primary: true,
+        },
+        terms_notes: Vec::new(),
+    }
 }

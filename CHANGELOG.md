@@ -229,6 +229,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Tools are described by their adapters (AJ-E1525, ADR-0019). Every
+  screen reads a tool's name, sign-in words, install page and first run's
+  groups from one catalog. A new tool needs no change to the interface,
+  and a check keeps tool names out of shared code. Nothing you see
+  changes, apart from one wording: Home's sign-in line now says "Claude
+  Code's own sign-in".
 - **Settings › Sessions** (AJ-E1505). **Stuck after** sets how long a
   session may go without output (with its CPU near idle) before it's
   marked Looks stuck. Raise it if your builds run quietly. It applies to

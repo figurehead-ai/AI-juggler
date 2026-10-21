@@ -1,3 +1,4 @@
+import { primaryToolId } from "../lib/tools";
 import { useCallback, useEffect, useState, type JSX } from "react";
 import { Card, Chip } from "./primitives";
 import { PACK_POLICY_OPTIONS, packPolicyRestatement, type PackPolicyWire } from "./PackPolicyChooser";
@@ -24,7 +25,8 @@ export function PackSecretsCard({ providers }: { providers: string[] }): JSX.Ele
   const providerKey = providers.join("|");
 
   const reload = useCallback(async () => {
-    const targets = providers.length > 0 ? providers : ["claude-code"];
+    const primary = primaryToolId();
+    const targets = providers.length > 0 ? providers : primary ? [primary] : [];
     const rows = await Promise.all(
       targets.map(async (provider) => [provider, await redactionPolicyGet(provider)] as const),
     );

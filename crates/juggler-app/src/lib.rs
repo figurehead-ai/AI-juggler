@@ -18,6 +18,7 @@ pub mod crash;
 pub mod crossmachine;
 pub mod edition;
 pub mod error;
+pub mod features;
 pub mod figurehead;
 pub mod fleet;
 pub mod fleet_account;
@@ -191,6 +192,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::app_info,
+            features::tools::commands::tools_catalog,
             quit::app_quit_plan,
             quit::app_quit,
             quit::app_quit_ack,

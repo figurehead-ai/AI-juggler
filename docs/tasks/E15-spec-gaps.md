@@ -210,6 +210,45 @@
 **Research basis**: ADR-0009; AJ-E1011 (its first half).
 **Handover note**: The colleague side of AJ-E1011 stays demand-gated.
 
+### AJ-E1524 A welcome Home for new installs | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1014
+**Goal**: Someone who has just installed AI Juggler is welcomed, sees what it does for them, and is encouraged to bring their accounts in.
+**User story**: As a new user, I open AI Juggler and Home tells me in a few warm lines what it's for, that it found Claude Code and Codex on my Mac, and what it will do for me, and it invites me to find my accounts.
+**Requirements** (the maintainer's request, 2026-10-21):
+1. Home SHALL show it whenever there are no accounts (also after first run's Not now), replacing today's small "Bring in your accounts to start." block. Usage's and Fleet's empty states point back to it in one line.
+2. Content: a headline that says what AI Juggler is for; a line from the scan ("We found Claude Code and Codex on this Mac", or "No AI coding tools found yet" with install links); 3–4 one-line benefits with icons (every session in one list with what needs you first; how much each account has left, and carrying on in another; what your Mac is running; setups used where they are); a trust line (never stores your passwords or keys, never sits between you and the tool). D-25 plain words, no codes.
+3. Actions: primary "Find my accounts" (first run), secondary "Add a fresh account", and a quiet "How it works" disclosure with three steps. No new screens.
+4. Design: generous spacing, the three-balls mark as a calm hero with one gentle animation that honours reduced motion, and benefit cards in Home's card style. Both themes, both densities, 390–1440 px. Existing tokens only. Before and after screenshots go in the PR.
+5. Accessibility: one h1, a sensible reading order, the animation decorative, every action reachable by keyboard; the a11y gate is clean.
+**Quality gates**: vitest (zero accounts shows it, one account hides it; the found-tools line matches the scan; each action opens the right flow); new visual baselines; walked by hand as a brand-new user with a throwaway HOME.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1524/manifest.md`.
+**Files to touch**: `ui/src/screens/Home.tsx`, a `Welcome` component, `Usage.tsx`, `FleetScreen.tsx`.
+**Handover note**: Tool names come from the catalog (AJ-E1525), never from ids.
+
+### AJ-E1525 ToolSpec: tools as data | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: —
+**Goal**: ADR-0019 migration step 1: every layer reads a tool's facts from its adapter's spec, and no screen or command branches on a tool id.
+**Requirements**:
+1. Each adapter SHALL supply a `ToolSpec`: id, display name, vendor, mark, install link, sign-in words, kinds, the layout's first-run groups, rules files, flow flags, terms notes. The catalog composes it with the adapter's capabilities and isolation keys.
+2. One `tools_catalog` command SHALL serve the specs.
+3. Display names, install links, sign-in words, tool groups and the first-run tool list SHALL move out of `commands.rs`, `FirstRun.tsx`, `providers.ts` and `App.tsx` into the specs.
+4. A tool-literal lint in `just verify` and CI SHALL fail on a tool-id literal outside the adapters, adapter data and tests, starting from an allowlist that only shrinks.
+5. A test SHALL render first run and Add account from a catalog holding an unknown fake tool.
+**Quality gates**: the catalog tests (every tool complete, an unknown one neutral); the lint's self-test; the unknown-tool render test.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1525/manifest.md`.
+**Files to touch**: `crates/juggler-adapter/src/spec.rs`, the adapters, `crates/juggler-app/src/features/tools/`, `ui/src/lib/tools.ts`, `FirstRun.tsx`, `providers.ts`, `App.tsx`, `scripts/tool_literal_lint.py`.
+**Research basis**: ADR-0019; ENGINEERING-GUIDE A2, A4.
+**Done (2026-10-21)**: `ToolSpec` in `juggler-adapter/src/spec.rs` (domain data; `HarnessAdapter::spec()` defaults to the neutral spec); Claude Code's and Codex's specs in their adapters. `features/tools/` serves `tools_catalog` (async), composing each spec with the adapter's capabilities and isolation keys. On the UI side, `lib/tools.ts` holds the catalog once (loaded before the first render) and `providers.ts` reads it. First run's groups, default labels, desktop-app words, install commands and tool list come from the specs. `scripts/tool_literal_lint.py`, in `just verify` and CI, starts from an allowlist of 150 backend and bridge-mock sites in 15 files that only shrinks; the UI screens hold none. Not moved yet: the handover pair data (`fidelity.rs`, `validation.rs`), the usage pipeline's per-tool sources and the bridge's preview mocks, all allowlisted.
+
+### AJ-E1526 Tool and company marks everywhere | Status: TODO | Priority P1 | Effort M | Depends: AJ-E1525
+**Goal**: Wherever a tool or its company is named, its mark sits beside the name.
+**Requirements** (the maintainer's request, 2026-10-21):
+1. Each ToolSpec names its mark, and a vendor mark where it differs.
+2. Marks come from the `simple-icons` package (CC0, version-pinned) where the brand is in it; otherwise from the vendor's press kit, only where its guidelines allow third-party apps to use it. Each mark's source, licence and guideline link go in `docs/research/brand-marks.md`. A forbidden or missing mark falls back to a neutral letter mark.
+3. A mark is never altered beyond its guidelines. The default rendering is monochrome in `currentColor`; brand colour only where the guidelines require it.
+4. One `ToolMark` component everywhere a tool or company is named: Add account and first run, account cards, rail rows, the inspector's tool chip, the tool view's header, Usage, This Mac's tool lines. The mark id comes from the catalog; no per-tool branches.
+5. Third-party marks live in their own assets folder, excluded from the MIT licence; TRADEMARKS.md says other companies' names and logos belong to their owners, identify compatibility only, and imply no endorsement. Bundled locally; nothing is fetched at runtime.
+**Quality gates**: every catalog tool resolves to a mark or the fallback; an unknown tool gets the fallback; marks are decorative beside the visible name; re-rendered baselines with notes.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1526/manifest.md`.
+
 ## Wave 2 — usage you can act on, Fleet and support
 
 ### AJ-E1512 Sessions left and a burn-down chart | Status: TODO | Priority P1 | Effort M | Depends: AJ-E608

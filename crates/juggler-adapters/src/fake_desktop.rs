@@ -45,6 +45,13 @@ impl HarnessAdapter for FakeDesktopAdapter {
         HarnessId::new(FAKE_DESKTOP_ID)
     }
 
+    fn spec(&self) -> juggler_adapter::ToolSpec {
+        juggler_adapter::ToolSpec {
+            display_name: "Fake harness (test)".to_owned(),
+            ..juggler_adapter::ToolSpec::generic(FAKE_DESKTOP_ID)
+        }
+    }
+
     fn capabilities(&self) -> Capabilities {
         // Desktop app + single-account: the honest limits pair (Req.1).
         Capabilities::DESKTOP_APP | Capabilities::DESKTOP_SINGLE_ACCOUNT

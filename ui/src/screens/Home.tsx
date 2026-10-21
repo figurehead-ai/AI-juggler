@@ -29,6 +29,7 @@ import { LegendPopover } from "../components/LegendPopover";
 import { parkedWords } from "../lib/parked";
 import { sessionLabel } from "../lib/stop";
 import { matches, SHORTCUTS, type KeyLike } from "../lib/shortcuts";
+import { ownSignIn } from "../lib/providers";
 import { RowPlaceholders } from "../components/Placeholder";
 import { showToast } from "../components/Toast";
 import {
@@ -526,7 +527,7 @@ export function HomeScreen({
                         <span className="text-xs text-muted" role="status">
                           {signingIn === account.id
                             ? "Finish signing in in the terminal that opened — this clears by itself when you're done."
-                            : `${account.provider === "codex" ? "Codex's own sign-in (OpenAI)" : "Claude's own sign-in"}, in a terminal here — about thirty seconds. AI Juggler never sees your password.`}
+                            : `${ownSignIn(account.provider)}, in a terminal here — about thirty seconds. AI Juggler never sees your password.`}
                         </span>
                         {signingIn === account.id && signInError && <span className="text-xs text-danger">{signInError}</span>}
                       </span>

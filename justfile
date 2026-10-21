@@ -19,6 +19,7 @@ verify:
     RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
     just evidence
     just terminology
+    just tool-literals
     just task-counts
     just stats-doc
     just stats-events
@@ -69,6 +70,12 @@ evidence:
 # Terminology gate (AJ-E108): legacy user-facing nouns cannot creep back.
 terminology:
     ./scripts/terminology_lint.sh
+
+# AJ-E1525 (ADR-0019 §5): no tool-id literal outside the adapters; the
+# allowlist of today's sites only shrinks.
+tool-literals:
+    python3 scripts/tool_literal_lint.py --selftest
+    python3 scripts/tool_literal_lint.py
 
 # The docs that quote task counts and ranges agree with the epic files.
 task-counts:

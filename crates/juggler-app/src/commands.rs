@@ -1906,11 +1906,12 @@ pub struct ImportResult {
 ///
 /// Returns the typed [`AppError`] message on failure.
 pub fn harnesses_list() -> Vec<ProviderInfo> {
-    crate::state::default_registry()
+    let registry = crate::state::default_registry();
+    registry
         .ids()
         .into_iter()
         .map(|id| ProviderInfo {
-            name: provider_display(id.as_str()).0,
+            name: provider_display(&registry, id.as_str()).0,
             id: id.to_string(),
         })
         .collect()
@@ -2814,7 +2815,7 @@ fn in_place_isolation_rows(
         detail: if default_folder {
             format!(
                 "the default folder runs as {} runs it ({keys} unset)",
-                provider_display(account.harness.as_str()).0
+                provider_display(&state.registry, account.harness.as_str()).0
             )
         } else {
             format!(
@@ -13477,23 +13478,16 @@ pub fn validation_dogfood_record_impl(
 // from the adapters' own `discover()`, probed in PARALLEL off the UI
 // thread; a missing binary is caught before any account is created.
 
-/// Vendor display metadata for one Provider (names + install pages;
-/// no binary knowledge — that is `discover()`'s job).
-fn provider_display(provider: &str) -> (String, &'static str) {
-    let name = match provider {
-        "claude-code" => "Claude Code".to_owned(),
-        "codex" => "Codex".to_owned(),
-        "zcode" => "ZCode".to_owned(),
-        "fake" | "fake-desktop" => "Fake harness (test)".to_owned(),
-        other => other.to_owned(),
-    };
-    let url = match provider {
-        "claude-code" => "https://claude.com/download",
-        "codex" => "https://developers.openai.com/codex",
-        "zcode" => "https://z.ai",
-        _ => "about:blank",
-    };
-    (name, url)
+/// Vendor display metadata for one Provider, from its adapter's spec
+/// (ADR-0019): the name, and the install page ("" when there is none).
+fn provider_display(
+    registry: &juggler_adapter::AdapterRegistry,
+    provider: &str,
+) -> (String, String) {
+    (
+        crate::features::tools::display_name(registry, provider),
+        crate::features::tools::install_url(registry, provider).unwrap_or_default(),
+    )
 }
 
 /// One Step-0 row (AJ-E301 Req.2): `Installed vX.Y` / `Not installed`
@@ -13699,7 +13693,8 @@ fn providers_discover_rows(state: &Arc<AppState>) -> Vec<ProviderInstallInfo> {
         reports
             .into_iter()
             .map(|report| {
-                let (display_name, install_url) = provider_display(report.adapter.as_str());
+                let (display_name, install_url) =
+                    provider_display(&state.registry, report.adapter.as_str());
                 let (status, version) = match &report.install {
                     juggler_adapter::discovery::InstallStatus::Installed { version } => {
                         let verified = matches!(
@@ -13738,7 +13733,7 @@ fn providers_discover_rows(state: &Arc<AppState>) -> Vec<ProviderInstallInfo> {
                 ProviderInstallInfo {
                     provider: report.adapter.to_string(),
                     display_name: display_name.clone(),
-                    install_url: install_url.to_owned(),
+                    install_url,
                     status: status.to_owned(),
                     version,
                     binary: report

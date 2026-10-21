@@ -530,6 +530,10 @@ impl HarnessAdapter for CodexAdapter {
         HarnessId::new(CODEX_ID)
     }
 
+    fn spec(&self) -> juggler_adapter::ToolSpec {
+        codex_spec()
+    }
+
     fn capabilities(&self) -> Capabilities {
         Capabilities::HEADLESS
             | Capabilities::RESUME
@@ -804,5 +808,45 @@ impl HarnessAdapter for CodexAdapter {
     /// not one Juggler tracks — the daemon reasoning applies to launches.
     fn shell_command(&self) -> Option<&'static str> {
         Some("codex")
+    }
+}
+
+/// ADR-0019: Codex, described as data (every screen and command reads
+/// this instead of the id).
+#[must_use]
+pub fn codex_spec() -> juggler_adapter::ToolSpec {
+    use juggler_adapter::{SetupGroup, SignInWords, ToolFlags, ToolKind, ToolSpec};
+    ToolSpec {
+        id: CODEX_ID.to_owned(),
+        display_name: "Codex".to_owned(),
+        vendor: "OpenAI".to_owned(),
+        mark: Some("openai".to_owned()),
+        vendor_mark: None,
+        install_url: Some("https://developers.openai.com/codex".to_owned()),
+        install_command: Some("npm install -g @openai/codex".to_owned()),
+        sign_in: SignInWords {
+            own: "Codex's own sign-in (OpenAI)".to_owned(),
+            short: "Codex's (OpenAI)".to_owned(),
+        },
+        same_as: "as when you run Codex yourself".to_owned(),
+        desktop_app: None,
+        kinds: vec![ToolKind::Cli],
+        rules_files: vec!["AGENTS.md".to_owned()],
+        scan_hint: "Your default setup and anything else that looks like one. Nothing is changed."
+            .to_owned(),
+        // Codex homes are their own group in every list (AJ-E1301).
+        setup_groups: vec![SetupGroup {
+            id: "codex".to_owned(),
+            title: "Codex".to_owned(),
+            path_contains: None,
+            origin: None,
+            shows_install: true,
+        }],
+        default_label: Some("Codex".to_owned()),
+        flags: ToolFlags {
+            first_run: true,
+            primary: false,
+        },
+        terms_notes: Vec::new(),
     }
 }

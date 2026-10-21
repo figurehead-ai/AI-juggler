@@ -37,7 +37,7 @@
 | [E12-optional-account.md](E12-optional-account.md) | Optional Figurehead account (two paths) | AJ-E1201-E1207 |
 | [E13-codex-adapter.md](E13-codex-adapter.md) | Codex, the second Provider | AJ-E1301-E1306 |
 | [E14-machine-health.md](E14-machine-health.md) | Machine health and resource monitoring | AJ-E1401-E1410 |
-| [E15-spec-gaps.md](E15-spec-gaps.md) | Spec gaps: what the specs promised and no task covered | AJ-E1501-E1523 |
+| [E15-spec-gaps.md](E15-spec-gaps.md) | Spec gaps: what the specs promised and no task covered | AJ-E1501-E1526 |
 | [CRITIC-CHECKS.md](CRITIC-CHECKS.md) | Cross-epic audit of this system | — |
 
 ## Task format (every task, no exceptions)

@@ -30,6 +30,13 @@ pub trait HarnessAdapter: Send + Sync {
     /// What this harness integration supports.
     fn capabilities(&self) -> Capabilities;
 
+    /// ADR-0019 §1: the tool described as data, for every layer that
+    /// would otherwise branch on its id. The default claims nothing: the
+    /// id as the name and the letter mark.
+    fn spec(&self) -> crate::spec::ToolSpec {
+        crate::spec::ToolSpec::generic(self.id().as_str())
+    }
+
     /// Harness versions this adapter was validated against (spec §4
     /// version-pinning rule). Discovery compares against this list.
     fn verified_against(&self) -> &'static [&'static str];

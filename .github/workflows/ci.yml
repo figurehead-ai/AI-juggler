@@ -76,6 +76,10 @@ jobs:
         run: ./scripts/evidence_check.sh
       - name: Terminology (AJ-E108 gate)
         run: ./scripts/terminology_lint.sh
+      - name: No tool-id literal outside the adapters (AJ-E1525, ADR-0019)
+        run: |
+          python3 scripts/tool_literal_lint.py --selftest
+          python3 scripts/tool_literal_lint.py
       - name: Task counts and ranges in the docs match the epic files
         run: |
           python3 scripts/check_task_counts.py --selftest
