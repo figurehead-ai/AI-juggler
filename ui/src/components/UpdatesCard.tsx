@@ -17,6 +17,7 @@ import { ReleaseNotes } from "./ReleaseNotes";
 import {
   errorText,
   goingBackOptions,
+  goingBackOpenReleases,
   goingBackPrepare,
   onUpdateStatus,
   updateCheck,
@@ -151,6 +152,16 @@ function GoingBack({ appName }: { appName: string }): JSX.Element | null {
               <p className="text-muted">
                 {appName} then quits. Install {name(option)} from the releases page and open it. Opening this version
                 again instead upgrades that data again.
+              </p>
+              <p>
+                <button
+                  type="button"
+                  onClick={() => void goingBackOpenReleases(option.version ?? null)}
+                  className="text-accent-hi underline underline-offset-2 outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+                  data-testid="going-back-releases"
+                >
+                  Open the releases page
+                </button>
               </p>
               {error && (
                 <p role="alert" className="text-ink" data-testid="going-back-error">

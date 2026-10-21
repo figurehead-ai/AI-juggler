@@ -104,12 +104,15 @@ fn quota_forecast_is_a_range_or_not_burning() {
     // Burning: 40% left at 10%/5min → mid 20 min → ~13-27m range.
     let label = quota_forecast_label(60.0, 10.0);
     assert!(
-        label.starts_with('~') && label.contains("at current rate · Est"),
+        label.starts_with("At this pace, its limit lasts about ") && label.ends_with(" min more"),
         "{label}"
     );
     assert!(label.contains("13") && label.contains("27"), "{label}");
     // Idle: never a point estimate, never infinity.
-    assert_eq!(quota_forecast_label(60.0, 0.0), "not burning");
+    assert_eq!(
+        quota_forecast_label(60.0, 0.0),
+        "Not using its limit right now"
+    );
 }
 
 #[test]

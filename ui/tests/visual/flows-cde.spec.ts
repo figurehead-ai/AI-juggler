@@ -197,7 +197,7 @@ test("flow (e): launch ≤ 2 clicks; Profile never a sheet noun; verdict words n
   clicks += 1;
   const preselected = page.getByTestId("launch-preselected");
   await expect(preselected).toBeVisible();
-  await expect(preselected).toContainText("Tight — projected burn nears");
+  await expect(preselected).toContainText("Tight — this session may use most of the room left");
   // Words, never a fabricated percentage (Req.8 regression).
   await expect(page.getByTestId("launch-sheet-accounts")).not.toContainText("%");
   // Click 2: Launch →.

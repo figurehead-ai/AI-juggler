@@ -8,7 +8,8 @@ import { BetaMatrix } from "../components/BetaMatrix";
 import { ExpertSetup } from "../components/ExpertSetup";
 import { EnvOverlayEditor } from "../components/EnvOverlayEditor";
 import { AccountRunway, runwayLines } from "../components/AccountRunway";
-import { inPlaceProviders, ownSignIn, providerDisplayName, sameAsWords, supportsInPlace, type InPlaceSupport } from "../lib/providers";
+import { providerMark } from "../components/indicator";
+import { inPlaceProviders, ownSignIn, providerDisplayName, sameAsWords, supportsInPlace, type InPlaceSupport, limitProviders, reportsLimits, noLimitsWords } from "../lib/providers";
 import {
   accountUseOriginal,
   accountsList,
@@ -91,10 +92,16 @@ export function ProfilesScreen({
   // backend's static capabilities (no install probe). If the call fails
   // the offer stays; the backend refuses what it can't adopt.
   const [inPlace, setInPlace] = useState<InPlaceSupport | null>(null);
+  // 0.0.11 walk (Q3): the tools that don't report their own limits.
+  const [limits, setLimits] = useState<InPlaceSupport>("unknown");
   useEffect(() => {
     let alive = true;
     void providersCapabilities().then(
-      (rows) => alive && setInPlace(inPlaceProviders(rows)),
+      (rows) => {
+        if (!alive) return;
+        setInPlace(inPlaceProviders(rows));
+        setLimits(limitProviders(rows));
+      },
       () => alive && setInPlace("unknown"),
     );
     return () => {
@@ -188,6 +195,7 @@ export function ProfilesScreen({
               key={account.id}
               account={account}
               canUseInPlace={inPlace !== null && supportsInPlace(inPlace, account.provider)}
+              reportsLimits={reportsLimits(limits, account.provider)}
               profiles={profiles.filter((recipe) => recipe.account_id === account.id)}
               onLaunch={launch}
               onDeleteProfile={async (id) => {
@@ -289,8 +297,11 @@ function AccountCard({
   onInspect,
   display,
   sessions = [],
+  reportsLimits = true,
 }: {
   account: AccountInfo;
+  /** 0.0.11 walk (Q3): its tool reports usage limits (else no limit rows). */
+  reportsLimits?: boolean;
   /** D-25: this account's two windows (runway), if measured. */
   display?: QuotaDisplayData;
   /** D-25: its sessions (what runs on it; a runway fallback). */
@@ -364,9 +375,16 @@ function AccountCard({
         </div>
       </div>
 
-      {/* D-25: runway lives here and on Home. */}
+      {/* D-25: runway lives here and on Home. A tool that doesn't
+          report its limits says so once, instead of empty windows. */}
       <div className="px-5 py-3.5">
-        <AccountRunway display={display} sessions={sessions} />
+        {reportsLimits ? (
+          <AccountRunway display={display} sessions={sessions} />
+        ) : (
+          <p className="text-[11.5px] text-muted" data-testid="account-no-limits">
+            {noLimitsWords(account.provider)}.
+          </p>
+        )}
       </div>
 
       <div className="flex items-center gap-2 border-t border-hairline px-5 py-3">
@@ -537,7 +555,9 @@ function UseOriginalModal({
 }
 
 function HarnessGlyph({ provider, onClick }: { provider: string; onClick?: () => void }) {
-  // Claude Code mark: an abstract spark; per-harness glyphs grow with M2.
+  // Each tool's own mark, the one its sessions carry in the rail (I-01):
+  // Claude's diamond, Codex's hexagon, a generic mark for the rest.
+  const mark = providerMark(provider);
   return (
     <button
       type="button"
@@ -545,10 +565,10 @@ function HarnessGlyph({ provider, onClick }: { provider: string; onClick?: () =>
       disabled={!onClick}
       title={onClick ? `Inspect ${providerDisplayName(provider)}` : providerDisplayName(provider)}
       className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-accent/20 bg-accent-soft text-accent-hi outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 enabled:hover:border-accent/40 disabled:cursor-default"
+      data-testid="account-tool-mark"
+      data-provider={provider}
     >
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M12 2.6c.5 3.9 2.4 6.6 6.9 8-4.5 1.4-6.4 4.1-6.9 8-.5-3.9-2.4-6.6-6.9-8 4.5-1.4 6.4-4.1 6.9-8Z" />
-      </svg>
+      <mark.Icon width={16} height={16} aria-hidden="true" />
     </button>
   );
 }

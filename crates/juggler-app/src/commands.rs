@@ -1541,8 +1541,8 @@ pub struct QualitySignalsInfo {
     pub session_cost_usd: Option<f64>,
     /// The model the cost was priced against (null = unpriced).
     pub priced_model: Option<String>,
-    /// Quota forecast RANGE label (`~13-27m at current rate · Est`) or
-    /// `not burning`.
+    /// Quota forecast RANGE label (`At this pace, its limit lasts about
+    /// 13–27 min more`) or `Not using its limit right now`.
     pub quota_forecast: String,
     /// The AJ-E405 stuck rule + inputs, when tripped (permanent `?`).
     pub stuck: Option<AttentionInfo>,
@@ -13533,6 +13533,9 @@ pub struct ProviderCapabilityInfo {
     /// ADR-0018: its setups can be used where they are (the adapter
     /// adopts a folder without writing to it).
     pub can_use_in_place: bool,
+    /// It reports its own usage limits (the 5-hour and weekly windows);
+    /// a tool that doesn't shows no limit rows (0.0.11 walk, Q3).
+    pub reports_limits: bool,
 }
 
 /// ADR-0018: each registered Provider's static capabilities (no
@@ -13562,6 +13565,9 @@ pub fn providers_capabilities_impl(state: &Arc<AppState>) -> Vec<ProviderCapabil
                 .map(|adapter| ProviderCapabilityInfo {
                     provider: id.to_string(),
                     can_use_in_place: adapter.can_use_in_place(),
+                    reports_limits: adapter
+                        .capabilities()
+                        .contains(juggler_adapter::Capabilities::USAGE_QUOTA_FEED),
                 })
         })
         .collect()

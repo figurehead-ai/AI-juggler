@@ -159,8 +159,12 @@ pub struct QualitySignals {
     pub stuck_evidence: Option<crate::model::AttentionReason>,
 }
 
+/// The forecast while nothing is being used.
+pub const IDLE_FORECAST: &str = "Not using its limit right now";
+
 /// Quota-forecast label (Req.7): a RANGE at the current burn rate,
-/// tier-tagged; idle renders `not burning` — never a point estimate.
+/// in plain words (0.0.11 walk); idle says its limit isn't being used —
+/// never a point estimate.
 /// `pct_burned_last_5_min` is the observed quota-% consumed in the
 /// trailing 5 minutes (from quota-window deltas, not raw tokens).
 // The ±33% range rounds to whole minutes — truncation past the round
@@ -169,7 +173,7 @@ pub struct QualitySignals {
 #[must_use]
 pub fn quota_forecast_label(quota_used_pct: f64, pct_burned_last_5_min: f64) -> String {
     if pct_burned_last_5_min <= f64::EPSILON {
-        return "not burning".to_string();
+        return IDLE_FORECAST.to_string();
     }
     // Range = ±33% around the observed burn (uncertainty, not precision).
     let pct_per_min = (pct_burned_last_5_min / 5.0).max(0.001);
@@ -178,7 +182,7 @@ pub fn quota_forecast_label(quota_used_pct: f64, pct_burned_last_5_min: f64) -> 
     let low = (mid_minutes * 0.67).round().max(0.0) as i64;
     let high = (mid_minutes * 1.33).round().max(0.0) as i64;
     if high == 0 {
-        return "not burning".to_string();
+        return IDLE_FORECAST.to_string();
     }
-    format!("~{low}-{high}m at current rate · Est")
+    format!("At this pace, its limit lasts about {low}–{high} min more")
 }
