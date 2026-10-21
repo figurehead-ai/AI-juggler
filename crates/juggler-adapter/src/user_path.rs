@@ -15,7 +15,7 @@
 //! user's folders.
 
 use std::ffi::{OsStr, OsString};
-use std::io::Read;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::OnceLock;
@@ -28,6 +28,30 @@ pub const LOGIN_SHELL_TIMEOUT: Duration = Duration::from_secs(2);
 /// Marks the `PATH` in the login shell's output, so whatever its startup
 /// files print is never read as part of it.
 const MARK: &str = "__AI_JUGGLER_PATH__";
+
+/// What the login shell runs, read from its stdin — a constant: nothing
+/// is spliced in, and no `-c` (SECURITY-GUIDELINES C2). The marker is
+/// [`MARK`].
+const SCRIPT: &[u8] = b"printf '__AI_JUGGLER_PATH__%s__AI_JUGGLER_PATH__' \"$PATH\"\nexit\n";
+
+/// The `PATH` the login shell starts from, whatever the app inherited:
+/// what launchd gives an app opened from Finder.
+const SYSTEM_PATH: &str = "/usr/bin:/bin:/usr/sbin:/sbin";
+
+/// The variables a probe or the login shell keeps from the app's own
+/// environment; everything else is cleared (SECURITY-GUIDELINES C2): who
+/// the user is, their locale and their temporary folder.
+pub const ENV_ALLOWLIST: &[&str] = &[
+    "HOME",
+    "USER",
+    "LOGNAME",
+    "SHELL",
+    "TMPDIR",
+    "LANG",
+    "LC_ALL",
+    "LC_CTYPE",
+    "__CF_USER_TEXT_ENCODING",
+];
 
 /// Folders under the user's home where CLIs are installed (npm prefixes,
 /// installers, version managers), after Homebrew's.
@@ -106,13 +130,24 @@ pub fn prepend_dir(binary: &Path, path: &OsStr) -> OsString {
     join(dedup(dirs))
 }
 
-/// A command for `binary` that runs with [`path_for`] — for the
-/// discovery probes (`--version`).
+/// A command for `binary` that runs with [`path_for`] and only the
+/// [`ENV_ALLOWLIST`] — for the discovery probes (`--version`).
 #[must_use]
 pub fn command(binary: &Path) -> Command {
     let mut command = Command::new(binary);
+    allowlisted_env(&mut command);
     command.env("PATH", path_for(binary));
     command
+}
+
+/// Clears `command`'s environment, then keeps the [`ENV_ALLOWLIST`].
+fn allowlisted_env(command: &mut Command) {
+    command.env_clear();
+    for key in ENV_ALLOWLIST {
+        if let Some(value) = std::env::var_os(key) {
+            command.env(key, value);
+        }
+    }
 }
 
 /// The first `program` on [`user_path`].
@@ -198,28 +233,48 @@ fn semver_of(name: &str) -> Option<(u64, u64, u64)> {
     Some((major, minor, patch))
 }
 
-/// The user's shell: `$SHELL` when it is an absolute path, else macOS's
-/// default.
+/// The user's shell: `$SHELL` when it is one of the system's login
+/// shells (`/etc/shells`), else macOS's default.
 fn shell_program() -> PathBuf {
+    let listed = std::fs::read_to_string("/etc/shells").unwrap_or_default();
     std::env::var_os("SHELL")
         .map(PathBuf::from)
-        .filter(|shell| shell.is_absolute())
+        .filter(|shell| known_shell(shell, &listed))
         .unwrap_or_else(|| PathBuf::from("/bin/zsh"))
 }
 
-/// The `PATH` a login shell sets up: `shell -l -c` printing it between
-/// markers, killed after `timeout`. Anything else it prints, its errors
-/// and its exit status are ignored; `None` when it gave no usable `PATH`.
+/// True when `shell` is absolute and listed in `etc_shells` (comments and
+/// blank lines skipped).
+fn known_shell(shell: &Path, etc_shells: &str) -> bool {
+    shell.is_absolute()
+        && etc_shells
+            .lines()
+            .map(str::trim)
+            .filter(|line| !line.is_empty() && !line.starts_with('#'))
+            .any(|line| Path::new(line) == shell)
+}
+
+/// The `PATH` a login shell sets up: `shell -l`, reading [`SCRIPT`] from
+/// its stdin, prints it between markers; it is killed after `timeout`.
+/// It starts from the [`ENV_ALLOWLIST`] and the system `PATH`. Anything
+/// else it prints, its errors and its exit status are ignored; `None`
+/// when it gave no usable `PATH`.
 #[must_use]
 pub fn login_shell(shell: &Path, timeout: Duration) -> Option<OsString> {
-    let script = format!("printf '{MARK}%s{MARK}' \"$PATH\"");
-    let mut child = Command::new(shell)
-        .args(["-l", "-c", &script])
-        .stdin(Stdio::null())
+    let mut command = Command::new(shell);
+    allowlisted_env(&mut command);
+    let mut child = command
+        .env("PATH", SYSTEM_PATH)
+        .arg("-l")
+        .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()
         .ok()?;
+    // Far below a pipe's buffer: the write never waits on the shell.
+    if let Some(mut stdin) = child.stdin.take() {
+        let _ = stdin.write_all(SCRIPT);
+    }
     let mut stdout = child.stdout.take()?;
     let (send, receive) = std::sync::mpsc::channel();
     let _ = std::thread::Builder::new()
@@ -363,6 +418,25 @@ mod tests {
     }
 
     #[test]
+    fn the_script_uses_the_marker() {
+        let script = std::str::from_utf8(SCRIPT).unwrap();
+        assert_eq!(script.matches(MARK).count(), 2);
+    }
+
+    #[test]
+    fn only_a_listed_absolute_shell_runs() {
+        let listed = "# List of acceptable shells\n/bin/zsh\n/opt/homebrew/bin/fish\n\n";
+        assert!(known_shell(Path::new("/bin/zsh"), listed));
+        assert!(known_shell(Path::new("/opt/homebrew/bin/fish"), listed));
+        assert!(!known_shell(Path::new("/tmp/evil"), listed));
+        assert!(!known_shell(Path::new("zsh"), "zsh\n"));
+        assert!(!known_shell(
+            Path::new("# List of acceptable shells"),
+            listed
+        ));
+    }
+
+    #[test]
     fn only_the_marked_path_is_read() {
         let out = format!("Welcome!\n{MARK}/a/bin:/b/bin{MARK}more noise");
         assert_eq!(parse_marked(&out), Some(OsString::from("/a/bin:/b/bin")));
@@ -387,11 +461,47 @@ mod tests {
         let shell = script(
             dir.path(),
             "shell",
-            "#!/bin/sh\necho 'rc noise'\nPATH=/from/login:/usr/bin\nexport PATH\nshift\nexec /bin/sh -c \"$2\"\n",
+            "#!/bin/sh\necho 'rc noise'\nPATH=/from/login:/usr/bin\nexport PATH\nexec /bin/sh\n",
         );
         assert_eq!(
             login_shell(&shell, LOGIN_SHELL_TIMEOUT),
             Some(OsString::from("/from/login:/usr/bin"))
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn the_login_shell_and_probes_start_from_the_allowlist() {
+        let dir = tempfile::tempdir().unwrap();
+        // A stand-in shell that reports its whole environment as its PATH.
+        let shell = script(
+            dir.path(),
+            "shell",
+            "#!/bin/sh\nPATH=\"/env/$(/usr/bin/env | /usr/bin/cut -d= -f1 | /usr/bin/sort | /usr/bin/tr '\\n' :)\"\nexport PATH\nexec /bin/sh\n",
+        );
+        let names = login_shell(&shell, LOGIN_SHELL_TIMEOUT).unwrap();
+        let names = names.to_string_lossy();
+        for name in names
+            .trim_start_matches("/env/")
+            .split(':')
+            .filter(|n| !n.is_empty())
+        {
+            assert!(
+                ENV_ALLOWLIST.contains(&name)
+                    || ["PATH", "PWD", "SHLVL", "_", "OLDPWD"].contains(&name),
+                "the login shell got {name}"
+            );
+        }
+        let probe = command(Path::new("/usr/bin/true"));
+        let set: Vec<_> = probe
+            .get_envs()
+            .filter(|(_, v)| v.is_some())
+            .map(|(k, _)| k.to_string_lossy().into_owned())
+            .collect();
+        assert!(
+            set.iter()
+                .all(|k| k == "PATH" || ENV_ALLOWLIST.contains(&k.as_str())),
+            "{set:?}"
         );
     }
 
