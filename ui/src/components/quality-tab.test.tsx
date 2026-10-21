@@ -138,6 +138,8 @@ describe("AJ-E409 Quality tab signals (D-07)", () => {
     );
     expect(container.querySelector('[data-testid="quality-context"]')!.textContent).toContain("cumulative, not context");
     expect(container.querySelector('[data-testid="quality-cost"]')!.textContent).toContain("Est · value-equiv.");
+    // A plain dollar sign, no backslash before it (0.0.11 walk).
+    expect(container.querySelector('[data-testid="quality-cost"]')!.textContent).toMatch(/Estimated\$\d+\.\d{2} · /);
     expect(container.querySelector('[data-testid="quality-cost"]')!.textContent).toContain("opus");
     expect(container.querySelector('[data-testid="quality-forecast"]')!.textContent).toContain("not burning");
     expect(container.querySelector('[data-testid="quality-stuck"]')!.textContent).toContain("Stuck?");
