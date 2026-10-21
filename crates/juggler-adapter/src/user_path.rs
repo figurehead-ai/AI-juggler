@@ -463,8 +463,11 @@ mod tests {
             "shell",
             "#!/bin/sh\necho 'rc noise'\nPATH=/from/login:/usr/bin\nexport PATH\nexec /bin/sh\n",
         );
+        // What is read, not how fast: a loaded CI runner can take longer
+        // than the app's 2 s to start a shell (it failed there once). The
+        // timeout has its own test below.
         assert_eq!(
-            login_shell(&shell, LOGIN_SHELL_TIMEOUT),
+            login_shell(&shell, Duration::from_secs(30)),
             Some(OsString::from("/from/login:/usr/bin"))
         );
     }
@@ -479,7 +482,7 @@ mod tests {
             "shell",
             "#!/bin/sh\nPATH=\"/env/$(/usr/bin/env | /usr/bin/cut -d= -f1 | /usr/bin/sort | /usr/bin/tr '\\n' :)\"\nexport PATH\nexec /bin/sh\n",
         );
-        let names = login_shell(&shell, LOGIN_SHELL_TIMEOUT).unwrap();
+        let names = login_shell(&shell, Duration::from_secs(30)).unwrap();
         let names = names.to_string_lossy();
         for name in names
             .trim_start_matches("/env/")
