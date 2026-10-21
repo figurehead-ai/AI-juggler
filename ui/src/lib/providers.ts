@@ -23,14 +23,13 @@ export function ownSignIn(id: string): string {
 }
 
 /**
- * ADR-0018: the tools whose setups AI Juggler can use where they are
- * (their adapter adopts a folder without writing to it). Any other
- * tool's setups come in as copies.
+ * ADR-0018: the tools whose setups AI Juggler can use where they are,
+ * as the backend reports them (`can_use_in_place` on each provider row —
+ * the adapter adopts a folder without writing to it). Any other tool's
+ * setups come in as copies.
  */
-const IN_PLACE = new Set(["claude-code", "codex"]);
-
-export function canUseInPlace(id: string): boolean {
-  return IN_PLACE.has(id);
+export function inPlaceProviders(rows: { provider: string; can_use_in_place?: boolean }[]): Set<string> {
+  return new Set(rows.filter((row) => row.can_use_in_place).map((row) => row.provider));
 }
 
 /** What "the same sign-in, settings and history" is the same AS, for a

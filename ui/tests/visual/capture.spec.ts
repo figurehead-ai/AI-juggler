@@ -3408,6 +3408,7 @@ const E306_INSTALLS = [
     verified_against: ["2.0.x", "2.1.x"],
     kind: "terminal",
     single_instance_note: null,
+    can_use_in_place: true,
   },
   {
     provider: "fake-desktop",
@@ -3432,6 +3433,7 @@ const E306_INSTALLS = [
     verified_against: [],
     kind: "terminal",
     single_instance_note: null,
+    can_use_in_place: true,
   },
   {
     provider: "gemini",

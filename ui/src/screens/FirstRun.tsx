@@ -32,7 +32,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { Button } from "../components/primitives";
-import { canUseInPlace, ownSignIn, providerDisplayName, sameAsWords } from "../lib/providers";
+import { inPlaceProviders, ownSignIn, providerDisplayName, sameAsWords } from "../lib/providers";
 import { funnelEvent, funnelStep, reasonCode } from "../lib/funnel";
 import {
   accountImport,
@@ -261,8 +261,12 @@ function FoundStep({
   onImportFolder,
   stopRef,
   onBusy,
+  inPlace,
 }: {
   report: ScanReportData | null;
+  /** ADR-0018: the tools that can be used where they are (from the
+   * backend's provider rows); `null` while they load. */
+  inPlace: Set<string> | null;
   cli: ProviderInstallData | null;
   toolName: string;
   provider: string;
@@ -315,6 +319,7 @@ function FoundStep({
 
   // ADR-0018: only a tool whose adapter can use a folder where it is
   // offers it — and only when one of its setups is on the list.
+  const canUseInPlace = (id: string) => inPlace?.has(id) ?? false;
   const inPlaceTools = [...new Set(installs.map((found) => found.harness).filter(canUseInPlace))];
   const copyOnlyTools = [...new Set(installs.map((found) => found.harness).filter((id) => !canUseInPlace(id)))];
   const canInPlace = inPlaceTools.length > 0;
@@ -403,7 +408,9 @@ function FoundStep({
     if (showOutcome) continueRef.current?.focus();
   }, [showOutcome]);
 
-  if (report === null) {
+  // The bring-in choice depends on what each tool supports: wait for
+  // both (never a flash of "copies" before the choice appears).
+  if (report === null || inPlace === null) {
     return (
       <div className="flex flex-col gap-3" role="status" data-testid="first-run-scanning">
         <h1 className="text-[28px] font-semibold tracking-tight">Looking for {toolName} on this Mac…</h1>
@@ -1321,6 +1328,7 @@ export function FirstRun({
   const [report, setReport] = useState<ScanReportData | null>(null);
   const [cli, setCli] = useState<ProviderInstallData | null>(null);
   const [codexCli, setCodexCli] = useState<ProviderInstallData | null>(null);
+  const [inPlace, setInPlace] = useState<Set<string> | null>(null);
   const [queue, setQueue] = useState<Signin[]>([]);
   const [access, setAccess] = useState<OsAccessInfo[] | null>(null);
   // ADR-0018 §5: while a bring-in runs, Close and Esc mean Stop — the
@@ -1349,6 +1357,7 @@ export function FirstRun({
     );
     void providersDiscover().then(
       (rows) => {
+        setInPlace(inPlaceProviders(rows));
         setCli(rows.find((row) => row.provider === primary) ?? null);
         // First run with every tool: Codex's own row for its group.
         setCodexCli(
@@ -1357,7 +1366,10 @@ export function FirstRun({
             : null,
         );
       },
-      () => setCli(null),
+      () => {
+        setCli(null);
+        setInPlace(new Set());
+      },
     );
     void accountsList().then(
       (rows) => setTaken(rows.map((row) => row.label)),
@@ -1460,6 +1472,7 @@ export function FirstRun({
           {step === "found" && (
             <FoundStep
               report={report}
+              inPlace={inPlace}
               cli={cli}
               toolName={toolName}
               provider={primary}

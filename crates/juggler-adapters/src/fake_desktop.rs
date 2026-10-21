@@ -76,10 +76,10 @@ impl HarnessAdapter for FakeDesktopAdapter {
     }
 
     fn prepare_account(&self, state_dir: &Path) -> Result<juggler_adapter::EnvMap, AdapterError> {
-        std::fs::create_dir_all(state_dir).map_err(|error| AdapterError::AccountDir {
-            path: state_dir.to_path_buf(),
-            message: error.to_string(),
-        })?;
+        // The managed folder and its marker, as the real adapters prepare
+        // theirs — so a launch that wrongly prepared a user's own folder
+        // shows in tests.
+        crate::claude_code::prepare_managed_dir_for(state_dir, FAKE_DESKTOP_ID)?;
         // Single-account: there is nothing to isolate — the env overlay
         // is empty and the label says so.
         Ok(juggler_adapter::EnvMap::new())

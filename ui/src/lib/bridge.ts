@@ -3805,6 +3805,8 @@ export interface ProviderInstallData {
   kind?: "terminal" | "desktop";
   /** The single-instance desktop limit, stated BEFORE selection. */
   single_instance_note?: string | null;
+  /** ADR-0018: its setups can be used where they are. */
+  can_use_in_place?: boolean;
 }
 
 /** The no-backend Step-0 default (preview mode shows an installed
@@ -3818,6 +3820,7 @@ const DEFAULT_PROVIDER_INSTALLS: ProviderInstallData[] = [
     version: "2.1.296",
     binary: "/usr/local/bin/claude",
     notes: [],
+    can_use_in_place: true,
   },
   {
     provider: "codex",
@@ -3827,6 +3830,7 @@ const DEFAULT_PROVIDER_INSTALLS: ProviderInstallData[] = [
     version: null,
     binary: null,
     notes: [],
+    can_use_in_place: true,
   },
 ];
 

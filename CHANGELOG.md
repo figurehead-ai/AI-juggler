@@ -116,10 +116,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Opening the desktop app for an account that uses your folder where it
-  is no longer writes AI Juggler's marker file into that folder, and a
-  folder that has gone is reported instead of recreated (ADR-0018,
-  AJ-E1306).
 - A switch that replays a conversation always carries at least its
   newest turn (cut to fit when it alone is too long) and refuses — before
   starting anything — when there is no conversation to carry; each

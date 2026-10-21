@@ -309,6 +309,14 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         claude_environment::import_claude_config(source, dest, &probe)
     }
 
+    fn can_use_in_place(&self) -> bool {
+        true
+    }
+
+    fn vendor_default_dir(&self) -> Option<PathBuf> {
+        home_dir().map(|home| home.join(".claude"))
+    }
+
     fn adopt_account(&self, source: &Path) -> Result<ImportOutcome, AdapterError> {
         let adapter = ClaudeCodeAdapter::new();
         let probe = move |path: &Path| match adapter.login_state(path) {

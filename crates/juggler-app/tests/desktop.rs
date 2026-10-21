@@ -581,13 +581,39 @@ fn desktop_focus_permission_denial_degrades_with_flag() {
     );
 }
 
-/// ADR-0018 §2: a desktop launch on an account that uses the user's own
-/// folder never prepares it (Claude's preparation writes AI Juggler's
-/// marker). The fake's preparation recreates a missing folder, so the
-/// proof is the last step: a folder that has gone is refused, not
-/// recreated.
+/// Every path under `root` with its size and modification time, the
+/// root's own entry first (its mtime moves when anything is created or
+/// removed directly inside it).
+fn snapshot(root: &Path) -> Vec<(String, u64, std::time::SystemTime)> {
+    fn walk(dir: &Path, root: &Path, out: &mut Vec<(String, u64, std::time::SystemTime)>) {
+        for entry in std::fs::read_dir(dir).unwrap().flatten() {
+            let meta = std::fs::symlink_metadata(entry.path()).unwrap();
+            let rel = entry
+                .path()
+                .strip_prefix(root)
+                .unwrap()
+                .to_string_lossy()
+                .into_owned();
+            out.push((rel, meta.len(), meta.modified().unwrap()));
+            if meta.is_dir() {
+                walk(&entry.path(), root, out);
+            }
+        }
+    }
+    let meta = std::fs::metadata(root).unwrap();
+    let mut out = vec![(".".to_owned(), meta.len(), meta.modified().unwrap())];
+    walk(root, root, &mut out);
+    out.sort();
+    out
+}
+
+/// ADR-0018 §2 (a guard for desktop adapters to come — no real adapter
+/// declares DESKTOP_APP today): a desktop launch on an account that uses
+/// the user's own folder never prepares it. The fake prepares like the
+/// real adapters (folder + AI Juggler's marker), so the old code fails
+/// the snapshot; a folder that has gone is refused, not recreated.
 #[test]
-fn a_desktop_launch_never_marks_a_folder_used_where_it_is() {
+fn a_desktop_launch_never_prepares_a_folder_used_where_it_is() {
     let dir = tempfile::tempdir().unwrap();
     let state_ref = &desktop_state(dir.path());
     let users = dir.path().join("users-folder");
@@ -603,18 +629,14 @@ fn a_desktop_launch_never_marks_a_folder_used_where_it_is() {
         account.in_place = true;
         storage.accounts().update(&account).unwrap();
     }
+    let before = snapshot(&users);
     let info = commands::desktop_launch_arc(state_ref, "acc-desktop").unwrap();
-    assert!(
-        !users
-            .join(juggler_adapters::claude_code::MANAGED_MARKER)
-            .exists(),
-        "no marker in the user's folder"
-    );
     let session = juggler_core::model::SessionId::new(info.session_id);
     state_ref
         .supervisor
         .stop(&session, Duration::from_secs(5))
         .unwrap();
+    assert_eq!(snapshot(&users), before, "the user's folder is unchanged");
 
     std::fs::remove_dir_all(&users).unwrap();
     assert!(commands::desktop_launch_arc(state_ref, "acc-desktop").is_err());

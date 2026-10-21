@@ -54,7 +54,7 @@
 | AJ-E1302 | PASS10 | 2026-10-20 | [manifest](AJ-E1302/manifest.md) |
 | AJ-E1303 | PASS9 | 2026-10-20 | [manifest](AJ-E1303/manifest.md) |
 | AJ-E1304 | PASS12 | 2026-10-20 | [manifest](AJ-E1304/manifest.md) |
-| AJ-E1306 | PASS5 | 2026-10-20 | [manifest](AJ-E1306/manifest.md) |
+| AJ-E1306 | PASS8 | 2026-10-20 | [manifest](AJ-E1306/manifest.md) |
 | AJ-E1401 | PASS7 | 2026-10-20 | [manifest](AJ-E1401/manifest.md) |
 | AJ-E1402 | PASS7 | 2026-10-20 | [manifest](AJ-E1402/manifest.md) |
 | AJ-E1403 | PASS5 | 2026-10-20 | [manifest](AJ-E1403/manifest.md) |

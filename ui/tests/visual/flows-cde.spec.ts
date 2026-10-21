@@ -36,6 +36,7 @@ test("flow (c): an account for another tool ≤ 4 primary clicks", async ({ page
           verified_against: ["2.0.x", "2.1.x"],
           kind: "terminal",
           single_instance_note: null,
+          can_use_in_place: true,
         },
         {
           provider: "codex",
@@ -48,6 +49,7 @@ test("flow (c): an account for another tool ≤ 4 primary clicks", async ({ page
           verified_against: [],
           kind: "terminal",
           single_instance_note: null,
+          can_use_in_place: true,
         },
       ];
       localStorage.setItem("aij.theme", "dark");
@@ -114,6 +116,7 @@ test("flow (d): add an Account ≤ 3 primary clicks (one tool: no choice, no gat
           version: "2.1.296",
           binary: "/usr/local/bin/claude",
           notes: [],
+          can_use_in_place: true,
         },
       ];
       w.__AIJ_SCAN_REPORT__ = {

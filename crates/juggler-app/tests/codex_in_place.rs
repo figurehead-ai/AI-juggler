@@ -308,3 +308,56 @@ fn a_codex_copy_can_switch_to_its_original_home() {
     );
     assert_eq!(snapshot(&folder), before, "the original is untouched");
 }
+
+/// A copy of Codex's default `~/.codex` switches back to `~/.codex`
+/// itself — found through the adapter's own home (the same one its launch
+/// rule uses), so it then runs with both variables unset. The temp home
+/// sits under a link on macOS (`/var` → `/private/var`): the canonical
+/// provenance must still map back to the exact default path.
+#[test]
+fn a_copy_of_the_default_home_switches_back_to_it_exactly() {
+    let work = tempfile::tempdir().unwrap();
+    let (stub, log) = codex_stub(work.path());
+    let home = work.path().join("home");
+    let folder = users_home(&home.join(".codex"));
+    let state = app_state(work.path(), &stub, &home);
+    let before = snapshot(&folder);
+    let copy = copy_of(&state, &folder);
+
+    let switched = commands::account_use_original_impl(&state, &copy.account.id).unwrap();
+    assert!(switched.in_place);
+    assert_eq!(
+        state_dir(&state, &copy.account.id),
+        folder,
+        "the exact default path, as the adapter names it"
+    );
+    launch_and_wait(&state, &copy.account.id);
+    let lines = std::fs::read_to_string(&log).unwrap();
+    assert!(lines.contains("home=UNSET\n"), "CODEX_HOME unset");
+    assert!(lines.contains("sqlite=UNSET\n"), "CODEX_SQLITE_HOME unset");
+    assert_eq!(snapshot(&folder), before, "the original is untouched");
+}
+
+/// The UI's "use it where it is" offer comes from `can_use_in_place` on
+/// each provider row; it must agree with what each registered adapter's
+/// `adopt_account` actually supports (a refusal other than Unsupported
+/// means adopt is implemented).
+#[test]
+fn the_in_place_flag_matches_what_each_adapter_supports() {
+    let registry = juggler_app::state::default_registry();
+    let missing = tempfile::tempdir().unwrap().path().join("missing");
+    for id in registry.ids() {
+        let adapter = registry.get(&id).unwrap();
+        let supported = !matches!(
+            adapter.adopt_account(&missing),
+            Err(juggler_adapter::AdapterError::Unsupported(_))
+        );
+        assert_eq!(
+            adapter.can_use_in_place(),
+            supported,
+            "{id:?}: the flag and adopt_account disagree"
+        );
+    }
+    let ids: Vec<String> = registry.ids().iter().map(ToString::to_string).collect();
+    assert!(ids.contains(&"codex".to_owned()) && ids.contains(&"claude-code".to_owned()));
+}

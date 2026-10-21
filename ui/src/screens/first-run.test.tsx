@@ -753,12 +753,31 @@ describe("AJ-E1301 — Codex setups in first run", () => {
     );
   });
 
+  it("a tool the backend can't use in place comes in as a copy, with no choice", async () => {
+    w().__AIJ_SCAN_REPORT__ = { ...SCAN, installs: [codex("/Users/you/.codex", "vendor-default")] };
+    w().__AIJ_PROVIDER_INSTALLS__ = [
+      { provider: "claude-code", display_name: "Claude Code", install_url: null, status: "installed", version: null, binary: null, notes: [], can_use_in_place: true },
+      { provider: "codex", display_name: "Codex", install_url: null, status: "installed", version: null, binary: null, notes: [], can_use_in_place: false },
+    ];
+    const bridge = await import("../lib/bridge");
+    const spy = vi.spyOn(bridge, "accountImport");
+    const view = render(<FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />);
+    await view.findByTestId("first-run-group-codex");
+    expect(view.queryByTestId("first-run-placement")).toBeNull();
+    expect(view.getByTestId("first-run-found").textContent).toContain("AI Juggler makes its own copy of each");
+    await act(async () => {
+      fireEvent.click(view.getByTestId("first-run-bring-in"));
+    });
+    expect(spy.mock.calls.map((call) => [call[0], call[6]])).toEqual([["codex", false]]);
+    spy.mockRestore();
+  });
+
   it("a Codex-only first run offers the choice for Codex and no Claude note", async () => {
     w().__AIJ_SCAN_REPORT__ = { ...SCAN, installs: [codex("/Users/you/.codex", "vendor-default")] };
     // Neither tool installed: only Codex's note, over its own rows.
     w().__AIJ_PROVIDER_INSTALLS__ = [
-      { provider: "claude-code", display_name: "Claude Code", install_url: null, status: "not_installed", version: null, binary: null, notes: [] },
-      { provider: "codex", display_name: "Codex", install_url: null, status: "not_installed", version: null, binary: null, notes: [] },
+      { provider: "claude-code", display_name: "Claude Code", install_url: null, status: "not_installed", version: null, binary: null, notes: [], can_use_in_place: true },
+      { provider: "codex", display_name: "Codex", install_url: null, status: "not_installed", version: null, binary: null, notes: [], can_use_in_place: true },
     ];
     const bridge = await import("../lib/bridge");
     const spy = vi.spyOn(bridge, "accountImport");

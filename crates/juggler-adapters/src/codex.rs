@@ -732,6 +732,16 @@ impl HarnessAdapter for CodexAdapter {
         crate::codex_environment::import_codex_home(source, dest, &scan_probe)
     }
 
+    fn can_use_in_place(&self) -> bool {
+        true
+    }
+
+    /// `~/.codex` under the same home the launch rule uses (`with_home`
+    /// in tests, else `$HOME`).
+    fn vendor_default_dir(&self) -> Option<PathBuf> {
+        self.user_home().map(|home| home.join(".codex"))
+    }
+
     /// ADR-0018: a Codex home used where it is — checked, probed by the
     /// shape of its `auth.json`, never written.
     fn adopt_account(&self, source: &Path) -> Result<ImportOutcome, AdapterError> {

@@ -103,8 +103,8 @@ test("every clickable control shows the hand — Home's triage and the tool choi
   };
   await seed(page, parked, {
     __AIJ_PROVIDER_INSTALLS__: [
-      { provider: "claude-code", display_name: "Claude Code", install_url: "https://claude.com/download", status: "installed", version: "2.1.296", binary: "/usr/local/bin/claude", notes: [], verified_against: ["2.1.x"], kind: "terminal", single_instance_note: null },
-      { provider: "codex", display_name: "Codex", install_url: "https://developers.openai.com/codex", status: "installed", version: "0.9.4", binary: "/opt/homebrew/bin/codex", notes: [], verified_against: [], kind: "terminal", single_instance_note: null },
+      { provider: "claude-code", display_name: "Claude Code", install_url: "https://claude.com/download", status: "installed", version: "2.1.296", binary: "/usr/local/bin/claude", notes: [], verified_against: ["2.1.x"], kind: "terminal", single_instance_note: null, can_use_in_place: true },
+      { provider: "codex", display_name: "Codex", install_url: "https://developers.openai.com/codex", status: "installed", version: "0.9.4", binary: "/opt/homebrew/bin/codex", notes: [], verified_against: [], kind: "terminal", single_instance_note: null, can_use_in_place: true },
     ],
   });
   await expect(page.getByTestId("home-parked").getByRole("button", { name: /^Resume/ }).first()).toBeVisible();

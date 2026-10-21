@@ -3006,9 +3006,10 @@ pub fn account_use_original_impl(
         .ok_or_else(|| AppError::UnknownHarness(account.harness.to_string()))?;
     // The exact path, not the resolved one the provenance keeps: the
     // default folder is `~/.claude` (`~/.codex`) itself even when it's a
-    // link (it runs with the variable unset).
-    let folder = dirs::home_dir()
-        .and_then(|home| vendor_default_folder(account.harness.as_str(), &home))
+    // link (it runs with the variable unset). The adapter's own home, so
+    // this and its launch rule agree.
+    let folder = adapter
+        .vendor_default_dir()
         .filter(|default| canonical(default) == canonical(std::path::Path::new(&source)))
         .unwrap_or_else(|| std::path::PathBuf::from(&source));
     adapter.adopt_account(&folder)?;
@@ -3020,16 +3021,6 @@ pub fn account_use_original_impl(
     // (the store dedupes anything read twice).
     crate::usage_pipeline::forget_account_offsets(state, updated.id.as_str());
     Ok(account_info_of(&state.registry, &updated))
-}
-
-/// The vendor's own default folder for a Provider (`~/.claude`,
-/// `~/.codex`), which launches with its variable unset.
-fn vendor_default_folder(harness: &str, home: &std::path::Path) -> Option<std::path::PathBuf> {
-    match harness {
-        "claude-code" => Some(home.join(".claude")),
-        "codex" => Some(home.join(".codex")),
-        _ => None,
-    }
 }
 
 /// How a setup comes in (ADR-0018).
@@ -3674,8 +3665,10 @@ pub fn desktop_launch_arc(state: &Arc<AppState>, account_id: &str) -> AppResult<
     }
     // Idempotent account-dir preparation (the same contract terminal
     // launches honour) — the launch cwd must exist before spawn. Never
-    // for a folder used where it is: that would write AI Juggler's
-    // marker into the user's own folder (ADR-0018 §2).
+    // for a folder used where it is (ADR-0018 §2): a guard for desktop
+    // adapters to come — no real adapter declares DESKTOP_APP today, and
+    // a preparation that writes AI Juggler's marker (as Claude's does)
+    // must never reach the user's own folder.
     if account.in_place {
         if !account.state_dir.is_dir() {
             return Err(AppError::Validation {
@@ -13517,6 +13510,9 @@ pub struct ProviderInstallInfo {
     /// The single-instance desktop limit, stated BEFORE selection
     /// (Req.3) — the adapter's isolation claim verbatim.
     pub single_instance_note: Option<String>,
+    /// ADR-0018: its setups can be used where they are (the adapter
+    /// adopts a folder without writing to it).
+    pub can_use_in_place: bool,
 }
 
 /// AJ-E301: probes every registered Provider in parallel (thread per
@@ -13665,6 +13661,9 @@ fn providers_discover_rows(state: &Arc<AppState>) -> Vec<ProviderInstallInfo> {
                 let adapter_meta = registry.get(&juggler_core::model::HarnessId::new(
                     report.adapter.as_str(),
                 ));
+                let can_use_in_place = adapter_meta
+                    .as_ref()
+                    .is_some_and(|adapter| adapter.can_use_in_place());
                 let (verified_against, kind, single_instance_note) = match adapter_meta {
                     Some(adapter) => (
                         adapter
@@ -13695,6 +13694,7 @@ fn providers_discover_rows(state: &Arc<AppState>) -> Vec<ProviderInstallInfo> {
                     verified_against,
                     kind,
                     single_instance_note,
+                    can_use_in_place,
                 }
             })
             .collect()
