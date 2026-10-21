@@ -1444,20 +1444,20 @@ function InstanceUsage(props: PanelProps) {
             <tbody className="[&_td]:py-0.5">
               <tr><td className="text-muted">input</td><td className="text-right tabular-nums text-ink">{tokens.input.toLocaleString()}</td></tr>
               <tr><td className="text-muted">output</td><td className="text-right tabular-nums text-ink">{tokens.output.toLocaleString()}</td></tr>
-              <tr><td className="text-muted">cache read</td><td className="text-right tabular-nums text-ink">{tokens.cache_read.toLocaleString()}</td></tr>
-              <tr><td className="text-muted">cache write</td><td className="text-right tabular-nums text-ink">{tokens.cache_write.toLocaleString()}</td></tr>
-              <tr className="border-t border-hairline"><td className="text-muted">total (in+out)</td><td className="text-right tabular-nums font-medium text-ink">{(tokens.input + tokens.output).toLocaleString()}</td></tr>
+              <tr><td className="text-muted">read from cache</td><td className="text-right tabular-nums text-ink">{tokens.cache_read.toLocaleString()}</td></tr>
+              <tr><td className="text-muted">written to cache</td><td className="text-right tabular-nums text-ink">{tokens.cache_write.toLocaleString()}</td></tr>
+              <tr className="border-t border-hairline"><td className="text-muted">total (input + output)</td><td className="text-right tabular-nums font-medium text-ink">{(tokens.input + tokens.output).toLocaleString()}</td></tr>
             </tbody>
           </table>
         ) : (
           <p className="text-[11.5px] text-muted">No usage recorded yet</p>
         )}
         <span className="text-[10px] text-muted">
-          <span className="rounded border border-hairline px-1">Measured</span> counted from what the session reports
+          <TierTag tier="Measured" />
         </span>
       </Card>
       <Card className="flex flex-col gap-2 p-4" data-testid="two-clock-card">
-        <p className="text-[11px] uppercase tracking-wider text-muted">Account · the two clocks</p>
+        <p className="text-[11px] uppercase tracking-wider text-muted">This account's limits</p>
         {/* AJ-E610: the account's windows + the SEPARATE subscription
             clock (a calendar line — never merged with the rings) and
             the forecast pill. */}
@@ -2019,8 +2019,19 @@ function ProjectOverview(props: PanelProps) {
         </div>
       ) : null}
       {rows.length === 0 ? (
-        <Card className="flex flex-col items-center gap-3 p-6 text-center">
-          <p className="text-[12px] font-medium text-ink">No sessions in this project yet</p>
+        <Card className="flex flex-col items-center gap-3 p-6 text-center" data-testid="project-empty">
+          {/* 0.0.11 walk, Q2: a project known from the setups' history says
+              what was done there — the rail row's own line. */}
+          {project.history_sessions > 0 ? (
+            <div className="flex flex-col items-center gap-1">
+              <p className="text-[12px] font-medium text-ink">Nothing started from AI Juggler here yet</p>
+              <p className="text-[11.5px] text-muted" data-testid="project-history-line">
+                {projectStats(project, props.now).join(" · ")}
+              </p>
+            </div>
+          ) : (
+            <p className="text-[12px] font-medium text-ink">No sessions in this project yet</p>
+          )}
           <Button size="sm" variant="primary" onClick={() => window.dispatchEvent(new Event("aij:new-session"))}>
             <IconTerminal width={13} height={13} />
             Start first session
@@ -2068,7 +2079,7 @@ function ProjectOverview(props: PanelProps) {
 }
 
 /** SessionRow reuse for the On-it-now card — import late to avoid cycles. */
-import { SessionRow } from "./WorkflowRail";
+import { SessionRow, projectStats } from "./WorkflowRail";
 function SessionRowForCard({ session }: { session: InstanceInfo }) {
   return <SessionRow session={session} selected={false} onSelect={() => {}} />;
 }
@@ -2172,12 +2183,39 @@ function GroupedHistory(props: PanelProps) {
 
 // --- AJ-E409: Quality/Performance tab (D-07 — signals, never a score) ---
 
+/** SPEC §6's honesty tiers, each with a plain line beside it (0.0.11
+ * walk, Q5): the tag stays, and says what it means. */
+const TIER_WORDS: Record<"Measured" | "Computed" | "Estimated", string> = {
+  Measured: "read from the session",
+  Computed: "worked out from what's measured",
+  Estimated: "a best guess",
+};
+
 function TierTag({ tier }: { tier: "Measured" | "Computed" | "Estimated" }) {
   return (
-    <span className="rounded border border-hairline px-1 text-[9px] font-medium uppercase tracking-wide text-muted">
-      {tier}
+    <span className="inline-flex items-center gap-1.5">
+      <span className="rounded border border-hairline px-1 text-[9px] font-medium uppercase tracking-wide text-muted">
+        {tier}
+      </span>
+      <span className="text-[10px] font-normal normal-case tracking-normal text-faint" data-testid="tier-words">
+        {TIER_WORDS[tier]}
+      </span>
     </span>
   );
+}
+
+/** A stuck rule's id in words (the rail's own wording). */
+function stuckRuleWords(rule: string): string {
+  switch (rule) {
+    case "stuck_no_output":
+      return "No output for a while";
+    case "waiting_prompt":
+      return "Waiting for your reply";
+    case "quota_exit":
+      return "Hit its limit";
+    default:
+      return "Looks stuck";
+  }
 }
 
 /// The `Renewal date (optional)` editor (AJ-E411 Req.4): date input +
@@ -2442,7 +2480,7 @@ function QualityTab(props: PanelProps) {
       body: quality.tokens_bars ? (
         <div className="flex flex-col gap-1">
           <span className="tabular-nums text-ink">
-            {Math.round(quality.avg_tokens_per_min)} avg (5 min) · idle is a real 0
+            {Math.round(quality.avg_tokens_per_min)} a minute on average over the last 5 minutes
           </span>
           {asTable ? (
             <table className="text-[10px]">
@@ -2476,12 +2514,12 @@ function QualityTab(props: PanelProps) {
     const lastSample = resources?.spark.at(-1);
     signals.push({
       testId: "quality-cpu",
-      label: "CPU / RAM now",
+      label: "CPU and memory now",
       tier: "Measured",
       body: lastSample ? (
         <span className="tabular-nums text-ink">
-          {lastSample.cpu_pct !== null ? `${Math.round(lastSample.cpu_pct)}% CPU` : "CPU: first sample pending"} ·{" "}
-          {(lastSample.rss_bytes / 1_000_000_000).toFixed(1)} GB RSS (process tree sum)
+          {lastSample.cpu_pct !== null ? `CPU ${Math.round(lastSample.cpu_pct)}%` : "CPU: measuring…"} ·{" "}
+          {(lastSample.rss_bytes / 1_000_000_000).toFixed(1)} GB of memory, with its helpers
         </span>
       ) : (
         <span className="text-muted">Collecting first samples…</span>
@@ -2492,7 +2530,7 @@ function QualityTab(props: PanelProps) {
       label: "Errors",
       tier: "Measured",
       body: quality.errors_not_measurable ? (
-        <span className="text-muted">Not measurable (interactive)</span>
+        <span className="text-muted">Can't be counted in an interactive session</span>
       ) : (
         <span className="tabular-nums text-ink">{quality.error_label}</span>
       ),
@@ -2508,11 +2546,11 @@ function QualityTab(props: PanelProps) {
           </span>
         ) : (
           <span className="text-muted">
-            Context: not reported by {providerDisplayName(instance.provider)} · cumulative{" "}
+            {providerDisplayName(instance.provider)} doesn't say how full its context is ·{" "}
             <span className="tabular-nums text-ink">
               {(quality.cumulative.input + quality.cumulative.output).toLocaleString()}
             </span>{" "}
-            tokens (cumulative, not context)
+            tokens used in this session so far
           </span>
         ),
     });
@@ -2522,17 +2560,17 @@ function QualityTab(props: PanelProps) {
       tier: "Estimated",
       body: quality.session_cost_usd !== null ? (
         <span className="tabular-nums text-ink">
-          ${quality.session_cost_usd.toFixed(2)} · Est · value-equiv. ({quality.priced_model})
+          about ${quality.session_cost_usd.toFixed(2)} at {quality.priced_model}'s API prices
         </span>
       ) : (
         <span className="text-muted">
-          tokens only — no pricing row for this model (never $0.00)
+          No price known for this model, so no cost is shown
         </span>
       ),
     });
     signals.push({
       testId: "quality-forecast",
-      label: "Quota forecast",
+      label: "How long its limit lasts",
       tier: "Estimated",
       body: <span className="text-ink">{quality.quota_forecast}</span>,
     });
@@ -2543,7 +2581,7 @@ function QualityTab(props: PanelProps) {
         tier: "Computed",
         body: (
           <span className="text-ink">
-            {quality.stuck.rule} · {quality.stuck.inputs.join(" · ")}
+            {stuckRuleWords(quality.stuck.rule)} · {quality.stuck.inputs.join(" · ")}
           </span>
         ),
       });
@@ -2778,7 +2816,7 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
     <div className="flex flex-col gap-3" data-testid="processes-tab">
       {adoptedNotice}
       <div className="flex items-center justify-between gap-2">
-        <p className="text-[10px] text-muted">2s sampling · 5s refresh · Measured</p>
+        <p className="text-[10px] text-muted">Measured every 2 seconds</p>
         {lastSpark && (
           <span className="flex items-end gap-[2px]" aria-hidden="true" data-testid="processes-spark">
             {spark.slice(-30).map((sample, i) => (
@@ -2802,9 +2840,9 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
               <th scope="col" className="py-1 pr-2 font-medium">PID</th>
               <th scope="col" className="py-1 pr-2 font-medium">Process</th>
               <th scope="col" className="py-1 pr-2 font-medium">CPU</th>
-              <th scope="col" className="py-1 pr-2 font-medium">RAM</th>
+              <th scope="col" className="py-1 pr-2 font-medium">Memory</th>
               <th scope="col" className="py-1 pr-2 font-medium">Age</th>
-              <th scope="col" className="py-1 font-medium">⑂</th>
+              <th scope="col" className="py-1 font-medium">Helpers</th>
             </tr>
           </thead>
           <tbody>
@@ -2823,7 +2861,7 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
                     {row.name}
                   </td>
                   <td className="py-1 pr-2 tabular-nums text-ink">
-                    {row.cpu_pct !== null ? `${Math.round(row.cpu_pct)}%` : <span className="text-faint">— first sample</span>}
+                    {row.cpu_pct !== null ? `${Math.round(row.cpu_pct)}%` : <span className="text-faint">measuring…</span>}
                   </td>
                   <td className="py-1 pr-2 tabular-nums text-ink">{formatRss(row.rss_bytes)}</td>
                   <td className="py-1 pr-2 tabular-nums text-muted">{formatAge(row.age_ms)}</td>
