@@ -250,16 +250,25 @@ describe("D-25 first run — the flow", () => {
     w().__AIJ_SCAN_REPORT__ = { ...SCAN, installs: [found("/Users/you/.codex", "vendor-default", { harness: "codex" } as Partial<DiscoveredInfo>)] };
     const bridge = await import("../lib/bridge");
     const spy = vi.spyOn(bridge, "accountImport");
-    const { findByTestId, getByTestId } = render(<FirstRun mode="add" provider="codex" onDone={() => null} openLoginTerminal={() => null} />);
+    const onDone = vi.fn();
+    const { findByTestId, getByTestId, queryByTestId } = render(<FirstRun mode="add" provider="codex" onDone={onDone} openLoginTerminal={() => null} />);
     const list = await findByTestId("first-run-found");
     const inPlace = within(getByTestId("first-run-placement-in_place")).getByRole("radio") as HTMLInputElement;
     expect(inPlace.checked).toBe(true);
     expect(getByTestId("first-run-placement-in_place").textContent).toContain("as when you run Codex yourself");
     expect(list.textContent).not.toContain("Claude app");
+    // One setup: worded for one (0.0.11 walk).
+    expect(list.textContent).toContain("AI Juggler uses it where it is");
+    expect(list.textContent).not.toContain("Pick the ones");
+    expect(getByTestId("first-run-placement-in_place").textContent).toContain("Use it where it is");
+    expect(getByTestId("first-run-placement-copy").textContent).toContain("Make a separate copy");
     await act(async () => {
       fireEvent.click(getByTestId("first-run-bring-in"));
     });
     expect(spy.mock.calls.map((call) => [call[0], call[6]])).toEqual([["codex", true]]);
+    // Adding later never asks for computer access again (first run did).
+    await waitFor(() => expect(onDone).toHaveBeenCalledOnce());
+    expect(queryByTestId("first-run-access")).toBeNull();
     spy.mockRestore();
   });
 
@@ -653,6 +662,16 @@ describe("AJ-E1301 — Codex setups in first run", () => {
     expect((await view.findByTestId("first-run-no-codex")).textContent).toContain("npm install -g @openai/codex");
   });
 
+  it("while looking, first run names no single tool; Add account names its own (0.0.11 walk)", async () => {
+    const first = render(<FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />);
+    expect(first.getByTestId("first-run-scanning").textContent).toContain("Looking for your setups on this Mac");
+    await first.findByTestId("first-run-found");
+    cleanup();
+    const add = render(<FirstRun mode="add" provider="codex" onDone={() => null} openLoginTerminal={() => null} />);
+    expect(add.getByTestId("first-run-scanning").textContent).toContain("Looking for Codex on this Mac");
+    await add.findByTestId("first-run-found");
+  });
+
   it("keeps the Claude-only screen exactly as it was", async () => {
     const view = render(<FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />);
     await view.findByTestId("first-run-found");
@@ -789,7 +808,7 @@ describe("AJ-E1301 — Codex setups in first run", () => {
     const view = render(<FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />);
     await view.findByTestId("first-run-group-codex");
     expect(view.queryByTestId("first-run-placement")).toBeNull();
-    expect(view.getByTestId("first-run-found").textContent).toContain("AI Juggler makes its own copy of each");
+    expect(view.getByTestId("first-run-found").textContent).toContain("AI Juggler makes its own copy;");
     await act(async () => {
       fireEvent.click(view.getByTestId("first-run-bring-in"));
     });
@@ -811,7 +830,7 @@ describe("AJ-E1301 — Codex setups in first run", () => {
     expect(view.getByTestId("first-run-placement-in_place").textContent).toContain("as when you run Codex yourself");
     expect(view.queryByTestId("first-run-copy-only")).toBeNull();
     const text = view.getByTestId("first-run-found").textContent ?? "";
-    expect(text).toContain("AI Juggler uses each one where it is");
+    expect(text).toContain("AI Juggler uses it where it is");
     expect(text).not.toContain("Claude app");
     expect(await view.findByTestId("first-run-no-codex")).toBeTruthy();
     expect(view.queryByTestId("first-run-no-cli")).toBeNull();

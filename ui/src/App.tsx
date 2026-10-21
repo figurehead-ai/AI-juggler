@@ -1015,7 +1015,7 @@ export default function App() {
             </div>
           ) : global === "usage" ? (
             <div className="h-full overflow-y-auto">
-              <UsageScreen accounts={accounts} sessions={sessions} onAddAccounts={startAddAccount} />
+              <UsageScreen accounts={accounts} sessions={sessions} onAddAccounts={() => setFirstRun(true)} />
             </div>
           ) : global === "fleet" ? (
             <div className="h-full overflow-y-auto">
@@ -1110,7 +1110,9 @@ export default function App() {
                     now={now}
                     onOpenSession={selectSession}
                     onNewSession={() => setNewSession(true)}
-                    onAddAccounts={startAddAccount}
+                    // No account yet: "Find my accounts" comes back to first
+                    // run (every tool at once), as its Not now promises.
+                    onAddAccounts={() => setFirstRun(true)}
                     onLimit={setLimitFor}
                     openLoginTerminal={openLoginTerminal}
                     onAccountsChanged={() => void refresh()}
