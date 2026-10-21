@@ -448,7 +448,9 @@ export function InstanceBoard({
             className="w-full rounded-lg border border-hairline bg-surface/70 py-1.5 pl-6 pr-2 text-[11.5px] text-ink outline-none placeholder:text-faint focus-visible:ring-1 focus-visible:ring-accent/60"
           />
         </div>
-        <div className="flex min-w-0 items-center gap-1" role="group" aria-label="Show">
+        {/* Wraps rather than clip Filters when the counts don't fit the
+            rail's width (0.0.11 walk: "Needs you 5 · Running 3" at 208 px). */}
+        <div className="flex min-w-0 flex-wrap items-center gap-1" role="group" aria-label="Show">
           <FilterChip
             active={filters.chips.includes("needs")}
             onClick={() => setFilters((current) => ({ ...current, chips: current.chips.includes("needs") ? [] : ["needs"] }))}
