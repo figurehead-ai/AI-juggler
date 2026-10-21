@@ -61,8 +61,11 @@ const WIDTH_MAX = 360;
 const WIDTH_DEFAULT = 264;
 const STORE_WIDTH = "aij.rail.width";
 
-function readWidth(): number {
-  const raw = Number(localStorage.getItem(STORE_WIDTH));
+/** The rail's stored width; nothing stored (or junk) is the default —
+ * `Number(null)` is 0, which clamped every install to the minimum. */
+export function readWidth(): number {
+  const stored = localStorage.getItem(STORE_WIDTH);
+  const raw = stored === null || stored.trim() === "" ? Number.NaN : Number(stored);
   if (!Number.isFinite(raw)) return WIDTH_DEFAULT;
   return Math.min(WIDTH_MAX, Math.max(WIDTH_MIN, raw));
 }
