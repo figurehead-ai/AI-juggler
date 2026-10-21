@@ -4292,6 +4292,27 @@ export async function appQuit(stopFirst: boolean): Promise<void> {
   return invoke<void>("app_quit", { stopFirst });
 }
 
+/** The quit sheet is shown: the request is in a person's hands (without
+ * this within 3 s, the app quits as if Quit anyway was chosen). */
+export async function appQuitAck(): Promise<void> {
+  if (!hasBackend) {
+    const w = window as unknown as { __AIJ_QUIT_CALLS__?: string[] };
+    w.__AIJ_QUIT_CALLS__ = [...(w.__AIJ_QUIT_CALLS__ ?? []), "ack"];
+    return;
+  }
+  return invoke<void>("app_quit_ack");
+}
+
+/** Cancel on the quit sheet: the next ⌘Q asks again. */
+export async function appQuitCancel(): Promise<void> {
+  if (!hasBackend) {
+    const w = window as unknown as { __AIJ_QUIT_CALLS__?: string[] };
+    w.__AIJ_QUIT_CALLS__ = [...(w.__AIJ_QUIT_CALLS__ ?? []), "cancel"];
+    return;
+  }
+  return invoke<void>("app_quit_cancel");
+}
+
 /** ⌘Q or the close button while sessions are live: show the quit sheet. */
 export function onQuitRequested(handler: (plan: QuitPlanInfo) => void): () => void {
   if (!hasBackend) {

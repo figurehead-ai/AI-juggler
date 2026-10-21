@@ -8,6 +8,15 @@
 //! re-adopted after a crash keeps running. The user picks Quit anyway,
 //! Stop them first (a clean stop of each, then quit) or Cancel. Nothing is
 //! stopped without that click (ADR-0003).
+//!
+//! Two fallbacks keep a quit from ever doing nothing (the webview hung,
+//! still loading, or never showing the sheet): a second ⌘Q or close
+//! while a request waits quits anyway, as macOS apps do; and the window
+//! acknowledges the request when its sheet is up — without that within
+//! [`ACK_WINDOW`], AI Juggler quits as if Quit anyway was chosen.
+//! Logging out and shutting down never ask: macOS sends those as
+//! `terminate:`, past the menu, and nothing here prevents
+//! `RunEvent::ExitRequested`.
 
 // Tauri command signatures take State by value (as in commands.rs).
 #![allow(clippy::needless_pass_by_value)]
@@ -33,6 +42,98 @@ pub const QUIT_MENU_ID: &str = "aij-quit";
 /// Set once the user chose to quit: the window closing on the way out
 /// must not ask again.
 static QUITTING: AtomicBool = AtomicBool::new(false);
+
+/// How long the window has to show the sheet before the quit goes ahead.
+pub const ACK_WINDOW: Duration = Duration::from_secs(3);
+
+/// A quit request waiting on the sheet.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct Pending {
+    /// Counts requests, so a stale timer never quits a later one.
+    id: u64,
+    acknowledged: bool,
+}
+
+/// The quit requests' state: none waiting, or one waiting on the sheet.
+#[derive(Debug, Default)]
+pub struct QuitGate {
+    pending: Option<Pending>,
+    next_id: u64,
+}
+
+/// What a request (⌘Q or close) does.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum RequestAction {
+    /// Quit now (nothing live, or a second request while one waits).
+    Quit,
+    /// Show the sheet; quit anyway if request `id` isn't acknowledged
+    /// within [`ACK_WINDOW`].
+    Ask {
+        /// The request's number (its timer checks it).
+        id: u64,
+        /// What the sheet says.
+        plan: QuitPlanInfo,
+    },
+}
+
+impl QuitGate {
+    /// A ⌘Q or close with this plan.
+    #[must_use]
+    pub fn request(&mut self, plan: QuitPlanInfo) -> RequestAction {
+        if self.pending.is_some() {
+            return RequestAction::Quit;
+        }
+        match decide(plan) {
+            QuitDecision::Quit => RequestAction::Quit,
+            QuitDecision::Ask(plan) => {
+                self.next_id += 1;
+                self.pending = Some(Pending {
+                    id: self.next_id,
+                    acknowledged: false,
+                });
+                RequestAction::Ask {
+                    id: self.next_id,
+                    plan,
+                }
+            }
+        }
+    }
+
+    /// The window shows the sheet for the waiting request.
+    pub fn acknowledge(&mut self) {
+        if let Some(pending) = self.pending.as_mut() {
+            pending.acknowledged = true;
+        }
+    }
+
+    /// Cancel on the sheet: nothing waits any more.
+    pub fn cancel(&mut self) {
+        self.pending = None;
+    }
+
+    /// [`ACK_WINDOW`] after request `id`: true when it should quit now
+    /// (still waiting, never acknowledged).
+    #[must_use]
+    pub fn timed_out(&self, id: u64) -> bool {
+        matches!(self.pending, Some(Pending { id: waiting, acknowledged: false }) if waiting == id)
+    }
+}
+
+/// The app's one gate.
+static GATE: std::sync::Mutex<QuitGate> = std::sync::Mutex::new(QuitGate {
+    pending: None,
+    next_id: 0,
+});
+
+fn gate() -> std::sync::MutexGuard<'static, QuitGate> {
+    GATE.lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+fn quit_now(app: &tauri::AppHandle) {
+    QUITTING.store(true, Ordering::SeqCst);
+    app.exit(0);
+}
 
 /// What quitting now would do.
 #[derive(Clone, PartialEq, Eq, Debug, Default, serde::Serialize, ts_rs::TS)]
@@ -130,26 +231,50 @@ pub fn quitting() -> bool {
 
 /// ⌘Q or the window's close button: quit now, or ask the window.
 /// Returns true when the request was turned into a question.
+#[must_use]
 pub fn request(app: &tauri::AppHandle) -> bool {
     if quitting() {
         return false;
     }
     let state = app.state::<Arc<AppState>>();
-    match decide(quit_plan_impl(state.inner())) {
-        QuitDecision::Quit => {
-            QUITTING.store(true, Ordering::SeqCst);
-            app.exit(0);
+    let plan = quit_plan_impl(state.inner());
+    let action = gate().request(plan);
+    match action {
+        RequestAction::Quit => {
+            quit_now(app);
             false
         }
-        QuitDecision::Ask(plan) => {
+        RequestAction::Ask { id, plan } => {
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.show();
                 let _ = window.set_focus();
             }
             let _ = app.emit(EVENT_QUIT_REQUESTED, plan);
+            let app = app.clone();
+            std::thread::spawn(move || {
+                // One wait for the sheet's acknowledgement, not a poll.
+                std::thread::sleep(ACK_WINDOW);
+                let timed_out = gate().timed_out(id);
+                if timed_out {
+                    quit_now(&app);
+                }
+            });
             true
         }
     }
+}
+
+/// The window shows the quit sheet (the request is in a person's hands).
+#[tauri::command]
+pub fn app_quit_ack() {
+    gate().acknowledge();
+}
+
+/// Cancel on the quit sheet: everything keeps running, and the next ⌘Q
+/// asks again.
+#[tauri::command]
+pub fn app_quit_cancel() {
+    gate().cancel();
 }
 
 /// The app menu with its Quit item asking first (the rest is Tauri's
@@ -250,6 +375,67 @@ mod tests {
         assert_eq!(alone(InstanceKind::Desktop, false), keeps);
         assert_eq!(alone(InstanceKind::Terminal, true), keeps);
         assert_eq!(alone(InstanceKind::Desktop, true), keeps);
+    }
+
+    fn asked(action: RequestAction) -> u64 {
+        match action {
+            RequestAction::Ask { id, .. } => Some(id),
+            RequestAction::Quit => None,
+        }
+        .expect("asks")
+    }
+
+    const ONE: QuitPlanInfo = QuitPlanInfo {
+        live: 1,
+        end_on_quit: 1,
+        keep_running: 0,
+    };
+
+    /// Fallback (a): a second ⌘Q or close while the sheet is pending
+    /// quits anyway; after Cancel the next one asks again.
+    #[test]
+    fn a_second_request_while_one_waits_quits_anyway() {
+        let mut gate = QuitGate::default();
+        assert!(matches!(gate.request(ONE), RequestAction::Ask { .. }));
+        gate.acknowledge();
+        assert_eq!(gate.request(ONE), RequestAction::Quit);
+        let mut gate = QuitGate::default();
+        let _ = gate.request(ONE);
+        gate.cancel();
+        assert!(
+            matches!(gate.request(ONE), RequestAction::Ask { .. }),
+            "asks again after Cancel"
+        );
+    }
+
+    /// Fallback (b): unacknowledged after the window, it quits; once the
+    /// sheet acknowledges, the timer leaves it to the person; a stale
+    /// timer never quits a later request.
+    #[test]
+    fn an_unacknowledged_request_quits_after_the_window() {
+        let mut gate = QuitGate::default();
+        let id = asked(gate.request(ONE));
+        assert!(gate.timed_out(id), "no sheet: quit as if Quit anyway");
+
+        let mut gate = QuitGate::default();
+        let id = asked(gate.request(ONE));
+        gate.acknowledge();
+        assert!(!gate.timed_out(id), "the sheet is up: the person decides");
+
+        let mut gate = QuitGate::default();
+        let first = asked(gate.request(ONE));
+        gate.cancel();
+        let second = asked(gate.request(ONE));
+        assert!(
+            !gate.timed_out(first),
+            "the cancelled request's timer is stale"
+        );
+        assert!(gate.timed_out(second));
+        assert_eq!(
+            QuitGate::default().request(QuitPlanInfo::default()),
+            RequestAction::Quit,
+            "nothing live"
+        );
     }
 
     #[test]
