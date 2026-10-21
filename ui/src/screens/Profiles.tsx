@@ -92,7 +92,7 @@ export function ProfilesScreen({
   // backend's static capabilities (no install probe). If the call fails
   // the offer stays; the backend refuses what it can't adopt.
   const [inPlace, setInPlace] = useState<InPlaceSupport | null>(null);
-  // 0.0.11 walk (Q3): which tools report their own limits.
+  // 0.0.11 walk (Q3): the tools that don't report their own limits.
   const [limits, setLimits] = useState<InPlaceSupport>("unknown");
   useEffect(() => {
     let alive = true;

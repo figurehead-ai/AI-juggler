@@ -37,7 +37,7 @@ it("Codex says once that it doesn't report its limits; Claude Code keeps its win
   expect(view.getAllByTestId("account-tool-mark").map((mark) => mark.getAttribute("data-provider"))).toEqual(["claude-code", "codex"]);
 });
 
-it("a failed capabilities call keeps every tool's limit rows", () => {
+it("a failed capabilities call, or a tool it doesn't name, keeps the limit rows", () => {
   expect(reportsLimits("unknown", "codex")).toBe(true);
   const known = limitProviders([
     { provider: "claude-code", reports_limits: true },
@@ -45,4 +45,6 @@ it("a failed capabilities call keeps every tool's limit rows", () => {
   ]);
   expect(reportsLimits(known, "claude-code")).toBe(true);
   expect(reportsLimits(known, "codex")).toBe(false);
+  // A tool the list doesn't name keeps its rows: only a "no" hides them.
+  expect(reportsLimits(known, "fake-desktop")).toBe(true);
 });
