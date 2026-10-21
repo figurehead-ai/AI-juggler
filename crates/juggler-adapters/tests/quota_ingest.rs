@@ -338,9 +338,10 @@ fn rollout_token_counts_become_measured_samples_and_the_credits() {
         "acc",
         &std::fs::read(fixture("codex-rollout-rate-limits.jsonl")).unwrap(),
     );
-    // A line of an unknown window width yields nothing: counted, never
-    // guessed into a pool. A null rate_limits is just skipped.
-    assert_eq!(outcome.parse_errors, 1);
+    // A line of an unknown window width yields nothing, never guessed
+    // into a pool; it is an odd reading, not a broken line. A null
+    // rate_limits is just skipped.
+    assert_eq!(outcome.parse_errors, 0);
     assert_eq!(
         outcome.events.len(),
         1,
@@ -459,6 +460,17 @@ fn codex_odd_readings_are_ignored_and_a_null_plan_is_fine() {
         outcome.parse_errors, 0,
         "an odd reading is not a broken line"
     );
+    // Not even with no credits beside it; a window without its figure is.
+    let odd = line(
+        "2026-10-21T10:00:42.000Z",
+        r#"{"limit_id":"codex","primary":{"used_percent":0,"window_minutes":0},"secondary":null,"credits":null}"#,
+    );
+    assert_eq!(rollout_events("acc", odd.as_bytes()).parse_errors, 0);
+    let broken = line(
+        "2026-10-21T10:00:56.000Z",
+        r#"{"limit_id":"codex","primary":{"window_minutes":10080},"secondary":null,"credits":null}"#,
+    );
+    assert_eq!(rollout_events("acc", broken.as_bytes()).parse_errors, 1);
     assert_eq!(
         outcome.credits.as_ref().and_then(|c| c.balance.as_deref()),
         Some("12.50")

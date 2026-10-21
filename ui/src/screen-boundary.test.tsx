@@ -3,7 +3,7 @@
  * A throwing screen now shows its own panel; the header and the rail keep
  * working, and the error goes to the crash-report path.
  */
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { ScreenBoundary, errorDetails } from "./components/ScreenBoundary";
@@ -73,9 +73,41 @@ it("Try again re-renders the screen; Copy details copies the error, not the scre
   fireEvent.click(within(panel).getByRole("button", { name: "Copy details" }));
   expect(writeText).toHaveBeenCalledTimes(1);
   expect(String((writeText.mock.calls[0] as unknown[])[0])).toMatch(/^Screen: history\nError: boom/);
+  await waitFor(() => expect(within(panel).getByRole("button", { name: "Copied" })).toBeTruthy());
   fail = false;
   fireEvent.click(within(panel).getByRole("button", { name: "Try again" }));
   expect(screen.getByText("Back")).toBeTruthy();
+});
+
+it("a failed copy says so and shows the details to select", async () => {
+  const Broken = () => {
+    throw new Error("boom");
+  };
+  Object.defineProperty(navigator, "clipboard", { value: { writeText: vi.fn(async () => Promise.reject(new Error("denied"))) }, configurable: true });
+  render(
+    <ScreenBoundary screen="history" label="History">
+      <Broken />
+    </ScreenBoundary>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Copy details" }));
+  const details = await screen.findByTestId("screen-problem-details");
+  expect(details.textContent).toMatch(/^Screen: history\nError: boom/);
+});
+
+it("a failed crash report is said in the console, never thrown", async () => {
+  const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+  const bridge = await import("./lib/bridge");
+  vi.spyOn(bridge, "crashUiError").mockRejectedValue(new Error("no disk"));
+  const Broken = () => {
+    throw new Error("boom");
+  };
+  render(
+    <ScreenBoundary screen="history" label="History">
+      <Broken />
+    </ScreenBoundary>,
+  );
+  await waitFor(() => expect(warn).toHaveBeenCalled());
+  expect(screen.getByTestId("screen-problem")).toBeTruthy();
 });
 
 it("the details are the error and its place in the code", () => {

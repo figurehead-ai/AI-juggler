@@ -9,7 +9,7 @@
  * the screen — scrubbed, and kept only if the user's crash-report setting
  * allows.
  */
-import { Component, type ErrorInfo, type JSX, type ReactNode } from "react";
+import { Component, useState, type ErrorInfo, type JSX, type ReactNode } from "react";
 import { crashUiError } from "../lib/bridge";
 import { Button, Card } from "./primitives";
 
@@ -39,8 +39,10 @@ export class ScreenBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
+    // Reporting must never throw from here; a failed report is said in
+    // the console (the panel itself still shows).
     void crashUiError(this.props.screen, `${error.name}: ${error.message}`, `${error.stack ?? ""}\n${info.componentStack ?? ""}`).catch(
-      () => null,
+      (cause: unknown) => console.warn("AI Juggler couldn't keep the crash report", cause),
     );
   }
 
@@ -58,8 +60,18 @@ function ProblemPanel({
   error,
   retry,
 }: Props & { error: Error; retry: () => void }): JSX.Element {
+  // Copying says whether it worked.
+  const [copied, setCopied] = useState<"idle" | "copied" | "failed">("idle");
   const copy = () => {
-    void navigator.clipboard?.writeText(errorDetails(screen, error)).catch(() => null);
+    const clipboard = navigator.clipboard;
+    if (!clipboard) {
+      setCopied("failed");
+      return;
+    }
+    clipboard.writeText(errorDetails(screen, error)).then(
+      () => setCopied("copied"),
+      () => setCopied("failed"),
+    );
   };
   return (
     <div className={root ? "flex min-h-screen items-center justify-center bg-canvas p-6" : "flex h-full items-start justify-center p-6"}>
@@ -75,9 +87,17 @@ function ProblemPanel({
             {root ? "Reopen the window" : "Try again"}
           </Button>
           <Button variant="secondary" onClick={copy}>
-            Copy details
+            {copied === "copied" ? "Copied" : "Copy details"}
           </Button>
         </div>
+        {copied === "failed" && (
+          <div className="flex flex-col gap-1.5" role="status">
+            <p className="text-xs text-muted">Couldn't copy the details. Select them here instead:</p>
+            <pre className="max-h-40 select-text overflow-auto whitespace-pre-wrap rounded-md bg-surface-2 p-2 font-mono text-[10px] text-ink" data-testid="screen-problem-details">
+              {errorDetails(screen, error)}
+            </pre>
+          </div>
+        )}
       </Card>
     </div>
   );

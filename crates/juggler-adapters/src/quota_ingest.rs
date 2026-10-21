@@ -676,7 +676,18 @@ fn take_token_count(value: &serde_json::Value, outcome: &mut TailOutcome) -> boo
         return true;
     };
     let (samples, credits) = codex_rate_limits(ts, limits);
-    if samples.is_empty() && credits.is_none() {
+    // An odd reading (a window of width 0, a null primary) is skipped
+    // quietly; only a window without its figure is a broken line.
+    let broken = ["primary", "secondary"].iter().any(|key| {
+        limits.get(key).is_some_and(|window| {
+            !window.is_null()
+                && window
+                    .get("used_percent")
+                    .and_then(serde_json::Value::as_f64)
+                    .is_none()
+        })
+    });
+    if broken {
         outcome.parse_errors += 1;
     }
     outcome.samples.extend(samples);

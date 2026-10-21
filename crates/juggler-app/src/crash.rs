@@ -475,25 +475,34 @@ pub fn crash_ui_error_impl(
     })
 }
 
-/// A UI screen's error, from its error boundary.
+/// A UI screen's error, from its error boundary. Off the UI's thread: it
+/// may write a report file.
 ///
 /// # Errors
 ///
 /// Per [`crash_ui_error_impl`].
 #[tauri::command]
-pub fn crash_ui_error(
+pub async fn crash_ui_error(
     state: tauri::State<'_, Arc<AppState>>,
     screen: String,
     message: String,
     stack: String,
 ) -> AppResult<bool> {
-    crash_ui_error_impl(
-        state.inner(),
-        &screen,
-        &message,
-        &stack,
-        juggler_core::model::Timestamp::now().millis(),
-    )
+    let state = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        crash_ui_error_impl(
+            &state,
+            &screen,
+            &message,
+            &stack,
+            juggler_core::model::Timestamp::now().millis(),
+        )
+    })
+    .await
+    .map_err(|error| AppError::Io {
+        context: "keep a crash report",
+        message: error.to_string(),
+    })?
 }
 
 /// AJ-E1107: the crash-report setting and waiting reports.
