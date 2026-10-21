@@ -3,10 +3,15 @@
  * window and this week, when each resets, and (only when it is coming)
  * when this pace runs out. Unmeasured says so; with no account reading
  * yet, the newest session's own quota line is shown and named as such.
+ *
+ * The one runway: Home's one-line summary (`runwayOf`), the Accounts and
+ * Usage cards and the limit dialog (`runwayLines`) all come from here, on
+ * `lib/quotaWindow`'s rule. Home kept a copy once, and item A's fix for
+ * "100% left" never reached it (ADR-0019: no duplicate logic).
  */
 import type { JSX } from "react";
 import type { InstanceInfo, QuotaDisplayData, WindowDisplay } from "../lib/bridge";
-import { asOfWords, resetClock, windowView } from "../lib/quotaWindow";
+import { asOfWords, measured, resetClock, resetWords, tokenWords, windowView } from "../lib/quotaWindow";
 
 export type RunwayLine = {
   label: string;
@@ -29,9 +34,7 @@ export function runwayLines(display: QuotaDisplayData | undefined, sessions: Ins
     windowLine("This week", display?.weekly, display?.weekly_omitted_reason),
   ];
   if (lines.some((line) => line.left !== null)) return lines;
-  const reading = sessions
-    .filter((s) => s.quota !== null)
-    .sort((a, b) => (b.last_activity_ms ?? b.started_at_ms) - (a.last_activity_ms ?? a.started_at_ms))[0]?.quota;
+  const reading = latestSessionReading(sessions);
   if (!reading) return lines;
   const left = Math.max(0, Math.round(100 - reading.used_percentage));
   return [
@@ -42,6 +45,52 @@ export function runwayLines(display: QuotaDisplayData | undefined, sessions: Ins
       tone: left === 0 ? "out" : left <= 25 ? "low" : "ok",
     },
   ];
+}
+
+/** The newest session's own quota reading: a real reading when the account
+ * has none yet (the newest one wins), never a guess. */
+function latestSessionReading(sessions: InstanceInfo[]): NonNullable<InstanceInfo["quota"]> | undefined {
+  return sessions
+    .filter((s) => s.quota != null)
+    .sort((a, b) => (b.last_activity_ms ?? b.started_at_ms) - (a.last_activity_ms ?? a.started_at_ms))[0]?.quota ?? undefined;
+}
+
+/** Home's one line for an account: % left of the tighter measured window,
+ * else the newest session's own reading, else why there is none. */
+export function runwayOf(
+  display: QuotaDisplayData | undefined,
+  sessions: InstanceInfo[] = [],
+): { left: number | null; words: string; resets: string | null } {
+  const windows: Array<{ label: string; phrase: string; window: WindowDisplay | null | undefined }> = [
+    { label: "5-hour window", phrase: "in the 5-hour window", window: display?.five_hour },
+    { label: "Week", phrase: "this week", window: display?.weekly },
+  ];
+  const known = windows.filter((entry): entry is (typeof windows)[number] & { window: WindowDisplay & { percentage: number } } =>
+    measured(entry.window),
+  );
+  if (known.length > 0) {
+    const tightest = known.reduce((a, b) => (a.window.percentage >= b.window.percentage ? a : b));
+    const left = Math.max(0, Math.round(100 - tightest.window.percentage));
+    const words = resetWords(tightest.window);
+    return { left, words: `${left}% left ${tightest.phrase}`, resets: words ? `${tightest.label} ${words}` : null };
+  }
+  const reading = latestSessionReading(sessions);
+  if (reading) {
+    const left = Math.max(0, Math.round(100 - reading.used_percentage));
+    return {
+      left,
+      words: `${left}% left, from its latest session`,
+      resets: reading.resets_at_ms != null ? `Resets ${resetClock(reading.resets_at_ms)}` : null,
+    };
+  }
+  if (windows.some((entry) => entry.window?.state === "learning")) {
+    return { left: null, words: "Measuring — shows after a little use", resets: null };
+  }
+  if (windows.some((entry) => entry.window?.state === "reset")) {
+    return { left: null, words: "Not measured since the reset", resets: null };
+  }
+  const used = windows.reduce((most, entry) => Math.max(most, entry.window?.burned_tokens ?? 0), 0);
+  return { left: null, words: `Not measured yet${used > 0 ? ` · ${tokenWords(used)} tokens used` : ""}`, resets: null };
 }
 
 /** The account's credits in words, with who reported them and when,

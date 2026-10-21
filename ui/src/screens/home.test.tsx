@@ -9,7 +9,8 @@ import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-libra
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { HomeScreen, needOf, needWords, placeOf, runwayOf, toReview } from "./Home";
+import { HomeScreen, needOf, needWords, placeOf, toReview } from "./Home";
+import { runwayOf } from "../components/AccountRunway";
 import type { AccountInfo, InstanceInfo, ProjectInfo, QuotaDisplayData } from "../lib/bridge";
 
 const NOW = 1_728_800_000_000;

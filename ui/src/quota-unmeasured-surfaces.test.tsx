@@ -111,6 +111,25 @@ it("Home's Runway and the Accounts cards", async () => {
   expect(fills.every((width) => width === "0%")).toBe(true);
 });
 
+/** QA walking main through the Dev bridge (2026-10-21): the backend sent
+ * `state: "tracking"` with `percentage: null` (serde's shape), and Home's
+ * own copy of the runway read it as "100% left" for all 6 accounts. Home
+ * and Accounts now share one runway; with that payload neither says it. */
+it("serde's tracking-with-null payload: no '% left' on Home or Accounts", async () => {
+  const tracking = (tokens: number): WindowDisplay => windowDisplay("tracking", { percentage: null, burned_tokens: tokens });
+  (window as unknown as Record<string, unknown>).__AIJ_QUOTA_DISPLAY__ = [
+    quotaDisplay("claude-work", { five_hour: tracking(9_000), weekly: tracking(9_000) }),
+  ];
+  const user = userEvent.setup();
+  const view = render(<App />);
+  expect(await view.findByText(/Not measured yet · 9k tokens used/)).toBeTruthy();
+  expect(view.container.textContent).not.toMatch(PERCENT_LEFT);
+  await user.click(await view.findByRole("button", { name: "Accounts" }));
+  const card = await view.findByTestId("account-runway");
+  expect(card.textContent).toContain("Not measured yet · 9k tokens used");
+  expect(view.container.textContent).not.toMatch(PERCENT_LEFT);
+});
+
 it("Usage", async () => {
   const view = render(<UsageScreen accounts={[ACCOUNT]} sessions={[]} onAddAccounts={() => null} />);
   const runway = await view.findByTestId("account-runway");

@@ -25,7 +25,7 @@ import { hueOf } from "../components/indicator";
 import { MorningSummary } from "../components/MorningSummary";
 import { ThisMacPanel } from "../components/ThisMacPanel";
 import { ScreenBoundary } from "../components/ScreenBoundary";
-import { measured, resetWords, tokenWords } from "../lib/quotaWindow";
+import { runwayOf } from "../components/AccountRunway";
 import { alertWords, reasonSentence, type ThisMacInfo } from "../lib/machine";
 import { LegendPopover } from "../components/LegendPopover";
 import { parkedWords } from "../lib/parked";
@@ -44,7 +44,6 @@ import {
   type InstanceInfo,
   type ProjectInfo,
   type QuotaDisplayData,
-  type WindowDisplay,
 } from "../lib/bridge";
 
 const NEEDS = ["waiting_user", "stuck", "quota_blocked", "failed"] as const;
@@ -108,58 +107,6 @@ export function placeOf(session: InstanceInfo, projects: ProjectInfo[]): { title
   const title = project?.name ?? folder;
   const detail = [session.git_branch, session.account_label].filter(Boolean).join(" · ");
   return { title, detail };
-}
-
-/** Runway for one Account: % left of the tighter measured window. */
-export function runwayOf(
-  display: QuotaDisplayData | undefined,
-  sessions: InstanceInfo[] = [],
-): {
-  left: number | null;
-  words: string;
-  resets: string | null;
-} {
-  const fromAccount = accountRunway(display);
-  if (fromAccount.left !== null) return fromAccount;
-  // No account-level reading yet: a session's own quota line is still a
-  // real reading (the newest one wins), never a guess.
-  const reading = sessions
-    .filter((s) => s.quota !== null)
-    .sort((a, b) => (b.last_activity_ms ?? b.started_at_ms) - (a.last_activity_ms ?? a.started_at_ms))[0]?.quota;
-  if (!reading) return fromAccount;
-  const left = Math.max(0, Math.round(100 - reading.used_percentage));
-  return {
-    left,
-    words: `${left}% left, from its latest session`,
-    resets: reading.resets_at_ms
-      ? `Resets ${new Date(reading.resets_at_ms).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" })}`
-      : null,
-  };
-}
-
-function accountRunway(display: QuotaDisplayData | undefined): {
-  left: number | null;
-  words: string;
-  resets: string | null;
-} {
-  const windows: Array<[string, WindowDisplay | null | undefined]> = [
-    ["5-hour window", display?.five_hour],
-    ["week", display?.weekly],
-  ];
-  // Only a real percentage counts (lib/quotaWindow): use without a
-  // sample is "Not measured yet", never "100% left" (the 0.0.12 report).
-  const known = windows.filter((entry): entry is [string, WindowDisplay & { percentage: number }] => measured(entry[1]));
-  if (known.length === 0) {
-    const learning = windows.some(([, w]) => w?.state === "learning");
-    if (learning) return { left: null, words: "Measuring — shows after a little use", resets: null };
-    const used = windows.reduce((most, [, w]) => Math.max(most, w?.burned_tokens ?? 0), 0);
-    return { left: null, words: `Not measured yet${used > 0 ? ` · ${tokenWords(used)} tokens used` : ""}`, resets: null };
-  }
-  const tightest = known.reduce((a, b) => (a[1].percentage >= b[1].percentage ? a : b));
-  const left = Math.max(0, Math.round(100 - tightest[1].percentage));
-  const words = resetWords(tightest[1]);
-  const resets = words ? `${tightest[0] === "week" ? "Week" : "5-hour window"} ${words}` : null;
-  return { left, words: `${left}% left ${tightest[0] === "week" ? "this week" : "in the 5-hour window"}`, resets };
 }
 
 function SectionTitle({ id, children }: { id: string; children: string }): JSX.Element {
