@@ -7,7 +7,7 @@
 | AJ-E1003 | PASS7 | 2026-10-18 | [manifest](AJ-E1003/manifest.md) |
 | AJ-E1004 | PASS7 | 2026-10-18 | [manifest](AJ-E1004/manifest.md) |
 | AJ-E1005 | PASS6 | 2026-10-18 | [manifest](AJ-E1005/manifest.md) |
-| AJ-E1006 | (no claims yet) | 2026-10-18 | [manifest](AJ-E1006/manifest.md) |
+| AJ-E1006 | PASS1 | 2026-10-20 | [manifest](AJ-E1006/manifest.md) |
 | AJ-E1007 | PASS7 | 2026-10-18 | [manifest](AJ-E1007/manifest.md) |
 | AJ-E1008 | PASS2 | 2026-10-18 | [manifest](AJ-E1008/manifest.md) |
 | AJ-E1009 | PASS7 | 2026-10-18 | [manifest](AJ-E1009/manifest.md) |

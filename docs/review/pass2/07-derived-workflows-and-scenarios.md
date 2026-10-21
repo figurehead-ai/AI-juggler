@@ -234,6 +234,8 @@ invoice) into the full day. **Emotion + time saved.** Low-grade dread → audit-
 
 ## W5. Pair-switching for review — author on A, review on B
 
+> **Outcome (2026-10-20, D-26):** not built. The tools review on their own (`/review`, `codex review`, `/codex:review` from Claude Code), and New session on another account reaches them. See `docs/qa/evidence/AJ-E1006/`.
+
 **Trigger.** Maya authors a feature on Account A (her fast model); she wants a *different* Account —
 ideally a different Provider — to review it, because same-model self-review misses its own mistakes
 `[inferred]`. Prior 10 §11 gates a review queue on dogfood; this workflow is narrower: it never asks
@@ -263,6 +265,8 @@ real second pair of eyes. `[inferred]` 15–30 min versus manual copy-the-diff i
 review; demand is `[inferred]` — keep behind the 10 §11 dogfood gate.
 
 ## W6. Model arbitrage — cheap model drafts, strong model finishes
+
+> **Outcome (2026-10-20, D-26):** not built. Within one account, Claude Code's `opusplan` and `/model` do it; across accounts, the app's Switch account… does. See `docs/qa/evidence/AJ-E1006/`.
 
 **Trigger.** Alex (07 §6) and Jonas (07 §4) run small tanks: GLM Lite credits and Claude Pro, not Max.
 Scaffolding, boilerplate, and test-writing do not need the strongest model; the final fix does. Prior 10

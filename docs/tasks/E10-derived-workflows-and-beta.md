@@ -95,7 +95,7 @@
 **Research basis**: pass2/07 W3/W4; deep/07 consultant persona; E4 indicators.
 **Handover note**: This is a view over E4 data, not a second data model. If E4 fields are missing, triage shows Unavailable per D-06 rather than inventing layout filler.
 
-### AJ-E1006 Pair review and model arbitrage workflows [inferred — falsify first] | Status: IN-PROGRESS | Priority P2 | Effort M | Depends: AJ-E1005
+### AJ-E1006 Pair review and model arbitrage workflows [inferred — falsify first] | Status: REJECTED (D-26, 2026-10-20) | Priority P2 | Effort M | Depends: AJ-E1005
 **Goal**: Test whether users actually want author-on-one-account/review-on-another and cheap-model-drafts/strong-model-finishes as built workflows, before building them.
 **User story**: As a power user, I want a second account to review what the first wrote, and cheap exploration before expensive execution — if these prove to be real habits.
 **Requirements**:
@@ -111,6 +111,7 @@
 **Files to touch**: `docs/review/decision-log.md` (new decision entry on outcome), `docs/qa/evidence/AJ-E1006/`, pass2/07 annotations.
 **Research basis**: pass2/07 W5/W6 marked `[inferred]`; second-pass critic U-items (no competitor evidence); decision-log process rule.
 **Handover note**: Do not let enthusiasm substitute for evidence — the reports explicitly flagged these as unvalidated. A clean REJECTED is a successful outcome for this task.
+**Outcome (2026-10-20, D-26)**: REJECTED as built workflows. A desk falsification (`docs/qa/evidence/AJ-E1006/desk-falsification.md`) found the step each one says is missing already served. W6: Claude Code's `opusplan` and `/model` within one account, and the app's Switch account… across accounts. W5: `/review`, `codex review` and OpenAI's `/codex:review` plugin for Claude Code, reached in the app by New session on another account in the same project. The user round in `protocol.md` didn't run (no AJ-E809 participants yet). It stays the way back: 3 or more participants showing the habit and friction with these paths open a new task.
 
 ### AJ-E1007 Session lifecycle: search, archive, replay, retention | Status: DONE-EVIDENCED | Priority P1 | Effort M | Depends: AJ-E1005
 **Goal**: Give sessions a full lifecycle so months of work stay findable and the rail stays usable.
