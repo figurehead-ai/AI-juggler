@@ -118,6 +118,54 @@ fn tracking_state_carries_percentage_and_badge() {
     assert!(five.percentage.is_some_and(|p| (p - 82.0).abs() < 1e-9));
     assert_eq!(five.badge.as_deref(), Some("measured"));
     assert!(five.resets_at_ms.is_some());
+    assert_eq!(five.reset_basis.as_deref(), Some("measured"));
+}
+
+/// The 0.0.12 report: every actively used Claude account read "100% left
+/// · resets Wed 03:07 PM". Use was seen (token events) but no sample
+/// exists: the window is `unmeasured` with no percentage, and its reset
+/// is labelled as the estimate it is.
+#[test]
+fn use_without_a_sample_is_unmeasured_and_its_reset_is_an_estimate() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    let now = Timestamp::now().millis();
+    {
+        let storage = state.storage.lock().unwrap();
+        let events: Vec<juggler_core::quota::UsageEvent> = (0..4)
+            .map(|back| juggler_core::quota::UsageEvent {
+                account: "acc-d".into(),
+                session: None,
+                ts: now - i64::from(back) * 600_000,
+                model: Some("claude-opus-4".into()),
+                tokens: juggler_core::model::TokenCounts {
+                    input: 2_500,
+                    output: 500,
+                    ..juggler_core::model::TokenCounts::default()
+                },
+                credits: None,
+                usd_est: None,
+                source: juggler_core::quota::UsageSource::Transcript,
+                confidence: juggler_core::model::Confidence::Measured,
+                msg_uuid: Some(format!("u-{back}")),
+            })
+            .collect();
+        storage.usage().insert_events(&events).unwrap();
+    }
+    let storage = state.storage.lock().unwrap();
+    let info = quota_display_inner(&storage, &account("claude-code", Some("max")), now);
+    for (name, window) in [
+        ("5-hour", info.five_hour.as_ref()),
+        ("weekly", info.weekly.as_ref()),
+    ] {
+        let window = window.unwrap();
+        assert_eq!(window.state, "unmeasured", "{name}: never a known state");
+        assert_eq!(window.percentage, None, "{name}");
+        assert_eq!(window.badge, None, "{name}");
+        assert_eq!(window.burned_tokens, 12_000, "{name}: the use it saw");
+        assert!(window.resets_at_ms.is_some(), "{name}");
+        assert_eq!(window.reset_basis.as_deref(), Some("estimated"), "{name}");
+    }
 }
 
 #[test]

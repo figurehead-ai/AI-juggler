@@ -24,6 +24,7 @@ import { Button } from "../components/primitives";
 import { hueOf } from "../components/indicator";
 import { MorningSummary } from "../components/MorningSummary";
 import { ThisMacPanel } from "../components/ThisMacPanel";
+import { measured, resetWords, tokenWords } from "../lib/quotaWindow";
 import { alertSubject, reasonSentence, type ThisMacInfo } from "../lib/machine";
 import { LegendPopover } from "../components/LegendPopover";
 import { parkedWords } from "../lib/parked";
@@ -144,17 +145,19 @@ function accountRunway(display: QuotaDisplayData | undefined): {
     ["5-hour window", display?.five_hour],
     ["week", display?.weekly],
   ];
-  const measured = windows.filter(([, w]) => w && w.percentage !== undefined && w.state !== "unknown");
-  if (measured.length === 0) {
+  // Only a real percentage counts (lib/quotaWindow): use without a
+  // sample is "Not measured yet", never "100% left" (the 0.0.12 report).
+  const known = windows.filter((entry): entry is [string, WindowDisplay & { percentage: number }] => measured(entry[1]));
+  if (known.length === 0) {
     const learning = windows.some(([, w]) => w?.state === "learning");
-    return { left: null, words: learning ? "Measuring — shows after a little use" : "Not measured yet", resets: null };
+    if (learning) return { left: null, words: "Measuring — shows after a little use", resets: null };
+    const used = windows.reduce((most, [, w]) => Math.max(most, w?.burned_tokens ?? 0), 0);
+    return { left: null, words: `Not measured yet${used > 0 ? ` · ${tokenWords(used)} tokens used` : ""}`, resets: null };
   }
-  const tightest = measured.reduce((a, b) => ((a[1]!.percentage ?? 0) >= (b[1]!.percentage ?? 0) ? a : b));
-  const left = Math.max(0, Math.round(100 - (tightest[1]!.percentage ?? 0)));
-  const resetsAt = tightest[1]!.resets_at_ms;
-  const resets = resetsAt
-    ? `${tightest[0] === "week" ? "Week" : "5-hour window"} resets ${new Date(resetsAt).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" })}`
-    : null;
+  const tightest = known.reduce((a, b) => (a[1].percentage >= b[1].percentage ? a : b));
+  const left = Math.max(0, Math.round(100 - tightest[1].percentage));
+  const words = resetWords(tightest[1]);
+  const resets = words ? `${tightest[0] === "week" ? "Week" : "5-hour window"} ${words}` : null;
   return { left, words: `${left}% left ${tightest[0] === "week" ? "this week" : "in the 5-hour window"}`, resets };
 }
 

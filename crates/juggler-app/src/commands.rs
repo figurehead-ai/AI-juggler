@@ -283,7 +283,10 @@ pub fn pricing_catalog_info(
 /// the honest state, never 0%.
 #[derive(Clone, PartialEq, Debug, serde::Serialize)]
 pub struct WindowDisplay {
-    /// The §Q8 machine state (`unknown|learning|tracking|stale|exhausted`).
+    /// The §Q8 machine state (`unknown|learning|tracking|stale|exhausted`),
+    /// or `unmeasured`: use was seen but there is no percentage (no
+    /// Measured sample, no confirmed cap). A state that reads as known
+    /// always carries its percentage (the 0.0.12 report).
     pub state: String,
     /// Percent used, ONLY when the state carries one.
     pub percentage: Option<f64>,
@@ -291,8 +294,12 @@ pub struct WindowDisplay {
     pub badge: Option<String>,
     /// Staleness note ("last measured Nh ago") when Measured went quiet.
     pub stale_note_ms: Option<i64>,
-    /// Vendor reset instant, epoch ms, when known.
+    /// The reset instant, epoch ms, when there is one.
     pub resets_at_ms: Option<i64>,
+    /// Where `resets_at_ms` came from: `measured` (the vendor's),
+    /// `calendar` (an anchored weekly phase) or `estimated` (earliest
+    /// use + the window's width) — shown as a guess, never as the word.
+    pub reset_basis: Option<String>,
     /// Absolute burn inside the window (the honest floor).
     pub burned_tokens: u64,
     /// Burn in vendor credits, when the provider bills credits.
@@ -301,6 +308,26 @@ pub struct WindowDisplay {
     /// known — the admission verdict's input (AJ-E306); unknown
     /// stays None, never a fabricated number.
     pub headroom_tokens: Option<f64>,
+}
+
+/// A window's state on the wire. Tracking or stale with no percentage
+/// (activity, but no Measured sample and no confirmed cap) is
+/// `unmeasured`: it never reads as a known state (the 0.0.12 report,
+/// where every such window showed "100% left").
+#[must_use]
+pub fn window_state_name(
+    state: juggler_core::quota::QuotaState,
+    percentage: Option<f64>,
+) -> &'static str {
+    use juggler_core::quota::QuotaState;
+    match (state, percentage) {
+        (QuotaState::Unknown, _) => "unknown",
+        (QuotaState::Learning, _) => "learning",
+        (QuotaState::Tracking | QuotaState::Stale, None) => "unmeasured",
+        (QuotaState::Tracking, Some(_)) => "tracking",
+        (QuotaState::Stale, Some(_)) => "stale",
+        (QuotaState::Exhausted, _) => "exhausted",
+    }
 }
 
 /// AJ-E610: the subscription clock's rendered state — a calendar-style
@@ -363,9 +390,7 @@ pub fn quota_display_inner(
     account: &juggler_core::model::Account,
     now_ms: i64,
 ) -> QuotaDisplayInfo {
-    use juggler_core::quota::{
-        self, AccountEvaluation, QuotaCap, QuotaState, SubscriptionClock, WindowKind,
-    };
+    use juggler_core::quota::{self, AccountEvaluation, QuotaCap, SubscriptionClock, WindowKind};
     use juggler_core::quota_forecast::{self, ForecastState, RateUnits};
 
     let account_id = account.id.as_str();
@@ -426,19 +451,21 @@ pub fn quota_display_inner(
         last_measured.filter(|ts| now_ms.saturating_sub(*ts) > quota::STALE_AFTER_MS);
 
     let window_display = |reading: &quota::WindowReading, cap: QuotaCap| WindowDisplay {
-        state: match reading.state {
-            QuotaState::Unknown => "unknown".to_owned(),
-            QuotaState::Learning => "learning".to_owned(),
-            QuotaState::Tracking => "tracking".to_owned(),
-            QuotaState::Stale => "stale".to_owned(),
-            QuotaState::Exhausted => "exhausted".to_owned(),
-        },
+        state: window_state_name(reading.state, reading.percentage).to_owned(),
         percentage: reading.percentage,
         badge: reading
             .percentage
             .map(|_| confidence_name(reading.confidence).to_owned()),
         stale_note_ms,
         resets_at_ms: reading.resets_at,
+        reset_basis: reading.reset_basis.map(|basis| {
+            match basis {
+                quota::ResetBasis::Measured => "measured",
+                quota::ResetBasis::Calendar => "calendar",
+                quota::ResetBasis::Estimated => "estimated",
+            }
+            .to_owned()
+        }),
         burned_tokens: reading
             .burn
             .tokens

@@ -284,6 +284,22 @@ pub struct WindowReading {
     /// `resets_at` verbatim; rolling ⇒ earliest in-window event + W
     /// (an `≈`, AJ-E610 renders it so); anchored ⇒ phase end.
     pub resets_at: Option<i64>,
+    /// Where [`Self::resets_at`] came from, whenever it is set — so a
+    /// guess is never shown as the vendor's word (the 0.0.12 report:
+    /// "resets Wed 03:07 PM" from local use alone).
+    pub reset_basis: Option<ResetBasis>,
+}
+
+/// Where a window's reset time came from.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ResetBasis {
+    /// The vendor's own `resets_at`, from a Measured sample.
+    Measured,
+    /// The end of an anchored weekly phase: a known schedule.
+    Calendar,
+    /// The earliest use in a rolling window plus its width: a guess
+    /// from local activity, shown as one.
+    Estimated,
 }
 
 /// The subscription clock (D-12, composing AJ-E411's calendar core):
@@ -452,22 +468,36 @@ pub fn estimated_reset(
     now_ms: i64,
     measured_resets_at: Option<i64>,
 ) -> Option<i64> {
-    if measured_resets_at.is_some() {
-        return measured_resets_at;
+    reset_with_basis(kind, events, account, now_ms, measured_resets_at).map(|(at, _)| at)
+}
+
+/// [`estimated_reset`] with where the time came from: the vendor's
+/// (Measured), an anchored phase end (Calendar), or earliest in-window
+/// use + W (Estimated).
+#[must_use]
+pub fn reset_with_basis(
+    kind: WindowKind,
+    events: &[UsageEvent],
+    account: &str,
+    now_ms: i64,
+    measured_resets_at: Option<i64>,
+) -> Option<(i64, ResetBasis)> {
+    if let Some(at) = measured_resets_at {
+        return Some((at, ResetBasis::Measured));
     }
     let (lo, hi) = match kind {
         WindowKind::FiveHour => window_bounds(kind, now_ms),
         WindowKind::Weekly { anchor_ms } => weekly_phase_bounds(anchor_ms, now_ms),
     };
     if matches!(kind, WindowKind::Weekly { anchor_ms: Some(_) }) {
-        return Some(hi);
+        return Some((hi, ResetBasis::Calendar));
     }
     let earliest = events
         .iter()
         .filter(|event| event.account == account && in_window(event.ts, (lo, hi)))
         .map(|event| event.ts)
         .min();
-    earliest.map(|ts| ts.saturating_add(kind.width_ms()))
+    earliest.map(|ts| (ts.saturating_add(kind.width_ms()), ResetBasis::Estimated))
 }
 
 /// The per-account, per-window evaluation (§Q8 machine + §Q3 maths),
@@ -515,6 +545,7 @@ pub fn evaluate_window(
             confidence: Confidence::Measured,
             burn,
             resets_at: sample.resets_at,
+            reset_basis: sample.resets_at.map(|_| ResetBasis::Measured),
         };
     }
 
@@ -570,13 +601,13 @@ pub fn evaluate_window(
     // Reset estimates also in Learning: an anchored phase end is a
     // calendar fact, and a rolling earliest+W is the honest `≈`.
     // Unknown stays reset-less (nothing is known at all, D-06).
-    let resets_at = if state == QuotaState::Tracking
+    let reset = if state == QuotaState::Tracking
         || state == QuotaState::Stale
         || state == QuotaState::Learning
     {
-        estimated_reset(kind, events, account, now_ms, measured_resets_at)
+        reset_with_basis(kind, events, account, now_ms, measured_resets_at)
     } else {
-        measured_resets_at
+        measured_resets_at.map(|at| (at, ResetBasis::Measured))
     };
     WindowReading {
         state,
@@ -584,7 +615,8 @@ pub fn evaluate_window(
         basis,
         confidence,
         burn,
-        resets_at,
+        resets_at: reset.map(|(at, _)| at),
+        reset_basis: reset.map(|(_, basis)| basis),
     }
 }
 

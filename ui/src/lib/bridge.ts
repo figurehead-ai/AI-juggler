@@ -1558,11 +1558,14 @@ export async function resetQueueDismiss(id: string): Promise<void> {
 
 /** AJ-E610: one window clock's typed rendered state. */
 export interface WindowDisplay {
-  state: "unknown" | "learning" | "tracking" | "stale" | "exhausted";
+  /** `unmeasured`: use seen, no percentage (no sample, no confirmed cap). */
+  state: "unknown" | "learning" | "unmeasured" | "tracking" | "stale" | "exhausted";
   percentage?: number;
   badge?: string;
   stale_note_ms?: number;
   resets_at_ms?: number;
+  /** Where `resets_at_ms` came from (an estimate is shown as one). */
+  reset_basis?: "measured" | "calendar" | "estimated";
   burned_tokens: number;
   burned_credits?: number;
   headroom_tokens?: number | null;

@@ -6,6 +6,7 @@
  */
 import type { JSX } from "react";
 import type { InstanceInfo, QuotaDisplayData, WindowDisplay } from "../lib/bridge";
+import { resetClock, windowView } from "../lib/quotaWindow";
 
 export type RunwayLine = {
   label: string;
@@ -14,25 +15,11 @@ export type RunwayLine = {
   tone: "ok" | "low" | "out" | "none";
 };
 
-function when(ms: number): string {
-  return new Date(ms).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" });
-}
-
-/** One window, in words. */
+/** One window, in words (the one rule: `lib/quotaWindow`). A missing
+ * percentage is never "% left" or a filled bar (the 0.0.12 report). */
 export function windowLine(label: string, window: WindowDisplay | undefined, omitted?: string): RunwayLine {
-  if (!window || window.state === "unknown") {
-    return { label, left: null, words: omitted ?? "Not measured yet", tone: "none" };
-  }
-  if (window.state === "learning") {
-    return { label, left: null, words: "Measuring — shows after a little use", tone: "none" };
-  }
-  const left = Math.max(0, Math.round(100 - (window.percentage ?? 0)));
-  const resets = window.resets_at_ms ? ` · resets ${when(window.resets_at_ms)}` : "";
-  if (window.state === "exhausted" || left === 0) {
-    return { label, left: 0, words: `Used up${window.resets_at_ms ? ` until ${when(window.resets_at_ms)}` : ""}`, tone: "out" };
-  }
-  const stale = window.state === "stale" ? " · last known" : "";
-  return { label, left, words: `${left}% left${resets}${stale}`, tone: left <= 25 ? "low" : "ok" };
+  const view = windowView(window, omitted);
+  return { label, left: view.left, words: view.words, tone: view.tone };
 }
 
 /** Both windows, plus the session fallback when neither is measured. */
@@ -51,7 +38,7 @@ export function runwayLines(display: QuotaDisplayData | undefined, sessions: Ins
     {
       label: "From the latest session",
       left,
-      words: `${left}% left${reading.resets_at_ms ? ` · resets ${when(reading.resets_at_ms)}` : ""}`,
+      words: `${left}% left${reading.resets_at_ms ? ` · resets ${resetClock(reading.resets_at_ms)}` : ""}`,
       tone: left === 0 ? "out" : left <= 25 ? "low" : "ok",
     },
   ];

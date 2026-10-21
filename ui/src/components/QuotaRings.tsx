@@ -15,6 +15,7 @@
  */
 import type { JSX } from "react";
 import type { QuotaDisplayData, WindowDisplay } from "../lib/bridge";
+import { measured, windowView } from "../lib/quotaWindow";
 
 const badgeText = (badge?: string): string =>
   badge === "measured" ? "Measured" : badge === "computed" ? "Computed" : "Estimate";
@@ -57,6 +58,16 @@ export function WindowRing({
       </div>
     );
   }
+  // Use seen but nothing measured (the 0.0.12 report): words, never a
+  // full ring — a missing percentage is not "100% used" or "% left".
+  if (window.state !== "exhausted" && window.state !== "learning" && !measured(window)) {
+    const words = windowView(window).words;
+    return (
+      <div data-testid={`ring-${kind}`} data-state="unmeasured" role="img" aria-label={`${label}: ${words}`}>
+        <p className="text-xs text-muted">{words}</p>
+      </div>
+    );
+  }
   if (window.state === "learning") {
     return (
       <div data-testid={`ring-${kind}`} role="img" aria-label={`${label}: learning`}>
@@ -71,7 +82,11 @@ export function WindowRing({
   const ringText =
     pct !== undefined ? `${Math.round(pct)}%` : exhausted ? "100%" : "—";
   const reset =
-    window.resets_at_ms !== undefined ? `resets ${clock(window.resets_at_ms)}` : "";
+    window.resets_at_ms === undefined
+      ? ""
+      : window.reset_basis === "estimated"
+        ? `resets about ${clock(window.resets_at_ms)}, estimated`
+        : `resets ${clock(window.resets_at_ms)}`;
   const stale =
     window.stale_note_ms !== undefined
       ? `last measured ${hoursAgo(window.stale_note_ms)} ago`
@@ -226,7 +241,7 @@ export function QuotaChip({ display }: { display?: QuotaDisplayData }): JSX.Elem
   if (window.state === "learning") {
     return <span className="text-[10px] text-faint">learning</span>;
   }
-  if (window.percentage !== undefined) {
+  if (measured(window)) {
     return (
       <span className="text-[10px]">
         <span className="tabular-nums">{Math.round(window.percentage)}%</span>{" "}
@@ -234,5 +249,6 @@ export function QuotaChip({ display }: { display?: QuotaDisplayData }): JSX.Elem
       </span>
     );
   }
-  return <span className="text-[10px] text-danger">blocked</span>;
+  if (window.state === "exhausted") return <span className="text-[10px] text-danger">blocked</span>;
+  return <span className="text-[10px] text-faint">not measured yet</span>;
 }
