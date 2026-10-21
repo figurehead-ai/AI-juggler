@@ -229,6 +229,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Keys** (AJ-E1504). Press **?** to see every shortcut, by area.
+  **⌘1–4** open Home, Accounts, Usage and Fleet. **⌘⇧I** folds the
+  inspector to its header line (the open tab keeps its room), and the
+  window remembers it. The inspector's tabs moved to **⌥⌘1–6**. While
+  you type in a field or the terminal, plain keys and Ctrl-combos are
+  yours: Ctrl+K, Ctrl+B, Ctrl+N and Ctrl+F now reach the shell instead of
+  the app. ⌘ shortcuts still work there.
 - **One way every action answers** (AJ-E1503). A toast at the bottom of
   the window says what happened, with **Undo** where it can be undone
   (or ⌘Z outside a text field). Stopping one session is held for 5

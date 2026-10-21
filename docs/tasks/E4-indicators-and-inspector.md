@@ -146,7 +146,7 @@
 3. Tab state SHALL persist per selection type (`aij.inspector.tab.<type>`); switching selection SHALL restore that type's last tab.
 4. Empty selection SHALL render the fleet-at-a-glance summary (counts by state, lowest-quota Account, machine gauges per SPEC.md:345), never a blank panel.
 5. Every tab footer SHALL show `Updated Ns ago - source: <supervisor|transcript|usage-engine|git>` using the field's real source; stale rule from AJ-E403 SHALL apply per field.
-6. Keyboard: `Cmd/Ctrl+1..6` SHALL switch tabs inside the inspector; focus SHALL be trapped logically (header -> tabs -> content) with visible focus rings.
+6. Keyboard: `Cmd/Ctrl+1..6` SHALL switch tabs inside the inspector (amended 2026-10-21 by AJ-E1504: `⌥⌘1..6`, since `⌘1–4` open the main screens); focus SHALL be trapped logically (header -> tabs -> content) with visible focus rings.
 7. The inspector SHALL be fleet-shaped: remote-machine selections render the same tabs with a `machine` chip and read-only Actions until Fleet control lands (D-13).
 **UI/UX reasoning**: Apple HIG (stable navigation, predictable layout) + Nielsen heuristic 4 (consistency): tab order is fixed Overview, Usage, History, Quality/Performance, Processes, Actions — note D-06 names the 4th tab "Quality/Performance" while pass2/04 §5 shortens it to "Performance"; use `Quality / Performance` as the label. WCAG 2.4.6 headings/labels: each tab panel has an `aria-labelledby` tab.
 **Performance budget**: Selection-to-inspector paint < 100 ms at 50 Instances; tab switch < 50 ms (content pre-fetched per selection); inspector re-render on 5 s resource tick SHALL NOT exceed 8 ms or steal terminal focus.

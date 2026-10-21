@@ -2559,3 +2559,43 @@ for (const theme of ["dark", "light"] as const) {
     expect(all, summary).toHaveLength(0);
   });
 }
+
+// AJ-E1504: the ? sheet — a named modal dialog, focus inside, Tab held,
+// Esc closes and focus returns — axe 0 critical/serious; the folded
+// inspector's toggle says what it does.
+for (const theme of ["dark", "light"] as const) {
+  test(`keys — the ? sheet and the folded inspector — axe 0 critical/serious — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ fixture, t0, theme: t }) => {
+        (window as never as { __AIJ_FIXTURE__: unknown }).__AIJ_FIXTURE__ = fixture;
+        localStorage.setItem("aij.theme", t);
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        sessionStorage.setItem("aij.ready.skipped", "1");
+        Date.now = () => t0;
+      },
+      { fixture: allStatuses, t0: T0, theme },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await expect(page.getByTestId("home")).toBeVisible();
+    await page.keyboard.press("Shift+Slash");
+    const sheet = page.getByRole("dialog", { name: "Keyboard shortcuts" });
+    await expect(sheet).toBeVisible();
+    expect(await sheet.evaluate((node) => node.contains(document.activeElement))).toBe(true);
+    for (let i = 0; i < 4; i += 1) await page.keyboard.press("Tab");
+    expect(await sheet.evaluate((node) => node.contains(document.activeElement))).toBe(true);
+    const sheetViolations = await scanSeriousWithConfirm(page);
+    await page.keyboard.press("Escape");
+    await expect(sheet).toBeHidden();
+
+    await page.locator('[data-instance-id="sess-2"]').first().click();
+    await page.keyboard.press("ControlOrMeta+Shift+I");
+    const unfold = page.getByRole("button", { name: "Unfold the inspector" });
+    await expect(unfold).toHaveAttribute("aria-expanded", "false");
+    const foldedViolations = await scanSeriousWithConfirm(page);
+    const all = [...sheetViolations, ...foldedViolations];
+    const summary = all.map((v) => `${v.id} (${v.impact}): ${v.nodes.map((n) => n.target.join(" ")).slice(0, 3).join(", ")}`).join("\n");
+    expect(all, summary).toHaveLength(0);
+  });
+}

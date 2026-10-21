@@ -28,6 +28,7 @@ import { alertSubject, reasonSentence, type ThisMacInfo } from "../lib/machine";
 import { LegendPopover } from "../components/LegendPopover";
 import { parkedWords } from "../lib/parked";
 import { sessionLabel } from "../lib/stop";
+import { matches, SHORTCUTS, type KeyLike } from "../lib/shortcuts";
 import { RowPlaceholders } from "../components/Placeholder";
 import { showToast } from "../components/Toast";
 import {
@@ -280,20 +281,22 @@ export function HomeScreen({
     const item = el?.closest("[data-home-item]");
     return item ? rowsNow().findIndex((row) => row.closest("[data-home-item]") === item) : -1;
   };
-  const handleKey = (event: { key: string; metaKey: boolean; ctrlKey: boolean; altKey: boolean; target: EventTarget | null; preventDefault: () => void }) => {
-    if (event.metaKey || event.ctrlKey || event.altKey) return;
-    const target = event.target as HTMLElement | null;
-    if (target && (target.tagName === "SELECT" || target.tagName === "INPUT" || target.tagName === "TEXTAREA")) return;
+  // AJ-E1504: the keys come from the registry (lib/shortcuts.ts), with
+  // its typing rule: never while typing in a field or the terminal.
+  const handleKey = (event: KeyLike & { target: EventTarget | null; preventDefault: () => void }) => {
+    if ((event.target as HTMLElement | null)?.tagName === "SELECT") return;
     const rows = rowsNow();
     const at = rowIndexOf(document.activeElement);
     const focusRow = (index: number) => rows[Math.max(0, Math.min(rows.length - 1, index))]?.focus();
-    if (event.key === "j" || (event.key === "ArrowDown" && at >= 0)) {
+    // The arrows move only once a row has focus (J and K start it).
+    const arrow = event.key.startsWith("Arrow");
+    if (matches("home-next", event) && (!arrow || at >= 0)) {
       event.preventDefault();
       focusRow(at + 1);
-    } else if (event.key === "k" || (event.key === "ArrowUp" && at >= 0)) {
+    } else if (matches("home-prev", event) && (!arrow || at >= 0)) {
       event.preventDefault();
       focusRow(at < 0 ? 0 : at - 1);
-    } else if ((event.key === "a" || event.key === "A") && at >= 0) {
+    } else if (matches("home-action", event) && at >= 0) {
       const item = rows[at]!.closest("[data-home-item]");
       const action = item?.querySelector<HTMLElement>("[data-home-action]") ?? rows[at]!;
       event.preventDefault();
@@ -794,8 +797,17 @@ export function HomeScreen({
 
       {needs.length + running.length + parked.length + recent.length > 0 && (
         <p className="text-[11px] text-faint" data-testid="home-keys">
-          Keyboard: <kbd className="font-mono">J</kbd> / <kbd className="font-mono">K</kbd> move between sessions ·{" "}
-          <kbd className="font-mono">Enter</kbd> opens · <kbd className="font-mono">A</kbd> runs the row's action
+          {/* AJ-E1504: the same words and keys as the ? sheet. */}
+          Keyboard:{" "}
+          {(["home-next", "home-prev", "home-open", "home-action", "help"] as const).map((id, index) => {
+            const entry = SHORTCUTS.find((row) => row.id === id)!;
+            return (
+              <span key={id}>
+                {index > 0 && " · "}
+                <kbd className="font-mono">{entry.keys[0]}</kbd> {entry.label.toLowerCase()}
+              </span>
+            );
+          })}
         </p>
       )}
     </div>

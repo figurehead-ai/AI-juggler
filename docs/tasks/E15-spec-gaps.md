@@ -81,7 +81,7 @@
 **Handover note**: Fold `SwitchUndoToast` into the new component; keep its tests.
 **Done (2026-10-21)**: `components/Toast.tsx` (`showToast`, `holdAction`, `ToastHost`), `lib/stop.ts` (the held Stop), `components/QuitSheet.tsx` with `crates/juggler-app/src/quit.rs`, and `components/Placeholder.tsx`. Req.3 as built: a terminal session runs on a terminal AI Juggler holds, so it **ends** when the app quits (closing the terminal hangs it up). The sheet says so, and that a desktop session keeps running. ⌘Q and the close button ask first. The Dock's Quit and logging out still quit without asking (macOS sends those past the menu; a follow-up). Forget and remove use this toast when AJ-E1501/E1502 land.
 
-### AJ-E1504 Keys: a cheat sheet, inspector collapse, go-to keys | Status: TODO | Priority P1 | Effort S | Depends: —
+### AJ-E1504 Keys: a cheat sheet, inspector collapse, go-to keys | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: —
 **Goal**: The keyboard reaches the main screens, and every shortcut can be looked up.
 **User story**: As a keyboard user, I press ? to see every shortcut, ⌘⇧I to hide the inspector and ⌘1–4 to switch screens.
 **Requirements**:
@@ -96,6 +96,7 @@
 **Files to touch**: `ui/src/lib/shortcuts.ts`, `ui/src/App.tsx`.
 **Research basis**: the wireframe conventions; Max-Depth report §8.
 **Handover note**: —
+**Done (2026-10-21)**: `lib/shortcuts.ts` is the one registry (`SHORTCUTS`, `matches`). App's handler map is typed to cover every `owner: "app"` shortcut. Home and the inspector match through it, and `ShortcutSheet` renders it. The typing rule is general: no plain key or Ctrl-combo while typing in a field or the terminal, and ⌘ ones still fire except those a field owns (⌘Z). Two choices to note. ⌘1–6 used to switch the inspector's tabs (AJ-E406 Req.6), so they moved to ⌥⌘1–6 (amended there). The inspector *is* the work panel since ADR-0007 iteration 5, so "collapse" folds it to its header line (name, state, Stop) and keeps the open tab, which gives the terminal its room.
 
 ### AJ-E1505 Settings the SPEC promised: stuck thresholds, terminal font and scrollback | Status: TODO | Priority P1 | Effort S | Depends: AJ-E405
 **Goal**: The thresholds SPEC §5.1 calls user-tunable are tunable.

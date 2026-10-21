@@ -1,5 +1,6 @@
 import { ParkCard } from "./ParkCard";
 import { holdStop, sessionLabel } from "../lib/stop";
+import { matches } from "../lib/shortcuts";
 import { WorktreeGit } from "./WorktreeGit";
 import { identityWords } from "../lib/identity";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -241,6 +242,8 @@ export function RightInspector({
   onRemoteSelect,
   onRemoteActionDone,
   focusTabsRequest = 0,
+  folded = false,
+  onToggleFold,
 }: {
   selection: InspectorSelection;
   data: InspectorData;
@@ -274,6 +277,9 @@ export function RightInspector({
   /** Bumped when the opener goes away (the header's tool chip): focus
    *  moves to the selected tab once this selection's view is shown. */
   focusTabsRequest?: number;
+  /** AJ-E1504: folded to its header line (⌘⇧I); the open tab stays. */
+  folded?: boolean;
+  onToggleFold?: () => void;
 }) {
   const kind: InspectorKind | "none" | "login" = selection.kind;
   const remote = data.remote ?? null;
@@ -332,12 +338,13 @@ export function RightInspector({
     return () => window.removeEventListener("aij:edit-renewal", editRenewal);
   });
 
-  // Cmd/Ctrl+1..6 switches tabs (Req.6). Focus rings stay visible; the
-  // tab strip supports arrow-key roving.
+  // ⌥⌘1..6 switches tabs (Req.6; AJ-E1504 gave ⌘1–4 to the main
+  // screens). Focus rings stay visible; the tab strip supports arrow-key
+  // roving.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (!(event.metaKey || event.ctrlKey) || event.shiftKey || event.altKey) return;
-      const index = Number(event.key);
+      if (!matches("inspector-tab", event)) return;
+      const index = Number(event.code.startsWith("Digit") ? event.code.slice(5) : event.key);
       if (index >= 1 && index <= INSPECTOR_TABS.length) {
         event.preventDefault();
         statsEvent("ui.shortcut_used", { shortcut: "inspector_tab" });
@@ -388,7 +395,7 @@ export function RightInspector({
   useEffect(() => {
     if (!remote || !onRemoteBack) return;
     const onKey = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key === "[") {
+      if (matches("remote-back", event)) {
         event.preventDefault();
         onRemoteBack();
       }
@@ -401,7 +408,7 @@ export function RightInspector({
   if (kind === "none") return null;
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3" data-testid="right-inspector" data-inspector-kind={kind}>
+    <div className="flex h-full min-h-0 flex-col gap-3" data-testid="right-inspector" data-inspector-kind={kind} data-folded={folded ? "true" : undefined}>
       {remote && (
         <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted" data-testid="remote-breadcrumb">
           <button type="button" className="hover:text-ink" onClick={onRemoteBack}>
@@ -463,15 +470,32 @@ export function RightInspector({
             </Button>
           )}
           {primaryAction ?? null}
+          {onToggleFold && (
+            <button
+              type="button"
+              onClick={onToggleFold}
+              aria-expanded={!folded}
+              aria-label={folded ? "Unfold the inspector" : "Fold the inspector"}
+              title={folded ? "Unfold the inspector (⌘⇧I)" : "Fold the inspector (⌘⇧I)"}
+              data-testid="inspector-fold"
+              className="rounded-lg p-1 text-faint transition-colors hover:bg-surface-2 hover:text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d={folded ? "M6 9l6 6 6-6" : "M6 15l6-6 6 6"} />
+              </svg>
+            </button>
+          )}
         </div>
       </header>
-      {!remote && kind === "instance" && data.instance && (
+      {/* AJ-E1504: folded, the header line is all that shows above the
+          open tab — its label and state stay, the rest waits for ⌘⇧I. */}
+      {!folded && !remote && kind === "instance" && data.instance && (
         <p className="-mt-2 text-xs text-muted" data-testid="session-subline">
           {sessionSubline(data.instance, projects, now)}
         </p>
       )}
       {/* E14 (AJ-E1405): what this session uses, in view — not under Details. */}
-      {!remote && kind === "instance" && data.instance && isActiveStatus(data.instance.status) && (
+      {!folded && !remote && kind === "instance" && data.instance && isActiveStatus(data.instance.status) && (
         <SessionResources session={data.instance} />
       )}
 
@@ -489,7 +513,7 @@ export function RightInspector({
         </p>
       )}
       {/* The fixed six tabs (D-06): never hidden, never reordered. */}
-      <div ref={tabsRef} role="tablist" aria-label={`${KIND_LABELS[kind as InspectorKind]} inspector tabs`} className="flex flex-wrap gap-1 border-b border-hairline pb-2">
+      <div ref={tabsRef} role="tablist" hidden={folded} aria-label={`${KIND_LABELS[kind as InspectorKind]} inspector tabs`} className="flex flex-wrap gap-1 border-b border-hairline pb-2">
         {INSPECTOR_TABS.map((entry, index) => (
           <button
             key={entry.id}

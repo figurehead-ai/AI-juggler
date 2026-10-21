@@ -305,7 +305,7 @@ describe("AJ-E1021 Home as the morning triage (from AJ-E1005)", () => {
     await user.keyboard("k");
     await user.keyboard("{Enter}");
     expect(opened).toEqual(["w"]);
-    expect(container.querySelector("[data-testid='home-keys']")!.textContent).toContain("runs the row's action");
+    expect(container.querySelector("[data-testid='home-keys']")!.textContent).toContain("run the row's action");
   });
 
   it("A on a row's own Mark reviewed button acts on that row; J moves on from it", async () => {

@@ -181,11 +181,15 @@ describe("AJ-E406 tab persistence per selection type (Req.3)", () => {
 });
 
 describe("AJ-E406 keyboard + honest empties + footers", () => {
-  it("Cmd/Ctrl+1..6 switches tabs inside the inspector (Req.6)", () => {
+  // AJ-E1504: ⌘1–4 open the main screens, so the tabs moved to ⌥⌘1–6
+  // (⌥ changes what `key` reads; the digit comes from `code`).
+  it("Option+Cmd/Ctrl+1..6 switches tabs inside the inspector (Req.6); Cmd+digit alone doesn't", () => {
     const { container } = shell({ kind: "account", id: "claude-work" });
-    fireEvent.keyDown(window, { key: "3", metaKey: true });
+    fireEvent.keyDown(window, { key: "3", code: "Digit3", metaKey: true });
+    expect(container.querySelector("#inspector-tab-history")!.getAttribute("aria-selected")).toBe("false");
+    fireEvent.keyDown(window, { key: "£", code: "Digit3", metaKey: true, altKey: true });
     expect(container.querySelector("#inspector-tab-history")!.getAttribute("aria-selected")).toBe("true");
-    fireEvent.keyDown(window, { key: "6", ctrlKey: true });
+    fireEvent.keyDown(window, { key: "§", code: "Digit6", ctrlKey: true, altKey: true });
     expect(container.querySelector("#inspector-tab-actions")!.getAttribute("aria-selected")).toBe("true");
     // Focus moved to the selected tab button.
     expect(document.activeElement?.id).toBe("inspector-tab-actions");

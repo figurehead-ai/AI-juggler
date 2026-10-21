@@ -40,7 +40,7 @@ function noteNotCaptured(screen: string, state: string, reason: string) {
 
 test.beforeAll(() => {
   mkdirSync(GALLERY, { recursive: true });
-  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings", "45-remote", "46-fleet-board", "47-remote-focus", "48-remote-cleanup", "49-fleet-sync", "50-cross-switch", "51-identity", "52-worktree", "53-parked", "54-summary", "55-triage", "56-history", "57-backup", "58-updates", "59-vault", "60-cloud-backup", "61-account-macs", "71-add-account", "72-tool-view", "75-feedback"]) {
+  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings", "45-remote", "46-fleet-board", "47-remote-focus", "48-remote-cleanup", "49-fleet-sync", "50-cross-switch", "51-identity", "52-worktree", "53-parked", "54-summary", "55-triage", "56-history", "57-backup", "58-updates", "59-vault", "60-cloud-backup", "61-account-macs", "71-add-account", "72-tool-view", "75-feedback", "76-keys"]) {
     mkdirSync(resolve(GALLERY, screen), { recursive: true });
   }
   writeFileSync(NOT_CAPTURETED, "# Not captured (explicit omissions)\n\n| Screen | State | Reason |\n|---|---|---|\n");
@@ -5757,4 +5757,35 @@ for (const theme of THEMES) {
     await expect(page.getByTestId("placeholder-card")).toBeVisible();
     await page.screenshot({ path: resolve(GALLERY, `75-feedback/loading-accounts-1280x800-${theme}.png`) });
   });
+}
+
+// ---------------------------------------------------------------------
+// AJ-E1504 — 76-keys: the ? sheet (every registered shortcut, by area)
+// and the inspector folded to its header line (⌘⇧I) — 1280×800 and the
+// 1024×680 minimum, light/dark.
+// ---------------------------------------------------------------------
+
+for (const theme of THEMES) {
+  for (const vp of [{ name: "1280x800", width: 1280, height: 800 }, { name: "1024x680", width: 1024, height: 680 }]) {
+    test(`76 keys — the ? sheet — ${vp.name} — ${theme}`, async ({ page }) => {
+      await openFeedback(page, theme);
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      await expect(page.getByTestId("home")).toBeVisible();
+      await page.keyboard.press("Shift+Slash");
+      await expect(page.getByRole("dialog", { name: "Keyboard shortcuts" })).toBeVisible();
+      await page.screenshot({ path: resolve(GALLERY, `76-keys/sheet-${vp.name}-${theme}.png`) });
+    });
+
+    test(`76 keys — the inspector folded — ${vp.name} — ${theme}`, async ({ page }) => {
+      await openFeedback(page, theme);
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      await page.locator('[data-instance-id="sess-2"]').first().click();
+      await expect(page.getByRole("tablist")).toBeVisible();
+      await page.keyboard.press("ControlOrMeta+Shift+I");
+      await expect(page.getByTestId("right-inspector")).toHaveAttribute("data-folded", "true");
+      await expect(page.getByRole("tablist")).toBeHidden();
+      await page.mouse.move(0, 0);
+      await page.screenshot({ path: resolve(GALLERY, `76-keys/folded-${vp.name}-${theme}.png`) });
+    });
+  }
 }

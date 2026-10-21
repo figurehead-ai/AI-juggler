@@ -264,6 +264,24 @@ for (const theme of THEMES) {
         await expect(page).toHaveScreenshot(`loading-accounts-${cell}.png`, SCREEN);
       });
 
+      // AJ-E1504: the ? sheet and the folded inspector.
+      test(`shortcut sheet — ${cell}`, async ({ page }) => {
+        await open(page, theme, density, vp);
+        await page.keyboard.press("Shift+Slash");
+        await expect(page.getByTestId("shortcut-sheet")).toBeVisible();
+        await expect(page).toHaveScreenshot(`shortcut-sheet-${cell}.png`, SCREEN);
+      });
+
+      test(`inspector folded — ${cell}`, async ({ page }) => {
+        await open(page, theme, density, vp);
+        await expect(page.getByTestId("instance-board")).toBeVisible();
+        await page.locator('[data-instance-id="sess-2"]').first().click();
+        await page.keyboard.press("ControlOrMeta+Shift+I");
+        await expect(page.getByTestId("right-inspector")).toHaveAttribute("data-folded", "true");
+        await page.mouse.move(0, 0);
+        await expect(page).toHaveScreenshot(`inspector-folded-${cell}.png`, SCREEN);
+      });
+
       // D-25 amendment (AJ-E1021): Triage and Overview folded into Home.
       for (const screen of ["History", "Accounts", "Usage", "Fleet", "Cleanup", "Settings"] as const) {
         test(`${screen.toLowerCase()} — ${cell}`, async ({ page }) => {

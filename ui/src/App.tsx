@@ -13,8 +13,6 @@ import { AttentionAnnouncer, RenewalAnnouncer } from "./components/indicator";
 import { LegendPopover } from "./components/LegendPopover";
 import {
   DENSITY_EVENT,
-  isDensityShortcut as isDensityShortcutEvent,
-  isTypingTarget,
   nextDensity,
   readDensity,
   storeDensity,
@@ -27,7 +25,8 @@ import {
   type RemoteCommandOutcomeInfo,
   type RemoteMachineInfo,
 } from "./lib/bridge";
-import { isHandoverShortcut, isStopShortcut, isUndoShortcut } from "./lib/shortcuts";
+import { matches, readInspectorFolded, storeInspectorFolded, type AppShortcutId } from "./lib/shortcuts";
+import { ShortcutSheet } from "./components/ShortcutSheet";
 import { holdStop, sessionLabel } from "./lib/stop";
 import { ToastHost, undoLatest } from "./components/Toast";
 import { QuitSheet } from "./components/QuitSheet";
@@ -628,6 +627,17 @@ export default function App() {
   }, [selection, accounts]);
 
 
+  // AJ-E1504: the `?` sheet, and the inspector folded to one line
+  // (⌘⇧I), remembered for this window across launches.
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [inspectorFolded, setInspectorFolded] = useState(() => readInspectorFolded());
+  const toggleInspector = useCallback(() => {
+    setInspectorFolded((folded) => {
+      storeInspectorFolded(!folded);
+      return !folded;
+    });
+  }, []);
+
   // AJ-E1503 Req.2: Stop is held 5 s with Undo, then sent. The ref keeps
   // ⌘. on the session selected now (the key listener is set up once).
   const stopSession = useCallback(
@@ -641,64 +651,109 @@ export default function App() {
     }
   };
 
-  // ⌘B legacy: toggles minimal↔comfortable (the old collapse, kept for
-  // muscle memory). ⌘N starts a New project (AJ-E305 flow (b)). Density
-  // cycle: Ctrl+D everywhere; Cmd+D only inside the Tauri app — the web
-  // preview must not swallow the browser bookmark shortcut (AJ-E403 Req.4).
+  // AJ-E1504: every shortcut App owns, matched through the one registry
+  // (lib/shortcuts.ts) — the `?` sheet is rendered from the same list, and
+  // the typing rule lives in `matches`. The map must cover every
+  // `owner: "app"` shortcut (the type says so). Handlers read the latest
+  // state through a ref; the listener is set up once.
+  const appKeysRef = useRef<Record<AppShortcutId, () => boolean | void>>(null!);
+  appKeysRef.current = {
+    help: () => {
+      // Never over another sheet (it owns the keys while it's open).
+      if (document.querySelector('[aria-modal="true"]')) return false;
+      shortcutUsed("other");
+      setShortcutsOpen(true);
+    },
+    // ⌘K toggles the palette (the global binding covers the over-any-app
+    // case) and focuses the rail search (AJ-E404 Req.4).
+    palette: () => {
+      shortcutUsed("command_palette");
+      window.dispatchEvent(new Event("aij:focus-search"));
+      setGoToOpen((openNow) => !openNow);
+    },
+    // AJ-E305 flow (b).
+    "new-project": () => {
+      shortcutUsed("new_session");
+      setNewProjectDir((current) => current ?? "");
+    },
+    // The old collapse, kept for muscle memory.
+    "toggle-rail": () => {
+      shortcutUsed("toggle_rail");
+      toggleRail();
+    },
+    inspector: () => {
+      shortcutUsed("other");
+      toggleInspector();
+    },
+    density: () => {
+      shortcutUsed("other");
+      cycleDensity();
+    },
+    theme: () => {
+      shortcutUsed("other");
+      void import("./theme").then((theme) => theme.cycleTheme());
+    },
+    // AJ-E1503: only when a toast can be undone; otherwise the key passes.
+    undo: () => undoLatest(),
+    "go-home": () => {
+      shortcutUsed("other");
+      setGlobal(null);
+      setSelection({ kind: "none" });
+    },
+    "go-accounts": () => {
+      shortcutUsed("other");
+      setGlobal("accounts");
+    },
+    "go-usage": () => {
+      shortcutUsed("other");
+      setGlobal("usage");
+    },
+    // AJ-E704: ⌘⇧F (and ⌘4) open Fleet from anywhere.
+    "go-fleet": () => {
+      shortcutUsed("other");
+      setGlobal("fleet");
+    },
+    // AJ-E1203: ⌘, opens Settings (the macOS convention).
+    settings: () => {
+      shortcutUsed("other");
+      setSettingsFocusCloud(false);
+      setSettingsSection(undefined);
+      setGlobal("settings");
+    },
+    // AJ-E506: ⌘⇧C opens the Cleanup Centre; ⌘F focuses its filter.
+    cleanup: () => {
+      shortcutUsed("other");
+      setGlobal("cleanup");
+    },
+    "cleanup-filter": () => {
+      if (global !== "cleanup") return false;
+      shortcutUsed("search");
+      focusCleanupFilter();
+    },
+    // ⌘. stops the selected live Instance (AJ-E407 Actions); ⌘⇧H
+    // focuses the hand-over section (RightInspector switches tabs).
+    stop: () => {
+      shortcutUsed("other");
+      stopSelectedRef.current();
+    },
+    handover: () => {
+      shortcutUsed("switch");
+      window.dispatchEvent(new Event("aij:focus-handover"));
+    },
+  } satisfies Record<AppShortcutId, () => boolean | void>;
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "b") {
+      // A sheet that is open owns its plain keys (`?` typed in it).
+      for (const [id, run] of Object.entries(appKeysRef.current) as [AppShortcutId, () => boolean | void][]) {
+        if (!matches(id, event, hasLiveBackend())) continue;
+        if (run() === false) return;
         event.preventDefault();
-        shortcutUsed("toggle_rail");
-        toggleRail();
-      }
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "n") {
-        event.preventDefault();
-        shortcutUsed("new_session");
-        setNewProjectDir((current) => current ?? "");
-      }
-      // ⌘. stops the selected live Instance (AJ-E407 Actions); ⌘⇧H
-      // focuses the hand-over section (RightInspector switches tabs).
-      if (isStopShortcut(event)) {
-        event.preventDefault();
-        shortcutUsed("other");
-        stopSelectedRef.current();
-      }
-      // AJ-E1503: ⌘Z undoes the newest toast — never inside a text field
-      // or the terminal, where it is the field's own undo.
-      if (isUndoShortcut(event) && !isTypingTarget(event.target) && undoLatest()) {
-        event.preventDefault();
-      }
-      if (isHandoverShortcut(event)) {
-        event.preventDefault();
-        shortcutUsed("switch");
-        window.dispatchEvent(new Event("aij:focus-handover"));
-      }
-      // ⌘K/Ctrl+K focuses the rail search (AJ-E404 Req.4); Esc clears it
-      // inside the input and focus stays there.
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        window.dispatchEvent(new Event("aij:focus-search"));
-      }
-      // Ctrl+D typed in the terminal is end-of-input, not the rail.
-      if (isDensityShortcutEvent(event, hasLiveBackend()) && !isTypingTarget(event.target)) {
-        event.preventDefault();
-        shortcutUsed("other");
-        cycleDensity();
-      }
-      if (
-        (event.metaKey || event.ctrlKey) &&
-        event.shiftKey &&
-        event.key.toLowerCase() === "l"
-      ) {
-        event.preventDefault();
-        shortcutUsed("other");
-        void import("./theme").then((theme) => theme.cycleTheme());
+        return;
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [cycleDensity, toggleRail]);
+  }, []);
 
   useEffect(() => {
     void appSettingGet("go_to_hotkey").then((stored) => {
@@ -706,45 +761,6 @@ export default function App() {
     });
     return onGoToHotkey(() => setGoToOpen(true));
   }, []);
-
-  // ⌘K/Ctrl+K toggles the palette in-app (the global binding covers
-  // the over-any-app case; both land on the same list).
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        shortcutUsed("command_palette");
-        setGoToOpen((openNow) => !openNow);
-      }
-      // AJ-E704: ⌘⇧F opens Fleet from anywhere.
-      if ((event.metaKey || event.ctrlKey) && event.shiftKey && !event.altKey && event.key.toLowerCase() === "f") {
-        event.preventDefault();
-        shortcutUsed("other");
-        setGlobal("fleet");
-      }
-      // AJ-E1203: ⌘, opens Settings (the macOS convention).
-      if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && event.key === ",") {
-        event.preventDefault();
-        shortcutUsed("other");
-        setSettingsFocusCloud(false);
-        setSettingsSection(undefined);
-        setGlobal("settings");
-      }
-      // AJ-E506: ⌘⇧C opens the Cleanup Centre; ⌘F focuses its filter.
-      if ((event.metaKey || event.ctrlKey) && event.shiftKey && !event.altKey && event.key.toLowerCase() === "c") {
-        event.preventDefault();
-        shortcutUsed("other");
-        setGlobal("cleanup");
-      }
-      if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && event.key.toLowerCase() === "f" && global === "cleanup") {
-        event.preventDefault();
-        shortcutUsed("search");
-        focusCleanupFilter();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [global]);
 
   // The Provider of what's selected — never a fixed label.
   const remoteInstanceProvider =
@@ -1071,6 +1087,8 @@ export default function App() {
                 : null;
               return (
                 <RightInspector
+                  folded={inspectorFolded}
+                  onToggleFold={toggleInspector}
                   selection={
                     instance
                       ? { kind: "instance", id: instance.id }
@@ -1140,6 +1158,8 @@ export default function App() {
                 </div>
               ) : (
               <RightInspector
+              folded={inspectorFolded}
+              onToggleFold={toggleInspector}
               focusTabsRequest={inspectorFocus}
               selection={
                 selection.kind === "session"
@@ -1358,6 +1378,7 @@ export default function App() {
       )}
       {/* AJ-E1503: the one feedback system, and the quit warning. */}
       <ToastHost />
+      {shortcutsOpen && <ShortcutSheet onClose={() => setShortcutsOpen(false)} />}
       <QuitSheet />
       {newSession && (
         <NewSessionModal

@@ -1,0 +1,56 @@
+/**
+ * AJ-E1504 — `?` (outside a text field) opens every shortcut, by area.
+ * It is rendered from the registry in `lib/shortcuts.ts`, the same list
+ * the keys are matched against, so it can't drift from what they do.
+ */
+import type { JSX } from "react";
+import { Modal } from "./form";
+import { SHORTCUT_AREAS, SHORTCUTS } from "../lib/shortcuts";
+
+/** One key, as a key cap (the tier tag's quiet border). */
+export function Keycap({ children }: { children: string }): JSX.Element {
+  return (
+    <kbd className="rounded border border-hairline bg-surface-2 px-1.5 py-0.5 font-mono text-[11px] text-ink">{children}</kbd>
+  );
+}
+
+export function ShortcutSheet({ onClose }: { onClose: () => void }): JSX.Element {
+  return (
+    <Modal
+      title="Keyboard shortcuts"
+      subtitle="In a text field or the terminal, only the ⌘ ones work."
+      onClose={onClose}
+      wide
+      testId="shortcut-sheet"
+    >
+      <div className="grid max-h-[60vh] gap-x-8 gap-y-5 overflow-y-auto pr-1 sm:grid-cols-2" tabIndex={0} aria-label="Shortcuts by area">
+        {SHORTCUT_AREAS.map((area) => (
+          <section key={area} aria-labelledby={`shortcuts-${area}`} className="flex flex-col gap-1.5">
+            <h3 id={`shortcuts-${area}`} className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted">
+              {area}
+            </h3>
+            <ul className="flex flex-col">
+              {SHORTCUTS.filter((entry) => entry.area === area).map((entry) => (
+                <li
+                  key={entry.id}
+                  data-shortcut={entry.id}
+                  className="flex items-center justify-between gap-3 border-b border-hairline/60 py-1.5 text-xs last:border-b-0"
+                >
+                  <span className="text-ink">{entry.label}</span>
+                  <span className="flex shrink-0 items-center gap-1">
+                    {entry.keys.map((keys, index) => (
+                      <span key={keys} className="flex items-center gap-1">
+                        {index > 0 && <span className="text-[11px] text-muted">or</span>}
+                        <Keycap>{keys}</Keycap>
+                      </span>
+                    ))}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+      </div>
+    </Modal>
+  );
+}
