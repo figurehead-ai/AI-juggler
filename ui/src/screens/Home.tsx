@@ -24,6 +24,7 @@ import { Button } from "../components/primitives";
 import { hueOf } from "../components/indicator";
 import { MorningSummary } from "../components/MorningSummary";
 import { ThisMacPanel } from "../components/ThisMacPanel";
+import { ScreenBoundary } from "../components/ScreenBoundary";
 import { measured, resetWords, tokenWords } from "../lib/quotaWindow";
 import { alertWords, reasonSentence, type ThisMacInfo } from "../lib/machine";
 import { LegendPopover } from "../components/LegendPopover";
@@ -708,15 +709,17 @@ export function HomeScreen({
             )}
           </div>
         </section>
-        <ThisMacPanel
-          info={thisMac}
-          nameOf={(id) => {
-            const session = sessions.find((s) => s.id === id);
-            return session ? placeOf(session, projects).title : "A session";
-          }}
-          onOpenSession={onOpenSession}
-          onOpenCleanup={onOpenCleanup}
-        />
+        <ScreenBoundary screen="this-mac" label="This Mac">
+          <ThisMacPanel
+            info={thisMac}
+            nameOf={(id) => {
+              const session = sessions.find((s) => s.id === id);
+              return session ? placeOf(session, projects).title : "A session";
+            }}
+            onOpenSession={onOpenSession}
+            onOpenCleanup={onOpenCleanup}
+          />
+        </ScreenBoundary>
         </div>
       </div>
 

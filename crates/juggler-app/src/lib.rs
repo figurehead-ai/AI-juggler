@@ -206,6 +206,7 @@ pub fn run() {
             crash::crash_info,
             crash::crash_set,
             crash::crash_answer,
+            crash::crash_ui_error,
             commands::usage_source_health,
             commands::cost_rollups,
             commands::cost_csv_export,

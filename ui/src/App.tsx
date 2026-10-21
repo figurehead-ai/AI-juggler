@@ -66,6 +66,7 @@ import { IsolationOfferDialog } from "./components/IsolationOfferDialog";
 import { funnelEvent } from "./lib/funnel";
 import { SessionPanel } from "./screens/WorkPanels";
 import { NotificationRegion } from "./components/NotificationRegion";
+import { ScreenBoundary } from "./components/ScreenBoundary";
 import { SwitchFlow, SwitchUndoToast } from "./components/SwitchFlow";
 import { SwitchBackFlow } from "./components/SwitchBackFlow";
 import { RightInspector } from "./components/RightInspector";
@@ -1004,37 +1005,49 @@ export default function App() {
         <main tabIndex={-1} className="min-h-0 flex-1 overflow-hidden p-5 outline-none">
           {global === "cleanup" ? (
             <div className="h-full">
-              <CleanupCentre />
+              <ScreenBoundary key="cleanup" screen="cleanup" label="Cleanup">
+                <CleanupCentre />
+              </ScreenBoundary>
             </div>
           ) : global === "accounts" ? (
             <div className="h-full overflow-y-auto">
-              <ProfilesScreen
-                key={accountsNonce}
-                sessions={sessions}
-                onAddAccounts={startAddAccount}
-                onAccountsChanged={() => void refresh()}
-                openTerminal={openLoginTerminal}
-                onInspectAccount={(id) => {
-                  setGlobal(null);
-                  setSelection({ kind: "account", id });
-                }}
-              />
+              <ScreenBoundary key="accounts" screen="accounts" label="Accounts">
+                <ProfilesScreen
+                  key={accountsNonce}
+                  sessions={sessions}
+                  onAddAccounts={startAddAccount}
+                  onAccountsChanged={() => void refresh()}
+                  openTerminal={openLoginTerminal}
+                  onInspectAccount={(id) => {
+                    setGlobal(null);
+                    setSelection({ kind: "account", id });
+                  }}
+                />
+              </ScreenBoundary>
             </div>
           ) : global === "history" ? (
             <div className="h-full overflow-y-auto">
-              <History sessions={sessions} projects={projects} onChanged={() => void refresh()} />
+              <ScreenBoundary key="history" screen="history" label="History">
+                <History sessions={sessions} projects={projects} onChanged={() => void refresh()} />
+              </ScreenBoundary>
             </div>
           ) : global === "usage" ? (
             <div className="h-full overflow-y-auto">
-              <UsageScreen accounts={accounts} sessions={sessions} onAddAccounts={() => setFirstRun(true)} />
+              <ScreenBoundary key="usage" screen="usage" label="Usage">
+                <UsageScreen accounts={accounts} sessions={sessions} onAddAccounts={() => setFirstRun(true)} />
+              </ScreenBoundary>
             </div>
           ) : global === "fleet" ? (
             <div className="h-full overflow-y-auto">
-              <FleetScreen onOpenCloud={openCloudSettings} onInspectRemote={inspectRemote} />
+              <ScreenBoundary key="fleet" screen="fleet" label="Fleet">
+                <FleetScreen onOpenCloud={openCloudSettings} onInspectRemote={inspectRemote} />
+              </ScreenBoundary>
             </div>
           ) : global === "settings" ? (
             <div className="h-full overflow-y-auto">
-              <SettingsScreen key={settingsSection ?? "top"} focusCloud={settingsFocusCloud} focusSection={settingsSection} />
+              <ScreenBoundary key="settings" screen="settings" label="Settings">
+                <SettingsScreen key={settingsSection ?? "top"} focusCloud={settingsFocusCloud} focusSection={settingsSection} />
+              </ScreenBoundary>
             </div>
           ) : selectedLogin ? (
             <SessionPanel
@@ -1065,41 +1078,43 @@ export default function App() {
                 ? (machine.instances.find((row) => row.id === selection.instanceId) ?? null)
                 : null;
               return (
-                <RightInspector
-                  selection={
-                    instance
-                      ? { kind: "instance", id: instance.id }
-                      : { kind: "machine", id: machine.machine_id }
-                  }
-                  data={{
-                    remote: {
-                      machine,
-                      instance,
-                      lastOutcome:
-                        remoteFocusOutcome &&
-                        remoteFocusOutcome.machineId === machine.machine_id &&
-                        remoteFocusOutcome.instanceId === instance?.id
-                          ? remoteFocusOutcome.outcome
-                          : null,
-                    },
-                  }}
-                  sessions={sessions}
-                  projects={projects}
-                  accounts={accounts}
-                  profiles={profiles}
-                  terminalTitle={null}
-                  freshness={freshness}
-                  now={remoteNow}
-                  onOpenProject={selectProject}
-                  onOpenSession={selectSession}
-                  onLaunch={() => {}}
-                  onStopped={() => void refresh()}
-                  onHandover={() => {}}
-                  onNew={() => setNewSession(true)}
-                  onRemoteBack={() => setGlobal("fleet")}
-                  onRemoteSelect={(instanceId) => inspectRemote(machine.machine_id, instanceId)}
-                  onRemoteActionDone={() => setRemoteNow(Date.now())}
-                />
+                <ScreenBoundary key="inspector" screen="inspector" label="This view">
+                  <RightInspector
+                    selection={
+                      instance
+                        ? { kind: "instance", id: instance.id }
+                        : { kind: "machine", id: machine.machine_id }
+                    }
+                    data={{
+                      remote: {
+                        machine,
+                        instance,
+                        lastOutcome:
+                          remoteFocusOutcome &&
+                          remoteFocusOutcome.machineId === machine.machine_id &&
+                          remoteFocusOutcome.instanceId === instance?.id
+                            ? remoteFocusOutcome.outcome
+                            : null,
+                      },
+                    }}
+                    sessions={sessions}
+                    projects={projects}
+                    accounts={accounts}
+                    profiles={profiles}
+                    terminalTitle={null}
+                    freshness={freshness}
+                    now={remoteNow}
+                    onOpenProject={selectProject}
+                    onOpenSession={selectSession}
+                    onLaunch={() => {}}
+                    onStopped={() => void refresh()}
+                    onHandover={() => {}}
+                    onNew={() => setNewSession(true)}
+                    onRemoteBack={() => setGlobal("fleet")}
+                    onRemoteSelect={(instanceId) => inspectRemote(machine.machine_id, instanceId)}
+                    onRemoteActionDone={() => setRemoteNow(Date.now())}
+                  />
+                </ScreenBoundary>
               );
             })()
           ) : (
@@ -1119,23 +1134,25 @@ export default function App() {
               </div>
               {selection.kind === "none" ? (
                 <div className="min-h-0 flex-1 overflow-y-auto" data-testid="home-scroll">
-                  <HomeScreen
-                    sessions={sessions}
-                    accounts={accounts}
-                    projects={projects}
-                    now={now}
-                    onOpenSession={selectSession}
-                    onNewSession={() => setNewSession(true)}
-                    // No account yet: "Find my accounts" comes back to first
-                    // run (every tool at once), as its Not now promises.
-                    onAddAccounts={() => setFirstRun(true)}
-                    onLimit={setLimitFor}
-                    openLoginTerminal={openLoginTerminal}
-                    onAccountsChanged={() => void refresh()}
-                    onChanged={() => void refresh()}
-                    thisMac={thisMacInfo}
-                    onOpenCleanup={() => setGlobal("cleanup")}
-                  />
+                  <ScreenBoundary key="home" screen="home" label="Home">
+                    <HomeScreen
+                      sessions={sessions}
+                      accounts={accounts}
+                      projects={projects}
+                      now={now}
+                      onOpenSession={selectSession}
+                      onNewSession={() => setNewSession(true)}
+                      // No account yet: "Find my accounts" comes back to first
+                      // run (every tool at once), as its Not now promises.
+                      onAddAccounts={() => setFirstRun(true)}
+                      onLimit={setLimitFor}
+                      openLoginTerminal={openLoginTerminal}
+                      onAccountsChanged={() => void refresh()}
+                      onChanged={() => void refresh()}
+                      thisMac={thisMacInfo}
+                      onOpenCleanup={() => setGlobal("cleanup")}
+                    />
+                  </ScreenBoundary>
                 </div>
               ) : (
               <div className="min-h-0 flex-1">

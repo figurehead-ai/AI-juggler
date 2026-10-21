@@ -3098,6 +3098,18 @@ function previewCrash(): CrashInfoData {
   return seams.__AIJ_CRASH__;
 }
 
+/** A screen's error, from its error boundary: kept like a crash (scrubbed,
+ * only if the user's crash-report setting allows). Only the screen's id,
+ * the error's message and its stack are sent. */
+export async function crashUiError(screen: string, message: string, stack: string): Promise<boolean> {
+  if (!hasBackend) {
+    const seams = window as unknown as { __AIJ_UI_ERRORS__?: { screen: string; message: string }[] };
+    seams.__AIJ_UI_ERRORS__ = [...(seams.__AIJ_UI_ERRORS__ ?? []), { screen, message }];
+    return false;
+  }
+  return invoke<boolean>("crash_ui_error", { screen, message, stack });
+}
+
 /** AJ-E1107: the crash-report setting and the reports waiting. */
 export async function crashInfo(): Promise<CrashInfoData> {
   if (!hasBackend) return previewCrash();
