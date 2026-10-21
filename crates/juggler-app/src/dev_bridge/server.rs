@@ -232,7 +232,8 @@ async fn serve<R: tauri::Runtime>(listener: std::net::TcpListener, shared: Arc<S
     let connections = Arc::new(Semaphore::new(MAX_CONNECTIONS));
     loop {
         let Ok((stream, peer)) = listener.accept().await else {
-            // Out of descriptors and the like: back off, don't spin.
+            // poll: only after a failed accept (out of descriptors and the
+            // like) — back off instead of spinning; Dev builds only.
             tokio::time::sleep(Duration::from_millis(100)).await;
             continue;
         };
