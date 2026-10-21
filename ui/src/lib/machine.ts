@@ -6,8 +6,7 @@
  * deterministic fixture; `window.__AIJ_MACHINE__` picks the state
  * ("plenty" | "tight" | "pressure" | "unsampled", or a full payload).
  */
-import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { invoke, listen } from "./ipc/transport";
 import { createContext, useContext, useEffect, useState } from "react";
 import { hasLiveBackend, instancesList, type InstanceInfo } from "./bridge";
 import type { MachineAdviceInfo } from "../types/generated/MachineAdviceInfo";

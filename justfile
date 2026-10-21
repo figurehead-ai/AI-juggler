@@ -14,7 +14,9 @@ verify:
     cargo fmt --all --check
     cargo clippy --workspace --all-targets -- -D warnings
     cargo clippy --workspace --all-targets --no-default-features -- -D warnings
+    cargo clippy -p juggler-app --all-targets --features dev-bridge -- -D warnings
     cargo test --workspace
+    cargo test -p juggler-app --features dev-bridge --lib dev_bridge
     ./scripts/leaked_fixtures.sh
     RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
     just evidence
@@ -24,6 +26,7 @@ verify:
     just stats-events
     just polling-audit
     just release-selftest
+    just dev-bridge-check
 
 # D-20 / D-24: the release scripts' self-tests (versions, nightly notes,
 # channel requirements). A release only runs them for real once a night.
@@ -122,6 +125,21 @@ doc:
 # Run the app as AI Juggler Dev (UI hot-reload + Rust rebuild on change).
 dev: dev-icon
     cargo tauri dev --config crates/juggler-app/tauri.dev.conf.json
+
+# AI Juggler Dev with the read-only test bridge: the real UI in a browser
+# against this build's backend and data, for QA without Accessibility
+# (docs/qa/DEV-BRIDGE.md). Then `just dev-bridge-url` for the page.
+dev-bridge: dev-icon
+    AIJ_DEV_BRIDGE=1 cargo tauri dev --config crates/juggler-app/tauri.dev.conf.json --features dev-bridge
+
+# The page for the running bridge (reads its 0600 token file).
+dev-bridge-url:
+    python3 scripts/dev_bridge_url.py
+
+# The bridge never ships: off by default, in no release workflow, and a
+# release build with it doesn't compile.
+dev-bridge-check:
+    ./scripts/dev_bridge_check.sh
 
 # Release-mode build of AI Juggler Dev (unsigned, never updates).
 app: dev-icon

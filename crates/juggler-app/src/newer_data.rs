@@ -39,7 +39,8 @@ const DB_FILES: [&str; 3] = ["", "-wal", "-shm"];
 /// The last released version that reads each database schema (kept with
 /// `docs/RELEASING.md` § Database changes). A schema not listed is named
 /// by number.
-const SCHEMA_RELEASES: &[(i64, &str)] = &[(27, "0.0.7"), (28, "0.0.8"), (29, "0.0.9")];
+const SCHEMA_RELEASES: &[(i64, &str)] =
+    &[(27, "0.0.7"), (28, "0.0.8"), (29, "0.0.9"), (30, "0.0.13")];
 
 /// The released version that reads `schema`, when it is known.
 #[must_use]
