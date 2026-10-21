@@ -18,6 +18,8 @@ import type { ThisMacInfo } from "../types/generated/ThisMacInfo";
 import type { OverloadAlertInfo } from "../types/generated/OverloadAlertInfo";
 import type { ToolTreeInfo } from "../types/generated/ToolTreeInfo";
 import type { ToolTotalsInfo } from "../types/generated/ToolTotalsInfo";
+import type { ToolGroupInfo } from "../types/generated/ToolGroupInfo";
+import { providerDisplayName } from "./providers";
 
 export type { MachineHealthInfo, MachinePointInfo, RoomReasonInfo };
 
@@ -231,11 +233,29 @@ export function mockThisMac(
       memory_estimate: false,
     }));
   const all = [...ours, ...observed].sort((a, b) => b.rss_bytes - a.rss_bytes);
+  // As the backend: our sessions by Provider (heaviest first), then the
+  // Claude app, then claude in a terminal.
+  const providers = new Map<string, ToolTreeInfo[]>();
+  for (const tree of ours) {
+    const provider = live.find((session) => session.id === tree.session_id)?.provider ?? "claude-code";
+    providers.set(provider, [...(providers.get(provider) ?? []), tree]);
+  }
+  const byTool: ToolGroupInfo[] = [...providers.entries()]
+    .map(([provider, trees]) => ({ tool: provider, label: providerDisplayName(provider), ours: true, totals: totals(trees, machine.cores) }))
+    .sort((a, b) => b.totals.rss_bytes - a.totals.rss_bytes);
+  for (const [place, label] of [
+    ["desktop", "Claude app"],
+    ["terminal", "claude in a terminal"],
+  ] as const) {
+    const trees = observed.filter((tree) => tree.place === place);
+    if (trees.length > 0) byTool.push({ tool: place, label, ours: false, totals: totals(trees, machine.cores) });
+  }
   return {
     machine,
     tools: totals(all, machine.cores),
     ours: totals(ours, machine.cores),
     theirs: totals(observed, machine.cores),
+    by_tool: byTool,
     top: all.slice(0, 3),
     heavy: all.filter((tree) => tree.heavy_note !== null),
     leftover_processes: leftovers[0],
@@ -311,6 +331,51 @@ export function resourceLine(cpu: number | null, rss: number | null, helpers: nu
 /** This Mac for components deep in the tree (the rail rows): the app
  * provides its one subscription here. */
 export const ThisMacContext = createContext<ThisMacInfo | null>(null);
+
+// --- AJ-E1411: the menu bar -----------------------------------------------
+
+/** Where a click in the menu bar asks the window to go. */
+export type TrayTarget = { kind: "this-mac" } | { kind: "session"; id: string };
+
+/** Pure: a `tray://open` payload as a place to go; anything else is
+ * This Mac (the menu bar's own home). */
+export function trayTarget(payload: unknown): TrayTarget {
+  const data = (payload ?? {}) as { target?: unknown; session_id?: unknown };
+  return data.target === "session" && typeof data.session_id === "string" && data.session_id
+    ? { kind: "session", id: data.session_id }
+    : { kind: "this-mac" };
+}
+
+/** Whether This Mac shows in the menu bar; `null` where the platform has
+ * no menu bar item. The preview (no backend) shows the switch, on. */
+export async function menuBarGet(): Promise<boolean | null> {
+  if (!hasLiveBackend()) return true;
+  return invoke<boolean | null>("menu_bar_get");
+}
+
+/** Shows or hides This Mac in the menu bar, now and at the next launch. */
+export async function menuBarSet(shown: boolean): Promise<void> {
+  if (!hasLiveBackend()) return;
+  await invoke("menu_bar_set", { shown });
+}
+
+/** Calls `handler` when the menu bar asks to open This Mac or a session.
+ * Without the backend there is no menu bar: nothing to listen to. */
+export function onTrayOpen(handler: (target: TrayTarget) => void): () => void {
+  if (!hasLiveBackend()) return () => {};
+  let unlisten: (() => void) | null = null;
+  let alive = true;
+  void listen("tray://open", (event) => alive && handler(trayTarget(event.payload)))
+    .then((stop) => {
+      if (alive) unlisten = stop;
+      else stop();
+    })
+    .catch(() => null);
+  return () => {
+    alive = false;
+    unlisten?.();
+  };
+}
 
 /** A session's heavy note ("CPU 95%", "3.2 GB"), only while it's heavy. */
 export function useHeavyNote(sessionId: string): string | null {

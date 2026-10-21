@@ -298,6 +298,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   alert, and a heavy session, clear only after 45 s back under it. A
   notice goes once its condition has ended. It never stops anything by
   itself.
+- This Mac is in the menu bar (E14, AJ-E1411). It's one quiet icon. A
+  number shows beside it only while something needs a glance: an alert,
+  or a session working your Mac hard. Click it for This Mac: the one
+  thing most worth a look first, the Mac's CPU and memory, each AI tool's
+  share (your sessions by tool, the Claude app, claude in a terminal),
+  the heavy sessions, and Open This Mac. Clicking a session opens it.
+  If This Mac can't be measured for a moment, it says so instead of
+  showing old numbers. Settings › Appearance can hide it.
 - This Mac gives advice from your own sessions (AJ-E1409): how many
   sessions it comfortably runs at once, and which launch setting is the
   heaviest. It shows only once there are enough sessions to go on.

@@ -78,6 +78,9 @@ ed25519-dalek = "3"
 rusqlite = "0.40.2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
+# AJ-E1411: This Mac in the menu bar (macOS only, so Linux builds need
+# no app-indicator library).
+tauri = { version = "2.12.3", features = ["tray-icon"] }
 # AJ-E415: ScreenCaptureKit mirror — macOS-only; the preview driver
 # (state machine, pause/teardown) is platform-independent and tested
 # everywhere against a scripted capture source.

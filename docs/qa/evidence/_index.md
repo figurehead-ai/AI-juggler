@@ -12,7 +12,7 @@
 | AJ-E1008 | PASS2 | 2026-10-18 | [manifest](AJ-E1008/manifest.md) |
 | AJ-E1009 | PASS7 | 2026-10-18 | [manifest](AJ-E1009/manifest.md) |
 | AJ-E101 | PASS2 | 2026-10-13 | [manifest](AJ-E101/manifest.md) |
-| AJ-E1010 | PASS13 | 2026-10-19 | [manifest](AJ-E1010/manifest.md) |
+| AJ-E1010 | PASS25 | 2026-10-20 | [manifest](AJ-E1010/manifest.md) |
 | AJ-E1012 | PASS8 | 2026-10-19 | [manifest](AJ-E1012/manifest.md) |
 | AJ-E1013 | PASS7 | 2026-10-19 | [manifest](AJ-E1013/manifest.md) |
 | AJ-E1014 | PASS8 | 2026-10-19 | [manifest](AJ-E1014/manifest.md) |
@@ -64,6 +64,7 @@
 | AJ-E1408 | PASS8 | 2026-10-20 | [manifest](AJ-E1408/manifest.md) |
 | AJ-E1409 | PASS3 | 2026-10-20 | [manifest](AJ-E1409/manifest.md) |
 | AJ-E1410 | PASS5 | 2026-10-20 | [manifest](AJ-E1410/manifest.md) |
+| AJ-E1411 | PASS11 | 2026-10-20 | [manifest](AJ-E1411/manifest.md) |
 | AJ-E201 | PASS8 | 2026-10-16 | [manifest](AJ-E201/manifest.md) |
 | AJ-E202 | PASS7 | 2026-10-16 | [manifest](AJ-E202/manifest.md) |
 | AJ-E203 | PASS9 | 2026-10-16 | [manifest](AJ-E203/manifest.md) |

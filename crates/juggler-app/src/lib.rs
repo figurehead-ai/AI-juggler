@@ -38,6 +38,7 @@ pub mod running_setups;
 pub mod settings_policy;
 pub mod state;
 pub mod terminal;
+pub mod tray;
 pub mod updates;
 pub mod usage_pipeline;
 pub mod usage_stats;
@@ -135,6 +136,8 @@ pub fn run() {
     let update_state = Arc::clone(&app_state);
     let cloud_backup_state = Arc::clone(&app_state);
     let stats_state = Arc::clone(&app_state);
+    #[cfg(target_os = "macos")]
+    let tray_state = Arc::clone(&app_state);
 
     tauri::Builder::default()
         // Registered first: a second launch defers to the running app
@@ -370,6 +373,8 @@ pub fn run() {
             commands::app_setting_get,
             commands::app_setting_set,
             machine_health::machine_health,
+            tray::menu_bar_get,
+            tray::menu_bar_set,
             machine_health::this_mac,
             machine_health::machine_advice,
             machine_health::machine_alerts_take,
@@ -389,6 +394,12 @@ pub fn run() {
         .setup(move |app| {
             let _ = app.emit(EVENT_APP_READY, commands::AppInfo::current());
             register_go_to_hotkey(app.handle());
+            // AJ-E1411: This Mac in the menu bar. A refused status item
+            // leaves the window as it was (logged, never fatal).
+            #[cfg(target_os = "macos")]
+            if let Err(error) = tray::install(app.handle(), &tray_state) {
+                eprintln!("ai-juggler: menu bar item unavailable: {error}");
+            }
             spawn_read_model_ticks(
                 app.handle().clone(),
                 resource_tick_state,
