@@ -8,6 +8,7 @@
 import type { CSSProperties, JSX, SVGProps } from "react";
 import { MARKS } from "../assets/third-party-marks";
 import { toolSpec } from "../lib/tools";
+import { Chip, type ChipTone } from "./primitives";
 
 /** The letter mark's letters: a two-word name's initials ("CC"), else its
  * first two letters ("Co"). */
@@ -67,6 +68,16 @@ export function ToolMark({
     >
       {markLetters(name)}
     </span>
+  );
+}
+
+/** A tool's chip: its mark beside its name. */
+export function ToolChip({ tool, tone = "neutral" }: { tool: string; tone?: ChipTone }): JSX.Element {
+  return (
+    <Chip tone={tone}>
+      <ToolMark tool={tool} size={11} />
+      {toolSpec(tool).display_name}
+    </Chip>
   );
 }
 

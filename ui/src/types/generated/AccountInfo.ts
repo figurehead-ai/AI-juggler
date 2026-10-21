@@ -55,4 +55,9 @@ imported_at?: bigint | null,
 /**
  * ADR-0018: the account uses the user's own folder where it is.
  */
-in_place: boolean, };
+in_place: boolean, 
+/**
+ * AJ-E1501: new sessions start with this account unless a project
+ * names its own (set by the accounts list; `null` elsewhere).
+ */
+is_default?: boolean | null, };

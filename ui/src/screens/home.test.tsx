@@ -141,6 +141,23 @@ describe("D-25 Home — the screen", () => {
     expect(getByTestId("home").textContent).toContain("Not measured yet");
   });
 
+  it("a tool without a limits feed keeps its Runway row and says so, from the backend's capability (0.0.11 walk, Q3)", async () => {
+    w().__AIJ_PROVIDER_CAPABILITIES__ = [
+      { provider: "claude-code", can_use_in_place: true, reports_limits: true },
+      { provider: "codex", can_use_in_place: true, reports_limits: false },
+    ];
+    const accounts = [...ACCOUNTS, { id: "cx", provider: "codex", label: "Codex", plan: null, login_state: "logged_in" }] as AccountInfo[];
+    const { getAllByTestId } = renderHome([mk("r")], accounts);
+    await waitFor(() =>
+      expect(getAllByTestId("home-runway-account").at(-1)!.textContent).toContain("Codex doesn't report its limits to AI Juggler yet."),
+    );
+    const rows = getAllByTestId("home-runway-account");
+    expect(rows).toHaveLength(3);
+    expect(rows[1]!.textContent).toContain("Not measured yet");
+    expect(rows[2]!.textContent).not.toContain("Not measured yet");
+    delete w().__AIJ_PROVIDER_CAPABILITIES__;
+  });
+
   it("an account that needs its sign-in is a Needs you item; Sign in opens the login terminal", async () => {
     const opened: string[] = [];
     const accounts = [{ ...ACCOUNTS[0]!, login_state: "logged_out" }, ACCOUNTS[1]!] as AccountInfo[];

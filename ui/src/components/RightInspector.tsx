@@ -1,7 +1,8 @@
-import { ToolMark } from "./ToolMark";
+import { ToolChip, ToolMark } from "./ToolMark";
 import { ParkCard } from "./ParkCard";
 import { holdStop, sessionLabel } from "../lib/stop";
 import { matches } from "../lib/shortcuts";
+import { Select } from "./form";
 import { WorktreeGit } from "./WorktreeGit";
 import { identityWords } from "../lib/identity";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -28,12 +29,12 @@ import type {
 import { renewalLabel } from "../lib/renewal";
 import { QuotaBar, formatCountdown } from "./primitives";
 import { TwoClocks, WindowRing } from "./QuotaRings";
-import { accountSetFee, quotaDisplay, switchTargets, type QuotaDisplayData, type SwitchBackSuggestionData, type SwitchTargetData, errorText,
+import { accountSetFee, projectSetDefaultAccount, quotaDisplay, switchTargets, type QuotaDisplayData, type SwitchBackSuggestionData, type SwitchTargetData, errorText,
   signedIn,
 } from "../lib/bridge";
 import { STATE_WORDS, formatBytes, isActiveStatus, stateChip } from "./indicator";
 import { resourceLine, useHeavyNote } from "../lib/machine";
-import { providerDisplayName } from "../lib/providers";
+import { FOUND_UNCHECKED, providerDisplayName, versionUnchecked } from "../lib/providers";
 import { SwitchGraph } from "./SwitchGraph";
 import { SwitchTargetRows } from "./SwitchTargetRows";
 import { RemoteSwitchTargets } from "./RemoteSwitchTargets";
@@ -643,6 +644,8 @@ function InspectorPanel(props: {
   onOpenProject: (id: string) => void;
   onOpenSession: (id: string) => void;
   onLaunch: (recipe: LaunchRecipeInfo, project: ProjectInfo) => void;
+  /** Reads the app's lists again: after a stop, or a change made here
+   * (a project's default account). */
   onStopped: () => void;
   onHandover: (sessionId: string, targetProfileId: string, targetLabel: string) => void;
   switchBackSuggestions?: SwitchBackSuggestionData[];
@@ -928,10 +931,7 @@ function InstanceOverview(props: PanelProps) {
             </summary>
             <div className="mt-2 flex flex-col gap-2">
           <div className="flex flex-wrap items-center gap-1.5">
-            <Chip tone="neutral">
-              <ToolMark tool={session.provider} size={11} />
-              {providerDisplayName(session.provider)}
-            </Chip>
+            <ToolChip tool={session.provider} />
             <Chip tone="neutral">
               {props.profiles.find((r) => r.id === session.launch_recipe_id)?.name ?? "launch settings"}
             </Chip>
@@ -1005,10 +1005,7 @@ function InstanceOverview(props: PanelProps) {
               <span title="desktop app session" className="inline-flex">
                 <Chip tone="neutral">app</Chip>
               </span>
-              <Chip tone="neutral">
-              <ToolMark tool={session.provider} size={11} />
-              {providerDisplayName(session.provider)}
-            </Chip>
+              <ToolChip tool={session.provider} />
               <span className="text-[11.5px] text-muted">
                 {session.account_label}
                 {project ? ` · ${project.name}` : ""}
@@ -1807,6 +1804,7 @@ export function installWords(install: import("../lib/bridge").ProviderInstallDat
     case "not_installed":
       return "Not installed on this Mac";
     default:
+      if (versionUnchecked(install)) return FOUND_UNCHECKED;
       return "Couldn't check what's installed";
   }
 }
@@ -2142,6 +2140,7 @@ function ProjectActions(props: PanelProps) {
     .sort((a, b) => b.left - a.left);
   return (
     <div className="flex flex-col gap-2" data-testid="project-actions">
+      <ProjectDefaultAccount project={project} accounts={props.accounts} onChanged={props.onStopped} />
       <p className="text-[11px] uppercase tracking-wider text-muted">Launch with another account (ranked by headroom)</p>
       {ranked.map(({ recipe, usual }) => {
         const ready = signedIn(props.accounts.find((a) => a.id === recipe.account_id)?.login_state);
@@ -2169,6 +2168,61 @@ function ProjectActions(props: PanelProps) {
         );
       })}
       {ranked.length === 0 ? <p className="text-[11.5px] text-muted">No launch settings yet — add an account first.</p> : null}
+    </div>
+  );
+}
+
+/** AJ-E1501 Req.4: which account this project's new sessions start
+ * with — its own pick, else the global default or the most recently
+ * used one (New session preselects it). */
+function ProjectDefaultAccount({
+  project,
+  accounts,
+  onChanged,
+}: {
+  project: ProjectInfo;
+  accounts: AccountInfo[];
+  onChanged: () => void;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  const [value, setValue] = useState(project.default_account_id ?? "");
+  useEffect(() => setValue(project.default_account_id ?? ""), [project.default_account_id]);
+  if (accounts.length === 0) return null;
+  const fallback = accounts.find((account) => account.is_default);
+  return (
+    <div className="flex flex-col gap-1 pb-2">
+      <label className="flex flex-wrap items-center gap-2 text-[11.5px] text-muted" data-testid="project-default-account">
+        New sessions here start with
+        <Select
+          aria-label="New sessions here start with"
+          className="max-w-full"
+          value={value}
+          onChange={async (event) => {
+            const next = event.target.value;
+            setValue(next);
+            setError(null);
+            try {
+              await projectSetDefaultAccount(project.id, next === "" ? null : next);
+              onChanged();
+            } catch (cause) {
+              setError(errorText(cause));
+              setValue(project.default_account_id ?? "");
+            }
+          }}
+        >
+          <option value="">{fallback ? `Your default (${fallback.label})` : "The account used last"}</option>
+          {accounts.map((account) => (
+            <option key={account.id} value={account.id}>
+              {account.label}
+            </option>
+          ))}
+        </Select>
+      </label>
+      {error && (
+        <p className="text-[11px] text-danger" role="alert">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

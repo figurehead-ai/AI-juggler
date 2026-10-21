@@ -23,6 +23,7 @@ pub mod identity;
 pub mod launch;
 pub mod registry;
 pub mod spec;
+pub mod user_path;
 pub mod watcher;
 
 /// Re-exported so adapter authors need only depend on this crate for types

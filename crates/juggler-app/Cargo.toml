@@ -90,3 +90,6 @@ juggler-scap-init = { version = "0.0.1", path = "../juggler-scap-init" }
 # that adds AI Juggler to the list.
 core-graphics = "0.25.0"
 macos-accessibility-client = "0.0.2"
+# AJ-E1501: a removed copy's folder goes to the Trash (NSFileManager
+# trashItem — never deleted, never Finder scripting).
+trash = { version = "5.2.9", default-features = false }

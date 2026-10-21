@@ -1,0 +1,565 @@
+//! AJ-E1501: managing accounts without leaving AI Juggler — rename,
+//! remove, and the account new sessions start with.
+//!
+//! - A rename changes the label everywhere it shows (every view reads it
+//!   from storage), and the labels a project's imported history keeps.
+//! - Remove forgets the account; nothing is deleted. An account used
+//!   where it is (ADR-0018) keeps its folder untouched; a copy's folder
+//!   stays, or goes to the Trash when the user chooses that. An account
+//!   with open sessions is refused, naming them. Its sessions' history
+//!   stays readable, marked "removed account".
+//! - The default: a project's own pick, else the global one, else the
+//!   most recently used account (the UI's rule, as before).
+//! - Every change is an audit row (who, what, when).
+
+// Tauri command arguments arrive owned (deserialized).
+#![allow(clippy::needless_pass_by_value)]
+
+use std::path::Path;
+use std::sync::Arc;
+
+use juggler_core::model::{AccountId, ProjectId, SessionStatus};
+use serde::Serialize;
+use ts_rs::TS;
+
+use crate::commands::{AccountInfo, accounts_info, lock_storage_arc};
+use crate::error::{AppError, AppResult};
+use crate::state::AppState;
+
+/// The `app_settings` key holding the global default account's id.
+pub const DEFAULT_ACCOUNT_KEY: &str = "accounts.default";
+
+/// Who made a change made in the app (the audit rows' actor).
+const ACTOR_USER: &str = "user";
+
+/// The longest label accepted (a label is a name, not a note).
+const LABEL_MAX: usize = 64;
+
+/// What Remove does with a copy's folder (an account used where it is
+/// always keeps its folder).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CopyFolder {
+    /// The copy's folder stays where it is.
+    Keep,
+    /// The copy's folder goes to the Trash (never deleted).
+    Trash,
+}
+
+impl CopyFolder {
+    /// The wire word (`keep` | `trash`); anything else keeps the folder.
+    #[must_use]
+    pub fn from_wire(word: &str) -> Self {
+        if word == "trash" {
+            Self::Trash
+        } else {
+            Self::Keep
+        }
+    }
+}
+
+/// What a removal did, for the UI's confirmation line.
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct AccountRemovedInfo {
+    /// The account removed.
+    pub id: String,
+    /// Its label.
+    pub label: String,
+    /// `untouched` (used where it is), `kept` (a copy's folder stays) or
+    /// `trashed` (a copy's folder went to the Trash).
+    pub folder: String,
+}
+
+/// One audit row for the UI.
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct AccountAuditInfo {
+    /// What was done (`rename`, `plan`, `remove`, `default`, `project_default`).
+    pub action: String,
+    /// The change in a few words.
+    pub detail: Option<String>,
+    /// Who did it.
+    pub actor: String,
+    /// When, epoch ms.
+    #[ts(type = "number")]
+    pub at: i64,
+}
+
+/// Statuses a session can still run or resume from: removing its
+/// account would strand it.
+fn is_open(status: SessionStatus) -> bool {
+    matches!(
+        status,
+        SessionStatus::Starting
+            | SessionStatus::Running
+            | SessionStatus::WaitingUser
+            | SessionStatus::Stuck
+            | SessionStatus::QuotaBlocked
+    )
+}
+
+/// A session's name on screen: its branch, else its folder (the rail's
+/// rule).
+fn session_place(cwd: &Path) -> String {
+    crate::worktree::branch_of(cwd).unwrap_or_else(|| {
+        cwd.file_name().map_or_else(
+            || cwd.to_string_lossy().into_owned(),
+            |name| name.to_string_lossy().into_owned(),
+        )
+    })
+}
+
+/// An active (not removed) account, or a refusal in words.
+fn active_account(
+    storage: &juggler_core::storage::Storage,
+    account_id: &str,
+) -> AppResult<juggler_core::model::Account> {
+    let id = AccountId::new(account_id);
+    let account = storage
+        .accounts()
+        .get(&id)
+        .map_err(|_| AppError::NotFound {
+            entity: "account",
+            id: account_id.to_owned(),
+        })?;
+    if storage.accounts().is_removed(&id)? {
+        return Err(AppError::Refused(format!(
+            "«{}» was removed — add it again to use it",
+            account.label
+        )));
+    }
+    Ok(account)
+}
+
+/// Renames an account and sets its plan (`None` or blank clears it).
+/// A label another account already has is refused in words.
+///
+/// # Errors
+///
+/// [`AppError::Refused`] for an empty, overlong or duplicate label or a
+/// removed account; [`AppError::NotFound`] for an unknown id; storage
+/// errors.
+pub fn account_rename_impl(
+    state: &Arc<AppState>,
+    account_id: &str,
+    label: &str,
+    plan: Option<&str>,
+) -> AppResult<AccountInfo> {
+    let label = label.trim();
+    if label.is_empty() {
+        return Err(AppError::Refused("Give the account a name".into()));
+    }
+    if label.chars().count() > LABEL_MAX {
+        return Err(AppError::Refused(format!(
+            "Keep the name to {LABEL_MAX} characters or fewer"
+        )));
+    }
+    let plan = plan.map(str::trim).filter(|plan| !plan.is_empty());
+    let storage = lock_storage_arc(state)?;
+    let mut account = active_account(&storage, account_id)?;
+    if let Some(other) = storage.accounts().list()?.into_iter().find(|other| {
+        other.id != account.id && other.label.trim().to_lowercase() == label.to_lowercase()
+    }) {
+        return Err(AppError::Refused(format!(
+            "Another account is already called «{}» — pick another name",
+            other.label
+        )));
+    }
+    let old_label = account.label.clone();
+    let old_plan = account.plan.as_ref().map(ToString::to_string);
+    let renamed = old_label != label;
+    let replanned = old_plan.as_deref() != plan;
+    if !renamed && !replanned {
+        drop(storage);
+        return account_info(state, account_id);
+    }
+    label.clone_into(&mut account.label);
+    account.plan = plan.map(juggler_core::model::PlanTier::new);
+    storage.accounts().update(&account)?;
+    if renamed {
+        // Imported history keeps labels, not ids: follow the new name so
+        // "accounts used here" (and the New session pick) don't lose it.
+        for project in storage.projects().list()? {
+            if project.history.accounts.contains(&old_label) {
+                let mut history = project.history.clone();
+                let mut seen = std::collections::BTreeSet::new();
+                history.accounts = history
+                    .accounts
+                    .into_iter()
+                    .map(|entry| {
+                        if entry == old_label {
+                            label.to_owned()
+                        } else {
+                            entry
+                        }
+                    })
+                    .filter(|entry| seen.insert(entry.clone()))
+                    .collect();
+                storage.projects().merge_history(&project.id, &history)?;
+            }
+        }
+        storage.account_audit().record(
+            &account.id,
+            "rename",
+            Some(&format!("«{old_label}» → «{label}»")),
+            ACTOR_USER,
+        )?;
+    }
+    if replanned {
+        storage.account_audit().record(
+            &account.id,
+            "plan",
+            Some(&format!(
+                "{} → {}",
+                old_plan.as_deref().unwrap_or("none"),
+                plan.unwrap_or("none")
+            )),
+            ACTOR_USER,
+        )?;
+    }
+    drop(storage);
+    account_info(state, account_id)
+}
+
+/// Removes (forgets) an account. Refused while it has open sessions,
+/// naming them. An account used where it is never has its folder
+/// touched; a copy's folder stays, or goes to the Trash through `trash`
+/// when `folder` says so — only a folder inside AI Juggler's own data.
+///
+/// # Errors
+///
+/// [`AppError::Refused`] for open sessions, a removed account, or a
+/// Trash choice that doesn't apply; [`AppError::Io`] when the Trash
+/// refused (then nothing was removed); storage errors.
+pub fn account_remove_impl(
+    state: &Arc<AppState>,
+    account_id: &str,
+    folder: CopyFolder,
+    trash: &dyn Fn(&Path) -> std::io::Result<()>,
+) -> AppResult<AccountRemovedInfo> {
+    let storage = lock_storage_arc(state)?;
+    let account = active_account(&storage, account_id)?;
+    let recipes: Vec<_> = storage
+        .profiles()
+        .list_by_account(&account.id)?
+        .into_iter()
+        .map(|recipe| recipe.id)
+        .collect();
+    let mut open: Vec<String> = storage
+        .sessions()
+        .list(None)?
+        .into_iter()
+        .filter(|record| recipes.contains(&record.profile) && is_open(record.status))
+        .map(|record| session_place(&record.cwd))
+        .collect();
+    let count = open.len();
+    open.sort();
+    open.dedup();
+    if count > 0 {
+        let names = open.join(", ");
+        return Err(AppError::Refused(format!(
+            "«{}» has {} open: {names}. Stop {} first, then remove the account",
+            account.label,
+            if count == 1 {
+                "a session".to_owned()
+            } else {
+                format!("{count} sessions")
+            },
+            if count == 1 { "it" } else { "them" },
+        )));
+    }
+    let outcome = if account.in_place {
+        if folder == CopyFolder::Trash {
+            return Err(AppError::Refused(format!(
+                "«{}» uses your own folder — AI Juggler never moves it",
+                account.label
+            )));
+        }
+        "untouched"
+    } else if folder == CopyFolder::Trash {
+        let ours = state.accounts_dir();
+        let ours = ours.canonicalize().unwrap_or(ours);
+        let dir = account
+            .state_dir
+            .canonicalize()
+            .unwrap_or_else(|_| account.state_dir.clone());
+        if !dir.starts_with(&ours) || dir == ours {
+            return Err(AppError::Refused(format!(
+                "«{}»'s folder isn't in AI Juggler's own data, so it stays where it is",
+                account.label
+            )));
+        }
+        if dir.exists() {
+            // Before anything is forgotten: if the Trash refuses, nothing
+            // changed.
+            trash(&dir).map_err(|error| AppError::io("move the copy to the Trash", &error))?;
+        }
+        "trashed"
+    } else {
+        "kept"
+    };
+    storage.accounts().mark_removed(&account.id)?;
+    storage.projects().clear_default_account(&account.id)?;
+    if storage.app_settings().get(DEFAULT_ACCOUNT_KEY)?.as_deref() == Some(account.id.as_str()) {
+        storage.app_settings().set(DEFAULT_ACCOUNT_KEY, "")?;
+    }
+    let detail = match outcome {
+        "untouched" => "used where it is: folder untouched".to_owned(),
+        "trashed" => format!(
+            "copy's folder moved to the Trash ({})",
+            account.state_dir.display()
+        ),
+        _ => format!("copy's folder kept ({})", account.state_dir.display()),
+    };
+    storage
+        .account_audit()
+        .record(&account.id, "remove", Some(&detail), ACTOR_USER)?;
+    drop(storage);
+    crate::usage_pipeline::forget_account_offsets(state, account.id.as_str());
+    Ok(AccountRemovedInfo {
+        id: account.id.to_string(),
+        label: account.label,
+        folder: outcome.to_owned(),
+    })
+}
+
+/// Makes an account the global default (`None` clears it: the most
+/// recently used account is the default again).
+///
+/// # Errors
+///
+/// [`AppError::Refused`] for a removed account; [`AppError::NotFound`];
+/// storage errors.
+pub fn account_set_default_impl(
+    state: &Arc<AppState>,
+    account_id: Option<&str>,
+) -> AppResult<Vec<AccountInfo>> {
+    let storage = lock_storage_arc(state)?;
+    let previous = storage.app_settings().get(DEFAULT_ACCOUNT_KEY)?;
+    match account_id {
+        Some(id) => {
+            let account = active_account(&storage, id)?;
+            if previous.as_deref() != Some(id) {
+                storage.app_settings().set(DEFAULT_ACCOUNT_KEY, id)?;
+                storage.account_audit().record(
+                    &account.id,
+                    "default",
+                    Some("made the default for new sessions"),
+                    ACTOR_USER,
+                )?;
+            }
+        }
+        None => {
+            if let Some(previous) = previous {
+                storage.app_settings().set(DEFAULT_ACCOUNT_KEY, "")?;
+                storage.account_audit().record(
+                    &AccountId::new(previous),
+                    "default",
+                    Some("no longer the default"),
+                    ACTOR_USER,
+                )?;
+            }
+        }
+    }
+    drop(storage);
+    accounts_info(state)
+}
+
+/// Sets (or clears) the account a project's new sessions start with.
+///
+/// # Errors
+///
+/// [`AppError::Refused`] for a removed account; [`AppError::NotFound`]
+/// for an unknown project or account; storage errors.
+pub fn project_set_default_account_impl(
+    state: &Arc<AppState>,
+    project_id: &str,
+    account_id: Option<&str>,
+) -> AppResult<()> {
+    let storage = lock_storage_arc(state)?;
+    let project_key = ProjectId::new(project_id);
+    let project = storage
+        .projects()
+        .get(&project_key)
+        .map_err(|_| AppError::NotFound {
+            entity: "project",
+            id: project_id.to_owned(),
+        })?;
+    let account = account_id
+        .map(|id| active_account(&storage, id))
+        .transpose()?;
+    if project.default_account.as_ref() == account.as_ref().map(|a| &a.id) {
+        return Ok(());
+    }
+    storage
+        .projects()
+        .set_default_account(&project_key, account.as_ref().map(|a| &a.id))?;
+    let (audited, detail) = match (&account, &project.default_account) {
+        (Some(account), _) => (
+            account.id.clone(),
+            format!("the default in {}", project.name),
+        ),
+        (None, Some(previous)) => (
+            previous.clone(),
+            format!("no longer the default in {}", project.name),
+        ),
+        (None, None) => return Ok(()),
+    };
+    storage
+        .account_audit()
+        .record(&audited, "project_default", Some(&detail), ACTOR_USER)?;
+    Ok(())
+}
+
+/// An account's audit rows, oldest first.
+///
+/// # Errors
+///
+/// Storage errors.
+pub fn account_audit_impl(
+    state: &Arc<AppState>,
+    account_id: &str,
+) -> AppResult<Vec<AccountAuditInfo>> {
+    Ok(lock_storage_arc(state)?
+        .account_audit()
+        .list_for(&AccountId::new(account_id))?
+        .into_iter()
+        .map(|row| AccountAuditInfo {
+            action: row.action,
+            detail: row.detail,
+            actor: row.actor,
+            at: row.at,
+        })
+        .collect())
+}
+
+/// One account's row, as the list shows it.
+fn account_info(state: &Arc<AppState>, account_id: &str) -> AppResult<AccountInfo> {
+    accounts_info(state)?
+        .into_iter()
+        .find(|info| info.id == account_id)
+        .ok_or_else(|| AppError::NotFound {
+            entity: "account",
+            id: account_id.to_owned(),
+        })
+}
+
+/// Moves a folder to the user's Trash (`NSFileManager trashItem` on
+/// macOS — never Finder scripting, which would ask for automation
+/// access). Elsewhere it refuses: nothing is ever deleted instead.
+///
+/// # Errors
+///
+/// The Trash's own refusal, or `Unsupported` off macOS.
+pub fn move_to_trash(path: &Path) -> std::io::Result<()> {
+    #[cfg(target_os = "macos")]
+    {
+        use trash::macos::{DeleteMethod, TrashContextExtMacos};
+        let mut context = trash::TrashContext::default();
+        context.set_delete_method(DeleteMethod::NsFileManager);
+        context
+            .delete(path)
+            .map_err(|error| std::io::Error::other(error.to_string()))
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = path;
+        Err(std::io::Error::new(
+            std::io::ErrorKind::Unsupported,
+            "moving to the Trash isn't available on this system yet",
+        ))
+    }
+}
+
+/// Rename an account (and set its plan).
+///
+/// # Errors
+///
+/// As [`account_rename_impl`].
+#[tauri::command]
+pub async fn account_rename(
+    state: tauri::State<'_, Arc<AppState>>,
+    account_id: String,
+    label: String,
+    plan: Option<String>,
+) -> AppResult<AccountInfo> {
+    crate::ipc::blocking(state.inner(), "renaming the account", move |state| {
+        account_rename_impl(state, &account_id, &label, plan.as_deref())
+    })
+    .await
+}
+
+/// Remove an account; `folder` is `keep` or `trash` (a copy's folder).
+///
+/// # Errors
+///
+/// As [`account_remove_impl`].
+#[tauri::command]
+pub async fn account_remove(
+    state: tauri::State<'_, Arc<AppState>>,
+    account_id: String,
+    folder: String,
+) -> AppResult<AccountRemovedInfo> {
+    crate::ipc::blocking(state.inner(), "removing the account", move |state| {
+        account_remove_impl(
+            state,
+            &account_id,
+            CopyFolder::from_wire(&folder),
+            &move_to_trash,
+        )
+    })
+    .await
+}
+
+/// Make an account the default for new sessions (`null` clears it).
+///
+/// # Errors
+///
+/// As [`account_set_default_impl`].
+#[tauri::command]
+pub async fn account_set_default(
+    state: tauri::State<'_, Arc<AppState>>,
+    account_id: Option<String>,
+) -> AppResult<Vec<AccountInfo>> {
+    crate::ipc::blocking(state.inner(), "setting the default account", move |state| {
+        account_set_default_impl(state, account_id.as_deref())
+    })
+    .await
+}
+
+/// Pick the account a project's new sessions start with (`null` clears).
+///
+/// # Errors
+///
+/// As [`project_set_default_account_impl`].
+#[tauri::command]
+pub async fn project_set_default_account(
+    state: tauri::State<'_, Arc<AppState>>,
+    project_id: String,
+    account_id: Option<String>,
+) -> AppResult<()> {
+    crate::ipc::blocking(
+        state.inner(),
+        "setting the project's account",
+        move |state| project_set_default_account_impl(state, &project_id, account_id.as_deref()),
+    )
+    .await
+}
+
+/// An account's audit rows.
+///
+/// # Errors
+///
+/// As [`account_audit_impl`].
+#[tauri::command]
+pub async fn account_audit(
+    state: tauri::State<'_, Arc<AppState>>,
+    account_id: String,
+) -> AppResult<Vec<AccountAuditInfo>> {
+    crate::ipc::blocking(
+        state.inner(),
+        "reading the account's history",
+        move |state| account_audit_impl(state, &account_id),
+    )
+    .await
+}

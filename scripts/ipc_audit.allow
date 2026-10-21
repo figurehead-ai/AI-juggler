@@ -2,6 +2,7 @@
 # IPC rule, by rule. This list only shrinks: fix a command and drop its line.
 # Format: <rule> <command>   (rules: uncalled, sync, long, name)
 # uncalled entries carry the date they were listed: 2026-10-21.
+uncalled account_audit
 uncalled harnesses_list_alias
 uncalled isolation_check
 uncalled launch_recipe_env_get

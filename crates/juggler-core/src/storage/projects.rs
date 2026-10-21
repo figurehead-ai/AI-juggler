@@ -57,6 +57,7 @@ impl ProjectsRepo<'_> {
                 created_at: now,
                 last_activity: Some(now),
                 history: ProjectHistory::default(),
+                default_account: None,
             };
             self.conn.execute(
                 "INSERT INTO projects (id, root, name, created_at, last_activity)
@@ -142,6 +143,41 @@ impl ProjectsRepo<'_> {
         Ok(())
     }
 
+    /// Sets (or clears, with `None`) the account a project's new
+    /// sessions start with (AJ-E1501 Req.4).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::NotFound`] when the project is missing, or
+    /// [`CoreError::Storage`] on SQLite failures.
+    pub fn set_default_account(
+        &self,
+        id: &ProjectId,
+        account: Option<&crate::model::AccountId>,
+    ) -> Result<(), CoreError> {
+        let changed = self.conn.execute(
+            "UPDATE projects SET default_account = ?2 WHERE id = ?1",
+            params![id.as_str(), account.map(crate::model::AccountId::as_str)],
+        )?;
+        super::accounts::require_changed(changed, "project", id.as_str())
+    }
+
+    /// Clears an account as every project's default (it was removed).
+    /// Returns how many projects had it.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn clear_default_account(
+        &self,
+        account: &crate::model::AccountId,
+    ) -> Result<usize, CoreError> {
+        Ok(self.conn.execute(
+            "UPDATE projects SET default_account = NULL WHERE default_account = ?1",
+            params![account.as_str()],
+        )?)
+    }
+
     /// Lists projects, most recently active first.
     ///
     /// # Errors
@@ -218,6 +254,9 @@ fn map_project(row: &Row<'_>) -> rusqlite::Result<ProjectRecord> {
             .get::<_, Option<i64>>("last_activity")?
             .map(Timestamp::from_millis),
         history: serde_json::from_str(&row.get::<_, String>("history_json")?).unwrap_or_default(),
+        default_account: row
+            .get::<_, Option<String>>("default_account")?
+            .map(crate::model::AccountId::new),
     })
 }
 

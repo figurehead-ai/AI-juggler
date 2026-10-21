@@ -61,3 +61,23 @@ export function sameAsWords(ids: string[]): string {
   const kinds = [...new Set(ids)];
   return kinds.length === 1 ? toolSpec(kinds[0]!).same_as : "as wherever you use them now";
 }
+
+/** A tool's install row, as far as these helpers read it. */
+type InstallRow = { status: string; binary?: string | null };
+
+/**
+ * The 0.0.11 report: a tool AI Juggler found whose version check failed
+ * (an npm-installed CLI whose `node` it couldn't run) is found, not
+ * missing — it is offered like any installed tool.
+ */
+export function toolFound(row: InstallRow): boolean {
+  return row.status === "installed" || row.status === "unverified" || (row.status === "probe_failed" && !!row.binary);
+}
+
+/** Found, but its version couldn't be read. */
+export function versionUnchecked(row: InstallRow): boolean {
+  return row.status === "probe_failed" && !!row.binary;
+}
+
+/** The words for a found tool whose version couldn't be read. */
+export const FOUND_UNCHECKED = "Found; couldn't check its version";

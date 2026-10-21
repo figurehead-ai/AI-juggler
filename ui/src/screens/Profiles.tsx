@@ -5,13 +5,16 @@ import { renewalLabel, renewalRowVisible } from "../lib/renewal";
 import { Field, Input, Modal } from "../components/form";
 import { IconProfiles, IconTerminal } from "../components/icons";
 import { LoginQueueCard } from "../components/LoginQueueCard";
+import { MenuItem, RowMenu, menuPoint } from "../components/RowMenu";
 import { BetaMatrix } from "../components/BetaMatrix";
 import { ExpertSetup } from "../components/ExpertSetup";
 import { EnvOverlayEditor } from "../components/EnvOverlayEditor";
 import { AccountRunway, runwayLines } from "../components/AccountRunway";
+import { RemoveAccountModal, RenameAccountModal, shortPath } from "./AccountManage";
 import { providerMark } from "../components/indicator";
 import { inPlaceProviders, ownSignIn, providerDisplayName, sameAsWords, supportsInPlace, type InPlaceSupport, limitProviders, reportsLimits, noLimitsWords } from "../lib/providers";
 import {
+  accountSetDefault,
   accountUseOriginal,
   accountsList,
   createProfile,
@@ -73,7 +76,11 @@ export function ProfilesScreen({
   onInspectAccount,
   sessions = [],
   onAddAccounts,
+  onAccountsChanged,
 }: {
+  /** AJ-E1501: a rename, removal or new default — the rest of the app
+   * (rail, Usage, New session) reads the accounts again, no restart. */
+  onAccountsChanged?: () => void;
   /** D-25: Add account opens the find → bring in (or a fresh account, or
    * a folder) → sign in flow; with more than one tool installed it asks
    * which tool first (AJ-E1023). */
@@ -88,6 +95,10 @@ export function ProfilesScreen({
   const [newProfileFor, setNewProfileFor] = useState<AccountInfo | null>(null);
   const [loginFor, setLoginFor] = useState<AccountInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // AJ-E1501: what the last change did, in words ("Removed …").
+  const [notice, setNotice] = useState<string | null>(null);
+  const [renameFor, setRenameFor] = useState<AccountInfo | null>(null);
+  const [removeFor, setRemoveFor] = useState<AccountInfo | null>(null);
   const [displays, setDisplays] = useState<QuotaDisplayData[]>([]);
   // ADR-0018: which tools' copies can switch to their original — the
   // backend's static capabilities (no install probe). If the call fails
@@ -136,6 +147,12 @@ export function ProfilesScreen({
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  const changed = async (words: string | null) => {
+    setNotice(words);
+    await refresh();
+    onAccountsChanged?.();
+  };
 
   const launch = async (recipe: LaunchRecipeInfo) => {
     setError(null);
@@ -192,6 +209,9 @@ export function ProfilesScreen({
           {error}
         </Card>
       )}
+      <p role="status" className="text-xs text-muted empty:hidden" data-testid="accounts-notice">
+        {notice}
+      </p>
 
       {accounts.length === 0 ? (
         <EmptyAccounts onAdd={onAddAccounts} />
@@ -212,6 +232,22 @@ export function ProfilesScreen({
               onNewProfile={() => setNewProfileFor(account)}
               onLogin={() => setLoginFor(account)}
               onInspect={() => onInspectAccount?.(account.id)}
+              onRename={() => setRenameFor(account)}
+              onRemove={() => setRemoveFor(account)}
+              onToggleDefault={async () => {
+                setError(null);
+                const wasDefault = account.is_default === true;
+                try {
+                  await accountSetDefault(wasDefault ? null : account.id);
+                  await changed(
+                    wasDefault
+                      ? `${account.label} is no longer the default. New sessions start with the account you used last.`
+                      : `New sessions start with ${account.label}, unless a project picks its own.`,
+                  );
+                } catch (cause) {
+                  setError(errorText(cause));
+                }
+              }}
               onLoginRechecked={refresh}
               display={displays.find((d) => d.account === account.id)}
               sessions={sessions.filter((session) => session.account_id === account.id)}
@@ -250,6 +286,29 @@ export function ProfilesScreen({
           onCreated={() => {
             setNewProfileFor(null);
             void refresh();
+          }}
+        />
+      )}
+
+      {renameFor && (
+        <RenameAccountModal
+          account={renameFor}
+          onClose={() => setRenameFor(null)}
+          onDone={async (renamed, before) => {
+            setRenameFor(null);
+            await changed(renamed.label !== before ? `Renamed to ${renamed.label}.` : null);
+          }}
+        />
+      )}
+
+      {removeFor && (
+        <RemoveAccountModal
+          account={removeFor}
+          sessions={sessions.filter((session) => session.account_id === removeFor.id)}
+          onClose={() => setRemoveFor(null)}
+          onDone={async (words) => {
+            setRemoveFor(null);
+            await changed(words);
           }}
         />
       )}
@@ -302,11 +361,18 @@ function AccountCard({
   onLogin,
   onLoginRechecked,
   onInspect,
+  onRename,
+  onRemove,
+  onToggleDefault,
   display,
   sessions = [],
   reportsLimits = true,
 }: {
   account: AccountInfo;
+  /** AJ-E1501: the card's menu. */
+  onRename: () => void;
+  onRemove: () => void;
+  onToggleDefault: () => void;
   /** 0.0.11 walk (Q3): its tool reports usage limits (else no limit rows). */
   reportsLimits?: boolean;
   /** D-25: this account's two windows (runway), if measured. */
@@ -328,17 +394,29 @@ function AccountCard({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [useOriginal, setUseOriginal] = useState(false);
   const [envFor, setEnvFor] = useState<string | null>(null);
+  const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
   const onToggleSettings = () => setSettingsOpen((v) => !v);
   const loggedIn = signedIn(account.login_state);
   const loginTone: ChipTone = loggedIn ? "success" : "warning";
   return (
     <Card className="overflow-hidden">
-      <div className="flex flex-wrap items-center gap-2.5 border-b border-hairline px-5 py-3.5">
+      <div
+        className="flex flex-wrap items-center gap-2.5 border-b border-hairline px-5 py-3.5"
+        onContextMenu={(event) => {
+          event.preventDefault();
+          setMenuAt({ x: event.clientX, y: event.clientY });
+        }}
+      >
         <HarnessGlyph provider={account.provider} onClick={onInspect} />
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="truncate text-sm font-semibold">{account.label}</span>
+            <span className="truncate text-sm font-semibold" data-testid="account-label">{account.label}</span>
             {account.plan && <Chip tone="accent">{account.plan}</Chip>}
+            {account.is_default && (
+              <span title="New sessions start with this account, unless a project picks its own" data-testid="account-default">
+                <Chip tone="neutral">Default</Chip>
+              </span>
+            )}
           </div>
           <div className="flex min-w-0 items-center gap-1.5 text-[11px]">
             <span className="truncate text-muted" title={account.import_source_path ?? undefined} data-testid="account-placement">
@@ -379,8 +457,34 @@ function AccountCard({
               </Button>
             </>
           )}
+          {/* AJ-E1501: the row menu (the rail's pattern) — right-click
+              the header, or this button. 24 px: the WCAG 2.2 target. */}
+          <button
+            type="button"
+            aria-label={`Account actions for ${account.label}`}
+            aria-haspopup="menu"
+            aria-expanded={menuAt !== null}
+            data-testid="account-menu"
+            onClick={(event) => setMenuAt(menuPoint(event))}
+            className="flex size-6 items-center justify-center rounded text-[12px] text-muted outline-none transition-colors hover:bg-surface-2 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+          >
+            ⋯
+          </button>
         </div>
       </div>
+      {menuAt && (
+        <RowMenu heading={account.label} ariaLabel={`Actions for ${account.label}`} at={menuAt} onClose={() => setMenuAt(null)}>
+          <MenuItem testId="account-rename" onClick={() => { setMenuAt(null); onRename(); }}>
+            Rename…
+          </MenuItem>
+          <MenuItem testId="account-toggle-default" onClick={() => { setMenuAt(null); onToggleDefault(); }}>
+            {account.is_default ? "Stop being the default" : "Make the default"}
+          </MenuItem>
+          <MenuItem testId="account-remove" danger onClick={() => { setMenuAt(null); onRemove(); }}>
+            Remove…
+          </MenuItem>
+        </RowMenu>
+      )}
 
       {/* D-25: runway lives here and on Home. A tool that doesn't
           report its limits says so once, instead of empty windows. */}
@@ -731,6 +835,3 @@ export function placementWords(account: AccountInfo): string | null {
 }
 
 /** `/Users/<you>/x` → `~/x`, for a line of text. */
-function shortPath(path: string): string {
-  return path.replace(/^\/Users\/[^/]+/, "~").replace(/^\/home\/[^/]+/, "~");
-}

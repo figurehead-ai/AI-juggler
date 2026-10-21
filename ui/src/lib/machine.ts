@@ -6,11 +6,11 @@
  * deterministic fixture; `window.__AIJ_MACHINE__` picks the state
  * ("plenty" | "tight" | "pressure" | "unsampled", or a full payload).
  */
-import { PREVIEW_TOOLS } from "../preview/tools";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { createContext, useContext, useEffect, useState } from "react";
 import { hasLiveBackend, instancesList, type InstanceInfo } from "./bridge";
+import { PREVIEW_OBSERVED } from "../preview/machine";
 import type { MachineAdviceInfo } from "../types/generated/MachineAdviceInfo";
 import type { MachineHealthInfo } from "../types/generated/MachineHealthInfo";
 import type { MachinePointInfo } from "../types/generated/MachinePointInfo";
@@ -205,17 +205,11 @@ function totals(trees: ToolTreeInfo[], cores: number): ToolTotalsInfo {
   };
 }
 
-// The preview's observed tool is the catalog's primary one (the only kind
-// This Mac observes today).
-const MOCK_OBSERVED: ToolTreeInfo[] = [
-  { session_id: null, place: "desktop", tool: PREVIEW_TOOLS[0]!.id, account_label: "Personal", cpu_pct: 14, rss_bytes: 1_600_000_000, helpers: 21, heavy_note: null, memory_estimate: true },
-];
-
 /** The preview's This Mac, derived from the sessions on screen. */
 export function mockThisMac(
   sessions: InstanceInfo[],
   machine: MachineHealthInfo,
-  observed: ToolTreeInfo[] = MOCK_OBSERVED,
+  observed: ToolTreeInfo[] = PREVIEW_OBSERVED,
   leftovers: [number, number] = [0, 0],
   alerts: OverloadAlertInfo[] = [],
   recommendations: string[] = [],

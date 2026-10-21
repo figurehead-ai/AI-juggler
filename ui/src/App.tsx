@@ -1,6 +1,6 @@
-import { ToolMark } from "./components/ToolMark";
+import { ToolChip } from "./components/ToolMark";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Button, Card, Chip } from "./components/primitives";
+import { Button, Card } from "./components/primitives";
 import { WorkflowRail, type Freshness } from "./components/WorkflowRail";
 import { GoToPalette } from "./components/GoToPalette";
 import { PortWarningSheet } from "./components/PortMap";
@@ -8,6 +8,7 @@ import { RecoverySummaryDialog } from "./components/RecoverySummaryDialog";
 import { UsageStatsReconsent } from "./components/UsageStatsReconsent";
 import { CrashReportPrompt } from "./components/CrashReports";
 import { CleanupCentre, focusCleanupFilter } from "./screens/CleanupCentre";
+import { toolFound } from "./lib/providers";
 import { launchPortWarning, type PortWarningInfo,} from "./lib/bridge";
 import { IconJuggler, IconTerminal } from "./components/icons";
 import { AttentionAnnouncer, RenewalAnnouncer } from "./components/indicator";
@@ -333,7 +334,8 @@ export default function App() {
     setAddFresh(fresh);
     void providersDiscover().then(
       (rows) => {
-        const ready = rows.filter((row) => row.status === "installed" || row.status === "unverified");
+        // Found counts, even when its version couldn't be read (0.0.11).
+        const ready = rows.filter(toolFound);
         if (ready.length > 1) setChooseTool(true);
         else setAddAccounts(ready[0]?.provider ?? primaryToolId() ?? "");
       },
@@ -896,10 +898,7 @@ export default function App() {
                 className="rounded-full outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
                 data-testid="context-tool"
               >
-                <Chip tone="accent">
-                  <ToolMark tool={contextProviderId} size={12} />
-                  {contextProvider}
-                </Chip>
+                <ToolChip tool={contextProviderId} tone="accent" />
               </button>
             )}
           </div>
@@ -1023,6 +1022,7 @@ export default function App() {
                 key={accountsNonce}
                 sessions={sessions}
                 onAddAccounts={() => startAddAccount()}
+                onAccountsChanged={() => void refresh()}
                 openTerminal={openLoginTerminal}
                 onInspectAccount={(id) => {
                   setGlobal(null);

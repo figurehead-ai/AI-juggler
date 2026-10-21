@@ -33,7 +33,7 @@
 import { ToolMark } from "../components/ToolMark";
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { Button } from "../components/primitives";
-import { inPlaceProviders, ownSignIn, providerDisplayName, sameAsWords, shortSignIn, supportsInPlace, type InPlaceSupport } from "../lib/providers";
+import { inPlaceProviders, ownSignIn, providerDisplayName, sameAsWords, shortSignIn, supportsInPlace, toolFound, versionUnchecked, type InPlaceSupport } from "../lib/providers";
 import { firstRunToolIds, primaryToolId, toolSpec } from "../lib/tools";
 import { InstallHow } from "../components/InstallHow";
 import { funnelEvent, funnelStep, reasonCode } from "../lib/funnel";
@@ -79,6 +79,12 @@ export function groupsFor(tools: string[]): Group[] {
       showsInstall: group.shows_install,
     })),
   );
+}
+
+/** A group's tool, in its header: its version, or — found but its
+ * version couldn't be read (0.0.11) — that, never "not installed". */
+function cliWords(name: string, row: ProviderInstallData): string {
+  return versionUnchecked(row) ? `${name} found; couldn't check its version` : `${name} ${row.version ?? ""} installed`;
 }
 /** A name for a new account that no account has yet ("Claude Code 2"). */
 export function freeLabel(base: string, taken: string[]): string {
@@ -473,8 +479,8 @@ function FoundStep({
                     <ToolMark tool={group.tool} size={14} className="mr-1.5 inline-flex align-[-2px] text-muted" />
                     {group.title} <span className="font-normal text-faint">· {rows.length}</span>
                   </span>
-                  {group.showsInstall && install && install.status !== "not_installed" && (
-                    <span className="text-faint">{providerDisplayName(group.tool)} {install.version ?? ""} installed</span>
+                  {group.showsInstall && install && toolFound(install) && (
+                    <span className="text-faint" data-testid={`first-run-cli-${group.id}`}>{cliWords(providerDisplayName(group.tool), install)}</span>
                   )}
                 </div>
                 {rows.map((found) => {

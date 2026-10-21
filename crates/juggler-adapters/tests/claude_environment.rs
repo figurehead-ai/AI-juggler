@@ -153,9 +153,16 @@ fn import_copies_state_skips_caches_and_never_touches_source() {
 
     let outcome = import_with_cap(&source, &dest, &logged_in_probe, MAX_IMPORT_BYTES).unwrap();
 
-    // Settings, credentials, and transcripts carried over.
+    // Settings and transcripts carried over; the sign-in never does
+    // (AJ-E1521) — it is listed with why.
     assert!(dest.join("settings.json").is_file());
-    assert!(dest.join(".credentials.json").is_file());
+    assert!(!dest.join(".credentials.json").exists());
+    assert!(
+        outcome
+            .skipped
+            .iter()
+            .any(|s| s.contains(".credentials.json"))
+    );
     assert!(
         dest.join("projects/-users-dev-app/session-1.jsonl")
             .is_file()
@@ -171,13 +178,15 @@ fn import_copies_state_skips_caches_and_never_touches_source() {
     );
     // The managed marker marks the copy as ours.
     assert!(juggler_adapters::claude_code::is_managed_dir(&dest));
-    assert_eq!(outcome.files_copied, 3);
+    assert_eq!(outcome.files_copied, 2);
     assert!(outcome.bytes_copied > 0);
-    // Login carried (file-based credentials) with the matching note.
-    assert_eq!(outcome.login, LoginProbe::LoggedIn);
-    assert_eq!(
-        outcome.login_note.as_deref(),
-        Some("Login carried over with the import.")
+    // Signed in at the source, not in the copy — with the next step.
+    assert_eq!(outcome.login, LoginProbe::LoggedOut);
+    assert!(
+        outcome
+            .login_note
+            .as_deref()
+            .is_some_and(|note| note.contains("Sign in once"))
     );
 
     // The source is byte-identical and unmarked — read-only guarantee.

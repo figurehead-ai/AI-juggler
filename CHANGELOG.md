@@ -138,6 +138,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Opened from Finder, AI Juggler now finds tools installed with npm (like
+  Codex) and can start them: it uses the same PATH as your Terminal, so
+  `node` is found. Before, Add account only offered Claude, and a Codex
+  session or sign-in couldn't start. A tool it finds but whose version it
+  can't read is still offered, marked "Found; couldn't check its
+  version" — never "not installed".
 - A switch that replays a conversation always carries at least its
   newest turn (cut to fit when it alone is too long) and refuses — before
   starting anything — when there is no conversation to carry; each
