@@ -34,9 +34,9 @@ const historyOnly: FixtureSet = {
   ...readyHome,
   projects: [
     project("p1", "ai-juggler", "/Users/dev/Dev/ai-juggler", { history_sessions: 41, accounts_used: ["Work Max", "Personal", "Side"], history_last_used_ms: T0 - 20 * 60_000, repo: "github.com/you/ai-juggler" }),
-    project("p2", "booknyx3", "/Users/dev/Dev/booknyx/booknyx3", { history_sessions: 12, history_last_used_ms: T0 - 26 * H, repo: "github.com/you/booknyx" }),
-    project("p3", "booknyx4", "/Users/dev/Dev/booknyx/booknyx4", { history_sessions: 3, history_last_used_ms: T0 - 50 * H, repo: "github.com/you/booknyx" }),
-    project("p4", "jive-code-graph", "/Users/dev/Dev/jive-code-graph", { history_sessions: 9, history_last_used_ms: T0 - 5 * H }),
+    project("p2", "shopfront3", "/Users/dev/Dev/shopfront/shopfront3", { history_sessions: 12, history_last_used_ms: T0 - 26 * H, repo: "github.com/you/shopfront" }),
+    project("p3", "shopfront4", "/Users/dev/Dev/shopfront/shopfront4", { history_sessions: 3, history_last_used_ms: T0 - 50 * H, repo: "github.com/you/shopfront" }),
+    project("p4", "notes-graph", "/Users/dev/Dev/notes-graph", { history_sessions: 9, history_last_used_ms: T0 - 5 * H }),
     project("p5", "t3-connection-check", "/Users/dev/Documents/scratch/t3-connection-check", { history_sessions: 1, history_last_used_ms: T0 - 9 * 24 * H }),
     project("p6", "notes", "/Users/dev/notes", { history_sessions: 2, history_last_used_ms: T0 - 30 * 24 * H }),
     project("p7", "old-site", "/Users/dev/old-site", { history_sessions: 1, history_last_used_ms: T0 - 90 * 24 * H }),
@@ -77,7 +77,7 @@ for (const theme of ["dark", "light"] as const) {
     // Clones of one repository sit under it.
     const repo = page.getByTestId("rail-repo-group");
     await expect(repo).toHaveCount(1);
-    await expect(repo).toContainText("booknyx");
+    await expect(repo).toContainText("shopfront");
     await expect(repo.getByTestId("rail-history-project")).toHaveCount(2);
     // Five groups, then Show all.
     await expect(page.getByTestId("rail-history-all")).toHaveText("Show all 6");
