@@ -138,6 +138,12 @@
   passed 3/3 alone at the same load and in the full `just verify` re-run
   straight after (load 9.8). Budget and assertion unchanged; CI is the
   arbiter.
+- **Flake record, 2026-10-20 (known class; no change).** In #74's local
+  full gate (E14 review fixes merged with main), `reconciler ::
+  fifty_instance_soak_and_construction_regression` failed once on its
+  wall-time budget (load average about 24, other sessions building). It
+  passed 3/3 alone straight after at the same load. #74 doesn't change
+  the reconciler. Budget and assertion unchanged; CI is the arbiter.
 - a11y seeded failure is recorded DEFERRED with owning task AJ-E804 —
   the gate is named in QUALITY.md vocabulary now; its absence is
   explicit, never a silent pass (per the quarantine/deferral rule).

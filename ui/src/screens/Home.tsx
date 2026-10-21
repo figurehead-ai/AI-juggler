@@ -24,7 +24,7 @@ import { Button } from "../components/primitives";
 import { hueOf } from "../components/indicator";
 import { MorningSummary } from "../components/MorningSummary";
 import { ThisMacPanel } from "../components/ThisMacPanel";
-import { reasonSentence, type ThisMacInfo } from "../lib/machine";
+import { alertSubject, reasonSentence, type ThisMacInfo } from "../lib/machine";
 import { LegendPopover } from "../components/LegendPopover";
 import { parkedWords } from "../lib/parked";
 import {
@@ -328,7 +328,31 @@ export function HomeScreen({
   );
   const heavyIds = new Set(heavy.map((tree) => tree.session_id));
   const calmRunning = running.filter((session) => !heavyIds.has(session.id));
-  const macPressure = thisMac?.machine.sampled && thisMac.machine.summary.level === "pressure" ? thisMac.machine.summary : null;
+  // AJ-E1408: the Mac's own overload alerts (sustained pressure, swap
+  // thrash, a busy or hot Mac, a disk filling) — or, before any has held
+  // long enough, a Mac already under pressure.
+  const machineAlerts = (thisMac?.alerts ?? []).filter((alert) => alert.kind !== "heavy");
+  const nameOfSession = (id: string) => {
+    const session = sessions.find((s) => s.id === id);
+    return session ? placeOf(session, projects).title : null;
+  };
+  const macNeed: { title: string; detail: string; severe: boolean } | null = !thisMac?.machine.sampled
+    ? null
+    : machineAlerts.length > 0
+      ? {
+          title: machineAlerts[0]!.title,
+          detail: [reasonSentence(machineAlerts.map((alert) => alert.detail)), alertSubject(machineAlerts[0]!, nameOfSession)]
+            .filter(Boolean)
+            .join(". "),
+          severe: thisMac.machine.summary.level === "pressure",
+        }
+      : thisMac.machine.summary.level === "pressure"
+        ? {
+            title: "Your Mac is under pressure",
+            detail: reasonSentence(thisMac.machine.summary.reasons.slice(0, 2).map((reason) => reason.words)),
+            severe: true,
+          }
+        : null;
   const signIns = accounts.filter((account) => !signedIn(account.login_state));
   // D-25: Sign in opens the Provider's own sign-in straight away (first run's
   // rule); the row then says where to finish it.
@@ -389,8 +413,8 @@ export function HomeScreen({
       ? sessionNeeds === 1
         ? "1 session needs you"
         : `${sessionNeeds} sessions need you`
-      : macPressure
-        ? "Your Mac is under pressure"
+      : macNeed
+        ? macNeed.title
       : signIns.length > 0
         ? signIns.length === 1
           ? `${signIns[0]!.label} needs its sign-in`
@@ -455,7 +479,7 @@ export function HomeScreen({
 
       <div className="flex flex-wrap gap-6">
         <div className="flex min-w-0 flex-[3_1_420px] flex-col gap-6">
-          {needs.length + signIns.length + heavy.length + (macPressure ? 1 : 0) > 0 && (
+          {needs.length + signIns.length + heavy.length + (macNeed ? 1 : 0) > 0 && (
             <section aria-labelledby="home-needs" className="flex flex-col gap-2.5" data-testid="home-needs">
               <SectionTitle id="home-needs">Needs you</SectionTitle>
               <ul className="flex flex-col gap-2.5">
@@ -481,16 +505,20 @@ export function HomeScreen({
                     </span>
                   </li>
                 ))}
-                {macPressure && (
+                {macNeed && (
                   <li className="flex flex-wrap items-center gap-x-3.5 gap-y-2 rounded-xl border border-hairline bg-surface px-4 py-3.5" data-testid="home-mac-pressure">
-                    <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-danger-soft font-bold text-danger">
-                      ■
+                    <span
+                      aria-hidden="true"
+                      className={
+                        "flex size-8 shrink-0 items-center justify-center rounded-lg font-bold " +
+                        (macNeed.severe ? "bg-danger-soft text-danger" : "bg-warning-soft text-warning")
+                      }
+                    >
+                      {macNeed.severe ? "■" : "▲"}
                     </span>
                     <span className="flex min-w-0 flex-1 basis-40 flex-col gap-0.5">
-                      <span className="text-[15px] font-medium text-ink">Your Mac is under pressure</span>
-                      <span className="text-xs text-muted">
-                        {reasonSentence(macPressure.reasons.slice(0, 2).map((reason) => reason.words))}
-                      </span>
+                      <span className="text-[15px] font-medium text-ink">{macNeed.title}</span>
+                      <span className="text-xs text-muted">{macNeed.detail}</span>
                     </span>
                     <Button
                       size="sm"

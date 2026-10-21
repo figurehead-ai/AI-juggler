@@ -440,6 +440,71 @@ fn session_list_without_filter_returns_all() {
     assert_eq!(all[0].id, session.id);
 }
 
+/// AJ-E1406 review: medians skip short and failed sessions; a deleted
+/// launch setting's or Account's footprints are forgotten.
+#[test]
+fn footprints_skip_short_and_failed_sessions_and_go_with_their_setting() {
+    use juggler_core::storage::Footprint;
+    let storage = Storage::open_in_memory().unwrap();
+    let (account, profile) = seed_chain(&storage);
+    let key = format!("recipe:{}", profile.id);
+    let footprint = |session: &str, rss: u64, duration_ms: i64| Footprint {
+        key: key.clone(),
+        session_id: session.into(),
+        provider: "claude-code".into(),
+        account_id: Some(account.id.to_string()),
+        peak_rss: rss,
+        p95_cpu: None,
+        peak_helpers: 1,
+        duration_ms,
+        recorded_at: 1,
+    };
+    for (id, status) in [
+        ("s-ok", SessionStatus::Finished),
+        ("s-bad", SessionStatus::Failed),
+    ] {
+        let mut session = SessionRecord {
+            id: SessionId::new(id),
+            conversation: None,
+            profile: profile.id.clone(),
+            machine: MachineId::new("this-mac"),
+            kind: juggler_core::model::InstanceKind::Terminal,
+            project: None,
+            cwd: PathBuf::from("/w"),
+            status: SessionStatus::Starting,
+            started_at: Timestamp::from_millis(7),
+            last_activity: None,
+            usage: UsageSnapshot::default(),
+            attention: None,
+            running: None,
+            window: None,
+            transcript_ref: None,
+        };
+        storage.sessions().insert(&session).unwrap();
+        session.status = status;
+        storage.sessions().update(&session).unwrap();
+    }
+    let repo = storage.footprints();
+    repo.record(&footprint("s-ok", 2_000, 600_000)).unwrap();
+    repo.record(&footprint("s-bad", 9_000, 600_000)).unwrap();
+    repo.record(&footprint("s-short", 7_000, 20_000)).unwrap();
+    let stats = repo.stats().unwrap();
+    assert_eq!(stats.len(), 1);
+    assert_eq!(
+        stats[0].count, 1,
+        "the failed and the 20 s session don't count"
+    );
+    assert_eq!(stats[0].median_peak_rss, 2_000);
+    assert_eq!(
+        repo.forget_deleted().unwrap(),
+        0,
+        "its setting still exists"
+    );
+    storage.profiles().delete(&profile.id).unwrap();
+    assert_eq!(repo.forget_deleted().unwrap(), 3);
+    assert!(repo.of_key(&key).unwrap().is_empty());
+}
+
 /// AJ-E1401: the machine sampler's disks-in-use read asks for the folders
 /// of this Mac's sessions that haven't ended — one query, never the whole
 /// history, never another Mac's paths.
@@ -606,8 +671,8 @@ fn v4_database_upgrades_in_place_to_v5_with_identical_values() {
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
     assert_eq!(
-        version, 28,
-        "v4 → current (v28, ADR-0018 in-place accounts) exactly once, on open"
+        version, 29,
+        "v4 → current (v29, AJ-E1406 footprints) exactly once, on open"
     );
 
     let account = storage.accounts().get(&AccountId::new("acc-1")).unwrap();
@@ -634,7 +699,7 @@ fn v4_database_upgrades_in_place_to_v5_with_identical_values() {
         .raw_conn()
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(version, 28);
+    assert_eq!(version, 29);
     assert!(storage.sessions().get(&SessionId::new("sess-1")).is_ok());
 }
 
@@ -1130,8 +1195,8 @@ fn v12_ledger_upgrades_in_place_to_v13() {
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
     assert_eq!(
-        version, 28,
-        "v12 → current (v28, ADR-0018) exactly once, on open"
+        version, 29,
+        "v12 → current (v29, AJ-E1406) exactly once, on open"
     );
     drop(storage);
 

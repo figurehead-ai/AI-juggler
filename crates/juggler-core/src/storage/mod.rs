@@ -19,6 +19,7 @@ mod sessions;
 mod cleanup_audit;
 mod cleanup_settings;
 mod fleet_sync;
+mod footprints;
 mod identity;
 mod process_ledger;
 mod projects;
@@ -38,6 +39,9 @@ pub use cleanup_audit::{
 };
 pub use cleanup_settings::{CleanupSettingsRepo, CleanupTierSettings};
 pub use fleet_sync::{FleetSyncRepo, SyncEntry};
+pub use footprints::{
+    FOOTPRINTS_PER_KEY, Footprint, FootprintStats, FootprintsRepo, MIN_FOOTPRINT_MS,
+};
 pub use identity::{IdentityAssertion, IdentityRepo};
 pub use process_ledger::{
     EXEC_SETTLE_MS, LedgerRow, ProcessLedgerRepo, ROLE_HELPER, ROLE_LOGIN, ROLE_ROOT, STATE_EXITED,
@@ -494,9 +498,26 @@ CREATE TABLE artifact_manifests (
 /// folder where it is. Existing accounts are copies (0).
 const V28: &str = "ALTER TABLE accounts ADD COLUMN in_place INTEGER NOT NULL DEFAULT 0;";
 
+/// v29 (AJ-E1406): footprints — how heavy each launch setting's sessions
+/// really are on this Mac (one row per session, the newest 50 per key).
+const V29: &str = "
+CREATE TABLE footprints (
+    session_id   TEXT PRIMARY KEY,
+    key          TEXT NOT NULL,
+    provider     TEXT NOT NULL,
+    account_id   TEXT,
+    peak_rss     INTEGER NOT NULL,
+    p95_cpu      REAL,
+    peak_helpers INTEGER NOT NULL,
+    duration_ms  INTEGER NOT NULL,
+    recorded_at  INTEGER NOT NULL
+);
+CREATE INDEX idx_footprints_key ON footprints(key, recorded_at);
+";
+
 const MIGRATIONS: &[&str] = &[
     V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21,
-    V22, V23, V24, V25, V26, V27, V28,
+    V22, V23, V24, V25, V26, V27, V28, V29,
 ];
 
 /// How many pre-migration copies (`<file>.before-v<N>`) are kept beside a
@@ -782,6 +803,12 @@ impl Storage {
     #[must_use]
     pub fn identity(&self) -> IdentityRepo<'_> {
         IdentityRepo::new(&self.conn)
+    }
+
+    /// Repository for footprints (schema v29, AJ-E1406).
+    #[must_use]
+    pub fn footprints(&self) -> FootprintsRepo<'_> {
+        FootprintsRepo::new(&self.conn)
     }
 
     /// Repository for Fleet sync (schema v22, AJ-E708): the outbox and

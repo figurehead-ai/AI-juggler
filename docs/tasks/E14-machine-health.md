@@ -116,7 +116,7 @@
 **Research basis**: D-25.
 **Handover note**: The rail is shared with ux-stage4's narrow-rail work; keep the note in one span that folds away when the rail is narrow.
 
-### AJ-E1406 Footprints per launch setting, learned from history | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1401
+### AJ-E1406 Footprints per launch setting, learned from history | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E1401
 **Goal**: AI Juggler learns how heavy each kind of session really is on this Mac.
 **User story**: As a user, the advice I get is based on what my sessions actually used, not a guess.
 **Requirements**:
@@ -132,7 +132,7 @@
 **Research basis**: PROPOSAL §6.5 "per-recipe historical footprints"; SPEC §12 storage.
 **Handover note**: Footprints are local only; they never travel in a backup's shareable parts or in usage stats.
 
-### AJ-E1407 The machine launch advisor in New session | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1401, AJ-E1406
+### AJ-E1407 The machine launch advisor in New session | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E1401, AJ-E1406
 **Goal**: Before starting a session, the user knows whether this Mac can take it.
 **User story**: As a user about to start another session, the sheet tells me "This Mac can take it", "Tight" or "Not now", and why.
 **Requirements**:
@@ -149,11 +149,11 @@
 **Research basis**: PROPOSAL §6.5; SPEC §5.3 admission advisor; AJ-E306's quota verdict (kept separate: quota is the account's room, this is the Mac's).
 **Handover note**: Two verdicts, two questions: "Has this account got room?" and "Has this Mac got room?" Never merge them into one colour.
 
-### AJ-E1408 Runtime overload alerts | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1401, AJ-E1403
+### AJ-E1408 Runtime overload alerts | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E1401, AJ-E1403
 **Goal**: The user hears about overload while it's happening, before the Mac grinds.
 **User story**: As a user deep in work, I get one calm notification when my Mac comes under pressure, with what's using it.
 **Requirements**:
-1. Alerts SHALL fire for: memory pressure warning/critical sustained 30 s; swap growing > 200 MB/min over 2 minutes; whole-Mac CPU > 90 % sustained 2 minutes; thermal serious/critical; a volume in use under 20 GB free; a session's tree crossing the heavy rules (AJ-E1403).
+1. Alerts SHALL fire for: memory pressure warning/critical sustained 30 s; swap growing > 200 MB/min over 2 minutes; whole-Mac CPU > 90 % sustained 2 minutes; thermal serious/critical; a volume in use under 5 GB free (under 20 GB stays a calm word in This Mac); a session's tree crossing the heavy rules (AJ-E1403).
 2. Each alert is a passive notification (the existing notification prefs apply), at most once per kind per 30 minutes, cleared when the condition clears; it names the top contributor in words. No automatic action of any kind.
 3. Alerts SHALL also appear under Home's Needs you while active (AJ-E1404 Req.3).
 4. Heuristics SHALL pass a fixture corpus driven by the fake Provider spawning memory-hog and CPU-hog children (SPEC §12): every alert fires on its fixture, none fires on the calm fixture.
@@ -166,7 +166,7 @@
 **Research basis**: PROPOSAL §6.5 "runtime alerts"; SPEC §5.3; D-08 (no automatic action).
 **Handover note**: The AJ-E512 hog alerts stay the authority for "this session's tree is too heavy"; this task adds the machine-wide ones and feeds both to one place.
 
-### AJ-E1409 Recommendations from real data | Status: TODO | Priority P1 | Effort S | Depends: AJ-E1406
+### AJ-E1409 Recommendations from real data | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: AJ-E1406
 **Goal**: Turn footprints into advice the user can act on.
 **User story**: As a user, I learn how many sessions this Mac comfortably runs and which launch setting is heaviest.
 **Requirements**:
@@ -181,7 +181,7 @@
 **Research basis**: PROPOSAL §6.5 "Advise".
 **Handover note**: Never recommend from fewer than 3 sessions.
 
-### AJ-E1410 Budget proof and the M2 resource-manager gate | Status: TODO | Priority P1 | Effort S | Depends: AJ-E1401..AJ-E1409
+### AJ-E1410 Budget proof and the M2 resource-manager gate | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: AJ-E1401..AJ-E1409
 **Goal**: Show the resource manager meets its SPEC budgets on the reference Mac.
 **User story**: As the maintainer, I can see monitoring costs < 1 % CPU and the advisor's projections land within ±20 %.
 **Requirements**:
