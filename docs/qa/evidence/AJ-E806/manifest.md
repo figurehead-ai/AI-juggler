@@ -144,6 +144,13 @@
   wall-time budget (load average about 24, other sessions building). It
   passed 3/3 alone straight after at the same load. #74 doesn't change
   the reconciler. Budget and assertion unchanged; CI is the arbiter.
+- **Flake record, 2026-10-20 (known class; no change).** In #85's local
+  gate (the menu-bar item), two timing tests missed once at load average
+  about 22. `load_budgets :: monitoring_costs_under_one_percent_of_a_core`
+  missed its CPU budget; it passed 3/3 alone, and that test doesn't run
+  the menu-bar code. Vitest `privacy-card.test.tsx` "renders 12 weeks of
+  reports and a full week of rows in under 200 ms" took 431 ms; it passed
+  3/3 alone. Budgets unchanged; CI is the arbiter.
 - a11y seeded failure is recorded DEFERRED with owning task AJ-E804 —
   the gate is named in QUALITY.md vocabulary now; its absence is
   explicit, never a silent pass (per the quarantine/deferral rule).
