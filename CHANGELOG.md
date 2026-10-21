@@ -138,6 +138,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- First run's "See a live preview of each session" (Screen Recording) no
+  longer stays stuck after you allow it in System Settings. macOS only
+  shows the new answer once AI Juggler reopens, so the card now says so
+  and offers **Reopen AI Juggler**, telling you first if sessions are
+  running. After the reopen, first run comes back to the same step. The
+  page also checks again as soon as you return from System Settings, and
+  it says "Allowed" only once macOS does.
 - Opened from Finder, AI Juggler now finds tools installed with npm (like
   Codex) and can start them: it uses the same PATH as your Terminal, so
   `node` is found. Before, Add account only offered Claude, and a Codex

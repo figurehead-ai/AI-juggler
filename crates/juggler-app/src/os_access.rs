@@ -13,6 +13,12 @@
 //!   focus drives System Events) and the live preview (Screen Recording).
 //!   Local Network is asked for by Fleet when it's turned on, not here.
 //!   Other platforms list nothing yet, and the step is skipped.
+//! - **Screen Recording needs a reopen.** macOS answers the Screen
+//!   Recording check once per process: allowed in System Settings, it
+//!   still reads "not allowed" until AI Juggler reopens (the 0.0.12
+//!   report). Once asked and still not allowed, the entry offers
+//!   [`os_access_reopen`], which relaunches the app (asking first when
+//!   sessions are live). It never says "allowed" before the OS does.
 
 // Tauri command signatures take State/values by value (as in commands.rs).
 #![allow(clippy::needless_pass_by_value)]
@@ -38,7 +44,9 @@ pub struct OsAccessInfo {
     /// `not_asked`.
     pub status: String,
     /// The next action: `prompt` (Allow raises the system dialog) |
-    /// `settings` (only the settings pane can change it now) | `none`.
+    /// `settings` (only the settings pane can change it now) | `reopen`
+    /// (allowed in the settings pane, macOS shows it only after AI
+    /// Juggler reopens; the pane stays offered too) | `none`.
     pub action: String,
     /// A note for after the grant (e.g. "reopen AI Juggler"), when any.
     pub note: Option<String>,
@@ -80,6 +88,79 @@ pub fn status_of(granted: bool, asked_before: bool) -> (&'static str, &'static s
         (true, _) => ("allowed", "none"),
         (false, false) => ("not_asked", "prompt"),
         (false, true) => ("not_allowed", "settings"),
+    }
+}
+
+/// The live preview's entry (Screen Recording), from what the OS reports
+/// and whether AI Juggler asked. macOS's only prompt for it sends the user
+/// to System Settings, and the answer it gives this process doesn't
+/// change until AI Juggler reopens: so once asked, a "no" may be a stale
+/// "yes", and the entry offers the reopen — in words that don't claim it.
+#[must_use]
+pub fn preview_state(
+    granted: bool,
+    asked_before: bool,
+) -> (&'static str, &'static str, Option<&'static str>) {
+    match status_of(granted, asked_before) {
+        ("allowed", action) => ("allowed", action, None),
+        ("not_allowed", _) => ("not_allowed", "reopen", Some(REOPEN_NOTE)),
+        (status, action) => (
+            status,
+            action,
+            Some("macOS may ask you to reopen AI Juggler after you allow it."),
+        ),
+    }
+}
+
+/// The preview entry's words once the user may have allowed it.
+pub const REOPEN_NOTE: &str =
+    "Allowed it in System Settings? macOS needs AI Juggler to reopen to see it.";
+
+/// Why reopening AI Juggler has to be confirmed or wait, when it does.
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct ReopenBlockInfo {
+    /// What reopening now would cut short, in words.
+    pub reason: String,
+    /// True when the user may reopen anyway (live sessions); false when
+    /// it has to wait (a switch or a bring-in under way).
+    pub can_reopen_anyway: bool,
+}
+
+/// What a Reopen click does: relaunch now, or say why not first.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum ReopenDecision {
+    /// Nothing would be cut short, or the user said reopen anyway.
+    Relaunch,
+    /// Ask (or wait) first.
+    Hold(ReopenBlockInfo),
+}
+
+/// The decision for what runs now (`busy`) and whether the user already
+/// said "Reopen anyway". Live sessions can be overridden — a terminal
+/// session ends when AI Juggler quits, so the user hears that first; a
+/// switch or a bring-in can't be cut short.
+#[must_use]
+pub fn reopen_decision(busy: Option<crate::updates::Busy>, anyway: bool) -> ReopenDecision {
+    use crate::updates::Busy;
+    match busy {
+        None => ReopenDecision::Relaunch,
+        Some(Busy::Sessions(_)) if anyway => ReopenDecision::Relaunch,
+        Some(Busy::Sessions(live)) => ReopenDecision::Hold(ReopenBlockInfo {
+            reason: format!(
+                "{live} {} running. Reopening AI Juggler ends the ones in its terminal; sessions in their own app keep running.",
+                if live == 1 {
+                    "session is"
+                } else {
+                    "sessions are"
+                }
+            ),
+            can_reopen_anyway: true,
+        }),
+        Some(other) => ReopenDecision::Hold(ReopenBlockInfo {
+            reason: other.words("Reopen AI Juggler"),
+            can_reopen_anyway: false,
+        }),
     }
 }
 
@@ -143,9 +224,8 @@ mod platform {
         let automation_ok = super::stored_automation(state).unwrap_or(false);
         let focus_granted = accessibility_trusted() && automation_ok;
         let (status, action) = super::status_of(focus_granted, super::asked(state, "focus"));
-        let preview_granted = screen_recording_allowed();
-        let (preview_status, preview_action) =
-            super::status_of(preview_granted, super::asked(state, "preview"));
+        let (preview_status, preview_action, preview_note) =
+            super::preview_state(screen_recording_allowed(), super::asked(state, "preview"));
         vec![
             OsAccessInfo {
                 id: "focus".to_owned(),
@@ -165,8 +245,7 @@ mod platform {
                 system_name: "Screen Recording".to_owned(),
                 status: preview_status.to_owned(),
                 action: preview_action.to_owned(),
-                note: (preview_status != "allowed")
-                    .then(|| "macOS may ask you to reopen AI Juggler after you allow it.".to_owned()),
+                note: preview_note.map(str::to_owned),
             },
         ]
     }
@@ -257,6 +336,26 @@ pub async fn os_access_request(
         })?
 }
 
+/// Reopens AI Juggler so macOS's new Screen Recording answer shows: at
+/// once when nothing would be cut short or `anyway` is set after a live
+/// session warning; otherwise returns why, without relaunching.
+///
+/// # Errors
+///
+/// Returns the typed storage error reading what runs now.
+#[tauri::command]
+pub fn os_access_reopen(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Arc<AppState>>,
+    anyway: bool,
+) -> AppResult<Option<ReopenBlockInfo>> {
+    let now = juggler_core::model::Timestamp::now().millis();
+    match reopen_decision(crate::updates::busy_at(state.inner(), now)?, anyway) {
+        ReopenDecision::Hold(block) => Ok(Some(block)),
+        ReopenDecision::Relaunch => app.restart(),
+    }
+}
+
 /// Opens the settings pane for one entry (the fixed link for that id —
 /// never a caller-supplied URL).
 ///
@@ -308,6 +407,65 @@ mod tests {
             ("not_allowed", "settings"),
             "the system won't ask twice, so the settings pane is the way"
         );
+    }
+
+    /// The 0.0.12 report: allowed in System Settings, the preview card
+    /// never turned to Allowed (macOS answers once per process).
+    #[test]
+    fn the_preview_offers_a_reopen_once_asked_and_says_allowed_only_when_the_os_does() {
+        // Not asked yet: Allow raises the system prompt.
+        let (status, action, note) = preview_state(false, false);
+        assert_eq!((status, action), ("not_asked", "prompt"));
+        assert!(note.is_some_and(|n| n.contains("reopen")));
+        // Asked, back from System Settings, the OS still says no: offer
+        // the reopen, and don't claim it's allowed.
+        assert_eq!(
+            preview_state(false, true),
+            ("not_allowed", "reopen", Some(REOPEN_NOTE))
+        );
+        assert!(REOPEN_NOTE.starts_with("Allowed it in System Settings?"));
+        // After the reopen, the OS says yes: Allowed, nothing to do.
+        assert_eq!(preview_state(true, true), ("allowed", "none", None));
+        assert_eq!(preview_state(true, false), ("allowed", "none", None));
+    }
+
+    #[test]
+    fn reopening_asks_first_when_sessions_are_live_and_waits_for_a_switch() {
+        use crate::updates::Busy;
+        assert_eq!(reopen_decision(None, false), ReopenDecision::Relaunch);
+        let ReopenDecision::Hold(block) = reopen_decision(Some(Busy::Sessions(2)), false) else {
+            panic!("live sessions must be said first");
+        };
+        assert!(block.can_reopen_anyway);
+        assert!(
+            block.reason.starts_with("2 sessions are running."),
+            "{}",
+            block.reason
+        );
+        let ReopenDecision::Hold(one) = reopen_decision(Some(Busy::Sessions(1)), false) else {
+            panic!("one live session must be said first");
+        };
+        assert!(
+            one.reason.starts_with("1 session is running."),
+            "{}",
+            one.reason
+        );
+        assert_eq!(
+            reopen_decision(Some(Busy::Sessions(2)), true),
+            ReopenDecision::Relaunch,
+            "Reopen anyway, after the warning"
+        );
+        for busy in [Busy::Switch, Busy::BringIn] {
+            let ReopenDecision::Hold(block) = reopen_decision(Some(busy), true) else {
+                panic!("{busy:?} can't be cut short, even anyway");
+            };
+            assert!(!block.can_reopen_anyway);
+            assert!(
+                block.reason.contains("Reopen AI Juggler"),
+                "{}",
+                block.reason
+            );
+        }
     }
 
     #[test]

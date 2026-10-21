@@ -7,6 +7,7 @@ import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialo
 import type { AppInfo } from "../types/generated/AppInfo";
 import type { NotificationPrefsInfo } from "../types/generated/NotificationPrefsInfo";
 import type { OsAccessInfo } from "../types/generated/OsAccessInfo";
+import type { ReopenBlockInfo } from "../types/generated/ReopenBlockInfo";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { AccountRemovedInfo } from "../types/generated/AccountRemovedInfo";
 import type { DiscoveredInfo } from "../types/generated/DiscoveredInfo";
@@ -1207,9 +1208,14 @@ export async function notificationPrefsSet(prefs: NotificationPrefsInfo): Promis
 
 /** D-25: what this OS must allow (one entry per thing it makes possible;
  * an empty list means the first-run access step is skipped). */
-export type { OsAccessInfo };
+export type { OsAccessInfo, ReopenBlockInfo };
 const osAccessSeams = () =>
-  window as unknown as { __AIJ_OS_ACCESS__?: OsAccessInfo[]; __AIJ_OS_ACCESS_CALLS__?: string[] };
+  window as unknown as {
+    __AIJ_OS_ACCESS__?: OsAccessInfo[];
+    __AIJ_OS_ACCESS_CALLS__?: string[];
+    /** Test seam: what a Reopen click is told (null = it relaunches). */
+    __AIJ_REOPEN_BLOCK__?: ReopenBlockInfo | null;
+  };
 const MOCK_OS_ACCESS: OsAccessInfo[] = [
   {
     id: "focus",
@@ -1259,6 +1265,20 @@ export async function osAccessOpenSettings(id: string): Promise<void> {
     return;
   }
   await invoke("os_access_open_settings", { id });
+}
+
+/** Reopens AI Juggler (macOS shows a new Screen Recording answer only
+ * then). Resolves with why it has to be confirmed or wait; when nothing
+ * stands in the way (or `anyway` after live sessions) the app relaunches
+ * and this never resolves. */
+export async function osAccessReopen(anyway: boolean): Promise<ReopenBlockInfo | null> {
+  if (!hasBackend) {
+    const seams = osAccessSeams();
+    seams.__AIJ_OS_ACCESS_CALLS__ = [...(seams.__AIJ_OS_ACCESS_CALLS__ ?? []), `reopen:${anyway ? "anyway" : "ask"}`];
+    const block = seams.__AIJ_REOPEN_BLOCK__ ?? null;
+    return anyway && block?.can_reopen_anyway ? null : block;
+  }
+  return invoke<ReopenBlockInfo | null>("os_access_reopen", { anyway });
 }
 
 /** Whether new Accounts start with left-behind dev servers tidied (D-08:

@@ -51,7 +51,7 @@ let boardInteractiveCounted = false;
 import { ProfilesScreen } from "./screens/Profiles";
 import { History } from "./screens/History";
 import { AddProviderSheet } from "./screens/AddProviderSheet";
-import { FirstRun } from "./screens/FirstRun";
+import { FirstRun, takeResumeAccess } from "./screens/FirstRun";
 import { HomeScreen } from "./screens/Home";
 import { UsageScreen } from "./screens/Usage";
 import { LimitDialog } from "./components/LimitDialog";
@@ -377,6 +377,7 @@ export default function App() {
   // D-25: a fresh install opens on first run (what's here → sign in →
   // computer access); a fresh account and a folder import are its steps.
   const [firstRun, setFirstRun] = useState(false);
+  const [firstRunAtAccess, setFirstRunAtAccess] = useState(false);
   // AJ-E305 flow (b): the New project sheet. Null = closed; a string
   // pre-selects that directory (the Summary's Start here).
   const [newProjectDir, setNewProjectDir] = useState<string | null>(null);
@@ -411,8 +412,14 @@ export default function App() {
   }, []);
 
   // First run: zero accounts → first run opens by itself (spec §12.1,
-  // D-25), once per dismissal.
+  // D-25), once per dismissal. After Reopen AI Juggler (Screen Recording,
+  // the 0.0.12 report) it comes back at its access step, whatever else.
   useEffect(() => {
+    if (takeResumeAccess()) {
+      setFirstRunAtAccess(true);
+      setFirstRun(true);
+      return;
+    }
     if (localStorage.getItem("aij.onboarding.dismissed") === "1") return;
     void accountsList().then((accounts) => {
       if (accounts.length === 0) setFirstRun(true);
@@ -1258,9 +1265,11 @@ export default function App() {
 
       {firstRun && (
         <FirstRun
+          resumeAtAccess={firstRunAtAccess}
           openLoginTerminal={openLoginTerminal}
           onDone={() => {
             localStorage.setItem("aij.onboarding.dismissed", "1");
+            setFirstRunAtAccess(false);
             setFirstRun(false);
             void refresh();
           }}

@@ -47,6 +47,7 @@ import {
   errorText,
   osAccessList,
   osAccessOpenSettings,
+  osAccessReopen,
   osAccessRequest,
   providersCapabilities,
   providersDiscover,
@@ -54,6 +55,7 @@ import {
   terminalSpawnLogin,
   type DiscoveredInfo,
   type OsAccessInfo,
+  type ReopenBlockInfo,
   type SourceInspectInfo,
   type ProviderInstallData,
   type ScanReportData,
@@ -933,6 +935,30 @@ function SigninStep({
   );
 }
 
+/** The 0.0.12 report: after Reopen AI Juggler, first run comes back at
+ * the access step (a one-time marker, read once at start). */
+export const RESUME_ACCESS_KEY = "aij.firstRun.resumeAccess";
+
+/** True once if the last session left first run to reopen the app. */
+export function takeResumeAccess(): boolean {
+  try {
+    const resume = localStorage.getItem(RESUME_ACCESS_KEY) === "1";
+    localStorage.removeItem(RESUME_ACCESS_KEY);
+    return resume;
+  } catch {
+    return false;
+  }
+}
+
+function markResumeAccess(on: boolean): void {
+  try {
+    if (on) localStorage.setItem(RESUME_ACCESS_KEY, "1");
+    else localStorage.removeItem(RESUME_ACCESS_KEY);
+  } catch {
+    // Without storage the reopen still works; first run just starts over.
+  }
+}
+
 function AccessStep({
   entries,
   setEntries,
@@ -943,13 +969,43 @@ function AccessStep({
   onDone: () => void;
 }): JSX.Element {
   const [error, setError] = useState<string | null>(null);
-  // Polled while open: an entry flips the moment the system dialog says yes.
+  // Why a Reopen has to be confirmed or wait, under the card that asked.
+  const [reopenBlock, setReopenBlock] = useState<ReopenBlockInfo | null>(null);
+  // Polled while open, and checked again the moment the window is back
+  // (the user returns from System Settings): an entry flips as soon as
+  // the OS says yes.
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      void osAccessList().then(setEntries, () => null);
-    }, 1500);
-    return () => window.clearInterval(timer);
+    const check = () => void osAccessList().then(setEntries, () => null);
+    const timer = window.setInterval(check, 1500);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") check();
+    };
+    window.addEventListener("focus", check);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", check);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [setEntries]);
+  // Reopen AI Juggler: first run comes back here after the relaunch.
+  // Live sessions are said first; a switch or a bring-in makes it wait.
+  const reopen = (anyway: boolean) => {
+    setError(null);
+    markResumeAccess(true);
+    void osAccessReopen(anyway).then(
+      (block) => {
+        if (block) {
+          markResumeAccess(false);
+          setReopenBlock(block);
+        }
+      },
+      (cause) => {
+        markResumeAccess(false);
+        setError(errorText(cause));
+      },
+    );
+  };
   const allow = (entry: OsAccessInfo) => {
     setError(null);
     const step =
@@ -986,13 +1042,37 @@ function AccessStep({
               <span className="text-sm leading-relaxed text-muted">
                 {entry.why} <span className="text-faint">The system calls this {entry.system_name}.</span>
               </span>
-              {entry.note && entry.status !== "allowed" && <span className="text-xs text-faint">{entry.note}</span>}
+              {entry.note && entry.status !== "allowed" && (
+                <span className={entry.action === "reopen" ? "text-sm text-ink" : "text-xs text-faint"}>{entry.note}</span>
+              )}
+              {entry.action === "reopen" && reopenBlock && (
+                <div className="mt-2 flex flex-wrap items-center gap-3 text-sm" role="alert" data-testid="first-run-access-reopen-block">
+                  <span className="text-ink">{reopenBlock.reason}</span>
+                  {reopenBlock.can_reopen_anyway && (
+                    <Button size="sm" variant="secondary" onClick={() => reopen(true)}>
+                      Reopen anyway
+                    </Button>
+                  )}
+                  <button type="button" className="text-sm text-muted hover:text-ink hover:underline" onClick={() => setReopenBlock(null)}>
+                    Not now
+                  </button>
+                </div>
+              )}
             </div>
             {entry.status === "allowed" ? (
               <span className="flex items-center gap-1.5 text-sm font-medium text-success" role="status">
                 <Check />
                 Allowed
               </span>
+            ) : entry.action === "reopen" ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <Button variant="secondary" onClick={() => allow({ ...entry, action: "settings" })}>
+                  Open System Settings <span className="sr-only">{entry.title}</span>
+                </Button>
+                <Button variant="primary" onClick={() => reopen(false)} data-testid="first-run-access-reopen">
+                  Reopen AI Juggler
+                </Button>
+              </div>
             ) : (
               <Button variant={entry.action === "settings" ? "secondary" : "primary"} onClick={() => allow(entry)}>
                 {entry.action === "settings" ? "Open System Settings" : "Allow"}{" "}
@@ -1317,6 +1397,7 @@ export function FirstRun({
   onAccountsChanged,
   mode = "first-run",
   provider,
+  resumeAtAccess = false,
 }: {
   /** First run is over: Home. */
   onDone: () => void;
@@ -1330,8 +1411,10 @@ export function FirstRun({
   /** An account was created or brought in (the caller refreshes). */
   onAccountsChanged?: () => void;
   openLoginTerminal: (id: string, title: string) => void;
+  /** Back after Reopen AI Juggler: start at the access step. */
+  resumeAtAccess?: boolean;
 }): JSX.Element {
-  const [step, setStep] = useState<Step>("found");
+  const [step, setStep] = useState<Step>(resumeAtAccess ? "access" : "found");
   const [folder, setFolder] = useState<string | null>(null);
   const [taken, setTaken] = useState<string[] | null>(null);
   // AJ-E1301: adding names its tool; first run on a fresh install brings
