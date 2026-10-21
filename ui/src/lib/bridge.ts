@@ -1485,6 +1485,8 @@ export interface CostRollupsData {
 /** AJ-E611: one ranked (or filtered) account row. */
 export interface RankedRowData {
   account: string;
+  /** The account's name (rows never show the id). */
+  account_label: string;
   score: number | null;
   filtered_reason: string | null;
   top_factors: string[];

@@ -743,6 +743,8 @@ fn codex_reported_windows(
 pub struct RankedRowInfo {
     /// Account id.
     pub account: String,
+    /// The account's name as the user gave it (rows never show the id).
+    pub account_label: String,
     /// The weighted score, when the account survived the hard filters.
     pub score: Option<f64>,
     /// The hard filter's reason (greyed row copy).
@@ -1021,9 +1023,14 @@ fn rank_candidates_for(
         .enumerate()
         .map(|(index, row)| {
             let tte = tte_by_account.get(&row.account).copied().flatten();
+            let account_label = accounts
+                .iter()
+                .find(|account| account.id.as_str() == row.account)
+                .map_or_else(|| row.account.clone(), |account| account.label.clone());
             let admission = admission_by_account.get(&row.account).cloned().flatten();
             RankedRowInfo {
                 account: row.account,
+                account_label,
                 score: row.score,
                 filtered_reason: row.filtered_reason,
                 top_factors: row.top_factors,

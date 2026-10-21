@@ -46,6 +46,13 @@ export function asOfWords(ms: number, now: number = Date.now()): string {
   return `as of ${new Date(ms).toLocaleDateString([], { month: "short", day: "numeric" })}`;
 }
 
+/** When an account runs out at this pace, with its basis — or that there
+ * isn't enough use to say, never "≈0 min" (QA, P26: a null forecast read
+ * as "exhausts ≈0 min · Estimate" on every row). */
+export function forecastWords(tteMin: number | null, confidence: string): string {
+  return tteMin != null ? `exhausts ≈${Math.round(tteMin)} min · ${confidence}` : "Not enough use to forecast";
+}
+
 /** The reset in words, when one is known. */
 export function resetWords(window: WindowDisplay | null | undefined): string | null {
   if (window?.resets_at_ms == null) return null;
