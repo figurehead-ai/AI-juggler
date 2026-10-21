@@ -30,6 +30,8 @@ struct WriteOptions {
     session_id: String,
     every_ms: u64,
     used: (f64, f64),
+    /// The first thing the user asks (a fresh session's title).
+    ask: Option<String>,
 }
 
 fn parse(args: &[String]) -> Result<WriteOptions, String> {
@@ -40,6 +42,7 @@ fn parse(args: &[String]) -> Result<WriteOptions, String> {
         session_id: String::new(),
         every_ms: 4000,
         used: (0.0, 0.0),
+        ask: None,
     };
     let mut i = 0;
     while i < args.len() {
@@ -53,6 +56,7 @@ fn parse(args: &[String]) -> Result<WriteOptions, String> {
             "--file" => opts.file = PathBuf::from(value(i + 1)?),
             "--cwd" => opts.cwd = value(i + 1)?,
             "--session-id" => opts.session_id = value(i + 1)?,
+            "--ask" => opts.ask = Some(value(i + 1)?),
             "--every-ms" => {
                 opts.every_ms = value(i + 1)?
                     .parse()
@@ -112,8 +116,9 @@ fn claude_lines(
 ) -> Vec<serde_json::Value> {
     let at = stamp(now_secs());
     let mut out = Vec::new();
+    let ask = if turn == 0 { opts.ask.as_deref() } else { None };
     for (kind, text) in [
-        ("user", "Keep going (replica)."),
+        ("user", ask.unwrap_or("Keep going (replica).")),
         ("assistant", "Done (replica)."),
     ] {
         let uuid = format!("{}-{turn}-{kind}", opts.session_id);
@@ -154,6 +159,14 @@ fn codex_lines(opts: &WriteOptions, turn: u64) -> Vec<serde_json::Value> {
         "output_tokens": 250, "reasoning_output_tokens": 60, "total_tokens": 4250 + turn * 11});
     out.push(serde_json::json!({"timestamp": at, "type": "turn_context",
         "payload": {"cwd": opts.cwd, "model": "gpt-5-codex"}}));
+    if turn == 0
+        && let Some(ask) = &opts.ask
+    {
+        out.push(
+            serde_json::json!({"timestamp": at, "type": "response_item", "payload": {
+            "type": "message", "role": "user", "content": [{"type": "input_text", "text": ask}]}}),
+        );
+    }
     out.push(serde_json::json!({"timestamp": at, "type": "token_usage_record", "payload": {"usage": usage}}));
     out.push(serde_json::json!({"timestamp": at, "type": "event_msg", "payload": {
         "type": "token_count", "info": {"total_token_usage": usage, "last_token_usage": usage},

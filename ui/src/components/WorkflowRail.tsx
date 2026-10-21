@@ -41,6 +41,10 @@ import {
 import { Button } from "./primitives";
 import { sessionTitle, useProjectManage, useSessionManage } from "./ManageWork";
 import { ActionHostProvider, useItemMenu } from "./ItemMenu";
+import { OutsideRows, outsideScope, railSlice, withOutsideGroups } from "./OutsideConversations";
+import { FilterChip, Select } from "./RailControls";
+import { liveOutside, useConversations } from "../lib/conversations";
+import { ago } from "../lib/time-words";
 import type { ActionHost } from "../lib/actions";
 import {
   AccountDisc,
@@ -388,6 +392,7 @@ export function InstanceBoard({
   const remoteShown = hasRemote
     ? remoteMachines.filter((machine) => machineChoice === "all" || machineChoice === machine.machine_id)
     : [];
+  const { all: conversations } = useConversations();
   // AJ-E1502/E1537: rows name, pin and tidy through the action registry.
   const sessionManage = useSessionManage(onChanged);
   const projectManage = useProjectManage(onChanged);
@@ -422,11 +427,15 @@ export function InstanceBoard({
   // group only when the user picked a Group-by.
   const effectiveGroup: GroupBy | "quota-data" =
     sort === "quota" && group === "none" ? "quota-data" : group;
-  const groups =
+  const sessionGroups =
     effectiveGroup === "quota-data"
       ? quotaDataGroups(sorted)
       : groupSessions(sorted, effectiveGroup === "none" ? "none" : effectiveGroup, projects);
-  const counts = chipCounts(sessions);
+  // AJ-E1529: sessions started outside AI Juggler show under their project.
+  const scope = effectiveGroup === "project" ? outsideScope(filters, query) : "none";
+  const groups = withOutsideGroups(sessionGroups, conversations, projects, scope);
+  // AJ-E1529: the Running chip counts sessions started outside AI Juggler.
+  const counts = { ...chipCounts(sessions), running: chipCounts(sessions).running + liveOutside(conversations).length };
   // D-25: a project with no sessions still has a place in the rail (one
   // click opens it) — in the plain project view, not while filtering.
   const quiet =
@@ -436,7 +445,7 @@ export function InstanceBoard({
     filters.account === null &&
     filters.project === null &&
     query.trim() === "";
-  const idleProjects = quiet && onSelectProject ? projects.filter((p) => !sessions.some((row) => row.project_id === p.id)) : [];
+  const idleProjects = quiet && onSelectProject ? projects.filter((p) => !groups.some((group) => group.id === p.id)) : [];
 
   // Windowing (Req.7): only the flat, ungrouped list virtualises — the
   // 200-row scale is ungrouped monitoring; grouped triage views stay
@@ -658,7 +667,7 @@ export function InstanceBoard({
         )}
         {!showLocal ? null : loading && sessions.length === 0 ? (
           <RowPlaceholders shape="rail" rows={4} label="Loading sessions" />
-        ) : sorted.length === 0 ? (
+        ) : sorted.length === 0 && idleProjects.length === 0 && !groups.some((g) => railSlice(conversations, g.id, scope).shown.length > 0) ? (
           sessions.length === 0 ? (
             /* D-25: empty means "start here" — the legend lives behind
                the footer's "?". */
@@ -718,7 +727,7 @@ export function InstanceBoard({
                       project={projects.find((p) => p.id === entry.id)!}
                       label={entry.label}
                       rollup={entry.rollup}
-                      count={entry.rows.length}
+                      count={entry.rows.length + railSlice(conversations, entry.id, scope).shown.length}
                       onSelect={() => onSelectProject(entry.id)}
                     >
                       {folded.has(entry.id) && <FoldedNeeds rows={entry.rows} snooze={snooze} now={now} />}
@@ -751,6 +760,7 @@ export function InstanceBoard({
                   snooze={snooze}
                   />
               ))}
+              <OutsideRows projectId={entry.id} selectedId={selectedId} density={effectiveDensity} now={now} scope={scope} />
               </div>
             </div>
           ))
@@ -900,13 +910,6 @@ function BoardRow({
 // D-25: the state words live in indicator.tsx (shared with the legend).
 const RAIL_STATE = STATE_WORDS;
 
-function ago(ms: number, now: number): string {
-  const m = Math.max(0, Math.round((now - ms) / 60_000));
-  if (m < 1) return "now";
-  if (m < 60) return `${m} min`;
-  const h = Math.floor(m / 60);
-  return h < 24 ? `${h} h` : `${Math.floor(h / 24)} d`;
-}
 
 /**
  * D-25 — the rail row: a state shape, what it is (the branch, else the
@@ -1040,49 +1043,6 @@ export function RailRow({
   );
 }
 
-function FilterChip({ active, onClick, count, children }: { active: boolean; onClick: () => void; count?: number; children: ReactNode }) {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      className={
-        "whitespace-nowrap rounded-full border px-1.5 py-0.5 text-[10px] font-medium transition-colors outline-none focus-visible:ring-1 focus-visible:ring-accent/60 " +
-        (active
-          ? "border-accent/40 bg-accent-soft text-accent-hi"
-          : "border-hairline text-muted hover:bg-surface hover:text-ink")
-      }
-    >
-      {children}
-      {/* The name is what's shown (WCAG 2.5.3): "Needs me 5 items". */}
-      {/* D-25: a zero count says nothing — only real counts show. */}
-      {count !== undefined && count > 0 && (
-        <>
-          {" "}
-          <span className="tabular-nums opacity-80">{count}</span>
-          {" "}<span className="sr-only">items</span>
-        </>
-      )}
-    </button>
-  );
-}
-
-function Select({ ariaLabel, value, onChange, options }: { ariaLabel: string; value: string; onChange: (value: string) => void; options: { value: string; label: string }[] }) {
-  return (
-    <select
-      aria-label={ariaLabel}
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      className="min-w-0 max-w-full truncate rounded-lg border border-hairline bg-surface/70 px-1.5 py-1 text-[10px] text-muted outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
-    >
-      {options.map((option) => (
-        <option key={option.value} value={option.value}>
-          {option.label}
-        </option>
-      ))}
-    </select>
-  );
-}
 
 /** Whether anything behind Filters narrows or reorders the list. */
 function narrowed(filters: ChipFilters, sort: SortMode, group: GroupBy, machine: string): boolean {

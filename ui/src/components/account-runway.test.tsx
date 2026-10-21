@@ -6,7 +6,8 @@
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { AccountRunway, paceWords, runwayLines, windowLine } from "./AccountRunway";
-import { activityWords, bestForNewWork, placementWords } from "../screens/Profiles";
+import { bestForNewWork, placementWords } from "../screens/Profiles";
+import { activityWords } from "../lib/account-words";
 import type { AccountInfo, InstanceInfo, QuotaDisplayData } from "../lib/bridge";
 
 afterEach(cleanup);

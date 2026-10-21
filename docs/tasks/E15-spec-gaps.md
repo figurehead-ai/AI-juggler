@@ -283,7 +283,7 @@ walk alone isn't enough.
 **Files to touch**: `scripts/replica.py`, `crates/juggler-adapters/src/bin/fake_harness.rs` (the `write` mode), `justfile`.
 **Handover note**: Never point it at a real HOME. Real-data checks are the QA session's, read-only, with redacted counts.
 
-### AJ-E1529 Sessions started outside AI Juggler | Status: TODO | Priority P0 | Effort L | Depends: AJ-E1531, AJ-E1502
+### AJ-E1529 Sessions started outside AI Juggler | Status: IN-REVIEW | Priority P0 | Effort L | Depends: AJ-E1531, AJ-E1502
 **Goal**: The rail shows every session on each account, not only the ones AI Juggler started.
 **User story**: As someone with six sessions open across my accounts, I open AI Juggler and see all of them, live ones first, under their projects.
 **Requirements** (the maintainer's real-setup test, 2026-10-21):

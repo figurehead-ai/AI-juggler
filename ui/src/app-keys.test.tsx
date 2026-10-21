@@ -6,6 +6,7 @@
  * field or the terminal; ⌘ ones still work, except those a field owns).
  */
 import appSource from "./App.tsx?raw";
+import appKeysSource from "./lib/app-keys.ts?raw";
 import homeSource from "./screens/Home.tsx?raw";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -55,7 +56,7 @@ describe("AJ-E1504 the ? sheet", () => {
   // The anti-drift rule: App and Home test keys only through the
   // registry, so a key can't work without being on the sheet.
   it("App and Home read no key by hand", () => {
-    for (const [file, source] of [["App.tsx", appSource], ["screens/Home.tsx", homeSource]] as const) {
+    for (const [file, source] of [["App.tsx", appSource], ["lib/app-keys.ts", appKeysSource], ["screens/Home.tsx", homeSource]] as const) {
       // Esc closing a menu is the registry's "close" (handled natively).
       expect(source, file).not.toMatch(/event\.key(\.toLowerCase\(\))?\s*===\s*"(?!Escape")/);
       expect(source, file).not.toMatch(/(metaKey|ctrlKey)\s*(\|\||&&)/);

@@ -170,6 +170,18 @@ replica-oracle:
     HOME={{replica_home}} python3 -I scripts/qa/real_truth.py "${dirs[@]}" --compare "$work/harness.json"
     rm -rf "$work"
 
+# The replica as the UI's Playwright fixture, made by the backend's readers.
+replica-fixture:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cargo test -q -p juggler-app --test qa_real_readonly --no-run 2> /dev/null
+    bin=$(ls -t {{target_dir}}/debug/deps/qa_real_readonly-* | grep -v '\.d$' | sed -n 1p)
+    work=$(mktemp -d)
+    env -i HOME={{replica_home}} USER="$USER" TMPDIR="$TMPDIR" PATH=/usr/bin:/bin:/usr/sbin:/sbin \
+        AIJ_QA_REAL_DATA="$work/data" AIJ_QA_REAL_OUT="$work/harness.json" "$bin" --ignored --nocapture > "$work/harness.log" 2>&1
+    python3 -I scripts/qa/replica_fixture.py "$work/harness.json" ui/tests/visual/fixtures/replica.json
+    rm -rf "$work"
+
 # Cargo, rustup and corepack keep their own homes while HOME is the replica.
 # Run AI Juggler Dev on the replica HOME.
 replica-walk: dev-icon

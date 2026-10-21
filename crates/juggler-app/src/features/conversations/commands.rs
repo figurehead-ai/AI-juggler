@@ -95,3 +95,41 @@ pub async fn conversations_list(
 ) -> AppResult<Vec<ConversationInfo>> {
     crate::ipc::blocking(state.inner(), "the conversations", list_impl).await
 }
+
+/// The copyable resume line for a conversation started outside AI Juggler
+/// (its account's and its own ids; nothing else from the UI).
+///
+/// # Errors
+///
+/// As [`super::resume_command_impl`].
+#[tauri::command]
+pub async fn conversations_resume_command(
+    state: tauri::State<'_, Arc<AppState>>,
+    account_id: String,
+    conversation_id: String,
+) -> AppResult<String> {
+    crate::ipc::blocking(state.inner(), "the resume command", move |state| {
+        super::resume_command_impl(state, &account_id, &conversation_id)
+    })
+    .await
+}
+
+/// "Continue in AI Juggler" on a conversation started outside it.
+///
+/// # Errors
+///
+/// As [`super::continue_impl`].
+#[tauri::command]
+pub async fn conversations_continue(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Arc<AppState>>,
+    account_id: String,
+    conversation_id: String,
+) -> AppResult<crate::commands::LaunchResult> {
+    let result = crate::ipc::blocking(state.inner(), "continuing the conversation", move |state| {
+        super::continue_impl(state, &account_id, &conversation_id)
+    })
+    .await?;
+    crate::commands::emit_sessions(&app, state.inner())?;
+    Ok(result)
+}

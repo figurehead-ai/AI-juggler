@@ -121,6 +121,11 @@ fn real_setup_read_models() {
         serde_json::to_value(&projects_before).unwrap(),
     );
     report.insert("projects_backfilled".into(), backfilled.into());
+    // AJ-E1529: the accounts as the UI reads them (the replica fixture).
+    report.insert(
+        "accounts_info".into(),
+        serde_json::to_value(commands::accounts_info(&state).unwrap()).unwrap(),
+    );
     // AJ-E1529: every account's conversations, and which are live.
     juggler_app::features::conversations::tick(&state).unwrap();
     report.insert(

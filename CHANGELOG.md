@@ -243,6 +243,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   you and the tool. Two ways in, **Find my accounts** and **Add a fresh
   account**, and a short "How it works". Usage and Fleet point back to
   it while no account is in.
+- **Sessions started outside AI Juggler** (AJ-E1529). Every account's
+  conversations now show, the ones you started in your own terminal or
+  app too: under their project in the list (live ones first, with a
+  quiet "outside AI Juggler" mark), on Home, in each account's running
+  count and in the go-to palette. Open one to see where it ran and on
+  which account, then continue it in AI Juggler or copy the command that
+  resumes it. Removed and pruned worktrees fold into their repository
+  instead of showing as moved projects, and Codex conversations count
+  too. AI Juggler never stops or changes what it didn't start.
 - **Right-click menus** (AJ-E1537). Right-click a session, a project, an
   account, a history entry or a line on This Mac for its actions, in the
   Mac's own menu. The same menu opens from the row's ⋯ button, a page's

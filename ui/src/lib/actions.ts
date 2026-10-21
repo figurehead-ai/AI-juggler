@@ -12,8 +12,12 @@
  */
 import type { AccountInfo, InstanceInfo, ProjectInfo } from "./bridge";
 import { SHORTCUTS, type ShortcutId } from "./shortcuts";
+import type { ActionHost } from "./action-host";
+
+export type { ActionHost };
 import type { ToolSpecInfo } from "../types/generated/ToolSpecInfo";
 import type { ToolTreeInfo } from "../types/generated/ToolTreeInfo";
+import type { ConversationInfo } from "../types/generated/ConversationInfo";
 
 /** The things that have a menu, and what each one is. */
 export interface ItemOf {
@@ -23,63 +27,10 @@ export interface ItemOf {
   tool: ToolSpecInfo;
   history: InstanceInfo;
   "this-mac": ToolTreeInfo;
+  /** AJ-E1529: a conversation AI Juggler didn't start. */
+  conversation: ConversationInfo;
 }
 export type ItemKind = keyof ItemOf;
-
-/** What the screens can do, by item type. Each piece is optional: the
- * screen that owns it provides it (an `ActionHostProvider`). */
-export interface ActionHost {
-  // Sessions
-  openSession?: (row: InstanceInfo) => void;
-  focusSession?: (row: InstanceInfo) => void | Promise<void>;
-  continueSession?: (row: InstanceInfo) => void;
-  renameSession?: (row: InstanceInfo) => void;
-  pinSession?: (row: InstanceInfo) => void | Promise<void>;
-  copyResumeCommand?: (row: InstanceInfo) => void | Promise<void>;
-  revealSessionProject?: (row: InstanceInfo) => void;
-  stopSession?: (row: InstanceInfo) => void;
-  /** The rail's attention controls (snooze, mute). */
-  snoozeSession?: (row: InstanceInfo, ms: number | null) => void;
-  muteSession?: (row: InstanceInfo) => void;
-  unsnoozeSession?: (row: InstanceInfo) => void;
-  isSnoozed?: (row: InstanceInfo) => boolean;
-  // Projects
-  openProject?: (project: ProjectInfo) => void;
-  newSessionIn?: (project: ProjectInfo) => void;
-  openProjectIn?: (project: ProjectInfo, how: "editor" | "finder") => void | Promise<void>;
-  /** The editor projects open in, when one is chosen (Settings). */
-  editorName?: () => string | null;
-  copyProjectPath?: (project: ProjectInfo) => void | Promise<void>;
-  renameProject?: (project: ProjectInfo) => void;
-  pinProject?: (project: ProjectInfo) => void | Promise<void>;
-  relocateProject?: (project: ProjectInfo) => void | Promise<void>;
-  forgetProject?: (project: ProjectInfo) => void;
-  setProjectAccount?: (project: ProjectInfo) => void;
-  // Accounts
-  openAccount?: (account: AccountInfo) => void;
-  startSessionOn?: (account: AccountInfo) => void;
-  /** Why a session can't start on it now (`null`: it can). */
-  startBlockedWhy?: (account: AccountInfo) => string | null;
-  signIn?: (account: AccountInfo) => void;
-  editLaunchSettings?: (account: AccountInfo) => void;
-  renameAccount?: (account: AccountInfo) => void;
-  toggleDefaultAccount?: (account: AccountInfo) => void;
-  removeAccount?: (account: AccountInfo) => void;
-  // Tools
-  openTool?: (tool: ToolSpecInfo) => void;
-  copyUpdateCommand?: (tool: ToolSpecInfo) => void | Promise<void>;
-  toolAccounts?: (tool: ToolSpecInfo) => void;
-  // History
-  openHistory?: (row: InstanceInfo) => void;
-  replay?: (row: InstanceInfo) => void;
-  continueHistory?: (row: InstanceInfo) => void;
-  archive?: (row: InstanceInfo) => void | Promise<void>;
-  unarchive?: (row: InstanceInfo) => void | Promise<void>;
-  isArchived?: (row: InstanceInfo) => boolean;
-  deleteHistory?: (row: InstanceInfo) => void;
-  // This Mac
-  openSessionById?: (id: string) => void;
-}
 
 export type ActionGroup = "main" | "attention" | "destructive";
 
@@ -337,6 +288,34 @@ const THIS_MAC: ActionSpec<"this-mac">[] = [
   },
 ];
 
+// D-08: one AI Juggler didn't start is read-only; it can be carried in
+// ("Continue in AI Juggler"), never stopped or tidied from here.
+const CONVERSATION: ActionSpec<"conversation">[] = [
+  { id: "open", label: "Open", group: "main", applies: (_, h) => has(h.openConversation), run: (c, h) => h.openConversation!(c) },
+  {
+    id: "continue",
+    label: "Continue in AI Juggler",
+    group: "main",
+    applies: (_, h) => has(h.continueConversation),
+    blocked: (c) => (c.live ? "It's open in another session now" : null),
+    run: (c, h) => h.continueConversation!(c),
+  },
+  {
+    id: "copy-resume",
+    label: "Copy resume command",
+    group: "main",
+    applies: (_, h) => has(h.copyConversationResume),
+    run: (c, h) => h.copyConversationResume!(c),
+  },
+  {
+    id: "reveal-project",
+    label: "Show its project",
+    group: "main",
+    applies: (c, h) => has(h.openProjectById) && c.project_id !== null,
+    run: (c, h) => h.openProjectById!(c.project_id!),
+  },
+];
+
 const REGISTRY: { [K in ItemKind]: ActionSpec<K>[] } = {
   session: SESSION,
   project: PROJECT,
@@ -344,6 +323,7 @@ const REGISTRY: { [K in ItemKind]: ActionSpec<K>[] } = {
   tool: TOOL,
   history: HISTORY,
   "this-mac": THIS_MAC,
+  conversation: CONVERSATION,
 };
 
 /** The registry's declarations for one type (tests read them). */

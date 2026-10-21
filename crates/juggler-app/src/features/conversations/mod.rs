@@ -189,3 +189,134 @@ pub fn refresh_impl(state: &Arc<AppState>) -> AppResult<bool> {
     files.retain(|path, _| seen.contains(path));
     Ok(changed || files.len() != before)
 }
+
+/// The conversation `id` on `account_id`, from the index.
+fn find(state: &Arc<AppState>, account_id: &str, id: &str) -> AppResult<Conversation> {
+    state
+        .conversations
+        .all()?
+        .into_iter()
+        .find(|conversation| conversation.account_id == account_id && conversation.summary.id == id)
+        .ok_or_else(|| AppError::Refused("that conversation isn't there any more".to_owned()))
+}
+
+/// The copyable line that resumes a conversation started outside AI
+/// Juggler: its tool's adapter builds it, on its account's folder, from
+/// its own folder.
+///
+/// # Errors
+///
+/// [`AppError::Refused`] when it's gone or its tool can't resume from a
+/// terminal; storage errors.
+pub fn resume_command_impl(state: &Arc<AppState>, account_id: &str, id: &str) -> AppResult<String> {
+    let conversation = find(state, account_id, id)?;
+    let account = crate::commands::find_account_arc(state, account_id)?;
+    let adapter = state
+        .registry
+        .get(&account.harness)
+        .ok_or_else(|| AppError::UnknownHarness(account.harness.to_string()))?;
+    let cwd = conversation.summary.cwd.clone().unwrap_or_default();
+    juggler_adapter::adapter::shell_resume_snippet(adapter.as_ref(), &account.state_dir, id, &cwd)
+        .ok_or_else(|| {
+            AppError::Refused(format!(
+                "{} can't resume a session from a terminal",
+                adapter.spec().display_name
+            ))
+        })
+}
+
+/// "Continue in AI Juggler": resumes a conversation started outside AI
+/// Juggler as a session of its own, on the same account, in the same
+/// folder, with that account's first launch settings. Only on the user's
+/// click, and refused while a session is on it elsewhere (two writers on
+/// one conversation would tangle it).
+///
+/// # Errors
+///
+/// [`AppError::Refused`] in words: live elsewhere, its folder gone, no
+/// launch settings; launch and storage errors.
+pub fn continue_impl(
+    state: &Arc<AppState>,
+    account_id: &str,
+    id: &str,
+) -> AppResult<crate::commands::LaunchResult> {
+    use juggler_core::model::{
+        ConversationId, InstanceKind, InstanceRecord, SessionId, SessionStatus, Timestamp,
+    };
+    let conversation = find(state, account_id, id)?;
+    if state.conversations.is_live(&conversation.tool, id) {
+        return Err(AppError::Refused(
+            "it's open in another session now: close it there first, then continue here".to_owned(),
+        ));
+    }
+    let cwd = conversation
+        .folder
+        .clone()
+        .filter(|folder| folder.is_dir())
+        .ok_or_else(|| AppError::Refused("its folder isn't there any more".to_owned()))?;
+    let account = crate::commands::find_account_arc(state, account_id)?;
+    let (profile, project) = {
+        let storage = lock_storage_arc(state)?;
+        let profile = storage
+            .profiles()
+            .list_by_account(&account.id)?
+            .into_iter()
+            .next()
+            .ok_or_else(|| {
+                AppError::Refused(format!(
+                    "{} has no launch settings yet: add them first",
+                    account.label
+                ))
+            })?;
+        let project = storage
+            .projects()
+            .touch(&juggler_core::storage::project_root(&cwd), None)?;
+        (profile, project)
+    };
+    let adapter = state
+        .registry
+        .get(&account.harness)
+        .ok_or_else(|| AppError::UnknownHarness(account.harness.to_string()))?;
+    let session = SessionId::new(format!("sess-{}", crate::commands::unique_suffix()));
+    let spec = adapter.launch_spec(
+        &account,
+        &profile,
+        &cwd,
+        &juggler_adapter::LaunchMode::Resume {
+            session_id: id.to_owned(),
+            delta_prompt: None,
+        },
+    )?;
+    let spawned = state.supervisor.spawn(
+        &session,
+        &spec,
+        &crate::commands::ledger_ctx(state, &account, Some(project.id.to_string())),
+    )?;
+    {
+        let machine = crate::commands::local_machine_id(state);
+        let storage = lock_storage_arc(state)?;
+        let usage = crate::commands::engine_usage_snapshot(&storage, &profile.id);
+        storage.sessions().insert(&InstanceRecord {
+            id: session.clone(),
+            conversation: Some(ConversationId::new(id)),
+            profile: profile.id.clone(),
+            machine,
+            kind: InstanceKind::Terminal,
+            project: Some(project.id.clone()),
+            cwd,
+            status: SessionStatus::Starting,
+            started_at: Timestamp::now(),
+            last_activity: None,
+            usage,
+            attention: None,
+            running: None,
+            window: None,
+            transcript_ref: None,
+        })?;
+        crate::usage_stats::instance_started(account.harness.as_str(), false, "resume");
+    }
+    Ok(crate::commands::LaunchResult {
+        session_id: session.to_string(),
+        pid: spawned.pid,
+    })
+}

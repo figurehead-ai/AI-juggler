@@ -6,6 +6,8 @@ import { Field, Input, Modal } from "../components/form";
 import { IconProfiles, IconTerminal } from "../components/icons";
 import { LoginQueueCard } from "../components/LoginQueueCard";
 import { useItemMenu } from "../components/ItemMenu";
+import { activityWords } from "../lib/account-words";
+import { liveOutside, useConversations } from "../lib/conversations";
 import { BetaMatrix } from "../components/BetaMatrix";
 import { ExpertSetup } from "../components/ExpertSetup";
 import { EnvOverlayEditor } from "../components/EnvOverlayEditor";
@@ -32,16 +34,6 @@ import {
   type InstanceInfo,
   type QuotaDisplayData,
 } from "../lib/bridge";
-
-const LIVE = ["running", "starting", "waiting_user", "stuck"];
-
-/** What runs on an account, in a few words ("2 running · 1 needs you"). */
-export function activityWords(sessions: InstanceInfo[]): string {
-  const live = sessions.filter((s) => LIVE.includes(s.status));
-  const needs = sessions.filter((s) => s.status === "waiting_user" || s.status === "stuck" || s.status === "quota_blocked" || s.status === "failed");
-  const parts = [live.length > 0 ? `${live.length} running` : null, needs.length > 0 ? `${needs.length} need${needs.length === 1 ? "s" : ""} you` : null].filter(Boolean);
-  return parts.length > 0 ? parts.join(" · ") : "Nothing running";
-}
 
 /** The account with the most runway left for new work, if any is measured. */
 export function bestForNewWork(
@@ -353,6 +345,7 @@ function AccountCard({
   const [useOriginal, setUseOriginal] = useState(false);
   const [envFor, setEnvFor] = useState<string | null>(null);
   const onToggleSettings = () => setSettingsOpen((v) => !v);
+  const { all: conversations } = useConversations();
   const loggedIn = signedIn(account.login_state);
   const loginTone: ChipTone = loggedIn ? "success" : "warning";
   // AJ-E1537: the card's menu, from the action registry.
@@ -405,7 +398,7 @@ function AccountCard({
           )}
           {loggedIn ? (
             <span className="text-[11px] text-muted" data-testid="account-activity">
-              {activityWords(sessions)}
+              {activityWords(sessions, liveOutside(conversations, account.id).length)}
             </span>
           ) : (
             <>

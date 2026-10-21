@@ -32,6 +32,9 @@ import { matches, SHORTCUTS, type KeyLike } from "../lib/shortcuts";
 import { noLimitsWords, ownSignIn, reportsLimits } from "../lib/providers";
 import { RowPlaceholders } from "../components/Placeholder";
 import { Welcome } from "../components/Welcome";
+import { HomeOutsideRows } from "../components/OutsideConversations";
+import { liveOutside, useConversations } from "../lib/conversations";
+import { minutes } from "../lib/time-words";
 import { showToast } from "../components/Toast";
 import { useToolsWithoutLimits } from "../lib/useToolsWithoutLimits";
 import {
@@ -75,13 +78,6 @@ export function needOf(session: InstanceInfo): Need | null {
   return (session.needs_attention as Need | null) ?? null;
 }
 
-function minutes(sinceMs: number, now: number): string {
-  const m = Math.max(0, Math.round((now - sinceMs) / 60_000));
-  if (m < 1) return "just now";
-  if (m < 60) return `${m} min`;
-  const h = Math.floor(m / 60);
-  return h < 24 ? `${h} h` : `${Math.floor(h / 24)} d`;
-}
 
 /** What's wrong, in a sentence, and the one action. */
 export function needWords(need: Need, session: InstanceInfo): { what: string; action: string } {
@@ -361,6 +357,9 @@ export function HomeScreen({
   );
   const heavyIds = new Set(heavy.map((tree) => tree.session_id));
   const calmRunning = running.filter((session) => !heavyIds.has(session.id));
+  // AJ-E1529: sessions started outside AI Juggler, running now.
+  const { all: conversations } = useConversations();
+  const elsewhere = liveOutside(conversations);
   // AJ-E1408: the Mac's own overload alerts (sustained pressure, swap
   // thrash, a busy or hot Mac, a disk filling) — or, before any has held
   // long enough, a Mac already under pressure.
@@ -457,13 +456,13 @@ export function HomeScreen({
         ? signIns.length === 1
           ? `${signIns[0]!.label} needs its sign-in`
           : `${signIns.length} accounts need their sign-in`
-      : running.length > 0
+      : running.length + elsewhere.length > 0
         ? "All clear — nothing needs you"
-        : sessions.length === 0
+        : sessions.length + elsewhere.length === 0
           ? "Ready when you are"
           : "All clear";
   const subline = [
-    running.length > 0 ? `${running.length} running` : null,
+    running.length + elsewhere.length > 0 ? `${running.length + elsewhere.length} running` : null,
     low ? `${low.account.label} has ${low.left}% left — start new work on ${best && best.account.id !== low.account.id ? best.account.label : "another account"}` : best ? `Most runway: ${best.account.label}` : null,
   ]
     .filter(Boolean)
@@ -502,7 +501,7 @@ export function HomeScreen({
       {/* AJ-E1006: what changed while you were away — only when something did. */}
       <MorningSummary onOpenSession={onOpenSession} />
 
-      {sessions.length === 0 && (
+      {sessions.length === 0 && conversations.length === 0 && (
         <section className="flex flex-col items-start gap-3 rounded-2xl border border-hairline bg-surface p-6" data-testid="home-first-session">
           <h2 className="text-lg font-semibold">Start your first session</h2>
           <p className="max-w-xl text-sm leading-relaxed text-muted">
@@ -626,7 +625,7 @@ export function HomeScreen({
             </section>
           )}
 
-          {calmRunning.length > 0 && (
+          {calmRunning.length + elsewhere.length > 0 && (
             <section aria-labelledby="home-running" className="flex flex-col gap-2.5" data-testid="home-running">
               <SectionTitle id="home-running">Running</SectionTitle>
               <ul className="overflow-hidden rounded-xl border border-hairline bg-surface">
@@ -654,6 +653,7 @@ export function HomeScreen({
                     </li>
                   );
                 })}
+                <HomeOutsideRows rows={elsewhere} now={now} />
               </ul>
             </section>
           )}

@@ -1,0 +1,37 @@
+OK        setups found: 9 of 9
+OK        brought in where they are: 9 of 9
+OK        projects: backend 16 rows, oracle 16
+OK        Project 1: backend 46 conversations in 1 row(s), accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account E', 'Account F', 'Account G', 'Account H', 'Account I']; oracle 40 Claude + 6 Codex, accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account E', 'Account F', 'Account G', 'Account H', 'Account I']
+OK        Project 2: backend 34 conversations in 1 row(s), accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account E', 'Account F', 'Account G', 'Account H', 'Account I']; oracle 29 Claude + 5 Codex, accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account E', 'Account F', 'Account G', 'Account H', 'Account I']
+OK        Project 3: backend 28 conversations in 1 row(s), accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account E', 'Account F', 'Account G', 'Account H', 'Account I']; oracle 22 Claude + 6 Codex, accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account E', 'Account F', 'Account G', 'Account H', 'Account I']
+OK        Project 4: backend 28 conversations in 1 row(s), accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account E', 'Account F', 'Account G', 'Account H']; oracle 27 Claude + 1 Codex, accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account E', 'Account F', 'Account G', 'Account H']
+OK        Project 5: backend 25 conversations in 1 row(s), accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account E', 'Account F', 'Account G', 'Account H', 'Account I']; oracle 21 Claude + 4 Codex, accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account E', 'Account F', 'Account G', 'Account H', 'Account I']
+OK        Project 6: backend 24 conversations in 1 row(s), accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account E', 'Account F', 'Account G']; oracle 24 Claude + 0 Codex, accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account E', 'Account F', 'Account G']
+OK        Project 7: backend 23 conversations in 1 row(s), accounts ['Account A', 'Account C', 'Account D', 'Account E', 'Account F', 'Account G', 'Account I']; oracle 21 Claude + 2 Codex, accounts ['Account A', 'Account C', 'Account D', 'Account E', 'Account F', 'Account G', 'Account I']
+OK        Project 8: backend 23 conversations in 1 row(s), accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account F', 'Account G', 'Account H', 'Account I']; oracle 20 Claude + 3 Codex, accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account F', 'Account G', 'Account H', 'Account I']
+OK        Project 9: backend 22 conversations in 1 row(s), accounts ['Account A', 'Account C', 'Account D', 'Account F', 'Account G', 'Account H', 'Account I']; oracle 20 Claude + 2 Codex, accounts ['Account A', 'Account C', 'Account D', 'Account F', 'Account G', 'Account H', 'Account I']
+OK        Project 10: backend 22 conversations in 1 row(s), accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account F', 'Account G', 'Account H']; oracle 20 Claude + 2 Codex, accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account F', 'Account G', 'Account H']
+OK        Project 11: backend 18 conversations in 1 row(s), accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account F', 'Account G', 'Account H', 'Account I']; oracle 14 Claude + 4 Codex, accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account F', 'Account G', 'Account H', 'Account I']
+OK        Project 12: backend 17 conversations in 1 row(s), accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account E', 'Account F', 'Account G', 'Account H', 'Account I']; oracle 15 Claude + 2 Codex, accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account E', 'Account F', 'Account G', 'Account H', 'Account I']
+OK        Project 13: backend 13 conversations in 1 row(s), accounts ['Account A', 'Account B', 'Account C', 'Account E', 'Account F', 'Account G']; oracle 13 Claude + 0 Codex, accounts ['Account A', 'Account B', 'Account C', 'Account E', 'Account F', 'Account G']
+OK        Project 14: backend 11 conversations in 1 row(s), accounts ['Account A', 'Account B', 'Account C', 'Account E', 'Account F', 'Account H', 'Account I']; oracle 8 Claude + 3 Codex, accounts ['Account A', 'Account B', 'Account C', 'Account E', 'Account F', 'Account H', 'Account I']
+OK        Project 15: backend 10 conversations in 1 row(s), accounts ['Account C', 'Account D', 'Account E', 'Account F', 'Account G', 'Account H', 'Account I']; oracle 7 Claude + 3 Codex, accounts ['Account C', 'Account D', 'Account E', 'Account F', 'Account G', 'Account H', 'Account I']
+OK        Project 16: backend 2 conversations in 1 row(s), accounts ['Account D', 'Account I']; oracle 1 Claude + 1 Codex, accounts ['Account D', 'Account I']
+OK        Account A conversations: backend 28, oracle 28
+OK        Account A live: backend 1, running 1
+OK        Account B conversations: backend 34, oracle 34
+OK        Account B live: backend 1, running 1
+OK        Account C conversations: backend 59, oracle 59
+OK        Account C live: backend 1, running 1
+OK        Account D conversations: backend 42, oracle 42
+OK        Account D live: backend 1, running 1
+OK        Account E conversations: backend 32, oracle 32
+OK        Account E live: backend 0, running 0
+OK        Account F conversations: backend 59, oracle 59
+OK        Account F live: backend 1, running 1
+OK        Account G conversations: backend 48, oracle 48
+OK        Account G live: backend 1, running 1
+OK        Account H conversations: backend 24, oracle 24
+OK        Account H live: backend 1, running 1
+OK        Account I conversations: backend 20, oracle 20
+OK        Account I live: backend 1, running 1

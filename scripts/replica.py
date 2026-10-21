@@ -442,8 +442,11 @@ def live(args: argparse.Namespace) -> None:
             session = str(uuid.UUID(int=rng.getrandbits(128)))
             argv = [str(claude_bin)]
         folder = Path(account["folder"]) / "projects" / claude_dir_name(project["path"])
-        env["AIJ_REPLICA_WRITE"] = writer(["--format", "claude", "--file", str(folder / f"{session}.jsonl"),
-                                           "--cwd", project["path"], "--session-id", session, "--every-ms", "4000"])
+        options = ["--format", "claude", "--file", str(folder / f"{session}.jsonl"),
+                   "--cwd", project["path"], "--session-id", session, "--every-ms", "4000"]
+        if argv == [str(claude_bin)]:
+            options += ["--ask", rng.choice(TOPICS)]  # a fresh one starts with a real ask
+        env["AIJ_REPLICA_WRITE"] = writer(options)
         procs.append(subprocess.Popen(argv, cwd=project["path"], env=env,
                                       stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL))
         truth["live"].append({"tool": "claude-code", "account": account["label"], "project": Path(project["path"]).name,
@@ -457,7 +460,7 @@ def live(args: argparse.Namespace) -> None:
         env = {**env_base, "CODEX_HOME": account["folder"]}
         env["AIJ_REPLICA_WRITE"] = writer([
             "--format", "codex", "--file", str(day / f"rollout-{now:%Y-%m-%dT%H-%M-%S}-{thread}.jsonl"),
-            "--cwd", project["path"], "--session-id", thread, "--every-ms", "5000",
+            "--cwd", project["path"], "--session-id", thread, "--every-ms", "5000", "--ask", rng.choice(TOPICS),
             "--used", str(account["limits"]["five_hour_used_percent"]), str(account["limits"]["weekly_used_percent"])])
         procs.append(subprocess.Popen([str(codex_bin)], cwd=project["path"], env=env,
                                       stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL))

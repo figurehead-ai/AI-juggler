@@ -1,6 +1,7 @@
 import { ToolChip, ToolMark } from "./ToolMark";
 import { InspectorHeaderMenu } from "./InspectorHeaderMenu";
 import { ProjectDefaultAccount } from "./ProjectDefaultAccount";
+import { AccountRunningCard, ProjectConversationsCard } from "./OutsideConversations";
 import { ParkCard } from "./ParkCard";
 import { holdStop, sessionLabel } from "../lib/stop";
 import { matches } from "../lib/shortcuts";
@@ -1982,19 +1983,8 @@ function AccountOverview(props: PanelProps) {
           </span>
         </div>
       </Card>
-      <Card className="flex flex-col gap-1.5 p-4">
-        <p className="text-[11px] uppercase tracking-wider text-muted">Running sessions ({running.length})</p>
-        {running.length === 0 ? (
-          <p className="text-[11.5px] text-muted">None right now.</p>
-        ) : (
-          running.map((row) => (
-            <button key={row.id} type="button" onClick={() => props.onOpenSession(row.id)} className="flex items-center gap-2 py-1 text-left text-xs">
-              <span className="min-w-0 flex-1 truncate font-medium">{row.account_label}</span>
-              <Chip tone={statusTone(row.status).tone}>{statusTone(row.status).label}</Chip>
-            </button>
-          ))
-        )}
-      </Card>
+      {/* AJ-E1529: AI Juggler's and those started outside it. */}
+      <AccountRunningCard accountId={account.id} running={running} now={props.now} onOpenSession={props.onOpenSession} />
       <Card className="flex flex-col gap-1.5 p-4" data-testid="account-affinity">
         <p className="text-[11px] uppercase tracking-wider text-muted">Usual projects</p>
         {usualProjects.length === 0 ? (
@@ -2063,6 +2053,7 @@ function ProjectOverview(props: PanelProps) {
         </div>
       ) : null}
       {manage.element}
+      <ProjectConversationsCard projectId={project.id} now={props.now} />
       {rows.length === 0 ? (
         <Card className="flex flex-col items-center gap-3 p-6 text-center" data-testid="project-empty">
           {/* 0.0.11 walk, Q2: a project known from the setups' history says

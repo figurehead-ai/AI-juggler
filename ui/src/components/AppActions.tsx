@@ -10,6 +10,8 @@ import { showToast } from "./Toast";
 import type { ActionHost } from "../lib/actions";
 import { desktopFocus, errorText, type InstanceInfo, type ProjectInfo } from "../lib/bridge";
 import { sessionsResumeCommand } from "../lib/ipc/sessions";
+import { conversationsContinue, conversationsResumeCommand, type ConversationInfo } from "../lib/ipc/conversations";
+import { useConversations } from "../lib/conversations";
 
 async function copy(text: Promise<string> | string, done: string): Promise<void> {
   try {
@@ -21,6 +23,7 @@ async function copy(text: Promise<string> | string, done: string): Promise<void>
 }
 
 export function AppActions({
+  selectConversation,
   selectSession,
   selectProject,
   selectAccount,
@@ -31,6 +34,7 @@ export function AppActions({
   refresh,
   children,
 }: {
+  selectConversation: (conversation: ConversationInfo) => void;
   selectSession: (id: string) => void;
   selectProject: (id: string) => void;
   selectAccount: (id: string) => void;
@@ -41,6 +45,7 @@ export function AppActions({
   refresh: () => void;
   children: ReactNode;
 }): JSX.Element {
+  const conversations = useConversations();
   const host = useMemo<ActionHost>(() => {
     // The same as ⌘⇧H on the session: its hand-over section.
     const carry = (row: InstanceInfo) => {
@@ -50,6 +55,7 @@ export function AppActions({
     return {
       openSession: (row) => selectSession(row.id),
       openSessionById: selectSession,
+      openProjectById: selectProject,
       openHistory: (row) => selectSession(row.id),
       // A desktop session's own window; a terminal one's terminal here.
       focusSession: async (row) => {
@@ -59,6 +65,19 @@ export function AppActions({
       continueSession: carry,
       continueHistory: carry,
       copyResumeCommand: (row) => copy(sessionsResumeCommand(row.id), "Copied the resume command. Paste it into a terminal."),
+      // AJ-E1529: conversations started outside AI Juggler.
+      openConversation: selectConversation,
+      copyConversationResume: (c) => copy(conversationsResumeCommand(c.account_id, c.id), "Copied the resume command. Paste it into a terminal."),
+      continueConversation: async (c) => {
+        try {
+          const launched = await conversationsContinue(c.account_id, c.id);
+          refresh();
+          conversations.refresh();
+          selectSession(launched.session_id);
+        } catch (cause) {
+          showToast({ id: "continue", message: `Couldn't continue it here: ${errorText(cause)}` });
+        }
+      },
       revealSessionProject: (row) => row.project_id && selectProject(row.project_id),
       stopSession,
       newSessionIn,
@@ -68,6 +87,6 @@ export function AppActions({
       toolAccounts: () => openAccounts(),
       copyUpdateCommand: (tool) => copy(tool.install_command ?? "", `Copied ${tool.display_name}'s update command. Paste it into a terminal.`),
     };
-  }, [selectSession, selectProject, selectAccount, selectTool, openAccounts, stopSession, newSessionIn, refresh]);
+  }, [selectConversation, conversations, selectSession, selectProject, selectAccount, selectTool, openAccounts, stopSession, newSessionIn, refresh]);
   return <ActionHostProvider host={host}>{children}</ActionHostProvider>;
 }
