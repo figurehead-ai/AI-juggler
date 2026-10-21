@@ -32,8 +32,10 @@ on:
         required: false
         default: ""
 
-permissions:
-  contents: write
+# Each job asks for what it needs (AJ-E2001): the checks and the
+# accessibility gate (which installs and runs the UI's dependencies) read;
+# only the approved promote job writes.
+permissions: {}
 
 concurrency:
   group: promote-${{ inputs.channel }}
@@ -48,11 +50,14 @@ jobs:
   check:
     name: check
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       ref: ${{ steps.check.outputs.ref }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
+          persist-credentials: false
           ref: main
           # Tags: the downgrade-note check compares the database schema of
           # this version with the version the channel serves now.
@@ -109,6 +114,8 @@ jobs:
     name: a11y (${{ matrix.shard }}/4)
     needs: check
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -120,6 +127,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
+          persist-credentials: false
           ref: ${{ needs.check.outputs.ref }}
       - name: Install
         working-directory: ui
@@ -142,9 +150,12 @@ jobs:
     name: a11y
     needs: [check, a11y-shard]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
+          persist-credentials: false
           ref: ${{ needs.check.outputs.ref }}
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
@@ -160,11 +171,14 @@ jobs:
     name: promote to ${{ inputs.channel }}
     needs: [check, a11y]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     # The approval: the environment requires the maintainer.
     environment: ${{ inputs.channel }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
+          persist-credentials: false
           ref: main
       - name: Point the channel at this build
         env:

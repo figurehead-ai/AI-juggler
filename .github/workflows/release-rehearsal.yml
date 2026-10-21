@@ -1,0 +1,64 @@
+# AJ-E2001: a dry run of the release build on any branch. It builds both
+# editions for real (build-macos.yml's build job, no secrets) and rehearses
+# the sign job with an ad-hoc signature and a throwaway updater key: the
+# same script, the same checks, but nothing is notarized or published and
+# no secret is passed or read.
+#
+# Runs on pull requests that change the release workflows or the scripts
+# they run, and by hand (workflow_dispatch) on any branch.
+name: Release rehearsal
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/build-macos.yml
+      - .github/workflows/nightly.yml
+      - .github/workflows/release-rehearsal.yml
+      - scripts/sign_macos.sh
+      - scripts/install_tauri_cli.sh
+      - scripts/updater_sig_check.py
+      - scripts/apple_retry.py
+      - scripts/release_version.py
+      - ui/package.json
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: release-rehearsal-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    name: plan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.plan.outputs.version }}
+      ref: ${{ steps.plan.outputs.ref }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: A version that is never published
+        id: plan
+        env:
+          RUN: ${{ github.run_number }}
+          REF: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          {
+            echo "version=$(python3 scripts/release_version.py next "$RUN")"
+            echo "ref=$REF"
+          } >> "$GITHUB_OUTPUT"
+
+  rehearse:
+    needs: plan
+    permissions:
+      contents: read
+    uses: ./.github/workflows/build-macos.yml
+    with:
+      ref: ${{ needs.plan.outputs.ref }}
+      version: ${{ needs.plan.outputs.version }}
+      dry_run: true

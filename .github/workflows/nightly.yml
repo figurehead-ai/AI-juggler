@@ -16,8 +16,9 @@ on:
         type: boolean
         default: false
 
-permissions:
-  contents: write
+# Each job asks for what it needs (AJ-E2001): only the jobs that publish
+# may write to the repository.
+permissions: {}
 
 concurrency:
   group: nightly
@@ -27,6 +28,8 @@ jobs:
   plan:
     name: plan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       skip: ${{ steps.plan.outputs.skip }}
       version: ${{ steps.plan.outputs.version }}
@@ -37,6 +40,7 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
+          persist-credentials: false
       - name: What to build
         id: plan
         env:
@@ -69,17 +73,27 @@ jobs:
   build:
     needs: plan
     if: needs.plan.outputs.skip != 'true'
+    # The ceiling for the called workflow: its build and sign jobs read,
+    # only its publish job writes.
+    permissions:
+      contents: write
     uses: ./.github/workflows/build-macos.yml
     with:
       ref: ${{ needs.plan.outputs.ref }}
       version: ${{ needs.plan.outputs.version }}
       previous: ${{ needs.plan.outputs.previous }}
+    # The signing secrets live in the `release` environment, which only
+    # build-macos.yml's preflight and sign jobs enter. Until the maintainer
+    # moves them there (docs/RELEASING.md), they come from the repository
+    # through this line, and still only those two jobs read them.
     secrets: inherit
 
   publish:
     name: nightly feed
     needs: [plan, build]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Point the nightly channel at this build
         env:
