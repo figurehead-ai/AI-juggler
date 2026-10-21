@@ -39,6 +39,28 @@ fn fake_desktop_bin() -> PathBuf {
     unreachable!("fake-desktop binary not found under {}", target.display())
 }
 
+/// A fake-desktop a test launched: killed when the test ends — passed,
+/// failed or panicked — so none outlives the run. Only while that pid is
+/// still a fake-desktop (a pid reused after a clean stop is never touched).
+struct Launched(u32);
+
+impl Drop for Launched {
+    fn drop(&mut self) {
+        if is_fake_desktop(self.0) {
+            let _ = std::process::Command::new("kill")
+                .args(["-9", &self.0.to_string()])
+                .status();
+        }
+    }
+}
+
+fn is_fake_desktop(pid: u32) -> bool {
+    std::process::Command::new("ps")
+        .args(["-p", &pid.to_string(), "-o", "command="])
+        .output()
+        .is_ok_and(|out| String::from_utf8_lossy(&out.stdout).contains("fake-desktop"))
+}
+
 fn desktop_state(dir: &Path) -> Arc<AppState> {
     let mut registry = AdapterRegistry::new();
     registry.register(Arc::new(FakeDesktopAdapter::new(fake_desktop_bin())));
@@ -92,6 +114,7 @@ fn desktop_launch_tracks_in_the_same_ledger_without_a_pty() {
     let state_ref = &desktop_state(dir.path());
     let started = Instant::now();
     let info = commands::desktop_launch_arc(state_ref, "acc-desktop").unwrap();
+    let _launched = Launched(info.pid);
     // Launch-to-tracked budget (<3 s, Req. performance).
     assert!(started.elapsed() < Duration::from_secs(3));
 
@@ -166,6 +189,7 @@ fn desktop_crash_surfaces_as_failed_state() {
         .supervisor
         .spawn_desktop(&session, &launch, &ctx())
         .unwrap();
+    let _launched = Launched(spawned.pid);
     assert!(spawned.pid != 0);
     let deadline = Instant::now() + Duration::from_secs(10);
     loop {
@@ -188,6 +212,7 @@ fn restart_reconciler_closes_dead_desktop_rows_never_fake_live() {
     {
         let state_ref = &desktop_state(dir.path());
         let info = commands::desktop_launch_arc(state_ref, "acc-desktop").unwrap();
+        let _launched = Launched(info.pid);
         state_ref
             .supervisor
             .stop(
@@ -416,6 +441,7 @@ fn desktop_focus_runs_tiers_and_persists_first_sight_identity() {
     let dir = tempfile::tempdir().unwrap();
     let state = desktop_state(dir.path());
     let info = commands::desktop_launch_arc(&state, "acc-desktop").unwrap();
+    let _launched = Launched(info.pid);
     // The launch recorded pid + bundle (no title yet).
     {
         let storage = state.storage.lock().unwrap();
@@ -570,6 +596,7 @@ fn desktop_focus_permission_denial_degrades_with_flag() {
     let dir = tempfile::tempdir().unwrap();
     let state = desktop_state(dir.path());
     let info = commands::desktop_launch_arc(&state, "acc-desktop").unwrap();
+    let _launched = Launched(info.pid);
     let runner = std::sync::Arc::new(FocusFixture {
         permission_denied: std::sync::atomic::AtomicBool::new(true),
     });
@@ -579,4 +606,48 @@ fn desktop_focus_permission_denial_degrades_with_flag() {
         outcome.permission_missing,
         "the UI explainer keys on this flag"
     );
+}
+
+/// A launched desktop never outlives its test: the guard kills it when
+/// the test ends, and the fixture itself exits once whoever started it is
+/// gone (here: a shell that exits a moment after starting it).
+#[test]
+fn a_launched_desktop_never_outlives_its_test() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = desktop_state(dir.path());
+    let info = commands::desktop_launch_arc(&state, "acc-desktop").unwrap();
+    assert!(is_fake_desktop(info.pid));
+    drop(Launched(info.pid));
+    let gone = |pid: u32| {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while Instant::now() < deadline {
+            if !is_fake_desktop(pid) {
+                return true;
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        false
+    };
+    assert!(gone(info.pid), "the guard stopped it");
+
+    // Its parent goes away: it follows within moments.
+    let marker = dir.path().join("orphan.marker");
+    let shell = std::process::Command::new("sh")
+        .arg("-c")
+        .arg(format!(
+            "'{}' --marker '{}' & sleep 1",
+            fake_desktop_bin().display(),
+            marker.display()
+        ))
+        .status()
+        .unwrap();
+    assert!(shell.success());
+    let pid: u32 = std::fs::read_to_string(&marker)
+        .unwrap()
+        .trim()
+        .trim_start_matches("running ")
+        .parse()
+        .unwrap();
+    let _launched = Launched(pid);
+    assert!(gone(pid), "an orphaned fake-desktop exits by itself");
 }

@@ -14,6 +14,10 @@
 //! `--marker FILE` writes `running <pid>` once up (the tracked evidence);
 //! `--exit-after-secs` exits 0; `--crash` exits 7 after the window;
 //! TERM is handled cleanly (exit 0) — the crash fixture uses a code.
+//!
+//! It never outlives whoever started it: when its parent goes away (a
+//! test that ended, failed or was killed), it exits too — a fixture left
+//! behind used to live on for the full hour.
 
 use std::io::Write;
 use std::path::PathBuf;
@@ -72,9 +76,15 @@ fn main() {
             .spawn();
     }
 
+    #[cfg(unix)]
+    let parent = std::os::unix::process::parent_id();
     let deadline = Instant::now() + Duration::from_secs(exit_after);
     while Instant::now() < deadline {
         thread::sleep(Duration::from_millis(100));
+        #[cfg(unix)]
+        if std::os::unix::process::parent_id() != parent {
+            std::process::exit(0);
+        }
     }
     std::process::exit(if crash { 7 } else { 0 });
 }
