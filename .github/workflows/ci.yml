@@ -164,8 +164,17 @@ jobs:
       - name: Baseline changes are explained
         if: github.event_name == 'pull_request'
         env:
-          PR_BODY: ${{ github.event.pull_request.body }}
-        run: python3 scripts/check_baseline_notes.py "${{ github.event.pull_request.base.sha }}"
+          EVENT_BODY: ${{ github.event.pull_request.body }}
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BASE_REF: ${{ github.base_ref }}
+        # Only this PR's own baseline changes: diff from where it meets the
+        # base branch now (main's later changes aren't the PR's). The body
+        # is read fresh so a re-run sees notes added after the push.
+        run: |
+          base="$(git merge-base "origin/$BASE_REF" HEAD)"
+          body="$(gh pr view "$PR_NUMBER" --json body --jq .body 2>/dev/null || printf '%s' "$EVENT_BODY")"
+          PR_BODY="$body" python3 scripts/check_baseline_notes.py "$base"
       - name: Install
         if: steps.scope.outputs.ui == 'true'
         working-directory: ui
