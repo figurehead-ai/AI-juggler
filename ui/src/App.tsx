@@ -325,7 +325,13 @@ export default function App() {
   const [projects, setProjects] = useState<ProjectInfo[]>([]);
   const [sessions, setSessions] = useState<InstanceInfo[]>([]);
   // AJ-E1007: archived Instances leave the rail (History keeps them).
-  const railSessions = useMemo(() => sessions.filter((row) => row.lifecycle !== "archived"), [sessions]);
+  // AJ-E1502: a forgotten project, and its (ended) sessions, leave the
+  // rail and New session until it is used again; History keeps them.
+  const shownProjects = useMemo(() => projects.filter((project) => !project.forgotten), [projects]);
+  const railSessions = useMemo(() => {
+    const forgotten = new Set(projects.filter((project) => project.forgotten).map((project) => project.id));
+    return sessions.filter((row) => row.lifecycle !== "archived" && !(row.project_id !== null && forgotten.has(row.project_id)));
+  }, [sessions, projects]);
   const [accounts, setAccounts] = useState<AccountInfo[]>([]);
   const [profiles, setProfiles] = useState<LaunchRecipeInfo[]>([]);
   const [newSessionDir, setNewSessionDir] = useState<string | null>(null);
@@ -775,8 +781,9 @@ export default function App() {
       <WorkflowRail
         density={railDensity}
         onCycleDensity={cycleDensity}
-        projects={projects}
+        projects={shownProjects}
         sessions={railSessions}
+        onChanged={() => void refresh()}
         accounts={accounts}
         loginTerminals={loginTerminals}
         selectedId={selection.kind === "none" || selection.kind === "remote" ? null : selection.id}
@@ -1353,7 +1360,7 @@ export default function App() {
       )}
       {newSession && (
         <NewSessionModal
-          projects={projects}
+          projects={shownProjects}
           accounts={accounts}
           initialDirectory={newSessionDir}
           openLoginTerminal={openLoginTerminal}
@@ -1382,7 +1389,7 @@ export default function App() {
           typed paths; an empty preset means "no directory yet". */}
       {newProjectDir !== null && (
         <NewProjectSheet
-          projects={projects}
+          projects={shownProjects}
           accounts={accounts}
           initialDirectory={newProjectDir === "" ? null : newProjectDir}
           onClose={() => setNewProjectDir(null)}

@@ -303,13 +303,15 @@ describe("AJ-E408 Project (§5.5, Req.5-6)", () => {
     expect(summary.textContent).toContain("imported sessions: 2");
   });
 
-  it("a missing directory renders the danger banner (Relocate… comes when it works)", () => {
+  it("a missing directory renders the danger banner with Relocate… (AJ-E1502)", () => {
     const { container } = shell("project", "proj-2");
     const banner = container.querySelector('[data-testid="project-missing-banner"]');
     expect(banner).not.toBeNull();
     expect(banner!.getAttribute("role")).toBe("alert");
     expect(banner!.textContent).toContain("missing");
-    expect(banner!.querySelector("button")).toBeNull();
+    const relocate = banner!.querySelector('[data-testid="action-relocate"] button');
+    expect(relocate?.textContent).toBe("Relocate…");
+    expect((relocate as HTMLButtonElement).disabled).toBe(false);
   });
 
   it("Actions: ranked by headroom with the `Usual` star", () => {

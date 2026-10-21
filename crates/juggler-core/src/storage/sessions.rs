@@ -11,6 +11,9 @@ use crate::model::{
     SessionStatus, Timestamp, TranscriptRef, WindowIdentity,
 };
 
+/// AJ-E1502: `session id → (label, pinned at ms)` for sessions with either.
+pub type SessionMarks = std::collections::BTreeMap<String, (Option<String>, Option<i64>)>;
+
 /// Converts a stored-JSON parse failure into a row-mapping failure.
 fn json_err(e: serde_json::Error) -> rusqlite::Error {
     rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Text, Box::new(e))
@@ -69,6 +72,63 @@ impl SessionsRepo<'_> {
         )?;
         self.journal(session.id.as_str(), None, session.status.as_str())?;
         Ok(())
+    }
+
+    /// AJ-E1502: sets (or clears, with `None`) the label shown over a
+    /// session's own title.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::NotFound`] for an unknown session, or
+    /// [`CoreError::Storage`] on SQLite failures.
+    pub fn set_label(&self, id: &SessionId, label: Option<&str>) -> Result<(), CoreError> {
+        let changed = self.conn.execute(
+            "UPDATE instances SET label = ?2 WHERE id = ?1",
+            params![id.as_str(), label],
+        )?;
+        super::accounts::require_changed(changed, "session", id.as_str())
+    }
+
+    /// AJ-E1502: pins a session to the top of its group (now), or unpins it.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::NotFound`] for an unknown session, or
+    /// [`CoreError::Storage`] on SQLite failures.
+    pub fn set_pinned(&self, id: &SessionId, pinned: bool) -> Result<(), CoreError> {
+        let changed = self.conn.execute(
+            "UPDATE instances SET pinned_at = ?2 WHERE id = ?1",
+            params![id.as_str(), pinned.then(|| Timestamp::now().millis())],
+        )?;
+        super::accounts::require_changed(changed, "session", id.as_str())
+    }
+
+    /// AJ-E1502: every session with a label or a pin, `session id →
+    /// (label, pinned at)`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn marks(&self) -> Result<SessionMarks, CoreError> {
+        let mut statement = self.conn.prepare(
+            "SELECT id, label, pinned_at FROM instances
+             WHERE label IS NOT NULL OR pinned_at IS NOT NULL",
+        )?;
+        let rows = statement.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                (
+                    row.get::<_, Option<String>>(1)?,
+                    row.get::<_, Option<i64>>(2)?,
+                ),
+            ))
+        })?;
+        let mut out = std::collections::BTreeMap::new();
+        for row in rows {
+            let (id, marks) = row?;
+            out.insert(id, marks);
+        }
+        Ok(out)
     }
 
     /// AJ-E1004: appends one status transition to the journal (the single

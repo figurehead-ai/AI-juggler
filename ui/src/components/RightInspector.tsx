@@ -1,5 +1,6 @@
 import { ParkCard } from "./ParkCard";
 import { Select } from "./form";
+import { openWords, useProjectManage, useSessionManage } from "./ManageWork";
 import { WorktreeGit } from "./WorktreeGit";
 import { identityWords } from "../lib/identity";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -1536,6 +1537,8 @@ function ActionRow({
  * WITH reason where the owner task has not landed. */
 function InstanceActions(props: PanelProps & { onRelaunch?: (recipe: LaunchRecipeInfo, cwd: string | null) => void }) {
   const instance = props.data.instance;
+  // AJ-E1502: name it, pin it (the rail's row menu offers the same).
+  const manage = useSessionManage(props.onStopped);
   if (!instance) return <HonestEmpty tab="actions" />;
   const live = instance.status === "running" || instance.status === "starting";
   const ended = ["finished", "stopped", "failed", "handed_over"].includes(instance.status);
@@ -1564,6 +1567,9 @@ function InstanceActions(props: PanelProps & { onRelaunch?: (recipe: LaunchRecip
         onClick={() => props.onFocusTerminal()}
         reason="scroll to Continue on another account"
       />
+      <ActionRow label="Rename…" onClick={() => manage.actions.rename(instance)} />
+      <ActionRow label={instance.pinned ? "Unpin" : "Pin to top"} onClick={() => void manage.actions.togglePin(instance)} />
+      {manage.element}
     </div>
   );
 }
@@ -2008,6 +2014,7 @@ function AccountActions(props: PanelProps) {
  * SessionRow), root copy, branch summary, counts, missing-dir banner. */
 function ProjectOverview(props: PanelProps) {
   const project = props.data.project;
+  const manage = useProjectManage(props.onStopped);
   if (!project) return <HonestEmpty tab="overview" />;
   const rows = props.sessions.filter((s) => s.project_id === project.id);
   const active = rows.find((s) => s.status === "running" || s.status === "starting") ?? null;
@@ -2019,8 +2026,11 @@ function ProjectOverview(props: PanelProps) {
         <div className="flex items-center gap-3 rounded-xl border border-danger/40 bg-danger-soft px-4 py-3" data-testid="project-missing-banner" role="alert">
           <span className="text-[12px] font-medium text-danger">Project directory is missing</span>
           <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted">{project.root}</span>
+          {/* AJ-E1502: point it at where the folder moved. */}
+          <ActionRow label="Relocate…" onClick={() => void manage.actions.relocate(project)} />
         </div>
       ) : null}
+      {manage.element}
       {rows.length === 0 ? (
         <Card className="flex flex-col items-center gap-3 p-6 text-center">
           <p className="text-[12px] font-medium text-ink">No sessions in this project yet</p>
@@ -2078,6 +2088,8 @@ function SessionRowForCard({ session }: { session: InstanceInfo }) {
 
 function ProjectActions(props: PanelProps) {
   const project = props.data.project;
+  // AJ-E1502: the project's own actions (the rail's row menu offers the same).
+  const manage = useProjectManage(props.onStopped);
   if (!project) return <HonestEmpty tab="actions" />;
   // Ranked by headroom: the signed-in account with the MOST quota left
   // first; `Usual` star marks accounts that already ran in this project.
@@ -2123,6 +2135,26 @@ function ProjectActions(props: PanelProps) {
         );
       })}
       {ranked.length === 0 ? <p className="text-[11.5px] text-muted">No launch settings yet — add an account first.</p> : null}
+      <p className="pt-3 text-[11px] uppercase tracking-wider text-muted">This project</p>
+      <div data-testid="project-manage">
+        <ActionRow label="Rename…" onClick={() => manage.actions.rename(project)} />
+        <ActionRow label={project.pinned ? "Unpin" : "Pin to top"} onClick={() => void manage.actions.togglePin(project)} />
+        <ActionRow
+          label={openWords(manage.editor)}
+          onClick={project.missing ? undefined : () => void manage.actions.open(project)}
+          reason={project.missing ? "its folder isn't there any more" : undefined}
+        />
+        {manage.editor !== null && (
+          <ActionRow
+            label="Show in Finder"
+            onClick={project.missing ? undefined : () => void manage.actions.reveal(project)}
+            reason={project.missing ? "its folder isn't there any more" : undefined}
+          />
+        )}
+        <ActionRow label="Relocate…" onClick={() => void manage.actions.relocate(project)} reason="if its folder moved" />
+        <ActionRow label="Forget…" danger onClick={() => manage.actions.forget(project)} reason="hidden until you use it again" />
+      </div>
+      {manage.element}
     </div>
   );
 }
