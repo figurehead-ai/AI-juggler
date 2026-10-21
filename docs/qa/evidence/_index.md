@@ -154,3 +154,4 @@
 | AJ-E908 | (no claims yet) | — | [manifest](AJ-E908/manifest.md) |
 | AJ-E909 | (no claims yet) | 2026-10-13 | [manifest](AJ-E909/manifest.md) |
 | AJ-E910 | (directory without manifest — add one) | — | — |
+| walks | (no claims yet) | 2026-10-21 | [manifest](walks/manifest.md) |
