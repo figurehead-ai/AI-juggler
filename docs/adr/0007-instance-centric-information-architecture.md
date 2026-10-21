@@ -1,6 +1,10 @@
 # ADR-0007: Instance-centric information architecture (design iteration 4)
 
 - Status: Accepted
+- Note (2026-10-21): desktop tools are first-class in the adapter
+  contract (AJ-E413–E415), but no shipped adapter declares one yet; a
+  real desktop tool is planned in E15. D-25 later replaced the three
+  rail tabs with one rail and Home.
 - Date: 2026-10-12
 - Deciders: Vuxtra engineering + maintainer design review
 - Relates to: ADR-0002 (adapter architecture), SPEC §9 (App & UX)
