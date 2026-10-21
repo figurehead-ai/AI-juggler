@@ -369,6 +369,17 @@ Local gates, run on this Mac (CARGO_TARGET_DIR shared):
 | visual | `just visual-gate` (pinned Playwright container) | 8eafeb8c | 141 passed |
 | by hand | the preview's Accounts screen (the B8 row) | 71ede0bc | as described |
 
+**After the review, QA batch 7, and main merged in** (latest runs):
+
+| Gate | Head | Result |
+|---|---|---|
+| `just verify` (with the Dev bridge's own checks from main) | 751fddde | EXIT 0 |
+| `cargo test -p juggler-core` and `cargo clippy -p juggler-core --all-targets` after the GPT-6 rows | a2f6aa25 | clean |
+| vitest, `tsc --noEmit` | 751fddde | 610 passed; clean |
+| `just visual-gate` | 98c6460a | 141 passed (the 8 new-session baselines re-rendered for P26b, notes in the PR) |
+| `just a11y-gate` | 98c6460a | 682 passed; 0 critical, serious, moderate or minor: PASS |
+| QA's oracle on the real setup | 751fddde | 38 OK, 10 MISMATCH, none of them in this PR's scope (see above) |
+
 **Two runs needed attention:**
 - The first verify run stopped on clippy (`doc_markdown`, then `too_many_lines`); both are fixed.
 - The `ports.rs` failures came from this session's preview server holding port 5173, which the test binds. With the preview stopped, it passes.
