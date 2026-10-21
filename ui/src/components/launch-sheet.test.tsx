@@ -25,7 +25,7 @@ const RECIPES = [
 ];
 
 const PROJECTS = [
-  { id: "proj-1", root: "/Users/dev/api", name: "api", last_activity_ms: 1000, accounts_used: ["Work Max"], history_sessions: 3, active_instance: null, instance_count: 0, missing: false },
+  { id: "proj-1", root: "/Users/dev/api", name: "api", last_activity_ms: 1000, accounts_used: ["Work Max"], history_sessions: 3, history_last_used_ms: null, repo: null, active_instance: null, instance_count: 0, missing: false },
 ];
 
 beforeEach(() => {

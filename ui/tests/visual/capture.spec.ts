@@ -354,7 +354,7 @@ for (const vp of INSPECTOR_VIEWPORTS) {
   test(`inspector — Project / Processes — ${vp.name}`, async ({ page }) => {
     await seedInspectorPage(page, vp);
     await openRailList(page); // D-25: a project row needs the list
-    await page.getByRole("button", { name: /ai-juggler/ }).first().click();
+    await page.getByRole("button", { name: /^ai-juggler/ }).first().click();
     await expect(page.getByRole("tab", { name: "Processes" })).toBeVisible();
     await page.screenshot({ path: resolve(GALLERY, `06-inspector/project-processes-${vp.name}.png`) });
   });
@@ -460,7 +460,7 @@ test("inspector — Account logged-out collapse", async ({ page }) => {
 test("inspector — Project Overview On-it-now card", async ({ page }) => {
   await seedInspectorPage(page, { width: 1440, height: 900 });
   await openRailList(page); // D-25: a project row needs the list
-  await page.getByRole("button", { name: /ai-juggler/ }).first().click();
+  await page.getByRole("button", { name: /^ai-juggler/ }).first().click();
   await expect(page.getByTestId("project-on-it-now")).toBeVisible();
   await page.screenshot({ path: resolve(GALLERY, "08-inspector-aggregate/project-overview-1440x900.png") });
 });
@@ -3069,7 +3069,7 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await openRailList(page); // D-25: a project row needs the list
-      await page.getByRole("button", { name: /ai-juggler/ }).first().click();
+      await page.getByRole("button", { name: /^ai-juggler/ }).first().click();
       await expect(page.getByTestId("switch-graph")).toBeVisible();
       await expect(page.getByTestId("switch-graph-hop-note")).toContainText("3 switches");
       await expect(page.getByTestId("switch-graph-collapse")).toContainText("+2 switches");
@@ -3084,7 +3084,7 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await openRailList(page); // D-25: a project row needs the list
-      await page.getByRole("button", { name: /ai-juggler/ }).first().click();
+      await page.getByRole("button", { name: /^ai-juggler/ }).first().click();
       await expect(page.getByTestId("switch-graph")).toBeVisible();
       await expect(page.getByTestId("node-fork-chip").first()).toBeVisible();
       await expect(page.getByTestId("node-merge-chip").first()).toBeVisible();
@@ -3099,7 +3099,7 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await openRailList(page); // D-25: a project row needs the list
-      await page.getByRole("button", { name: /ai-juggler/ }).first().click();
+      await page.getByRole("button", { name: /^ai-juggler/ }).first().click();
       await expect(page.getByTestId("switch-graph-failed-edge")).toBeVisible();
       await page.getByTestId("switch-graph-failed-edge").click();
       await expect(page.getByTestId("switch-graph-failed-detail")).toContainText("S-F6");
@@ -3114,7 +3114,7 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await openRailList(page); // D-25: a project row needs the list
-      await page.getByRole("button", { name: /ai-juggler/ }).first().click();
+      await page.getByRole("button", { name: /^ai-juggler/ }).first().click();
       await expect(page.getByTestId("switch-graph")).toBeVisible();
       await page.getByTestId("switch-graph-node").nth(1).click();
       await expect(page.getByTestId("switch-graph-node-menu")).toBeVisible();

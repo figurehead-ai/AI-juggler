@@ -86,7 +86,7 @@ function mk(overrides: Partial<InstanceInfo> = {}): InstanceInfo {
 
 const project: ProjectInfo = {
   id: "proj-3", root: "/Users/dev/sacrificial", name: "sacrificial", last_activity_ms: null,
-  active_instance: null, accounts_used: ["Fake Desk"], instance_count: 1, history_sessions: 0,
+  active_instance: null, accounts_used: ["Fake Desk"], instance_count: 1, history_sessions: 0, history_last_used_ms: null, repo: null,
   missing: false,
 };
 const account: AccountInfo = {

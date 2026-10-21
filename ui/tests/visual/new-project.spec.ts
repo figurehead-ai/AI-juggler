@@ -23,7 +23,7 @@ const noProfiles: FixtureSet = {
       active_instance: null,
       accounts_used: [],
       instance_count: 0,
-      history_sessions: 0,
+      history_sessions: 0, history_last_used_ms: null, repo: null,
     },
   ],
 };

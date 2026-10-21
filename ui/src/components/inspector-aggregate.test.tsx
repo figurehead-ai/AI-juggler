@@ -82,8 +82,8 @@ const SESSIONS: InstanceInfo[] = [
 ];
 
 const PROJECTS: ProjectInfo[] = [
-  { id: "proj-1", root: "/w/ai-juggler", name: "ai-juggler", last_activity_ms: null, active_instance: null, accounts_used: ["Work Max"], instance_count: 1, history_sessions: 2, missing: false },
-  { id: "proj-2", root: "/w/gone", name: "gone", last_activity_ms: null, active_instance: null, accounts_used: ["Personal"], instance_count: 1, history_sessions: 0, missing: true },
+  { id: "proj-1", root: "/w/ai-juggler", name: "ai-juggler", last_activity_ms: null, active_instance: null, accounts_used: ["Work Max"], instance_count: 1, history_sessions: 2, history_last_used_ms: null, repo: null, missing: false },
+  { id: "proj-2", root: "/w/gone", name: "gone", last_activity_ms: null, active_instance: null, accounts_used: ["Personal"], instance_count: 1, history_sessions: 0, history_last_used_ms: null, repo: null, missing: true },
 ];
 
 const RECIPES: LaunchRecipeInfo[] = [

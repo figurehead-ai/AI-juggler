@@ -1132,7 +1132,7 @@ for (const theme of ["dark", "light"] as const) {
 
     // The graph: scoped scan on the project panel.
     await openRailList(page); // D-25: a project row needs the list
-    await page.getByRole("button", { name: /ai-juggler/ }).first().click();
+    await page.getByRole("button", { name: /^ai-juggler/ }).first().click();
     await expect(page.getByTestId("switch-graph")).toBeVisible();
     const graphScan = await new AxeBuilder({ page })
       .include("[data-testid='project-switch-graph-card']")

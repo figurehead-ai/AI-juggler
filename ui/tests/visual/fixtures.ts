@@ -184,9 +184,9 @@ export const allStatuses: FixtureSet = {
     },
   ],
   projects: [
-    { id: "proj-1", root: "/Users/dev/ai-juggler", name: "ai-juggler", last_activity_ms: T0 - 60_000, active_instance: null, accounts_used: ["Work Max"], instance_count: 5, history_sessions: 12 },
-    { id: "proj-2", root: "/Users/dev/storefront", name: "storefront", last_activity_ms: T0 - 3_600_000, active_instance: null, accounts_used: ["Personal"], instance_count: 4, history_sessions: 7 },
-    { id: "proj-3", root: "/Users/dev/sacrificial", name: "sacrificial", last_activity_ms: T0 - 600_000, active_instance: null, accounts_used: ["Fake Desk"], instance_count: 3, history_sessions: 0 },
+    { id: "proj-1", root: "/Users/dev/ai-juggler", name: "ai-juggler", last_activity_ms: T0 - 60_000, active_instance: null, accounts_used: ["Work Max"], instance_count: 5, history_sessions: 12, history_last_used_ms: null, repo: null },
+    { id: "proj-2", root: "/Users/dev/storefront", name: "storefront", last_activity_ms: T0 - 3_600_000, active_instance: null, accounts_used: ["Personal"], instance_count: 4, history_sessions: 7, history_last_used_ms: null, repo: null },
+    { id: "proj-3", root: "/Users/dev/sacrificial", name: "sacrificial", last_activity_ms: T0 - 600_000, active_instance: null, accounts_used: ["Fake Desk"], instance_count: 3, history_sessions: 0, history_last_used_ms: null, repo: null },
   ],
   stats: { accounts: 3, profiles: 3, active_sessions: 3, ledger_degraded: false },
 };
@@ -257,7 +257,7 @@ export const atScale: FixtureSet = (() => {
     active_instance: null,
     accounts_used: [accounts[i % 10]!.label],
     instance_count: sessions.filter((s) => s.project_id === `proj-${i}`).length,
-    history_sessions: 10 + i,
+    history_sessions: 10 + i, history_last_used_ms: null, repo: null,
   }));
   return {
     accounts,
