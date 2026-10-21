@@ -254,7 +254,7 @@ fn known_shell(shell: &Path, etc_shells: &str) -> bool {
             .any(|line| Path::new(line) == shell)
 }
 
-/// The `PATH` a login shell sets up: `shell -l`, reading [`SCRIPT`] from
+/// The `PATH` a login shell sets up: `shell -l`, reading a constant script from
 /// its stdin, prints it between markers; it is killed after `timeout`.
 /// It starts from the [`ENV_ALLOWLIST`] and the system `PATH`. Anything
 /// else it prints, its errors and its exit status are ignored; `None`
