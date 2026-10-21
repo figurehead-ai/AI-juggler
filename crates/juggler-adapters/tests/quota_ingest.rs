@@ -207,6 +207,46 @@ fn a_response_read_twice_is_stored_once() {
     );
 }
 
+/// P3, across two tail passes: a response's first block lands in one pass
+/// (output 40) and its last block in the next (output 52). The store keeps
+/// the larger figure, and the second write adds only the difference.
+#[test]
+fn a_response_split_across_two_passes_keeps_its_final_figure() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("t.jsonl");
+    let lines: Vec<String> =
+        std::fs::read_to_string(fixture("claude-transcript-content-blocks.jsonl"))
+            .unwrap()
+            .lines()
+            .map(|line| format!("{line}\n"))
+            .collect();
+    // The first pass ends after b-4 (msg_B's first block, output 40).
+    let split = lines
+        .iter()
+        .position(|line| line.contains("\"b-5\""))
+        .unwrap();
+    std::fs::write(&path, lines[..split].concat()).unwrap();
+    let storage = Storage::open_in_memory().unwrap();
+    let first = tail_transcript(&path, "acc", 0);
+    storage.usage().store_events(&first.events).unwrap();
+    std::fs::write(&path, lines.concat()).unwrap();
+    let second = tail_transcript(&path, "acc", first.offset);
+    let stored = storage.usage().store_events(&second.events).unwrap();
+    assert_eq!(stored.len(), 1);
+    assert!(!stored[0].new);
+    assert_eq!(stored[0].added.output, 12, "only the increase is new use");
+    let rows = storage.usage().events_for_account("acc", 0).unwrap();
+    let msg_b = rows
+        .iter()
+        .find(|row| row.msg_uuid.as_deref() == Some("msg_B/req_B"))
+        .unwrap();
+    assert_eq!(msg_b.tokens.output, 52);
+    assert_eq!(rows.iter().map(|row| row.tokens.output).sum::<u64>(), 362);
+    // The same lines again change nothing.
+    let again = storage.usage().store_events(&second.events).unwrap();
+    assert_eq!(again[0].added, juggler_core::model::TokenCounts::default());
+}
+
 #[test]
 fn iso_timestamps_parse_strictly() {
     assert_eq!(
@@ -259,9 +299,14 @@ fn codex_tokens_are_counted_once() {
         "acc",
         &std::fs::read(fixture("codex-rollout.jsonl")).unwrap(),
     );
+    // Every stored class, cache writes included (the second line has 50).
+    assert_eq!(outcome.events[1].tokens.cache_write, 50);
     for (event, total) in outcome.events.iter().zip([52_581_u64, 1_280]) {
         let t = &event.tokens;
-        assert_eq!(t.input + t.cache_read + t.output + t.reasoning, total);
+        assert_eq!(
+            t.input + t.cache_read + t.cache_write + t.output + t.reasoning,
+            total
+        );
     }
 }
 

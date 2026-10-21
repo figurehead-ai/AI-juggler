@@ -30,9 +30,10 @@ const FILE_SCAN_EVERY: u32 = 4;
 const ZCODE_EVERY: u32 = 15;
 /// The persisted offsets+health blob's settings key.
 const INGEST_STATE_KEY: &str = "usage_ingest_state";
-/// Per account: the newest Codex credits snapshot (JSON), from its own
-/// rollouts — what the account's card shows as its balance.
-pub const CREDITS_KEY_PREFIX: &str = "codex_credits:";
+/// Per account: the newest credits snapshot (JSON) its tool reported (Codex,
+/// from its own rollouts) — what the account's card shows as its balance.
+/// Keyed by account, whatever the tool.
+pub const CREDITS_KEY_PREFIX: &str = "credits:";
 /// Raised when stored transcript/rollout rows were counted wrongly and
 /// must be read again: the next pass re-reads every file still on disk
 /// from the start, replacing its sessions' rows. 1 = 0.0.13 (Claude
@@ -154,29 +155,31 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
     // Single writer: ONE storage lock for the whole batch.
     if let Ok(storage) = state.storage.lock() {
         let usage = storage.usage();
-        if rereading {
+        // Events and their offsets go together: when the write fails,
+        // nothing of this pass is kept (offsets included), and the next
+        // pass reads the same lines again.
+        let stored = if rereading {
             // Every file still on disk was read from its start: its
-            // sessions' old rows go, the rows just read replace them. A
-            // session whose files are gone keeps the rows it had.
-            if usage
-                .delete_session_events(&reread_sessions(&store_batch))
-                .is_err()
-            {
-                return; // nothing saved: the next pass tries again
-            }
+            // sessions' old rows go and the rows just read replace them, in
+            // one transaction. A session whose files are gone keeps the
+            // rows it had.
+            usage.replace_session_events(&reread_sessions(&store_batch), &store_batch)
+        } else {
+            usage.store_events(&store_batch)
+        };
+        let Ok(stored) = stored else {
+            return;
+        };
+        if rereading {
             ingest.reread = REREAD_VERSION;
+        } else {
+            // AJ-E1103: Measured tokens this pass added (D-06): a new
+            // response, or the rest of one an earlier pass began. A re-read
+            // is not new use.
+            crate::usage_stats::tokens_ingested(&accounts, &store_batch, &stored);
         }
-        if !store_batch.is_empty()
-            && let Ok(new) = usage.insert_events_marking(&store_batch)
-        {
-            // AJ-E1103: Measured tokens of new rows only (D-06); a
-            // re-read is not new use.
-            if !rereading {
-                crate::usage_stats::tokens_ingested(&accounts, &store_batch, &new);
-            }
-        }
-        for (account, kind, sample) in &sample_batch {
-            let _ = usage.insert_sample(account, *kind, sample);
+        if usage.insert_samples(&sample_batch).is_err() {
+            return;
         }
         for (account, credits) in &credits_batch {
             if let Ok(blob) = serde_json::to_string(credits) {

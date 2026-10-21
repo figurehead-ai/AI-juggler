@@ -598,21 +598,7 @@ pub fn rollout_events(account: &str, bytes: &[u8]) -> TailOutcome {
             outcome.parse_errors += 1;
             continue;
         };
-        let read = |field: &str| {
-            usage
-                .get(field)
-                .and_then(serde_json::Value::as_u64)
-                .unwrap_or_default()
-        };
-        let cached = read("cached_input_tokens");
-        let reasoning = read("reasoning_output_tokens");
-        let tokens = TokenCounts {
-            input: read("input_tokens").saturating_sub(cached),
-            output: read("output_tokens").saturating_sub(reasoning),
-            cache_read: cached,
-            cache_write: read("cache_write_input_tokens"),
-            reasoning,
-        };
+        let tokens = codex_token_counts(usage);
         if tokens == TokenCounts::default() {
             continue;
         }
@@ -635,6 +621,34 @@ pub fn rollout_events(account: &str, bytes: &[u8]) -> TailOutcome {
         });
     }
     outcome
+}
+
+/// One Codex `usage` object as disjoint classes, the one place this split
+/// is made (the usage pipeline and the inspector's quality scan both call
+/// it). Codex's classes nest: `input_tokens` includes the cached input and
+/// the cache writes, and `output_tokens` includes the reasoning; its
+/// `total_tokens` is input + output. Stored apart, they sum to that total,
+/// so each token counts once (P14).
+#[must_use]
+pub fn codex_token_counts(usage: &serde_json::Value) -> TokenCounts {
+    let read = |field: &str| {
+        usage
+            .get(field)
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or_default()
+    };
+    let cached = read("cached_input_tokens");
+    let written = read("cache_write_input_tokens");
+    let reasoning = read("reasoning_output_tokens");
+    TokenCounts {
+        input: read("input_tokens")
+            .saturating_sub(cached)
+            .saturating_sub(written),
+        output: read("output_tokens").saturating_sub(reasoning),
+        cache_read: cached,
+        cache_write: written,
+        reasoning,
+    }
 }
 
 /// A Codex `event_msg` `token_count` line: its `rate_limits` are the

@@ -54,3 +54,24 @@ it("credits say how much, who reported them and when", () => {
   );
   expect(creditsWords(display(null))).toBeNull();
 });
+
+it("after a reset, a session's old reading doesn't bring '% left' back (Home, the cards)", async () => {
+  const { runwayOf, runwayLines } = await import("../components/AccountRunway");
+  const session = (resets: number) =>
+    ({
+      id: "s",
+      status: "running",
+      started_at_ms: NOW - 3_600_000,
+      last_activity_ms: NOW - 60_000,
+      quota: { used_percentage: 36, resets_at_ms: resets, confidence: "measured" },
+    }) as unknown as import("./bridge").InstanceInfo;
+  const reset = quotaDisplay("a", { weekly: windowDisplay("reset", { measured_at_ms: NOW - 2 * 86_400_000 }) });
+  // A window reset with no new reading: the session's reading is the old window's.
+  expect(runwayOf(reset, [session(NOW + 3_600_000)]).words).toBe("Not measured since the reset");
+  expect(runwayLines(reset, [session(NOW + 3_600_000)]).some((line) => /% left/.test(line.words))).toBe(false);
+  // A session reading whose own reset has passed says nothing either.
+  const none = quotaDisplay("a");
+  expect(runwayOf(none, [session(NOW - MIN)]).left).toBeNull();
+  // A live session reading still helps when nothing else is known.
+  expect(runwayOf(none, [session(NOW + 3_600_000)]).words).toBe("64% left, from its latest session");
+});

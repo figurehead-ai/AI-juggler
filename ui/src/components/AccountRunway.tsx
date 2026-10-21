@@ -34,7 +34,7 @@ export function runwayLines(display: QuotaDisplayData | undefined, sessions: Ins
     windowLine("This week", display?.weekly, display?.weekly_omitted_reason),
   ];
   if (lines.some((line) => line.left !== null)) return lines;
-  const reading = latestSessionReading(sessions);
+  const reading = sessionFallback(display, sessions);
   if (!reading) return lines;
   const left = Math.max(0, Math.round(100 - reading.used_percentage));
   return [
@@ -47,12 +47,22 @@ export function runwayLines(display: QuotaDisplayData | undefined, sessions: Ins
   ];
 }
 
-/** The newest session's own quota reading: a real reading when the account
- * has none yet (the newest one wins), never a guess. */
-function latestSessionReading(sessions: InstanceInfo[]): NonNullable<InstanceInfo["quota"]> | undefined {
-  return sessions
+/** The newest session's own quota reading, when the account has none: a
+ * real reading (the newest one wins), never a guess. None once a window
+ * has reset since the vendor's last reading, or when the session's own
+ * reading has passed its reset: an old window's "% left" must not come
+ * back as the new one's (review of #120). */
+function sessionFallback(
+  display: QuotaDisplayData | undefined,
+  sessions: InstanceInfo[],
+  now: number = Date.now(),
+): NonNullable<InstanceInfo["quota"]> | undefined {
+  if (display?.five_hour?.state === "reset" || display?.weekly?.state === "reset") return undefined;
+  const reading = sessions
     .filter((s) => s.quota != null)
-    .sort((a, b) => (b.last_activity_ms ?? b.started_at_ms) - (a.last_activity_ms ?? a.started_at_ms))[0]?.quota ?? undefined;
+    .sort((a, b) => (b.last_activity_ms ?? b.started_at_ms) - (a.last_activity_ms ?? a.started_at_ms))[0]?.quota;
+  if (reading == null || (reading.resets_at_ms != null && reading.resets_at_ms <= now)) return undefined;
+  return reading;
 }
 
 /** Home's one line for an account: % left of the tighter measured window,
@@ -77,7 +87,7 @@ export function runwayOf(
     const words = resetWords(tightest.window);
     return { left, words: `${left}% left ${tightest.phrase}`, resets: words ? `${tightest.label} ${words}` : null };
   }
-  const reading = latestSessionReading(sessions);
+  const reading = sessionFallback(display, sessions);
   if (reading) {
     const left = Math.max(0, Math.round(100 - reading.used_percentage));
     return {

@@ -638,17 +638,23 @@ pub fn quota_display_inner(
             ));
             (None, None, None, None)
         }
-        // P13: Codex's windows are the ones its own limit reading
-        // names (`window_minutes`), never assumed from the tool or plan.
-        "codex" => {
+        // P13: a tool whose feed names its own windows shows the ones it
+        // reports, never ones assumed from the tool or plan.
+        _ if adapter_has(
+            provider,
+            juggler_adapter::Capabilities::LIMIT_WINDOWS_REPORTED,
+        ) =>
+        {
             let (five_reported, weekly_reported) =
-                codex_reported_windows(&samples_five_hour, &samples_weekly, now_ms);
+                reported_windows(&samples_five_hour, &samples_weekly, now_ms);
+            let tool = provider_name(provider);
             let reason = |kind: &str| {
                 if five_reported || weekly_reported {
-                    format!("Codex reports no {kind} limit for this account")
+                    format!("{tool} reports no {kind} limit for this account")
                 } else {
-                    "Codex hasn't reported its limits yet — they show after you use Codex"
-                        .to_owned()
+                    format!(
+                        "{tool} hasn't reported its limits yet — they show after you use {tool}"
+                    )
                 }
             };
             (
@@ -690,39 +696,45 @@ pub fn quota_display_inner(
     }
 }
 
-/// True unless `harness` is a registered tool whose adapter declares no
-/// limits feed (`USAGE_QUOTA_FEED`) — what `providers_capabilities`
-/// reports as `reports_limits`, read once from the built-in adapters. A
-/// tool with no adapter here (`ZCode`'s computed credits) keeps its own
-/// rules.
-#[must_use]
-pub fn reports_limits(harness: &str) -> bool {
-    static NO_FEED: std::sync::OnceLock<std::collections::BTreeSet<String>> =
-        std::sync::OnceLock::new();
-    !NO_FEED
-        .get_or_init(|| {
-            let registry = crate::state::default_registry();
-            registry
-                .ids()
-                .into_iter()
-                .filter(|id| {
-                    registry.get(id).is_some_and(|adapter| {
-                        !adapter
-                            .capabilities()
-                            .contains(juggler_adapter::Capabilities::USAGE_QUOTA_FEED)
-                    })
-                })
-                .map(|id| id.to_string())
-                .collect()
-        })
-        .contains(harness)
+/// A built-in adapter's capabilities, by tool id (`None` for a tool with
+/// no adapter here), read once from the built-in registry: the quota
+/// display asks the adapters, never branches on a tool's id.
+fn adapter_capabilities(harness: &str) -> Option<juggler_adapter::Capabilities> {
+    static CAPS: std::sync::OnceLock<
+        std::collections::BTreeMap<String, juggler_adapter::Capabilities>,
+    > = std::sync::OnceLock::new();
+    CAPS.get_or_init(|| {
+        let registry = crate::state::default_registry();
+        registry
+            .ids()
+            .into_iter()
+            .filter_map(|id| Some((id.to_string(), registry.get(&id)?.capabilities())))
+            .collect()
+    })
+    .get(harness)
+    .copied()
 }
 
-/// Which windows Codex reported in the last week (a Measured sample
-/// from its `rate_limits`, whose `window_minutes` names the window). A
-/// window it never reports (`secondary: null`) is not there; one from a
-/// plan it left reads as stale until it ages out.
-fn codex_reported_windows(
+/// True when `harness`'s adapter declares `capability`.
+fn adapter_has(harness: &str, capability: juggler_adapter::Capabilities) -> bool {
+    adapter_capabilities(harness).is_some_and(|caps| caps.contains(capability))
+}
+
+/// True unless `harness` is a registered tool whose adapter declares no
+/// limits feed (`USAGE_QUOTA_FEED`) — what `providers_capabilities`
+/// reports as `reports_limits`. A tool with no adapter here (`ZCode`'s
+/// computed credits) keeps its own rules.
+#[must_use]
+pub fn reports_limits(harness: &str) -> bool {
+    adapter_capabilities(harness)
+        .is_none_or(|caps| caps.contains(juggler_adapter::Capabilities::USAGE_QUOTA_FEED))
+}
+
+/// Which windows the tool reported in the last week (a Measured sample
+/// whose feed named the window, e.g. Codex's `window_minutes`). A window
+/// it never reports (`secondary: null`) is not there; one from a plan it
+/// left reads as stale until it ages out.
+fn reported_windows(
     five_hour: &[juggler_core::quota::QuotaSample],
     weekly: &[juggler_core::quota::QuotaSample],
     now_ms: i64,
@@ -4758,22 +4770,8 @@ fn scan_rollout_line(
                     .as_str()
                     .and_then(chrono_like_ms)
                     .unwrap_or(now),
-                tokens: juggler_core::model::TokenCounts {
-                    // Disjoint classes, as the usage pipeline stores
-                    // them: `input_tokens` includes the cached history
-                    // and `output_tokens` the reasoning.
-                    input: usage["input_tokens"]
-                        .as_u64()
-                        .unwrap_or(0)
-                        .saturating_sub(usage["cached_input_tokens"].as_u64().unwrap_or(0)),
-                    output: usage["output_tokens"]
-                        .as_u64()
-                        .unwrap_or(0)
-                        .saturating_sub(usage["reasoning_output_tokens"].as_u64().unwrap_or(0)),
-                    cache_read: usage["cached_input_tokens"].as_u64().unwrap_or(0),
-                    cache_write: 0,
-                    reasoning: usage["reasoning_output_tokens"].as_u64().unwrap_or(0),
-                },
+                // Disjoint classes, split as the usage pipeline does.
+                tokens: juggler_adapters::quota_ingest::codex_token_counts(usage),
                 model: model.clone(),
             });
         }

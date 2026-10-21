@@ -32,6 +32,10 @@ bitflags::bitflags! {
         /// The desktop app is single-account: Juggler tracks it but
         /// cannot isolate accounts inside it (honest label, Req.1).
         const DESKTOP_SINGLE_ACCOUNT = 1 << 10;
+        /// The quota feed names its own windows (e.g. Codex's
+        /// `window_minutes`): the core shows the windows it reports, never
+        /// ones assumed for the tool or plan (P13).
+        const LIMIT_WINDOWS_REPORTED = 1 << 11;
     }
 }
 

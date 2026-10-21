@@ -90,19 +90,33 @@ fn a_resumed_sessions_old_window_doesnt_replace_the_current_one() {
 #[test]
 fn a_jittering_reset_is_one_window() {
     let reset = NOW + 2 * DAY;
+    // The newest line names the latest reset (30 s later) and is a point
+    // lower: grouped as one window, the higher reading stands.
     let samples = [
-        reading(NOW - 4 * MIN, 40.0, reset),
-        reading(NOW - 3 * MIN, 41.0, reset - 75_000),
-        reading(NOW - 2 * MIN, 41.0, reset + 30_000),
+        reading(NOW - 3 * MIN, 41.0, reset),
+        reading(NOW - 2 * MIN, 40.0, reset + 30_000),
     ];
     let window = weekly(&samples);
     assert_eq!(
         window.percentage,
         Some(41.0),
-        "not reset to the jittered line's"
+        "a jittered reset is the same window"
     );
-    // The newest of the equal readings gives the as-of and its reset.
-    assert_eq!(window.measured_at, Some(NOW - 2 * MIN));
+    assert_eq!(window.measured_at, Some(NOW - 3 * MIN));
+}
+
+/// A reset an hour or more later is a new window: its reading stands,
+/// even when lower.
+#[test]
+fn a_reset_an_hour_later_is_a_new_window() {
+    let reset = NOW + 2 * DAY;
+    let samples = [
+        reading(NOW - 3 * MIN, 41.0, reset),
+        reading(NOW - 2 * MIN, 2.0, reset + HOUR),
+    ];
+    let window = weekly(&samples);
+    assert_eq!(window.percentage, Some(2.0));
+    assert_eq!(window.resets_at, Some(reset + HOUR));
 }
 
 /// Rule 6: the reading's window reset and nothing newer came: no
