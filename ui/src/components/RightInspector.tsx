@@ -2019,8 +2019,19 @@ function ProjectOverview(props: PanelProps) {
         </div>
       ) : null}
       {rows.length === 0 ? (
-        <Card className="flex flex-col items-center gap-3 p-6 text-center">
-          <p className="text-[12px] font-medium text-ink">No sessions in this project yet</p>
+        <Card className="flex flex-col items-center gap-3 p-6 text-center" data-testid="project-empty">
+          {/* 0.0.11 walk, Q2: a project known from the setups' history says
+              what was done there — the rail row's own line. */}
+          {project.history_sessions > 0 ? (
+            <div className="flex flex-col items-center gap-1">
+              <p className="text-[12px] font-medium text-ink">Nothing started from AI Juggler here yet</p>
+              <p className="text-[11.5px] text-muted" data-testid="project-history-line">
+                {projectStats(project, props.now).join(" · ")}
+              </p>
+            </div>
+          ) : (
+            <p className="text-[12px] font-medium text-ink">No sessions in this project yet</p>
+          )}
           <Button size="sm" variant="primary" onClick={() => window.dispatchEvent(new Event("aij:new-session"))}>
             <IconTerminal width={13} height={13} />
             Start first session
@@ -2068,7 +2079,7 @@ function ProjectOverview(props: PanelProps) {
 }
 
 /** SessionRow reuse for the On-it-now card — import late to avoid cycles. */
-import { SessionRow } from "./WorkflowRail";
+import { SessionRow, projectStats } from "./WorkflowRail";
 function SessionRowForCard({ session }: { session: InstanceInfo }) {
   return <SessionRow session={session} selected={false} onSelect={() => {}} />;
 }
@@ -2522,7 +2533,7 @@ function QualityTab(props: PanelProps) {
       tier: "Estimated",
       body: quality.session_cost_usd !== null ? (
         <span className="tabular-nums text-ink">
-          \${quality.session_cost_usd.toFixed(2)} · Est · value-equiv. ({quality.priced_model})
+          ${quality.session_cost_usd.toFixed(2)} · Est · value-equiv. ({quality.priced_model})
         </span>
       ) : (
         <span className="text-muted">
@@ -2847,7 +2858,7 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
           </p>
           {orphans.length === 0 ? (
             <p className="text-[10px] text-faint">
-              A good empty state: nothing this session spawned outlived it.
+              Nothing this session started is still running after it.
             </p>
           ) : (
             <>

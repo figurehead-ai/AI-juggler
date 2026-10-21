@@ -1,7 +1,7 @@
 /**
  * AJ-E306 / AJ-E1023 vitest — flow (c): Add account's tool choice (shown
- * when more than one tool is installed). Cards carry the install state,
- * verified-range badge and kind; not-installed cards are never
+ * when more than one tool is installed). Cards say Installed / Not
+ * installed (and Desktop for a desktop tool); not-installed cards are never
  * selectable; desktop cards state the single-instance limit BEFORE
  * selection; choosing a card hands that tool to Add account.
  */
@@ -57,7 +57,7 @@ beforeEach(() => {
 });
 
 describe("AJ-E306 flow (c) — Add account's tool choice", () => {
-  it("renders one card per adapter — installed first, kind badges, verified ranges, desktop limit stated BEFORE selection", async () => {
+  it("renders one card per adapter — installed first, plain words, desktop limit stated BEFORE selection", async () => {
     const { container } = render(
       <AddProviderSheet onClose={() => {}} onChoose={() => {}} />,
     );
@@ -71,13 +71,14 @@ describe("AJ-E306 flow (c) — Add account's tool choice", () => {
     expect(cards[0]!.getAttribute("data-kind")).toBe("terminal");
     expect(cards[1]!.getAttribute("data-kind")).toBe("desktop");
     expect(cards[2]!.getAttribute("data-status")).toBe("not_installed");
-    // The verified range badge is honest both ways.
-    expect(cards[0]!.querySelector("[data-testid='verified-badge']")!.textContent).toContain(
-      "Verified against 2.0.x, 2.1.x",
-    );
-    expect(cards[1]!.querySelector("[data-testid='verified-badge']")!.textContent).toContain(
-      "Unverified",
-    );
+    // 0.0.11 walk, Q4: plain words — no Terminal chip, no version or
+    // verified-range lines (they are in the tool's own view).
+    expect(cards[0]!.querySelector("[data-testid='provider-state']")!.textContent).toBe("Installed");
+    expect(cards[1]!.querySelector("[data-testid='provider-state']")!.textContent).toBe("Installed");
+    expect(cards[2]!.querySelector("[data-testid='provider-state']")!.textContent).toBe("Not installed");
+    for (const card of cards) {
+      expect(card.textContent).not.toMatch(/Terminal|[Vv]erified|features may drift|2\.1\.296/);
+    }
     // Desktop: kind badge + the single-instance limit inline (Req.3).
     expect(cards[1]!.textContent).toContain("Desktop");
     expect(cards[1]!.textContent).toContain("one session at a time");

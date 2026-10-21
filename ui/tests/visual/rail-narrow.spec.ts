@@ -9,14 +9,14 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { allStatuses } from "./fixtures";
+import { allStatuses, atScale } from "./fixtures";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/69-rail-narrow");
 const T0 = 1_728_800_000_000;
 
 test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
 
-async function seed(page: Page, theme: "dark" | "light", width: number, height: number, density = "comfortable") {
+async function seed(page: Page, theme: "dark" | "light", width: number, height: number, density = "comfortable", fixture: unknown = allStatuses) {
   await page.addInitScript(
     ({ fixture, theme, t0, density }) => {
       const w = window as unknown as Record<string, unknown>;
@@ -27,7 +27,7 @@ async function seed(page: Page, theme: "dark" | "light", width: number, height: 
       sessionStorage.setItem("aij.ready.skipped", "1");
       Date.now = () => t0;
     },
-    { fixture: allStatuses, theme, t0: T0, density },
+    { fixture, theme, t0: T0, density },
   );
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
   await page.setViewportSize({ width, height });
@@ -187,3 +187,19 @@ test("Ctrl+D typed in the terminal or a text field is the typing's, not the rail
   await page.keyboard.press("Control+d");
   await expect(rail(page)).toHaveAttribute("data-density", "compact");
 });
+
+// 0.0.11 walk: with counts on the chips ("Needs you 5", "Running 3") the
+// Filters button overflowed the rail at its starting width and was cut.
+for (const [name, fixture] of [["one-digit counts", allStatuses], ["two-digit counts", atScale]] as const) {
+  test(`the filter row stays inside the rail — ${name}`, async ({ page }) => {
+    await seed(page, "dark", 1280, 800, "comfortable", fixture);
+    const filters = page.getByRole("button", { name: /^Filters/ });
+    await expect(filters).toBeVisible();
+    const [box, edge] = await Promise.all([filters.boundingBox(), rail(page).boundingBox()]);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(edge!.x + edge!.width - 8);
+    for (const chip of ["Needs you", "Running", "All"]) {
+      const chipBox = await page.getByRole("group", { name: "Show" }).getByRole("button", { name: new RegExp(`^${chip}`) }).boundingBox();
+      expect(chipBox!.x + chipBox!.width, chip).toBeLessThanOrEqual(edge!.x + edge!.width - 8);
+    }
+  });
+}
