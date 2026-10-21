@@ -163,6 +163,12 @@ jobs:
           pnpm --version
           pnpm --dir ui install --frozen-lockfile
 
+      - name: Crates, exactly as locked
+        # Every crate from Cargo.lock, fetched fresh (no cache is ever
+        # restored here); the build then runs --frozen, so nothing else is
+        # fetched.
+        run: cargo fetch --locked
+
       - name: Icon
         # Generated from the brand PNG at build time; no generated binaries
         # live in the repository. AI Juggler Nightly's carries a "Nightly"
@@ -204,7 +210,7 @@ jobs:
           )
           # From the repository root, as `just app` does: that's where the
           # Tauri CLI finds the UI project (ui/) and runs `pnpm build` in it.
-          cargo tauri build --target universal-apple-darwin --config "$config"
+          cargo tauri build --target universal-apple-darwin --config "$config" -- --frozen
           bundle=target/universal-apple-darwin/release/bundle/macos
           out="$RUNNER_TEMP/unsigned" && mkdir -p "$out"
           # A tar keeps the bundle's modes and links (an artifact wouldn't).

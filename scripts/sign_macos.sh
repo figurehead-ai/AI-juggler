@@ -81,6 +81,8 @@ else
 
   keychain="$work/signing.keychain-db"
   keychain_password="$(openssl rand -hex 24)"
+  # A derived secret GitHub doesn't know: masked in case anything prints it.
+  [ -n "${GITHUB_ACTIONS:-}" ] && echo "::add-mask::$keychain_password"
   security create-keychain -p "$keychain_password" "$keychain"
   security set-keychain-settings -lut 21600 "$keychain"
   security unlock-keychain -p "$keychain_password" "$keychain"
