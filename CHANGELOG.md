@@ -242,6 +242,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   labelled as not started by AI Juggler. They are never offered stop or
   cleanup. A session is called heavy when it stays above 90 % of a core
   or 2 GB for a minute.
+- Home has a **This Mac** panel beside Runway (E14, AJ-E1404). It says how
+  your Mac is doing ("Plenty of room", "Getting tight", "Under pressure",
+  and why), how much memory and CPU your AI tools use right now, the
+  heaviest three, and how many processes were left running after their
+  session closed, with a Clean up button. A session working your Mac hard,
+  or a Mac under pressure, shows up under Needs you with one action.
+- A rail row now notes a session's memory or CPU only while that session
+  is heavy. The session view shows "CPU 12% · 1.1 GB · 3 helpers" under
+  its title instead of keeping it under Details (AJ-E1405).
 - Three update channels (decision D-20): **Nightly** (built from the latest
   code every day), **Beta** and **Stable** (each promoted with the
   maintainer's approval). Choose Stable or Beta in Settings › About &

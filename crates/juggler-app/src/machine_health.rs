@@ -415,6 +415,12 @@ const HEAVY_CPU_PCT: f64 = 90.0;
 const HEAVY_RSS_BYTES: u64 = 2_000_000_000;
 /// … for every sample of the last minute.
 const HEAVY_WINDOW_MS: i64 = 60_000;
+/// A heavy tree turns calm only below this share of the level that made it
+/// heavy …
+const HEAVY_EXIT_RATIO: f64 = 0.8;
+/// … held this long, so a session hovering near the threshold doesn't
+/// leave Needs you, the rail and the header and come back a minute later.
+const HEAVY_EXIT_MS: i64 = 45_000;
 
 /// One process tree on This Mac: a session AI Juggler started, or an AI
 /// tool it did not (read-only; no actions).
@@ -502,18 +508,43 @@ pub struct TreeInput {
     pub hog_rules: Vec<String>,
 }
 
-/// Sustained = every sample of the last minute passes, and the ring
-/// really spans (nearly) a minute.
-fn sustained(ring: &[TreeSample], passes: impl Fn(&TreeSample) -> bool) -> bool {
-    let Some(newest) = ring.last() else {
+/// Heavy with hysteresis, from the ring alone. A tree turns heavy once a
+/// run of samples passes `over` for (nearly) a minute, and stays heavy
+/// until the samples since have passed `calm` for (nearly) `HEAVY_EXIT_MS`
+/// — or the ring (5 minutes) no longer holds the minute that made it heavy.
+fn heavy_with_hysteresis(
+    ring: &[TreeSample],
+    over: impl Fn(&TreeSample) -> bool,
+    calm: impl Fn(&TreeSample) -> bool,
+) -> bool {
+    // The newest sample that ends a minute-long run over the level.
+    let mut run_from: Option<i64> = None;
+    let mut entered: Option<usize> = None;
+    for (index, sample) in ring.iter().enumerate() {
+        if over(sample) {
+            let from = *run_from.get_or_insert(sample.at_ms);
+            if sample.at_ms - from >= HEAVY_WINDOW_MS * 9 / 10 {
+                entered = Some(index);
+            }
+        } else {
+            run_from = None;
+        }
+    }
+    let Some(entered) = entered else {
         return false;
     };
-    let window: Vec<&TreeSample> = ring
+    let since = &ring[entered + 1..];
+    let Some(newest) = since.last() else {
+        return true; // heavy right now
+    };
+    // The calm run at the end, after it turned heavy.
+    let calm_from = since
         .iter()
-        .filter(|sample| newest.at_ms - sample.at_ms <= HEAVY_WINDOW_MS)
-        .collect();
-    let span = window.first().map_or(0, |first| newest.at_ms - first.at_ms);
-    span >= HEAVY_WINDOW_MS * 9 / 10 && window.iter().all(|sample| passes(sample))
+        .rev()
+        .take_while(|sample| calm(sample))
+        .last()
+        .map(|sample| sample.at_ms);
+    calm_from.is_none_or(|from| newest.at_ms - from < HEAVY_EXIT_MS * 9 / 10)
 }
 
 /// Pure: the rail's note for a tree, only when it's heavy.
@@ -528,14 +559,26 @@ pub fn heavy_note(tree: &TreeInput) -> Option<String> {
         .iter()
         .any(|rule| !rule.starts_with("tree-cpu"));
     let cpu_heavy = cpu_hog
-        || sustained(&tree.ring, |sample| {
-            sample.cpu_pct.is_some_and(|cpu| cpu > HEAVY_CPU_PCT)
-        });
+        || heavy_with_hysteresis(
+            &tree.ring,
+            |sample| sample.cpu_pct.is_some_and(|cpu| cpu > HEAVY_CPU_PCT),
+            |sample| {
+                sample
+                    .cpu_pct
+                    .is_none_or(|cpu| cpu < HEAVY_CPU_PCT * HEAVY_EXIT_RATIO)
+            },
+        );
     // A tool AI Juggler didn't start (the Claude app: Electron helpers that
     // share pages) is summed RSS, an overcount — so its heaviness is CPU
     // only, never a memory figure that flags every window.
     let rss_heavy = tree.place.is_none()
-        && (rss_hog || sustained(&tree.ring, |sample| sample.rss_bytes > HEAVY_RSS_BYTES));
+        && (rss_hog
+            || heavy_with_hysteresis(
+                &tree.ring,
+                |sample| sample.rss_bytes > HEAVY_RSS_BYTES,
+                #[allow(clippy::cast_precision_loss)]
+                |sample| (sample.rss_bytes as f64) < HEAVY_RSS_BYTES as f64 * HEAVY_EXIT_RATIO,
+            ));
     let mut parts = Vec::new();
     if cpu_heavy && let Some(cpu) = tree.stats.cpu_pct {
         parts.push(format!("CPU {cpu:.0}%"));
@@ -947,6 +990,48 @@ mod tests {
         let mut hog = tree(Some("a"), 40.0, 2_500_000_000, 10);
         hog.hog_rules = vec!["tree-rss>p95(provider)".into()];
         assert_eq!(heavy_note(&hog).as_deref(), Some("2.5 GB"));
+    }
+
+    /// A ring from (seconds, cpu) legs, one sample every 2 s, capped as the
+    /// supervisor caps it.
+    fn legs(legs: &[(i64, f64)]) -> Vec<TreeSample> {
+        let mut at = 0;
+        let mut out = Vec::new();
+        for &(seconds, cpu) in legs {
+            for _ in 0..seconds / 2 {
+                out.push(TreeSample {
+                    at_ms: at,
+                    cpu_pct: Some(cpu),
+                    rss_bytes: G,
+                });
+                at += 2_000;
+            }
+        }
+        // The supervisor's ring keeps 150 samples (5 minutes).
+        let keep = out.len().saturating_sub(150);
+        out.split_off(keep)
+    }
+
+    #[test]
+    fn a_session_hovering_near_the_line_stays_heavy_until_it_calms() {
+        let note = |ring: Vec<TreeSample>| {
+            let mut hovering = tree(Some("a"), 0.0, G, 0);
+            hovering.stats.cpu_pct = ring.last().and_then(|sample| sample.cpu_pct);
+            hovering.ring = ring;
+            heavy_note(&hovering)
+        };
+        // A minute over 90 %, then dips between 80 and 90 %: still heavy.
+        assert!(note(legs(&[(62, 95.0), (4, 85.0)])).is_some());
+        assert!(note(legs(&[(62, 95.0), (4, 85.0), (4, 95.0), (60, 86.0)])).is_some());
+        // One sample under 80 % doesn't clear it either …
+        assert!(note(legs(&[(62, 95.0), (2, 30.0), (10, 92.0)])).is_some());
+        assert!(note(legs(&[(62, 95.0), (20, 30.0)])).is_some());
+        // … 45 s under 80 % does.
+        assert!(note(legs(&[(62, 95.0), (48, 30.0)])).is_none());
+        // Never a minute over: never heavy, however long it hovers.
+        assert!(note(legs(&[(40, 95.0), (2, 85.0), (40, 95.0)])).is_none());
+        // Gone from the ring (5 minutes later) is calm too.
+        assert!(note(legs(&[(62, 95.0), (260, 86.0)])).is_none());
     }
 
     #[test]

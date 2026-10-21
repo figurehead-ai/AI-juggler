@@ -4,6 +4,7 @@ import { providerDisplayName } from "../lib/providers";
 import { ReactNode, useCallback, useEffect, useId, useRef, useState, type JSX } from "react";
 import { IconProjects, IconTerminal } from "./icons";
 import type { AccountInfo, InstanceInfo, ProjectInfo, RemoteInstanceInfo, RemoteMachineInfo } from "../lib/bridge";
+import { shortHeavy, useHeavyNote } from "../lib/machine";
 import type { Density } from "../lib/density";
 import { REFRESH_INTERVALS, staleCaption } from "../lib/density";
 import {
@@ -804,6 +805,9 @@ export function RailRow({
   const identity = identityWords(session);
   const identityMark = identity && identity.state !== "verified" ? identity : null;
   const dirty = session.git_dirty_count ? `${session.git_dirty_count} changed` : null;
+  // E14 (AJ-E1405): resources show only when the session is heavy.
+  const heavyNote = useHeavyNote(session.id);
+  const heavy = heavyNote ? shortHeavy(heavyNote) : null;
   const sampled = freshness[session.id];
   const stale = sampled && isActiveStatus(session.status)
     ? ((session.quota !== null ? staleCaption(sampled.quota, REFRESH_INTERVALS.quota, now) : null) ??
@@ -849,6 +853,11 @@ export function RailRow({
               {state}
             </span>
             {low && <span className="shrink-0 whitespace-nowrap text-warning">· {low}</span>}
+            {heavy && (
+              <span title={`Working your Mac hard: ${heavyNote}`} data-testid="rail-heavy" className="shrink-0 whitespace-nowrap text-warning">
+                · {heavy}
+              </span>
+            )}
             {dirty && (
               <span title={gitWords(session)} data-testid="git-badge" className="shrink-0 whitespace-nowrap">
                 · {dirty}
@@ -867,9 +876,15 @@ export function RailRow({
         <span className="sr-only">
           , {state}, {session.account_label}
           {low ? `, ${low}` : ""}
+          {heavyNote ? `, working your Mac hard: ${heavyNote}` : ""}
         </span>
       </span>
       {density === "compact" && low && <span className="shrink-0 font-mono text-[10px] text-warning">{low}</span>}
+      {density === "compact" && !low && heavy && (
+        <span data-testid="rail-heavy" className="shrink-0 font-mono text-[10px] text-warning">
+          {heavy}
+        </span>
+      )}
       <span
         aria-hidden="true"
         title={session.account_label}
