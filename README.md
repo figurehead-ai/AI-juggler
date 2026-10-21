@@ -9,18 +9,20 @@
 
 AI Juggler is a free, open-source desktop app (Rust + Tauri 2, macOS
 first) for developers who run several AI coding subscriptions —
-**Claude Code**, **Codex**, **ZCode**, and more — and are tired of
+**Claude Code** and **Codex** today, with more tools planned — and are tired of
 juggling them by hand. It supervises the command-line tools you already
 have installed. It never proxies their traffic, never automates a vendor
 sign-in, and never stores vendor credentials.
 
-> **Status: beta development, no releases yet.** The engine, the Claude
-> Code adapter, the instance-centric UI with its right-hand Inspector,
-> smart onboarding, switching (labelled beta fidelity), process
-> ownership and cleanup, and the two-clock usage model are built and
-> continuously tested. Fleet (multi-machine) and the derived daily
-> workflows are in progress. See [the task board](./docs/tasks/) for
-> exactly what is done.
+> **Status: public beta builds for macOS** (Beta and Nightly channels,
+> signed and notarized; see [Releases](https://github.com/figurehead-ai/AI-juggler/releases)).
+> The engine, the Claude Code and Codex adapters, the session-centric UI
+> with its right-hand Inspector, smart onboarding (setups used where
+> they are, or as copies), switching (labelled beta fidelity), process
+> ownership and cleanup, the two-clock usage model, This Mac, Fleet
+> (multi-machine) and the derived daily workflows are built and
+> continuously tested. See [the task board](./docs/tasks/) for exactly
+> what is done, and what is next.
 
 ---
 
@@ -68,8 +70,8 @@ hacks. AI Juggler replaces that pile with one app.
 | Provider | Status |
 | --- | --- |
 | Claude Code | ✅ Adapter built (the `claude` CLI) |
-| Codex | 🔬 Researched; adapter not built yet |
-| ZCode | 🔬 Researched; adapter not built yet |
+| Codex | ✅ Adapter built (the `codex` CLI; beta) |
+| ZCode | 🔬 Researched; adapter planned (E15) |
 | Others (Gemini CLI and successors, …) | 🔌 Via the adapter system |
 
 ## Build from source
