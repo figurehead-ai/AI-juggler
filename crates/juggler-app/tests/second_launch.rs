@@ -128,3 +128,94 @@ fn a_second_launch_never_opens_the_data() {
     );
     drop(running);
 }
+
+/// Starts the real binary as a second launch against `home` (whose data
+/// folder the caller holds) and returns its status, stderr and how long
+/// it took.
+fn second_launch(home: &std::path::Path) -> (std::process::ExitStatus, String, Duration) {
+    let started = Instant::now();
+    let out = std::process::Command::new(env!("CARGO_BIN_EXE_juggler-app"))
+        .env("HOME", home)
+        .env("XDG_DATA_HOME", home.join(".local/share"))
+        .env("AIJ_NO_DIALOGS", "1")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::piped())
+        .output()
+        .unwrap();
+    (
+        out.status,
+        String::from_utf8_lossy(&out.stderr).into_owned(),
+        started.elapsed(),
+    )
+}
+
+/// A home whose data folder is held, as by a running AI Juggler.
+fn held_home() -> (tempfile::TempDir, PathBuf, std::fs::File) {
+    let home = tempfile::tempdir().unwrap();
+    let data = dev_data_dir(home.path());
+    std::fs::create_dir_all(&data).unwrap();
+    let lock = std::fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(data.join("juggler.lock"))
+        .unwrap();
+    lock.try_lock().unwrap();
+    (home, data, lock)
+}
+
+/// 0.0.11 walk (Q8): the open AI Juggler is frozen — its hand-over socket
+/// accepts but never answers. The second launch waits about 3 s, then
+/// says it isn't answering, and quits without touching the data.
+#[test]
+fn a_second_launch_says_a_frozen_app_isnt_answering() {
+    if ai_juggler_is_open() {
+        eprintln!("skipped: AI Juggler is open, and this build shares its single-instance name");
+        return;
+    }
+    let (home, data, lock) = held_home();
+    let socket = juggler_app::handover::socket_path("ai.figurehead.juggler", &data);
+    let _ = std::fs::remove_file(&socket);
+    let listener = std::os::unix::net::UnixListener::bind(&socket).unwrap();
+    let frozen = std::thread::spawn(move || {
+        // Accept, read the ask, never reply (held well past the wait).
+        let (mut stream, _) = listener.accept().unwrap();
+        let mut ask = [0_u8; 6];
+        let _ = std::io::Read::read_exact(&mut stream, &mut ask);
+        std::thread::sleep(Duration::from_secs(6));
+    });
+    let (status, stderr, took) = second_launch(home.path());
+    assert!(!status.success(), "nothing answered: {stderr}");
+    assert!(stderr.contains("isn't answering"), "it says so: {stderr}");
+    assert!(
+        took >= Duration::from_millis(2_900),
+        "it waited for an answer: {took:?}"
+    );
+    assert!(took < Duration::from_secs(20), "it didn't hang: {took:?}");
+    let left: Vec<String> = std::fs::read_dir(&data)
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(left, ["juggler.lock"], "the data folder is untouched");
+    let _ = std::fs::remove_file(&socket);
+    frozen.join().unwrap();
+    drop(lock);
+}
+
+/// The open AI Juggler answers: the second launch quits at once, quietly.
+#[test]
+fn a_second_launch_hands_over_to_an_app_that_answers() {
+    if ai_juggler_is_open() {
+        eprintln!("skipped: AI Juggler is open, and this build shares its single-instance name");
+        return;
+    }
+    let (home, data, lock) = held_home();
+    let socket = juggler_app::handover::socket_path("ai.figurehead.juggler", &data);
+    juggler_app::handover::serve(&socket, || true);
+    let (status, stderr, took) = second_launch(home.path());
+    assert!(status.success(), "it handed over: {stderr}");
+    assert!(!stderr.contains("isn't answering"), "{stderr}");
+    assert!(took < Duration::from_secs(10), "{took:?}");
+    juggler_app::handover::stop(&socket);
+    drop(lock);
+}

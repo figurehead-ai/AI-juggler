@@ -22,6 +22,7 @@ pub mod figurehead;
 pub mod fleet;
 pub mod fleet_account;
 pub mod focus;
+pub mod handover;
 pub mod history;
 pub mod identity;
 pub mod lifecycle;
@@ -103,7 +104,18 @@ pub fn run() {
     // before the data is opened. A second launch while another AI Juggler
     // of this edition holds it touches nothing — no migration, no
     // recovery — and only hands over to the running one.
+    // 0.0.11 walk (Q8): the hand-over socket is this data folder's; a
+    // second launch asks the running app to come forward and waits for
+    // its answer.
+    let handover_socket = handover::socket_path(&context.config().identifier, &data_dir);
     if !newer_data::hold_instance_lock(&data_dir) {
+        match handover::ask(&handover_socket, handover::ANSWER_WAIT) {
+            handover::Answer::Answered => std::process::exit(0),
+            handover::Answer::NotAnswering => not_answering(),
+            // An older AI Juggler (no such socket), or one still starting:
+            // the plugin's hand-over, as before.
+            handover::Answer::NoneListening => {}
+        }
         context.config_mut().app.windows.clear();
         hand_over_to_the_running_instance(context);
     }
@@ -140,6 +152,7 @@ pub fn run() {
     let cloud_backup_state = Arc::clone(&app_state);
     let stats_state = Arc::clone(&app_state);
 
+    let serve_socket = handover_socket.clone();
     tauri::Builder::default()
         // Registered first: a second launch defers to the running app
         // (focus its window) instead of stacking ghost instances.
@@ -393,6 +406,24 @@ pub fn run() {
         ])
         .setup(move |app| {
             let _ = app.emit(EVENT_APP_READY, commands::AppInfo::current());
+            // Q8: answer a second launch only once the window really came
+            // forward on the main thread (a stuck app stays silent, and the
+            // second launch says so).
+            let raise_handle = app.handle().clone();
+            handover::serve(&serve_socket, move || {
+                let (done, came) = std::sync::mpsc::channel();
+                let window_handle = raise_handle.clone();
+                let queued = raise_handle.run_on_main_thread(move || {
+                    use tauri::Manager;
+                    if let Some(window) = window_handle.get_webview_window("main") {
+                        let _ = window.show();
+                        let _ = window.unminimize();
+                        let _ = window.set_focus();
+                    }
+                    let _ = done.send(());
+                });
+                queued.is_ok() && came.recv_timeout(handover::RAISE_WAIT).is_ok()
+            });
             register_go_to_hotkey(app.handle());
             spawn_read_model_ticks(
                 app.handle().clone(),
@@ -426,8 +457,9 @@ pub fn run() {
             eprintln!("ai-juggler: fatal: {error}");
             std::process::exit(1);
         })
-        .run(|_app, event| {
+        .run(move |_app, event| {
             if let tauri::RunEvent::Exit = event {
+                handover::stop(&handover_socket);
                 usage_stats::shutdown();
             }
         });
@@ -466,6 +498,12 @@ fn hand_over_to_the_running_instance(context: tauri::Context<tauri::Wry>) -> ! {
         tauri_plugin_single_instance::destroy(app);
     }
     drop(built);
+    not_answering();
+}
+
+/// Says the open AI Juggler isn't answering and how to quit it, then
+/// quits without opening the data.
+fn not_answering() -> ! {
     let app = edition::current().app_name();
     let how = if cfg!(target_os = "macos") {
         format!(
