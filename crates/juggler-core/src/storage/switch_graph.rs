@@ -151,6 +151,60 @@ impl SwitchGraphRepo<'_> {
         Ok(out)
     }
 
+    /// AJ-E1702: the Work item each Instance belongs to (the one its
+    /// newest epoch is in). Instances that never switched have none.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn works_by_session(
+        &self,
+    ) -> Result<std::collections::HashMap<SessionId, WorkItemId>, CoreError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT session_ref, work_id FROM epochs
+              WHERE session_ref IS NOT NULL ORDER BY rowid",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?;
+        let mut out = std::collections::HashMap::new();
+        for row in rows {
+            let (session, work) = row?;
+            out.insert(SessionId::new(session), WorkItemId::new(work));
+        }
+        Ok(out)
+    }
+
+    /// The Work item a switch from `session` continues: the one the
+    /// session's epochs are already in, else a new one — one line of work
+    /// per Work item, so what hangs off it (a pool, AJ-E1702) follows that
+    /// work and not every switch in the project.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn work_for_switch(
+        &self,
+        project: &ProjectId,
+        session: &SessionId,
+        title: &str,
+    ) -> Result<WorkItem, CoreError> {
+        let existing: Option<String> = self
+            .conn
+            .query_row(
+                "SELECT e.work_id FROM epochs e JOIN work_items w ON w.id = e.work_id
+                  WHERE e.session_ref = ?1 AND w.project = ?2
+                  ORDER BY e.rowid DESC LIMIT 1",
+                params![session.as_str(), project.as_str()],
+                |row| row.get(0),
+            )
+            .optional()?;
+        match existing {
+            Some(id) => self.work(&WorkItemId::new(id)),
+            None => self.create_work(project, title),
+        }
+    }
+
     /// Appends an epoch node (INSERT only — epochs are immutable).
     ///
     /// # Errors

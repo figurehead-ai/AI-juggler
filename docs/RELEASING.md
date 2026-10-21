@@ -282,6 +282,8 @@ saved (it never risks it). So:
 | 0.0.7 | 27 | yes | — |
 | 0.0.8 | 28 (accounts used in place) | yes | **no** — downgrade note in 0.0.8's notes |
 | 0.0.9 | 29 (session footprints) | yes | **no** — downgrade note in 0.0.9's notes; 0.0.9 keeps a `before-v28` copy, so "Go back to an earlier version" can return to 0.0.8 |
+| 0.0.10, 0.0.11 | 29 | yes | yes (same schema) |
+| next | 31 (pools, AJ-E1702) | yes | **no** — its notes need the downgrade note ("Going back to 0.0.11 or earlier…"); it keeps a `before-v29` copy, so "Go back to an earlier version" can return to 0.0.11 |
 
 Tests: `cargo test -p juggler-core --test pre_migration_copy` (the copy
 holds exactly the rows the database had, two are kept, a fresh database

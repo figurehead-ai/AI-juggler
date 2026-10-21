@@ -22,6 +22,7 @@ mod cleanup_settings;
 mod fleet_sync;
 mod footprints;
 mod identity;
+mod pools;
 mod process_ledger;
 mod projects;
 mod settings;
@@ -45,6 +46,10 @@ pub use footprints::{
     FOOTPRINTS_PER_KEY, Footprint, FootprintStats, FootprintsRepo, MIN_FOOTPRINT_MS,
 };
 pub use identity::{IdentityAssertion, IdentityRepo};
+pub use pools::{
+    Capability, DEFAULT_POOL_ID, DEFAULT_POOL_NAME, DefaultScope, MemberRef, Pool, PoolKind,
+    PoolMember, PoolRole, PoolsRepo, default_grant, default_pool_scope, resolve_memberships,
+};
 pub use process_ledger::{
     EXEC_SETTLE_MS, LedgerRow, ProcessLedgerRepo, ROLE_HELPER, ROLE_LOGIN, ROLE_ROOT, STATE_EXITED,
     STATE_ORPHANED, STATE_RUNNING, STATE_STARTING, STATE_UNVERIFIABLE,
@@ -536,9 +541,47 @@ CREATE TABLE account_audit (
 CREATE INDEX idx_account_audit_account ON account_audit(account_id, at);
 ";
 
+/// v31 (AJ-E1702): pools — sessions grouped by the user. A pool has a
+/// name, a kind (`default` | `user`) and an optional project; the default
+/// pool "All sessions" always exists (one row, made here). Members hang
+/// off the Work item (`work:<id>`, else `session:<id>`) so a switch keeps
+/// them; one active row per member (no row: the default pool, as a
+/// member). Deleting a pool marks it and ends its rows, so its history
+/// stays. Grants hold only what the user changed from the defaults.
+const V31: &str = "
+CREATE TABLE pools (
+    id         TEXT PRIMARY KEY,
+    name       TEXT NOT NULL,
+    kind       TEXT NOT NULL,
+    project    TEXT,
+    created_at INTEGER NOT NULL,
+    deleted_at INTEGER
+);
+CREATE UNIQUE INDEX idx_pools_one_default ON pools(kind) WHERE kind = 'default';
+INSERT INTO pools (id, name, kind, project, created_at)
+    VALUES ('pool-default', 'All sessions', 'default', NULL, 0);
+CREATE TABLE pool_members (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    pool_id    TEXT NOT NULL REFERENCES pools(id),
+    member_ref TEXT NOT NULL,
+    role       TEXT NOT NULL,
+    joined_at  INTEGER NOT NULL,
+    left_at    INTEGER
+);
+CREATE UNIQUE INDEX idx_pool_members_active ON pool_members(member_ref) WHERE left_at IS NULL;
+CREATE INDEX idx_pool_members_pool ON pool_members(pool_id);
+CREATE TABLE pool_grants (
+    pool_id    TEXT NOT NULL REFERENCES pools(id),
+    capability TEXT NOT NULL,
+    role       TEXT NOT NULL,
+    allowed    INTEGER NOT NULL,
+    PRIMARY KEY (pool_id, capability, role)
+);
+";
+
 const MIGRATIONS: &[&str] = &[
     V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21,
-    V22, V23, V24, V25, V26, V27, V28, V29, V30,
+    V22, V23, V24, V25, V26, V27, V28, V29, V30, V31,
 ];
 
 /// How many pre-migration copies (`<file>.before-v<N>`) are kept beside a
@@ -830,6 +873,13 @@ impl Storage {
     #[must_use]
     pub fn identity(&self) -> IdentityRepo<'_> {
         IdentityRepo::new(&self.conn)
+    }
+
+    /// Repository for pools, their members and grants (schema v31,
+    /// AJ-E1702).
+    #[must_use]
+    pub fn pools(&self) -> PoolsRepo<'_> {
+        PoolsRepo::new(&self.conn)
     }
 
     /// Repository for footprints (schema v29, AJ-E1406).

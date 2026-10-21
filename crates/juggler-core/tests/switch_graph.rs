@@ -294,7 +294,10 @@ fn migration_up_from_earlier_schema_preserves_rows() {
         storage
             .raw_conn()
             .execute_batch(
-                "DROP TABLE account_audit;
+                "DROP TABLE pool_grants;
+                 DROP TABLE pool_members;
+                 DROP TABLE pools;
+                 DROP TABLE account_audit;
                  ALTER TABLE accounts DROP COLUMN removed_at;
                  ALTER TABLE projects DROP COLUMN default_account;
                  DROP TABLE footprints;

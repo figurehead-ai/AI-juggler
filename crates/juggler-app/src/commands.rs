@@ -7115,15 +7115,12 @@ fn record_edge_staged(
             message: "session has no project link".into(),
         });
     };
-    let work = match graph.works_for_project(project)?.into_iter().next_back() {
-        Some(existing) => existing,
-        None => graph
-            .create_work(project, "Work")
-            .map_err(|error| AppError::Io {
-                context: "hand over",
-                message: error.to_string(),
-            })?,
-    };
+    let work = graph
+        .work_for_switch(project, &source.id, "Work")
+        .map_err(|error| AppError::Io {
+            context: "hand over",
+            message: error.to_string(),
+        })?;
     let from = Epoch {
         id: EpochId::new(format!("ep-{}", unique_suffix())),
         work: work.id.clone(),

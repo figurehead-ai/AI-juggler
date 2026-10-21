@@ -33,6 +33,7 @@ pub mod newer_data;
 pub mod os_access;
 pub mod overnight;
 pub mod parked;
+pub mod pools;
 pub mod preview;
 pub mod remote;
 pub mod running_setups;
@@ -213,6 +214,13 @@ pub fn run() {
             manage::account_set_default,
             manage::project_set_default_account,
             manage::account_audit,
+            pools::pools_list,
+            pools::pool_create,
+            pools::pool_rename,
+            pools::pool_delete,
+            pools::pool_move,
+            pools::pool_set_role,
+            pools::pool_set_grant,
             commands::source_inspect,
             commands::isolation_check,
             fleet::fleet_self,
