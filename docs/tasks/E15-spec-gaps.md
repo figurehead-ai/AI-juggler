@@ -347,7 +347,7 @@
 **Research basis**: SPEC I-08.
 **Handover note**: —
 
-### AJ-E1521 Robustness: a database busy timeout and an adapter conformance kit | Status: TODO | Priority P1 | Effort S | Depends: —
+### AJ-E1521 Robustness: a database busy timeout and an adapter conformance kit | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: —
 **Goal**: No read fails during a long write, and every adapter keeps the same rules.
 **User story**: As a maintainer adding a tool, I run one suite that says whether the adapter is safe.
 **Requirements**:
@@ -360,7 +360,7 @@
 **Visual testing**: n/a.
 **Files to touch**: `crates/juggler-core/src/storage/`, `crates/juggler-adapters/tests/`.
 **Research basis**: Max-Depth report §5 (conformance kit).
-**Handover note**: E16's adapters must pass it.
+**Handover note**: E16's adapters must pass it. Built: the kit is `crates/juggler-adapters/tests/conformance/mod.rs`; a new adapter adds a `Subject` and one `conformance!` line in `adapter_conformance.rs`. It found and fixed three defects (Claude Code's copy carried `.credentials.json`; the shell line brought back a removed key from Launch settings; the fake broke five rules). A tool whose pinned variables point at different folders overrides `pinned_env`.
 
 ### AJ-E1522 Quality debt | Status: TODO | Priority P1 | Effort M | Depends: AJ-E803
 **Goal**: The open quality targets are met.

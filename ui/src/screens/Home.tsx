@@ -30,6 +30,8 @@ import { parkedWords } from "../lib/parked";
 import { sessionLabel } from "../lib/stop";
 import { RowPlaceholders } from "../components/Placeholder";
 import { showToast } from "../components/Toast";
+import { noLimitsWords, reportsLimits } from "../lib/providers";
+import { useToolsWithoutLimits } from "../lib/useToolsWithoutLimits";
 import {
   accountLoginState,
   dashboardStats,
@@ -212,6 +214,8 @@ export function HomeScreen({
   onOpenCleanup?: () => void;
 }): JSX.Element {
   const [quota, setQuota] = useState<QuotaDisplayData[]>([]);
+  // 0.0.11 walk (Q3): a tool without a limits feed says so in its row.
+  const noLimits = useToolsWithoutLimits();
   useEffect(() => {
     let alive = true;
     const load = () => void quotaDisplayAll().then((rows) => alive && setQuota(rows), () => null);
@@ -410,10 +414,11 @@ export function HomeScreen({
     );
   };
   const recent = showAll ? review : review.slice(0, RECENT_SHOWN);
-  const runway = accounts.map((account) => ({
-    account,
-    ...runwayOf(quota.find((q) => q.account === account.id), sessions.filter((s) => s.account_id === account.id)),
-  }));
+  const runway = accounts.map((account) =>
+    reportsLimits(noLimits, account.provider)
+      ? { account, ...runwayOf(quota.find((q) => q.account === account.id), sessions.filter((s) => s.account_id === account.id)) }
+      : { account, left: null, words: `${noLimitsWords(account.provider)}.`, resets: null },
+  );
   const best = runway.filter((r) => r.left !== null).sort((a, b) => (b.left ?? 0) - (a.left ?? 0))[0];
   const low = runway.find((r) => r.left !== null && r.left <= 25);
 
