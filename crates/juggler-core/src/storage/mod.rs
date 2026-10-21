@@ -652,6 +652,46 @@ fn owner_only(path: &Path) {
     let _ = path;
 }
 
+/// How long a connection waits for another connection's lock before a
+/// statement fails with "database is locked" (AJ-E1521). The app opens
+/// `juggler.sqlite` four times (storage, process ledger, cleanup audit,
+/// cleanup settings), so a write on one regularly meets a write on
+/// another. Set explicitly, not left to the driver's default.
+pub const BUSY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
+
+/// Applies [`BUSY_TIMEOUT`] to a connection on the app database and
+/// switches it to WAL.
+///
+/// # Errors
+///
+/// [`CoreError::Storage`] when SQLite refuses either setting.
+pub(crate) fn wait_for_locks(conn: &Connection) -> Result<(), CoreError> {
+    conn.busy_timeout(BUSY_TIMEOUT)
+        .and_then(|()| enable_wal(conn))
+        .map_err(CoreError::Storage)
+}
+
+/// Switches `conn` to WAL, waiting up to [`BUSY_TIMEOUT`] for another
+/// connection's lock. SQLite answers this one statement "busy" at once —
+/// it skips the busy handler while upgrading a lock it might deadlock
+/// on — so the wait is a retry here.
+fn enable_wal(conn: &Connection) -> rusqlite::Result<()> {
+    let deadline = std::time::Instant::now() + BUSY_TIMEOUT;
+    loop {
+        match conn.pragma_update(None, "journal_mode", "WAL") {
+            Err(rusqlite::Error::SqliteFailure(error, _))
+                if error.code == rusqlite::ErrorCode::DatabaseBusy
+                    && std::time::Instant::now() < deadline =>
+            {
+                // poll: bounded by BUSY_TIMEOUT; only while another
+                // connection holds the lock the switch needs.
+                std::thread::sleep(std::time::Duration::from_millis(25));
+            }
+            other => return other,
+        }
+    }
+}
+
 /// An opened AI Juggler database with typed repositories.
 #[derive(Debug)]
 pub struct Storage {
@@ -691,8 +731,10 @@ impl Storage {
     fn initialize(conn: Connection, path: Option<&Path>) -> Result<Self, CoreError> {
         // Everything in this phase touches the file for the first time, so
         // any failure here means "not a database" for on-disk paths.
+        // The wait comes first: switching to WAL itself needs the lock.
         let current: i64 = conn
-            .pragma_update(None, "journal_mode", "WAL")
+            .busy_timeout(BUSY_TIMEOUT)
+            .and_then(|()| enable_wal(&conn))
             .and_then(|()| conn.pragma_update(None, "synchronous", "NORMAL"))
             .and_then(|()| conn.pragma_update(None, "foreign_keys", "ON"))
             .and_then(|()| conn.query_row("PRAGMA user_version", [], |row| row.get(0)))
