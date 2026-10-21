@@ -281,7 +281,7 @@ saved (it never risks it). So:
 |---|---|---|---|
 | 0.0.7 | 27 | yes | — |
 | 0.0.8 | 28 (accounts used in place) | yes | **no** — downgrade note in 0.0.8's notes |
-| next release | 29 (session footprints) | yes | **no** — its notes need a downgrade note (the check enforces it); add `(29, "X.Y.Z")` to `SCHEMA_RELEASES` when it ships |
+| 0.0.9 | 29 (session footprints) | yes | **no** — downgrade note in 0.0.9's notes; 0.0.9 keeps a `before-v28` copy, so "Go back to an earlier version" can return to 0.0.8 |
 
 Tests: `cargo test -p juggler-core --test pre_migration_copy` (the copy
 holds exactly the rows the database had, two are kept, a fresh database
