@@ -25,6 +25,10 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 fn main() {
+    // Whoever started it, read first: once the marker exists, the parent
+    // it follows is known.
+    #[cfg(unix)]
+    let parent = std::os::unix::process::parent_id();
     let args: Vec<String> = std::env::args().skip(1).collect();
     let mut marker: Option<PathBuf> = None;
     let mut exit_after = 3600_u64;
@@ -76,8 +80,6 @@ fn main() {
             .spawn();
     }
 
-    #[cfg(unix)]
-    let parent = std::os::unix::process::parent_id();
     let deadline = Instant::now() + Duration::from_secs(exit_after);
     while Instant::now() < deadline {
         thread::sleep(Duration::from_millis(100));

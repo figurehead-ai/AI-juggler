@@ -630,20 +630,21 @@ fn a_launched_desktop_never_outlives_its_test() {
     };
     assert!(gone(info.pid), "the guard stopped it");
 
-    // Its parent goes away: it follows within moments.
+    // Its parent goes away: it follows within moments. The shell waits
+    // until the fixture is up (its marker), then exits.
     let marker = dir.path().join("orphan.marker");
     let shell = std::process::Command::new("sh")
         .arg("-c")
         .arg(format!(
-            "'{}' --marker '{}' & sleep 1",
-            fake_desktop_bin().display(),
-            marker.display()
+            "'{bin}' --marker '{m}' & i=0; while [ ! -s '{m}' ] && [ $i -lt 200 ]; do sleep 0.05; i=$((i+1)); done",
+            bin = fake_desktop_bin().display(),
+            m = marker.display()
         ))
         .status()
         .unwrap();
     assert!(shell.success());
     let pid: u32 = std::fs::read_to_string(&marker)
-        .unwrap()
+        .expect("the fixture came up within 10 s")
         .trim()
         .trim_start_matches("running ")
         .parse()
