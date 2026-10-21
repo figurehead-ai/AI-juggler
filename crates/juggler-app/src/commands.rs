@@ -1545,8 +1545,8 @@ pub struct QualitySignalsInfo {
     pub session_cost_usd: Option<f64>,
     /// The model the cost was priced against (null = unpriced).
     pub priced_model: Option<String>,
-    /// Quota forecast RANGE label (`~13-27m at current rate · Est`) or
-    /// `not burning`.
+    /// Quota forecast RANGE label (`At this pace, its limit lasts about
+    /// 13–27 min more`) or `Not using its limit right now`.
     pub quota_forecast: String,
     /// The AJ-E405 stuck rule + inputs, when tripped (permanent `?`).
     pub stuck: Option<AttentionInfo>,

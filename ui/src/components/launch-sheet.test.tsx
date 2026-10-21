@@ -115,7 +115,7 @@ describe("AJ-E306 flow (e) — the launch sheet", () => {
       expect(container.querySelector("[data-testid='launch-preselected']")).not.toBeNull(),
     );
     const text = container.textContent ?? "";
-    expect(text).toContain("Tight — projected burn nears this account's headroom");
+    expect(text).toContain("Tight — this session may use most of the room left");
     // The headroom-fabrication regression: no percent sign anywhere
     // in the verdict region (the sheet's account area).
     const accounts = container.querySelector("[data-testid='launch-sheet-accounts']")!;
@@ -129,7 +129,7 @@ describe("AJ-E306 flow (e) — the launch sheet", () => {
       expect(container.querySelector("[data-testid='sign-in-first']")).not.toBeNull(),
     );
     expect(container.querySelector("[data-testid='launch-sheet-accounts']")!.textContent).toContain(
-      "headroom unknown",
+      "Room left unknown",
     );
   });
 

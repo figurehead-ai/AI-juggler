@@ -249,7 +249,7 @@ const MOCK_QUALITY: Record<string, QualitySignalsInfo> = {
     cumulative: { input: 4_200, output: 1_800, cache_read: 20, cache_write: 40, reasoning: 8 },
     session_cost_usd: 0.19,
     priced_model: "opus",
-    quota_forecast: "not burning",
+    quota_forecast: "Not using its limit right now",
     stuck: { rule: "stuck_no_output", inputs: ["no output 8m", "threshold 5m", "cpu 0.3%", "transcript stale 8m"], since_ms: Date.now() - 8 * 60_000 },
   },
   "sess-2": {
@@ -262,7 +262,7 @@ const MOCK_QUALITY: Record<string, QualitySignalsInfo> = {
     cumulative: { input: 12_345, output: 6_789, cache_read: 100, cache_write: 200, reasoning: 42 },
     session_cost_usd: 0.69,
     priced_model: "opus",
-    quota_forecast: "not burning",
+    quota_forecast: "Not using its limit right now",
     stuck: null,
   },
   "sess-live-1": {
@@ -275,7 +275,7 @@ const MOCK_QUALITY: Record<string, QualitySignalsInfo> = {
     cumulative: { input: 12_345, output: 6_789, cache_read: 100, cache_write: 200, reasoning: 42 },
     session_cost_usd: 0.69,
     priced_model: "opus",
-    quota_forecast: "not burning",
+    quota_forecast: "Not using its limit right now",
     stuck: null,
   },
 };

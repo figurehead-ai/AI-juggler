@@ -172,7 +172,7 @@ describe("AJ-E410 Processes tab (§7.3 + orphan contract)", () => {
     expect(table.textContent).toContain("rg (search)");
     expect(table.textContent).toContain("890 MB"); // RSS formatted
     expect(table.textContent).toContain("42m");
-    expect(table.textContent).toContain("— first sample"); // null CPU: honest, never 0%
+    expect(table.textContent).toContain("measuring…"); // null CPU: honest, never 0%
     // Tree depth: the rg row carries the indent glyph.
     expect(table.innerHTML).toContain("└");
     // Headers are real table headers (a11y).

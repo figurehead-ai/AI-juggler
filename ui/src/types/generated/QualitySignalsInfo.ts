@@ -46,8 +46,8 @@ session_cost_usd: number | null,
  */
 priced_model: string | null, 
 /**
- * Quota forecast RANGE label (`~13-27m at current rate · Est`) or
- * `not burning`.
+ * Quota forecast RANGE label (`At this pace, its limit lasts about
+ * 13–27 min more`) or `Not using its limit right now`.
  */
 quota_forecast: string, 
 /**

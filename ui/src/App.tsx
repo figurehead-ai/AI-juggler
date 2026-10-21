@@ -130,7 +130,7 @@ const PRIMARY_NAV: Array<{ id: GlobalId | "home"; label: string }> = [
   { id: "settings", label: "Settings" },
 ];
 const MORE_NAV: Array<{ id: GlobalId; label: string; hint: string }> = [
-  { id: "usage", label: "Usage", hint: "Quota, cost and the two clocks per account" },
+  { id: "usage", label: "Usage", hint: "Limits and cost for each account" },
   { id: "fleet", label: "Fleet", hint: "Your other Macs" },
   { id: "cleanup", label: "Cleanup", hint: "Processes left behind, and the audit log" },
 ];

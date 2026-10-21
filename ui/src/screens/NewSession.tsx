@@ -506,22 +506,22 @@ function VerdictChip({
   verdict?: { admission?: "ok" | "tight" | "no"; unknown: boolean };
 }): JSX.Element {
   if (verdict === undefined) {
-    return <Chip tone="neutral">headroom unknown</Chip>;
+    return <Chip tone="neutral">Room left unknown</Chip>;
   }
   if (verdict.admission === "tight") {
     return (
       <Chip tone="neutral" >
-        Tight — projected burn nears this account's headroom
+        Tight — this session may use most of the room left
       </Chip>
     );
   }
   if (verdict.admission === "no") {
     return (
-      <Chip tone="neutral">No — projected burn exceeds headroom (you can still launch)</Chip>
+      <Chip tone="neutral">Probably not enough room left — you can still start</Chip>
     );
   }
   if (verdict.admission === "ok") {
-    return <Chip tone="neutral">OK — inside headroom</Chip>;
+    return <Chip tone="neutral">Enough room left</Chip>;
   }
-  return <Chip tone="neutral">headroom unknown</Chip>;
+  return <Chip tone="neutral">Room left unknown</Chip>;
 }
