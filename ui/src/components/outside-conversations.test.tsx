@@ -78,6 +78,8 @@ describe("AJ-E1529 the rail's share of outside conversations", () => {
     const row = screen.getByTestId("rail-outside");
     expect(row.textContent).toContain("outside AI Juggler");
     expect(row.textContent).toContain("on Work Max");
+    // The account at a glance: its disc, initials and its own colour.
+    expect(row.querySelector(".acct-disc")?.textContent).toBe("WM");
     fireEvent.click(row);
     expect(open).toHaveBeenCalledWith(expect.objectContaining({ id: "c" }));
   });

@@ -4,6 +4,8 @@ import { useAppKeys } from "./lib/app-keys";
 import { ConversationPage } from "./components/ConversationPage";
 import { ConversationsProvider } from "./lib/conversations";
 import { onConversationsChanged } from "./lib/ipc/conversations";
+import { withPalette } from "./lib/palette";
+import { useFirstRun } from "./lib/first-run";
 import { useLiveDeltas } from "./lib/live-deltas";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Card } from "./components/primitives";
@@ -370,7 +372,7 @@ export default function App() {
   const [goToHotkey, setGoToHotkey] = useState("Alt+Space");
   // D-25: a fresh install opens on first run (what's here → sign in →
   // computer access); a fresh account and a folder import are its steps.
-  const [firstRun, setFirstRun] = useState(false);
+  const [firstRun, setFirstRun] = useFirstRun();
   // AJ-E305 flow (b): the New project sheet. Null = closed; a string
   // pre-selects that directory (the Summary's Start here).
   const [newProjectDir, setNewProjectDir] = useState<string | null>(null);
@@ -404,15 +406,6 @@ export default function App() {
     };
   }, []);
 
-  // First run: zero accounts → first run opens by itself (spec §12.1,
-  // D-25), once per dismissal.
-  useEffect(() => {
-    if (localStorage.getItem("aij.onboarding.dismissed") === "1") return;
-    void accountsList().then((accounts) => {
-      if (accounts.length === 0) setFirstRun(true);
-    });
-  }, []);
-
   const refresh = useCallback(async () => {
     try {
       const [projectRows, sessionRows, accountRows, profileRows, backSuggestions] =
@@ -425,7 +418,7 @@ export default function App() {
         ]);
       setProjects(projectRows);
       setSessions(sessionRows);
-      setAccounts(accountRows);
+      setAccounts(withPalette(accountRows)); // AJ-E1532: each account its own colour
       setProfiles(profileRows);
       setSwitchBackCards(backSuggestions);
       if (!boardInteractiveCounted) {

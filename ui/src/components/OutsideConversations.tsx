@@ -7,7 +7,7 @@
  */
 import type { JSX } from "react";
 import { useActionHost, useItemMenu } from "./ItemMenu";
-import { hueOf, stateChip } from "./indicator";
+import { AccountDisc, hueOf, stateChip } from "./indicator";
 import { conversationTitle, liveOutside, outside, useConversations } from "../lib/conversations";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
@@ -112,12 +112,7 @@ export function ConversationRow({
             , {state}, outside AI Juggler, on {conversation.account_label}
           </span>
         </span>
-        <span
-          aria-hidden="true"
-          title={conversation.account_label}
-          className="size-2 shrink-0 rounded-full"
-          style={{ background: `hsl(${hueOf(conversation.account_id)} 70% 66%)` }}
-        />
+        <AccountDisc accountId={conversation.account_id} label={conversation.account_label} size={16} />
       </button>
       {menu.button({ label: `Conversation actions for ${title}`, className: "absolute bottom-0 left-0" })}
       {menu.element}

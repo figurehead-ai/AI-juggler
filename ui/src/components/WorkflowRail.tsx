@@ -1033,12 +1033,8 @@ export function RailRow({
           {heavy}
         </span>
       )}
-      <span
-        aria-hidden="true"
-        title={session.account_label}
-        className="size-2 shrink-0 rounded-full"
-        style={{ background: `hsl(${hueOf(session.account_id)} 70% 66%)` }}
-      />
+      {/* AJ-E1529/E1532: the account at a glance (its initials). */}
+      <AccountDisc accountId={session.account_id} label={session.account_label} size={16} />
     </button>
   );
 }

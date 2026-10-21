@@ -110,6 +110,46 @@ live sessions run as the real CLIs do (`claude`, `claude --resume
 shell's own `CLAUDE_CONFIG_DIR`, and the backend correctly attributed it
 to no account.
 
+## Walked on the replica: the three questions
+
+The replica has 9 accounts (7 Claude, 2 Codex), 16 projects, 346
+conversations and 8 sessions live outside AI Juggler, plus 2 desktop
+stand-ins. It was walked through the preview with its own fixture, and
+through `just replica-oracle`.
+
+1. **Does it solve the real problem?** Someone with several
+   subscriptions opens the app and finds all their sessions: Home says
+   "8 running" and lists each one with what it is, its account and how
+   recently it worked. The rail shows them under their projects, live
+   first, and a project's page lists every one. Before this, the same
+   Mac said "No sessions yet". The first walk found the account wasn't
+   obvious at a glance in the rail (only a coloured dot, with the name in
+   a tooltip), so it was reworked before closing: every rail row, AI
+   Juggler's and outside ones, now ends in the account's disc (the I-02
+   `AccountDisc`). Each of the user's accounts gets its own of twelve
+   hues (`lib/palette.ts`, brought forward from AJ-E1532), the same on
+   every screen, so the disc matches the account's dot on Home and in
+   Runway. Its initials come from the first and last words of the label,
+   so `claude-work`, `claude-personal` and `claude-client-acme` read CW,
+   CP and CA rather than all "CL". On the replica all 9 accounts are
+   different colours. The name is still in the tooltip and what a screen
+   reader hears ("on claude-work"). AJ-E1532 adds project marks and
+   clones on top.
+2. **Is it clear without explanation?** A row says "Running · outside
+   AI Juggler · 1 min"; "20 more outside AI Juggler" says what's behind
+   it. The page says, in one line, why it's read-only. The two actions
+   say what they do, and Continue says why it waits while the session
+   is open elsewhere. The menu has no Stop and no tidying.
+3. **Is it consistent with its siblings?** The rows are built like
+   session rows (the same shape, state glyph, type, dot and selection),
+   and Home's rows like Home's. The counts agree everywhere: Home, the
+   Running chip, Accounts and the palette all said 8 on the replica
+   (pinned by `replica-journey`). Two inconsistencies remain, both owned
+   by the next items: the header still says "Home" on a conversation's
+   page (AJ-E1534, orientation), and the page is laid out on its own
+   rather than in the shared page shell (AJ-E1533, one page model, which
+   takes it in).
+
 ## The real-data pass (for qa-real)
 
 Read-only: it brings every setup in where it is, into a fresh, empty

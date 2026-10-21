@@ -1,4 +1,5 @@
 import { toolMarkIcon } from "./ToolMark";
+import { paletteHue } from "../lib/palette";
 import { toolSpec } from "../lib/tools";
 import type { ReactNode } from "react";
 import type { AccountInfo, InstanceInfo } from "../lib/bridge";
@@ -73,22 +74,20 @@ export function stateChip(status: string): {
 
 // --- I-02 account identity ---------------------------------------------------
 
-/** Initials for the account disc: first letters of the first two words. */
+/** Initials for the account disc: first letters of the first and last
+ * words, where "-", "_" and "." part words too — labels like
+ * "claude-work" and "claude-personal" differ in their last word (AJ-E1529). */
 export function initialsOf(label: string): string {
-  const words = label.trim().split(/\s+/).filter(Boolean);
+  const words = label.trim().split(/[\s\-_.]+/).filter(Boolean);
   if (words.length === 0) return "?";
   if (words.length === 1) return words[0]!.slice(0, 2).toUpperCase();
-  return (words[0]![0]! + words[1]![0]!).toUpperCase();
+  return (words[0]![0]! + words[words.length - 1]![0]!).toUpperCase();
 }
 
 /** Stable per-Account hue (0–359) from a hash of the account id. */
 export function hueOf(accountId: string | null): number {
-  const key = accountId ?? "unknown";
-  let hash = 0;
-  for (let i = 0; i < key.length; i += 1) {
-    hash = (hash * 31 + key.charCodeAt(i)) % 100_000;
-  }
-  return hash % 360;
+  // AJ-E1532: one of twelve well-separated hues (lib/palette.ts).
+  return paletteHue(accountId);
 }
 
 // --- I-06 tokens (no pricing source exists: tokens only, never `$0.00`) ----
