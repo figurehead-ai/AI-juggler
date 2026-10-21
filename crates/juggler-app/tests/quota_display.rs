@@ -123,10 +123,11 @@ fn tracking_state_carries_percentage_and_badge() {
 
 /// The 0.0.12 report: every actively used Claude account read "100% left
 /// · resets Wed 03:07 PM". Use was seen (token events) but no sample
-/// exists: the window is `unmeasured` with no percentage, and its reset
-/// is labelled as the estimate it is.
+/// exists: the window is `unmeasured` with no percentage, and no reset
+/// time (P12: the earliest use in the window + its width was shown, which
+/// under steady use is "now"; a reset time comes only from the vendor).
 #[test]
-fn use_without_a_sample_is_unmeasured_and_its_reset_is_an_estimate() {
+fn use_without_a_sample_is_unmeasured_and_has_no_reset_time() {
     let dir = tempfile::tempdir().unwrap();
     let state = app_state(dir.path());
     let now = Timestamp::now().millis();
@@ -163,8 +164,8 @@ fn use_without_a_sample_is_unmeasured_and_its_reset_is_an_estimate() {
         assert_eq!(window.percentage, None, "{name}");
         assert_eq!(window.badge, None, "{name}");
         assert_eq!(window.burned_tokens, 12_000, "{name}: the use it saw");
-        assert!(window.resets_at_ms.is_some(), "{name}");
-        assert_eq!(window.reset_basis.as_deref(), Some("estimated"), "{name}");
+        assert_eq!(window.resets_at_ms, None, "{name}: no reset without a sample");
+        assert_eq!(window.reset_basis, None, "{name}");
     }
 }
 

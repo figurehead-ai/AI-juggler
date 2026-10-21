@@ -7,7 +7,8 @@
  *
  * One account with tokens but no sample, rendered on every surface that
  * shows a window: no "% left", no full bar or ring, the tokens it
- * measured, and the reset labelled as an estimate.
+ * measured, and no reset time (P12: the backend sends none without a
+ * vendor sample).
  */
 import { cleanup, render, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -59,9 +60,7 @@ vi.mock("./components/TerminalView", () => ({
   TerminalView: ({ id }: { id: string }) => <div data-testid={`terminal-${id}`} />,
 }));
 
-const RESETS = Date.now() + 26 * 3_600_000;
-const unmeasured = (tokens: number): WindowDisplay =>
-  windowDisplay("unmeasured", { burned_tokens: tokens, resets_at_ms: RESETS, reset_basis: "estimated" });
+const unmeasured = (tokens: number): WindowDisplay => windowDisplay("unmeasured", { burned_tokens: tokens });
 const DISPLAY: QuotaDisplayData = quotaDisplay("claude-work", {
   five_hour: unmeasured(12_000),
   weekly: unmeasured(12_000),
@@ -83,12 +82,13 @@ afterEach(() => {
   delete (window as unknown as Record<string, unknown>).__AIJ_QUOTA_DISPLAY__;
 });
 
-it("the one rule: no percentage, no '% left'; the tokens; the reset as an estimate", () => {
+it("the one rule: no percentage, no '% left'; the tokens; no reset time", () => {
   const view = windowView(unmeasured(12_000));
   expect(view.left).toBeNull();
   expect(view.tone).toBe("none");
   expect(view.words).not.toMatch(PERCENT_LEFT);
-  expect(view.words).toMatch(/^Not measured yet · 12k tokens used · resets about .+, estimated$/);
+  expect(view.words).toBe("Not measured yet · 12k tokens used");
+  expect(view.resets).toBeNull();
   // A tracking window that somehow lacks a percentage reads the same.
   expect(windowView(windowDisplay("tracking")).left).toBeNull();
 });
@@ -103,7 +103,7 @@ it("Home's Runway and the Accounts cards", async () => {
   await user.click(await view.findByRole("button", { name: "Accounts" }));
   const card = await view.findByTestId("account-runway");
   expect(card.textContent).toContain("Not measured yet · 12k tokens used");
-  expect(card.textContent).toContain("estimated");
+  expect(card.textContent).not.toContain("resets");
   expect(view.container.textContent).not.toMatch(PERCENT_LEFT);
   // The bars are the dashed empty kind, never filled.
   const fills = [...card.querySelectorAll<HTMLElement>("span[style]")].map((bar) => bar.style.width);

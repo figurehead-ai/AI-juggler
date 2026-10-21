@@ -1573,8 +1573,9 @@ export interface WindowDisplay {
   badge: string | null;
   stale_note_ms: number | null;
   resets_at_ms: number | null;
-  /** Where `resets_at_ms` came from (an estimate is shown as one). */
-  reset_basis: "measured" | "calendar" | "estimated" | null;
+  /** Where `resets_at_ms` came from; null with it (a reset time is
+   * known or absent, never estimated). */
+  reset_basis: "measured" | "calendar" | null;
   burned_tokens: number;
   burned_credits: number | null;
   headroom_tokens: number | null;

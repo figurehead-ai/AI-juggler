@@ -81,12 +81,7 @@ export function WindowRing({
   const exhausted = window.state === "exhausted";
   const ringText =
     pct != null ? `${Math.round(pct)}%` : exhausted ? "100%" : "—";
-  const reset =
-    window.resets_at_ms == null
-      ? ""
-      : window.reset_basis === "estimated"
-        ? `resets about ${clock(window.resets_at_ms)}, estimated`
-        : `resets ${clock(window.resets_at_ms)}`;
+  const reset = window.resets_at_ms == null ? "" : `resets ${clock(window.resets_at_ms)}`;
   const stale =
     window.stale_note_ms != null
       ? `last measured ${hoursAgo(window.stale_note_ms)} ago`

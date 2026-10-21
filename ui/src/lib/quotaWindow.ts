@@ -10,8 +10,9 @@
  *   sent (Measured, or Computed from a cap the user confirmed);
  * - without one, it says "Not measured yet", with the tokens it measured
  *   in the window when there are any;
- * - a reset time is stated as such only when it is the vendor's (or a
- *   known weekly schedule); an estimate says so.
+ * - a reset time shows only when it is known: the vendor's, or a known
+ *   weekly schedule. The backend sends none otherwise (P12: a time guessed
+ *   from local use read "now" under steady use).
  */
 import type { WindowDisplay } from "./bridge";
 
@@ -23,8 +24,7 @@ export interface WindowView {
   /** The line, in words. */
   words: string;
   tone: WindowTone;
-  /** The reset, in words, with its basis ("resets Wed 03:07 PM", or
-   * "resets about Wed 03:07 PM, estimated"); null when there is none. */
+  /** The reset, in words ("resets Wed 03:07 PM"); null when none is known. */
   resets: string | null;
 }
 
@@ -33,11 +33,10 @@ export function resetClock(ms: number): string {
   return new Date(ms).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" });
 }
 
-/** The reset in words, labelled with where it came from. */
+/** The reset in words, when one is known. */
 export function resetWords(window: WindowDisplay | null | undefined): string | null {
   if (window?.resets_at_ms == null) return null;
-  const at = resetClock(window.resets_at_ms);
-  return window.reset_basis === "estimated" ? `resets about ${at}, estimated` : `resets ${at}`;
+  return `resets ${resetClock(window.resets_at_ms)}`;
 }
 
 /** 12,345 → "12k", 1,234,567 → "1.2M" (tokens used in the window). */
@@ -68,7 +67,7 @@ export function windowView(window: WindowDisplay | null | undefined, omitted?: s
   }
   const resets = resetWords(window);
   if (window.state === "exhausted") {
-    const until = window.resets_at_ms && window.reset_basis !== "estimated" ? ` until ${resetClock(window.resets_at_ms)}` : "";
+    const until = window.resets_at_ms != null ? ` until ${resetClock(window.resets_at_ms)}` : "";
     return { left: 0, words: `Used up${until}`, tone: "out", resets };
   }
   if (!measured(window)) {
@@ -78,7 +77,7 @@ export function windowView(window: WindowDisplay | null | undefined, omitted?: s
   }
   const left = Math.max(0, Math.round(100 - window.percentage));
   if (left === 0) {
-    return { left: 0, words: `Used up${window.resets_at_ms ? ` until ${resetClock(window.resets_at_ms)}` : ""}`, tone: "out", resets };
+    return { left: 0, words: `Used up${window.resets_at_ms != null ? ` until ${resetClock(window.resets_at_ms)}` : ""}`, tone: "out", resets };
   }
   const stale = window.state === "stale" ? " · last known" : "";
   return {

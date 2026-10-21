@@ -501,7 +501,6 @@ pub fn quota_display_inner(
             match basis {
                 quota::ResetBasis::Measured => "measured",
                 quota::ResetBasis::Calendar => "calendar",
-                quota::ResetBasis::Estimated => "estimated",
             }
             .to_owned()
         }),

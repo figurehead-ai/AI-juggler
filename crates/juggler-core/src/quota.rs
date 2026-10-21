@@ -280,26 +280,23 @@ pub struct WindowReading {
     /// Absolute burn inside the window (always present — the honest
     /// floor when no percentage exists).
     pub burn: WindowBurn,
-    /// When the window resets, when estimable: Measured ⇒ vendor
-    /// `resets_at` verbatim; rolling ⇒ earliest in-window event + W
-    /// (an `≈`, AJ-E610 renders it so); anchored ⇒ phase end.
+    /// When the window resets, only when known (D-06): the vendor's
+    /// `resets_at` from a Measured sample, or an anchored phase end.
+    /// Never guessed from local use — a rolling window's earliest use
+    /// + W reads "now" under steady use (the 0.0.12 QA walk, P12).
     pub resets_at: Option<i64>,
-    /// Where [`Self::resets_at`] came from, whenever it is set — so a
-    /// guess is never shown as the vendor's word (the 0.0.12 report:
-    /// "resets Wed 03:07 PM" from local use alone).
+    /// Where [`Self::resets_at`] came from, whenever it is set.
     pub reset_basis: Option<ResetBasis>,
 }
 
-/// Where a window's reset time came from.
+/// Where a window's reset time came from. There is no "estimated":
+/// a reset time is known or absent (D-06).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ResetBasis {
     /// The vendor's own `resets_at`, from a Measured sample.
     Measured,
     /// The end of an anchored weekly phase: a known schedule.
     Calendar,
-    /// The earliest use in a rolling window plus its width: a guess
-    /// from local activity, shown as one.
-    Estimated,
 }
 
 /// The subscription clock (D-12, composing AJ-E411's calendar core):
@@ -457,47 +454,28 @@ pub fn interpolate_percentage(
     (base + delta).clamp(0.0, 100.0)
 }
 
-/// Estimated reset for a window (§Q3 "Reset"): Measured ⇒ the vendor
-/// `resets_at` verbatim; otherwise rolling ⇒ earliest in-window event
-/// + W (an `≈`); anchored ⇒ the phase end.
+/// A window's reset time, only when known (D-06): the vendor's
+/// `resets_at` from a Measured sample, else an anchored weekly phase's
+/// end. Nothing else — a rolling window's reset is not guessed from
+/// local use (P12: earliest in-window use + W is "now" under steady use).
 #[must_use]
-pub fn estimated_reset(
+pub fn known_reset(
     kind: WindowKind,
-    events: &[UsageEvent],
-    account: &str,
-    now_ms: i64,
-    measured_resets_at: Option<i64>,
-) -> Option<i64> {
-    reset_with_basis(kind, events, account, now_ms, measured_resets_at).map(|(at, _)| at)
-}
-
-/// [`estimated_reset`] with where the time came from: the vendor's
-/// (Measured), an anchored phase end (Calendar), or earliest in-window
-/// use + W (Estimated).
-#[must_use]
-pub fn reset_with_basis(
-    kind: WindowKind,
-    events: &[UsageEvent],
-    account: &str,
     now_ms: i64,
     measured_resets_at: Option<i64>,
 ) -> Option<(i64, ResetBasis)> {
     if let Some(at) = measured_resets_at {
         return Some((at, ResetBasis::Measured));
     }
-    let (lo, hi) = match kind {
-        WindowKind::FiveHour => window_bounds(kind, now_ms),
-        WindowKind::Weekly { anchor_ms } => weekly_phase_bounds(anchor_ms, now_ms),
-    };
-    if matches!(kind, WindowKind::Weekly { anchor_ms: Some(_) }) {
-        return Some((hi, ResetBasis::Calendar));
+    match kind {
+        WindowKind::Weekly {
+            anchor_ms: Some(anchor),
+        } => Some((
+            weekly_phase_bounds(Some(anchor), now_ms).1,
+            ResetBasis::Calendar,
+        )),
+        _ => None,
     }
-    let earliest = events
-        .iter()
-        .filter(|event| event.account == account && in_window(event.ts, (lo, hi)))
-        .map(|event| event.ts)
-        .min();
-    earliest.map(|ts| (ts.saturating_add(kind.width_ms()), ResetBasis::Estimated))
 }
 
 /// The per-account, per-window evaluation (§Q8 machine + §Q3 maths),
@@ -598,14 +576,13 @@ pub fn evaluate_window(
                 None,
             )
         };
-    // Reset estimates also in Learning: an anchored phase end is a
-    // calendar fact, and a rolling earliest+W is the honest `≈`.
+    // Also in Learning: an anchored phase end is a calendar fact.
     // Unknown stays reset-less (nothing is known at all, D-06).
     let reset = if state == QuotaState::Tracking
         || state == QuotaState::Stale
         || state == QuotaState::Learning
     {
-        reset_with_basis(kind, events, account, now_ms, measured_resets_at)
+        known_reset(kind, now_ms, measured_resets_at)
     } else {
         measured_resets_at.map(|at| (at, ResetBasis::Measured))
     };
