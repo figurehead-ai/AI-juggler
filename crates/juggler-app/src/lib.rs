@@ -457,6 +457,8 @@ fn hand_over_to_the_running_instance(context: tauri::Context<tauri::Wry>) -> ! {
             ));
             let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
             while !socket.exists() && std::time::Instant::now() < deadline {
+                // poll: the plugin's socket appearing (bound on its own
+                // task, within moments); a second launch only, 1 s at most.
                 std::thread::sleep(std::time::Duration::from_millis(10));
             }
         }
