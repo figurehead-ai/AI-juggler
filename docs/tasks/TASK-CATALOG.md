@@ -179,5 +179,32 @@
 | AJ-E1521 | Robustness: a database busy timeout and an adapter conformance kit | E15-spec-gaps.md | P1 | S | — |
 | AJ-E1522 | Quality debt | E15-spec-gaps.md | P1 | M | AJ-E803 |
 | AJ-E1523 | North-star metric: weekly juggling loops completed | E15-spec-gaps.md | P2 | S | AJ-E1103 |
-Total: 177 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+| AJ-E1601 | Accounts on a compatible endpoint: OpenCode Go and Kimi on Claude Code and Codex | E16-more-tools.md | P0 | S | AJ-E1521 |
+| AJ-E1602 | OpenCode CLI | E16-more-tools.md | P0 | M | AJ-E1521 |
+| AJ-E1603 | Kimi Code CLI | E16-more-tools.md | P0 | M | AJ-E1521 |
+| AJ-E1604 | Grok Build CLI | E16-more-tools.md | P1 | M | AJ-E1521 |
+| AJ-E1605 | ZCode | E16-more-tools.md | P1 | L | AJ-E1521 |
+| AJ-E1606 | Kiro CLI | E16-more-tools.md | P1 | M | AJ-E1521 |
+| AJ-E1607 | Hermes Agent | E16-more-tools.md | P2 | M | AJ-E1521 |
+| AJ-E1608 | Muse (Meta) CLI | E16-more-tools.md | P2 | M | AJ-E1521 |
+| AJ-E1609 | Cursor CLI (conditional) | E16-more-tools.md | P2 | L | AJ-E1521 |
+| AJ-E1610 | Desktop apps, track-only | E16-more-tools.md | P1 | M | AJ-E413, AJ-E414 |
+| AJ-E1611 | Tool update checks | E16-more-tools.md | P1 | S | — |
+| AJ-E1612 | Live checks on spare accounts | E16-more-tools.md | P0 | M | AJ-E1601..AJ-E1609 |
+| AJ-E1701 | The spike, ADR-0019 and the policy rulings | E17-agent-pools.md | P0 | S | — |
+| AJ-E1702 | Pools, the default pool, roles and permissions | E17-agent-pools.md | P0 | M | — |
+| AJ-E1703 | Context cards | E17-agent-pools.md | P1 | S | AJ-E1702 |
+| AJ-E1704 | The agent bridge, read-only | E17-agent-pools.md | P0 | M | AJ-E1701, AJ-E1702 |
+| AJ-E1801 | Messages and threads | E18-agent-messaging.md | P0 | M | AJ-E1704 |
+| AJ-E1802 | Your Inbox and compose | E18-agent-messaging.md | P0 | M | AJ-E1801 |
+| AJ-E1803 | Click to deliver, and the turn note | E18-agent-messaging.md | P0 | S | AJ-E1801 |
+| AJ-E1804 | Shared docs | E18-agent-messaging.md | P1 | S | AJ-E1801 |
+| AJ-E1805 | The messaging guardrail suite | E18-agent-messaging.md | P0 | S | AJ-E1801..AJ-E1804 |
+| AJ-E1901 | Task storage and rules | E19-agent-tasks.md | P0 | M | AJ-E1702 |
+| AJ-E1902 | Agent task tools | E19-agent-tasks.md | P0 | S | AJ-E1901, AJ-E1704 |
+| AJ-E1903 | The task list and tree in the app | E19-agent-tasks.md | P0 | M | AJ-E1901 |
+| AJ-E1904 | Tasks follow sessions and switches | E19-agent-tasks.md | P1 | S | AJ-E1901, AJ-E201 |
+| AJ-E1905 | A Claude Code plugin | E19-agent-tasks.md | P2 | S | AJ-E1902 |
+| AJ-E1906 | Links to GitHub issues and Linear | E19-agent-tasks.md | P2 | S | AJ-E1901 |
+Total: 204 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.
