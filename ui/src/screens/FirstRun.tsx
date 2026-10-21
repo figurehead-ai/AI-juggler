@@ -235,17 +235,19 @@ export function outcomeWords({
 
 /** The two ways in; `tools` are the ones that can be used where they
  * are (ADR-0018), which name what "the same" is the same as. */
-function placements(tools: string[]): { id: Placement; title: string; detail: string }[] {
+function placements(tools: string[], one: boolean): { id: Placement; title: string; detail: string }[] {
   return [
     {
       id: "in_place",
-      title: "Use them where they are",
-      detail: `Same sign-in, settings and history ${sameAsWords(tools)}. AI Juggler adds nothing of its own to them.`,
+      title: one ? "Use it where it is" : "Use them where they are",
+      detail: `Same sign-in, settings and history ${sameAsWords(tools)}. AI Juggler adds nothing of its own to ${one ? "it" : "them"}.`,
     },
     {
       id: "copy",
-      title: "Make separate copies",
-      detail: "A fresh copy for AI Juggler only; your originals stay as they are. Each copy needs one sign-in.",
+      title: one ? "Make a separate copy" : "Make separate copies",
+      detail: one
+        ? "A fresh copy for AI Juggler only; your original stays as it is. The copy needs one sign-in."
+        : "A fresh copy for AI Juggler only; your originals stay as they are. Each copy needs one sign-in.",
     },
   ];
 }
@@ -414,7 +416,9 @@ function FoundStep({
   if (report === null || inPlace === null) {
     return (
       <div className="flex flex-col gap-3" role="status" data-testid="first-run-scanning">
-        <h1 className="text-[28px] font-semibold tracking-tight">Looking for {toolName} on this Mac…</h1>
+        <h1 className="text-[28px] font-semibold tracking-tight">
+          {tools.length > 1 ? "Looking for your setups on this Mac…" : `Looking for ${toolName} on this Mac…`}
+        </h1>
         <p className="text-sm text-muted">{provider === "claude-code"
             ? "Your default setup, your Claude profiles and anything else that looks like one. Nothing is changed."
             : "Your default setup and anything else that looks like one. Nothing is changed."}</p>
@@ -435,9 +439,13 @@ function FoundStep({
         <p className="max-w-2xl text-[15px] leading-relaxed text-muted">
           {installs.length === 0
             ? `Add your first account and AI Juggler sets it up in its own folder. You'll sign in with ${ownSignIn(provider)}.`
-            : placement === "in_place"
-              ? "Pick the ones to bring in. AI Juggler uses each one where it is, so it stays signed in and keeps its history, the same as everywhere else you use it."
-              : "Pick the ones to bring in. AI Juggler makes its own copy of each; your originals are never changed, and you can keep using them as before."}
+            : installs.length === 1
+              ? placement === "in_place"
+                ? "AI Juggler uses it where it is, so it stays signed in and keeps its history, the same as everywhere else you use it."
+                : "AI Juggler makes its own copy; your original is never changed, and you can keep using it as before."
+              : placement === "in_place"
+                ? "Pick the ones to bring in. AI Juggler uses each one where it is, so it stays signed in and keeps its history, the same as everywhere else you use it."
+                : "Pick the ones to bring in. AI Juggler makes its own copy of each; your originals are never changed, and you can keep using them as before."}
         </p>
       </div>
 
@@ -555,7 +563,7 @@ function FoundStep({
 
       {installs.length > 0 && !showOutcome && canInPlace && (
         <div role="radiogroup" aria-label="How AI Juggler uses them" className="grid gap-2 sm:grid-cols-2" data-testid="first-run-placement">
-          {placements(inPlaceTools).map((option) => (
+          {placements(inPlaceTools, installs.length === 1).map((option) => (
             <label
               key={option.id}
               className={
@@ -1419,7 +1427,9 @@ export function FirstRun({
   }, []);
 
   // Nothing to ask for: this OS needs nothing, or it is all allowed.
-  const skipAccess = access !== null && access.every((entry) => entry.status === "allowed");
+  // Adding an account later never asks again: first run asked once, and
+  // the step itself promises to ask again only on first use.
+  const skipAccess = mode === "add" || (access !== null && access.every((entry) => entry.status === "allowed"));
   const finish = useCallback(() => {
     if (mode === "first-run") funnelStep("a-first-install", "done");
     onDone();
