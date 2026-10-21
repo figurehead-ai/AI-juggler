@@ -65,6 +65,10 @@ pub struct TailOutcome {
     pub samples: Vec<(WindowKind, QuotaSample)>,
     /// The newest Codex credits snapshot seen this pass, when any.
     pub credits: Option<CreditsSnapshot>,
+    /// The model the slice's last Codex `turn_context` named. A rollout's
+    /// usage lines carry no model: the next slice's lines before their
+    /// own `turn_context` ran on this one (the pipeline carries it).
+    pub model: Option<String>,
     /// Bytes consumed — the next pass starts here.
     pub offset: u64,
     /// Malformed lines seen this pass.
@@ -427,15 +431,21 @@ pub fn iso_to_epoch_ms(raw: &str) -> Option<i64> {
 
 /// Extracts Measured token events from Claude transcript JSONL bytes
 /// (an incremental slice is fine — lines are independent). One event
-/// per assistant line carrying `message.usage`, keyed by the message
-/// `uuid` (resumed files re-emit history; the store's
-/// `UNIQUE(account, msg_uuid)` absorbs it). Lines without a uuid are
-/// skipped: unkeyed usage cannot dedupe, and double-counting is the
-/// worse failure.
+/// per API response, keyed `message.id/requestId`: Claude Code writes
+/// one line per content block (thinking, text, each tool call), each
+/// with its own line `uuid` but the same message and the same `usage`,
+/// so keying on the line counted one response two or three times (the
+/// 0.0.12 QA walk: ×1.8–2.5). Lines of one response in this slice
+/// collapse to one event, each class its largest value; resumed files
+/// re-emit history and the store's `UNIQUE(account, msg_uuid)` absorbs
+/// it. A line with no message id falls back to its `uuid`; a line with
+/// neither is skipped: unkeyed usage cannot dedupe, and double-counting
+/// is the worse failure.
 #[must_use]
 pub fn transcript_events(account: &str, bytes: &[u8]) -> TailOutcome {
     let text = String::from_utf8_lossy(bytes);
     let mut outcome = TailOutcome::default();
+    let mut seen: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
     for line in text.lines() {
         if line.trim().is_empty() {
             continue;
@@ -450,7 +460,7 @@ pub fn transcript_events(account: &str, bytes: &[u8]) -> TailOutcome {
         else {
             continue;
         };
-        let Some(uuid) = value.get("uuid").and_then(serde_json::Value::as_str) else {
+        let Some(key) = response_key(&value) else {
             continue;
         };
         let ts = value
@@ -473,6 +483,15 @@ pub fn transcript_events(account: &str, bytes: &[u8]) -> TailOutcome {
         if tokens == TokenCounts::default() {
             continue; // an empty usage block is not an event
         }
+        if let Some(&at) = seen.get(&key) {
+            let kept = &mut outcome.events[at].tokens;
+            kept.input = kept.input.max(tokens.input);
+            kept.output = kept.output.max(tokens.output);
+            kept.cache_read = kept.cache_read.max(tokens.cache_read);
+            kept.cache_write = kept.cache_write.max(tokens.cache_write);
+            continue;
+        }
+        seen.insert(key.clone(), outcome.events.len());
         outcome.events.push(UsageEvent {
             account: account.to_owned(),
             session: value
@@ -490,10 +509,28 @@ pub fn transcript_events(account: &str, bytes: &[u8]) -> TailOutcome {
             usd_est: None,
             source: UsageSource::Transcript,
             confidence: Confidence::Measured,
-            msg_uuid: Some(uuid.to_owned()),
+            msg_uuid: Some(key),
         });
     }
     outcome
+}
+
+/// One Claude API response's key: `message.id/requestId` (either alone
+/// when the other is missing), else the line's `uuid`.
+fn response_key(value: &serde_json::Value) -> Option<String> {
+    let id = value
+        .get("message")
+        .and_then(|message| message.get("id"))
+        .and_then(serde_json::Value::as_str);
+    let request = value.get("requestId").and_then(serde_json::Value::as_str);
+    match (id, request) {
+        (Some(id), Some(request)) => Some(format!("{id}/{request}")),
+        (Some(only), None) | (None, Some(only)) => Some(only.to_owned()),
+        (None, None) => value
+            .get("uuid")
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_owned),
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -505,6 +542,14 @@ pub fn transcript_events(account: &str, bytes: &[u8]) -> TailOutcome {
 /// per-turn/per-thread rollups on the same line are aggregation views
 /// — reading only the response level keeps the sum exact). Dedupe key
 /// `thread/turn/response` survives re-tails and resumed rollouts.
+///
+/// Codex's classes nest: `input_tokens` includes `cached_input_tokens`
+/// and `output_tokens` includes `reasoning_output_tokens` (its own
+/// `non_cached_input()`; `total_tokens` = input + output). Stored as
+/// disjoint classes — input without the cached part, output without
+/// the reasoning — so a sum of classes counts each token once (the
+/// 0.0.12 QA walk: exactly ×2 before). The model is the one the
+/// latest `turn_context` named.
 #[must_use]
 pub fn rollout_events(account: &str, bytes: &[u8]) -> TailOutcome {
     let text = String::from_utf8_lossy(bytes);
@@ -518,6 +563,16 @@ pub fn rollout_events(account: &str, bytes: &[u8]) -> TailOutcome {
             continue;
         };
         if take_token_count(&value, &mut outcome) {
+            continue;
+        }
+        if value.get("type").and_then(serde_json::Value::as_str) == Some("turn_context") {
+            if let Some(model) = value
+                .get("payload")
+                .and_then(|payload| payload.get("model"))
+                .and_then(serde_json::Value::as_str)
+            {
+                outcome.model = Some(model.to_owned());
+            }
             continue;
         }
         if value.get("type").and_then(serde_json::Value::as_str) != Some("token_usage_record") {
@@ -549,12 +604,14 @@ pub fn rollout_events(account: &str, bytes: &[u8]) -> TailOutcome {
                 .and_then(serde_json::Value::as_u64)
                 .unwrap_or_default()
         };
+        let cached = read("cached_input_tokens");
+        let reasoning = read("reasoning_output_tokens");
         let tokens = TokenCounts {
-            input: read("input_tokens"),
-            output: read("output_tokens"),
-            cache_read: read("cached_input_tokens"),
+            input: read("input_tokens").saturating_sub(cached),
+            output: read("output_tokens").saturating_sub(reasoning),
+            cache_read: cached,
             cache_write: read("cache_write_input_tokens"),
-            reasoning: read("reasoning_output_tokens"),
+            reasoning,
         };
         if tokens == TokenCounts::default() {
             continue;
@@ -568,7 +625,7 @@ pub fn rollout_events(account: &str, bytes: &[u8]) -> TailOutcome {
             account: account.to_owned(),
             session: Some(thread.clone()),
             ts,
-            model: None, // rollouts carry the model on turn_context, not here
+            model: outcome.model.clone(),
             tokens,
             credits: None,
             usd_est: None,

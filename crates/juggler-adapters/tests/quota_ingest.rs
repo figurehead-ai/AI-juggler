@@ -125,19 +125,18 @@ fn spool_rotates_at_threshold() {
 
 #[test]
 fn transcript_events_skip_unkeyed_and_double_usage() {
-    let bytes = std::fs::read(fixture("claude-transcript.jsonl")).unwrap();
     let outcome = juggler_adapters::tail_transcript(&fixture("claude-transcript.jsonl"), "acc", 0);
     assert_eq!(outcome.parse_errors, 0);
     // a-1, a-2 kept; the no-uuid usage line skipped (cannot dedupe);
-    // the duplicate a-1 line emits the SAME uuid (store dedupes).
-    assert_eq!(outcome.events.len(), 3);
+    // the repeated a-1 line (no message id: keyed by its uuid) is one event.
+    assert_eq!(outcome.events.len(), 2);
     assert_eq!(
         outcome
             .events
             .iter()
             .filter(|e| e.msg_uuid.as_deref() == Some("a-1"))
             .count(),
-        2
+        1
     );
     let a2 = outcome
         .events
@@ -151,7 +150,61 @@ fn transcript_events_skip_unkeyed_and_double_usage() {
     assert_eq!(a2.confidence, Confidence::Measured);
     assert_eq!(a2.session.as_deref(), Some("sess-t"));
     assert_eq!(a2.model.as_deref(), Some("claude-opus-4"));
-    let _ = bytes;
+}
+
+/// P3 (0.0.12 QA walk: Claude tokens ×1.8–2.5 the transcripts'). Claude
+/// Code writes one line per content block — thinking, text, each tool
+/// call — each with its own `uuid` but the same `message.id`,
+/// `requestId` and `usage`. One API response is one event, whatever its
+/// blocks; a later block's larger figure (streamed output) wins.
+#[test]
+fn one_response_written_as_several_content_blocks_counts_once() {
+    let outcome = juggler_adapters::tail_transcript(
+        &fixture("claude-transcript-content-blocks.jsonl"),
+        "acc",
+        0,
+    );
+    assert_eq!(outcome.parse_errors, 0);
+    let keys: Vec<_> = outcome
+        .events
+        .iter()
+        .map(|event| event.msg_uuid.as_deref().unwrap())
+        .collect();
+    assert_eq!(keys, ["msg_A/req_A", "msg_B/req_B"]);
+    let sum = |class: fn(&juggler_core::model::TokenCounts) -> u64| {
+        outcome
+            .events
+            .iter()
+            .map(|event| class(&event.tokens))
+            .sum::<u64>()
+    };
+    assert_eq!(sum(|t| t.input), 4 + 6);
+    assert_eq!(sum(|t| t.output), 310 + 52);
+    assert_eq!(sum(|t| t.cache_read), 12_000 + 12_800);
+    assert_eq!(sum(|t| t.cache_write), 800 + 90);
+    // The response's first line gives its time.
+    assert_eq!(
+        outcome.events[1].ts,
+        iso_to_epoch_ms("2026-10-20T09:00:04.000Z").unwrap()
+    );
+}
+
+/// P3, across passes and files: a response read again (a re-tail, a
+/// resumed session's replayed history) is stored once.
+#[test]
+fn a_response_read_twice_is_stored_once() {
+    let storage = Storage::open_in_memory().unwrap();
+    let path = fixture("claude-transcript-content-blocks.jsonl");
+    for _ in 0..2 {
+        let outcome = juggler_adapters::tail_transcript(&path, "acc", 0);
+        storage.usage().insert_events(&outcome.events).unwrap();
+    }
+    let stored = storage.usage().events_for_account("acc", 0).unwrap();
+    assert_eq!(stored.len(), 2);
+    assert_eq!(
+        stored.iter().map(|event| event.tokens.output).sum::<u64>(),
+        362
+    );
 }
 
 #[test]
@@ -184,13 +237,55 @@ fn rollout_events_read_only_the_response_level_usage() {
         Some("th-1/tu-1/re-1"),
         "dedupe key survives re-tails and resumed rollouts"
     );
-    assert_eq!(first.tokens.input, 52_381);
+    // Disjoint classes: input without its cached part, output without
+    // its reasoning (Codex nests them).
+    assert_eq!(first.tokens.input, 52_381 - 5_888);
     assert_eq!(first.tokens.cache_read, 5_888); // cached_input_tokens
     assert_eq!(first.tokens.reasoning, 136); // reasoning_output_tokens
     assert_eq!(first.session.as_deref(), Some("th-1"));
     assert_eq!(first.source, UsageSource::Rollout);
     // One response-level read only — rollup fields never re-counted.
-    assert_eq!(first.tokens.output, 200);
+    assert_eq!(first.tokens.output, 200 - 136);
+}
+
+/// P14 (0.0.12 QA walk: Codex tokens exactly ×2). Codex's
+/// `input_tokens` includes `cached_input_tokens` and its `output_tokens`
+/// includes `reasoning_output_tokens`; storing all four counted each
+/// token twice. Every token once: the stored classes sum to Codex's own
+/// `total_tokens`.
+#[test]
+fn codex_tokens_are_counted_once() {
+    let outcome = rollout_events(
+        "acc",
+        &std::fs::read(fixture("codex-rollout.jsonl")).unwrap(),
+    );
+    for (event, total) in outcome.events.iter().zip([52_581_u64, 1_280]) {
+        let t = &event.tokens;
+        assert_eq!(
+            t.input + t.cache_read + t.output + t.reasoning,
+            total,
+            "{:?}",
+            event.msg_uuid
+        );
+    }
+}
+
+/// P15(a): a rollout's usage lines carry no model; the turn's
+/// `turn_context` does. Usage before any `turn_context` in the slice has
+/// none here (the pipeline carries the previous slice's).
+#[test]
+fn codex_usage_takes_the_model_its_turn_context_names() {
+    let outcome = rollout_events(
+        "acc",
+        &std::fs::read(fixture("codex-rollout.jsonl")).unwrap(),
+    );
+    let models: Vec<_> = outcome
+        .events
+        .iter()
+        .map(|event| event.model.as_deref())
+        .collect();
+    assert_eq!(models, [None, Some("gpt-5-codex")]);
+    assert_eq!(outcome.model.as_deref(), Some("gpt-5-codex"));
 }
 
 /// The 0.0.12 report: Codex's rollouts carry its own limit readings on

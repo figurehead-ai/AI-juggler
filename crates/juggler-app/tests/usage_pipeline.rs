@@ -253,3 +253,181 @@ fn codex_rollout_limits_reach_the_display_as_measured_with_credits() {
     assert_eq!(credits.balance.as_deref(), Some("16.25"));
     assert!(credits.has_credits && !credits.unlimited);
 }
+
+fn tokens_of(events: &[juggler_core::quota::UsageEvent]) -> (u64, u64, u64, u64) {
+    events.iter().fold((0, 0, 0, 0), |(i, o, r, w), event| {
+        (
+            i + event.tokens.input,
+            o + event.tokens.output,
+            r + event.tokens.cache_read,
+            w + event.tokens.cache_write,
+        )
+    })
+}
+
+/// P3 on an existing install: rows stored before 0.0.13 counted each
+/// content block of a response (keyed per line), and the files were
+/// already read to their end. One pass reads every file still on disk
+/// again and replaces its sessions' rows; a session whose file is gone
+/// keeps its rows; the re-read happens once.
+#[test]
+fn rows_counted_per_content_block_are_read_again_once() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    seed_claude_account(&state, dir.path());
+    let transcript = dir.path().join("managed-claude/projects/t.jsonl");
+    std::fs::copy(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join(
+            "../juggler-adapters/tests/fixtures/quota/claude-transcript-content-blocks.jsonl",
+        ),
+        &transcript,
+    )
+    .unwrap();
+    // What 0.0.12 left behind: one row per line, keyed by the line's
+    // uuid, and the file's offset at its end.
+    let old_row = |uuid: &str, session: &str, output: u64| juggler_core::quota::UsageEvent {
+        account: "acc-pipe".into(),
+        session: Some(session.into()),
+        ts: 1_760_950_801_000,
+        model: Some("claude-opus-4".into()),
+        tokens: juggler_core::model::TokenCounts {
+            input: 4,
+            output,
+            cache_read: 12_000,
+            cache_write: 800,
+            reasoning: 0,
+        },
+        credits: None,
+        usd_est: None,
+        source: juggler_core::quota::UsageSource::Transcript,
+        confidence: juggler_core::model::Confidence::Measured,
+        msg_uuid: Some(uuid.into()),
+    };
+    {
+        let storage = state.storage.lock().unwrap();
+        storage
+            .usage()
+            .insert_events(&[
+                old_row("b-1", "sess-b", 310),
+                old_row("b-2", "sess-b", 310),
+                old_row("b-3", "sess-b", 310),
+                old_row("b-4", "sess-b", 40),
+                old_row("b-5", "sess-b", 52),
+                old_row("g-1", "sess-gone", 7),
+            ])
+            .unwrap();
+        let len = std::fs::metadata(&transcript).unwrap().len();
+        let spool = dir
+            .path()
+            .join("managed-claude/quota-spool/statusline.jsonl");
+        let spool_len = std::fs::metadata(&spool).unwrap().len();
+        storage
+            .app_settings()
+            .set(
+                "usage_ingest_state",
+                &serde_json::json!({"offsets": {"acc-pipe": {
+                    "spool": spool_len,
+                    "files": {transcript.to_string_lossy(): len},
+                }}})
+                .to_string(),
+            )
+            .unwrap();
+    }
+
+    usage_pipeline::ingest_pass(&state, 4);
+    let read = |session: &str| {
+        let storage = state.storage.lock().unwrap();
+        storage
+            .usage()
+            .events_for_account("acc-pipe", 0)
+            .unwrap()
+            .into_iter()
+            .filter(|event| event.session.as_deref() == Some(session))
+            .collect::<Vec<_>>()
+    };
+    let session = read("sess-b");
+    assert_eq!(session.len(), 2, "one row per response: {session:?}");
+    assert_eq!(tokens_of(&session), (10, 362, 24_800, 890));
+    assert_eq!(read("sess-gone").len(), 1, "a gone file's rows stay");
+
+    // Once: the next pass leaves the rows as they are.
+    usage_pipeline::ingest_pass(&state, 8);
+    assert_eq!(tokens_of(&read("sess-b")), (10, 362, 24_800, 890));
+    assert_eq!(read("sess-gone").len(), 1);
+}
+
+/// P15(a): a Codex rollout's usage lines carry no model; the turn's
+/// `turn_context` does. A slice that starts mid-turn keeps the model the
+/// file's previous slice ended with.
+#[test]
+fn codex_usage_keeps_its_turns_model_across_passes() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    let home = dir.path().join("codex-home");
+    let day = home.join("sessions/2026/10/21");
+    std::fs::create_dir_all(&day).unwrap();
+    let rollout = day.join("rollout-2026-10-21T10-00-00-th-7.jsonl");
+    let record = |response: &str| {
+        format!(
+            "{{\"timestamp\":\"2026-10-21T10:00:0{response}.000Z\",\"type\":\"token_usage_record\",\"payload\":{{\"thread_id\":\"th-7\",\"turn_id\":\"tu-1\",\"response_id\":\"r{response}\",\"usage\":{{\"input_tokens\":100,\"cached_input_tokens\":60,\"output_tokens\":20,\"reasoning_output_tokens\":5,\"total_tokens\":120}}}}}}\n"
+        )
+    };
+    std::fs::write(
+        &rollout,
+        format!(
+            "{}{}",
+            "{\"timestamp\":\"2026-10-21T10:00:00.000Z\",\"type\":\"turn_context\",\"payload\":{\"turn_id\":\"tu-1\",\"model\":\"gpt-5-codex\"}}\n",
+            record("1")
+        ),
+    )
+    .unwrap();
+    let account = Account {
+        id: AccountId::new("acc-codex"),
+        harness: HarnessId::new("codex"),
+        label: "codex".into(),
+        plan: None,
+        state_dir: home,
+        cleanup_opt_in: false,
+        renewal_date: None,
+        preview_opt_in: false,
+        import_source_path: None,
+        import_origin: None,
+        imported_at: None,
+        in_place: false,
+    };
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .accounts()
+        .insert(&account)
+        .unwrap();
+
+    usage_pipeline::ingest_pass(&state, 4);
+    std::fs::OpenOptions::new()
+        .append(true)
+        .open(&rollout)
+        .and_then(|mut file| std::io::Write::write_all(&mut file, record("2").as_bytes()))
+        .unwrap();
+    usage_pipeline::ingest_pass(&state, 8);
+
+    let events = state
+        .storage
+        .lock()
+        .unwrap()
+        .usage()
+        .events_for_account("acc-codex", 0)
+        .unwrap();
+    assert_eq!(events.len(), 2);
+    assert!(
+        events
+            .iter()
+            .all(|event| event.model.as_deref() == Some("gpt-5-codex")),
+        "{events:?}"
+    );
+    // P14: each token once — the classes sum to Codex's total_tokens.
+    for event in &events {
+        let t = &event.tokens;
+        assert_eq!(t.input + t.cache_read + t.output + t.reasoning, 120);
+    }
+}

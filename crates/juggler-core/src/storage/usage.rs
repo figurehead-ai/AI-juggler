@@ -82,6 +82,35 @@ impl UsageRepo<'_> {
         Ok(inserted)
     }
 
+    /// Deletes the stored events of these `(account, source, session)`
+    /// triples, in ONE transaction: the one-time re-read that replaces
+    /// rows counted wrongly before (0.0.13: Claude content blocks keyed
+    /// per line, Codex's nested token classes). Only the pipeline calls
+    /// it, for sessions whose files it is reading again in the same pass.
+    /// Returns how many rows went.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures; the
+    /// transaction rolls back atomically.
+    pub fn delete_session_events(
+        &self,
+        sessions: &[(String, UsageSource, String)],
+    ) -> Result<usize, CoreError> {
+        let tx = self.conn.unchecked_transaction()?;
+        let mut deleted = 0;
+        {
+            let mut stmt = tx.prepare(
+                "DELETE FROM usage_events WHERE account = ?1 AND source = ?2 AND session = ?3",
+            )?;
+            for (account, source, session) in sessions {
+                deleted += stmt.execute(params![account, source.as_str(), session])?;
+            }
+        }
+        tx.commit()?;
+        Ok(deleted)
+    }
+
     /// Every event for one account since `since_ms` (the window fold
     /// fetches a 7 d tail; older rows are audit, never maths).
     ///

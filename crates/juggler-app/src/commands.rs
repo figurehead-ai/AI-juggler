@@ -4669,13 +4669,17 @@ fn scan_rollout_line(
                     .and_then(chrono_like_ms)
                     .unwrap_or(now),
                 tokens: juggler_core::model::TokenCounts {
-                    // Fresh prompt only (`input_tokens` includes the
-                    // cached history), as Claude's lines count it.
+                    // Disjoint classes, as the usage pipeline stores
+                    // them: `input_tokens` includes the cached history
+                    // and `output_tokens` the reasoning.
                     input: usage["input_tokens"]
                         .as_u64()
                         .unwrap_or(0)
                         .saturating_sub(usage["cached_input_tokens"].as_u64().unwrap_or(0)),
-                    output: usage["output_tokens"].as_u64().unwrap_or(0),
+                    output: usage["output_tokens"]
+                        .as_u64()
+                        .unwrap_or(0)
+                        .saturating_sub(usage["reasoning_output_tokens"].as_u64().unwrap_or(0)),
                     cache_read: usage["cached_input_tokens"].as_u64().unwrap_or(0),
                     cache_write: 0,
                     reasoning: usage["reasoning_output_tokens"].as_u64().unwrap_or(0),
@@ -4725,7 +4729,8 @@ mod rollout_scan_tests {
             "timestamp": "2026-10-20T08:00:00.000Z",
             "type": "token_usage_record",
             "payload": {"thread_id": "t", "turn_id": "1", "response_id": "r",
-                        "usage": {"input_tokens": 100, "cached_input_tokens": 40, "output_tokens": 10}}
+                        "usage": {"input_tokens": 100, "cached_input_tokens": 40, "output_tokens": 10,
+                                  "reasoning_output_tokens": 4, "total_tokens": 110}}
         });
         let mut model = None;
         for _ in 0..3 {
@@ -4737,6 +4742,35 @@ mod rollout_scan_tests {
         );
         assert_eq!(scan.events.len(), 1);
         assert_eq!(scan.events[0].tokens.input, 60);
+    }
+
+    /// P14 (0.0.12 QA): Codex's output includes its reasoning; the scan
+    /// counted the reasoning twice. Every token once: the classes sum to
+    /// Codex's own `total_tokens`.
+    #[test]
+    fn the_quality_scan_counts_each_codex_token_once() {
+        let mut scan = TranscriptScan {
+            events: Vec::new(),
+            errors: 0,
+            turns: 0,
+            context_used: None,
+            context_window: None,
+            rollout_seen: std::collections::BTreeSet::new(),
+        };
+        let row: serde_json::Value = serde_json::json!({
+            "timestamp": "2026-10-20T08:00:00.000Z",
+            "type": "token_usage_record",
+            "payload": {"thread_id": "t", "turn_id": "1", "response_id": "r",
+                        "usage": {"input_tokens": 100, "cached_input_tokens": 40, "output_tokens": 10,
+                                  "reasoning_output_tokens": 4, "total_tokens": 110}}
+        });
+        scan_rollout_line(&row, &row["payload"], &mut None, &mut scan, 0);
+        let tokens = &scan.events[0].tokens;
+        assert_eq!((tokens.output, tokens.reasoning), (6, 4));
+        assert_eq!(
+            tokens.input + tokens.cache_read + tokens.output + tokens.reasoning,
+            110
+        );
     }
 }
 

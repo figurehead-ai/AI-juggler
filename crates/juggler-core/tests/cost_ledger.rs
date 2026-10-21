@@ -96,6 +96,26 @@ fn pricing_math_is_exact_including_cache_classes() {
     assert!((usd - 37.95).abs() < 1e-9);
 }
 
+/// P14: Codex's reasoning tokens are stored apart from its output now
+/// (they were inside it, and counted twice); the vendor bills them as
+/// output, so they are priced at the output rate.
+#[test]
+fn reasoning_tokens_are_priced_as_output() {
+    let table = catalog(&[row("m", 0, 3.0, 15.0, 0.3, 3.75)]);
+    let usd = table
+        .price_tokens(
+            "m",
+            NOW,
+            TokenCounts {
+                output: 1_000,
+                reasoning: 1_000,
+                ..TokenCounts::default()
+            },
+        )
+        .unwrap();
+    assert!((usd - 30.0).abs() < 1e-9, "{usd}");
+}
+
 #[test]
 fn unpriced_model_is_none_never_zero() {
     let table = catalog(&[row("m", 0, 3.0, 15.0, 0.3, 3.75)]);

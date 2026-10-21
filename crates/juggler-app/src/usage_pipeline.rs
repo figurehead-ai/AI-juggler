@@ -33,6 +33,12 @@ const INGEST_STATE_KEY: &str = "usage_ingest_state";
 /// Per account: the newest Codex credits snapshot (JSON), from its own
 /// rollouts — what the account's card shows as its balance.
 pub const CREDITS_KEY_PREFIX: &str = "codex_credits:";
+/// Raised when stored transcript/rollout rows were counted wrongly and
+/// must be read again: the next pass re-reads every file still on disk
+/// from the start, replacing its sessions' rows. 1 = 0.0.13 (Claude
+/// content blocks counted per line; Codex's nested token classes and
+/// missing model).
+const REREAD_VERSION: u32 = 1;
 
 /// Quota samples gathered in one pass: (account, window, sample).
 type SampleBatch = Vec<(
@@ -47,6 +53,10 @@ struct AccountOffsets {
     spool: u64,
     #[serde(default)]
     files: BTreeMap<String, u64>,
+    /// Per Codex rollout: the model its last `turn_context` named, for
+    /// the usage lines of the next slice that come before their own.
+    #[serde(default)]
+    models: BTreeMap<String, String>,
 }
 
 /// The whole persisted pipeline state.
@@ -56,6 +66,9 @@ struct IngestState {
     offsets: BTreeMap<String, AccountOffsets>,
     #[serde(default)]
     health: BTreeMap<String, juggler_adapters::SourceHealth>,
+    /// The [`REREAD_VERSION`] the stored rows were last read under.
+    #[serde(default)]
+    reread: u32,
 }
 
 /// Spawns the pipeline thread (called once from app setup).
@@ -87,6 +100,13 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
         list
     };
     let mut ingest = load_state(state);
+    let rereading = ingest.reread < REREAD_VERSION;
+    if rereading {
+        for offsets in ingest.offsets.values_mut() {
+            offsets.files.values_mut().for_each(|offset| *offset = 0);
+            offsets.models.clear();
+        }
+    }
     let mut store_batch: Vec<juggler_core::quota::UsageEvent> = Vec::new();
     let mut sample_batch: SampleBatch = Vec::new();
     let mut credits_batch: Vec<(String, juggler_adapters::CreditsSnapshot)> = Vec::new();
@@ -114,7 +134,7 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
                     &mut sample_batch,
                 );
             }
-            "codex" if tick.is_multiple_of(FILE_SCAN_EVERY) => {
+            "codex" if rereading || tick.is_multiple_of(FILE_SCAN_EVERY) => {
                 ingest_codex(
                     &account_id,
                     &dir,
@@ -134,11 +154,26 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
     // Single writer: ONE storage lock for the whole batch.
     if let Ok(storage) = state.storage.lock() {
         let usage = storage.usage();
+        if rereading {
+            // Every file still on disk was read from its start: its
+            // sessions' old rows go, the rows just read replace them. A
+            // session whose files are gone keeps the rows it had.
+            if usage
+                .delete_session_events(&reread_sessions(&store_batch))
+                .is_err()
+            {
+                return; // nothing saved: the next pass tries again
+            }
+            ingest.reread = REREAD_VERSION;
+        }
         if !store_batch.is_empty()
             && let Ok(new) = usage.insert_events_marking(&store_batch)
         {
-            // AJ-E1103: Measured tokens of new rows only (D-06).
-            crate::usage_stats::tokens_ingested(&accounts, &store_batch, &new);
+            // AJ-E1103: Measured tokens of new rows only (D-06); a
+            // re-read is not new use.
+            if !rereading {
+                crate::usage_stats::tokens_ingested(&accounts, &store_batch, &new);
+            }
         }
         for (account, kind, sample) in &sample_batch {
             let _ = usage.insert_sample(account, *kind, sample);
@@ -317,12 +352,22 @@ fn tail_one(
         .and_then(|offsets| offsets.files.get(&key).copied())
         .unwrap_or(0);
     let mut outcome = tail(path, account, offset);
-    ingest
-        .offsets
-        .entry(account.to_owned())
-        .or_default()
-        .files
-        .insert(key, outcome.offset);
+    let offsets = ingest.offsets.entry(account.to_owned()).or_default();
+    // Codex: usage before the slice's first `turn_context` ran on the
+    // model the file's previous slice ended with.
+    if let Some(carried) = offsets.models.get(&key) {
+        for event in outcome
+            .events
+            .iter_mut()
+            .filter(|event| event.model.is_none())
+        {
+            event.model = Some(carried.clone());
+        }
+    }
+    if let Some(model) = outcome.model.clone() {
+        offsets.models.insert(key.clone(), model);
+    }
+    offsets.files.insert(key, outcome.offset);
     let latest = outcome
         .events
         .iter()
@@ -335,6 +380,32 @@ fn tail_one(
         record_health(ingest, account, source, latest, errors, "");
     }
     outcome
+}
+
+/// The sessions a re-read pass read again: every transcript/rollout
+/// session in its batch, once.
+fn reread_sessions(
+    batch: &[juggler_core::quota::UsageEvent],
+) -> Vec<(String, juggler_core::quota::UsageSource, String)> {
+    use juggler_core::quota::UsageSource;
+    let mut sessions = BTreeMap::new();
+    for event in batch {
+        if matches!(event.source, UsageSource::Transcript | UsageSource::Rollout)
+            && let Some(session) = &event.session
+        {
+            sessions
+                .entry((
+                    event.account.clone(),
+                    event.source.as_str(),
+                    session.clone(),
+                ))
+                .or_insert(event.source);
+        }
+    }
+    sessions
+        .into_iter()
+        .map(|((account, _, session), source)| (account, source, session))
+        .collect()
 }
 
 /// Merges one observation into the health map.

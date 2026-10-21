@@ -174,15 +174,18 @@ impl PricingCatalog {
     }
 
     /// Prices one event's tokens at event-time rates. `None` when the
-    /// model is unpriced AT THAT INSTANT (the honest `—`). The u64→f64
-    /// casts lose cents only past 2^53 tokens — beyond any real bucket.
+    /// model is unpriced AT THAT INSTANT (the honest `—`). Reasoning
+    /// tokens are output the vendor bills at the output rate (stored
+    /// apart from `output`, never inside it). The u64→f64 casts lose
+    /// cents only past 2^53 tokens — beyond any real bucket.
     #[allow(clippy::cast_precision_loss)]
     #[must_use]
     pub fn price_tokens(&self, model: &str, ts_ms: i64, tokens: TokenCounts) -> Option<f64> {
         let row = self.row_for(model, ts_ms)?;
         Some(
             (tokens.input as f64 / 1000.0) * row.input_per_1k
-                + (tokens.output as f64 / 1000.0) * row.output_per_1k
+                + (tokens.output.saturating_add(tokens.reasoning) as f64 / 1000.0)
+                    * row.output_per_1k
                 + (tokens.cache_read as f64 / 1000.0) * row.cache_read_per_1k
                 + (tokens.cache_write as f64 / 1000.0) * row.cache_write_per_1k,
         )
