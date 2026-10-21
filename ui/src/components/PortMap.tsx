@@ -136,7 +136,7 @@ export function PortInventoryList(props: { bridge?: PortsBridge }) {
   if (info.rows.length === 0) {
     return (
       <p className="text-[10.5px] text-muted" data-testid="port-inventory-empty">
-        No listeners on this machine.
+        Nothing is listening on a port.
       </p>
     );
   }

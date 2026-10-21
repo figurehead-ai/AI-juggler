@@ -22,5 +22,6 @@ ADRs capture the *why* behind non-obvious decisions: context, decision, alternat
 | [0016](./0016-backup-archive-format.md) | Backup archive format v1: allowlisted, scrubbed, verified before restore | Accepted |
 | [0017](./0017-encrypted-cloud-backup-container.md) | Encrypted Cloud backup container (FHB1): vault key, recovery code, XChaCha20-Poly1305 | Accepted |
 | [0018](./0018-use-setups-where-they-are.md) | Use setups where they are (in-place accounts); partial bring-in is the user's call | Accepted |
+| [0019](./0019-extension-architecture.md) | Extension architecture: tools as data (`ToolSpec`), features as modules, a tool-literal lint | Accepted |
 
 To add one: copy `0000-template.md`, number sequentially, PR it with the change that implements the decision.

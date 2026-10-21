@@ -26,7 +26,7 @@ const { qualityMock } = vi.hoisted(() => {
       cumulative: { input: 12_345, output: 6_789, cache_read: 0, cache_write: 0, reasoning: 0 },
       session_cost_usd: 0.69,
       priced_model: "opus",
-      quota_forecast: "not burning",
+      quota_forecast: "Not using its limit right now",
       stuck: { rule: "stuck_no_output", inputs: ["no output 6m", "cpu 0.3%"], since_ms: NOW - 6 * 60_000 },
     },
     idle: {
@@ -39,7 +39,7 @@ const { qualityMock } = vi.hoisted(() => {
       cumulative: { input: 0, output: 0, cache_read: 0, cache_write: 0, reasoning: 0 },
       session_cost_usd: null,
       priced_model: null,
-      quota_forecast: "not burning",
+      quota_forecast: "Not using its limit right now",
       stuck: null,
     },
   };
@@ -130,30 +130,37 @@ describe("AJ-E409 Quality tab signals (D-07)", () => {
   it("renders every signal with its tier tag and exact copy", async () => {
     const { container } = qualityShell(instance("full"));
     await waitFor(() => expect(container.querySelector('[data-testid="quality-tokens"]')).not.toBeNull());
-    expect(container.querySelector('[data-testid="quality-tokens"]')!.textContent).toContain("490 avg (5 min)");
+    expect(container.querySelector('[data-testid="quality-tokens"]')!.textContent).toContain("490 a minute on average over the last 5 minutes");
     expect(container.querySelector('[data-testid="quality-tokens"]')!.textContent).toContain("Measured");
+    // 0.0.11 walk, Q5: each tier tag says what it means, beside it.
+    expect(container.querySelector('[data-testid="quality-tokens"] [data-testid="tier-words"]')!.textContent).toBe("read from the session");
+    expect(container.querySelector('[data-testid="quality-cost"] [data-testid="tier-words"]')!.textContent).toBe("a best guess");
+    expect(container.querySelector('[data-testid="quality-stuck"] [data-testid="tier-words"]')!.textContent).toBe("worked out from what's measured");
+    // No engine words on the screen.
+    expect(container.querySelector('[data-testid="quality-tab"]')!.textContent).not.toMatch(/idle is a real 0|value-equiv|RSS|stuck_no_output|not burning/);
     expect(container.querySelector('[data-testid="quality-errors"]')!.textContent).toContain("2 errors / 41 turns");
     expect(container.querySelector('[data-testid="quality-context"]')!.textContent).toContain(
-      "Context: not reported by Claude Code",
+      "Claude Code doesn't say how full its context is",
     );
-    expect(container.querySelector('[data-testid="quality-context"]')!.textContent).toContain("cumulative, not context");
-    expect(container.querySelector('[data-testid="quality-cost"]')!.textContent).toContain("Est · value-equiv.");
+    expect(container.querySelector('[data-testid="quality-context"]')!.textContent).toContain("tokens used in this session so far");
+    expect(container.querySelector('[data-testid="quality-cost"]')!.textContent).toContain("API prices");
     // A plain dollar sign, no backslash before it (0.0.11 walk).
-    expect(container.querySelector('[data-testid="quality-cost"]')!.textContent).toMatch(/Estimated\$\d+\.\d{2} · /);
+    expect(container.querySelector('[data-testid="quality-cost"]')!.textContent).toMatch(/about \$\d+\.\d{2} at /);
     expect(container.querySelector('[data-testid="quality-cost"]')!.textContent).toContain("opus");
-    expect(container.querySelector('[data-testid="quality-forecast"]')!.textContent).toContain("not burning");
+    expect(container.querySelector('[data-testid="quality-forecast"]')!.textContent).toContain("Not using its limit right now");
     expect(container.querySelector('[data-testid="quality-stuck"]')!.textContent).toContain("Stuck?");
     expect(container.querySelector('[data-testid="quality-stuck"]')!.textContent).toContain("no output 6m");
+    expect(container.querySelector('[data-testid="quality-stuck"]')!.textContent).toContain("No output for a while");
   });
 
   it("idle 0 tok/min renders as a real zero — distinct from no data", async () => {
     const { container } = qualityShell(instance("idle"));
     await waitFor(() => expect(container.querySelector('[data-testid="quality-tokens"]')).not.toBeNull());
-    expect(container.querySelector('[data-testid="quality-tokens"]')!.textContent).toContain("0 avg (5 min)");
+    expect(container.querySelector('[data-testid="quality-tokens"]')!.textContent).toContain("0 a minute on average over the last 5 minutes");
     expect(container.querySelector('[data-testid="quality-errors"]')!.textContent).toContain(
-      "Not measurable (interactive)",
+      "Can't be counted in an interactive session",
     );
-    expect(container.querySelector('[data-testid="quality-cost"]')!.textContent).toContain("never $0.00");
+    expect(container.querySelector('[data-testid="quality-cost"]')!.textContent).toContain("No price known for this model, so no cost is shown");
   });
 
   it("no transcript at all renders the `no data` state", async () => {

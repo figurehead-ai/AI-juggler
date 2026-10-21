@@ -441,3 +441,27 @@ fn going_back_needs_the_data_folder_to_itself() {
     drop(other);
     assert!(newer_data::hold_instance_lock(&dir), "free once it quits");
 }
+
+/// 0.0.11 walk (Q6): "Open the releases page" goes to the version's own
+/// release when it is a plain version, else the list — nothing else
+/// from the UI can reach the link.
+#[test]
+fn the_releases_page_is_the_versions_own_or_the_list() {
+    let list = newer_data::RELEASES_URL;
+    assert_eq!(
+        newer_data::releases_page(Some("0.0.9")),
+        format!("{list}/tag/v0.0.9")
+    );
+    assert_eq!(newer_data::releases_page(None), list);
+    for odd in [
+        "",
+        "0..9",
+        "0.0.9-beta",
+        "../../evil",
+        "0.0.9?x=1",
+        "v0.0.9",
+        "1.2.3.4.5.6.7.8.9.10.11",
+    ] {
+        assert_eq!(newer_data::releases_page(Some(odd)), list, "{odd:?}");
+    }
+}
