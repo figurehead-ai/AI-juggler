@@ -35,15 +35,63 @@ const PARKED = {
 const SCREEN = { maxDiffPixelRatio: 0.001, animations: "disabled", caret: "hide" } as const;
 const CHROME = { maxDiffPixels: 0, animations: "disabled", caret: "hide" } as const;
 
-async function open(page: Page, theme: string, density: string, vp: { width: number; height: number }, fixture: unknown = allStatuses) {
+/** Nothing new on this Mac: Add account opens at a fresh account. */
+const EMPTY_SCAN = { installs: [], probes: [], seeds: [], desktop_apps: [], cancelled: false };
+
+/** First run on a Mac that already has Claude Code: two setups found. */
+const FIRST_RUN_SCAN = {
+  installs: [
+    ["/Users/you/.claude", "vendor-default", "Main", "Active this week"],
+    ["/Users/you/Library/Application Support/ClaudeCodeProfiles/work", "manager-tool", "Work", "Dormant 12 d"],
+  ].map(([path, origin, purpose, words]) => ({
+    harness: "claude-code",
+    path,
+    origin,
+    login: "logged_in",
+    bytes: 30_000_000,
+    last_used_secs: Math.floor(T0 / 1000) - 86_400,
+    managed: false,
+    notes: [],
+    inference: {
+      purpose,
+      purpose_confidence: "likely",
+      login: "signed-in",
+      login_confidence: "found",
+      activity: words.startsWith("Active") ? "active" : "dormant",
+      activity_confidence: "found",
+      activity_words: words,
+      keychain_bound: false,
+    },
+    signals: [origin],
+  })),
+  probes: [
+    { label: "Your standard setup (~/.claude)", health: "ok", detail: "1 found", reason: null },
+    { label: "Claude desktop profiles", health: "ok", detail: "1 profile", reason: null },
+  ],
+  seeds: [],
+  desktop_apps: ["Claude"],
+  cancelled: false,
+};
+
+async function open(
+  page: Page,
+  theme: string,
+  density: string,
+  vp: { width: number; height: number },
+  fixture: unknown = allStatuses,
+  options: { firstRun?: boolean; seams?: Record<string, unknown> } = {},
+) {
   await page.addInitScript(
-    ({ fixture, t, d, t0, selftest }) => {
+    ({ fixture, t, d, t0, selftest, firstRun, seams }) => {
       const w = window as unknown as Record<string, unknown>;
       w.__AIJ_FIXTURE__ = fixture;
+      for (const [key, value] of Object.entries(seams)) w[key] = value;
       localStorage.setItem("aij.theme", t);
       localStorage.setItem("aij.density", d);
-      localStorage.setItem("aij.onboarding.dismissed", "1");
-      sessionStorage.setItem("aij.ready.skipped", "1");
+      if (!firstRun) {
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        sessionStorage.setItem("aij.ready.skipped", "1");
+      }
       Date.now = () => t0;
       // The gate's self-test: a seeded 2 px shift of every button must
       // fail the comparison (AJ-E803 quality gate).
@@ -55,12 +103,20 @@ async function open(page: Page, theme: string, density: string, vp: { width: num
         });
       }
     },
-    { fixture, t: theme, d: density, t0: T0, selftest: process.env.AIJ_VISUAL_SELFTEST === "1" },
+    {
+      fixture,
+      t: theme,
+      d: density,
+      t0: T0,
+      selftest: process.env.AIJ_VISUAL_SELFTEST === "1",
+      firstRun: options.firstRun ?? false,
+      seams: options.seams ?? {},
+    },
   );
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme as "dark" | "light" });
   await page.setViewportSize({ width: vp.width, height: vp.height });
   await page.goto("/");
-  await expect(page.getByRole("button", { name: "Settings" }).first()).toBeVisible();
+  if (!options.firstRun) await expect(page.getByRole("button", { name: "Settings" }).first()).toBeVisible();
 }
 
 for (const theme of THEMES) {
@@ -99,6 +155,83 @@ for (const theme of THEMES) {
         await page.getByRole("button", { name: /Work Max/ }).first().click();
         await expect(page.getByRole("tab", { name: "Quality / Performance" })).toBeVisible();
         await expect(page).toHaveScreenshot(`inspector-instance-${cell}.png`, SCREEN);
+      });
+
+      // AJ-E803 (wider coverage): the views and sheets the D-25 rebuild added or changed,
+      // so a regression there fails the gate, not only the gallery.
+      test(`inspector — tool view — ${cell}`, async ({ page }) => {
+        await open(page, theme, density, vp);
+        await expect(page.getByTestId("instance-board")).toBeVisible();
+        await page.getByRole("button", { name: /Work Max/ }).first().click();
+        await page.getByRole("button", { name: "About Claude Code" }).click();
+        await expect(page.getByTestId("provider-install")).toBeVisible();
+        await page.mouse.move(0, 0);
+        await expect(page).toHaveScreenshot(`inspector-tool-${cell}.png`, SCREEN);
+      });
+
+      test(`inspector — account view — ${cell}`, async ({ page }) => {
+        await open(page, theme, density, vp);
+        await goTo(page, "Accounts");
+        await page.getByRole("button", { name: "Inspect Claude Code" }).first().click();
+        await expect(page.getByTestId("account-overview")).toBeVisible();
+        await page.waitForLoadState("networkidle");
+        await page.mouse.move(0, 0);
+        await expect(page).toHaveScreenshot(`inspector-account-${cell}.png`, SCREEN);
+      });
+
+      test(`inspector — project view — ${cell}`, async ({ page }) => {
+        await open(page, theme, density, vp);
+        await expect(page.getByTestId("instance-board")).toBeVisible();
+        await page.getByTestId("rail").getByRole("button", { name: /^ai-juggler/ }).first().click();
+        await expect(page.getByTestId("project-on-it-now")).toBeVisible();
+        await page.mouse.move(0, 0);
+        await expect(page).toHaveScreenshot(`inspector-project-${cell}.png`, SCREEN);
+      });
+
+      test(`add account — ${cell}`, async ({ page }) => {
+        await open(page, theme, density, vp, allStatuses, { seams: { __AIJ_SCAN_REPORT__: EMPTY_SCAN } });
+        await goTo(page, "Accounts");
+        await page.getByTestId("add-account").click();
+        await expect(page.getByTestId("first-run-fresh-name")).toHaveValue(/^Claude Code/);
+        await page.mouse.move(0, 0);
+        await expect(page).toHaveScreenshot(`add-account-${cell}.png`, SCREEN);
+      });
+
+      test(`limit dialog — ${cell}`, async ({ page }) => {
+        await open(page, theme, density, vp);
+        await page.getByTestId("home-needs").getByRole("button", { name: /^Continue elsewhere/ }).first().click();
+        const dialog = page.getByTestId("limit-dialog");
+        await expect(dialog).toBeVisible();
+        await expect(dialog.getByRole("button", { name: /^Continue on / })).toBeVisible();
+        await page.mouse.move(0, 0);
+        await expect(page).toHaveScreenshot(`limit-dialog-${cell}.png`, SCREEN);
+      });
+
+      test(`new session — ${cell}`, async ({ page }) => {
+        await open(page, theme, density, vp);
+        await page.getByRole("banner").getByRole("button", { name: "New session", exact: true }).click();
+        await expect(page.getByTestId("new-session-sheet")).toBeVisible();
+        await page.waitForLoadState("networkidle");
+        await page.mouse.move(0, 0);
+        await expect(page).toHaveScreenshot(`new-session-${cell}.png`, SCREEN);
+      });
+
+      test(`first run — ${cell}`, async ({ page }) => {
+        await open(page, theme, density, vp, { accounts: [], profiles: [], sessions: [], projects: [] }, {
+          firstRun: true,
+          seams: { __AIJ_SCAN_REPORT__: FIRST_RUN_SCAN },
+        });
+        await expect(page.getByTestId("first-run-found")).toBeVisible();
+        await page.mouse.move(0, 0);
+        await expect(page).toHaveScreenshot(`first-run-${cell}.png`, SCREEN);
+      });
+
+      test(`legend — ${cell}`, async ({ page }) => {
+        await open(page, theme, density, vp);
+        await page.getByTestId("rail").getByRole("button", { name: "Indicator legend" }).click();
+        const legend = page.getByTestId("indicator-legend").first();
+        await expect(legend).toBeVisible();
+        await expect(legend).toHaveScreenshot(`chrome-legend-${cell}.png`, SCREEN);
       });
 
       // D-25 amendment (AJ-E1021): Triage and Overview folded into Home.

@@ -19,6 +19,7 @@ verify:
     RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
     just evidence
     just terminology
+    just task-counts
     just stats-doc
     just stats-events
     just polling-audit
@@ -68,6 +69,11 @@ evidence:
 # Terminology gate (AJ-E108): legacy user-facing nouns cannot creep back.
 terminology:
     ./scripts/terminology_lint.sh
+
+# The docs that quote task counts and ranges agree with the epic files.
+task-counts:
+    python3 scripts/check_task_counts.py --selftest
+    python3 scripts/check_task_counts.py
 
 # UI gate (AJ-E806): typecheck + build. Visual (AJ-E803) and a11y (AJ-E804)
 # gates attach to UI-changing PRs; perf (AJ-E805) at milestones.
