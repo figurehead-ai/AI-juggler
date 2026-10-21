@@ -475,9 +475,9 @@ function FoundStep({
               <fieldset key={group.key} className="border-b border-hairline last:border-b-0" data-testid={`first-run-group-${group.id}`}>
                 <legend className="sr-only">{group.title}</legend>
                 <div aria-hidden="true" className="flex items-center justify-between gap-3 bg-surface-2 px-5 py-2.5 text-xs">
-                  <span className="font-semibold text-ink">
-                    <ToolMark tool={group.tool} size={14} className="mr-1.5 inline-flex align-[-2px] text-muted" />
-                    {group.title} <span className="font-normal text-faint">· {rows.length}</span>
+                  <span className="flex items-center gap-1.5 font-semibold text-ink">
+                    <ToolMark tool={group.tool} size={12} className="text-muted" />
+                    <span>{group.title} <span className="font-normal text-faint">· {rows.length}</span></span>
                   </span>
                   {group.showsInstall && install && toolFound(install) && (
                     <span className="text-faint" data-testid={`first-run-cli-${group.id}`}>{cliWords(providerDisplayName(group.tool), install)}</span>
