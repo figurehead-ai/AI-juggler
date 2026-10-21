@@ -140,10 +140,17 @@ function previewAlerts(sessionId: string | null): OverloadAlertInfo[] {
   return [];
 }
 
+const FIXTURES: readonly MachineFixture[] = ["plenty", "tight", "pressure", "unsampled"];
+
+/** A preview URL's fixture name, only when it is one we know. */
+function asFixture(value: string | undefined): MachineFixture | undefined {
+  return FIXTURES.find((fixture) => fixture === value);
+}
+
 /** How the Mac is doing now. */
 export async function machineHealth(): Promise<MachineHealthInfo> {
   if (!hasLiveBackend()) {
-    const seeded = machineSeams().__AIJ_MACHINE__ ?? previewParam("aij_machine") ?? "plenty";
+    const seeded = machineSeams().__AIJ_MACHINE__ ?? asFixture(previewParam("aij_machine")) ?? "plenty";
     return typeof seeded === "string" ? mockMachineHealth(seeded) : structuredClone(seeded);
   }
   return invoke<MachineHealthInfo>("machine_health");
