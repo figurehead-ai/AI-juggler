@@ -23,6 +23,9 @@ use juggler_app::state::AppState;
 use juggler_core::model::SessionId;
 use juggler_supervisor::tree::SpawnContext;
 
+#[path = "support/dev_server.rs"]
+mod dev_server;
+
 fn ctx(state: &Arc<AppState>) -> SpawnContext {
     SpawnContext {
         provider: "claude-code".into(),
@@ -80,15 +83,13 @@ fn cleanup_centre_dogfood_orphan_row_with_evidence_and_zero_kill_fields() {
         .local_addr()
         .unwrap()
         .port();
+    let _servers = dev_server::Guard::new(&[port]);
     let session = SessionId::new("sess-e506");
     let spawned = state
         .supervisor
         .spawn(
             &session,
-            &sh_spec(
-                &format!("python3 -m http.server {port} --bind 127.0.0.1 & wait"),
-                dir.path(),
-            ),
+            &sh_spec(&format!("{} & wait", dev_server::shell(port)), dir.path()),
             &ctx(&state),
         )
         .unwrap();

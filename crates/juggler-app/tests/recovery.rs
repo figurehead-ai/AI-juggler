@@ -27,6 +27,9 @@ use juggler_app::state::AppState;
 use juggler_core::model::Timestamp;
 use juggler_supervisor::tree::LedgerStore as _;
 
+#[path = "support/dev_server.rs"]
+mod dev_server;
+
 fn alive(pid: u32) -> bool {
     std::process::Command::new("kill")
         .arg("-0")
@@ -121,14 +124,12 @@ fn crash_drill_readopts_verifies_and_reports() {
         .local_addr()
         .unwrap()
         .port();
+    let _servers = dev_server::Guard::new(&[port]);
     let spawned_c = state1
         .supervisor
         .spawn(
             &c,
-            &sh_spec(
-                &format!("python3 -m http.server {port} --bind 127.0.0.1 & wait"),
-                dir.path(),
-            ),
+            &sh_spec(&format!("{} & wait", dev_server::shell(port)), dir.path()),
             &ctx(&state1),
         )
         .unwrap();

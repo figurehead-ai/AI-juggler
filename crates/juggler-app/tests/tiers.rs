@@ -24,6 +24,9 @@ use std::time::Duration;
 use juggler_adapter::{AdapterRegistry, EnvMap, LaunchSpec};
 use juggler_app::commands;
 use juggler_app::state::AppState;
+
+#[path = "support/dev_server.rs"]
+mod dev_server;
 use juggler_core::model::{
     Account, AccountId, InstanceKind, InstanceRecord, LaunchRecipe, MachineId, ProfileId,
     SessionId, SessionStatus, Timestamp,
@@ -148,19 +151,21 @@ fn seed_instance(state: &Arc<AppState>, dir: &Path, id: &str, account: &str) -> 
 /// One drill tree: a dev-server helper (python http.server on an
 /// ephemeral port), an MCP-role helper (`mcp-server` in its argv),
 /// and a root that exits CLEANLY (code 0) or CRASHES (SIGKILL on
-/// itself) after the helpers are discoverable. Returns the session.
+/// itself) after the helpers are discoverable. Returns the session and
+/// the guard that stops its dev server when the test ends.
 fn drill_tree(
     state: &Arc<AppState>,
     dir: &Path,
     id: &str,
     account: &str,
     clean: bool,
-) -> SessionId {
+) -> (SessionId, dev_server::Guard) {
     let session = seed_instance(state, dir, id, account);
     let port = free_port();
     let exit = if clean { "exit 0" } else { "kill -9 $$" };
+    let server = dev_server::shell(port);
     let script = format!(
-        "python3 -m http.server {port} --bind 127.0.0.1 & \
+        "{server} & \
          python3 -c 'import time; time.sleep(300)' mcp-server & \
          sleep 3; {exit}"
     );
@@ -168,7 +173,7 @@ fn drill_tree(
         .supervisor
         .spawn(&session, &sh_spec(&script, dir), &ctx(state))
         .unwrap();
-    session
+    (session, dev_server::Guard::new(&[port]))
 }
 
 /// Splits the orphaned rows into (dev-server row, mcp row).
@@ -251,7 +256,7 @@ fn default_install_signals_nothing() {
     let dir = tempfile::tempdir().unwrap();
     let state = app_state(dir.path());
     seed_account(&state, dir.path(), "acc-t1", false, false);
-    let session = drill_tree(&state, dir.path(), "sess-default", "acc-t1", true);
+    let (session, _servers) = drill_tree(&state, dir.path(), "sess-default", "acc-t1", true);
     let (root_exit, rows) =
         wait_ledger_orphans(&state, "sess-default").expect("orphans never surfaced in the ledger");
     let (dev, mcp) = split_roles(&rows);
@@ -286,7 +291,7 @@ fn tier1_drill_kills_only_the_dev_server() {
     let dir = tempfile::tempdir().unwrap();
     let state = app_state(dir.path());
     seed_account(&state, dir.path(), "acc-t1", true, false);
-    drill_tree(&state, dir.path(), "sess-drill", "acc-t1", true);
+    let _servers = drill_tree(&state, dir.path(), "sess-drill", "acc-t1", true);
     let (root_exit, rows) =
         wait_ledger_orphans(&state, "sess-drill").expect("orphans never surfaced");
     let (dev, mcp) = split_roles(&rows);
@@ -318,7 +323,7 @@ fn pause_blocks_every_signal() {
     let dir = tempfile::tempdir().unwrap();
     let state = app_state(dir.path());
     seed_account(&state, dir.path(), "acc-t1", true, true);
-    drill_tree(&state, dir.path(), "sess-paused", "acc-t1", true);
+    let _servers = drill_tree(&state, dir.path(), "sess-paused", "acc-t1", true);
     let (root_exit, rows) =
         wait_ledger_orphans(&state, "sess-paused").expect("orphans never surfaced");
     let (dev, mcp) = split_roles(&rows);
@@ -344,8 +349,8 @@ fn account_isolation_only_cleans_the_opted_in_account() {
     let state = app_state(dir.path());
     seed_account(&state, dir.path(), "acc-a", true, false);
     seed_account(&state, dir.path(), "acc-b", false, false);
-    drill_tree(&state, dir.path(), "sess-a", "acc-a", true);
-    drill_tree(&state, dir.path(), "sess-b", "acc-b", true);
+    let _servers = drill_tree(&state, dir.path(), "sess-a", "acc-a", true);
+    let _servers_b = drill_tree(&state, dir.path(), "sess-b", "acc-b", true);
     let (exit_a, rows_a) = wait_ledger_orphans(&state, "sess-a").expect("A's orphans");
     let (exit_b, rows_b) = wait_ledger_orphans(&state, "sess-b").expect("B's orphans");
     let (dev_a, mcp_a) = split_roles(&rows_a);
@@ -372,7 +377,7 @@ fn tier2_crash_flow_notification_undo_and_lapse() {
     let dir = tempfile::tempdir().unwrap();
     let state = app_state(dir.path());
     seed_account(&state, dir.path(), "acc-t1", false, true);
-    drill_tree(&state, dir.path(), "sess-crash", "acc-t1", false);
+    let _servers = drill_tree(&state, dir.path(), "sess-crash", "acc-t1", false);
     let (parent_exit, rows) =
         wait_ledger_orphans(&state, "sess-crash").expect("crash orphans never surfaced");
     let (dev, mcp) = split_roles(&rows);
@@ -424,7 +429,7 @@ fn tier2_crash_flow_notification_undo_and_lapse() {
     let dir2 = tempfile::tempdir().unwrap();
     let state2 = app_state(dir2.path());
     seed_account(&state2, dir2.path(), "acc-t1", false, true);
-    drill_tree(&state2, dir2.path(), "sess-lapse", "acc-t1", false);
+    let _servers = drill_tree(&state2, dir2.path(), "sess-lapse", "acc-t1", false);
     let (exit2, rows2) =
         wait_ledger_orphans(&state2, "sess-lapse").expect("crash orphans never surfaced");
     let (dev_row2, mcp_row2) = split_roles(&rows2);
@@ -451,7 +456,7 @@ fn verification_failure_demotes_to_tier0_with_audit_note() {
     let dir = tempfile::tempdir().unwrap();
     let state = app_state(dir.path());
     seed_account(&state, dir.path(), "acc-t1", true, false);
-    drill_tree(&state, dir.path(), "sess-demote", "acc-t1", true);
+    let _servers = drill_tree(&state, dir.path(), "sess-demote", "acc-t1", true);
     let (root_exit, rows) =
         wait_ledger_orphans(&state, "sess-demote").expect("orphans never surfaced");
     let (dev, mcp) = split_roles(&rows);
@@ -495,7 +500,7 @@ fn crash_suspension_blocks_until_reconfirmed() {
     assert!(status.suspended, "the banner's data source");
     assert!(status.suspended_until_ms.is_some());
 
-    drill_tree(&state, dir.path(), "sess-susp", "acc-t1", true);
+    let _servers = drill_tree(&state, dir.path(), "sess-susp", "acc-t1", true);
     let (root_exit, rows) =
         wait_ledger_orphans(&state, "sess-susp").expect("orphans never surfaced");
     let (dev, mcp) = split_roles(&rows);
