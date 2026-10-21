@@ -1,0 +1,47 @@
+# AJ-E2011 / ENGINEERING-GUIDE A1: the allowed dependency graph between the
+# workspace's crates. Dependencies point inward: juggler-core knows no
+# tool, no Tauri and no UI; only juggler-app (the composition root and
+# the IPC edge) knows everything. scripts/check_layering.py compares
+# `cargo metadata` against this file in `just verify` and CI. A new edge
+# needs a line here and a reason in its PR.
+
+[allow]
+juggler-core = []
+juggler-account = []
+juggler-stats = []
+juggler-scap-init = []
+juggler-adapter = ["juggler-core"]
+juggler-adapters = ["juggler-adapter", "juggler-core"]
+juggler-supervisor = ["juggler-adapter", "juggler-core"]
+juggler-handover = ["juggler-adapter", "juggler-core"]
+juggler-link = ["juggler-core"]
+juggler-app = [
+  "juggler-account",
+  "juggler-adapter",
+  "juggler-adapters",
+  "juggler-core",
+  "juggler-handover",
+  "juggler-link",
+  "juggler-scap-init",
+  "juggler-stats",
+  "juggler-supervisor",
+]
+
+# A6: an adapter module never imports a sibling tool's module; shared
+# mechanics live in neutral modules (transcript.rs, inference.rs,
+# quota_ingest.rs, scan_signals.rs). Each tool's modules in
+# crates/juggler-adapters/src, by family:
+[adapters.families]
+claude = ["claude_code", "claude_environment", "claude_handover", "claude_transcript"]
+codex = ["codex", "codex_environment", "codex_handover", "codex_transcript"]
+fake = ["fake"]
+fake_desktop = ["fake_desktop"]
+
+# Today's sibling imports ("from -> to"), which may only go away: the
+# shared pieces move to neutral modules (ADR-0019 §2).
+[adapters]
+allow_sibling = [
+  "codex -> claude_code",
+  "codex_environment -> claude_environment",
+  "codex_transcript -> claude_transcript",
+]

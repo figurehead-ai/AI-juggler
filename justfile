@@ -20,6 +20,7 @@ verify:
     just evidence
     just terminology
     just tool-literals
+    just structure
     just task-counts
     just stats-doc
     just stats-events
@@ -76,6 +77,16 @@ terminology:
 tool-literals:
     python3 scripts/tool_literal_lint.py --selftest
     python3 scripts/tool_literal_lint.py
+
+# AJ-E2011 (ENGINEERING-GUIDE A1/A6, A3/T1/I3/I4, C.10): the crate graph,
+# the IPC rules and the size budget. Each allowlist only shrinks.
+structure:
+    python3 scripts/check_layering.py --selftest
+    python3 scripts/check_layering.py
+    python3 scripts/ipc_audit.py --selftest
+    python3 scripts/ipc_audit.py
+    python3 scripts/size_budget.py --selftest
+    python3 scripts/size_budget.py
 
 # The docs that quote task counts and ranges agree with the epic files.
 task-counts:

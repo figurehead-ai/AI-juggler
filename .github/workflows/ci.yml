@@ -80,6 +80,14 @@ jobs:
         run: |
           python3 scripts/tool_literal_lint.py --selftest
           python3 scripts/tool_literal_lint.py
+      - name: Layering, IPC audit and size budget (AJ-E2011)
+        run: |
+          python3 scripts/check_layering.py --selftest
+          python3 scripts/check_layering.py
+          python3 scripts/ipc_audit.py --selftest
+          python3 scripts/ipc_audit.py
+          python3 scripts/size_budget.py --selftest
+          python3 scripts/size_budget.py
       - name: Task counts and ranges in the docs match the epic files
         run: |
           python3 scripts/check_task_counts.py --selftest

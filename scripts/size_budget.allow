@@ -1,0 +1,30 @@
+# AJ-E2011 (ENGINEERING-GUIDE C.10): files over the size budget today (Rust
+# 1,500 non-test lines, TS 400), each capped at its size on 2026-10-21. A
+# file may shrink, never grow past its cap; the list only shrinks.
+crates/juggler-app/src/commands.rs 4613
+crates/juggler-app/src/link.rs 2382
+crates/juggler-app/src/usage_stats.rs 2084
+crates/juggler-supervisor/src/supervisor.rs 2863
+ui/src/App.tsx 1430
+ui/src/components/CrossMachineSwitchFlow.tsx 518
+ui/src/components/KillSheet.tsx 622
+ui/src/components/NotificationRegion.tsx 427
+ui/src/components/RemoteTabs.tsx 496
+ui/src/components/RightInspector.tsx 3094
+ui/src/components/SettingsSections.tsx 604
+ui/src/components/SwitchFlow.tsx 762
+ui/src/components/SwitchGraph.tsx 433
+ui/src/components/UpdatesCard.tsx 447
+ui/src/components/WorkflowRail.tsx 2040
+ui/src/components/indicator.tsx 623
+ui/src/lib/bridge.ts 4921
+ui/src/lib/machine.ts 440
+ui/src/screens/CleanupCentre.tsx 809
+ui/src/screens/FirstRun.tsx 1540
+ui/src/screens/FleetScreen.tsx 841
+ui/src/screens/Home.tsx 816
+ui/src/screens/NewProjectSheet.tsx 413
+ui/src/screens/NewSession.tsx 520
+ui/src/screens/PairingWizard.tsx 816
+ui/src/screens/Profiles.tsx 736
+ui/src/screens/Settings.tsx 870
