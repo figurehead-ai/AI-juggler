@@ -2222,36 +2222,128 @@ for (const theme of ["dark", "light"] as const) {
   });
 }
 
-/** AJ-E1010 a11y (both themes): About & updates with an update
- * available scans axe-clean; Install and Check now are reachable by
- * keyboard; no modal traps focus. */
+/** AJ-E1010 a11y (both themes): every About & updates state scans
+ * axe-clean — available (long notes: the notes box is a focusable,
+ * named region), failed (an alert, Details, Try again), a failed check,
+ * the restart held back, ready to restart — and so do both prompts on
+ * Home. The controls are reachable by keyboard; nothing is a modal, so
+ * nothing traps focus. */
+const A11Y_UPDATE_BASE = {
+  current_version: "0.1.0", channel: "beta", edition: "main", app_name: "AI Juggler",
+  channels: ["stable", "beta"], configured: true, check_on_launch: true, state: "idle",
+  available: null, progress: null, error: null, error_kind: null, error_detail: null, restart_wait: null,
+  backup_path: null, checked_at_ms: null,
+};
+const A11Y_LONG_NOTES = {
+  version: "0.2.0",
+  date_ms: null,
+  notes: `Plenty changed.\n\n## New\n${Array.from({ length: 14 }, (_, i) => `- **Change ${i + 1}**: what you can now do.`).join("\n")}`,
+};
+const A11Y_UPDATE_STATES: Record<string, Record<string, unknown>> = {
+  available: { ...A11Y_UPDATE_BASE, state: "available", available: A11Y_LONG_NOTES },
+  failed: {
+    ...A11Y_UPDATE_BASE, state: "failed", available: A11Y_LONG_NOTES,
+    error: "The download didn't pass the signature check, so it wasn't installed. AI Juggler 0.1.0 is untouched.",
+    error_kind: "signature", error_detail: "the signature verification failed: Invalid signature",
+  },
+  "check-failed": {
+    ...A11Y_UPDATE_BASE, state: "failed",
+    error: "Couldn't reach the update server. Check your internet connection, then try again.",
+    error_kind: "network", error_detail: "error sending request",
+  },
+  "restart-waiting": {
+    ...A11Y_UPDATE_BASE, state: "installed", available: A11Y_LONG_NOTES, progress: 100,
+    restart_wait: "A switch is in progress. Restart to update is offered once it finishes.",
+  },
+  "restart-ready": { ...A11Y_UPDATE_BASE, state: "installed", available: A11Y_LONG_NOTES, progress: 100 },
+  "going-back": { ...A11Y_UPDATE_BASE, state: "up_to_date" },
+};
 for (const theme of ["dark", "light"] as const) {
-  test(`updates card — axe 0 — ${theme}`, async ({ page }) => {
-    await page.addInitScript(
-      ({ fixture, theme: t }) => {
-        const w = window as unknown as Record<string, unknown>;
-        w.__AIJ_FIXTURE__ = fixture;
-        w.__AIJ_UPDATE_STATUS__ = {
-          current_version: "0.1.0", channel: "beta", edition: "main", app_name: "AI Juggler",
-          channels: ["stable", "beta"], configured: true, check_on_launch: true, state: "available",
-          available: { version: "0.2.0", notes: "## New\n- History", date_ms: null },
-          progress: null, error: null, backup_path: null, checked_at_ms: null,
-        };
-        localStorage.setItem("aij.theme", t);
-        localStorage.setItem("aij.onboarding.dismissed", "1");
-        sessionStorage.setItem("aij.ready.skipped", "1");
-      },
-      { fixture: allStatuses, theme },
-    );
-    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
-    await page.setViewportSize({ width: 1280, height: 800 });
-    await page.goto("/");
-    await page.getByRole("button", { name: "Settings" }).click();
-    await page.getByTestId("update-install").focus();
-    await page.keyboard.press("Tab");
-    await expect(page.getByTestId("update-check")).toBeFocused();
-    expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
-  });
+  for (const [name, status] of Object.entries(A11Y_UPDATE_STATES)) {
+    test(`updates card — ${name} — axe 0 — ${theme}`, async ({ page }) => {
+      await page.addInitScript(
+        ({ fixture, theme: t, seeded }) => {
+          const w = window as unknown as Record<string, unknown>;
+          w.__AIJ_FIXTURE__ = fixture;
+          w.__AIJ_UPDATE_STATUS__ = seeded;
+          w.__AIJ_GOING_BACK__ = [{ schema: 27, version: "0.0.7", kept_at_ms: 1_792_000_000_000 }];
+          localStorage.setItem("aij.theme", t);
+          localStorage.setItem("aij.onboarding.dismissed", "1");
+          sessionStorage.setItem("aij.ready.skipped", "1");
+        },
+        { fixture: allStatuses, theme, seeded: status },
+      );
+      await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+      await page.setViewportSize({ width: 1280, height: 800 });
+      await page.goto("/");
+      await page.getByRole("button", { name: "Settings" }).click();
+      await expect(page.getByTestId("beta-label")).toBeVisible();
+      if (name === "going-back") {
+        // Keyboard only: open the disclosure, choose, confirm is focused,
+        // Cancel returns to the choice.
+        const summary = page.getByText("Go back to an earlier version", { exact: true });
+        await summary.focus();
+        await page.keyboard.press("Enter");
+        await page.getByTestId("going-back-27").focus();
+        await page.keyboard.press("Enter");
+        await expect(page.getByText("Go back to 0.0.7?", { exact: true })).toBeFocused();
+        expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+        await page.getByTestId("going-back-cancel").focus();
+        await page.keyboard.press("Enter");
+        await expect(page.getByTestId("going-back-27")).toBeFocused();
+      }
+      if (name === "available") {
+        // The notes box scrolls, and is reachable and named for it.
+        const notes = page.getByRole("region", { name: "What's new in 0.2.0" });
+        await notes.focus();
+        await expect(notes).toBeFocused();
+        await page.getByTestId("update-install").focus();
+        await page.keyboard.press("Tab");
+        await expect(page.getByTestId("update-check")).toBeFocused();
+      }
+      if (name === "failed") {
+        await expect(page.getByRole("alert").filter({ hasText: "untouched" })).toBeVisible();
+        await page.getByText("Details", { exact: true }).click();
+        await page.getByTestId("update-install").focus();
+        await page.keyboard.press("Enter");
+      }
+      if (name === "restart-ready") {
+        await page.getByTestId("update-restart").focus();
+        await expect(page.getByTestId("update-restart")).toBeFocused();
+      }
+      expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+    });
+  }
+  for (const [name, status, prompt] of [
+    ["available notice", A11Y_UPDATE_STATES.available, "update-notice"],
+    ["restart prompt", A11Y_UPDATE_STATES["restart-ready"], "update-ready"],
+  ] as const) {
+    test(`update ${name} on Home — axe 0 — ${theme}`, async ({ page }) => {
+      await page.addInitScript(
+        ({ fixture, theme: t, seeded }) => {
+          const w = window as unknown as Record<string, unknown>;
+          w.__AIJ_FIXTURE__ = fixture;
+          w.__AIJ_UPDATE_STATUS__ = seeded;
+          localStorage.setItem("aij.theme", t);
+          localStorage.setItem("aij.onboarding.dismissed", "1");
+          sessionStorage.setItem("aij.ready.skipped", "1");
+        },
+        { fixture: allStatuses, theme, seeded: status },
+      );
+      await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+      await page.setViewportSize({ width: 1280, height: 800 });
+      await page.goto("/");
+      const region = page.getByTestId(prompt);
+      await expect(region).toBeVisible();
+      await expect(region.getByText("Beta", { exact: true })).toBeVisible();
+      // Plain buttons in the page: Tab moves on past them (no trap).
+      const buttons = region.getByRole("button");
+      await buttons.last().focus();
+      await page.keyboard.press("Tab");
+      await expect(buttons.last()).not.toBeFocused();
+      expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+    });
+  }
 }
 
 /** AJ-E1204 a11y (both themes): the recovery-code sheet scans

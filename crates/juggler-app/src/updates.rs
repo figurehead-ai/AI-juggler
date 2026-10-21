@@ -8,12 +8,15 @@
 //!   off (it is on by default), no request is made either.
 //! - **Never silent.** A check only reports: the version and its release
 //!   notes are shown, and nothing is installed until the user chooses
-//!   Install. The app never restarts by itself, and offers a restart only
-//!   when no Instance is live.
+//!   Install. The app never restarts by itself, and offers "Restart to
+//!   update"
+//!   only when it is safe: no session running, no switch in flight and
+//!   no bring-in under way. Until then the prompt is held back, never
+//!   forced.
 //! - **Verified.** The package is checked against the release signature
 //!   (minisign) before it is installed. A failed download, signature or
-//!   install leaves the running version untouched and reports the reason,
-//!   with Retry.
+//!   install leaves the running version untouched and reports the reason
+//!   in plain words ([`FailureKind`]), with Try again.
 //! - **Reversible.** Before installing, a backup (AJ-E1009) of AI
 //!   Juggler's data is written to `backups/`, so going back to the
 //!   previous version is: install it, then restore that backup.
@@ -192,8 +195,16 @@ pub struct UpdateStatusInfo {
     pub available: Option<AnnouncedInfo>,
     /// Download progress, 0–100, while downloading.
     pub progress: Option<u8>,
-    /// Why the last step failed (the running version is untouched).
+    /// Why the last step failed, in plain words (the running version is
+    /// untouched).
     pub error: Option<String>,
+    /// What kind of failure it was ([`FailureKind::as_str`]).
+    pub error_kind: Option<String>,
+    /// The technical reason behind `error` (shown on request).
+    pub error_detail: Option<String>,
+    /// Installed, but restarting has to wait — why, in plain words. `None`
+    /// once it is safe (or before anything is installed).
+    pub restart_wait: Option<String>,
     /// The backup written before installing, when there is one.
     pub backup_path: Option<String>,
     /// When the last check finished, epoch ms.
@@ -207,32 +218,104 @@ impl UpdateStatusInfo {
     }
 }
 
+/// Why an update step failed — each kind has its own plain-words
+/// message; the technical reason travels beside it.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum FailureKind {
+    /// The server couldn't be reached, or the download stopped.
+    Network,
+    /// The feed's answer couldn't be read (format, version, platform).
+    Feed,
+    /// The package failed its signature check: damaged on the way, or not
+    /// signed with AI Juggler's release key.
+    Signature,
+    /// The package is signed for another version than the one offered
+    /// (a downgrade attempt, or a mixed-up feed).
+    WrongVersion,
+    /// The new version couldn't be put in place; the old one is back.
+    Install,
+    /// Installing failed and the previous app couldn't be moved back.
+    NotRestored,
+    /// The pre-update backup couldn't be written.
+    Disk,
+}
+
+impl FailureKind {
+    /// The wire name (`error_kind`) and the usage-statistics reason.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Network => "network",
+            Self::Feed => "feed",
+            Self::Signature => "signature",
+            Self::WrongVersion => "wrong_version",
+            Self::Install => "install",
+            Self::NotRestored => "not_restored",
+            Self::Disk => "disk",
+        }
+    }
+
+    /// AJ-E1103's closed reason words for `update.flow`.
+    fn stats_reason(self) -> &'static str {
+        match self {
+            Self::Network | Self::Feed => "network",
+            Self::Signature | Self::WrongVersion => "signature",
+            Self::Disk => "disk",
+            Self::Install | Self::NotRestored => "other",
+        }
+    }
+}
+
+/// A failed feed step: what kind, and the technical reason.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct FeedError {
+    /// What kind of failure.
+    pub kind: FailureKind,
+    /// The technical reason (for "Details").
+    pub detail: String,
+}
+
+impl FeedError {
+    /// A failure of `kind` with its technical reason.
+    pub fn new(kind: FailureKind, detail: impl Into<String>) -> Self {
+        Self {
+            kind,
+            detail: detail.into(),
+        }
+    }
+}
+
 /// The update feed: a seam so the policy is testable without a server.
 pub trait UpdateFeed: Send + Sync {
     /// Asks the feed for a newer version.
     ///
     /// # Errors
     ///
-    /// A plain reason (network, feed format).
-    fn check(&self) -> Result<Option<AnnouncedInfo>, String>;
+    /// A [`FeedError`] (network, feed format).
+    fn check(&self) -> Result<Option<AnnouncedInfo>, FeedError>;
     /// Downloads the announced package and verifies its signature.
     ///
     /// # Errors
     ///
-    /// A plain reason (network, signature mismatch).
-    fn download(&self, progress: &mut dyn FnMut(u64, Option<u64>)) -> Result<Vec<u8>, String>;
+    /// A [`FeedError`] (network, signature mismatch).
+    fn download(&self, progress: &mut dyn FnMut(u64, Option<u64>)) -> Result<Vec<u8>, FeedError>;
     /// Installs a downloaded, verified package.
     ///
     /// # Errors
     ///
-    /// A plain reason; the running version is untouched.
-    fn install(&self, bytes: &[u8]) -> Result<(), String>;
+    /// A [`FeedError`]; the running version is untouched.
+    fn install(&self, bytes: &[u8]) -> Result<(), FeedError>;
 }
 
 /// The in-memory update state (one per app).
 #[derive(Debug)]
 pub struct UpdateManager {
     status: Mutex<UpdateStatusInfo>,
+    /// Bring-ins (account imports) under way right now.
+    bring_ins: std::sync::atomic::AtomicUsize,
+    /// When the last bring-in ended, epoch ms: a first-run bring-in is a
+    /// row of imports, so a short gap between two still counts as running.
+    bring_in_ended_ms: std::sync::atomic::AtomicI64,
 }
 
 impl Default for UpdateManager {
@@ -255,9 +338,14 @@ impl Default for UpdateManager {
                 available: None,
                 progress: None,
                 error: None,
+                error_kind: None,
+                error_detail: None,
+                restart_wait: None,
                 backup_path: None,
                 checked_at_ms: None,
             }),
+            bring_ins: std::sync::atomic::AtomicUsize::new(0),
+            bring_in_ended_ms: std::sync::atomic::AtomicI64::new(0),
         }
     }
 }
@@ -281,7 +369,47 @@ impl UpdateManager {
         change(&mut status);
         status.clone()
     }
+
+    /// Marks a bring-in (an account import) as under way until the
+    /// returned guard drops. A restart is not offered meanwhile.
+    #[must_use]
+    pub fn bring_in(&self) -> BringInGuard<'_> {
+        self.bring_ins
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        BringInGuard { manager: self }
+    }
+
+    fn bring_in_running(&self, now_ms: i64) -> bool {
+        self.bring_ins.load(std::sync::atomic::Ordering::SeqCst) > 0
+            || now_ms
+                - self
+                    .bring_in_ended_ms
+                    .load(std::sync::atomic::Ordering::SeqCst)
+                < BRING_IN_GAP_MS
+    }
 }
+
+/// A bring-in under way (see [`UpdateManager::bring_in`]).
+#[derive(Debug)]
+pub struct BringInGuard<'a> {
+    manager: &'a UpdateManager,
+}
+
+impl Drop for BringInGuard<'_> {
+    fn drop(&mut self) {
+        self.manager.bring_in_ended_ms.store(
+            juggler_core::model::Timestamp::now().millis(),
+            std::sync::atomic::Ordering::SeqCst,
+        );
+        self.manager
+            .bring_ins
+            .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
+/// First run brings accounts in one after another; a gap shorter than
+/// this between two imports is still the same bring-in.
+const BRING_IN_GAP_MS: i64 = 10_000;
 
 pub(crate) fn check_on_launch(state: &Arc<AppState>) -> bool {
     state
@@ -298,14 +426,17 @@ pub(crate) fn check_on_launch(state: &Arc<AppState>) -> bool {
         .is_none_or(|raw| raw != "0")
 }
 
-/// Core: where updating stands.
+/// Core: where updating stands — with, once something is installed,
+/// whether a restart has to wait and why.
 #[must_use]
 pub fn update_status_impl(state: &Arc<AppState>) -> UpdateStatusInfo {
     let on = check_on_launch(state);
     let channel = channel_of(state);
+    let wait = restart_wait(state);
     state.updates.update(|status| {
         status.check_on_launch = on;
         channel.as_str().clone_into(&mut status.channel);
+        status.restart_wait = wait;
     })
 }
 
@@ -353,7 +484,7 @@ pub fn update_set_channel_impl(
         if !["installed"].contains(&status.state.as_str()) {
             status.set_state("idle");
             status.available = None;
-            status.error = None;
+            clear_error(status);
         }
     });
     Ok(update_status_impl(state))
@@ -372,6 +503,54 @@ pub fn update_set_check_on_launch_impl(
         .app_settings()
         .set(CHECK_ON_LAUNCH_KEY, if enabled { "1" } else { "0" })?;
     Ok(update_status_impl(state))
+}
+
+fn clear_error(status: &mut UpdateStatusInfo) {
+    status.error = None;
+    status.error_kind = None;
+    status.error_detail = None;
+}
+
+/// The plain words for a failed check.
+fn check_failed_message(kind: FailureKind) -> String {
+    match kind {
+        FailureKind::Network => {
+            "Couldn't reach the update server. Check your internet connection, then try again."
+                .to_owned()
+        }
+        _ => {
+            "The update server's answer couldn't be read. Try again later; nothing was downloaded."
+                .to_owned()
+        }
+    }
+}
+
+/// The plain words for a failed install; `current` is the running
+/// version, which every one of these leaves in place.
+fn install_failed_message(kind: FailureKind, app: &str, current: &str) -> String {
+    match kind {
+        FailureKind::Network => format!(
+            "The download stopped before it finished, so nothing was installed. {app} {current} is untouched. Check your internet connection, then try again."
+        ),
+        FailureKind::Feed => format!(
+            "The update server's answer couldn't be read, so nothing was installed. {app} {current} is untouched. Try again later."
+        ),
+        FailureKind::Signature => format!(
+            "The download didn't pass the signature check — it was damaged on the way or isn't from AI Juggler — so it wasn't installed. {app} {current} is untouched."
+        ),
+        FailureKind::WrongVersion => format!(
+            "The download is signed for a different version than the one offered, so it wasn't installed. {app} {current} is untouched."
+        ),
+        FailureKind::Install => format!(
+            "The new version couldn't be put in place, so {app} {current} is still the one installed. Try again; if it keeps failing, download the new version from GitHub."
+        ),
+        FailureKind::NotRestored => format!(
+            "The update didn't finish, and {app} couldn't be put back where it was. The previous app was kept (see Details): move it back to Applications, or download the new version from GitHub."
+        ),
+        FailureKind::Disk => format!(
+            "Couldn't write the backup that comes before every update, so nothing was installed. {app} {current} is untouched. Check there is free space, then try again."
+        ),
+    }
 }
 
 /// Core: asks the feed for a newer version. Never installs.
@@ -393,7 +572,7 @@ pub fn update_check_impl(
     }
     state.updates.update(|status| {
         status.set_state("checking");
-        status.error = None;
+        clear_error(status);
     });
     let result = feed.check();
     let now = juggler_core::model::Timestamp::now().millis();
@@ -412,9 +591,12 @@ pub fn update_check_impl(
                 status.set_state("up_to_date");
                 status.available = None;
             }
-            Err(reason) => {
+            Err(failure) => {
                 status.set_state("failed");
-                status.error = Some(format!("Couldn't check for updates: {reason}"));
+                status.available = None;
+                status.error = Some(check_failed_message(failure.kind));
+                status.error_kind = Some(failure.kind.as_str().to_owned());
+                status.error_detail = Some(failure.detail);
             }
         }
     }))
@@ -437,12 +619,10 @@ pub fn launch_check(state: &Arc<AppState>, feed: &dyn UpdateFeed) -> bool {
 ///
 /// Returns the typed storage error.
 pub(crate) fn switch_in_flight(state: &Arc<AppState>) -> AppResult<bool> {
-    Ok(install_blocker(state)?.is_some())
+    switch_in_flight_in(&*crate::commands::lock_storage_arc(state)?)
 }
 
-/// Why installing has to wait, if it does.
-fn install_blocker(state: &Arc<AppState>) -> AppResult<Option<String>> {
-    let storage = crate::commands::lock_storage_arc(state)?;
+fn switch_in_flight_in(storage: &juggler_core::storage::Storage) -> AppResult<bool> {
     let since = juggler_core::model::Timestamp::now().millis() - SWITCH_IN_FLIGHT_MS;
     let in_flight: i64 = storage
         .raw_conn()
@@ -453,15 +633,30 @@ fn install_blocker(state: &Arc<AppState>) -> AppResult<Option<String>> {
             |row| row.get(0),
         )
         .map_err(juggler_core::CoreError::from)?;
-    Ok((in_flight > 0)
+    Ok(in_flight > 0)
+}
+
+/// Why installing has to wait, if it does.
+fn install_blocker(state: &Arc<AppState>) -> AppResult<Option<String>> {
+    Ok(switch_in_flight(state)?
         .then(|| "a switch is in progress — finish it first, then install".to_owned()))
 }
 
-fn fail(state: &Arc<AppState>, reason: String) -> UpdateStatusInfo {
+fn fail(state: &Arc<AppState>, failure: FeedError) -> UpdateStatusInfo {
+    crate::usage_stats::count(
+        "update.flow",
+        &[("step", "failed"), ("reason", failure.kind.stats_reason())],
+    );
     state.updates.update(|status| {
+        status.error = Some(install_failed_message(
+            failure.kind,
+            &status.app_name,
+            &status.current_version,
+        ));
         status.set_state("failed");
         status.progress = None;
-        status.error = Some(reason);
+        status.error_kind = Some(failure.kind.as_str().to_owned());
+        status.error_detail = Some(failure.detail);
     })
 }
 
@@ -474,7 +669,7 @@ fn fail(state: &Arc<AppState>, reason: String) -> UpdateStatusInfo {
 /// Returns [`AppError::Validation`] when there is nothing to install or a
 /// switch is in flight. Download, signature and install failures are
 /// reported in the returned status (`failed`, with the reason), not as
-/// errors, so the UI can offer Retry.
+/// errors, so the UI can offer Try again.
 pub fn update_install_impl(
     state: &Arc<AppState>,
     feed: &dyn UpdateFeed,
@@ -494,14 +689,13 @@ pub fn update_install_impl(
     }
     on_progress(&state.updates.update(|status| {
         status.set_state("backing_up");
-        status.error = None;
+        clear_error(status);
     }));
     let backups = state.data_dir.join("backups");
     if let Err(e) = std::fs::create_dir_all(&backups) {
-        flow_failed("disk");
         return Ok(fail(
             state,
-            format!("Couldn't make the pre-update backup: {e}. Nothing was installed."),
+            FeedError::new(FailureKind::Disk, e.to_string()),
         ));
     }
     let current = env!("CARGO_PKG_VERSION");
@@ -510,15 +704,11 @@ pub fn update_install_impl(
         announced.version,
         juggler_core::model::Timestamp::now().millis()
     ));
-    match crate::backup::backup_export_impl(state, &dest, &mut |_, _| {}) {
-        Ok(_) => {}
-        Err(e) => {
-            flow_failed("disk");
-            return Ok(fail(
-                state,
-                format!("Couldn't make the pre-update backup: {e}. Nothing was installed."),
-            ));
-        }
+    if let Err(e) = crate::backup::backup_export_impl(state, &dest, &mut |_, _| {}) {
+        return Ok(fail(
+            state,
+            FeedError::new(FailureKind::Disk, e.to_string()),
+        ));
     }
     let backup_path = dest.display().to_string();
     on_progress(&state.updates.update(|status| {
@@ -540,86 +730,137 @@ pub fn update_install_impl(
     });
     let bytes = match bytes {
         Ok(bytes) => bytes,
-        Err(reason) => {
-            let lower = reason.to_ascii_lowercase();
-            flow_failed(if lower.contains("signature") {
-                "signature"
-            } else if lower.contains("checksum") || lower.contains("hash") {
-                "checksum"
-            } else {
-                "network"
-            });
-            return Ok(fail(
-                state,
-                format!(
-                    "The download didn't finish or didn't verify: {reason}. Your current version is untouched."
-                ),
-            ));
-        }
+        Err(failure) => return Ok(fail(state, failure)),
     };
-    if let Err(reason) = feed.install(&bytes) {
-        flow_failed("other");
-        return Ok(fail(
-            state,
-            format!("The install didn't finish: {reason}. Your current version is untouched."),
-        ));
+    if let Err(failure) = feed.install(&bytes) {
+        return Ok(fail(state, failure));
     }
     crate::usage_stats::count("update.flow", &[("step", "installed"), ("reason", "none")]);
-    Ok(state.updates.update(|status| {
+    state.updates.update(|status| {
         status.set_state("installed");
         status.progress = Some(100);
-    }))
-}
-
-/// AJ-E1103: an install that didn't finish, and why (a closed word).
-fn flow_failed(reason: &'static str) {
-    crate::usage_stats::count("update.flow", &[("step", "failed"), ("reason", reason)]);
+    });
+    Ok(update_status_impl(state))
 }
 
 // --- the real feed (the Tauri updater plugin) ------------------------------
 
-/// The feed backed by the Tauri updater plugin (release builds only).
-pub struct PluginFeed {
-    app: tauri::AppHandle,
+/// Sorts the plugin's error into a [`FailureKind`]; `otherwise` is the
+/// kind for anything the step doesn't name (an I/O error while
+/// downloading is the network's; while installing, the install's).
+fn classify(error: &tauri_plugin_updater::Error, otherwise: FailureKind) -> FailureKind {
+    use tauri_plugin_updater::Error as E;
+    match error {
+        E::Minisign(_) | E::Base64(_) | E::SignatureUtf8(_) | E::MissingSignedVersion => {
+            FailureKind::Signature
+        }
+        E::SignedVersionMismatch { .. } => FailureKind::WrongVersion,
+        E::Reqwest(_) | E::Network(_) | E::Http(_) => FailureKind::Network,
+        E::ReleaseNotFound
+        | E::Serialization(_)
+        | E::Semver(_)
+        | E::UrlParse(_)
+        | E::TargetNotFound(_)
+        | E::TargetsNotFound(_)
+        | E::InvalidUpdaterFormat
+        | E::FormatDate
+        | E::EmptyEndpoints
+        | E::InsecureTransportProtocol => FailureKind::Feed,
+        E::PreviousAppNotRestored(_) => FailureKind::NotRestored,
+        _ => otherwise,
+    }
+}
+
+fn feed_error(error: &tauri_plugin_updater::Error, otherwise: FailureKind) -> FeedError {
+    FeedError::new(classify(error, otherwise), error.to_string())
+}
+
+/// The feed backed by the Tauri updater plugin (release builds; tests
+/// pin a local feed, key and install path).
+pub struct PluginFeed<R: tauri::Runtime = tauri::Wry> {
+    app: tauri::AppHandle<R>,
+    pubkey: String,
+    endpoint: Option<String>,
+    executable: Option<std::path::PathBuf>,
     found: Mutex<Option<tauri_plugin_updater::Update>>,
 }
 
-impl PluginFeed {
-    /// The feed for this app.
+impl<R: tauri::Runtime> PluginFeed<R> {
+    /// The feed for this app: its channel's feed, the baked-in key.
     #[must_use]
-    pub fn new(app: tauri::AppHandle) -> Self {
+    pub fn new(app: tauri::AppHandle<R>) -> Self {
         Self {
             app,
+            pubkey: PUBKEY.unwrap_or_default().to_owned(),
+            endpoint: None,
+            executable: None,
             found: Mutex::new(None),
         }
     }
 
-    fn updater(&self) -> Result<tauri_plugin_updater::Updater, String> {
+    /// A feed pinned to one endpoint and key, installing over the app
+    /// whose executable is `executable` (fixtures: a local server, a
+    /// throwaway app bundle).
+    #[must_use]
+    pub fn pinned(
+        app: tauri::AppHandle<R>,
+        pubkey: &str,
+        endpoint: &str,
+        executable: Option<std::path::PathBuf>,
+    ) -> Self {
+        Self {
+            app,
+            pubkey: pubkey.to_owned(),
+            endpoint: Some(endpoint.to_owned()),
+            executable,
+            found: Mutex::new(None),
+        }
+    }
+
+    fn updater(&self) -> Result<tauri_plugin_updater::Updater, FeedError> {
         use tauri::Manager as _;
         use tauri_plugin_updater::UpdaterExt as _;
-        let channel = self
+        let endpoint = self.endpoint.clone().unwrap_or_else(|| {
+            self.app
+                .try_state::<Arc<AppState>>()
+                .map_or(Channel::DEFAULT, |state| channel_of(state.inner()))
+                .endpoint()
+        });
+        let url = endpoint.parse().map_err(|e| {
+            FeedError::new(
+                FailureKind::Feed,
+                format!("the update feed address is invalid ({e})"),
+            )
+        })?;
+        let mut builder = self
             .app
-            .try_state::<Arc<AppState>>()
-            .map_or(Channel::DEFAULT, |state| channel_of(state.inner()));
-        let url = channel
-            .endpoint()
-            .parse()
-            .map_err(|e| format!("the update feed address is invalid ({e})"))?;
-        self.app
             .updater_builder()
-            .pubkey(PUBKEY.unwrap_or_default())
+            .pubkey(self.pubkey.clone())
             .endpoints(vec![url])
-            .map_err(|e| e.to_string())?
-            .timeout(std::time::Duration::from_secs(20))
+            .map_err(|e| feed_error(&e, FailureKind::Feed))?
+            .timeout(std::time::Duration::from_secs(20));
+        if let Some(executable) = &self.executable {
+            builder = builder.executable_path(executable);
+        }
+        builder
             .build()
-            .map_err(|e| e.to_string())
+            .map_err(|e| feed_error(&e, FailureKind::Feed))
+    }
+
+    fn found(&self) -> Result<tauri_plugin_updater::Update, FeedError> {
+        self.found
+            .lock()
+            .map_err(|_| FeedError::new(FailureKind::Install, "busy"))?
+            .clone()
+            .ok_or_else(|| FeedError::new(FailureKind::Feed, "check for updates first"))
     }
 }
 
-impl UpdateFeed for PluginFeed {
-    fn check(&self) -> Result<Option<AnnouncedInfo>, String> {
+impl<R: tauri::Runtime> UpdateFeed for PluginFeed<R> {
+    fn check(&self) -> Result<Option<AnnouncedInfo>, FeedError> {
         let updater = self.updater()?;
-        let found = tauri::async_runtime::block_on(updater.check()).map_err(|e| e.to_string())?;
+        let found = tauri::async_runtime::block_on(updater.check())
+            .map_err(|e| feed_error(&e, FailureKind::Network))?;
         let announced = found.as_ref().map(|update| AnnouncedInfo {
             version: update.version.clone(),
             notes: update.body.clone().unwrap_or_default(),
@@ -627,33 +868,28 @@ impl UpdateFeed for PluginFeed {
                 .date
                 .map(|date| i64::try_from(date.unix_timestamp_nanos() / 1_000_000).unwrap_or(0)),
         });
-        *self.found.lock().map_err(|_| "busy".to_owned())? = found;
+        *self
+            .found
+            .lock()
+            .map_err(|_| FeedError::new(FailureKind::Feed, "busy"))? = found;
         Ok(announced)
     }
 
-    fn download(&self, progress: &mut dyn FnMut(u64, Option<u64>)) -> Result<Vec<u8>, String> {
-        let update = self
-            .found
-            .lock()
-            .map_err(|_| "busy".to_owned())?
-            .clone()
-            .ok_or_else(|| "check for updates first".to_owned())?;
+    fn download(&self, progress: &mut dyn FnMut(u64, Option<u64>)) -> Result<Vec<u8>, FeedError> {
+        let update = self.found()?;
         // `download` verifies the minisign signature before returning.
         tauri::async_runtime::block_on(
             update.download(|chunk, total| progress(chunk as u64, total), || {}),
         )
-        .map_err(|e| e.to_string())
+        .map_err(|e| feed_error(&e, FailureKind::Network))
     }
 
-    fn install(&self, bytes: &[u8]) -> Result<(), String> {
-        let update = self
-            .found
-            .lock()
-            .map_err(|_| "busy".to_owned())?
-            .clone()
-            .ok_or_else(|| "check for updates first".to_owned())?;
+    fn install(&self, bytes: &[u8]) -> Result<(), FeedError> {
+        let update = self.found()?;
         // `install` verifies again before replacing anything.
-        update.install(bytes).map_err(|e| e.to_string())
+        update
+            .install(bytes)
+            .map_err(|e| feed_error(&e, FailureKind::Install))
     }
 }
 
@@ -679,6 +915,32 @@ pub fn spawn_launch_check(app: tauri::AppHandle, state: Arc<AppState>) {
         if launch_check(&state, feed(&app)) {
             emit(&app, &update_status_impl(&state));
         }
+    });
+}
+
+/// After an install: re-reads whether a restart has to wait every few
+/// seconds and tells the window when that changes, so "Restart to
+/// update" appears once it is safe — and is held back again while a
+/// switch or a bring-in starts. Ends when the app restarts.
+fn watch_restart(app: tauri::AppHandle, state: Arc<AppState>) {
+    static WATCHING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+    if WATCHING.swap(true, std::sync::atomic::Ordering::SeqCst) {
+        return;
+    }
+    std::thread::spawn(move || {
+        let mut last = update_status_impl(&state).restart_wait;
+        loop {
+            std::thread::sleep(std::time::Duration::from_secs(3));
+            let status = update_status_impl(&state);
+            if status.state != "installed" {
+                break;
+            }
+            if status.restart_wait != last {
+                last.clone_from(&status.restart_wait);
+                emit(&app, &status);
+            }
+        }
+        WATCHING.store(false, std::sync::atomic::Ordering::SeqCst);
     });
 }
 
@@ -753,6 +1015,9 @@ pub async fn update_install(
     tauri::async_runtime::spawn_blocking(move || {
         let status = update_install_impl(&state, feed(&app), &mut |status| emit(&app, status))?;
         emit(&app, &status);
+        if status.state == "installed" {
+            watch_restart(app.clone(), Arc::clone(&state));
+        }
         Ok(status)
     })
     .await
@@ -762,43 +1027,123 @@ pub async fn update_install(
     })?
 }
 
+/// Why "Restart to update" has to wait right now, if it does — `None`
+/// before anything is installed (there is nothing to restart into) and
+/// once it is safe.
+fn restart_wait(state: &Arc<AppState>) -> Option<String> {
+    match restart_blocker(state) {
+        Ok(Some(_)) if state.updates.update(|_| {}).state != "installed" => None,
+        Ok(wait) => wait,
+        Err(_) => {
+            Some("AI Juggler couldn't read what is running — try again in a moment.".to_owned())
+        }
+    }
+}
+
 /// Core: why a restart into the installed version has to wait, if it
-/// does — nothing installed yet, or Instances still live (a restart
-/// would stop them).
+/// does — nothing installed yet, a switch in flight, a bring-in under
+/// way, or sessions still live (a restart would stop them).
 ///
 /// # Errors
 ///
 /// Returns the typed storage error.
 pub fn restart_blocker(state: &Arc<AppState>) -> AppResult<Option<String>> {
+    restart_blocker_at(state, juggler_core::model::Timestamp::now().millis())
+}
+
+/// [`restart_blocker`] as of `now_ms` (tests step past the bring-in gap).
+///
+/// # Errors
+///
+/// Returns the typed storage error.
+pub fn restart_blocker_at(state: &Arc<AppState>, now_ms: i64) -> AppResult<Option<String>> {
     if state.updates.update(|_| {}).state != "installed" {
         return Ok(Some("nothing has been installed yet".to_owned()));
     }
-    let live = crate::commands::lock_storage_arc(state)?
+    Ok(busy_at(state, now_ms)?.map(|busy| busy.words("Restart to update is offered")))
+}
+
+/// What would be cut short if AI Juggler stopped now.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Busy {
+    /// A switch is staged, verified or launched.
+    Switch,
+    /// Accounts are being brought in.
+    BringIn,
+    /// This many sessions are live (stopping would stop them).
+    Sessions(usize),
+}
+
+impl Busy {
+    /// Plain words: what is busy, then "`offered` once it finishes".
+    #[must_use]
+    pub fn words(self, offered: &str) -> String {
+        match self {
+            Self::Switch => format!("A switch is in progress. {offered} once it finishes."),
+            Self::BringIn => {
+                format!("Accounts are being brought in. {offered} once that's done.")
+            }
+            Self::Sessions(live) => format!(
+                "{live} {} still running — stopping AI Juggler would stop {}. {offered} once {} finished.",
+                if live == 1 {
+                    "session is"
+                } else {
+                    "sessions are"
+                },
+                if live == 1 { "it" } else { "them" },
+                if live == 1 { "it has" } else { "they have" },
+            ),
+        }
+    }
+}
+
+/// Core: whether stopping AI Juggler now would cut something short — a
+/// switch in flight, a bring-in under way, live sessions — as of `now_ms`.
+///
+/// # Errors
+///
+/// Returns the typed storage error.
+pub fn busy_at(state: &Arc<AppState>, now_ms: i64) -> AppResult<Option<Busy>> {
+    busy_with(
+        &*crate::commands::lock_storage_arc(state)?,
+        &state.updates,
+        now_ms,
+    )
+}
+
+/// [`busy_at`] with the storage lock already held (so a caller can act
+/// on the answer before anything else starts).
+///
+/// # Errors
+///
+/// Returns the typed storage error.
+pub fn busy_with(
+    storage: &juggler_core::storage::Storage,
+    updates: &UpdateManager,
+    now_ms: i64,
+) -> AppResult<Option<Busy>> {
+    if switch_in_flight_in(storage)? {
+        return Ok(Some(Busy::Switch));
+    }
+    if updates.bring_in_running(now_ms) {
+        return Ok(Some(Busy::BringIn));
+    }
+    let live = storage
         .sessions()
         .list(None)?
         .iter()
         .filter(|record| !crate::commands::is_terminal(record.status))
         .count();
-    Ok((live > 0).then(|| {
-        format!(
-            "{live} {} still running — restarting would stop {}. Restart when they finish.",
-            if live == 1 {
-                "session is"
-            } else {
-                "sessions are"
-            },
-            if live == 1 { "it" } else { "them" }
-        )
-    }))
+    Ok((live > 0).then_some(Busy::Sessions(live)))
 }
 
-/// AJ-E1010: restarts into the installed version — only when no Instance
-/// is live (a restart would stop them).
+/// AJ-E1010: restarts into the installed version — only when it is safe
+/// (no switch in flight, no bring-in, no live session).
 ///
 /// # Errors
 ///
-/// Returns [`AppError::Validation`] while an Instance is live or nothing
-/// was installed.
+/// Returns [`AppError::Validation`] while a restart has to wait or
+/// nothing was installed.
 #[tauri::command]
 pub fn update_restart(
     app: tauri::AppHandle,

@@ -3076,6 +3076,18 @@ pub fn account_import_mode_impl(
     label: &str,
     request: ImportRequest,
 ) -> AppResult<ImportResult> {
+    // AJ-E1010: no "Restart to update" while a bring-in is under way.
+    let _bringing_in = state.updates.bring_in();
+    bring_in_setup(state, harness, source_path, label, request)
+}
+
+fn bring_in_setup(
+    state: &Arc<AppState>,
+    harness: &str,
+    source_path: &str,
+    label: &str,
+    request: ImportRequest,
+) -> AppResult<ImportResult> {
     let ImportRequest {
         plan,
         origin,
@@ -3479,7 +3491,7 @@ pub(crate) fn engine_usage_snapshot(
 
 /// Today as a UTC calendar date (the engine's injected day; renewal
 /// rendering stays a UI concern per AJ-E411).
-fn epoch_today(now_ms: i64) -> juggler_core::renewal::CalendarDate {
+pub(crate) fn epoch_today(now_ms: i64) -> juggler_core::renewal::CalendarDate {
     civil_from_days(now_ms.div_euclid(24 * 60 * 60 * 1000))
 }
 

@@ -40,6 +40,11 @@ tar = "0.4"
 sysinfo = { version = "0.39.6", default-features = false, features = ["system"] }
 tauri = { version = "2.12.3", features = [] }
 tauri-plugin-dialog = "2"
+# AJ-E1010: the launch alert when an older AI Juggler meets newer data
+# (before any window exists), on every desktop platform. Already in the
+# tree via tauri-plugin-dialog, with the same features (gtk3 on Linux,
+# common controls on Windows).
+rfd = { version = "0.16", default-features = false, features = ["common-controls-v6", "gtk3"] }
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-single-instance = "2"
@@ -64,6 +69,13 @@ juggler-stats = { version = "0.0.1", path = "../juggler-stats" }
 cpu-time = "1"
 juggler-handover = { version = "0.0.1", path = "../juggler-handover" }
 tempfile = "3.27.0"
+# AJ-E1010: the real updater plugin against a local feed — a mock Tauri
+# app, and minisign signatures made in the test (signature fixtures).
+tauri = { version = "2.12.3", features = ["test"] }
+ed25519-dalek = "3"
+# AJ-E1010: databases at an earlier schema, built and read as an older
+# build would (the going-back fixtures).
+rusqlite = "0.40.2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 # AJ-E415: ScreenCaptureKit mirror — macOS-only; the preview driver

@@ -416,3 +416,23 @@
      maintainer's request their AI Juggler data was moved aside, not
      deleted, for a fresh start.
 
+- **Bug record, 2026-10-20 (fixed; AJ-E1010).** An older AI Juggler that
+  meets data a newer one saved (schema too new) **quit at launch with no
+  window and no message**: `run()` printed the refusal to stderr and
+  exited. Going back from 0.0.8 to 0.0.7 hits it (0.0.8 adds schema 28),
+  and `docs/RELEASING.md` claimed the old version "says so". Found by the
+  rollback rehearsal (`AJ-E1010/rollback-rehearsal.md`, step 3). Fix:
+  the launch now says so in a window and offers the pre-update backup
+  (`newer_data.rs`; regression tests `--test newer_data`, which fail on
+  the old code because nothing offers or restores). 0.0.7 itself can't
+  be changed, so 0.0.8's notes carry the downgrade note (Known issues).
+- **Bug record, 2026-10-20 (fixed; AJ-E1010).** Found walking the update
+  UI by hand: (1) the release-notes box scrolls but had no keyboard
+  focus — with notes longer than the box, axe reports
+  `scrollable-region-focusable` (serious); the existing a11y test used
+  two-line notes and never saw it (the new long-notes test fails on the
+  old markup); (2) the Home notice said "(beta)" whatever the channel;
+  (3) a refused restart read "invalid update: …"; (4) Review opened
+  Settings at the top, with the update below the fold; (5) "Restart now"
+  was offered during a switch or a bring-in. All fixed, each with a
+  vitest or Playwright check.

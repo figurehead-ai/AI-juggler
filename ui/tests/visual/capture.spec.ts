@@ -5146,29 +5146,48 @@ for (const theme of THEMES) {
 
 // ---------------------------------------------------------------------
 // AJ-E1010 — 58-updates: Settings › About & updates — update available
-// (version + changes before installing), downloading, failed (version
-// untouched, Retry), up to date, and a development build — 1280×800,
-// light/dark. The Beta label is on every state.
+// (version + changes before installing, the Beta label), downloading,
+// failed (plain words, Details, Try again; the version untouched), a
+// failed check, installed with the restart held back (and why), ready to
+// restart, up to date, and a development build — and on Home, the
+// launch check's notice and the "Restart to update" prompt, each with
+// its Beta label. 1280×800, light/dark. The card is scrolled into view.
 // ---------------------------------------------------------------------
 
 const updateBase = {
   current_version: "0.1.0", channel: "beta", edition: "main", app_name: "AI Juggler", channels: ["stable", "beta"],
   configured: true, check_on_launch: true,
-  available: null, progress: null, error: null, backup_path: null, checked_at_ms: T0 - 60_000,
+  available: null, progress: null, error: null, error_kind: null, error_detail: null, restart_wait: null,
+  backup_path: null, checked_at_ms: T0 - 60_000,
 };
 const updateAvailable = {
   version: "0.2.0",
   date_ms: T0 - 86_400_000,
   notes: "Morning triage, History and backups.\n\n## New\n- **Triage**: one sorted view of what needs you, across every project.\n- **History**: search any past session, replay it read-only, archive it.\n- **Backup & restore**: one file to move AI Juggler to a new Mac.\n\n## Fixed\n- The home view no longer hides its top under the header on small windows.",
 };
+const updateBackup = "/Users/dev/Library/Application Support/AI Juggler/backups/before-update-0.1.0-to-0.2.0.ajbackup";
 const updateStates: Record<string, Record<string, unknown>> = {
   available: { ...updateBase, state: "available", available: updateAvailable },
-  downloading: { ...updateBase, state: "downloading", available: updateAvailable, progress: 64, backup_path: "/Users/dev/Library/Application Support/AI Juggler/backups/before-update-0.1.0-to-0.2.0.ajbackup" },
+  downloading: { ...updateBase, state: "downloading", available: updateAvailable, progress: 64, backup_path: updateBackup },
   failed: {
-    ...updateBase, state: "failed", available: updateAvailable,
-    error: "The download didn't finish or didn't verify: signature verification failed. Your current version is untouched.",
+    ...updateBase, state: "failed", available: updateAvailable, backup_path: updateBackup,
+    error: "The download didn't pass the signature check — it was damaged on the way or isn't from AI Juggler — so it wasn't installed. AI Juggler 0.1.0 is untouched.",
+    error_kind: "signature", error_detail: "the signature verification failed: Invalid signature",
   },
+  "check-failed": {
+    ...updateBase, state: "failed",
+    error: "Couldn't reach the update server. Check your internet connection, then try again.",
+    error_kind: "network", error_detail: "error sending request for url (https://github.com/figurehead-ai/AI-juggler/releases/download/beta-channel/latest.json)",
+  },
+  "restart-waiting": {
+    ...updateBase, state: "installed", available: updateAvailable, progress: 100, backup_path: updateBackup,
+    restart_wait: "A switch is in progress. Restart to update is offered once it finishes.",
+  },
+  "restart-ready": { ...updateBase, state: "installed", available: updateAvailable, progress: 100, backup_path: updateBackup },
   "up-to-date": { ...updateBase, state: "up_to_date" },
+  // Go back to an earlier version: the copy kept before the upgrade, the
+  // choice asked once, inline.
+  "going-back-confirm": { ...updateBase, state: "up_to_date" },
   development: { ...updateBase, configured: false, state: "idle" },
   // D-23: the editions installed next to AI Juggler.
   "nightly-edition": {
@@ -5184,28 +5203,59 @@ const editionAppInfo: Record<string, Record<string, string>> = {
   "nightly-edition": { version: "0.1.0", name: "AI Juggler Nightly", edition: "nightly" },
   "dev-edition": { version: "0.1.0", name: "AI Juggler Dev", edition: "dev" },
 };
+const updateNothingLive = {
+  ...allStatuses,
+  sessions: allStatuses.sessions.filter((session) =>
+    ["finished", "stopped", "failed", "handed_over"].includes(String(session.status)),
+  ),
+};
+/** The prompts on Home: the launch check found a version; one installed
+ * and it is safe to restart. */
+const updateHomeStates: Record<string, Record<string, unknown>> = {
+  "home-available": updateStates.available,
+  "home-restart-ready": updateStates["restart-ready"],
+};
 
 for (const theme of THEMES) {
-  for (const [name, status] of Object.entries(updateStates)) {
+  for (const [name, status] of Object.entries({ ...updateStates, ...updateHomeStates })) {
     test(`58 updates — ${name} — ${theme}`, async ({ page }) => {
       await page.addInitScript(
-        ({ fixture, t, t0, seeded, info }) => {
+        ({ fixture, t, t0, seeded, info, goingBack }) => {
           const w = window as unknown as Record<string, unknown>;
           w.__AIJ_FIXTURE__ = fixture;
           w.__AIJ_UPDATE_STATUS__ = seeded;
           if (info) w.__AIJ_APP_INFO__ = info;
+          if (goingBack) w.__AIJ_GOING_BACK__ = goingBack;
           localStorage.setItem("aij.theme", t);
           localStorage.setItem("aij.onboarding.dismissed", "1");
           sessionStorage.setItem("aij.ready.skipped", "1");
           Date.now = () => t0;
         },
-        { fixture: allStatuses, t: theme, t0: T0, seeded: status, info: editionAppInfo[name] ?? null },
+        {
+          // Restart is only offered with no session live, as the backend
+          // decides: those captures have only ended sessions.
+          fixture: name.endsWith("restart-ready") ? updateNothingLive : allStatuses,
+          t: theme, t0: T0, seeded: status, info: editionAppInfo[name] ?? null,
+          goingBack: name.startsWith("going-back") ? [{ schema: 27, version: "0.0.7", kept_at_ms: T0 - 3 * 86_400_000 }] : null,
+        },
       );
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: 1280, height: 800 });
       await page.goto("/");
-      await page.getByRole("button", { name: "Settings" }).click();
-      await expect(page.getByTestId("beta-label")).toBeVisible();
+      if (name.startsWith("home-")) {
+        const prompt = page.getByTestId(name === "home-available" ? "update-notice" : "update-ready");
+        await expect(prompt).toBeVisible();
+        await expect(prompt.getByText("Beta", { exact: true })).toBeVisible();
+      } else {
+        await page.getByRole("button", { name: "Settings" }).click();
+        await expect(page.getByTestId("beta-label")).toBeVisible();
+        await page.getByTestId("settings-updates").evaluate((card) => card.scrollIntoView({ block: "start" }));
+        if (name === "going-back-confirm") {
+          await page.getByText("Go back to an earlier version", { exact: true }).click();
+          await page.getByTestId("going-back-27").click();
+          await expect(page.getByTestId("going-back-confirm")).toBeVisible();
+        }
+      }
       await page.screenshot({ path: resolve(GALLERY, `58-updates/${name}-1280x800-${theme}.png`) });
     });
   }
