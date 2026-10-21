@@ -268,6 +268,8 @@ read_routes! {
     "app_quit_plan" => async_result quit::app_quit_plan(state);
     "fleet_launch_options" => async_result features::fleet::fleet_launch_options(state);
     "fleet_usage_by_machine" => async_result features::fleet::fleet_usage_by_machine(state);
+    // AJ-E1702: the pools (a read only).
+    "pools_list" => async_result features::pools::commands::pools_list(state);
 }
 
 /// The `Read` commands the bridge doesn't serve, and why. Every other

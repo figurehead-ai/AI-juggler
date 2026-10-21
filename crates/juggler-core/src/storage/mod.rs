@@ -22,6 +22,7 @@ mod cleanup_settings;
 mod fleet_sync;
 mod footprints;
 mod identity;
+mod pools;
 mod process_ledger;
 mod projects;
 mod settings;
@@ -45,6 +46,10 @@ pub use footprints::{
     FOOTPRINTS_PER_KEY, Footprint, FootprintStats, FootprintsRepo, MIN_FOOTPRINT_MS,
 };
 pub use identity::{IdentityAssertion, IdentityRepo};
+pub use pools::{
+    Capability, DEFAULT_POOL_ID, DEFAULT_POOL_NAME, DefaultScope, MemberRef, Pool, PoolKind,
+    PoolMember, PoolRole, PoolsRepo, default_grant, default_pool_scope, resolve_memberships,
+};
 pub use process_ledger::{
     EXEC_SETTLE_MS, LedgerRow, ProcessLedgerRepo, ROLE_HELPER, ROLE_LOGIN, ROLE_ROOT, STATE_EXITED,
     STATE_ORPHANED, STATE_RUNNING, STATE_STARTING, STATE_UNVERIFIABLE,
@@ -560,9 +565,13 @@ CREATE TABLE worktree_homes (
 );
 ";
 
+/// v33 (AJ-E1702): pools. The pools module owns its tables
+/// ([`pools::MIGRATION`]); they take their place in the one sequence here.
+const V33: &str = pools::MIGRATION;
+
 const MIGRATIONS: &[&str] = &[
     V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21,
-    V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32,
+    V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33,
 ];
 
 /// How many pre-migration copies (`<file>.before-v<N>`) are kept beside a
@@ -897,6 +906,13 @@ impl Storage {
     #[must_use]
     pub fn identity(&self) -> IdentityRepo<'_> {
         IdentityRepo::new(&self.conn)
+    }
+
+    /// Repository for pools, their members and grants (schema v33,
+    /// AJ-E1702).
+    #[must_use]
+    pub fn pools(&self) -> PoolsRepo<'_> {
+        PoolsRepo::new(&self.conn)
     }
 
     /// Repository for footprints (schema v29, AJ-E1406).

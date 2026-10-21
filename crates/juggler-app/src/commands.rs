@@ -7052,15 +7052,14 @@ fn record_edge_staged(
     let (work, from) = if let Some(found) = existing {
         found
     } else {
-        let work = match works.into_iter().next_back() {
-            Some(existing) => existing,
-            None => graph
-                .create_work(project, "Work")
-                .map_err(|error| AppError::Io {
-                    context: "hand over",
-                    message: error.to_string(),
-                })?,
-        };
+        // AJ-E1702: a session's first switch starts its own Work item, so
+        // what hangs off it (a pool) follows this line of work only.
+        let work = graph
+            .create_work(project, "Work")
+            .map_err(|error| AppError::Io {
+                context: "hand over",
+                message: error.to_string(),
+            })?;
         let from = Epoch {
             id: EpochId::new(format!("ep-{}", unique_suffix())),
             work: work.id.clone(),

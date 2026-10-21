@@ -389,3 +389,72 @@ fn a_cross_tool_move_says_it_starts_fresh() {
     );
     assert!(!info.experimental_copy.contains("the whole session moves"));
 }
+
+/// AJ-E1702: a switch keeps the session's pool, and only its own. Each
+/// session's first switch starts its own Work item — before, every switch
+/// in a project shared the project's oldest one, so a pool hung off it
+/// would have taken in every switched session there.
+#[test]
+fn a_switch_keeps_the_pool_of_its_own_line_of_work_only() {
+    use juggler_app::features::pools;
+
+    let work = tempfile::tempdir().unwrap();
+    let state = app_state(work.path());
+    let project_dir = work.path().join("storefront");
+    std::fs::create_dir_all(&project_dir).unwrap();
+    let cwd = project_dir.to_string_lossy().into_owned();
+
+    let account_a = commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap();
+    let account_b = commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap();
+    let profile_a = commands::create_profile(&state, &account_a.id, "Main", None, None).unwrap();
+    let profile_b = commands::create_profile(&state, &account_b.id, "Main", None, None).unwrap();
+    let planner = launch_with_transcript(&state, &profile_a.id, &account_a.id, &cwd, "native-p");
+    let loner = launch_with_transcript(&state, &profile_a.id, &account_a.id, &cwd, "native-l");
+
+    let info = pools::pool_create_impl(&state, "Checkout redesign", None).unwrap();
+    let checkout = info.pools[1].id.clone();
+    pools::pool_move_impl(&state, &planner, &checkout).unwrap();
+    pools::pool_set_role_impl(&state, &planner, "lead").unwrap();
+
+    let loner_next =
+        commands::switch_execute_impl(&state, &loner, &profile_b.id, "stop-now", None, &[])
+            .unwrap();
+    let planner_next =
+        commands::switch_execute_impl(&state, &planner, &profile_b.id, "stop-now", None, &[])
+            .unwrap();
+
+    let info = pools::pools_list_impl(&state).unwrap();
+    let place = |id: &str| {
+        let row = info
+            .members
+            .iter()
+            .find(|row| row.session_id == id)
+            .unwrap();
+        (row.pool_id.clone(), row.role.clone())
+    };
+    assert_eq!(
+        place(&planner_next.session_id),
+        (checkout.clone(), "lead".to_owned())
+    );
+    assert_eq!(place(&planner), (checkout.clone(), "lead".to_owned()));
+    assert_eq!(
+        place(&loner_next.session_id).0,
+        juggler_core::storage::DEFAULT_POOL_ID
+    );
+    assert_eq!(place(&loner).0, juggler_core::storage::DEFAULT_POOL_ID);
+
+    let storage = state.storage.lock().unwrap();
+    let project = storage
+        .projects()
+        .by_root(&std::fs::canonicalize(&cwd).unwrap())
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        storage
+            .switch_graph()
+            .works_for_project(&project.id)
+            .unwrap()
+            .len(),
+        2
+    );
+}

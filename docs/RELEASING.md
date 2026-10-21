@@ -371,7 +371,8 @@ saved (it never risks it). So:
 | 0.0.8 | 28 (accounts used in place) | yes | **no** — downgrade note in 0.0.8's notes |
 | 0.0.9 | 29 (session footprints) | yes | **no** — downgrade note in 0.0.9's notes; 0.0.9 keeps a `before-v28` copy, so "Go back to an earlier version" can return to 0.0.8 |
 | 0.0.13 | 30 (account rename, remove and default; account audit) | yes | **no** — downgrade note in 0.0.13's notes; 0.0.13 keeps a `before-v29` copy, so "Go back to an earlier version" can return to 0.0.12 |
-| 0.1.x | 31 (session and project names, pins, forgotten projects; AJ-E1502) | yes | **no** — downgrade note in 0.1's notes (the version is filled in when 0.1 is cut) |
+| 0.1.0 | 32 (31: session and project names, pins, forgotten projects, AJ-E1502; 32: other managers' worktree homes, AJ-E1519) | yes | **no** — downgrade note in 0.1.0's notes; 0.1.0 keeps a `before-v30` copy, so "Go back to an earlier version" can return to 0.0.17 |
+| 0.2.x | 33 (pools, AJ-E1702) | yes | **no** — 0.2's notes need the downgrade note ("Going back to 0.1.0 or earlier…"); 0.2 keeps a `before-v32` copy, so "Go back to an earlier version" can return to 0.1.0 |
 
 Tests: `cargo test -p juggler-core --test pre_migration_copy` (the copy
 holds exactly the rows the database had, two are kept, a fresh database
