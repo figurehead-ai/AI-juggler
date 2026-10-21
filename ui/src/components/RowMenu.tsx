@@ -1,4 +1,5 @@
 import { useEffect, useRef, type MouseEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 /**
  * The row menu (D-25: one pattern everywhere): the ⋯ button or a
@@ -69,7 +70,9 @@ export function RowMenu({
     left: Math.max(4, Math.min(at.x, window.innerWidth - 190)),
     top: Math.max(4, Math.min(at.y, window.innerHeight - 190)),
   };
-  return (
+  // On the page itself: a blurred rail is the containing block of
+  // anything fixed inside it, which would clip the menu to the rail.
+  return createPortal(
     <div
       ref={ref}
       role="menu"
@@ -79,7 +82,8 @@ export function RowMenu({
     >
       <span className="truncate px-2 pb-1 pt-0.5 text-[9.5px] font-medium uppercase tracking-wide text-faint">{heading}</span>
       {children}
-    </div>
+    </div>,
+    document.body,
   );
 }
 

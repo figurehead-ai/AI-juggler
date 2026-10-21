@@ -649,7 +649,7 @@ export function InstanceBoard({
                   />
                   {effectiveGroup === "project" && onSelectProject && projects.some((p) => p.id === entry.id) ? (
                     <div
-                      className="group flex min-w-0 flex-1 items-center"
+                      className="group relative flex min-w-0 flex-1 items-center"
                       onContextMenu={(event) => {
                         event.preventDefault();
                         projectManage.openMenu(projects.find((p) => p.id === entry.id)!, { x: event.clientX, y: event.clientY });
@@ -659,7 +659,7 @@ export function InstanceBoard({
                         type="button"
                         onClick={() => onSelectProject(entry.id)}
                         title={entry.rollup || undefined}
-                        className="flex min-w-0 flex-1 items-baseline justify-between gap-2 rounded-md py-0.5 pl-1 pr-1 text-left text-[11.5px] font-semibold text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+                        className="flex min-w-0 flex-1 items-baseline justify-between gap-2 rounded-md py-0.5 pl-1 pr-2.5 text-left text-[11.5px] font-semibold text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
                         data-testid="rail-project"
                       >
                         <span className="flex min-w-0 items-baseline gap-1.5">
@@ -671,6 +671,7 @@ export function InstanceBoard({
                       <RowMenuButton
                         label={`Project actions for ${entry.label}`}
                         onOpen={(at) => projectManage.openMenu(projects.find((p) => p.id === entry.id)!, at)}
+                        className="absolute right-6 top-1/2 -translate-y-1/2 bg-surface"
                       />
                     </div>
                   ) : (

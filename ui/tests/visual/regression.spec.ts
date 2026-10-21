@@ -279,6 +279,33 @@ for (const theme of THEMES) {
   });
 }
 
+// AJ-E1502: a named, pinned session leads its group, a pinned project's
+// group leads the rail; a project's row menu.
+const PINNED = {
+  ...allStatuses,
+  sessions: allStatuses.sessions.map((session) =>
+    session.id === "sess-6" ? { ...session, label: "the login fix", pinned: true } : session,
+  ),
+  projects: allStatuses.projects.map((project) => (project.id === "proj-2" ? { ...project, pinned: true } : project)),
+};
+for (const theme of THEMES) {
+  const cell = `${theme}-comfortable-1280x800`;
+  test(`rail with pins — ${cell}`, async ({ page }) => {
+    await open(page, theme, "comfortable", VIEWPORTS[0], PINNED);
+    await expect(page.locator('[data-instance-id="sess-6"]')).toContainText("the login fix");
+    await page.mouse.move(0, 0);
+    await expect(page.getByTestId("rail")).toHaveScreenshot(`rail-pins-${cell}.png`, SCREEN);
+  });
+
+  test(`project menu — ${cell}`, async ({ page }) => {
+    await open(page, theme, "comfortable", VIEWPORTS[0], PINNED);
+    await page.getByRole("button", { name: "Project actions for ai-juggler" }).click();
+    await expect(page.getByRole("menu", { name: "Actions for ai-juggler" })).toBeVisible();
+    await page.mouse.move(0, 0);
+    await expect(page).toHaveScreenshot(`project-menu-${cell}.png`, SCREEN);
+  });
+}
+
 // WCAG 1.4.1: a status shown by colour must also say it in words or an
 // accessible name — a colour-only change fails even when its pixel diff
 // is small. The fixture holds an Instance in every status.

@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "./primitives";
 import { Field, Input, Modal } from "./form";
 import { MenuItem, RowMenu } from "./RowMenu";
@@ -176,7 +177,8 @@ export function useProjectManage(onChanged: () => void) {
   };
   const missing = menu?.project.missing === true;
   const gone = missing ? "Its folder isn't there any more" : undefined;
-  const element: ReactNode = (
+  // Sheets go on the page itself (a blurred rail would clip them).
+  const element: ReactNode = createPortal(
     <>
       {menu && (
         <RowMenu heading={menu.project.name} ariaLabel={`Actions for ${menu.project.name}`} at={menu.at} onClose={() => setMenu(null)}>
@@ -228,7 +230,8 @@ export function useProjectManage(onChanged: () => void) {
         />
       )}
       {problem && <ProblemSheet title={problem.title} message={problem.message} onClose={() => setProblem(null)} />}
-    </>
+    </>,
+    document.body,
   );
   return {
     editor,
@@ -297,7 +300,7 @@ export function useSessionManage(onChanged: () => void) {
       }
     },
   };
-  const element: ReactNode = (
+  const element: ReactNode = createPortal(
     <>
       {renaming && (
         <RenameSheet
@@ -315,7 +318,8 @@ export function useSessionManage(onChanged: () => void) {
         />
       )}
       {problem && <ProblemSheet title={problem.title} message={problem.message} onClose={() => setProblem(null)} />}
-    </>
+    </>,
+    document.body,
   );
   return { actions, element };
 }
