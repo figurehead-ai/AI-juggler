@@ -1,9 +1,14 @@
 
 // AJ-E307: per top-level entry bytes (the copy receipt breakdown)
 // and the degraded flag; provenance echoes on AccountInfo.
-import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
-import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
+import {
+  invoke,
+  listen,
+  liveBackend,
+  openDialog,
+  readOnlyBackend,
+  saveDialog,
+} from "./ipc/transport";
 import type { AppInfo } from "../types/generated/AppInfo";
 import type { NotificationPrefsInfo } from "../types/generated/NotificationPrefsInfo";
 import type { OsAccessInfo } from "../types/generated/OsAccessInfo";
@@ -190,8 +195,8 @@ export const EVENTS = {
   updateStatus: "update://status",
 } as const;
 
-const hasBackend =
-  typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+// The app, or the read-only test bridge in a dev page (lib/ipc).
+const hasBackend = liveBackend;
 
 export function hasLiveBackend(): boolean {
   return hasBackend;
@@ -2420,7 +2425,8 @@ export async function pickDirectory(): Promise<string | null> {
 
 /** Folders dragged onto the window (Tauri drag-drop events). */
 export function onFolderDropped(handler: (path: string) => void): () => void {
-  if (!hasBackend) return () => {};
+  // No window to drop onto through the read-only test bridge.
+  if (!hasBackend || readOnlyBackend) return () => {};
   let disposed = false;
   let unlisten: (() => void) | null = null;
   import("@tauri-apps/api/webview")
@@ -4059,15 +4065,12 @@ export async function environmentScanFull(
     }
     return seam ?? DEFAULT_SCAN_REPORT;
   }
-  const { getCurrentWebview } = await import("@tauri-apps/api/webview");
-  const { listen } = await import("@tauri-apps/api/event");
   let stop: (() => void) | undefined;
   if (progress) {
     stop = await listen<{ done: number; total: number }>("scan-progress", (event) => {
       progress(event.payload.done, event.payload.total);
     }).then((unlisten) => unlisten);
   }
-  void getCurrentWebview;
   try {
     return await invoke<ScanReportData>("environment_scan_full");
   } finally {
