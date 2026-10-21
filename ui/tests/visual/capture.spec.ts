@@ -3536,7 +3536,7 @@ for (const theme of THEMES) {
         .getByRole("button", { name: /ai-juggler.*prior sessions/s })
         .click();
       const pre = page.getByTestId("launch-preselected");
-      await expect(pre).toContainText("OK — inside headroom");
+      await expect(pre).toContainText("Enough room left");
       await page.screenshot({
         path: resolve(GALLERY, `38-flows-cde/e-launch-ok-${vp.name}-${theme}.png`),
         fullPage: true,
@@ -3546,7 +3546,7 @@ for (const theme of THEMES) {
         .click();
       await expect(page.getByTestId("sign-in-first")).toBeVisible();
       await expect(page.getByTestId("launch-sheet-accounts")).toContainText(
-        "headroom unknown",
+        "Room left unknown",
       );
       await page.screenshot({
         path: resolve(GALLERY, `38-flows-cde/e-launch-expanded-${vp.name}-${theme}.png`),
@@ -3589,7 +3589,7 @@ for (const theme of THEMES) {
         .getByRole("button", { name: /ai-juggler.*prior sessions/s })
         .click();
       await expect(page.getByTestId("launch-preselected")).toContainText(
-        "Tight — projected burn nears",
+        "Tight — this session may use most of the room left",
       );
       // Tight NEVER blocks: Launch stays enabled.
       await expect(page.getByTestId("launch-now")).toBeEnabled();
