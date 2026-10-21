@@ -339,4 +339,18 @@ rollouts report only a weekly one (`primary` `window_minutes` 10080,
 
 ## Gates
 
-GATES_TBD
+Local gates, run on this Mac (CARGO_TARGET_DIR shared):
+
+| Gate | Command | Head | Result |
+|---|---|---|---|
+| verify | `just verify` (fmt, clippy with and without default features, every test, the leak checks, the release self-tests) | 8eafeb8c | EXIT 0, 142 suites ok |
+| assertion-message change | `cargo test -p juggler-adapters --test quota_ingest`; `-p juggler-app --test usage_pipeline --test quota_display`; clippy `--tests` | 88d0bd6b | 23, 4 and 7 passed; clean |
+| deny | `cargo deny check` (no dependency changes on this branch) | 66d10fd8 | advisories, bans, licenses, sources ok |
+| vitest | `pnpm --dir ui exec vitest run`; `tsc --noEmit` | 71ede0bc | 590 passed (2 timing tests failed once at load average 43, then passed alone twice); tsc clean |
+| a11y | `just a11y-gate` (axe on every gallery state, keyboard flows, zoom and motion) | 8eafeb8c | 682 passed; 0 critical, serious, moderate or minor: PASS |
+| visual | `just visual-gate` (pinned Playwright container) | 8eafeb8c | 141 passed |
+| by hand | the preview's Accounts screen (the B8 row) | 71ede0bc | as described |
+
+**Two runs needed attention:**
+- The first verify run stopped on clippy (`doc_markdown`, then `too_many_lines`); both are fixed.
+- The `ports.rs` failures came from this session's preview server holding port 5173, which the test binds. With the preview stopped, it passes.
