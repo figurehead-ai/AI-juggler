@@ -68,6 +68,11 @@ jobs:
         run: |
           cargo test --workspace
           ./scripts/leaked_fixtures.sh
+      - name: Read-only test bridge (Dev builds only; docs/qa/DEV-BRIDGE.md)
+        run: |
+          cargo clippy -p juggler-app --all-targets --features dev-bridge -- -D warnings
+          cargo test -p juggler-app --features dev-bridge --lib dev_bridge
+          ./scripts/dev_bridge_check.sh
       - name: Docs
         env:
           RUSTDOCFLAGS: -D warnings
