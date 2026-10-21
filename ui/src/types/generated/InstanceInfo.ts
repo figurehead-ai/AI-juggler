@@ -188,4 +188,12 @@ lifecycle?: string,
 /**
  * When that step was taken, epoch ms.
  */
-lifecycle_at_ms?: number, };
+lifecycle_at_ms?: number, 
+/**
+ * AJ-E1502: the user's name for it, shown over its own title.
+ */
+label?: string, 
+/**
+ * AJ-E1502: pinned to the top of its group in the rail.
+ */
+pinned?: boolean, };

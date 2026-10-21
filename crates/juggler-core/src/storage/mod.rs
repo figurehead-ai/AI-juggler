@@ -52,7 +52,7 @@ pub use process_ledger::{
 pub use profiles::ProfilesRepo;
 pub use projects::ProjectsRepo;
 pub use projects::worktree_repo_root;
-pub use sessions::SessionsRepo;
+pub use sessions::{SessionMarks, SessionsRepo};
 pub use settings::AppSettingsRepo;
 pub use switch_graph::{SwitchGraphRepo, WorkGraph};
 pub use transcript_index::{
@@ -536,9 +536,20 @@ CREATE TABLE account_audit (
 CREATE INDEX idx_account_audit_account ON account_audit(account_id, at);
 ";
 
+/// v31 (AJ-E1502): naming and tidying sessions and projects. A session's
+/// label shows over its own title; pins lead the rail; a forgotten
+/// project is hidden until it is used again. A project's label is its
+/// `name` (the folder is never renamed).
+const V31: &str = "
+ALTER TABLE instances ADD COLUMN label TEXT;
+ALTER TABLE instances ADD COLUMN pinned_at INTEGER;
+ALTER TABLE projects ADD COLUMN pinned_at INTEGER;
+ALTER TABLE projects ADD COLUMN forgotten_at INTEGER;
+";
+
 const MIGRATIONS: &[&str] = &[
     V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21,
-    V22, V23, V24, V25, V26, V27, V28, V29, V30,
+    V22, V23, V24, V25, V26, V27, V28, V29, V30, V31,
 ];
 
 /// How many pre-migration copies (`<file>.before-v<N>`) are kept beside a

@@ -326,7 +326,7 @@ const MOCK_STATS: StatsInfo =
 // Mock rows mirror the AJ-E401 read-model fixtures: one full row, one
 // quota-less row, one model-less/terminal row — nulls where the backend
 // reports absence, never zeros or guessed names.
-const MOCK_SESSIONS: InstanceInfo[] = seeded.sessions ?? [
+export const MOCK_SESSIONS: InstanceInfo[] = seeded.sessions ?? [
   {
     id: "sess-live-1",
     adopted: false,
@@ -426,7 +426,7 @@ const MOCK_SESSIONS: InstanceInfo[] = seeded.sessions ?? [
   },
 ];
 
-const MOCK_PROJECTS: ProjectInfo[] = seeded.projects ?? [
+export const MOCK_PROJECTS: ProjectInfo[] = seeded.projects ?? [
   {
     id: "proj-ai-juggler",
     root: "/Users/you/Dev/ai-juggler",
@@ -505,7 +505,7 @@ function loadHang(): Promise<never> | null {
 }
 
 /** Preview-mode refusal, worded like the backend's (code `refused`). */
-function refused(user_message: string): { code: string; retryable: boolean; user_message: string } {
+export function refused(user_message: string): { code: string; retryable: boolean; user_message: string } {
   return { code: "refused", retryable: false, user_message };
 }
 

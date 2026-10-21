@@ -482,6 +482,11 @@ pub struct ProjectRecord {
     /// The account this project's new sessions start with, when the
     /// user picked one (v30, AJ-E1501).
     pub default_account: Option<AccountId>,
+    /// When the user pinned it to the top of the rail (v31, AJ-E1502).
+    pub pinned_at: Option<Timestamp>,
+    /// When the user forgot it: hidden until it is used again (v31,
+    /// AJ-E1502).
+    pub forgotten_at: Option<Timestamp>,
 }
 
 /// ADR-0008 alias: wire strings unchanged; naming only.

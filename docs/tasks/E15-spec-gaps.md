@@ -45,7 +45,7 @@
 **Research basis**: Max-Depth report B-32 and §9.2; ADR-0018.
 **Handover note**: Removing a copy never deletes; it uses the Trash (NSFileManager trashItem).
 
-### AJ-E1502 Manage sessions and projects | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1014
+### AJ-E1502 Manage sessions and projects | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E1014
 **Goal**: Sessions and projects can be named, pinned, opened and tidied.
 **User story**: As a user with twelve projects, I pin the three I'm on, rename a session to what it's doing, open a project in my editor, and forget an old one.
 **Requirements**:

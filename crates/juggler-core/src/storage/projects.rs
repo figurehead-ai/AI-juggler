@@ -58,6 +58,8 @@ impl ProjectsRepo<'_> {
                 last_activity: Some(now),
                 history: ProjectHistory::default(),
                 default_account: None,
+                pinned_at: None,
+                forgotten_at: None,
             };
             self.conn.execute(
                 "INSERT INTO projects (id, root, name, created_at, last_activity)
@@ -162,6 +164,71 @@ impl ProjectsRepo<'_> {
         super::accounts::require_changed(changed, "project", id.as_str())
     }
 
+    /// Renames a project (its label; the folder is never renamed).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::NotFound`] when missing, or
+    /// [`CoreError::Storage`] on SQLite failures.
+    pub fn rename(&self, id: &ProjectId, name: &str) -> Result<(), CoreError> {
+        let changed = self.conn.execute(
+            "UPDATE projects SET name = ?2 WHERE id = ?1",
+            params![id.as_str(), name],
+        )?;
+        super::accounts::require_changed(changed, "project", id.as_str())
+    }
+
+    /// Pins a project to the top of the rail (now), or unpins it.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::NotFound`] when missing, or
+    /// [`CoreError::Storage`] on SQLite failures.
+    pub fn set_pinned(&self, id: &ProjectId, pinned: bool) -> Result<(), CoreError> {
+        let changed = self.conn.execute(
+            "UPDATE projects SET pinned_at = ?2 WHERE id = ?1",
+            params![id.as_str(), pinned.then(|| Timestamp::now().millis())],
+        )?;
+        super::accounts::require_changed(changed, "project", id.as_str())
+    }
+
+    /// Forgets a project (now; hidden until used again), or brings it
+    /// back. A forgotten project loses its pin.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::NotFound`] when missing, or
+    /// [`CoreError::Storage`] on SQLite failures.
+    pub fn set_forgotten(&self, id: &ProjectId, forgotten: bool) -> Result<(), CoreError> {
+        let changed = if forgotten {
+            self.conn.execute(
+                "UPDATE projects SET forgotten_at = ?2, pinned_at = NULL WHERE id = ?1",
+                params![id.as_str(), Timestamp::now().millis()],
+            )?
+        } else {
+            self.conn.execute(
+                "UPDATE projects SET forgotten_at = NULL WHERE id = ?1",
+                params![id.as_str()],
+            )?
+        };
+        super::accounts::require_changed(changed, "project", id.as_str())
+    }
+
+    /// Repoints a project at the folder it moved to. Refused (a
+    /// constraint error) when another project already has that root.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::NotFound`] when missing, or
+    /// [`CoreError::Storage`] on SQLite failures.
+    pub fn relocate(&self, id: &ProjectId, root: &Path) -> Result<(), CoreError> {
+        let changed = self.conn.execute(
+            "UPDATE projects SET root = ?2 WHERE id = ?1",
+            params![id.as_str(), root.to_string_lossy()],
+        )?;
+        super::accounts::require_changed(changed, "project", id.as_str())
+    }
+
     /// Clears an account as every project's default (it was removed).
     /// Returns how many projects had it.
     ///
@@ -257,6 +324,12 @@ fn map_project(row: &Row<'_>) -> rusqlite::Result<ProjectRecord> {
         default_account: row
             .get::<_, Option<String>>("default_account")?
             .map(crate::model::AccountId::new),
+        pinned_at: row
+            .get::<_, Option<i64>>("pinned_at")?
+            .map(Timestamp::from_millis),
+        forgotten_at: row
+            .get::<_, Option<i64>>("forgotten_at")?
+            .map(Timestamp::from_millis),
     })
 }
 

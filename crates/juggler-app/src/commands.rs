@@ -1727,6 +1727,12 @@ pub struct InstanceInfo {
     /// When that step was taken, epoch ms.
     #[ts(optional, type = "number")]
     pub lifecycle_at_ms: Option<i64>,
+    /// AJ-E1502: the user's name for it, shown over its own title.
+    #[ts(optional)]
+    pub label: Option<String>,
+    /// AJ-E1502: pinned to the top of its group in the rail.
+    #[ts(optional)]
+    pub pinned: Option<bool>,
 }
 
 /// Deprecated alias (one version). AJ-E107.
@@ -1770,6 +1776,13 @@ pub struct ProjectInfo {
     /// when the user picked one.
     #[ts(optional = nullable)]
     pub default_account_id: Option<String>,
+    /// AJ-E1502: pinned to the top of the rail.
+    #[ts(optional)]
+    pub pinned: Option<bool>,
+    /// AJ-E1502: forgotten — hidden from the rail and New session until
+    /// it is used again.
+    #[ts(optional)]
+    pub forgotten: Option<bool>,
 }
 
 /// Dashboard counts.
@@ -3619,6 +3632,10 @@ pub fn launch_profile(
         let machine = local_machine_id(state);
         let storage = lock_storage_arc(state)?;
         let project = storage.projects().touch(&project_root, None)?;
+        // AJ-E1502: a session started here brings a forgotten project back.
+        if project.forgotten_at.is_some() {
+            storage.projects().set_forgotten(&project.id, false)?;
+        }
         let usage = engine_usage_snapshot(&storage, &profile.id);
         storage.sessions().insert(&SessionRecord {
             id: session_id.clone(),
@@ -3739,6 +3756,9 @@ pub fn desktop_launch_arc(state: &Arc<AppState>, account_id: &str) -> AppResult<
         let machine = local_machine_id(state);
         let storage = lock_storage_arc(state)?;
         let project = storage.projects().touch(&launch.cwd, None)?;
+        if project.forgotten_at.is_some() {
+            storage.projects().set_forgotten(&project.id, false)?;
+        }
         let usage = engine_usage_snapshot(&storage, &recipe_id);
         storage.sessions().insert(&SessionRecord {
             id: session_id.clone(),
@@ -5254,6 +5274,16 @@ fn session_join_indexes(storage: &Storage) -> AppResult<(AccountIndex, RecipeInd
     Ok((account_index, recipe_index))
 }
 
+/// AJ-E1502: a session's label, from the marks.
+fn label_of(marks: &juggler_core::storage::SessionMarks, id: &str) -> Option<String> {
+    marks.get(id).and_then(|(label, _)| label.clone())
+}
+
+/// AJ-E1502: whether a session is pinned (absent when not).
+fn pinned_of(marks: &juggler_core::storage::SessionMarks, id: &str) -> Option<bool> {
+    marks.get(id).and_then(|(_, pinned)| pinned.map(|_| true))
+}
+
 /// Measured token counts for the wire; all-zero means unmeasured (null).
 fn tokens_info(t: juggler_core::model::TokenCounts) -> Option<TokenCountsInfo> {
     (t != juggler_core::model::TokenCounts::default()).then_some(TokenCountsInfo {
@@ -5275,6 +5305,7 @@ fn session_infos(
     let identities = storage.identity().latest_by_session().unwrap_or_default();
     let parked = crate::parked::parked_index(storage);
     let lifecycle = storage.sessions().lifecycle_latest().unwrap_or_default();
+    let marks = storage.sessions().marks().unwrap_or_default();
     Ok(storage
         .sessions()
         .list(None)?
@@ -5368,6 +5399,8 @@ fn session_infos(
                     .get(record.id.as_str())
                     .map(|(event, _)| event.clone()),
                 lifecycle_at_ms: lifecycle.get(record.id.as_str()).map(|(_, at)| *at),
+                label: label_of(&marks, record.id.as_str()),
+                pinned: pinned_of(&marks, record.id.as_str()),
             }
         })
         .collect())
@@ -7321,6 +7354,7 @@ pub fn projects_list_impl(state: &Arc<AppState>) -> AppResult<Vec<ProjectInfo>> 
             accounts_used.extend(project.history.accounts.iter().cloned());
             accounts_used.sort();
             accounts_used.dedup();
+            let forgotten = crate::manage::is_forgotten(&project).then_some(true);
             ProjectInfo {
                 id,
                 root: project.root.to_string_lossy().into_owned(),
@@ -7333,6 +7367,8 @@ pub fn projects_list_impl(state: &Arc<AppState>) -> AppResult<Vec<ProjectInfo>> 
                 history_last_used_ms: project.history.last_used_ms,
                 repo: None,
                 missing: !project.root.exists(),
+                forgotten,
+                pinned: project.pinned_at.map(|_| true),
                 default_account_id: project.default_account.map(|id| id.to_string()),
             }
         })

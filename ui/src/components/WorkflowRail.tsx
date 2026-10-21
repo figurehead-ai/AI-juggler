@@ -2,7 +2,7 @@ import { identityWords } from "../lib/identity";
 import { parkedWords } from "../lib/parked";
 import { providerDisplayName } from "../lib/providers";
 import { ReactNode, useCallback, useEffect, useId, useRef, useState, type JSX } from "react";
-import { IconProjects, IconTerminal } from "./icons";
+import { IconPin, IconProjects, IconTerminal } from "./icons";
 import { RowPlaceholders } from "./Placeholder";
 import { showToast } from "./Toast";
 import { sessionLabel } from "../lib/stop";
@@ -40,6 +40,7 @@ import {
 } from "../lib/railview";
 import { Button } from "./primitives";
 import { MenuItem, RowMenu, menuPoint } from "./RowMenu";
+import { sessionTitle, useProjectManage, useSessionManage } from "./ManageWork";
 import {
   AccountDisc,
   ChildBadges,
@@ -109,9 +110,13 @@ export function WorkflowRail({
   selectedRemote = null,
   onSelectRemote,
   loading = false,
+  onChanged,
 }: {
   /** AJ-E1503: the first load hasn't answered yet (placeholders). */
   loading?: boolean;
+  /** AJ-E1502: a rename, pin or forget from a row's menu — the app reads
+   * its lists again. */
+  onChanged?: () => void;
   density: Density;
   onCycleDensity: () => void;
   projects: ProjectInfo[];
@@ -227,6 +232,7 @@ export function WorkflowRail({
             selectedRemote={selectedRemote}
             onSelectRemote={onSelectRemote}
             loading={loading}
+            onChanged={onChanged}
           />
         )}
       </div>
@@ -309,9 +315,12 @@ export function InstanceBoard({
   onSelectRemote,
   onSelectProject,
   loading = false,
+  onChanged = () => {},
 }: {
   /** AJ-E1503: placeholders until the first load answers. */
   loading?: boolean;
+  /** AJ-E1502: something was renamed, pinned or forgotten. */
+  onChanged?: () => void;
   /** AJ-E411 Req.5: account expiry feeds the Needs-me tie-break. */
   accounts?: AccountInfo[];
   /** D-25: a project group's header opens the project. */
@@ -378,6 +387,9 @@ export function InstanceBoard({
     ? remoteMachines.filter((machine) => machineChoice === "all" || machineChoice === machine.machine_id)
     : [];
   const [menu, setMenu] = useState<{ row: InstanceInfo; x: number; y: number } | null>(null);
+  // AJ-E1502: the same row menu names and pins sessions and projects.
+  const sessionManage = useSessionManage(onChanged);
+  const projectManage = useProjectManage(onChanged);
   const searchRef = useRef<HTMLInputElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [scrollTop, setScrollTop] = useState(0);
@@ -689,19 +701,35 @@ export function InstanceBoard({
                     onToggle={() => toggleFold(entry.id)}
                   />
                   {effectiveGroup === "project" && onSelectProject && projects.some((p) => p.id === entry.id) ? (
-                    <button
-                      type="button"
-                      onClick={() => onSelectProject(entry.id)}
-                      title={entry.rollup || undefined}
-                      className="flex min-w-0 flex-1 items-baseline justify-between gap-2 rounded-md py-0.5 pl-1 pr-2.5 text-left text-[11.5px] font-semibold text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
-                      data-testid="rail-project"
+                    <div
+                      className="group relative flex min-w-0 flex-1 items-center"
+                      onContextMenu={(event) => {
+                        event.preventDefault();
+                        projectManage.openMenu(projects.find((p) => p.id === entry.id)!, { x: event.clientX, y: event.clientY });
+                      }}
                     >
-                      <span className="min-w-0 truncate">{entry.label}</span>
-                      <span className="flex shrink-0 items-center gap-1.5">
-                        {folded.has(entry.id) && <FoldedNeeds rows={entry.rows} snooze={snooze} now={now} />}
-                        <span className="text-[10px] font-normal text-faint">{entry.rows.length}</span>
-                      </span>
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => onSelectProject(entry.id)}
+                        title={entry.rollup || undefined}
+                        className="flex min-w-0 flex-1 items-baseline justify-between gap-2 rounded-md py-0.5 pl-1 pr-2.5 text-left text-[11.5px] font-semibold text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+                        data-testid="rail-project"
+                      >
+                        <span className="flex min-w-0 items-baseline gap-1.5">
+                          <span className="min-w-0 truncate">{entry.label}</span>
+                          {projects.find((p) => p.id === entry.id)?.pinned && <PinMark />}
+                        </span>
+                        <span className="flex shrink-0 items-center gap-1.5">
+                          {folded.has(entry.id) && <FoldedNeeds rows={entry.rows} snooze={snooze} now={now} />}
+                          <span className="text-[10px] font-normal text-faint">{entry.rows.length}</span>
+                        </span>
+                      </button>
+                      <RowMenuButton
+                        label={`Project actions for ${entry.label}`}
+                        onOpen={(at) => projectManage.openMenu(projects.find((p) => p.id === entry.id)!, at)}
+                        className="absolute right-6 top-1/2 -translate-y-1/2 bg-surface"
+                      />
+                    </div>
                   ) : (
                     <p
                       className="flex min-w-0 flex-1 items-baseline justify-between gap-2 py-0.5 pl-1 pr-2.5 text-[11.5px] font-semibold text-muted"
@@ -764,6 +792,7 @@ export function InstanceBoard({
                       density={effectiveDensity === "compact" ? "compact" : "comfortable"}
                       now={now}
                       onSelect={(id) => onSelectProject?.(id)}
+                      onMenu={projectManage.openMenu}
                     />
                   ) : (
                     <div key={group.key} className="flex flex-col gap-0.5" data-testid="rail-repo-group">
@@ -787,6 +816,7 @@ export function InstanceBoard({
                             density={effectiveDensity === "compact" ? "compact" : "comfortable"}
                             now={now}
                             onSelect={(id) => onSelectProject?.(id)}
+                            onMenu={projectManage.openMenu}
                           />
                         ))}
                       </div>
@@ -828,9 +858,19 @@ export function InstanceBoard({
           onSnoozeFor={(ms) => snoozeFor(menu.row, ms)}
           onMute={() => snoozeFor(menu.row, null, true)}
           onClear={() => clearSnooze(menu.row)}
+          onRename={() => {
+            setMenu(null);
+            sessionManage.actions.rename(menu.row);
+          }}
+          onTogglePin={() => {
+            setMenu(null);
+            void sessionManage.actions.togglePin(menu.row);
+          }}
           onClose={() => setMenu(null)}
         />
       )}
+      {sessionManage.element}
+      {projectManage.element}
     </div>
   );
 }
@@ -883,7 +923,7 @@ function BoardRow({
           WCAG 2.2 minimum target (AJ-E804). */}
       <button
         type="button"
-        aria-label={`Row actions for ${row.account_label}`}
+        aria-label={`Session actions for ${sessionTitle(row)}`}
         aria-haspopup="menu"
         onClick={(event) => {
           const at = menuPoint(event);
@@ -939,7 +979,8 @@ export function RailRow({
   // Never crash on a missing folder (it names the row only as a fallback).
   const cwd = session.cwd ?? "";
   const folder = cwd.replace(/\/+$/, "").split("/").pop() || cwd || session.account_label;
-  const title = session.git_branch ?? folder;
+  // AJ-E1502: the user's name for it shows over its own title.
+  const title = session.label ?? session.git_branch ?? folder;
   const ended = ["finished", "stopped", "handed_over"].includes(session.status);
   const since = ended ? (session.last_activity_ms ?? session.started_at_ms) : (session.attention?.since_ms ?? session.started_at_ms);
   const parked = parkedWords(session, now);
@@ -984,6 +1025,7 @@ export function RailRow({
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="flex min-w-0 items-baseline gap-1.5">
           <span className={"min-w-0 truncate text-[12.5px] font-medium " + (ended ? "text-muted" : "text-ink")}>{title}</span>
+          {session.pinned && <PinMark />}
           {session.kind === "desktop" && (
             <span title="Runs in the Claude desktop app" data-testid="rail-app-chip" className="shrink-0 text-[9.5px] font-medium uppercase tracking-wide text-muted">
               app
@@ -1022,7 +1064,7 @@ export function RailRow({
           </span>
         )}
         <span className="sr-only">
-          , {state}, {session.account_label}
+          {session.pinned ? ", pinned" : ""}, {state}, {session.account_label}
           {low ? `, ${low}` : ""}
           {heavyNote ? `, working your Mac hard: ${heavyNote}` : ""}
         </span>
@@ -1053,6 +1095,8 @@ function RowContextMenu({
   onSnoozeFor,
   onMute,
   onClear,
+  onRename,
+  onTogglePin,
   onClose,
 }: {
   row: InstanceInfo;
@@ -1063,12 +1107,21 @@ function RowContextMenu({
   onSnoozeFor: (ms: number | null) => void;
   onMute: () => void;
   onClear: () => void;
+  /** AJ-E1502: name the session, pin it to the top. */
+  onRename: () => void;
+  onTogglePin: () => void;
   onClose: () => void;
 }) {
   const snoozed = isSnoozed(row, snooze, now);
   const resetAt = row.quota?.resets_at_ms ?? null;
   return (
-    <RowMenu heading={row.account_label} ariaLabel={`Attention options for ${row.account_label}`} at={{ x, y }} onClose={onClose}>
+    <RowMenu heading={sessionTitle(row)} ariaLabel={`Actions for ${sessionTitle(row)}`} at={{ x, y }} onClose={onClose}>
+      <MenuItem testId="session-rename" onClick={onRename}>
+        Rename…
+      </MenuItem>
+      <MenuItem testId="session-pin" onClick={onTogglePin}>
+        {row.pinned ? "Unpin" : "Pin to top"}
+      </MenuItem>
       {snoozed ? (
         <MenuItem onClick={onClear}>Unsnooze / unmute</MenuItem>
       ) : (
@@ -1863,13 +1916,15 @@ export function repoGroups(projects: ProjectInfo[]): { key: string; name: string
     const key = project.repo ?? `folder:${project.id}`;
     groups.set(key, [...(groups.get(key) ?? []), project]);
   }
+  // AJ-E1502: pinned projects lead (a group leads when one of it is).
+  const pinned = (project: ProjectInfo) => (project.pinned ? 1 : 0);
   return [...groups.entries()]
     .map(([key, members]) => {
-      const sorted = [...members].sort((a, b) => lastWorked(b) - lastWorked(a));
+      const sorted = [...members].sort((a, b) => pinned(b) - pinned(a) || lastWorked(b) - lastWorked(a));
       const name = members.length > 1 && key.includes("/") ? (key.split("/").pop() ?? sorted[0]!.name) : sorted[0]!.name;
       return { key, name, projects: sorted };
     })
-    .sort((a, b) => lastWorked(b.projects[0]!) - lastWorked(a.projects[0]!));
+    .sort((a, b) => pinned(b.projects[0]!) - pinned(a.projects[0]!) || lastWorked(b.projects[0]!) - lastWorked(a.projects[0]!));
 }
 
 /** The second line of a project row: what was done there, in a few words. */
@@ -1897,15 +1952,25 @@ function ProjectRow({
   density,
   now,
   onSelect,
+  onMenu,
 }: {
   project: ProjectInfo;
   density: "comfortable" | "compact";
   now: number;
   onSelect: (id: string) => void;
+  /** AJ-E1502: the row's menu (rename, pin, open, forget…). */
+  onMenu: (project: ProjectInfo, at: { x: number; y: number }) => void;
 }): JSX.Element {
   const stats = projectStats(project, now);
   const when = stats[0]?.endsWith("ago") || stats[0] === "just now" ? stats[0] : null;
   return (
+    <div
+      className="group relative"
+      onContextMenu={(event) => {
+        event.preventDefault();
+        onMenu(project, { x: event.clientX, y: event.clientY });
+      }}
+    >
     <button
       type="button"
       onClick={() => onSelect(project.id)}
@@ -1922,6 +1987,7 @@ function ProjectRow({
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="flex min-w-0 items-baseline gap-1.5">
           <span className={"min-w-0 truncate text-[12.5px] font-medium " + (project.missing ? "text-muted" : "text-ink")}>{project.name}</span>
+          {project.pinned && <PinMark />}
           {project.missing && <span className="shrink-0 text-[9.5px] font-medium uppercase tracking-wide text-muted">moved</span>}
           {density === "compact" && when && <span className="ml-auto shrink-0 font-mono text-[10px] text-muted">{when === "just now" ? "now" : when.replace(" ago", "")}</span>}
         </span>
@@ -1930,7 +1996,42 @@ function ProjectRow({
             {stats.join(" · ")}
           </span>
         )}
+        <span className="sr-only">{project.pinned ? ", pinned" : ""}</span>
       </span>
+    </button>
+    <RowMenuButton label={`Project actions for ${project.name}`} onOpen={(at) => onMenu(project, at)} className="absolute bottom-0 left-0" />
+    </div>
+  );
+}
+
+/** AJ-E1502: a pinned row's mark, beside its title. */
+function PinMark(): JSX.Element {
+  return (
+    <span title="Pinned" className="shrink-0 text-muted" data-testid="pin-mark">
+      <IconPin width={10} height={10} aria-hidden="true" />
+    </span>
+  );
+}
+
+/** The ⋯ button that opens a row's menu (the session row's pattern):
+ * shown on hover or focus, 24 px (the WCAG 2.2 target). */
+function RowMenuButton({ label, onOpen, className = "" }: { label: string; onOpen: (at: { x: number; y: number }) => void; className?: string }): JSX.Element {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      aria-haspopup="menu"
+      onClick={(event) => onOpen(menuPoint(event))}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        onOpen({ x: event.clientX, y: event.clientY });
+      }}
+      className={
+        "z-10 flex size-6 shrink-0 items-center justify-center rounded text-[10px] text-faint opacity-0 transition-opacity outline-none hover:text-ink focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-accent/60 group-hover:opacity-100 " +
+        className
+      }
+    >
+      ⋯
     </button>
   );
 }

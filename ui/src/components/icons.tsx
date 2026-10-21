@@ -264,3 +264,13 @@ export function IconAlert(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+/** AJ-E1502: pinned to the top of the rail (a pushpin). */
+export function IconPin(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M9 4h6l-1 5 3 3v1.5H7V12l3-3Z" />
+      <path d="M12 13.5V20" />
+    </svg>
+  );
+}

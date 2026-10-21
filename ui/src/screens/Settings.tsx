@@ -35,6 +35,7 @@ import {
 } from "../lib/bridge";
 import { THEME_EVENT, setTheme, storedTheme, type ThemeChoice } from "../theme";
 import { DENSITY_EVENT, readDensity, storeDensity, type Density } from "../lib/density";
+import { EditorCard } from "../components/EditorCard";
 
 /**
  * Settings (AJ-E1203; wireframe 26) — the policies the user owns, in
@@ -160,6 +161,7 @@ export function SettingsScreen({
         </header>
         <SettingsSection id="general">
           <AppearanceCard />
+          <EditorCard />
           <UpdatesCard focus={focusSection === "updates"} />
           <PrivacyCard />
         </SettingsSection>

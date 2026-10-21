@@ -57,4 +57,13 @@ missing: boolean,
  * AJ-E1501: the account this project's new sessions start with,
  * when the user picked one.
  */
-default_account_id?: string | null, };
+default_account_id?: string | null, 
+/**
+ * AJ-E1502: pinned to the top of the rail.
+ */
+pinned?: boolean, 
+/**
+ * AJ-E1502: forgotten — hidden from the rail and New session until
+ * it is used again.
+ */
+forgotten?: boolean, };

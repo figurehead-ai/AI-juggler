@@ -329,7 +329,7 @@ describe("AJ-E1503 snooze with Undo", () => {
         <ToastHost />
       </>,
     );
-    fireEvent.click(screen.getAllByRole("button", { name: "Row actions for Work Max" })[0]!);
+    fireEvent.click(screen.getAllByRole("button", { name: /^Session actions for / })[0]!);
     fireEvent.click(screen.getByRole("menuitem", { name: "Snooze 1h" }));
     expect(screen.getByTestId("toast").textContent).toContain("Snoozed Work Max for 1 h.");
     expect(JSON.parse(localStorage.getItem("aij.snooze") ?? "{}")["sess-1"]).toBeTruthy();
