@@ -9,3 +9,4 @@ from each walk.
 | Date | Version | Walk |
 |---|---|---|
 | 2026-10-21 | 0.0.11 | [2026-10-21-0.0.11.md](2026-10-21-0.0.11.md) |
+| 2026-10-21 | main `3ccf2bd9` (real setup, read only) | [2026-10-21-real-readonly.md](2026-10-21-real-readonly.md) |

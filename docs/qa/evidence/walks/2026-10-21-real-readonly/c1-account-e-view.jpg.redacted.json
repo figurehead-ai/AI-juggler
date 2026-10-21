@@ -1,0 +1,20 @@
+{
+  "boxes": [
+    [
+      18,
+      140,
+      124,
+      252
+    ],
+    [
+      166,
+      333,
+      160,
+      140
+    ]
+  ],
+  "checked_by_eye": true,
+  "file": "c1-account-e-view.jpg",
+  "recorded": "redacted before redact_capture.swift existed",
+  "sha256": "8744219ba12f4068bde631f8721f50e1481600afec82ed9c7f1b6820e4725d4e"
+}

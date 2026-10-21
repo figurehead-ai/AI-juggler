@@ -40,4 +40,7 @@ for d in docs/qa/evidence/*/; do
 done
 
 [ "$fail" -eq 0 ] && echo "evidence-check: OK"
+# --- 4) walk captures: each redacted and checked by eye (sidecar hash) ---
+python3 scripts/qa/check_captures.py || fail=1
+
 exit $fail
