@@ -606,28 +606,8 @@ pub fn evaluate_window(
         if state == QuotaState::Unknown || state == QuotaState::Learning {
             (None, None, Confidence::default(), None)
         } else if let Some(sample) = latest_sample {
-            // Measured path: vendor % verbatim, interpolated toward now
-            // with locally observed request deltas scaled by the last
-            // sample-to-sample slope.
-            let previous = samples
-                .iter()
-                .filter(|s| {
-                    s.confidence == Confidence::Measured
-                        && s.ts < sample.ts
-                        && s.resets_at
-                            .zip(sample.resets_at)
-                            .is_none_or(|(a, b)| (a - b).abs() < SAME_WINDOW_MS)
-                })
-                .max_by_key(|s| s.ts);
-            let slope = previous.and_then(|prev| {
-                let between =
-                    count_requests_between(account_events.iter().copied(), prev.ts, sample.ts);
-                slope_pct_per_request(prev, sample, between)
-            });
-            let requests_since =
-                count_requests_between(account_events.iter().copied(), sample.ts, i64::MAX);
             (
-                Some(interpolate_percentage(sample, slope, requests_since)),
+                Some(measured_percentage(samples, sample, &account_events)),
                 Some(PercentageBasis::Measured),
                 Confidence::Measured,
                 sample.resets_at,
@@ -664,6 +644,32 @@ pub fn evaluate_window(
             .then(|| latest_sample.map(|sample| sample.ts))
             .flatten(),
     }
+}
+
+/// The Measured path: the vendor's % verbatim, interpolated toward now
+/// with locally observed request deltas scaled by the slope from the
+/// previous reading of the same window.
+fn measured_percentage(
+    samples: &[QuotaSample],
+    sample: &QuotaSample,
+    events: &[&UsageEvent],
+) -> f64 {
+    let previous = samples
+        .iter()
+        .filter(|s| {
+            s.confidence == Confidence::Measured
+                && s.ts < sample.ts
+                && s.resets_at
+                    .zip(sample.resets_at)
+                    .is_none_or(|(a, b)| (a - b).abs() < SAME_WINDOW_MS)
+        })
+        .max_by_key(|s| s.ts);
+    let slope = previous.and_then(|prev| {
+        let between = count_requests_between(events.iter().copied(), prev.ts, sample.ts);
+        slope_pct_per_request(prev, sample, between)
+    });
+    let requests_since = count_requests_between(events.iter().copied(), sample.ts, i64::MAX);
+    interpolate_percentage(sample, slope, requests_since)
 }
 
 /// The whole account reading: both pools plus the separate
