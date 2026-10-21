@@ -1,0 +1,17 @@
+# AJ-E1010 — a second launch while AI Juggler Dev runs (2026-10-20)
+# A = this branch, running; B = the second launch. Throwaway HOME. The database's mode is set
+# to 0644 after A starts: opening storage sets it back to 0600, so it shows whether B opened the data.
+
+=== B = the build before this change (#82)
+A (this branch) is running
+DB mode set to 644
+B (juggler-app-82) exited with code 0 after 1.2 s
+DB mode after B: 600  (600 = B opened the data)
+A stopped
+
+=== B = this change
+A (this branch) is running
+DB mode set to 644
+B (juggler-app-lockgate) exited with code 0 after 1.1 s
+DB mode after B: 644  (600 = B opened the data)
+A stopped

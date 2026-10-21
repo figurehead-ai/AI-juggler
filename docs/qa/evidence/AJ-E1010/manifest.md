@@ -166,3 +166,17 @@ the in-app updater. Added to this PR:
 Not done by hand: clicking the launch alert's buttons. This session can't
 drive native windows (System Events needs a permission only the
 maintainer can grant). Steps for the maintainer are in the PR.
+
+### A second launch hands over before it opens the data (2026-10-20)
+
+A second launch of the same edition used to open the data — migrations,
+startup recovery — before the single-instance plugin handed it to the
+running app. Now, when another instance holds `juggler.lock`, the launch
+only starts a bare app (no state, no windows) whose single-instance plugin
+hands over and exits; if the running app doesn't answer (it is closing),
+it says so instead of opening the data.
+
+| Claim | Proof | Verdict |
+|---|---|---|
+| A second launch doesn't open the data | [`second-instance.txt`](docs/qa/evidence/AJ-E1010/second-instance.txt), two Dev builds with a throwaway HOME: with the build before, the second launch reset the database's mode (it opened storage) and handed over after 3.1 s; with this change the mode is untouched and it hands over in 1.0 s; both exit 0 (the running app got the hand-over) | PASS |
+| The lock itself | `newer_data :: going_back_needs_the_data_folder_to_itself` | PASS |
