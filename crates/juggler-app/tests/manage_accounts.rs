@@ -458,11 +458,18 @@ fn defaults_preselect_and_follow_a_removal() {
             .remove(0)
             .default_account_id
     };
-    assert_eq!(default_of(&state).as_deref(), Some("acc-a"));
+    // Compared, not echoed: the project rows carry launch-settings data.
+    assert!(
+        default_of(&state).as_deref() == Some("acc-a"),
+        "the project's own default is A"
+    );
 
     // Removing an account clears it as a default, everywhere.
     manage::account_remove_impl(&state, "acc-a", CopyFolder::Keep, &never_trash).unwrap();
-    assert_eq!(default_of(&state), None);
+    assert!(
+        default_of(&state).is_none(),
+        "removing A cleared it as the project's default"
+    );
     manage::account_remove_impl(&state, "acc-b", CopyFolder::Keep, &never_trash).unwrap();
     assert!(defaults(&state).is_empty());
     let stored = state
@@ -516,14 +523,14 @@ fn a_backup_still_withholds_a_removed_accounts_environment_values() {
     let archive = work.path().join("backup.ajbackup");
     let exported =
         juggler_app::backup::backup_export_impl(&state, &archive, &mut |_, _| {}).unwrap();
+    // Checked without echoing the manifest (it names launch settings).
     assert!(
         exported
             .manifest
             .withheld
             .iter()
             .any(|line| line.contains("API_TOKEN")),
-        "{:?}",
-        exported.manifest.withheld
+        "the removed account's environment value is withheld"
     );
 }
 
