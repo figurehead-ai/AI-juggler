@@ -331,6 +331,14 @@ describe("AJ-E1010 going back to an earlier version", () => {
     expect(confirm.textContent).toContain("Install 0.0.7 from the releases page");
     expect(document.activeElement?.textContent).toBe("Go back to 0.0.7?");
     expect(calls()).toEqual([]);
+    // 0.0.11 walk, Q6: the install line links to that version's release,
+    // and opening it changes nothing here.
+    const releases = confirm.querySelector<HTMLButtonElement>("[data-testid='going-back-releases']")!;
+    expect(releases.textContent).toBe("Open the releases page");
+    fireEvent.click(releases);
+    expect(calls()).toEqual(["open-releases:0.0.7"]);
+    expect(container.querySelector("[data-testid='going-back-confirm']")).not.toBeNull();
+    w().__AIJ_UPDATE_CALLS__ = [];
     // Cancel returns focus to the choice; nothing happened.
     fireEvent.click(container.querySelector("[data-testid='going-back-cancel']")!);
     expect(document.activeElement?.getAttribute("data-testid")).toBe("going-back-27");

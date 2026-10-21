@@ -35,6 +35,22 @@ export function inPlaceProviders(rows: { provider: string; can_use_in_place: boo
   return new Set(rows.filter((row) => row.can_use_in_place).map((row) => row.provider));
 }
 
+/** 0.0.11 walk (Q3): the tools that say they don't report their usage
+ * limits. A tool the list doesn't name, or a failed call, keeps its limit
+ * rows (as before). */
+export function limitProviders(rows: { provider: string; reports_limits?: boolean }[]): InPlaceSupport {
+  return new Set(rows.filter((row) => row.reports_limits === false).map((row) => row.provider));
+}
+
+export function reportsLimits(noLimits: InPlaceSupport, id: string): boolean {
+  return noLimits === "unknown" || !noLimits.has(id);
+}
+
+/** What a tool without a limits feed says, once, on its account. */
+export function noLimitsWords(id: string): string {
+  return `${providerDisplayName(id)} doesn't report its limits to AI Juggler yet`;
+}
+
 export function supportsInPlace(support: InPlaceSupport, id: string): boolean {
   return support === "unknown" || support.has(id);
 }

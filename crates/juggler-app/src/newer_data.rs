@@ -361,6 +361,43 @@ pub fn going_back_prepare(state: tauri::State<'_, Arc<AppState>>, schema: i64) -
     Ok(())
 }
 
+/// Where AI Juggler's releases are published.
+pub const RELEASES_URL: &str = "https://github.com/figurehead-ai/AI-juggler/releases";
+
+/// Pure: the page to install `version` from — its release when it is a
+/// plain version number (`0.0.9`), else the releases list. Nothing else
+/// from the UI reaches the URL.
+#[must_use]
+pub fn releases_page(version: Option<&str>) -> String {
+    match version {
+        Some(v)
+            if !v.is_empty()
+                && v.len() <= 20
+                && v.split('.')
+                    .all(|part| !part.is_empty() && part.bytes().all(|b| b.is_ascii_digit())) =>
+        {
+            format!("{RELEASES_URL}/tag/v{v}")
+        }
+        _ => RELEASES_URL.to_string(),
+    }
+}
+
+/// 0.0.11 walk (Q6): opens the page to install the version going back to.
+///
+/// # Errors
+///
+/// When the system can't open the link.
+#[tauri::command]
+pub fn going_back_open_releases(app: tauri::AppHandle, version: Option<String>) -> AppResult<()> {
+    use tauri_plugin_opener::OpenerExt as _;
+    app.opener()
+        .open_url(releases_page(version.as_deref()), None::<&str>)
+        .map_err(|e| AppError::Io {
+            context: "releases page",
+            message: e.to_string(),
+        })
+}
+
 /// "20 Oct 2026" for an epoch-ms time (UTC day).
 fn day(ms: i64) -> String {
     const MONTHS: [&str; 12] = [
