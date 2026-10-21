@@ -131,11 +131,26 @@ fn move_files(data_dir: &Path, from: &dyn Fn(&str) -> String, to: &dyn Fn(&str) 
     }
 }
 
-/// Goes back to `offer`: moves the newer database aside (kept), then puts
-/// the pre-upgrade copy in place, or opens a fresh database with `open`
-/// and restores the backup into it; either way the result must open.
-/// Returns where the newer database was kept. On any failure the newer
-/// database is put back as it was.
+/// What going back did.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct WentBack {
+    /// Where the newer database was kept.
+    pub kept: PathBuf,
+    /// What the user still has to do (a backup leaves sign-ins and the
+    /// values it withheld to re-enter); empty for a pre-upgrade copy.
+    pub next_steps: Vec<String>,
+}
+
+/// Besides the database, what a backup restore replaces in the data
+/// folder (`backup_restore_impl`).
+const RESTORED_BESIDE: [&str; 2] = ["heuristics.json", "parked"];
+
+/// Goes back to `offer`, all or nothing: moves the newer database aside
+/// (kept), then puts the pre-upgrade copy in place, or opens a fresh
+/// database with `open` and restores the backup into it; either way the
+/// result must open. For a backup, what it also replaces
+/// (`heuristics.json`, `parked/`) is moved aside first, with the newer
+/// data. On any failure every path is put back as it was.
 ///
 /// # Errors
 ///
@@ -145,37 +160,63 @@ pub fn go_back(
     data_dir: &Path,
     offer: &GoBack,
     open: &dyn Fn(PathBuf) -> AppResult<AppState>,
-) -> AppResult<PathBuf> {
+) -> AppResult<WentBack> {
     let stamp = juggler_core::model::Timestamp::now().millis();
     let kept = data_dir.join(kept_name(stamp, ""));
     std::fs::rename(data_dir.join(DB), &kept).map_err(|e| AppError::io("keep newer data", &e))?;
     move_files(data_dir, &|suffix| format!("{DB}{suffix}"), &|suffix| {
         kept_name(stamp, suffix)
     });
-    let restored = match offer.kind {
+    let beside = |name: &str, tag: &str| data_dir.join(format!("{name}.{tag}-{stamp}"));
+    if offer.kind == Source::Backup {
+        for name in RESTORED_BESIDE {
+            if data_dir.join(name).exists() {
+                let _ = std::fs::rename(data_dir.join(name), beside(name, "from-newer"));
+            }
+        }
+    }
+    let restored: AppResult<Vec<String>> = match offer.kind {
         Source::Copy => std::fs::copy(&offer.source, data_dir.join(DB))
             .map_err(|e| AppError::io("put the copy in place", &e))
-            .and_then(|_| open(data_dir.to_path_buf()).map(drop)),
+            .and_then(|_| open(data_dir.to_path_buf()).map(|_| Vec::new())),
         Source::Backup => open(data_dir.to_path_buf())
             .map(Arc::new)
             .and_then(|state| {
                 let plan = crate::backup::backup_verify_impl(&state, &offer.source)?;
-                crate::backup::backup_restore_impl(&state, &offer.source, &plan.token)?;
-                Ok(())
+                let done = crate::backup::backup_restore_impl(&state, &offer.source, &plan.token)?;
+                // It starts on the restored data right away: no restart.
+                Ok(done
+                    .next_steps
+                    .into_iter()
+                    .filter(|step| !step.starts_with("Restart"))
+                    .collect())
             }),
     };
-    if let Err(error) = restored {
-        // Put things back as they were: what was tried aside, the newer
-        // database where it was.
-        move_files(data_dir, &|suffix| format!("{DB}{suffix}"), &|suffix| {
-            format!("{DB}.unused-{stamp}{suffix}")
-        });
-        move_files(data_dir, &|suffix| kept_name(stamp, suffix), &|suffix| {
-            format!("{DB}{suffix}")
-        });
-        return Err(error);
+    match restored {
+        Ok(next_steps) => Ok(WentBack { kept, next_steps }),
+        Err(error) => {
+            // Put everything back as it was: what was tried aside, the
+            // newer data where it was.
+            let _ = std::fs::remove_dir_all(data_dir.join("restore-staging"));
+            move_files(data_dir, &|suffix| format!("{DB}{suffix}"), &|suffix| {
+                format!("{DB}.unused-{stamp}{suffix}")
+            });
+            move_files(data_dir, &|suffix| kept_name(stamp, suffix), &|suffix| {
+                format!("{DB}{suffix}")
+            });
+            if offer.kind == Source::Backup {
+                for name in RESTORED_BESIDE {
+                    if data_dir.join(name).exists() {
+                        let _ = std::fs::rename(data_dir.join(name), beside(name, "unused"));
+                    }
+                    if beside(name, "from-newer").exists() {
+                        let _ = std::fs::rename(beside(name, "from-newer"), data_dir.join(name));
+                    }
+                }
+            }
+            Err(error)
+        }
     }
-    Ok(kept)
 }
 
 // --- from the newer build: "Go back to an earlier version" ---------------
@@ -232,11 +273,14 @@ pub fn going_back_prepare_impl(state: &Arc<AppState>, schema: i64) -> AppResult<
         state,
         schema,
         juggler_core::model::Timestamp::now().millis(),
+        &mut |_| {},
     )
 }
 
-/// [`going_back_prepare_impl`] as of `now_ms` (tests step past the
-/// bring-in gap).
+/// [`going_back_prepare_impl`] as of `now_ms`, calling `finish` with the
+/// kept path **while the storage lock is still held** — the app quits
+/// there, so nothing written by this build reaches the older data after
+/// the swap, and nothing can start between the check and the swap.
 ///
 /// # Errors
 ///
@@ -245,15 +289,16 @@ pub fn going_back_prepare_at(
     state: &Arc<AppState>,
     schema: i64,
     now_ms: i64,
+    finish: &mut dyn FnMut(&Path),
 ) -> AppResult<PathBuf> {
-    if let Some(busy) = crate::updates::busy_at(state, now_ms)? {
+    let db = state.data_dir.join(DB);
+    let mut storage = crate::commands::lock_storage_arc(state)?;
+    if let Some(busy) = crate::updates::busy_with(&storage, &state.updates, now_ms)? {
         return Err(AppError::Validation {
             subject: "going back",
             message: busy.words("Going back is possible"),
         });
     }
-    let db = state.data_dir.join(DB);
-    let mut storage = crate::commands::lock_storage_arc(state)?;
     let current = storage.user_version()?;
     let Some((_, copy)) = juggler_core::storage::pre_migration_copies(&db)
         .into_iter()
@@ -270,6 +315,12 @@ pub fn going_back_prepare_at(
     ));
     storage.snapshot_to(&kept)?;
     storage.replace_with_older(&copy)?;
+    // The older build finds it all in the database file itself.
+    let _ = storage
+        .raw_conn()
+        .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |_| Ok(()));
+    finish(&kept);
+    drop(storage);
     Ok(kept)
 }
 
@@ -289,17 +340,21 @@ pub fn going_back_options(state: tauri::State<'_, Arc<AppState>>) -> AppResult<V
 ///
 /// Per [`going_back_prepare_impl`]; on success the app quits.
 #[tauri::command]
-pub fn going_back_prepare(
-    app: tauri::AppHandle,
-    state: tauri::State<'_, Arc<AppState>>,
-    schema: i64,
-) -> AppResult<()> {
-    let kept = going_back_prepare_impl(state.inner(), schema)?;
-    eprintln!(
-        "ai-juggler: ready to go back (schema {schema}); the data as it was is kept at {}",
-        kept.display()
-    );
-    app.exit(0);
+pub fn going_back_prepare(state: tauri::State<'_, Arc<AppState>>, schema: i64) -> AppResult<()> {
+    going_back_prepare_at(
+        state.inner(),
+        schema,
+        juggler_core::model::Timestamp::now().millis(),
+        &mut |kept| {
+            eprintln!(
+                "ai-juggler: ready to go back (schema {schema}); the data as it was is kept at {}",
+                kept.display()
+            );
+            // Quit with the storage lock still held: no thread of this
+            // build writes to the older data, nothing is uploaded from it.
+            std::process::exit(0);
+        },
+    )?;
     Ok(())
 }
 
@@ -329,6 +384,14 @@ pub fn launch_message(
     match offer {
         Some(offer) => {
             let when = day(offer.made_at_ms);
+            let comes_back = match offer.kind {
+                Source::Copy => {
+                    "Your accounts, sessions and settings come back exactly as they were then."
+                }
+                Source::Backup => {
+                    "Your accounts, sessions and settings come back as they were then; you may need to sign in to each account again and re-enter values the backup left out."
+                }
+            };
             let what = match (offer.kind, offer.app_version.as_deref()) {
                 (Source::Copy, _) => {
                     format!("the copy of your data kept on {when}, just before it was upgraded")
@@ -341,7 +404,7 @@ pub fn launch_message(
             (
                 title,
                 format!(
-                    "{opening}\n\nYou can go back to {what}. Your accounts, sessions and settings come back as they were then. What the newer version saved is kept beside it in the data folder; nothing is deleted.\n\nOr quit, and install the newer version again to keep working with its data."
+                    "{opening}\n\nYou can go back to {what}. {comes_back} What the newer version saved is kept beside it in the data folder; nothing is deleted.\n\nOr quit, and install the newer version again to keep working with its data."
                 ),
                 Some(match offer.kind {
                     Source::Copy => format!("Use the data from {when}"),
@@ -359,16 +422,53 @@ pub fn launch_message(
     }
 }
 
-/// At launch: shows the alert and, if the user chooses the backup, goes
-/// back to it and returns the state to start with. Quitting (or no
-/// window system) exits.
+/// The lock that says "this edition's data is in use": held by a running
+/// AI Juggler from before it opens the data until it quits. Going back
+/// moves database files, so it needs this lock (another instance would
+/// otherwise lose what it hasn't written to the database file yet).
+static INSTANCE_LOCK: std::sync::OnceLock<std::fs::File> = std::sync::OnceLock::new();
+
+/// Takes the data folder's instance lock (`juggler.lock`); `false` when
+/// another AI Juggler of this edition holds it.
+pub fn hold_instance_lock(data_dir: &Path) -> bool {
+    if INSTANCE_LOCK.get().is_some() {
+        return true;
+    }
+    let Ok(file) = std::fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(data_dir.join("juggler.lock"))
+    else {
+        return true; // can't tell: don't block a normal launch
+    };
+    match file.try_lock() {
+        Ok(()) => {
+            let _ = INSTANCE_LOCK.set(file);
+            true
+        }
+        Err(std::fs::TryLockError::WouldBlock) => false,
+        Err(std::fs::TryLockError::Error(_)) => true,
+    }
+}
+
+/// At launch: shows the alert and, if the user chooses to go back, goes
+/// back and returns the state to start with (after saying what is left to
+/// do). Quitting exits. Nothing is touched while another instance holds
+/// the data (`lock_held` false).
 #[must_use]
-pub fn at_launch(data_dir: &Path, found: i64, supported: i64) -> AppState {
+pub fn at_launch(data_dir: &Path, found: i64, supported: i64, lock_held: bool) -> AppState {
     eprintln!(
         "ai-juggler: the data in {} is schema {found}; this build reads up to {supported}",
         data_dir.display()
     );
     let app_name = crate::edition::current().app_name();
+    if !lock_held {
+        cannot_start(&format!(
+            "Another {app_name} is open with this data. Quit it first, then open this version again."
+        ));
+        std::process::exit(1);
+    }
     let offer = newest_restorable(data_dir);
     let (title, text, go_back_label) =
         launch_message(app_name, env!("CARGO_PKG_VERSION"), offer.as_ref());
@@ -376,12 +476,21 @@ pub fn at_launch(data_dir: &Path, found: i64, supported: i64) -> AppState {
     match (chosen, offer) {
         (Choice::GoBack, Some(offer)) => {
             match go_back(data_dir, &offer, &|dir| AppState::init(dir)) {
-                Ok(kept) => {
+                Ok(went) => {
                     eprintln!(
                         "ai-juggler: went back to {}; newer data kept at {}",
                         offer.source.display(),
-                        kept.display()
+                        went.kept.display()
                     );
+                    if !went.next_steps.is_empty() {
+                        tell(
+                            &format!(
+                                "{app_name} is back to the data from {}",
+                                day(offer.made_at_ms)
+                            ),
+                            &format!("Still to do:\n\n{}", went.next_steps.join("\n")),
+                        );
+                    }
                     AppState::init(data_dir.to_path_buf()).unwrap_or_else(|error| {
                         cannot_start(&error.to_string());
                         std::process::exit(1);
@@ -396,11 +505,22 @@ pub fn at_launch(data_dir: &Path, found: i64, supported: i64) -> AppState {
             }
         }
         (Choice::ShowFolder, _) => {
-            let _ = std::process::Command::new("open").arg(data_dir).status();
+            show_folder(data_dir);
             std::process::exit(1);
         }
         _ => std::process::exit(1),
     }
+}
+
+fn show_folder(dir: &Path) {
+    let opener = if cfg!(target_os = "macos") {
+        "open"
+    } else if cfg!(windows) {
+        "explorer"
+    } else {
+        "xdg-open"
+    };
+    let _ = std::process::Command::new(opener).arg(dir).status();
 }
 
 enum Choice {
@@ -409,7 +529,8 @@ enum Choice {
     Quit,
 }
 
-#[cfg(target_os = "macos")]
+/// The launch alert (a native dialog on every desktop platform; it runs
+/// before any window exists).
 fn ask(title: &str, text: &str, go_back: Option<&str>) -> Choice {
     let first = go_back.unwrap_or("Show the data folder").to_owned();
     let answer = rfd::MessageDialog::new()
@@ -433,24 +554,23 @@ fn ask(title: &str, text: &str, go_back: Option<&str>) -> Choice {
     }
 }
 
-#[cfg(not(target_os = "macos"))]
-fn ask(title: &str, text: &str, _go_back: Option<&str>) -> Choice {
-    eprintln!("{title}\n\n{text}");
-    Choice::Quit
+/// A plain notice with one button (before any window exists).
+fn tell(title: &str, text: &str) {
+    let _ = rfd::MessageDialog::new()
+        .set_level(rfd::MessageLevel::Info)
+        .set_title(title)
+        .set_description(text)
+        .set_buttons(rfd::MessageButtons::OkCustom("Continue".to_owned()))
+        .show();
 }
 
 /// Says that the app can't start, and why (before any window exists).
 pub fn cannot_start(reason: &str) {
-    #[cfg(target_os = "macos")]
-    {
-        let app_name = crate::edition::current().app_name();
-        let _ = rfd::MessageDialog::new()
-            .set_level(rfd::MessageLevel::Error)
-            .set_title(format!("{app_name} can't start"))
-            .set_description(reason)
-            .set_buttons(rfd::MessageButtons::OkCustom("Quit".to_owned()))
-            .show();
-    }
-    #[cfg(not(target_os = "macos"))]
-    eprintln!("{reason}");
+    let app_name = crate::edition::current().app_name();
+    let _ = rfd::MessageDialog::new()
+        .set_level(rfd::MessageLevel::Error)
+        .set_title(format!("{app_name} can't start"))
+        .set_description(reason)
+        .set_buttons(rfd::MessageButtons::OkCustom("Quit".to_owned()))
+        .show();
 }

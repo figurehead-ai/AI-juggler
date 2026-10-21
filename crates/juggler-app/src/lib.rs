@@ -98,13 +98,17 @@ pub fn run() {
         cfg!(debug_assertions),
     ));
     let data_dir = bootstrap_data_dir();
+    // AJ-E1010: this edition's data folder is ours until we quit (taken
+    // before the data is opened; going back moves database files only
+    // while it is held).
+    let lock_held = newer_data::hold_instance_lock(&data_dir);
     let app_state = Arc::new(match state::AppState::init(data_dir.clone()) {
         Ok(state) => state,
         // AJ-E1010: an older AI Juggler opened data a newer one saved — say
-        // so, and offer the backup from before the update (never a silent
-        // quit).
+        // so, and offer the copy or backup from before the update (never a
+        // silent quit).
         Err(error::AppError::Core(juggler_core::CoreError::SchemaTooNew { found, supported })) => {
-            newer_data::at_launch(&data_dir, found, supported)
+            newer_data::at_launch(&data_dir, found, supported, lock_held)
         }
         Err(error) => {
             eprintln!("ai-juggler: fatal: {error}");

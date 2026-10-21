@@ -42,6 +42,8 @@ if [ -z "$from" ]; then
 fi
 if [ -n "$from" ]; then
   python3 "$(dirname "$0")/downgrade_note.py" check "$file" "$ref" "$from" || fail "needs a downgrade note"
+elif [ "$(git rev-parse --is-shallow-repository)" = true ] && [ -z "${AIJ_DOWNGRADE_NOTE_UNCHECKED:-}" ]; then
+  fail "a shallow checkout has no release tags to compare database schemas with — fetch them (fetch-depth: 0)"
 else
   echo "downgrade-note: no earlier release to compare with"
 fi

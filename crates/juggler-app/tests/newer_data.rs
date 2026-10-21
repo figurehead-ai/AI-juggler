@@ -118,8 +118,26 @@ fn an_older_build_refuses_newer_data_and_offers_the_backup_from_before() {
     assert!(text.contains("AI Juggler Dev 0.0.8 can't open"), "{text}");
     assert!(text.contains("nothing is deleted"), "{text}");
     assert!(button.unwrap().starts_with("Use the backup from "));
+    assert!(
+        text.contains("sign in to each account again"),
+        "a backup says what it can't bring back: {text}"
+    );
 
-    let kept = newer_data::go_back(&dir, &offer, &open).unwrap();
+    let went = newer_data::go_back(&dir, &offer, &open).unwrap();
+    let kept = went.kept;
+    assert!(
+        went.next_steps.iter().any(|step| step.contains("Sign in")),
+        "{:?}",
+        went.next_steps
+    );
+    assert!(
+        !went
+            .next_steps
+            .iter()
+            .any(|step| step.starts_with("Restart")),
+        "it starts on the restored data, no restart: {:?}",
+        went.next_steps
+    );
     let state = open(dir.clone()).expect("starts on the restored data");
     assert_eq!(labels(&state), ["Work"], "the data from before the update");
     drop(state);
@@ -207,8 +225,9 @@ fn the_launch_offers_the_copy_kept_before_the_upgrade() {
     let (_, text, button) = newer_data::launch_message("AI Juggler", "0.0.9", Some(&offer));
     assert!(text.contains("just before it was upgraded"), "{text}");
     assert!(button.unwrap().starts_with("Use the data from "));
-    let kept = newer_data::go_back(&dir, &offer, &open).unwrap();
-    assert_eq!(schema_of(&kept), Storage::schema_version() + 1);
+    let went = newer_data::go_back(&dir, &offer, &open).unwrap();
+    assert!(went.next_steps.is_empty(), "the copy is the data as it was");
+    assert_eq!(schema_of(&went.kept), Storage::schema_version() + 1);
     let state = open(dir.clone()).expect("starts on the copy");
     assert_eq!(labels(&state), ["Work"]);
 }
@@ -289,11 +308,18 @@ fn the_newer_build_prepares_going_back_to_the_version_before() {
     // Seconds after the bring-in, nothing would be cut short.
     let later = juggler_core::model::Timestamp::now().millis() + 11_000;
     assert_eq!(juggler_app::updates::busy_at(&state, later).unwrap(), None);
-    let refused = newer_data::going_back_prepare_at(&state, previous + 7, later)
+    let refused = newer_data::going_back_prepare_at(&state, previous + 7, later, &mut |_| {})
         .unwrap_err()
         .to_string();
     assert!(refused.contains("no copy"), "{refused}");
-    let kept = newer_data::going_back_prepare_at(&state, previous, later).unwrap();
+    // The app quits inside `finish`, with the data still locked: nothing
+    // else can write to the older data in between.
+    let mut locked_at_finish = None;
+    let kept = newer_data::going_back_prepare_at(&state, previous, later, &mut |_| {
+        locked_at_finish = Some(state.storage.try_lock().is_err());
+    })
+    .unwrap();
+    assert_eq!(locked_at_finish, Some(true));
     drop(state);
 
     // What the older build finds: its own schema, the data from before.
@@ -309,4 +335,109 @@ fn the_newer_build_prepares_going_back_to_the_version_before() {
             vec!["Added after the update".to_owned(), "Work".to_owned()]
         )
     );
+}
+
+/// A restore that fails half-way — after it has put the backup's settings
+/// and parked packs in place — leaves every path as it was: the newer
+/// database, `heuristics.json` and `parked/`.
+#[test]
+fn a_restore_that_fails_half_way_puts_everything_back() {
+    use std::io::Read as _;
+    let work = tempfile::tempdir().unwrap();
+    let dir = work.path().join("data");
+    std::fs::create_dir_all(dir.join("parked")).unwrap();
+    std::fs::write(
+        dir.join("heuristics.json"),
+        br#"{"stuck_no_output_secs": 600}"#,
+    )
+    .unwrap();
+    std::fs::write(dir.join("parked/old.json"), b"from before").unwrap();
+    let backup = updated_data(&dir);
+    // What the newer version has now.
+    std::fs::write(
+        dir.join("heuristics.json"),
+        br#"{"stuck_no_output_secs": 900}"#,
+    )
+    .unwrap();
+    std::fs::write(dir.join("parked/new.json"), b"newer").unwrap();
+
+    // The backup claims one account more than it holds: the restore puts
+    // the settings and packs in place, then fails its count check.
+    let file = std::fs::File::open(&backup).unwrap();
+    let mut archive = tar::Archive::new(flate2::read::GzDecoder::new(file));
+    let mut entries: Vec<(String, Vec<u8>)> = Vec::new();
+    for entry in archive.entries().unwrap() {
+        let mut entry = entry.unwrap();
+        let name = entry.path().unwrap().to_string_lossy().into_owned();
+        let mut bytes = Vec::new();
+        entry.read_to_end(&mut bytes).unwrap();
+        if name == "manifest.json" {
+            let mut manifest: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+            manifest["counts"]["accounts"] = serde_json::json!(99);
+            bytes = serde_json::to_vec(&manifest).unwrap();
+        }
+        entries.push((name, bytes));
+    }
+    let mut out = tar::Builder::new(flate2::write::GzEncoder::new(
+        Vec::new(),
+        flate2::Compression::default(),
+    ));
+    for (name, bytes) in &entries {
+        let mut header = tar::Header::new_gnu();
+        header.set_size(bytes.len() as u64);
+        header.set_mode(0o600);
+        header.set_cksum();
+        out.append_data(&mut header, name, bytes.as_slice())
+            .unwrap();
+    }
+    std::fs::write(&backup, out.into_inner().unwrap().finish().unwrap()).unwrap();
+    assert!(
+        entries.iter().any(|(name, _)| name.contains("heuristics")),
+        "the backup carries the settings it would swap in"
+    );
+
+    let offer = newer_data::newest_restorable(&dir).unwrap();
+    let failed = newer_data::go_back(&dir, &offer, &open)
+        .unwrap_err()
+        .to_string();
+    assert!(failed.contains("the backup lists 99"), "{failed}");
+    assert_eq!(
+        std::fs::read(dir.join("heuristics.json")).unwrap(),
+        br#"{"stuck_no_output_secs": 900}"#,
+        "the newer settings are back"
+    );
+    let mut parked: Vec<String> = std::fs::read_dir(dir.join("parked"))
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    parked.sort();
+    assert_eq!(parked, ["new.json", "old.json"], "the newer packs are back");
+    assert_eq!(
+        schema_of(&dir.join("juggler.sqlite")),
+        Storage::schema_version() + 1
+    );
+    assert!(!dir.join("restore-staging").exists());
+}
+
+/// Going back moves database files, so it needs the data folder to
+/// itself: while another AI Juggler holds the instance lock, the launch
+/// touches nothing.
+#[test]
+fn going_back_needs_the_data_folder_to_itself() {
+    let work = tempfile::tempdir().unwrap();
+    let dir = work.path().join("data");
+    std::fs::create_dir_all(&dir).unwrap();
+    let other = std::fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(dir.join("juggler.lock"))
+        .unwrap();
+    other.try_lock().unwrap();
+    assert!(
+        !newer_data::hold_instance_lock(&dir),
+        "another instance holds it"
+    );
+    drop(other);
+    assert!(newer_data::hold_instance_lock(&dir), "free once it quits");
 }

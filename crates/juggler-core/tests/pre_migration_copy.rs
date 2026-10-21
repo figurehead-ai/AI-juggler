@@ -66,7 +66,12 @@ fn rows(path: &Path) -> (i64, Vec<String>) {
         let mut found = statement
             .query_map([], |row| {
                 Ok((0..columns)
-                    .map(|i| format!("{:?}", row.get_ref(i).unwrap()))
+                    .map(|i| match row.get_ref(i).unwrap() {
+                        rusqlite::types::ValueRef::Text(text) => {
+                            format!("{:?}", String::from_utf8_lossy(text))
+                        }
+                        other => format!("{other:?}"),
+                    })
                     .collect::<Vec<_>>()
                     .join("|"))
             })
@@ -189,4 +194,47 @@ fn without_a_copy_nothing_is_migrated() {
         "{error}"
     );
     assert_eq!(rows(&db).0, PREVIOUS, "the database was not migrated");
+}
+
+/// What is still only in the WAL (another connection wrote it and hasn't
+/// checkpointed) is in the copy too; the copy is the owner's alone.
+#[test]
+fn the_copy_has_what_is_still_only_in_the_wal() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("juggler.sqlite");
+    database_at(&db, PREVIOUS);
+    let writer = Connection::open(&db).unwrap();
+    writer.pragma_update(None, "wal_autocheckpoint", 0).unwrap();
+    writer
+        .execute(
+            "INSERT INTO accounts (id, provider_id, label, plan, state_dir, created_at)
+             VALUES ('late', 'claude-code', 'Only in the WAL', NULL, '/tmp/late', 333)",
+            [],
+        )
+        .unwrap();
+    assert!(
+        std::fs::metadata(dir.path().join("juggler.sqlite-wal"))
+            .unwrap()
+            .len()
+            > 0,
+        "the row is in the WAL"
+    );
+    drop(Storage::open(&db).unwrap());
+    drop(writer);
+    let copy = dir
+        .path()
+        .join(format!("juggler.sqlite.before-v{PREVIOUS}"));
+    let (_, rows) = rows(&copy);
+    assert!(
+        rows.iter().any(|row| row.contains("Only in the WAL")),
+        "{rows:?}"
+    );
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        for file in [&copy, &db] {
+            let mode = std::fs::metadata(file).unwrap().permissions().mode() & 0o777;
+            assert_eq!(mode, 0o600, "{}", file.display());
+        }
+    }
 }

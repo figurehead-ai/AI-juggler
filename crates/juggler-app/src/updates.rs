@@ -619,7 +619,10 @@ pub fn launch_check(state: &Arc<AppState>, feed: &dyn UpdateFeed) -> bool {
 ///
 /// Returns the typed storage error.
 pub(crate) fn switch_in_flight(state: &Arc<AppState>) -> AppResult<bool> {
-    let storage = crate::commands::lock_storage_arc(state)?;
+    switch_in_flight_in(&*crate::commands::lock_storage_arc(state)?)
+}
+
+fn switch_in_flight_in(storage: &juggler_core::storage::Storage) -> AppResult<bool> {
     let since = juggler_core::model::Timestamp::now().millis() - SWITCH_IN_FLIGHT_MS;
     let in_flight: i64 = storage
         .raw_conn()
@@ -1101,13 +1104,31 @@ impl Busy {
 ///
 /// Returns the typed storage error.
 pub fn busy_at(state: &Arc<AppState>, now_ms: i64) -> AppResult<Option<Busy>> {
-    if switch_in_flight(state)? {
+    busy_with(
+        &*crate::commands::lock_storage_arc(state)?,
+        &state.updates,
+        now_ms,
+    )
+}
+
+/// [`busy_at`] with the storage lock already held (so a caller can act
+/// on the answer before anything else starts).
+///
+/// # Errors
+///
+/// Returns the typed storage error.
+pub fn busy_with(
+    storage: &juggler_core::storage::Storage,
+    updates: &UpdateManager,
+    now_ms: i64,
+) -> AppResult<Option<Busy>> {
+    if switch_in_flight_in(storage)? {
         return Ok(Some(Busy::Switch));
     }
-    if state.updates.bring_in_running(now_ms) {
+    if updates.bring_in_running(now_ms) {
         return Ok(Some(Busy::BringIn));
     }
-    let live = crate::commands::lock_storage_arc(state)?
+    let live = storage
         .sessions()
         .list(None)?
         .iter()

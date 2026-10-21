@@ -23,9 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   About & updates › **Go back to an earlier version** puts that copy back
   — after saying what changed since won't be in it — keeps today's data
   beside it, and quits so the earlier version can be installed. An older
-  AI Juggler that opens newer data now says so in a window and offers the
-  copy or the pre-update backup, instead of quitting at launch without a
-  word. A release whose database changes can't ship without a downgrade
+  AI Juggler that opens newer data now says so in a window (on every
+  desktop platform) and offers the copy or the pre-update backup, instead
+  of quitting at launch without a word; it waits while another AI Juggler
+  has the data open. A release whose database changes can't ship without a downgrade
   note in its release notes.
 - The session, account, project and tool views say what they show in
   plain words: no task codes ("lands with AJ-E606+"), no "No data"

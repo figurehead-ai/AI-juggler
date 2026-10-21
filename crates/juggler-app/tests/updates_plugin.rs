@@ -135,9 +135,13 @@ impl Feed {
             "version": OFFERED,
             "notes": "Plain notes for this version.\n\n## Fixed\n- Something users noticed.",
             "pub_date": "2026-10-20T08:00:00Z",
+            // Every platform CI runs on, so the check finds the update.
             "platforms": {
                 "darwin-aarch64": platform,
                 "darwin-x86_64": platform,
+                "linux-x86_64": platform,
+                "linux-aarch64": platform,
+                "windows-x86_64": platform,
             },
         });
         self.serve("/latest.json", 200, serde_json::to_vec(&latest).unwrap());
@@ -400,23 +404,37 @@ fn a_package_that_fails_its_signature_never_installs() {
     );
     assert_eq!(snapshot(work.path()), before);
 
-    // The control: correctly signed, it installs — the bundle is
-    // replaced — and nothing restarts.
+    // The control: correctly signed, it verifies — and on macOS, where the
+    // package is an app bundle, it installs: the bundle is replaced.
+    // Nothing restarts.
     feed.serve("/pkg.tar.gz", 200, new_version.clone());
     updates::update_check_impl(&state, &plugin).unwrap();
-    let mut progress = Vec::new();
-    let status =
-        updates::update_install_impl(&state, &plugin, &mut |s| progress.extend(s.progress))
-            .unwrap();
-    assert_eq!(status.state, "installed", "{status:?}");
-    assert_eq!(
-        std::fs::read(work.path().join("Fixture.app/Contents/MacOS/fixture")).unwrap(),
-        new_app,
-        "the new version is in place"
-    );
-    assert_eq!(progress.last(), Some(&100));
-    assert!(
-        progress.windows(2).all(|w| w[1] > w[0] && w[1] - w[0] <= 5),
-        "progress at least every 5 %: {progress:?}"
-    );
+    #[cfg(not(target_os = "macos"))]
+    {
+        use juggler_app::updates::UpdateFeed as _;
+        let mut progress = Vec::new();
+        let bytes = plugin
+            .download(&mut |chunk, total| progress.push((chunk, total)))
+            .expect("a correctly signed package verifies");
+        assert_eq!(bytes, new_version);
+        assert!(progress.len() > 20, "it arrives in pieces");
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let mut progress = Vec::new();
+        let status =
+            updates::update_install_impl(&state, &plugin, &mut |s| progress.extend(s.progress))
+                .unwrap();
+        assert_eq!(status.state, "installed", "{status:?}");
+        assert_eq!(
+            std::fs::read(work.path().join("Fixture.app/Contents/MacOS/fixture")).unwrap(),
+            new_app,
+            "the new version is in place"
+        );
+        assert_eq!(progress.last(), Some(&100));
+        assert!(
+            progress.windows(2).all(|w| w[1] > w[0] && w[1] - w[0] <= 5),
+            "progress at least every 5 %: {progress:?}"
+        );
+    }
 }
