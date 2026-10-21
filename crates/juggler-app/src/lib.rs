@@ -91,6 +91,10 @@ pub const EVENT_PREVIEW_STATE: &str = "preview://state";
 pub fn run() {
     // AJ-E1103: cold start runs from here to the end of setup.
     let launched = std::time::Instant::now();
+    // The user's PATH from their login shell, on its own thread: opened
+    // from Finder, the app inherits one where `node` (and so any
+    // npm-installed CLI) isn't found. Probes and launches use it.
+    juggler_adapter::user_path::resolve_at_startup();
     // D-23: the edition comes from the identifier this build carries, and
     // decides everything that must never be shared between editions.
     let mut context = tauri::generate_context!();

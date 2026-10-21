@@ -343,6 +343,31 @@ fn model_override_rides_the_command_line() {
     );
 }
 
+/// The 0.0.11 report: a `codex` whose `--version` fails (its `node`
+/// missing) is found — never "not installed".
+#[test]
+fn a_binary_whose_version_check_fails_is_found() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("codex");
+    std::fs::write(
+        &path,
+        "#!/bin/sh\necho 'env: node: No such file or directory' >&2\nexit 127\n",
+    )
+    .unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    }
+    let report = CodexAdapter::with_bin(&path).discover();
+    assert!(matches!(report.install, InstallStatus::Failed { .. }));
+    assert!(!report.is_installed());
+    assert!(report.is_found());
+    assert_eq!(report.binary.as_deref(), Some(path.as_path()));
+    let missing = CodexAdapter::with_bin(dir.path().join("absent")).discover();
+    assert!(!missing.is_found());
+}
+
 #[test]
 fn isolation_keys_and_snippet() {
     let adapter = CodexAdapter::new();

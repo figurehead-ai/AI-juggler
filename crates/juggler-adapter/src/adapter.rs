@@ -305,6 +305,14 @@ pub trait HarnessAdapter: Send + Sync {
     fn shell_command(&self) -> Option<&'static str> {
         None
     }
+
+    /// The binary this adapter would launch, when one is found (no
+    /// process runs). The copyable line names it by its full path when
+    /// [`HarnessAdapter::shell_command`] isn't on the user's `PATH`.
+    #[must_use]
+    fn resolved_binary(&self) -> Option<std::path::PathBuf> {
+        None
+    }
 }
 
 /// Single-quotes `value` for a POSIX shell (`'` becomes `'\''`), so a
@@ -347,12 +355,35 @@ pub fn shell_snippet(
             parts.push(format!("{key}={}", shell_quote(value)));
         }
     }
-    parts.push(command.to_owned());
+    parts.push(snippet_program(
+        command,
+        crate::user_path::login_shell_path(),
+        || adapter.resolved_binary(),
+    ));
     if unset.is_empty() {
         return Some(parts.join(" "));
     }
     let flags: Vec<String> = unset.iter().map(|key| format!("-u {key}")).collect();
     Some(format!("env {} {}", flags.join(" "), parts.join(" ")))
+}
+
+/// The program word of the copyable line: `command`, as the user types
+/// it, unless their terminal's `PATH` (`shell_path`, when known) doesn't
+/// find it — then the binary AI Juggler found, by its full path.
+#[must_use]
+pub fn snippet_program(
+    command: &str,
+    shell_path: Option<&std::ffi::OsStr>,
+    resolved: impl FnOnce() -> Option<std::path::PathBuf>,
+) -> String {
+    let typed = shell_path.is_none_or(|path| crate::user_path::find_in(command, path).is_some());
+    if typed {
+        return command.to_owned();
+    }
+    resolved().map_or_else(
+        || command.to_owned(),
+        |bin| shell_quote(&bin.to_string_lossy()),
+    )
 }
 
 /// Shared adapter handle type used by the registry and supervisor.

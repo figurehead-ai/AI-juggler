@@ -7,6 +7,7 @@ import { RecoverySummaryDialog } from "./components/RecoverySummaryDialog";
 import { UsageStatsReconsent } from "./components/UsageStatsReconsent";
 import { CrashReportPrompt } from "./components/CrashReports";
 import { CleanupCentre, focusCleanupFilter } from "./screens/CleanupCentre";
+import { toolFound } from "./lib/providers";
 import { launchPortWarning, type PortWarningInfo,} from "./lib/bridge";
 import { IconJuggler, IconTerminal } from "./components/icons";
 import { AttentionAnnouncer, RenewalAnnouncer } from "./components/indicator";
@@ -342,7 +343,8 @@ export default function App() {
   const startAddAccount = useCallback(() => {
     void providersDiscover().then(
       (rows) => {
-        const ready = rows.filter((row) => row.status === "installed" || row.status === "unverified");
+        // Found counts, even when its version couldn't be read (0.0.11).
+        const ready = rows.filter(toolFound);
         if (ready.length > 1) setChooseTool(true);
         else setAddAccounts(ready[0]?.provider ?? "claude-code");
       },
