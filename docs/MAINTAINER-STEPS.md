@@ -307,3 +307,66 @@ shares, needs the whole gallery compared.
       holds the base/head/diff images (`index.html`).
 - [ ] Anything unexpected: ask for a fix before merging. Otherwise
       nothing else to do — routine changes need only the core check.
+
+---
+
+## Part 7 — As new tools land
+
+### 16. Live checks of new tools on spare accounts (AJ-E1612)
+
+**Why:** every new tool is built from its source and fixtures only. One
+short run on an account that doesn't matter proves what really happens,
+and the evidence records it. Use a throwaway project, and sign-ins you
+don't mind losing (a free model, or a small OpenCode Zen balance).
+
+#### OpenCode (AJ-E1602; about 30 min per version)
+
+Built from the 1.19.3 and 2.1.2 source. If you can, run it once on each
+(`brew install anomalyco/tap/opencode` gives 1.x;
+`anomalyco/tap/opencode-v2` gives 2.x — they replace each other).
+
+- [ ] **Found.** Accounts › Add account lists OpenCode with its version
+      ("not yet checked live" is expected until this step is filed).
+- [ ] **Two separate sign-ins.** Add two fresh OpenCode accounts, A and
+      B. Sign A in from AI Juggler (`opencode auth login` opens in a
+      terminal); leave B signed out. A shows signed in, B doesn't, and
+      `opencode auth list` run by hand (outside AI Juggler) doesn't
+      list A's sign-in.
+- [ ] **A session starts and resumes.** Start a session on A in the
+      throwaway project and send one message. Stop it, then resume it
+      from AI Juggler: the same conversation comes back. Resume with a
+      message that starts with "-" (for example `- go on`): it arrives
+      as text, not as an option.
+- [ ] **One-off runs.** If you use headless runs, start one with a
+      model set in Launch settings: it uses that model, and a prompt
+      starting with "-" is text (this checks `run --model=… -- <text>`,
+      which 2.x has not been seen to accept yet).
+- [ ] **Model in the terminal.** With a model in Launch settings, a
+      normal session opens on that model (set through
+      `OPENCODE_CONFIG_CONTENT`; 2.x's terminal has no `--model`).
+- [ ] **Usage is read.** Within about 10 seconds of a reply, the
+      account's Usage shows its tokens, with OpenCode's dollar figure as
+      an estimate, and the limit rings say "OpenCode has no limits to
+      read — tokens and estimated cost only".
+- [ ] **Quota exhaustion is seen.** Run a Zen balance or a Go plan to its
+      limit (or use a key with a tiny spend limit). Note the exact
+      message OpenCode shows, and whether AI Juggler shows the session
+      as needing you.
+- [ ] **The variables reach the agent's tools.** In an OpenCode session,
+      ask it to run `gh auth status` and `git config user.name`. Note
+      the answers: the account's own `XDG_CONFIG_HOME` hides `gh`'s
+      sign-in (a known trade-off of this isolation; `git` reads
+      `~/.gitconfig` and should be fine).
+- [ ] **A copy keeps no sign-in.** Bring your default OpenCode folder
+      in as a copy. The copy is signed out; `opencode session list` in
+      the copy (Accounts › the copy › the expert shell line) lists your
+      sessions; your original still works and is signed in.
+- [ ] **Used where it is, unwritten.** Bring the default folder in
+      where it is. With OpenCode closed, run
+      `ls -la ~/.local/share/opencode` before and after a few minutes of
+      AI Juggler running: no new files (no `opencode.db-wal`).
+
+Save the terminal output and a screen recording per check to
+`docs/research/evidence/opencode/<version>/`, then hand them to the
+agent: it files them, sets the verified versions and flips the
+"not yet checked live" note.

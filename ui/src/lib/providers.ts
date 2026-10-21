@@ -5,6 +5,7 @@
 const NAMES: Record<string, string> = {
   "claude-code": "Claude Code",
   codex: "Codex",
+  opencode: "OpenCode",
   zcode: "ZCode",
   gemini: "Gemini CLI",
 };
@@ -43,7 +44,7 @@ export function supportsInPlace(support: InPlaceSupport, id: string): boolean {
  * set of tools: the Claude app, Codex run by hand, or both. */
 export function sameAsWords(ids: string[]): string {
   const kinds = new Set(ids);
-  if (kinds.size === 1 && kinds.has("codex")) return "as when you run Codex yourself";
   if (kinds.size === 1 && kinds.has("claude-code")) return "as your Claude app";
+  if (kinds.size === 1) return `as when you run ${providerDisplayName([...kinds][0] ?? "")} yourself`;
   return "as wherever you use them now";
 }

@@ -60,14 +60,15 @@ import {
 } from "../lib/bridge";
 
 type Step = "found" | "fresh" | "folder" | "signin" | "access";
-type Group = "profiles" | "default" | "other" | "codex";
+type Group = "profiles" | "default" | "other" | "codex" | "opencode";
 
 /** A group's title for this tool: the profile and "other" words name
  * Claude only for Claude Code (review of #72: Codex said "Other Claude
  * setups"). */
 export function groupTitle(group: Group, toolName: string, provider: string): string {
-  // Codex homes are their own group in every list (AJ-E1301).
-  if (group === "codex") return "Codex";
+  // Codex homes and OpenCode folders are their own groups in every list
+  // (AJ-E1301, AJ-E1602).
+  if (group === "codex" || group === "opencode") return providerDisplayName(group);
   if (group === "default") return "The default setup";
   if (provider !== "claude-code") return group === "profiles" ? `Your ${toolName} profiles` : `Other ${toolName} setups`;
   return group === "profiles" ? "Your Claude profiles" : "Other Claude setups";
@@ -78,10 +79,18 @@ const GROUPS: { id: Group; title: string }[] = [
   { id: "default", title: "The default setup" },
   { id: "other", title: "Other Claude setups" },
   { id: "codex", title: "Codex" },
+  { id: "opencode", title: "OpenCode" },
 ];
 
-/** The tools first run on a fresh install brings in (AJ-E1301). */
-const FIRST_RUN_TOOLS = ["claude-code", "codex"];
+/** The tools first run on a fresh install brings in (AJ-E1301, AJ-E1602). */
+const FIRST_RUN_TOOLS = ["claude-code", "codex", "opencode"];
+
+/** How to install a tool that rides along on first run (its own group's
+ * "not installed yet" note). */
+const INSTALL_HINT: Record<string, string> = {
+  codex: "npm install -g @openai/codex",
+  opencode: "curl -fsSL https://opencode.ai/install | bash",
+};
 /** A name for a new account that no account has yet ("Claude Code 2"). */
 export function freeLabel(base: string, taken: string[]): string {
   const used = new Set(taken.map((label) => label.trim().toLowerCase()));
@@ -102,6 +111,7 @@ function humanBytes(bytes: number): string {
  * it open). Codex homes are their own kind (AJ-E1301). */
 export function groupOf(found: DiscoveredInfo): Group {
   if (found.harness === "codex") return "codex";
+  if (found.harness === "opencode") return "opencode";
   if (found.path.includes("/ClaudeCodeProfiles/")) return "profiles";
   if (found.origin === "vendor-default") return "default";
   return "other";
@@ -113,6 +123,12 @@ const folderOf = (path: string) => path.replace(/\/+$/, "").split("/").pop() ?? 
 export function labelOf(found: DiscoveredInfo): string {
   const folder = folderOf(found.path);
   if (groupOf(found) === "codex") return folder === ".codex" ? "Codex" : folder.replace(/^\./, "");
+  // OpenCode's folder is always named "opencode": the default is
+  // "OpenCode", another is named for the folder it sits in.
+  if (groupOf(found) === "opencode") {
+    if (/\/\.local\/share\/opencode\/?$/.test(found.path)) return "OpenCode";
+    return `OpenCode (${folderOf(found.path.replace(/\/opencode\/?$/, "")).replace(/^\./, "")})`;
+  }
   if (groupOf(found) === "default") return "Default";
   return folder.replace(/^\./, "");
 }
@@ -258,7 +274,7 @@ function FoundStep({
   toolName,
   provider,
   tools,
-  codexCli,
+  otherClis,
   onImported,
   onAddFresh,
   onImportFolder,
@@ -277,7 +293,9 @@ function FoundStep({
    * adding, every supported one on first run (AJ-E1301). */
   tools: string[];
   /** Codex's install row when Codex rides along beside another tool. */
-  codexCli: ProviderInstallData | null;
+  /** The install rows of the other tools that ride along on first run
+   * (their groups' notes). */
+  otherClis: ProviderInstallData[];
   onImported: (signins: Signin[]) => void;
   onAddFresh: () => void;
   onImportFolder: () => void;
@@ -291,23 +309,19 @@ function FoundStep({
     () => (report?.installs ?? []).filter((found) => tools.includes(found.harness)),
     [report, tools],
   );
-  // Named by Provider when they are all one kind; mixed, just "setups".
-  const codexCount = installs.filter((found) => found.harness === "codex").length;
   // Rows of the chosen tool itself (its "not installed" note covers these).
   const ownCount = installs.filter((found) => found.harness === provider).length;
-  // Codex's install row: the chosen tool's when adding Codex, else the
-  // one that rides along on first run.
-  const codexRow = provider === "codex" ? cli : codexCli;
+  // A tool's install row: the chosen tool's own, else the one that rides
+  // along on first run.
+  const rowOf = (tool: string) => (tool === provider ? cli : (otherClis.find((row) => row.provider === tool) ?? null));
+  // The other tools with setups here but no install yet: one note each.
+  const missing = [...new Set(installs.map((found) => found.harness))].filter(
+    (tool) => tool !== provider && rowOf(tool)?.status === "not_installed",
+  );
   // One tool: its name. Every tool (first run): named when the setups are
   // all one kind, else just "setups".
-  const kind =
-    tools.length === 1
-      ? toolName
-      : codexCount === 0
-        ? "Claude Code"
-        : codexCount === installs.length
-          ? "Codex"
-          : "";
+  const kinds = [...new Set(installs.map((found) => found.harness))];
+  const kind = tools.length === 1 ? toolName : kinds.length <= 1 ? providerDisplayName(kinds[0] ?? provider) : "";
   // The defaults come straight from the scan (ready on first paint);
   // the user's ticks override them.
   const defaults = useMemo(
@@ -330,9 +344,13 @@ function FoundStep({
   const placement: Placement = canInPlace ? chosenPlacement : "copy";
   // A failed copy can be retried "where it is" on its own.
   const [rowPlacement, setRowPlacement] = useState<Record<string, Placement>>({});
-  // A tool that can't be used where it is always comes in as a copy.
+  // A tool that can't be used where it is always comes in as a copy; so
+  // does any OpenCode folder but its standard one (AJ-E1602: another
+  // folder's settings can't be known from it).
+  const inPlaceFor = (found: DiscoveredInfo): boolean =>
+    canUseInPlace(found.harness) && (found.harness !== "opencode" || found.origin === "vendor-default");
   const placementOf = (found: DiscoveredInfo): Placement =>
-    canUseInPlace(found.harness) ? (rowPlacement[found.path] ?? placement) : "copy";
+    inPlaceFor(found) ? (rowPlacement[found.path] ?? placement) : "copy";
   // Sign-ins of the ones that came in survive retries.
   const signinsRef = useRef<Map<string, Signin>>(new Map());
   const [stopped, setStopped] = useState(false);
@@ -433,7 +451,7 @@ function FoundStep({
           {installs.length === 0
             ? `No ${toolName} setups found yet.`
             : installs.length === 1
-              ? `You already have a ${kind} setup on this Mac.`
+              ? `You already have ${/^[AEIOU]/.test(kind) ? "an" : "a"} ${kind} setup on this Mac.`
               : `You already have ${installs.length} ${kind ? `${kind} setups` : "setups"} on this Mac.`}
         </h1>
         <p className="max-w-2xl text-[15px] leading-relaxed text-muted">
@@ -449,12 +467,12 @@ function FoundStep({
         </p>
       </div>
 
-      {codexCount > 0 && codexCli && codexCli.status === "not_installed" && (
-        <p className="rounded-xl border border-warning/40 bg-warning-soft px-4 py-3 text-sm text-ink" data-testid="first-run-no-codex">
-          Codex itself isn't installed yet. You can bring these in now; to start sessions, install it first:{" "}
-          <span className="font-mono text-xs">npm install -g @openai/codex</span>
+      {missing.map((tool) => (
+        <p key={tool} className="rounded-xl border border-warning/40 bg-warning-soft px-4 py-3 text-sm text-ink" data-testid={`first-run-no-${tool}`}>
+          {providerDisplayName(tool)} itself isn't installed yet. You can bring these in now; to start sessions, install it first:{" "}
+          <span className="font-mono text-xs">{INSTALL_HINT[tool] ?? rowOf(tool)?.install_url ?? ""}</span>
         </p>
-      )}
+      ))}
 
       {/* The chosen tool's own note — not over rows of another tool (a
           Codex-only first run has the Codex note above). */}
@@ -495,8 +513,10 @@ function FoundStep({
                   {group.id === "default" && cli && cli.status !== "not_installed" && (
                     <span className="text-faint">{toolName} {cli.version ?? ""} installed</span>
                   )}
-                  {group.id === "codex" && codexRow && codexRow.status !== "not_installed" && (
-                    <span className="text-faint">Codex {codexRow.version ?? ""} installed</span>
+                  {(group.id === "codex" || group.id === "opencode") && rowOf(group.id) && rowOf(group.id)?.status !== "not_installed" && (
+                    <span className="text-faint">
+                      {providerDisplayName(group.id)} {rowOf(group.id)?.version ?? ""} installed
+                    </span>
                   )}
                 </div>
                 {rows.map((found) => {
@@ -623,7 +643,7 @@ function FoundStep({
                     <span className="font-medium text-ink">{labelOf(found)}</span>
                     <span className="block text-xs leading-relaxed text-danger">{progress[found.path]?.error}</span>
                   </span>
-                  {progress[found.path]?.placement === "copy" && canUseInPlace(found.harness) && (
+                  {progress[found.path]?.placement === "copy" && inPlaceFor(found) && (
                     <button
                       type="button"
                       className="shrink-0 text-xs text-accent-hi hover:underline"
@@ -1336,7 +1356,7 @@ export function FirstRun({
   const toolName = providerDisplayName(primary);
   const [report, setReport] = useState<ScanReportData | null>(null);
   const [cli, setCli] = useState<ProviderInstallData | null>(null);
-  const [codexCli, setCodexCli] = useState<ProviderInstallData | null>(null);
+  const [otherClis, setOtherClis] = useState<ProviderInstallData[]>([]);
   const [inPlace, setInPlace] = useState<InPlaceSupport | null>(null);
   const [queue, setQueue] = useState<Signin[]>([]);
   const [access, setAccess] = useState<OsAccessInfo[] | null>(null);
@@ -1367,12 +1387,8 @@ export function FirstRun({
     void providersDiscover().then(
       (rows) => {
         setCli(rows.find((row) => row.provider === primary) ?? null);
-        // First run with every tool: Codex's own row for its group.
-        setCodexCli(
-          tools.includes("codex") && primary !== "codex"
-            ? (rows.find((row) => row.provider === "codex") ?? null)
-            : null,
-        );
+        // First run with every tool: each other tool's own row for its group.
+        setOtherClis(rows.filter((row) => tools.includes(row.provider) && row.provider !== primary));
       },
       () => setCli(null),
     );
@@ -1491,7 +1507,7 @@ export function FirstRun({
               toolName={toolName}
               provider={primary}
               tools={tools}
-              codexCli={codexCli}
+              otherClis={otherClis}
               onAddFresh={() => setStep("fresh")}
               onImportFolder={() => void pickFolder()}
               stopRef={stopRef}

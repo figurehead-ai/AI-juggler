@@ -160,3 +160,39 @@ for (const theme of ["dark", "light"] as const) {
   });
 }
 
+
+// AJ-E1602: OpenCode beside Claude Code on a fresh install — its own
+// group with its install state — and Add account's tool chooser.
+const WITH_OPENCODE = {
+  ...SCAN,
+  installs: [
+    install("/Users/you/.claude", "vendor-default", "Main", 2),
+    { ...install("/Users/you/.local/share/opencode", "vendor-default", "Main", 0), harness: "opencode" },
+  ],
+};
+const INSTALLS = [
+  { provider: "claude-code", display_name: "Claude Code", install_url: "https://claude.com/download", status: "installed", version: "2.1.296", binary: "/usr/local/bin/claude", notes: [] },
+  { provider: "opencode", display_name: "OpenCode", install_url: "https://opencode.ai/download", status: "unverified", version: "1.19.3", binary: "/opt/homebrew/bin/opencode", notes: [], verified_against: [] },
+];
+for (const theme of ["dark", "light"] as const) {
+  test(`OpenCode in first run — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ scan, installs, theme }) => {
+        const w = window as unknown as Record<string, unknown>;
+        w.__AIJ_FIXTURE__ = { accounts: [], profiles: [], sessions: [], projects: [] };
+        w.__AIJ_SCAN_REPORT__ = scan;
+        w.__AIJ_PROVIDER_INSTALLS__ = installs;
+        localStorage.setItem("aij.theme", theme);
+      },
+      { scan: WITH_OPENCODE, installs: INSTALLS, theme },
+    );
+    await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    const group = page.getByTestId("first-run-group-opencode");
+    await expect(group).toContainText("OpenCode 1.19.3 installed");
+    await expect(group).toContainText("~/.local/share/opencode");
+    await page.screenshot({ path: `${OUT}/opencode-found-1280x800-${theme}.png`, fullPage: true });
+    await axeClean(page, `OpenCode found (${theme})`);
+  });
+}

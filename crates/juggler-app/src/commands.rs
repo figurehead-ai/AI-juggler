@@ -550,6 +550,13 @@ pub fn quota_display_inner(
             unavailable_reason = Some("No verified quota source for this tool yet".to_owned());
             (None, None, None, None)
         }
+        // AJ-E1602: OpenCode runs on many providers' plans and publishes
+        // no limits to read; its tokens and estimated cost still count.
+        juggler_adapters::OPENCODE_ID => {
+            unavailable_reason =
+                Some("OpenCode has no limits to read — tokens and estimated cost only".to_owned());
+            (None, None, None, None)
+        }
         // Codex Pro has no 5 h limit (AJ-E603): omit that ring with
         // its reason; every other shape renders both windows.
         "codex" if plan.as_deref() == Some("pro") => (
@@ -5359,6 +5366,10 @@ pub fn projects_backfill_impl(state: &Arc<AppState>) -> AppResult<u32> {
     let mut found: BTreeMap<PathBuf, (Vec<String>, u64, Option<i64>)> = BTreeMap::new();
     let accounts = lock_storage_arc(state)?.accounts().list()?;
     for account in &accounts {
+        if account.harness.as_str() == juggler_adapters::OPENCODE_ID {
+            opencode_history(account, &mut found);
+            continue;
+        }
         let projects_root = account.state_dir.join("projects");
         let Ok(entries) = std::fs::read_dir(&projects_root) else {
             continue;
@@ -5408,6 +5419,32 @@ pub fn projects_backfill_impl(state: &Arc<AppState>) -> AppResult<u32> {
         enriched += 1;
     }
     Ok(enriched)
+}
+
+/// AJ-E1602: an OpenCode account's projects, from the folders its
+/// top-level sessions ran in (`opencode.db`, read-only).
+fn opencode_history(
+    account: &Account,
+    found: &mut std::collections::BTreeMap<PathBuf, (Vec<String>, u64, Option<i64>)>,
+) {
+    let db = juggler_adapters::opencode::data_dir_of(&account.state_dir, account.in_place)
+        .join(juggler_adapters::opencode_store::DB_FILE);
+    let Ok(sessions) = juggler_adapters::opencode_store::sessions(&db) else {
+        return;
+    };
+    for session in sessions
+        .iter()
+        .filter(|session| session.parent_id.is_none() && !session.directory.is_empty())
+    {
+        let cwd = PathBuf::from(&session.directory);
+        let root = juggler_core::storage::worktree_repo_root(&cwd).unwrap_or(cwd);
+        let entry = found.entry(root).or_insert_with(|| (Vec::new(), 0, None));
+        if !entry.0.contains(&account.label) {
+            entry.0.push(account.label.clone());
+        }
+        entry.1 += 1;
+        entry.2 = entry.2.max(Some(session.updated_ms));
+    }
 }
 
 /// The `origin` remote of the repository at `root`, normalised to
@@ -8773,7 +8810,7 @@ pub fn guess_role(exe: &str, cmdline: &str) -> &'static str {
         || exe_name.ends_with("node") && line.contains("-e")
     {
         "TerminalShell"
-    } else if contains_any(&["claude", "codex", "gemini", "copilot"]) {
+    } else if contains_any(&["claude", "codex", "opencode", "gemini", "copilot"]) {
         "Harness"
     } else {
         "Unknown"
@@ -13479,6 +13516,7 @@ fn provider_display(provider: &str) -> (String, &'static str) {
     let name = match provider {
         "claude-code" => "Claude Code".to_owned(),
         "codex" => "Codex".to_owned(),
+        juggler_adapters::OPENCODE_ID => "OpenCode".to_owned(),
         "zcode" => "ZCode".to_owned(),
         "fake" | "fake-desktop" => "Fake harness (test)".to_owned(),
         other => other.to_owned(),
@@ -13486,6 +13524,7 @@ fn provider_display(provider: &str) -> (String, &'static str) {
     let url = match provider {
         "claude-code" => "https://claude.com/download",
         "codex" => "https://developers.openai.com/codex",
+        juggler_adapters::OPENCODE_ID => "https://opencode.ai/download",
         "zcode" => "https://z.ai",
         _ => "about:blank",
     };
@@ -14104,7 +14143,7 @@ fn inference_info_of(
 /// cannot move with a copy). Size metadata only — never read.
 fn credentials_file_of(provider: &str) -> &'static str {
     match provider {
-        juggler_adapters::CODEX_ID => "auth.json",
+        juggler_adapters::CODEX_ID | juggler_adapters::OPENCODE_ID => "auth.json",
         _ => ".credentials.json",
     }
 }

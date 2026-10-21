@@ -868,3 +868,88 @@ describe("AJ-E1301 — Codex setups in first run", () => {
   });
 
 });
+
+describe("AJ-E1602 — OpenCode in first run and Add account", () => {
+  const opencode = (path: string, origin: string, extra: Partial<DiscoveredInfo> = {}) =>
+    found(path, origin, { harness: "opencode", ...extra });
+  const DEFAULT = "/Users/you/.local/share/opencode";
+
+  it("groups OpenCode folders under their own heading and names them", () => {
+    expect(groupOf(opencode(DEFAULT, "vendor-default"))).toBe("opencode");
+    expect(labelOf(opencode(DEFAULT, "vendor-default"))).toBe("OpenCode");
+    // Every OpenCode folder is called "opencode": another one is named
+    // for where it sits.
+    expect(labelOf(opencode("/Users/you/xdg/opencode", "env-override"))).toBe("OpenCode (xdg)");
+  });
+
+  it("lists OpenCode beside Claude and Codex, preselected, with how to install it", async () => {
+    w().__AIJ_SCAN_REPORT__ = {
+      ...SCAN,
+      installs: [
+        ...SCAN.installs,
+        found("/Users/you/.codex", "vendor-default", { harness: "codex" }),
+        opencode(DEFAULT, "vendor-default"),
+      ],
+    };
+    const view = render(<FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />);
+    const group = await view.findByTestId("first-run-group-opencode");
+    expect(group.textContent).toContain("OpenCode");
+    expect(within(group).getByTestId("first-run-row").textContent).toContain("~/.local/share/opencode");
+    expect((within(group).getByRole("checkbox") as HTMLInputElement).checked).toBe(true);
+    // Mixed tools: just "setups".
+    expect(view.getByRole("heading", { level: 1 }).textContent).toBe("You already have 7 setups on this Mac.");
+    // The default mock has neither Codex nor OpenCode installed: a note each.
+    expect((await view.findByTestId("first-run-no-opencode")).textContent).toContain(
+      "OpenCode itself isn't installed yet",
+    );
+    expect(view.getByTestId("first-run-no-opencode").textContent).toContain("opencode.ai/install");
+    expect(view.getByTestId("first-run-no-codex").textContent).toContain("npm install -g @openai/codex");
+  });
+
+  it("an installed OpenCode shows its version on its group", async () => {
+    w().__AIJ_SCAN_REPORT__ = { ...SCAN, installs: [...SCAN.installs, opencode(DEFAULT, "vendor-default")] };
+    w().__AIJ_PROVIDER_INSTALLS__ = [
+      { provider: "claude-code", display_name: "Claude Code", install_url: "", status: "installed", version: "2.1.296", notes: [] },
+      { provider: "opencode", display_name: "OpenCode", install_url: "", status: "unverified", version: "1.19.3", notes: [] },
+    ];
+    const view = render(<FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />);
+    const group = await view.findByTestId("first-run-group-opencode");
+    await waitFor(() => expect(group.textContent).toContain("OpenCode 1.19.3 installed"));
+    expect(view.queryByTestId("first-run-no-opencode")).toBeNull();
+  });
+
+  it("adding an OpenCode account lists only OpenCode's folders, in its own words", async () => {
+    w().__AIJ_SCAN_REPORT__ = { ...SCAN, installs: [...SCAN.installs, opencode(DEFAULT, "vendor-default")] };
+    const view = render(<FirstRun mode="add" provider="opencode" onDone={() => null} openLoginTerminal={() => null} />);
+    expect(view.getByTestId("first-run-scanning").textContent).toContain("Looking for OpenCode on this Mac");
+    await view.findByTestId("first-run-group-opencode");
+    expect(view.getAllByTestId("first-run-row")).toHaveLength(1);
+    expect(view.getByRole("heading", { level: 1 }).textContent).toBe("You already have an OpenCode setup on this Mac.");
+    expect(view.getByTestId("first-run-placement-in_place").textContent).toContain("as when you run OpenCode yourself");
+  });
+});
+
+describe("AJ-E1602 — only OpenCode's standard folder is used where it is", () => {
+  it("another OpenCode folder comes in as a copy even when in place is chosen", async () => {
+    w().__AIJ_SCAN_REPORT__ = {
+      ...SCAN,
+      installs: [
+        found("/Users/you/.local/share/opencode", "vendor-default", { harness: "opencode" }),
+        found("/Users/you/xdg/opencode", "env-override", { harness: "opencode" }),
+      ],
+    };
+    const bridge = await import("../lib/bridge");
+    const spy = vi.spyOn(bridge, "accountImport");
+    const { findByTestId, getByTestId } = render(
+      <FirstRun mode="add" provider="opencode" onDone={() => null} openLoginTerminal={() => null} />,
+    );
+    await findByTestId("first-run-group-opencode");
+    await act(async () => {
+      fireEvent.click(getByTestId("first-run-bring-in"));
+    });
+    const inPlaceOf = (path: string) => spy.mock.calls.find((call) => call[1] === path)?.[6];
+    expect(inPlaceOf("/Users/you/.local/share/opencode")).toBe(true);
+    expect(inPlaceOf("/Users/you/xdg/opencode")).toBe(false);
+    spy.mockRestore();
+  });
+});

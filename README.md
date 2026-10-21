@@ -70,6 +70,7 @@ hacks. AI Juggler replaces that pile with one app.
 | Claude Code | ✅ Adapter built (the `claude` CLI) |
 | Codex | 🔬 Researched; adapter not built yet |
 | ZCode | 🔬 Researched; adapter not built yet |
+| OpenCode | ✅ Adapter built (the `opencode` CLI, 1.x and 2.x); not yet checked live |
 | Others (Gemini CLI and successors, …) | 🔌 Via the adapter system |
 
 ## Build from source

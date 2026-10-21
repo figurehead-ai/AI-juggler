@@ -323,6 +323,9 @@ fn registry_with(claude: juggler_adapters::ClaudeCodeAdapter) -> AdapterRegistry
     let codex = std::sync::Arc::new(juggler_adapters::CodexAdapter::new());
     registry.register(codex.clone());
     registry.register_handover(codex);
+    // AJ-E1602: OpenCode (1.x and 2.x). No handover support yet: a
+    // switch from or to it is never offered.
+    registry.register(std::sync::Arc::new(juggler_adapters::OpenCodeAdapter::new()));
     registry
 }
 

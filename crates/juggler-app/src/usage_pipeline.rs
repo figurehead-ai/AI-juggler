@@ -8,6 +8,8 @@
 //!   lines (Measured tokens), offset-tracked per file.
 //! - Codex: rollout `token_usage_record` lines (Measured tokens).
 //! - `ZCode`: `model_usage` via read-only SQLite (Computed credits).
+//! - OpenCode: completed assistant messages in `opencode.db`, read-only
+//!   (Measured tokens; OpenCode's own price as a dollar estimate).
 //! - Gemini: NO source exists at any grade (AJ-E605) — nothing to
 //!   tail; the absence is a typed decision, not an omission.
 //!
@@ -112,6 +114,10 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
             }
             "zcode" if tick.is_multiple_of(ZCODE_EVERY) => {
                 ingest_zcode(&account_id, &dir, &mut ingest, &mut store_batch);
+            }
+            juggler_adapters::OPENCODE_ID if tick.is_multiple_of(FILE_SCAN_EVERY) => {
+                let data = juggler_adapters::opencode::data_dir_of(&dir, account.in_place);
+                ingest_opencode(&account_id, &data, &mut ingest, &mut store_batch);
             }
             _ => {}
         }
@@ -247,6 +253,52 @@ fn ingest_zcode(
         Err(error) => {
             record_health(ingest, account, "sqlite", None, 0, &error);
         }
+    }
+}
+
+/// The high-water key for OpenCode's database in an account's offsets.
+const OPENCODE_SEEN: &str = "opencode.db:updated_ms";
+
+/// How far behind the high-water mark each OpenCode read starts: a
+/// message written in the same millisecond as the last read is read
+/// again (the store's `opencode:<id>` key absorbs the repeat).
+const OPENCODE_OVERLAP_MS: u64 = 60_000;
+
+/// OpenCode: completed assistant messages updated since the last pass,
+/// from the account's `opencode.db`, read-only (AJ-E1602).
+fn ingest_opencode(
+    account: &str,
+    data: &Path,
+    ingest: &mut IngestState,
+    store: &mut Vec<juggler_core::quota::UsageEvent>,
+) {
+    let db = data.join(juggler_adapters::opencode_store::DB_FILE);
+    if !db.is_file() {
+        return;
+    }
+    let seen = ingest
+        .offsets
+        .get(account)
+        .and_then(|offsets| offsets.files.get(OPENCODE_SEEN).copied())
+        .unwrap_or(0);
+    let since = i64::try_from(seen.saturating_sub(OPENCODE_OVERLAP_MS)).unwrap_or(0);
+    match juggler_adapters::opencode_store::usage_events(account, &db, since) {
+        Ok(events) => {
+            let latest = events.iter().map(|event| event.ts).max();
+            if let Some(latest) = latest.and_then(|ts| u64::try_from(ts).ok()) {
+                ingest
+                    .offsets
+                    .entry(account.to_owned())
+                    .or_default()
+                    .files
+                    .insert(OPENCODE_SEEN.to_owned(), seen.max(latest));
+            }
+            store.extend(events);
+            if let Some(latest) = latest {
+                record_health(ingest, account, "opencode", Some(latest), 0, "");
+            }
+        }
+        Err(error) => record_health(ingest, account, "opencode", None, 0, &error),
     }
 }
 

@@ -10,13 +10,15 @@
 )]
 
 mod conformance;
+mod opencode_fixture;
 
 use std::path::{Path, PathBuf};
 
 use conformance::{Sandbox, Subject, UsageSubject};
 use juggler_adapter::HarnessAdapter;
-use juggler_adapters::{ClaudeCodeAdapter, CodexAdapter, FakeHarnessAdapter};
+use juggler_adapters::{ClaudeCodeAdapter, CodexAdapter, FakeHarnessAdapter, OpenCodeAdapter};
 use juggler_core::quota::{UsageEvent, UsageSource};
+use opencode_fixture::Line;
 
 fn write(path: &Path, text: &str) {
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();
@@ -289,6 +291,139 @@ impl Subject for Fake {
     }
 }
 
+// ---------------------------------------------------------------------------
+// OpenCode (AJ-E1602), once per line: the database differs.
+
+struct OpenCode(Line);
+
+fn opencode_db(state_dir: &Path) -> PathBuf {
+    // A managed account keeps it under data/; the default folder is the
+    // data folder itself.
+    let managed = state_dir.join("data/opencode");
+    if managed.is_dir() {
+        managed.join("opencode.db")
+    } else {
+        state_dir.join("opencode.db")
+    }
+}
+
+impl Subject for OpenCode {
+    fn adapter(&self, sandbox: &Sandbox) -> Box<dyn HarnessAdapter> {
+        let version = match self.0 {
+            Line::V1 => "1.19.3",
+            Line::V2 => "2.1.2",
+        };
+        Box::new(
+            OpenCodeAdapter::with_bin(sandbox.stub("opencode", version)).with_home(&sandbox.home),
+        )
+    }
+
+    fn write_session(&self, state_dir: &Path, cwd: &Path, n: u32) -> String {
+        let id = format!("ses_kit{n:04}");
+        let conn = opencode_fixture::create(&opencode_db(state_dir), self.0);
+        opencode_fixture::add_session(&conn, self.0, &id, cwd, None, opencode_fixture::now_ms());
+        // A sub-agent's session in the same folder is never the one.
+        opencode_fixture::add_session(
+            &conn,
+            self.0,
+            &format!("ses_kit{n:04}_child"),
+            cwd,
+            Some(&id),
+            opencode_fixture::now_ms(),
+        );
+        id
+    }
+
+    fn seed_source(&self, sandbox: &Sandbox, canary: &str) -> Option<PathBuf> {
+        let source = sandbox.home.join(".local/share/opencode");
+        write(
+            &source.join("auth.json"),
+            &opencode_fixture::auth_json(canary),
+        );
+        write(
+            &source.join("mcp-auth.json"),
+            &format!(r#"{{"github":{{"tokens":{{"accessToken":"{canary}"}}}}}}"#),
+        );
+        write(&source.join("log/2026-10-21.log"), "started\n");
+        let conn = opencode_fixture::create(&source.join("opencode.db"), self.0);
+        opencode_fixture::add_session(&conn, self.0, "ses_old", &sandbox.project, None, 1);
+        opencode_fixture::add_sign_ins(&conn, canary, true);
+        drop(conn);
+        write(
+            &sandbox.home.join(".config/opencode/opencode.json"),
+            r#"{"$schema":"https://opencode.ai/config.json","theme":"system"}"#,
+        );
+        Some(source)
+    }
+
+    fn credential_files(&self) -> &'static [&'static str] {
+        &["auth.json", "mcp-auth.json"]
+    }
+
+    fn usage(&self) -> Option<&dyn UsageSubject> {
+        match self.0 {
+            Line::V1 => Some(&OpenCodeUsage(Line::V1)),
+            Line::V2 => Some(&OpenCodeUsage(Line::V2)),
+        }
+    }
+
+    fn sandboxed_default(&self) -> bool {
+        true
+    }
+}
+
+struct OpenCodeUsage(Line);
+
+impl UsageSubject for OpenCodeUsage {
+    fn seed(&self, state_dir: &Path) {
+        let conn = opencode_fixture::create(&opencode_db(state_dir), self.0);
+        let at = 1_792_580_400_000; // 2026-10-21
+        opencode_fixture::add_session(&conn, self.0, "ses_use", Path::new("/w"), None, at);
+        opencode_fixture::add_user(&conn, self.0, "msg_u1", "ses_use", at);
+        for (id, model, input, completed) in [
+            ("msg_a1", "claude-sonnet-5-5", 1000, true),
+            ("msg_a2", "kimi-k3", 400, true),
+            // Still running: its counts may grow, so it isn't read yet.
+            ("msg_a3", "kimi-k3", 50, false),
+        ] {
+            opencode_fixture::add_assistant(
+                &conn,
+                self.0,
+                &opencode_fixture::Assistant {
+                    id,
+                    session: "ses_use",
+                    created_ms: at + 10,
+                    provider: "opencode-go",
+                    model,
+                    input,
+                    output: 120,
+                    cache_read: 30,
+                    cost: 0.012,
+                    completed,
+                },
+            );
+        }
+    }
+
+    fn read(&self, account: &str, state_dir: &Path) -> Vec<UsageEvent> {
+        let db = opencode_db(state_dir);
+        if !db.is_file() {
+            return Vec::new();
+        }
+        juggler_adapters::opencode_store::usage_events(account, &db, 0).unwrap()
+    }
+
+    fn source(&self) -> UsageSource {
+        UsageSource::Sqlite
+    }
+
+    fn distinct_messages(&self) -> usize {
+        2
+    }
+}
+
 conformance!(claude_code, Claude);
+conformance!(opencode_v1, OpenCode(Line::V1));
+conformance!(opencode_v2, OpenCode(Line::V2));
 conformance!(codex, Codex);
 conformance!(fake, Fake);

@@ -3830,6 +3830,15 @@ const DEFAULT_PROVIDER_INSTALLS: ProviderInstallData[] = [
     binary: null,
     notes: [],
   },
+  {
+    provider: "opencode",
+    display_name: "OpenCode",
+    install_url: "https://opencode.ai/download",
+    status: "not_installed",
+    version: null,
+    binary: null,
+    notes: [],
+  },
 ];
 
 /** AJ-E301 Req.2/3: the per-Provider install probe (Step 0). A
@@ -3858,6 +3867,7 @@ export interface ProviderCapabilityData {
 const DEFAULT_PROVIDER_CAPABILITIES: ProviderCapabilityData[] = [
   { provider: "claude-code", can_use_in_place: true },
   { provider: "codex", can_use_in_place: true },
+  { provider: "opencode", can_use_in_place: true },
 ];
 
 /** ADR-0018: each registered Provider's static capabilities. */

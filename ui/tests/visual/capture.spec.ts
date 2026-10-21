@@ -3479,6 +3479,46 @@ for (const theme of THEMES) {
       });
     });
 
+    test(`AJ-E1602 — OpenCode in Add account's tool chooser — ${vp.name} — ${theme}`, async ({ page }) => {
+      const installs = [
+        ...E306_INSTALLS.filter((row) => row.provider === "claude-code"),
+        {
+          provider: "opencode",
+          display_name: "OpenCode",
+          install_url: "https://opencode.ai/download",
+          status: "unverified",
+          version: "1.19.3",
+          binary: "/opt/homebrew/bin/opencode",
+          notes: ["OpenCode 1 — built from the 1.19.3 source; not yet checked live"],
+          verified_against: [],
+          kind: "terminal",
+          single_instance_note: null,
+        },
+      ];
+      await page.addInitScript(
+        ({ fixture, installs, theme: t }) => {
+          const w = window as unknown as Record<string, unknown>;
+          w.__AIJ_FIXTURE__ = fixture;
+          w.__AIJ_PROVIDER_INSTALLS__ = installs;
+          localStorage.setItem("aij.theme", t);
+          localStorage.setItem("aij.onboarding.dismissed", "1");
+          sessionStorage.setItem("aij.ready.skipped", "1");
+        },
+        { fixture: honestEmpty, installs, theme },
+      );
+      await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme as "dark" | "light" });
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      await page.goto("/");
+      await goTo(page, "Accounts");
+      await page.getByTestId("add-account").click();
+      const cards = page.getByTestId("provider-cards");
+      await expect(cards).toContainText("OpenCode");
+      await page.screenshot({
+        path: resolve(GALLERY, `71-add-account/opencode-chooser-${vp.name}-${theme}.png`),
+        fullPage: true,
+      });
+    });
+
     test(`flow e — launch sheet: verdicts + logged-out + unknown — ${vp.name} — ${theme}`, async ({
       page,
     }) => {
