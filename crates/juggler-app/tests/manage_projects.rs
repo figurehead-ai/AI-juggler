@@ -34,6 +34,22 @@ use juggler_core::model::{
     ProfileId, ProjectHistory, ProjectId, SessionId, SessionStatus, Timestamp,
 };
 
+/// Compares without echoing either side: the session and project rows
+/// carry data derived from launch settings (CodeQL's cleartext-logging
+/// rule), so a failure names the check, not the values.
+macro_rules! check_eq {
+    ($left:expr, $right:expr $(,)?) => {
+        assert!(
+            $left == $right,
+            "{}",
+            concat!(stringify!($left), " == ", stringify!($right))
+        )
+    };
+    ($left:expr, $right:expr, $($message:tt)+) => {
+        assert!($left == $right, $($message)+)
+    };
+}
+
 /// Each action's budget (the task's: < 100 ms).
 const BUDGET: Duration = Duration::from_millis(100);
 
@@ -167,20 +183,20 @@ fn a_session_label_shows_over_its_title_and_a_pin_marks_it() {
         "s1",
         SessionStatus::Finished,
     );
-    assert_eq!(row(&state, "s1").label, None);
-    assert_eq!(row(&state, "s1").pinned, None);
+    check_eq!(row(&state, "s1").label, None);
+    check_eq!(row(&state, "s1").pinned, None);
 
     timed(|| manage::session_rename_impl(&state, "s1", Some("  fix the login bug "))).unwrap();
     timed(|| manage::session_set_pinned_impl(&state, "s1", true)).unwrap();
     let marked = row(&state, "s1");
-    assert_eq!(marked.label.as_deref(), Some("fix the login bug"));
-    assert_eq!(marked.pinned, Some(true));
+    check_eq!(marked.label.as_deref(), Some("fix the login bug"));
+    check_eq!(marked.pinned, Some(true));
 
     // Blank goes back to the session's own title; unpin.
     manage::session_rename_impl(&state, "s1", Some("   ")).unwrap();
     manage::session_set_pinned_impl(&state, "s1", false).unwrap();
-    assert_eq!(row(&state, "s1").label, None);
-    assert_eq!(row(&state, "s1").pinned, None);
+    check_eq!(row(&state, "s1").label, None);
+    check_eq!(row(&state, "s1").pinned, None);
 
     let long = "x".repeat(81);
     assert!(
@@ -202,19 +218,22 @@ fn a_project_rename_is_a_label_and_the_folder_keeps_its_name() {
 
     timed(|| manage::project_rename_impl(&state, id.as_str(), "Billing API")).unwrap();
     let renamed = project(&state, &id);
-    assert_eq!(renamed.name, "Billing API");
-    assert!(renamed.root.ends_with("/dev-api"), "{}", renamed.root);
+    check_eq!(renamed.name, "Billing API");
+    assert!(
+        renamed.root.ends_with("/dev-api"),
+        "the root is still the dev-api folder"
+    );
     assert!(folder.is_dir(), "the folder is where it was, as it was");
     assert!(!work.path().join("Billing API").exists());
 
     // Blank: the folder's name again.
     manage::project_rename_impl(&state, id.as_str(), " ").unwrap();
-    assert_eq!(project(&state, &id).name, "dev-api");
+    check_eq!(project(&state, &id).name, "dev-api");
 
     timed(|| manage::project_set_pinned_impl(&state, id.as_str(), true)).unwrap();
-    assert_eq!(project(&state, &id).pinned, Some(true));
+    check_eq!(project(&state, &id).pinned, Some(true));
     manage::project_set_pinned_impl(&state, id.as_str(), false).unwrap();
-    assert_eq!(project(&state, &id).pinned, None);
+    check_eq!(project(&state, &id).pinned, None);
 }
 
 #[test]
@@ -237,26 +256,26 @@ fn a_forgotten_project_is_hidden_until_it_is_used_again() {
 
     // An open session keeps it, named.
     let words = refusal(manage::project_forget_impl(&state, busy.as_str(), true).unwrap_err());
-    assert_eq!(
+    check_eq!(
         words,
         "busy has a session open: busy. Stop it first, then forget the project"
     );
-    assert_eq!(project(&state, &busy).forgotten, None);
+    check_eq!(project(&state, &busy).forgotten, None);
 
     // Forget: hidden, its pin dropped, its session still in History.
     manage::project_set_pinned_impl(&state, old.as_str(), true).unwrap();
     timed(|| manage::project_forget_impl(&state, old.as_str(), true)).unwrap();
     let forgotten = project(&state, &old);
-    assert_eq!(forgotten.forgotten, Some(true));
-    assert_eq!(forgotten.pinned, None);
-    assert_eq!(row(&state, "s-old").status, "finished");
+    check_eq!(forgotten.forgotten, Some(true));
+    check_eq!(forgotten.pinned, None);
+    check_eq!(row(&state, "s-old").status, "finished");
 
     // Used again: a session started there brings it back.
     let root = PathBuf::from(&forgotten.root);
     let launched =
         commands::launch_profile(&state, "rec-a", Some(root.to_string_lossy().into_owned()))
             .unwrap();
-    assert_eq!(
+    check_eq!(
         project(&state, &old).forgotten,
         None,
         "a launch brings it back"
@@ -275,7 +294,7 @@ fn a_forgotten_project_is_hidden_until_it_is_used_again() {
 
     // Used again elsewhere: newer work in its history brings it back too.
     manage::project_forget_impl(&state, old.as_str(), true).unwrap();
-    assert_eq!(project(&state, &old).forgotten, Some(true));
+    check_eq!(project(&state, &old).forgotten, Some(true));
     std::thread::sleep(Duration::from_millis(5));
     state
         .storage
@@ -291,12 +310,12 @@ fn a_forgotten_project_is_hidden_until_it_is_used_again() {
             },
         )
         .unwrap();
-    assert_eq!(project(&state, &old).forgotten, None, "worked in since");
+    check_eq!(project(&state, &old).forgotten, None, "worked in since");
 
     // And it can be brought back by hand (the undo).
     manage::project_forget_impl(&state, old.as_str(), true).unwrap();
     manage::project_forget_impl(&state, old.as_str(), false).unwrap();
-    assert_eq!(project(&state, &old).forgotten, None);
+    check_eq!(project(&state, &old).forgotten, None);
 }
 
 #[test]
@@ -327,23 +346,23 @@ fn relocate_repoints_a_moved_folder_and_refuses_a_missing_or_taken_one() {
     let words = refusal(
         manage::project_open_target_impl(&state, first.as_str(), OpenIn::Editor).unwrap_err(),
     );
-    assert!(words.contains("Relocate"), "{words}");
+    assert!(words.contains("Relocate"));
 
     // A folder that isn't there, or one another project has, is refused.
     let nowhere = work.path().join("nowhere");
     let words =
         refusal(manage::project_relocate_impl(&state, first.as_str(), &nowhere).unwrap_err());
-    assert!(words.contains("isn't a folder"), "{words}");
+    assert!(words.contains("isn't a folder"));
     let taken = PathBuf::from(project(&state, &other).root);
     let words = refusal(manage::project_relocate_impl(&state, first.as_str(), &taken).unwrap_err());
-    assert_eq!(words, "other already uses that folder");
+    check_eq!(words, "other already uses that folder");
     assert!(project(&state, &first).missing);
 
     timed(|| manage::project_relocate_impl(&state, first.as_str(), &moved)).unwrap();
     let found = project(&state, &first);
     assert!(!found.missing);
-    assert_eq!(PathBuf::from(&found.root), moved.canonicalize().unwrap());
-    assert_eq!(found.name, "app", "its name stays");
+    check_eq!(PathBuf::from(&found.root), moved.canonicalize().unwrap());
+    check_eq!(found.name, "app", "its name stays");
 }
 
 #[test]
@@ -361,7 +380,7 @@ fn a_project_opens_in_the_chosen_editor_else_finder() {
 
     let target =
         timed(|| manage::project_open_target_impl(&state, id.as_str(), OpenIn::Editor)).unwrap();
-    assert_eq!(
+    check_eq!(
         target,
         manage::OpenTarget {
             folder: root.clone(),
@@ -378,8 +397,8 @@ fn a_project_opens_in_the_chosen_editor_else_finder() {
     std::fs::create_dir_all(apps.join("Visual Studio Code.app")).unwrap();
     std::fs::create_dir_all(apps.join("Unknown Thing.app")).unwrap();
     let choices = manage::editor_choices_impl(&state, &[apps]).unwrap();
-    assert_eq!(choices.installed, ["Visual Studio Code", "Zed"]);
-    assert_eq!(choices.chosen, None);
+    check_eq!(choices.installed, ["Visual Studio Code", "Zed"]);
+    check_eq!(choices.chosen, None);
     assert!(
         refusal(manage::editor_set_impl(&state, Some("Unknown Thing")).unwrap_err())
             .contains("doesn't know")
@@ -387,10 +406,10 @@ fn a_project_opens_in_the_chosen_editor_else_finder() {
     manage::editor_set_impl(&state, Some("Zed")).unwrap();
 
     let target = manage::project_open_target_impl(&state, id.as_str(), OpenIn::Editor).unwrap();
-    assert_eq!(target.app.as_deref(), Some("Zed"));
+    check_eq!(target.app.as_deref(), Some("Zed"));
     assert!(!target.reveal);
     let target = manage::project_open_target_impl(&state, id.as_str(), OpenIn::Finder).unwrap();
-    assert_eq!(
+    check_eq!(
         target,
         manage::OpenTarget {
             folder: root,
@@ -401,7 +420,7 @@ fn a_project_opens_in_the_chosen_editor_else_finder() {
 
     // Back to Finder.
     manage::editor_set_impl(&state, None).unwrap();
-    assert_eq!(
+    check_eq!(
         manage::project_open_target_impl(&state, id.as_str(), OpenIn::Editor)
             .unwrap()
             .app,
@@ -434,10 +453,10 @@ fn labels_and_pins_survive_a_restart_and_a_backup() {
 
     // A restart: the same data, opened again.
     let state = app_state(&data, &stub);
-    assert_eq!(row(&state, "s1").label.as_deref(), Some("the login fix"));
-    assert_eq!(row(&state, "s1").pinned, Some(true));
-    assert_eq!(project(&state, &id).name, "Billing");
-    assert_eq!(project(&state, &id).pinned, Some(true));
+    check_eq!(row(&state, "s1").label.as_deref(), Some("the login fix"));
+    check_eq!(row(&state, "s1").pinned, Some(true));
+    check_eq!(project(&state, &id).name, "Billing");
+    check_eq!(project(&state, &id).pinned, Some(true));
     drop(state);
 
     // A backup restored on another Mac.
@@ -447,8 +466,8 @@ fn labels_and_pins_survive_a_restart_and_a_backup() {
     juggler_app::backup::backup_restore_impl(&other, &archive, &plan.token).unwrap();
     drop(other);
     let restored = app_state(&other_data, &stub);
-    assert_eq!(row(&restored, "s1").label.as_deref(), Some("the login fix"));
-    assert_eq!(row(&restored, "s1").pinned, Some(true));
-    assert_eq!(project(&restored, &id).name, "Billing");
-    assert_eq!(project(&restored, &id).pinned, Some(true));
+    check_eq!(row(&restored, "s1").label.as_deref(), Some("the login fix"));
+    check_eq!(row(&restored, "s1").pinned, Some(true));
+    check_eq!(project(&restored, &id).name, "Billing");
+    check_eq!(project(&restored, &id).pinned, Some(true));
 }
