@@ -10718,21 +10718,23 @@ mod tests {
 
     /// A sacrificial git cwd: `<tmp>/.git/HEAD` with a branch ref. Never a
     /// real repository — fixtures only (workspace safety rule). Every call
-    /// gets a unique directory: tests run in parallel and a shared path
-    /// would let one test's `fs::write` truncate while another reads.
-    fn git_cwd(branch: &str) -> std::path::PathBuf {
-        static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-        let n = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let dir = std::env::temp_dir().join(format!(
-            "aij-e401-{}-{}-{n}",
-            std::process::id(),
-            branch.replace('/', "-")
-        ));
-        let git = dir.join(".git");
+    /// gets a unique directory (tests run in parallel), removed when the
+    /// test drops it; `scripts/leaked_fixtures.sh` fails on any left over.
+    fn git_cwd(branch: &str) -> tempfile::TempDir {
+        let dir = e401_dir();
+        let git = dir.path().join(".git");
         std::fs::create_dir_all(&git).expect("fixture .git dir");
         std::fs::write(git.join("HEAD"), format!("ref: refs/heads/{branch}\n"))
             .expect("fixture HEAD");
         dir
+    }
+
+    /// An `aij-e401-<pid>-…` temporary folder, gone when dropped.
+    fn e401_dir() -> tempfile::TempDir {
+        tempfile::Builder::new()
+            .prefix(&format!("aij-e401-{}-", std::process::id()))
+            .tempdir()
+            .expect("fixture dir")
     }
 
     fn record(
@@ -10760,9 +10762,23 @@ mod tests {
         }
     }
 
+    /// [`fixture_storage`]'s store, and the git folder its full row runs in
+    /// (removed when the test drops this).
+    struct Fixture {
+        storage: Storage,
+        _repo: tempfile::TempDir,
+    }
+
+    impl std::ops::Deref for Fixture {
+        type Target = Storage;
+        fn deref(&self) -> &Storage {
+            &self.storage
+        }
+    }
+
     /// Storage seeded with one account, two launch recipes (with and
     /// without a model) and the four AJ-E401 fixture rows.
-    fn fixture_storage() -> Storage {
+    fn fixture_storage() -> Fixture {
         let storage = Storage::open_in_memory().expect("in-memory storage");
         storage
             .accounts()
@@ -10798,11 +10814,12 @@ mod tests {
         }
 
         // Full row: every source populated.
+        let repo = git_cwd("feat/read-model");
         let mut full = record(
             "sess-full",
             "rec-1",
             SessionStatus::Running,
-            git_cwd("feat/read-model"),
+            repo.path().to_path_buf(),
         );
         full.usage = UsageSnapshot {
             tokens: TokenCounts {
@@ -10858,7 +10875,10 @@ mod tests {
                 std::env::temp_dir(),
             ))
             .expect("seed waiting");
-        storage
+        Fixture {
+            storage,
+            _repo: repo,
+        }
     }
 
     #[allow(clippy::panic)] // fixture lookup: panicking names the missing row
@@ -10975,11 +10995,12 @@ mod tests {
     #[test]
     fn session_info_desktop_isolation_label_maps_per_provider() {
         let storage = fixture_storage();
+        let repo = git_cwd("feat/x");
         let mut desktop = record(
             "sess-desk",
             "rec-1",
             SessionStatus::Running,
-            git_cwd("feat/x"),
+            repo.path().to_path_buf(),
         );
         desktop.kind = InstanceKind::Desktop;
         storage.sessions().insert(&desktop).expect("seed desktop");
@@ -11133,19 +11154,19 @@ mod tests {
     #[test]
     fn git_branch_parses_refs_only() {
         let cwd = git_cwd("main");
-        assert_eq!(crate::worktree::branch_of(&cwd), Some("main".to_string()));
+        assert_eq!(
+            crate::worktree::branch_of(cwd.path()),
+            Some("main".to_string())
+        );
         assert_eq!(crate::worktree::branch_of(&std::env::temp_dir()), None);
-        let detached =
-            std::env::temp_dir().join(format!("aij-e401-{}-detached", std::process::id()));
-        std::fs::create_dir_all(detached.join(".git")).expect("fixture");
+        let detached = e401_dir();
+        std::fs::create_dir_all(detached.path().join(".git")).expect("fixture");
         std::fs::write(
-            detached.join(".git/HEAD"),
+            detached.path().join(".git/HEAD"),
             "0123456789abcdef0123456789abcdef01234567\n",
         )
         .expect("fixture");
-        assert_eq!(crate::worktree::branch_of(&detached), None);
-        std::fs::remove_dir_all(detached).ok();
-        std::fs::remove_dir_all(cwd.join(".git")).ok();
+        assert_eq!(crate::worktree::branch_of(detached.path()), None);
     }
 
     /// AJ-E401 Req.5: the committed ts-rs output contains every new read

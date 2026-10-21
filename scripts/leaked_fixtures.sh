@@ -5,8 +5,18 @@
 # still running after `cargo test`. (Tests stop what they launch through a
 # guard, and each fixture exits once its test is gone; this catches
 # anything that slips past both.)
+#
+# `leaked_fixtures.sh --start` (run just before `cargo test`) marks the
+# run's start in this worktree's git folder; the check then also fails on
+# `aij-e401-<pid>-*` temporary folders made since then by a test process
+# that has exited (their tests drop them; older leftovers are ignored).
 set -uo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
+marker="$(git -C "$root" rev-parse --absolute-git-dir)/aij-test-run-started"
+if [ "${1:-}" = --start ]; then
+  touch "$marker"
+  exit 0
+fi
 # This run's own build only: its target folder (CARGO_TARGET_DIR, or
 # target/ here, which tests reach as crates/<crate>/../../target). Other
 # worktrees under .claude/worktrees share the checkout's path prefix, so
@@ -34,6 +44,16 @@ for pid in $(pgrep -f "$server"); do
     left+="$(ps -o pid=,command= -p "$pid")"$'\n'
   fi
 done
+# Temporary folders: this run's, whose test process is gone.
+if [ -f "$marker" ]; then
+  tmp="${TMPDIR:-/tmp}"
+  while IFS= read -r dir; do
+    pid="$(basename "$dir" | sed -n 's/^aij-e401-\([0-9][0-9]*\)-.*/\1/p')"
+    if [ -z "$pid" ] || ! kill -0 "$pid" 2>/dev/null; then
+      left+="$dir"$'\n'
+    fi
+  done < <(find "${tmp%/}" -maxdepth 1 -type d -name 'aij-e401-*' -newer "$marker" 2>/dev/null)
+fi
 if [ -n "$left" ]; then
   echo "leaked-fixtures: these test fixtures outlived the suite:" >&2
   printf '%s' "$left" >&2

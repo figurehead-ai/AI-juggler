@@ -66,6 +66,7 @@ jobs:
         run: cargo clippy --workspace --all-targets --no-default-features -- -D warnings
       - name: Tests
         run: |
+          ./scripts/leaked_fixtures.sh --start
           cargo test --workspace
           ./scripts/leaked_fixtures.sh
       - name: Docs
