@@ -195,3 +195,20 @@
 **Files to touch**: `crates/juggler-app/tests/load_budgets.rs`, evidence.
 **Research basis**: SPEC §1, §5.3.
 **Handover note**: Measure on a quiet machine; record load average with every number.
+
+### AJ-E1411 This Mac in the menu bar | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: AJ-E1403, AJ-E1408
+**Goal**: This Mac's numbers at a glance without opening the window, calm by default.
+**User story**: As a vibe-coder with several tools open, I glance at the menu bar and know whether my Mac is fine, and if not, which session to look at.
+**Requirements**:
+1. One icon (a template image, so macOS tints it for the menu bar). A number beside it only while something needs a glance: each overload alert and each heavy session of ours, a heavy session's own alert counted once. Under memory pressure, or with that number up, the icon takes its attention shape (a dot): the state is a shape, never colour alone.
+2. A click opens a menu that is This Mac. It shows, in order: the one thing most worth a glance (the Mac itself before a session; a click opens that session or This Mac); the Mac's CPU and memory; each AI tool's share (our sessions by Provider, the Claude app, `claude` in a terminal, with "about" for estimates); the heavy sessions; Open This Mac; Quit.
+3. It follows This Mac on the 5 s cadence. When the menu's lines keep their shape, only their words change, in place, so an open menu stays open.
+4. Passive (E14 law): the menu opens the app; it never stops or starts anything.
+**UI/UX reasoning**: D-25 — calm until it matters; the count matches Home's Needs you for the machine.
+**Performance budget**: the model is built from the This Mac read model already computed every 5 s; nothing is redrawn while the words are unchanged.
+**Quality gates**: the model and the icon are pure and fixture-tested on every platform; the native glue is macOS-only.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1411/manifest.md`.
+**Visual testing**: the native menu bar is outside the webview gallery; a debug build can print the menu's lines (`AIJ_TRAY_TRACE=1`).
+**Files to touch**: `crates/juggler-app/src/tray.rs`, `machine_health.rs` (`by_tool`), `lib.rs`, `ui/src/lib/machine.ts`, `ui/src/App.tsx`.
+**Research basis**: SPEC §4.17 tray sketch (`docs/review/deep/11-ux-redesign-screen-spec.md`); the coordinating maintainer brief (2026-10-20).
+**Handover note**: AJ-E709 Req.6 (Fleet's tray aggregate) waited for a tray; it can now be re-scoped onto this one.

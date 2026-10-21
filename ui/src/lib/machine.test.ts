@@ -63,3 +63,31 @@ describe("This Mac (AJ-E1403)", () => {
     expect(resourceLine(null, null, 1)).toBe("CPU — · memory — · 1 helper");
   });
 });
+
+import { trayTarget } from "./machine";
+
+describe("the menu bar (AJ-E1411)", () => {
+  const session = (id: string, provider: string, rss: number) =>
+    ({ id, provider, status: "running", cpu_pct: 10, rss_bytes: rss, child_count: 1, account_label: "Work Max" }) as unknown as InstanceInfo;
+
+  it("breaks This Mac down per tool: our sessions by Provider, then the Claude app", () => {
+    const info = mockThisMac(
+      [session("a", "claude-code", 900_000_000), session("b", "codex", 2_000_000_000), session("c", "claude-code", 300_000_000)],
+      mockMachineHealth("plenty"),
+    );
+    expect(info.by_tool.map((group) => [group.label, group.totals.count])).toEqual([
+      ["Codex", 1],
+      ["Claude Code", 2],
+      ["Claude app", 1],
+    ]);
+    expect(info.by_tool[2]!.ours).toBe(false);
+    expect(info.by_tool[2]!.totals.memory_estimate).toBe(true);
+  });
+
+  it("opens the session a click names, else This Mac", () => {
+    expect(trayTarget({ target: "session", session_id: "s-1" })).toEqual({ kind: "session", id: "s-1" });
+    expect(trayTarget({ target: "this-mac" })).toEqual({ kind: "this-mac" });
+    expect(trayTarget({ target: "session" })).toEqual({ kind: "this-mac" });
+    expect(trayTarget(null)).toEqual({ kind: "this-mac" });
+  });
+});

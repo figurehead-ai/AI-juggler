@@ -67,7 +67,7 @@ import { NotificationRegion } from "./components/NotificationRegion";
 import { SwitchFlow, SwitchUndoToast } from "./components/SwitchFlow";
 import { SwitchBackFlow } from "./components/SwitchBackFlow";
 import { RightInspector } from "./components/RightInspector";
-import { ThisMacContext, useThisMac } from "./lib/machine";
+import { ThisMacContext, onTrayOpen, useThisMac } from "./lib/machine";
 import {
   accountsList,
   providersDiscover,
@@ -691,6 +691,26 @@ export default function App() {
     });
     return onGoToHotkey(() => setGoToOpen(true));
   }, []);
+
+  // AJ-E1411: a click in the menu bar opens This Mac (Home, scrolled to
+  // its panel) or the session it names.
+  useEffect(
+    () =>
+      onTrayOpen((target) => {
+        if (target.kind === "session") {
+          selectSession(target.id);
+          return;
+        }
+        setGlobal(null);
+        setSelection({ kind: "none" });
+        window.setTimeout(() => {
+          const panel = document.getElementById("this-mac");
+          panel?.scrollIntoView({ block: "start" });
+          panel?.focus({ preventScroll: true });
+        }, 0);
+      }),
+    [selectSession],
+  );
 
   // ⌘K/Ctrl+K toggles the palette in-app (the global binding covers
   // the over-any-app case; both land on the same list).

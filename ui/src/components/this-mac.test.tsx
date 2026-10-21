@@ -74,6 +74,7 @@ function info(level: "plenty" | "tight" | "pressure", trees: ToolTreeInfo[], lef
     tools: total(trees),
     ours: total(trees.filter((t) => t.session_id)),
     theirs: total(trees.filter((t) => !t.session_id)),
+    by_tool: [],
     top: trees.slice(0, 3),
     heavy: trees.filter((t) => t.heavy_note),
     leftover_processes: leftovers[0],

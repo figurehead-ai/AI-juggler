@@ -886,6 +886,10 @@ pub struct ThisMacInfo {
     /// The AI tools it did not start (the Claude app, `claude` in a
     /// terminal).
     pub theirs: ToolTotalsInfo,
+    /// Each AI tool on its own (the menu bar's per-tool lines): our
+    /// sessions by Provider, heaviest first, then the Claude app, then
+    /// `claude` in a terminal. Only tools that are running.
+    pub by_tool: Vec<ToolGroupInfo>,
     /// The heaviest trees by memory, at most three.
     pub top: Vec<ToolTreeInfo>,
     /// Every heavy tree (the rail's notes, Home's Needs you).
@@ -901,6 +905,22 @@ pub struct ThisMacInfo {
     pub recommendations: Vec<String>,
 }
 
+/// One AI tool's share of This Mac (the menu bar, AJ-E1411).
+#[derive(Clone, PartialEq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct ToolGroupInfo {
+    /// `claude-code`, `codex`, … for sessions AI Juggler started;
+    /// `desktop` | `terminal` for the Claude tools it didn't.
+    pub tool: String,
+    /// The tool in words ("Claude Code", "Claude app", "claude in a
+    /// terminal").
+    pub label: String,
+    /// Whether these are sessions AI Juggler started.
+    pub ours: bool,
+    /// The tool's figures, as [`ToolTotalsInfo`].
+    pub totals: ToolTotalsInfo,
+}
+
 /// One tree, as the pure assembly sees it.
 #[derive(Clone, Debug, Default)]
 pub struct TreeInput {
@@ -908,6 +928,8 @@ pub struct TreeInput {
     pub session_id: Option<String>,
     /// `desktop` | `terminal` for observed trees.
     pub place: Option<&'static str>,
+    /// The Provider a session of ours runs (`claude-code`, `codex`, …).
+    pub provider: Option<String>,
     /// The matched Account's label.
     pub account_label: Option<String>,
     /// Tree sums.
@@ -1025,6 +1047,52 @@ fn totals(trees: &[&TreeInput], cores: u32) -> ToolTotalsInfo {
     }
 }
 
+/// Each AI tool on its own: our sessions grouped by Provider (heaviest
+/// first), then the Claude app, then `claude` in a terminal.
+fn by_tool(ours: &[&TreeInput], theirs: &[&TreeInput], cores: u32) -> Vec<ToolGroupInfo> {
+    let mut providers: std::collections::BTreeMap<String, Vec<&TreeInput>> =
+        std::collections::BTreeMap::new();
+    for tree in ours {
+        providers
+            .entry(
+                tree.provider
+                    .clone()
+                    .unwrap_or_else(|| "claude-code".to_string()),
+            )
+            .or_default()
+            .push(tree);
+    }
+    let mut groups: Vec<ToolGroupInfo> = providers
+        .into_iter()
+        .map(|(provider, trees)| ToolGroupInfo {
+            label: crate::commands::provider_name(&provider),
+            tool: provider,
+            ours: true,
+            totals: totals(&trees, cores),
+        })
+        .collect();
+    groups.sort_by_key(|group| std::cmp::Reverse(group.totals.rss_bytes));
+    for (place, label) in [
+        ("desktop", "Claude app"),
+        ("terminal", "claude in a terminal"),
+    ] {
+        let trees: Vec<&TreeInput> = theirs
+            .iter()
+            .copied()
+            .filter(|tree| tree.place == Some(place))
+            .collect();
+        if !trees.is_empty() {
+            groups.push(ToolGroupInfo {
+                tool: place.to_string(),
+                label: label.to_string(),
+                ours: false,
+                totals: totals(&trees, cores),
+            });
+        }
+    }
+    groups
+}
+
 /// Pure: This Mac from its parts (AJ-E1403 Req.1–2).
 #[must_use]
 pub fn assemble(
@@ -1042,6 +1110,7 @@ pub fn assemble(
         tools: totals(&all, cores),
         ours: totals(&ours, cores),
         theirs: totals(&theirs, cores),
+        by_tool: by_tool(&ours, &theirs, cores),
         top: by_memory
             .iter()
             .take(3)
@@ -1112,11 +1181,11 @@ pub fn this_mac_impl(state: &Arc<AppState>, now_ms: i64) -> AppResult<ThisMacInf
     for hog in crate::commands::hog_facts(state, now_ms) {
         hogs.entry(hog.session).or_default().push(hog.rule);
     }
-    let contexts: std::collections::HashMap<String, Option<String>> = state
+    let contexts: std::collections::HashMap<String, juggler_supervisor::tree::SpawnContext> = state
         .supervisor
         .spawn_contexts_snapshot()
         .into_iter()
-        .map(|(session, ctx)| (session.as_str().to_string(), ctx.account_id))
+        .map(|(session, ctx)| (session.as_str().to_string(), ctx))
         .collect();
     let home = dirs::home_dir().unwrap_or_default();
     let mut trees = Vec::new();
@@ -1133,8 +1202,9 @@ pub fn this_mac_impl(state: &Arc<AppState>, now_ms: i64) -> AppResult<ThisMacInf
             trees.push(TreeInput {
                 account_label: contexts
                     .get(&id)
-                    .and_then(Option::as_ref)
+                    .and_then(|ctx| ctx.account_id.as_ref())
                     .and_then(|account| labels.get(account).cloned()),
+                provider: contexts.get(&id).map(|ctx| ctx.provider.clone()),
                 ring: collector.ring(&session),
                 hog_rules: hogs.remove(&id).unwrap_or_default(),
                 session_id: Some(id),
@@ -1150,6 +1220,7 @@ pub fn this_mac_impl(state: &Arc<AppState>, now_ms: i64) -> AppResult<ThisMacInf
             trees.push(TreeInput {
                 session_id: None,
                 place: Some(tool.place),
+                provider: None,
                 account_label: account_for(tool, &accounts, &home),
                 stats: tree.stats,
                 ring: tree.ring.iter().copied().collect(),
@@ -1406,6 +1477,10 @@ pub fn should_emit(last: &mut Option<(String, u32)>, level: &str, tools: u32) ->
 pub fn emit_this_mac(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResult<()> {
     use tauri::Emitter;
     let payload = this_mac_impl(state, crate::commands::now_millis())?;
+    // AJ-E1411: the menu bar follows This Mac on the same cadence (it
+    // changes nothing on screen unless its words do).
+    #[cfg(target_os = "macos")]
+    crate::tray::update(app, state, &payload);
     let emit = LAST_EMITTED.lock().map_or(true, |mut last| {
         should_emit(
             &mut last,
@@ -1739,6 +1814,7 @@ mod tests {
         TreeInput {
             session_id: session.map(str::to_string),
             place: session.is_none().then_some("desktop"),
+            provider: session.map(|_| "claude-code".to_string()),
             account_label: Some("Work Max".into()),
             stats: LiveProcessStats {
                 child_count: 3,
