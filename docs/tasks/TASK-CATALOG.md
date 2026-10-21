@@ -156,5 +156,5 @@
 | AJ-E1408 | Runtime overload alerts | E14-machine-health.md | P0 | M | AJ-E1401, AJ-E1403 |
 | AJ-E1409 | Recommendations from real data | E14-machine-health.md | P1 | S | AJ-E1406 |
 | AJ-E1410 | Budget proof and the M2 resource-manager gate | E14-machine-health.md | P1 | S | AJ-E1401..AJ-E1409 |
-Total: 153 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+Total: 154 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.
