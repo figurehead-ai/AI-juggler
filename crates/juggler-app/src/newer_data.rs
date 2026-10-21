@@ -527,8 +527,6 @@ enum Choice {
     Quit,
 }
 
-/// The launch alert (a native dialog on every desktop platform; it runs
-/// before any window exists).
 /// `AIJ_NO_DIALOGS` set: the launch's dialogs (before any window exists)
 /// are written to stderr instead, and every question is answered Quit —
 /// for headless runs and the tests that start the real binary.
@@ -540,6 +538,8 @@ fn no_dialogs(title: &str, text: &str) -> bool {
     quiet
 }
 
+/// The launch alert (a native dialog on every desktop platform; it runs
+/// before any window exists).
 fn ask(title: &str, text: &str, go_back: Option<&str>) -> Choice {
     if no_dialogs(title, text) {
         return Choice::Quit;

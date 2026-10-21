@@ -58,6 +58,10 @@ fn a_second_launch_never_opens_the_data() {
         eprintln!("skipped: AI Juggler is open, and this build shares its single-instance name");
         return;
     }
+    // A socket left by an AI Juggler that crashed (none is open now) would
+    // look like this launch's: clear it first.
+    #[cfg(target_os = "macos")]
+    let _ = std::fs::remove_file(SOCKET);
     let home = tempfile::tempdir().unwrap();
     let data = dev_data_dir(home.path());
     std::fs::create_dir_all(&data).unwrap();
