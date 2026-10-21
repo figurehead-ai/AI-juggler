@@ -9,6 +9,8 @@
 - [ ] Public APIs documented; typed errors; no `unwrap`/`expect`/`panic!` in production paths
 - [ ] Tests added (unit + integration/fixtures for new flows; corpus grown if parsers touched)
 - [ ] Architecture layering respected (QUALITY.md §4); no new `unsafe`; `cargo-deny` clean
+- [ ] Engineering guide checklist passes (docs/engineering/ENGINEERING-GUIDE.md): right module, no tool-id literal outside adapters, thin async commands, typed errors, no new duplication
+- [ ] Security guidelines followed (docs/engineering/SECURITY-GUIDELINES.md); any new attack surface has its threat-model row and tests
 - [ ] CHANGELOG updated; spec/docs updated if behavior changed; ADR if a decision was made
 - [ ] UI changes: both themes captured in the gallery, a11y scan added, `pnpm --dir ui exec playwright test` green, `just visual-gate` green (or baselines re-rendered with a note per screen)
 - [ ] Evidence stored under `docs/qa/evidence/<task-id>/` when this closes a task

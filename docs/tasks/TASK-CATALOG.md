@@ -179,5 +179,52 @@
 | AJ-E1521 | Robustness: a database busy timeout and an adapter conformance kit | E15-spec-gaps.md | P1 | S | — |
 | AJ-E1522 | Quality debt | E15-spec-gaps.md | P1 | M | AJ-E803 |
 | AJ-E1523 | North-star metric: weekly juggling loops completed | E15-spec-gaps.md | P2 | S | AJ-E1103 |
-Total: 177 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+| AJ-E1601 | Accounts on a compatible endpoint: OpenCode Go and Kimi on Claude Code and Codex | E16-more-tools.md | P0 | S | AJ-E1521 |
+| AJ-E1602 | OpenCode CLI | E16-more-tools.md | P0 | M | AJ-E1521 |
+| AJ-E1603 | Kimi Code CLI | E16-more-tools.md | P0 | M | AJ-E1521 |
+| AJ-E1604 | Grok Build CLI | E16-more-tools.md | P1 | M | AJ-E1521 |
+| AJ-E1605 | ZCode | E16-more-tools.md | P1 | L | AJ-E1521 |
+| AJ-E1606 | Kiro CLI | E16-more-tools.md | P1 | M | AJ-E1521 |
+| AJ-E1607 | Hermes Agent | E16-more-tools.md | P2 | M | AJ-E1521 |
+| AJ-E1608 | Muse (Meta) CLI | E16-more-tools.md | P2 | M | AJ-E1521 |
+| AJ-E1609 | Cursor CLI (conditional) | E16-more-tools.md | P2 | L | AJ-E1521 |
+| AJ-E1610 | Desktop apps, track-only | E16-more-tools.md | P1 | M | AJ-E413, AJ-E414 |
+| AJ-E1611 | Tool update checks | E16-more-tools.md | P1 | S | — |
+| AJ-E1612 | Live checks on spare accounts | E16-more-tools.md | P0 | M | AJ-E1601..AJ-E1609 |
+| AJ-E1701 | The spike, ADR-0020 and the policy rulings | E17-agent-pools.md | P0 | S | — |
+| AJ-E1702 | Pools, the default pool, roles and permissions | E17-agent-pools.md | P0 | M | — |
+| AJ-E1703 | Context cards | E17-agent-pools.md | P1 | S | AJ-E1702 |
+| AJ-E1704 | The agent bridge, read-only | E17-agent-pools.md | P0 | M | AJ-E1701, AJ-E1702 |
+| AJ-E1801 | Messages and threads | E18-agent-messaging.md | P0 | M | AJ-E1704 |
+| AJ-E1802 | Your Inbox and compose | E18-agent-messaging.md | P0 | M | AJ-E1801 |
+| AJ-E1803 | Click to deliver, and the turn note | E18-agent-messaging.md | P0 | S | AJ-E1801 |
+| AJ-E1804 | Shared docs | E18-agent-messaging.md | P1 | S | AJ-E1801 |
+| AJ-E1805 | The messaging guardrail suite | E18-agent-messaging.md | P0 | S | AJ-E1801..AJ-E1804 |
+| AJ-E1901 | Task storage and rules | E19-agent-tasks.md | P0 | M | AJ-E1702 |
+| AJ-E1902 | Agent task tools | E19-agent-tasks.md | P0 | S | AJ-E1901, AJ-E1704 |
+| AJ-E1903 | The task list and tree in the app | E19-agent-tasks.md | P0 | M | AJ-E1901 |
+| AJ-E1904 | Tasks follow sessions and switches | E19-agent-tasks.md | P1 | S | AJ-E1901, AJ-E201 |
+| AJ-E1905 | A Claude Code plugin | E19-agent-tasks.md | P2 | S | AJ-E1902 |
+| AJ-E1906 | Links to GitHub issues and Linear | E19-agent-tasks.md | P2 | S | AJ-E1901 |
+| AJ-E1613 | Antigravity on work plans | E16-more-tools.md | P2 | L | AJ-E1521 |
+| AJ-E2001 | Sign and publish separately from the build | E20-engineering-and-security.md | P0 | L | — |
+| AJ-E2002 | Agent bridge security design | E20-engineering-and-security.md | P0 | M | — |
+| AJ-E2003 | Lock down the webview: command allowlist, capabilities, navigation | E20-engineering-and-security.md | P1 | M | — |
+| AJ-E2004 | Review for sensitive paths | E20-engineering-and-security.md | P1 | S | — |
+| AJ-E2005 | The Fleet identity key in the Keychain | E20-engineering-and-security.md | P1 | M | — |
+| AJ-E2006 | Hostile files: restore and import | E20-engineering-and-security.md | P1 | M | — |
+| AJ-E2007 | Supply chain and release evidence | E20-engineering-and-security.md | P2 | M | AJ-E2001 |
+| AJ-E2008 | Fuzzing on a schedule | E20-engineering-and-security.md | P2 | M | — |
+| AJ-E2009 | Incident readiness: key-compromise runbook, SECURITY.md, security.txt | E20-engineering-and-security.md | P2 | S | AJ-E2001 |
+| AJ-E2010 | Process, crypto and listener hygiene | E20-engineering-and-security.md | P3 | M | — |
+| AJ-E2011 | The cheap checks: stop the debt growing | E20-engineering-and-security.md | P0 | M | — |
+| AJ-E2012 | A UI linter and stricter TypeScript | E20-engineering-and-security.md | P1 | M | — |
+| AJ-E2013 | Tracing with redaction | E20-engineering-and-security.md | P1 | M | — |
+| AJ-E2014 | Slow commands off the main thread | E20-engineering-and-security.md | P1 | M | AJ-E2011 |
+| AJ-E2015 | ARCHITECTURE.md | E20-engineering-and-security.md | P1 | S | — |
+| AJ-E2016 | Adapter building blocks and focused traits | E20-engineering-and-security.md | P1 | M | AJ-E1525 |
+| AJ-E2017 | Features as modules: split commands.rs and AppState | E20-engineering-and-security.md | P1 | L | AJ-E2011 |
+| AJ-E2018 | UI: split bridge.ts, keep preview out of production, a shell registry | E20-engineering-and-security.md | P1 | L | AJ-E2012 |
+| AJ-E2019 | Typed command wrappers | E20-engineering-and-security.md | P2 | M | AJ-E2018 |
+Total: 224 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.
