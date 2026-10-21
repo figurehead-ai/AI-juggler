@@ -26,6 +26,7 @@ pub mod history;
 pub mod identity;
 pub mod lifecycle;
 pub mod link;
+pub mod machine_alerts;
 pub mod machine_health;
 pub mod os_access;
 pub mod overnight;
@@ -353,6 +354,8 @@ pub fn run() {
             commands::app_setting_set,
             machine_health::machine_health,
             machine_health::this_mac,
+            machine_health::machine_advice,
+            machine_health::machine_alerts_take,
             os_access::os_access_list,
             os_access::os_access_request,
             os_access::os_access_open_settings,

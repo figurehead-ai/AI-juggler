@@ -5,6 +5,8 @@ import { QuotaChip } from "../components/QuotaRings";
 import { RankedRows } from "../components/RankedRows";
 import { pickRecipe } from "./NewProjectSheet";
 import { ExpertSetup } from "../components/ExpertSetup";
+import { MachineAdviceLine, MachineChip } from "../components/MachineAdvice";
+import { machineAdvice, type MachineAdviceInfo } from "../lib/machine";
 import {
   hasLiveBackend,
   launchSession,
@@ -100,6 +102,34 @@ export function NewSessionModal({
     void import("../lib/bridge").then((bridge) =>
       bridge.launchRecipesList().then(setProfiles),
     );
+  }, []);
+
+  // E14 (AJ-E1407): "Has this Mac got room?" per launch setting, and the
+  // running sessions' names for "Closing … frees about …".
+  const [advice, setAdvice] = useState<Map<string, MachineAdviceInfo>>(new Map());
+  const [sessionNames, setSessionNames] = useState<Map<string, string>>(new Map());
+  useEffect(() => {
+    let alive = true;
+    void machineAdvice().then(
+      (rows) => alive && setAdvice(new Map(rows.map((row) => [row.recipe_id, row]))),
+      () => null,
+    );
+    void import("../lib/bridge").then((bridge) =>
+      bridge.instancesList().then((rows) => {
+        if (!alive) return;
+        setSessionNames(
+          new Map(
+            rows.map((row) => {
+              const folder = (row.cwd ?? "").replace(/\/+$/, "").split("/").pop() || row.account_label;
+              return [row.id, row.git_branch ?? folder];
+            }),
+          ),
+        );
+      }),
+    );
+    return () => {
+      alive = false;
+    };
   }, []);
 
   const loginByAccount = useMemo(() => {
@@ -321,6 +351,7 @@ export function NewSessionModal({
                   )}
                   <VerdictChip verdict={verdictByAccount.get(preselected.account_id)} />
                 </div>
+                <MachineAdviceLine advice={advice.get(preselected.id)} nameOf={(id) => sessionNames.get(id) ?? null} />
                 <div className="flex flex-wrap gap-2">
                   <Button
                     size="sm"
@@ -382,6 +413,7 @@ export function NewSessionModal({
                     <span className="text-muted">·</span>
                     <span className="text-muted">Launch settings: {recipe.name}</span>
                     <VerdictChip verdict={verdictByAccount.get(recipe.account_id)} />
+                    <MachineChip advice={advice.get(recipe.id)} />
                     <span className="flex-1" />
                     {ready ? (
                       <Button
