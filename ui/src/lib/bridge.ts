@@ -3853,11 +3853,13 @@ export interface ProviderCapabilityData {
   provider: string;
   /** ADR-0018: its setups can be used where they are. */
   can_use_in_place: boolean;
+  /** It reports its own usage limits (5-hour and weekly windows). */
+  reports_limits: boolean;
 }
 
 const DEFAULT_PROVIDER_CAPABILITIES: ProviderCapabilityData[] = [
-  { provider: "claude-code", can_use_in_place: true },
-  { provider: "codex", can_use_in_place: true },
+  { provider: "claude-code", can_use_in_place: true, reports_limits: true },
+  { provider: "codex", can_use_in_place: true, reports_limits: false },
 ];
 
 /** ADR-0018: each registered Provider's static capabilities. */
