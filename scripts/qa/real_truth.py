@@ -255,6 +255,8 @@ def desktop_roots() -> list[dict]:
 def is_temp(path: str) -> bool:
     """A path in a temp folder (the per-user TMPDIR, /tmp, /var/folders)."""
     real = os.path.realpath(path)
+    if real.startswith(os.path.realpath(HOME).rstrip("/") + "/"):
+        return False  # a CLI in the user's own home is theirs (a replica's HOME may itself be in /tmp)
     roots = ["/private/tmp/", "/private/var/folders/", "/tmp/", "/var/folders/"]
     if os.environ.get("TMPDIR"):
         roots.append(os.path.realpath(os.environ["TMPDIR"]).rstrip("/") + "/")
@@ -811,6 +813,7 @@ def selftest() -> None:
     assert lim["credits"]["balance"] == "present" and lim["secondary"] is None
     assert is_temp("/tmp/x/claude") and is_temp("/private/var/folders/ab/T/x/codex")
     assert not is_temp("/Applications/Claude.app/Contents/MacOS/claude")
+    assert not is_temp(str(HOME / "bin/claude"))
     print("real_truth selftest: OK")
 
 
