@@ -17,6 +17,14 @@ change looks like.
   in commits, issues or PRs. If you explored several designs, the merged
   doc states the chosen one plus a short "alternatives considered".
 - **Security problems go through private reporting** — see [SECURITY.md](./SECURITY.md).
+- **Follow the engineering guide and the security guidelines.** Read
+  [docs/engineering/ENGINEERING-GUIDE.md](./docs/engineering/ENGINEERING-GUIDE.md)
+  (patterns, rules, limits, the review checklist) and
+  [docs/engineering/SECURITY-GUIDELINES.md](./docs/engineering/SECURITY-GUIDELINES.md)
+  (MUST and MUST NOT rules per area, and the threat model) before your
+  first PR. The architecture contract is
+  [ADR-0019](./docs/adr/0019-extension-architecture.md): tools are data,
+  features are modules, and nothing outside an adapter names a tool.
 
 ## How the project is organised
 
