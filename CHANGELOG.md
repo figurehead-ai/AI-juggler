@@ -229,6 +229,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Pools: sessions that work together, grouped and named by you. A
+  session's menu in the list moves it to a pool or starts a new one with
+  it; Filters › Group: Pool lists sessions under their pools (each folds,
+  like a project), and the list and Home can show one pool only. A pool's
+  sheet renames it, sets each session's role (lead, member or observer),
+  adds and takes out sessions, says what each role may do (behind a
+  disclosure; agents can't reach pools yet), and deletes it — its sessions
+  go back to **All sessions**, which always exists and can't be renamed or
+  deleted. A pool can be for one project only. A session keeps its pool
+  when it switches accounts. Nothing about a pool starts, stops or types
+  into a session.
+- Going back to 0.0.11 or earlier: this version adds pools to AI
+  Juggler's own data (schema 31). It keeps a copy of the data from before
+  the upgrade, so Settings › Updates › Go back to an earlier version still
+  works; pools made since aren't in that copy.
 - **Codex** is the second Provider (AJ-E1301). AI Juggler finds the Codex
   CLI, gives each Codex account its own folder (`CODEX_HOME`), signs it
   in with OpenAI's own `codex login`, and starts, resumes or runs Codex

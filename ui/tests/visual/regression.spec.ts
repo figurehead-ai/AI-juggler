@@ -279,6 +279,44 @@ for (const theme of THEMES) {
   });
 }
 
+// AJ-E1702: the rail grouped by pool, and a pool's sheet, at the main
+// size in each theme.
+const POOL_SEAMS = {
+  __AIJ_POOLS__: {
+    pools: [
+      { id: "pool-checkout", name: "Checkout redesign" },
+      { id: "pool-docs", name: "Docs" },
+    ],
+    members: [
+      { session_id: "sess-1", pool_id: "pool-checkout", role: "lead" },
+      { session_id: "sess-2", pool_id: "pool-checkout", role: "member" },
+      { session_id: "sess-4", pool_id: "pool-checkout", role: "member" },
+    ],
+  },
+};
+for (const theme of THEMES) {
+  const cell = `${theme}-comfortable-1280x800`;
+  test(`rail by pool — ${cell}`, async ({ page }) => {
+    await open(page, theme, "comfortable", VIEWPORTS[0], allStatuses, { seams: POOL_SEAMS });
+    await page.getByRole("button", { name: /^Filters/ }).click();
+    await page.getByRole("combobox", { name: "Group by" }).selectOption("pool");
+    await page.getByRole("button", { name: /^Filters/ }).click();
+    await expect(page.getByTestId("rail-pool")).toHaveCount(3);
+    await page.mouse.move(0, 0);
+    await expect(page).toHaveScreenshot(`rail-by-pool-${cell}.png`, SCREEN);
+  });
+
+  test(`pool sheet — ${cell}`, async ({ page }) => {
+    await open(page, theme, "comfortable", VIEWPORTS[0], allStatuses, { seams: POOL_SEAMS });
+    await page.getByRole("button", { name: /^Filters/ }).click();
+    await page.getByRole("combobox", { name: "Group by" }).selectOption("pool");
+    await page.getByTestId("rail-pool").filter({ hasText: "Checkout redesign" }).click();
+    await expect(page.getByTestId("pool-member")).toHaveCount(3);
+    await page.mouse.move(0, 0);
+    await expect(page).toHaveScreenshot(`pool-sheet-${cell}.png`, SCREEN);
+  });
+}
+
 // WCAG 1.4.1: a status shown by colour must also say it in words or an
 // accessible name — a colour-only change fails even when its pixel diff
 // is small. The fixture holds an Instance in every status.

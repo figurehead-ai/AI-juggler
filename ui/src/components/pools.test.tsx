@@ -188,17 +188,16 @@ describe("AJ-E1702 pools in the rail", () => {
     const view = board(CHECKOUT, { onPoolsChanged, onNewPool });
     const row = view.container.querySelector('[data-instance-id="other"]')!;
     fireEvent.click(within(row.parentElement as HTMLElement).getByRole("button", { name: /Row actions/ }));
+    const group = view.getByRole("group", { name: "Move to pool" });
+    expect([...group.querySelectorAll("[role='menuitem']")].map((item) => item.textContent)).toEqual(["Checkout redesign", "Docs"]);
     const items = [...view.getByRole("menu").querySelectorAll("[role='menuitem']")].map((item) => item.textContent);
-    expect(items).toContain("Move to Checkout redesign");
-    expect(items).toContain("Move to Docs");
-    expect(items).not.toContain("Move to All sessions");
     expect(items.at(-1)).toBe("New pool…");
-    fireEvent.click(view.getByRole("menuitem", { name: "Move to Checkout redesign" }));
+    fireEvent.click(view.getByRole("menuitem", { name: "Checkout redesign" }));
     await waitFor(() => expect(onPoolsChanged).toHaveBeenCalledWith(moved));
     expect(move).toHaveBeenCalledWith("other", "pool-checkout");
 
     fireEvent.click(within(view.container.querySelector('[data-instance-id="planner"]')!.parentElement as HTMLElement).getByRole("button", { name: /Row actions/ }));
-    expect(view.getByRole("menuitem", { name: "Move to All sessions" })).toBeTruthy();
+    expect(view.getByRole("menuitem", { name: "All sessions" })).toBeTruthy();
     fireEvent.click(view.getByRole("menuitem", { name: "New pool…" }));
     expect(onNewPool).toHaveBeenCalledWith("planner");
   });
@@ -207,7 +206,7 @@ describe("AJ-E1702 pools in the rail", () => {
     vi.spyOn(bridge, "poolMove").mockRejectedValue({ code: "refused", retryable: false, user_message: "«Shop team» is for shop only — this session works somewhere else" });
     const view = board(CHECKOUT);
     fireEvent.click(within(view.container.querySelector('[data-instance-id="other"]')!.parentElement as HTMLElement).getByRole("button", { name: /Row actions/ }));
-    fireEvent.click(view.getByRole("menuitem", { name: "Move to Docs" }));
+    fireEvent.click(view.getByRole("menuitem", { name: "Docs" }));
     await waitFor(() => expect(view.getByTestId("rail-pool-error").textContent).toContain("is for shop only"));
   });
 

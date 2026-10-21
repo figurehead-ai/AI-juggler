@@ -1133,15 +1133,21 @@ function RowContextMenu({
       {pools && (
         <>
           <span role="separator" className="mx-1 my-0.5 h-px bg-hairline" />
-          {hasUserPools(pools) &&
-            pools.pools
-              .filter((pool) => pool.id !== poolIdOf(pools, row.id))
-              .slice(0, MENU_POOLS)
-              .map((pool) => (
-                <MenuItem key={pool.id} onClick={() => onMoveToPool?.(pool.id)} testId="menu-move-pool" title={`Move to ${pool.name}`}>
-                  <span className="block truncate">Move to {pool.name}</span>
-                </MenuItem>
-              ))}
+          {hasUserPools(pools) && (
+            <div role="group" aria-label="Move to pool" className="flex flex-col gap-0.5">
+              <span aria-hidden="true" className="px-2 pt-0.5 text-[9.5px] font-medium uppercase tracking-wide text-faint">
+                Move to
+              </span>
+              {pools.pools
+                .filter((pool) => pool.id !== poolIdOf(pools, row.id))
+                .slice(0, MENU_POOLS)
+                .map((pool) => (
+                  <MenuItem key={pool.id} onClick={() => onMoveToPool?.(pool.id)} testId="menu-move-pool" title={pool.name}>
+                    <span className="block truncate">{pool.name}</span>
+                  </MenuItem>
+                ))}
+            </div>
+          )}
           <MenuItem onClick={() => onNewPool?.()} testId="menu-new-pool">
             New pool…
           </MenuItem>

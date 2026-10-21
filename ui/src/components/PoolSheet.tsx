@@ -263,7 +263,7 @@ function OnePool({
                         type="button"
                         disabled={busy}
                         onClick={() => void run(() => poolMove(session.id, DEFAULT_POOL_ID))}
-                        aria-label={`Take ${named} out of ${pool.name}`}
+                        aria-label={`Take out ${named}`}
                         title="Back to All sessions"
                         className="shrink-0 rounded-md px-1.5 py-0.5 text-[11px] text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
                         data-testid="pool-member-out"
