@@ -39,6 +39,16 @@ instance_count: number,
  */
 history_sessions: number, 
 /**
+ * When the user last worked here outside AI Juggler (the newest
+ * imported transcript's write time), epoch ms.
+ */
+history_last_used_ms: number | null, 
+/**
+ * The repository this folder is a checkout of (its `origin` remote,
+ * normalised: `github.com/owner/name`), so clones group together.
+ */
+repo: string | null, 
+/**
  * True when the root directory no longer exists on disk (AJ-E408
  * Overview danger banner + `Relocate…`).
  */
