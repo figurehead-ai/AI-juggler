@@ -164,29 +164,60 @@ fn use_without_a_sample_is_unmeasured_and_has_no_reset_time() {
         assert_eq!(window.percentage, None, "{name}");
         assert_eq!(window.badge, None, "{name}");
         assert_eq!(window.burned_tokens, 12_000, "{name}: the use it saw");
-        assert_eq!(window.resets_at_ms, None, "{name}: no reset without a sample");
+        assert_eq!(
+            window.resets_at_ms, None,
+            "{name}: no reset without a sample"
+        );
         assert_eq!(window.reset_basis, None, "{name}");
     }
 }
 
+/// P13 (0.0.12 QA walk): Codex was given a five-hour window, but its
+/// rollouts report only a weekly one (`primary` with `window_minutes`
+/// 10080, `secondary` null). Its windows are the ones it reports.
 #[test]
-fn codex_pro_omits_the_five_hour_ring_with_reason() {
+fn codex_shows_only_the_windows_it_reports() {
     let dir = tempfile::tempdir().unwrap();
     let state = app_state(dir.path());
+    let now = Timestamp::now().millis();
     let storage = state.storage.lock().unwrap();
-    let info = quota_display_inner(
-        &storage,
-        &account("codex", Some("pro")),
-        Timestamp::now().millis(),
-    );
-    assert!(info.five_hour.is_none());
+    let codex = account("codex", Some("plus"));
+    // Nothing reported yet: no window is assumed, each says why.
+    let info = quota_display_inner(&storage, &codex, now);
     assert!(
-        info.five_hour_omitted_reason
-            .as_deref()
-            .is_some_and(|reason| reason.contains("no five-hour limit")),
-        "omitted WITH reason, never an empty ring"
+        info.five_hour.is_none() && info.weekly.is_none(),
+        "{info:?}"
     );
-    assert!(info.weekly.is_some(), "Pro renders the weekly window");
+    for reason in [&info.five_hour_omitted_reason, &info.weekly_omitted_reason] {
+        assert_eq!(
+            reason.as_deref(),
+            Some("Codex hasn't reported its limits yet — they show after you use Codex")
+        );
+    }
+    // Its reading names a weekly window only.
+    storage
+        .usage()
+        .insert_sample(
+            codex.id.as_str(),
+            juggler_core::quota::WindowKind::Weekly { anchor_ms: None },
+            &juggler_core::quota::QuotaSample {
+                ts: now - 60_000,
+                used_pct: 69.0,
+                resets_at: Some(now + 3 * 86_400_000),
+                confidence: juggler_core::model::Confidence::Measured,
+            },
+        )
+        .unwrap();
+    let info = quota_display_inner(&storage, &codex, now);
+    assert!(info.five_hour.is_none(), "never assumed: {info:?}");
+    assert_eq!(
+        info.five_hour_omitted_reason.as_deref(),
+        Some("Codex reports no five-hour limit for this account")
+    );
+    let weekly = info.weekly.as_ref().unwrap();
+    assert!(weekly.percentage.is_some_and(|p| (p - 69.0).abs() < 1e-9));
+    assert_eq!(weekly.reset_basis.as_deref(), Some("measured"));
+    assert_eq!(info.weekly_omitted_reason, None);
 }
 
 #[test]

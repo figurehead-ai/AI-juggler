@@ -605,27 +605,41 @@ pub fn quota_display_inner(
         }
     };
 
-    // Provider/plan window shapes (Req.5): Pro renders weekly; plans
-    // without a 5 h window omit that ring WITH reason, never empty.
+    // Window shapes (Req.5): a window that isn't there is omitted WITH
+    // its reason, never an empty ring.
     let provider = account.harness.as_str();
-    let plan = account.plan.as_ref().map(ToString::to_string);
     let mut unavailable_reason = None;
     let (five_hour, five_hour_reason, weekly, weekly_reason) = match provider {
         "gemini" | "antigravity" => {
             unavailable_reason = Some("No verified quota source for this tool yet".to_owned());
             (None, None, None, None)
         }
-        // Codex Pro has no 5 h limit (AJ-E603): omit that ring with
-        // its reason; every other shape renders both windows.
-        "codex" if plan.as_deref() == Some("pro") => (
-            None,
-            Some("Pro plans have no five-hour limit — weekly only".to_owned()),
-            Some(window_display(
-                &evaluation.weekly,
-                cap(WindowKind::Weekly { anchor_ms: anchor }),
-            )),
-            None,
-        ),
+        // P13: Codex's windows are the ones its own limit reading
+        // names (`window_minutes`), never assumed from the tool or plan.
+        "codex" => {
+            let (five_reported, weekly_reported) =
+                codex_reported_windows(&samples_five_hour, &samples_weekly, now_ms);
+            let reason = |kind: &str| {
+                if five_reported || weekly_reported {
+                    format!("Codex reports no {kind} limit for this account")
+                } else {
+                    "Codex hasn't reported its limits yet — they show after you use Codex"
+                        .to_owned()
+                }
+            };
+            (
+                five_reported
+                    .then(|| window_display(&evaluation.five_hour, cap(WindowKind::FiveHour))),
+                (!five_reported).then(|| reason("five-hour")),
+                weekly_reported.then(|| {
+                    window_display(
+                        &evaluation.weekly,
+                        cap(WindowKind::Weekly { anchor_ms: anchor }),
+                    )
+                }),
+                (!weekly_reported).then(|| reason("weekly")),
+            )
+        }
         _ => (
             Some(window_display(
                 &evaluation.five_hour,
@@ -650,6 +664,24 @@ pub fn quota_display_inner(
         unavailable_reason,
         credits: credits_of(storage, account_id),
     }
+}
+
+/// Which windows Codex reported in the last week (a Measured sample
+/// from its `rate_limits`, whose `window_minutes` names the window). A
+/// window it never reports (`secondary: null`) is not there; one from a
+/// plan it left reads as stale until it ages out.
+fn codex_reported_windows(
+    five_hour: &[juggler_core::quota::QuotaSample],
+    weekly: &[juggler_core::quota::QuotaSample],
+    now_ms: i64,
+) -> (bool, bool) {
+    let reported = |samples: &[juggler_core::quota::QuotaSample]| {
+        samples.iter().any(|sample| {
+            sample.confidence == juggler_core::model::Confidence::Measured
+                && now_ms.saturating_sub(sample.ts) <= juggler_core::quota::WEEK_MS
+        })
+    };
+    (reported(five_hour), reported(weekly))
 }
 
 /// AJ-E611: one ranked (or filtered) row on the wire — greyed rows
