@@ -287,7 +287,7 @@ for (const theme of THEMES) {
         await open(page, theme, density, vp);
         await expect(page.getByTestId("instance-board")).toBeVisible();
         await page.locator('[data-instance-id="sess-2"]').first().click();
-        await page.keyboard.press("ControlOrMeta+Shift+I");
+        await page.keyboard.press("Meta+Shift+I");
         await expect(page.getByTestId("right-inspector")).toHaveAttribute("data-folded", "true");
         await page.mouse.move(0, 0);
         await expect(page).toHaveScreenshot(`inspector-folded-${cell}.png`, SCREEN);

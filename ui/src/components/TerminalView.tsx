@@ -9,11 +9,8 @@ import {
   terminalResize,
   terminalSnapshot,
   terminalWrite,
-  sessionPrefsGet,
-  SESSION_PREFS_DEFAULT,
-  SESSION_PREFS_EVENT,
-  type SessionPrefsInfo,
 } from "../lib/bridge";
+import { sessionPrefsGet, SESSION_PREFS_DEFAULT, SESSION_PREFS_EVENT, type SessionPrefsInfo } from "../lib/ipc/session-prefs";
 
 const SCROLLBACK_LINES = SESSION_PREFS_DEFAULT.terminal_scrollback_lines;
 

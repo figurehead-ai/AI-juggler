@@ -2590,7 +2590,7 @@ for (const theme of ["dark", "light"] as const) {
     await expect(sheet).toBeHidden();
 
     await page.locator('[data-instance-id="sess-2"]').first().click();
-    await page.keyboard.press("ControlOrMeta+Shift+I");
+    await page.keyboard.press("Meta+Shift+I");
     const unfold = page.getByRole("button", { name: "Unfold the inspector" });
     await expect(unfold).toHaveAttribute("aria-expanded", "false");
     const foldedViolations = await scanSeriousWithConfirm(page);

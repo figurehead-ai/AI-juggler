@@ -328,8 +328,10 @@ pub fn session_prefs_set_impl(
 ///
 /// Returns the typed storage error.
 #[tauri::command]
-pub fn session_prefs_get(state: tauri::State<'_, Arc<AppState>>) -> AppResult<SessionPrefsInfo> {
-    session_prefs_get_impl(state.inner())
+pub async fn session_prefs_get(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<SessionPrefsInfo> {
+    crate::ipc::blocking(state.inner(), "session settings", session_prefs_get_impl).await
 }
 
 /// Saves Settings › Sessions (live: no restart).
@@ -338,11 +340,14 @@ pub fn session_prefs_get(state: tauri::State<'_, Arc<AppState>>) -> AppResult<Se
 ///
 /// See [`session_prefs_set_impl`].
 #[tauri::command]
-pub fn session_prefs_set(
+pub async fn session_prefs_set(
     state: tauri::State<'_, Arc<AppState>>,
     prefs: SessionPrefsInfo,
 ) -> AppResult<SessionPrefsInfo> {
-    session_prefs_set_impl(state.inner(), &prefs)
+    crate::ipc::blocking(state.inner(), "session settings", move |state| {
+        session_prefs_set_impl(state, &prefs)
+    })
+    .await
 }
 
 /// Settings › Notifications.

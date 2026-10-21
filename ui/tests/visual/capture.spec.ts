@@ -5784,7 +5784,7 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.locator('[data-instance-id="sess-2"]').first().click();
       await expect(page.getByRole("tablist")).toBeVisible();
-      await page.keyboard.press("ControlOrMeta+Shift+I");
+      await page.keyboard.press("Meta+Shift+I");
       await expect(page.getByTestId("right-inspector")).toHaveAttribute("data-folded", "true");
       await expect(page.getByRole("tablist")).toBeHidden();
       await page.mouse.move(0, 0);

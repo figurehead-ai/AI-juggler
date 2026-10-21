@@ -22,15 +22,17 @@ import {
   fleetSetPermission,
   notificationPrefsGet,
   notificationPrefsSet,
+  type AccountInfo,
+  type FleetPeerInfo,
+  type NotificationPrefsInfo,
+} from "../lib/bridge";
+import {
   sessionPrefsGet,
   sessionPrefsSet,
   SESSION_PREFS_DEFAULT,
   SESSION_PREFS_RANGE,
-  type AccountInfo,
   type SessionPrefsInfo,
-  type FleetPeerInfo,
-  type NotificationPrefsInfo,
-} from "../lib/bridge";
+} from "../lib/ipc/session-prefs";
 
 function accountName(account: AccountInfo): string {
   return `${providerDisplayName(account.provider)} · ${account.label}`;

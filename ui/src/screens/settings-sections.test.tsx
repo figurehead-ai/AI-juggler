@@ -44,13 +44,14 @@ describe("wireframe 26 — Settings sections", () => {
       "General",
       "Account & Cloud",
       "Context packs & secrets",
+      "Sessions",
       "Cleanup",
       "Accounts & renewal dates",
       "Notifications",
       "Fleet permissions",
       "Data: backup & retention",
     ]);
-    expect(container.querySelectorAll("[data-settings-section]")).toHaveLength(8);
+    expect(container.querySelectorAll("[data-settings-section]")).toHaveLength(9);
     expect(within(nav).getByRole("button", { name: "General" }).getAttribute("aria-current")).toBe("true");
     fireEvent.click(within(nav).getByRole("button", { name: "Notifications" }));
     expect(within(nav).getByRole("button", { name: "Notifications" }).getAttribute("aria-current")).toBe("true");

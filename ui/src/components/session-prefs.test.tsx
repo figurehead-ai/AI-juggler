@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { afterEach, describe, expect, it } from "vitest";
 import { SessionsSettingsCard } from "./SettingsSections";
 import { applyTerminalPrefs } from "./TerminalView";
-import { SESSION_PREFS_DEFAULT, SESSION_PREFS_EVENT, sessionPrefsSet, type SessionPrefsInfo } from "../lib/bridge";
+import { SESSION_PREFS_DEFAULT, SESSION_PREFS_EVENT, sessionPrefsSet, type SessionPrefsInfo } from "../lib/ipc/session-prefs";
 
 /**
  * AJ-E1505 — Settings › Sessions: "Stuck after", the terminal's font size

@@ -24,6 +24,7 @@ pub mod fleet_account;
 pub mod focus;
 pub mod history;
 pub mod identity;
+pub mod ipc;
 pub mod lifecycle;
 pub mod link;
 pub mod machine_alerts;

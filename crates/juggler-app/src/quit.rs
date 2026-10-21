@@ -265,6 +265,7 @@ pub fn request(app: &tauri::AppHandle) -> bool {
 }
 
 /// The window shows the quit sheet (the request is in a person's hands).
+// ipc: main-thread (pure)
 #[tauri::command]
 pub fn app_quit_ack() {
     gate().acknowledge();
@@ -272,6 +273,7 @@ pub fn app_quit_ack() {
 
 /// Cancel on the quit sheet: everything keeps running, and the next ⌘Q
 /// asks again.
+// ipc: main-thread (pure)
 #[tauri::command]
 pub fn app_quit_cancel() {
     gate().cancel();
@@ -305,10 +307,14 @@ pub fn app_menu(app: &tauri::AppHandle) -> tauri::Result<tauri::menu::Menu<tauri
 }
 
 /// The window's live sessions and what quitting does to them.
+///
+/// # Errors
+///
+/// [`AppError::Io`](crate::error::AppError::Io) when the read could not
+/// finish.
 #[tauri::command]
-#[must_use]
-pub fn app_quit_plan(state: tauri::State<'_, Arc<AppState>>) -> QuitPlanInfo {
-    quit_plan_impl(state.inner())
+pub async fn app_quit_plan(state: tauri::State<'_, Arc<AppState>>) -> AppResult<QuitPlanInfo> {
+    crate::ipc::blocking(state.inner(), "quit", |state| Ok(quit_plan_impl(state))).await
 }
 
 /// The user chose to quit: with `stop_first`, each live session is
@@ -318,6 +324,7 @@ pub fn app_quit_plan(state: tauri::State<'_, Arc<AppState>>) -> QuitPlanInfo {
 /// # Errors
 ///
 /// Never fails; the result type matches the other commands.
+// ipc: main-thread (pure: the stops and the exit run on their own thread)
 #[tauri::command]
 pub fn app_quit(
     app: tauri::AppHandle,
