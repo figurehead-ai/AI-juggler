@@ -24,6 +24,7 @@ import {
   SORT_LABELS,
   isSnoozed,
   readSnooze,
+  unsnoozedNeedsCount,
   snoozeCaption,
   sortSessions,
   storeSnooze,
@@ -71,8 +72,11 @@ const WIDTH_MAX = 360;
 const WIDTH_DEFAULT = 264;
 const STORE_WIDTH = "aij.rail.width";
 
-function readWidth(): number {
-  const raw = Number(localStorage.getItem(STORE_WIDTH));
+/** The rail's stored width; nothing stored (or junk) is the default —
+ * `Number(null)` is 0, which clamped every install to the minimum. */
+export function readWidth(): number {
+  const stored = localStorage.getItem(STORE_WIDTH);
+  const raw = stored === null || stored.trim() === "" ? Number.NaN : Number(stored);
   if (!Number.isFinite(raw)) return WIDTH_DEFAULT;
   return Math.min(WIDTH_MAX, Math.max(WIDTH_MIN, raw));
 }
@@ -692,7 +696,10 @@ export function InstanceBoard({
                       data-testid="rail-project"
                     >
                       <span className="min-w-0 truncate">{entry.label}</span>
-                      <span className="shrink-0 text-[10px] font-normal text-faint">{entry.rows.length}</span>
+                      <span className="flex shrink-0 items-center gap-1.5">
+                        {folded.has(entry.id) && <FoldedNeeds rows={entry.rows} snooze={snooze} now={now} />}
+                        <span className="text-[10px] font-normal text-faint">{entry.rows.length}</span>
+                      </span>
                     </button>
                   ) : (
                     <p
@@ -701,7 +708,10 @@ export function InstanceBoard({
                     >
                       <span className="min-w-0 truncate">{entry.label}</span>
                       {entry.rollup && <span className="sr-only">· {entry.rollup}</span>}
-                      <span className="shrink-0 text-[10px] font-normal text-faint">{entry.rows.length}</span>
+                      <span className="flex shrink-0 items-center gap-1.5">
+                        {folded.has(entry.id) && <FoldedNeeds rows={entry.rows} snooze={snooze} now={now} />}
+                        <span className="text-[10px] font-normal text-faint">{entry.rows.length}</span>
+                      </span>
                     </p>
                   )}
                 </div>
@@ -1961,6 +1971,35 @@ function ProjectRow({
         )}
       </span>
     </button>
+  );
+}
+
+/**
+ * A folded group still says what needs you inside it (0.0.11 walk, Q7):
+ * the same "!" mark the session rows' icons carry, and how many. The fold
+ * stays the user's choice — nothing unfolds by itself.
+ */
+function FoldedNeeds({ rows, snooze, now }: { rows: InstanceInfo[]; snooze: SnoozeState; now: number }): JSX.Element | null {
+  const count = unsnoozedNeedsCount(rows, snooze, now);
+  if (count === 0) return null;
+  const danger = rows.some((row) => !isSnoozed(row, snooze, now) && attentionBadge(row)?.tone === "danger");
+  return (
+    <span
+      className={"flex items-center gap-1 text-[10px] font-semibold " + (danger ? "text-danger" : "text-warning")}
+      data-testid="rail-folded-needs"
+    >
+      <span
+        aria-hidden="true"
+        className={
+          "flex size-3.5 items-center justify-center rounded-full text-[8px] font-bold " +
+          (danger ? "bg-danger text-white" : "bg-warning text-black")
+        }
+      >
+        !
+      </span>
+      <span className="tabular-nums">{count}</span>
+      <span className="sr-only">{count === 1 ? "needs you" : "need you"},</span>
+    </span>
   );
 }
 

@@ -56,7 +56,7 @@ describe("WindowRing typed states (Req.4)", () => {
 
   it("learning: the exact copy, no number", () => {
     const screen = render(<WindowRing window={window({ state: "learning", percentage: undefined })} kind="5h" />);
-    expect(screen.getByText("learning — no forecast yet")).toBeTruthy();
+    expect(screen.getByText("Not enough use yet to forecast")).toBeTruthy();
     expect(screen.container.textContent).not.toMatch(/\d+%/);
   });
 
@@ -140,7 +140,7 @@ describe("RenewalLine states (Req.3, D-12)", () => {
 describe("ForecastPill states (deep/10 §1)", () => {
   it("learning copy exact; Estimated exhausts shows the RANGE", () => {
     const learning = render(<ForecastPill forecast={{ state: "learning", badge: "estimated" }} />);
-    expect(learning.getByText("learning — no forecast yet")).toBeTruthy();
+    expect(learning.getByText("Not enough use yet to forecast")).toBeTruthy();
     learning.unmount();
     const estimated = render(
       <ForecastPill forecast={{ state: "exhausts", tte_min: 55, range_min: 40, range_max: 70, badge: "estimated" }} />,
@@ -153,7 +153,7 @@ describe("ForecastPill states (deep/10 §1)", () => {
 
   it("wont-exhaust and no-headroom states", () => {
     const steady = render(<ForecastPill forecast={{ state: "wont-exhaust", badge: "measured" }} />);
-    expect(steady.getByText(/won't exhaust this window/)).toBeTruthy();
+    expect(steady.getByText(/won't run out this window/)).toBeTruthy();
     const noCap = render(<ForecastPill forecast={{ state: "no-headroom", badge: "computed" }} />);
     expect(noCap.getByText(/set your plan cap/)).toBeTruthy();
   });

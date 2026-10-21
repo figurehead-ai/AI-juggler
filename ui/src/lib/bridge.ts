@@ -248,7 +248,7 @@ const MOCK_QUALITY: Record<string, QualitySignalsInfo> = {
     cumulative: { input: 4_200, output: 1_800, cache_read: 20, cache_write: 40, reasoning: 8 },
     session_cost_usd: 0.19,
     priced_model: "opus",
-    quota_forecast: "not burning",
+    quota_forecast: "Not using its limit right now",
     stuck: { rule: "stuck_no_output", inputs: ["no output 8m", "threshold 5m", "cpu 0.3%", "transcript stale 8m"], since_ms: Date.now() - 8 * 60_000 },
   },
   "sess-2": {
@@ -261,7 +261,7 @@ const MOCK_QUALITY: Record<string, QualitySignalsInfo> = {
     cumulative: { input: 12_345, output: 6_789, cache_read: 100, cache_write: 200, reasoning: 42 },
     session_cost_usd: 0.69,
     priced_model: "opus",
-    quota_forecast: "not burning",
+    quota_forecast: "Not using its limit right now",
     stuck: null,
   },
   "sess-live-1": {
@@ -274,7 +274,7 @@ const MOCK_QUALITY: Record<string, QualitySignalsInfo> = {
     cumulative: { input: 12_345, output: 6_789, cache_read: 100, cache_write: 200, reasoning: 42 },
     session_cost_usd: 0.69,
     priced_model: "opus",
-    quota_forecast: "not burning",
+    quota_forecast: "Not using its limit right now",
     stuck: null,
   },
 };
@@ -3870,11 +3870,13 @@ export interface ProviderCapabilityData {
   provider: string;
   /** ADR-0018: its setups can be used where they are. */
   can_use_in_place: boolean;
+  /** It reports its own usage limits (5-hour and weekly windows). */
+  reports_limits: boolean;
 }
 
 const DEFAULT_PROVIDER_CAPABILITIES: ProviderCapabilityData[] = [
-  { provider: "claude-code", can_use_in_place: true },
-  { provider: "codex", can_use_in_place: true },
+  { provider: "claude-code", can_use_in_place: true, reports_limits: true },
+  { provider: "codex", can_use_in_place: true, reports_limits: false },
 ];
 
 /** ADR-0018: each registered Provider's static capabilities. */
@@ -4703,6 +4705,16 @@ export async function goingBackPrepare(schema: number): Promise<void> {
     return;
   }
   return invoke<void>("going_back_prepare", { schema });
+}
+
+/** 0.0.11 walk (Q6): opens the page to install `version` from (its
+ * release, or the releases list). */
+export async function goingBackOpenReleases(version: string | null): Promise<void> {
+  if (!hasBackend) {
+    updateCall(`open-releases:${version ?? ""}`);
+    return;
+  }
+  return invoke<void>("going_back_open_releases", { version });
 }
 
 /** Update status changes pushed by the backend. */
