@@ -1,11 +1,11 @@
-# D-20: build, sign and notarize one AI Juggler version, and publish it
-# as a pre-release with its update feeds: `latest.json` (AI Juggler) and
-# `latest-nightly.json` (AI Juggler Nightly, D-23). Called by
-# nightly.yml; promote.yml later points the beta and stable channels at
-# the same build. Nothing is ever rebuilt for a channel.
+# D-20: build, sign and notarize one AI Juggler version, both editions
+# (AI Juggler and AI Juggler Nightly, D-23). Called by nightly.yml, which
+# publishes it as a pre-release with its update feeds; promote.yml later
+# points the beta and stable channels at the same build. Nothing is ever
+# rebuilt for a channel.
 #
 # AJ-E2001: no build or dependency code ever runs where the signing keys
-# are. Four jobs:
+# are. Three jobs here, and the caller publishes:
 # - preflight (`release` environment): every signing secret is there, or
 #   nothing is built (fails closed). It runs no code from the repository.
 # - build (no secrets, read-only token): compiles each edition unsigned
@@ -14,12 +14,14 @@
 # - sign (`release` environment, no repository token): signs, notarizes
 #   and staples each app and its disk image, makes and signs the updater
 #   archive, and checks all of it — with Apple's tools, the pinned
-#   prebuilt tauri-cli and scripts/sign_macos.sh. It builds nothing.
-# - publish: the only job allowed to write to the repository.
+#   prebuilt tauri-cli and scripts/sign_macos.sh. It builds nothing, and
+#   uploads the `release-<edition>` artifacts.
+# This workflow never writes to the repository: the caller's publish job
+# (nightly.yml) is the only one that may.
 #
 # `dry_run` (release-rehearsal.yml) builds for real and rehearses the
 # signing with an ad-hoc signature and a throwaway updater key: no secret
-# is read, nothing is notarized or published.
+# is read, nothing is notarized.
 #
 # No build cache is restored: a signed build starts from a clean runner so
 # nothing another workflow wrote can end up inside it.
@@ -213,15 +215,15 @@ jobs:
 
   sign:
     name: sign ${{ matrix.edition }}
+    if: ${{ !inputs.dry_run }}
     needs: build
     runs-on: macos-latest
     # Apple's notary service can take most of an hour for a new team's
     # first submissions, and each edition waits for it twice (app, disk
     # image).
     timeout-minutes: 240
-    # The release keys exist only here (the environment allows `main`
-    # only). A dry run rehearses this job without them.
-    environment: ${{ !inputs.dry_run && 'release' || '' }}
+    # The release keys exist only here: the environment allows `main` only.
+    environment: release
     # Read-only: the sparse checkout of the signing scripts.
     permissions:
       contents: read
@@ -257,14 +259,7 @@ jobs:
       - name: Pinned tauri-cli (for `signer sign`)
         run: ./scripts/install_tauri_cli.sh "$RUNNER_TEMP/tauri-cli" >> "$GITHUB_PATH"
 
-      - name: Rehearse signing (dry run; no secrets)
-        if: ${{ inputs.dry_run }}
-        env:
-          REHEARSAL: "1"
-        run: ./scripts/sign_macos.sh "$RUNNER_TEMP/unsigned/app.tar" "$RUNNER_TEMP/assets"
-
       - name: Sign, notarize, staple; the updater archive; verify
-        if: ${{ !inputs.dry_run }}
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -280,84 +275,63 @@ jobs:
           AIJ_UPDATER_PUBKEY: ${{ vars.AIJ_UPDATER_PUBKEY }}
         run: ./scripts/sign_macos.sh "$RUNNER_TEMP/unsigned/app.tar" "$RUNNER_TEMP/assets"
 
+      # The caller publishes these (nightly.yml).
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: ${{ inputs.dry_run && 'rehearsal' || 'release' }}-${{ matrix.edition }}
+          name: release-${{ matrix.edition }}
           path: ${{ runner.temp }}/assets/
-          retention-days: ${{ inputs.dry_run && 3 || 7 }}
+          retention-days: 7
           if-no-files-found: error
 
-  publish:
-    name: publish
-    needs: sign
-    if: ${{ !inputs.dry_run }}
-    runs-on: ubuntu-latest
-    # The only job that may write to the repository (the release).
+  sign-rehearsal:
+    name: sign ${{ matrix.edition }} (rehearsal)
+    if: ${{ inputs.dry_run }}
+    needs: build
+    runs-on: macos-latest
+    timeout-minutes: 30
+    # No environment, no secret: an ad-hoc signature and a throwaway key.
     permissions:
-      contents: write
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - edition: main
+            prefix: AI-Juggler
+          - edition: nightly
+            prefix: AI-Juggler-Nightly
     env:
       VERSION: ${{ inputs.version }}
+      PREFIX: ${{ matrix.prefix }}
     steps:
+      # The signing scripts only, from the commit being released.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ inputs.ref }}
-          fetch-depth: 0
           persist-credentials: false
+          sparse-checkout: |
+            scripts/sign_macos.sh
+            scripts/apple_retry.py
+            scripts/updater_sig_check.py
+            scripts/install_tauri_cli.sh
+          sparse-checkout-cone-mode: false
 
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          pattern: release-*
+          name: unsigned-${{ matrix.edition }}
+          path: ${{ runner.temp }}/unsigned/
+
+      - name: Pinned tauri-cli (for `signer sign`)
+        run: ./scripts/install_tauri_cli.sh "$RUNNER_TEMP/tauri-cli" >> "$GITHUB_PATH"
+
+      - name: Rehearse signing (no secrets)
+        env:
+          REHEARSAL: "1"
+        run: ./scripts/sign_macos.sh "$RUNNER_TEMP/unsigned/app.tar" "$RUNNER_TEMP/assets"
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: rehearsal-${{ matrix.edition }}
           path: ${{ runner.temp }}/assets/
-          merge-multiple: true
-
-      - name: Release notes (as the build jobs wrote them)
-        env:
-          PREVIOUS: ${{ inputs.previous }}
-          REF: ${{ inputs.ref }}
-        run: |
-          if [ ! -f "docs/releases/${VERSION}.md" ]; then
-            python3 scripts/nightly_notes.py "$VERSION" "$PREVIOUS" "$REF"
-          fi
-          # A database change since the previous nightly needs a downgrade
-          # note (nightly_notes.py writes it; hand-written notes must too).
-          ./scripts/release_notes_check.sh "$VERSION" ${PREVIOUS:+"$PREVIOUS"}
-
-      - name: Assemble the update feeds and checksums
-        env:
-          REPOSITORY: ${{ github.repository }}
-        run: |
-          python3 - <<'PY'
-          import json, os, datetime
-          version = os.environ["VERSION"]
-          repository = os.environ["REPOSITORY"]
-          out = os.environ["RUNNER_TEMP"] + "/assets"
-          notes = open(f"docs/releases/{version}.md").read()
-          date = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-          # latest.json: AI Juggler (what beta and stable point at later).
-          # latest-nightly.json: AI Juggler Nightly (the nightly feed).
-          for feed_name, prefix in (("latest.json", "AI-Juggler"), ("latest-nightly.json", "AI-Juggler-Nightly")):
-              archive = f"{prefix}-{version}-universal.app.tar.gz"
-              sig = open(f"{out}/{archive}.sig").read().strip()
-              url = f"https://github.com/{repository}/releases/download/v{version}/{archive}"
-              feed = {
-                "version": version,
-                "notes": notes,
-                "pub_date": date,
-                "platforms": {p: {"signature": sig, "url": url} for p in ("darwin-aarch64", "darwin-x86_64")},
-              }
-              json.dump(feed, open(f"{out}/{feed_name}", "w"), indent=2)
-          PY
-          (cd "$RUNNER_TEMP/assets" && sha256sum ./* > SHA256SUMS.txt && cat SHA256SUMS.txt)
-
-      - name: Publish the build (pre-release; channels point at it later)
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REF: ${{ inputs.ref }}
-          REPOSITORY: ${{ github.repository }}
-        run: |
-          gh release create "v${VERSION}" "$RUNNER_TEMP"/assets/* \
-            --repo "$REPOSITORY" \
-            --target "$REF" \
-            --prerelease \
-            --title "${VERSION}" \
-            --notes-file "docs/releases/${VERSION}.md"
+          retention-days: 3
+          if-no-files-found: error

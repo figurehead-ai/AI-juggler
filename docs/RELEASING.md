@@ -30,14 +30,14 @@ workflows do the mechanical work:
 ### Where the keys are (AJ-E2001)
 
 No build or dependency code ever runs where the signing keys are.
-`build-macos.yml` has four jobs:
+`build-macos.yml` has three jobs, and `nightly.yml` publishes:
 
 | Job | Holds | Runs |
 |---|---|---|
 | **preflight** | the `release` environment's secrets | a check that every one is set (nothing is built otherwise); no repository code |
 | **build**, per edition | no secret; a read-only token | the compile: every crate's build script and `pnpm build`. Uploads the unsigned `.app` |
 | **sign**, per edition | the `release` environment's secrets; a read-only token | `scripts/sign_macos.sh` only: Apple's `codesign`, `notarytool`, `stapler`, `hdiutil`, and the pinned prebuilt tauri-cli's `signer sign`. Signs, notarizes and staples the app and its disk image, makes and signs the updater archive, and checks all of it |
-| **publish** | the only token that may write | the feeds and checksums, then the pre-release |
+| **publish** (`nightly.yml`) | the only token that may write (with the nightly feed job) | the feeds and checksums, then the pre-release; no build code |
 
 The `release` environment only allows `main`, so a branch can never reach
 the keys. Tools in the release jobs are pinned to an exact version and
