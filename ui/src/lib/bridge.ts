@@ -4616,6 +4616,16 @@ export async function goingBackPrepare(schema: number): Promise<void> {
   return invoke<void>("going_back_prepare", { schema });
 }
 
+/** 0.0.11 walk (Q6): opens the page to install `version` from (its
+ * release, or the releases list). */
+export async function goingBackOpenReleases(version: string | null): Promise<void> {
+  if (!hasBackend) {
+    updateCall(`open-releases:${version ?? ""}`);
+    return;
+  }
+  return invoke<void>("going_back_open_releases", { version });
+}
+
 /** Update status changes pushed by the backend. */
 export function onUpdateStatus(handler: (status: UpdateStatusInfo) => void): () => void {
   if (!hasBackend) return () => {};
