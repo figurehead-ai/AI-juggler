@@ -81,6 +81,7 @@ for (const theme of ["dark", "light"] as const) {
     await expect(repo.getByTestId("rail-history-project")).toHaveCount(2);
     // Five groups, then Show all.
     await expect(page.getByTestId("rail-history-all")).toHaveText("Show all 6");
+    await expect(list).toContainText("Projects6");
     await page.screenshot({ path: resolve(OUT, `history-1280x800-${theme}.png`) });
     const results = await new AxeBuilder({ page }).include('[data-testid="rail-history-projects"]').analyze();
     expect(results.violations.filter((v) => v.impact === "critical" || v.impact === "serious").map((v) => v.id)).toEqual([]);

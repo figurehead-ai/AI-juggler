@@ -183,10 +183,22 @@ pub fn worktree_repo_root(path: &Path) -> Option<std::path::PathBuf> {
                 .lines()
                 .find_map(|line| line.strip_prefix("gitdir:"))?
                 .trim();
-            let marker = "/.git/worktrees/";
-            let at = gitdir.find(marker)?;
-            let repo = std::path::PathBuf::from(&gitdir[..at]);
-            return repo.is_dir().then_some(repo);
+            // Relative (submodules, `worktree.useRelativePaths`) resolves
+            // from the `.git` file's own folder, never the app's cwd.
+            let gitdir = here.join(gitdir);
+            // `<repo>/.git/worktrees/<name>`, by path components (any
+            // separator): the repository is the parent of that `.git`.
+            let repo = gitdir.ancestors().find_map(|ancestor| {
+                let parent = ancestor.parent()?;
+                (ancestor.file_name()? == "worktrees" && parent.file_name()? == ".git")
+                    .then(|| parent.parent().map(Path::to_path_buf))
+                    .flatten()
+            })?;
+            // One spelling per repository (a symlinked ~/Dev, /var vs
+            // /private/var): the root is UNIQUE by string.
+            return std::fs::canonicalize(&repo)
+                .ok()
+                .filter(|repo| repo.is_dir());
         }
         dir = here.parent();
     }

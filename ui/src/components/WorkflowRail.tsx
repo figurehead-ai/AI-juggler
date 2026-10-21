@@ -628,7 +628,7 @@ export function InstanceBoard({
                   <FoldButton
                     open={!folded.has(entry.id)}
                     label={entry.label}
-                    controls={`rail-group-${entry.id}`}
+                    controls={safeId("rail-group", entry.id)}
                     onToggle={() => toggleFold(entry.id)}
                   />
                   {effectiveGroup === "project" && onSelectProject && projects.some((p) => p.id === entry.id) ? (
@@ -654,7 +654,7 @@ export function InstanceBoard({
                   )}
                 </div>
               )}
-              <div id={`rail-group-${entry.id}`} className="flex flex-col gap-0.5" hidden={folded.has(entry.id)}>
+              <div id={safeId("rail-group", entry.id)} className="flex flex-col gap-0.5" hidden={folded.has(entry.id)}>
               {entry.rows.map((row) => (
                 <BoardRow
                   key={row.id}
@@ -687,7 +687,7 @@ export function InstanceBoard({
               />
               <p className="flex min-w-0 flex-1 items-baseline justify-between gap-2 py-0.5 pl-1 pr-2.5 text-[11.5px] font-semibold text-muted">
                 <span className="min-w-0 truncate">Projects</span>
-                <span className="shrink-0 text-[10px] font-normal text-faint">{idleProjects.length}</span>
+                <span className="shrink-0 text-[10px] font-normal text-faint">{repoGroups(idleProjects).length}</span>
               </p>
             </div>
             <div id="rail-history-list" className="flex flex-col gap-0.5" hidden={folded.has(HISTORY_GROUP)}>
@@ -708,7 +708,7 @@ export function InstanceBoard({
                         <FoldButton
                           open={!folded.has(group.key)}
                           label={group.name}
-                          controls={`rail-repo-${group.key}`}
+                          controls={safeId("rail-repo", group.key)}
                           onToggle={() => toggleFold(group.key)}
                         />
                         <p className="flex min-w-0 flex-1 items-baseline justify-between gap-2 py-0.5 pl-1 pr-2.5 text-[11.5px] font-semibold text-muted" title={group.key}>
@@ -716,7 +716,7 @@ export function InstanceBoard({
                           <span className="shrink-0 text-[10px] font-normal text-faint">{group.projects.length}</span>
                         </p>
                       </div>
-                      <div id={`rail-repo-${group.key}`} className="flex flex-col gap-0.5 pl-3" hidden={folded.has(group.key)}>
+                      <div id={safeId("rail-repo", group.key)} className="flex flex-col gap-0.5 pl-3" hidden={folded.has(group.key)}>
                         {group.projects.map((project) => (
                           <ProjectRow
                             key={project.id}
@@ -1784,6 +1784,14 @@ function RemoteBoardSection({
 }
 
 const FOLDED_KEY = "aij.rail.folded";
+
+/** An element id from any key (an account label with spaces, a remote
+ * path): only safe characters, plus a short hash so two keys can't meet. */
+export function safeId(prefix: string, key: string): string {
+  let hash = 0;
+  for (const char of key) hash = (Math.imul(hash, 31) + char.charCodeAt(0)) | 0;
+  return `${prefix}-${key.replace(/[^A-Za-z0-9_-]/g, "-").slice(0, 40)}-${(hash >>> 0).toString(36)}`;
+}
 const HISTORY_GROUP = "history-projects";
 /** How many history projects show before "Show all". */
 const HISTORY_SHOWN = 5;
@@ -1859,7 +1867,7 @@ function ProjectRow({
   onSelect: (id: string) => void;
 }): JSX.Element {
   const stats = projectStats(project, now);
-  const when = stats[0]?.endsWith("ago") ? stats[0] : null;
+  const when = stats[0]?.endsWith("ago") || stats[0] === "just now" ? stats[0] : null;
   return (
     <button
       type="button"
@@ -1878,7 +1886,7 @@ function ProjectRow({
         <span className="flex min-w-0 items-baseline gap-1.5">
           <span className={"min-w-0 truncate text-[12.5px] font-medium " + (project.missing ? "text-muted" : "text-ink")}>{project.name}</span>
           {project.missing && <span className="shrink-0 text-[9.5px] font-medium uppercase tracking-wide text-muted">moved</span>}
-          {density === "compact" && when && <span className="ml-auto shrink-0 font-mono text-[10px] text-muted">{when.replace(" ago", "")}</span>}
+          {density === "compact" && when && <span className="ml-auto shrink-0 font-mono text-[10px] text-muted">{when === "just now" ? "now" : when.replace(" ago", "")}</span>}
         </span>
         {density === "comfortable" && stats.length > 0 && (
           <span className="min-w-0 truncate text-[11px] text-muted" data-testid="rail-project-stats">

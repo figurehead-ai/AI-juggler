@@ -146,4 +146,108 @@ fn remotes_normalise_to_host_owner_name() {
         );
     }
     assert_eq!(commands::normalise_remote("not-a-url"), None);
+    assert_eq!(commands::normalise_remote("C:\\repo"), None);
+    assert_eq!(commands::normalise_remote("/srv/repo.git"), None);
+}
+
+/// Review of #84: a relative `gitdir` (submodules, `worktree.useRelativePaths`)
+/// resolves from the `.git` file's folder, and the repository comes back in
+/// one canonical spelling (a symlinked parent folder doesn't split it).
+#[test]
+fn relative_and_linked_worktree_paths_resolve_to_one_canonical_repository() {
+    use juggler_core::storage::worktree_repo_root;
+    let work = tempfile::tempdir().unwrap();
+    let real = work.path().canonicalize().unwrap().join("real");
+    let repo = real.join("app");
+    git_repo(&repo, "git@github.com:o/app.git");
+    std::fs::create_dir_all(repo.join(".git/worktrees/wt")).unwrap();
+    let tree = repo.join(".claude/worktrees/wt");
+    std::fs::create_dir_all(&tree).unwrap();
+    std::fs::write(tree.join(".git"), "gitdir: ../../../.git/worktrees/wt\n").unwrap();
+    assert_eq!(
+        worktree_repo_root(&tree),
+        Some(repo.clone()),
+        "relative gitdir"
+    );
+
+    // The same tree reached through a link to its parent folder.
+    let link = work.path().join("linked");
+    std::os::unix::fs::symlink(&real, &link).unwrap();
+    std::fs::write(
+        tree.join(".git"),
+        format!("gitdir: {}\n", link.join("app/.git/worktrees/wt").display()),
+    )
+    .unwrap();
+    assert_eq!(
+        worktree_repo_root(&tree),
+        Some(repo),
+        "one canonical spelling"
+    );
+}
+
+/// A worktree project that already has sessions is kept by the cleanup.
+#[test]
+fn a_worktree_project_with_sessions_is_kept() {
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().canonicalize().unwrap();
+    let repo = root.join("Dev/app");
+    git_repo(&repo, "git@github.com:o/app.git");
+    let tree = repo.join(".claude/worktrees/x");
+    worktree(&repo, &tree, "x");
+    let mut registry = AdapterRegistry::new();
+    registry.register(Arc::new(ClaudeCodeAdapter::with_bin("/bin/true")));
+    let state = Arc::new(AppState::init_with_registry(root.join("app-data"), registry).unwrap());
+    let config = root.join("setup");
+    std::fs::create_dir_all(&config).unwrap();
+    std::fs::write(config.join("settings.json"), "{}").unwrap();
+    let account = commands::account_import_mode_impl(
+        &state,
+        CLAUDE_CODE_ID,
+        config.to_str().unwrap(),
+        "Work",
+        commands::ImportRequest {
+            in_place: true,
+            ..commands::ImportRequest::default()
+        },
+    )
+    .unwrap();
+    let storage = state.storage.lock().unwrap();
+    let profile = storage
+        .profiles()
+        .list_by_account(&juggler_core::model::AccountId::new(
+            account.account.id.clone(),
+        ))
+        .unwrap()
+        .remove(0);
+    let project = storage.projects().touch(&tree, None).unwrap();
+    use juggler_core::model::{
+        InstanceKind, InstanceRecord, MachineId, SessionId, SessionStatus, Timestamp,
+    };
+    storage
+        .sessions()
+        .insert(&InstanceRecord {
+            id: SessionId::new("s1"),
+            conversation: None,
+            profile: profile.id,
+            machine: MachineId::new("this-mac"),
+            kind: InstanceKind::Terminal,
+            project: Some(project.id.clone()),
+            cwd: tree.clone(),
+            status: SessionStatus::Finished,
+            started_at: Timestamp::now(),
+            last_activity: None,
+            usage: Default::default(),
+            attention: None,
+            running: None,
+            transcript_ref: None,
+            window: None,
+        })
+        .unwrap();
+    drop(storage);
+    commands::projects_backfill_impl(&state).unwrap();
+    let kept = state.storage.lock().unwrap().projects().list().unwrap();
+    assert!(
+        kept.iter().any(|p| p.id == project.id),
+        "referenced by a session: kept"
+    );
 }

@@ -5404,19 +5404,30 @@ fn repo_identity(root: &std::path::Path) -> Option<String> {
 /// `github.com/owner/name`.
 #[must_use]
 pub fn normalise_remote(url: &str) -> Option<String> {
-    let rest = url.split_once("://").map_or(url, |(_, rest)| rest);
-    let rest = rest.rsplit_once('@').map_or(rest, |(_, host)| host);
-    let (host, path) = rest.split_once(['/', ':'])?;
-    let host = host.to_lowercase();
-    // `host:22/owner/name` — a port, not part of the path.
-    let path = match path.split_once('/') {
-        Some((port, after)) if !port.is_empty() && port.chars().all(|c| c.is_ascii_digit()) => {
-            after
+    if url.contains('\\') {
+        return None; // a Windows path: a local remote, nothing to group by
+    }
+    let (host, path) = if let Some((_, rest)) = url.split_once("://") {
+        // scheme://[user[:secret]@]host[:port]/path — the port is the
+        // authority's, never part of the path.
+        let (authority, path) = rest.split_once('/')?;
+        let host = authority
+            .rsplit_once('@')
+            .map_or(authority, |(_, host)| host);
+        let host = host.split_once(':').map_or(host, |(host, _)| host);
+        (host, path)
+    } else {
+        // scp-like [user@]host:path (no port in this form).
+        let (left, path) = url.split_once(':')?;
+        let host = left.rsplit_once('@').map_or(left, |(_, host)| host);
+        if host.len() < 2 || host.contains('/') {
+            return None; // `C:` or a local path
         }
-        _ => path,
+        (host, path)
     };
+    let host = host.to_lowercase();
     let path = path
-        .trim_end_matches('/')
+        .trim_matches('/')
         .trim_end_matches(".git")
         .to_lowercase();
     (!host.is_empty() && !path.is_empty()).then(|| format!("{host}/{path}"))
@@ -7213,7 +7224,7 @@ pub fn projects_list_impl(state: &Arc<AppState>) -> AppResult<Vec<ProjectInfo>> 
     )?;
     // Statuses that mean "occupying the project right now".
     let live = |status: &str| matches!(status, "starting" | "running");
-    Ok(storage
+    let mut infos: Vec<ProjectInfo> = storage
         .projects()
         .list()?
         .into_iter()
@@ -7242,11 +7253,38 @@ pub fn projects_list_impl(state: &Arc<AppState>) -> AppResult<Vec<ProjectInfo>> 
                 instance_count: u64::try_from(owned.len()).unwrap_or_default(),
                 history_sessions: project.history.native_sessions,
                 history_last_used_ms: project.history.last_used_ms,
-                repo: repo_identity(&project.root),
+                repo: None,
                 missing: !project.root.exists(),
             }
         })
-        .collect())
+        .collect();
+    // File reads (each repository's .git/config) never under the storage
+    // lock; cached briefly so a slow volume can't stall every refresh.
+    drop(storage);
+    for info in &mut infos {
+        info.repo = repo_identity_cached(std::path::Path::new(&info.root));
+    }
+    Ok(infos)
+}
+
+/// [`repo_identity`], remembered for five minutes per folder.
+fn repo_identity_cached(root: &std::path::Path) -> Option<String> {
+    use std::collections::HashMap;
+    use std::sync::{Mutex, OnceLock};
+    use std::time::{Duration, Instant};
+    static CACHE: OnceLock<Mutex<HashMap<PathBuf, (Option<String>, Instant)>>> = OnceLock::new();
+    let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    if let Ok(map) = cache.lock()
+        && let Some((repo, at)) = map.get(root)
+        && at.elapsed() < Duration::from_secs(300)
+    {
+        return repo.clone();
+    }
+    let repo = repo_identity(root);
+    if let Ok(mut map) = cache.lock() {
+        map.insert(root.to_path_buf(), (repo.clone(), Instant::now()));
+    }
+    repo
 }
 
 fn find_account(
