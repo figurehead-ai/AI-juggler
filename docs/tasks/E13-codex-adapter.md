@@ -34,7 +34,7 @@
 
 ZCode follows the same five steps later (its own epic).
 
-### AJ-E1301 Codex Provider: discovery, isolated home, launch, sign-in, registration | Status: IN-PROGRESS (claude-opus, 2026-10-20) | Priority P0 | Effort M | Depends: AJ-E301, AJ-E308
+### AJ-E1301 Codex Provider: discovery, isolated home, launch, sign-in, registration | Status: DONE-EVIDENCED (claude-opus, 2026-10-21; live accounts are AJ-E1305) | Priority P0 | Effort M | Depends: AJ-E301, AJ-E308
 **Goal**: Codex is a registered Provider: the app finds the CLI, creates an isolated `CODEX_HOME` per Account, signs in through the vendor's own flow and launches every mode.
 **User story**: As a developer with a ChatGPT Plus and a Pro subscription, I add both as Codex accounts, sign each in once, and start Codex on either without one ever seeing the other's login or sessions.
 **Requirements**:
