@@ -2599,3 +2599,34 @@ for (const theme of ["dark", "light"] as const) {
     expect(all, summary).toHaveLength(0);
   });
 }
+
+// AJ-E1505: Settings › Sessions — each field labelled and described, the
+// Terminal disclosure reachable — axe 0 critical/serious.
+for (const theme of ["dark", "light"] as const) {
+  test(`settings sessions — axe 0 critical/serious — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ fixture, t0, theme: t }) => {
+        (window as never as { __AIJ_FIXTURE__: unknown }).__AIJ_FIXTURE__ = fixture;
+        localStorage.setItem("aij.theme", t);
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        sessionStorage.setItem("aij.ready.skipped", "1");
+        Date.now = () => t0;
+      },
+      { fixture: allStatuses, t0: T0, theme },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await goTo(page, "Settings");
+    await page.getByRole("navigation", { name: "Settings sections" }).getByRole("button", { name: "Sessions" }).click();
+    const terminal = page.getByTestId("settings-terminal").locator("summary");
+    await terminal.focus();
+    await page.keyboard.press("Enter");
+    for (const label of ["Stuck after", "Font size", "Scrollback"]) {
+      await expect(page.getByLabel(label)).toHaveAttribute("aria-describedby", /pref-/);
+    }
+    const all = await scanSeriousWithConfirm(page);
+    const summary = all.map((v) => `${v.id} (${v.impact}): ${v.nodes.map((n) => n.target.join(" ")).slice(0, 3).join(", ")}`).join("\n");
+    expect(all, summary).toHaveLength(0);
+  });
+}

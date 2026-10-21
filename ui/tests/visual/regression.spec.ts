@@ -264,6 +264,17 @@ for (const theme of THEMES) {
         await expect(page).toHaveScreenshot(`loading-accounts-${cell}.png`, SCREEN);
       });
 
+      // AJ-E1505: Settings › Sessions, the Terminal disclosure open.
+      test(`settings sessions — ${cell}`, async ({ page }) => {
+        await open(page, theme, density, vp);
+        await goTo(page, "Settings");
+        await page.getByRole("navigation", { name: "Settings sections" }).getByRole("button", { name: "Sessions" }).click();
+        await page.getByTestId("settings-terminal").locator("summary").click();
+        await expect(page.getByLabel("Scrollback")).toBeVisible();
+        await page.mouse.move(0, 0);
+        await expect(page.getByTestId("settings-sessions")).toHaveScreenshot(`settings-sessions-${cell}.png`, SCREEN);
+      });
+
       // AJ-E1504: the ? sheet and the folded inspector.
       test(`shortcut sheet — ${cell}`, async ({ page }) => {
         await open(page, theme, density, vp);

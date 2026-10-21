@@ -229,6 +229,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Settings › Sessions** (AJ-E1505). **Stuck after** sets how long a
+  session may go without output (with its CPU near idle) before it's
+  marked Looks stuck. Raise it if your builds run quietly. It applies to
+  running sessions at once, no restart. Under **Terminal**: the font size
+  and scrollback, applied to open terminals at once. Each has a one-line
+  reason and **Reset**.
 - **Keys** (AJ-E1504). Press **?** to see every shortcut, by area.
   **⌘1–4** open Home, Accounts, Usage and Fleet. **⌘⇧I** folds the
   inspector to its header line (the open tab keeps its room), and the

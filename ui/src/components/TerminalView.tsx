@@ -9,9 +9,29 @@ import {
   terminalResize,
   terminalSnapshot,
   terminalWrite,
+  sessionPrefsGet,
+  SESSION_PREFS_DEFAULT,
+  SESSION_PREFS_EVENT,
+  type SessionPrefsInfo,
 } from "../lib/bridge";
 
-const SCROLLBACK_LINES = 5_000;
+const SCROLLBACK_LINES = SESSION_PREFS_DEFAULT.terminal_scrollback_lines;
+
+/** AJ-E1505: Settings › Sessions' font size and scrollback, applied to a
+ * live terminal (xterm takes both without a restart); refits after. */
+export function applyTerminalPrefs(
+  term: { options: { fontSize?: number; scrollback?: number } },
+  prefs: Pick<SessionPrefsInfo, "terminal_font_size" | "terminal_scrollback_lines">,
+  refit?: () => void,
+): void {
+  if (term.options.fontSize !== prefs.terminal_font_size) term.options.fontSize = prefs.terminal_font_size;
+  if (term.options.scrollback !== prefs.terminal_scrollback_lines) term.options.scrollback = prefs.terminal_scrollback_lines;
+  try {
+    refit?.();
+  } catch {
+    /* a hidden panel refits when it shows */
+  }
+}
 
 const TABBABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -61,7 +81,7 @@ export function TerminalView({ id, title }: { id: string; title: string }) {
     const term = new Terminal({
       scrollback: SCROLLBACK_LINES,
       cursorBlink: true,
-      fontSize: 12.5,
+      fontSize: SESSION_PREFS_DEFAULT.terminal_font_size,
       fontFamily: "'SF Mono', 'JetBrains Mono', 'Fira Code', Menlo, monospace",
       allowProposedApi: true,
       theme: {
@@ -139,6 +159,21 @@ export function TerminalView({ id, title }: { id: string; title: string }) {
       termRef.current = null;
     };
   }, [id, title, hintId]);
+
+  // AJ-E1505: the saved prefs on open, and every change while open.
+  useEffect(() => {
+    let alive = true;
+    const apply = (prefs: SessionPrefsInfo) => {
+      if (termRef.current) applyTerminalPrefs(termRef.current, prefs, () => fitRef.current?.fit());
+    };
+    void sessionPrefsGet().then((prefs) => alive && apply(prefs), () => null);
+    const follow = (event: Event) => apply((event as CustomEvent<SessionPrefsInfo>).detail);
+    window.addEventListener(SESSION_PREFS_EVENT, follow);
+    return () => {
+      alive = false;
+      window.removeEventListener(SESSION_PREFS_EVENT, follow);
+    };
+  }, [id]);
 
   useEffect(() => {
     if (!hasLiveBackend()) return;

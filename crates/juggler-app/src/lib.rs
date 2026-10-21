@@ -402,6 +402,8 @@ pub fn run() {
             os_access::os_access_list,
             os_access::os_access_request,
             os_access::os_access_open_settings,
+            settings_policy::session_prefs_get,
+            settings_policy::session_prefs_set,
             settings_policy::notification_prefs_get,
             settings_policy::notification_prefs_set,
             settings_policy::cleanup_default_get,

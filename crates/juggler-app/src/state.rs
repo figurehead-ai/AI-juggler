@@ -208,6 +208,11 @@ impl AppState {
                 .app_settings()
                 .set("cleanup_suspended_until", &suspended_until.to_string());
         }
+        // AJ-E1505: Settings › Sessions' "Stuck after", over the file.
+        let heuristics = HeuristicEngine::new(crate::settings_policy::with_stored_stuck_after(
+            load_thresholds(&data_dir),
+            &storage,
+        ));
         Ok(Self {
             audit,
             cleanup_settings,
@@ -220,7 +225,7 @@ impl AppState {
             machine: Mutex::new(crate::machine_health::MachineWatch::default()),
             orphans: OrphanTracker::new(),
             model_offsets: Mutex::new(std::collections::HashMap::new()),
-            heuristics: HeuristicEngine::new(load_thresholds(&data_dir)),
+            heuristics,
             provider_stuck_secs: load_provider_thresholds(&data_dir),
             updates: crate::updates::UpdateManager::default(),
             cloud_uploading: Mutex::new(()),

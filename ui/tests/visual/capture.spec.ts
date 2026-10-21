@@ -5660,6 +5660,7 @@ const SETTINGS_PEER = {
   connection_detail: null,
 };
 const SETTINGS_SECTIONS: Array<[string, string]> = [
+  ["sessions", "Sessions"],
   ["packs", "Context packs & secrets"],
   ["cleanup", "Cleanup"],
   ["renewal", "Accounts & renewal dates"],
@@ -5788,4 +5789,20 @@ for (const theme of THEMES) {
       await page.screenshot({ path: resolve(GALLERY, `76-keys/folded-${vp.name}-${theme}.png`) });
     });
   }
+}
+
+// AJ-E1505: Settings › Sessions with the Terminal disclosure open and a
+// changed value (its Reset shown) — 1280×800, light/dark.
+for (const theme of THEMES) {
+  test(`65 settings sections — sessions, terminal open — ${theme}`, async ({ page }) => {
+    await openSettings(page, theme, { width: 1280, height: 800 }, {
+      __AIJ_SESSION_PREFS__: { stuck_after_minutes: 10, terminal_font_size: 12.5, terminal_scrollback_lines: 5000 },
+    });
+    await page.getByRole("navigation", { name: "Settings sections" }).getByRole("button", { name: "Sessions" }).click();
+    await page.getByTestId("settings-terminal").locator("summary").click();
+    await expect(page.getByLabel("Scrollback")).toBeVisible();
+    await expect(page.getByTestId("pref-stuck_after_minutes-reset")).toHaveText("Reset to 5");
+    await page.mouse.move(0, 0);
+    await page.screenshot({ path: resolve(GALLERY, `65-settings-sections/sessions-terminal-1280x800-${theme}.png`) });
+  });
 }

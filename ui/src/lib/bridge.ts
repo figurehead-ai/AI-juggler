@@ -8,6 +8,7 @@ import type { AppInfo } from "../types/generated/AppInfo";
 import type { NotificationPrefsInfo } from "../types/generated/NotificationPrefsInfo";
 import type { OsAccessInfo } from "../types/generated/OsAccessInfo";
 import type { QuitPlanInfo } from "../types/generated/QuitPlanInfo";
+import type { SessionPrefsInfo } from "../types/generated/SessionPrefsInfo";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { DiscoveredInfo } from "../types/generated/DiscoveredInfo";
 import type { ImportResult } from "../types/generated/ImportResult";
@@ -1138,6 +1139,50 @@ export async function notificationPrefsSet(prefs: NotificationPrefsInfo): Promis
     return saved;
   }
   return invoke<NotificationPrefsInfo>("notification_prefs_set", { prefs });
+}
+
+// --- AJ-E1505: Settings › Sessions -----------------------------------------
+
+export type { SessionPrefsInfo };
+
+/** The defaults and ranges the backend holds to (settings_policy.rs). */
+export const SESSION_PREFS_DEFAULT: SessionPrefsInfo = {
+  stuck_after_minutes: 5,
+  terminal_font_size: 12.5,
+  terminal_scrollback_lines: 5_000,
+};
+export const SESSION_PREFS_RANGE = {
+  stuck_after_minutes: [1, 120],
+  terminal_font_size: [9, 24],
+  terminal_scrollback_lines: [500, 100_000],
+} as const;
+
+/** Fired on window with the saved prefs: open terminals apply them live. */
+export const SESSION_PREFS_EVENT = "aij:session-prefs";
+
+const sessionPrefsSeams = () => window as unknown as { __AIJ_SESSION_PREFS__?: SessionPrefsInfo };
+
+/** Reads Settings › Sessions. */
+export async function sessionPrefsGet(): Promise<SessionPrefsInfo> {
+  if (!hasBackend) return { ...SESSION_PREFS_DEFAULT, ...sessionPrefsSeams().__AIJ_SESSION_PREFS__ };
+  return invoke<SessionPrefsInfo>("session_prefs_get");
+}
+
+/** Saves Settings › Sessions; "Stuck after" reaches the heuristics at
+ * once, and open terminals follow the event. */
+export async function sessionPrefsSet(prefs: SessionPrefsInfo): Promise<SessionPrefsInfo> {
+  let saved: SessionPrefsInfo;
+  if (!hasBackend) {
+    for (const [key, [low, high]] of Object.entries(SESSION_PREFS_RANGE) as [keyof SessionPrefsInfo, readonly [number, number]][]) {
+      if (prefs[key] < low || prefs[key] > high) throw `use ${low} to ${high}`;
+    }
+    sessionPrefsSeams().__AIJ_SESSION_PREFS__ = { ...prefs };
+    saved = { ...prefs };
+  } else {
+    saved = await invoke<SessionPrefsInfo>("session_prefs_set", { prefs });
+  }
+  window.dispatchEvent(new CustomEvent<SessionPrefsInfo>(SESSION_PREFS_EVENT, { detail: saved }));
+  return saved;
 }
 
 /** D-25: what this OS must allow (one entry per thing it makes possible;

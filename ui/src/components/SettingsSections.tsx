@@ -22,7 +22,12 @@ import {
   fleetSetPermission,
   notificationPrefsGet,
   notificationPrefsSet,
+  sessionPrefsGet,
+  sessionPrefsSet,
+  SESSION_PREFS_DEFAULT,
+  SESSION_PREFS_RANGE,
   type AccountInfo,
+  type SessionPrefsInfo,
   type FleetPeerInfo,
   type NotificationPrefsInfo,
 } from "../lib/bridge";
@@ -437,6 +442,161 @@ export function FleetPermissionsCard(): JSX.Element {
           }}
         />
       )}
+    </Card>
+  );
+}
+
+/** One number in Settings › Sessions: saved on Enter or leaving the
+ * field (never mid-typing), with its unit, one line of why, and Reset
+ * once it differs from the default. */
+function PrefNumber({
+  id,
+  label,
+  unit,
+  hint,
+  value,
+  step = 1,
+  range,
+  fallback,
+  onSave,
+}: {
+  id: keyof SessionPrefsInfo;
+  label: string;
+  unit: string;
+  hint: string;
+  value: number;
+  step?: number;
+  range: readonly [number, number];
+  fallback: number;
+  onSave: (value: number) => void;
+}): JSX.Element {
+  const [draft, setDraft] = useState(String(value));
+  useEffect(() => setDraft(String(value)), [value]);
+  const commit = () => {
+    const parsed = Number(draft);
+    if (draft.trim() === "" || !Number.isFinite(parsed) || parsed === value) {
+      setDraft(String(value));
+      return;
+    }
+    onSave(parsed);
+  };
+  return (
+    <div className="flex flex-col gap-1 text-xs" data-testid={`pref-${id}`}>
+      <div className="flex flex-wrap items-center gap-2">
+        <label htmlFor={`pref-${id}-input`} className="font-medium text-ink">
+          {label}
+        </label>
+        <input
+          id={`pref-${id}-input`}
+          type="number"
+          inputMode="decimal"
+          min={range[0]}
+          max={range[1]}
+          step={step}
+          value={draft}
+          aria-describedby={`pref-${id}-hint`}
+          onChange={(event) => setDraft(event.target.value)}
+          onBlur={commit}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") commit();
+          }}
+          className="w-20 rounded-lg border border-hairline bg-surface-2 px-2 py-1 text-xs tabular-nums text-ink"
+        />
+        <span className="text-muted">{unit}</span>
+        {value !== fallback && (
+          <button
+            type="button"
+            onClick={() => onSave(fallback)}
+            className="rounded-lg px-1.5 py-0.5 text-[11px] text-muted hover:bg-surface-2 hover:text-ink"
+            data-testid={`pref-${id}-reset`}
+          >
+            Reset to {fallback}
+          </button>
+        )}
+      </div>
+      <span id={`pref-${id}-hint`} className="text-[11px] text-muted">
+        {hint}
+      </span>
+    </div>
+  );
+}
+
+/** AJ-E1505 (SPEC §5.1): when a quiet session counts as stuck, and the
+ * terminal's text size and scrollback. "Stuck after" applies to running
+ * sessions at once; the terminal ones to open terminals at once. */
+export function SessionsSettingsCard(): JSX.Element {
+  const [prefs, setPrefs] = useState<SessionPrefsInfo | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    void sessionPrefsGet().then(setPrefs, (cause) => setError(errorText(cause)));
+  }, []);
+  const save = (next: SessionPrefsInfo, done: string) => {
+    setError(null);
+    void sessionPrefsSet(next).then(
+      (saved) => {
+        setPrefs(saved);
+        setStatus(done);
+      },
+      (cause) => setError(errorText(cause)),
+    );
+  };
+  return (
+    <Card className="flex flex-col gap-3 p-5" data-testid="settings-sessions">
+      <div>
+        <h3 className="text-sm font-semibold">Sessions</h3>
+        <p className="mt-0.5 text-xs leading-relaxed text-muted">
+          When a quiet session is marked Looks stuck, and how its terminal reads.
+        </p>
+      </div>
+      {prefs && (
+        <>
+          <PrefNumber
+            id="stuck_after_minutes"
+            label="Stuck after"
+            unit="minutes"
+            hint="No output for this long, with the CPU near idle, marks a session Looks stuck. Raise it if your builds run quietly."
+            value={prefs.stuck_after_minutes}
+            range={SESSION_PREFS_RANGE.stuck_after_minutes}
+            fallback={SESSION_PREFS_DEFAULT.stuck_after_minutes}
+            onSave={(minutes) =>
+              save({ ...prefs, stuck_after_minutes: minutes }, `Sessions are marked Looks stuck after ${minutes} minutes without output.`)
+            }
+          />
+          <details className="text-xs text-muted" data-testid="settings-terminal">
+            <summary className="cursor-pointer outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
+              Terminal
+            </summary>
+            <div className="mt-3 flex flex-col gap-3">
+              <PrefNumber
+                id="terminal_font_size"
+                label="Font size"
+                unit="points"
+                hint="The text size in every session's terminal."
+                value={prefs.terminal_font_size}
+                step={0.5}
+                range={SESSION_PREFS_RANGE.terminal_font_size}
+                fallback={SESSION_PREFS_DEFAULT.terminal_font_size}
+                onSave={(size) => save({ ...prefs, terminal_font_size: size }, `Terminal text is ${size} points.`)}
+              />
+              <PrefNumber
+                id="terminal_scrollback_lines"
+                label="Scrollback"
+                unit="lines"
+                hint="Lines each terminal keeps above the screen. More lines use more memory."
+                value={prefs.terminal_scrollback_lines}
+                step={500}
+                range={SESSION_PREFS_RANGE.terminal_scrollback_lines}
+                fallback={SESSION_PREFS_DEFAULT.terminal_scrollback_lines}
+                onSave={(lines) =>
+                  save({ ...prefs, terminal_scrollback_lines: lines }, `Terminals keep ${lines.toLocaleString("en-US")} lines.`)
+                }
+              />
+            </div>
+          </details>
+        </>
+      )}
+      <Status status={status} error={error} />
     </Card>
   );
 }

@@ -98,7 +98,7 @@
 **Handover note**: —
 **Done (2026-10-21)**: `lib/shortcuts.ts` is the one registry (`SHORTCUTS`, `matches`). App's handler map is typed to cover every `owner: "app"` shortcut. Home and the inspector match through it, and `ShortcutSheet` renders it. The typing rule is general: no plain key or Ctrl-combo while typing in a field or the terminal, and ⌘ ones still fire except those a field owns (⌘Z). Two choices to note. ⌘1–6 used to switch the inspector's tabs (AJ-E406 Req.6), so they moved to ⌥⌘1–6 (amended there). The inspector *is* the work panel since ADR-0007 iteration 5, so "collapse" folds it to its header line (name, state, Stop) and keeps the open tab, which gives the terminal its room.
 
-### AJ-E1505 Settings the SPEC promised: stuck thresholds, terminal font and scrollback | Status: TODO | Priority P1 | Effort S | Depends: AJ-E405
+### AJ-E1505 Settings the SPEC promised: stuck thresholds, terminal font and scrollback | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: AJ-E405
 **Goal**: The thresholds SPEC §5.1 calls user-tunable are tunable.
 **User story**: As a user whose builds run quietly for 10 minutes, I raise "Stuck after" so those builds aren't flagged.
 **Requirements**:
@@ -112,6 +112,7 @@
 **Files to touch**: `crates/juggler-supervisor/src/heuristics.rs`, `crates/juggler-app/src/settings_policy.rs`, the Settings screen.
 **Research basis**: SPEC §5.1.
 **Handover note**: —
+**Done (2026-10-21)**: `settings_policy.rs` `session_prefs_get/set` (typed `SessionPrefsInfo`, ranges checked) is stored in app settings. The `HeuristicEngine` holds its thresholds behind a lock (`set_thresholds`), so "Stuck after" sets the no-output and transcript windows (SPEC's "same window") at the next tick, and it's applied over `heuristics.json` at launch. A per-tool override in `heuristics.json` (AJ-E1004) still wins for that tool. In the UI it's Settings › Sessions, with Terminal behind a disclosure; `TerminalView` applies font and scrollback live.
 
 ### AJ-E1506 Terminal tools | Status: TODO | Priority P0 | Effort M | Depends: —
 **Goal**: The built-in terminal does what a terminal user expects.

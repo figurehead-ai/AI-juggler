@@ -132,7 +132,9 @@ struct DebounceState {
 
 /// The heuristic engine: one instance per app, debounce state per session.
 pub struct HeuristicEngine {
-    thresholds: HeuristicThresholds,
+    /// AJ-E1505: read on every evaluation, so a change in Settings
+    /// applies at the next tick (no restart).
+    thresholds: std::sync::RwLock<HeuristicThresholds>,
     states: std::sync::Mutex<HashMap<SessionId, DebounceState>>,
 }
 
@@ -141,7 +143,7 @@ impl HeuristicEngine {
     #[must_use]
     pub fn new(thresholds: HeuristicThresholds) -> Self {
         Self {
-            thresholds,
+            thresholds: std::sync::RwLock::new(thresholds),
             states: std::sync::Mutex::new(HashMap::new()),
         }
     }
@@ -150,6 +152,17 @@ impl HeuristicEngine {
     #[must_use]
     pub fn thresholds(&self) -> HeuristicThresholds {
         self.thresholds
+            .read()
+            .map_or_else(|poisoned| *poisoned.into_inner(), |guard| *guard)
+    }
+
+    /// AJ-E1505: replaces the thresholds live; the next evaluation reads
+    /// them (a candidate already counting keeps its debounce clock).
+    pub fn set_thresholds(&self, thresholds: HeuristicThresholds) {
+        match self.thresholds.write() {
+            Ok(mut guard) => *guard = thresholds,
+            Err(poisoned) => *poisoned.into_inner() = thresholds,
+        }
     }
 
     fn stuck_rule(&self, inputs: &HeuristicInputs, stuck_secs: u64) -> bool {
@@ -168,13 +181,13 @@ impl HeuristicEngine {
         // unsampled CPU (None) does NOT block the rule — output silence
         // plus a stale transcript is the primary evidence.
         if let Some(cpu) = inputs.cpu_pct
-            && cpu > self.thresholds.stuck_cpu_max_pct
+            && cpu > self.thresholds().stuck_cpu_max_pct
         {
             return false; // busy CPU means working, not stuck
         }
         if let Some(mtime) = inputs.transcript_mtime_ms {
             let stale_secs = (inputs.now_ms - mtime) / 1000;
-            if stale_secs < self.thresholds.stuck_transcript_stale_secs.cast_signed() {
+            if stale_secs < self.thresholds().stuck_transcript_stale_secs.cast_signed() {
                 return false; // transcript keeps growing — it is working
             }
         }
@@ -189,7 +202,7 @@ impl HeuristicEngine {
             // The prompt itself was output; it must have sat unanswered.
             Some(last_output) => {
                 (inputs.now_ms - last_output) / 1000
-                    >= self.thresholds.waiting_prompt_secs.cast_signed()
+                    >= self.thresholds().waiting_prompt_secs.cast_signed()
             }
             None => false,
         }
@@ -215,7 +228,7 @@ impl HeuristicEngine {
         provider_stuck_secs: Option<u64>,
     ) -> Option<AttentionTransition> {
         use std::sync::MutexGuard;
-        let stuck_secs = provider_stuck_secs.unwrap_or(self.thresholds.stuck_no_output_secs);
+        let stuck_secs = provider_stuck_secs.unwrap_or(self.thresholds().stuck_no_output_secs);
         let mut states: MutexGuard<'_, HashMap<SessionId, DebounceState>> =
             self.states.lock().ok()?;
         let state = states.entry(session.clone()).or_default();
@@ -428,6 +441,59 @@ mod tests {
                 .any(|input| input.contains("cpu 0.3%"))
         );
         // AJ-E1004: the threshold is shown with the reason.
+        assert!(
+            transition
+                .reason
+                .inputs
+                .iter()
+                .any(|input| input == "threshold 5m")
+        );
+    }
+
+    /// AJ-E1505: "Stuck after" is read live — a quiet 8-minute build is
+    /// Stuck at the 5-minute default, not once the user raises it to 10,
+    /// and Stuck again when it's lowered back, with no new engine.
+    #[test]
+    fn a_changed_threshold_applies_at_the_next_evaluation() {
+        let engine = engine();
+        let session = SessionId::new("s-build");
+        let quiet = stuck_inputs(8 * 60, Some(0.3), 8 * 60);
+        let confirm = |engine: &HeuristicEngine, start: i64| {
+            let first = engine.evaluate(
+                &session,
+                &HeuristicInputs {
+                    now_ms: start,
+                    ..quiet
+                },
+            );
+            let second = engine.evaluate(
+                &session,
+                &HeuristicInputs {
+                    now_ms: start + 31_000,
+                    ..quiet
+                },
+            );
+            first.or(second)
+        };
+        let raised = HeuristicThresholds {
+            stuck_no_output_secs: 10 * 60,
+            stuck_transcript_stale_secs: 10 * 60,
+            ..engine.thresholds()
+        };
+        engine.set_thresholds(raised);
+        assert_eq!(engine.thresholds(), raised);
+        assert!(
+            confirm(&engine, T0).is_none(),
+            "8 min quiet is under a 10 min threshold"
+        );
+
+        engine.set_thresholds(HeuristicThresholds {
+            stuck_no_output_secs: 5 * 60,
+            stuck_transcript_stale_secs: 5 * 60,
+            ..raised
+        });
+        let transition = confirm(&engine, T0 + 60_000).expect("stuck again at 5 min");
+        assert_eq!(transition.status, SessionStatus::Stuck);
         assert!(
             transition
                 .reason

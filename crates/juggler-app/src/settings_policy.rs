@@ -159,6 +159,192 @@ pub(crate) fn apply_cleanup_default(state: &Arc<AppState>, account_id: &str) {
     }
 }
 
+// --- AJ-E1505: Settings › Sessions -----------------------------------------
+
+/// "Stuck after" (minutes of no output, with low CPU).
+const STUCK_AFTER_KEY: &str = "stuck_after_minutes";
+/// The terminal's font size (points).
+const TERMINAL_FONT_KEY: &str = "terminal_font_size";
+/// The terminal's scrollback (lines kept above the screen).
+const TERMINAL_SCROLLBACK_KEY: &str = "terminal_scrollback_lines";
+
+/// The defaults: SPEC §5.1's 5 minutes, and the terminal as it shipped.
+pub const STUCK_AFTER_DEFAULT: u32 = 5;
+/// The terminal font size as it shipped.
+pub const TERMINAL_FONT_DEFAULT: f64 = 12.5;
+/// The scrollback as it shipped.
+pub const TERMINAL_SCROLLBACK_DEFAULT: u32 = 5_000;
+
+/// The ranges the sheet offers (and the backend holds to).
+pub const STUCK_AFTER_RANGE: (u32, u32) = (1, 120);
+/// Readable to roomy.
+pub const TERMINAL_FONT_RANGE: (f64, f64) = (9.0, 24.0);
+/// A screenful to a long day.
+pub const TERMINAL_SCROLLBACK_RANGE: (u32, u32) = (500, 100_000);
+
+/// Settings › Sessions.
+#[derive(Clone, PartialEq, Debug, serde::Serialize, serde::Deserialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct SessionPrefsInfo {
+    /// A session with no output for this many minutes (and low CPU) is
+    /// marked Stuck.
+    pub stuck_after_minutes: u32,
+    /// The terminal's font size, in points.
+    pub terminal_font_size: f64,
+    /// Lines the terminal keeps above the screen.
+    pub terminal_scrollback_lines: u32,
+}
+
+impl Default for SessionPrefsInfo {
+    fn default() -> Self {
+        Self {
+            stuck_after_minutes: STUCK_AFTER_DEFAULT,
+            terminal_font_size: TERMINAL_FONT_DEFAULT,
+            terminal_scrollback_lines: TERMINAL_SCROLLBACK_DEFAULT,
+        }
+    }
+}
+
+fn stored<T: std::str::FromStr>(storage: &Storage, key: &str) -> Option<T> {
+    storage
+        .app_settings()
+        .get(key)
+        .ok()
+        .flatten()
+        .and_then(|raw| raw.parse().ok())
+}
+
+/// The stored "Stuck after", when the user set one.
+#[must_use]
+pub fn stuck_after_minutes(storage: &Storage) -> Option<u32> {
+    stored(storage, STUCK_AFTER_KEY)
+}
+
+/// The thresholds with the user's "Stuck after" applied: the no-output
+/// window and the transcript's, which SPEC §5.1 calls the same window.
+#[must_use]
+pub fn thresholds_with_stuck_after(
+    thresholds: juggler_supervisor::HeuristicThresholds,
+    minutes: u32,
+) -> juggler_supervisor::HeuristicThresholds {
+    let secs = u64::from(minutes) * 60;
+    juggler_supervisor::HeuristicThresholds {
+        stuck_no_output_secs: secs,
+        stuck_transcript_stale_secs: secs,
+        ..thresholds
+    }
+}
+
+/// At launch: `heuristics.json`'s thresholds, with the stored "Stuck
+/// after" over them when there is one.
+#[must_use]
+pub fn with_stored_stuck_after(
+    thresholds: juggler_supervisor::HeuristicThresholds,
+    storage: &Storage,
+) -> juggler_supervisor::HeuristicThresholds {
+    stuck_after_minutes(storage).map_or(thresholds, |minutes| {
+        thresholds_with_stuck_after(thresholds, minutes)
+    })
+}
+
+/// Core: Settings › Sessions as it applies now. "Stuck after" is the
+/// engine's own window (so a `heuristics.json` value shows as it is).
+///
+/// # Errors
+///
+/// Returns the typed storage error.
+pub fn session_prefs_get_impl(state: &Arc<AppState>) -> AppResult<SessionPrefsInfo> {
+    let storage = crate::commands::lock_storage_arc(state)?;
+    let secs = state.heuristics.thresholds().stuck_no_output_secs;
+    Ok(SessionPrefsInfo {
+        stuck_after_minutes: u32::try_from(secs.div_ceil(60)).unwrap_or(u32::MAX),
+        terminal_font_size: stored(&storage, TERMINAL_FONT_KEY).unwrap_or(TERMINAL_FONT_DEFAULT),
+        terminal_scrollback_lines: stored(&storage, TERMINAL_SCROLLBACK_KEY)
+            .unwrap_or(TERMINAL_SCROLLBACK_DEFAULT),
+    })
+}
+
+/// Core: saves Settings › Sessions. "Stuck after" reaches the running
+/// heuristics at once (their next tick reads it); nothing restarts.
+///
+/// # Errors
+///
+/// [`AppError::Validation`] for a value outside its range; the typed
+/// storage error otherwise.
+pub fn session_prefs_set_impl(
+    state: &Arc<AppState>,
+    prefs: &SessionPrefsInfo,
+) -> AppResult<SessionPrefsInfo> {
+    let out_of = |subject: &'static str, message: String| AppError::Validation { subject, message };
+    if !(STUCK_AFTER_RANGE.0..=STUCK_AFTER_RANGE.1).contains(&prefs.stuck_after_minutes) {
+        return Err(out_of(
+            "stuck after",
+            format!(
+                "use {} to {} minutes",
+                STUCK_AFTER_RANGE.0, STUCK_AFTER_RANGE.1
+            ),
+        ));
+    }
+    if !(TERMINAL_FONT_RANGE.0..=TERMINAL_FONT_RANGE.1).contains(&prefs.terminal_font_size) {
+        return Err(out_of(
+            "terminal font size",
+            format!(
+                "use {} to {} points",
+                TERMINAL_FONT_RANGE.0, TERMINAL_FONT_RANGE.1
+            ),
+        ));
+    }
+    if !(TERMINAL_SCROLLBACK_RANGE.0..=TERMINAL_SCROLLBACK_RANGE.1)
+        .contains(&prefs.terminal_scrollback_lines)
+    {
+        return Err(out_of(
+            "scrollback",
+            format!(
+                "use {} to {} lines",
+                TERMINAL_SCROLLBACK_RANGE.0, TERMINAL_SCROLLBACK_RANGE.1
+            ),
+        ));
+    }
+    {
+        let storage = crate::commands::lock_storage_arc(state)?;
+        let settings = storage.app_settings();
+        settings.set(STUCK_AFTER_KEY, &prefs.stuck_after_minutes.to_string())?;
+        settings.set(TERMINAL_FONT_KEY, &prefs.terminal_font_size.to_string())?;
+        settings.set(
+            TERMINAL_SCROLLBACK_KEY,
+            &prefs.terminal_scrollback_lines.to_string(),
+        )?;
+    }
+    state.heuristics.set_thresholds(thresholds_with_stuck_after(
+        state.heuristics.thresholds(),
+        prefs.stuck_after_minutes,
+    ));
+    session_prefs_get_impl(state)
+}
+
+/// Settings › Sessions.
+///
+/// # Errors
+///
+/// Returns the typed storage error.
+#[tauri::command]
+pub fn session_prefs_get(state: tauri::State<'_, Arc<AppState>>) -> AppResult<SessionPrefsInfo> {
+    session_prefs_get_impl(state.inner())
+}
+
+/// Saves Settings › Sessions (live: no restart).
+///
+/// # Errors
+///
+/// See [`session_prefs_set_impl`].
+#[tauri::command]
+pub fn session_prefs_set(
+    state: tauri::State<'_, Arc<AppState>>,
+    prefs: SessionPrefsInfo,
+) -> AppResult<SessionPrefsInfo> {
+    session_prefs_set_impl(state.inner(), &prefs)
+}
+
 /// Settings › Notifications.
 ///
 /// # Errors

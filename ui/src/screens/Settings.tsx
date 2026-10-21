@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState, type JSX, type ReactNode } fr
 import { PackSecretsCard } from "../components/PackSecretsCard";
 import {
   CleanupSettingsCard,
+  SessionsSettingsCard,
   FleetPermissionsCard,
   NotificationSettingsCard,
   RenewalSettingsCard,
@@ -53,6 +54,7 @@ const SECTIONS = [
   { id: "general", title: "General" },
   { id: "account", title: "Account & Cloud" },
   { id: "packs", title: "Context packs & secrets" },
+  { id: "sessions", title: "Sessions" },
   { id: "cleanup", title: "Cleanup" },
   { id: "renewal", title: "Accounts & renewal dates" },
   { id: "notifications", title: "Notifications" },
@@ -166,6 +168,9 @@ export function SettingsScreen({
         </SettingsSection>
         <SettingsSection id="packs">
           <PackSecretsCard providers={providers} />
+        </SettingsSection>
+        <SettingsSection id="sessions">
+          <SessionsSettingsCard />
         </SettingsSection>
         <SettingsSection id="cleanup">
           <CleanupSettingsCard accounts={accounts} />
