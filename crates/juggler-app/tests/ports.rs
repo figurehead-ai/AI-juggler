@@ -25,9 +25,6 @@ use juggler_app::state::AppState;
 use juggler_core::model::SessionId;
 use juggler_supervisor::tree::{LedgerStore as _, SpawnContext};
 
-#[path = "support/dev_server.rs"]
-mod dev_server;
-
 fn ctx(state: &Arc<AppState>) -> SpawnContext {
     SpawnContext {
         provider: "claude-code".into(),
@@ -91,23 +88,23 @@ fn port_inventory_classifies_orphan_and_unmanaged_listeners() {
     // Test-only grace tune (the default stays 30 s — never lowered).
     state.supervisor.set_orphan_grace("claude-code", 3);
 
-    // Killed when the test ends, however it ends (a run killed mid-test
-    // used to leave both servers behind).
-    let _servers = dev_server::Guard::new(&[5173, 8000]);
-
     // The vite-like helper holds :5173 inside a supervised Instance.
     let session = SessionId::new("sess-e505");
     let spawned = state
         .supervisor
         .spawn(
             &session,
-            &sh_spec(&format!("{} & wait", dev_server::shell(5173)), dir.path()),
+            &sh_spec(
+                "python3 -m http.server 5173 --bind 127.0.0.1 & wait",
+                dir.path(),
+            ),
             &ctx(&state),
         )
         .unwrap();
 
     // The UNSUPERVISED stranger holds :8000 (the user's own process).
-    let mut stranger = dev_server::command(8000)
+    let mut stranger = std::process::Command::new("python3")
+        .args(["-m", "http.server", "8000", "--bind", "127.0.0.1"])
         .current_dir(dir.path())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
