@@ -900,6 +900,118 @@ On Account E's view:
     looked at, and confirmed.
   - The rule: open every image before it's staged or pushed.
 
+## Batch 8 — the oracle against #120's head (`751fddde`, before it merges)
+
+### How
+
+- The harness was built on #120's head (copied in for the build; #120 doesn't carry it)
+  and run Finder-like on a fresh scratch data folder.
+- `real_truth.py --compare` now sums every token class, reasoning included: disjoint
+  classes sum to the tool's own total.
+- The compare reports Codex's missing 5-hour window as OK, and a window with no percent
+  and no reset as OK.
+- **Snapshot**: no config file changed, no path added or removed. The changes were
+  `~/.codex` (the live Codex) and one profile's managed-settings sync, its own schedule
+  as before.
+- **Before**: main `e2abd09f` (the batch 6 run, 17:2x): 15 OK, 32 MISMATCH.
+  **#120**: 38 OK, 10 MISMATCH.
+
+### Fixed by #120
+
+- Claude tokens per account: ×0.98–1.02 in every 5 h and 7 d window, against ×1.7–2.5
+  on main (P3).
+- Codex tokens: ×1.01, against ×2.00 (P14).
+- No made-up reset times: every unmeasured window has no percent and no reset (P12).
+- Codex weekly percent: 74%, the same as the newest rollout reading (P1).
+- Codex has no 5-hour window (P13).
+- Cost rows per session: 280 of 283 within 5% of the transcripts, median ×1.00. On
+  main it was 1 of 283, median ×1.94.
+- 155 of 456 cost rows are priced (0 on main). `api_equivalent_usd` and `total_usd`
+  have values.
+
+### Still open after #120
+
+- **Not in #120's scope**:
+  - projects and sessions (P2, P9, P10: 16 project rows against 9, sessions 0 against 17
+    live);
+  - the Codex-only projects.
+- **Unpriced models** (301 of 456 rows): `codex-auto-review` (252 rows), `gpt-6.1-sol`
+  (28) and `gpt-6-astra` (21). #120's note names other unpriced Codex models; these are
+  the ones in use here.
+- **The three per-session outliers**:
+  - **Two Codex sessions, ×0.84 and ×0.93**: P17's pre-turn `token_count` after
+    `compacted`, as expected.
+  - **One Claude session, ×0.40**: not a count error. 58% of its messages also sit in
+    another transcript of the same account (a resumed copy). The backend counts each
+    message once and credits it to the other file, so the account totals stay exact
+    (×1.00). Worth a decision on which session a copied message belongs to: the
+    earliest is the honest choice.
+- **P16, larger than it looked**: This Mac's tool memory reads 11.6 GB against
+  26.9 GB of `ps` RSS for the Claude app trees.
+  - The largest tree (17.2 GB at the time) isn't in the top rows at all.
+  - Afterwards the largest tree held a `next-server` dev server of 5.1 GB, started
+    by a session inside the Claude app.
+  - The collector misses session-spawned descendants, which are what "See what's using
+    it" should show.
+  - On main the same tree read 6.0 against 7.7 GB, so this isn't #120's regression.
+- **Cost payload**: `flat_fee_usd` and `value_ratio` are still null (no fee entered,
+  honest), and so are the unpriced rows' `usd`. #120 carries the UI null guards (P11,
+  P18); the UI side is for the bridge walk to re-check after the merge.
+
+### The compare output on #120 (redacted)
+
+```text
+OK        setups found: 7 of 7
+OK        brought in where they are: 7 of 7
+MISMATCH  projects: backend 16 rows, oracle 9
+MISMATCH  Project 1: backend 4 conversations in 2 row(s) (1 split off as their own projects), accounts ['Account A']; oracle 4 Claude + 242 Codex, accounts ['Account A', 'Account G']
+MISMATCH  Project 2: backend 14 conversations in 9 row(s) (8 split off as their own projects), accounts ['Account E']; oracle 14 Claude + 0 Codex, accounts ['Account E']
+OK        Project 3: backend 13 conversations in 1 row(s), accounts ['Account A']; oracle 13 Claude + 0 Codex, accounts ['Account A']
+MISMATCH  Project 4: backend 0 conversations in 0 row(s), accounts -; oracle 0 Claude + 11 Codex, accounts ['Account G']
+OK        Project 5: backend 6 conversations in 1 row(s), accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account E', 'Account F']; oracle 6 Claude + 0 Codex, accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account E', 'Account F']
+OK        Project 6: backend 3 conversations in 1 row(s), accounts ['Account A', 'Account F']; oracle 3 Claude + 0 Codex, accounts ['Account A', 'Account F']
+OK        Project 7: backend 3 conversations in 1 row(s), accounts ['Account B', 'Account C']; oracle 3 Claude + 0 Codex, accounts ['Account B', 'Account C']
+OK        Project 8: backend 1 conversations in 1 row(s), accounts ['Account D']; oracle 1 Claude + 0 Codex, accounts ['Account D']
+MISMATCH  Project 9: backend 0 conversations in 0 row(s), accounts -; oracle 0 Claude + 1 Codex, accounts ['Account G']
+MISMATCH  sessions listed: backend 0; running 17 CLI sessions + 2 active Codex threads
+OK        Account A 5h: no percent and no reset time (nothing measured)
+OK        Account A 5h tokens: backend 304,149,155, oracle 299,004,847 (×1.02)
+OK        Account A 7d: no percent and no reset time (nothing measured)
+OK        Account A 7d tokens: backend 9,638,316,599, oracle 9,637,849,485 (×1.00)
+OK        Account B 5h: no percent and no reset time (nothing measured)
+OK        Account B 5h tokens: backend 152,938,939, oracle 155,434,508 (×0.98)
+OK        Account B 7d: no percent and no reset time (nothing measured)
+OK        Account B 7d tokens: backend 7,041,404,915, oracle 7,043,900,484 (×1.00)
+OK        Account C 5h: no percent and no reset time (nothing measured)
+OK        Account C 5h tokens: backend 471,010,337, oracle 472,176,078 (×1.00)
+OK        Account C 7d: no percent and no reset time (nothing measured)
+OK        Account C 7d tokens: backend 8,034,614,340, oracle 8,035,413,501 (×1.00)
+OK        Account D 5h: no percent and no reset time (nothing measured)
+OK        Account D 5h tokens: backend 492,282,927, oracle 492,282,927 (×1.00)
+OK        Account D 7d: no percent and no reset time (nothing measured)
+OK        Account D 7d tokens: backend 12,642,249,800, oracle 12,642,249,800 (×1.00)
+OK        Account E 5h: no percent and no reset time (nothing measured)
+OK        Account E 5h tokens: backend 1,159,187,206, oracle 1,150,526,346 (×1.01)
+OK        Account E 7d: no percent and no reset time (nothing measured)
+OK        Account E 7d tokens: backend 6,942,014,884, oracle 6,946,202,073 (×1.00)
+OK        Account F 5h: no percent and no reset time (nothing measured)
+OK        Account F 5h tokens: backend 0, oracle 0 (×0.00)
+OK        Account F 7d: no percent and no reset time (nothing measured)
+OK        Account F 7d tokens: backend 2,498,492,913, oracle 2,498,492,913 (×1.00)
+OK        Account G 5-hour window: none, as Codex reports (secondary null)
+OK        Account G weekly: backend 74.0; rollouts say 74.0% used, resets Tue 2026-10-27 02:33
+OK        Account G 7d tokens: backend 8,025,074,783, oracle 7,929,622,129 (×1.01)
+INFO      cost payload: null flat_fee_usd, value_ratio; 456 of 456 rows with null credits/usd (honest nulls; main's CostMatrix.tsx crashes on them until its guards check for null)
+MISMATCH  cost rows per session: 283 sessions in both; 280 within 5% of the transcripts; ratio min ×0.40, median ×1.00, max ×1.03; 0 only in the backend, 2 only in the transcripts; 8 still being written during the run, left out
+MISMATCH  cost rows priced: 155 of 456
+OK        This Mac machine: CPU 96%, memory 84.7 of 103 GB (app_wired_compressed), pressure warning; tools 5
+OK        This Mac tools: backend 5; ps has 5 Claude app instances + 1 ChatGPT (Codex) not counted by design
+MISMATCH  This Mac tools memory: backend 11.6 GB; ps RSS of the Claude app trees 26.9 GB (×0.43)
+MISMATCH  This Mac top rows (GB): backend [3.8, 3.0, 2.0]; ps trees [17.2, 3.8, 3.0]; 2 instance(s) not shown
+OK        This Mac tools CPU: backend 6.6% of all cores (ps %CPU is a decaying average, not compared)
+OK        alerts over the run: 1 (memory_pressure)
+```
+
 ## Not walked (blocked by W0, before the bridge)
 
 These need the window:

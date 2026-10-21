@@ -575,8 +575,9 @@ def compare(truth: dict, harness: dict) -> str:
     now_ms = harness["generated_ms"]
     lines = []
 
-    def verdict(ok: bool, text: str) -> None:
-        lines.append(("OK        " if ok else "MISMATCH  ") + text)
+    def verdict(ok, text: str) -> None:
+        # ok: True / False, or None for a fact that is neither (INFO).
+        lines.append(("INFO      " if ok is None else "OK        " if ok else "MISMATCH  ") + text)
 
     # First run: every setup found, every bring-in done.
     found = {str(i["path"]).rstrip("/") for i in harness["scan"]["installs"]}
@@ -620,6 +621,9 @@ def compare(truth: dict, harness: dict) -> str:
         for key, window in (("five_hour", "5h"), ("weekly", "7d")):
             w = q.get(key)
             if not w:
+                lim = (acc.get("codex_limits") or {}) if acc["tool"] == "codex" else {}
+                if key == "five_hour" and lim and lim.get("secondary") is None:
+                    verdict(True, f"{name} 5-hour window: none, as Codex reports (secondary null)")
                 continue
             pct = w.get("percentage")
             if acc["tool"] == "codex":
@@ -633,6 +637,8 @@ def compare(truth: dict, harness: dict) -> str:
                     verdict(False, f"{name} 5-hour window: backend tracks one ({w['state']}); Codex reports no 5-hour window (secondary null)")
             elif pct is not None:
                 verdict(True, f"{name} {window}: backend {pct}% used (Measured sample)")
+            elif w.get("resets_at_ms") is None:
+                verdict(True, f"{name} {window}: no percent and no reset time (nothing measured)")
             resets = w.get("resets_at_ms")
             if resets is not None and abs(resets - now_ms) < 5 * 60_000:
                 verdict(False, f"{name} {window}: resets at {round((resets - now_ms) / 60000, 1)} min from now — the window's start + its length, not a vendor reset")
@@ -651,15 +657,15 @@ def compare(truth: dict, harness: dict) -> str:
     if cost.get("total_usd", "absent") is None:
         nulls.append("total_usd")
     null_rows = sum(1 for r in cost["rows"] if r.get("credits", "absent") is None or (r.get("usd") or {}).get("usd", "absent") is None)
-    verdict(not nulls and not null_rows,
+    verdict(None if nulls or null_rows else True,
             f"cost payload: null {', '.join(nulls) or 'none'}; {null_rows} of {len(cost['rows'])} rows with null credits/usd"
-            " (CostMatrix.tsx crashes on these)")
+            " (honest nulls; main's CostMatrix.tsx crashes on them until its guards check for null)")
     backend_sessions = defaultdict(int)
     for r in cost["rows"]:
         t = r.get("tokens") or {}
-        # Codex's input already includes cached input and its output reasoning:
-        # compare like with like (input + output for Codex, every class for Claude).
-        backend_sessions[r["key"]] += sum(t.get(k, 0) for k in ("input", "output", "cache_read", "cache_write"))
+        # Every class: disjoint classes sum to the tool's own total (on main,
+        # Codex's input still includes its cached input, which shows as about x2).
+        backend_sessions[r["key"]] += sum(t.get(k, 0) for k in ("input", "output", "cache_read", "cache_write", "reasoning"))
     # Sessions written after the backend read them would differ for that
     # reason alone: leave them out (the harness records when it ingested;
     # older outputs: 5 minutes before they were written).
