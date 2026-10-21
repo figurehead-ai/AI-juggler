@@ -144,6 +144,13 @@
   wall-time budget (load average about 24, other sessions building). It
   passed 3/3 alone straight after at the same load. #74 doesn't change
   the reconciler. Budget and assertion unchanged; CI is the arbiter.
+- **Flake record, 2026-10-20 (known class; no change).** In #83's
+  `visual_gate.sh --update` (4 workers, linux/amd64 emulated on arm64),
+  `regression.spec :: add account — light-compact-1024x680` timed out at
+  30 s waiting for the Accounts nav button: the page hadn't rendered yet.
+  The comparison run straight after, on the same tree, passed 137/137,
+  that cell included. The test and its 30 s budget are unchanged; CI
+  runs it natively on amd64.
 - a11y seeded failure is recorded DEFERRED with owning task AJ-E804 —
   the gate is named in QUALITY.md vocabulary now; its absence is
   explicit, never a silent pass (per the quarantine/deferral rule).
