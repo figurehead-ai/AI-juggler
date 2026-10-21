@@ -22,8 +22,8 @@ use crate::quota::UsageEvent;
 
 /// The bundled, versioned seed (`cost_ledger_seed.json`; v2 added
 /// cache rates, `effective_from`, and per-row `source_url` over the
-/// AJ-E409 v1 table; v3 prices the current Claude and OpenAI models
-/// from the vendors' pages — `docs/research/model-pricing.md`). Malformed ⇒ build-time bug the tests catch;
+/// AJ-E409 v1 table; v3 prices the current Claude and GPT models from
+/// the vendors' pages — `docs/research/model-pricing.md`). Malformed ⇒ build-time bug the tests catch;
 /// never a silent fallback.
 pub const PRICING_SEED: &str = include_str!("cost_ledger_seed.json");
 

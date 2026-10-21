@@ -142,11 +142,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   measured yet: on Home, Accounts, Usage, a session's details and New
   session, a window with no reading says "Not measured yet". It also
   shows the tokens used in that window, and an empty bar instead of a full
-  one. A reset time AI Juggler only estimated from your own use says
-  "about …, estimated".
-- **Codex**: AI Juggler now shows Codex's 5-hour and weekly limits, and
-  its credit balance, as measured. Codex records them in its own session
-  files, so "Codex doesn't report its limits" is gone.
+  one. A reset time shows only when the tool itself reported it; before,
+  one was worked out from your own use, and under steady use it read
+  "now".
+- **Codex**: AI Juggler now shows Codex's limits and its credit balance,
+  as measured. Codex records them in its own session files, so "Codex
+  doesn't report its limits" is gone. It shows the windows Codex reports
+  (on many plans only the weekly one), never a 5-hour window Codex
+  doesn't have.
+- Usage no longer turns the whole window blank. A cost with no value
+  yet (no fee set, a model with no price, Codex's credits) crashed it;
+  each now reads as missing, and a model with no price says "No price
+  for <model> yet", never $0.
+- A screen that hits a problem shows "This screen hit a problem" with
+  **Try again** and **Copy details**, while the sidebar and the header
+  keep working. Before, one screen's error blanked the whole window. The
+  error goes to the crash report only if crash reports are on.
+- Token counts are right. Claude's were counted two or three times: one
+  reply is written as several lines, one per part, and each line was
+  counted. Codex's were counted twice, because its input includes its
+  cached input and its output its reasoning. Counts already stored are
+  read again once from your history files, so the totals correct
+  themselves.
+- Usage puts a price on the models you use. It knows the current Claude
+  models and the GPT-5 models Codex runs on, from Anthropic's and
+  OpenAI's own price pages. Codex rows now carry their model too.
 - Home under memory pressure: the warning banner no longer covers Home's
   headline, and Home shows the warning once, under Needs you. The figure
   is the same everywhere: the whole Claude app across its windows ("about

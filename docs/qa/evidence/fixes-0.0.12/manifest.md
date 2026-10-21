@@ -45,12 +45,12 @@ dogfooding 0.0.12, with the fix's proof (branch `fix/maintainer-reports-2`).
 
 | Claim / Req ID | Command / fixture / live step (exact) | Threshold | Observed | Verdict | Commit SHA | Date | Reviewer |
 |---|---|---|---|---|---|---|---|
-| R1 the state machine | `cargo test -p juggler-app --lib -- os_access` (not asked → prompt; asked, no grant → `not_allowed` + `reopen` + the note; granted → `allowed`) | each case | 4 passed (with the existing 2) | PASS | SHA_TBD | 2026-10-21 | claude-opus |
-| R2 the reopen asks first | `cargo test -p juggler-app --lib -- app_relaunch`: `reopening_asks_first_when_sessions_are_live_and_waits_for_a_switch` (none → relaunch; 1/2 live → hold, can override; anyway → relaunch; switch/bring-in → hold, can't override) | each case | passed | PASS | SHA_TBD | 2026-10-21 | claude-opus |
-| R3 the card's states | `pnpm --dir ui exec vitest run src/screens/first-run-access-reopen.test.tsx`: the note and Reopen, never Allowed; focus re-checks at once (sooner than the 1.5 s poll); Reopen marks the resume; live sessions said first, Reopen anyway / Not now; a switch makes it wait; the marker is read once | 6 pass; fail on the old step | 6 passed; on the old step 5 failed (the marker test is pure) | PASS | SHA_TBD | 2026-10-21 | claude-opus |
-| R4 gallery and axe | `pnpm exec playwright test tests/visual/journey-first-run.spec.ts -g reopen`, dark and light, started by the resume marker → [reopen offered](docs/qa/evidence/_gallery/66-first-run/access-reopen-1280x800-dark.png), [live sessions said](docs/qa/evidence/_gallery/66-first-run/access-reopen-live-sessions-1280x800-dark.png) | axe 0 critical/serious | 2 passed | PASS | SHA_TBD | 2026-10-21 | claude-opus |
-| R3b the pure state machine | `pnpm --dir ui exec vitest run src/lib/osAccess.test.ts`: not asked → Allow; asked, no grant → Reopen + System Settings, never Allowed; granted → Allowed; re-check on focus; resume marker | 6 pass | 6 passed | PASS | SHA_TBD | 2026-10-21 | claude-opus |
-| R5 no TCC grant in tests | every test uses the bridge's seams or the pure functions; no test calls `ScreenCaptureAccess`, and no Allow was pressed | none | none | PASS | SHA_TBD | 2026-10-21 | claude-opus |
+| R1 the state machine | `cargo test -p juggler-app --lib -- os_access` (not asked → prompt; asked, no grant → `not_allowed` + `reopen` + the note; granted → `allowed`) | each case | 4 passed (with the existing 2) | PASS | b8207517, d966302b | 2026-10-21 | claude-opus |
+| R2 the reopen asks first | `cargo test -p juggler-app --lib -- app_relaunch`: `reopening_asks_first_when_sessions_are_live_and_waits_for_a_switch` (none → relaunch; 1/2 live → hold, can override; anyway → relaunch; switch/bring-in → hold, can't override) | each case | passed | PASS | b8207517, d966302b | 2026-10-21 | claude-opus |
+| R3 the card's states | `pnpm --dir ui exec vitest run src/screens/first-run-access-reopen.test.tsx`: the note and Reopen, never Allowed; focus re-checks at once (sooner than the 1.5 s poll); Reopen marks the resume; live sessions said first, Reopen anyway / Not now; a switch makes it wait; the marker is read once | 6 pass; fail on the old step | 6 passed; on the old step 5 failed (the marker test is pure) | PASS | b8207517, d966302b | 2026-10-21 | claude-opus |
+| R4 gallery and axe | `pnpm exec playwright test tests/visual/journey-first-run.spec.ts -g reopen`, dark and light, started by the resume marker → [reopen offered](docs/qa/evidence/_gallery/66-first-run/access-reopen-1280x800-dark.png), [live sessions said](docs/qa/evidence/_gallery/66-first-run/access-reopen-live-sessions-1280x800-dark.png) | axe 0 critical/serious | 2 passed | PASS | b8207517, d966302b | 2026-10-21 | claude-opus |
+| R3b the pure state machine | `pnpm --dir ui exec vitest run src/lib/osAccess.test.ts`: not asked → Allow; asked, no grant → Reopen + System Settings, never Allowed; granted → Allowed; re-check on focus; resume marker | 6 pass | 6 passed | PASS | b8207517, d966302b | 2026-10-21 | claude-opus |
+| R5 no TCC grant in tests | every test uses the bridge's seams or the pure functions; no test calls `ScreenCaptureAccess`, and no Allow was pressed | none | none | PASS | b8207517, d966302b | 2026-10-21 | claude-opus |
 
 ## Runway: "100% left" for every account in use (item A)
 
@@ -76,7 +76,8 @@ account in active use. The reset times differed per account.
 
 **Fix, at both ends:**
 - **Backend:**
-  - `WindowReading.reset_basis` is Measured, Calendar or Estimated;
+  - `WindowReading.reset_basis` says where a reset came from (Measured
+    or Calendar; the Estimated basis was dropped by P12 below);
   - a window with no percentage reaches the UI as `unmeasured`, never a
     known state;
   - `reset_basis` travels with every reset.
@@ -86,13 +87,13 @@ account in active use. The reset times differed per account.
   - "% left" and a filled bar come only from a real percentage.
   - Otherwise: "Not measured yet", the tokens used in the window, and a
     dashed empty bar.
-  - An estimated reset says "about …, estimated".
+  - A reset shows only when one is known (P12 below).
 - **Not changed here:** "Nothing running" on the cards while sessions run
   outside AI Juggler is AJ-E1529 (release/0.1).
 
 | Claim / Req ID | Command / fixture / live step (exact) | Threshold | Observed | Verdict | Commit SHA | Date | Reviewer |
 |---|---|---|---|---|---|---|---|
-| A1 the backend never reports a known state without a sample | `cargo test -p juggler-app --test quota_display`: `use_without_a_sample_is_unmeasured_and_its_reset_is_an_estimate` (token events, no sample → `unmeasured`, no percentage, no badge, 12,000 tokens, `reset_basis: estimated`); the Measured case has `reset_basis: measured` | pass | 6 passed | PASS | add9ffeb | 2026-10-21 | claude-opus |
+| A1 the backend never reports a known state without a sample | `cargo test -p juggler-app --test quota_display`: `use_without_a_sample_is_unmeasured_and_has_no_reset_time` (token events, no sample → `unmeasured`, no percentage, no badge, 12,000 tokens, no reset since P12); the Measured case has `reset_basis: measured` | pass | 6 passed | PASS | add9ffeb, 003680c5 | 2026-10-21 | claude-opus |
 | A2 no "% left" on any surface | `pnpm --dir ui exec vitest run src/quota-unmeasured-surfaces.test.tsx`: one account with tokens and no sample on Home's Runway, the Accounts card (bars at 0%), Usage, the inspector's rings (no SVG ring) and the New session chip | no "% left" anywhere; fails on the old components | 4 passed; on the old components 3 failed (the 4th checks the new module) | PASS | add9ffeb | 2026-10-21 | claude-opus |
 
 ## Codex limits from its own rollouts (item B)
@@ -157,6 +158,154 @@ release/0.1.
 | M2 once on Home | same spec "memory pressure": no banner on Home, the headline "Your Mac needs a look", the title once; vitest `this-mac.test.tsx` (Needs you once; the region hides machine alerts on Home and shows them elsewhere) | pass | passed (vitest 18) | PASS | 97547c38 | 2026-10-21 | claude-opus |
 | M3 one figure | `cargo test -p juggler-app --lib -- machine_alerts`: `the_claude_app_is_named_by_all_its_windows_never_one` (#85) and `the_alert_says_how_many_windows_its_figure_sums` (3 windows, 16.1 GB; a session of ours has no count); vitest `alertSubject` → "The Claude app is using about 16 GB across 3 windows" | pass | 15 passed | PASS | 97547c38 | 2026-10-21 | claude-opus |
 | M4 one severity | `cargo test -p juggler-app --lib -- machine_health`: `this_mac_says_what_the_pressure_alert_says` ("Getting tight" before; "Under memory pressure" with the alert, the reason at pressure) | pass | passed | PASS | 97547c38 | 2026-10-21 | claude-opus |
+
+## Usage blanked the whole window
+
+**Report.** Clicking Usage on 0.0.12 showed a blank window, rail and header
+gone. QA reproduced it on every real install with no fee set.
+
+**Cause:**
+- Every Rust `Option` in the cost payload arrives as `null`: the
+  subscription view's `api_equivalent_usd`, `flat_fee_usd` and
+  `value_ratio`, a row's `credits` and `usd.usd`, and `total_usd`.
+- The hand-written TS types said `?: number`, and `CostMatrix` checked
+  `!== undefined`, so `null.toFixed` threw.
+- With no error boundary, the whole React tree unmounted.
+- The preview mock sent `subscription: {}` (missing keys, not nulls), so
+  no test saw it.
+
+**Fix:**
+- **One convention (rule I6, `docs/engineering/ipc-nulls.md`):** an
+  `Option` is `null` on the wire, typed `T | null`, checked `!= null`.
+- **Truthful bridge types:** the cost types plus `WindowDisplay`,
+  `ForecastDisplay`, `QuotaDisplayData`, `RankedRowData`,
+  `SwitchTargetData` and `CreditsDisplay` now mirror Rust. The compiler
+  then found every unguarded site.
+- **Mocks** send what serde sends, via the builders in `ui/src/lib/wire.ts`.
+- **Unpriced model:** reads "No price for <model> yet", never $0.
+
+| Claim / Req ID | Command / fixture / live step (exact) | Threshold | Observed | Verdict | Commit SHA | Date | Reviewer |
+|---|---|---|---|---|---|---|---|
+| U1 null payloads render | `pnpm --dir ui exec vitest run src/usage-null-payload.test.tsx`: Usage and CostMatrix fed the maintainer's shape (no cost rows, an unpriced model, Codex credits null, value ratio null) | pass; fails on the old code | 3 passed; all 3 crashed on the old code | PASS | ed2e3833 | 2026-10-21 | claude-opus |
+| U2 the convention is written down | `docs/engineering/ipc-nulls.md` (I6; to fold into the guide's C.4 when #101 lands); the lint is noted for AJ-E2012 | present | present | PASS | ed2e3833 | 2026-10-21 | claude-opus |
+
+## A screen's error no longer blanks the window
+
+**Fix:**
+- **Boundaries:** `ScreenBoundary` wraps each screen (Home, Accounts,
+  Usage, History, Settings, Fleet, Cleanup, This Mac, the inspector),
+  plus a root boundary in `main.tsx`.
+- **The panel** reads "This screen hit a problem", with Try again and
+  Copy details. The rail and header keep working.
+- **The error** goes to `crash_ui_error`: the screen's name, the message
+  and the stack, scrubbed, and kept only if crash reports are on.
+
+| Claim / Req ID | Command / fixture / live step (exact) | Threshold | Observed | Verdict | Commit SHA | Date | Reviewer |
+|---|---|---|---|---|---|---|---|
+| E1 a throwing screen shows its panel | `pnpm --dir ui exec vitest run src/screen-boundary.test.tsx`: Usage throws `null.toFixed` → the panel; Home and the rail still there and working; the report carries the screen and the error only; Try again re-renders; Copy details copies the error | pass | 3 passed | PASS | 79f7d980 | 2026-10-21 | claude-opus |
+| E2 the report respects the setting | `cargo test -p juggler-app --lib -- crash`: `a_screen_error_is_kept_like_a_panic_and_only_when_allowed` (scrubbed, kept only when crash reports are on) | pass | passed | PASS | 79f7d980 | 2026-10-21 | claude-opus |
+
+## Tokens counted more than once (P3, P14)
+
+**Found by** QA's oracle (`scripts/qa/real_truth.py` on
+`claude/qa-real-walk-be289a`):
+- Claude tokens were ×1.8–2.5 the transcripts' on every account in use.
+- Codex tokens were exactly ×2.
+
+**Causes:**
+- **P3 (Claude):** Claude Code writes one transcript line per content
+  block (thinking, text, each tool call). Each line has its own `uuid`, but
+  all carry the same `message.id`, `requestId` and `usage`. The parser
+  keyed events on the line `uuid`, so one response counted once per block.
+  - Not the cause: the status-line spool carries no token events, and
+    sidechain lines carry their own message ids.
+- **P14 (Codex):** Codex's `input_tokens` includes `cached_input_tokens`,
+  and its `output_tokens` includes `reasoning_output_tokens`. The four
+  were stored as separate classes, which counted each token twice.
+  - The inspector's rollout scan counted reasoning twice too.
+
+**Fix:**
+- **Claude events** are keyed `message.id/requestId`, falling back to the
+  `uuid`. A response's blocks in one slice collapse to one event, each
+  class taking its largest value.
+- **Codex classes** are stored disjoint: input without the cached part,
+  output without the reasoning. This follows Codex's own
+  `non_cached_input()` and its total of input + output. Reasoning is priced
+  at the output rate.
+- **Existing installs:** a versioned one-time re-read reads every
+  transcript and rollout still on disk from the start, and replaces its
+  sessions' rows in the same pass.
+  - Sessions whose files are gone keep their rows.
+  - The re-read isn't counted as new use.
+- **P15(a):** Codex usage now carries the model its `turn_context` names,
+  carried across tail slices per file.
+
+| Claim / Req ID | Command / fixture / live step (exact) | Threshold | Observed | Verdict | Commit SHA | Date | Reviewer |
+|---|---|---|---|---|---|---|---|
+| T1 one response, one event | `cargo test -p juggler-adapters --test quota_ingest`: `one_response_written_as_several_content_blocks_counts_once` (`fixtures/quota/claude-transcript-content-blocks.jsonl`, shaped like the real lines, invented values: 3 + 2 blocks → 2 events, sums 10/362/24,800/890), `a_response_read_twice_is_stored_once` | pass; fails on the old parser | 22 passed | PASS | 84ff8f00 | 2026-10-21 | claude-opus |
+| T2 Codex tokens once | same suite: `codex_tokens_are_counted_once` (classes sum to Codex's `total_tokens`); `cargo test -p juggler-app --lib rollout_scan` `the_quality_scan_counts_each_codex_token_once`; `cargo test -p juggler-core --test cost_ledger reasoning_tokens_are_priced_as_output` | pass | passed | PASS | 84ff8f00 | 2026-10-21 | claude-opus |
+| T3 stored rows corrected once | `cargo test -p juggler-app --test usage_pipeline rows_counted_per_content_block_are_read_again_once` (0.0.12's per-line rows + offsets at the end → one pass leaves one row per response; a gone file's rows stay; the next pass changes nothing) | pass; fails on the old code | passed; on the old source it failed (5 rows) | PASS | 84ff8f00 | 2026-10-21 | claude-opus |
+| T4 Codex model | `codex_usage_takes_the_model_its_turn_context_names` (adapters) and `codex_usage_keeps_its_turns_model_across_passes` (pipeline: a slice without its own `turn_context` keeps the file's model; tokens sum to 120) | pass; fails on the old code | passed; the pipeline case failed on the old source | PASS | 84ff8f00 | 2026-10-21 | claude-opus |
+
+## Reset times only when known (P12)
+
+**Found by** QA: with no vendor sample, every Claude window's `resets_at`
+was the first usage event in the rolling window + 5 h or 7 d. Under
+steady use, that is "now".
+
+**Fix (D-06):** a reset time comes only from a measured source, or from an
+anchored weekly schedule (`quota::known_reset`):
+- a measured source is a status-line sample, or Codex's `rate_limits`;
+- the anchored schedule is a settings key that nothing writes today.
+
+Otherwise there is no reset time. `ResetBasis::Estimated` and the UI's
+"resets about …, estimated" are gone.
+
+| Claim / Req ID | Command / fixture / live step (exact) | Threshold | Observed | Verdict | Commit SHA | Date | Reviewer |
+|---|---|---|---|---|---|---|---|
+| P12a no invented reset | `cargo test -p juggler-app --test quota_display use_without_a_sample_is_unmeasured_and_has_no_reset_time` (events over the last 30 min, no sample → `resets_at_ms` and `reset_basis` null on both windows); the measured case keeps the vendor's | pass; fails on the old engine | passed; the old engine returned an estimate here, so the null asserts fail (by reading; not re-run) | PASS | 003680c5 | 2026-10-21 | claude-opus |
+| P12b every surface | `pnpm --dir ui exec vitest run src/quota-unmeasured-surfaces.test.tsx` ("Not measured yet · 12k tokens used", no "resets" on the card) | pass | 4 passed | PASS | 003680c5 | 2026-10-21 | claude-opus |
+
+## Codex windows as Codex reports them (P13)
+
+**Found by** QA: Codex was given a five-hour window, but the maintainer's
+rollouts report only a weekly one (`primary` `window_minutes` 10080,
+`secondary` null).
+
+**Fix:**
+- **Shown:** a Codex window appears when Codex reported it in the last
+  week, as a Measured sample whose `window_minutes` names it.
+- **Not reported:** a window Codex doesn't report is omitted, with "Codex
+  reports no five-hour limit for this account".
+- **Before any reading:** both windows say "Codex hasn't reported its
+  limits yet — they show after you use Codex".
+- The plan rule ("Pro has no five-hour limit") is gone: the reading
+  decides.
+
+| Claim / Req ID | Command / fixture / live step (exact) | Threshold | Observed | Verdict | Commit SHA | Date | Reviewer |
+|---|---|---|---|---|---|---|---|
+| P13 windows from the reading | `cargo test -p juggler-app --test quota_display codex_shows_only_the_windows_it_reports` (no samples → both omitted with the reason; a weekly sample only → five-hour omitted "reports no five-hour limit", weekly 69 % measured) | pass; fails on the old plan rule | passed; the old rule gave a Plus account both windows with no reading (by reading; not re-run) | PASS | 74c35644 | 2026-10-21 | claude-opus |
+
+## Prices for the models in use (P15)
+
+**Found by** QA: the seed priced only `claude-opus-4` and
+`claude-sonnet-4`, and 297 of 452 rows (Codex) had no model.
+
+**Fix:**
+- **Seed v3** carries the current Claude models and the GPT-5 family plus
+  `gpt-5.3-codex`, from each vendor's own pricing page, accessed
+  2026-10-21.
+- **Record:** `docs/research/model-pricing.md` (AJ-E810, Verified-primary)
+  records the prices and what isn't modelled.
+- **Dated IDs:** a dated ID is priced through its dateless alias.
+- **(a) Codex model:** read from `turn_context` (T4 above).
+- **(c) Unknown model:** stays "No price for <model> yet" (U1).
+- **(d) The pricing-update path:** written up as a follow-up in the
+  research doc.
+
+| Claim / Req ID | Command / fixture / live step (exact) | Threshold | Observed | Verdict | Commit SHA | Date | Reviewer |
+|---|---|---|---|---|---|---|---|
+| P15 the models in use are priced | `cargo test -p juggler-core --test cost_ledger the_models_in_real_use_are_priced` (the six Claude IDs QA saw, the dated Haiku through its alias, gpt-5.5, gpt-5.3-codex; Opus 5.5 at 4/20/0.20/5 per MTok = $29.20 for 1M of each; an unknown model unpriced) | pass; fails on the old seed | passed; the old seed has none of these models (by reading; not re-run) | PASS | f1043f1a | 2026-10-21 | claude-opus |
 
 ## Gates
 
