@@ -30,6 +30,7 @@
  * folder picker, then a check of what's in it (size, sign-in, a too-large
  * history offers settings only) before AI Juggler copies it.
  */
+import { ToolMark } from "../components/ToolMark";
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { Button } from "../components/primitives";
 import { inPlaceProviders, ownSignIn, providerDisplayName, sameAsWords, shortSignIn, supportsInPlace, type InPlaceSupport } from "../lib/providers";
@@ -469,6 +470,7 @@ function FoundStep({
                 <legend className="sr-only">{group.title}</legend>
                 <div aria-hidden="true" className="flex items-center justify-between gap-3 bg-surface-2 px-5 py-2.5 text-xs">
                   <span className="font-semibold text-ink">
+                    <ToolMark tool={group.tool} size={14} className="mr-1.5 inline-flex align-[-2px] text-muted" />
                     {group.title} <span className="font-normal text-faint">· {rows.length}</span>
                   </span>
                   {group.showsInstall && install && install.status !== "not_installed" && (

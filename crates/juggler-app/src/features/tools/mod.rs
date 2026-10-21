@@ -19,6 +19,7 @@ pub fn spec_info(adapter: &dyn HarnessAdapter) -> ToolSpecInfo {
     ToolSpecInfo {
         id: spec.id,
         display_name: spec.display_name,
+        short_name: spec.short_name,
         vendor: spec.vendor,
         mark: spec.mark,
         vendor_mark: spec.vendor_mark,

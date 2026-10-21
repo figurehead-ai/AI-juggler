@@ -239,7 +239,7 @@
 **Research basis**: ADR-0019; ENGINEERING-GUIDE A2, A4.
 **Done (2026-10-21)**: `ToolSpec` in `juggler-adapter/src/spec.rs` (domain data; `HarnessAdapter::spec()` defaults to the neutral spec); Claude Code's and Codex's specs in their adapters. `features/tools/` serves `tools_catalog` (async), composing each spec with the adapter's capabilities and isolation keys. On the UI side, `lib/tools.ts` holds the catalog once (loaded before the first render) and `providers.ts` reads it. First run's groups, default labels, desktop-app words, install commands and tool list come from the specs. `scripts/tool_literal_lint.py`, in `just verify` and CI, starts from an allowlist of 150 backend and bridge-mock sites in 15 files that only shrinks; the UI screens hold none. Not moved yet: the handover pair data (`fidelity.rs`, `validation.rs`), the usage pipeline's per-tool sources and the bridge's preview mocks, all allowlisted.
 
-### AJ-E1526 Tool and company marks everywhere | Status: TODO | Priority P1 | Effort M | Depends: AJ-E1525
+### AJ-E1526 Tool and company marks everywhere | Status: DONE-EVIDENCED | Priority P1 | Effort M | Depends: AJ-E1525
 **Goal**: Wherever a tool or its company is named, its mark sits beside the name.
 **Requirements** (the maintainer's request, 2026-10-21):
 1. Each ToolSpec names its mark, and a vendor mark where it differs.

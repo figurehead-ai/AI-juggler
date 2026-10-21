@@ -111,46 +111,8 @@ export function IconJuggler(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Provider marks (AJ-E402 I-01): filled brand-neutral glyphs per the
-// pass2/04 §3 table — ◆ Claude, ⬢ Codex, ▲ ZCode, ◇ generic Tool. These
-// are MARKS, not status dots: never reused for state.
-
-/** I-01: Claude Code — solid diamond. */
-export function IconProviderClaude(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg {...base(props)} strokeWidth={1.25}>
-      <path d="M12 3.5 20.5 12 12 20.5 3.5 12Z" fill="currentColor" />
-    </svg>
-  );
-}
-
-/** I-01: Codex — solid hexagon. */
-export function IconProviderCodex(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg {...base(props)} strokeWidth={1.25}>
-      <path d="M12 3 20 7.75v8.5L12 21l-8-4.75v-8.5Z" fill="currentColor" />
-    </svg>
-  );
-}
-
-/** I-01: ZCode — solid triangle. */
-export function IconProviderZCode(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg {...base(props)} strokeWidth={1.25}>
-      <path d="M12 4 20.5 19.5h-17Z" fill="currentColor" />
-    </svg>
-  );
-}
-
-/** I-01: unknown Provider — hollow diamond + text fallback (`Tool`). */
-export function IconProviderGeneric(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg {...base(props)} strokeWidth={1.75}>
-      <path d="M12 3.5 20.5 12 12 20.5 3.5 12Z" />
-    </svg>
-  );
-}
+// Tool marks (I-01) are drawn by components/ToolMark.tsx from each tool's
+// spec (AJ-E1526), never as per-tool glyphs here.
 
 // ---------------------------------------------------------------------------
 // State glyphs (AJ-E402 I-04): every state renders icon + text + colour

@@ -52,6 +52,7 @@ export function genericTool(id: string): ToolSpecInfo {
   return {
     id,
     display_name: id,
+    short_name: id,
     vendor: "",
     mark: null,
     vendor_mark: null,

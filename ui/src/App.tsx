@@ -1,3 +1,4 @@
+import { ToolMark } from "./components/ToolMark";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Card, Chip } from "./components/primitives";
 import { WorkflowRail, type Freshness } from "./components/WorkflowRail";
@@ -895,7 +896,10 @@ export default function App() {
                 className="rounded-full outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
                 data-testid="context-tool"
               >
-                <Chip tone="accent">{contextProvider}</Chip>
+                <Chip tone="accent">
+                  <ToolMark tool={contextProviderId} size={12} />
+                  {contextProvider}
+                </Chip>
               </button>
             )}
           </div>

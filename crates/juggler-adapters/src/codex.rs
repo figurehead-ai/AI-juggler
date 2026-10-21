@@ -819,6 +819,7 @@ pub fn codex_spec() -> juggler_adapter::ToolSpec {
     ToolSpec {
         id: CODEX_ID.to_owned(),
         display_name: "Codex".to_owned(),
+        short_name: "Codex".to_owned(),
         vendor: "OpenAI".to_owned(),
         mark: Some("openai".to_owned()),
         vendor_mark: None,

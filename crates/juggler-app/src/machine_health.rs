@@ -709,7 +709,7 @@ fn track_footprints(state: &Arc<AppState>, now_ms: i64, periodic: bool, prune: b
                 .or_insert_with(|| {
                     TreePeaks::new(
                         format!("observed:{place}"),
-                        "claude-code".into(),
+                        OBSERVED_TOOL.into(),
                         None,
                         now_ms,
                     )
@@ -827,6 +827,10 @@ const HEAVY_EXIT_RATIO: f64 = 0.8;
 /// leave Needs you, the rail and the header and come back a minute later.
 const HEAVY_EXIT_MS: i64 = 45_000;
 
+/// The tool the observed trees are: `running_setups` finds the Claude app
+/// and `claude` outside it, nothing else yet.
+const OBSERVED_TOOL: &str = "claude-code";
+
 /// One process tree on This Mac: a session AI Juggler started, or an AI
 /// tool it did not (read-only; no actions).
 #[derive(Clone, PartialEq, Debug, serde::Serialize, ts_rs::TS)]
@@ -838,6 +842,8 @@ pub struct ToolTreeInfo {
     /// For a tool AI Juggler did not start: `desktop` (the Claude app) or
     /// `terminal` (`claude` in a terminal).
     pub place: Option<String>,
+    /// The tool's id, for its mark (AJ-E1526); `null` when it isn't known.
+    pub tool: Option<String>,
     /// The Account it uses, when one of yours matches.
     pub account_label: Option<String>,
     /// CPU summed over the tree, percent of ONE core (can pass 100);
@@ -908,6 +914,8 @@ pub struct TreeInput {
     pub session_id: Option<String>,
     /// `desktop` | `terminal` for observed trees.
     pub place: Option<&'static str>,
+    /// The tool's id, when known.
+    pub tool: Option<String>,
     /// The matched Account's label.
     pub account_label: Option<String>,
     /// Tree sums.
@@ -1003,6 +1011,7 @@ fn tree_info(tree: &TreeInput) -> ToolTreeInfo {
     ToolTreeInfo {
         session_id: tree.session_id.clone(),
         place: tree.place.map(str::to_string),
+        tool: tree.tool.clone(),
         account_label: tree.account_label.clone(),
         cpu_pct: tree.stats.cpu_pct,
         rss_bytes: tree.stats.rss_bytes,
@@ -1092,7 +1101,7 @@ pub fn this_mac_impl(state: &Arc<AppState>, now_ms: i64) -> AppResult<ThisMacInf
             watch.tools.clone(),
         )
     };
-    let (accounts, live, labels) = {
+    let (accounts, live, labels, providers) = {
         let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
         let accounts = storage.accounts().list()?;
         let live: std::collections::HashSet<String> = storage
@@ -1106,7 +1115,11 @@ pub fn this_mac_impl(state: &Arc<AppState>, now_ms: i64) -> AppResult<ThisMacInf
             .iter()
             .map(|account| (account.id.to_string(), account.label.clone()))
             .collect();
-        (accounts, live, labels)
+        let providers: std::collections::HashMap<String, String> = accounts
+            .iter()
+            .map(|account| (account.id.to_string(), account.harness.as_str().to_string()))
+            .collect();
+        (accounts, live, labels, providers)
     };
     let mut hogs: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
     for hog in crate::commands::hog_facts(state, now_ms) {
@@ -1130,11 +1143,10 @@ pub fn this_mac_impl(state: &Arc<AppState>, now_ms: i64) -> AppResult<ThisMacInf
             if !live.contains(&id) {
                 continue;
             }
+            let account = contexts.get(&id).and_then(Option::as_ref);
             trees.push(TreeInput {
-                account_label: contexts
-                    .get(&id)
-                    .and_then(Option::as_ref)
-                    .and_then(|account| labels.get(account).cloned()),
+                tool: account.and_then(|account| providers.get(account).cloned()),
+                account_label: account.and_then(|account| labels.get(account).cloned()),
                 ring: collector.ring(&session),
                 hog_rules: hogs.remove(&id).unwrap_or_default(),
                 session_id: Some(id),
@@ -1150,6 +1162,7 @@ pub fn this_mac_impl(state: &Arc<AppState>, now_ms: i64) -> AppResult<ThisMacInf
             trees.push(TreeInput {
                 session_id: None,
                 place: Some(tool.place),
+                tool: Some(OBSERVED_TOOL.to_string()),
                 account_label: account_for(tool, &accounts, &home),
                 stats: tree.stats,
                 ring: tree.ring.iter().copied().collect(),
@@ -1739,6 +1752,7 @@ mod tests {
         TreeInput {
             session_id: session.map(str::to_string),
             place: session.is_none().then_some("desktop"),
+            tool: None,
             account_label: Some("Work Max".into()),
             stats: LiveProcessStats {
                 child_count: 3,

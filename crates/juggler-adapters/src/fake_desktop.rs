@@ -48,6 +48,7 @@ impl HarnessAdapter for FakeDesktopAdapter {
     fn spec(&self) -> juggler_adapter::ToolSpec {
         juggler_adapter::ToolSpec {
             display_name: "Fake harness (test)".to_owned(),
+            short_name: "Fake".to_owned(),
             ..juggler_adapter::ToolSpec::generic(FAKE_DESKTOP_ID)
         }
     }

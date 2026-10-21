@@ -562,8 +562,8 @@ function UseOriginalModal({
 }
 
 function HarnessGlyph({ provider, onClick }: { provider: string; onClick?: () => void }) {
-  // Each tool's own mark, the one its sessions carry in the rail (I-01):
-  // Claude's diamond, Codex's hexagon, a generic mark for the rest.
+  // Each tool's mark, the one its sessions carry in the rail (I-01,
+  // AJ-E1526): from the catalog, or the letter mark.
   const mark = providerMark(provider);
   return (
     <button

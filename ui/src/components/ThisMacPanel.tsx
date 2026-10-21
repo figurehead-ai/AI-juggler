@@ -8,6 +8,7 @@
  * Claude app, `claude` in a terminal) is shown and counted, labelled as
  * such, and offers nothing to click (D-08: unowned is untouchable).
  */
+import { ToolMark } from "./ToolMark";
 import type { JSX } from "react";
 import { Button } from "./primitives";
 import { bytesWords, reasonSentence, type ThisMacInfo, type ToolTreeInfo } from "../lib/machine";
@@ -70,8 +71,9 @@ function TreeRow({
   const body = (
     <>
       <span className="flex min-w-0 flex-1 basis-28 flex-col gap-0.5">
-        <span className="truncate text-sm text-ink">
-          {title}
+        <span className="flex min-w-0 items-center gap-1.5 text-sm text-ink">
+          {tree.tool && <ToolMark tool={tree.tool} size={12} className="text-muted" />}
+          <span className="truncate">{title}</span>
           {tree.heavy_note && <span className="sr-only"> — heavy: {tree.heavy_note}</span>}
         </span>
         {detail && <span className="truncate text-[11px] text-muted">{detail}</span>}

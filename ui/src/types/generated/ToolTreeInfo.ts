@@ -16,6 +16,10 @@ session_id: string | null,
  */
 place: string | null, 
 /**
+ * The tool's id, for its mark (AJ-E1526); `null` when it isn't known.
+ */
+tool: string | null, 
+/**
  * The Account it uses, when one of yours matches.
  */
 account_label: string | null, 

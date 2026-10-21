@@ -1,3 +1,4 @@
+import { ToolMark } from "./ToolMark";
 import { ParkCard } from "./ParkCard";
 import { holdStop, sessionLabel } from "../lib/stop";
 import { matches } from "../lib/shortcuts";
@@ -438,7 +439,8 @@ export function RightInspector({
       {/* Header: type icon, name, I-04 state chip, primary action (Req.1). */}
       <header className="flex flex-wrap items-center gap-3">
         <span className="text-accent-hi" title={KIND_LABELS[kind as InspectorKind]}>
-          <KindIcon kind={kind as InspectorKind} />
+          {/* AJ-E1526: the tool view names its tool by its mark. */}
+          {kind === "provider" && data.provider ? <ToolMark tool={data.provider.id} size={18} /> : <KindIcon kind={kind as InspectorKind} />}
         </span>
         <h2 className="text-lg font-semibold tracking-tight">{headerName}</h2>
         {stateChipNode}
@@ -926,7 +928,10 @@ function InstanceOverview(props: PanelProps) {
             </summary>
             <div className="mt-2 flex flex-col gap-2">
           <div className="flex flex-wrap items-center gap-1.5">
-            <Chip tone="neutral">{providerDisplayName(session.provider)}</Chip>
+            <Chip tone="neutral">
+              <ToolMark tool={session.provider} size={11} />
+              {providerDisplayName(session.provider)}
+            </Chip>
             <Chip tone="neutral">
               {props.profiles.find((r) => r.id === session.launch_recipe_id)?.name ?? "launch settings"}
             </Chip>
@@ -1000,7 +1005,10 @@ function InstanceOverview(props: PanelProps) {
               <span title="desktop app session" className="inline-flex">
                 <Chip tone="neutral">app</Chip>
               </span>
-              <Chip tone="neutral">{providerDisplayName(session.provider)}</Chip>
+              <Chip tone="neutral">
+              <ToolMark tool={session.provider} size={11} />
+              {providerDisplayName(session.provider)}
+            </Chip>
               <span className="text-[11.5px] text-muted">
                 {session.account_label}
                 {project ? ` · ${project.name}` : ""}

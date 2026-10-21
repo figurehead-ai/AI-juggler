@@ -3,6 +3,7 @@
  * resets), then what your sessions used, by model and day. With nothing
  * set up it says what will appear, and how to get there — never a blank.
  */
+import { ToolMark } from "../components/ToolMark";
 import { WelcomePointer } from "../components/Welcome";
 import { useEffect, useState, type JSX } from "react";
 import { AccountRunway } from "../components/AccountRunway";
@@ -65,6 +66,7 @@ export function UsageScreen({
                 <Card className="flex h-full flex-col gap-3 p-4" data-testid="usage-account">
                   <span className="flex items-center gap-2 text-sm font-medium">
                     <span aria-hidden="true" className="size-2 rounded-full" style={{ background: `hsl(${hueOf(account.id)} 70% 66%)` }} />
+                    <ToolMark tool={account.provider} size={14} className="text-muted" />
                     {account.label}
                   </span>
                   <AccountRunway

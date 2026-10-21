@@ -53,6 +53,7 @@ function mk(id: string, overrides: Partial<InstanceInfo> = {}): InstanceInfo {
 const tree = (overrides: Partial<ToolTreeInfo>): ToolTreeInfo => ({
   session_id: null,
   place: "desktop",
+  tool: null,
   account_label: "Personal",
   cpu_pct: 14,
   rss_bytes: 1_600_000_000,
@@ -143,6 +144,22 @@ describe("This Mac panel (AJ-E1404)", () => {
     render(<ThisMacPanel info={unread} nameOf={nameOf} onOpenSession={vi.fn()} />);
     expect(screen.queryByRole("meter")).toBeNull();
     expect(screen.getByTestId("this-mac-memory").textContent).toBe("Memory: 32 GB");
+  });
+
+  // AJ-E1526: a tool line carries its tool's mark beside the name, and a
+  // line whose tool isn't known carries none.
+  it("marks each tool line with its tool's mark, decoratively", () => {
+    render(
+      <ThisMacPanel
+        info={info("plenty", [tree({ tool: "claude-code" }), tree({ place: "terminal", rss_bytes: 1_000 })])}
+        nameOf={nameOf}
+        onOpenSession={vi.fn()}
+      />,
+    );
+    const [marked, unmarked] = screen.getAllByTestId("this-mac-tree");
+    expect(marked!.querySelector("[data-mark]")?.getAttribute("aria-hidden")).toBe("true");
+    expect(marked!.textContent).toContain("Claude app");
+    expect(unmarked!.querySelector("[data-mark]")).toBeNull();
   });
 
   it("offers Clean up only when something was left running", () => {

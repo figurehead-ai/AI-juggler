@@ -218,9 +218,12 @@ describe("AJ-E402 card/row parity and screen-reader access", () => {
     expect(described).toContain("Quota: not measured yet");
   });
 
-  it("renders the generic Tool mark for an unknown provider", () => {
+  // AJ-E1526 (ADR-0019): an unknown tool is named by its id with the
+  // neutral letter mark — never blank, never a guessed product name.
+  it("renders an unknown provider by its id with the letter mark", () => {
     const text = rowText(mk({ provider: "some-new-harness" }));
-    expect(text).toContain("Tool");
+    expect(text).toContain("some-new-harness");
+    expect(text).toContain("So");
   });
 });
 

@@ -492,6 +492,7 @@ mod tests {
         ToolTreeInfo {
             session_id: session.map(str::to_string),
             place: place.map(str::to_string),
+            tool: None,
             account_label: None,
             cpu_pct: Some(cpu),
             rss_bytes: rss,

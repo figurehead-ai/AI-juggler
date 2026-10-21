@@ -237,6 +237,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   you and the tool. Two ways in, **Find my accounts** and **Add a fresh
   account**, and a short "How it works". Usage and Fleet point back to
   it while no account is in.
+- **Tool marks** (AJ-E1526). Wherever a tool is named (Add account, first
+  run, account cards, the rail, the inspector, Usage and This Mac), a
+  small mark sits beside its name. Claude Code and Codex show a neutral
+  letter mark for now, because Anthropic and OpenAI ask for approval
+  before their logos are used. Other companies' names and logos belong to
+  their owners (see TRADEMARKS.md).
 - Tools are described by their adapters (AJ-E1525, ADR-0019). Every
   screen reads a tool's name, sign-in words, install page and first run's
   groups from one catalog. A new tool needs no change to the interface,

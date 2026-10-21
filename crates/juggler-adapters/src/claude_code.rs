@@ -1149,6 +1149,7 @@ pub fn claude_code_spec() -> juggler_adapter::ToolSpec {
     ToolSpec {
         id: CLAUDE_CODE_ID.to_owned(),
         display_name: "Claude Code".to_owned(),
+        short_name: "Claude".to_owned(),
         vendor: "Anthropic".to_owned(),
         mark: Some("claude".to_owned()),
         vendor_mark: Some("anthropic".to_owned()),

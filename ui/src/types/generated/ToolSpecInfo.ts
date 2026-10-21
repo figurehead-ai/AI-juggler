@@ -16,6 +16,10 @@ id: string,
  */
 display_name: string, 
 /**
+ * Its short name where room is tight.
+ */
+short_name: string, 
+/**
  * Who makes it; empty when unknown.
  */
 vendor: string, 

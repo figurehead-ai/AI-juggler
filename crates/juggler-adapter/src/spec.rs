@@ -60,6 +60,8 @@ pub struct ToolSpec {
     pub id: String,
     /// Its name on every screen.
     pub display_name: String,
+    /// Its short name where room is tight (a rail row, a graph label).
+    pub short_name: String,
     /// Who makes it; empty when unknown.
     pub vendor: String,
     /// The tool's mark (an icon asset id); `None` draws the letter mark.
@@ -102,6 +104,7 @@ impl ToolSpec {
         Self {
             id: id.to_owned(),
             display_name: id.to_owned(),
+            short_name: id.to_owned(),
             vendor: String::new(),
             mark: None,
             vendor_mark: None,

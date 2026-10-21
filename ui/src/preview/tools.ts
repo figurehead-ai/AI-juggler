@@ -10,6 +10,7 @@ export const PREVIEW_TOOLS: ToolSpecInfo[] = [
   {
     id: "claude-code",
     display_name: "Claude Code",
+    short_name: "Claude",
     vendor: "Anthropic",
     mark: "claude",
     vendor_mark: "anthropic",
@@ -36,6 +37,7 @@ export const PREVIEW_TOOLS: ToolSpecInfo[] = [
   {
     id: "codex",
     display_name: "Codex",
+    short_name: "Codex",
     vendor: "OpenAI",
     mark: "openai",
     vendor_mark: null,

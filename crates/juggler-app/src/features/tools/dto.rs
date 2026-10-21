@@ -44,6 +44,8 @@ pub struct ToolSpecInfo {
     pub id: String,
     /// Its name on every screen.
     pub display_name: String,
+    /// Its short name where room is tight.
+    pub short_name: String,
     /// Who makes it; empty when unknown.
     pub vendor: String,
     /// The tool's mark id; `null` draws the letter mark.

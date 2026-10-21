@@ -15,5 +15,4 @@ crates/juggler-core/src/storage/footprints.rs 1
 crates/juggler-handover/src/fidelity.rs 49
 crates/juggler-handover/src/pack.rs 1
 crates/juggler-handover/src/validation.rs 25
-ui/src/components/indicator.tsx 1
 ui/src/lib/bridge.ts 44

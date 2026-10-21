@@ -1,13 +1,11 @@
+import { toolMarkIcon } from "./ToolMark";
+import { toolSpec } from "../lib/tools";
 import type { ReactNode } from "react";
 import type { AccountInfo, InstanceInfo } from "../lib/bridge";
 import { renewalLabel, renewalRowVisible } from "../lib/renewal";
 import {
   IconFork,
   IconGitBranch,
-  IconProviderClaude,
-  IconProviderCodex,
-  IconProviderGeneric,
-  IconProviderZCode,
   IconStateFailed,
   IconStateFinished,
   IconStateHandover,
@@ -32,18 +30,11 @@ import {
 
 // --- I-01 Provider marks ---------------------------------------------------
 
-export const PROVIDER_MARKS: Record<
-  string,
-  { abbrev: string; Icon: typeof IconProviderClaude }
-> = {
-  "claude-code": { abbrev: "Claude", Icon: IconProviderClaude },
-  codex: { abbrev: "Codex", Icon: IconProviderCodex },
-  zcode: { abbrev: "ZCode", Icon: IconProviderZCode },
-};
-
-/** Unknown Provider degrades to the generic `Tool` mark — never blank. */
+/** AJ-E1526: a tool's mark and short name, from its spec in the catalog
+ * (the letter mark until its owner allows the real one). An unknown tool
+ * gets the neutral spec: its id and its letters, never blank. */
 export function providerMark(provider: string) {
-  return PROVIDER_MARKS[provider] ?? { abbrev: "Tool", Icon: IconProviderGeneric };
+  return { abbrev: toolSpec(provider).short_name, Icon: toolMarkIcon(provider) };
 }
 
 // --- I-04 state chips (icon + text + colour, never colour-only) ------------
