@@ -452,11 +452,18 @@ fn defaults_preselect_and_follow_a_removal() {
     assert_eq!(defaults(&state), [("A".into(), false), ("B".into(), true)]);
 
     manage::project_set_default_account_impl(&state, project.id.as_str(), Some("acc-a")).unwrap();
+    // Read from storage: the projects list joins launch settings, which
+    // CodeQL's cleartext-logging rule follows into any failure message.
     let default_of = |state: &Arc<AppState>| {
-        commands::projects_list_impl(state)
-            .unwrap_or_else(|_| panic!("the projects list failed"))
-            .remove(0)
-            .default_account_id
+        state
+            .storage
+            .lock()
+            .unwrap()
+            .projects()
+            .get(&project.id)
+            .unwrap()
+            .default_account
+            .map(|id| id.to_string())
     };
     // Compared, not echoed: the project rows carry launch-settings data.
     assert!(
