@@ -5,9 +5,10 @@
  * countdown / ready states + an explicit Resume click (the click is
  * the ONLY action; nothing here launches by itself).
  */
-import { useEffect, useState, type JSX } from "react";
+import { useContext, useEffect, useState, type JSX } from "react";
 import {
   alertsTick,
+  instancesList,
   fleetRemote,
   parkedDismiss,
   parkedOffers,
@@ -21,6 +22,7 @@ import {
   onUpdateStatus,
   statsEvent,
 } from "../lib/bridge";
+import { alertSubject, keptNotices, machineAlertsTake, ThisMacContext, type MachineNotice } from "../lib/machine";
 
 /** AJ-E1103: an alert kind as the schema names it. */
 function alertKind(kind: string): string {
@@ -31,6 +33,13 @@ function alertKind(kind: string): string {
 
 function notification(kind: string, action: "shown" | "clicked" | "dismissed"): void {
   statsEvent("ui.notification", { kind, action });
+}
+
+let machineNotices: MachineNotice[] = [];
+const machineListeners = new Set<(notices: MachineNotice[]) => void>();
+function publishMachineNotices(next: MachineNotice[]): void {
+  machineNotices = next;
+  for (const listener of machineListeners) listener(next);
 }
 
 export function NotificationRegion({
@@ -46,6 +55,25 @@ export function NotificationRegion({
   const [remote, setRemote] = useState<RemoteMachineInfo[]>([]);
   const [dismissed, setDismissed] = useState<Set<string>>(() => new Set());
   const [offers, setOffers] = useState<ParkedOfferInfo[]>([]);
+  // AJ-E1408: overload alerts — told once, dismissable, never an action
+  // on anything (passive only).
+  const [machineAlerts, setMachineAlertsState] = useState<MachineNotice[]>(() => machineNotices);
+  // A notice whose condition has ended goes (This Mac's alerts are the
+  // ones still on, 45 s grace included).
+  const thisMac = useContext(ThisMacContext);
+  useEffect(() => {
+    if (!thisMac || machineNotices.length === 0) return;
+    const active = new Set(thisMac.alerts.map((alert) => alert.key));
+    const kept = keptNotices(machineNotices, active, Date.now());
+    if (kept.length !== machineNotices.length) publishMachineNotices(kept);
+  }, [thisMac]);
+  useEffect(() => {
+    machineListeners.add(setMachineAlertsState);
+    setMachineAlertsState(machineNotices);
+    return () => {
+      machineListeners.delete(setMachineAlertsState);
+    };
+  }, []);
   // AJ-E1010: an update announced by the launch check — one notice per
   // version, never an install.
   const [update, setUpdate] = useState<string | null>(null);
@@ -104,6 +132,38 @@ export function NotificationRegion({
   useEffect(() => {
     let alive = true;
     const poll = () => {
+      machineAlertsTake()
+        .then(async (fresh) => {
+          if (fresh.length === 0) return;
+          const sessions = await instancesList().catch(() => []);
+          const nameOf = (id: string) => {
+            const row = sessions.find((s) => s.id === id);
+            if (!row) return null;
+            return row.git_branch ?? ((row.cwd ?? "").replace(/\/+$/, "").split("/").pop() || row.account_label);
+          };
+          // Counted as "other": the usage-stats schema has no machine kind.
+          fresh.forEach(() => notification("other", "shown"));
+          // Kept outside the component: a drained alert survives a
+          // remount (switching screens) until it is dismissed.
+          const toldAt = Date.now();
+          publishMachineNotices(
+            keptNotices(
+              [
+                ...[...fresh].reverse().map((alert) => ({
+                  key: `${alert.key}-${alert.since_ms}`,
+                  alertKey: alert.key,
+                  kind: alert.kind,
+                  text: [`${alert.title} — ${alert.detail}`, alertSubject(alert, nameOf)].filter(Boolean).join(". "),
+                  toldAt,
+                })),
+                ...machineNotices,
+              ],
+              null,
+              toldAt,
+            ).slice(0, 3),
+          );
+        })
+        .catch(() => null);
       alertsTick().then((emitted) => {
         for (const event of emitted) notification(alertKind(event.kind), "shown");
         if (alive && emitted.length > 0) setEvents((prior) => [...emitted, ...prior].slice(0, 5));
@@ -143,6 +203,25 @@ export function NotificationRegion({
         >
           {event.kind === "digest" ? "Digest · " : ""}
           {event.text}
+        </p>
+      ))}
+      {machineAlerts.map((alert) => (
+        <p
+          key={alert.key}
+          data-testid="machine-alert"
+          className="flex flex-wrap items-center gap-2 rounded border border-warning/50 px-2 py-1 text-[11px] text-warning"
+        >
+          <span className="min-w-0 flex-1">{alert.text}.</span>
+          <button
+            type="button"
+            className="text-muted underline focus:outline-none focus:ring-2 focus:ring-accent"
+            onClick={() => {
+              notification("other", "dismissed");
+              publishMachineNotices(machineNotices.filter((entry) => entry.key !== alert.key));
+            }}
+          >
+            dismiss
+          </button>
         </p>
       ))}
       {remoteAlerts.map(({ machine, alert, key }) => (
