@@ -36,3 +36,9 @@
   128 failed
   9 passed (12.5m)   # the 8 legend cells (no buttons) and "status is never colour-only"
   differing pixels per failing cell: 1,544 – 15,584
+
+# 2026-10-21: re-rendered on main with #84 (rail projects) and the 0.0.9 notes merged in
+## --update
+  136 passed; 1 timed out under load (add account — light-compact-1024x680; recorded in AJ-E806)
+## Clean tree
+  137 passed (6.5m)
