@@ -8,7 +8,7 @@ import { BetaMatrix } from "../components/BetaMatrix";
 import { ExpertSetup } from "../components/ExpertSetup";
 import { EnvOverlayEditor } from "../components/EnvOverlayEditor";
 import { AccountRunway, runwayLines } from "../components/AccountRunway";
-import { ownSignIn, providerDisplayName } from "../lib/providers";
+import { inPlaceProviders, ownSignIn, providerDisplayName, sameAsWords, supportsInPlace, type InPlaceSupport } from "../lib/providers";
 import {
   accountUseOriginal,
   accountsList,
@@ -17,6 +17,7 @@ import {
   launchSession,
   launchRecipesList,
   pickDirectory,
+  providersCapabilities,
   type AccountInfo,
   type LaunchRecipeInfo,
   expertSetupInfo,
@@ -86,6 +87,20 @@ export function ProfilesScreen({
   const [loginFor, setLoginFor] = useState<AccountInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [displays, setDisplays] = useState<QuotaDisplayData[]>([]);
+  // ADR-0018: which tools' copies can switch to their original — the
+  // backend's static capabilities (no install probe). If the call fails
+  // the offer stays; the backend refuses what it can't adopt.
+  const [inPlace, setInPlace] = useState<InPlaceSupport | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void providersCapabilities().then(
+      (rows) => alive && setInPlace(inPlaceProviders(rows)),
+      () => alive && setInPlace("unknown"),
+    );
+    return () => {
+      alive = false;
+    };
+  }, []);
   useEffect(() => {
     let alive = true;
     const load = () => void quotaDisplayAll().then((rows) => alive && setDisplays(rows), () => null);
@@ -172,6 +187,7 @@ export function ProfilesScreen({
             <AccountCard
               key={account.id}
               account={account}
+              canUseInPlace={inPlace !== null && supportsInPlace(inPlace, account.provider)}
               profiles={profiles.filter((recipe) => recipe.account_id === account.id)}
               onLaunch={launch}
               onDeleteProfile={async (id) => {
@@ -262,6 +278,7 @@ function EmptyAccounts({ onAdd }: { onAdd: () => void }) {
 
 function AccountCard({
   account,
+  canUseInPlace,
   now = Date.now(),
   profiles,
   onLaunch,
@@ -287,6 +304,8 @@ function AccountCard({
   onLogin: () => void;
   onLoginRechecked: () => Promise<void>;
   onInspect?: () => void;
+  /** ADR-0018: this tool's setups can be used where they are. */
+  canUseInPlace: boolean;
 }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [useOriginal, setUseOriginal] = useState(false);
@@ -309,7 +328,7 @@ function AccountCard({
               {placementWords(account) && ` · ${placementWords(account)}`}
             </span>
             {/* ADR-0018: a copy can switch to the folder it came from. */}
-            {account.import_source_path && !account.in_place && account.provider === "claude-code" && (
+            {account.import_source_path && !account.in_place && canUseInPlace && (
               <button
                 type="button"
                 className="shrink-0 text-accent-hi hover:underline"
@@ -482,7 +501,7 @@ function UseOriginalModal({
           {where}
         </p>
         <p className="leading-relaxed text-muted">
-          {account.label} will use your original folder: the same sign-in, settings and history as your Claude app.
+          {account.label} will use your original folder: the same sign-in, settings and history {sameAsWords([account.provider])}.
           AI Juggler's copy stays where it is (nothing is deleted); sessions you started in the copy stay in the copy, and
           won't resume from the original.
         </p>

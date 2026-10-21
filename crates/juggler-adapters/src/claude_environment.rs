@@ -630,6 +630,21 @@ pub fn adopt_claude_config(
     source: &Path,
     login_probe: &dyn Fn(&Path) -> LoginProbe,
 ) -> Result<ImportOutcome, juggler_adapter::AdapterError> {
+    adopt_with_layout(&CLAUDE_LAYOUT, source, login_probe)
+}
+
+/// [`adopt_claude_config`] for any Provider's layout (Codex too): the
+/// folder is checked against the layout's evidence and AI Juggler's
+/// marker, then probed for its sign-in — read-only.
+///
+/// # Errors
+///
+/// [`juggler_adapter::AdapterError::AccountDir`] with a plain reason.
+pub(crate) fn adopt_with_layout(
+    layout: &Layout,
+    source: &Path,
+    login_probe: &dyn Fn(&Path) -> LoginProbe,
+) -> Result<ImportOutcome, juggler_adapter::AdapterError> {
     let dir_error = |message: &str| juggler_adapter::AdapterError::AccountDir {
         path: source.to_path_buf(),
         message: message.to_owned(),
@@ -640,10 +655,8 @@ pub fn adopt_claude_config(
     let canonical = source
         .canonicalize()
         .map_err(|error| dir_error(&error.to_string()))?;
-    if !CLAUDE_LAYOUT.is_config_dir(&canonical) {
-        return Err(dir_error(
-            "this folder does not look like a Claude Code configuration (no settings, credentials, or session history found)",
-        ));
+    if !layout.is_config_dir(&canonical) {
+        return Err(dir_error(layout.not_a_config));
     }
     if is_managed_dir(&canonical) {
         return Err(dir_error(

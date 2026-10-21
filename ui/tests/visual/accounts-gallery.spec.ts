@@ -204,3 +204,34 @@ for (const theme of ["dark", "light"] as const) {
   });
 }
 
+// ADR-0018 for Codex: a Codex home can be used where it is too, and a
+// Codex copy can switch to its original — worded for Codex, not Claude.
+for (const theme of ["dark", "light"] as const) {
+  test(`accounts — a Codex copy switches to its original home — ${theme}`, async ({ page }) => {
+    const fixture: FixtureSet = {
+      ...allStatuses,
+      accounts: allStatuses.accounts.map((account, index) =>
+        index === 0
+          ? { ...account, provider: "codex", import_source_path: "/Users/you/.codex-work", in_place: false }
+          : index === 1
+            ? { ...account, provider: "codex", import_source_path: "/Users/you/.codex", in_place: true }
+            : account,
+      ),
+    };
+    await seed(page, fixture, theme);
+    await goTo(page, "Accounts");
+    const lines = page.getByTestId("account-placement");
+    await expect(lines.first()).toContainText("Codex · a copy of ~/.codex-work");
+    await expect(lines.nth(1)).toContainText("Codex · uses ~/.codex where it is");
+    await page.getByTestId("account-use-original").click();
+    const dialog = page.getByTestId("use-original");
+    await expect(dialog).toContainText("as when you run Codex yourself");
+    await expect(dialog).not.toContainText("Claude");
+    await page.screenshot({ path: resolve(OUT, `use-original-codex-1280x800-${theme}.png`) });
+    await axeClean(page, "use the original (Codex)");
+    await page.getByTestId("use-original-confirm").click();
+    await expect(dialog).toHaveCount(0);
+    await expect(lines.first()).toContainText("uses ~/.codex-work where it is");
+  });
+}
+

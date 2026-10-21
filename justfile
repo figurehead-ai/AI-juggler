@@ -13,6 +13,7 @@ verify:
     ./scripts/ensure_swift_runtime.sh > /dev/null
     cargo fmt --all --check
     cargo clippy --workspace --all-targets -- -D warnings
+    cargo clippy --workspace --all-targets --no-default-features -- -D warnings
     cargo test --workspace
     ./scripts/leaked_fixtures.sh
     RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
@@ -78,6 +79,7 @@ fmt:
 
 lint:
     cargo clippy --workspace --all-targets -- -D warnings
+    cargo clippy --workspace --all-targets --no-default-features -- -D warnings
 
 test:
     cargo test --workspace

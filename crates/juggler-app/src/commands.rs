@@ -2778,33 +2778,49 @@ fn in_place_isolation_rows(
         .registry
         .get(&account.harness)
         .ok_or_else(|| AppError::UnknownHarness(account.harness.as_str().to_owned()))?;
-    let default_folder = juggler_adapters::claude_code::is_vendor_default_dir(&dir);
-    let env_ok = adapter
-        .launch_spec(
-            account,
-            &Profile {
-                id: ProfileId::new("check"),
-                name: "check".into(),
-                account: account.id.clone(),
-                settings_overlay: SettingsOverlay::default(),
-                default_cwd: None,
-            },
-            std::path::Path::new("/"),
-            &juggler_adapter::LaunchMode::Interactive,
-        )
-        .is_ok_and(|spec| match spec.env.get("CLAUDE_CONFIG_DIR") {
-            Some(value) if default_folder => value == juggler_adapter::launch::ENV_UNSET,
-            Some(value) => std::path::Path::new(value) == dir,
-            None => false,
-        });
+    // Every pinned variable is the folder exactly, or — for the vendor's
+    // own default folder — unset, as the vendor runs it.
+    let pinned = adapter.pinned_env_keys();
+    let expected = adapter.isolation_env_value(&dir);
+    let default_folder = expected.is_none();
+    let env_ok = !pinned.is_empty()
+        && adapter
+            .launch_spec(
+                account,
+                &Profile {
+                    id: ProfileId::new("check"),
+                    name: "check".into(),
+                    account: account.id.clone(),
+                    settings_overlay: SettingsOverlay::default(),
+                    default_cwd: None,
+                },
+                std::path::Path::new("/"),
+                &juggler_adapter::LaunchMode::Interactive,
+            )
+            .is_ok_and(|spec| {
+                pinned
+                    .iter()
+                    .all(|key| match (spec.env.get(*key), &expected) {
+                        (Some(value), None) => value == juggler_adapter::launch::ENV_UNSET,
+                        (Some(value), Some(_)) => std::path::Path::new(value) == dir,
+                        (None, _) => false,
+                    })
+            });
+    let keys = pinned.join(" and ");
     rows.push(IsolationRowInfo {
         id: "launch_env_managed_only",
         label: "Launch environment points only at this account's folder".into(),
         pass: env_ok,
         detail: if default_folder {
-            "the default folder runs as Claude runs it (CLAUDE_CONFIG_DIR unset)".into()
+            format!(
+                "the default folder runs as {} runs it ({keys} unset)",
+                provider_display(account.harness.as_str()).0
+            )
         } else {
-            "CLAUDE_CONFIG_DIR is this folder, exactly".into()
+            format!(
+                "{keys} {} this folder, exactly",
+                if pinned.len() > 1 { "are" } else { "is" }
+            )
         },
     });
     let probe_state = login_state_of(&state.registry, account);
@@ -2989,10 +3005,11 @@ pub fn account_use_original_impl(
         .get(&account.harness)
         .ok_or_else(|| AppError::UnknownHarness(account.harness.to_string()))?;
     // The exact path, not the resolved one the provenance keeps: the
-    // default folder is `~/.claude` itself even when it's a link (its
-    // sign-in is named for the unset variable).
-    let folder = dirs::home_dir()
-        .map(|home| home.join(".claude"))
+    // default folder is `~/.claude` (`~/.codex`) itself even when it's a
+    // link (it runs with the variable unset). The adapter's own home, so
+    // this and its launch rule agree.
+    let folder = adapter
+        .vendor_default_dir()
         .filter(|default| canonical(default) == canonical(std::path::Path::new(&source)))
         .unwrap_or_else(|| std::path::PathBuf::from(&source));
     adapter.adopt_account(&folder)?;
@@ -3659,8 +3676,21 @@ pub fn desktop_launch_arc(state: &Arc<AppState>, account_id: &str) -> AppResult<
         });
     }
     // Idempotent account-dir preparation (the same contract terminal
-    // launches honour) — the launch cwd must exist before spawn.
-    adapter.prepare_account(&account.state_dir)?;
+    // launches honour) — the launch cwd must exist before spawn. Never
+    // for a folder used where it is (ADR-0018 §2): a guard for desktop
+    // adapters to come — no real adapter declares DESKTOP_APP today, and
+    // a preparation that writes AI Juggler's marker (as Claude's does)
+    // must never reach the user's own folder.
+    if account.in_place {
+        if !account.state_dir.is_dir() {
+            return Err(AppError::Validation {
+                subject: "desktop launch",
+                message: "this account's folder isn't there any more".into(),
+            });
+        }
+    } else {
+        adapter.prepare_account(&account.state_dir)?;
+    }
     let launch = adapter.desktop_launch(&account)?;
     let session_id = SessionId::new(format!("sess-{}", unique_suffix()));
     let project_id = {
@@ -13492,6 +13522,49 @@ pub struct ProviderInstallInfo {
     /// The single-instance desktop limit, stated BEFORE selection
     /// (Req.3) — the adapter's isolation claim verbatim.
     pub single_instance_note: Option<String>,
+}
+
+/// What a registered Provider supports, from the registry alone — no
+/// install probe, so it is cheap to ask on every screen that needs it.
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize)]
+pub struct ProviderCapabilityInfo {
+    /// Provider id.
+    pub provider: String,
+    /// ADR-0018: its setups can be used where they are (the adapter
+    /// adopts a folder without writing to it).
+    pub can_use_in_place: bool,
+}
+
+/// ADR-0018: each registered Provider's static capabilities (no
+/// process is spawned — unlike [`providers_discover`]).
+///
+/// # Errors
+///
+/// Never in practice; typed for the command surface.
+#[tauri::command]
+pub fn providers_capabilities(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<Vec<ProviderCapabilityInfo>> {
+    Ok(providers_capabilities_impl(state.inner()))
+}
+
+/// Core implementation shared with integration tests.
+#[must_use]
+pub fn providers_capabilities_impl(state: &Arc<AppState>) -> Vec<ProviderCapabilityInfo> {
+    state
+        .registry
+        .ids()
+        .into_iter()
+        .filter_map(|id| {
+            state
+                .registry
+                .get(&id)
+                .map(|adapter| ProviderCapabilityInfo {
+                    provider: id.to_string(),
+                    can_use_in_place: adapter.can_use_in_place(),
+                })
+        })
+        .collect()
 }
 
 /// AJ-E301: probes every registered Provider in parallel (thread per

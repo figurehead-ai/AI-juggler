@@ -334,6 +334,7 @@ pub fn run() {
             commands::validation_matrix,
             commands::validation_dogfood_record,
             commands::providers_discover,
+            commands::providers_capabilities,
             commands::environment_scan_full,
             commands::scan_cancel,
             commands::recommendation_for,

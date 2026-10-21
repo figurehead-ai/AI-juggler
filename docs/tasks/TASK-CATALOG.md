@@ -145,6 +145,7 @@
 | AJ-E1303 | Watch Codex sessions: rollout parser, linking, identity | E13-codex-adapter.md | P0 | L | AJ-E1301 |
 | AJ-E1304 | Switch with Codex (beta): transplant and cross-Provider replay | E13-codex-adapter.md | P0 | L | AJ-E1303, AJ-E204, AJ-E205 |
 | AJ-E1305 | Live validation on real accounts and the docs | E13-codex-adapter.md | P1 | M | AJ-E1304, AJ-E808 |
+| AJ-E1306 | Use Codex homes where they are (ADR-0018) | E13-codex-adapter.md | P0 | M | AJ-E1302, AJ-E1024 |
 | AJ-E1401 | Machine signals: CPU, memory and pressure, swap, disks in use, power and thermal | E14-machine-health.md | P0 | M | AJ-E410 |
 | AJ-E1402 | See the AI tools AI Juggler didn't start (read-only) | E14-machine-health.md | P0 | M | AJ-E1401 |
 | AJ-E1403 | The This Mac read model | E14-machine-health.md | P0 | S | AJ-E1401, AJ-E1402 |
