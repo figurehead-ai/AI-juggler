@@ -177,7 +177,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   headline, and Home shows the warning once, under Needs you. The figure
   is the same everywhere: the whole Claude app across its windows ("about
   16 GB across 3 windows"), not one window. While the warning is on,
-  This Mac says "Under memory pressure" too.
+  This Mac says "Under memory pressure" too, and so does the sidebar's
+  footer, which used to say "healthy" whatever the Mac's state. The
+  collapsed sidebar says "All clear" only while the Mac has room.
+- A tool that doesn't report its limits says so on every screen. Before,
+  Usage could show it at "100% left" while Home said it doesn't report.
 - First run's "See a live preview of each session" (Screen Recording) no
   longer stays stuck after you allow it in System Settings. macOS only
   shows the new answer once AI Juggler reopens, so the card now says so
