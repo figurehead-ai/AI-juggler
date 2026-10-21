@@ -1451,6 +1451,9 @@ pub async fn this_mac(state: tauri::State<'_, Arc<AppState>>) -> AppResult<ThisM
     })?
 }
 
+/// This Mac readings that failed in a row (the menu bar's staleness).
+static MISSED_READINGS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
 /// What was last emitted: the machine's level and how many AI tools ran.
 static LAST_EMITTED: std::sync::Mutex<Option<(String, u32)>> = std::sync::Mutex::new(None);
 
@@ -1476,7 +1479,24 @@ pub fn should_emit(last: &mut Option<(String, u32)>, level: &str, tools: u32) ->
 /// As [`this_mac_impl`].
 pub fn emit_this_mac(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResult<()> {
     use tauri::Emitter;
-    let payload = this_mac_impl(state, crate::commands::now_millis())?;
+    let payload = match this_mac_impl(state, crate::commands::now_millis()) {
+        Ok(payload) => {
+            MISSED_READINGS.store(0, std::sync::atomic::Ordering::Relaxed);
+            payload
+        }
+        Err(error) => {
+            // AJ-E1411: old numbers never stay up as if current — after
+            // two misses in a row the menu bar says it isn't measured.
+            let missed = MISSED_READINGS.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+            #[cfg(target_os = "macos")]
+            if missed >= crate::tray::MISSES_BEFORE_UNMEASURED {
+                crate::tray::unmeasured(app);
+            }
+            #[cfg(not(target_os = "macos"))]
+            let _ = missed;
+            return Err(error);
+        }
+    };
     // AJ-E1411: the menu bar follows This Mac on the same cadence (it
     // changes nothing on screen unless its words do).
     #[cfg(target_os = "macos")]

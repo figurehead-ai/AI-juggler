@@ -278,6 +278,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   thing most worth a look first, the Mac's CPU and memory, each AI tool's
   share (your sessions by tool, the Claude app, claude in a terminal),
   the heavy sessions, and Open This Mac. Clicking a session opens it.
+  If This Mac can't be measured for a moment, it says so instead of
+  showing old numbers. Settings › Appearance can hide it.
 - This Mac gives advice from your own sessions (AJ-E1409): how many
   sessions it comfortably runs at once, and which launch setting is the
   heaviest. It shows only once there are enough sessions to go on.

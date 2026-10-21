@@ -346,6 +346,19 @@ export function trayTarget(payload: unknown): TrayTarget {
     : { kind: "this-mac" };
 }
 
+/** Whether This Mac shows in the menu bar; `null` where the platform has
+ * no menu bar item. The preview (no backend) shows the switch, on. */
+export async function menuBarGet(): Promise<boolean | null> {
+  if (!hasLiveBackend()) return true;
+  return invoke<boolean | null>("menu_bar_get");
+}
+
+/** Shows or hides This Mac in the menu bar, now and at the next launch. */
+export async function menuBarSet(shown: boolean): Promise<void> {
+  if (!hasLiveBackend()) return;
+  await invoke("menu_bar_set", { shown });
+}
+
 /** Calls `handler` when the menu bar asks to open This Mac or a session.
  * Without the backend there is no menu bar: nothing to listen to. */
 export function onTrayOpen(handler: (target: TrayTarget) => void): () => void {

@@ -121,6 +121,8 @@ pub fn run() {
     let update_state = Arc::clone(&app_state);
     let cloud_backup_state = Arc::clone(&app_state);
     let stats_state = Arc::clone(&app_state);
+    #[cfg(target_os = "macos")]
+    let tray_state = Arc::clone(&app_state);
 
     tauri::Builder::default()
         // Registered first: a second launch defers to the running app
@@ -354,6 +356,8 @@ pub fn run() {
             commands::app_setting_get,
             commands::app_setting_set,
             machine_health::machine_health,
+            tray::menu_bar_get,
+            tray::menu_bar_set,
             machine_health::this_mac,
             machine_health::machine_advice,
             machine_health::machine_alerts_take,
@@ -376,7 +380,7 @@ pub fn run() {
             // AJ-E1411: This Mac in the menu bar. A refused status item
             // leaves the window as it was (logged, never fatal).
             #[cfg(target_os = "macos")]
-            if let Err(error) = tray::install(app.handle()) {
+            if let Err(error) = tray::install(app.handle(), &tray_state) {
                 eprintln!("ai-juggler: menu bar item unavailable: {error}");
             }
             spawn_read_model_ticks(

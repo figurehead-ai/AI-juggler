@@ -49,6 +49,15 @@ const switchOf = (root: HTMLElement, key: string) =>
   root.querySelector<HTMLButtonElement>(`[data-key="${key}"] [role="switch"]`)!;
 
 describe("Settings — Appearance", () => {
+  it("shows This Mac in the menu bar by default, and turns it off", async () => {
+    const view = render(<SettingsScreen />);
+    const toggle = await view.findByTestId("menu-bar-switch");
+    expect(toggle.getAttribute("aria-checked")).toBe("true");
+    expect(view.getByTestId("settings-menu-bar").textContent).toContain("A number shows only when something needs a glance");
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-checked")).toBe("false");
+  });
+
   it("follows ⌘⇧L and writes the choice", async () => {
     const view = render(<SettingsScreen />);
     act(() => setTheme("light"));

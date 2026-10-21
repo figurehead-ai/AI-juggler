@@ -202,8 +202,10 @@
 **Requirements**:
 1. One icon (a template image, so macOS tints it for the menu bar). A number beside it only while something needs a glance: each overload alert and each heavy session of ours, a heavy session's own alert counted once. Under memory pressure, or with that number up, the icon takes its attention shape (a dot): the state is a shape, never colour alone.
 2. A click opens a menu that is This Mac. It shows, in order: the one thing most worth a glance (the Mac itself before a session; a click opens that session or This Mac); the Mac's CPU and memory; each AI tool's share (our sessions by Provider, the Claude app, `claude` in a terminal, with "about" for estimates); the heavy sessions; Open This Mac; Quit.
-3. It follows This Mac on the 5 s cadence. When the menu's lines keep their shape, only their words change, in place, so an open menu stays open.
-4. Passive (E14 law): the menu opens the app; it never stops or starts anything.
+3. It follows This Mac on the 5 s cadence. The menu is never replaced: lines that keep their place change their words, and only the run that changed is removed and inserted, so an open menu stays open. After two failed readings in a row it says "Not measured right now", never old numbers as if current.
+4. Passive (E14 law): the menu opens the app; it never stops or starts anything. A click resolves by the action in its line's own id, so a menu that changed while open never runs another line's action. No app lock is held across a call into the status item (each waits for the main thread, where clicks run).
+5. Optional (D-25): Settings › Appearance › "This Mac in the menu bar", on by default, honoured live and at the next launch; shown only where the platform has a menu bar item.
+6. A screen reader hears what the number counts ("2 need a glance", in the tooltip) and "CPU unknown", never a dash.
 **UI/UX reasoning**: D-25 — calm until it matters; the count matches Home's Needs you for the machine.
 **Performance budget**: the model is built from the This Mac read model already computed every 5 s; nothing is redrawn while the words are unchanged.
 **Quality gates**: the model and the icon are pure and fixture-tested on every platform; the native glue is macOS-only.

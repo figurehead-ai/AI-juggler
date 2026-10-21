@@ -34,6 +34,7 @@ import {
 } from "../lib/bridge";
 import { THEME_EVENT, setTheme, storedTheme, type ThemeChoice } from "../theme";
 import { DENSITY_EVENT, readDensity, storeDensity, type Density } from "../lib/density";
+import { menuBarGet, menuBarSet } from "../lib/machine";
 
 /**
  * Settings (AJ-E1203; wireframe 26) — the policies the user owns, in
@@ -228,7 +229,58 @@ function AppearanceCard(): JSX.Element {
       </div>
       <p className="text-[11px] text-muted">⌘⇧L switches between them from anywhere.</p>
       <DensityChoice />
+      <MenuBarChoice />
     </Card>
+  );
+}
+
+/** This Mac in the menu bar (on by default), where the platform has one. */
+function MenuBarChoice(): JSX.Element | null {
+  const [shown, setShown] = useState<boolean | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void menuBarGet().then(
+      (value) => alive && setShown(value),
+      () => null,
+    );
+    return () => {
+      alive = false;
+    };
+  }, []);
+  if (shown === null) return null;
+  return (
+    <div className="mt-2 flex items-start gap-3" data-testid="settings-menu-bar">
+      <button
+        type="button"
+        role="switch"
+        aria-checked={shown}
+        aria-labelledby="menu-bar-title"
+        aria-describedby="menu-bar-body"
+        onClick={() => {
+          const next = !shown;
+          setShown(next);
+          void menuBarSet(next).catch(() => setShown(!next));
+        }}
+        className={
+          "relative mt-0.5 h-5 w-9 shrink-0 rounded-full border transition-colors " +
+          (shown ? "border-accent bg-accent" : "border-hairline bg-surface-2")
+        }
+        data-testid="menu-bar-switch"
+      >
+        <span
+          aria-hidden="true"
+          className={"absolute top-0.5 h-3.5 w-3.5 rounded-full bg-white shadow transition-all " + (shown ? "left-[18px]" : "left-0.5")}
+        />
+      </button>
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-medium text-ink" id="menu-bar-title">
+          This Mac in the menu bar
+        </p>
+        <p className="text-[11px] text-muted" id="menu-bar-body">
+          One quiet icon. A number shows only when something needs a glance; click it for This Mac.
+        </p>
+      </div>
+    </div>
   );
 }
 

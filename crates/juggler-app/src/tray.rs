@@ -88,9 +88,10 @@ fn short(name: &str) -> String {
     format!("{cut}…")
 }
 
-/// CPU as the menu says it ("CPU 34%", "CPU —" when unmeasured).
+/// CPU as the menu says it ("CPU 34%"; "CPU unknown" when unmeasured —
+/// words a screen reader reads, not a dash).
 fn cpu_words(cpu: Option<f64>) -> String {
-    cpu.map_or_else(|| "CPU —".to_string(), |cpu| format!("CPU {cpu:.0}%"))
+    cpu.map_or_else(|| "CPU unknown".to_string(), |cpu| format!("CPU {cpu:.0}%"))
 }
 
 /// Memory as the menu says it: "about" when the sum is an estimate.
@@ -275,8 +276,123 @@ pub fn tray_model(info: &ThisMacInfo, name_of: &dyn Fn(&str) -> Option<String>) 
     TrayModel {
         title: (needs > 0).then(|| needs.to_string()),
         attention: needs > 0 || info.machine.summary.level == "pressure",
-        tooltip: format!("AI Juggler — {first}"),
+        // The number beside the icon is only a digit; the tooltip (which
+        // a screen reader reads as the item's help) says what it counts.
+        tooltip: match needs {
+            0 => format!("AI Juggler — {first}"),
+            1 => format!("AI Juggler — 1 needs a glance: {first}"),
+            n => format!("AI Juggler — {n} need a glance: {first}"),
+        },
         items,
+    }
+}
+
+/// Pure: the menu bar while This Mac can't be read (two ticks in a row):
+/// old numbers never stay up as if they were current.
+#[must_use]
+pub fn unmeasured_model() -> TrayModel {
+    TrayModel {
+        title: None,
+        attention: false,
+        tooltip: "AI Juggler — this Mac isn't measured right now".into(),
+        items: vec![
+            TrayItem::Label("Not measured right now".into()),
+            TrayItem::Separator,
+            TrayItem::Action {
+                text: "Open This Mac".into(),
+                action: TrayAction::ThisMac,
+            },
+            TrayItem::Action {
+                text: "Quit AI Juggler".into(),
+                action: TrayAction::Quit,
+            },
+        ],
+    }
+}
+
+/// How many This Mac readings may fail in a row before the menu bar says
+/// it isn't measured (one miss is a blip; the next would be 10 s stale).
+pub const MISSES_BEFORE_UNMEASURED: u32 = 2;
+
+fn action_key(action: &TrayAction) -> String {
+    match action {
+        TrayAction::ThisMac => "this-mac".into(),
+        TrayAction::Quit => "quit".into(),
+        TrayAction::Session(id) => format!("session:{id}"),
+    }
+}
+
+/// Pure: a menu line's id — a serial (unique per line ever made) and what
+/// the line does. A click resolves by the action in its own id, so a menu
+/// that changed while it was open can never turn a click on one line into
+/// another line's action.
+#[must_use]
+pub fn item_id(serial: u64, item: &TrayItem) -> String {
+    match item {
+        TrayItem::Action { action, .. } => format!("tray:{serial}:{}", action_key(action)),
+        TrayItem::Label(_) => format!("tray:{serial}:label"),
+        TrayItem::Separator => format!("tray:{serial}:divider"),
+    }
+}
+
+/// Pure: what a click on the line with this id does; `None` (nothing) for
+/// a figure, a divider or an id that isn't ours.
+#[must_use]
+pub fn action_of(id: &str) -> Option<TrayAction> {
+    let (_, key) = id.strip_prefix("tray:")?.split_once(':')?;
+    match key {
+        "this-mac" => Some(TrayAction::ThisMac),
+        "quit" => Some(TrayAction::Quit),
+        _ => key
+            .strip_prefix("session:")
+            .filter(|session| !session.is_empty())
+            .map(|session| TrayAction::Session(session.to_string())),
+    }
+}
+
+/// How to turn the menu on screen into the new one without replacing it
+/// (replacing it would close it while open): the lines that keep their
+/// place get new words, and only the changed run in between is removed
+/// and inserted.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MenuPlan {
+    /// Lines that keep their place: (position in the old menu, new words).
+    pub retext: Vec<(usize, String)>,
+    /// Old lines to remove (positions in the old menu).
+    pub remove: std::ops::Range<usize>,
+    /// New lines to insert where the removed ones were (positions in the
+    /// new model).
+    pub insert: std::ops::Range<usize>,
+}
+
+/// Pure: the plan from `old` to `new` — the shared start and end (by
+/// shape) stay, the run between is replaced.
+#[must_use]
+pub fn plan(old: &[TrayItem], new: &[TrayItem]) -> MenuPlan {
+    let prefix = old
+        .iter()
+        .zip(new)
+        .take_while(|(a, b)| a.shape() == b.shape())
+        .count();
+    let room = old.len().min(new.len()) - prefix;
+    let suffix = old
+        .iter()
+        .rev()
+        .zip(new.iter().rev())
+        .take(room)
+        .take_while(|(a, b)| a.shape() == b.shape())
+        .count();
+    let kept = (0..prefix)
+        .map(|i| (i, i))
+        .chain((0..suffix).map(|k| (old.len() - suffix + k, new.len() - suffix + k)));
+    let retext = kept
+        .filter(|&(o, n)| old[o].text() != new[n].text())
+        .map(|(o, n)| (o, new[n].text().to_string()))
+        .collect();
+    MenuPlan {
+        retext,
+        remove: prefix..old.len() - suffix,
+        insert: prefix..new.len() - suffix,
     }
 }
 
@@ -321,7 +437,60 @@ pub fn icon_rgba(attention: bool) -> Vec<u8> {
 }
 
 #[cfg(target_os = "macos")]
-pub use native::{install, update};
+pub use native::{install, set_shown, unmeasured, update};
+
+/// The app setting that hides the menu-bar item (`off`); anything else,
+/// or never set, shows it.
+pub const SETTING_KEY: &str = "menu_bar";
+
+/// Whether the menu-bar item shows (Settings › Appearance). `None` where
+/// this platform has none.
+///
+/// # Errors
+///
+/// Storage failures.
+#[tauri::command]
+pub async fn menu_bar_get(
+    state: tauri::State<'_, std::sync::Arc<crate::state::AppState>>,
+) -> crate::error::AppResult<Option<bool>> {
+    if !cfg!(target_os = "macos") {
+        return Ok(None);
+    }
+    let storage = state
+        .storage
+        .lock()
+        .map_err(|_| crate::error::AppError::StatePoisoned)?;
+    let value = storage.app_settings().get(SETTING_KEY)?;
+    Ok(Some(value.as_deref() != Some("off")))
+}
+
+/// Shows or hides the menu-bar item, now and at the next launch. Async, so
+/// it never runs on the main thread the status item's calls hop to.
+///
+/// # Errors
+///
+/// Storage failures.
+#[tauri::command]
+pub async fn menu_bar_set(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, std::sync::Arc<crate::state::AppState>>,
+    shown: bool,
+) -> crate::error::AppResult<()> {
+    {
+        let storage = state
+            .storage
+            .lock()
+            .map_err(|_| crate::error::AppError::StatePoisoned)?;
+        storage
+            .app_settings()
+            .set(SETTING_KEY, if shown { "on" } else { "off" })?;
+    }
+    #[cfg(target_os = "macos")]
+    set_shown(&app, shown);
+    #[cfg(not(target_os = "macos"))]
+    let _ = app;
+    Ok(())
+}
 
 #[cfg(target_os = "macos")]
 mod native {
@@ -331,54 +500,53 @@ mod native {
     use tauri::tray::{TrayIcon, TrayIconBuilder};
     use tauri::{AppHandle, Emitter, Manager, Wry};
 
-    use super::{ICON_PX, TrayAction, TrayItem, TrayModel, icon_rgba, tray_model};
+    use super::{
+        ICON_PX, SETTING_KEY, TrayAction, TrayItem, TrayModel, action_of, icon_rgba, item_id, plan,
+        tray_model, unmeasured_model,
+    };
     use crate::machine_health::ThisMacInfo;
     use crate::state::AppState;
 
     /// What a tray click asks the window to open (`tray://open`).
     pub const EVENT_TRAY_OPEN: &str = "tray://open";
 
-    /// The live tray: the icon, the model it shows, and the menu's items
-    /// (`None` for a divider) so their words change in place.
+    /// One line on screen.
+    #[derive(Clone)]
+    enum Entry {
+        Line(MenuItem<Wry>),
+        Divider(PredefinedMenuItem<Wry>),
+    }
+
+    /// The live tray. Its lock guards these handles and the model only;
+    /// it is never held across a call into the status item or its menu
+    /// (each waits for the main thread, where a click runs).
     struct Tray {
         icon: TrayIcon,
-        model: Option<TrayModel>,
-        items: Entries,
+        menu: Menu<Wry>,
+        model: TrayModel,
+        entries: Vec<Entry>,
+        serial: u64,
     }
 
     struct TrayState(Mutex<Option<Tray>>);
-
-    /// A menu's items, `None` for a divider (in menu order).
-    type Entries = Vec<Option<MenuItem<Wry>>>;
 
     fn image(attention: bool) -> tauri::image::Image<'static> {
         tauri::image::Image::new_owned(icon_rgba(attention), ICON_PX, ICON_PX)
     }
 
-    fn build_menu(app: &AppHandle, model: &TrayModel) -> tauri::Result<(Menu<Wry>, Entries)> {
-        let menu = Menu::new(app)?;
-        let mut items = Vec::with_capacity(model.items.len());
-        for (index, item) in model.items.iter().enumerate() {
-            match item {
-                TrayItem::Separator => {
-                    menu.append(&PredefinedMenuItem::separator(app)?)?;
-                    items.push(None);
-                }
-                TrayItem::Action { text, .. } | TrayItem::Label(text) => {
-                    let enabled = matches!(item, TrayItem::Action { .. });
-                    let entry = MenuItem::with_id(
-                        app,
-                        format!("tray:{index}"),
-                        text,
-                        enabled,
-                        None::<&str>,
-                    )?;
-                    menu.append(&entry)?;
-                    items.push(Some(entry));
-                }
+    fn make(app: &AppHandle, serial: u64, item: &TrayItem) -> tauri::Result<Entry> {
+        Ok(match item {
+            TrayItem::Separator => Entry::Divider(PredefinedMenuItem::separator(app)?),
+            TrayItem::Action { text, .. } | TrayItem::Label(text) => {
+                Entry::Line(MenuItem::with_id(
+                    app,
+                    item_id(serial, item),
+                    text,
+                    matches!(item, TrayItem::Action { .. }),
+                    None::<&str>,
+                )?)
             }
-        }
-        Ok((menu, items))
+        })
     }
 
     fn open_window(app: &AppHandle) {
@@ -389,21 +557,9 @@ mod native {
         }
     }
 
+    /// A click: resolved from the line's own id — no lock, no lookup.
     fn on_click(app: &AppHandle, id: &str) {
-        let Some(index) = id
-            .strip_prefix("tray:")
-            .and_then(|n| n.parse::<usize>().ok())
-        else {
-            return;
-        };
-        let action = app.try_state::<TrayState>().and_then(|state| {
-            let tray = state.0.lock().ok()?;
-            match tray.as_ref()?.model.as_ref()?.items.get(index)? {
-                TrayItem::Action { action, .. } => Some(action.clone()),
-                _ => None,
-            }
-        });
-        match action {
+        match action_of(id) {
             Some(TrayAction::Quit) => app.exit(0),
             Some(TrayAction::ThisMac) => {
                 open_window(app);
@@ -420,45 +576,60 @@ mod native {
         }
     }
 
-    /// Puts the icon in the menu bar (once, at startup). Until the first
-    /// This Mac reading it says "Measuring this Mac…".
+    /// Puts the icon in the menu bar (once, at startup), unless the user
+    /// turned it off. Until the first reading it says "Measuring this Mac…".
     ///
     /// # Errors
     ///
     /// When macOS refuses the status item or its menu.
-    pub fn install(app: &AppHandle) -> tauri::Result<()> {
-        let placeholder = TrayModel {
-            title: None,
-            attention: false,
-            tooltip: "AI Juggler".into(),
-            items: vec![
-                TrayItem::Label("Measuring this Mac…".into()),
-                TrayItem::Separator,
-                TrayItem::Action {
-                    text: "Open This Mac".into(),
-                    action: TrayAction::ThisMac,
-                },
-                TrayItem::Action {
-                    text: "Quit AI Juggler".into(),
-                    action: TrayAction::Quit,
-                },
-            ],
-        };
-        let (menu, items) = build_menu(app, &placeholder)?;
+    pub fn install(app: &AppHandle, state: &Arc<AppState>) -> tauri::Result<()> {
+        let mut first = unmeasured_model();
+        first.items[0] = TrayItem::Label("Measuring this Mac…".into());
+        first.tooltip = "AI Juggler".into();
+        let menu = Menu::new(app)?;
+        let mut entries = Vec::with_capacity(first.items.len());
+        for (serial, item) in (0_u64..).zip(&first.items) {
+            let entry = make(app, serial, item)?;
+            match &entry {
+                Entry::Line(line) => menu.append(line)?,
+                Entry::Divider(divider) => menu.append(divider)?,
+            }
+            entries.push(entry);
+        }
         let icon = TrayIconBuilder::with_id("this-mac")
             .icon(image(false))
             .icon_as_template(true)
-            .tooltip(&placeholder.tooltip)
+            .tooltip(&first.tooltip)
             .menu(&menu)
             .show_menu_on_left_click(true)
             .on_menu_event(|app, event| on_click(app, event.id().as_ref()))
             .build(app)?;
+        let hidden = state
+            .storage
+            .lock()
+            .ok()
+            .and_then(|storage| storage.app_settings().get(SETTING_KEY).ok().flatten());
+        if hidden.as_deref() == Some("off") {
+            icon.set_visible(false)?;
+        }
         app.manage(TrayState(Mutex::new(Some(Tray {
             icon,
-            model: Some(placeholder),
-            items,
+            menu,
+            serial: u64::try_from(entries.len()).unwrap_or(0),
+            model: first,
+            entries,
         }))));
         Ok(())
+    }
+
+    /// Shows or hides the item now (Settings › Appearance).
+    pub fn set_shown(app: &AppHandle, shown: bool) {
+        let icon = app
+            .try_state::<TrayState>()
+            .and_then(|state| state.0.lock().ok()?.as_ref().map(|tray| tray.icon.clone()));
+        if let Some(icon) = icon {
+            let _ = icon.set_visible(shown);
+        }
     }
 
     /// The rail's name for a session of ours: its branch, else its folder.
@@ -476,66 +647,95 @@ mod native {
         })
     }
 
-    /// Shows This Mac now (the 5 s cadence). Nothing changes on screen
-    /// unless the words do; a menu with the same lines keeps its items
-    /// and only their words change, so an open menu stays open.
+    /// Shows This Mac now (the 5 s cadence).
     pub fn update(app: &AppHandle, state: &Arc<AppState>, info: &ThisMacInfo) {
-        let model = tray_model(info, &|id| name_of(state, id));
+        show(app, tray_model(info, &|id| name_of(state, id)));
+    }
+
+    /// Says This Mac isn't measured right now (readings keep failing).
+    pub fn unmeasured(app: &AppHandle) {
+        show(app, unmeasured_model());
+    }
+
+    /// Moves the menu bar to `model`: nothing changes on screen unless the
+    /// words do; lines are retexted, removed and inserted in place, never
+    /// the whole menu replaced (an open menu stays open). Only the 5 s
+    /// thread calls this, so the handles taken under the lock stay current
+    /// while the native calls run with the lock released.
+    fn show(app: &AppHandle, model: TrayModel) {
         let Some(tray_state) = app.try_state::<TrayState>() else {
             return;
         };
-        let Ok(mut guard) = tray_state.0.lock() else {
-            return;
+        let (icon, menu, last, mut entries, mut serial) = {
+            let Ok(guard) = tray_state.0.lock() else {
+                return;
+            };
+            let Some(tray) = guard.as_ref() else {
+                return;
+            };
+            if tray.model == model {
+                return;
+            }
+            (
+                tray.icon.clone(),
+                tray.menu.clone(),
+                tray.model.clone(),
+                tray.entries.clone(),
+                tray.serial,
+            )
         };
-        let Some(tray) = guard.as_mut() else {
-            return;
-        };
-        let Some(last) = tray.model.as_ref() else {
-            return;
-        };
-        if *last == model {
-            return;
-        }
         // Debug builds can print what the menu says (`AIJ_TRAY_TRACE=1`):
         // the status item can't be read back without Screen Recording.
         if cfg!(debug_assertions) && std::env::var_os("AIJ_TRAY_TRACE").is_some() {
             let lines: Vec<&str> = model.items.iter().map(TrayItem::text).collect();
             eprintln!(
-                "[tray] title={:?} attention={} | {}",
+                "[tray] title={:?} attention={} tooltip={:?} | {}",
                 model.title,
                 model.attention,
+                model.tooltip,
                 lines.join(" | ")
             );
         }
         if last.title != model.title {
-            let _ = tray.icon.set_title(model.title.as_deref());
+            let _ = icon.set_title(model.title.as_deref());
         }
         if last.attention != model.attention {
-            let _ = tray.icon.set_icon(Some(image(model.attention)));
-            let _ = tray.icon.set_icon_as_template(true);
+            let _ = icon.set_icon(Some(image(model.attention)));
+            let _ = icon.set_icon_as_template(true);
         }
         if last.tooltip != model.tooltip {
-            let _ = tray.icon.set_tooltip(Some(&model.tooltip));
+            let _ = icon.set_tooltip(Some(&model.tooltip));
         }
-        let same_shape = last.items.len() == model.items.len()
-            && last
-                .items
-                .iter()
-                .zip(&model.items)
-                .all(|(a, b)| a.shape() == b.shape());
-        if same_shape {
-            for ((old, new), entry) in last.items.iter().zip(&model.items).zip(&tray.items) {
-                if old.text() != new.text()
-                    && let Some(entry) = entry
-                {
-                    let _ = entry.set_text(new.text());
-                }
+        let steps = plan(&last.items, &model.items);
+        for (position, words) in &steps.retext {
+            if let Some(Entry::Line(line)) = entries.get(*position) {
+                let _ = line.set_text(words);
             }
-        } else if let Ok((menu, items)) = build_menu(app, &model) {
-            let _ = tray.icon.set_menu(Some(menu));
-            tray.items = items;
         }
-        tray.model = Some(model);
+        for _ in steps.remove.clone() {
+            let _ = menu.remove_at(steps.remove.start);
+        }
+        let mut inserted = Vec::new();
+        for (offset, item) in model.items[steps.insert.clone()].iter().enumerate() {
+            let Ok(entry) = make(app, serial, item) else {
+                continue;
+            };
+            serial += 1;
+            let at = steps.insert.start + offset;
+            let _ = match &entry {
+                Entry::Line(line) => menu.insert(line, at),
+                Entry::Divider(divider) => menu.insert(divider, at),
+            };
+            inserted.push(entry);
+        }
+        entries.splice(steps.remove.clone(), inserted);
+        if let Ok(mut guard) = tray_state.0.lock()
+            && let Some(tray) = guard.as_mut()
+        {
+            tray.model = model;
+            tray.entries = entries;
+            tray.serial = serial;
+        }
     }
 }
 
@@ -789,6 +989,122 @@ mod tests {
         let at = |rgba: &[u8], x: u32, y: u32| rgba[((y * ICON_PX + x) * 4 + 3) as usize];
         assert_eq!(at(&calm, 30, 6), 0);
         assert_eq!(at(&busy, 30, 6), 255);
+    }
+
+    #[test]
+    fn a_click_resolves_by_its_own_action_even_after_the_menu_changed() {
+        let mut info = calm();
+        info.heavy = vec![heavy("s-1", "CPU 96%"), heavy("s-2", "3.2 GB")];
+        let open = tray_model(&info, &names);
+        // The ids the open menu was built with.
+        let ids: Vec<String> = (0_u64..)
+            .zip(&open.items)
+            .map(|(serial, item)| item_id(serial, item))
+            .collect();
+        let payments = open
+            .items
+            .iter()
+            .position(|item| item.text() == "payments-api — 3.2 GB")
+            .unwrap();
+        // The heavy sessions calm down while the menu is open: the menu is
+        // shorter, and Quit now sits where payments-api was.
+        let calmer = tray_model(&calm(), &names);
+        assert_ne!(
+            calmer.items.get(payments).map(TrayItem::text),
+            Some("payments-api — 3.2 GB"),
+            "by position, that line is now something else"
+        );
+        // A click on the old line still means that session, never Quit.
+        assert_eq!(
+            action_of(&ids[payments]),
+            Some(TrayAction::Session("s-2".into()))
+        );
+        assert_eq!(action_of(&ids[ids.len() - 1]), Some(TrayAction::Quit));
+        assert_eq!(action_of(&ids[1]), None, "a figure does nothing");
+        assert_eq!(action_of("tray:9:session:"), None);
+        assert_eq!(action_of("something-else"), None, "not ours: a safe no-op");
+    }
+
+    /// Applies a plan to the old lines, as the native glue does.
+    fn apply(old: &[TrayItem], new: &[TrayItem], steps: &MenuPlan) -> Vec<TrayItem> {
+        let mut lines = old.to_vec();
+        for (position, words) in &steps.retext {
+            lines[*position] = match &lines[*position] {
+                TrayItem::Action { action, .. } => TrayItem::Action {
+                    text: words.clone(),
+                    action: action.clone(),
+                },
+                TrayItem::Label(_) => TrayItem::Label(words.clone()),
+                TrayItem::Separator => TrayItem::Separator,
+            };
+        }
+        lines.splice(
+            steps.remove.clone(),
+            new[steps.insert.clone()].iter().cloned(),
+        );
+        lines
+    }
+
+    #[test]
+    fn the_menu_changes_in_place_never_replaced() {
+        let quiet = tray_model(&calm(), &names);
+        // Figures only: every line keeps its place; only words change.
+        let mut busier = calm();
+        busier.machine.cpu_pct = Some(71.0);
+        let next = tray_model(&busier, &names);
+        let steps = plan(&quiet.items, &next.items);
+        assert!(steps.remove.is_empty() && steps.insert.is_empty());
+        assert_eq!(
+            steps.retext,
+            [(1, "CPU 71% · Memory 21 GB of 32 GB".to_string())]
+        );
+        assert_eq!(apply(&quiet.items, &next.items, &steps), next.items);
+        // A heavy session appears: the start and the end stay; the run in
+        // between is replaced (the first line and the new section).
+        let mut heavy_mac = calm();
+        heavy_mac.heavy = vec![heavy("s-1", "CPU 96%"), heavy("s-2", "3.2 GB")];
+        let heavy_model = tray_model(&heavy_mac, &names);
+        let steps = plan(&quiet.items, &heavy_model.items);
+        assert_eq!(
+            apply(&quiet.items, &heavy_model.items, &steps),
+            heavy_model.items
+        );
+        assert!(
+            steps.remove.end <= quiet.items.len() - 3,
+            "Open This Mac, Quit and their divider stay put"
+        );
+        // And back.
+        let steps = plan(&heavy_model.items, &quiet.items);
+        assert_eq!(apply(&heavy_model.items, &quiet.items, &steps), quiet.items);
+        // To and from "not measured".
+        let steps = plan(&quiet.items, &unmeasured_model().items);
+        assert_eq!(
+            apply(&quiet.items, &unmeasured_model().items, &steps),
+            unmeasured_model().items
+        );
+    }
+
+    #[test]
+    fn voiceover_hears_what_the_number_counts_and_words_for_unknowns() {
+        let mut info = calm();
+        info.heavy = vec![heavy("s-1", "CPU 96%"), heavy("s-2", "3.2 GB")];
+        let model = tray_model(&info, &names);
+        assert!(model.tooltip.starts_with("AI Juggler — 2 need a glance: "));
+        info.heavy.truncate(1);
+        assert!(
+            tray_model(&info, &names)
+                .tooltip
+                .starts_with("AI Juggler — 1 needs a glance: ")
+        );
+        let mut unknown = calm();
+        unknown.machine.cpu_pct = None;
+        assert_eq!(
+            tray_model(&unknown, &names).items[1].text(),
+            "CPU unknown · Memory 21 GB of 32 GB"
+        );
+        let stale = unmeasured_model();
+        assert_eq!(stale.items[0].text(), "Not measured right now");
+        assert_eq!(stale.title, None);
     }
 
     fn alert(
