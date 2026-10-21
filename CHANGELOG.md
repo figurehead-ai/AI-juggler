@@ -150,6 +150,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   doesn't report its limits" is gone. It shows the windows Codex reports
   (on many plans only the weekly one), never a 5-hour window Codex
   doesn't have.
+- A measured limit says when it was read ("as of 12 min ago", then a
+  time, then a date). It no longer jumps back when a session resumed
+  days later reports its old week, or when two sessions report a point
+  apart. Once a window resets with no newer reading, it says "Not
+  measured since the reset" instead of 0% or the old figure. Credits say
+  who reported them and when.
 - Usage no longer turns the whole window blank. A cost with no value
   yet (no fee set, a model with no price, Codex's credits) crashed it;
   each now reads as missing, and a model with no price says "No price

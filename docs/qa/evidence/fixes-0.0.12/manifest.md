@@ -121,6 +121,36 @@ maintainer's real rollouts by key names only. It is recorded in
 | B2 end to end | `cargo test -p juggler-app --test usage_pipeline`: a Codex home with that rollout → stored samples (two 5-hour, one weekly) → the display measured (20 % and 40 %, `reset_basis: measured`) with credits 16.25 | pass | 2 passed | PASS | 9dc5bdbd | 2026-10-21 | claude-opus |
 | B3 reports its limits | `cargo test -p juggler-app --test codex_in_place providers_capabilities_says_which_tools_report_their_limits` (Codex true); vitest `accounts-no-limits.test.tsx` (no "doesn't report" line for Codex; the line still shows for a tool that doesn't) | pass | passed | PASS | 9dc5bdbd | 2026-10-21 | claude-opus |
 
+### Which reading, and its "as of" (item B, QA's rules)
+
+**Found by** QA, on 30 days of the real Codex account's `rate_limits`:
+74,874 readings, analysed in the walk's Batch 5 on
+`claude/qa-real-walk-be289a`.
+
+**What the readings showed:**
+- The newest line is not the newest value: a concurrent thread reports a
+  point lower.
+- A thread resumed days later reports its old window (seen up to 166 h
+  later).
+- `resets_at` jitters by up to 75 s inside one window.
+
+**Fix (engine, for any tool's readings):**
+- `quota::current_reading` takes the window with the latest `resets_at`
+  (within an hour is one window), and the highest `used_pct` inside it.
+- Once that reading's reset has passed with nothing newer, the window is
+  `reset`: "Not measured since the reset", with no percentage and no reset
+  time.
+- Every measured window carries `measured_at_ms`, shown as "as of …".
+- Credits name their source, sent by the backend.
+
+| Claim / Req ID | Command / fixture / live step (exact) | Threshold | Observed | Verdict | Commit SHA | Date | Reviewer |
+|---|---|---|---|---|---|---|---|
+| B4 the reading chosen | `cargo test -p juggler-core --test quota_readings` (a concurrent lower line; a resumed thread's old window, "88%, resets 10-24" against "1%, resets 10-27"; a 75 s jitter; no reset times) | each rule | 5 passed | PASS | 71ede0bc | 2026-10-21 | claude-opus |
+| B5 nothing after the reset | same suite `after_the_reset_with_no_new_reading_nothing_is_known`; `cargo test -p juggler-app --test quota_display a_window_past_its_reset_with_no_new_reading_is_reset` (state `reset`, no percentage, no reset, the old as-of) | pass | passed | PASS | 71ede0bc | 2026-10-21 | claude-opus |
+| B6 odd readings | `cargo test -p juggler-adapters --test quota_ingest codex_odd_readings_are_ignored_and_a_null_plan_is_fine` (`window_minutes` 0 and a null `primary` give no sample, no parse error; a null plan is fine). This pins existing behaviour | pass | passed | PASS | 71ede0bc | 2026-10-21 | claude-opus |
+| B7 as-of and credits in words | `pnpm --dir ui exec vitest run src/lib/quotaWindow.test.ts` ("as of just now / 12 min ago / a time / a date", "36% left · as of 3 min ago", "Not measured since the reset", "Credits: 16.25 · reported by Codex, as of 5 min ago"); the pipeline test's credits `source` "Codex" and `measured_at_ms` | pass | 4 passed | PASS | 71ede0bc | 2026-10-21 | claude-opus |
+| B8 by hand | the preview's Accounts screen with a measured weekly window, credits and a window past its reset | reads as above | "36% left · resets Sat 04:56 PM · as of 12 min ago"; "Credits: 16.25 · reported by Codex, as of 12 min ago"; "Not measured since the reset" | PASS | 71ede0bc | 2026-10-21 | claude-opus |
+
 ## Home under memory pressure (items 1–4)
 
 **Report** (a screenshot of Home):
