@@ -1,0 +1,21 @@
+# cargo test -p juggler-app --test updates --test updates_plugin --test newer_data  (2026-10-20)
+     Running tests/newer_data.rs (target/debug/deps/newer_data-5fe221f8255c898f)
+running 3 tests
+test without_a_readable_backup_it_says_what_to_do ... ok
+test a_go_back_that_fails_leaves_the_newer_data_where_it_was ... ok
+test an_older_build_refuses_newer_data_and_offers_the_backup_from_before ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+     Running tests/updates.rs (target/debug/deps/updates-9325de338115ec9f)
+running 6 tests
+test the_channel_is_a_persisted_choice_with_its_own_feed ... ok
+test no_signing_key_or_check_off_means_no_request_at_all ... ok
+test install_waits_for_a_switch_in_flight_and_restart_for_live_instances ... ok
+test restart_waits_for_a_bring_in_and_is_offered_once_safe ... ok
+test a_bad_signature_never_installs_and_retry_works ... ok
+test every_failure_is_said_in_plain_words_with_the_reason_kept_apart ... ok
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+     Running tests/updates_plugin.rs (target/debug/deps/updates_plugin-235cc232d96692f6)
+running 2 tests
+test check_off_means_zero_connections_and_on_reaches_the_feed ... ok
+test a_package_that_fails_its_signature_never_installs ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.54s

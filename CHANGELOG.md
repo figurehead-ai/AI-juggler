@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Updates (beta): a failed update says why in plain words — no
+  connection, a download that didn't pass the signature check, one signed
+  for another version, the backup — with the technical reason behind
+  Details and **Try again**; the running version is never touched.
+  **Restart to update** (Settings and a prompt on Home) appears only when
+  no session is running, no switch is in flight and no bring-in is under
+  way, and Settings says what it is waiting for; nothing restarts by
+  itself. Every update prompt carries the channel's label (**Beta**).
+  Review on the update notice opens Settings on the update itself.
+- Going back to an earlier version works: before AI Juggler upgrades its
+  database it keeps a copy of it (the two newest are kept), and Settings ›
+  About & updates › **Go back to an earlier version** puts that copy back
+  — after saying what changed since won't be in it — keeps today's data
+  beside it, and quits so the earlier version can be installed. An older
+  AI Juggler that opens newer data now says so in a window (on every
+  desktop platform) and offers the copy or the pre-update backup, instead
+  of quitting at launch without a word; it waits while another AI Juggler
+  has the data open. A release whose database changes can't ship without a downgrade
+  note in its release notes.
 - The session, account, project and tool views say what they show in
   plain words: no task codes ("lands with AJ-E606+"), no "No data"
   placeholders, tools by name ("Claude Code") and states in the rail's
@@ -122,6 +141,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   replayed turn is quoted, so text inside a turn can't pose as another
   turn. A session copied in from another Mac can only land as a plain
   session file in its account, and a copy never overwrites a file.
+- The session list no longer shows every project from your Claude
+  history as a bare row with a "0". Projects you haven't run anything in
+  yet sit under a short **Projects** heading. Each reads like a session:
+  a folder mark, the name, and when you last worked there, how many
+  conversations, and with which accounts. Worktrees count as their
+  repository, clones of one repository are grouped, and every group
+  folds (and stays folded).
 
 - Switching a session you started in the app no longer stops at
   "Couldn't tell which file is this session": AI Juggler finds the
@@ -235,6 +261,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Old swap doesn't count against you; swap that keeps growing does. Memory
   in use counts app memory, wired and compressed data, close to the
   figure Activity Monitor shows.
+- AI Juggler now also measures the Claude tools it didn't start (E14,
+  AJ-E1402/E1403): each Claude desktop app window and each `claude` in a
+  terminal, over all the processes it runs, matched to your account by the
+  folder it uses. They count in "what your AI tools use" and are always
+  labelled as not started by AI Juggler. They are never offered stop or
+  cleanup. A session is called heavy when it stays above 90 % of a core
+  or 2 GB for a minute.
+- Home has a **This Mac** panel beside Runway (E14, AJ-E1404). It says how
+  your Mac is doing ("Plenty of room", "Getting tight", "Under pressure",
+  and why), how much memory and CPU your AI tools use right now, the
+  heaviest three, and how many processes were left running after their
+  session closed, with a Clean up button. A session working your Mac hard,
+  or a Mac under pressure, shows up under Needs you with one action.
+- A rail row now notes a session's memory or CPU only while that session
+  is heavy. The session view shows "CPU 12% · 1.1 GB · 3 helpers" under
+  its title instead of keeping it under Details (AJ-E1405).
+- New session now answers "Has this Mac got room?" beside the account's
+  own verdict (E14, AJ-E1406/E1407): OK, Tight or Not now, with the
+  reasons and what would make room ("Closing feat/read-model frees about
+  3.2 GB"). It learns from your own sessions how heavy each launch setting
+  is (the median peak of sessions that ran at least a minute and didn't
+  fail, after three; until then it says "not measured yet", with a Tight
+  or Not now verdict too). A deleted launch setting's or Account's
+  measurements go with it. It never stops you starting a session.
+  **Downgrade note:** this adds database schema v29. An older build
+  refuses a v29 database (`SchemaTooNew`) rather than risk it, so going
+  back to a build before this one needs the database backup taken before
+  the upgrade.
+- AI Juggler tells you when your Mac is struggling (E14, AJ-E1408): memory
+  pressure that lasts, swap that keeps growing, a processor flat out for
+  minutes, a hot Mac, a disk running out of space, or a session working
+  it hard. Each is said once (at most one of a kind every 30 minutes),
+  with what's using the most and what of it is high, and stays under
+  Needs you while it lasts. A Mac hovering near a line doesn't flap: an
+  alert, and a heavy session, clear only after 45 s back under it. A
+  notice goes once its condition has ended. It never stops anything by
+  itself.
+- This Mac gives advice from your own sessions (AJ-E1409): how many
+  sessions it comfortably runs at once, and which launch setting is the
+  heaviest. It shows only once there are enough sessions to go on.
 - Three update channels (decision D-20): **Nightly** (built from the latest
   code every day), **Beta** and **Stable** (each promoted with the
   maintainer's approval). Choose Stable or Beta in Settings › About &

@@ -29,6 +29,9 @@ pub struct ProcFacts {
     pub cmd: String,
     /// `CLAUDE_CONFIG_DIR` from its environment, if set.
     pub config_dir: Option<String>,
+    /// Kernel start time, epoch seconds, when known (pins a measured root
+    /// against pid reuse).
+    pub start_time: Option<i64>,
 }
 
 /// Where a setup is in use: `desktop` (the Claude desktop app) and/or
@@ -66,11 +69,27 @@ fn normalized(path: &str, home: &Path) -> PathBuf {
     std::fs::canonicalize(&trimmed).unwrap_or(trimmed)
 }
 
-/// Pure: which setup each running Claude process uses, and from where.
+/// One running Claude tool: the desktop app's main process, or `claude`
+/// outside it (AJ-E1402 measures each as a tree).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RunningTool {
+    /// The tree's root pid.
+    pub pid: u32,
+    /// `desktop` or `terminal`.
+    pub place: &'static str,
+    /// The config folder it uses, normalised.
+    pub config_dir: PathBuf,
+    /// The root's kernel start time, when known.
+    pub start_time: Option<i64>,
+}
+
+/// Pure: the running Claude tools, one per tree. A `claude` started by
+/// another `claude` (or inside the desktop app) is part of that tree,
+/// never a second root.
 #[must_use]
-pub fn classify(processes: &[ProcFacts], home: &Path) -> InUse {
+pub fn tools(processes: &[ProcFacts], home: &Path) -> Vec<RunningTool> {
     let by_pid: HashMap<u32, &ProcFacts> = processes.iter().map(|p| (p.pid, p)).collect();
-    let has_desktop_ancestor = |process: &ProcFacts| {
+    let has_ancestor = |process: &ProcFacts, test: &dyn Fn(&ProcFacts) -> bool| {
         let mut seen = 0;
         let mut next = process.ppid;
         while let Some(pid) = next {
@@ -81,7 +100,7 @@ pub fn classify(processes: &[ProcFacts], home: &Path) -> InUse {
             let Some(parent) = by_pid.get(&pid) else {
                 return false;
             };
-            if inside_desktop_app(parent) {
+            if test(parent) {
                 return true;
             }
             next = parent.ppid;
@@ -89,17 +108,22 @@ pub fn classify(processes: &[ProcFacts], home: &Path) -> InUse {
         false
     };
     let default_dir = home.join(".claude");
-    let mut out: InUse = HashMap::new();
+    let mut out = Vec::new();
     for process in processes {
         let place = if is_desktop_main(process) {
             "desktop"
-        } else if is_cli(process) && !inside_desktop_app(process) && !has_desktop_ancestor(process)
+        } else if is_cli(process)
+            && !inside_desktop_app(process)
+            && !has_ancestor(process, &inside_desktop_app)
+            && !has_ancestor(process, &|parent| {
+                is_cli(parent) && !inside_desktop_app(parent)
+            })
         {
             "terminal"
         } else {
             continue;
         };
-        let dir = process
+        let config_dir = process
             .config_dir
             .as_deref()
             .filter(|dir| !dir.is_empty())
@@ -107,9 +131,31 @@ pub fn classify(processes: &[ProcFacts], home: &Path) -> InUse {
                 || normalized(&default_dir.to_string_lossy(), home),
                 |dir| normalized(dir, home),
             );
-        out.entry(dir).or_default().insert(place);
+        out.push(RunningTool {
+            pid: process.pid,
+            place,
+            config_dir,
+            start_time: process.start_time,
+        });
     }
     out
+}
+
+/// Pure: which setup each running Claude process uses, and from where.
+#[must_use]
+pub fn classify(processes: &[ProcFacts], home: &Path) -> InUse {
+    let mut out: InUse = HashMap::new();
+    for tool in tools(processes, home) {
+        out.entry(tool.config_dir).or_default().insert(tool.place);
+    }
+    out
+}
+
+/// Whether `path` is the folder `tool` uses (both normalised the same
+/// way).
+#[must_use]
+pub fn uses_folder(tool: &RunningTool, path: &str, home: &Path) -> bool {
+    tool.config_dir == normalized(path, home)
 }
 
 /// The live process table, reduced to [`ProcFacts`].
@@ -145,6 +191,65 @@ pub fn running_processes() -> Vec<ProcFacts> {
                     .and_then(|entry| entry.strip_prefix("CLAUDE_CONFIG_DIR="))
                     .map(str::to_owned)
             }),
+            start_time: i64::try_from(process.start_time()).ok(),
+        })
+        .collect()
+}
+
+/// AJ-E1402: the running tools from a process list WITHOUT environments
+/// (the collector's table), then `CLAUDE_CONFIG_DIR` read for the roots
+/// alone — a handful of pids, not every process on the Mac.
+#[must_use]
+pub fn tools_from(briefs: &[juggler_supervisor::ProcessBrief], home: &Path) -> Vec<RunningTool> {
+    let mut processes: Vec<ProcFacts> = briefs
+        .iter()
+        .map(|brief| ProcFacts {
+            pid: brief.pid,
+            ppid: brief.ppid,
+            exe: brief.exe.clone(),
+            name: brief.name.clone(),
+            cmd: brief.cmd.clone(),
+            config_dir: None,
+            start_time: Some(brief.start_time),
+        })
+        .collect();
+    let roots: Vec<u32> = tools(&processes, home)
+        .iter()
+        .map(|tool| tool.pid)
+        .collect();
+    if roots.is_empty() {
+        return Vec::new();
+    }
+    let dirs = config_dirs_of(&roots);
+    for process in &mut processes {
+        if let Some(dir) = dirs.get(&process.pid) {
+            process.config_dir = Some(dir.clone());
+        }
+    }
+    tools(&processes, home)
+}
+
+/// `CLAUDE_CONFIG_DIR` of the given pids — nothing else of their
+/// environments is kept; the table that read them is dropped at once.
+fn config_dirs_of(pids: &[u32]) -> HashMap<u32, String> {
+    use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System, UpdateKind};
+    let targets: Vec<Pid> = pids.iter().map(|pid| Pid::from_u32(*pid)).collect();
+    let mut system = System::new();
+    system.refresh_processes_specifics(
+        ProcessesToUpdate::Some(&targets),
+        false,
+        ProcessRefreshKind::nothing().with_environ(UpdateKind::Always),
+    );
+    system
+        .processes()
+        .values()
+        .filter_map(|process| {
+            process.environ().iter().find_map(|entry| {
+                entry
+                    .to_str()
+                    .and_then(|entry| entry.strip_prefix("CLAUDE_CONFIG_DIR="))
+                    .map(|dir| (process.pid().as_u32(), dir.to_owned()))
+            })
         })
         .collect()
 }
@@ -171,6 +276,7 @@ mod tests {
             name: name.to_owned(),
             cmd: exe.to_owned(),
             config_dir: config.map(str::to_owned),
+            start_time: None,
         }
     }
 
@@ -252,6 +358,44 @@ mod tests {
         assert!(
             in_use_for(&classify(&processes[..1], home), "/Users/you/.claude", home).is_empty()
         );
+    }
+}
+
+/// AJ-E1402: one root per tree.
+#[cfg(test)]
+mod tool_roots {
+    use super::*;
+
+    fn proc(pid: u32, ppid: u32, name: &str, exe: &str, config: Option<&str>) -> ProcFacts {
+        ProcFacts {
+            pid,
+            ppid: Some(ppid),
+            exe: Some(exe.to_owned()),
+            name: name.to_owned(),
+            cmd: exe.to_owned(),
+            config_dir: config.map(str::to_owned),
+            start_time: None,
+        }
+    }
+
+    #[test]
+    fn nested_claudes_and_the_desktop_apps_own_claude_are_not_extra_roots() {
+        let home = Path::new("/Users/you");
+        let app = "/Applications/Claude.app/Contents/MacOS/Claude";
+        let cli = "/Users/you/.local/bin/claude";
+        let processes = vec![
+            proc(10, 1, "Claude", app, None),
+            proc(11, 10, "claude", cli, None), // the desktop app's own
+            proc(20, 1, "zsh", "/bin/zsh", None),
+            proc(21, 20, "claude", cli, Some("/Users/you/.claude-work")),
+            proc(22, 21, "zsh", "/bin/zsh", None),
+            proc(23, 22, "claude", cli, None), // `claude -p` run by a claude
+        ];
+        let roots = tools(&processes, home);
+        let pids: Vec<(u32, &str)> = roots.iter().map(|tool| (tool.pid, tool.place)).collect();
+        assert_eq!(pids, [(10, "desktop"), (21, "terminal")]);
+        assert!(uses_folder(&roots[1], "/Users/you/.claude-work/", home));
+        assert!(uses_folder(&roots[0], "~/.claude", home));
     }
 }
 

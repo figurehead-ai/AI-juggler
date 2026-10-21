@@ -10,9 +10,10 @@
 - [ ] Tests added (unit + integration/fixtures for new flows; corpus grown if parsers touched)
 - [ ] Architecture layering respected (QUALITY.md §4); no new `unsafe`; `cargo-deny` clean
 - [ ] CHANGELOG updated; spec/docs updated if behavior changed; ADR if a decision was made
-- [ ] UI changes: both themes captured in the gallery, a11y scan added, `pnpm --dir ui exec playwright test` green, `just visual-gate` green (or baselines re-rendered with a note per screen), `just visual-gate` green (or baselines re-rendered with a note per screen)
+- [ ] UI changes: both themes captured in the gallery, a11y scan added, `pnpm --dir ui exec playwright test` green, `just visual-gate` green (or baselines re-rendered with a note per screen)
 - [ ] Evidence stored under `docs/qa/evidence/<task-id>/` when this closes a task
 - [ ] **Nothing personal or secret**: no real account names, e-mails, home paths, hostnames, tokens, or screenshots of a real desktop
+- [ ] Every commit is signed off ([DCO](../CONTRIBUTING.md#licensing-and-sign-off), `git commit -s`)
 
 ## Visual baselines
 

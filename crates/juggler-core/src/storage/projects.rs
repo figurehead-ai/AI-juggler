@@ -74,6 +74,22 @@ impl ProjectsRepo<'_> {
         Ok(record)
     }
 
+    /// Removes a project nothing refers to — no session and no work item
+    /// (a history-only row the backfill made). Returns whether it went.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn delete_if_unused(&self, id: &ProjectId) -> Result<bool, CoreError> {
+        let changed = self.conn.execute(
+            "DELETE FROM projects WHERE id = ?1
+               AND NOT EXISTS (SELECT 1 FROM instances WHERE project = ?1)
+               AND NOT EXISTS (SELECT 1 FROM work_items WHERE project = ?1)",
+            params![id.as_str()],
+        )?;
+        Ok(changed > 0)
+    }
+
     /// Fetches a project by canonical root.
     ///
     /// # Errors
@@ -144,6 +160,49 @@ impl ProjectsRepo<'_> {
         }
         Ok(out)
     }
+}
+
+/// The repository a git worktree belongs to: `path`, or the nearest
+/// folder above it, holds a `.git` FILE pointing at
+/// `<repo>/.git/worktrees/<name>`. Returns `<repo>` — so a session in a
+/// worktree (Claude Code's `.claude/worktrees/…`, other tools'
+/// `…/worktrees/…`) belongs to its project, not to a project of its own.
+/// `None` for an ordinary folder or repository. Reads only `.git` files.
+#[must_use]
+pub fn worktree_repo_root(path: &Path) -> Option<std::path::PathBuf> {
+    let mut dir = Some(path);
+    for _ in 0..12 {
+        let here = dir?;
+        let dot_git = here.join(".git");
+        if dot_git.is_dir() {
+            return None; // a repository's own root
+        }
+        if dot_git.is_file() {
+            let text = std::fs::read_to_string(&dot_git).ok()?;
+            let gitdir = text
+                .lines()
+                .find_map(|line| line.strip_prefix("gitdir:"))?
+                .trim();
+            // Relative (submodules, `worktree.useRelativePaths`) resolves
+            // from the `.git` file's own folder, never the app's cwd.
+            let gitdir = here.join(gitdir);
+            // `<repo>/.git/worktrees/<name>`, by path components (any
+            // separator): the repository is the parent of that `.git`.
+            let repo = gitdir.ancestors().find_map(|ancestor| {
+                let parent = ancestor.parent()?;
+                (ancestor.file_name()? == "worktrees" && parent.file_name()? == ".git")
+                    .then(|| parent.parent().map(Path::to_path_buf))
+                    .flatten()
+            })?;
+            // One spelling per repository (a symlinked ~/Dev, /var vs
+            // /private/var): the root is UNIQUE by string.
+            return std::fs::canonicalize(&repo)
+                .ok()
+                .filter(|repo| repo.is_dir());
+        }
+        dir = here.parent();
+    }
+    None
 }
 
 /// Maps a row to a [`ProjectRecord`].

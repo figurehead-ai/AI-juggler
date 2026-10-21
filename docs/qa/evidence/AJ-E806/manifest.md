@@ -138,6 +138,12 @@
   passed 3/3 alone at the same load and in the full `just verify` re-run
   straight after (load 9.8). Budget and assertion unchanged; CI is the
   arbiter.
+- **Flake record, 2026-10-20 (known class; no change).** In #74's local
+  full gate (E14 review fixes merged with main), `reconciler ::
+  fifty_instance_soak_and_construction_regression` failed once on its
+  wall-time budget (load average about 24, other sessions building). It
+  passed 3/3 alone straight after at the same load. #74 doesn't change
+  the reconciler. Budget and assertion unchanged; CI is the arbiter.
 - a11y seeded failure is recorded DEFERRED with owning task AJ-E804 —
   the gate is named in QUALITY.md vocabulary now; its absence is
   explicit, never a silent pass (per the quarantine/deferral rule).
@@ -384,4 +390,49 @@
   rest of the workspace passed (117 suites with `--no-fail-fast`). Neither
   binary touches the E14 change: the machine sampler is not in either. No
   budget, timeout or assertion changed; CI decides.
+  Again on the #68 review fixes (load 28): those two `orphan.rs` waits plus
+  `collector_targeted_tick_overhead_under_budget` failed inside the
+  parallel workspace run, and passed 5/5 alone twice at load 21–23. The
+  two waits had already failed the same way on #67, which doesn't have
+  the collector change. The collector's added work (CPU+memory refresh of
+  observed trees) is zero when no tool is observed, as in that test.
+- Real bugs found by the maintainer on 0.0.8 (2026-10-20, dogfood):
+  1. With setups brought in and no session run yet, the rail listed every
+     project from their transcript history as a flat row with a hard-coded
+     "0" under "No sessions yet". It read as broken, and Claude worktrees
+     (`.claude/worktrees/…`, `~/.t3/worktrees/…`) showed as separate
+     projects. Now history-only projects are a labelled, foldable
+     "Projects" list of rows built like session rows (when, conversations,
+     accounts); worktrees map to their repository (`worktree_repo_root`,
+     at launch and in the backfill, with earlier worktree-only rows
+     removed when unreferenced); clones group by their `origin` remote.
+     Regressions: `projects_backfill_worktrees` (Rust) and
+     `rail-projects.spec.ts` (Playwright: no "0", grouping, folding
+     remembered, axe).
+  2. A 0.0.7 import that failed on one of six setups had brought in the
+     other five as copies, but its screen offered no way on, so the
+     maintainer believed nothing had come in; 0.0.8 then listed their
+     history. (The all-or-nothing screen was fixed in #76.) At the
+     maintainer's request their AI Juggler data was moved aside, not
+     deleted, for a fresh start.
 
+- **Bug record, 2026-10-20 (fixed; AJ-E1010).** An older AI Juggler that
+  meets data a newer one saved (schema too new) **quit at launch with no
+  window and no message**: `run()` printed the refusal to stderr and
+  exited. Going back from 0.0.8 to 0.0.7 hits it (0.0.8 adds schema 28),
+  and `docs/RELEASING.md` claimed the old version "says so". Found by the
+  rollback rehearsal (`AJ-E1010/rollback-rehearsal.md`, step 3). Fix:
+  the launch now says so in a window and offers the pre-update backup
+  (`newer_data.rs`; regression tests `--test newer_data`, which fail on
+  the old code because nothing offers or restores). 0.0.7 itself can't
+  be changed, so 0.0.8's notes carry the downgrade note (Known issues).
+- **Bug record, 2026-10-20 (fixed; AJ-E1010).** Found walking the update
+  UI by hand: (1) the release-notes box scrolls but had no keyboard
+  focus — with notes longer than the box, axe reports
+  `scrollable-region-focusable` (serious); the existing a11y test used
+  two-line notes and never saw it (the new long-notes test fails on the
+  old markup); (2) the Home notice said "(beta)" whatever the channel;
+  (3) a refused restart read "invalid update: …"; (4) Review opened
+  Settings at the top, with the update below the fold; (5) "Restart now"
+  was offered during a switch or a bring-in. All fixed, each with a
+  vitest or Playwright check.

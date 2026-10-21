@@ -28,7 +28,8 @@ import { TwoClocks, WindowRing } from "./QuotaRings";
 import { accountSetFee, quotaDisplay, switchTargets, type QuotaDisplayData, type SwitchBackSuggestionData, type SwitchTargetData, errorText,
   signedIn,
 } from "../lib/bridge";
-import { STATE_WORDS, formatBytes, stateChip } from "./indicator";
+import { STATE_WORDS, formatBytes, isActiveStatus, stateChip } from "./indicator";
+import { resourceLine, useHeavyNote } from "../lib/machine";
 import { providerDisplayName } from "../lib/providers";
 import { SwitchGraph } from "./SwitchGraph";
 import { SwitchTargetRows } from "./SwitchTargetRows";
@@ -155,6 +156,17 @@ function KindIcon({ kind }: { kind: InspectorKind }) {
     case "machine":
       return <IconFleet {...props} />;
   }
+}
+
+/** E14 (AJ-E1405): "CPU 12% · 1.1 GB · 3 helpers", amber while heavy. */
+function SessionResources({ session }: { session: InstanceInfo }) {
+  const heavy = useHeavyNote(session.id);
+  return (
+    <p className={"-mt-2 font-mono text-[11px] " + (heavy ? "text-warning" : "text-faint")} data-testid="session-resources">
+      {resourceLine(session.cpu_pct, session.rss_bytes, session.child_count)}
+      {heavy && <span className="font-sans"> — working your Mac hard</span>}
+    </p>
+  );
 }
 
 /** D-25: a session is named by its place — branch, else folder. */
@@ -457,6 +469,10 @@ export function RightInspector({
           {sessionSubline(data.instance, projects, now)}
         </p>
       )}
+      {/* E14 (AJ-E1405): what this session uses, in view — not under Details. */}
+      {!remote && kind === "instance" && data.instance && isActiveStatus(data.instance.status) && (
+        <SessionResources session={data.instance} />
+      )}
 
       {remote && (
         <p
@@ -670,7 +686,7 @@ function InspectorPanel(props: {
                 active_instance: null,
                 accounts_used: [],
                 instance_count: 0,
-                history_sessions: 0,
+                history_sessions: 0, history_last_used_ms: null, repo: null,
                 missing: false,
               })
             }
@@ -1689,7 +1705,7 @@ function SessionActions(props: PanelProps) {
                   active_instance: null,
                   accounts_used: [],
                   instance_count: 0,
-                  history_sessions: 0,
+                  history_sessions: 0, history_last_used_ms: null, repo: null,
                   missing: false,
                 })
             : undefined
@@ -1969,7 +1985,7 @@ function AccountActions(props: PanelProps) {
             ? () =>
                 props.onLaunch(first, {
                   id: "launch", root: first.default_cwd ?? "", name: "launch", last_activity_ms: null,
-                  active_instance: null, accounts_used: [], instance_count: 0, history_sessions: 0, missing: false,
+                  active_instance: null, accounts_used: [], instance_count: 0, history_sessions: 0, history_last_used_ms: null, repo: null, missing: false,
                 })
             : undefined
         }
@@ -2087,7 +2103,7 @@ function ProjectActions(props: PanelProps) {
             onClick={() =>
               props.onLaunch(recipe, {
                 id: project.id, root: project.root, name: project.name, last_activity_ms: null,
-                active_instance: null, accounts_used: [], instance_count: 0, history_sessions: 0, missing: project.missing,
+                active_instance: null, accounts_used: [], instance_count: 0, history_sessions: 0, history_last_used_ms: null, repo: null, missing: project.missing,
               })
             }
             title={ready ? undefined : "Needs sign-in first"}

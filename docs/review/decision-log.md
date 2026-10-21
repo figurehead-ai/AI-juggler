@@ -444,6 +444,20 @@
   more than one is installed); screens are rebuilt in stages
   (first run; Home and rail; the session view, Accounts and the rest), each
   walked as a real journey before it merges.
+- **Amendment (2026-10-20, E14 / AJ-E1402): AI tools AI Juggler didn't
+  start get no rail rows.** The Claude desktop app's windows and `claude`
+  in a terminal are measured read-only and shown in Home's **This Mac**
+  (the heaviest three, plus "Also counted: N Claude tools not started by
+  AI Juggler"). They count in its totals and are always labelled as not
+  ours. They do not appear in the rail. Evidence: the reference Mac runs
+  six Claude desktop windows. In a walk of the rail with a quiet "Also
+  running" group of six such rows
+  ([mock-up](../qa/evidence/AJ-E1402/req5-rail-mockup-1f0b5cd1.jpg)), they
+  pushed the user's own sessions down. They looked openable but had nothing
+  to open: no project, no conversation, no actions (D-08). And they repeated
+  what This Mac already says. The rail stays "your projects and their
+  sessions". A resource figure shows on a rail row only while that session
+  is heavy (the same rule as low quota).
 - **Amendment — Triage and Overview fold into Home** (2026-10-20,
   AJ-E1021; the maintainer's brief for stage 4 asked for the evidence):
   - *Evidence.* Triage's four groups were Home's Needs you and Running plus

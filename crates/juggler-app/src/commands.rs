@@ -1752,6 +1752,13 @@ pub struct ProjectInfo {
     /// Sessions discovered in imported transcripts (pre-AI-Juggler work).
     #[ts(type = "number")]
     pub history_sessions: u64,
+    /// When the user last worked here outside AI Juggler (the newest
+    /// imported transcript's write time), epoch ms.
+    #[ts(type = "number | null")]
+    pub history_last_used_ms: Option<i64>,
+    /// The repository this folder is a checkout of (its `origin` remote,
+    /// normalised: `github.com/owner/name`), so clones group together.
+    pub repo: Option<String>,
     /// True when the root directory no longer exists on disk (AJ-E408
     /// Overview danger banner + `Relocate…`).
     pub missing: bool,
@@ -3052,6 +3059,18 @@ pub fn account_import_mode_impl(
     label: &str,
     request: ImportRequest,
 ) -> AppResult<ImportResult> {
+    // AJ-E1010: no "Restart to update" while a bring-in is under way.
+    let _bringing_in = state.updates.bring_in();
+    bring_in_setup(state, harness, source_path, label, request)
+}
+
+fn bring_in_setup(
+    state: &Arc<AppState>,
+    harness: &str,
+    source_path: &str,
+    label: &str,
+    request: ImportRequest,
+) -> AppResult<ImportResult> {
     let ImportRequest {
         plan,
         origin,
@@ -3455,7 +3474,7 @@ pub(crate) fn engine_usage_snapshot(
 
 /// Today as a UTC calendar date (the engine's injected day; renewal
 /// rendering stays a UI concern per AJ-E411).
-fn epoch_today(now_ms: i64) -> juggler_core::renewal::CalendarDate {
+pub(crate) fn epoch_today(now_ms: i64) -> juggler_core::renewal::CalendarDate {
     civil_from_days(now_ms.div_euclid(24 * 60 * 60 * 1000))
 }
 
@@ -3530,11 +3549,14 @@ pub fn launch_profile(
     // tracked project, and the session is linked to it (ADR-0007).
     // Resolved BEFORE spawn so the ledger Intent row is attributable.
     let canonical_cwd = spec.cwd.canonicalize().unwrap_or_else(|_| spec.cwd.clone());
+    // A worktree's sessions belong to its repository's project.
+    let project_root = juggler_core::storage::worktree_repo_root(&canonical_cwd)
+        .unwrap_or_else(|| canonical_cwd.clone());
     let project_id = {
         let storage = lock_storage_arc(state)?;
         storage
             .projects()
-            .touch(&canonical_cwd, None)?
+            .touch(&project_root, None)?
             .id
             .to_string()
     };
@@ -3548,7 +3570,7 @@ pub fn launch_profile(
         // BEFORE the insert-scope lock (non-reentrant mutex).
         let machine = local_machine_id(state);
         let storage = lock_storage_arc(state)?;
-        let project = storage.projects().touch(&canonical_cwd, None)?;
+        let project = storage.projects().touch(&project_root, None)?;
         let usage = engine_usage_snapshot(&storage, &profile.id);
         storage.sessions().insert(&SessionRecord {
             id: session_id.clone(),
@@ -5036,7 +5058,7 @@ pub(crate) fn is_terminal(status: SessionStatus) -> bool {
 
 /// An active status: the row carries live-state expectations (resource
 /// ticks and quota ticks only ever emit for these).
-fn is_active(status: SessionStatus) -> bool {
+pub(crate) fn is_active(status: SessionStatus) -> bool {
     !is_terminal(status)
 }
 
@@ -5308,7 +5330,7 @@ pub fn projects_backfill_impl(state: &Arc<AppState>) -> AppResult<u32> {
     use std::collections::BTreeMap;
 
     // root → (labels, native session count)
-    let mut found: BTreeMap<PathBuf, (Vec<String>, u64)> = BTreeMap::new();
+    let mut found: BTreeMap<PathBuf, (Vec<String>, u64, Option<i64>)> = BTreeMap::new();
     let accounts = lock_storage_arc(state)?.accounts().list()?;
     for account in &accounts {
         let projects_root = account.state_dir.join("projects");
@@ -5321,30 +5343,106 @@ pub fn projects_backfill_impl(state: &Arc<AppState>) -> AppResult<u32> {
             let Some(cwd) = transcript_cwd(&jsonl) else {
                 continue; // cannot decode the dir name unambiguously
             };
-            let entry = found
-                .entry(PathBuf::from(&cwd))
-                .or_insert_with(|| (Vec::new(), 0));
+            // A worktree's history is its repository's history.
+            let cwd = PathBuf::from(&cwd);
+            let root = juggler_core::storage::worktree_repo_root(&cwd).unwrap_or(cwd);
+            let written = std::fs::metadata(&jsonl)
+                .and_then(|meta| meta.modified())
+                .ok()
+                .and_then(|at| at.duration_since(std::time::UNIX_EPOCH).ok())
+                .and_then(|since| i64::try_from(since.as_millis()).ok());
+            let entry = found.entry(root).or_insert_with(|| (Vec::new(), 0, None));
             if !entry.0.contains(&account.label) {
                 entry.0.push(account.label.clone());
             }
             entry.1 += count_jsonl(&project_dir.path());
+            entry.2 = entry.2.max(written);
         }
     }
 
     let storage = lock_storage_arc(state)?;
+    // Rows an earlier backfill made for worktrees fold into their
+    // repository: removed when nothing refers to them.
+    for project in storage.projects().list()? {
+        if juggler_core::storage::worktree_repo_root(&project.root).is_some() {
+            let _ = storage.projects().delete_if_unused(&project.id);
+        }
+    }
     let mut enriched = 0;
-    for (root, (labels, sessions)) in found {
+    for (root, (labels, sessions, last_used_ms)) in found {
         let record = storage.projects().touch(&root, None)?;
         storage.projects().merge_history(
             &record.id,
             &juggler_core::model::ProjectHistory {
                 accounts: labels,
                 native_sessions: sessions,
+                last_used_ms,
             },
         )?;
         enriched += 1;
     }
     Ok(enriched)
+}
+
+/// The `origin` remote of the repository at `root`, normalised to
+/// `host/owner/name` (scheme, user, port and `.git` dropped; lowercased),
+/// so clones of one repository group together. Reads only `.git/config`
+/// (following a worktree's `.git` file to its repository).
+fn repo_identity(root: &std::path::Path) -> Option<String> {
+    let repo =
+        juggler_core::storage::worktree_repo_root(root).unwrap_or_else(|| root.to_path_buf());
+    let config = std::fs::read_to_string(repo.join(".git").join("config")).ok()?;
+    let mut in_origin = false;
+    for line in config.lines() {
+        let line = line.trim();
+        if line.starts_with('[') {
+            in_origin = line == "[remote \"origin\"]";
+            continue;
+        }
+        if in_origin
+            && let Some(url) = line
+                .strip_prefix("url")
+                .map(str::trim)
+                .and_then(|rest| rest.strip_prefix('='))
+        {
+            return normalise_remote(url.trim());
+        }
+    }
+    None
+}
+
+/// `git@github.com:Owner/Name.git`, `https://user@github.com/Owner/Name`
+/// and `ssh://git@github.com:22/Owner/Name.git` all become
+/// `github.com/owner/name`.
+#[must_use]
+pub fn normalise_remote(url: &str) -> Option<String> {
+    if url.contains('\\') {
+        return None; // a Windows path: a local remote, nothing to group by
+    }
+    let (host, path) = if let Some((_, rest)) = url.split_once("://") {
+        // scheme://[user[:secret]@]host[:port]/path — the port is the
+        // authority's, never part of the path.
+        let (authority, path) = rest.split_once('/')?;
+        let host = authority
+            .rsplit_once('@')
+            .map_or(authority, |(_, host)| host);
+        let host = host.split_once(':').map_or(host, |(host, _)| host);
+        (host, path)
+    } else {
+        // scp-like [user@]host:path (no port in this form).
+        let (left, path) = url.split_once(':')?;
+        let host = left.rsplit_once('@').map_or(left, |(_, host)| host);
+        if host.len() < 2 || host.contains('/') {
+            return None; // `C:` or a local path
+        }
+        (host, path)
+    };
+    let host = host.to_lowercase();
+    let path = path
+        .trim_matches('/')
+        .trim_end_matches(".git")
+        .to_lowercase();
+    (!host.is_empty() && !path.is_empty()).then(|| format!("{host}/{path}"))
 }
 
 /// Newest `.jsonl` in a project transcript dir by mtime.
@@ -7138,7 +7236,7 @@ pub fn projects_list_impl(state: &Arc<AppState>) -> AppResult<Vec<ProjectInfo>> 
     )?;
     // Statuses that mean "occupying the project right now".
     let live = |status: &str| matches!(status, "starting" | "running");
-    Ok(storage
+    let mut infos: Vec<ProjectInfo> = storage
         .projects()
         .list()?
         .into_iter()
@@ -7166,10 +7264,40 @@ pub fn projects_list_impl(state: &Arc<AppState>) -> AppResult<Vec<ProjectInfo>> 
                 accounts_used,
                 instance_count: u64::try_from(owned.len()).unwrap_or_default(),
                 history_sessions: project.history.native_sessions,
+                history_last_used_ms: project.history.last_used_ms,
+                repo: None,
                 missing: !project.root.exists(),
             }
         })
-        .collect())
+        .collect();
+    // File reads (each repository's .git/config) never under the storage
+    // lock; cached briefly so a slow volume can't stall every refresh.
+    drop(storage);
+    for info in &mut infos {
+        info.repo = repo_identity_cached(std::path::Path::new(&info.root));
+    }
+    Ok(infos)
+}
+
+/// [`repo_identity`], remembered for five minutes per folder.
+fn repo_identity_cached(root: &std::path::Path) -> Option<String> {
+    use std::collections::HashMap;
+    use std::sync::{Mutex, OnceLock};
+    use std::time::{Duration, Instant};
+    type Seen = HashMap<PathBuf, (Option<String>, Instant)>;
+    static CACHE: OnceLock<Mutex<Seen>> = OnceLock::new();
+    let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    if let Ok(map) = cache.lock()
+        && let Some((repo, at)) = map.get(root)
+        && at.elapsed() < Duration::from_secs(300)
+    {
+        return repo.clone();
+    }
+    let repo = repo_identity(root);
+    if let Ok(mut map) = cache.lock() {
+        map.insert(root.to_path_buf(), (repo.clone(), Instant::now()));
+    }
+    repo
 }
 
 fn find_account(
@@ -7446,7 +7574,7 @@ fn unavailable_processes(reason: &str) -> ProcessesInfo {
 
 // --- AJ-E505: the port occupancy map ----------------------------------
 
-fn now_millis() -> i64 {
+pub(crate) fn now_millis() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|dur| i64::try_from(dur.as_millis()).unwrap_or_default())
@@ -7601,7 +7729,7 @@ fn all_ledger_rows(state: &Arc<AppState>) -> Vec<juggler_core::storage::LedgerRo
     rows
 }
 
-fn local_ledger_rows(state: &Arc<AppState>) -> Vec<juggler_core::storage::LedgerRow> {
+pub(crate) fn local_ledger_rows(state: &Arc<AppState>) -> Vec<juggler_core::storage::LedgerRow> {
     use juggler_supervisor::tree::LedgerStore as _;
     let machine = local_machine_id(state);
     let mut rows = Vec::new();
@@ -8107,7 +8235,7 @@ pub fn port_inventory_inner(state: &Arc<AppState>) -> PortInventoryInfo {
 /// rule needs ≥3 Provider trees to compare against (an honest floor;
 /// smaller populations never fire it).
 #[allow(clippy::similar_names)] // state/stats read naturally here
-fn hog_facts(state: &Arc<AppState>, now_ms: i64) -> Vec<HogFactInfo> {
+pub(crate) fn hog_facts(state: &Arc<AppState>, now_ms: i64) -> Vec<HogFactInfo> {
     const HOG_WINDOW_MS: i64 = 60_000;
     // AJ-E512: the thresholds are settings-backed (defaults per SPEC
     // §10) so tests can lower them without faking gigabytes; the
