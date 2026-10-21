@@ -65,7 +65,9 @@ jobs:
       - name: Clippy (no default features)
         run: cargo clippy --workspace --all-targets --no-default-features -- -D warnings
       - name: Tests
-        run: cargo test --workspace
+        run: |
+          cargo test --workspace
+          ./scripts/leaked_fixtures.sh
       - name: Docs
         env:
           RUSTDOCFLAGS: -D warnings

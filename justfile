@@ -15,6 +15,7 @@ verify:
     cargo clippy --workspace --all-targets -- -D warnings
     cargo clippy --workspace --all-targets --no-default-features -- -D warnings
     cargo test --workspace
+    ./scripts/leaked_fixtures.sh
     RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
     just evidence
     just terminology

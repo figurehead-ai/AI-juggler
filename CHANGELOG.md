@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Opening AI Juggler while it is already open brings the open one
+  forward without touching its data first (it used to open the data,
+  run its upgrades and recovery, and only then hand over).
 - Updates (beta): a failed update says why in plain words — no
   connection, a download that didn't pass the signature check, one signed
   for another version, the backup — with the technical reason behind
