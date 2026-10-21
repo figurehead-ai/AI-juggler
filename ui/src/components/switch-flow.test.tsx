@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SwitchFlow, SwitchUndoToast } from "./SwitchFlow";
+import { SwitchFlow, showSwitchUndoToast } from "./SwitchFlow";
+import { resetToasts, ToastHost } from "./Toast";
 import type { PreflightInfoData } from "../lib/bridge";
 
 /**
@@ -70,7 +71,10 @@ beforeEach(() => {
   delete (window as never as Seams).__AIJ_SWITCH_UNDO_CALLS__;
   delete (window as never as Seams).__AIJ_SWITCH_UNDO_FAIL__;
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  resetToasts();
+});
 
 function mount(
   preflight: PreflightInfoData,
@@ -151,9 +155,8 @@ describe("AJ-E206 undo window", () => {
   it("undoes ONLY from the click (never on render), then hands back the resumed session", async () => {
     const onUndone = vi.fn();
     const onDismiss = vi.fn();
-    const view = render(
-      <SwitchUndoToast edgeId="edge-42" targetLabel="Personal" onDismiss={onDismiss} onUndone={onUndone} />,
-    );
+    const view = render(<ToastHost />);
+    act(() => void showSwitchUndoToast({ edgeId: "edge-42", targetLabel: "Personal", onClose: onDismiss, onUndone }));
     await waitFor(() => expect(view.getByTestId("switch-undo-toast")).toBeTruthy());
     // Rendered ≠ undone: the seam records calls and has none.
     expect((window as never as Seams).__AIJ_SWITCH_UNDO_CALLS__).toBeUndefined();
@@ -168,9 +171,8 @@ describe("AJ-E206 undo window", () => {
 
   it("keeps the failure honest when undo fails (source stays resumable)", async () => {
     (window as never as Seams).__AIJ_SWITCH_UNDO_FAIL__ = "S-F7: the source session is gone";
-    const view = render(
-      <SwitchUndoToast edgeId="edge-42" targetLabel="Personal" onDismiss={() => {}} onUndone={() => {}} />,
-    );
+    const view = render(<ToastHost />);
+    act(() => void showSwitchUndoToast({ edgeId: "edge-42", targetLabel: "Personal", onUndone: () => {} }));
     await waitFor(() => expect(view.getByTestId("switch-undo-toast")).toBeTruthy());
     fireEvent.click(view.getByTestId("switch-undo"));
     await waitFor(() => expect(view.getByText("Undo didn’t complete")).toBeTruthy());
@@ -180,9 +182,8 @@ describe("AJ-E206 undo window", () => {
     vi.useFakeTimers();
     try {
       const onDismiss = vi.fn();
-      const view = render(
-        <SwitchUndoToast edgeId="edge-42" targetLabel="Personal" onDismiss={onDismiss} onUndone={() => {}} />,
-      );
+      const view = render(<ToastHost />);
+      act(() => void showSwitchUndoToast({ edgeId: "edge-42", targetLabel: "Personal", onClose: onDismiss, onUndone: () => {} }));
       expect(view.getByTestId("switch-undo").textContent).toContain("Undo (10s)");
       // One second per act flush — the countdown re-arms via effect,
       // so each tick needs its own commit.

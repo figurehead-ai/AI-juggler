@@ -27,11 +27,15 @@ import { ThisMacPanel } from "../components/ThisMacPanel";
 import { alertSubject, reasonSentence, type ThisMacInfo } from "../lib/machine";
 import { LegendPopover } from "../components/LegendPopover";
 import { parkedWords } from "../lib/parked";
+import { sessionLabel } from "../lib/stop";
+import { RowPlaceholders } from "../components/Placeholder";
+import { showToast } from "../components/Toast";
 import {
   accountLoginState,
   dashboardStats,
   errorText,
   instanceMarkReviewed,
+  instanceUnmarkReviewed,
   parkedResume,
   quotaDisplayAll,
   signedIn,
@@ -182,7 +186,10 @@ export function HomeScreen({
   onChanged,
   thisMac = null,
   onOpenCleanup,
+  loading = false,
 }: {
+  /** AJ-E1503: the first load hasn't answered yet (placeholders). */
+  loading?: boolean;
   sessions: InstanceInfo[];
   accounts: AccountInfo[];
   projects: ProjectInfo[];
@@ -225,7 +232,6 @@ export function HomeScreen({
       alive = false;
     };
   }, []);
-  const [status, setStatus] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
   // Set when Mark reviewed or Resume starts; the parent's refresh can
@@ -236,17 +242,33 @@ export function HomeScreen({
       restoreUntil.current = Date.now() + 3000;
       setBusy(session.id);
       try {
-        if (what === "resume") await parkedResume(session.id);
-        else await instanceMarkReviewed(session.id);
-        setStatus(`${session.account_label}: ${what === "resume" ? "resumed" : "marked reviewed"}.`);
+        const label = sessionLabel(session, projects);
+        if (what === "resume") {
+          await parkedResume(session.id);
+          showToast({ message: `Resumed ${label}.` });
+        } else {
+          await instanceMarkReviewed(session.id);
+          // AJ-E1503: Undo puts it back on the list.
+          showToast({
+            id: `reviewed:${session.id}`,
+            message: `Marked ${label} reviewed.`,
+            undo: {
+              onUndo: async () => {
+                await instanceUnmarkReviewed(session.id);
+                onChanged?.();
+              },
+              done: `${label} is back on the list.`,
+            },
+          });
+        }
         onChanged?.();
       } catch (cause) {
-        setStatus(`${session.account_label}: ${errorText(cause)}`);
+        showToast({ tone: "warning", message: `${session.account_label}: ${errorText(cause)}`, seconds: 8 });
       } finally {
         setBusy(null);
       }
     },
-    [onChanged],
+    [onChanged, projects],
   );
 
   // AJ-E1005 Req.3 on Home: J/K or the arrows move between rows, Enter
@@ -395,6 +417,16 @@ export function HomeScreen({
   const best = runway.filter((r) => r.left !== null).sort((a, b) => (b.left ?? 0) - (a.left ?? 0))[0];
   const low = runway.find((r) => r.left !== null && r.left <= 25);
 
+  // AJ-E1503 Req.4: rows shaped like Home's while the first load answers.
+  if (loading && accounts.length === 0 && sessions.length === 0) {
+    return (
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-7 py-2" data-testid="home-loading">
+        <span className="block h-7 w-64 rounded bg-surface-3 motion-safe:animate-pulse" aria-hidden="true" />
+        <RowPlaceholders shape="home" rows={3} label="Loading Home" />
+      </div>
+    );
+  }
+
   if (accounts.length === 0) {
     return (
       <div className="mx-auto flex w-full max-w-2xl flex-col items-start gap-4 py-16" data-testid="home-empty-accounts">
@@ -449,9 +481,6 @@ export function HomeScreen({
         </div>
         {subline && <p className="text-sm text-muted">{subline}</p>}
       </header>
-      <p className="sr-only" aria-live="polite" data-testid="home-status">
-        {status}
-      </p>
 
       {ledgerDegraded && (
         <div

@@ -62,7 +62,7 @@
 **Research basis**: AJ-E408 Req.5; Max-Depth report §6.
 **Handover note**: Reuse `ProjectRow`'s markup; don't add a second row style.
 
-### AJ-E1503 One feedback system: toasts with undo, a quit warning, loading placeholders | Status: TODO | Priority P0 | Effort M | Depends: —
+### AJ-E1503 One feedback system: toasts with undo, a quit warning, loading placeholders | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: —
 **Goal**: Every action answers the same way, and the risky ones can be undone.
 **User story**: As a user who just stopped the wrong session, I press Undo; as a user quitting with three sessions running, I'm told they keep running.
 **Requirements**:
@@ -79,6 +79,7 @@
 **Files to touch**: `ui/src/components/` (Toast, Placeholder), `SwitchUndoToast.tsx` (folded in), `crates/juggler-app/src/lib.rs` (the quit request).
 **Research basis**: Max-Depth report §8 and critic G1; SPEC §9.
 **Handover note**: Fold `SwitchUndoToast` into the new component; keep its tests.
+**Done (2026-10-21)**: `components/Toast.tsx` (`showToast`, `holdAction`, `ToastHost`), `lib/stop.ts` (the held Stop), `components/QuitSheet.tsx` with `crates/juggler-app/src/quit.rs`, and `components/Placeholder.tsx`. Req.3 as built: a terminal session runs on a terminal AI Juggler holds, so it **ends** when the app quits (closing the terminal hangs it up). The sheet says so, and that a desktop session keeps running. ⌘Q and the close button ask first. The Dock's Quit and logging out still quit without asking (macOS sends those past the menu; a follow-up). Forget and remove use this toast when AJ-E1501/E1502 land.
 
 ### AJ-E1504 Keys: a cheat sheet, inspector collapse, go-to keys | Status: TODO | Priority P1 | Effort S | Depends: —
 **Goal**: The keyboard reaches the main screens, and every shortcut can be looked up.

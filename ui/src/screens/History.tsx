@@ -6,6 +6,7 @@
  * offers Replay (read-only), Archive or Unarchive, and Delete…, which is
  * its own confirmed dialog naming exactly what goes and what stays.
  */
+import { showToast } from "../components/Toast";
 import { useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { SessionRow } from "../components/WorkflowRail";
 import { ReplayDialog } from "../components/ReplayDialog";
@@ -64,7 +65,6 @@ export function History({
   const [searching, setSearching] = useState(false);
   const [replay, setReplay] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
-  const [status, setStatus] = useState("");
   const searchRef = useRef<HTMLInputElement | null>(null);
   const names = useMemo(() => new Map(projects.map((project) => [project.id, project.name])), [projects]);
   const projectOf = (session: InstanceInfo) => (session.project_id ? (names.get(session.project_id) ?? "") : "");
@@ -98,13 +98,24 @@ export function History({
     .sort((a, b) => (b.last_activity_ms ?? b.started_at_ms) - (a.last_activity_ms ?? a.started_at_ms));
   const archivedCount = sessions.filter(archived).length;
 
-  const act = async (session: InstanceInfo, run: () => Promise<unknown>, done: string) => {
+  // AJ-E1503: archiving answers in a toast, with Undo (the other way).
+  const act = async (session: InstanceInfo, run: () => Promise<unknown>, done: string, undo: () => Promise<unknown>) => {
+    const label = session.project_id ? `${projectOf(session)} · ${session.account_label}` : session.account_label;
     try {
       await run();
-      setStatus(`${session.account_label}: ${done}.`);
+      showToast({
+        id: `archive:${session.id}`,
+        message: `${label}: ${done}.`,
+        undo: {
+          onUndo: async () => {
+            await undo();
+            onChanged();
+          },
+        },
+      });
       onChanged();
     } catch (cause) {
-      setStatus(`${session.account_label}: ${errorText(cause)}`);
+      showToast({ tone: "warning", message: `${label}: ${errorText(cause)}`, seconds: 8 });
     }
   };
 
@@ -153,7 +164,7 @@ export function History({
         </div>
       </div>
       <p className="sr-only" aria-live="polite" data-testid="history-status">
-        {status || (searching ? "Searching transcripts…" : `${rows.length} found`)}
+        {(searching ? "Searching transcripts…" : `${rows.length} found`)}
       </p>
       {rows.length === 0 ? (
         <p className="rounded-xl border border-dashed border-hairline p-6 text-center text-sm text-muted" data-testid="history-empty">
@@ -206,7 +217,7 @@ export function History({
                   {isArchived ? (
                     <button
                       type="button"
-                      onClick={() => void act(session, () => instanceUnarchive(session.id), "unarchived")}
+                      onClick={() => void act(session, () => instanceUnarchive(session.id), "unarchived", () => instanceArchive(session.id))}
                       className="rounded-lg border border-hairline px-2.5 py-1 text-[11px] text-ink hover:border-accent/50"
                       data-testid="history-unarchive"
                     >
@@ -215,7 +226,7 @@ export function History({
                   ) : (
                     <button
                       type="button"
-                      onClick={() => void act(session, () => instanceArchive(session.id), "archived — nothing deleted")}
+                      onClick={() => void act(session, () => instanceArchive(session.id), "archived — nothing deleted", () => instanceUnarchive(session.id))}
                       className="rounded-lg border border-hairline px-2.5 py-1 text-[11px] text-ink hover:border-accent/50"
                       data-testid="history-archive"
                     >
@@ -243,7 +254,7 @@ export function History({
           onClose={(deleted) => {
             setDeleting(null);
             if (deleted) {
-              setStatus("Deleted.");
+              showToast({ message: "Deleted." });
               onChanged();
             }
           }}

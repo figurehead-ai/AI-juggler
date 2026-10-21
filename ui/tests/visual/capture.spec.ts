@@ -40,13 +40,14 @@ function noteNotCaptured(screen: string, state: string, reason: string) {
 
 test.beforeAll(() => {
   mkdirSync(GALLERY, { recursive: true });
-  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings", "45-remote", "46-fleet-board", "47-remote-focus", "48-remote-cleanup", "49-fleet-sync", "50-cross-switch", "51-identity", "52-worktree", "53-parked", "54-summary", "55-triage", "56-history", "57-backup", "58-updates", "59-vault", "60-cloud-backup", "61-account-macs", "71-add-account", "72-tool-view"]) {
+  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings", "45-remote", "46-fleet-board", "47-remote-focus", "48-remote-cleanup", "49-fleet-sync", "50-cross-switch", "51-identity", "52-worktree", "53-parked", "54-summary", "55-triage", "56-history", "57-backup", "58-updates", "59-vault", "60-cloud-backup", "61-account-macs", "71-add-account", "72-tool-view", "75-feedback"]) {
     mkdirSync(resolve(GALLERY, screen), { recursive: true });
   }
   writeFileSync(NOT_CAPTURETED, "# Not captured (explicit omissions)\n\n| Screen | State | Reason |\n|---|---|---|\n");
   // Loading/error states do not exist yet — recorded, not hidden.
+  // AJ-E1503: the rail's loading placeholders are captured in 75-feedback.
+  noteNotCaptured("05-session-panel", "loading (skeleton)", "pending AJ-E405+ (state emission not yet implemented)");
   for (const screen of ["01-rail", "05-session-panel"]) {
-    noteNotCaptured(screen, "loading (skeleton)", "pending AJ-E405+ (state emission not yet implemented)");
     noteNotCaptured(screen, "error (banner + retained data)", "pending AJ-E405+ (error states not yet implemented)");
   }
 });
@@ -5681,5 +5682,79 @@ for (const theme of THEMES) {
     await openSettings(page, theme, { width: 1024, height: 680 }, {});
     await expect(page.getByTestId("settings-nav")).toBeVisible();
     await page.screenshot({ path: resolve(GALLERY, `65-settings-sections/list-1024x680-${theme}.png`) });
+  });
+}
+
+// ---------------------------------------------------------------------
+// AJ-E1503 — 75-feedback: the one toast (a held Stop with Undo, undone,
+// Mark reviewed), the quit sheet, and the loading placeholders for the
+// rail, Home and Accounts — 1280×800, light/dark. Toasts are paused for
+// the photo (__AIJ_TOAST_PAUSED__); the lists are held loading with
+// __AIJ_LOAD_HANG__.
+// ---------------------------------------------------------------------
+
+async function openFeedback(
+  page: import("@playwright/test").Page,
+  theme: string,
+  seams: Record<string, unknown> = {},
+) {
+  await page.addInitScript(
+    ({ fixture, t, t0, seams }) => {
+      const w = window as unknown as Record<string, unknown>;
+      w.__AIJ_FIXTURE__ = fixture;
+      w.__AIJ_TOAST_PAUSED__ = true;
+      for (const [key, value] of Object.entries(seams)) w[key] = value;
+      localStorage.setItem("aij.theme", t);
+      localStorage.setItem("aij.onboarding.dismissed", "1");
+      sessionStorage.setItem("aij.ready.skipped", "1");
+      Date.now = () => t0;
+    },
+    { fixture: allStatuses, t: theme, t0: T0, seams },
+  );
+  await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme as "dark" | "light" });
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/");
+}
+
+for (const theme of THEMES) {
+  test(`75 feedback — a held stop, with Undo — ${theme}`, async ({ page }) => {
+    await openFeedback(page, theme);
+    await page.locator('[data-instance-id="sess-2"]').first().click();
+    await page.getByTestId("inspector-stop").click();
+    await expect(page.getByTestId("stop-undo-toast")).toContainText("Undo keeps it running.");
+    await expect(page.getByTestId("stop-undo")).toContainText("Undo (5s)");
+    await page.mouse.move(0, 0);
+    await page.screenshot({ path: resolve(GALLERY, `75-feedback/stop-held-1280x800-${theme}.png`) });
+    await page.getByTestId("stop-undo").click();
+    await expect(page.getByTestId("toast-undone")).toContainText("keeps running.");
+    await page.screenshot({ path: resolve(GALLERY, `75-feedback/stop-undone-1280x800-${theme}.png`) });
+  });
+
+  test(`75 feedback — mark reviewed, with Undo — ${theme}`, async ({ page }) => {
+    await openFeedback(page, theme);
+    await page.getByTestId("home").getByRole("button", { name: /^Mark reviewed/ }).first().click();
+    await expect(page.getByTestId("toast")).toContainText("reviewed.");
+    await page.mouse.move(0, 0);
+    await page.screenshot({ path: resolve(GALLERY, `75-feedback/reviewed-1280x800-${theme}.png`) });
+  });
+
+  test(`75 feedback — the quit sheet — ${theme}`, async ({ page }) => {
+    await openFeedback(page, theme);
+    await expect(page.getByTestId("home")).toBeVisible();
+    await page.evaluate(() =>
+      window.dispatchEvent(new CustomEvent("aij:quit-requested", { detail: { live: 3, end_on_quit: 2, keep_running: 1 } })),
+    );
+    await expect(page.getByTestId("quit-sheet")).toBeVisible();
+    await page.screenshot({ path: resolve(GALLERY, `75-feedback/quit-sheet-1280x800-${theme}.png`) });
+  });
+
+  test(`75 feedback — loading placeholders — ${theme}`, async ({ page }) => {
+    await openFeedback(page, theme, { __AIJ_LOAD_HANG__: true });
+    await expect(page.getByTestId("placeholder-rail")).toBeVisible();
+    await expect(page.getByTestId("home-loading")).toBeVisible();
+    await page.screenshot({ path: resolve(GALLERY, `75-feedback/loading-home-1280x800-${theme}.png`) });
+    await goTo(page, "Accounts");
+    await expect(page.getByTestId("placeholder-card")).toBeVisible();
+    await page.screenshot({ path: resolve(GALLERY, `75-feedback/loading-accounts-1280x800-${theme}.png`) });
   });
 }

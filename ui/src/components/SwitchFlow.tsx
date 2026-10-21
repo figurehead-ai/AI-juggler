@@ -14,6 +14,7 @@
  * clicked, the user switched.
  */
 import { useEffect, useRef, useState, type JSX } from "react";
+import { showToast } from "./Toast";
 import {
   switchPreflight,
   switchExecute,
@@ -725,106 +726,37 @@ export function SwitchFlow({
  * "Switched — Undo" = stop the continuation instance + resume the
  * source's native session + record the compensating edge. After the
  * window closes the same actions remain available from the Switch
- * Graph (AJ-E209). Click-only: nothing auto-undoes.
+ * Graph (AJ-E209). Click-only: nothing auto-undoes. AJ-E1503: it is the
+ * app's one toast; the switch dialog has just closed, so Undo takes the
+ * focus that would otherwise fall to the page (WCAG 2.4.3).
  */
-export function SwitchUndoToast({
+export function showSwitchUndoToast({
   edgeId,
   targetLabel,
-  onDismiss,
   onUndone,
+  onClose,
 }: {
   edgeId: string;
   targetLabel: string;
-  onDismiss: () => void;
   onUndone: (sessionId: string) => void;
-}): JSX.Element {
-  const [secondsLeft, setSecondsLeft] = useState(10);
-  // AJ-E804 (WCAG 2.4.3): the switch dialog is gone, so focus would fall
-  // to the page; the undo button takes it — only when nothing else holds
-  // focus, never stolen from elsewhere.
-  const undoRef = useRef<HTMLButtonElement | null>(null);
-  useEffect(() => {
-    if (!document.activeElement || document.activeElement === document.body) undoRef.current?.focus();
-  }, []);
-  const [state, setState] = useState<
-    { kind: "counting" } | { kind: "undoing" } | { kind: "failed"; message: string }
-  >({ kind: "counting" });
-
-  useEffect(() => {
-    if (state.kind !== "counting") return;
-    if (secondsLeft <= 0) {
-      onDismiss();
-      return;
-    }
-    const timer = window.setTimeout(() => setSecondsLeft((left) => left - 1), 1000);
-    return () => window.clearTimeout(timer);
-  }, [secondsLeft, state.kind, onDismiss]);
-
-  const undo = async () => {
-    setState({ kind: "undoing" });
-    try {
-      const result = await switchUndo(edgeId);
-      onUndone(result.session_id);
-    } catch (cause) {
-      setState({ kind: "failed", message: errorText(cause) });
-    }
-  };
-
-  return (
-    <div
-      className="fixed inset-x-0 bottom-4 z-50 mx-auto flex w-fit max-w-[520px] items-center gap-3 rounded-xl border border-hairline bg-surface px-4 py-3 shadow-card"
-      role="status"
-      aria-live="polite"
-      data-testid="switch-undo-toast"
-    >
-      {state.kind === "counting" && (
-        <>
-          <p className="text-xs">
-            Switched to {targetLabel}.
-            <span className="text-muted"> The source stays resumable — undo for </span>
-            {secondsLeft}s.
-          </p>
-          <button
-            type="button"
-            ref={undoRef}
-            onClick={() => void undo()}
-            data-testid="switch-undo"
-            className="rounded-lg border border-accent/40 bg-accent-soft px-3 py-1.5 text-xs text-accent-hi hover:border-accent/60"
-          >
-            Undo ({secondsLeft}s)
-          </button>
-          <button
-            type="button"
-            onClick={onDismiss}
-            aria-label="Dismiss"
-            className="rounded-lg border border-hairline px-2 py-1.5 text-xs text-muted hover:bg-surface-2"
-          >
-            ✕
-          </button>
-        </>
-      )}
-      {state.kind === "undoing" && (
-        <p className="text-xs" data-testid="switch-undoing">
-          Undoing — stopping the continuation and resuming the source…
-        </p>
-      )}
-      {state.kind === "failed" && (
-        <>
-          <div className="flex flex-col">
-            <p className="text-xs text-warning">Undo didn’t complete</p>
-            <p className="text-[11px] text-muted">
-              {state.message} — the continuation keeps running; retry or stop it from Sessions.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onDismiss}
-            className="rounded-lg border border-hairline px-3 py-1.5 text-xs hover:bg-surface-2"
-          >
-            Close
-          </button>
-        </>
-      )}
-    </div>
-  );
+  onClose?: () => void;
+}): string {
+  return showToast({
+    id: "switch-undo",
+    testId: "switch-undo",
+    message: `Switched to ${targetLabel}.`,
+    detail: "The source stays resumable.",
+    focusWhenFree: true,
+    onClose,
+    undo: {
+      seconds: 10,
+      onUndo: async () => {
+        const result = await switchUndo(edgeId);
+        onUndone(result.session_id);
+      },
+      undoing: "Undoing — stopping the continuation and resuming the source…",
+      done: "Undone — back on the source session.",
+      failed: (cause) => `${cause} — the continuation keeps running; retry or stop it from Sessions.`,
+    },
+  });
 }

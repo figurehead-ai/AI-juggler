@@ -34,3 +34,19 @@ export function isHandoverShortcut(event: {
     (event.metaKey || event.ctrlKey)
   );
 }
+
+/** ⌘Z/Ctrl+Z outside a text field — undoes the newest toast (AJ-E1503). */
+export function isUndoShortcut(event: {
+  key: string;
+  metaKey: boolean;
+  ctrlKey: boolean;
+  shiftKey: boolean;
+  altKey: boolean;
+}): boolean {
+  return (
+    event.key.toLowerCase() === "z" &&
+    !event.shiftKey &&
+    !event.altKey &&
+    (event.metaKey || event.ctrlKey)
+  );
+}

@@ -7,6 +7,7 @@ import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialo
 import type { AppInfo } from "../types/generated/AppInfo";
 import type { NotificationPrefsInfo } from "../types/generated/NotificationPrefsInfo";
 import type { OsAccessInfo } from "../types/generated/OsAccessInfo";
+import type { QuitPlanInfo } from "../types/generated/QuitPlanInfo";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { DiscoveredInfo } from "../types/generated/DiscoveredInfo";
 import type { ImportResult } from "../types/generated/ImportResult";
@@ -495,8 +496,16 @@ export async function accountUseOriginal(accountId: string): Promise<AccountInfo
   return invoke<AccountInfo>("account_use_original", { accountId });
 }
 
+/** AJ-E1503 seam: `__AIJ_LOAD_HANG__` keeps the first lists loading, so
+ * the captures can show the placeholders. */
+function loadHang(): Promise<never> | null {
+  return (window as unknown as { __AIJ_LOAD_HANG__?: boolean }).__AIJ_LOAD_HANG__ ? new Promise<never>(() => {}) : null;
+}
+
 export async function accountsList(): Promise<AccountInfo[]> {
   if (!hasBackend) {
+    const hang = loadHang();
+    if (hang) return hang;
     return seeded.accounts ?? MOCK_ACCOUNTS;
   }
   return invoke<AccountInfo[]>("accounts_list");
@@ -936,6 +945,8 @@ export async function projectsList(): Promise<ProjectInfo[]> {
 
 export async function instancesList(): Promise<InstanceInfo[]> {
   if (!hasBackend) {
+    const hang = loadHang();
+    if (hang) return hang;
     return MOCK_SESSIONS;
   }
   return invoke<InstanceInfo[]>("instances_list");
@@ -2064,6 +2075,12 @@ export async function terminalResize(
 
 /** Stops a terminal's process (graceful ladder). */
 export async function terminalKill(id: string): Promise<void> {
+  if (!hasBackend) {
+    // AJ-E1503: the seam that proves a held stop is (or isn't) sent.
+    const w = window as unknown as { __AIJ_TERMINAL_KILL_CALLS__?: string[] };
+    w.__AIJ_TERMINAL_KILL_CALLS__ = [...(w.__AIJ_TERMINAL_KILL_CALLS__ ?? []), id];
+    return;
+  }
   return invoke<void>("terminal_kill", { id });
 }
 
@@ -4233,6 +4250,57 @@ export async function instanceMarkReviewed(sessionId: string): Promise<number> {
     return at;
   }
   return invoke<number>("instance_mark_reviewed", { sessionId });
+}
+
+/** AJ-E1503: undoes Mark reviewed (back on the finished list; both
+ * steps stay in its history). */
+export async function instanceUnmarkReviewed(sessionId: string): Promise<number> {
+  if (!hasBackend) {
+    const w = window as unknown as { __AIJ_TRIAGE_CALLS__?: string[] };
+    w.__AIJ_TRIAGE_CALLS__ = [...(w.__AIJ_TRIAGE_CALLS__ ?? []), `unreviewed:${sessionId}`];
+    const row = MOCK_SESSIONS.find((session) => session.id === sessionId);
+    const at = Date.now();
+    if (row) {
+      row.lifecycle = "unreviewed";
+      row.lifecycle_at_ms = at;
+    }
+    return at;
+  }
+  return invoke<number>("instance_unmark_reviewed", { sessionId });
+}
+
+// --- AJ-E1503: quitting with live sessions ----------------------------------
+
+export type { QuitPlanInfo } from "../types/generated/QuitPlanInfo";
+
+/** What quitting now would do to the live sessions. */
+export async function appQuitPlan(): Promise<QuitPlanInfo> {
+  if (!hasBackend) {
+    const seam = (window as unknown as { __AIJ_QUIT_PLAN__?: QuitPlanInfo }).__AIJ_QUIT_PLAN__;
+    return seam ?? { live: 0, end_on_quit: 0, keep_running: 0 };
+  }
+  return invoke<QuitPlanInfo>("app_quit_plan");
+}
+
+/** Quits now; with `stopFirst` each live session is stopped cleanly first. */
+export async function appQuit(stopFirst: boolean): Promise<void> {
+  if (!hasBackend) {
+    const w = window as unknown as { __AIJ_QUIT_CALLS__?: string[] };
+    w.__AIJ_QUIT_CALLS__ = [...(w.__AIJ_QUIT_CALLS__ ?? []), stopFirst ? "stop-first" : "quit"];
+    return;
+  }
+  return invoke<void>("app_quit", { stopFirst });
+}
+
+/** ⌘Q or the close button while sessions are live: show the quit sheet. */
+export function onQuitRequested(handler: (plan: QuitPlanInfo) => void): () => void {
+  if (!hasBackend) {
+    // The preview's seam: `aij:quit-requested` with the plan as detail.
+    const follow = (event: Event) => handler((event as CustomEvent<QuitPlanInfo>).detail);
+    window.addEventListener("aij:quit-requested", follow);
+    return () => window.removeEventListener("aij:quit-requested", follow);
+  }
+  return listenScoped("app://quit-requested", handler);
 }
 
 // --- AJ-E1007: session lifecycle — search, archive, replay, retention ------

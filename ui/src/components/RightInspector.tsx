@@ -1,4 +1,5 @@
 import { ParkCard } from "./ParkCard";
+import { holdStop, sessionLabel } from "../lib/stop";
 import { WorktreeGit } from "./WorktreeGit";
 import { identityWords } from "../lib/identity";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -1549,7 +1550,13 @@ function InstanceActions(props: PanelProps & { onRelaunch?: (recipe: LaunchRecip
             : props.onFocusTerminal
         }
       />
-      <ActionRow label="Stop" shortcut="⌘." onClick={live ? props.onStopped : undefined} reason={live ? undefined : "not running"} />
+      {/* AJ-E1503: held 5 s with Undo, then sent (was: refresh only). */}
+      <ActionRow
+        label="Stop"
+        shortcut="⌘."
+        onClick={live ? () => holdStop({ id: instance.id, label: sessionLabel(instance, props.projects) }, props.onStopped) : undefined}
+        reason={live ? undefined : "not running"}
+      />
       <ActionRow
         label={ended ? "Relaunch" : "Resume"}
         onClick={ended && recipe ? () => props.onRelaunch?.(recipe, instance.cwd) : undefined}

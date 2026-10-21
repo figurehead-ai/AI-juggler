@@ -2501,3 +2501,61 @@ for (const theme of ["dark", "light"] as const) {
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
   });
 }
+
+// AJ-E1503 Req.5: the one toast, the quit sheet and the loading
+// placeholders — axe 0 critical/serious, the toast announced through the
+// polite live region and never taking focus, the quit sheet a modal
+// dialog that holds focus.
+for (const theme of ["dark", "light"] as const) {
+  test(`feedback — toast, quit sheet, placeholders — axe 0 critical/serious — ${theme}`, async ({ page }) => {
+    const openWith = async (seams: Record<string, unknown>) => {
+      await page.addInitScript(
+        ({ fixture, t0, theme: t, seams }) => {
+          const w = window as unknown as Record<string, unknown>;
+          w.__AIJ_FIXTURE__ = fixture;
+          for (const [key, value] of Object.entries(seams)) w[key] = value;
+          localStorage.setItem("aij.theme", t);
+          localStorage.setItem("aij.onboarding.dismissed", "1");
+          sessionStorage.setItem("aij.ready.skipped", "1");
+          Date.now = () => t0;
+        },
+        { fixture: allStatuses, t0: T0, theme, seams },
+      );
+      await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+      await page.setViewportSize({ width: 1280, height: 800 });
+      await page.goto("/");
+    };
+    await openWith({ __AIJ_TOAST_PAUSED__: true });
+    await page.locator('[data-instance-id="sess-2"]').first().click();
+    const stop = page.getByTestId("inspector-stop");
+    await stop.click();
+    await expect(page.getByTestId("stop-undo-toast")).toBeVisible();
+    // Never steals focus: the Stop button keeps it.
+    await expect(stop).toBeFocused();
+    const announcer = page.getByTestId("toast-announcer");
+    await expect(announcer).toHaveAttribute("aria-live", "polite");
+    await expect(announcer).toContainText("Undo is available for 5 seconds.");
+    const toastViolations = await scanSeriousWithConfirm(page);
+
+    await page.evaluate(() =>
+      window.dispatchEvent(new CustomEvent("aij:quit-requested", { detail: { live: 2, end_on_quit: 2, keep_running: 0 } })),
+    );
+    const sheet = page.getByRole("dialog", { name: "Quit AI Juggler?" });
+    await expect(sheet).toBeVisible();
+    await expect(page.getByTestId("quit-anyway")).toBeFocused();
+    // Tab stays inside the sheet.
+    for (let i = 0; i < 6; i += 1) await page.keyboard.press("Tab");
+    expect(await sheet.evaluate((node) => node.contains(document.activeElement))).toBe(true);
+    const sheetViolations = await scanSeriousWithConfirm(page);
+    await page.keyboard.press("Escape");
+    await expect(sheet).toBeHidden();
+
+    await openWith({ __AIJ_LOAD_HANG__: true });
+    await expect(page.getByRole("status", { name: "Loading Home" })).toBeVisible();
+    const loadingViolations = await scanSeriousWithConfirm(page);
+
+    const all = [...toastViolations, ...sheetViolations, ...loadingViolations];
+    const summary = all.map((v) => `${v.id} (${v.impact}): ${v.nodes.map((n) => n.target.join(" ")).slice(0, 3).join(", ")}`).join("\n");
+    expect(all, summary).toHaveLength(0);
+  });
+}

@@ -234,6 +234,36 @@ for (const theme of THEMES) {
         await expect(legend).toHaveScreenshot(`chrome-legend-${cell}.png`, SCREEN);
       });
 
+      // AJ-E1503: the one toast (a held Stop), the quit sheet, and the
+      // loading placeholders (rail, Home, Accounts).
+      test(`toast — held stop — ${cell}`, async ({ page }) => {
+        await open(page, theme, density, vp, allStatuses, { seams: { __AIJ_TOAST_PAUSED__: true } });
+        await expect(page.getByTestId("instance-board")).toBeVisible();
+        await page.locator('[data-instance-id="sess-2"]').first().click();
+        await page.getByTestId("inspector-stop").click();
+        await expect(page.getByTestId("stop-undo")).toContainText("Undo (5s)");
+        await page.mouse.move(0, 0);
+        await expect(page).toHaveScreenshot(`toast-stop-${cell}.png`, SCREEN);
+      });
+
+      test(`quit sheet — ${cell}`, async ({ page }) => {
+        await open(page, theme, density, vp);
+        await page.evaluate(() =>
+          window.dispatchEvent(new CustomEvent("aij:quit-requested", { detail: { live: 3, end_on_quit: 3, keep_running: 0 } })),
+        );
+        await expect(page.getByTestId("quit-sheet")).toBeVisible();
+        await expect(page).toHaveScreenshot(`quit-sheet-${cell}.png`, SCREEN);
+      });
+
+      test(`loading placeholders — ${cell}`, async ({ page }) => {
+        await open(page, theme, density, vp, allStatuses, { seams: { __AIJ_LOAD_HANG__: true } });
+        await expect(page.getByTestId("home-loading")).toBeVisible();
+        await expect(page).toHaveScreenshot(`loading-home-${cell}.png`, SCREEN);
+        await goTo(page, "Accounts");
+        await expect(page.getByTestId("placeholder-card")).toBeVisible();
+        await expect(page).toHaveScreenshot(`loading-accounts-${cell}.png`, SCREEN);
+      });
+
       // D-25 amendment (AJ-E1021): Triage and Overview folded into Home.
       for (const screen of ["History", "Accounts", "Usage", "Fleet", "Cleanup", "Settings"] as const) {
         test(`${screen.toLowerCase()} — ${cell}`, async ({ page }) => {

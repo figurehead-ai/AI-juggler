@@ -1,3 +1,4 @@
+import { RowPlaceholders } from "../components/Placeholder";
 import { useCallback, useEffect, useState } from "react";
 import { Button, Card, Chip, type ChipTone } from "../components/primitives";
 import { renewalLabel, renewalRowVisible } from "../lib/renewal";
@@ -148,7 +149,13 @@ export function ProfilesScreen({
   };
 
   if (accounts === null || profiles === null) {
-    return <div className="py-24 text-center text-sm text-muted">Loading…</div>;
+    // AJ-E1503 Req.4: card-shaped placeholders while the accounts load.
+    return (
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
+        <span className="block h-6 w-32 rounded bg-surface-3 motion-safe:animate-pulse" aria-hidden="true" />
+        <RowPlaceholders shape="card" rows={3} label="Loading accounts" />
+      </div>
+    );
   }
 
   return (

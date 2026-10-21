@@ -33,6 +33,7 @@ pub mod os_access;
 pub mod overnight;
 pub mod parked;
 pub mod preview;
+pub mod quit;
 pub mod remote;
 pub mod running_setups;
 pub mod settings_policy;
@@ -170,8 +171,27 @@ pub fn run() {
                 .build(),
         )
         .manage(app_state)
+        // AJ-E1503: ⌘Q and the close button ask first while sessions
+        // are live (the predefined Quit item would quit without asking).
+        .menu(quit::app_menu)
+        .on_menu_event(|app, event| {
+            if event.id() == quit::QUIT_MENU_ID {
+                quit::request(app);
+            }
+        })
+        .on_window_event(|window, event| {
+            use tauri::Manager;
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event
+                && window.label() == "main"
+                && quit::request(window.app_handle())
+            {
+                api.prevent_close();
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             commands::app_info,
+            quit::app_quit_plan,
+            quit::app_quit,
             usage_stats::usage_stats_info,
             usage_stats::usage_stats_set,
             usage_stats::usage_stats_ui_event,
@@ -249,6 +269,7 @@ pub fn run() {
             overnight::overnight_summary_seen,
             parked::instance_park,
             lifecycle::instance_mark_reviewed,
+            lifecycle::instance_unmark_reviewed,
             fleet_account::fleet_account_macs,
             fleet_account::fleet_account_pin,
             cloud_backup::cloud_backup_status,

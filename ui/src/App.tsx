@@ -27,7 +27,10 @@ import {
   type RemoteCommandOutcomeInfo,
   type RemoteMachineInfo,
 } from "./lib/bridge";
-import { isHandoverShortcut, isStopShortcut } from "./lib/shortcuts";
+import { isHandoverShortcut, isStopShortcut, isUndoShortcut } from "./lib/shortcuts";
+import { holdStop, sessionLabel } from "./lib/stop";
+import { ToastHost, undoLatest } from "./components/Toast";
+import { QuitSheet } from "./components/QuitSheet";
 import { cleanupAlerts, fleetPeers, statsEvent, statsGauge } from "./lib/bridge";
 
 /** AJ-E1103: the schema's screen names (History isn't counted; Home and
@@ -64,7 +67,7 @@ import { IsolationOfferDialog } from "./components/IsolationOfferDialog";
 import { funnelEvent } from "./lib/funnel";
 import { SessionPanel } from "./screens/WorkPanels";
 import { NotificationRegion } from "./components/NotificationRegion";
-import { SwitchFlow, SwitchUndoToast } from "./components/SwitchFlow";
+import { SwitchFlow, showSwitchUndoToast } from "./components/SwitchFlow";
 import { SwitchBackFlow } from "./components/SwitchBackFlow";
 import { RightInspector } from "./components/RightInspector";
 import { ThisMacContext, useThisMac } from "./lib/machine";
@@ -328,6 +331,9 @@ export default function App() {
   const railSessions = useMemo(() => sessions.filter((row) => row.lifecycle !== "archived"), [sessions]);
   const [accounts, setAccounts] = useState<AccountInfo[]>([]);
   const [profiles, setProfiles] = useState<LaunchRecipeInfo[]>([]);
+  // AJ-E1503 Req.4: until the first load answers, lists show row-shaped
+  // placeholders, never a false "nothing here".
+  const [loaded, setLoaded] = useState(false);
   const [newSessionDir, setNewSessionDir] = useState<string | null>(null);
   const [loginTerminals, setLoginTerminals] = useState<
     { id: string; title: string; ended: boolean }[]
@@ -355,9 +361,6 @@ export default function App() {
   // The tool chip leaves the header when its view opens: focus follows.
   const [inspectorFocus, setInspectorFocus] = useState(0);
   const [switchFlow, setSwitchFlow] = useState<{ sessionId: string; targetProfileId: string; targetLabel: string } | null>(null);
-  // AJ-E206: the 10-second undo window after a 1-click switch (the
-  // edge is the undo handle). Null = no window open.
-  const [undoWindow, setUndoWindow] = useState<{ edgeId: string; targetLabel: string } | null>(null);
   // AJ-E207: the suggested returns (reset-trigger cards) + the
   // switch-back review modal. Null = closed; suggest-only.
   const [switchBackCards, setSwitchBackCards] = useState<SwitchBackSuggestionData[]>([]);
@@ -447,6 +450,8 @@ export default function App() {
       });
     } catch {
       // preview mode may lack backend mocks for some calls — keep last data
+    } finally {
+      setLoaded(true);
     }
   }, [baselineFreshness]);
 
@@ -623,6 +628,19 @@ export default function App() {
   }, [selection, accounts]);
 
 
+  // AJ-E1503 Req.2: Stop is held 5 s with Undo, then sent. The ref keeps
+  // ⌘. on the session selected now (the key listener is set up once).
+  const stopSession = useCallback(
+    (session: InstanceInfo) => holdStop({ id: session.id, label: sessionLabel(session, projects) }, () => void refresh()),
+    [projects, refresh],
+  );
+  const stopSelectedRef = useRef<() => void>(() => {});
+  stopSelectedRef.current = () => {
+    if (selectedSession && (selectedSession.status === "running" || selectedSession.status === "starting")) {
+      stopSession(selectedSession);
+    }
+  };
+
   // ⌘B legacy: toggles minimal↔comfortable (the old collapse, kept for
   // muscle memory). ⌘N starts a New project (AJ-E305 flow (b)). Density
   // cycle: Ctrl+D everywhere; Cmd+D only inside the Tauri app — the web
@@ -644,15 +662,12 @@ export default function App() {
       if (isStopShortcut(event)) {
         event.preventDefault();
         shortcutUsed("other");
-        if (
-          selectedSession &&
-          (selectedSession.status === "running" || selectedSession.status === "starting")
-        ) {
-          void import("./lib/bridge").then(async ({ terminalKill }) => {
-            await terminalKill(selectedSession.id);
-            void refresh();
-          });
-        }
+        stopSelectedRef.current();
+      }
+      // AJ-E1503: ⌘Z undoes the newest toast — never inside a text field
+      // or the terminal, where it is the field's own undo.
+      if (isUndoShortcut(event) && !isTypingTarget(event.target) && undoLatest()) {
+        event.preventDefault();
       }
       if (isHandoverShortcut(event)) {
         event.preventDefault();
@@ -793,6 +808,7 @@ export default function App() {
           selection.kind === "remote" ? { machineId: selection.machineId, instanceId: selection.instanceId } : null
         }
         onSelectRemote={inspectRemote}
+        loading={!loaded}
         header={(minimal) => (
           <div
             className={
@@ -1104,6 +1120,7 @@ export default function App() {
               {selection.kind === "none" ? (
                 <div className="h-full overflow-y-auto">
                   <HomeScreen
+                    loading={!loaded}
                     sessions={sessions}
                     accounts={accounts}
                     projects={projects}
@@ -1148,11 +1165,8 @@ export default function App() {
                   <Button
                     size="sm"
                     variant="secondary"
-                    onClick={async () => {
-                      const { terminalKill } = await import("./lib/bridge");
-                      await terminalKill(selectedSession.id);
-                      void refresh();
-                    }}
+                    onClick={() => stopSession(selectedSession)}
+                    data-testid="inspector-stop"
                   >
                     Stop
                   </Button>
@@ -1319,9 +1333,13 @@ export default function App() {
             // AJ-E206: a completed 1-click switch leaves the 10s undo
             // window open (the graph keeps the edge as the handle).
             if (undo) {
-              setUndoWindow({
+              showSwitchUndoToast({
                 edgeId: undo.edgeId,
                 targetLabel: switchFlow.targetLabel,
+                onUndone: (undoneId) => {
+                  void refresh();
+                  selectSession(undoneId);
+                },
               });
             }
           }}
@@ -1338,18 +1356,9 @@ export default function App() {
           }}
         />
       )}
-      {undoWindow && (
-        <SwitchUndoToast
-          edgeId={undoWindow.edgeId}
-          targetLabel={undoWindow.targetLabel}
-          onDismiss={() => setUndoWindow(null)}
-          onUndone={(sessionId) => {
-            setUndoWindow(null);
-            void refresh();
-            selectSession(sessionId);
-          }}
-        />
-      )}
+      {/* AJ-E1503: the one feedback system, and the quit warning. */}
+      <ToastHost />
+      <QuitSheet />
       {newSession && (
         <NewSessionModal
           projects={projects}

@@ -3,6 +3,17 @@ import { parkedWords } from "../lib/parked";
 import { providerDisplayName } from "../lib/providers";
 import { ReactNode, useCallback, useEffect, useId, useRef, useState, type JSX } from "react";
 import { IconProjects, IconTerminal } from "./icons";
+import { RowPlaceholders } from "./Placeholder";
+import { showToast } from "./Toast";
+import { sessionLabel } from "../lib/stop";
+
+/** "15 min", "1 h", "2 h 30 min" (AJ-E1503's snooze toast). */
+function durationWords(ms: number): string {
+  const minutes = Math.max(1, Math.round(ms / 60_000));
+  const hours = Math.floor(minutes / 60);
+  if (hours === 0) return `${minutes} min`;
+  return minutes % 60 === 0 ? `${hours} h` : `${hours} h ${minutes % 60} min`;
+}
 import type { AccountInfo, InstanceInfo, ProjectInfo, RemoteInstanceInfo, RemoteMachineInfo } from "../lib/bridge";
 import { shortHeavy, useHeavyNote } from "../lib/machine";
 import type { Density } from "../lib/density";
@@ -92,7 +103,10 @@ export function WorkflowRail({
   remoteMachines = [],
   selectedRemote = null,
   onSelectRemote,
+  loading = false,
 }: {
+  /** AJ-E1503: the first load hasn't answered yet (placeholders). */
+  loading?: boolean;
   density: Density;
   onCycleDensity: () => void;
   projects: ProjectInfo[];
@@ -119,9 +133,14 @@ export function WorkflowRail({
   // Snooze/mute state (AJ-E404 Req.6): rail-owned, persisted; the tab
   // badge counts UNSNOOZED attention only.
   const [snooze, setSnooze] = useState<SnoozeState>(() => readSnooze());
-  const updateSnooze = useCallback((next: SnoozeState) => {
-    setSnooze(next);
-    storeSnooze(next);
+  // AJ-E1503: an updater form too, so Undo applies to the state as it
+  // is then, not as it was when the toast opened.
+  const updateSnooze = useCallback((next: SnoozeState | ((current: SnoozeState) => SnoozeState)) => {
+    setSnooze((current) => {
+      const value = typeof next === "function" ? next(current) : next;
+      storeSnooze(value);
+      return value;
+    });
   }, []);
   const [width, setWidth] = useState<number>(readWidth);
   const [dragging, setDragging] = useState(false);
@@ -202,6 +221,7 @@ export function WorkflowRail({
             remoteMachines={remoteMachines}
             selectedRemote={selectedRemote}
             onSelectRemote={onSelectRemote}
+            loading={loading}
           />
         )}
       </div>
@@ -283,7 +303,10 @@ export function InstanceBoard({
   selectedRemote = null,
   onSelectRemote,
   onSelectProject,
+  loading = false,
 }: {
+  /** AJ-E1503: placeholders until the first load answers. */
+  loading?: boolean;
   /** AJ-E411 Req.5: account expiry feeds the Needs-me tie-break. */
   accounts?: AccountInfo[];
   /** D-25: a project group's header opens the project. */
@@ -300,7 +323,7 @@ export function InstanceBoard({
   now: number;
   projects: ProjectInfo[];
   snooze: SnoozeState;
-  onSnooze: (next: SnoozeState) => void;
+  onSnooze: (next: SnoozeState | ((current: SnoozeState) => SnoozeState)) => void;
 }) {
   const [sort, setSort] = useState<SortMode>("needs");
   // D-25: one rail — sessions grouped under their project by default.
@@ -410,17 +433,41 @@ export function InstanceBoard({
   }
 
   const openMenu = (row: InstanceInfo, x: number, y: number) => setMenu({ row, x, y });
+  // AJ-E1503: every snooze, mute and unsnooze says so, with Undo (the
+  // row's earlier state comes back).
+  const withUndo = (row: InstanceInfo, message: string) => {
+    const before = snooze[row.id];
+    showToast({
+      id: `snooze:${row.id}`,
+      message,
+      undo: {
+        onUndo: () =>
+          onSnooze((current) => {
+            const restored = { ...current };
+            if (before) restored[row.id] = before;
+            else delete restored[row.id];
+            return restored;
+          }),
+        done: "Undone.",
+      },
+    });
+  };
   const snoozeFor = (row: InstanceInfo, ms: number | null, muted = false) => {
-    const next = { ...snooze };
-    if (muted) next[row.id] = { until: null, muted: true };
-    else next[row.id] = { until: ms === null ? null : Date.now() + ms, muted: false };
-    onSnooze(next);
+    const label = sessionLabel(row, projects);
+    withUndo(row, muted ? `Muted ${label}.` : `Snoozed ${label} for ${durationWords(ms ?? 0)}.`);
+    onSnooze((current) => ({
+      ...current,
+      [row.id]: muted ? { until: null, muted: true } : { until: ms === null ? null : Date.now() + ms, muted: false },
+    }));
     setMenu(null);
   };
   const clearSnooze = (row: InstanceInfo) => {
-    const next = { ...snooze };
-    delete next[row.id];
-    onSnooze(next);
+    withUndo(row, `${sessionLabel(row, projects)} is back on the list.`);
+    onSnooze((current) => {
+      const next = { ...current };
+      delete next[row.id];
+      return next;
+    });
     setMenu(null);
   };
 
@@ -576,7 +623,9 @@ export function InstanceBoard({
             This Mac
           </p>
         )}
-        {!showLocal ? null : sorted.length === 0 ? (
+        {!showLocal ? null : loading && sessions.length === 0 ? (
+          <RowPlaceholders shape="rail" rows={4} label="Loading sessions" />
+        ) : sorted.length === 0 ? (
           sessions.length === 0 ? (
             /* D-25: empty means "start here" — the legend lives behind
                the footer's "?". */

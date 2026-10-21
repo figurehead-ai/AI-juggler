@@ -229,6 +229,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **One way every action answers** (AJ-E1503). A toast at the bottom of
+  the window says what happened, with **Undo** where it can be undone
+  (or ⌘Z outside a text field). Stopping one session is held for 5
+  seconds: Undo in time and the stop is never sent. Mark reviewed,
+  snooze, mute, archive and unarchive can be undone; the switch's undo
+  window is the same toast. Toasts are read out by screen readers and
+  never take focus.
+- Quitting (⌘Q or the window's close button) while sessions are live
+  says how many are running and what quitting does to them: a terminal
+  session ends with AI Juggler, and a desktop session keeps running. Pick
+  **Quit anyway**, **Stop them first** or Cancel. With nothing live,
+  AI Juggler quits at once.
+- While the rail, Home and Accounts load they show rows shaped like their
+  own, rather than "No sessions yet" or "Bring in your accounts" for a
+  moment.
 - **Codex** is the second Provider (AJ-E1301). AI Juggler finds the Codex
   CLI, gives each Codex account its own folder (`CODEX_HOME`), signs it
   in with OpenAI's own `codex login`, and starts, resumes or runs Codex
