@@ -187,3 +187,10 @@ test("Ctrl+D typed in the terminal or a text field is the typing's, not the rail
   await page.keyboard.press("Control+d");
   await expect(rail(page)).toHaveAttribute("data-density", "compact");
 });
+
+// 0.0.11 walk, Q1: a first open (nothing stored) starts the rail at its
+// default width, not the 208 px minimum.
+test("the rail starts at 264 px when nothing is stored", async ({ page }) => {
+  await seed(page, "dark", 1280, 800);
+  await expect(rail(page)).toHaveCSS("width", "264px");
+});
