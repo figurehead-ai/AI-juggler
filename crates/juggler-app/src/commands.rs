@@ -7272,7 +7272,8 @@ fn repo_identity_cached(root: &std::path::Path) -> Option<String> {
     use std::collections::HashMap;
     use std::sync::{Mutex, OnceLock};
     use std::time::{Duration, Instant};
-    static CACHE: OnceLock<Mutex<HashMap<PathBuf, (Option<String>, Instant)>>> = OnceLock::new();
+    type Seen = HashMap<PathBuf, (Option<String>, Instant)>;
+    static CACHE: OnceLock<Mutex<Seen>> = OnceLock::new();
     let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
     if let Ok(map) = cache.lock()
         && let Some((repo, at)) = map.get(root)
