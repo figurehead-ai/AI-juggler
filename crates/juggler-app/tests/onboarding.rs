@@ -78,13 +78,19 @@ fn import_makes_an_existing_setup_launchable_without_touching_it() {
     )
     .unwrap();
 
-    // The account exists, is logged in, and the settings/history carried.
-    assert_eq!(result.login, "logged_in");
-    assert_eq!(
-        result.login_note.as_deref(),
-        Some("Login carried over with the import.")
+    // The account exists and the settings/history carried; the sign-in
+    // stayed with the original (AJ-E1521: never copied), so the new
+    // account signs in once.
+    assert_eq!(result.login, "logged_out");
+    assert!(
+        result
+            .login_note
+            .as_deref()
+            .is_some_and(|note| note.contains("Sign in once")),
+        "{:?}",
+        result.login_note
     );
-    assert!(result.files_copied >= 3, "{}", result.files_copied);
+    assert!(result.files_copied >= 2, "{}", result.files_copied);
     assert!(result.skipped.iter().any(|s| s.contains("shell-snapshots")));
     let account = result.account;
     assert_eq!(account.label, "Existing account");

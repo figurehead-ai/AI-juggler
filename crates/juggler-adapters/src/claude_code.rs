@@ -159,7 +159,11 @@ impl HarnessAdapter for ClaudeCodeAdapter {
                 )],
             };
         }
-        match std::process::Command::new(&bin).arg("--version").output() {
+        // With the user's PATH: an npm-installed CLI runs on `node`.
+        match juggler_adapter::user_path::command(&bin)
+            .arg("--version")
+            .output()
+        {
             Ok(output) if output.status.success() => {
                 let stdout = String::from_utf8_lossy(&output.stdout);
                 let version = stdout
@@ -390,6 +394,10 @@ impl HarnessAdapter for ClaudeCodeAdapter {
 
     fn shell_command(&self) -> Option<&'static str> {
         Some("claude")
+    }
+
+    fn resolved_binary(&self) -> Option<PathBuf> {
+        self.resolve_bin()
     }
 
     fn launch_spec(
@@ -896,16 +904,15 @@ pub(crate) fn file_stem(path: &Path) -> String {
 
 // ---- helpers -------------------------------------------------------------
 
+/// The first `program` on the user's `PATH` (the login shell's, not the
+/// one an app opened from Finder inherits — see `user_path`).
 pub(crate) fn find_on_path(program: &str) -> Option<PathBuf> {
-    let path_var = std::env::var_os("PATH")?;
     let exe = if cfg!(windows) {
         format!("{program}.exe")
     } else {
         program.to_string()
     };
-    std::env::split_paths(&path_var)
-        .map(|dir| dir.join(&exe))
-        .find(|candidate| candidate.is_file())
+    juggler_adapter::user_path::find(&exe)
 }
 
 /// The user's home dir (`HOME` / `USERPROFILE`).

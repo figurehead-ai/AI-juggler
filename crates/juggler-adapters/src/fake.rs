@@ -18,6 +18,9 @@ use juggler_core::model::{Account, HarnessId, Profile};
 /// Harness id of the fake adapter.
 pub const FAKE_HARNESS_ID: &str = "fake";
 
+/// The variable pointing the fake harness at its account's folder.
+pub const ENV_FAKE_HOME: &str = "FAKE_HARNESS_HOME";
+
 /// Adapter over the `fake-harness` binary (see `src/bin/fake_harness.rs`).
 #[derive(Debug, Clone)]
 pub struct FakeHarnessAdapter {
@@ -47,11 +50,12 @@ impl HarnessAdapter for FakeHarnessAdapter {
     }
 
     fn capabilities(&self) -> Capabilities {
+        // No USAGE_TOKENS: nothing reads the fake's token counts into
+        // usage, and the conformance kit holds a claim to its reader.
         Capabilities::HEADLESS
             | Capabilities::RESUME
             | Capabilities::TRANSCRIPT_EXPORT
             | Capabilities::TRANSCRIPT_WATCH
-            | Capabilities::USAGE_TOKENS
             | Capabilities::FORK
     }
 
@@ -118,10 +122,14 @@ impl HarnessAdapter for FakeHarnessAdapter {
         })?;
         let mut env = EnvMap::new();
         env.insert(
-            "FAKE_HARNESS_HOME".to_string(),
+            ENV_FAKE_HOME.to_string(),
             state_dir.to_string_lossy().into_owned(),
         );
         Ok(env)
+    }
+
+    fn isolation_env_keys(&self) -> &'static [&'static str] {
+        &[ENV_FAKE_HOME]
     }
 
     fn launch_spec(
@@ -141,11 +149,23 @@ impl HarnessAdapter for FakeHarnessAdapter {
             "--dir".to_string(),
             transcripts.to_string_lossy().into_owned(),
         ];
-        let mut env = EnvMap::new();
+        // Launch-settings overrides first, isolation LAST, as every
+        // adapter does (AJ-E309): an override can't repoint the home.
+        let mut env: EnvMap = profile.settings_overlay.env.clone();
         env.insert(
-            "FAKE_HARNESS_HOME".to_string(),
+            ENV_FAKE_HOME.to_string(),
             account.state_dir.to_string_lossy().into_owned(),
         );
+        if let LaunchMode::Resume { session_id, .. } = mode {
+            // The id names a file in the transcript folder: one that
+            // reads as an option or leaves the folder is refused.
+            crate::codex::refuse_option_like(session_id)?;
+            if session_id.contains(['/', '\\']) || session_id.starts_with('.') {
+                return Err(AdapterError::InvalidLaunch(
+                    "that session id can't be resumed".into(),
+                ));
+            }
+        }
         let spec = match mode {
             LaunchMode::Interactive => juggler_adapter::launch::interactive_spec(
                 self.bin.clone(),
@@ -190,6 +210,30 @@ impl HarnessAdapter for FakeHarnessAdapter {
 
     fn watcher(&self, transcript_root: &Path) -> Result<Box<dyn SessionWatcher>, AdapterError> {
         Ok(Box::new(FakeWatcher::new(transcript_root)))
+    }
+
+    /// `transcripts/<id>.jsonl` whose `session_meta` names `cwd`.
+    fn locate_transcript(
+        &self,
+        state_dir: &Path,
+        cwd: &Path,
+        since_ms: i64,
+        taken: &[PathBuf],
+    ) -> Option<juggler_core::model::TranscriptRef> {
+        let files = std::fs::read_dir(state_dir.join("transcripts"))
+            .ok()?
+            .flatten()
+            .map(|entry| entry.path())
+            .filter(|path| path.extension().is_some_and(|ext| ext == "jsonl"))
+            .collect();
+        crate::claude_code::only_since(files, since_ms, taken, |bytes| {
+            juggler_adapter::handover::embedded_cwd(bytes)
+                .is_some_and(|found| crate::claude_code::same_folder(&found, cwd))
+        })
+        .map(|path| juggler_core::model::TranscriptRef {
+            native_id: Some(crate::claude_code::file_stem(&path)),
+            path,
+        })
     }
 }
 

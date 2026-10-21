@@ -297,12 +297,37 @@ pub trait HarnessAdapter: Send + Sync {
         &keys[..keys.len().min(1)]
     }
 
+    /// Every pinned isolation variable with its value for `state_dir`
+    /// (AJ-E1521): `Some(path)` points the Provider at the Account's
+    /// state, `None` runs with the variable unset (ADR-0018: the
+    /// vendor's own default folder). Launches, the copyable shell line
+    /// and the isolation check all read this one list. Default: every
+    /// [`HarnessAdapter::pinned_env_keys`] entry set to
+    /// [`HarnessAdapter::isolation_env_value`]; a Provider whose keys
+    /// point at different folders inside the state dir overrides it.
+    #[must_use]
+    fn pinned_env(&self, state_dir: &Path) -> Vec<(&'static str, Option<String>)> {
+        let value = self.isolation_env_value(state_dir);
+        self.pinned_env_keys()
+            .iter()
+            .map(|key| (*key, value.clone()))
+            .collect()
+    }
+
     /// The command a user types to start this Provider against
     /// `state_dir` by hand — the Expert-setup snippet and the
     /// external-terminal login fallback (AJ-E309 Req.5). `None` when
     /// the Provider has no terminal entry point.
     #[must_use]
     fn shell_command(&self) -> Option<&'static str> {
+        None
+    }
+
+    /// The binary this adapter would launch, when one is found (no
+    /// process runs). The copyable line names it by its full path when
+    /// [`HarnessAdapter::shell_command`] isn't on the user's `PATH`.
+    #[must_use]
+    fn resolved_binary(&self) -> Option<std::path::PathBuf> {
         None
     }
 }
@@ -329,11 +354,10 @@ pub fn shell_snippet(
     // credentials. Every pinned key points at the folder otherwise.
     let mut unset: Vec<String> = Vec::new();
     let mut parts: Vec<String> = Vec::new();
-    let value = adapter.isolation_env_value(state_dir);
-    for key in adapter.pinned_env_keys() {
-        match &value {
-            Some(dir) => parts.push(format!("{key}={}", shell_quote(dir))),
-            None => unset.push((*key).to_owned()),
+    for (key, value) in adapter.pinned_env(state_dir) {
+        match value {
+            Some(dir) => parts.push(format!("{key}={}", shell_quote(&dir))),
+            None => unset.push(key.to_owned()),
         }
     }
     unset.extend(
@@ -342,17 +366,46 @@ pub fn shell_snippet(
             .iter()
             .map(|key| (*key).to_owned()),
     );
+    // Overrides apply as at launch: never over an isolation variable,
+    // and never bringing back a credential the launch removes (`env -u
+    // KEY KEY=value` would set it again).
     for (key, value) in extra_env {
-        if !adapter.isolation_env_keys().contains(&key.as_str()) {
+        let key = key.as_str();
+        if !adapter.isolation_env_keys().contains(&key)
+            && !adapter.launch_unset_keys().contains(&key)
+        {
             parts.push(format!("{key}={}", shell_quote(value)));
         }
     }
-    parts.push(command.to_owned());
+    parts.push(snippet_program(
+        command,
+        crate::user_path::login_shell_path(),
+        || adapter.resolved_binary(),
+    ));
     if unset.is_empty() {
         return Some(parts.join(" "));
     }
     let flags: Vec<String> = unset.iter().map(|key| format!("-u {key}")).collect();
     Some(format!("env {} {}", flags.join(" "), parts.join(" ")))
+}
+
+/// The program word of the copyable line: `command`, as the user types
+/// it, unless their terminal's `PATH` (`shell_path`, when known) doesn't
+/// find it — then the binary AI Juggler found, by its full path.
+#[must_use]
+pub fn snippet_program(
+    command: &str,
+    shell_path: Option<&std::ffi::OsStr>,
+    resolved: impl FnOnce() -> Option<std::path::PathBuf>,
+) -> String {
+    let typed = shell_path.is_none_or(|path| crate::user_path::find_in(command, path).is_some());
+    if typed {
+        return command.to_owned();
+    }
+    resolved().map_or_else(
+        || command.to_owned(),
+        |bin| shell_quote(&bin.to_string_lossy()),
+    )
 }
 
 /// Shared adapter handle type used by the registry and supervisor.

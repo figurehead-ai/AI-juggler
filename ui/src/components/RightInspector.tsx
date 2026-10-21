@@ -32,7 +32,7 @@ import { accountSetFee, projectSetDefaultAccount, quotaDisplay, switchTargets, t
 } from "../lib/bridge";
 import { STATE_WORDS, formatBytes, isActiveStatus, stateChip } from "./indicator";
 import { resourceLine, useHeavyNote } from "../lib/machine";
-import { providerDisplayName } from "../lib/providers";
+import { FOUND_UNCHECKED, providerDisplayName, versionUnchecked } from "../lib/providers";
 import { SwitchGraph } from "./SwitchGraph";
 import { SwitchTargetRows } from "./SwitchTargetRows";
 import { RemoteSwitchTargets } from "./RemoteSwitchTargets";
@@ -1777,6 +1777,7 @@ export function installWords(install: import("../lib/bridge").ProviderInstallDat
     case "not_installed":
       return "Not installed on this Mac";
     default:
+      if (versionUnchecked(install)) return FOUND_UNCHECKED;
       return "Couldn't check what's installed";
   }
 }
