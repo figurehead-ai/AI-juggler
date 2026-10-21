@@ -12,6 +12,20 @@ default = ["stats"]
 # Usage statistics (D-19). Without it the crate is not in the binary and
 # Settings shows "not included in this build".
 stats = ["dep:juggler-stats", "dep:thread-priority"]
+# The read-only test bridge (docs/qa/DEV-BRIDGE.md): the real UI in a
+# browser against this backend, for QA on real data without granting the
+# app Accessibility. Off by default, debug builds only — a release build
+# with it doesn't compile — and it runs only when AIJ_DEV_BRIDGE=1.
+# Every crate it uses is already in the tree (hyper serves the Fleet link).
+dev-bridge = [
+    "dep:bytes",
+    "dep:http-body",
+    "dep:http-body-util",
+    "dep:hyper",
+    "dep:hyper-util",
+    "dep:subtle",
+    "dep:zeroize",
+]
 
 [lints]
 workspace = true
@@ -57,6 +71,14 @@ tauri-plugin-updater = { version = "2", default-features = false, features = ["r
 thiserror = "2.0.21"
 tokio = { version = "1", features = ["rt-multi-thread", "net", "sync", "time"] }
 zstd = "0.14"
+# dev-bridge only (see the feature).
+bytes = { version = "1", optional = true }
+http-body = { version = "1", optional = true }
+http-body-util = { version = "0.1", optional = true }
+hyper = { version = "1", default-features = false, features = ["http1", "server"], optional = true }
+hyper-util = { version = "0.1", default-features = false, features = ["tokio"], optional = true }
+subtle = { version = "2.6", optional = true }
+zeroize = { version = "1.8", optional = true }
 ts-rs = { version = "12.0.1", features = ["serde-json-impl", "no-serde-warnings"] }
 
 [build-dependencies]
@@ -90,3 +112,6 @@ juggler-scap-init = { version = "0.0.1", path = "../juggler-scap-init" }
 # that adds AI Juggler to the list.
 core-graphics = "0.25.0"
 macos-accessibility-client = "0.0.2"
+# AJ-E1501: a removed copy's folder goes to the Trash (NSFileManager
+# trashItem — never deleted, never Finder scripting).
+trash = { version = "5.2.9", default-features = false }

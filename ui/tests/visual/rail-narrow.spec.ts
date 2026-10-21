@@ -188,6 +188,13 @@ test("Ctrl+D typed in the terminal or a text field is the typing's, not the rail
   await expect(rail(page)).toHaveAttribute("data-density", "compact");
 });
 
+// 0.0.11 walk, Q1: a first open (nothing stored) starts the rail at its
+// default width, not the 208 px minimum.
+test("the rail starts at 264 px when nothing is stored", async ({ page }) => {
+  await seed(page, "dark", 1280, 800);
+  await expect(rail(page)).toHaveCSS("width", "264px");
+});
+
 // 0.0.11 walk: with counts on the chips ("Needs you 5", "Running 3") the
 // Filters button overflowed the rail at its starting width and was cut.
 for (const [name, fixture] of [["one-digit counts", allStatuses], ["two-digit counts", atScale]] as const) {

@@ -1433,6 +1433,10 @@ pub struct AccountInfo {
     pub imported_at: Option<i64>,
     /// ADR-0018: the account uses the user's own folder where it is.
     pub in_place: bool,
+    /// AJ-E1501: new sessions start with this account unless a project
+    /// names its own (set by the accounts list; `null` elsewhere).
+    #[ts(optional = nullable)]
+    pub is_default: Option<bool>,
 }
 
 /// A Launch settings row for the UI (AJ-E107).
@@ -1541,8 +1545,8 @@ pub struct QualitySignalsInfo {
     pub session_cost_usd: Option<f64>,
     /// The model the cost was priced against (null = unpriced).
     pub priced_model: Option<String>,
-    /// Quota forecast RANGE label (`~13-27m at current rate · Est`) or
-    /// `not burning`.
+    /// Quota forecast RANGE label (`At this pace, its limit lasts about
+    /// 13–27 min more`) or `Not using its limit right now`.
     pub quota_forecast: String,
     /// The AJ-E405 stuck rule + inputs, when tripped (permanent `?`).
     pub stuck: Option<AttentionInfo>,
@@ -1762,6 +1766,10 @@ pub struct ProjectInfo {
     /// True when the root directory no longer exists on disk (AJ-E408
     /// Overview danger banner + `Relocate…`).
     pub missing: bool,
+    /// AJ-E1501: the account this project's new sessions start with,
+    /// when the user picked one.
+    #[ts(optional = nullable)]
+    pub default_account_id: Option<String>,
 }
 
 /// Dashboard counts.
@@ -1923,10 +1931,25 @@ pub fn harnesses_list() -> Vec<ProviderInfo> {
 ///
 /// Returns the typed [`AppError`] message on failure.
 pub fn accounts_list(state: tauri::State<'_, Arc<AppState>>) -> AppResult<Vec<AccountInfo>> {
-    let storage = lock_storage(&state)?;
+    accounts_info(state.inner())
+}
+
+/// The accounts in use, each marked whether it is the default
+/// (AJ-E1501).
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] message on storage failures.
+pub fn accounts_info(state: &Arc<AppState>) -> AppResult<Vec<AccountInfo>> {
+    let storage = lock_storage_arc(state)?;
+    let default = storage
+        .app_settings()
+        .get(crate::manage::DEFAULT_ACCOUNT_KEY)?;
     let mut out = Vec::new();
     for account in storage.accounts().list()? {
-        out.push(account_info_of(&state.registry, &account));
+        let mut info = account_info_of(&state.registry, &account);
+        info.is_default = Some(default.as_deref() == Some(account.id.as_str()));
+        out.push(info);
     }
     Ok(out)
 }
@@ -2667,27 +2690,7 @@ pub fn isolation_check_impl(
     // (`CLAUDE_CONFIG_DIR`; `CODEX_HOME` and `CODEX_SQLITE_HOME`) —
     // AJ-E309.
     let pinned = adapter.pinned_env_keys();
-    let env_ok = !pinned.is_empty()
-        && adapter
-            .launch_spec(
-                &account,
-                &Profile {
-                    id: ProfileId::new("check"),
-                    name: "check".into(),
-                    account: account.id.clone(),
-                    settings_overlay: SettingsOverlay::default(),
-                    default_cwd: None,
-                },
-                std::path::Path::new("/"),
-                &juggler_adapter::LaunchMode::Interactive,
-            )
-            .is_ok_and(|spec| {
-                pinned.iter().all(|key| {
-                    spec.env
-                        .get(*key)
-                        .is_some_and(|value| std::path::Path::new(value) == dir)
-                })
-            });
+    let env_ok = launch_env_pinned(adapter.as_ref(), &account);
     rows.push(IsolationRowInfo {
         id: "launch_env_managed_only",
         label: "Launch environment points only at this account's folder".into(),
@@ -2746,6 +2749,42 @@ pub fn isolation_check_impl(
     Ok(rows)
 }
 
+/// Whether an Interactive launch of `account` sets every pinned
+/// variable to what the adapter pins for its folder — the path exactly,
+/// or unset for the vendor's own folder (AJ-E1521: launches, the shell
+/// line and this check read the one `pinned_env` list).
+fn launch_env_pinned(
+    adapter: &juggler_adapter::adapter::ProviderAdapter,
+    account: &Account,
+) -> bool {
+    let pinned = adapter.pinned_env(&account.state_dir);
+    !pinned.is_empty()
+        && adapter
+            .launch_spec(
+                account,
+                &Profile {
+                    id: ProfileId::new("check"),
+                    name: "check".into(),
+                    account: account.id.clone(),
+                    settings_overlay: SettingsOverlay::default(),
+                    default_cwd: None,
+                },
+                std::path::Path::new("/"),
+                &juggler_adapter::LaunchMode::Interactive,
+            )
+            .is_ok_and(|spec| {
+                pinned
+                    .iter()
+                    .all(|(key, expected)| match (spec.env.get(*key), expected) {
+                        (Some(value), None) => value == juggler_adapter::launch::ENV_UNSET,
+                        (Some(value), Some(path)) => {
+                            std::path::Path::new(value) == std::path::Path::new(path)
+                        }
+                        (None, _) => false,
+                    })
+            })
+}
+
 /// ADR-0018: the checklist for an account that uses the user's folder
 /// where it is. "Owner-only" and "marker present" are promises about AI
 /// Juggler's own copies; here the promises are that AI Juggler put
@@ -2781,31 +2820,11 @@ fn in_place_isolation_rows(
     // Every pinned variable is the folder exactly, or — for the vendor's
     // own default folder — unset, as the vendor runs it.
     let pinned = adapter.pinned_env_keys();
-    let expected = adapter.isolation_env_value(&dir);
-    let default_folder = expected.is_none();
-    let env_ok = !pinned.is_empty()
-        && adapter
-            .launch_spec(
-                account,
-                &Profile {
-                    id: ProfileId::new("check"),
-                    name: "check".into(),
-                    account: account.id.clone(),
-                    settings_overlay: SettingsOverlay::default(),
-                    default_cwd: None,
-                },
-                std::path::Path::new("/"),
-                &juggler_adapter::LaunchMode::Interactive,
-            )
-            .is_ok_and(|spec| {
-                pinned
-                    .iter()
-                    .all(|key| match (spec.env.get(*key), &expected) {
-                        (Some(value), None) => value == juggler_adapter::launch::ENV_UNSET,
-                        (Some(value), Some(_)) => std::path::Path::new(value) == dir,
-                        (None, _) => false,
-                    })
-            });
+    let default_folder = adapter
+        .pinned_env(&dir)
+        .iter()
+        .all(|(_, value)| value.is_none());
+    let env_ok = launch_env_pinned(adapter.as_ref(), account);
     let keys = pinned.join(" and ");
     rows.push(IsolationRowInfo {
         id: "launch_env_managed_only",
@@ -3544,6 +3563,17 @@ pub fn launch_profile(
     use juggler_adapter::LaunchMode;
 
     let (profile, account) = find_profile_with_account_arc(state, profile_id)?;
+    // AJ-E1501: a removed account starts nothing (its folder may be in
+    // the Trash, or no longer the user's choice).
+    if lock_storage_arc(state)?
+        .accounts()
+        .is_removed(&account.id)?
+    {
+        return Err(AppError::Refused(format!(
+            "«{}» was removed — add it again to start a session on it",
+            account.label
+        )));
+    }
     // The profile's model goes in as `claude --model` (the adapter's
     // launch spec); settings.json is never rewritten (ADR-0018 §3).
     let adapter = state
@@ -4961,6 +4991,7 @@ fn account_info_of(registry: &juggler_adapter::AdapterRegistry, account: &Accoun
         import_origin: account.import_origin.clone(),
         imported_at: account.imported_at,
         in_place: account.in_place,
+        is_default: None,
     }
 }
 
@@ -5188,15 +5219,19 @@ type RecipeIndex = std::collections::BTreeMap<String, (String, String, Option<St
 ///
 /// Returns the typed [`AppError`] message on storage failures.
 fn session_join_indexes(storage: &Storage) -> AppResult<(AccountIndex, RecipeIndex)> {
+    // AJ-E1501: a removed account's sessions keep its name, marked.
+    let removed = storage.accounts().removed_ids()?;
     let account_index: AccountIndex = storage
         .accounts()
-        .list()?
+        .list_all()?
         .into_iter()
         .map(|account| {
-            (
-                account.id.to_string(),
-                (account.label, account.harness.to_string()),
-            )
+            let label = if removed.contains(account.id.as_str()) {
+                format!("{} (removed account)", account.label)
+            } else {
+                account.label
+            };
+            (account.id.to_string(), (label, account.harness.to_string()))
         })
         .collect();
     let mut recipe_index: RecipeIndex = std::collections::BTreeMap::new();
@@ -7297,6 +7332,7 @@ pub fn projects_list_impl(state: &Arc<AppState>) -> AppResult<Vec<ProjectInfo>> 
                 history_last_used_ms: project.history.last_used_ms,
                 repo: None,
                 missing: !project.root.exists(),
+                default_account_id: project.default_account.map(|id| id.to_string()),
             }
         })
         .collect();
@@ -13533,6 +13569,9 @@ pub struct ProviderCapabilityInfo {
     /// ADR-0018: its setups can be used where they are (the adapter
     /// adopts a folder without writing to it).
     pub can_use_in_place: bool,
+    /// It reports its own usage limits (the 5-hour and weekly windows);
+    /// a tool that doesn't shows no limit rows (0.0.11 walk, Q3).
+    pub reports_limits: bool,
 }
 
 /// ADR-0018: each registered Provider's static capabilities (no
@@ -13562,6 +13601,9 @@ pub fn providers_capabilities_impl(state: &Arc<AppState>) -> Vec<ProviderCapabil
                 .map(|adapter| ProviderCapabilityInfo {
                     provider: id.to_string(),
                     can_use_in_place: adapter.can_use_in_place(),
+                    reports_limits: adapter
+                        .capabilities()
+                        .contains(juggler_adapter::Capabilities::USAGE_QUOTA_FEED),
                 })
         })
         .collect()
@@ -13989,7 +14031,7 @@ type ScanWalk = (
     Vec<juggler_adapter::environment::DiscoveredInstall>,
     Vec<juggler_adapter::environment::AliasHint>,
     Vec<juggler_adapter::environment::ManagerHint>,
-    Vec<(String, bool)>,
+    Vec<(String, &'static str)>,
 );
 
 fn scan_walk(state: &Arc<AppState>) -> ScanWalk {
@@ -14013,8 +14055,15 @@ fn scan_walk(state: &Arc<AppState>) -> ScanWalk {
                         installs = adapter.scan_environment();
                         aliases = adapter.scan_shell_aliases();
                         manager_hints = adapter.scan_managers();
-                        discovery =
-                            Some((adapter.id().to_string(), adapter.discover().is_installed()));
+                        let report = adapter.discover();
+                        let words = if report.is_installed() {
+                            "installed"
+                        } else if report.is_found() {
+                            "found; couldn't check its version"
+                        } else {
+                            "missing"
+                        };
+                        discovery = Some((adapter.id().to_string(), words));
                     }
                     (installs, aliases, manager_hints, discovery)
                 })
@@ -14190,7 +14239,7 @@ fn scan_probe_rows(
     dangling: u32,
     managers: &[juggler_adapter::environment::ManagerHint],
     cc_health: juggler_adapter::environment::ScanHealth,
-    discoveries: &[(String, bool)],
+    discoveries: &[(String, &'static str)],
     seeds: &[String],
     desktop_apps: &[String],
     cancelled: bool,
@@ -14246,9 +14295,7 @@ fn scan_probe_rows(
             juggler_adapter::environment::ScanHealth::Ok,
             discoveries
                 .iter()
-                .map(|(id, installed)| {
-                    format!("{id}: {}", if *installed { "installed" } else { "missing" })
-                })
+                .map(|(id, words)| format!("{id}: {words}"))
                 .collect::<Vec<_>>()
                 .join(", "),
         ),

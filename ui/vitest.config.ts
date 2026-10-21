@@ -9,6 +9,7 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     globals: false,
-    include: ["src/**/*.test.tsx", "src/**/*.test.ts"],
+    // tests/bundle builds the app (Node, outside the tsconfig's `src`).
+    include: ["src/**/*.test.tsx", "src/**/*.test.ts", "tests/bundle/**/*.test.ts"],
   },
 });

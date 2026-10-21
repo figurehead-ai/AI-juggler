@@ -17,18 +17,18 @@ This is the execution companion to the [spec](../SPEC.md): the spec defines *wha
 4. Scope changes go through the spec first (PR), then this plan — never sideways into code.
 5. Autonomous operation: unattended build runs follow the contract in [RUNBOOK.md](./RUNBOOK.md) — same PR flow, same DoD, hard stops at gates and genuine blockages.
 
-**Milestone status**
+**Milestone status** (2026-10-21)
 
 | Milestone | Scope | Status |
 |---|---|---|
-| M0 | Foundation, CI, domain model, adapter trait, fake Provider, supervisor skeleton | 🟡 Ready to start |
-| M1 | Claude Code accounts + parallel launcher + instance board + terminal | ⚪ Planned |
-| M2 | Codex + ZCode adapters, machine health, crash recovery | ⚪ Planned |
-| M3 | Usage & quota dashboards | ⚪ Planned |
-| M4 | Handover engine (T1–T4) | ⚪ Planned |
-| M5 | Release engineering → **v0.1.0-beta.1** | ⚪ Planned |
-| M6 | Fleet link → **v0.2** | ⚪ Planned |
-| M7 | Fleet control → **v0.3**; Win/Linux bring-up | ⚪ Planned |
+| M0 | Foundation, CI, domain model, adapter trait, fake Provider, supervisor skeleton | ✅ Done |
+| M1 | Claude Code accounts + parallel launcher + instance board + terminal | ✅ Done |
+| M2 | Codex + ZCode adapters, machine health, crash recovery | 🟡 Codex, machine health and crash recovery done; ZCode in E15 |
+| M3 | Usage & quota dashboards | ✅ Done (tray in review, AJ-E1411) |
+| M4 | Handover engine (T1–T4) | ✅ Done (live fidelity cells are the maintainer's, AJ-E808) |
+| M5 | Release engineering → **v0.1.0-beta.1** | 🟡 Signed Beta and Nightly builds ship (0.0.x); 0.1 is cut as set in E15 |
+| M6 | Fleet link → **v0.2** | 🟡 Built; the two-Mac dogfood is the maintainer's (AJ-E710) |
+| M7 | Fleet control → **v0.3**; Win/Linux bring-up | 🟡 Fleet control built; Windows and Linux after 1.0 |
 | M8 | Stabilization → **1.0** | ⚪ Planned |
 
 ---

@@ -7,6 +7,7 @@ import { RecoverySummaryDialog } from "./components/RecoverySummaryDialog";
 import { UsageStatsReconsent } from "./components/UsageStatsReconsent";
 import { CrashReportPrompt } from "./components/CrashReports";
 import { CleanupCentre, focusCleanupFilter } from "./screens/CleanupCentre";
+import { toolFound } from "./lib/providers";
 import { launchPortWarning, type PortWarningInfo,} from "./lib/bridge";
 import { IconJuggler, IconTerminal } from "./components/icons";
 import { AttentionAnnouncer, RenewalAnnouncer } from "./components/indicator";
@@ -130,7 +131,7 @@ const PRIMARY_NAV: Array<{ id: GlobalId | "home"; label: string }> = [
   { id: "settings", label: "Settings" },
 ];
 const MORE_NAV: Array<{ id: GlobalId; label: string; hint: string }> = [
-  { id: "usage", label: "Usage", hint: "Quota, cost and the two clocks per account" },
+  { id: "usage", label: "Usage", hint: "Limits and cost for each account" },
   { id: "fleet", label: "Fleet", hint: "Your other Macs" },
   { id: "cleanup", label: "Cleanup", hint: "Processes left behind, and the audit log" },
 ];
@@ -342,7 +343,8 @@ export default function App() {
   const startAddAccount = useCallback(() => {
     void providersDiscover().then(
       (rows) => {
-        const ready = rows.filter((row) => row.status === "installed" || row.status === "unverified");
+        // Found counts, even when its version couldn't be read (0.0.11).
+        const ready = rows.filter(toolFound);
         if (ready.length > 1) setChooseTool(true);
         else setAddAccounts(ready[0]?.provider ?? "claude-code");
       },
@@ -1002,6 +1004,7 @@ export default function App() {
                 key={accountsNonce}
                 sessions={sessions}
                 onAddAccounts={startAddAccount}
+                onAccountsChanged={() => void refresh()}
                 openTerminal={openLoginTerminal}
                 onInspectAccount={(id) => {
                   setGlobal(null);

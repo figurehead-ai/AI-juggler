@@ -189,6 +189,10 @@ the ledger against live processes (zombies-in-the-ledger are dead rows).
 
 ### 3.3 Portable context pack v2 (ADR-0009)
 
+> **As built:** this is the second design of the pack (ADR-0009); its
+> on-disk `format_version` is `1`, the first version shipped
+> (`juggler-handover/src/pack.rs`). "v2" names the design, not the field.
+
 The canonical staging/preview artifact for every switch and export:
 
 ```
@@ -239,6 +243,10 @@ big-bang rename (D-02).
 ## 4. Adapter system
 
 The adapter is the extensibility contract. First-class Rust adapters ship for the big three; post-v1, a declarative manifest (TOML) covers simple CLIs without recompiling.
+
+> **As built (2026-10-21):** Claude Code (§4.1) and Codex (§4.2, beta)
+> ship. ZCode (§4.3) is researched and planned in E15, not built yet;
+> more tools are being researched for E15.
 
 ```rust
 // crates/juggler-adapter/src/lib.rs (sketch)
@@ -305,7 +313,7 @@ pub trait HarnessAdapter: Send + Sync {
 - **Sessions:** watch `~/.codex… <home>/sessions/**/rollout-*.jsonl`; index from `session_meta` without full replay; `token_usage_record` lines → **Measured** tokens.
 - **Usage/quota:** no public API (research §5) — token burn is Measured; plan-credit correlation is **Estimated** (window reconstruction from token timestamps; calibrated as the user observes real resets) and labeled as such in the UI.
 - **Resume:** `codex resume` (interactive) / `codex exec resume <id>`.
-- **Identity probe:** not implemented yet — Codex Instances show `Identity unverified` until a metadata-only source is verified.
+- **Identity probe:** `auth.json`'s `tokens.account_id` is the subject, shown masked; no token is decoded (AJ-E1303). Email and plan live only inside the `id_token`, a credential, so they stay unknown.
 
 ### 4.3 Adapter: ZCode
 
@@ -525,6 +533,11 @@ session → any managed Provider) unchanged (T4).
 
 ### 9.1 Information architecture (ADR-0007/0008)
 
+> **Superseded in part by D-25 (as built):** one rail of sessions
+> (projects fold inside it) instead of three tabs, and Home (Needs you,
+> This Mac) replaces the Overview and Triage screens. The Right
+> Inspector and the global Accounts, Usage and Fleet screens stand.
+
 Left rail = the work surface: **Projects / Instances / Sessions** (three
 tabs; the list lives in the rail; collapse to icons; ⌘B; New session at
 its foot — recents + native folder picker + drag-drop, never typed
@@ -621,7 +634,7 @@ AI Juggler instances link over the network so one console can see — and manage
 
 - **gRPC over TLS 1.3 with mutual certificate auth (tonic + rustls)** — a standard, schema'd (protobuf), streaming-capable transport; protobuf contracts are versioned in-repo and breaking-change-linted in CI. (Codex's own app-server uses the same JSON-RPC-over-stdio pattern — the style is proven in this exact ecosystem.)
 - Each instance generates an Ed25519 identity at first run; its self-signed certificate identifies the node.
-- **Pairing:** the console displays a 6-digit code / QR; completing the exchange on the new node pins both identities. Unpaired connections are dropped — there is no anonymous mode.
+- **Pairing:** the console displays a 6-digit code / QR (as built: a pairing link to copy, AJ-E704); completing the exchange on the new node pins both identities. Unpaired connections are dropped — there is no anonymous mode.
 - Commands from a console are authenticated to the node; per-machine permissions (e.g. "view-only") are set at pairing or later.
 - **Link discipline:** the fleet link carries telemetry and control commands only — never model traffic, never vendor credentials, never raw transcripts except an explicit on-demand fetch for a user-executed cross-machine handover.
 
@@ -708,7 +721,7 @@ Task-level breakdown, live tracking, and the per-milestone validation-gate proce
 | **M0** | Workspace scaffold, CI (fmt/clippy/test, 3-OS build), adapter trait + fake Provider, domain model + SQLite | Fake session launches, is watched, and shows on a debug board |
 | **M1** | Claude Code adapter: account wizard (login hand-off), isolated account dirs, parallel launch, instance board, embedded terminal *(pending decision #2)* | Two Claude accounts in parallel; zero writes to `~/.claude` |
 | **M2** | Codex + ZCode adapters; adopt-existing flow; stuck detection v1; resource manager v1 (monitoring, overload alerts, admission advisor, crash recovery) | Three Providers, one board; stuck + overload heuristics pass fixture corpus; crashed session → one-click native resume |
-| **M3** | Usage engine + dashboards + alerts (Claude Measured, ZCode Computed, Codex Estimated); tray | Quota rings within ±5% of vendor-reported for Claude/ZCode |
+| **M3** | Usage engine + dashboards + alerts (Claude Measured, ZCode Computed, Codex Estimated); tray (as built: the tray is in review, AJ-E1411) | Quota rings within ±5% of vendor-reported for Claude/ZCode |
 | **M4** | Handover: packs, takeover/return wizard, rules-file sync, export/import; lineage | Round-trip A→B→A preserves continuity (dogfood criterion) |
 | **M5** | Hardening, signed + notarized self-update, Provider update tracking, onboarding polish; fleet transport spike (tonic/rustls prototype) → **v0.1 public beta** | Fresh-machine install → 2 parallel accounts < 5 min; updater works end-to-end on a signed build |
 | **M6** | Fleet link: pairing wizard, mDNS discovery, telemetry sync, remote board (read-only) → **v0.2** | Second machine joins in < 60 s with a code; one board across two machines |

@@ -28,6 +28,7 @@ import {
   type SortMode,
 } from "../lib/railview";
 import { Button } from "./primitives";
+import { MenuItem, RowMenu, menuPoint } from "./RowMenu";
 import {
   AccountDisc,
   ChildBadges,
@@ -61,8 +62,11 @@ const WIDTH_MAX = 360;
 const WIDTH_DEFAULT = 264;
 const STORE_WIDTH = "aij.rail.width";
 
-function readWidth(): number {
-  const raw = Number(localStorage.getItem(STORE_WIDTH));
+/** The rail's stored width; nothing stored (or junk) is the default —
+ * `Number(null)` is 0, which clamped every install to the minimum. */
+export function readWidth(): number {
+  const stored = localStorage.getItem(STORE_WIDTH);
+  const raw = stored === null || stored.trim() === "" ? Number.NaN : Number(stored);
   if (!Number.isFinite(raw)) return WIDTH_DEFAULT;
   return Math.min(WIDTH_MAX, Math.max(WIDTH_MIN, raw));
 }
@@ -832,7 +836,10 @@ function BoardRow({
         type="button"
         aria-label={`Row actions for ${row.account_label}`}
         aria-haspopup="menu"
-        onClick={(event) => onContextMenu(row, event.clientX, event.clientY)}
+        onClick={(event) => {
+          const at = menuPoint(event);
+          onContextMenu(row, at.x, at.y);
+        }}
         onContextMenu={(event) => {
           event.preventDefault();
           onContextMenu(row, event.clientX, event.clientY);
@@ -1009,70 +1016,27 @@ function RowContextMenu({
   onClear: () => void;
   onClose: () => void;
 }) {
-  const ref = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    const onDown = (event: MouseEvent) => {
-      if (ref.current && !ref.current.contains(event.target as Node)) onClose();
-    };
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("mousedown", onDown);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("mousedown", onDown);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [onClose]);
   const snoozed = isSnoozed(row, snooze, now);
   const resetAt = row.quota?.resets_at_ms ?? null;
-  const style = {
-    left: Math.min(x, window.innerWidth - 190),
-    top: Math.min(y, window.innerHeight - 190),
-  };
   return (
-    <div
-      ref={ref}
-      role="menu"
-      aria-label={`Attention options for ${row.account_label}`}
-      style={style}
-      className="fixed z-50 flex w-44 flex-col gap-0.5 rounded-xl border border-hairline bg-surface p-1.5 shadow-card"
-    >
-      <span className="px-2 pb-1 pt-0.5 text-[9.5px] font-medium uppercase tracking-wide text-faint">
-        {row.account_label}
-      </span>
+    <RowMenu heading={row.account_label} ariaLabel={`Attention options for ${row.account_label}`} at={{ x, y }} onClose={onClose}>
       {snoozed ? (
-        <MenuButton onClick={onClear}>Unsnooze / unmute</MenuButton>
+        <MenuItem onClick={onClear}>Unsnooze / unmute</MenuItem>
       ) : (
         <>
-          <MenuButton onClick={() => onSnoozeFor(15 * 60_000)}>Snooze 15m</MenuButton>
-          <MenuButton onClick={() => onSnoozeFor(60 * 60_000)}>Snooze 1h</MenuButton>
-          <MenuButton
+          <MenuItem onClick={() => onSnoozeFor(15 * 60_000)}>Snooze 15m</MenuItem>
+          <MenuItem onClick={() => onSnoozeFor(60 * 60_000)}>Snooze 1h</MenuItem>
+          <MenuItem
             onClick={() => onSnoozeFor(resetAt !== null ? Math.max(0, resetAt - now) : 24 * 60 * 60_000)}
             disabled={resetAt === null}
             title={resetAt === null ? "No known reset time for this quota window" : undefined}
           >
             Until reset
-          </MenuButton>
-          <MenuButton onClick={onMute}>Mute this session</MenuButton>
+          </MenuItem>
+          <MenuItem onClick={onMute}>Mute this session</MenuItem>
         </>
       )}
-    </div>
-  );
-}
-
-function MenuButton({ onClick, disabled, title, children }: { onClick: () => void; disabled?: boolean; title?: string; children: ReactNode }) {
-  return (
-    <button
-      type="button"
-      role="menuitem"
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      className="rounded-lg px-2 py-1 text-left text-[11.5px] text-ink outline-none transition-colors hover:bg-surface-2 focus-visible:ring-1 focus-visible:ring-accent/60 disabled:cursor-default disabled:text-faint disabled:hover:bg-transparent"
-    >
-      {children}
-    </button>
+    </RowMenu>
   );
 }
 

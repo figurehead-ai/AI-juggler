@@ -1,4 +1,5 @@
 import { ParkCard } from "./ParkCard";
+import { Select } from "./form";
 import { WorktreeGit } from "./WorktreeGit";
 import { identityWords } from "../lib/identity";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -25,12 +26,12 @@ import type {
 import { renewalLabel } from "../lib/renewal";
 import { QuotaBar, formatCountdown } from "./primitives";
 import { TwoClocks, WindowRing } from "./QuotaRings";
-import { accountSetFee, quotaDisplay, switchTargets, type QuotaDisplayData, type SwitchBackSuggestionData, type SwitchTargetData, errorText,
+import { accountSetFee, projectSetDefaultAccount, quotaDisplay, switchTargets, type QuotaDisplayData, type SwitchBackSuggestionData, type SwitchTargetData, errorText,
   signedIn,
 } from "../lib/bridge";
 import { STATE_WORDS, formatBytes, isActiveStatus, stateChip } from "./indicator";
 import { resourceLine, useHeavyNote } from "../lib/machine";
-import { providerDisplayName } from "../lib/providers";
+import { FOUND_UNCHECKED, providerDisplayName, versionUnchecked } from "../lib/providers";
 import { SwitchGraph } from "./SwitchGraph";
 import { SwitchTargetRows } from "./SwitchTargetRows";
 import { RemoteSwitchTargets } from "./RemoteSwitchTargets";
@@ -616,6 +617,8 @@ function InspectorPanel(props: {
   onOpenProject: (id: string) => void;
   onOpenSession: (id: string) => void;
   onLaunch: (recipe: LaunchRecipeInfo, project: ProjectInfo) => void;
+  /** Reads the app's lists again: after a stop, or a change made here
+   * (a project's default account). */
   onStopped: () => void;
   onHandover: (sessionId: string, targetProfileId: string, targetLabel: string) => void;
   switchBackSuggestions?: SwitchBackSuggestionData[];
@@ -1444,20 +1447,20 @@ function InstanceUsage(props: PanelProps) {
             <tbody className="[&_td]:py-0.5">
               <tr><td className="text-muted">input</td><td className="text-right tabular-nums text-ink">{tokens.input.toLocaleString()}</td></tr>
               <tr><td className="text-muted">output</td><td className="text-right tabular-nums text-ink">{tokens.output.toLocaleString()}</td></tr>
-              <tr><td className="text-muted">cache read</td><td className="text-right tabular-nums text-ink">{tokens.cache_read.toLocaleString()}</td></tr>
-              <tr><td className="text-muted">cache write</td><td className="text-right tabular-nums text-ink">{tokens.cache_write.toLocaleString()}</td></tr>
-              <tr className="border-t border-hairline"><td className="text-muted">total (in+out)</td><td className="text-right tabular-nums font-medium text-ink">{(tokens.input + tokens.output).toLocaleString()}</td></tr>
+              <tr><td className="text-muted">read from cache</td><td className="text-right tabular-nums text-ink">{tokens.cache_read.toLocaleString()}</td></tr>
+              <tr><td className="text-muted">written to cache</td><td className="text-right tabular-nums text-ink">{tokens.cache_write.toLocaleString()}</td></tr>
+              <tr className="border-t border-hairline"><td className="text-muted">total (input + output)</td><td className="text-right tabular-nums font-medium text-ink">{(tokens.input + tokens.output).toLocaleString()}</td></tr>
             </tbody>
           </table>
         ) : (
           <p className="text-[11.5px] text-muted">No usage recorded yet</p>
         )}
         <span className="text-[10px] text-muted">
-          <span className="rounded border border-hairline px-1">Measured</span> counted from what the session reports
+          <TierTag tier="Measured" />
         </span>
       </Card>
       <Card className="flex flex-col gap-2 p-4" data-testid="two-clock-card">
-        <p className="text-[11px] uppercase tracking-wider text-muted">Account · the two clocks</p>
+        <p className="text-[11px] uppercase tracking-wider text-muted">This account's limits</p>
         {/* AJ-E610: the account's windows + the SEPARATE subscription
             clock (a calendar line — never merged with the rings) and
             the forecast pill. */}
@@ -1768,6 +1771,7 @@ export function installWords(install: import("../lib/bridge").ProviderInstallDat
     case "not_installed":
       return "Not installed on this Mac";
     default:
+      if (versionUnchecked(install)) return FOUND_UNCHECKED;
       return "Couldn't check what's installed";
   }
 }
@@ -2103,6 +2107,7 @@ function ProjectActions(props: PanelProps) {
     .sort((a, b) => b.left - a.left);
   return (
     <div className="flex flex-col gap-2" data-testid="project-actions">
+      <ProjectDefaultAccount project={project} accounts={props.accounts} onChanged={props.onStopped} />
       <p className="text-[11px] uppercase tracking-wider text-muted">Launch with another account (ranked by headroom)</p>
       {ranked.map(({ recipe, usual }) => {
         const ready = signedIn(props.accounts.find((a) => a.id === recipe.account_id)?.login_state);
@@ -2130,6 +2135,61 @@ function ProjectActions(props: PanelProps) {
         );
       })}
       {ranked.length === 0 ? <p className="text-[11.5px] text-muted">No launch settings yet — add an account first.</p> : null}
+    </div>
+  );
+}
+
+/** AJ-E1501 Req.4: which account this project's new sessions start
+ * with — its own pick, else the global default or the most recently
+ * used one (New session preselects it). */
+function ProjectDefaultAccount({
+  project,
+  accounts,
+  onChanged,
+}: {
+  project: ProjectInfo;
+  accounts: AccountInfo[];
+  onChanged: () => void;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  const [value, setValue] = useState(project.default_account_id ?? "");
+  useEffect(() => setValue(project.default_account_id ?? ""), [project.default_account_id]);
+  if (accounts.length === 0) return null;
+  const fallback = accounts.find((account) => account.is_default);
+  return (
+    <div className="flex flex-col gap-1 pb-2">
+      <label className="flex flex-wrap items-center gap-2 text-[11.5px] text-muted" data-testid="project-default-account">
+        New sessions here start with
+        <Select
+          aria-label="New sessions here start with"
+          className="max-w-full"
+          value={value}
+          onChange={async (event) => {
+            const next = event.target.value;
+            setValue(next);
+            setError(null);
+            try {
+              await projectSetDefaultAccount(project.id, next === "" ? null : next);
+              onChanged();
+            } catch (cause) {
+              setError(errorText(cause));
+              setValue(project.default_account_id ?? "");
+            }
+          }}
+        >
+          <option value="">{fallback ? `Your default (${fallback.label})` : "The account used last"}</option>
+          {accounts.map((account) => (
+            <option key={account.id} value={account.id}>
+              {account.label}
+            </option>
+          ))}
+        </Select>
+      </label>
+      {error && (
+        <p className="text-[11px] text-danger" role="alert">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
@@ -2183,12 +2243,39 @@ function GroupedHistory(props: PanelProps) {
 
 // --- AJ-E409: Quality/Performance tab (D-07 — signals, never a score) ---
 
+/** SPEC §6's honesty tiers, each with a plain line beside it (0.0.11
+ * walk, Q5): the tag stays, and says what it means. */
+const TIER_WORDS: Record<"Measured" | "Computed" | "Estimated", string> = {
+  Measured: "read from the session",
+  Computed: "worked out from what's measured",
+  Estimated: "a best guess",
+};
+
 function TierTag({ tier }: { tier: "Measured" | "Computed" | "Estimated" }) {
   return (
-    <span className="rounded border border-hairline px-1 text-[9px] font-medium uppercase tracking-wide text-muted">
-      {tier}
+    <span className="inline-flex items-center gap-1.5">
+      <span className="rounded border border-hairline px-1 text-[9px] font-medium uppercase tracking-wide text-muted">
+        {tier}
+      </span>
+      <span className="text-[10px] font-normal normal-case tracking-normal text-faint" data-testid="tier-words">
+        {TIER_WORDS[tier]}
+      </span>
     </span>
   );
+}
+
+/** A stuck rule's id in words (the rail's own wording). */
+function stuckRuleWords(rule: string): string {
+  switch (rule) {
+    case "stuck_no_output":
+      return "No output for a while";
+    case "waiting_prompt":
+      return "Waiting for your reply";
+    case "quota_exit":
+      return "Hit its limit";
+    default:
+      return "Looks stuck";
+  }
 }
 
 /// The `Renewal date (optional)` editor (AJ-E411 Req.4): date input +
@@ -2453,7 +2540,7 @@ function QualityTab(props: PanelProps) {
       body: quality.tokens_bars ? (
         <div className="flex flex-col gap-1">
           <span className="tabular-nums text-ink">
-            {Math.round(quality.avg_tokens_per_min)} avg (5 min) · idle is a real 0
+            {Math.round(quality.avg_tokens_per_min)} a minute on average over the last 5 minutes
           </span>
           {asTable ? (
             <table className="text-[10px]">
@@ -2487,12 +2574,12 @@ function QualityTab(props: PanelProps) {
     const lastSample = resources?.spark.at(-1);
     signals.push({
       testId: "quality-cpu",
-      label: "CPU / RAM now",
+      label: "CPU and memory now",
       tier: "Measured",
       body: lastSample ? (
         <span className="tabular-nums text-ink">
-          {lastSample.cpu_pct !== null ? `${Math.round(lastSample.cpu_pct)}% CPU` : "CPU: first sample pending"} ·{" "}
-          {(lastSample.rss_bytes / 1_000_000_000).toFixed(1)} GB RSS (process tree sum)
+          {lastSample.cpu_pct !== null ? `CPU ${Math.round(lastSample.cpu_pct)}%` : "CPU: measuring…"} ·{" "}
+          {(lastSample.rss_bytes / 1_000_000_000).toFixed(1)} GB of memory, with its helpers
         </span>
       ) : (
         <span className="text-muted">Collecting first samples…</span>
@@ -2503,7 +2590,7 @@ function QualityTab(props: PanelProps) {
       label: "Errors",
       tier: "Measured",
       body: quality.errors_not_measurable ? (
-        <span className="text-muted">Not measurable (interactive)</span>
+        <span className="text-muted">Can't be counted in an interactive session</span>
       ) : (
         <span className="tabular-nums text-ink">{quality.error_label}</span>
       ),
@@ -2519,11 +2606,11 @@ function QualityTab(props: PanelProps) {
           </span>
         ) : (
           <span className="text-muted">
-            Context: not reported by {providerDisplayName(instance.provider)} · cumulative{" "}
+            {providerDisplayName(instance.provider)} doesn't say how full its context is ·{" "}
             <span className="tabular-nums text-ink">
               {(quality.cumulative.input + quality.cumulative.output).toLocaleString()}
             </span>{" "}
-            tokens (cumulative, not context)
+            tokens used in this session so far
           </span>
         ),
     });
@@ -2533,17 +2620,17 @@ function QualityTab(props: PanelProps) {
       tier: "Estimated",
       body: quality.session_cost_usd !== null ? (
         <span className="tabular-nums text-ink">
-          ${quality.session_cost_usd.toFixed(2)} · Est · value-equiv. ({quality.priced_model})
+          about ${quality.session_cost_usd.toFixed(2)} at {quality.priced_model}'s API prices
         </span>
       ) : (
         <span className="text-muted">
-          tokens only — no pricing row for this model (never $0.00)
+          No price known for this model, so no cost is shown
         </span>
       ),
     });
     signals.push({
       testId: "quality-forecast",
-      label: "Quota forecast",
+      label: "How long its limit lasts",
       tier: "Estimated",
       body: <span className="text-ink">{quality.quota_forecast}</span>,
     });
@@ -2554,7 +2641,7 @@ function QualityTab(props: PanelProps) {
         tier: "Computed",
         body: (
           <span className="text-ink">
-            {quality.stuck.rule} · {quality.stuck.inputs.join(" · ")}
+            {stuckRuleWords(quality.stuck.rule)} · {quality.stuck.inputs.join(" · ")}
           </span>
         ),
       });
@@ -2789,7 +2876,7 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
     <div className="flex flex-col gap-3" data-testid="processes-tab">
       {adoptedNotice}
       <div className="flex items-center justify-between gap-2">
-        <p className="text-[10px] text-muted">2s sampling · 5s refresh · Measured</p>
+        <p className="text-[10px] text-muted">Measured every 2 seconds</p>
         {lastSpark && (
           <span className="flex items-end gap-[2px]" aria-hidden="true" data-testid="processes-spark">
             {spark.slice(-30).map((sample, i) => (
@@ -2813,9 +2900,9 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
               <th scope="col" className="py-1 pr-2 font-medium">PID</th>
               <th scope="col" className="py-1 pr-2 font-medium">Process</th>
               <th scope="col" className="py-1 pr-2 font-medium">CPU</th>
-              <th scope="col" className="py-1 pr-2 font-medium">RAM</th>
+              <th scope="col" className="py-1 pr-2 font-medium">Memory</th>
               <th scope="col" className="py-1 pr-2 font-medium">Age</th>
-              <th scope="col" className="py-1 font-medium">⑂</th>
+              <th scope="col" className="py-1 font-medium">Helpers</th>
             </tr>
           </thead>
           <tbody>
@@ -2834,7 +2921,7 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
                     {row.name}
                   </td>
                   <td className="py-1 pr-2 tabular-nums text-ink">
-                    {row.cpu_pct !== null ? `${Math.round(row.cpu_pct)}%` : <span className="text-faint">— first sample</span>}
+                    {row.cpu_pct !== null ? `${Math.round(row.cpu_pct)}%` : <span className="text-faint">measuring…</span>}
                   </td>
                   <td className="py-1 pr-2 tabular-nums text-ink">{formatRss(row.rss_bytes)}</td>
                   <td className="py-1 pr-2 tabular-nums text-muted">{formatAge(row.age_ms)}</td>

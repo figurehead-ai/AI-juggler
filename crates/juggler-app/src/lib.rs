@@ -16,18 +16,24 @@ pub mod cloud_backup;
 pub mod commands;
 pub mod crash;
 pub mod crossmachine;
+// The read-only test bridge (docs/qa/DEV-BRIDGE.md): debug builds with
+// the `dev-bridge` feature only.
+#[cfg(all(debug_assertions, feature = "dev-bridge"))]
+pub mod dev_bridge;
 pub mod edition;
 pub mod error;
 pub mod figurehead;
 pub mod fleet;
 pub mod fleet_account;
 pub mod focus;
+pub mod handover;
 pub mod history;
 pub mod identity;
 pub mod lifecycle;
 pub mod link;
 pub mod machine_alerts;
 pub mod machine_health;
+pub mod manage;
 pub mod newer_data;
 pub mod os_access;
 pub mod overnight;
@@ -43,6 +49,10 @@ pub mod usage_pipeline;
 pub mod usage_stats;
 pub mod vault;
 pub mod worktree;
+
+// Never in a release build: with the feature on, it doesn't compile.
+#[cfg(all(feature = "dev-bridge", not(debug_assertions)))]
+compile_error!("the `dev-bridge` feature is for debug builds only (docs/qa/DEV-BRIDGE.md)");
 
 use std::sync::Arc;
 
@@ -86,11 +96,292 @@ pub const EVENT_PREVIEW_FRAME: &str = "preview://frame";
 /// `PreviewStateInfo`.
 pub const EVENT_PREVIEW_STATE: &str = "preview://state";
 
+/// How a command treats the app, the Mac and the user's accounts.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CommandAccess {
+    /// Answers a question. It changes nothing the user or a later answer
+    /// would see: nothing written to their files, vendor folders or
+    /// AI Juggler's settings, no vendor CLI started, no process
+    /// signalled, no network call, no secret returned, no one-time token
+    /// issued, no permission prompt.
+    ///
+    /// On the way, some reads do the bookkeeping the app's own timers do
+    /// anyway: the spawn-ledger reconcile, a stale cached `git status`, the
+    /// search index's incremental pass, a usage-statistics count. The
+    /// login-state probe opens a sign-in file only for its expiry, and
+    /// asks the Keychain whether an item exists — never for its secret.
+    ///
+    /// Only reads may be served without the app's window: by the Dev-only
+    /// read-only test bridge (`docs/qa/DEV-BRIDGE.md`).
+    Read,
+    /// Everything else, including reads that touch a secret (the vault
+    /// key), return one (a pairing code), or create something on first
+    /// use (the Fleet identity).
+    Write,
+}
+
+/// Every IPC command, registered once, each with its [`CommandAccess`]:
+/// the one table both the invoke handler and the read-only test bridge's
+/// allowlist test come from. A new command is classed when it is added;
+/// when in doubt it is `Write`.
+macro_rules! app_commands {
+    ($then:ident) => {
+        $then! {
+            Read  commands::app_info,
+            Read  usage_stats::usage_stats_info,
+            Write usage_stats::usage_stats_set,
+            Write usage_stats::usage_stats_ui_event,
+            Write usage_stats::usage_stats_ui_gauge,
+            Write usage_stats::usage_stats_overview,
+            Read  usage_stats::usage_stats_report,
+            Write usage_stats::usage_stats_delete_local,
+            Write usage_stats::usage_stats_open_docs,
+            Write usage_stats::usage_stats_set_sync,
+            Read  crash::crash_info,
+            Write crash::crash_set,
+            Write crash::crash_answer,
+            Read  commands::usage_source_health,
+            Read  commands::cost_rollups,
+            Write commands::cost_csv_export,
+            Write commands::pricing_override_set,
+            Write commands::pricing_override_clear,
+            Read  commands::pricing_catalog_info,
+            Read  commands::quota_display,
+            Read  commands::quota_display_all,
+            Write commands::account_set_fee,
+            Read  commands::ranking_rows,
+            Write commands::alerts_tick,
+            Write commands::reset_queue_queue,
+            Read  commands::reset_queue_list,
+            Write commands::reset_queue_dismiss,
+            Read  commands::harnesses_list,
+            Read  commands::legacy_aliases::harnesses_list_alias,
+            Read  commands::accounts_list,
+            Write commands::account_create,
+            Read  commands::account_login_state,
+            Read  commands::account_login_command,
+            Read  commands::environment_scan,
+            Write commands::account_import,
+            Write commands::account_use_original,
+            Write manage::account_rename,
+            Write manage::account_remove,
+            Write manage::account_set_default,
+            Write manage::project_set_default_account,
+            Read  manage::account_audit,
+            Write commands::source_inspect,
+            Write commands::isolation_check,
+            Write fleet::fleet_self,
+            Write fleet::fleet_peers,
+            Write fleet::fleet_unpair,
+            Write fleet::fleet_set_label,
+            Write fleet::fleet_reset_trust,
+            Write fleet::fleet_reset_identity,
+            Read  link::link_status,
+            Write link::link_set_enabled,
+            Write link::fleet_discovered,
+            Write link::pairing_host_open,
+            Write link::pairing_host_state,
+            Write link::pairing_host_decide,
+            Write link::pairing_host_close,
+            Write link::pairing_re_enable,
+            Write link::pairing_join_start,
+            Read  link::pairing_join_state,
+            Write link::pairing_join_decide,
+            Write link::pairing_join_reset,
+            Write figurehead::figurehead_status,
+            Write figurehead::figurehead_link_start,
+            Write figurehead::figurehead_link_poll,
+            Write figurehead::figurehead_link_cancel,
+            Write figurehead::figurehead_claim,
+            Write figurehead::figurehead_refresh,
+            Write figurehead::figurehead_rename,
+            Write figurehead::figurehead_unlink,
+            Write figurehead::figurehead_dismiss_notice,
+            Write figurehead::figurehead_save_choices,
+            Write figurehead::figurehead_open_page,
+            Write remote::fleet_remote,
+            Read  link::fleet_prompts,
+            Write link::fleet_prompt_decide,
+            Write fleet::fleet_set_permission,
+            Write remote::fleet_remote_stop,
+            Write remote::fleet_remote_focus,
+            Write remote::fleet_remote_clean,
+            Read  overnight::overnight_summary,
+            Write overnight::overnight_summary_seen,
+            Write parked::instance_park,
+            Write lifecycle::instance_mark_reviewed,
+            Write fleet_account::fleet_account_macs,
+            Write fleet_account::fleet_account_pin,
+            Write cloud_backup::cloud_backup_status,
+            Write cloud_backup::cloud_backup_set_schedule,
+            Write cloud_backup::cloud_backup_now,
+            Write cloud_backup::cloud_backup_list,
+            Write cloud_backup::cloud_backup_prepare_restore,
+            Write vault::vault_status,
+            Write vault::vault_setup,
+            Write vault::vault_confirm_saved,
+            Write vault::vault_save_code,
+            Write vault::vault_enter_code,
+            Read  updates::update_status,
+            Write updates::update_set_check_on_launch,
+            Write updates::update_set_channel,
+            Write updates::update_check,
+            Write updates::update_install,
+            Write updates::update_restart,
+            Read  newer_data::going_back_options,
+            Write newer_data::going_back_prepare,
+            Write newer_data::going_back_open_releases,
+            Write backup::backup_export,
+            Write backup::backup_verify,
+            Write backup::backup_restore,
+            Write history::instance_archive,
+            Write history::instance_unarchive,
+            Write history::instance_delete_preview,
+            Write history::instance_delete,
+            Read  history::transcript_search,
+            Read  history::instance_replay,
+            Read  history::account_storage,
+            Write history::retention_set,
+            Write history::retention_preview,
+            Write history::retention_apply,
+            Read  parked::parked_list,
+            Write parked::parked_offers,
+            Write parked::parked_dismiss,
+            Write parked::parked_check_now,
+            Write parked::parked_resume,
+            Write worktree::isolation_offer,
+            Write worktree::worktree_create,
+            Write worktree::worktree_removal_preview,
+            Write worktree::worktree_remove,
+            Write worktree::git_status_refresh,
+            Read  identity::identity_check,
+            Write identity::account_forget_identity,
+            Write crossmachine::fleet_switch_targets,
+            Write crossmachine::fleet_switch_execute,
+            Write crossmachine::fleet_switch_cancel,
+            Write crossmachine::switch_back::fleet_switch_back_plan,
+            Write crossmachine::switch_back::fleet_switch_back_execute,
+            Read  crossmachine::switch_back::fleet_divergences,
+            Write crossmachine::switch_back::fleet_divergence_keep_theirs,
+            Read  commands::funnel_export,
+            Write commands::funnel_event,
+            Write commands::expert_setup_info,
+            Write commands::expert_reveal,
+            Write commands::launch_recipe_env_get,
+            Write commands::launch_recipe_env_set,
+            Write commands::login_open_web,
+            Read  commands::profiles_list,
+            Read  commands::legacy_aliases::profiles_list_alias,
+            Write commands::profile_create,
+            Write commands::profile_delete,
+            Write commands::launch_session,
+            Read  commands::sessions_list,
+            Read  commands::legacy_aliases::sessions_list_alias,
+            Read  commands::projects_list,
+            Write commands::projects_backfill,
+            Write commands::session_handover,
+            Write commands::switch_preflight,
+            Write commands::switch_execute,
+            Write commands::switch_undo,
+            Read  commands::switch_back_plan,
+            Write commands::switch_back_execute,
+            Read  commands::switch_back_suggestions,
+            Read  commands::redaction_policy_get,
+            Write commands::redaction_policy_set_global,
+            Write commands::redaction_policy_set_override,
+            Read  commands::switch_targets,
+            Read  commands::switch_graph_overview,
+            Write commands::epoch_resume,
+            Write commands::pack_export,
+            Write commands::validation_matrix,
+            Write commands::validation_dogfood_record,
+            Write commands::providers_discover,
+            Read  commands::providers_capabilities,
+            Write commands::environment_scan_full,
+            Write commands::scan_cancel,
+            Write commands::recommendation_for,
+            Write commands::stop_session,
+            Read  commands::dashboard_stats,
+            Write commands::terminal_spawn_login,
+            Write commands::terminal_attach,
+            Write commands::terminal_write,
+            Write commands::terminal_resize,
+            Write commands::terminal_kill,
+            Write commands::terminal_snapshot,
+            Read  commands::instance_quality,
+            Read  commands::instance_processes,
+            Read  commands::cleanup_inventory,
+            Read  commands::cleanup_audit_export,
+            Read  commands::port_inventory,
+            Read  commands::launch_port_warning,
+            Write commands::orphan_stop,
+            Write commands::orphan_stop_all,
+            Write commands::orphan_verify,
+            Write commands::kill_verify,
+            Write commands::kill_execute,
+            Write commands::kill_cancel,
+            Read  commands::kill_liveness,
+            Read  commands::cleanup_status,
+            Write commands::cleanup_pause_set,
+            Write commands::cleanup_tier2_decide,
+            Write commands::cleanup_resume_after_crash,
+            Read  commands::cleanup_tiers_get,
+            Write commands::cleanup_tiers_set,
+            Write commands::cleanup_alerts,
+            Read  commands::recovery_summary_get,
+            Write commands::recovery_summary_dismiss,
+            Write commands::account_set_cleanup,
+            Write commands::account_set_renewal,
+            Write commands::desktop_launch,
+            Write commands::desktop_focus,
+            Read  commands::app_setting_get,
+            Write commands::app_setting_set,
+            Read  machine_health::machine_health,
+            Read  machine_health::this_mac,
+            Read  machine_health::machine_advice,
+            Write machine_health::machine_alerts_take,
+            Read  os_access::os_access_list,
+            Write os_access::os_access_request,
+            Write os_access::os_access_open_settings,
+            Read  settings_policy::notification_prefs_get,
+            Write settings_policy::notification_prefs_set,
+            Read  settings_policy::cleanup_default_get,
+            Write settings_policy::cleanup_default_set,
+            Write commands::go_to_hotkey_set,
+            Write commands::open_accessibility_settings,
+            Write commands::preview_start,
+            Write commands::preview_stop,
+            Write commands::account_set_preview_opt_in,
+        }
+    };
+}
+
+/// The registry as Tauri's invoke handler.
+macro_rules! tauri_handler {
+    ($($access:ident $($segment:ident)::+,)*) => {
+        tauri::generate_handler![$($($segment)::+),*]
+    };
+}
+
+/// The registry as data: `(module::function, access)`.
+macro_rules! command_table {
+    ($($access:ident $($segment:ident)::+,)*) => {
+        &[$((stringify!($($segment)::+), CommandAccess::$access)),*]
+    };
+}
+
+/// Every registered command and its access class (see [`CommandAccess`]).
+pub const COMMANDS: &[(&str, CommandAccess)] = app_commands!(command_table);
+
 /// Builds and runs the desktop application.
 #[allow(clippy::too_many_lines)] // the command registry is one flat list by design
 pub fn run() {
     // AJ-E1103: cold start runs from here to the end of setup.
     let launched = std::time::Instant::now();
+    // The user's PATH from their login shell, on its own thread: opened
+    // from Finder, the app inherits one where `node` (and so any
+    // npm-installed CLI) isn't found. Probes and launches use it.
+    juggler_adapter::user_path::resolve_at_startup();
     // D-23: the edition comes from the identifier this build carries, and
     // decides everything that must never be shared between editions.
     let mut context = tauri::generate_context!();
@@ -103,7 +394,21 @@ pub fn run() {
     // before the data is opened. A second launch while another AI Juggler
     // of this edition holds it touches nothing — no migration, no
     // recovery — and only hands over to the running one.
+    // 0.0.11 walk (Q8): the hand-over socket is this data folder's; a
+    // second launch asks the running app to come forward and waits for
+    // its answer.
+    let handover = handover::Handover::for_data_dir(&context.config().identifier, &data_dir);
     if !newer_data::hold_instance_lock(&data_dir) {
+        match handover.as_ref().map(|h| h.ask(handover::ANSWER_WAIT)) {
+            Some(handover::Answer::Answered) => std::process::exit(0),
+            Some(handover::Answer::NotAnswering) => not_answering(),
+            Some(handover::Answer::Untrusted) => {
+                eprintln!("ai-juggler: the hand-over socket isn't ours; not asking it");
+            }
+            // An older AI Juggler (no such socket), or one still starting:
+            // the plugin's hand-over, as before.
+            Some(handover::Answer::NoneListening) | None => {}
+        }
         context.config_mut().app.windows.clear();
         hand_over_to_the_running_instance(context);
     }
@@ -140,6 +445,7 @@ pub fn run() {
     let cloud_backup_state = Arc::clone(&app_state);
     let stats_state = Arc::clone(&app_state);
 
+    let serving = handover.clone();
     tauri::Builder::default()
         // Registered first: a second launch defers to the running app
         // (focus its window) instead of stacking ghost instances.
@@ -170,229 +476,33 @@ pub fn run() {
                 .build(),
         )
         .manage(app_state)
-        .invoke_handler(tauri::generate_handler![
-            commands::app_info,
-            usage_stats::usage_stats_info,
-            usage_stats::usage_stats_set,
-            usage_stats::usage_stats_ui_event,
-            usage_stats::usage_stats_ui_gauge,
-            usage_stats::usage_stats_overview,
-            usage_stats::usage_stats_report,
-            usage_stats::usage_stats_delete_local,
-            usage_stats::usage_stats_open_docs,
-            usage_stats::usage_stats_set_sync,
-            crash::crash_info,
-            crash::crash_set,
-            crash::crash_answer,
-            commands::usage_source_health,
-            commands::cost_rollups,
-            commands::cost_csv_export,
-            commands::pricing_override_set,
-            commands::pricing_override_clear,
-            commands::pricing_catalog_info,
-            commands::quota_display,
-            commands::quota_display_all,
-            commands::account_set_fee,
-            commands::ranking_rows,
-            commands::alerts_tick,
-            commands::reset_queue_queue,
-            commands::reset_queue_list,
-            commands::reset_queue_dismiss,
-            commands::harnesses_list,
-            commands::legacy_aliases::harnesses_list_alias,
-            commands::accounts_list,
-            commands::account_create,
-            commands::account_login_state,
-            commands::account_login_command,
-            commands::environment_scan,
-            commands::account_import,
-            commands::account_use_original,
-            commands::source_inspect,
-            commands::isolation_check,
-            fleet::fleet_self,
-            fleet::fleet_peers,
-            fleet::fleet_unpair,
-            fleet::fleet_set_label,
-            fleet::fleet_reset_trust,
-            fleet::fleet_reset_identity,
-            link::link_status,
-            link::link_set_enabled,
-            link::fleet_discovered,
-            link::pairing_host_open,
-            link::pairing_host_state,
-            link::pairing_host_decide,
-            link::pairing_host_close,
-            link::pairing_re_enable,
-            link::pairing_join_start,
-            link::pairing_join_state,
-            link::pairing_join_decide,
-            link::pairing_join_reset,
-            figurehead::figurehead_status,
-            figurehead::figurehead_link_start,
-            figurehead::figurehead_link_poll,
-            figurehead::figurehead_link_cancel,
-            figurehead::figurehead_claim,
-            figurehead::figurehead_refresh,
-            figurehead::figurehead_rename,
-            figurehead::figurehead_unlink,
-            figurehead::figurehead_dismiss_notice,
-            figurehead::figurehead_save_choices,
-            figurehead::figurehead_open_page,
-            remote::fleet_remote,
-            link::fleet_prompts,
-            link::fleet_prompt_decide,
-            fleet::fleet_set_permission,
-            remote::fleet_remote_stop,
-            remote::fleet_remote_focus,
-            remote::fleet_remote_clean,
-            overnight::overnight_summary,
-            overnight::overnight_summary_seen,
-            parked::instance_park,
-            lifecycle::instance_mark_reviewed,
-            fleet_account::fleet_account_macs,
-            fleet_account::fleet_account_pin,
-            cloud_backup::cloud_backup_status,
-            cloud_backup::cloud_backup_set_schedule,
-            cloud_backup::cloud_backup_now,
-            cloud_backup::cloud_backup_list,
-            cloud_backup::cloud_backup_prepare_restore,
-            vault::vault_status,
-            vault::vault_setup,
-            vault::vault_confirm_saved,
-            vault::vault_save_code,
-            vault::vault_enter_code,
-            updates::update_status,
-            updates::update_set_check_on_launch,
-            updates::update_set_channel,
-            updates::update_check,
-            updates::update_install,
-            updates::update_restart,
-            newer_data::going_back_options,
-            newer_data::going_back_prepare,
-            backup::backup_export,
-            backup::backup_verify,
-            backup::backup_restore,
-            history::instance_archive,
-            history::instance_unarchive,
-            history::instance_delete_preview,
-            history::instance_delete,
-            history::transcript_search,
-            history::instance_replay,
-            history::account_storage,
-            history::retention_set,
-            history::retention_preview,
-            history::retention_apply,
-            parked::parked_list,
-            parked::parked_offers,
-            parked::parked_dismiss,
-            parked::parked_check_now,
-            parked::parked_resume,
-            worktree::isolation_offer,
-            worktree::worktree_create,
-            worktree::worktree_removal_preview,
-            worktree::worktree_remove,
-            worktree::git_status_refresh,
-            identity::identity_check,
-            identity::account_forget_identity,
-            crossmachine::fleet_switch_targets,
-            crossmachine::fleet_switch_execute,
-            crossmachine::fleet_switch_cancel,
-            crossmachine::switch_back::fleet_switch_back_plan,
-            crossmachine::switch_back::fleet_switch_back_execute,
-            crossmachine::switch_back::fleet_divergences,
-            crossmachine::switch_back::fleet_divergence_keep_theirs,
-            commands::funnel_export,
-            commands::funnel_event,
-            commands::expert_setup_info,
-            commands::expert_reveal,
-            commands::launch_recipe_env_get,
-            commands::launch_recipe_env_set,
-            commands::login_open_web,
-            commands::profiles_list,
-            commands::legacy_aliases::profiles_list_alias,
-            commands::profile_create,
-            commands::profile_delete,
-            commands::launch_session,
-            commands::sessions_list,
-            commands::legacy_aliases::sessions_list_alias,
-            commands::projects_list,
-            commands::projects_backfill,
-            commands::session_handover,
-            commands::switch_preflight,
-            commands::switch_execute,
-            commands::switch_undo,
-            commands::switch_back_plan,
-            commands::switch_back_execute,
-            commands::switch_back_suggestions,
-            commands::redaction_policy_get,
-            commands::redaction_policy_set_global,
-            commands::redaction_policy_set_override,
-            commands::switch_targets,
-            commands::switch_graph_overview,
-            commands::epoch_resume,
-            commands::pack_export,
-            commands::validation_matrix,
-            commands::validation_dogfood_record,
-            commands::providers_discover,
-            commands::providers_capabilities,
-            commands::environment_scan_full,
-            commands::scan_cancel,
-            commands::recommendation_for,
-            commands::stop_session,
-            commands::dashboard_stats,
-            commands::terminal_spawn_login,
-            commands::terminal_attach,
-            commands::terminal_write,
-            commands::terminal_resize,
-            commands::terminal_kill,
-            commands::terminal_snapshot,
-            commands::instance_quality,
-            commands::instance_processes,
-            commands::cleanup_inventory,
-            commands::cleanup_audit_export,
-            commands::port_inventory,
-            commands::launch_port_warning,
-            commands::orphan_stop,
-            commands::orphan_stop_all,
-            commands::orphan_verify,
-            commands::kill_verify,
-            commands::kill_execute,
-            commands::kill_cancel,
-            commands::kill_liveness,
-            commands::cleanup_status,
-            commands::cleanup_pause_set,
-            commands::cleanup_tier2_decide,
-            commands::cleanup_resume_after_crash,
-            commands::cleanup_tiers_get,
-            commands::cleanup_tiers_set,
-            commands::cleanup_alerts,
-            commands::recovery_summary_get,
-            commands::recovery_summary_dismiss,
-            commands::account_set_cleanup,
-            commands::account_set_renewal,
-            commands::desktop_launch,
-            commands::desktop_focus,
-            commands::app_setting_get,
-            commands::app_setting_set,
-            machine_health::machine_health,
-            machine_health::this_mac,
-            machine_health::machine_advice,
-            machine_health::machine_alerts_take,
-            os_access::os_access_list,
-            os_access::os_access_request,
-            os_access::os_access_open_settings,
-            settings_policy::notification_prefs_get,
-            settings_policy::notification_prefs_set,
-            settings_policy::cleanup_default_get,
-            settings_policy::cleanup_default_set,
-            commands::go_to_hotkey_set,
-            commands::open_accessibility_settings,
-            commands::preview_start,
-            commands::preview_stop,
-            commands::account_set_preview_opt_in,
-        ])
+        .invoke_handler(app_commands!(tauri_handler))
         .setup(move |app| {
             let _ = app.emit(EVENT_APP_READY, commands::AppInfo::current());
+            // Q8: answer a second launch only once the window really came
+            // forward on the main thread (a stuck app stays silent, and the
+            // second launch says so).
+            let raise_handle = app.handle().clone();
+            let served = serving.as_ref().map(|h| {
+                h.serve(move || {
+                    let (done, came) = std::sync::mpsc::channel();
+                    let window_handle = raise_handle.clone();
+                    let queued = raise_handle.run_on_main_thread(move || {
+                        use tauri::Manager;
+                        if let Some(window) = window_handle.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.unminimize();
+                            let _ = window.set_focus();
+                        }
+                        let _ = done.send(());
+                    });
+                    queued.is_ok() && came.recv_timeout(handover::RAISE_WAIT).is_ok()
+                })
+            });
+            if let Some(Err(error)) = served {
+                // Without it a second launch uses the plugin's hand-over.
+                eprintln!("ai-juggler: no hand-over socket: {error}");
+            }
             register_go_to_hotkey(app.handle());
             spawn_read_model_ticks(
                 app.handle().clone(),
@@ -419,6 +529,10 @@ pub fn run() {
             // AJ-E1102: usage stats start only if the user opted in (and
             // no override says off); off creates nothing.
             usage_stats::start(stats_state, launched.elapsed());
+            // QA on real data: only with AIJ_DEV_BRIDGE=1, in a debug
+            // build with the feature (docs/qa/DEV-BRIDGE.md).
+            #[cfg(all(debug_assertions, feature = "dev-bridge"))]
+            dev_bridge::start_if_enabled(app.handle());
             Ok(())
         })
         .build(context)
@@ -426,8 +540,13 @@ pub fn run() {
             eprintln!("ai-juggler: fatal: {error}");
             std::process::exit(1);
         })
-        .run(|_app, event| {
+        .run(move |_app, event| {
             if let tauri::RunEvent::Exit = event {
+                if let Some(handover) = &handover {
+                    handover.stop();
+                }
+                #[cfg(all(debug_assertions, feature = "dev-bridge"))]
+                dev_bridge::remove_token_file(&data_dir);
                 usage_stats::shutdown();
             }
         });
@@ -466,6 +585,12 @@ fn hand_over_to_the_running_instance(context: tauri::Context<tauri::Wry>) -> ! {
         tauri_plugin_single_instance::destroy(app);
     }
     drop(built);
+    not_answering();
+}
+
+/// Says the open AI Juggler isn't answering and how to quit it, then
+/// quits without opening the data.
+fn not_answering() -> ! {
     let app = edition::current().app_name();
     let how = if cfg!(target_os = "macos") {
         format!(

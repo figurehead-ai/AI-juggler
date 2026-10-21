@@ -1,13 +1,19 @@
 
 // AJ-E307: per top-level entry bytes (the copy receipt breakdown)
 // and the degraded flag; provenance echoes on AccountInfo.
-import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
-import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
+import {
+  invoke,
+  listen,
+  liveBackend,
+  openDialog,
+  readOnlyBackend,
+  saveDialog,
+} from "./ipc/transport";
 import type { AppInfo } from "../types/generated/AppInfo";
 import type { NotificationPrefsInfo } from "../types/generated/NotificationPrefsInfo";
 import type { OsAccessInfo } from "../types/generated/OsAccessInfo";
 import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { AccountRemovedInfo } from "../types/generated/AccountRemovedInfo";
 import type { DiscoveredInfo } from "../types/generated/DiscoveredInfo";
 import type { ImportResult } from "../types/generated/ImportResult";
 import type { SourceInspectInfo } from "../types/generated/SourceInspectInfo";
@@ -93,6 +99,7 @@ export type {
   StopOutcomeInfo,
   OrphanVerifyInfo,
   AccountInfo,
+  AccountRemovedInfo,
   DiscoveredInfo,
   ImportResult,
   InstanceInfo,
@@ -188,8 +195,8 @@ export const EVENTS = {
   updateStatus: "update://status",
 } as const;
 
-const hasBackend =
-  typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+// The app, or the read-only test bridge in a dev page (lib/ipc).
+const hasBackend = liveBackend;
 
 export function hasLiveBackend(): boolean {
   return hasBackend;
@@ -247,7 +254,7 @@ const MOCK_QUALITY: Record<string, QualitySignalsInfo> = {
     cumulative: { input: 4_200, output: 1_800, cache_read: 20, cache_write: 40, reasoning: 8 },
     session_cost_usd: 0.19,
     priced_model: "opus",
-    quota_forecast: "not burning",
+    quota_forecast: "Not using its limit right now",
     stuck: { rule: "stuck_no_output", inputs: ["no output 8m", "threshold 5m", "cpu 0.3%", "transcript stale 8m"], since_ms: Date.now() - 8 * 60_000 },
   },
   "sess-2": {
@@ -260,7 +267,7 @@ const MOCK_QUALITY: Record<string, QualitySignalsInfo> = {
     cumulative: { input: 12_345, output: 6_789, cache_read: 100, cache_write: 200, reasoning: 42 },
     session_cost_usd: 0.69,
     priced_model: "opus",
-    quota_forecast: "not burning",
+    quota_forecast: "Not using its limit right now",
     stuck: null,
   },
   "sess-live-1": {
@@ -273,7 +280,7 @@ const MOCK_QUALITY: Record<string, QualitySignalsInfo> = {
     cumulative: { input: 12_345, output: 6_789, cache_read: 100, cache_write: 200, reasoning: 42 },
     session_cost_usd: 0.69,
     priced_model: "opus",
-    quota_forecast: "not burning",
+    quota_forecast: "Not using its limit right now",
     stuck: null,
   },
 };
@@ -495,9 +502,83 @@ export async function accountUseOriginal(accountId: string): Promise<AccountInfo
   return invoke<AccountInfo>("account_use_original", { accountId });
 }
 
+/** Preview-mode refusal, worded like the backend's (code `refused`). */
+function refused(user_message: string): { code: string; retryable: boolean; user_message: string } {
+  return { code: "refused", retryable: false, user_message };
+}
+
+/** AJ-E1501: rename an account and set its plan (blank clears it). */
+export async function accountRename(accountId: string, label: string, plan: string | null): Promise<AccountInfo> {
+  if (!hasBackend) {
+    const accounts = await accountsList();
+    const account = accounts.find((row) => row.id === accountId);
+    if (!account) throw { code: "not_found", retryable: false, user_message: "That account isn't there any more." };
+    const name = label.trim();
+    if (name === "") throw refused("Give the account a name");
+    const other = accounts.find((row) => row.id !== accountId && row.label.trim().toLowerCase() === name.toLowerCase());
+    if (other) throw refused(`Another account is already called «${other.label}» — pick another name`);
+    account.label = name;
+    account.plan = plan && plan.trim() !== "" ? plan.trim() : null;
+    for (const recipe of MOCK_PROFILES) if (recipe.account_id === accountId) recipe.account_label = name;
+    for (const row of MOCK_SESSIONS) if (row.account_id === accountId) row.account_label = name;
+    return account;
+  }
+  return invoke<AccountInfo>("account_rename", { accountId, label, plan });
+}
+
+/** AJ-E1501: remove (forget) an account. `folder` decides a copy's
+ * folder: `keep` it, or move it to the Trash. An account used where it
+ * is always keeps its folder. */
+export async function accountRemove(accountId: string, folder: "keep" | "trash"): Promise<AccountRemovedInfo> {
+  if (!hasBackend) {
+    const fail = (window as unknown as { __AIJ_REMOVE_FAIL__?: string }).__AIJ_REMOVE_FAIL__;
+    if (fail) throw refused(fail);
+    const accounts = seeded.accounts ?? MOCK_ACCOUNTS;
+    const index = accounts.findIndex((row) => row.id === accountId);
+    const account = accounts[index];
+    if (!account) throw { code: "not_found", retryable: false, user_message: "That account isn't there any more." };
+    const open = MOCK_SESSIONS.filter(
+      (row) => row.account_id === accountId && ["starting", "running", "waiting_user", "stuck", "quota_blocked"].includes(row.status),
+    ).map((row) => row.git_branch ?? ((row.cwd ?? "").split("/").pop() || row.account_label));
+    if (open.length > 0) {
+      const names = [...new Set(open)].sort().join(", ");
+      throw refused(
+        `«${account.label}» has ${open.length === 1 ? "a session" : `${open.length} sessions`} open: ${names}. Stop ${open.length === 1 ? "it" : "them"} first, then remove the account`,
+      );
+    }
+    accounts.splice(index, 1);
+    return { id: account.id, label: account.label, folder: account.in_place ? "untouched" : folder === "trash" ? "trashed" : "kept" };
+  }
+  return invoke<AccountRemovedInfo>("account_remove", { accountId, folder });
+}
+
+/** AJ-E1501: make an account the default for new sessions (`null`
+ * clears it: the most recently used account leads again). */
+export async function accountSetDefault(accountId: string | null): Promise<AccountInfo[]> {
+  if (!hasBackend) {
+    const accounts = await accountsList();
+    for (const row of accounts) row.is_default = row.id === accountId;
+    return accounts;
+  }
+  return invoke<AccountInfo[]>("account_set_default", { accountId });
+}
+
+/** AJ-E1501: the account a project's new sessions start with (`null`
+ * clears it). */
+export async function projectSetDefaultAccount(projectId: string, accountId: string | null): Promise<void> {
+  if (!hasBackend) {
+    const project = MOCK_PROJECTS.find((row) => row.id === projectId);
+    if (project) project.default_account_id = accountId;
+    return;
+  }
+  return invoke<void>("project_set_default_account", { projectId, accountId });
+}
+
 export async function accountsList(): Promise<AccountInfo[]> {
   if (!hasBackend) {
-    return seeded.accounts ?? MOCK_ACCOUNTS;
+    // A new array each time (the rows are shared): a change made in
+    // preview mode re-renders like a real refresh does.
+    return [...(seeded.accounts ?? MOCK_ACCOUNTS)];
   }
   return invoke<AccountInfo[]>("accounts_list");
 }
@@ -929,14 +1010,14 @@ export async function accountForgetIdentity(accountId: string): Promise<void> {
 /** Tracked projects — the juggling anchor (which instance is on each directory). */
 export async function projectsList(): Promise<ProjectInfo[]> {
   if (!hasBackend) {
-    return MOCK_PROJECTS;
+    return [...MOCK_PROJECTS];
   }
   return invoke<ProjectInfo[]>("projects_list");
 }
 
 export async function instancesList(): Promise<InstanceInfo[]> {
   if (!hasBackend) {
-    return MOCK_SESSIONS;
+    return [...MOCK_SESSIONS];
   }
   return invoke<InstanceInfo[]>("instances_list");
 }
@@ -2344,7 +2425,8 @@ export async function pickDirectory(): Promise<string | null> {
 
 /** Folders dragged onto the window (Tauri drag-drop events). */
 export function onFolderDropped(handler: (path: string) => void): () => void {
-  if (!hasBackend) return () => {};
+  // No window to drop onto through the read-only test bridge.
+  if (!hasBackend || readOnlyBackend) return () => {};
   let disposed = false;
   let unlisten: (() => void) | null = null;
   import("@tauri-apps/api/webview")
@@ -3853,11 +3935,13 @@ export interface ProviderCapabilityData {
   provider: string;
   /** ADR-0018: its setups can be used where they are. */
   can_use_in_place: boolean;
+  /** It reports its own usage limits (5-hour and weekly windows). */
+  reports_limits: boolean;
 }
 
 const DEFAULT_PROVIDER_CAPABILITIES: ProviderCapabilityData[] = [
-  { provider: "claude-code", can_use_in_place: true },
-  { provider: "codex", can_use_in_place: true },
+  { provider: "claude-code", can_use_in_place: true, reports_limits: true },
+  { provider: "codex", can_use_in_place: true, reports_limits: false },
 ];
 
 /** ADR-0018: each registered Provider's static capabilities. */
@@ -3981,15 +4065,12 @@ export async function environmentScanFull(
     }
     return seam ?? DEFAULT_SCAN_REPORT;
   }
-  const { getCurrentWebview } = await import("@tauri-apps/api/webview");
-  const { listen } = await import("@tauri-apps/api/event");
   let stop: (() => void) | undefined;
   if (progress) {
     stop = await listen<{ done: number; total: number }>("scan-progress", (event) => {
       progress(event.payload.done, event.payload.total);
     }).then((unlisten) => unlisten);
   }
-  void getCurrentWebview;
   try {
     return await invoke<ScanReportData>("environment_scan_full");
   } finally {
@@ -4614,6 +4695,16 @@ export async function goingBackPrepare(schema: number): Promise<void> {
     return;
   }
   return invoke<void>("going_back_prepare", { schema });
+}
+
+/** 0.0.11 walk (Q6): opens the page to install `version` from (its
+ * release, or the releases list). */
+export async function goingBackOpenReleases(version: string | null): Promise<void> {
+  if (!hasBackend) {
+    updateCall(`open-releases:${version ?? ""}`);
+    return;
+  }
+  return invoke<void>("going_back_open_releases", { version });
 }
 
 /** Update status changes pushed by the backend. */

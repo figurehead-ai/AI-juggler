@@ -60,7 +60,7 @@ export function WindowRing({
   if (window.state === "learning") {
     return (
       <div data-testid={`ring-${kind}`} role="img" aria-label={`${label}: learning`}>
-        <p className="text-xs text-muted">learning — no forecast yet</p>
+        <p className="text-xs text-muted">Not enough use yet to forecast</p>
       </div>
     );
   }
@@ -192,9 +192,9 @@ export function ForecastPill({
   const badge = badgeText(forecast.badge);
   const text =
     forecast.state === "learning"
-      ? "learning — no forecast yet"
+      ? "Not enough use yet to forecast"
       : forecast.state === "wont-exhaust"
-        ? "→ steady · won't exhaust this window"
+        ? "At this pace, it won't run out this window"
         : forecast.state === "no-headroom"
           ? "set your plan cap to see a forecast"
           : forecast.tte_min !== undefined &&

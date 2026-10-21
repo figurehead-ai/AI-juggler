@@ -184,8 +184,8 @@ export function NewSessionModal({
   );
   const preselected = useMemo(
     () =>
-      profiles !== null ? pickRecipe(profiles, project, Object.values(quotaByAccount)) : null,
-    [profiles, project, quotaByAccount],
+      profiles !== null ? pickRecipe(profiles, project, Object.values(quotaByAccount), accounts) : null,
+    [profiles, project, quotaByAccount, accounts],
   );
 
   const recents = useMemo(
@@ -350,6 +350,13 @@ export function NewSessionModal({
                     <span className="font-mono text-[10px] text-muted">{preselected.model}</span>
                   )}
                   <VerdictChip verdict={verdictByAccount.get(preselected.account_id)} />
+                  {/* AJ-E1501: why this one, when the user picked it. */}
+                  {(project?.default_account_id === preselected.account_id ||
+                    accounts.find((account) => account.is_default)?.id === preselected.account_id) && (
+                    <span className="ml-auto text-[10px] text-muted" data-testid="launch-default">
+                      {project?.default_account_id === preselected.account_id ? "this project's default" : "your default"}
+                    </span>
+                  )}
                 </div>
                 <MachineAdviceLine advice={advice.get(preselected.id)} nameOf={(id) => sessionNames.get(id) ?? null} />
                 <div className="flex flex-wrap gap-2">
@@ -499,22 +506,22 @@ function VerdictChip({
   verdict?: { admission?: "ok" | "tight" | "no"; unknown: boolean };
 }): JSX.Element {
   if (verdict === undefined) {
-    return <Chip tone="neutral">headroom unknown</Chip>;
+    return <Chip tone="neutral">Room left unknown</Chip>;
   }
   if (verdict.admission === "tight") {
     return (
       <Chip tone="neutral" >
-        Tight — projected burn nears this account's headroom
+        Tight — this session may use most of the room left
       </Chip>
     );
   }
   if (verdict.admission === "no") {
     return (
-      <Chip tone="neutral">No — projected burn exceeds headroom (you can still launch)</Chip>
+      <Chip tone="neutral">Probably not enough room left — you can still start</Chip>
     );
   }
   if (verdict.admission === "ok") {
-    return <Chip tone="neutral">OK — inside headroom</Chip>;
+    return <Chip tone="neutral">Enough room left</Chip>;
   }
-  return <Chip tone="neutral">headroom unknown</Chip>;
+  return <Chip tone="neutral">Room left unknown</Chip>;
 }

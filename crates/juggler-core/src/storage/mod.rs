@@ -12,6 +12,7 @@
 //!   only. The previous version can open that copy, so going back after
 //!   an update loses only what changed since. No copy, no migration.
 
+mod account_audit;
 mod accounts;
 mod profiles;
 mod sessions;
@@ -32,6 +33,7 @@ use std::path::Path;
 
 use rusqlite::Connection;
 
+pub use account_audit::{AccountAuditRecord, AccountAuditRepo};
 pub use accounts::AccountsRepo;
 pub use cleanup_audit::{
     ACTOR_AUTO_TIER1, ACTOR_AUTO_TIER2, ACTOR_PREFIX_USER, AuditOutcomeInfo, CleanupAuditRecord,
@@ -516,9 +518,27 @@ CREATE TABLE footprints (
 CREATE INDEX idx_footprints_key ON footprints(key, recorded_at);
 ";
 
+/// v30 (AJ-E1501): managing accounts. A removed account is forgotten,
+/// not deleted (its sessions' history stays readable); a project can
+/// name the account its new sessions start with; every change to an
+/// account is an audit row.
+const V30: &str = "
+ALTER TABLE accounts ADD COLUMN removed_at INTEGER;
+ALTER TABLE projects ADD COLUMN default_account TEXT;
+CREATE TABLE account_audit (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id TEXT NOT NULL,
+    action     TEXT NOT NULL,
+    detail     TEXT,
+    actor      TEXT NOT NULL,
+    at         INTEGER NOT NULL
+);
+CREATE INDEX idx_account_audit_account ON account_audit(account_id, at);
+";
+
 const MIGRATIONS: &[&str] = &[
     V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21,
-    V22, V23, V24, V25, V26, V27, V28, V29,
+    V22, V23, V24, V25, V26, V27, V28, V29, V30,
 ];
 
 /// How many pre-migration copies (`<file>.before-v<N>`) are kept beside a
@@ -652,6 +672,46 @@ fn owner_only(path: &Path) {
     let _ = path;
 }
 
+/// How long a connection waits for another connection's lock before a
+/// statement fails with "database is locked" (AJ-E1521). The app opens
+/// `juggler.sqlite` four times (storage, process ledger, cleanup audit,
+/// cleanup settings), so a write on one regularly meets a write on
+/// another. Set explicitly, not left to the driver's default.
+pub const BUSY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
+
+/// Applies [`BUSY_TIMEOUT`] to a connection on the app database and
+/// switches it to WAL.
+///
+/// # Errors
+///
+/// [`CoreError::Storage`] when SQLite refuses either setting.
+pub(crate) fn wait_for_locks(conn: &Connection) -> Result<(), CoreError> {
+    conn.busy_timeout(BUSY_TIMEOUT)
+        .and_then(|()| enable_wal(conn))
+        .map_err(CoreError::Storage)
+}
+
+/// Switches `conn` to WAL, waiting up to [`BUSY_TIMEOUT`] for another
+/// connection's lock. SQLite answers this one statement "busy" at once —
+/// it skips the busy handler while upgrading a lock it might deadlock
+/// on — so the wait is a retry here.
+fn enable_wal(conn: &Connection) -> rusqlite::Result<()> {
+    let deadline = std::time::Instant::now() + BUSY_TIMEOUT;
+    loop {
+        match conn.pragma_update(None, "journal_mode", "WAL") {
+            Err(rusqlite::Error::SqliteFailure(error, _))
+                if error.code == rusqlite::ErrorCode::DatabaseBusy
+                    && std::time::Instant::now() < deadline =>
+            {
+                // poll: bounded by BUSY_TIMEOUT; only while another
+                // connection holds the lock the switch needs.
+                std::thread::sleep(std::time::Duration::from_millis(25));
+            }
+            other => return other,
+        }
+    }
+}
+
 /// An opened AI Juggler database with typed repositories.
 #[derive(Debug)]
 pub struct Storage {
@@ -691,8 +751,10 @@ impl Storage {
     fn initialize(conn: Connection, path: Option<&Path>) -> Result<Self, CoreError> {
         // Everything in this phase touches the file for the first time, so
         // any failure here means "not a database" for on-disk paths.
+        // The wait comes first: switching to WAL itself needs the lock.
         let current: i64 = conn
-            .pragma_update(None, "journal_mode", "WAL")
+            .busy_timeout(BUSY_TIMEOUT)
+            .and_then(|()| enable_wal(&conn))
             .and_then(|()| conn.pragma_update(None, "synchronous", "NORMAL"))
             .and_then(|()| conn.pragma_update(None, "foreign_keys", "ON"))
             .and_then(|()| conn.query_row("PRAGMA user_version", [], |row| row.get(0)))
@@ -752,6 +814,12 @@ impl Storage {
     #[must_use]
     pub fn accounts(&self) -> AccountsRepo<'_> {
         AccountsRepo::new(&self.conn)
+    }
+
+    /// Repository for the account audit rows (AJ-E1501).
+    #[must_use]
+    pub fn account_audit(&self) -> AccountAuditRepo<'_> {
+        AccountAuditRepo::new(&self.conn)
     }
 
     /// Repository for [`crate::model::Profile`] rows.
