@@ -2529,7 +2529,7 @@ function QualityTab(props: PanelProps) {
       tier: "Estimated",
       body: quality.session_cost_usd !== null ? (
         <span className="tabular-nums text-ink">
-          \${quality.session_cost_usd.toFixed(2)} · Est · value-equiv. ({quality.priced_model})
+          ${quality.session_cost_usd.toFixed(2)} · Est · value-equiv. ({quality.priced_model})
         </span>
       ) : (
         <span className="text-muted">
@@ -2854,7 +2854,7 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
           </p>
           {orphans.length === 0 ? (
             <p className="text-[10px] text-faint">
-              A good empty state: nothing this session spawned outlived it.
+              Nothing this session started is still running after it.
             </p>
           ) : (
             <>

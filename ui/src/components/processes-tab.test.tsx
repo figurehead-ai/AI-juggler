@@ -243,6 +243,10 @@ describe("AJ-E410 Processes tab (§7.3 + orphan contract)", () => {
     await waitFor(() => expect(container.querySelector('[data-testid="processes-empty"]')).not.toBeNull());
     expect(container.querySelector('[data-testid="processes-empty"]')!.textContent).toBe("No subprocesses");
     expect(container.querySelector('[data-testid="orphans-heading"]')!.textContent).toBe("No orphaned processes");
+    // Plain words under it, not a design note (0.0.11 walk).
+    const orphans = container.querySelector('[data-testid="processes-orphans"]')!.textContent ?? "";
+    expect(orphans).toContain("Nothing this session started is still running after it.");
+    expect(orphans).not.toContain("empty state");
   });
 
   it("adopted/desktop-kind sessions render resources unavailable — never zeroed rows", async () => {
