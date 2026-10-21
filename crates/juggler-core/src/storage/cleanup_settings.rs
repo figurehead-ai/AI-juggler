@@ -45,6 +45,7 @@ impl CleanupSettingsRepo {
     /// table cannot be created.
     pub fn open(path: &std::path::Path) -> Result<Self, CoreError> {
         let conn = Connection::open(path).map_err(CoreError::Storage)?;
+        super::wait_when_busy(&conn).map_err(CoreError::Storage)?;
         Self::init(conn)
     }
 

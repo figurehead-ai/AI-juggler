@@ -32,6 +32,18 @@ use std::path::Path;
 
 use rusqlite::Connection;
 
+/// AJ-E1521: how long a connection waits for another's write before it
+/// gives up. The app opens several connections to `juggler.sqlite` (this
+/// store, the cleanup audit and settings, the process ledger); without a
+/// wait, a read during a long write fails at once with "database is
+/// locked". The stats store waits too (2 s).
+pub const BUSY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
+
+/// Sets [`BUSY_TIMEOUT`] on a connection to the app's database.
+pub(crate) fn wait_when_busy(conn: &Connection) -> rusqlite::Result<()> {
+    conn.busy_timeout(BUSY_TIMEOUT)
+}
+
 pub use accounts::AccountsRepo;
 pub use cleanup_audit::{
     ACTOR_AUTO_TIER1, ACTOR_AUTO_TIER2, ACTOR_PREFIX_USER, AuditOutcomeInfo, CleanupAuditRecord,
@@ -691,8 +703,8 @@ impl Storage {
     fn initialize(conn: Connection, path: Option<&Path>) -> Result<Self, CoreError> {
         // Everything in this phase touches the file for the first time, so
         // any failure here means "not a database" for on-disk paths.
-        let current: i64 = conn
-            .pragma_update(None, "journal_mode", "WAL")
+        let current: i64 = wait_when_busy(&conn)
+            .and_then(|()| conn.pragma_update(None, "journal_mode", "WAL"))
             .and_then(|()| conn.pragma_update(None, "synchronous", "NORMAL"))
             .and_then(|()| conn.pragma_update(None, "foreign_keys", "ON"))
             .and_then(|()| conn.query_row("PRAGMA user_version", [], |row| row.get(0)))
