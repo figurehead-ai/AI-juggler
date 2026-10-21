@@ -71,6 +71,7 @@ import { SwitchFlow, SwitchUndoToast } from "./components/SwitchFlow";
 import { SwitchBackFlow } from "./components/SwitchBackFlow";
 import { RightInspector } from "./components/RightInspector";
 import { ThisMacContext, useThisMac } from "./lib/machine";
+import { MachineStatusLine } from "./components/MachineStatusLine";
 import {
   accountsList,
   providersDiscover,
@@ -841,14 +842,11 @@ export default function App() {
         )}
         footer={(minimal) =>
           minimal ? (
-            <div className="flex justify-center py-2" title="this-mac · healthy">
-              <span className="dot-live size-1.5 rounded-full bg-success" />
-            </div>
+            <MachineStatusLine minimal />
           ) : (
             <div className="flex flex-col gap-1.5 px-3 py-2.5">
               <div className="flex min-w-0 items-center gap-2 overflow-hidden">
-                <span className="dot-live size-1.5 shrink-0 rounded-full bg-success" />
-                <span className="min-w-0 shrink truncate text-[11px]">this-mac · healthy</span>
+                <MachineStatusLine minimal={false} />
                 {/* The rail-footer `?` legend popover (AJ-E403 Req.6,
                     surface 1 of 3 — identical content everywhere). */}
                 <LegendPopover />

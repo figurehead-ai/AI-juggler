@@ -262,8 +262,13 @@ export function mockThisMac(
     const trees = observed.filter((tree) => tree.place === place);
     if (trees.length > 0) byTool.push({ tool: place, label, ours: false, totals: totals(trees, machine.cores), cpu_one_core_pct: oneCore(trees) });
   }
+  // As the backend's align_with_alerts: while the memory-pressure alert is
+  // on, the Mac's state says the same words.
+  const aligned: MachineHealthInfo = alerts.some((alert) => alert.kind === "memory_pressure")
+    ? { ...machine, summary: { ...machine.summary, level: "pressure", words: "Under memory pressure" } }
+    : machine;
   return {
-    machine,
+    machine: aligned,
     tools: totals(all, machine.cores),
     ours: totals(ours, machine.cores),
     theirs: totals(observed, machine.cores),
@@ -343,6 +348,28 @@ export function resourceLine(cpu: number | null, rss: number | null, helpers: nu
 /** This Mac for components deep in the tree (the rail rows): the app
  * provides its one subscription here. */
 export const ThisMacContext = createContext<ThisMacInfo | null>(null);
+
+/** How each level of the Mac's state looks: This Mac's glyph and tone,
+ * the rail footer's dot. */
+export const MACHINE_LEVEL: Record<string, { glyph: string; tone: string; dot: string }> = {
+  plenty: { glyph: "●", tone: "text-faint", dot: "bg-success" },
+  tight: { glyph: "▲", tone: "text-warning", dot: "bg-warning" },
+  pressure: { glyph: "■", tone: "text-danger", dot: "bg-danger" },
+};
+
+/** The Mac's state, from one place: This Mac's summary (which the backend
+ * aligns with its alerts). This Mac, the rail footer and the collapsed
+ * rail all read it, so they never disagree (QA, P19: "under memory
+ * pressure", "Getting tight", "healthy" and "All clear" at once). `null`
+ * before the first sample. */
+export function machineStatus(
+  info: ThisMacInfo | null,
+): { level: string; words: string; glyph: string; tone: string; dot: string; calm: boolean } | null {
+  if (!info || !info.machine.sampled) return null;
+  const level = info.machine.summary.level;
+  const look = MACHINE_LEVEL[level] ?? MACHINE_LEVEL.plenty!;
+  return { level, words: info.machine.summary.words, calm: level === "plenty", ...look };
+}
 
 /** A session's heavy note ("CPU 95%", "3.2 GB"), only while it's heavy. */
 export function useHeavyNote(sessionId: string): string | null {
