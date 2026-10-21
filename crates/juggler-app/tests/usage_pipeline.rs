@@ -177,3 +177,79 @@ fn one_pass_ingests_all_sources_and_repeats_insert_nothing() {
     assert!(transcript.last_event_at.is_some());
     assert_eq!(transcript.parse_errors, 0);
 }
+
+/// The 0.0.12 report: Codex's own limit readings (rollout `token_count`
+/// `rate_limits`) reach the store as Measured samples, the account's
+/// windows read as measured, and its credits show. Fixture values are
+/// invented; the shape is the real line's.
+#[test]
+fn codex_rollout_limits_reach_the_display_as_measured_with_credits() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    let home = dir.path().join("codex-home");
+    let day = home.join("sessions/2026/10/21");
+    std::fs::create_dir_all(&day).unwrap();
+    std::fs::copy(
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../juggler-adapters/tests/fixtures/quota/codex-rollout-rate-limits.jsonl"),
+        day.join("rollout-2026-10-21T10-00-00-th-9.jsonl"),
+    )
+    .unwrap();
+    let account = Account {
+        id: AccountId::new("acc-codex"),
+        harness: HarnessId::new("codex"),
+        label: "codex".into(),
+        plan: None,
+        state_dir: home,
+        cleanup_opt_in: false,
+        renewal_date: None,
+        preview_opt_in: false,
+        import_source_path: None,
+        import_origin: None,
+        imported_at: None,
+        in_place: false,
+    };
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .accounts()
+        .insert(&account)
+        .unwrap();
+
+    usage_pipeline::ingest_pass(&state, 4);
+
+    let storage = state.storage.lock().unwrap();
+    let five = storage
+        .usage()
+        .samples_for_account("acc-codex", juggler_core::quota::WindowKind::FiveHour)
+        .unwrap();
+    let week = storage
+        .usage()
+        .samples_for_account(
+            "acc-codex",
+            juggler_core::quota::WindowKind::Weekly { anchor_ms: None },
+        )
+        .unwrap();
+    assert_eq!(five.len(), 2);
+    assert_eq!(week.len(), 1);
+
+    let now = juggler_adapters::quota_ingest::iso_to_epoch_ms("2026-10-21T10:35:00.000Z").unwrap();
+    let info = juggler_app::commands::quota_display_inner(&storage, &account, now);
+    let five = info.five_hour.as_ref().unwrap();
+    assert_eq!(five.state, "tracking");
+    assert!(
+        five.percentage.is_some_and(|p| (p - 20.0).abs() < 1e-9),
+        "{five:?}"
+    );
+    assert_eq!(five.badge.as_deref(), Some("measured"));
+    assert_eq!(five.reset_basis.as_deref(), Some("measured"));
+    let week = info.weekly.as_ref().unwrap();
+    assert!(
+        week.percentage.is_some_and(|p| (p - 40.0).abs() < 1e-9),
+        "{week:?}"
+    );
+    let credits = info.credits.as_ref().unwrap();
+    assert_eq!(credits.balance.as_deref(), Some("16.25"));
+    assert!(credits.has_credits && !credits.unlimited);
+}

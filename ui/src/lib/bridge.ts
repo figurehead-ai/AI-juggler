@@ -1597,6 +1597,16 @@ export interface QuotaDisplayData {
   renewal: RenewalDisplay;
   forecast: ForecastDisplay;
   unavailable_reason?: string;
+  /** Codex's credits, from its own rollouts. */
+  credits?: CreditsDisplay | null;
+}
+
+/** An account's credits, as its tool reports them. */
+export interface CreditsDisplay {
+  has_credits: boolean;
+  unlimited: boolean;
+  balance?: string | null;
+  as_of_ms: number;
 }
 
 /** AJ-E306: one window's token headroom (cap − burned) — present
@@ -3958,7 +3968,8 @@ export interface ProviderCapabilityData {
 
 const DEFAULT_PROVIDER_CAPABILITIES: ProviderCapabilityData[] = [
   { provider: "claude-code", can_use_in_place: true, reports_limits: true },
-  { provider: "codex", can_use_in_place: true, reports_limits: false },
+  // Its rollouts carry its own limit readings (the 0.0.12 report).
+  { provider: "codex", can_use_in_place: true, reports_limits: true },
 ];
 
 /** ADR-0018: each registered Provider's static capabilities. */

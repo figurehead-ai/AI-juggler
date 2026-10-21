@@ -536,6 +536,9 @@ impl HarnessAdapter for CodexAdapter {
             | Capabilities::FORK
             | Capabilities::TRANSCRIPT_WATCH
             | Capabilities::USAGE_TOKENS
+            // Its rollouts carry the vendor's own limit readings
+            // (`token_count` `rate_limits`; the 0.0.12 report).
+            | Capabilities::USAGE_QUOTA_FEED
     }
 
     fn verified_against(&self) -> &'static [&'static str] {

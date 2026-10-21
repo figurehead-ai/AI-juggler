@@ -44,6 +44,14 @@ export function runwayLines(display: QuotaDisplayData | undefined, sessions: Ins
   ];
 }
 
+/** The account's credits in words, when its tool reports them (Codex). */
+export function creditsWords(display: QuotaDisplayData | undefined): string | null {
+  const credits = display?.credits;
+  if (!credits?.has_credits) return null;
+  if (credits.unlimited) return "Unlimited credits";
+  return credits.balance ? `Credit balance: ${credits.balance}` : null;
+}
+
 /** "At this pace it runs out in about 40 min" — only when it will. */
 export function paceWords(display: QuotaDisplayData | undefined): string | null {
   const forecast = display?.forecast;
@@ -82,6 +90,7 @@ export function AccountRunway({
   }
   const lines = runwayLines(display, sessions);
   const pace = paceWords(display);
+  const credits = creditsWords(display);
   return (
     <div className="flex flex-col gap-2.5" data-testid="account-runway">
       <div className="grid gap-x-6 gap-y-2.5 sm:grid-cols-2">
@@ -98,6 +107,11 @@ export function AccountRunway({
           </div>
         ))}
       </div>
+      {credits && (
+        <p className="text-[11px] text-muted" data-testid="account-runway-credits">
+          {credits}
+        </p>
+      )}
       {pace && (
         <p className="text-[11px] text-warning" data-testid="account-runway-pace">
           {pace}

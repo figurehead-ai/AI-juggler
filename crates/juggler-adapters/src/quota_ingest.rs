@@ -60,8 +60,11 @@ pub struct SourceHealth {
 pub struct TailOutcome {
     /// Events ready for the store (already uuid-tagged for dedupe).
     pub events: Vec<UsageEvent>,
-    /// Quota samples ready for the store (statusline source only).
+    /// Quota samples ready for the store (Claude's statusline spool;
+    /// Codex's rollout `token_count` lines).
     pub samples: Vec<(WindowKind, QuotaSample)>,
+    /// The newest Codex credits snapshot seen this pass, when any.
+    pub credits: Option<CreditsSnapshot>,
     /// Bytes consumed — the next pass starts here.
     pub offset: u64,
     /// Malformed lines seen this pass.
@@ -514,6 +517,9 @@ pub fn rollout_events(account: &str, bytes: &[u8]) -> TailOutcome {
             outcome.parse_errors += 1;
             continue;
         };
+        if take_token_count(&value, &mut outcome) {
+            continue;
+        }
         if value.get("type").and_then(serde_json::Value::as_str) != Some("token_usage_record") {
             continue;
         }
@@ -572,6 +578,139 @@ pub fn rollout_events(account: &str, bytes: &[u8]) -> TailOutcome {
         });
     }
     outcome
+}
+
+/// A Codex `event_msg` `token_count` line: its `rate_limits` are the
+/// vendor's own limit readings (Measured samples; no tokens here). True
+/// when `value` was such a line, whatever it held.
+fn take_token_count(value: &serde_json::Value, outcome: &mut TailOutcome) -> bool {
+    let is_event = value.get("type").and_then(serde_json::Value::as_str) == Some("event_msg");
+    let Some(payload) = value.get("payload").filter(|payload| {
+        is_event && payload.get("type").and_then(serde_json::Value::as_str) == Some("token_count")
+    }) else {
+        return false;
+    };
+    let Some(limits) = payload
+        .get("rate_limits")
+        .filter(|limits| !limits.is_null())
+    else {
+        return true;
+    };
+    let Some(ts) = value
+        .get("timestamp")
+        .and_then(serde_json::Value::as_str)
+        .and_then(iso_to_epoch_ms)
+    else {
+        outcome.parse_errors += 1;
+        return true;
+    };
+    let (samples, credits) = codex_rate_limits(ts, limits);
+    if samples.is_empty() && credits.is_none() {
+        outcome.parse_errors += 1;
+    }
+    outcome.samples.extend(samples);
+    if let Some(credits) = credits
+        && outcome
+            .credits
+            .as_ref()
+            .is_none_or(|seen| seen.ts <= credits.ts)
+    {
+        outcome.credits = Some(credits);
+    }
+    true
+}
+
+/// Codex's credits, as its own rollout reports them (no value is read
+/// anywhere else; `auth.json` is never opened).
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct CreditsSnapshot {
+    /// When Codex wrote it, epoch ms.
+    pub ts: i64,
+    /// The plan has credits at all.
+    pub has_credits: bool,
+    /// Credits are unlimited.
+    pub unlimited: bool,
+    /// The balance as Codex wrote it (a string in its protocol).
+    pub balance: Option<String>,
+}
+
+/// The limit readings on one Codex `token_count` line: `rate_limits`
+/// `{limit_id, primary, secondary, credits}`, each window
+/// `{used_percent, window_minutes, resets_at}` (`resets_at` in Unix
+/// seconds; older builds wrote `resets_in_seconds`). The window comes
+/// from `window_minutes` (300 = the 5-hour pool, 10080 = the week); a
+/// window of any other width is skipped, never guessed. `secondary` may
+/// be null.
+#[must_use]
+pub fn codex_rate_limits(
+    ts: i64,
+    limits: &serde_json::Value,
+) -> (Vec<(WindowKind, QuotaSample)>, Option<CreditsSnapshot>) {
+    let mut samples = Vec::new();
+    for key in ["primary", "secondary"] {
+        let Some(window) = limits.get(key).filter(|window| !window.is_null()) else {
+            continue;
+        };
+        let Some(used) = window
+            .get("used_percent")
+            .and_then(serde_json::Value::as_f64)
+        else {
+            continue;
+        };
+        let kind = match window
+            .get("window_minutes")
+            .and_then(serde_json::Value::as_i64)
+        {
+            Some(300) => WindowKind::FiveHour,
+            Some(10_080) => WindowKind::Weekly { anchor_ms: None },
+            _ => continue,
+        };
+        let resets_at = window
+            .get("resets_at")
+            .and_then(serde_json::Value::as_i64)
+            // Seconds (Codex's protocol); a value already in ms passes.
+            .map(|at| {
+                if at < 100_000_000_000 {
+                    at.saturating_mul(1000)
+                } else {
+                    at
+                }
+            })
+            .or_else(|| {
+                window
+                    .get("resets_in_seconds")
+                    .and_then(serde_json::Value::as_i64)
+                    .map(|secs| ts.saturating_add(secs.saturating_mul(1000)))
+            });
+        samples.push((
+            kind,
+            QuotaSample {
+                ts,
+                used_pct: used.clamp(0.0, 100.0),
+                resets_at,
+                confidence: Confidence::Measured,
+            },
+        ));
+    }
+    let credits = limits
+        .get("credits")
+        .filter(|credits| !credits.is_null())
+        .and_then(|credits| {
+            Some(CreditsSnapshot {
+                ts,
+                has_credits: credits.get("has_credits")?.as_bool()?,
+                unlimited: credits
+                    .get("unlimited")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(false),
+                balance: credits.get("balance").and_then(|balance| match balance {
+                    serde_json::Value::String(text) => Some(text.clone()),
+                    serde_json::Value::Number(number) => Some(number.to_string()),
+                    _ => None,
+                }),
+            })
+        });
+    (samples, credits)
 }
 
 // ---------------------------------------------------------------------------

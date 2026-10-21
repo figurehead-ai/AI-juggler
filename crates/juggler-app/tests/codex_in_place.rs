@@ -423,5 +423,6 @@ fn providers_capabilities_says_which_tools_report_their_limits() {
             .map(|row| row.reports_limits)
     };
     assert_eq!(of("claude-code"), Some(true));
-    assert_eq!(of("codex"), Some(false));
+    // Codex's rollouts carry its limit readings (0.0.12 report).
+    assert_eq!(of("codex"), Some(true));
 }

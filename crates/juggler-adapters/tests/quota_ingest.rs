@@ -193,6 +193,95 @@ fn rollout_events_read_only_the_response_level_usage() {
     assert_eq!(first.tokens.output, 200);
 }
 
+/// The 0.0.12 report: Codex's rollouts carry its own limit readings on
+/// `event_msg` `token_count` lines (`rate_limits`: primary, secondary,
+/// credits). The fixture is shaped like the real line; every value is
+/// invented.
+#[test]
+fn rollout_token_counts_become_measured_samples_and_the_credits() {
+    let outcome = rollout_events(
+        "acc",
+        &std::fs::read(fixture("codex-rollout-rate-limits.jsonl")).unwrap(),
+    );
+    // A line of an unknown window width yields nothing: counted, never
+    // guessed into a pool. A null rate_limits is just skipped.
+    assert_eq!(outcome.parse_errors, 1);
+    assert_eq!(
+        outcome.events.len(),
+        1,
+        "tokens still come from token_usage_record"
+    );
+    let first_ts = iso_to_epoch_ms("2026-10-21T10:01:00.000Z").unwrap();
+    let later_ts = iso_to_epoch_ms("2026-10-21T10:30:00.000Z").unwrap();
+    let samples: Vec<(WindowKind, f64, Option<i64>, i64)> = outcome
+        .samples
+        .iter()
+        .map(|(kind, sample)| (*kind, sample.used_pct, sample.resets_at, sample.ts))
+        .collect();
+    assert_eq!(
+        samples,
+        vec![
+            (
+                WindowKind::FiveHour,
+                12.5,
+                Some(1_792_580_400_000),
+                first_ts
+            ),
+            (
+                WindowKind::Weekly { anchor_ms: None },
+                40.0,
+                Some(1_792_990_000_000),
+                first_ts
+            ),
+            // resets_in_seconds (older builds) counts from the line.
+            (
+                WindowKind::FiveHour,
+                20.0,
+                Some(later_ts + 3_600_000),
+                later_ts
+            ),
+        ]
+    );
+    assert!(
+        outcome
+            .samples
+            .iter()
+            .all(|(_, sample)| sample.confidence == Confidence::Measured)
+    );
+    // The newest credits snapshot wins.
+    let credits = outcome.credits.expect("credits");
+    assert_eq!(credits.ts, later_ts);
+    assert!(credits.has_credits && !credits.unlimited);
+    assert_eq!(credits.balance.as_deref(), Some("16.25"));
+}
+
+#[test]
+fn codex_rate_limits_take_seconds_or_milliseconds_and_skip_odd_widths() {
+    let ts = 1_792_500_000_000;
+    let (samples, credits) = quota_ingest::codex_rate_limits(
+        ts,
+        &serde_json::json!({
+            "primary": {"used_percent": 150.0, "window_minutes": 300, "resets_at": 1_792_580_400_000_i64},
+            "secondary": {"used_percent": 1.0, "window_minutes": 1440},
+            "credits": {"has_credits": true, "unlimited": true, "balance": null}
+        }),
+    );
+    assert_eq!(
+        samples.len(),
+        1,
+        "a 1-day window isn't a pool AI Juggler knows"
+    );
+    assert_eq!(samples[0].1.used_pct, 100.0, "clamped");
+    assert_eq!(
+        samples[0].1.resets_at,
+        Some(1_792_580_400_000),
+        "ms passes through"
+    );
+    let credits = credits.unwrap();
+    assert!(credits.unlimited);
+    assert_eq!(credits.balance, None);
+}
+
 // ---------------------------------------------------------------------------
 // Source: ZCode SQLite (read-only)
 // ---------------------------------------------------------------------------

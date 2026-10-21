@@ -379,6 +379,40 @@ pub struct QuotaDisplayInfo {
     pub forecast: ForecastDisplay,
     /// Provider-level unavailability (e.g. Gemini pre-verification).
     pub unavailable_reason: Option<String>,
+    /// Codex's credits, from its own rollouts (the 0.0.12 report).
+    pub credits: Option<CreditsDisplay>,
+}
+
+/// An account's credits, as its tool reports them.
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize)]
+pub struct CreditsDisplay {
+    /// The plan has credits at all.
+    pub has_credits: bool,
+    /// Credits are unlimited.
+    pub unlimited: bool,
+    /// The balance as the tool wrote it.
+    pub balance: Option<String>,
+    /// When the tool reported it, epoch ms.
+    pub as_of_ms: i64,
+}
+
+/// The account's newest credits snapshot, when its tool reported one.
+fn credits_of(storage: &juggler_core::storage::Storage, account: &str) -> Option<CreditsDisplay> {
+    let raw = storage
+        .app_settings()
+        .get(&format!(
+            "{}{account}",
+            crate::usage_pipeline::CREDITS_KEY_PREFIX
+        ))
+        .ok()
+        .flatten()?;
+    let snapshot: juggler_adapters::CreditsSnapshot = serde_json::from_str(&raw).ok()?;
+    Some(CreditsDisplay {
+        has_credits: snapshot.has_credits,
+        unlimited: snapshot.unlimited,
+        balance: snapshot.balance,
+        as_of_ms: snapshot.ts,
+    })
 }
 
 /// Evaluates one account's two-clock display from the engine (E606
@@ -610,6 +644,7 @@ pub fn quota_display_inner(
         renewal,
         forecast,
         unavailable_reason,
+        credits: credits_of(storage, account_id),
     }
 }
 
