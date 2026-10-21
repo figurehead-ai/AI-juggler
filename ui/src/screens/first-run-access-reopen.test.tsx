@@ -7,7 +7,8 @@
  */
 import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { FirstRun, RESUME_ACCESS_KEY, takeResumeAccess } from "./FirstRun";
+import { FirstRun } from "./FirstRun";
+import { RESUME_ACCESS_KEY, takeResumeAccess } from "../lib/osAccess";
 import type { OsAccessInfo } from "../lib/bridge";
 
 const w = () => window as unknown as Record<string, unknown>;

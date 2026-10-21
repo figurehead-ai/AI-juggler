@@ -11,6 +11,7 @@
     allow(clippy::pedantic, clippy::unwrap_used, clippy::expect_used)
 )]
 
+pub mod app_relaunch;
 pub mod backup;
 pub mod cloud_backup;
 pub mod commands;
@@ -408,7 +409,7 @@ pub fn run() {
             os_access::os_access_list,
             os_access::os_access_request,
             os_access::os_access_open_settings,
-            os_access::os_access_reopen,
+            app_relaunch::app_relaunch,
             settings_policy::notification_prefs_get,
             settings_policy::notification_prefs_set,
             settings_policy::cleanup_default_get,

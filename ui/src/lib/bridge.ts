@@ -1267,18 +1267,18 @@ export async function osAccessOpenSettings(id: string): Promise<void> {
   await invoke("os_access_open_settings", { id });
 }
 
-/** Reopens AI Juggler (macOS shows a new Screen Recording answer only
- * then). Resolves with why it has to be confirmed or wait; when nothing
- * stands in the way (or `anyway` after live sessions) the app relaunches
- * and this never resolves. */
-export async function osAccessReopen(anyway: boolean): Promise<ReopenBlockInfo | null> {
+/** Reopens AI Juggler (`app_relaunch`; macOS shows a new Screen
+ * Recording answer only then). Resolves with why it has to be confirmed
+ * or wait; when nothing stands in the way (or `anyway` after live
+ * sessions) the app relaunches and this never resolves. */
+export async function appRelaunch(anyway: boolean): Promise<ReopenBlockInfo | null> {
   if (!hasBackend) {
     const seams = osAccessSeams();
     seams.__AIJ_OS_ACCESS_CALLS__ = [...(seams.__AIJ_OS_ACCESS_CALLS__ ?? []), `reopen:${anyway ? "anyway" : "ask"}`];
     const block = seams.__AIJ_REOPEN_BLOCK__ ?? null;
     return anyway && block?.can_reopen_anyway ? null : block;
   }
-  return invoke<ReopenBlockInfo | null>("os_access_reopen", { anyway });
+  return invoke<ReopenBlockInfo | null>("app_relaunch", { anyway });
 }
 
 /** Whether new Accounts start with left-behind dev servers tidied (D-08:

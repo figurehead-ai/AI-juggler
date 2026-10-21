@@ -33,6 +33,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { Button } from "../components/primitives";
 import { inPlaceProviders, ownSignIn, providerDisplayName, sameAsWords, supportsInPlace, toolFound, versionUnchecked, type InPlaceSupport } from "../lib/providers";
+import { accessCard, reopenApp, watchAccess, type AccessAction } from "../lib/osAccess";
 import { funnelEvent, funnelStep, reasonCode } from "../lib/funnel";
 import {
   accountImport,
@@ -47,7 +48,6 @@ import {
   errorText,
   osAccessList,
   osAccessOpenSettings,
-  osAccessReopen,
   osAccessRequest,
   providersCapabilities,
   providersDiscover,
@@ -935,30 +935,8 @@ function SigninStep({
   );
 }
 
-/** The 0.0.12 report: after Reopen AI Juggler, first run comes back at
- * the access step (a one-time marker, read once at start). */
-export const RESUME_ACCESS_KEY = "aij.firstRun.resumeAccess";
-
-/** True once if the last session left first run to reopen the app. */
-export function takeResumeAccess(): boolean {
-  try {
-    const resume = localStorage.getItem(RESUME_ACCESS_KEY) === "1";
-    localStorage.removeItem(RESUME_ACCESS_KEY);
-    return resume;
-  } catch {
-    return false;
-  }
-}
-
-function markResumeAccess(on: boolean): void {
-  try {
-    if (on) localStorage.setItem(RESUME_ACCESS_KEY, "1");
-    else localStorage.removeItem(RESUME_ACCESS_KEY);
-  } catch {
-    // Without storage the reopen still works; first run just starts over.
-  }
-}
-
+/** First run's Computer access step: wiring for `lib/osAccess` (the
+ * cards' logic, the re-check when the window is back, Reopen). */
 function AccessStep({
   entries,
   setEntries,
@@ -971,45 +949,14 @@ function AccessStep({
   const [error, setError] = useState<string | null>(null);
   // Why a Reopen has to be confirmed or wait, under the card that asked.
   const [reopenBlock, setReopenBlock] = useState<ReopenBlockInfo | null>(null);
-  // Polled while open, and checked again the moment the window is back
-  // (the user returns from System Settings): an entry flips as soon as
-  // the OS says yes.
-  useEffect(() => {
-    const check = () => void osAccessList().then(setEntries, () => null);
-    const timer = window.setInterval(check, 1500);
-    const onVisible = () => {
-      if (document.visibilityState === "visible") check();
-    };
-    window.addEventListener("focus", check);
-    document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      window.clearInterval(timer);
-      window.removeEventListener("focus", check);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
-  }, [setEntries]);
-  // Reopen AI Juggler: first run comes back here after the relaunch.
-  // Live sessions are said first; a switch or a bring-in makes it wait.
-  const reopen = (anyway: boolean) => {
+  useEffect(() => watchAccess(() => void osAccessList().then(setEntries, () => null)), [setEntries]);
+  const act = (entry: OsAccessInfo, action: AccessAction, anyway = false) => {
     setError(null);
-    markResumeAccess(true);
-    void osAccessReopen(anyway).then(
-      (block) => {
-        if (block) {
-          markResumeAccess(false);
-          setReopenBlock(block);
-        }
-      },
-      (cause) => {
-        markResumeAccess(false);
-        setError(errorText(cause));
-      },
-    );
-  };
-  const allow = (entry: OsAccessInfo) => {
-    setError(null);
-    const step =
-      entry.action === "settings" ? osAccessOpenSettings(entry.id).then(() => osAccessList()) : osAccessRequest(entry.id);
+    if (action === "reopen") {
+      void reopenApp(anyway).then(setReopenBlock, (cause) => setError(errorText(cause)));
+      return;
+    }
+    const step = action === "settings" ? osAccessOpenSettings(entry.id).then(() => osAccessList()) : osAccessRequest(entry.id);
     void step.then(setEntries, (cause) => setError(errorText(cause)));
   };
   const allAllowed = entries.every((entry) => entry.status === "allowed");
@@ -1028,59 +975,69 @@ function AccessStep({
         </p>
       </div>
       <ul className="flex flex-col gap-3">
-        {entries.map((entry) => (
-          <li
-            key={entry.id}
-            className={
-              "flex flex-wrap items-center gap-4 rounded-2xl border bg-surface p-5 " +
-              (entry.status === "allowed" ? "border-success/40" : "border-hairline")
-            }
-            data-testid={`first-run-access-${entry.id}`}
-          >
-            <div className="flex min-w-0 flex-1 flex-col gap-1">
-              <span className="text-[15px] font-semibold text-ink">{entry.title}</span>
-              <span className="text-sm leading-relaxed text-muted">
-                {entry.why} <span className="text-faint">The system calls this {entry.system_name}.</span>
-              </span>
-              {entry.note && entry.status !== "allowed" && (
-                <span className={entry.action === "reopen" ? "text-sm text-ink" : "text-xs text-faint"}>{entry.note}</span>
-              )}
-              {entry.action === "reopen" && reopenBlock && (
-                <div className="mt-2 flex flex-wrap items-center gap-3 text-sm" role="alert" data-testid="first-run-access-reopen-block">
-                  <span className="text-ink">{reopenBlock.reason}</span>
-                  {reopenBlock.can_reopen_anyway && (
-                    <Button size="sm" variant="secondary" onClick={() => reopen(true)}>
-                      Reopen anyway
+        {entries.map((entry) => {
+          const card = accessCard(entry);
+          return (
+            <li
+              key={entry.id}
+              className={
+                "flex flex-wrap items-center gap-4 rounded-2xl border bg-surface p-5 " +
+                (card.state === "allowed" ? "border-success/40" : "border-hairline")
+              }
+              data-testid={`first-run-access-${entry.id}`}
+            >
+              <div className="flex min-w-0 flex-1 flex-col gap-1">
+                <span className="text-[15px] font-semibold text-ink">{entry.title}</span>
+                <span className="text-sm leading-relaxed text-muted">
+                  {entry.why} <span className="text-faint">The system calls this {entry.system_name}.</span>
+                </span>
+                {card.note && <span className={card.noteLeads ? "text-sm text-ink" : "text-xs text-faint"}>{card.note}</span>}
+                {card.state === "reopen" && reopenBlock && (
+                  <div className="mt-2 flex flex-wrap items-center gap-3 text-sm" role="alert" data-testid="first-run-access-reopen-block">
+                    <span className="text-ink">{reopenBlock.reason}</span>
+                    {reopenBlock.can_reopen_anyway && (
+                      <Button size="sm" variant="secondary" onClick={() => act(entry, "reopen", true)}>
+                        Reopen anyway
+                      </Button>
+                    )}
+                    <button type="button" className="text-sm text-muted hover:text-ink hover:underline" onClick={() => setReopenBlock(null)}>
+                      Not now
+                    </button>
+                  </div>
+                )}
+              </div>
+              {card.state === "allowed" ? (
+                <span className="flex items-center gap-1.5 text-sm font-medium text-success" role="status">
+                  <Check />
+                  Allowed
+                </span>
+              ) : (
+                <div className="flex flex-wrap items-center gap-2">
+                  {card.secondary && (
+                    <Button variant="secondary" onClick={() => act(entry, card.secondary!.action)}>
+                      {card.secondary.label} <span className="sr-only">{entry.title}</span>
                     </Button>
                   )}
-                  <button type="button" className="text-sm text-muted hover:text-ink hover:underline" onClick={() => setReopenBlock(null)}>
-                    Not now
-                  </button>
+                  {card.primary && (
+                    <Button
+                      variant={card.primary.action === "settings" ? "secondary" : "primary"}
+                      onClick={() => act(entry, card.primary!.action)}
+                      data-testid={card.primary.action === "reopen" ? "first-run-access-reopen" : undefined}
+                    >
+                      {card.primary.label}
+                      {card.primary.action !== "reopen" && (
+                        <>
+                          {" "}
+                          <span className="sr-only">{entry.title}</span>
+                        </>
+                      )}
+                    </Button>
+                  )}
                 </div>
               )}
-            </div>
-            {entry.status === "allowed" ? (
-              <span className="flex items-center gap-1.5 text-sm font-medium text-success" role="status">
-                <Check />
-                Allowed
-              </span>
-            ) : entry.action === "reopen" ? (
-              <div className="flex flex-wrap items-center gap-2">
-                <Button variant="secondary" onClick={() => allow({ ...entry, action: "settings" })}>
-                  Open System Settings <span className="sr-only">{entry.title}</span>
-                </Button>
-                <Button variant="primary" onClick={() => reopen(false)} data-testid="first-run-access-reopen">
-                  Reopen AI Juggler
-                </Button>
-              </div>
-            ) : (
-              <Button variant={entry.action === "settings" ? "secondary" : "primary"} onClick={() => allow(entry)}>
-                {entry.action === "settings" ? "Open System Settings" : "Allow"}{" "}
-                <span className="sr-only">{entry.title}</span>
-              </Button>
-            )}
-          </li>
-        ))}
+            </li>
+          );
+        })}
       </ul>
       {error && (
         <p className="text-xs text-danger" role="alert">
