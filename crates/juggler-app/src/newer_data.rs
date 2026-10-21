@@ -529,7 +529,21 @@ enum Choice {
 
 /// The launch alert (a native dialog on every desktop platform; it runs
 /// before any window exists).
+/// `AIJ_NO_DIALOGS` set: the launch's dialogs (before any window exists)
+/// are written to stderr instead, and every question is answered Quit —
+/// for headless runs and the tests that start the real binary.
+fn no_dialogs(title: &str, text: &str) -> bool {
+    let quiet = std::env::var_os("AIJ_NO_DIALOGS").is_some();
+    if quiet {
+        eprintln!("ai-juggler: {title}\n{text}");
+    }
+    quiet
+}
+
 fn ask(title: &str, text: &str, go_back: Option<&str>) -> Choice {
+    if no_dialogs(title, text) {
+        return Choice::Quit;
+    }
     let first = go_back.unwrap_or("Show the data folder").to_owned();
     let answer = rfd::MessageDialog::new()
         .set_level(rfd::MessageLevel::Warning)
@@ -554,6 +568,9 @@ fn ask(title: &str, text: &str, go_back: Option<&str>) -> Choice {
 
 /// A plain notice with one button (before any window exists).
 fn tell(title: &str, text: &str) {
+    if no_dialogs(title, text) {
+        return;
+    }
     let _ = rfd::MessageDialog::new()
         .set_level(rfd::MessageLevel::Info)
         .set_title(title)
@@ -565,6 +582,9 @@ fn tell(title: &str, text: &str) {
 /// Says that the app can't start, and why (before any window exists).
 pub fn cannot_start(reason: &str) {
     let app_name = crate::edition::current().app_name();
+    if no_dialogs(&format!("{app_name} can't start"), reason) {
+        return;
+    }
     let _ = rfd::MessageDialog::new()
         .set_level(rfd::MessageLevel::Error)
         .set_title(format!("{app_name} can't start"))

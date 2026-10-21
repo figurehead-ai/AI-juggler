@@ -432,24 +432,59 @@ pub fn run() {
         });
 }
 
-/// Resolves and creates the data dir, exiting with a plain-language
-/// message on failure (the shell entry point's first duty).
-/// A second launch while another AI Juggler of this edition runs: a bare
-/// app (no state, no windows) whose single-instance plugin tells the
-/// running one to come forward, then exits. If the running one doesn't
-/// answer (it is closing), say so instead of opening the data.
+/// A second launch while another AI Juggler of this edition holds the
+/// data: a bare app (no state, no windows) whose single-instance plugin
+/// tells the running one to come forward, then exits. If the running one
+/// doesn't answer — it is still starting up, sitting on its launch
+/// message, closing, or stuck — this launch has become the plugin's
+/// "running instance" itself: it lets go of that at once (so the other one
+/// keeps working as the single instance once it is ready), says what to
+/// do, and quits without opening the data.
 fn hand_over_to_the_running_instance(context: tauri::Context<tauri::Wry>) -> ! {
     let built = tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|_, _, _| {}))
         .build(context);
+    if let Ok(app) = &built {
+        // On macOS the plugin binds its socket a moment later, on its own
+        // task: wait for it (up to a second), or releasing it now would
+        // miss it and leave this launch answering hand-overs while its
+        // message is up.
+        #[cfg(target_os = "macos")]
+        {
+            let socket = std::path::PathBuf::from(format!(
+                "/tmp/{}_si.sock",
+                app.config().identifier.replace(['.', '-'], "_")
+            ));
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
+            while !socket.exists() && std::time::Instant::now() < deadline {
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+        }
+        tauri_plugin_single_instance::destroy(app);
+    }
     drop(built);
+    let app = edition::current().app_name();
+    let how = if cfg!(target_os = "macos") {
+        format!(
+            "Switch to it and quit it ({app} › Quit, or ⌘Q). If it doesn't respond, force it to quit: press ⌥⌘Esc, choose {app}, then Force Quit."
+        )
+    } else if cfg!(windows) {
+        format!(
+            "Switch to it and quit it. If it doesn't respond, end it in Task Manager (Ctrl+Shift+Esc), under {app}."
+        )
+    } else {
+        format!(
+            "Switch to it and quit it. If it doesn't respond, end it from your system monitor ({app})."
+        )
+    };
     newer_data::cannot_start(&format!(
-        "Another {} is open with this data, or still closing. Open it again in a moment.",
-        edition::current().app_name()
+        "Another {app} is already open with this data and isn't answering. It may be showing a message, or be stuck.\n\n{how}\n\nThen open {app} again."
     ));
     std::process::exit(1);
 }
 
+/// Resolves and creates the data dir, exiting with a plain-language
+/// message on failure (the shell entry point's first duty).
 fn bootstrap_data_dir() -> std::path::PathBuf {
     let data_dir = state::resolve_data_dir().unwrap_or_else(|message| {
         eprintln!("ai-juggler: cannot resolve data dir: {message}");
