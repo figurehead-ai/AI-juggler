@@ -91,7 +91,9 @@ export function SettingsScreen({
   /** D-25: open on this section (a link from another screen). */
   focusSection?: string;
 }): JSX.Element {
-  const opening = SECTIONS.find((section) => section.id === focusSection)?.id;
+  // AJ-E1010: "updates" (the update prompt's Review) opens General and
+  // brings the About & updates card itself into view.
+  const opening = focusSection === "updates" ? undefined : SECTIONS.find((section) => section.id === focusSection)?.id;
   const [current, setCurrent] = useState<SectionId>(opening ?? (focusCloud ? "account" : "general"));
   const [accounts, setAccounts] = useState<AccountInfo[]>([]);
   useEffect(() => {
@@ -157,7 +159,7 @@ export function SettingsScreen({
         </header>
         <SettingsSection id="general">
           <AppearanceCard />
-          <UpdatesCard />
+          <UpdatesCard focus={focusSection === "updates"} />
           <PrivacyCard />
         </SettingsSection>
         <SettingsSection id="account">

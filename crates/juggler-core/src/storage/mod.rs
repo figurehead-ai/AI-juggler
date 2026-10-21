@@ -6,6 +6,11 @@
 //!   written by *newer* builds are rejected with
 //!   [`CoreError::SchemaTooNew`] instead of being risked.
 //! - Corrupt or foreign files degrade to [`CoreError::NotADatabase`].
+//! - AJ-E1010: before any migration touches an existing database file, a
+//!   consistent copy of it is kept beside it as `<file>.before-v<N>` (N:
+//!   the schema being left), the newest [`KEPT_PRE_MIGRATION_COPIES`]
+//!   only. The previous version can open that copy, so going back after
+//!   an update loses only what changed since. No copy, no migration.
 
 mod accounts;
 mod profiles;
@@ -44,6 +49,7 @@ pub use process_ledger::{
 };
 pub use profiles::ProfilesRepo;
 pub use projects::ProjectsRepo;
+pub use projects::worktree_repo_root;
 pub use sessions::SessionsRepo;
 pub use settings::AppSettingsRepo;
 pub use switch_graph::{SwitchGraphRepo, WorkGraph};
@@ -515,6 +521,137 @@ const MIGRATIONS: &[&str] = &[
     V22, V23, V24, V25, V26, V27, V28, V29,
 ];
 
+/// How many pre-migration copies (`<file>.before-v<N>`) are kept beside a
+/// database: the newest by schema.
+pub const KEPT_PRE_MIGRATION_COPIES: usize = 2;
+
+/// The pre-migration copies kept beside the database at `db`, newest
+/// schema first: `(schema, path)`.
+#[must_use]
+pub fn pre_migration_copies(db: &Path) -> Vec<(i64, std::path::PathBuf)> {
+    let (Some(dir), Some(name)) = (db.parent(), db.file_name()) else {
+        return Vec::new();
+    };
+    let prefix = format!("{}.before-v", name.to_string_lossy());
+    let mut copies: Vec<(i64, std::path::PathBuf)> = std::fs::read_dir(dir)
+        .into_iter()
+        .flatten()
+        .filter_map(Result::ok)
+        .filter_map(|entry| {
+            let file = entry.file_name().to_string_lossy().into_owned();
+            let schema = file.strip_prefix(&prefix)?.parse::<i64>().ok()?;
+            Some((schema, entry.path()))
+        })
+        .collect();
+    copies.sort_by_key(|copy| std::cmp::Reverse(copy.0));
+    copies
+}
+
+/// Keeps a consistent copy (SQLite's online backup API, so what is still
+/// only in the WAL is in it too) of the database about to be migrated, as
+/// `<file>.before-v<current>`: written to a temporary name, flushed to disk
+/// with its folder, owner-only, then renamed — a half-written copy never
+/// carries the name. Then prunes to the newest
+/// [`KEPT_PRE_MIGRATION_COPIES`]. On failure the temporary file is removed
+/// and nothing is migrated.
+fn keep_pre_migration_copy(conn: &Connection, db: &Path, current: i64) -> Result<(), CoreError> {
+    let name = db
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let target = db.with_file_name(format!("{name}.before-v{current}"));
+    let partial = db.with_file_name(format!("{name}.before-v{current}.partial"));
+    let _ = std::fs::remove_file(&partial);
+    let written = (|| -> Result<(), CopyFailure> {
+        {
+            let mut copy = Connection::open(&partial)?;
+            let backup = rusqlite::backup::Backup::new(conn, &mut copy)?;
+            backup.run_to_completion(256, std::time::Duration::ZERO, None)?;
+        }
+        owner_only(&partial);
+        // A writable handle: Windows flushes (FlushFileBuffers) only
+        // through one, and a read-only flush fails there.
+        std::fs::OpenOptions::new()
+            .write(true)
+            .open(&partial)?
+            .sync_all()?;
+        std::fs::rename(&partial, &target)?;
+        // The rename survives a power cut once the folder is flushed. Only
+        // Unix opens a folder as a file; Windows has no such flush.
+        #[cfg(unix)]
+        if let Some(dir) = db.parent()
+            && let Ok(folder) = std::fs::File::open(dir)
+        {
+            let _ = folder.sync_all();
+        }
+        Ok(())
+    })();
+    if let Err(failure) = written {
+        let _ = std::fs::remove_file(&partial);
+        let hint = if failure.disk_full {
+            "the disk is full — free some space, then open AI Juggler again"
+        } else {
+            "nothing was changed"
+        };
+        return Err(CoreError::Io(format!(
+            "couldn't keep a copy of the data before upgrading it ({}); {hint}{}",
+            failure.message,
+            if failure.disk_full {
+                "; nothing was changed"
+            } else {
+                ""
+            }
+        )));
+    }
+    for (_, stale) in pre_migration_copies(db)
+        .into_iter()
+        .skip(KEPT_PRE_MIGRATION_COPIES)
+    {
+        let _ = std::fs::remove_file(stale);
+    }
+    Ok(())
+}
+
+/// Why a pre-migration copy couldn't be written.
+struct CopyFailure {
+    message: String,
+    disk_full: bool,
+}
+
+impl From<rusqlite::Error> for CopyFailure {
+    fn from(error: rusqlite::Error) -> Self {
+        let disk_full = matches!(
+            &error,
+            rusqlite::Error::SqliteFailure(failure, _) if failure.code == rusqlite::ErrorCode::DiskFull
+        );
+        Self {
+            message: error.to_string(),
+            disk_full,
+        }
+    }
+}
+
+impl From<std::io::Error> for CopyFailure {
+    fn from(error: std::io::Error) -> Self {
+        Self {
+            disk_full: error.kind() == std::io::ErrorKind::StorageFull,
+            message: error.to_string(),
+        }
+    }
+}
+
+/// Owner-only (`0600`) on Unix: AI Juggler's data and its copies are no one
+/// else's to read. Best effort; elsewhere a no-op.
+fn owner_only(path: &Path) {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        let _ = std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600));
+    }
+    #[cfg(not(unix))]
+    let _ = path;
+}
+
 /// An opened AI Juggler database with typed repositories.
 #[derive(Debug)]
 pub struct Storage {
@@ -536,7 +673,8 @@ impl Storage {
             path: path.to_path_buf(),
             source: e,
         })?;
-        Self::initialize(conn, Some(path.to_path_buf()))
+        owner_only(path);
+        Self::initialize(conn, Some(path))
     }
 
     /// Opens an in-memory database (tests and ephemeral indexes).
@@ -550,7 +688,7 @@ impl Storage {
     }
 
     /// Applies connection pragmas and runs migrations.
-    fn initialize(conn: Connection, path: Option<std::path::PathBuf>) -> Result<Self, CoreError> {
+    fn initialize(conn: Connection, path: Option<&Path>) -> Result<Self, CoreError> {
         // Everything in this phase touches the file for the first time, so
         // any failure here means "not a database" for on-disk paths.
         let current: i64 = conn
@@ -559,9 +697,19 @@ impl Storage {
             .and_then(|()| conn.pragma_update(None, "foreign_keys", "ON"))
             .and_then(|()| conn.query_row("PRAGMA user_version", [], |row| row.get(0)))
             .map_err(|e| match path {
-                Some(p) => CoreError::NotADatabase { path: p, source: e },
+                Some(p) => CoreError::NotADatabase {
+                    path: p.to_path_buf(),
+                    source: e,
+                },
                 None => CoreError::Storage(e),
             })?;
+        let supported = i64::try_from(MIGRATIONS.len()).unwrap_or(i64::MAX);
+        if let Some(path) = path
+            && current > 0
+            && current < supported
+        {
+            keep_pre_migration_copy(&conn, path, current)?;
+        }
         let mut storage = Self {
             conn,
             migrated: false,
@@ -724,6 +872,24 @@ impl Storage {
             None::<fn(rusqlite::backup::Progress)>,
         )?;
         self.conn.pragma_update(None, "foreign_keys", "ON")?;
+        Ok(())
+    }
+
+    /// AJ-E1010: going back to an earlier version — replaces this
+    /// database's contents with the older database at `path` **as it is**
+    /// (no migration; its schema comes with it), through SQLite's online
+    /// backup API. Only for handing the data to an older build: the caller
+    /// must stop using this storage at once (the app quits).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn replace_with_older(&mut self, path: &Path) -> Result<(), CoreError> {
+        self.conn.restore(
+            rusqlite::MAIN_DB,
+            path,
+            None::<fn(rusqlite::backup::Progress)>,
+        )?;
         Ok(())
     }
 

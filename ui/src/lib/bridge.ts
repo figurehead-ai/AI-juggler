@@ -32,6 +32,7 @@ import type { LastBackupInfo } from "../types/generated/LastBackupInfo";
 import type { VaultStatusInfo } from "../types/generated/VaultStatusInfo";
 import type { RecoveryCodeInfo } from "../types/generated/RecoveryCodeInfo";
 import type { UpdateStatusInfo } from "../types/generated/UpdateStatusInfo";
+import type { GoingBackInfo } from "../types/generated/GoingBackInfo";
 import type { AnnouncedInfo } from "../types/generated/AnnouncedInfo";
 import type { BackupExportInfo } from "../types/generated/BackupExportInfo";
 import type { RestorePlanInfo } from "../types/generated/RestorePlanInfo";
@@ -121,6 +122,7 @@ export type {
   VaultStatusInfo,
   RecoveryCodeInfo,
   UpdateStatusInfo,
+  GoingBackInfo,
   AnnouncedInfo,
   BackupExportInfo,
   RestorePlanInfo,
@@ -430,7 +432,7 @@ const MOCK_PROJECTS: ProjectInfo[] = seeded.projects ?? [
     active_instance: MOCK_SESSIONS[0],
     accounts_used: ["Work Max"],
     instance_count: 1,
-    history_sessions: 0,
+    history_sessions: 0, history_last_used_ms: null, repo: null,
     missing: false,
   },
   {
@@ -441,7 +443,7 @@ const MOCK_PROJECTS: ProjectInfo[] = seeded.projects ?? [
     active_instance: null,
     accounts_used: ["Personal", "Work Max"],
     instance_count: 2,
-    history_sessions: 14, missing: false,
+    history_sessions: 14, history_last_used_ms: null, repo: null, missing: false,
   },
 ];
 
@@ -4487,6 +4489,9 @@ const mockUpdateStatus = (): UpdateStatusInfo =>
     available: null,
     progress: null,
     error: null,
+    error_kind: null,
+    error_detail: null,
+    restart_wait: null,
     backup_path: null,
     checked_at_ms: null,
   };
@@ -4550,7 +4555,8 @@ export async function updateInstall(): Promise<UpdateStatusInfo> {
   return invoke<UpdateStatusInfo>("update_install");
 }
 
-/** Restarts into the installed version (refused while Instances run). */
+/** Restarts into the installed version (refused while it isn't safe: a
+ * session running, a switch in flight, a bring-in under way). */
 export async function updateRestart(): Promise<void> {
   if (!hasBackend) {
     updateCall("restart");
@@ -4559,6 +4565,28 @@ export async function updateRestart(): Promise<void> {
     return;
   }
   return invoke<void>("update_restart");
+}
+
+/** AJ-E1010: the earlier versions this install can go back to (the
+ * copies kept before upgrading the data). */
+export async function goingBackOptions(): Promise<GoingBackInfo[]> {
+  if (!hasBackend) {
+    return [...((window as unknown as { __AIJ_GOING_BACK__?: GoingBackInfo[] }).__AIJ_GOING_BACK__ ?? [])];
+  }
+  return invoke<GoingBackInfo[]>("going_back_options");
+}
+
+/** AJ-E1010: puts the data back as the version reading `schema` left it,
+ * keeps the data as it is now beside it, and quits. Refused while a
+ * switch, a bring-in or a session would be cut short. */
+export async function goingBackPrepare(schema: number): Promise<void> {
+  if (!hasBackend) {
+    updateCall(`going-back:${schema}`);
+    const error = (window as unknown as { __AIJ_GOING_BACK_ERROR__?: string }).__AIJ_GOING_BACK_ERROR__;
+    if (error) throw new Error(error);
+    return;
+  }
+  return invoke<void>("going_back_prepare", { schema });
 }
 
 /** Update status changes pushed by the backend. */

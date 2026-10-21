@@ -32,7 +32,7 @@ const project = (root: string, used: string[]): ProjectInfo =>
     name: root.split("/").pop() ?? root,
     last_activity_ms: 1000,
     accounts_used: used,
-    history_sessions: 2,
+    history_sessions: 2, history_last_used_ms: null, repo: null,
     active_instance: null,
     gone: false,
   }) as unknown as ProjectInfo;

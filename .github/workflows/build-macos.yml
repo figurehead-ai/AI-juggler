@@ -96,7 +96,9 @@ jobs:
           if [ ! -f "docs/releases/${VERSION}.md" ]; then
             python3 scripts/nightly_notes.py "$VERSION" "$PREVIOUS" "$REF"
           fi
-          ./scripts/release_notes_check.sh "$VERSION"
+          # A database change since the previous nightly needs a downgrade
+          # note (nightly_notes.py writes it; hand-written notes must too).
+          ./scripts/release_notes_check.sh "$VERSION" ${PREVIOUS:+"$PREVIOUS"}
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
@@ -231,7 +233,9 @@ jobs:
           if [ ! -f "docs/releases/${VERSION}.md" ]; then
             python3 scripts/nightly_notes.py "$VERSION" "$PREVIOUS" "$REF"
           fi
-          ./scripts/release_notes_check.sh "$VERSION"
+          # A database change since the previous nightly needs a downgrade
+          # note (nightly_notes.py writes it; hand-written notes must too).
+          ./scripts/release_notes_check.sh "$VERSION" ${PREVIOUS:+"$PREVIOUS"}
 
       - name: Assemble the update feeds and checksums
         run: |

@@ -743,19 +743,7 @@ pub fn backup_restore_impl(
             ));
         }
     }
-    let manifest: BackupManifestInfo = {
-        let file = std::fs::File::open(path).map_err(|e| refuse(path, e))?;
-        let mut archive = tar::Archive::new(flate2::read::GzDecoder::new(file));
-        let mut first = archive
-            .entries()
-            .map_err(|e| refuse(path, e))?
-            .next()
-            .ok_or_else(|| refuse(path, "it is empty"))?
-            .map_err(|e| refuse(path, e))?;
-        let mut raw = Vec::new();
-        first.read_to_end(&mut raw).map_err(|e| refuse(path, e))?;
-        serde_json::from_slice(&raw).map_err(|e| refuse(path, e))?
-    };
+    let manifest = read_manifest(path)?;
     let stamp = Timestamp::now().millis();
     let data = &state.data_dir;
     let mut kept_before = Vec::new();
@@ -820,6 +808,27 @@ pub fn backup_restore_impl(
         kept_before,
         next_steps,
     })
+}
+
+/// Reads only a backup's manifest (its first entry) — what it holds,
+/// which version and schema wrote it — without checking the rest.
+///
+/// # Errors
+///
+/// Returns [`AppError::Validation`] naming the file when it can't be read
+/// or has no manifest first.
+pub fn read_manifest(path: &Path) -> AppResult<BackupManifestInfo> {
+    let file = std::fs::File::open(path).map_err(|e| refuse(path, e))?;
+    let mut archive = tar::Archive::new(flate2::read::GzDecoder::new(file));
+    let mut first = archive
+        .entries()
+        .map_err(|e| refuse(path, e))?
+        .next()
+        .ok_or_else(|| refuse(path, "it is empty"))?
+        .map_err(|e| refuse(path, e))?;
+    let mut raw = Vec::new();
+    first.read_to_end(&mut raw).map_err(|e| refuse(path, e))?;
+    serde_json::from_slice(&raw).map_err(|e| refuse(path, e))
 }
 
 /// Puts back what belongs to this Mac, not to the backup: its process

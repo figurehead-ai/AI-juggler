@@ -25,12 +25,21 @@ FORBIDDEN = re.compile(r"crates/|ui/src|docs/|\.rs\b|\.tsx?\b")
 
 def clean(text: str) -> str:
     text = re.sub(r"\s*\(#\d+\)", "", text)  # (#41)
+    # "review of #82", "reviews of #63, #70, #72": PR numbers anywhere.
+    text = re.sub(r"\s*(?:\bof\s+)?#\d+(?:\s*(?:,|and)\s*#\d+)*", "", text)
     text = re.sub(r"\bAJ-E\d+[\w/,-]*\s*", "", text)  # task IDs
     text = re.sub(r"\s{2,}", " ", text).strip(" —-;,")
     return text[:1].upper() + text[1:] if text else text
 
 
-def notes(subjects: list[str], date: str) -> str:
+DOWNGRADE = (
+    "- **Going back to an earlier nightly** after this one: this build upgrades AI Juggler "
+    "Nightly's data, which earlier builds can't open. Settings › About & updates › Go back to "
+    "an earlier version puts the data from before the upgrade back."
+)
+
+
+def notes(subjects: list[str], date: str, schema_changed: bool = False) -> str:
     grouped: dict[str, list[str]] = {heading: [] for heading in SECTIONS.values()}
     for subject in subjects:
         match = SUBJECT.match(subject.strip())
@@ -46,6 +55,8 @@ def notes(subjects: list[str], date: str) -> str:
     for heading in ("## New", "## Improved", "## Fixed"):
         if grouped[heading]:
             out += ["", heading, *grouped[heading]]
+    if schema_changed:
+        out += ["", "## Known issues", DOWNGRADE]
     return "\n".join(out) + "\n"
 
 
@@ -58,6 +69,8 @@ def selftest() -> int:
             "docs: maintainer rulings (#40)",
             "build(deps): bring every dependency current (#41)",
             "fix: touch crates/juggler-app/src/lib.rs",
+            "fix(e10/AJ-E1010): review of #82 — the launch dialog on every platform",
+            "fix(e10/D-25): reviews of #63, #70, #72 — focus, keys after A",
         ],
         "2026-10-20",
     )
@@ -65,10 +78,15 @@ def selftest() -> int:
     assert "## New\n- Accessibility gate — axe on every gallery state" in text, text
     assert "## Improved\n- Process rows never blink" in text, text
     assert "## Fixed\n- The wizard's Esc returns focus to the row" in text, text
-    assert "AJ-E" not in text and "#4" not in text and "crates/" not in text, text
+    assert "AJ-E" not in text and not re.search(r"#\d", text) and "crates/" not in text, text
+    assert "- Review — the launch dialog on every platform" in text, text
+    assert "- Reviews — focus, keys after A" in text, text
     assert "maintainer rulings" not in text and "dependency" not in text, text
     assert text.index("## New") < text.index("## Improved") < text.index("## Fixed")
     assert "No user-facing changes" in notes(["docs: x (#1)"], "2026-10-20")
+    changed = notes(["feat: x (#1)"], "2026-10-20", schema_changed=True)
+    assert changed.rstrip().endswith(DOWNGRADE) and "## Known issues" in changed, changed
+    assert "## Known issues" not in notes(["feat: x (#1)"], "2026-10-20")
     print("nightly-notes selftest: OK")
     return 0
 
@@ -90,7 +108,12 @@ def main() -> int:
     ).stdout.strip()
     target = ROOT / "docs/releases" / f"{version}.md"
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(notes(log, date))
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from downgrade_note import schema_at  # noqa: E402
+
+    before, now = (schema_at(start), schema_at(end)) if start else (None, None)
+    changed = before is not None and now is not None and now > before
+    target.write_text(notes(log, date, schema_changed=changed))
     print(target.relative_to(ROOT))
     return 0
 

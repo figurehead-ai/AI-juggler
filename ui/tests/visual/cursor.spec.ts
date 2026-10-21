@@ -115,3 +115,53 @@ test("every clickable control shows the hand — Home's triage and the tool choi
   await expect(page.getByTestId("provider-cards")).toBeVisible();
   await expectHands(page, "Add account's tool choice");
 });
+
+// AJ-E1010: every control of the update UI — About & updates in each
+// state with buttons (available, failed with Details, a failed check,
+// ready to restart) and both prompts on Home — shows the hand.
+test("every clickable control shows the hand — the update UI", async ({ page }) => {
+  const base = {
+    current_version: "0.1.0", channel: "beta", edition: "main", app_name: "AI Juggler", channels: ["stable", "beta"],
+    configured: true, check_on_launch: true, state: "idle", available: null, progress: null, error: null,
+    error_kind: null, error_detail: null, restart_wait: null, backup_path: null, checked_at_ms: null,
+  };
+  const available = { version: "0.2.0", date_ms: null, notes: "## New\n- **History**: find any past session." };
+  const states: Record<string, Record<string, unknown>> = {
+    available: { ...base, state: "available", available },
+    failed: {
+      ...base, state: "failed", available, error: "Not installed. AI Juggler 0.1.0 is untouched.",
+      error_kind: "signature", error_detail: "Invalid signature",
+    },
+    "check-failed": { ...base, state: "failed", error: "Couldn't reach the update server.", error_kind: "network", error_detail: "x" },
+    "restart-ready": { ...base, state: "installed", available, progress: 100 },
+  };
+  for (const [name, status] of Object.entries(states)) {
+    await seed(page, allStatuses, {
+      __AIJ_UPDATE_STATUS__: status,
+      __AIJ_GOING_BACK__: [{ schema: 27, version: "0.0.7", kept_at_ms: T0 - 86_400_000 }],
+    });
+    const prompt = name === "available" ? "update-notice" : name === "restart-ready" ? "update-ready" : null;
+    if (prompt) {
+      await expect(page.getByTestId(prompt)).toBeVisible();
+      await expectHands(page, `Home with the update ${prompt}`);
+    }
+    await page.getByRole("navigation", { name: "Main" }).getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByTestId("settings-updates").evaluate((card) => card.scrollIntoView({ block: "start" }));
+    await expect(page.getByTestId("beta-label")).toBeVisible();
+    if (name === "available") {
+      // Go back to an earlier version: the disclosure, the choice, the confirm.
+      await page.getByText("Go back to an earlier version", { exact: true }).click();
+      await page.getByTestId("going-back-27").click();
+      await expect(page.getByTestId("going-back-confirm")).toBeVisible();
+    }
+    await expectHands(page, `About & updates — ${name}`);
+    const pointer = await page.evaluate(() => {
+      const card = document.querySelector("[data-testid='settings-updates']")!;
+      return [...card.querySelectorAll<HTMLElement>("button:not(:disabled), summary, label:has(> input)")].map(
+        (el) => `${el.textContent?.trim().slice(0, 30)}: ${getComputedStyle(el).cursor}`,
+      );
+    });
+    expect(pointer.length, `${name}: the card has controls`).toBeGreaterThan(2);
+    expect(pointer.filter((line) => !line.endsWith("pointer")), name).toEqual([]);
+  }
+});
