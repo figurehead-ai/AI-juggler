@@ -101,6 +101,21 @@ A read changes nothing a person or a later answer would see. Some reads do, on t
 - **`this_mac`, `machine_advice`:** advance the in-memory overload-alert state. Delivering an alert (`machine_alerts_take`) is a write and isn't served.
 - **`quota_display`:** may add one usage-statistics count. It records only if usage statistics are on.
 
+### What the Dev build does on its own
+
+The bridge adds a way in. It doesn't stop the Dev build's normal background work, which runs while bridged exactly as in any Dev run:
+
+- the usage ingest pipeline;
+- the 2 s processes tick, and the 5 s and 30 s resource and quota ticks;
+- the attention heuristics;
+- the transcript search index.
+
+They read the vendor transcripts and write only AI Juggler Dev's own data folder.
+
+The cleanup tiers act only on AI Juggler's own spawn ledger: the recorded descendants of sessions *it* launched, for accounts opted in to cleanup. A fresh Dev data folder has an empty ledger and no opted-in accounts, so the tiers can't signal anything there. The bridge can't launch a session or change an opt-in.
+
+`environment_scan` (classed `Read`, not served) runs no vendor CLI: `tests/environment_scan_no_cli.rs` holds that, with stand-ins first on `PATH`. On macOS it asks the Keychain whether sign-in items exist (`security find-generic-password`, never `-w`).
+
 ### Left out on purpose
 
 These commands look like reads, but each has an effect a read must not have.
