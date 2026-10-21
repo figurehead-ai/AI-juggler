@@ -3469,8 +3469,10 @@ for (const theme of THEMES) {
       await page.getByTestId("add-account").click();
       const cards = page.getByTestId("provider-cards");
       await expect(cards).toBeVisible();
-      await expect(cards).toContainText("Verified against 2.0.x, 2.1.x");
-      await expect(cards).toContainText("Unverified — features may drift");
+      // 0.0.11 walk, Q4: plain words; versions live in the tool's view.
+      await expect(cards).toContainText("Installed");
+      await expect(cards).not.toContainText("Verified against");
+      await expect(cards).not.toContainText("Terminal");
       await expect(cards).toContainText("one session at a time");
       await expect(cards).toContainText("Install Gemini CLI →");
       await page.screenshot({
