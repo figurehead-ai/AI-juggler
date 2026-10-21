@@ -491,6 +491,30 @@
     tool view (what's installed, its accounts' quota) opens from the tool
     chip in a session's or an account's header.
 
+### D-27 No project-level outage failover; switching by hand stays the way — SETTLED (2026-10-20)
+
+- **Question** (AJ-E1008): when a provider is down, does moving a whole
+  project to another provider need its own flow, or a detector?
+- **Evidence** (`docs/qa/evidence/AJ-E1008/outage-log.md`, the status
+  pages over 2026-08-24 to 2026-10-20):
+  - Claude Code and Codex were each down as a whole about 3 times in 8
+    weeks, for 1 to 2½ hours where the window is stated, and never on
+    the same day as each other.
+  - Most incidents were one model erroring (9 on the Claude side),
+    which `/model` fixes inside the tool.
+  - Moving a session by hand is 5 clicks, with its fidelity and what
+    doesn't carry shown first.
+  - No user has reported an outage, or that moving sessions one by one
+    hurt.
+- **Decision**: no project-level failover and no outage detector
+  (AJ-E1008 Req.3 stands: no "outage" from a failed request). The
+  supported path is the per-session switch and Switch back, written up
+  in `docs/guide/when-a-provider-is-down.md`.
+- **Reopen**: the outage log stays open through beta. Three
+  user-reported outages where moving sessions one by one was the
+  problem open a new task: a project-level switch offer reusing the E2
+  machinery, with per-session fidelity badges (D-11).
+
 ## Unresolved (in discussion order)
 
 - None. D-01..D-15 were marked Final on maintainer instruction
