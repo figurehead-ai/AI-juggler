@@ -43,7 +43,18 @@ promised: stuck thresholds, terminal font and scrollback). Status:
 
 ## Gates
 
-GATES_PLACEHOLDER
+All 2026-10-21, on release/0.1. Two batches: b1 is the AJ-E1504/E1505
+head, b3 the AJ-E1525/E2011/E1524 head that carries it.
+
+| Gate | Result | Verdict |
+|---|---|---|
+| `just verify` | exit 0 on the b3 head. On b1 it failed in `tests/ports.rs`: an earlier killed run had leaked its http.server fixtures onto :5173. The test now reaps its listeners however it ends. `processes` and `fleet_switch` time out under machine load (load average over 30) and pass alone, 3 of 3. | PASS |
+| `cargo deny check` | advisories, bans, licenses, sources ok | PASS |
+| vitest | 592/592 | PASS |
+| Playwright, full suite | 932 passed (b1); 940 passed (b3) | PASS |
+| `scripts/a11y_gate.sh` | 698 tests; 872 gallery states with 0 critical, serious, moderate or minor (b1 and b3) | PASS |
+| `scripts/visual_gate.sh --update` | 185 passed (b1), 193 passed (b3). Every changed baseline is explained in the release PR's "## Visual baselines". | PASS |
+| `scripts/evidence_index.sh` | regenerated; evidence-check OK | PASS |
 
 ## Walked by hand
 
