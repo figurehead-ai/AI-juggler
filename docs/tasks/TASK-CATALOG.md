@@ -156,5 +156,28 @@
 | AJ-E1408 | Runtime overload alerts | E14-machine-health.md | P0 | M | AJ-E1401, AJ-E1403 |
 | AJ-E1409 | Recommendations from real data | E14-machine-health.md | P1 | S | AJ-E1406 |
 | AJ-E1410 | Budget proof and the M2 resource-manager gate | E14-machine-health.md | P1 | S | AJ-E1401..AJ-E1409 |
-Total: 154 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+| AJ-E1501 | Manage accounts: rename, remove, set default | E15-spec-gaps.md | P0 | M | AJ-E1024 |
+| AJ-E1502 | Manage sessions and projects | E15-spec-gaps.md | P0 | M | AJ-E1014 |
+| AJ-E1503 | One feedback system: toasts with undo, a quit warning, loading placeholders | E15-spec-gaps.md | P0 | M | — |
+| AJ-E1504 | Keys: a cheat sheet, inspector collapse, go-to keys | E15-spec-gaps.md | P1 | S | — |
+| AJ-E1505 | Settings the SPEC promised: stuck thresholds, terminal font and scrollback | E15-spec-gaps.md | P1 | S | AJ-E405 |
+| AJ-E1506 | Terminal tools | E15-spec-gaps.md | P0 | M | — |
+| AJ-E1507 | Rules and MCP sync across tools, with a diff preview | E15-spec-gaps.md | P0 | L | AJ-E202 |
+| AJ-E1508 | Copy shared settings into a new account | E15-spec-gaps.md | P1 | M | AJ-E1507, AJ-E1022 |
+| AJ-E1509 | Auto-restart a crashed session (opt-in) | E15-spec-gaps.md | P1 | S | AJ-E505 |
+| AJ-E1510 | System notifications | E15-spec-gaps.md | P1 | M | AJ-E611, AJ-E1408 |
+| AJ-E1511 | Open a context pack in any tool | E15-spec-gaps.md | P1 | M | AJ-E202, AJ-E208 |
+| AJ-E1512 | Sessions left and a burn-down chart | E15-spec-gaps.md | P1 | M | AJ-E608 |
+| AJ-E1513 | Prepare the pack before quota runs out | E15-spec-gaps.md | P2 | S | AJ-E611, AJ-E205 |
+| AJ-E1514 | Budget caps | E15-spec-gaps.md | P2 | M | AJ-E609 |
+| AJ-E1515 | Fleet: start a session on another Mac, and usage per machine | E15-spec-gaps.md | P1 | M | AJ-E705 |
+| AJ-E1516 | Crash report sender and native crash dumps | E15-spec-gaps.md | P2 | M | AJ-E1107 |
+| AJ-E1517 | Export diagnostics | E15-spec-gaps.md | P1 | S | — |
+| AJ-E1518 | A trust page and vendor terms on Add account | E15-spec-gaps.md | P1 | S | — |
+| AJ-E1519 | Migration guides and importers | E15-spec-gaps.md | P2 | M | AJ-E307 |
+| AJ-E1520 | Subtask count and the agent subtask tree | E15-spec-gaps.md | P2 | M | AJ-E401 |
+| AJ-E1521 | Robustness: a database busy timeout and an adapter conformance kit | E15-spec-gaps.md | P1 | S | — |
+| AJ-E1522 | Quality debt | E15-spec-gaps.md | P1 | M | AJ-E803 |
+| AJ-E1523 | North-star metric: weekly juggling loops completed | E15-spec-gaps.md | P2 | S | AJ-E1103 |
+Total: 177 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.
