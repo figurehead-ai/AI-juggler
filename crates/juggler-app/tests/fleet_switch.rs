@@ -33,7 +33,10 @@ fn claude_stub(dir: &Path) -> PathBuf {
     let path = dir.join("claude-stub");
     std::fs::write(
         &path,
-        "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$CLAUDE_CONFIG_DIR/last-args\"\n",
+        // Written whole, then renamed into place: `last_args` never reads
+        // a file the shell has created but not yet filled.
+        "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$CLAUDE_CONFIG_DIR/last-args.tmp\" && \
+         /bin/mv -f \"$CLAUDE_CONFIG_DIR/last-args.tmp\" \"$CLAUDE_CONFIG_DIR/last-args\"\n",
     )
     .unwrap();
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();

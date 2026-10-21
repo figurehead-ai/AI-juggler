@@ -28,6 +28,9 @@ use juggler_core::model::SessionId;
 use juggler_supervisor::LiveStatsCollector;
 use juggler_supervisor::tree::LedgerStore as _;
 
+#[path = "support/dev_server.rs"]
+mod dev_server;
+
 fn now_ms() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -243,10 +246,11 @@ fn vite_like_helper_frees_its_port_on_term() {
     let state = app_state(dir.path());
     let session = SessionId::new("sess-vite");
     let port = free_port();
+    let _servers = dev_server::Guard::new(&[port]);
     let pid = spawn_root(
         &state,
         &session,
-        &format!("python3 -m http.server {port} --bind 127.0.0.1 & wait"),
+        &format!("{} & wait", dev_server::shell(port)),
         dir.path(),
     );
     let _ = pid;
@@ -396,11 +400,8 @@ fn setsid_escapee_is_reported_still_holding_then_reoffered() {
     let state = app_state(dir.path());
     let session = SessionId::new("sess-escapee");
     let port = free_port();
-    let escaper = format!(
-        "python3 -c 'import os; os.setsid(); import http.server; \
-         s = http.server.HTTPServer((\"127.0.0.1\", {port}), \
-         http.server.BaseHTTPRequestHandler); s.serve_forever()'"
-    );
+    let _servers = dev_server::Guard::new(&[port]);
+    let escaper = dev_server::shell_setsid(port);
     let script = format!("{escaper} & sleep 300");
     let root_pid = spawn_root(&state, &session, &script, dir.path());
 
