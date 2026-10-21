@@ -17,7 +17,7 @@ export type RunwayLine = {
 
 /** One window, in words (the one rule: `lib/quotaWindow`). A missing
  * percentage is never "% left" or a filled bar (the 0.0.12 report). */
-export function windowLine(label: string, window: WindowDisplay | undefined, omitted?: string): RunwayLine {
+export function windowLine(label: string, window: WindowDisplay | null | undefined, omitted?: string | null): RunwayLine {
   const view = windowView(window, omitted);
   return { label, left: view.left, words: view.words, tone: view.tone };
 }
@@ -55,7 +55,7 @@ export function creditsWords(display: QuotaDisplayData | undefined): string | nu
 /** "At this pace it runs out in about 40 min" — only when it will. */
 export function paceWords(display: QuotaDisplayData | undefined): string | null {
   const forecast = display?.forecast;
-  if (!forecast || forecast.state !== "exhausts" || forecast.tte_min === undefined) return null;
+  if (!forecast || forecast.state !== "exhausts" || forecast.tte_min == null) return null;
   const minutes = Math.round(forecast.tte_min);
   const span = minutes >= 90 ? `${Math.round(minutes / 60)} h` : `${minutes} min`;
   return `At this pace it runs out in about ${span}`;

@@ -8,17 +8,18 @@ import { afterEach, describe, expect, it } from "vitest";
 import { AccountRunway, paceWords, runwayLines, windowLine } from "./AccountRunway";
 import { activityWords, bestForNewWork, placementWords } from "../screens/Profiles";
 import type { AccountInfo, InstanceInfo, QuotaDisplayData } from "../lib/bridge";
+import { forecastDisplay, quotaDisplay, windowDisplay } from "../lib/wire";
 
 afterEach(cleanup);
 
 const NOW = 1_728_800_000_000;
 const display = (five: number | null, week: number | null, extra: Partial<QuotaDisplayData> = {}): QuotaDisplayData =>
   ({
-    account: "work",
-    five_hour: five === null ? undefined : { state: "tracking", percentage: five, burned_tokens: 0 },
-    weekly: week === null ? undefined : { state: "tracking", percentage: week, burned_tokens: 0 },
+    ...quotaDisplay("work"),
+    five_hour: five === null ? null : windowDisplay("tracking", { percentage: five }),
+    weekly: week === null ? null : windowDisplay("tracking", { percentage: week }),
     renewal: { state: "none", label: "", entered_by_user: false },
-    forecast: { state: "learning", badge: "" },
+    forecast: forecastDisplay("learning", { badge: "" }),
     ...extra,
   }) as QuotaDisplayData;
 const session = (id: string, status: string, account = "work", used: number | null = null): InstanceInfo =>
@@ -33,10 +34,10 @@ const session = (id: string, status: string, account = "work", used: number | nu
 
 describe("D-25 runway words", () => {
   it("a measured window says what's left; low and used up are named", () => {
-    expect(windowLine("5-hour window", { state: "tracking", percentage: 42, burned_tokens: 0 })).toMatchObject({ left: 58, words: "58% left", tone: "ok" });
-    expect(windowLine("This week", { state: "tracking", percentage: 80, burned_tokens: 0 }).tone).toBe("low");
-    expect(windowLine("This week", { state: "exhausted", percentage: 100, burned_tokens: 0 })).toMatchObject({ left: 0, tone: "out" });
-    expect(windowLine("x", { state: "learning", burned_tokens: 0 }).words).toBe("Measuring — shows after a little use");
+    expect(windowLine("5-hour window", windowDisplay("tracking", { percentage: 42 }))).toMatchObject({ left: 58, words: "58% left", tone: "ok" });
+    expect(windowLine("This week", windowDisplay("tracking", { percentage: 80 })).tone).toBe("low");
+    expect(windowLine("This week", windowDisplay("exhausted", { percentage: 100 }))).toMatchObject({ left: 0, tone: "out" });
+    expect(windowLine("x", windowDisplay("learning")).words).toBe("Measuring — shows after a little use");
     expect(windowLine("x", undefined).words).toBe("Not measured yet");
   });
 
@@ -50,7 +51,7 @@ describe("D-25 runway words", () => {
 
   it("the pace line shows only when the window will run out", () => {
     expect(paceWords(display(50, 10))).toBeNull();
-    expect(paceWords(display(50, 10, { forecast: { state: "exhausts", tte_min: 40, badge: "computed" } }))).toBe("At this pace it runs out in about 40 min");
+    expect(paceWords(display(50, 10, { forecast: forecastDisplay("exhausts", { tte_min: 40, badge: "computed" }) }))).toBe("At this pace it runs out in about 40 min");
   });
 
   it("renders both windows", () => {

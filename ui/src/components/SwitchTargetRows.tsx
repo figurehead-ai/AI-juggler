@@ -99,7 +99,7 @@ export function SwitchTargetRows({
         className="flex flex-col gap-1.5"
       >
         {targets.map((target) => {
-          const filtered = target.filtered_reason !== undefined && target.filtered_reason !== null;
+          const filtered = target.filtered_reason != null;
           return (
             <li key={target.recipe_id}>
               <button
@@ -124,7 +124,7 @@ export function SwitchTargetRows({
                       Suggested
                     </span>
                   )}
-                  {target.tte_min !== undefined && !filtered && (
+                  {target.tte_min != null && !filtered && (
                     <span className="text-[10px] text-muted">
                       exhausts ≈{Math.round(target.tte_min)} min
                     </span>

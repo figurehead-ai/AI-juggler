@@ -33,6 +33,9 @@ const target = (account: string, label: string, extra: Partial<SwitchTargetData>
   top_factors: [],
   factors: [],
   confidence: "computed",
+  score: null,
+  filtered_reason: null,
+  tte_min: null,
   suggested: false,
   ...extra,
 });

@@ -54,7 +54,7 @@ export function RankedRows({
         className="flex flex-col gap-1.5"
       >
         {rows.map((row) => {
-          const filtered = row.filtered_reason !== undefined;
+          const filtered = row.filtered_reason != null;
           return (
             <li key={row.account}>
               <button
@@ -77,7 +77,7 @@ export function RankedRows({
                       Suggested
                     </span>
                   )}
-                  {row.tte_min !== undefined && (
+                  {row.tte_min != null && (
                     <span className="text-[10px] text-muted">
                       exhausts ≈{Math.round(row.tte_min)} min
                     </span>

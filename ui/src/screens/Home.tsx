@@ -141,7 +141,7 @@ function accountRunway(display: QuotaDisplayData | undefined): {
   words: string;
   resets: string | null;
 } {
-  const windows: Array<[string, WindowDisplay | undefined]> = [
+  const windows: Array<[string, WindowDisplay | null | undefined]> = [
     ["5-hour window", display?.five_hour],
     ["week", display?.weekly],
   ];

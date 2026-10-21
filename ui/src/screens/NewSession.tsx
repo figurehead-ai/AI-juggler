@@ -173,7 +173,7 @@ export function NewSessionModal({
   const verdictByAccount = useMemo(() => {
     const map = new Map<string, { admission?: "ok" | "tight" | "no"; unknown: boolean }>();
     for (const row of ranked) {
-      map.set(row.account, { admission: row.admission, unknown: row.headroom_unknown });
+      map.set(row.account, { admission: row.admission ?? undefined, unknown: row.headroom_unknown });
     }
     return map;
   }, [ranked]);

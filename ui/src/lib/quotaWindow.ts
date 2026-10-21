@@ -34,8 +34,8 @@ export function resetClock(ms: number): string {
 }
 
 /** The reset in words, labelled with where it came from. */
-export function resetWords(window: WindowDisplay | undefined): string | null {
-  if (!window?.resets_at_ms) return null;
+export function resetWords(window: WindowDisplay | null | undefined): string | null {
+  if (window?.resets_at_ms == null) return null;
   const at = resetClock(window.resets_at_ms);
   return window.reset_basis === "estimated" ? `resets about ${at}, estimated` : `resets ${at}`;
 }
@@ -48,9 +48,9 @@ export function tokenWords(tokens: number): string {
 }
 
 /** True when the window carries a real percentage (never a default). */
-export function measured(window: WindowDisplay | undefined): window is WindowDisplay & { percentage: number } {
+export function measured(window: WindowDisplay | null | undefined): window is WindowDisplay & { percentage: number } {
   return (
-    window !== undefined &&
+    window != null &&
     typeof window.percentage === "number" &&
     Number.isFinite(window.percentage) &&
     window.state !== "unknown" &&
@@ -61,7 +61,7 @@ export function measured(window: WindowDisplay | undefined): window is WindowDis
 
 /** One window, in words. `omitted` is the backend's reason when this
  * plan has no such window. */
-export function windowView(window: WindowDisplay | undefined, omitted?: string): WindowView {
+export function windowView(window: WindowDisplay | null | undefined, omitted?: string | null): WindowView {
   if (!window) return { left: null, words: omitted ?? "Not measured yet", tone: "none", resets: null };
   if (window.state === "learning") {
     return { left: null, words: "Measuring — shows after a little use", tone: "none", resets: null };

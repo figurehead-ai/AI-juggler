@@ -53,25 +53,19 @@ import App from "./App";
 import { UsageScreen } from "./screens/Usage";
 import { QuotaChip, WindowRing } from "./components/QuotaRings";
 import { windowView } from "./lib/quotaWindow";
+import { quotaDisplay, windowDisplay } from "./lib/wire";
 
 vi.mock("./components/TerminalView", () => ({
   TerminalView: ({ id }: { id: string }) => <div data-testid={`terminal-${id}`} />,
 }));
 
 const RESETS = Date.now() + 26 * 3_600_000;
-const unmeasured = (tokens: number): WindowDisplay => ({
-  state: "unmeasured",
-  burned_tokens: tokens,
-  resets_at_ms: RESETS,
-  reset_basis: "estimated",
-});
-const DISPLAY: QuotaDisplayData = {
-  account: "claude-work",
+const unmeasured = (tokens: number): WindowDisplay =>
+  windowDisplay("unmeasured", { burned_tokens: tokens, resets_at_ms: RESETS, reset_basis: "estimated" });
+const DISPLAY: QuotaDisplayData = quotaDisplay("claude-work", {
   five_hour: unmeasured(12_000),
   weekly: unmeasured(12_000),
-  renewal: { state: "none", label: "Renewal: unknown — add date", entered_by_user: false },
-  forecast: { state: "learning", badge: "Learning" },
-};
+});
 
 const PERCENT_LEFT = /\d+\s*% left/;
 
@@ -96,7 +90,7 @@ it("the one rule: no percentage, no '% left'; the tokens; the reset as an estima
   expect(view.words).not.toMatch(PERCENT_LEFT);
   expect(view.words).toMatch(/^Not measured yet · 12k tokens used · resets about .+, estimated$/);
   // A tracking window that somehow lacks a percentage reads the same.
-  expect(windowView({ state: "tracking", burned_tokens: 0 }).left).toBeNull();
+  expect(windowView(windowDisplay("tracking")).left).toBeNull();
 });
 
 it("Home's Runway and the Accounts cards", async () => {

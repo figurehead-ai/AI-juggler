@@ -1446,21 +1446,30 @@ export interface CleanupAlertsData {
  * idle nudges fire once per orphan). Purely passive — no alert
  * carries a signal path; the hog alert routes to the staged sheet. */
 /** AJ-E609: one cost rollup row (session × model × day). */
+/** Rust `Confidence` on the wire. */
+export type ConfidenceWire = "Measured" | "Computed" | "Estimated";
+
+// IPC convention (docs/engineering/ENGINEERING-GUIDE.md › IPC): a Rust
+// `Option<T>` arrives as `null`, never as a missing key, so it is typed
+// `T | null` and checked with `!= null` — never `?:` / `!== undefined`
+// (the 0.0.12 report: Usage went blank on `null.toFixed`).
+
+/** AJ-E609: one rollup row (`cost_ledger::CostRollup`). */
 export interface CostRollupRow {
   key: string;
-  model?: string;
-  day?: string;
+  model: string | null;
+  day: string | null;
   tokens: { input: number; output: number; cache_read: number; cache_write: number; reasoning: number };
-  usd: { usd?: number; label: string };
-  credits?: number;
-  confidence: "Measured" | "Computed" | "Estimate";
+  usd: { usd: number | null; label: ConfidenceWire };
+  credits: number | null;
+  confidence: ConfidenceWire;
 }
 
 /** AJ-E609: the dual subscription view ("≈$X at API prices · you pay flat"). */
 export interface SubscriptionViewData {
-  api_equivalent_usd?: number;
-  flat_fee_usd?: number;
-  value_ratio?: number;
+  api_equivalent_usd: number | null;
+  flat_fee_usd: number | null;
+  value_ratio: number | null;
 }
 
 /** AJ-E609: the cost matrix payload (the UI and the CSV read the same rows). */
@@ -1468,27 +1477,27 @@ export interface CostRollupsData {
   rows: CostRollupRow[];
   subscription: SubscriptionViewData;
   pricing_stale: boolean;
-  pricing_last_synced_ms?: number;
-  total_usd?: number;
+  pricing_last_synced_ms: number | null;
+  total_usd: number | null;
   scope: string;
 }
 
 /** AJ-E611: one ranked (or filtered) account row. */
 export interface RankedRowData {
   account: string;
-  score?: number;
-  filtered_reason?: string;
+  score: number | null;
+  filtered_reason: string | null;
   top_factors: string[];
   factors: [string, number][];
   headroom_unknown: boolean;
   confidence: string;
-  tte_min?: number;
+  tte_min: number | null;
   suggested: boolean;
   /** AJ-E306 Req.7: the launch admission verdict (SPEC §5.2) —
    * `ok|tight|no`; undefined when headroom or burn is unknown
    * (renders "headroom unknown", never a fabricated number). Warns,
    * never blocks. */
-  admission?: "ok" | "tight" | "no";
+  admission: "ok" | "tight" | "no" | null;
 }
 
 /** AJ-E611: the explainable ranking — suggest-only, the user clicks. */
@@ -1560,15 +1569,15 @@ export async function resetQueueDismiss(id: string): Promise<void> {
 export interface WindowDisplay {
   /** `unmeasured`: use seen, no percentage (no sample, no confirmed cap). */
   state: "unknown" | "learning" | "unmeasured" | "tracking" | "stale" | "exhausted";
-  percentage?: number;
-  badge?: string;
-  stale_note_ms?: number;
-  resets_at_ms?: number;
+  percentage: number | null;
+  badge: string | null;
+  stale_note_ms: number | null;
+  resets_at_ms: number | null;
   /** Where `resets_at_ms` came from (an estimate is shown as one). */
-  reset_basis?: "measured" | "calendar" | "estimated";
+  reset_basis: "measured" | "calendar" | "estimated" | null;
   burned_tokens: number;
-  burned_credits?: number;
-  headroom_tokens?: number | null;
+  burned_credits: number | null;
+  headroom_tokens: number | null;
 }
 
 /** AJ-E610: the subscription clock's typed state (calendar line, D-12). */
@@ -1581,31 +1590,31 @@ export interface RenewalDisplay {
 /** AJ-E610: the forecast pill data. */
 export interface ForecastDisplay {
   state: "learning" | "wont-exhaust" | "exhausts" | "no-headroom";
-  tte_min?: number;
-  range_min?: number;
-  range_max?: number;
+  tte_min: number | null;
+  range_min: number | null;
+  range_max: number | null;
   badge: string;
 }
 
 /** AJ-E610: the two-clock display for one account. */
 export interface QuotaDisplayData {
   account: string;
-  five_hour?: WindowDisplay;
-  five_hour_omitted_reason?: string;
-  weekly?: WindowDisplay;
-  weekly_omitted_reason?: string;
+  five_hour: WindowDisplay | null;
+  five_hour_omitted_reason: string | null;
+  weekly: WindowDisplay | null;
+  weekly_omitted_reason: string | null;
   renewal: RenewalDisplay;
   forecast: ForecastDisplay;
-  unavailable_reason?: string;
+  unavailable_reason: string | null;
   /** Codex's credits, from its own rollouts. */
-  credits?: CreditsDisplay | null;
+  credits: CreditsDisplay | null;
 }
 
 /** An account's credits, as its tool reports them. */
 export interface CreditsDisplay {
   has_credits: boolean;
   unlimited: boolean;
-  balance?: string | null;
+  balance: string | null;
   as_of_ms: number;
 }
 
@@ -1621,9 +1630,16 @@ export async function quotaDisplay(account: string): Promise<QuotaDisplayData> {
     const all = await quotaDisplayAll();
     return (
       all.find((entry) => entry.account === account) ?? {
+        // What serde sends for an account with nothing measured: nulls.
         account,
+        five_hour: null,
+        five_hour_omitted_reason: null,
+        weekly: null,
+        weekly_omitted_reason: null,
         renewal: { state: "none", label: "Renewal: unknown — add date", entered_by_user: false },
-        forecast: { state: "learning", badge: "estimated" },
+        forecast: { state: "learning", tte_min: null, range_min: null, range_max: null, badge: "estimated" },
+        unavailable_reason: null,
+        credits: null,
       }
     );
   }
@@ -1655,9 +1671,13 @@ export async function costRollups(account?: string): Promise<CostRollupsData> {
     return (
       (window as unknown as { __AIJ_COST_ROLLUPS__?: CostRollupsData })
         .__AIJ_COST_ROLLUPS__ ?? {
+        // Exactly what serde sends with nothing stored: nulls, not
+        // missing keys (a mismatch is now a type error).
         rows: [],
-        subscription: {},
+        subscription: { api_equivalent_usd: null, flat_fee_usd: null, value_ratio: null },
         pricing_stale: false,
+        pricing_last_synced_ms: null,
+        total_usd: null,
         scope: account ?? "ALL",
       }
     );
@@ -2674,12 +2694,12 @@ export interface SwitchTargetData {
   cross_provider: boolean;
   /** The pair's Drop list (the badge's honest companion). */
   drops: string[];
-  score?: number;
-  filtered_reason?: string;
+  score: number | null;
+  filtered_reason: string | null;
   top_factors: string[];
   factors: [string, number][];
   confidence: string;
-  tte_min?: number;
+  tte_min: number | null;
   suggested: boolean;
 }
 
@@ -2699,6 +2719,7 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
     factors: [["80% headroom", 0.36], ["usual account for this repo", 0.2], ["fidelity 1 · Beta", 0.15], ["≈$0.12 replay", 0.07], ["quiet", 0.1]],
     confidence: "Computed",
     tte_min: 262,
+    filtered_reason: null,
     suggested: true,
   },
   {
@@ -2714,6 +2735,7 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
     factors: [["35% headroom", 0.16], ["quiet", 0.1], ["fidelity 1 · Beta", 0.15]],
     confidence: "Estimate",
     tte_min: 95,
+    filtered_reason: null,
     suggested: false,
   },
   {
@@ -2728,6 +2750,8 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
     top_factors: [],
     factors: [],
     confidence: "Measured",
+    score: null,
+    tte_min: null,
     suggested: false,
   },
 ];

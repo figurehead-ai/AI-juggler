@@ -17,7 +17,7 @@ import type { JSX } from "react";
 import type { QuotaDisplayData, WindowDisplay } from "../lib/bridge";
 import { measured, windowView } from "../lib/quotaWindow";
 
-const badgeText = (badge?: string): string =>
+const badgeText = (badge?: string | null): string =>
   badge === "measured" ? "Measured" : badge === "computed" ? "Computed" : "Estimate";
 
 const clock = (ms: number): string => {
@@ -36,9 +36,9 @@ export function WindowRing({
   kind,
   omittedReason,
 }: {
-  window?: WindowDisplay;
+  window?: WindowDisplay | null;
   kind: "5h" | "weekly";
-  omittedReason?: string;
+  omittedReason?: string | null;
 }): JSX.Element {
   if (omittedReason) {
     return (
@@ -80,19 +80,19 @@ export function WindowRing({
   const used = pct ?? 100; // exhausted ⇒ full ring
   const exhausted = window.state === "exhausted";
   const ringText =
-    pct !== undefined ? `${Math.round(pct)}%` : exhausted ? "100%" : "—";
+    pct != null ? `${Math.round(pct)}%` : exhausted ? "100%" : "—";
   const reset =
-    window.resets_at_ms === undefined
+    window.resets_at_ms == null
       ? ""
       : window.reset_basis === "estimated"
         ? `resets about ${clock(window.resets_at_ms)}, estimated`
         : `resets ${clock(window.resets_at_ms)}`;
   const stale =
-    window.stale_note_ms !== undefined
+    window.stale_note_ms != null
       ? `last measured ${hoursAgo(window.stale_note_ms)} ago`
       : "";
   const aria = `${label}: ${exhausted ? "exhausted" : `${ringText} used`}${
-    pct !== undefined ? `, ${badgeText(window.badge)}` : ""
+    pct != null ? `, ${badgeText(window.badge)}` : ""
   }${reset ? `, ${reset}` : ""}${stale ? `, ${stale}` : ""}`;
 
   // Ring geometry: a 36px donut; the arc length encodes use (colour is
@@ -212,9 +212,9 @@ export function ForecastPill({
         ? "At this pace, it won't run out this window"
         : forecast.state === "no-headroom"
           ? "set your plan cap to see a forecast"
-          : forecast.tte_min !== undefined &&
-              forecast.range_min !== undefined &&
-              forecast.range_max !== undefined
+          : forecast.tte_min != null &&
+              forecast.range_min != null &&
+              forecast.range_max != null
             ? `↑ fast · exhausts ≈${Math.round(forecast.tte_min)} min` +
               (forecast.range_max - forecast.range_min > 1
                 ? ` (range ${Math.round(forecast.range_min)}–${Math.round(forecast.range_max)} min, ${badge})`

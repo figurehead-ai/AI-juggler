@@ -24,8 +24,8 @@ const fixture: CostRollupsData = {
       model: "claude-opus-4",
       day: "2026-10-15",
       tokens: { input: 300, output: 50, cache_read: 15, cache_write: 2, reasoning: 0 },
-      usd: { usd: 0.00831, label: "Estimate" },
-      credits: undefined,
+      usd: { usd: 0.00831, label: "Estimated" },
+      credits: null,
       confidence: "Measured",
     },
     {
@@ -33,13 +33,14 @@ const fixture: CostRollupsData = {
       model: "GLM-6-X",
       day: "2026-10-15",
       tokens: { input: 100, output: 10, cache_read: 0, cache_write: 0, reasoning: 0 },
-      usd: { label: "Estimate" }, // unpriced
+      usd: { usd: null, label: "Estimated" }, // unpriced
       credits: 1.25,
       confidence: "Computed",
     },
   ],
   subscription: { api_equivalent_usd: 0.00831, flat_fee_usd: 200, value_ratio: 0.0000416 },
   pricing_stale: false,
+  pricing_last_synced_ms: null,
   total_usd: 0.00831,
   scope: "ALL",
 };

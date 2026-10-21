@@ -65,10 +65,12 @@ export function CostMatrix(): JSX.Element {
           Pricing table is over 30 days old — numbers may not match current list rates.
         </p>
       )}
-      {fee !== undefined && apiValue !== undefined && (
+      {/* Every optional field arrives as null (never undefined): `!= null`
+          (the 0.0.12 report — Usage went blank on null.toFixed). */}
+      {fee != null && apiValue != null && (
         <p className="text-xs">
           ≈{usdText(apiValue)} at API prices · you pay {usdText(fee)} flat
-          {data.subscription.value_ratio !== undefined &&
+          {data.subscription.value_ratio != null &&
             ` · ${data.subscription.value_ratio.toFixed(2)}× value`}
         </p>
       )}
@@ -100,17 +102,23 @@ export function CostMatrix(): JSX.Element {
                     {row.tokens.input.toLocaleString()} / {row.tokens.output.toLocaleString()}
                   </td>
                   <td className={numeric}>
-                    {row.credits !== undefined ? row.credits.toFixed(2) : ""}
+                    {row.credits != null ? row.credits.toFixed(2) : ""}
                   </td>
                   <td className={numeric}>
-                    {/* Unpriced renders —, never $0.00 (deep/10 line 74). */}
-                    {row.usd.usd !== undefined ? usdText(row.usd.usd) : "—"}
+                    {/* Unpriced renders words, never $0.00 (deep/10 line 74). */}
+                    {row.usd.usd != null ? (
+                      usdText(row.usd.usd)
+                    ) : (
+                      <span className="text-muted" data-testid="cost-unpriced">
+                        {row.model ? `No price for ${row.model} yet` : "—"}
+                      </span>
+                    )}
                     <span className="ml-1 text-[10px] uppercase text-muted">{row.confidence}</span>
                   </td>
                 </tr>
               ))}
             </tbody>
-            {data.total_usd !== undefined && (
+            {data.total_usd != null && (
               <tfoot>
                 <tr className="font-medium">
                   <th scope="row" colSpan={5} className={`${cell} text-left`}>
