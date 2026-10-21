@@ -99,7 +99,6 @@ export function AddProviderSheet({
             {sorted.map((row) => {
               const ready = selectable(row);
               const desktop = row.kind === "desktop";
-              const verified = (row.verified_against ?? []).length > 0;
               return (
                 <li
                   key={row.provider}
@@ -111,21 +110,15 @@ export function AddProviderSheet({
                   <div className="flex min-w-0 flex-1 flex-col gap-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-xs font-medium text-ink">{row.display_name}</span>
+                      {/* 0.0.11 walk, Q4: plain words here; the version and
+                          what it was tested with are in the tool's own view. */}
                       {desktop && <Chip tone="accent">Desktop</Chip>}
-                      {!desktop && <Chip tone="neutral">Terminal</Chip>}
-                      <span className="text-[10px] text-muted">
-                        {row.status === "installed" && `installed · ${row.version ?? ""}`}
-                        {row.status === "unverified" &&
-                          `found (${row.version ?? "unknown version"}) — not in the verified range`}
-                        {row.status === "not_installed" && "not installed"}
-                        {row.status === "probe_failed" && "check failed"}
+                      <span className="text-[10px] text-muted" data-testid="provider-state">
+                        {(row.status === "installed" || row.status === "unverified") && "Installed"}
+                        {row.status === "not_installed" && "Not installed"}
+                        {row.status === "probe_failed" && "Couldn't check"}
                       </span>
                     </div>
-                    <span className="text-[10px] text-muted" data-testid="verified-badge">
-                      {verified
-                        ? `Verified against ${row.verified_against!.join(", ")}`
-                        : "Unverified — features may drift"}
-                    </span>
                     {desktop && row.single_instance_note && (
                       <span className="text-[10px] leading-relaxed text-muted">
                         {row.single_instance_note} — one session at a time with this tool.

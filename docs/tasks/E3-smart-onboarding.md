@@ -234,6 +234,11 @@ Instance in two, without re-entering setup I already did.
 3. Desktop Providers SHALL show a Terminal/Desktop kind badge;
    a single-instance desktop limit SHALL be stated before
    selection, never discovered at launch failure.
+   *Amended 2026-10-21 (0.0.11 walk, coordinator's answer to Q4,
+   D-25 calm):* the card names the tool and says Installed / Not
+   installed; only a desktop tool carries a kind badge (Desktop),
+   and the version and verified range move to the tool's own view
+   (Req.1's badge lives there, not on the card).
 4. Flow (d) SHALL lock the Provider (no harness picker) by
    passing it to the AJ-E301 wizard; its Source step SHALL show
    Provider-scoped scan results plus [Add fresh account].
