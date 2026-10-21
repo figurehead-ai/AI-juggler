@@ -387,6 +387,24 @@
   ("never saw the child") and `reconciler :: helper_exiting_inside_grace_never_surfaces`
   timed out once each in a `cargo test --workspace` run; both passed
   alone at once (3/3 each). No budget changed.
+- **Flake record, 2026-10-21 (fixed; not reproduced).** `juggler-app
+  --test fleet_switch ::
+  a_version_mismatch_blocks_t2_offers_t3_and_never_downgrades_silently`
+  failed under load during a release run and passed alone 3 of 3. Not
+  reproduced here: 24 parallel runs of the test on unchanged code passed.
+  Two timing assumptions in the test, both removed:
+  - the stub wrote `last-args` with `printf … > last-args`, so the shell
+    created the file empty before filling it, and `last_args` returned
+    the first read that succeeded: under load, an empty file and "primed
+    with the turns" failing. The stub now writes a temporary file and
+    renames it into place, so a read sees the whole file or none;
+  - `set_harness_versions_for_test` pinned the versions for the cache's
+    60-second window. A setup slowed by load (three pairing waits of up
+    to 30 s each) could outlive it, and the next lookup re-probed the stub,
+    which reports no version: the version mismatch the test needs was
+    gone. The pin now holds until the test pins again.
+  Verified: the file's 11 tests, then 24 parallel runs of the whole binary
+  (264 test runs), 0 failures. Assertions and waits unchanged.
 - Observed, no change (2026-10-20, E14 review fixes on PR #67, with three
   other sessions building on the same Mac at load average 18–31):
   `reconciler :: fifty_instance_soak_and_construction_regression` missed

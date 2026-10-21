@@ -75,12 +75,18 @@ pub(crate) fn harness_versions(state: &Arc<AppState>) -> Vec<(String, String)> {
     probed
 }
 
-/// Test seam: pins this Mac's harness versions for a minute.
+/// Test seam: pins this Mac's harness versions until the next pin. The
+/// cache entry is dated an hour ahead (a future instant's `elapsed()` is
+/// zero), so a slow test on a loaded machine never outlives the pin and
+/// re-probes the stub mid-test.
 #[doc(hidden)]
 pub fn set_harness_versions_for_test(state: &Arc<AppState>, versions: &[(&str, &str)]) {
+    let pinned = Instant::now()
+        .checked_add(Duration::from_secs(3600))
+        .unwrap_or_else(Instant::now);
     if let Ok(mut cache) = state.link.versions.lock() {
         *cache = Some((
-            Instant::now(),
+            pinned,
             versions
                 .iter()
                 .map(|(id, version)| ((*id).to_owned(), (*version).to_owned()))
