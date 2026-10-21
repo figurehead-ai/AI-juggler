@@ -56,6 +56,7 @@ import { UsageScreen } from "./screens/Usage";
 import { LimitDialog } from "./components/LimitDialog";
 import { NewSessionModal } from "./screens/NewSession";
 import { NewProjectSheet } from "./screens/NewProjectSheet";
+import { PoolSheet, type PoolSheetTarget } from "./components/PoolSheet";
 import { FleetScreen } from "./screens/FleetScreen";
 import { SettingsScreen } from "./screens/Settings";
 import { FleetPromptDialog } from "./components/FleetPromptDialog";
@@ -80,6 +81,8 @@ import {
   projectsBackfill,
   projectsList,
   instancesList,
+  poolsList,
+  type PoolsInfo,
   sessionHandover,
   switchBackSuggestions,
   onFolderDropped,
@@ -324,6 +327,9 @@ export default function App() {
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [projects, setProjects] = useState<ProjectInfo[]>([]);
   const [sessions, setSessions] = useState<InstanceInfo[]>([]);
+  // AJ-E1702: pools and every session's place in one.
+  const [pools, setPools] = useState<PoolsInfo | null>(null);
+  const [poolSheet, setPoolSheet] = useState<PoolSheetTarget | null>(null);
   // AJ-E1007: archived Instances leave the rail (History keeps them).
   const railSessions = useMemo(() => sessions.filter((row) => row.lifecycle !== "archived"), [sessions]);
   const [accounts, setAccounts] = useState<AccountInfo[]>([]);
@@ -419,16 +425,18 @@ export default function App() {
 
   const refresh = useCallback(async () => {
     try {
-      const [projectRows, sessionRows, accountRows, profileRows, backSuggestions] =
+      const [projectRows, sessionRows, accountRows, profileRows, backSuggestions, poolRows] =
         await Promise.all([
           projectsList(),
           instancesList(),
           accountsList(),
           launchRecipesList(),
           switchBackSuggestions().catch(() => []),
+          poolsList().catch(() => null),
         ]);
       setProjects(projectRows);
       setSessions(sessionRows);
+      if (poolRows) setPools(poolRows);
       setAccounts(accountRows);
       setProfiles(profileRows);
       setSwitchBackCards(backSuggestions);
@@ -793,6 +801,10 @@ export default function App() {
           selection.kind === "remote" ? { machineId: selection.machineId, instanceId: selection.instanceId } : null
         }
         onSelectRemote={inspectRemote}
+        pools={pools}
+        onOpenPool={(poolId) => setPoolSheet({ mode: "pool", poolId })}
+        onNewPool={(sessionId) => setPoolSheet({ mode: "create", sessionId })}
+        onPoolsChanged={setPools}
         header={(minimal) => (
           <div
             className={
@@ -1106,6 +1118,7 @@ export default function App() {
                 <div className="h-full overflow-y-auto">
                   <HomeScreen
                     sessions={sessions}
+                    pools={pools}
                     accounts={accounts}
                     projects={projects}
                     now={now}
@@ -1374,6 +1387,22 @@ export default function App() {
             setNewSession(false);
             setNewSessionDir(null);
             setGlobal("accounts");
+          }}
+        />
+      )}
+
+      {/* AJ-E1702: make a pool, or open one (rename, roles, members,
+          what roles may do, delete). */}
+      {poolSheet && pools && (
+        <PoolSheet
+          target={poolSheet}
+          pools={pools}
+          sessions={sessions}
+          projects={projects}
+          onClose={() => setPoolSheet(null)}
+          onChanged={(info, poolId) => {
+            setPools(info);
+            if (poolSheet.mode === "create" || poolId === null) setPoolSheet(poolId ? { mode: "pool", poolId } : null);
           }}
         />
       )}

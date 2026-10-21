@@ -38,10 +38,13 @@ import {
   terminalSpawnLogin,
   type AccountInfo,
   type InstanceInfo,
+  type PoolsInfo,
   type ProjectInfo,
   type QuotaDisplayData,
   type WindowDisplay,
 } from "../lib/bridge";
+import { hasUserPools } from "../lib/pools";
+import { filterByPool } from "../lib/railview";
 
 const NEEDS = ["waiting_user", "stuck", "quota_blocked", "failed"] as const;
 type Need = (typeof NEEDS)[number];
@@ -168,8 +171,20 @@ function AccountDot({ id }: { id: string | null }): JSX.Element {
   return <span aria-hidden="true" className="size-2 shrink-0 rounded-full" style={{ background: `hsl(${hueOf(id)} 70% 66%)` }} />;
 }
 
+/** AJ-E1702: the pool Home shows, remembered. */
+const HOME_POOL_KEY = "aij.home.pool";
+
+function readHomePool(): string | null {
+  try {
+    return localStorage.getItem(HOME_POOL_KEY);
+  } catch {
+    return null;
+  }
+}
+
 export function HomeScreen({
-  sessions,
+  sessions: allSessions,
+  pools = null,
   accounts,
   projects,
   now,
@@ -184,6 +199,8 @@ export function HomeScreen({
   onOpenCleanup,
 }: {
   sessions: InstanceInfo[];
+  /** AJ-E1702: with a pool picked, Home shows only its sessions. */
+  pools?: PoolsInfo | null;
   accounts: AccountInfo[];
   projects: ProjectInfo[];
   now: number;
@@ -204,6 +221,19 @@ export function HomeScreen({
   /** E14: opens Cleanup (This Mac's leftovers line). */
   onOpenCleanup?: () => void;
 }): JSX.Element {
+  const [poolFilter, setPoolFilter] = useState<string | null>(readHomePool);
+  const withPools = hasUserPools(pools);
+  const poolChoice = withPools && poolFilter !== null && pools?.pools.some((pool) => pool.id === poolFilter) ? poolFilter : null;
+  const choosePool = (value: string | null) => {
+    setPoolFilter(value);
+    try {
+      if (value === null) localStorage.removeItem(HOME_POOL_KEY);
+      else localStorage.setItem(HOME_POOL_KEY, value);
+    } catch {
+      // Not remembered this time; the filter still applies.
+    }
+  };
+  const sessions = useMemo(() => filterByPool(allSessions, poolChoice, pools), [allSessions, poolChoice, pools]);
   const [quota, setQuota] = useState<QuotaDisplayData[]>([]);
   useEffect(() => {
     let alive = true;
@@ -446,6 +476,22 @@ export function HomeScreen({
           {/* AJ-E403 Req.6: the legend's Home surface (the "All clear"
               explainer), the same panel as the rail footer's "?". */}
           <LegendPopover className="shrink-0" placement="below" />
+          {withPools && pools && (
+            <select
+              aria-label="Show one pool"
+              value={poolChoice ?? ""}
+              onChange={(event) => choosePool(event.target.value || null)}
+              className="ml-auto h-7 max-w-[12rem] truncate rounded-lg border border-hairline bg-surface-2 px-2 text-[12px] text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
+              data-testid="home-pool-filter"
+            >
+              <option value="">Pool: all</option>
+              {pools.pools.map((pool) => (
+                <option key={pool.id} value={pool.id}>
+                  {pool.name}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
         {subline && <p className="text-sm text-muted">{subline}</p>}
       </header>
@@ -467,7 +513,7 @@ export function HomeScreen({
       {/* AJ-E1006: what changed while you were away — only when something did. */}
       <MorningSummary onOpenSession={onOpenSession} />
 
-      {sessions.length === 0 && (
+      {allSessions.length === 0 && (
         <section className="flex flex-col items-start gap-3 rounded-2xl border border-hairline bg-surface p-6" data-testid="home-first-session">
           <h2 className="text-lg font-semibold">Start your first session</h2>
           <p className="max-w-xl text-sm leading-relaxed text-muted">

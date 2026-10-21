@@ -74,6 +74,8 @@ pub struct PoolMemberInfo {
 }
 
 /// What one capability allows, per role.
+// One flag per role: the row the grants table shows.
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Clone, Serialize, TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct GrantInfo {
@@ -116,12 +118,12 @@ fn checked_name(storage: &Storage, name: &str, except: Option<&str>) -> AppResul
     Ok(name.to_owned())
 }
 
-/// A pool that isn't deleted, or "not found".
+/// A pool that isn't deleted, or a refusal in words.
 fn live_pool(storage: &Storage, pool_id: &str) -> AppResult<juggler_core::storage::Pool> {
-    storage.pools().get(pool_id).map_err(|_| AppError::NotFound {
-        entity: "pool",
-        id: pool_id.to_owned(),
-    })
+    storage
+        .pools()
+        .get(pool_id)
+        .map_err(|_| AppError::Refused("That pool isn't there any more".to_owned()))
 }
 
 /// The default pool's scope of every session (D-33, through the one
@@ -132,7 +134,13 @@ fn scopes_of(storage: &Storage) -> AppResult<HashMap<SessionId, DefaultScope>> {
     for record in storage.sessions().list(None)? {
         let account = accounts
             .entry(record.profile.clone())
-            .or_insert_with(|| storage.profiles().get(&record.profile).ok().map(|recipe| recipe.account))
+            .or_insert_with(|| {
+                storage
+                    .profiles()
+                    .get(&record.profile)
+                    .ok()
+                    .map(|recipe| recipe.account)
+            })
             .clone();
         let scope = default_pool_scope(record.project.as_ref(), account.as_ref());
         out.insert(record.id, scope);
@@ -158,9 +166,10 @@ pub fn pools_info(storage: &Storage) -> AppResult<PoolsInfo> {
         let overrides = repo.grant_overrides(&pool.id)?;
         let allowed = |capability: Capability, role: PoolRole| {
             capability.fixed()
-                || overrides.get(&(capability, role)).copied().unwrap_or_else(|| {
-                    juggler_core::storage::default_grant(capability, role)
-                })
+                || overrides
+                    .get(&(capability, role))
+                    .copied()
+                    .unwrap_or_else(|| juggler_core::storage::default_grant(capability, role))
         };
         let grants = Capability::ALL
             .into_iter()
@@ -189,9 +198,10 @@ pub fn pools_info(storage: &Storage) -> AppResult<PoolsInfo> {
     let members = sessions
         .iter()
         .map(|session| {
-            let (pool_id, role) = places.get(session).cloned().unwrap_or_else(|| {
-                (DEFAULT_POOL_ID.to_owned(), PoolRole::Member)
-            });
+            let (pool_id, role) = places
+                .get(session)
+                .cloned()
+                .unwrap_or_else(|| (DEFAULT_POOL_ID.to_owned(), PoolRole::Member));
             PoolMemberInfo {
                 session_id: session.as_str().to_owned(),
                 pool_id,
@@ -244,8 +254,8 @@ pub fn pool_create_impl(
 ///
 /// # Errors
 ///
-/// [`AppError::Refused`] for the default pool or a bad name;
-/// [`AppError::NotFound`] for a missing pool.
+/// [`AppError::Refused`] for the default pool, a bad name or a missing
+/// pool.
 pub fn pool_rename_impl(state: &Arc<AppState>, pool_id: &str, name: &str) -> AppResult<PoolsInfo> {
     let storage = lock_storage_arc(state)?;
     let pool = live_pool(&storage, pool_id)?;
@@ -264,8 +274,7 @@ pub fn pool_rename_impl(state: &Arc<AppState>, pool_id: &str, name: &str) -> App
 ///
 /// # Errors
 ///
-/// [`AppError::Refused`] for the default pool; [`AppError::NotFound`]
-/// for a missing pool.
+/// [`AppError::Refused`] for the default pool or a missing pool.
 pub fn pool_delete_impl(state: &Arc<AppState>, pool_id: &str) -> AppResult<PoolsInfo> {
     let storage = lock_storage_arc(state)?;
     let pool = live_pool(&storage, pool_id)?;
@@ -299,7 +308,7 @@ fn member_of(storage: &Storage, session: &SessionId) -> AppResult<(MemberRef, Ve
 /// # Errors
 ///
 /// [`AppError::Refused`] for a session from another project;
-/// [`AppError::NotFound`] for a missing session or pool.
+/// [`AppError::Refused`] for a missing session or pool too.
 pub fn pool_move_impl(
     state: &Arc<AppState>,
     session_id: &str,
@@ -310,10 +319,7 @@ pub fn pool_move_impl(
     let record = storage
         .sessions()
         .get(&session)
-        .map_err(|_| AppError::NotFound {
-            entity: "session",
-            id: session_id.to_owned(),
-        })?;
+        .map_err(|_| AppError::Refused("That session isn't there any more".to_owned()))?;
     let pool = live_pool(&storage, pool_id)?;
     if let Some(project) = &pool.project
         && record.project.as_ref() != Some(project)
@@ -338,7 +344,7 @@ pub fn pool_move_impl(
 ///
 /// # Errors
 ///
-/// [`AppError::Validation`] for an unknown role; [`AppError::NotFound`]
+/// [`AppError::Validation`] for an unknown role; [`AppError::Refused`]
 /// for a missing session.
 pub fn pool_set_role_impl(
     state: &Arc<AppState>,
@@ -354,10 +360,7 @@ pub fn pool_set_role_impl(
     storage
         .sessions()
         .get(&session)
-        .map_err(|_| AppError::NotFound {
-            entity: "session",
-            id: session_id.to_owned(),
-        })?;
+        .map_err(|_| AppError::Refused("That session isn't there any more".to_owned()))?;
     let info = pools_info(&storage)?;
     let pool_id = info
         .members
@@ -374,7 +377,7 @@ pub fn pool_set_role_impl(
 /// # Errors
 ///
 /// [`AppError::Refused`] for a fixed capability; [`AppError::Validation`]
-/// for an unknown capability or role; [`AppError::NotFound`] for a
+/// for an unknown capability or role; [`AppError::Refused`] for a
 /// missing pool.
 pub fn pool_set_grant_impl(
     state: &Arc<AppState>,
@@ -448,7 +451,10 @@ pub fn pool_rename(
 ///
 /// The default pool, or storage failures.
 #[tauri::command]
-pub fn pool_delete(state: tauri::State<'_, Arc<AppState>>, pool_id: String) -> AppResult<PoolsInfo> {
+pub fn pool_delete(
+    state: tauri::State<'_, Arc<AppState>>,
+    pool_id: String,
+) -> AppResult<PoolsInfo> {
     pool_delete_impl(state.inner(), &pool_id)
 }
 

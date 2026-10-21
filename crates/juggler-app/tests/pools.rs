@@ -182,7 +182,10 @@ fn the_default_pool_always_exists_and_holds_every_other_session() {
     assert!(words.contains("keeps its name"), "{words}");
     // Its name is taken, whatever the case.
     let words = refused(pools::pool_create_impl(&state, " all SESSIONS ", None));
-    assert!(words.contains("already a pool called «All sessions»"), "{words}");
+    assert!(
+        words.contains("already a pool called «All sessions»"),
+        "{words}"
+    );
 
     // Still there after a restart.
     drop(state);
@@ -209,8 +212,14 @@ fn a_planner_and_two_builders_in_checkout_redesign_with_the_planner_as_lead() {
     }
     let info = pools::pool_set_role_impl(&state, planner.as_str(), "lead").unwrap();
     assert_eq!(place(&info, planner.as_str()), (checkout.as_str(), "lead"));
-    assert_eq!(place(&info, builder1.as_str()), (checkout.as_str(), "member"));
-    assert_eq!(place(&info, builder2.as_str()), (checkout.as_str(), "member"));
+    assert_eq!(
+        place(&info, builder1.as_str()),
+        (checkout.as_str(), "member")
+    );
+    assert_eq!(
+        place(&info, builder2.as_str()),
+        (checkout.as_str(), "member")
+    );
     assert_eq!(place(&info, other.as_str()), (DEFAULT_POOL_ID, "member"));
 
     // An observer, then back.
@@ -228,7 +237,10 @@ fn a_planner_and_two_builders_in_checkout_redesign_with_the_planner_as_lead() {
     let info = pools::pool_rename_impl(&state, &checkout, "Checkout v2").unwrap();
     assert_eq!(pool_id(&info, "Checkout v2"), checkout);
     assert_eq!(place(&info, planner.as_str()), (checkout.as_str(), "lead"));
-    assert_eq!(refused(pools::pool_create_impl(&state, "   ", None)), "Give the pool a name");
+    assert_eq!(
+        refused(pools::pool_create_impl(&state, "   ", None)),
+        "Give the pool a name"
+    );
     let long = "x".repeat(49);
     assert!(refused(pools::pool_create_impl(&state, &long, None)).contains("at most 48"));
 
@@ -243,10 +255,10 @@ fn a_planner_and_two_builders_in_checkout_redesign_with_the_planner_as_lead() {
     assert_eq!(place(&info, builder1.as_str()), (DEFAULT_POOL_ID, "member"));
     assert_eq!(place(&info, builder2.as_str()), (DEFAULT_POOL_ID, "member"));
     assert_eq!(place(&info, planner.as_str()), (docs.as_str(), "member"));
-    assert!(matches!(
-        pools::pool_move_impl(&state, builder1.as_str(), &checkout),
-        Err(AppError::NotFound { .. })
-    ));
+    assert_eq!(
+        refused(pools::pool_move_impl(&state, builder1.as_str(), &checkout)),
+        "That pool isn't there any more"
+    );
     // The name is free again.
     pools::pool_create_impl(&state, "Checkout redesign", None).unwrap();
 }
@@ -277,7 +289,10 @@ fn membership_hangs_off_the_work_item_so_a_switch_keeps_it() {
     assert_eq!(place(&info, b.as_str()), (checkout.as_str(), "lead"));
     assert_eq!(place(&info, a.as_str()), (checkout.as_str(), "lead"));
     assert_eq!(place(&info, other.as_str()), (DEFAULT_POOL_ID, "member"));
-    assert_eq!(place(&info, other_next.as_str()), (DEFAULT_POOL_ID, "member"));
+    assert_eq!(
+        place(&info, other_next.as_str()),
+        (DEFAULT_POOL_ID, "member")
+    );
 
     // And again from b: same Work item, same pool.
     let c = session(&state, "s-c", "work", Some(&shop), &root);
@@ -401,7 +416,14 @@ fn grants_follow_the_plan_table_and_only_change_where_the_user_changes_them() {
             .unwrap()
             .grants
             .iter()
-            .map(|grant| (grant.capability.clone(), grant.lead, grant.member, grant.observer))
+            .map(|grant| {
+                (
+                    grant.capability.clone(),
+                    grant.lead,
+                    grant.member,
+                    grant.observer,
+                )
+            })
             .collect()
     };
     // pools-messaging-tasks.md §2.3, the grants table (owner = the user).
@@ -449,7 +471,9 @@ fn grants_follow_the_plan_table_and_only_change_where_the_user_changes_them() {
     assert!(grants(&info, &team)[8].3);
 
     // The fixed rows can't be changed; unknown words are refused.
-    let words = refused(pools::pool_set_grant_impl(&state, &team, "roster", "observer", false));
+    let words = refused(pools::pool_set_grant_impl(
+        &state, &team, "roster", "observer", false,
+    ));
     assert!(words.contains("always see the pool"), "{words}");
     assert!(matches!(
         pools::pool_set_grant_impl(&state, &team, "drop_tables", "lead", true),
@@ -532,7 +556,9 @@ fn pool_operations_never_start_stop_or_type_into_a_session() {
         .write_input(&watched.session, b"probe\n")
         .unwrap();
     let deadline = std::time::Instant::now() + Duration::from_secs(5);
-    while std::fs::read_to_string(&watched.typed).unwrap_or_default().is_empty()
+    while std::fs::read_to_string(&watched.typed)
+        .unwrap_or_default()
+        .is_empty()
         && std::time::Instant::now() < deadline
     {
         std::thread::sleep(Duration::from_millis(20));
@@ -592,7 +618,11 @@ fn pool_operations_never_start_stop_or_type_into_a_session() {
         before_spawns,
         "a pool operation started a session"
     );
-    assert_eq!(ledger_rows(&state), before_ledger, "a pool operation launched something");
+    assert_eq!(
+        ledger_rows(&state),
+        before_ledger,
+        "a pool operation launched something"
+    );
     assert_eq!(
         state
             .storage

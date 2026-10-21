@@ -10,7 +10,12 @@
 //! - A session row made before a switch stands for the Work item after.
 //! - Grants: the defaults, overrides only, fixed rows never written.
 
-#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::pedantic)]
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::pedantic
+)]
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -94,7 +99,9 @@ fn upgrading_keeps_a_copy_adds_all_sessions_and_leaves_every_row() {
     assert!(storage.pools().members().unwrap().is_empty());
     let cwd: String = storage
         .raw_conn()
-        .query_row("SELECT cwd FROM instances WHERE id = 's-1'", [], |row| row.get(0))
+        .query_row("SELECT cwd FROM instances WHERE id = 's-1'", [], |row| {
+            row.get(0)
+        })
         .unwrap();
     assert_eq!(cwd, "/tmp/shop");
     assert_eq!(storage.accounts().list().unwrap()[0].label, "Work Max");
@@ -125,8 +132,14 @@ fn deleting_a_pool_ends_its_rows_and_keeps_its_history() {
     let pool = storage.pools().create("Checkout", None).unwrap();
     let a = MemberRef::Session(SessionId::new("s-a"));
     let b = MemberRef::Work(WorkItemId::new("work-1"));
-    storage.pools().place(&a, &[], &pool.id, PoolRole::Lead).unwrap();
-    storage.pools().place(&b, &[], &pool.id, PoolRole::Member).unwrap();
+    storage
+        .pools()
+        .place(&a, &[], &pool.id, PoolRole::Lead)
+        .unwrap();
+    storage
+        .pools()
+        .place(&b, &[], &pool.id, PoolRole::Member)
+        .unwrap();
     assert_eq!(storage.pools().members().unwrap().len(), 2);
 
     assert_eq!(storage.pools().delete(&pool.id).unwrap(), 2);
@@ -154,8 +167,14 @@ fn one_active_row_per_member_and_a_move_ends_the_old_one() {
     let one = storage.pools().create("One", None).unwrap();
     let two = storage.pools().create("Two", None).unwrap();
     let a = MemberRef::Session(SessionId::new("s-a"));
-    storage.pools().place(&a, &[], &one.id, PoolRole::Lead).unwrap();
-    storage.pools().place(&a, &[], &two.id, PoolRole::Member).unwrap();
+    storage
+        .pools()
+        .place(&a, &[], &one.id, PoolRole::Lead)
+        .unwrap();
+    storage
+        .pools()
+        .place(&a, &[], &two.id, PoolRole::Member)
+        .unwrap();
     let active = storage.pools().members().unwrap();
     assert_eq!(active.len(), 1);
     assert_eq!(active[0].pool_id, two.id);
@@ -181,12 +200,20 @@ fn a_session_row_from_before_a_switch_stands_for_the_work_item_after() {
     let a = SessionId::new("s-a");
     let b = SessionId::new("s-b");
     let loner = SessionId::new("s-loner");
-    let rows = [member("pool-x", MemberRef::Session(a.clone()), PoolRole::Lead, 1)];
+    let rows = [member(
+        "pool-x",
+        MemberRef::Session(a.clone()),
+        PoolRole::Lead,
+        1,
+    )];
 
     // Before the switch: only a.
     let places = resolve_memberships(&[a.clone(), loner.clone()], &rows, &HashMap::new());
     assert_eq!(places[&a], ("pool-x".to_owned(), PoolRole::Lead));
-    assert_eq!(places[&loner], (DEFAULT_POOL_ID.to_owned(), PoolRole::Member));
+    assert_eq!(
+        places[&loner],
+        (DEFAULT_POOL_ID.to_owned(), PoolRole::Member)
+    );
 
     // a switched to b: both are in the Work item, so both are in the pool.
     let works: HashMap<_, _> = [
@@ -202,7 +229,12 @@ fn a_session_row_from_before_a_switch_stands_for_the_work_item_after() {
     // Two rows for one Work item: the newest wins.
     let rows = [
         member("pool-x", MemberRef::Session(a.clone()), PoolRole::Lead, 1),
-        member("pool-y", MemberRef::Work(WorkItemId::new("work-1")), PoolRole::Observer, 2),
+        member(
+            "pool-y",
+            MemberRef::Work(WorkItemId::new("work-1")),
+            PoolRole::Observer,
+            2,
+        ),
     ];
     let places = resolve_memberships(&[a.clone(), b.clone()], &rows, &works);
     assert_eq!(places[&a], ("pool-y".to_owned(), PoolRole::Observer));
@@ -242,13 +274,22 @@ fn grants_are_the_defaults_until_the_user_changes_them() {
     // Observers only look; leads may do it all.
     assert!(!default_grant(Capability::Message, PoolRole::Observer));
     assert!(default_grant(Capability::Roster, PoolRole::Observer));
-    assert!(Capability::ALL.into_iter().all(|cap| default_grant(cap, PoolRole::Lead)));
+    assert!(
+        Capability::ALL
+            .into_iter()
+            .all(|cap| default_grant(cap, PoolRole::Lead))
+    );
 
     storage
         .pools()
         .set_grant(&pool.id, Capability::Broadcast, PoolRole::Member, true)
         .unwrap();
-    assert!(storage.pools().allowed(&pool.id, Capability::Broadcast, PoolRole::Member).unwrap());
+    assert!(
+        storage
+            .pools()
+            .allowed(&pool.id, Capability::Broadcast, PoolRole::Member)
+            .unwrap()
+    );
     assert!(
         !storage
             .pools()
@@ -260,7 +301,13 @@ fn grants_are_the_defaults_until_the_user_changes_them() {
         .pools()
         .set_grant(&pool.id, Capability::Broadcast, PoolRole::Member, false)
         .unwrap();
-    assert!(storage.pools().grant_overrides(&pool.id).unwrap().is_empty());
+    assert!(
+        storage
+            .pools()
+            .grant_overrides(&pool.id)
+            .unwrap()
+            .is_empty()
+    );
 
     assert!(
         storage
@@ -268,5 +315,11 @@ fn grants_are_the_defaults_until_the_user_changes_them() {
             .set_grant(&pool.id, Capability::Roster, PoolRole::Observer, false)
             .is_err()
     );
-    assert!(storage.pools().grant_overrides(&pool.id).unwrap().is_empty());
+    assert!(
+        storage
+            .pools()
+            .grant_overrides(&pool.id)
+            .unwrap()
+            .is_empty()
+    );
 }

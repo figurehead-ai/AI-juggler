@@ -17,6 +17,7 @@
 //! writes these three tables only.
 
 use std::collections::HashMap;
+use std::hash::BuildHasher;
 
 use rusqlite::{Connection, OptionalExtension, Row, params};
 
@@ -235,7 +236,7 @@ impl MemberRef {
     /// What this ref stands for now: a session ref whose session has
     /// since got a Work item (it switched) stands for that Work item.
     #[must_use]
-    pub fn anchor(&self, works: &HashMap<SessionId, WorkItemId>) -> Self {
+    pub fn anchor<S: BuildHasher>(&self, works: &HashMap<SessionId, WorkItemId, S>) -> Self {
         match self {
             Self::Session(id) => Self::of_session(id, works.get(id)),
             Self::Work(_) => self.clone(),
@@ -287,7 +288,10 @@ pub struct DefaultScope {
 /// The one place the default pool's scope is decided (D-33); the ruling
 /// changes this function and nothing else.
 #[must_use]
-pub fn default_pool_scope(project: Option<&ProjectId>, account: Option<&AccountId>) -> DefaultScope {
+pub fn default_pool_scope(
+    project: Option<&ProjectId>,
+    account: Option<&AccountId>,
+) -> DefaultScope {
     DefaultScope {
         project: project.cloned(),
         identity: account.cloned(),
@@ -299,10 +303,10 @@ pub fn default_pool_scope(project: Option<&ProjectId>, account: Option<&AccountI
 /// member. When two rows stand for the same Work item (a session added on
 /// its own, then switched), the newest wins.
 #[must_use]
-pub fn resolve_memberships(
+pub fn resolve_memberships<S: BuildHasher>(
     sessions: &[SessionId],
     members: &[PoolMember],
-    works: &HashMap<SessionId, WorkItemId>,
+    works: &HashMap<SessionId, WorkItemId, S>,
 ) -> HashMap<SessionId, (String, PoolRole)> {
     let mut by_anchor: HashMap<MemberRef, &PoolMember> = HashMap::new();
     for member in members {

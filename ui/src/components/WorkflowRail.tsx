@@ -3,7 +3,8 @@ import { parkedWords } from "../lib/parked";
 import { providerDisplayName } from "../lib/providers";
 import { ReactNode, useCallback, useEffect, useId, useRef, useState, type JSX } from "react";
 import { IconProjects, IconTerminal } from "./icons";
-import type { AccountInfo, InstanceInfo, ProjectInfo, RemoteInstanceInfo, RemoteMachineInfo } from "../lib/bridge";
+import { errorText, poolMove, type AccountInfo, type InstanceInfo, type PoolsInfo, type ProjectInfo, type RemoteInstanceInfo, type RemoteMachineInfo } from "../lib/bridge";
+import { hasUserPools, poolIdOf } from "../lib/pools";
 import { shortHeavy, useHeavyNote } from "../lib/machine";
 import type { Density } from "../lib/density";
 import { REFRESH_INTERVALS, staleCaption } from "../lib/density";
@@ -17,6 +18,7 @@ import {
   sortSessions,
   storeSnooze,
   chipCounts,
+  filterByPool,
   filterSessions,
   groupSessions,
   type ChipFilters,
@@ -93,7 +95,16 @@ export function WorkflowRail({
   remoteMachines = [],
   selectedRemote = null,
   onSelectRemote,
+  pools = null,
+  onOpenPool,
+  onNewPool,
+  onPoolsChanged,
 }: {
+  /** AJ-E1702: the pools and every session's place in one. */
+  pools?: PoolsInfo | null;
+  onOpenPool?: (poolId: string) => void;
+  onNewPool?: (sessionId?: string) => void;
+  onPoolsChanged?: (info: PoolsInfo) => void;
   density: Density;
   onCycleDensity: () => void;
   projects: ProjectInfo[];
@@ -188,6 +199,10 @@ export function WorkflowRail({
           />
         ) : (
           <InstanceBoard
+            pools={pools}
+            onOpenPool={onOpenPool}
+            onNewPool={onNewPool}
+            onPoolsChanged={onPoolsChanged}
             onSelectProject={onSelectProject}
             sessions={sessions}
             accounts={accounts}
@@ -284,7 +299,16 @@ export function InstanceBoard({
   selectedRemote = null,
   onSelectRemote,
   onSelectProject,
+  pools = null,
+  onOpenPool,
+  onNewPool,
+  onPoolsChanged,
 }: {
+  /** AJ-E1702: pools group and filter the list like projects do. */
+  pools?: PoolsInfo | null;
+  onOpenPool?: (poolId: string) => void;
+  onNewPool?: (sessionId?: string) => void;
+  onPoolsChanged?: (info: PoolsInfo) => void;
   /** AJ-E411 Req.5: account expiry feeds the Needs-me tie-break. */
   accounts?: AccountInfo[];
   /** D-25: a project group's header opens the project. */
@@ -310,6 +334,21 @@ export function InstanceBoard({
   const [moreFilters, setMoreFilters] = useState(false);
   const [filters, setFilters] = useState<ChipFilters>(NO_CHIP_FILTERS);
   const [query, setQuery] = useState("");
+  // AJ-E1702: one pool only (null: every pool).
+  const [poolFilter, setPoolFilter] = useState<string | null>(null);
+  const [poolError, setPoolError] = useState<string | null>(null);
+  const withPools = hasUserPools(pools);
+  const poolChoice = poolFilter !== null && pools?.pools.some((pool) => pool.id === poolFilter) ? poolFilter : null;
+  // Back from Pool grouping when the last pool goes.
+  const groupChoice: GroupBy = group === "pool" && !withPools ? "project" : group;
+  // The first pool the user makes shows: the list groups by pool.
+  // (Not at start-up: only a pool made while the list is open.)
+  const hadPools = useRef<boolean | null>(pools === null ? null : withPools);
+  useEffect(() => {
+    if (pools === null) return;
+    if (withPools && hadPools.current === false) setGroup("pool");
+    hadPools.current = withPools;
+  }, [withPools, pools]);
   // Folded groups (a project's sessions, or "Your projects"): remembered.
   const [folded, setFolded] = useState<Set<string>>(readFolded);
   const toggleFold = useCallback((id: string) => {
@@ -376,16 +415,16 @@ export function InstanceBoard({
   }, []);
 
   const effectiveDensity = density === "minimal" ? "compact" : density;
-  const filtered = filterSessions(sessions, filters, query, projects);
+  const filtered = filterByPool(filterSessions(sessions, filters, query, projects), poolChoice, pools);
   const sorted = sortSessions(filtered, sort, snooze, now, projects, accounts);
   // Quota-risk groups the unknowns under `no data` (Req.2); other sorts
   // group only when the user picked a Group-by.
   const effectiveGroup: GroupBy | "quota-data" =
-    sort === "quota" && group === "none" ? "quota-data" : group;
+    sort === "quota" && groupChoice === "none" ? "quota-data" : groupChoice;
   const groups =
     effectiveGroup === "quota-data"
       ? quotaDataGroups(sorted)
-      : groupSessions(sorted, effectiveGroup === "none" ? "none" : effectiveGroup, projects);
+      : groupSessions(sorted, effectiveGroup === "none" ? "none" : effectiveGroup, projects, pools);
   const counts = chipCounts(sessions);
   // D-25: a project with no sessions still has a place in the rail (one
   // click opens it) — in the plain project view, not while filtering.
@@ -395,6 +434,7 @@ export function InstanceBoard({
     filters.provider === null &&
     filters.account === null &&
     filters.project === null &&
+    poolChoice === null &&
     query.trim() === "";
   const idleProjects = quiet && onSelectProject ? projects.filter((p) => !sessions.some((row) => row.project_id === p.id)) : [];
 
@@ -472,18 +512,18 @@ export function InstanceBoard({
           <button
             type="button"
             aria-expanded={moreFilters}
-            aria-label={narrowed(filters, sort, group, machineChoice) ? "Filters (some on)" : "Filters"}
+            aria-label={(narrowed(filters, sort, groupChoice, machineChoice) || poolChoice !== null) ? "Filters (some on)" : "Filters"}
             title="Filters"
             onClick={() => setMoreFilters((open) => !open)}
             className={
               "relative ml-auto flex size-6 shrink-0 items-center justify-center rounded-md outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
-              (moreFilters || narrowed(filters, sort, group, machineChoice) ? "bg-accent-soft text-accent-hi" : "text-muted hover:bg-surface hover:text-ink")
+              (moreFilters || (narrowed(filters, sort, groupChoice, machineChoice) || poolChoice !== null) ? "bg-accent-soft text-accent-hi" : "text-muted hover:bg-surface hover:text-ink")
             }
           >
             <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
               <path d="M4 6h16M7 12h10M10 18h4" />
             </svg>
-            {narrowed(filters, sort, group, machineChoice) && (
+            {(narrowed(filters, sort, groupChoice, machineChoice) || poolChoice !== null) && (
               <span aria-hidden="true" className="absolute right-0.5 top-0.5 size-1.5 rounded-full bg-accent" />
             )}
           </button>
@@ -494,12 +534,13 @@ export function InstanceBoard({
             <FilterChip active={filters.chips.includes("ended")} onClick={() => toggleChip(setFilters, "ended")} count={counts.ended}>
               Ended
             </FilterChip>
-            {narrowed(filters, sort, group, machineChoice) && (
+            {(narrowed(filters, sort, groupChoice, machineChoice) || poolChoice !== null) && (
               <button
                 type="button"
                 data-testid="rail-filters-reset"
                 onClick={() => {
                   setFilters(NO_CHIP_FILTERS);
+                  setPoolFilter(null);
                   setSort("needs");
                   setGroup("project");
                   if (machineChoice !== "all") chooseMachine("all");
@@ -511,7 +552,12 @@ export function InstanceBoard({
             )}
           </div>
           <Select ariaLabel="Sort by" value={sort} onChange={(value) => setSort(value as SortMode)} options={SORT_LABELS.map((entry) => ({ value: entry.id, label: `Sort: ${entry.label}` }))} />
-          <Select ariaLabel="Group by" value={group} onChange={(value) => setGroup(value as GroupBy)} options={GROUP_LABELS.map((entry) => ({ value: entry.id, label: `Group: ${entry.label}` }))} />
+          <Select
+            ariaLabel="Group by"
+            value={groupChoice}
+            onChange={(value) => setGroup(value as GroupBy)}
+            options={GROUP_LABELS.filter((entry) => entry.id !== "pool" || withPools).map((entry) => ({ value: entry.id, label: `Group: ${entry.label}` }))}
+          />
           <Select
             ariaLabel="Filter by tool"
             value={filters.provider ?? ""}
@@ -534,6 +580,14 @@ export function InstanceBoard({
                 { value: "this-mac", label: "This Mac" },
                 ...remoteMachines.map((machine) => ({ value: machine.machine_id, label: machine.label })),
               ]}
+            />
+          )}
+          {withPools && pools && (
+            <Select
+              ariaLabel="Filter by pool"
+              value={poolChoice ?? ""}
+              onChange={(value) => setPoolFilter(value || null)}
+              options={[{ value: "", label: "Pool: all" }, ...pools.pools.map((pool) => ({ value: pool.id, label: pool.name }))]}
             />
           )}
           <Select
@@ -595,6 +649,7 @@ export function InstanceBoard({
                 variant="secondary"
                 onClick={() => {
                   setFilters(NO_CHIP_FILTERS);
+                  setPoolFilter(null);
                   setQuery("");
                   searchRef.current?.focus();
                 }}
@@ -635,7 +690,18 @@ export function InstanceBoard({
                     controls={safeId("rail-group", entry.id)}
                     onToggle={() => toggleFold(entry.id)}
                   />
-                  {effectiveGroup === "project" && onSelectProject && projects.some((p) => p.id === entry.id) ? (
+                  {effectiveGroup === "pool" && onOpenPool ? (
+                    <button
+                      type="button"
+                      onClick={() => onOpenPool(entry.id.slice("pool:".length))}
+                      title={entry.rollup || undefined}
+                      className="flex min-w-0 flex-1 items-baseline justify-between gap-2 rounded-md py-0.5 pl-1 pr-2.5 text-left text-[11.5px] font-semibold text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+                      data-testid="rail-pool"
+                    >
+                      <span className="min-w-0 truncate">{entry.label}</span>
+                      <span className="shrink-0 text-[10px] font-normal text-faint">{entry.rows.length}</span>
+                    </button>
+                  ) : effectiveGroup === "project" && onSelectProject && projects.some((p) => p.id === entry.id) ? (
                     <button
                       type="button"
                       onClick={() => onSelectProject(entry.id)}
@@ -675,6 +741,21 @@ export function InstanceBoard({
               </div>
             </div>
           ))
+        )}
+        {effectiveGroup === "pool" && onNewPool && (
+          <button
+            type="button"
+            onClick={() => onNewPool()}
+            className="mt-0.5 self-start rounded-md py-1 pl-7 pr-2 text-[11px] text-accent-hi outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
+            data-testid="rail-new-pool"
+          >
+            New pool
+          </button>
+        )}
+        {poolError && (
+          <p className="px-3 pt-1 text-[11px] text-danger" role="alert" data-testid="rail-pool-error">
+            {poolError}
+          </p>
         )}
         {idleProjects.length > 0 && (
           /* Projects with no session here yet (from the setups' history):
@@ -770,6 +851,22 @@ export function InstanceBoard({
           onMute={() => snoozeFor(menu.row, null, true)}
           onClear={() => clearSnooze(menu.row)}
           onClose={() => setMenu(null)}
+          pools={onNewPool ? pools : null}
+          onMoveToPool={async (poolId) => {
+            const row = menu.row;
+            setMenu(null);
+            setPoolError(null);
+            try {
+              onPoolsChanged?.(await poolMove(row.id, poolId));
+            } catch (cause) {
+              setPoolError(errorText(cause));
+            }
+          }}
+          onNewPool={() => {
+            const row = menu.row;
+            setMenu(null);
+            onNewPool?.(row.id);
+          }}
         />
       )}
     </div>
@@ -995,6 +1092,9 @@ function RowContextMenu({
   onMute,
   onClear,
   onClose,
+  pools = null,
+  onMoveToPool,
+  onNewPool,
 }: {
   row: InstanceInfo;
   snooze: SnoozeState;
@@ -1005,11 +1105,15 @@ function RowContextMenu({
   onMute: () => void;
   onClear: () => void;
   onClose: () => void;
+  /** AJ-E1702: the pools to move to (null: no pool items). */
+  pools?: PoolsInfo | null;
+  onMoveToPool?: (poolId: string) => void;
+  onNewPool?: () => void;
 }) {
   const snoozed = isSnoozed(row, snooze, now);
   const resetAt = row.quota?.resets_at_ms ?? null;
   return (
-    <RowMenu heading={row.account_label} ariaLabel={`Attention options for ${row.account_label}`} at={{ x, y }} onClose={onClose}>
+    <RowMenu heading={row.account_label} ariaLabel={`${pools ? "Options" : "Attention options"} for ${row.account_label}`} at={{ x, y }} onClose={onClose}>
       {snoozed ? (
         <MenuItem onClick={onClear}>Unsnooze / unmute</MenuItem>
       ) : (
@@ -1024,6 +1128,23 @@ function RowContextMenu({
             Until reset
           </MenuItem>
           <MenuItem onClick={onMute}>Mute this session</MenuItem>
+        </>
+      )}
+      {pools && (
+        <>
+          <span role="separator" className="mx-1 my-0.5 h-px bg-hairline" />
+          {hasUserPools(pools) &&
+            pools.pools
+              .filter((pool) => pool.id !== poolIdOf(pools, row.id))
+              .slice(0, MENU_POOLS)
+              .map((pool) => (
+                <MenuItem key={pool.id} onClick={() => onMoveToPool?.(pool.id)} testId="menu-move-pool" title={`Move to ${pool.name}`}>
+                  <span className="block truncate">Move to {pool.name}</span>
+                </MenuItem>
+              ))}
+          <MenuItem onClick={() => onNewPool?.()} testId="menu-new-pool">
+            New pool…
+          </MenuItem>
         </>
       )}
     </RowMenu>
@@ -1762,6 +1883,9 @@ function RemoteBoardSection({
 }
 
 const FOLDED_KEY = "aij.rail.folded";
+
+/** Pools a session's menu offers to move to; the pool sheet has the rest. */
+const MENU_POOLS = 4;
 
 /** An element id from any key (an account label with spaces, a remote
  * path): only safe characters, plus a short hash so two keys can't meet. */

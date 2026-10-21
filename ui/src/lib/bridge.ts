@@ -4894,3 +4894,207 @@ export async function fleetAccountPin(deviceId: string, fingerprint: string): Pr
   }
   return invoke<void>("fleet_account_pin", { deviceId, fingerprint });
 }
+
+// --- AJ-E1702: pools ---------------------------------------------------------------
+
+import type { PoolsInfo } from "../types/generated/PoolsInfo";
+import type { PoolInfo } from "../types/generated/PoolInfo";
+import type { PoolMemberInfo } from "../types/generated/PoolMemberInfo";
+import type { GrantInfo } from "../types/generated/GrantInfo";
+export type { PoolsInfo, PoolInfo, PoolMemberInfo, GrantInfo };
+
+export const DEFAULT_POOL_ID = "pool-default";
+
+/** The plan doc's grants table (§2.3): [capability, fixed, lead, member, observer]. */
+const MOCK_GRANT_DEFAULTS: [string, boolean, boolean, boolean, boolean][] = [
+  ["roster", true, true, true, true],
+  ["own_inbox", true, true, true, true],
+  ["message", false, true, true, false],
+  ["broadcast", false, true, false, false],
+  ["share_doc", false, true, true, false],
+  ["create_task", false, true, true, false],
+  ["create_plan", false, true, false, false],
+  ["assign", false, true, false, false],
+  ["claim", false, true, true, false],
+  ["update_own", false, true, true, false],
+  ["close_others", false, true, false, false],
+];
+
+function mockGrants(): GrantInfo[] {
+  return MOCK_GRANT_DEFAULTS.map(([capability, fixed, lead, member, observer]) => ({ capability, fixed, lead, member, observer }));
+}
+
+interface PoolSeams {
+  /** Seeded pools (the harness); the default pool is added when missing. */
+  __AIJ_POOLS__?: { pools: Partial<PoolInfo>[]; members?: PoolMemberInfo[] };
+  __AIJ_POOL_CALLS__?: string[];
+}
+const poolSeams = () => window as unknown as PoolSeams;
+
+let mockPoolState: PoolsInfo | null = null;
+let mockPoolCounter = 0;
+
+/** The preview store: every seeded session has a place (the default pool
+ * unless seeded otherwise), like the backend's answer. */
+function mockPools(): PoolsInfo {
+  if (mockPoolState === null) {
+    const seededPools = poolSeams().__AIJ_POOLS__;
+    const pools: PoolInfo[] = [
+      { id: DEFAULT_POOL_ID, name: "All sessions", kind: "default", project_id: null, grants: mockGrants(), scopes: 1 },
+      ...(seededPools?.pools ?? [])
+        .filter((pool) => pool.id !== DEFAULT_POOL_ID)
+        .map((pool, index) => ({
+          id: pool.id ?? `pool-seeded-${index}`,
+          name: pool.name ?? `Pool ${index + 1}`,
+          kind: "user",
+          project_id: pool.project_id ?? null,
+          grants: pool.grants ?? mockGrants(),
+          scopes: pool.scopes ?? 1,
+        })),
+    ];
+    mockPoolState = { pools, members: [...(seededPools?.members ?? [])] };
+  }
+  const state = mockPoolState;
+  for (const session of MOCK_SESSIONS) {
+    if (!state.members.some((row) => row.session_id === session.id)) {
+      state.members.push({ session_id: session.id, pool_id: DEFAULT_POOL_ID, role: "member" });
+    }
+  }
+  // D-33: one project and one account make one group.
+  const scopesOf = (poolId: string) =>
+    new Set(
+      state.members
+        .filter((row) => row.pool_id === poolId)
+        .map((row) => MOCK_SESSIONS.find((session) => session.id === row.session_id))
+        .filter((session): session is InstanceInfo => session !== undefined)
+        .map((session) => `${session.project_id ?? ""}|${session.account_id ?? ""}`),
+    ).size;
+  return {
+    pools: state.pools.map((pool) => ({ ...pool, scopes: scopesOf(pool.id), grants: pool.grants.map((grant) => ({ ...grant })) })),
+    members: state.members.filter((row) => MOCK_SESSIONS.some((session) => session.id === row.session_id)).map((row) => ({ ...row })),
+  };
+}
+
+function mockPoolCall(call: string): void {
+  const seams = poolSeams();
+  seams.__AIJ_POOL_CALLS__ = [...(seams.__AIJ_POOL_CALLS__ ?? []), call];
+}
+
+function mockPoolName(name: string, except: string | null): string {
+  const trimmed = name.trim();
+  if (trimmed === "") throw refused("Give the pool a name");
+  if ([...trimmed].length > 48) throw refused("A pool's name is at most 48 characters");
+  const other = mockPools().pools.find((pool) => pool.id !== except && pool.name.toLowerCase() === trimmed.toLowerCase());
+  if (other) throw refused(`There's already a pool called «${other.name}» — pick another name`);
+  return trimmed;
+}
+
+function mockLivePool(poolId: string): PoolInfo {
+  const pool = mockPoolState?.pools.find((row) => row.id === poolId);
+  if (!pool) throw refused("That pool isn't there any more");
+  return pool;
+}
+
+/** Every pool and every session's place. */
+export async function poolsList(): Promise<PoolsInfo> {
+  if (!hasBackend) return mockPools();
+  return invoke<PoolsInfo>("pools_list");
+}
+
+/** Makes a pool, optionally for one project. */
+export async function poolCreate(name: string, projectId: string | null): Promise<PoolsInfo> {
+  if (!hasBackend) {
+    mockPools();
+    const clean = mockPoolName(name, null);
+    mockPoolCall(`create:${clean}`);
+    mockPoolCounter += 1;
+    mockPoolState!.pools.push({ id: `pool-mock-${mockPoolCounter}`, name: clean, kind: "user", project_id: projectId, grants: mockGrants(), scopes: 0 });
+    return mockPools();
+  }
+  return invoke<PoolsInfo>("pool_create", { name, projectId });
+}
+
+/** Renames a pool ("All sessions" keeps its name). */
+export async function poolRename(poolId: string, name: string): Promise<PoolsInfo> {
+  if (!hasBackend) {
+    mockPools();
+    const pool = mockLivePool(poolId);
+    if (pool.kind === "default") throw refused("«All sessions» keeps its name");
+    pool.name = mockPoolName(name, poolId);
+    mockPoolCall(`rename:${poolId}:${pool.name}`);
+    return mockPools();
+  }
+  return invoke<PoolsInfo>("pool_rename", { poolId, name });
+}
+
+/** Deletes a pool; its sessions go back to "All sessions". */
+export async function poolDelete(poolId: string): Promise<PoolsInfo> {
+  if (!hasBackend) {
+    mockPools();
+    const pool = mockLivePool(poolId);
+    if (pool.kind === "default") throw refused("«All sessions» can't be deleted — it holds every session that isn't in another pool");
+    mockPoolCall(`delete:${poolId}`);
+    mockPoolState!.pools = mockPoolState!.pools.filter((row) => row.id !== poolId);
+    for (const row of mockPoolState!.members) {
+      if (row.pool_id === poolId) {
+        row.pool_id = DEFAULT_POOL_ID;
+        row.role = "member";
+      }
+    }
+    return mockPools();
+  }
+  return invoke<PoolsInfo>("pool_delete", { poolId });
+}
+
+/** Moves a session into a pool, as a member. */
+export async function poolMove(sessionId: string, poolId: string): Promise<PoolsInfo> {
+  if (!hasBackend) {
+    mockPools();
+    const pool = mockLivePool(poolId);
+    const session = MOCK_SESSIONS.find((row) => row.id === sessionId);
+    if (!session) throw refused("That session isn't there any more");
+    if (pool.project_id !== null && session.project_id !== pool.project_id) {
+      const project = (seeded.projects ?? []).find((row) => row.id === pool.project_id);
+      throw refused(`«${pool.name}» is for ${project?.name ?? "one project"} only — this session works somewhere else`);
+    }
+    mockPoolCall(`move:${sessionId}:${poolId}`);
+    const row = mockPoolState!.members.find((entry) => entry.session_id === sessionId)!;
+    row.pool_id = poolId;
+    row.role = "member";
+    return mockPools();
+  }
+  return invoke<PoolsInfo>("pool_move", { sessionId, poolId });
+}
+
+/** Sets a session's role in its pool. */
+export async function poolSetRole(sessionId: string, role: string): Promise<PoolsInfo> {
+  if (!hasBackend) {
+    mockPools();
+    mockPoolCall(`role:${sessionId}:${role}`);
+    const row = mockPoolState!.members.find((entry) => entry.session_id === sessionId);
+    if (!row) throw refused("That session isn't there any more");
+    row.role = role;
+    return mockPools();
+  }
+  return invoke<PoolsInfo>("pool_set_role", { sessionId, role });
+}
+
+/** Sets what one role may do in a pool. */
+export async function poolSetGrant(poolId: string, capability: string, role: "lead" | "member" | "observer", allowed: boolean): Promise<PoolsInfo> {
+  if (!hasBackend) {
+    mockPools();
+    const pool = mockLivePool(poolId);
+    const grant = pool.grants.find((row) => row.capability === capability);
+    if (!grant || grant.fixed) throw refused("Every role can always see the pool and read its own messages");
+    mockPoolCall(`grant:${poolId}:${capability}:${role}:${allowed}`);
+    grant[role] = allowed;
+    return mockPools();
+  }
+  return invoke<PoolsInfo>("pool_set_grant", { poolId, capability, role, allowed });
+}
+
+/** Tests: forget the preview store between cases. */
+export function resetMockPools(): void {
+  mockPoolState = null;
+  mockPoolCounter = 0;
+}

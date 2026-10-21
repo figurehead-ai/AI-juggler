@@ -350,12 +350,22 @@ fn a_switch_keeps_the_pool_of_its_own_line_of_work_only() {
 
     let info = pools::pools_list_impl(&state).unwrap();
     let place = |id: &str| {
-        let row = info.members.iter().find(|row| row.session_id == id).unwrap();
+        let row = info
+            .members
+            .iter()
+            .find(|row| row.session_id == id)
+            .unwrap();
         (row.pool_id.clone(), row.role.clone())
     };
-    assert_eq!(place(&planner_next.session_id), (checkout.clone(), "lead".to_owned()));
+    assert_eq!(
+        place(&planner_next.session_id),
+        (checkout.clone(), "lead".to_owned())
+    );
     assert_eq!(place(&planner), (checkout.clone(), "lead".to_owned()));
-    assert_eq!(place(&loner_next.session_id).0, juggler_core::storage::DEFAULT_POOL_ID);
+    assert_eq!(
+        place(&loner_next.session_id).0,
+        juggler_core::storage::DEFAULT_POOL_ID
+    );
     assert_eq!(place(&loner).0, juggler_core::storage::DEFAULT_POOL_ID);
 
     let storage = state.storage.lock().unwrap();
@@ -364,5 +374,12 @@ fn a_switch_keeps_the_pool_of_its_own_line_of_work_only() {
         .by_root(&std::fs::canonicalize(&cwd).unwrap())
         .unwrap()
         .unwrap();
-    assert_eq!(storage.switch_graph().works_for_project(&project.id).unwrap().len(), 2);
+    assert_eq!(
+        storage
+            .switch_graph()
+            .works_for_project(&project.id)
+            .unwrap()
+            .len(),
+        2
+    );
 }

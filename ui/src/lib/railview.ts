@@ -7,11 +7,12 @@
  * from day one; with one local machine it simply never splits.
  */
 
-import type { AccountInfo, InstanceInfo, ProjectInfo } from "./bridge";
+import type { AccountInfo, InstanceInfo, PoolsInfo, ProjectInfo } from "./bridge";
+import { poolIdOf } from "./pools";
 import { renewalLabel, renewalTieBreak } from "./renewal";
 
 export type SortMode = "needs" | "quota" | "project" | "provider" | "account" | "age" | "name";
-export type GroupBy = "none" | "project" | "account" | "provider";
+export type GroupBy = "none" | "project" | "account" | "provider" | "pool";
 export type ChipId = "needs" | "running" | "ended";
 
 /** Menu labels — the quota sort is honest about its input (AJ-E409 pending). */
@@ -30,6 +31,8 @@ export const GROUP_LABELS: { id: GroupBy; label: string }[] = [
   { id: "project", label: "Project" },
   { id: "account", label: "Account" },
   { id: "provider", label: "Tool" },
+  // AJ-E1702: offered once the user has made a pool.
+  { id: "pool", label: "Pool" },
 ];
 
 export type ChipFilters = { chips: ChipId[]; provider: string | null; account: string | null; project: string | null; machine: string | null };
@@ -236,10 +239,11 @@ export type RowGroup = { id: string; label: string; rollup: string; rows: Instan
  * Group sorted rows (Needs-me order applies INSIDE groups, Req.5) with
  * rollup copy `N running - M needs you - lowest quota X%`.
  */
-export function groupSessions(sorted: InstanceInfo[], by: GroupBy, projects: ProjectInfo[]): RowGroup[] {
+export function groupSessions(sorted: InstanceInfo[], by: GroupBy, projects: ProjectInfo[], pools: PoolsInfo | null = null): RowGroup[] {
   if (by === "none") {
     return [{ id: "__all", label: "", rollup: "", rows: sorted }];
   }
+  if (by === "pool") return groupByPool(sorted, pools);
   const projectName = projectNames(projects);
   const buckets = new Map<string, InstanceInfo[]>();
   const labels = new Map<string, string>();
@@ -268,6 +272,36 @@ export function groupSessions(sorted: InstanceInfo[], by: GroupBy, projects: Pro
     rollup: rollupOf(rows),
     rows,
   }));
+}
+
+/**
+ * AJ-E1702: sessions under their pool, like project groups — the order
+ * the rows bring (Needs me first), then the user's pools with nobody in
+ * them yet, so each still has a place to open.
+ */
+function groupByPool(sorted: InstanceInfo[], pools: PoolsInfo | null): RowGroup[] {
+  const buckets = new Map<string, InstanceInfo[]>();
+  for (const row of sorted) {
+    const id = poolIdOf(pools, row.id);
+    if (!buckets.has(id)) buckets.set(id, []);
+    buckets.get(id)!.push(row);
+  }
+  for (const pool of pools?.pools ?? []) {
+    if (pool.kind === "user" && !buckets.has(pool.id)) buckets.set(pool.id, []);
+  }
+  const names = new Map((pools?.pools ?? []).map((pool) => [pool.id, pool.name]));
+  return [...buckets.entries()].map(([id, rows]) => ({
+    id: `pool:${id}`,
+    label: names.get(id) ?? "All sessions",
+    rollup: rollupOf(rows),
+    rows,
+  }));
+}
+
+/** Only the sessions in one pool (`null`: every pool). */
+export function filterByPool(rows: InstanceInfo[], pool: string | null, pools: PoolsInfo | null): InstanceInfo[] {
+  if (pool === null) return rows;
+  return rows.filter((row) => poolIdOf(pools, row.id) === pool);
 }
 
 export function rollupOf(rows: InstanceInfo[]): string {
