@@ -93,23 +93,27 @@ pub fn run() {
     let launched = std::time::Instant::now();
     // D-23: the edition comes from the identifier this build carries, and
     // decides everything that must never be shared between editions.
-    let context = tauri::generate_context!();
+    let mut context = tauri::generate_context!();
     edition::set_current(edition::Edition::from_identifier(
         &context.config().identifier,
         cfg!(debug_assertions),
     ));
     let data_dir = bootstrap_data_dir();
-    // AJ-E1010: this edition's data folder is ours until we quit (taken
-    // before the data is opened; going back moves database files only
-    // while it is held).
-    let lock_held = newer_data::hold_instance_lock(&data_dir);
+    // AJ-E1010: this edition's data folder is ours until we quit, taken
+    // before the data is opened. A second launch while another AI Juggler
+    // of this edition holds it touches nothing — no migration, no
+    // recovery — and only hands over to the running one.
+    if !newer_data::hold_instance_lock(&data_dir) {
+        context.config_mut().app.windows.clear();
+        hand_over_to_the_running_instance(context);
+    }
     let app_state = Arc::new(match state::AppState::init(data_dir.clone()) {
         Ok(state) => state,
         // AJ-E1010: an older AI Juggler opened data a newer one saved — say
         // so, and offer the copy or backup from before the update (never a
         // silent quit).
         Err(error::AppError::Core(juggler_core::CoreError::SchemaTooNew { found, supported })) => {
-            newer_data::at_launch(&data_dir, found, supported, lock_held)
+            newer_data::at_launch(&data_dir, found, supported)
         }
         Err(error) => {
             eprintln!("ai-juggler: fatal: {error}");
@@ -426,6 +430,59 @@ pub fn run() {
                 usage_stats::shutdown();
             }
         });
+}
+
+/// A second launch while another AI Juggler of this edition holds the
+/// data: a bare app (no state, no windows) whose single-instance plugin
+/// tells the running one to come forward, then exits. If the running one
+/// doesn't answer — it is still starting up, sitting on its launch
+/// message, closing, or stuck — this launch has become the plugin's
+/// "running instance" itself: it lets go of that at once (so the other one
+/// keeps working as the single instance once it is ready), says what to
+/// do, and quits without opening the data.
+fn hand_over_to_the_running_instance(context: tauri::Context<tauri::Wry>) -> ! {
+    let built = tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|_, _, _| {}))
+        .build(context);
+    if let Ok(app) = &built {
+        // On macOS the plugin binds its socket a moment later, on its own
+        // task: wait for it (up to a second), or releasing it now would
+        // miss it and leave this launch answering hand-overs while its
+        // message is up.
+        #[cfg(target_os = "macos")]
+        {
+            let socket = std::path::PathBuf::from(format!(
+                "/tmp/{}_si.sock",
+                app.config().identifier.replace(['.', '-'], "_")
+            ));
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
+            while !socket.exists() && std::time::Instant::now() < deadline {
+                // poll: the plugin's socket appearing (bound on its own
+                // task, within moments); a second launch only, 1 s at most.
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+        }
+        tauri_plugin_single_instance::destroy(app);
+    }
+    drop(built);
+    let app = edition::current().app_name();
+    let how = if cfg!(target_os = "macos") {
+        format!(
+            "Switch to it and quit it ({app} › Quit, or ⌘Q). If it doesn't respond, force it to quit: press ⌥⌘Esc, choose {app}, then Force Quit."
+        )
+    } else if cfg!(windows) {
+        format!(
+            "Switch to it and quit it. If it doesn't respond, end it in Task Manager (Ctrl+Shift+Esc), under {app}."
+        )
+    } else {
+        format!(
+            "Switch to it and quit it. If it doesn't respond, end it from your system monitor ({app})."
+        )
+    };
+    newer_data::cannot_start(&format!(
+        "Another {app} is already open with this data and isn't answering. It may be showing a message, or be stuck.\n\n{how}\n\nThen open {app} again."
+    ));
+    std::process::exit(1);
 }
 
 /// Resolves and creates the data dir, exiting with a plain-language
