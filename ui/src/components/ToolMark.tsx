@@ -58,16 +58,18 @@ export function ToolMark({
   }
   const spec = toolSpec(tool);
   const name = of === "vendor" && spec.vendor ? spec.vendor : spec.display_name;
+  // The letters are drawn from `data-letters` by CSS, not written as text:
+  // a picture beside the name, so they never count as the control's
+  // visible label (WCAG 2.5.3) or as text of their own.
   const style: CSSProperties = { width: size, height: size, fontSize: Math.max(7, Math.round(size * 0.46)) };
   return (
     <span
       aria-hidden="true"
       data-mark="letter"
+      data-letters={markLetters(name)}
       style={style}
-      className={`inline-flex shrink-0 items-center justify-center rounded-[28%] border border-current font-semibold leading-none tracking-tight opacity-80 ${className}`}
-    >
-      {markLetters(name)}
-    </span>
+      className={`inline-flex shrink-0 items-center justify-center rounded-[28%] border border-current font-semibold leading-none tracking-tight before:content-[attr(data-letters)] ${className}`}
+    />
   );
 }
 

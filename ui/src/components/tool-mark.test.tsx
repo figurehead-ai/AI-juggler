@@ -36,7 +36,9 @@ describe("AJ-E1526 tool marks", () => {
   it("an unknown tool gets the letter mark", () => {
     const { container } = render(<ToolMark tool="never-heard-of" />);
     expect((container.firstElementChild as HTMLElement).dataset.mark).toBe("letter");
-    expect(container.textContent).toBe("Ne");
+    // Drawn by CSS from data-letters: never text, so never a visible label.
+    expect((container.firstElementChild as HTMLElement).dataset.letters).toBe("Ne");
+    expect(container.textContent).toBe("");
   });
 
   it("a mark whose owner hasn't allowed it is never drawn; an allowed one is, in currentColor", () => {
