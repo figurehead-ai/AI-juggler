@@ -457,21 +457,16 @@ pub fn hold_instance_lock(data_dir: &Path) -> bool {
 
 /// At launch: shows the alert and, if the user chooses to go back, goes
 /// back and returns the state to start with (after saying what is left to
-/// do). Quitting exits. Nothing is touched while another instance holds
-/// the data (`lock_held` false).
+/// do). Quitting exits. Only reached with the instance lock held (a second
+/// launch hands over before it opens any data), so moving the database
+/// files can't pull them from under another instance.
 #[must_use]
-pub fn at_launch(data_dir: &Path, found: i64, supported: i64, lock_held: bool) -> AppState {
+pub fn at_launch(data_dir: &Path, found: i64, supported: i64) -> AppState {
     eprintln!(
         "ai-juggler: the data in {} is schema {found}; this build reads up to {supported}",
         data_dir.display()
     );
     let app_name = crate::edition::current().app_name();
-    if !lock_held {
-        cannot_start(&format!(
-            "Another {app_name} is open with this data. Quit it first, then open this version again."
-        ));
-        std::process::exit(1);
-    }
     let offer = newest_restorable(data_dir);
     let (title, text, go_back_label) =
         launch_message(app_name, env!("CARGO_PKG_VERSION"), offer.as_ref());
@@ -532,9 +527,23 @@ enum Choice {
     Quit,
 }
 
+/// `AIJ_NO_DIALOGS` set: the launch's dialogs (before any window exists)
+/// are written to stderr instead, and every question is answered Quit —
+/// for headless runs and the tests that start the real binary.
+fn no_dialogs(title: &str, text: &str) -> bool {
+    let quiet = std::env::var_os("AIJ_NO_DIALOGS").is_some();
+    if quiet {
+        eprintln!("ai-juggler: {title}\n{text}");
+    }
+    quiet
+}
+
 /// The launch alert (a native dialog on every desktop platform; it runs
 /// before any window exists).
 fn ask(title: &str, text: &str, go_back: Option<&str>) -> Choice {
+    if no_dialogs(title, text) {
+        return Choice::Quit;
+    }
     let first = go_back.unwrap_or("Show the data folder").to_owned();
     let answer = rfd::MessageDialog::new()
         .set_level(rfd::MessageLevel::Warning)
@@ -559,6 +568,9 @@ fn ask(title: &str, text: &str, go_back: Option<&str>) -> Choice {
 
 /// A plain notice with one button (before any window exists).
 fn tell(title: &str, text: &str) {
+    if no_dialogs(title, text) {
+        return;
+    }
     let _ = rfd::MessageDialog::new()
         .set_level(rfd::MessageLevel::Info)
         .set_title(title)
@@ -570,6 +582,9 @@ fn tell(title: &str, text: &str) {
 /// Says that the app can't start, and why (before any window exists).
 pub fn cannot_start(reason: &str) {
     let app_name = crate::edition::current().app_name();
+    if no_dialogs(&format!("{app_name} can't start"), reason) {
+        return;
+    }
     let _ = rfd::MessageDialog::new()
         .set_level(rfd::MessageLevel::Error)
         .set_title(format!("{app_name} can't start"))

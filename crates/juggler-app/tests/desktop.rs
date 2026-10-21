@@ -39,6 +39,28 @@ fn fake_desktop_bin() -> PathBuf {
     unreachable!("fake-desktop binary not found under {}", target.display())
 }
 
+/// A fake-desktop a test launched: killed when the test ends — passed,
+/// failed or panicked — so none outlives the run. Only while that pid is
+/// still a fake-desktop (a pid reused after a clean stop is never touched).
+struct Launched(u32);
+
+impl Drop for Launched {
+    fn drop(&mut self) {
+        if is_fake_desktop(self.0) {
+            let _ = std::process::Command::new("kill")
+                .args(["-9", &self.0.to_string()])
+                .status();
+        }
+    }
+}
+
+fn is_fake_desktop(pid: u32) -> bool {
+    std::process::Command::new("ps")
+        .args(["-p", &pid.to_string(), "-o", "command="])
+        .output()
+        .is_ok_and(|out| String::from_utf8_lossy(&out.stdout).contains("fake-desktop"))
+}
+
 fn desktop_state(dir: &Path) -> Arc<AppState> {
     let mut registry = AdapterRegistry::new();
     registry.register(Arc::new(FakeDesktopAdapter::new(fake_desktop_bin())));
@@ -92,6 +114,7 @@ fn desktop_launch_tracks_in_the_same_ledger_without_a_pty() {
     let state_ref = &desktop_state(dir.path());
     let started = Instant::now();
     let info = commands::desktop_launch_arc(state_ref, "acc-desktop").unwrap();
+    let _launched = Launched(info.pid);
     // Launch-to-tracked budget (<3 s, Req. performance).
     assert!(started.elapsed() < Duration::from_secs(3));
 
@@ -166,6 +189,7 @@ fn desktop_crash_surfaces_as_failed_state() {
         .supervisor
         .spawn_desktop(&session, &launch, &ctx())
         .unwrap();
+    let _launched = Launched(spawned.pid);
     assert!(spawned.pid != 0);
     let deadline = Instant::now() + Duration::from_secs(10);
     loop {
@@ -188,6 +212,7 @@ fn restart_reconciler_closes_dead_desktop_rows_never_fake_live() {
     {
         let state_ref = &desktop_state(dir.path());
         let info = commands::desktop_launch_arc(state_ref, "acc-desktop").unwrap();
+        let _launched = Launched(info.pid);
         state_ref
             .supervisor
             .stop(
@@ -416,6 +441,7 @@ fn desktop_focus_runs_tiers_and_persists_first_sight_identity() {
     let dir = tempfile::tempdir().unwrap();
     let state = desktop_state(dir.path());
     let info = commands::desktop_launch_arc(&state, "acc-desktop").unwrap();
+    let _launched = Launched(info.pid);
     // The launch recorded pid + bundle (no title yet).
     {
         let storage = state.storage.lock().unwrap();
@@ -570,6 +596,7 @@ fn desktop_focus_permission_denial_degrades_with_flag() {
     let dir = tempfile::tempdir().unwrap();
     let state = desktop_state(dir.path());
     let info = commands::desktop_launch_arc(&state, "acc-desktop").unwrap();
+    let _launched = Launched(info.pid);
     let runner = std::sync::Arc::new(FocusFixture {
         permission_denied: std::sync::atomic::AtomicBool::new(true),
     });
@@ -579,4 +606,112 @@ fn desktop_focus_permission_denial_degrades_with_flag() {
         outcome.permission_missing,
         "the UI explainer keys on this flag"
     );
+}
+
+/// Every path under `root` with its size and modification time, the
+/// root's own entry first (its mtime moves when anything is created or
+/// removed directly inside it).
+fn snapshot(root: &Path) -> Vec<(String, u64, std::time::SystemTime)> {
+    fn walk(dir: &Path, root: &Path, out: &mut Vec<(String, u64, std::time::SystemTime)>) {
+        for entry in std::fs::read_dir(dir).unwrap().flatten() {
+            let meta = std::fs::symlink_metadata(entry.path()).unwrap();
+            let rel = entry
+                .path()
+                .strip_prefix(root)
+                .unwrap()
+                .to_string_lossy()
+                .into_owned();
+            out.push((rel, meta.len(), meta.modified().unwrap()));
+            if meta.is_dir() {
+                walk(&entry.path(), root, out);
+            }
+        }
+    }
+    let meta = std::fs::metadata(root).unwrap();
+    let mut out = vec![(".".to_owned(), meta.len(), meta.modified().unwrap())];
+    walk(root, root, &mut out);
+    out.sort();
+    out
+}
+
+/// ADR-0018 §2 (a guard for desktop adapters to come — no real adapter
+/// declares DESKTOP_APP today): a desktop launch on an account that uses
+/// the user's own folder never prepares it. The fake prepares like the
+/// real adapters (folder + AI Juggler's marker), so the old code fails
+/// the snapshot; a folder that has gone is refused, not recreated.
+#[test]
+fn a_desktop_launch_never_prepares_a_folder_used_where_it_is() {
+    let dir = tempfile::tempdir().unwrap();
+    let state_ref = &desktop_state(dir.path());
+    let users = dir.path().join("users-folder");
+    std::fs::create_dir_all(&users).unwrap();
+    std::fs::write(users.join("settings.json"), "{}").unwrap();
+    {
+        let storage = state_ref.storage.lock().unwrap();
+        let mut account = storage
+            .accounts()
+            .get(&AccountId::new("acc-desktop"))
+            .unwrap();
+        account.state_dir = users.clone();
+        account.in_place = true;
+        storage.accounts().update(&account).unwrap();
+    }
+    let before = snapshot(&users);
+    let info = commands::desktop_launch_arc(state_ref, "acc-desktop").unwrap();
+    let _launched = Launched(info.pid);
+    let session = juggler_core::model::SessionId::new(info.session_id);
+    state_ref
+        .supervisor
+        .stop(&session, Duration::from_secs(5))
+        .unwrap();
+    assert_eq!(snapshot(&users), before, "the user's folder is unchanged");
+
+    std::fs::remove_dir_all(&users).unwrap();
+    assert!(commands::desktop_launch_arc(state_ref, "acc-desktop").is_err());
+    assert!(!users.exists(), "a gone folder is not recreated");
+}
+
+/// A launched desktop never outlives its test: the guard kills it when
+/// the test ends, and the fixture itself exits once whoever started it is
+/// gone (here: a shell that exits a moment after starting it).
+#[test]
+fn a_launched_desktop_never_outlives_its_test() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = desktop_state(dir.path());
+    let info = commands::desktop_launch_arc(&state, "acc-desktop").unwrap();
+    assert!(is_fake_desktop(info.pid));
+    drop(Launched(info.pid));
+    let gone = |pid: u32| {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while Instant::now() < deadline {
+            if !is_fake_desktop(pid) {
+                return true;
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        false
+    };
+    assert!(gone(info.pid), "the guard stopped it");
+
+    // Its parent goes away: it follows within moments. The shell waits
+    // until the fixture is up (its marker), then exits.
+    let marker = dir.path().join("orphan.marker");
+    let shell = std::process::Command::new("sh")
+        .arg("-c")
+        .arg(format!(
+            "'{bin}' --marker '{m}' & i=0; while [ ! -s '{m}' ] && [ $i -lt 200 ]; do sleep 0.05; i=$((i+1)); done",
+            bin = fake_desktop_bin().display(),
+            m = marker.display()
+        ))
+        .status()
+        .unwrap();
+    assert!(shell.success());
+    let pid: u32 = std::fs::read_to_string(&marker)
+        .expect("the fixture came up within 10 s")
+        .trim()
+        .trim_start_matches("running ")
+        .parse()
+        .unwrap();
+    let _launched = Launched(pid);
+    assert!(gone(pid), "an orphaned fake-desktop exits by itself");
 }

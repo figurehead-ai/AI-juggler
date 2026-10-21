@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Opening AI Juggler while it is already open brings the open one
+  forward without touching its data first (it used to open the data,
+  run its upgrades and recovery, and only then hand over).
 - Updates (beta): a failed update says why in plain words — no
   connection, a download that didn't pass the signature check, one signed
   for another version, the backup — with the technical reason behind
@@ -252,6 +255,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   side (with secrets handled the way you chose — a replay waits until
   you have chosen). Every Codex switch is labelled Beta: none has been
   checked on real accounts yet.
+- Codex setups can be used where they are, like Claude Code ones
+  (AJ-E1306, ADR-0018). Bringing in `~/.codex` (or another Codex home)
+  no longer has to make a copy: AI Juggler runs your own home, so it
+  stays signed in and Codex outside AI Juggler sees the same sessions.
+  Nothing of AI Juggler's is written into it. `~/.codex` itself runs with
+  `CODEX_HOME` unset, as a plain `codex` does. A Codex copy can switch to
+  its original ("Use the original instead"), and a failed Codex copy can
+  come in where it is instead. Copies stay available for anyone who
+  wants a sandbox.
 - AI Juggler now watches the Mac itself, not only its sessions (E14,
   AJ-E1401): processor and memory use, macOS's own memory-pressure level,
   swap, free space on the disks your sessions use, power and thermal

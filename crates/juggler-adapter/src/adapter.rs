@@ -189,6 +189,20 @@ pub trait HarnessAdapter: Send + Sync {
         ))
     }
 
+    /// ADR-0018: whether [`HarnessAdapter::adopt_account`] is supported —
+    /// the UI offers "use it where it is" only for these Providers.
+    /// Default: false (the default `adopt_account` refuses).
+    fn can_use_in_place(&self) -> bool {
+        false
+    }
+
+    /// The vendor's own default folder (`~/.claude`, `~/.codex`), which
+    /// launches with its isolation variable unset — the one home lookup
+    /// the app and the adapter's launch rule share. Default: none.
+    fn vendor_default_dir(&self) -> Option<std::path::PathBuf> {
+        None
+    }
+
     /// AJ-E307 Req.3: the pre-copy source inspection — metadata-only;
     /// the Confirm-source step's data (sizes, breakdown, evidence).
     ///
