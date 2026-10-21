@@ -39,6 +39,15 @@ with undo, a quit warning, loading placeholders). Status:
   SIGHUP when the master closed. So the sheet says terminal sessions
   **end**, and that desktop or re-adopted sessions keep running. Stop them
   first stops each one cleanly, in parallel, then quits.
+- **A quit never does nothing** (#106 review). If the window is hung,
+  still loading or never shows the sheet, two fallbacks apply. A second
+  ⌘Q or close while a request waits quits anyway, as macOS apps do. And
+  the sheet acknowledges the request when it shows (`app_quit_ack`):
+  without that within 3 s, AI Juggler quits as if Quit anyway was chosen.
+  Cancel tells Rust (`app_quit_cancel`), so the next ⌘Q asks again.
+  Logging out and shutting down never ask: macOS sends them as
+  `terminate:`, past the menu, and nothing prevents
+  `RunEvent::ExitRequested` (the run loop handles only `Exit`).
 - **Loading placeholders** (`ui/src/components/Placeholder.tsx`). The
   rail, Home and Accounts show rows shaped like their own while the first
   load answers. They used to say "No sessions yet" and "Bring in your
@@ -57,6 +66,7 @@ with undo, a quit warning, loading placeholders). Status:
 | Req.2 held stop: undo-before-send, send-after-window | vitest `feedback.test.tsx`: no kill at 4 999 ms, one kill at 5 000 ms; Undo means no kill after 60 s; the same id twice sends one; ✕ and `flushHeld` send; ⌘Z (`undoLatest`) | PASS |
 | Req.2 undo on reviewed, snooze | cargo `triage_lifecycle::undoing_reviewed_puts_it_back_and_keeps_both_steps`; vitest "snoozing says so, and Undo brings the row's earlier state back" | PASS |
 | Req.3 quit warning with 0, 1 and n | cargo `quit::tests` (0 quits at once; 1 asks; 4 = 2 end + 2 keep running); vitest words for 1, n, all-keep and mixed; the sheet shows only on request and quits only from a click; Cancel and Esc stop nothing | PASS |
+| Req.3 fallbacks: second request, no acknowledgement | cargo `quit::tests::a_second_request_while_one_waits_quits_anyway` (and asks again after Cancel); `an_unacknowledged_request_quits_after_the_window` (quits when unacknowledged; not once acknowledged; a cancelled request's timer is stale); vitest: the sheet acknowledges when shown, and Cancel/Esc tell Rust | PASS |
 | Req.4 placeholders | vitest: the rail and Home show placeholders while loading and their empty states after; captures `75-feedback/loading-home-*`, `loading-accounts-*`; regression `loading-home-*`, `loading-accounts-*` | PASS |
 | Req.5 announced, never steals focus; a11y gate | vitest: the polite region, the countdown kept out of it, focus kept elsewhere; a11y "feedback — toast, quit sheet, placeholders" (axe 0 critical/serious in both themes, Stop keeps focus, the sheet traps Tab) | PASS |
 | Performance: a toast renders < 16 ms; the hold adds exactly the window | the hold is one `setTimeout` of `STOP_HOLD_SECONDS * 1000` (vitest at 4 999 and 5 000 ms); the toast is one small node, rendered from a store subscription | PASS |

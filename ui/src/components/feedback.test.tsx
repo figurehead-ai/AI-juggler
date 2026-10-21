@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushHeld, resetToasts, showToast, ToastHost, undoLatest } from "./Toast";
 import { QuitSheet, quitEffectWords, runningWords } from "./QuitSheet";
@@ -237,22 +237,25 @@ describe("AJ-E1503 quit warning", () => {
     expect(screen.getByTestId("quit-running").textContent).toBe("3 sessions are running.");
     expect(screen.getByRole("dialog", { name: "Quit AI Juggler?" })).toBeTruthy();
     expect(document.activeElement).toBe(screen.getByTestId("quit-anyway"));
-    expect(seams().__AIJ_QUIT_CALLS__).toBeUndefined();
+    // Shown: acknowledged (else Rust quits after 3 s); nothing quit yet.
+    await waitFor(() => expect(seams().__AIJ_QUIT_CALLS__).toEqual(["ack"]));
     await act(async () => {
       fireEvent.click(screen.getByTestId("quit-stop-first"));
     });
-    expect(seams().__AIJ_QUIT_CALLS__).toEqual(["stop-first"]);
+    expect(seams().__AIJ_QUIT_CALLS__).toEqual(["ack", "stop-first"]);
   });
 
-  it("Cancel and Escape leave everything running", () => {
+  it("Cancel and Escape leave everything running", async () => {
     render(<QuitSheet />);
     act(() => {
       window.dispatchEvent(new CustomEvent("aij:quit-requested", { detail: plan(1, 1, 0) }));
     });
     expect(screen.getByTestId("quit-stop-first").textContent).toBe("Stop it first");
+    await waitFor(() => expect(seams().__AIJ_QUIT_CALLS__).toEqual(["ack"]));
     fireEvent.keyDown(screen.getByTestId("quit-anyway"), { key: "Escape" });
     expect(screen.queryByTestId("quit-sheet")).toBeNull();
-    expect(seams().__AIJ_QUIT_CALLS__).toBeUndefined();
+    // Rust hears the Cancel (the next ⌘Q asks again); nothing quits.
+    expect(seams().__AIJ_QUIT_CALLS__).toEqual(["ack", "cancel"]);
   });
 });
 

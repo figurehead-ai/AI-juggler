@@ -8,13 +8,15 @@
  * this app); a desktop session keeps running on its own. Quit anyway,
  * Stop them first (a clean stop, then quit) or Cancel — nothing is
  * stopped without the click. A stop still held in its undo window is sent
- * before quitting either way.
+ * before quitting either way. The sheet acknowledges the request when it
+ * shows (else Rust quits after 3 s), Cancel tells Rust, and a second ⌘Q
+ * while it is up quits anyway (quit.rs).
  */
 import { useEffect, useState, type JSX } from "react";
 import { Modal } from "./form";
 import { Button } from "./primitives";
 import { flushHeld } from "./Toast";
-import { appQuit, errorText, onQuitRequested, type QuitPlanInfo } from "../lib/bridge";
+import { appQuit, appQuitAck, appQuitCancel, errorText, onQuitRequested, type QuitPlanInfo } from "../lib/bridge";
 
 /** "1 session is running." / "3 sessions are running." */
 export function runningWords(plan: QuitPlanInfo): string {
@@ -46,8 +48,18 @@ export function QuitSheet(): JSX.Element | null {
       }),
     [],
   );
+  // The sheet is up: tell Rust, or it quits after 3 s (a hung window must
+  // never leave ⌘Q doing nothing).
+  useEffect(() => {
+    if (plan) void appQuitAck().catch(() => null);
+  }, [plan]);
   if (!plan) return null;
   const one = plan.live === 1;
+  const cancel = () => {
+    if (busy !== null) return;
+    setPlan(null);
+    void appQuitCancel().catch(() => null);
+  };
   const quit = async (stopFirst: boolean) => {
     setBusy(stopFirst ? "stop" : "quit");
     setError(null);
@@ -60,7 +72,7 @@ export function QuitSheet(): JSX.Element | null {
     }
   };
   return (
-    <Modal title="Quit AI Juggler?" onClose={() => busy === null && setPlan(null)} testId="quit-sheet">
+    <Modal title="Quit AI Juggler?" onClose={cancel} testId="quit-sheet">
       <div className="flex flex-col gap-4 text-xs">
         <p className="leading-relaxed">
           <span className="text-ink" data-testid="quit-running">
@@ -77,7 +89,7 @@ export function QuitSheet(): JSX.Element | null {
         )}
         {error && <p className="text-warning">{error}</p>}
         <div className="flex flex-wrap justify-end gap-2">
-          <Button size="sm" variant="ghost" disabled={busy !== null} onClick={() => setPlan(null)}>
+          <Button size="sm" variant="ghost" disabled={busy !== null} onClick={cancel}>
             Cancel
           </Button>
           <Button size="sm" variant="secondary" disabled={busy !== null} onClick={() => void quit(true)} data-testid="quit-stop-first">

@@ -176,7 +176,7 @@ pub fn run() {
         .menu(quit::app_menu)
         .on_menu_event(|app, event| {
             if event.id() == quit::QUIT_MENU_ID {
-                quit::request(app);
+                let _ = quit::request(app);
             }
         })
         .on_window_event(|window, event| {
@@ -192,6 +192,8 @@ pub fn run() {
             commands::app_info,
             quit::app_quit_plan,
             quit::app_quit,
+            quit::app_quit_ack,
+            quit::app_quit_cancel,
             usage_stats::usage_stats_info,
             usage_stats::usage_stats_set,
             usage_stats::usage_stats_ui_event,
