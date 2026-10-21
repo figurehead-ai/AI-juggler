@@ -220,7 +220,9 @@ jobs:
 
   sign:
     name: sign ${{ matrix.edition }}
-    if: ${{ !inputs.dry_run }}
+    # Explicit status: a job skipped anywhere up the chain (preflight,
+    # in a dry run) would otherwise skip this one too.
+    if: ${{ !cancelled() && !inputs.dry_run && needs.build.result == 'success' }}
     needs: build
     runs-on: macos-latest
     # Apple's notary service can take most of an hour for a new team's
@@ -290,7 +292,9 @@ jobs:
 
   sign-rehearsal:
     name: sign ${{ matrix.edition }} (rehearsal)
-    if: ${{ inputs.dry_run }}
+    # The dry run skips preflight; without an explicit status check that
+    # skip would carry down and skip the rehearsal too.
+    if: ${{ !cancelled() && inputs.dry_run && needs.build.result == 'success' }}
     needs: build
     runs-on: macos-latest
     timeout-minutes: 30
