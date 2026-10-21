@@ -45,6 +45,17 @@ bar). Status: **DONE-EVIDENCED**.
 | Screen reader (Req.6) | `voiceover_hears_what_the_number_counts_and_words_for_unknowns` | pass | pass | PASS | 12de06db | 2026-10-20 | claude-opus |
 | Live again | Debug build, `HOME` pointed at an empty folder, `AIJ_TRAY_TRACE=1`: 6 updates in 35 s. "Measuring this Mac…" became the full menu by inserting lines in place, then only figures changed | as described | as described | PASS | 12de06db | 2026-10-20 | claude-opus |
 
+## The 0.0.11 hand walk (M1–M3, Q9–Q10; `docs/qa/evidence/walks/2026-10-21-0.0.11.md`)
+
+| Claim / Req ID | Command / fixture / live step (exact) | Threshold | Observed | Verdict | Commit SHA | Date | Reviewer |
+|---|---|---|---|---|---|---|---|
+| M1 one CPU measure | A tool's line uses Home's measure: its trees summed, where 100% is one core busy (`ToolGroupInfo.cpu_one_core_pct`). The Mac's line says "of all CPU cores", as Home does. Test: `a_calm_mac_is_one_quiet_icon_with_this_mac_behind_a_click` ("about 1.6 GB · CPU 14%") | pass | pass | PASS | @@SHA@@ | 2026-10-21 | claude-opus |
+| M2 one figure for the Claude app | An alert names a tool AI Juggler didn't start by all its windows (the same group total as its line). Tests: `machine_alerts::the_claude_app_is_named_by_all_its_windows_never_one` (six windows, the heaviest 4.9 GB: "about 12 GB"), `tray::the_menu_and_home_read_one_fixture` | pass | pass | PASS | @@SHA@@ | 2026-10-21 | claude-opus |
+| M3 Home's words | "CPU —"; memory before CPU; "Memory: X of Y in use"; nothing running said once. Tests: `nothing_running_says_so`, `voiceover_hears_what_the_number_counts_and_words_for_unknowns` | pass | pass | PASS | @@SHA@@ | 2026-10-21 | claude-opus |
+| Pinned to Home | One fixture, both read models: `tray::the_menu_and_home_read_one_fixture` writes `ui/src/lib/__fixtures__/menu-bar.json` and fails if it's stale. `this-mac.test.tsx` "the menu bar and Home read one fixture" renders Home's This Mac from it and checks three things: a one-tree tool's menu line ends with Home's own row figures; the alert's subject is Home's `alertSubject`; the Mac's memory words are Home's meter words | pass | 3 passed | PASS | @@SHA@@ | 2026-10-21 | claude-opus |
+| Q9 a mark, not a ball | The attention dot is r 3 at the top-right corner (32, 4), outside the arc (balls are r 4.5). Test: `the_icon_is_a_template_and_attention_is_a_shape` (the dot adds under half a ball's ink) | pass | pass | PASS | @@SHA@@ | 2026-10-21 | claude-opus |
+| Q10 calm at tight | At "tight" the first line is Home's "Getting tight"; "macOS reports …" only comes with the alert (number and dot). Test: `a_tight_mac_stays_calm_in_shape_and_words` | pass | pass | PASS | @@SHA@@ | 2026-10-21 | claude-opus |
+
 ## Redaction checklist (tick before commit)
 
 - [x] No credentials, tokens, or keys in any file here (secret scan ran)

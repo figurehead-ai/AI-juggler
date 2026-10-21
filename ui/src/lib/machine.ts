@@ -196,6 +196,12 @@ export function mockHeavyNote(cpu: number | null, rss: number): string | null {
   return parts.length ? parts.join(" · ") : null;
 }
 
+/** CPU summed as Home's rows count it (100% is one core); null while any
+ * tree is unmeasured. */
+function oneCore(trees: ToolTreeInfo[]): number | null {
+  return trees.every((tree) => tree.cpu_pct !== null) ? trees.reduce((sum, tree) => sum + (tree.cpu_pct ?? 0), 0) : null;
+}
+
 function totals(trees: ToolTreeInfo[], cores: number): ToolTotalsInfo {
   const measured = trees.every((tree) => tree.cpu_pct !== null);
   return {
@@ -241,14 +247,20 @@ export function mockThisMac(
     providers.set(provider, [...(providers.get(provider) ?? []), tree]);
   }
   const byTool: ToolGroupInfo[] = [...providers.entries()]
-    .map(([provider, trees]) => ({ tool: provider, label: providerDisplayName(provider), ours: true, totals: totals(trees, machine.cores) }))
+    .map(([provider, trees]) => ({
+      tool: provider,
+      label: providerDisplayName(provider),
+      ours: true,
+      totals: totals(trees, machine.cores),
+      cpu_one_core_pct: oneCore(trees),
+    }))
     .sort((a, b) => b.totals.rss_bytes - a.totals.rss_bytes);
   for (const [place, label] of [
     ["desktop", "Claude app"],
     ["terminal", "claude in a terminal"],
   ] as const) {
     const trees = observed.filter((tree) => tree.place === place);
-    if (trees.length > 0) byTool.push({ tool: place, label, ours: false, totals: totals(trees, machine.cores) });
+    if (trees.length > 0) byTool.push({ tool: place, label, ours: false, totals: totals(trees, machine.cores), cpu_one_core_pct: oneCore(trees) });
   }
   return {
     machine,

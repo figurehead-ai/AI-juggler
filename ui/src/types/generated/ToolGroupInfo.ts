@@ -22,4 +22,10 @@ ours: boolean,
 /**
  * The tool's figures, as [`ToolTotalsInfo`].
  */
-totals: ToolTotalsInfo, };
+totals: ToolTotalsInfo, 
+/**
+ * CPU as Home's rows count it: the tool's trees summed, 100% is one
+ * core busy (Activity Monitor's measure). `None` until every tree
+ * is measured.
+ */
+cpu_one_core_pct: number | null, };

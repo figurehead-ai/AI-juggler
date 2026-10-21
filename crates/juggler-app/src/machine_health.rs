@@ -919,6 +919,10 @@ pub struct ToolGroupInfo {
     pub ours: bool,
     /// The tool's figures, as [`ToolTotalsInfo`].
     pub totals: ToolTotalsInfo,
+    /// CPU as Home's rows count it: the tool's trees summed, 100% is one
+    /// core busy (Activity Monitor's measure). `None` until every tree
+    /// is measured.
+    pub cpu_one_core_pct: Option<f64>,
 }
 
 /// One tree, as the pure assembly sees it.
@@ -1047,6 +1051,15 @@ fn totals(trees: &[&TreeInput], cores: u32) -> ToolTotalsInfo {
     }
 }
 
+/// CPU summed over trees as Home's rows count it (100% is one core);
+/// `None` while any tree is unmeasured.
+fn one_core(trees: &[&TreeInput]) -> Option<f64> {
+    trees
+        .iter()
+        .map(|tree| tree.stats.cpu_pct)
+        .sum::<Option<f64>>()
+}
+
 /// Each AI tool on its own: our sessions grouped by Provider (heaviest
 /// first), then the Claude app, then `claude` in a terminal.
 fn by_tool(ours: &[&TreeInput], theirs: &[&TreeInput], cores: u32) -> Vec<ToolGroupInfo> {
@@ -1069,6 +1082,7 @@ fn by_tool(ours: &[&TreeInput], theirs: &[&TreeInput], cores: u32) -> Vec<ToolGr
             tool: provider,
             ours: true,
             totals: totals(&trees, cores),
+            cpu_one_core_pct: one_core(&trees),
         })
         .collect();
     groups.sort_by_key(|group| std::cmp::Reverse(group.totals.rss_bytes));
@@ -1087,6 +1101,7 @@ fn by_tool(ours: &[&TreeInput], theirs: &[&TreeInput], cores: u32) -> Vec<ToolGr
                 label: label.to_string(),
                 ours: false,
                 totals: totals(&trees, cores),
+                cpu_one_core_pct: one_core(&trees),
             });
         }
     }

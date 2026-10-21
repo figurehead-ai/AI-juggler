@@ -371,3 +371,44 @@ describe("overload alerts and recommendations (AJ-E1408, AJ-E1409)", () => {
     expect(list.textContent).toContain("is the heaviest launch setting");
   });
 });
+
+import menuBar from "../lib/__fixtures__/menu-bar.json";
+import { alertSubject, bytesWords } from "../lib/machine";
+
+describe("the menu bar and Home read one fixture (AJ-E1411)", () => {
+  const fixture = menuBar as unknown as {
+    info: ThisMacInfo;
+    names: Record<string, string>;
+    menu: string[];
+    single: Array<{ line: string; tree: ToolTreeInfo }>;
+  };
+  const nameOf = (id: string) => fixture.names[id] ?? id;
+
+  it("a tool with one tree reads in the menu as its row on Home: memory, then CPU", () => {
+    for (const { line, tree } of fixture.single) {
+      cleanup();
+      render(<ThisMacPanel info={{ ...fixture.info, top: [tree], heavy: [] }} nameOf={nameOf} onOpenSession={vi.fn()} />);
+      const row = screen.getByTestId("this-mac-tree");
+      const [memory, cpu] = [...row.querySelectorAll(".font-mono > span")].map((span) => span.textContent);
+      expect(line.endsWith(`· ${memory} · ${cpu}`), `${line} vs Home's ${memory} / ${cpu}`).toBe(true);
+      expect(fixture.menu).toContain(line);
+    }
+  });
+
+  it("the alert says what Home says, with the figure its tool's line shows", () => {
+    const subject = alertSubject(fixture.info.alerts[0]!, nameOf);
+    expect(subject).toBe("The Claude app is using about 12 GB");
+    expect(fixture.menu[0]).toBe(`${fixture.info.alerts[0]!.title} — ${subject}`);
+    const app = fixture.info.by_tool.find((group) => group.tool === "desktop")!;
+    expect(fixture.menu).toContain(`Claude app · 2 windows · about ${bytesWords(app.totals.rss_bytes)} · CPU ${Math.round(app.cpu_one_core_pct!)}%`);
+  });
+
+  it("the Mac's memory reads as Home's meter says it", () => {
+    render(<ThisMacPanel info={fixture.info} nameOf={nameOf} onOpenSession={vi.fn()} />);
+    const meter = screen.getByRole("meter");
+    const { memory_used, memory_total } = fixture.info.machine;
+    const words = `Memory: ${bytesWords(memory_used!)} of ${bytesWords(memory_total)} in use`;
+    expect(meter.getAttribute("aria-label")).toContain(words);
+    expect(fixture.menu[1]!.startsWith(words)).toBe(true);
+  });
+});

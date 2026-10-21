@@ -44,6 +44,11 @@ is evaluated with This Mac on the 5 s cadence, so it adds no work of its own.
     told by its CPU.
   - A notice goes once This Mac no longer has its alert (after 10 s to
     settle). Notices queued while hidden collapse to the newest per kind.
+- After the 0.0.11 walk (AJ-E1411 M2), an alert names a tool AI Juggler
+  didn't start as a whole: "The Claude app is using about 12 GB" is all
+  its windows, the figure its This Mac and menu-bar lines show, never one
+  window worded as the app (`the_claude_app_is_named_by_all_its_windows_never_one`).
+  CPU is counted as Home's rows count it, one core.
 - After AJ-E1402's review (memory honesty), an alert naming a tool AI
   Juggler didn't start carries `subject_estimate`. The words then say
   "about 2.0 GB", because that tree's sum counts shared memory more than

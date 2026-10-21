@@ -88,10 +88,10 @@ fn short(name: &str) -> String {
     format!("{cut}…")
 }
 
-/// CPU as the menu says it ("CPU 34%"; "CPU unknown" when unmeasured —
-/// words a screen reader reads, not a dash).
+/// A tool's CPU in Home's words and measure: "CPU 14%" where 100% is one
+/// core busy (Activity Monitor's count), "CPU —" when unmeasured.
 fn cpu_words(cpu: Option<f64>) -> String {
-    cpu.map_or_else(|| "CPU unknown".to_string(), |cpu| format!("CPU {cpu:.0}%"))
+    cpu.map_or_else(|| "CPU —".to_string(), |cpu| format!("CPU {cpu:.0}%"))
 }
 
 /// Memory as the menu says it: "about" when the sum is an estimate.
@@ -189,15 +189,10 @@ fn glance(info: &ThisMacInfo, name_of: &dyn Fn(&str) -> Option<String>) -> (Stri
             TrayAction::Session(id.to_string()),
         );
     }
+    // Calm states in Home's words ("Getting tight", "Plenty of room"):
+    // what macOS reports belongs to an alert, when the number shows.
     let summary = &info.machine.summary;
-    if summary.level != "plenty" {
-        let text = summary.reasons.first().map_or_else(
-            || summary.words.clone(),
-            |reason| format!("{} — {}", summary.words, reason.words),
-        );
-        return (text, TrayAction::ThisMac);
-    }
-    let text = if info.tools.count == 0 {
+    let text = if info.tools.count == 0 && summary.level == "plenty" {
         "Nothing running — your Mac has room".to_string()
     } else {
         summary.words.clone()
@@ -205,7 +200,8 @@ fn glance(info: &ThisMacInfo, name_of: &dyn Fn(&str) -> Option<String>) -> (Stri
     (text, TrayAction::ThisMac)
 }
 
-/// The Mac's own figures in one line.
+/// The Mac's own figures in one line, in Home's words and order: memory
+/// in use, then the processor as a share of all its cores.
 fn machine_line(info: &ThisMacInfo) -> String {
     let machine = &info.machine;
     if !machine.sampled {
@@ -213,13 +209,17 @@ fn machine_line(info: &ThisMacInfo) -> String {
     }
     let memory = match machine.memory_used {
         Some(used) => format!(
-            "Memory {} of {}",
+            "Memory: {} of {} in use",
             bytes_words(used),
             bytes_words(machine.memory_total)
         ),
-        None => format!("Memory {}", bytes_words(machine.memory_total)),
+        None => format!("Memory: {}", bytes_words(machine.memory_total)),
     };
-    format!("{} · {memory}", cpu_words(machine.cpu_pct))
+    let cpu = machine.cpu_pct.map_or_else(
+        || "CPU —".to_string(),
+        |cpu| format!("{cpu:.0}% of all CPU cores"),
+    );
+    format!("{memory} · {cpu}")
 }
 
 /// Pure: the menu-bar item for This Mac now. `name_of` names a session of
@@ -236,16 +236,14 @@ pub fn tray_model(info: &ThisMacInfo, name_of: &dyn Fn(&str) -> Option<String>) 
         TrayItem::Label(machine_line(info)),
         TrayItem::Separator,
     ];
-    if info.by_tool.is_empty() {
-        items.push(TrayItem::Label("No AI tools running".into()));
-    }
+    // Each tool as Home's rows read: memory, then CPU of one core.
     for group in &info.by_tool {
         items.push(TrayItem::Label(format!(
             "{} · {} · {} · {}",
             group.label,
             count_words(group),
-            cpu_words(group.totals.cpu_pct),
             memory_words(group.totals.rss_bytes, group.totals.memory_estimate),
+            cpu_words(group.cpu_one_core_pct),
         )));
     }
     let heavy: Vec<TrayItem> = heavy_ours(info)
@@ -401,7 +399,8 @@ pub const ICON_PX: u32 = 36;
 
 /// Pure: the menu-bar icon as a template image (black, alpha only — macOS
 /// tints it for a light or dark menu bar). Three balls in an arc; the
-/// attention shape adds a dot at the top right, so the state is a shape,
+/// attention shape adds a small dot in the top-right corner, outside the
+/// arc (a mark, never read as a fourth ball), so the state is a shape,
 /// never colour alone.
 #[must_use]
 #[allow(
@@ -414,7 +413,7 @@ pub fn icon_rgba(attention: bool) -> Vec<u8> {
     let mut discs: Vec<(f32, f32, f32)> =
         vec![(8.0, 25.0, 4.5), (18.0, 13.0, 4.5), (28.0, 25.0, 4.5)];
     if attention {
-        discs.push((30.0, 6.0, 4.0));
+        discs.push((32.0, 4.0, 3.0));
     }
     let mut rgba = vec![0_u8; (ICON_PX * ICON_PX * 4) as usize];
     for y in 0..ICON_PX {
@@ -783,8 +782,8 @@ mod tests {
             ours: ToolTotalsInfo::default(),
             theirs: ToolTotalsInfo::default(),
             by_tool: vec![
-                group("claude-code", "Claude Code", true, 2, 6.0, 4_100_000_000),
-                group("desktop", "Claude app", false, 2, 3.0, 1_600_000_000),
+                group("claude-code", "Claude Code", true, 2, 60.0, 4_100_000_000),
+                group("desktop", "Claude app", false, 2, 14.0, 1_600_000_000),
             ],
             top: Vec::new(),
             heavy: Vec::new(),
@@ -795,6 +794,8 @@ mod tests {
         }
     }
 
+    /// `cpu` as Home's rows count it (one core); the all-cores share on a
+    /// 10-core Mac is a tenth of it.
     fn group(tool: &str, label: &str, ours: bool, count: u32, cpu: f64, rss: u64) -> ToolGroupInfo {
         ToolGroupInfo {
             tool: tool.into(),
@@ -803,9 +804,10 @@ mod tests {
             totals: ToolTotalsInfo {
                 count,
                 memory_estimate: !ours,
-                cpu_pct: Some(cpu),
+                cpu_pct: Some(cpu / 10.0),
                 rss_bytes: rss,
             },
+            cpu_one_core_pct: Some(cpu),
         }
     }
 
@@ -843,10 +845,11 @@ mod tests {
             texts(&model),
             [
                 "Plenty of room",
-                "CPU 34% · Memory 21 GB of 32 GB",
+                "Memory: 21 GB of 32 GB in use · 34% of all CPU cores",
                 "",
-                "Claude Code · 2 sessions · CPU 6% · 4.1 GB",
-                "Claude app · 2 windows · CPU 3% · about 1.6 GB",
+                // As Home's rows: memory, then CPU of one core.
+                "Claude Code · 2 sessions · 4.1 GB · CPU 60%",
+                "Claude app · 2 windows · about 1.6 GB · CPU 14%",
                 "",
                 "Open This Mac",
                 "Quit AI Juggler",
@@ -862,7 +865,18 @@ mod tests {
         info.by_tool.clear();
         let model = tray_model(&info, &names);
         assert_eq!(model.items[0].text(), "Nothing running — your Mac has room");
-        assert!(texts(&model).contains(&"No AI tools running"));
+        assert_eq!(
+            texts(&model),
+            [
+                "Nothing running — your Mac has room",
+                "Memory: 21 GB of 32 GB in use · 34% of all CPU cores",
+                "",
+                "",
+                "Open This Mac",
+                "Quit AI Juggler",
+            ],
+            "said once, not again as a tool line"
+        );
     }
 
     #[test]
@@ -927,7 +941,7 @@ mod tests {
     }
 
     #[test]
-    fn a_tight_mac_says_why_without_a_number() {
+    fn a_tight_mac_stays_calm_in_shape_and_words() {
         let mut info = calm();
         info.machine.summary = RoomSummaryInfo {
             level: "tight".into(),
@@ -935,15 +949,18 @@ mod tests {
             reasons: vec![RoomReasonInfo {
                 kind: "memory".into(),
                 level: "tight".into(),
-                words: "memory is getting tight".into(),
+                words: "macOS reports memory pressure".into(),
             }],
         };
         let model = tray_model(&info, &names);
         assert_eq!(model.title, None);
         assert!(!model.attention, "tight is calm; pressure is not");
-        assert_eq!(
-            model.items[0].text(),
-            "Getting tight — memory is getting tight"
+        // Home's calm words; what macOS reports belongs to the alert.
+        assert_eq!(model.items[0].text(), "Getting tight");
+        assert!(
+            !texts(&model)
+                .iter()
+                .any(|line| line.contains("macOS reports"))
         );
         info.machine.summary.level = "pressure".into();
         assert!(tray_model(&info, &names).attention);
@@ -987,8 +1004,15 @@ mod tests {
         assert!(ink(&busy) > ink(&calm), "the attention dot adds ink");
         // The dot sits top right, where the calm icon is empty.
         let at = |rgba: &[u8], x: u32, y: u32| rgba[((y * ICON_PX + x) * 4 + 3) as usize];
-        assert_eq!(at(&calm, 30, 6), 0);
-        assert_eq!(at(&busy, 30, 6), 255);
+        assert_eq!(at(&calm, 32, 4), 0);
+        assert_eq!(at(&busy, 32, 4), 255);
+        // A mark, not a fourth ball: smaller than the balls, and clear of
+        // the arc.
+        let dot = ink(&busy) - ink(&calm);
+        assert!(
+            dot * 2 < ink(&calm) / 3,
+            "the dot is under half a ball's ink"
+        );
     }
 
     #[test]
@@ -1056,7 +1080,10 @@ mod tests {
         assert!(steps.remove.is_empty() && steps.insert.is_empty());
         assert_eq!(
             steps.retext,
-            [(1, "CPU 71% · Memory 21 GB of 32 GB".to_string())]
+            [(
+                1,
+                "Memory: 21 GB of 32 GB in use · 71% of all CPU cores".to_string()
+            )]
         );
         assert_eq!(apply(&quiet.items, &next.items, &steps), next.items);
         // A heavy session appears: the start and the end stay; the run in
@@ -1100,11 +1127,114 @@ mod tests {
         unknown.machine.cpu_pct = None;
         assert_eq!(
             tray_model(&unknown, &names).items[1].text(),
-            "CPU unknown · Memory 21 GB of 32 GB"
+            "Memory: 21 GB of 32 GB in use · CPU —"
         );
         let stale = unmeasured_model();
         assert_eq!(stale.items[0].text(), "Not measured right now");
         assert_eq!(stale.title, None);
+    }
+
+    /// One tree for the shared fixture.
+    fn input(
+        session: Option<&str>,
+        place: Option<&'static str>,
+        cpu: Option<f64>,
+        rss: u64,
+    ) -> crate::machine_health::TreeInput {
+        crate::machine_health::TreeInput {
+            session_id: session.map(str::to_string),
+            place,
+            provider: session.map(|_| "claude-code".to_string()),
+            account_label: Some("Work Max".into()),
+            stats: juggler_supervisor::LiveProcessStats {
+                child_count: 2,
+                cpu_pct: cpu,
+                rss_bytes: rss,
+            },
+            // A minute and more at this load: heavy when it's over the line.
+            ring: (0..32)
+                .map(|i| juggler_supervisor::TreeSample {
+                    at_ms: i * 2_000,
+                    cpu_pct: cpu,
+                    rss_bytes: rss,
+                })
+                .collect(),
+            hog_rules: Vec::new(),
+        }
+    }
+
+    /// The fixture Home and the menu both read
+    /// (`ui/src/lib/__fixtures__/menu-bar.json`): a heavy session of ours,
+    /// the Claude app in two windows, `claude` in a terminal not measured
+    /// yet, and memory pressure held long enough to be told.
+    #[test]
+    fn the_menu_and_home_read_one_fixture() {
+        use crate::machine_health::assemble;
+        let mut machine = calm().machine;
+        machine.pressure = Some("warning".into());
+        machine.summary = RoomSummaryInfo {
+            level: "tight".into(),
+            words: "Getting tight".into(),
+            reasons: vec![RoomReasonInfo {
+                kind: "memory".into(),
+                level: "tight".into(),
+                words: "macOS reports memory pressure".into(),
+            }],
+        };
+        let session = input(Some("s-1"), None, Some(96.0), 1_100_000_000);
+        let window_a = input(None, Some("desktop"), Some(10.0), 4_900_000_000);
+        let window_b = input(None, Some("desktop"), Some(4.0), 7_100_000_000);
+        let terminal = input(None, Some("terminal"), None, 300_000_000);
+        let trees = [session.clone(), window_a, window_b, terminal.clone()];
+        let mut info = assemble(machine.clone(), &trees, (0, 0));
+        let mut engine = crate::machine_alerts::AlertEngine::default();
+        for step in 0..=12 {
+            engine.evaluate(&info, step * 5_000);
+        }
+        info.alerts = engine.active();
+        let menu = tray_model(&info, &names);
+        let lines: Vec<&str> = texts(&menu);
+
+        // The Claude app is named by all its windows: the alert's figure
+        // is its line's figure.
+        assert_eq!(
+            lines[0],
+            "Your Mac is under memory pressure — The Claude app is using about 12 GB"
+        );
+        assert!(lines.contains(&"Claude app · 2 windows · about 12 GB · CPU 14%"));
+        // Tools with one tree read as that tree's row on Home.
+        assert!(lines.contains(&"Claude Code · 1 session · 1.1 GB · CPU 96%"));
+        assert!(lines.contains(&"claude in a terminal · 1 running · about 300 MB · CPU —"));
+
+        // Each one-tree tool's row as Home draws it (its own This Mac).
+        let single = |tree: &crate::machine_health::TreeInput, line: &str| {
+            serde_json::json!({
+                "line": line,
+                "tree": assemble(machine.clone(), std::slice::from_ref(tree), (0, 0)).top[0],
+            })
+        };
+        let fixture = serde_json::json!({
+            "about": "Generated by tray::tests::the_menu_and_home_read_one_fixture; AIJ_UPDATE_FIXTURES=1 rewrites it.",
+            "info": info,
+            "names": { "s-1": "feat/read-model" },
+            "menu": lines,
+            "single": [
+                single(&session, "Claude Code · 1 session · 1.1 GB · CPU 96%"),
+                single(&terminal, "claude in a terminal · 1 running · about 300 MB · CPU —"),
+            ],
+        });
+        let generated = format!("{}\n", serde_json::to_string_pretty(&fixture).unwrap());
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../ui/src/lib/__fixtures__/menu-bar.json");
+        if std::env::var_os("AIJ_UPDATE_FIXTURES").is_some() {
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(&path, &generated).unwrap();
+        }
+        let committed = std::fs::read_to_string(&path).unwrap_or_default();
+        assert_eq!(
+            committed, generated,
+            "the shared menu-bar fixture is stale: run with AIJ_UPDATE_FIXTURES=1"
+        );
     }
 
     fn alert(
