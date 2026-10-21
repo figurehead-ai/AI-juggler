@@ -279,8 +279,11 @@ pub fn going_back_prepare_impl(state: &Arc<AppState>, schema: i64) -> AppResult<
 
 /// [`going_back_prepare_impl`] as of `now_ms`, calling `finish` with the
 /// kept path **while the storage lock is still held** — the app quits
-/// there, so nothing written by this build reaches the older data after
-/// the swap, and nothing can start between the check and the swap.
+/// there, so nothing can start between the check and the swap, and
+/// nothing goes through the app's storage after it. The process ledger
+/// and the cleanup repositories keep their own connections outside that
+/// lock: in the instant before the exit, a reconciler tick could still
+/// record a row in their tables, which the earlier version has too.
 ///
 /// # Errors
 ///
@@ -350,8 +353,8 @@ pub fn going_back_prepare(state: tauri::State<'_, Arc<AppState>>, schema: i64) -
                 "ai-juggler: ready to go back (schema {schema}); the data as it was is kept at {}",
                 kept.display()
             );
-            // Quit with the storage lock still held: no thread of this
-            // build writes to the older data, nothing is uploaded from it.
+            // Quit with the storage lock still held: nothing goes through
+            // the app's storage (or is uploaded from it) after the swap.
             std::process::exit(0);
         },
     )?;

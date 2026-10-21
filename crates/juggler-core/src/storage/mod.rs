@@ -547,14 +547,20 @@ fn keep_pre_migration_copy(conn: &Connection, db: &Path, current: i64) -> Result
             backup.run_to_completion(256, std::time::Duration::ZERO, None)?;
         }
         owner_only(&partial);
-        std::fs::File::open(&partial)?.sync_all()?;
+        // A writable handle: Windows flushes (FlushFileBuffers) only
+        // through one, and a read-only flush fails there.
+        std::fs::OpenOptions::new()
+            .write(true)
+            .open(&partial)?
+            .sync_all()?;
         std::fs::rename(&partial, &target)?;
-        if let Some(dir) = db.parent() {
-            // The rename itself survives a power cut once the folder is
-            // flushed (not every platform can open a folder: best effort).
-            if let Ok(folder) = std::fs::File::open(dir) {
-                let _ = folder.sync_all();
-            }
+        // The rename survives a power cut once the folder is flushed. Only
+        // Unix opens a folder as a file; Windows has no such flush.
+        #[cfg(unix)]
+        if let Some(dir) = db.parent()
+            && let Ok(folder) = std::fs::File::open(dir)
+        {
+            let _ = folder.sync_all();
         }
         Ok(())
     })();
