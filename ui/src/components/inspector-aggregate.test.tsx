@@ -326,7 +326,7 @@ describe("AJ-E408 Project (§5.5, Req.5-6)", () => {
   });
 
   it("a project with no sessions renders the Start-first-session CTA", () => {
-    const empty: ProjectInfo = { ...PROJECTS[0]!, id: "proj-empty", accounts_used: [], instance_count: 0 };
+    const empty: ProjectInfo = { ...PROJECTS[0]!, id: "proj-empty", accounts_used: [], instance_count: 0, history_sessions: 0 };
     const { container } = render(
       <RightInspector
         selection={{ kind: "project", id: "proj-empty" }}
@@ -347,6 +347,37 @@ describe("AJ-E408 Project (§5.5, Req.5-6)", () => {
       />,
     );
     expect(container.textContent).toContain("No sessions in this project yet");
+    expect(container.textContent).toContain("Start first session");
+  });
+
+  it("a project known only from history says what was done there (0.0.11 walk, Q2)", () => {
+    const history: ProjectInfo = {
+      ...PROJECTS[0]!, id: "proj-history", accounts_used: ["Work Max"], instance_count: 0,
+      history_sessions: 12, history_last_used_ms: NOW - 26 * 3_600_000,
+    };
+    const { container, getByTestId } = render(
+      <RightInspector
+        selection={{ kind: "project", id: "proj-history" }}
+        data={{ instance: null, project: history, account: null, provider: null, machineId: "this-mac" }}
+        sessions={[]}
+        projects={[history]}
+        accounts={ACCOUNTS}
+        profiles={RECIPES}
+        terminalTitle={null}
+        freshness={{}}
+        now={NOW}
+        onOpenProject={() => {}}
+        onOpenSession={() => {}}
+        onLaunch={async () => {}}
+        onStopped={() => {}}
+        onHandover={() => {}}
+        onNew={() => {}}
+      />,
+    );
+    expect(container.textContent).toContain("Nothing started from AI Juggler here yet");
+    expect(container.textContent).not.toContain("No sessions in this project yet");
+    // The rail row's own line: when, how many conversations, which accounts.
+    expect(getByTestId("project-history-line").textContent).toBe("1 d ago · 12 conversations · Work Max");
     expect(container.textContent).toContain("Start first session");
   });
 });
