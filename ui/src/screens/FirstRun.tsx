@@ -32,7 +32,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { Button } from "../components/primitives";
-import { inPlaceProviders, ownSignIn, providerDisplayName, sameAsWords, supportsInPlace, type InPlaceSupport } from "../lib/providers";
+import { inPlaceProviders, ownSignIn, providerDisplayName, sameAsWords, supportsInPlace, toolFound, versionUnchecked, type InPlaceSupport } from "../lib/providers";
 import { funnelEvent, funnelStep, reasonCode } from "../lib/funnel";
 import {
   accountImport,
@@ -79,6 +79,12 @@ const GROUPS: { id: Group; title: string }[] = [
   { id: "other", title: "Other Claude setups" },
   { id: "codex", title: "Codex" },
 ];
+
+/** A group's tool, in its header: its version, or — found but its
+ * version couldn't be read (0.0.11) — that, never "not installed". */
+function cliWords(name: string, row: ProviderInstallData): string {
+  return versionUnchecked(row) ? `${name} found; couldn't check its version` : `${name} ${row.version ?? ""} installed`;
+}
 
 /** The tools first run on a fresh install brings in (AJ-E1301). */
 const FIRST_RUN_TOOLS = ["claude-code", "codex"];
@@ -492,11 +498,11 @@ function FoundStep({
                   <span className="font-semibold text-ink">
                     {groupTitle(group.id, toolName, provider)} <span className="font-normal text-faint">· {rows.length}</span>
                   </span>
-                  {group.id === "default" && cli && cli.status !== "not_installed" && (
-                    <span className="text-faint">{toolName} {cli.version ?? ""} installed</span>
+                  {group.id === "default" && cli && toolFound(cli) && (
+                    <span className="text-faint" data-testid="first-run-cli-default">{cliWords(toolName, cli)}</span>
                   )}
-                  {group.id === "codex" && codexRow && codexRow.status !== "not_installed" && (
-                    <span className="text-faint">Codex {codexRow.version ?? ""} installed</span>
+                  {group.id === "codex" && codexRow && toolFound(codexRow) && (
+                    <span className="text-faint" data-testid="first-run-cli-codex">{cliWords("Codex", codexRow)}</span>
                   )}
                 </div>
                 {rows.map((found) => {

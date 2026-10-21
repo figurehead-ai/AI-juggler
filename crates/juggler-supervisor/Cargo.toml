@@ -20,6 +20,7 @@ sysinfo = "0.39.6"
 thiserror = "2.0.21"
 
 [dev-dependencies]
+juggler-adapters = { version = "0.0.1", path = "../juggler-adapters" }
 tempfile = "3.27.0"
 
 [target."cfg(unix)".dependencies]

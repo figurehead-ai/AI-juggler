@@ -73,6 +73,22 @@ struct RunOptions {
     child_ignore_term: bool,
 }
 
+/// A session's first line: `resumed`, or `session_meta` with the
+/// working folder, as real harnesses record it — the adapter finds a
+/// session by the folder it ran in (AJ-E1521).
+fn header_line(session_id: &str, is_resume: bool, prompt: &str) -> String {
+    if is_resume {
+        return format!(r#"{{"type":"resumed","id":"{session_id}"}}"#);
+    }
+    let cwd = env::current_dir()
+        .map(|dir| dir.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    format!(
+        r#"{{"type":"session_meta","id":"{session_id}","cwd":{},"prompt":{prompt:?}}}"#,
+        serde_json::Value::String(cwd),
+    )
+}
+
 fn parse_options(args: &[String]) -> Result<RunOptions, String> {
     let mut opts = RunOptions {
         dir: PathBuf::from("."),
@@ -257,15 +273,10 @@ fn run(args: &[String]) -> ExitCode {
     }
 
     let is_resume = opts.resume.is_some() && line_count(&transcript) > 0;
-    let header = if is_resume {
-        format!(r#"{{"type":"resumed","id":"{session_id}"}}"#)
-    } else {
-        format!(
-            r#"{{"type":"session_meta","id":"{session_id}","prompt":{:?}}}"#,
-            opts.prompt
-        )
-    };
-    if out.line(&header).is_err() {
+    if out
+        .line(&header_line(&session_id, is_resume, &opts.prompt))
+        .is_err()
+    {
         return ExitCode::from(2);
     }
 
