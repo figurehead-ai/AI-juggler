@@ -19,7 +19,6 @@ on:
       - scripts/updater_sig_check.py
       - scripts/apple_retry.py
       - scripts/release_version.py
-      - ui/package.json
   workflow_dispatch:
 
 permissions: {}

@@ -44,7 +44,8 @@ the keys. Tools in the release jobs are pinned to an exact version and
 checksum:
 - tauri-cli: Tauri's prebuilt binary, checked against its SHA-256 by
   `scripts/install_tauri_cli.sh`;
-- pnpm: `packageManager` in `ui/package.json`, which corepack checks.
+- pnpm: the exact version and sha512 in `build-macos.yml`, which corepack
+  checks.
 
 Before anything is published, the sign job checks:
 - the app's signature, hardened runtime and lack of entitlements;

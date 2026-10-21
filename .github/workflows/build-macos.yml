@@ -120,6 +120,9 @@ jobs:
     env:
       VERSION: ${{ inputs.version }}
       OVERLAY: ${{ matrix.overlay }}
+      # The release's pnpm: exact version and its npm sha512 (hex). To
+      # update: `npm view pnpm@X.Y.Z dist.integrity`, base64 → hex.
+      PNPM: pnpm@10.34.7+sha512.ba98abc585539933375b5971f4bc6d6c73a1b4b7edc4a879e7d102fe5423d1e02309d67c60a11f04955093a96e521ad9c3b138cdd654ca5be563f378b3ae48bd
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -152,10 +155,12 @@ jobs:
           rustup target add aarch64-apple-darwin x86_64-apple-darwin
           # tauri-cli: Tauri's prebuilt release, checked against its digest.
           ./scripts/install_tauri_cli.sh "$RUNNER_TEMP/tauri-cli" >> "$GITHUB_PATH"
-          # pnpm: the exact version and hash in ui/package.json's
-          # packageManager, which corepack checks.
+          # pnpm: this exact version, which corepack checks against its
+          # sha512 (a mismatch stops the job). Activated as the default, so
+          # tauri's `pnpm build` uses it too.
           corepack enable
-          (cd ui && corepack install)
+          corepack prepare "$PNPM" --activate
+          pnpm --version
           pnpm --dir ui install --frozen-lockfile
 
       - name: Icon
