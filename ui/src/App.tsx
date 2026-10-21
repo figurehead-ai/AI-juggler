@@ -352,6 +352,8 @@ export default function App() {
   const [accountsNonce, setAccountsNonce] = useState(0);
   // D-25: the account-limit decision, for this session id.
   const [limitFor, setLimitFor] = useState<string | null>(null);
+  // The tool chip leaves the header when its view opens: focus follows.
+  const [inspectorFocus, setInspectorFocus] = useState(0);
   const [switchFlow, setSwitchFlow] = useState<{ sessionId: string; targetProfileId: string; targetLabel: string } | null>(null);
   // AJ-E206: the 10-second undo window after a 1-click switch (the
   // edge is the undo handle). Null = no window open.
@@ -742,6 +744,7 @@ export default function App() {
     global !== null
       ? null
       : (selectedSession?.provider ??
+        selectedAccount?.provider ??
         remoteInstanceProvider ??
         (selection.kind === "provider" ? selection.id : null));
   const contextProvider = contextProviderId ? (PROVIDER_NAMES[contextProviderId] ?? contextProviderId) : null;
@@ -753,6 +756,10 @@ export default function App() {
         ? `Fleet · ${remoteMachines?.find((m) => m.machine_id === selection.machineId)?.label ?? "machine"}`
         : selection.kind === "project"
         ? (selectedProject?.name ?? "Project")
+        : selection.kind === "provider"
+        ? (contextProvider ?? "Tool")
+        : selection.kind === "account"
+        ? (selectedAccount?.label ?? "Account")
         : selectedSession
           ? // D-25: the session's project (the view below names its place).
             (projects.find((p) => p.id === selectedSession.project_id)?.name ?? "Session")
@@ -856,7 +863,24 @@ export default function App() {
         >
           <div className="flex min-w-0 flex-1 basis-0 items-center gap-3">
             <h1 className="min-w-0 truncate text-sm font-semibold tracking-wide">{contextTitle}</h1>
-            {contextProvider && <Chip tone="accent">{contextProvider}</Chip>}
+            {/* The tool's own view (what's installed, its accounts and
+                their quota): one click from a session that runs on it. */}
+            {contextProvider && contextProviderId && selection.kind !== "provider" && (
+              <button
+                type="button"
+                onClick={() => {
+                  setGlobal(null);
+                  setSelection({ kind: "provider", id: contextProviderId });
+                  setInspectorFocus((n) => n + 1);
+                }}
+                aria-label={`About ${contextProvider}`}
+                title={`About ${contextProvider}`}
+                className="rounded-full outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
+                data-testid="context-tool"
+              >
+                <Chip tone="accent">{contextProvider}</Chip>
+              </button>
+            )}
           </div>
 
           <div className="ml-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-0.5 xl:gap-1.5" data-tauri-drag-region={false}>
@@ -1097,6 +1121,7 @@ export default function App() {
                 </div>
               ) : (
               <RightInspector
+              focusTabsRequest={inspectorFocus}
               selection={
                 selection.kind === "session"
                   ? { kind: "instance", id: selection.id }

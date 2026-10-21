@@ -48,6 +48,10 @@ describe("WindowRing typed states (Req.4)", () => {
     expect(screen.getByText("Start a session to measure")).toBeTruthy();
     expect(screen.container.textContent).not.toContain("%");
     expect(screen.container.textContent).not.toContain("0%");
+    // Read aloud as Accounts says it, never "no data".
+    const label = screen.container.querySelector("[role='img']")?.getAttribute("aria-label") ?? "";
+    expect(label).toMatch(/not measured yet/);
+    expect(label).not.toMatch(/no data/i);
   });
 
   it("learning: the exact copy, no number", () => {

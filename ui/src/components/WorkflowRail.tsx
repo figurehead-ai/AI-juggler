@@ -1064,7 +1064,8 @@ function accountLabelOf(rows: InstanceInfo[], accountId: string): string {
   return rows.find((row) => row.account_id === accountId)?.account_label ?? accountId;
 }
 
-/** Quota-risk grouping: known quota first, unknown under `no data` (Req.2). */
+/** Quota-risk grouping: known quota first, unknown under "Not measured
+ * yet" (Req.2; D-25's words, as on Accounts and Home). */
 function quotaDataGroups(sorted: InstanceInfo[]): RowGroup[] {
   const known = sorted.filter((row) => row.quota !== null);
   const unknown = sorted.filter((row) => row.quota === null);
@@ -1072,8 +1073,8 @@ function quotaDataGroups(sorted: InstanceInfo[]): RowGroup[] {
   if (unknown.length > 0) {
     groups.push({
       id: "no-data",
-      label: "no data",
-      rollup: `${unknown.length} without a quota feed`,
+      label: "Not measured yet",
+      rollup: `${unknown.length} without a quota reading`,
       rows: unknown,
     });
   }
@@ -1228,7 +1229,7 @@ export function SessionRow({
         <span className="flex min-w-0 items-center gap-1.5 overflow-hidden text-[10px] text-muted">
           <span
             className="relative inline-block h-1.5 w-12 shrink-0 overflow-hidden rounded-full bg-surface-3"
-            title={session.quota ? `${Math.round(100 - session.quota.used_percentage)}% left · ${session.quota.confidence}` : "Quota: no data"}
+            title={session.quota ? `${Math.round(100 - session.quota.used_percentage)}% left · ${session.quota.confidence}` : "Quota: not measured yet"}
           >
             {session.quota ? (
               <span

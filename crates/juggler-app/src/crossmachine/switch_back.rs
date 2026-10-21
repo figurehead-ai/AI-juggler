@@ -811,12 +811,44 @@ fn fork_original(path: &Path) -> Result<(String, TranscriptRef), HandoverRejecti
     );
     let original = std::fs::read(path)
         .map_err(|_| refuse("original_gone", "The original couldn't be read."))?;
-    let target = path.with_file_name(format!("{fork}.jsonl"));
-    std::fs::write(
-        &target,
-        juggler_adapter::handover::fork_session_id(&original, &fork),
-    )
-    .map_err(|_| refuse("internal", "Couldn't write the copy."))?;
+    let name = path
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    // AJ-E1304: a Codex rollout carries its thread id in its name and in
+    // its lines; a Claude transcript is `<id>.jsonl` with `sessionId`.
+    let codex_thread = (juggler_adapters::transcript::detect_format(&original)
+        == juggler_adapters::transcript::TranscriptFormat::CodexRollout)
+        .then(|| juggler_adapters::codex_transcript::rollout_thread_id(&original, &name))
+        .flatten();
+    let (target, bytes) = match codex_thread {
+        // A rollout's name must carry its thread id, or the forked name
+        // would be the original's (and overwrite it).
+        Some(thread) if name.contains(&thread) => (
+            path.with_file_name(name.replace(&thread, &fork)),
+            juggler_adapters::codex_handover::fork_rollout(&original, &thread, &fork),
+        ),
+        Some(_) => {
+            return Err(refuse(
+                "internal",
+                "This session's file name doesn't carry its id — it can't be copied safely.",
+            ));
+        }
+        None => (
+            path.with_file_name(format!("{fork}.jsonl")),
+            juggler_adapter::handover::fork_session_id(&original, &fork),
+        ),
+    };
+    if target == path {
+        return Err(refuse("internal", "Couldn't write the copy."));
+    }
+    // Copy-never-move: a new file only — never over an existing one.
+    std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&target)
+        .and_then(|mut out| std::io::Write::write_all(&mut out, &bytes))
+        .map_err(|_| refuse("internal", "Couldn't write the copy."))?;
     Ok((
         fork.clone(),
         TranscriptRef {
@@ -952,4 +984,52 @@ pub async fn fleet_switch_back_execute(
         },
     )
     .await
+}
+
+#[cfg(test)]
+mod fork_tests {
+    use super::fork_original;
+
+    const THREAD: &str = "019a1b2c-0000-7000-8000-00000000c0de";
+
+    fn rollout(dir: &std::path::Path, name: &str) -> std::path::PathBuf {
+        let path = dir.join(name);
+        std::fs::write(
+            &path,
+            format!(
+                "{{\"timestamp\":\"t\",\"type\":\"session_meta\",\"payload\":{{\"id\":\"{THREAD}\",\"cwd\":\"/w\"}}}}\n"
+            ),
+        )
+        .unwrap();
+        path
+    }
+
+    #[test]
+    fn a_codex_fork_is_a_new_file_and_the_original_is_untouched() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = rollout(
+            dir.path(),
+            &format!("rollout-2026-10-20T08-00-00-{THREAD}.jsonl"),
+        );
+        let before = std::fs::read(&path).unwrap();
+        let (fork, reference) = fork_original(&path).unwrap();
+        assert_ne!(reference.path, path);
+        assert!(reference.path.to_string_lossy().contains(&fork));
+        assert!(
+            std::fs::read_to_string(&reference.path)
+                .unwrap()
+                .contains(&fork)
+        );
+        assert_eq!(std::fs::read(&path).unwrap(), before, "copy, never move");
+    }
+
+    #[test]
+    fn a_rollout_whose_name_lacks_its_id_is_refused_not_overwritten() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = rollout(dir.path(), "rollout-renamed.jsonl");
+        let before = std::fs::read(&path).unwrap();
+        assert!(fork_original(&path).is_err());
+        assert_eq!(std::fs::read(&path).unwrap(), before);
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
+    }
 }

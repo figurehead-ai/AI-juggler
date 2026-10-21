@@ -354,7 +354,7 @@ export function HomeScreen({
           }
         : null;
   const signIns = accounts.filter((account) => !signedIn(account.login_state));
-  // D-25: Sign in opens Claude's own sign-in straight away (first run's
+  // D-25: Sign in opens the Provider's own sign-in straight away (first run's
   // rule); the row then says where to finish it.
   const [signingIn, setSigningIn] = useState<string | null>(null);
   const [signInError, setSignInError] = useState<string | null>(null);
@@ -494,7 +494,7 @@ export function HomeScreen({
                         <span className="text-xs text-muted" role="status">
                           {signingIn === account.id
                             ? "Finish signing in in the terminal that opened — this clears by itself when you're done."
-                            : "Claude's own sign-in, in a terminal here — about thirty seconds. AI Juggler never sees your password."}
+                            : `${account.provider === "codex" ? "Codex's own sign-in (OpenAI)" : "Claude's own sign-in"}, in a terminal here — about thirty seconds. AI Juggler never sees your password.`}
                         </span>
                         {signingIn === account.id && signInError && <span className="text-xs text-danger">{signInError}</span>}
                       </span>

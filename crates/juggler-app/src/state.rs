@@ -318,9 +318,11 @@ fn registry_with(claude: juggler_adapters::ClaudeCodeAdapter) -> AdapterRegistry
     // AJ-E204: the same adapter, coerced to the optional handover
     // sub-trait (transplant mechanics live behind it).
     registry.register_handover(claude);
-    // AJ-E1301: Codex, the second Provider (switching support lands
-    // with AJ-E1304).
-    registry.register(std::sync::Arc::new(juggler_adapters::CodexAdapter::new()));
+    // AJ-E1301: Codex, the second Provider; AJ-E1304: its transplant
+    // and prime support (every Codex pair stays unvalidated, beta).
+    let codex = std::sync::Arc::new(juggler_adapters::CodexAdapter::new());
+    registry.register(codex.clone());
+    registry.register_handover(codex);
     registry
 }
 

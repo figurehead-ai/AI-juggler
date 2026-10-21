@@ -28,8 +28,9 @@ import { TwoClocks, WindowRing } from "./QuotaRings";
 import { accountSetFee, quotaDisplay, switchTargets, type QuotaDisplayData, type SwitchBackSuggestionData, type SwitchTargetData, errorText,
   signedIn,
 } from "../lib/bridge";
-import { formatBytes, isActiveStatus, stateChip } from "./indicator";
+import { STATE_WORDS, formatBytes, isActiveStatus, stateChip } from "./indicator";
 import { resourceLine, useHeavyNote } from "../lib/machine";
+import { providerDisplayName } from "../lib/providers";
 import { SwitchGraph } from "./SwitchGraph";
 import { SwitchTargetRows } from "./SwitchTargetRows";
 import { RemoteSwitchTargets } from "./RemoteSwitchTargets";
@@ -94,21 +95,21 @@ function readTab(kind: InspectorKind): InspectorTab {
   return INSPECTOR_TABS.some((tab) => tab.id === raw) ? (raw as InspectorTab) : "overview";
 }
 
-/** The honest empty state (D-06): visible, explained, never hidden. */
-function HonestEmpty({ tab, task }: { tab: InspectorTab; task: string }) {
+/** The honest empty state (D-06): visible, explained, never hidden —
+ * in plain words (D-25: no task codes on screen). */
+function HonestEmpty({ tab }: { tab: InspectorTab }) {
   const copy: Record<InspectorTab, string> = {
-    overview: "Overview fields appear as their sources land.",
-    usage: "No measured usage yet — the two-clock usage engine feeds this tab.",
-    history: "No history yet — transcript discovery feeds this tab.",
-    quality: "No measurable quality signals yet — no invented scores, ever (D-07).",
-    processes: "No process inventory yet — the verified process collector feeds this tab.",
-    actions: "No actions available for this selection yet.",
+    overview: "Nothing to show here yet.",
+    usage: "No usage measured for this yet.",
+    history: "No history for this yet.",
+    quality: "No quality measurements yet. AI Juggler never makes up a score.",
+    processes: "No processes to show for this.",
+    actions: "Nothing to do here yet.",
   };
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-2 py-10 text-center">
       <p className="text-[12px] font-medium text-muted">Unavailable</p>
       <p className="max-w-xs text-[11px] leading-relaxed text-muted">{copy[tab]}</p>
-      <p className="text-[10px] text-muted">lands with {task}</p>
     </div>
   );
 }
@@ -130,11 +131,13 @@ function statusTone(status: string): { tone: ChipTone; label: string } {
   return { tone, label: chip.label };
 }
 
-function since(ms: number, now: number): string {
+/** How long ago, short: "40s", "12m", "30h", then days past 48 h ("7d"). */
+export function since(ms: number, now: number): string {
   const secs = Math.max(1, Math.floor((now - ms) / 1000));
   if (secs < 60) return `${secs}s`;
   if (secs < 3600) return `${Math.floor(secs / 60)}m`;
-  return `${Math.floor(secs / 3600)}h`;
+  if (secs < 48 * 3600) return `${Math.floor(secs / 3600)}h`;
+  return `${Math.floor(secs / 86_400)}d`;
 }
 
 function KindIcon({ kind }: { kind: InspectorKind }) {
@@ -236,6 +239,7 @@ export function RightInspector({
   onRemoteBack,
   onRemoteSelect,
   onRemoteActionDone,
+  focusTabsRequest = 0,
 }: {
   selection: InspectorSelection;
   data: InspectorData;
@@ -266,6 +270,9 @@ export function RightInspector({
   onRemoteSelect?: (instanceId: string | null) => void;
   /** AJ-E705: a remote action was accepted. */
   onRemoteActionDone?: () => void;
+  /** Bumped when the opener goes away (the header's tool chip): focus
+   *  moves to the selected tab once this selection's view is shown. */
+  focusTabsRequest?: number;
 }) {
   const kind: InspectorKind | "none" | "login" = selection.kind;
   const remote = data.remote ?? null;
@@ -278,6 +285,19 @@ export function RightInspector({
   useEffect(() => {
     if (kind !== "none" && kind !== "login") setTab(readTab(kind));
   }, [kind]);
+  // A focus request waits until this kind's tab is the selected one.
+  const pendingFocus = useRef(0);
+  useEffect(() => {
+    if (focusTabsRequest > 0) pendingFocus.current = focusTabsRequest;
+  }, [focusTabsRequest]);
+  useEffect(() => {
+    if (pendingFocus.current === 0 || kind === "none" || kind === "login" || tab !== readTab(kind)) return;
+    const selected = tabsRef.current?.querySelector<HTMLElement>("[role='tab'][aria-selected='true']");
+    if (selected) {
+      selected.focus();
+      pendingFocus.current = 0;
+    }
+  });
 
   const chooseTab = (next: InspectorTab) => {
     setTab(next);
@@ -617,7 +637,7 @@ function InspectorPanel(props: {
           <ProjectOverview {...props} />
         );
       case "history":
-        return kind === "account" || kind === "project" ? <GroupedHistory {...props} /> : <HonestEmpty tab="history" task="AJ-E408 (adapter version history)" />;
+        return kind === "account" || kind === "project" ? <GroupedHistory {...props} /> : <HonestEmpty tab="history" />;
       case "processes":
         // Rollups above Instance level are read-only (Req.2); orphan
         // stop actions live on the Instance's own tab.
@@ -679,17 +699,9 @@ function InspectorPanel(props: {
     }
   }
 
-  // Honest empties for the tabs whose sources land later (D-06):
-  // visible with the owning task, never hidden or disabled.
-  const owner: Record<InspectorTab, string> = {
-    overview: "AJ-E408",
-    usage: "AJ-E606+ (two-clock usage engine)",
-    history: "AJ-E408 (transcript discovery)",
-    quality: "AJ-E409 (measurable signals, no score)",
-    processes: "AJ-E410 (process collector) — unreachable for known kinds",
-    actions: "AJ-E408",
-  };
-  return <HonestEmpty tab={tab} task={owner[tab]} />;
+  // Honest empties for the tabs with nothing yet (D-06): visible and
+  // explained, never hidden or disabled.
+  return <HonestEmpty tab={tab} />;
 }
 
 /// The Processes-tab data/action seam (AJ-E410): production resolves the
@@ -873,7 +885,7 @@ function InstanceOverview(props: PanelProps) {
             if (session.running_model === null && session.launch_model === null) {
               return (
                 <p data-testid="instance-model-line" className="text-[11px] text-muted">
-                  Model: not reported by {session.provider}
+                  Model: not reported by {providerDisplayName(session.provider)}
                 </p>
               );
             }
@@ -889,7 +901,7 @@ function InstanceOverview(props: PanelProps) {
             </summary>
             <div className="mt-2 flex flex-col gap-2">
           <div className="flex flex-wrap items-center gap-1.5">
-            <Chip tone="neutral">{session.provider}</Chip>
+            <Chip tone="neutral">{providerDisplayName(session.provider)}</Chip>
             <Chip tone="neutral">
               {props.profiles.find((r) => r.id === session.launch_recipe_id)?.name ?? "launch settings"}
             </Chip>
@@ -947,9 +959,9 @@ function InstanceOverview(props: PanelProps) {
             {project.name}
           </button>
         )}
-        {/* The terminal IS the Overview for a terminal-kind Instance; a
-            desktop-kind Instance renders the desktop surface instead
-            (AJ-E413 Req.3) — status, account, project, resources, the
+        {/* AJ-E413 Req.3: the terminal IS the Overview for a terminal-kind
+            Instance; a desktop-kind Instance renders the desktop surface
+            instead — status, account, project, resources, the
             per-Provider isolation claim, and window focus as primary. */}
         {isDesktop ? (
           <Card
@@ -963,7 +975,7 @@ function InstanceOverview(props: PanelProps) {
               <span title="desktop app session" className="inline-flex">
                 <Chip tone="neutral">app</Chip>
               </span>
-              <Chip tone="neutral">{session.provider}</Chip>
+              <Chip tone="neutral">{providerDisplayName(session.provider)}</Chip>
               <span className="text-[11.5px] text-muted">
                 {session.account_label}
                 {project ? ` · ${project.name}` : ""}
@@ -1315,7 +1327,7 @@ function InstanceOverview(props: PanelProps) {
           <p className="text-[11px] uppercase tracking-wider text-faint">Account</p>
           <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[11.5px]">
             <span>
-              provider: <span className="text-muted">{account.provider}</span>
+              tool: <span className="text-muted">{providerDisplayName(account.provider)}</span>
             </span>
             <span>
               plan: <span className="text-muted">{account.plan ?? "unknown"}</span>
@@ -1378,7 +1390,7 @@ function InstanceOverview(props: PanelProps) {
   }
 
   // Session (conversation) — content lands with AJ-E407; the shell is honest.
-  return <HonestEmpty tab="overview" task="AJ-E407 (conversation inspector)" />;
+  return <HonestEmpty tab="overview" />;
 }
 
 
@@ -1421,7 +1433,7 @@ function CopyField({ testId, label, value, mono, onOpen }: { testId: string; lab
 /** Instance Usage (§5.1): the real breakdown + honest chart empties. */
 function InstanceUsage(props: PanelProps) {
   const instance = props.data.instance;
-  if (!instance) return <HonestEmpty tab="usage" task="AJ-E407" />;
+  if (!instance) return <HonestEmpty tab="usage" />;
   const tokens = instance.tokens;
   return (
     <div className="flex flex-col gap-3" data-testid="instance-usage">
@@ -1441,7 +1453,7 @@ function InstanceUsage(props: PanelProps) {
           <p className="text-[11.5px] text-muted">No usage recorded yet</p>
         )}
         <span className="text-[10px] text-muted">
-          series confidence: <span className="rounded border border-hairline px-1">Measured</span> (observed tokens; time-series arrive tagged per source)
+          <span className="rounded border border-hairline px-1">Measured</span> counted from what the session reports
         </span>
       </Card>
       <Card className="flex flex-col gap-2 p-4" data-testid="two-clock-card">
@@ -1451,10 +1463,8 @@ function InstanceUsage(props: PanelProps) {
             the forecast pill. */}
         <AccountTwoClocks accountId={instance.account_id} />
       </Card>
-      <Card className="flex flex-col gap-1 p-4">
-        <p className="text-[11px] uppercase tracking-wider text-muted">Tokens / min · cost over time</p>
-        <p className="text-[11.5px] text-muted">No data — arrives with statusline</p>
-      </Card>
+      {/* D-25: tokens/min and cost over time join this tab once a time
+          series exists; until then the card isn't shown. */}
     </div>
   );
 }
@@ -1463,18 +1473,15 @@ function InstanceUsage(props: PanelProps) {
  * indexer exists. Imported rows will carry the `imported` badge. */
 function InstanceHistory(props: PanelProps) {
   const instance = props.data.instance;
-  if (!instance) return <HonestEmpty tab="history" task="AJ-E407" />;
+  if (!instance) return <HonestEmpty tab="history" />;
   return (
     <div className="flex flex-col gap-3" data-testid="instance-history">
       <Card className="flex flex-col gap-2 p-4">
         <p className="text-[11px] uppercase tracking-wider text-muted">This session</p>
         <p className="text-[11.5px] text-muted">No history recorded yet</p>
+        <p className="text-[10px] text-muted">Resumes, handovers and crashes will show here.</p>
         <p className="text-[10px] text-muted">
-          resumes, handovers and crashes appear here as transcripts are indexed; imported
-          history rows carry an <span className="rounded border border-hairline px-1">imported</span> badge
-        </p>
-        <p className="text-[10px] text-muted">
-          started {new Date(instance.started_at_ms).toLocaleString()} · status {instance.status}
+          Started {new Date(instance.started_at_ms).toLocaleString()} · {STATE_WORDS[instance.status] ?? instance.status}
         </p>
       </Card>
     </div>
@@ -1526,7 +1533,7 @@ function ActionRow({
  * WITH reason where the owner task has not landed. */
 function InstanceActions(props: PanelProps & { onRelaunch?: (recipe: LaunchRecipeInfo, cwd: string | null) => void }) {
   const instance = props.data.instance;
-  if (!instance) return <HonestEmpty tab="actions" task="AJ-E407" />;
+  if (!instance) return <HonestEmpty tab="actions" />;
   const live = instance.status === "running" || instance.status === "starting";
   const ended = ["finished", "stopped", "failed", "handed_over"].includes(instance.status);
   const recipe = props.profiles.find((r) => r.id === instance.launch_recipe_id) ?? null;
@@ -1554,18 +1561,6 @@ function InstanceActions(props: PanelProps & { onRelaunch?: (recipe: LaunchRecip
         onClick={() => props.onFocusTerminal()}
         reason="scroll to Continue on another account"
       />
-      <ActionRow
-        label="Queue resume at reset"
-        onClick={undefined}
-        reason={
-          instance.status === "quota_blocked"
-            ? "the reset queue lands with AJ-E1003"
-            : "quota-blocked sessions only"
-        }
-      />
-      <ActionRow label="Export pack…" onClick={undefined} reason="portable context pack lands with AJ-E202" />
-      <ActionRow label="Archive" onClick={undefined} reason="session lifecycle lands with AJ-E1007" />
-      <ActionRow label="Delete…" danger onClick={undefined} reason="guarded delete lands with retention (AJ-E1007)" />
     </div>
   );
 }
@@ -1614,14 +1609,13 @@ function SessionOverview(props: PanelProps) {
             )}
           </span>
           <span data-testid="session-transcript" className="text-muted">
-            Transcript not readable yet <span className="text-faint">(parser wiring lands with AJ-E2 indexing)</span>
+            Transcript not readable yet
           </span>
         </div>
       </Card>
       <Card className="flex flex-col gap-1 p-4">
         <p className="text-[11px] uppercase tracking-wider text-muted">Turns · models · files touched</p>
         <p className="text-[11.5px] text-muted">Transcript not readable yet</p>
-        <p className="text-[10px] text-muted">per-turn data arrives with transcript indexing (AJ-E2/E407+)</p>
       </Card>
     </div>
   );
@@ -1664,13 +1658,11 @@ function SessionUsage(props: PanelProps) {
             aggregate:{" "}
             <span className="tabular-nums text-ink">
               {(instance.tokens.input + instance.tokens.output).toLocaleString()} tokens
-            </span>{" "}
-            — per-turn rows arrive with transcript indexing (AJ-E2)
+            </span>
           </p>
         ) : (
           <p className="text-[11.5px] text-muted">No usage recorded yet</p>
         )}
-        <ActionRow label="Export CSV" onClick={undefined} reason="per-turn data lands with transcript indexing (AJ-E2)" />
       </Card>
     </div>
   );
@@ -1682,10 +1674,7 @@ function SessionHistory(_props: PanelProps) {
     <div className="flex flex-col gap-3" data-testid="session-history">
       <Card className="flex flex-col gap-2 p-4">
         <p className="text-[11px] uppercase tracking-wider text-muted">Lineage</p>
-        <p className="text-[11.5px] text-muted">No lineage yet</p>
-        <p className="text-[10px] text-muted">
-          the Switch Graph lands with E2; chains render from real edges only
-        </p>
+        <p className="text-[11.5px] text-muted">No switches between accounts yet.</p>
       </Card>
     </div>
   );
@@ -1729,10 +1718,6 @@ function SessionActions(props: PanelProps) {
         onClick={() => window.dispatchEvent(new Event("aij:focus-handover"))}
         reason="opens the owning session's hand-over section"
       />
-      <ActionRow label="Export pack…" onClick={undefined} reason="portable context pack lands with AJ-E202" />
-      <ActionRow label="Fork" onClick={undefined} reason="fork/branch copy lands with E2 switching" />
-      <ActionRow label="Archive" onClick={undefined} reason="session lifecycle lands with AJ-E1007" />
-      <ActionRow label="Delete…" danger onClick={undefined} reason="guarded delete lands with retention (AJ-E1007)" />
     </div>
   );
 }
@@ -1741,9 +1726,56 @@ function SessionActions(props: PanelProps) {
 
 /** Provider Overview (§5.3): counts, worst-first aggregate, honest
  * capability/version badges. */
+/** What this Mac has of a tool: installed version, verified range. */
+/** What's installed for one tool: null while checking (nothing shown),
+ * "failed" when the check failed or doesn't know the tool. The result is
+ * kept per tool, so another tool's version never shows while checking. */
+export function useToolInstall(
+  providerId: string | null,
+): import("../lib/bridge").ProviderInstallData | "failed" | null {
+  const [result, setResult] = useState<{
+    providerId: string;
+    install: import("../lib/bridge").ProviderInstallData | "failed";
+  } | null>(null);
+  useEffect(() => {
+    if (!providerId) return;
+    let alive = true;
+    void import("../lib/bridge")
+      .then((bridge) => bridge.providersDiscover())
+      .then(
+        (rows) => {
+          if (alive) setResult({ providerId, install: rows.find((row) => row.provider === providerId) ?? "failed" });
+        },
+        () => {
+          if (alive) setResult({ providerId, install: "failed" });
+        },
+      );
+    return () => {
+      alive = false;
+    };
+  }, [providerId]);
+  return result && result.providerId === providerId ? result.install : null;
+}
+
+/** The installed version and verified range, in words. */
+export function installWords(install: import("../lib/bridge").ProviderInstallData): string {
+  const verified = install.verified_against ?? [];
+  switch (install.status) {
+    case "installed":
+      return `${install.version ? `Version ${install.version}` : "Installed"}${verified.length > 0 ? ` · tested with ${verified.join(", ")}` : ""}`;
+    case "unverified":
+      return `Version ${install.version ?? "unknown"} · newer than AI Juggler has been tested with`;
+    case "not_installed":
+      return "Not installed on this Mac";
+    default:
+      return "Couldn't check what's installed";
+  }
+}
+
 function ProviderOverview(props: PanelProps) {
   const provider = props.data.provider;
-  if (!provider) return <HonestEmpty tab="overview" task="AJ-E408" />;
+  const install = useToolInstall(provider?.id ?? null);
+  if (!provider) return <HonestEmpty tab="overview" />;
   const providerAccounts = props.accounts.filter((a) => a.provider === provider.id);
   const providerSessions = props.sessions.filter((s) => s.provider === provider.id);
   const running = providerSessions.filter((s) => s.status === "running" || s.status === "starting");
@@ -1774,16 +1806,16 @@ function ProviderOverview(props: PanelProps) {
             {providerAccounts.length} account{providerAccounts.length === 1 ? "" : "s"}
           </span>
           <span className="text-muted">· {running.length} running</span>
-          <span className="rounded border border-hairline px-1 text-[10px] text-muted" title="binary version + verified range arrive with adapter discovery wiring">
-            version: No data
-          </span>
-          <span className="rounded border border-hairline px-1 text-[10px] text-muted" title="capability flags arrive with adapter discovery wiring">
-            capabilities: No data
-          </span>
         </div>
+        {/* Shown once known; nothing in its place until then (D-25). */}
+        {install !== null && (
+          <p className="text-[11px] text-muted" data-testid="provider-install">
+            {install === "failed" ? "Couldn't check what's installed" : installWords(install)}
+          </p>
+        )}
       </Card>
       <Card className="flex flex-col gap-1.5 p-4" data-testid="provider-aggregate">
-        <p className="text-[11px] uppercase tracking-wider text-muted">Aggregate quota (worst account first)</p>
+        <p className="text-[11px] uppercase tracking-wider text-muted">Quota, lowest first</p>
         {perAccount.length === 0 ? (
           <p className="text-[11.5px] text-muted">No accounts for this tool yet.</p>
         ) : (
@@ -1793,13 +1825,15 @@ function ProviderOverview(props: PanelProps) {
                 <span className="text-ink">{account.label}</span>
                 {!signedIn(account.login_state) ? <span className="text-faint"> · signed out</span> : null}
               </span>
-              <QuotaBar quota={worst?.quota ?? null} />
+              {/* D-25: a signed-out account with no reading says "signed
+                  out" above; an empty bar would only repeat it. */}
+              {worst?.quota || signedIn(account.login_state) ? <QuotaBar quota={worst?.quota ?? null} /> : null}
             </div>
           ))
         )}
         {tiers.size > 1 ? (
           <span className="text-[10px] text-muted" data-testid="provider-mixed">
-            cross-account sums are <span className="rounded border border-hairline px-1">mixed</span> (confidence tiers differ)
+            <span className="rounded border border-hairline px-1">mixed</span> some of these are measured, some estimated
           </span>
         ) : null}
       </Card>
@@ -1811,8 +1845,6 @@ function ProviderActions() {
   return (
     <div className="flex flex-col gap-2" data-testid="provider-actions">
       <ActionRow label="Add account…" onClick={() => window.dispatchEvent(new Event("aij:open-accounts"))} reason="opens Accounts" />
-      <ActionRow label="Check for an update" onClick={undefined} reason="not available yet — AI Juggler never updates a tool by itself" />
-      <ActionRow label="Open tool settings" onClick={undefined} reason="not available yet" />
     </div>
   );
 }
@@ -1821,7 +1853,7 @@ function ProviderActions() {
  * renewal field (E411), logged-out collapse to the sign-in card. */
 function AccountOverview(props: PanelProps) {
   const account = props.data.account;
-  if (!account) return <HonestEmpty tab="overview" task="AJ-E408" />;
+  if (!account) return <HonestEmpty tab="overview" />;
   const rows = props.sessions.filter((s) => s.account_id === account.id);
   const running = rows.filter((s) => s.status === "running" || s.status === "starting");
   const worst = rows
@@ -1904,11 +1936,8 @@ function AccountOverview(props: PanelProps) {
             {worst?.quota?.resets_at_ms ? (
               <span className="text-ink">{formatCountdown(worst.quota.resets_at_ms, props.now)}</span>
             ) : (
-              <span className="text-faint">No data</span>
+              <span className="text-faint">not known yet</span>
             )}
-          </span>
-          <span className="text-muted">
-            burn-down forecast: <span className="text-faint">No data — arrives with the usage engine (AJ-E606+)</span>
           </span>
         </div>
       </Card>
@@ -1944,7 +1973,7 @@ function AccountOverview(props: PanelProps) {
 
 function AccountActions(props: PanelProps) {
   const account = props.data.account;
-  if (!account) return <HonestEmpty tab="actions" task="AJ-E408" />;
+  if (!account) return <HonestEmpty tab="actions" />;
   const recipes = props.profiles.filter((r) => r.account_id === account.id);
   const first = recipes[0] ?? null;
   return (
@@ -1968,9 +1997,6 @@ function AccountActions(props: PanelProps) {
         onClick={() => window.dispatchEvent(new Event("aij:edit-renewal"))}
         reason="jumps to the Overview editor"
       />
-      <ActionRow label="New launch settings…" onClick={undefined} reason="launch-settings editor lands with E3+" />
-      <ActionRow label="Rename" onClick={undefined} reason="account settings land with E3+" />
-      <ActionRow label="Delete account…" danger onClick={undefined} reason="danger — the managed isolated directory is kept (confirm flow lands with E3+)" />
     </div>
   );
 }
@@ -1979,7 +2005,7 @@ function AccountActions(props: PanelProps) {
  * SessionRow), root copy, branch summary, counts, missing-dir banner. */
 function ProjectOverview(props: PanelProps) {
   const project = props.data.project;
-  if (!project) return <HonestEmpty tab="overview" task="AJ-E408" />;
+  if (!project) return <HonestEmpty tab="overview" />;
   const rows = props.sessions.filter((s) => s.project_id === project.id);
   const active = rows.find((s) => s.status === "running" || s.status === "starting") ?? null;
   const branches = [...new Set(rows.map((r) => r.git_branch).filter((b): b is string => b !== null))];
@@ -1990,7 +2016,6 @@ function ProjectOverview(props: PanelProps) {
         <div className="flex items-center gap-3 rounded-xl border border-danger/40 bg-danger-soft px-4 py-3" data-testid="project-missing-banner" role="alert">
           <span className="text-[12px] font-medium text-danger">Project directory is missing</span>
           <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted">{project.root}</span>
-          <ActionRow label="Relocate…" onClick={undefined} />
         </div>
       ) : null}
       {rows.length === 0 ? (
@@ -2024,7 +2049,7 @@ function ProjectOverview(props: PanelProps) {
                 accounts used: <span className="text-ink">{project.accounts_used.join(", ") || "none"}</span>
               </span>
               <span>
-                instances: <span className="tabular-nums text-ink">{project.instance_count}</span> · imported sessions:{" "}
+                sessions: <span className="tabular-nums text-ink">{project.instance_count}</span> · imported sessions:{" "}
                 <span className="tabular-nums text-ink">{project.history_sessions}</span>
               </span>
             </div>
@@ -2050,7 +2075,7 @@ function SessionRowForCard({ session }: { session: InstanceInfo }) {
 
 function ProjectActions(props: PanelProps) {
   const project = props.data.project;
-  if (!project) return <HonestEmpty tab="actions" task="AJ-E408" />;
+  if (!project) return <HonestEmpty tab="actions" />;
   // Ranked by headroom: the signed-in account with the MOST quota left
   // first; `Usual` star marks accounts that already ran in this project.
   const ranked = props.profiles
@@ -2094,11 +2119,6 @@ function ProjectActions(props: PanelProps) {
         );
       })}
       {ranked.length === 0 ? <p className="text-[11.5px] text-muted">No launch settings yet — add an account first.</p> : null}
-      <ActionRow label="Hand over project" onClick={undefined} reason="project-level hand-over lands with E2 switching" />
-      <ActionRow label="Open in editor" onClick={undefined} reason="editor integration lands with E3+" />
-      <ActionRow label="Pin" onClick={undefined} reason="project pinning lands with AJ-E407/E1007 lifecycle" />
-      <ActionRow label="Rename" onClick={undefined} reason="project settings land with E3+" />
-      <ActionRow label="Archive project" onClick={undefined} reason="session lifecycle lands with AJ-E1007" />
     </div>
   );
 }
@@ -2131,8 +2151,9 @@ function GroupedHistory(props: PanelProps) {
             <p className="text-[11px] uppercase tracking-wider text-muted">{group.label}</p>
             {groupRows.map((row) => (
               <button key={row.id} type="button" onClick={() => props.onOpenSession(row.id)} className="flex items-center gap-2 py-1 text-left text-xs">
-                <span className="min-w-0 flex-1 truncate font-medium">{row.account_label}</span>
-                <span className="text-faint">{formatCountdown(row.started_at_ms, props.now)} ago</span>
+                {/* An account's own history names each session by its place. */}
+                <span className="min-w-0 flex-1 truncate font-medium">{kind === "account" ? sessionPlace(row) : row.account_label}</span>
+                <span className="text-faint">{since(row.started_at_ms, props.now)} ago</span>
                 <Chip tone={statusTone(row.status).tone}>{statusTone(row.status).label}</Chip>
               </button>
             ))}
@@ -2142,7 +2163,6 @@ function GroupedHistory(props: PanelProps) {
       {rows.length === 0 ? (
         <Card className="flex flex-col gap-1 p-4">
           <p className="text-[11.5px] text-muted">No history recorded yet</p>
-          <p className="text-[10px] text-muted">handovers in/out render from Switch Graph edges (E2)</p>
         </Card>
       ) : null}
     </div>
@@ -2161,7 +2181,7 @@ function TierTag({ tier }: { tier: "Measured" | "Computed" | "Estimated" }) {
 }
 
 /// The `Renewal date (optional)` editor (AJ-E411 Req.4): date input +
-/// Clear, helper text `Entered by you - Juggler does not read billing`,
+/// Clear, helper text `Entered by you - AI Juggler does not read billing`,
 /// and focus hand-off from Account Actions (`aij:edit-renewal`).
 /**
  * AJ-E508 (D-08): the Account launch-settings area's per-tier
@@ -2229,9 +2249,9 @@ export function TierToggles(props: { accountId: string; initial: boolean; explai
       </label>
       {props.explain !== false && (
         <span className="text-[10px] leading-relaxed text-muted">
-          Both off by default — only verified dev servers and watchers of this Account's clean
+          Both off by default — only verified dev servers and watchers of this account's clean
           exits are tidied; shells, MCP servers and databases are never touched automatically
-          and every kill is audit-logged (D-08). Crash tidies wait 5 minutes and ask first
+          and every stop is written to the log. Crash tidies wait 5 minutes and ask first
           with an Undo window.
         </span>
       )}
@@ -2362,7 +2382,7 @@ function RenewalEditor({ account }: { account: AccountInfo }) {
       >
         Clear
       </Button>
-      <span className="text-[10px] text-faint">Entered by you - Juggler does not read billing</span>
+      <span className="text-[10px] text-faint">Entered by you - AI Juggler does not read billing</span>
     </span>
   );
 }
@@ -2403,7 +2423,7 @@ function QualityTab(props: PanelProps) {
     };
   }, [instance?.id]);
 
-  if (!instance) return <HonestEmpty tab="quality" task="AJ-E409" />;
+  if (!instance) return <HonestEmpty tab="quality" />;
 
   const signals: { testId: string; label: string; body: React.ReactNode; tier: "Measured" | "Computed" | "Estimated"; reason?: string }[] = [];
   if (loadError) {
@@ -2450,7 +2470,7 @@ function QualityTab(props: PanelProps) {
           )}
         </div>
       ) : (
-        <span className="text-muted">no data — no transcript usage events yet</span>
+        <span className="text-muted">Nothing measured yet</span>
       ),
     });
     const lastSample = resources?.spark.at(-1);
@@ -2488,7 +2508,7 @@ function QualityTab(props: PanelProps) {
           </span>
         ) : (
           <span className="text-muted">
-            Context: not reported by {instance.provider} · cumulative{" "}
+            Context: not reported by {providerDisplayName(instance.provider)} · cumulative{" "}
             <span className="tabular-nums text-ink">
               {(quality.cumulative.input + quality.cumulative.output).toLocaleString()}
             </span>{" "}
@@ -2534,12 +2554,12 @@ function QualityTab(props: PanelProps) {
     <div className="flex flex-col gap-3" data-testid="quality-tab">
       {signals.length === 0 ? (
         <Card className="flex flex-col gap-1 p-4">
-          <p className="text-[11.5px] text-muted">no data — no transcript usage events yet</p>
+          <p className="text-[11.5px] text-muted">Nothing measured yet — this fills in as the session works.</p>
         </Card>
       ) : (
         <>
           <div className="flex items-center justify-between">
-            <p className="text-[10px] text-muted">2s sampling · Measured from the process collector (AJ-E410)</p>
+            <p className="text-[10px] text-muted">Measured every 2 seconds</p>
             <button
               type="button"
               onClick={() => setAsTable((v) => !v)}
@@ -2658,7 +2678,7 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
     };
   }, [instance?.id, reloadKey, bridge]);
 
-  if (!instance) return <HonestEmpty tab="processes" task="AJ-E410" />;
+  if (!instance) return <HonestEmpty tab="processes" />;
 
   // AJ-E510 Req.4: the detached notice for re-adopted Instances — the
   // pre-crash terminal output is gone; the verified stop path (the
