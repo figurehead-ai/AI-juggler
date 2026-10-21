@@ -118,8 +118,16 @@ describe("This Mac panel (AJ-E1404)", () => {
     // "macOS" keeps its lower-case m in the sentence.
     expect(screen.getByTestId("this-mac-reasons").textContent).toBe("macOS reports memory pressure; swap is growing — 140 MB a minute");
     const [ours, theirs] = screen.getAllByTestId("this-mac-tree");
-    fireEvent.click(within(ours!).getByRole("button"));
+    fireEvent.click(within(ours!).getAllByRole("button")[0]!);
     expect(open).toHaveBeenCalledWith("s1");
+    // AJ-E1537: its menu goes to the session; theirs says it isn't ours.
+    fireEvent.contextMenu(ours!);
+    expect(screen.getByRole("menuitem", { name: "Go to the session" })).toBeTruthy();
+    fireEvent.keyDown(window, { key: "Escape" });
+    fireEvent.contextMenu(theirs!);
+    const line = screen.getByRole("menuitem", { name: "Not started by AI Juggler" }) as HTMLButtonElement;
+    expect(line.disabled).toBe(true);
+    fireEvent.keyDown(window, { key: "Escape" });
     expect((ours)!.textContent).toContain("name-of-s1");
     expect((ours)!.textContent).toContain("heavy: CPU 96% · 3.2 GB");
     // D-08: shown and counted, never actionable.

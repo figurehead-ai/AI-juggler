@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "./primitives";
 import { Field, Input, Modal } from "./form";
-import { MenuItem, RowMenu } from "./RowMenu";
+import type { ActionHost } from "../lib/actions";
 import {
   errorText,
   type InstanceInfo,
@@ -135,11 +135,11 @@ function ProblemSheet({ title, message, onClose }: { title: string; message: str
   );
 }
 
-/** The project actions (rail menu and project view): rename, pin, open
- * in the editor or Finder, relocate, forget. */
+/** The project actions (every project menu, AJ-E1537, and the project
+ * view): rename, pin, open in the editor or Finder, copy the path,
+ * relocate, forget. `host` gives them to the action registry. */
 export function useProjectManage(onChanged: () => void) {
   const editor = useEditorName();
-  const [menu, setMenu] = useState<{ project: ProjectInfo; at: { x: number; y: number } } | null>(null);
   const [sheet, setSheet] = useState<{ kind: "rename" | "forget"; project: ProjectInfo } | null>(null);
   const [problem, setProblem] = useState<{ title: string; message: string } | null>(null);
   const run = async (title: string, action: () => Promise<boolean | void>) => {
@@ -157,41 +157,20 @@ export function useProjectManage(onChanged: () => void) {
     relocate: (project: ProjectInfo) =>
       run(`Couldn't relocate ${project.name}`, () => projectRelocate(project.id)),
     forget: (project: ProjectInfo) => setSheet({ kind: "forget", project }),
+    copyPath: (project: ProjectInfo) => run(`Couldn't copy the path`, () => navigator.clipboard.writeText(project.root)),
   };
-  const choose = (action: (project: ProjectInfo) => unknown) => () => {
-    const project = menu?.project;
-    setMenu(null);
-    if (project) void action(project);
+  const host: ActionHost = {
+    renameProject: actions.rename,
+    pinProject: actions.togglePin,
+    openProjectIn: (project, how) => (how === "finder" ? actions.reveal(project) : actions.open(project)),
+    editorName: () => editor,
+    copyProjectPath: actions.copyPath,
+    relocateProject: actions.relocate,
+    forgetProject: actions.forget,
   };
-  const missing = menu?.project.missing === true;
-  const gone = missing ? "Its folder isn't there any more" : undefined;
   // Sheets go on the page itself (a blurred rail would clip them).
   const element: ReactNode = createPortal(
     <>
-      {menu && (
-        <RowMenu heading={menu.project.name} ariaLabel={`Actions for ${menu.project.name}`} at={menu.at} onClose={() => setMenu(null)}>
-          <MenuItem testId="project-rename" onClick={choose(actions.rename)}>
-            Rename…
-          </MenuItem>
-          <MenuItem testId="project-pin" onClick={choose(actions.togglePin)}>
-            {menu.project.pinned ? "Unpin" : "Pin to top"}
-          </MenuItem>
-          <MenuItem testId="project-open" disabled={missing} title={gone} onClick={choose(actions.open)}>
-            {openWords(editor)}
-          </MenuItem>
-          {editor !== null && (
-            <MenuItem testId="project-reveal" disabled={missing} title={gone} onClick={choose(actions.reveal)}>
-              Show in Finder
-            </MenuItem>
-          )}
-          <MenuItem testId="project-relocate" onClick={choose(actions.relocate)}>
-            Relocate…
-          </MenuItem>
-          <MenuItem testId="project-forget" danger onClick={choose(actions.forget)}>
-            Forget…
-          </MenuItem>
-        </RowMenu>
-      )}
       {sheet?.kind === "rename" && (
         <RenameSheet
           title={`Rename ${sheet.project.name}`}
@@ -221,13 +200,7 @@ export function useProjectManage(onChanged: () => void) {
     </>,
     document.body,
   );
-  return {
-    editor,
-    actions,
-    openMenu: (project: ProjectInfo, at: { x: number; y: number }) => setMenu({ project, at }),
-    menuOpenFor: menu?.project.id ?? null,
-    element,
-  };
+  return { editor, actions, host, element };
 }
 
 function ForgetSheet({ project, onClose, onDone }: { project: ProjectInfo; onClose: () => void; onDone: () => void }) {
@@ -273,7 +246,8 @@ function ForgetSheet({ project, onClose, onDone }: { project: ProjectInfo; onClo
   );
 }
 
-/** The session actions (rail menu and session view): rename, pin. */
+/** The session actions (every session menu, AJ-E1537, and the session
+ * view): rename, pin. `host` gives them to the action registry. */
 export function useSessionManage(onChanged: () => void) {
   const [renaming, setRenaming] = useState<InstanceInfo | null>(null);
   const [problem, setProblem] = useState<{ title: string; message: string } | null>(null);
@@ -309,5 +283,6 @@ export function useSessionManage(onChanged: () => void) {
     </>,
     document.body,
   );
-  return { actions, element };
+  const host: ActionHost = { renameSession: actions.rename, pinSession: actions.togglePin };
+  return { actions, host, element };
 }

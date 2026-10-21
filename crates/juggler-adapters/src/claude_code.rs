@@ -400,6 +400,11 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         Some("claude")
     }
 
+    fn resume_args(&self, conversation_id: &str) -> Option<Vec<String>> {
+        crate::codex::refuse_option_like(conversation_id).ok()?;
+        Some(vec!["--resume".into(), conversation_id.to_owned()])
+    }
+
     fn resolved_binary(&self) -> Option<PathBuf> {
         self.resolve_bin()
     }

@@ -337,6 +337,16 @@ pub trait HarnessAdapter: Send + Sync {
     fn resolved_binary(&self) -> Option<std::path::PathBuf> {
         None
     }
+
+    /// The arguments that resume conversation `conversation_id` from a
+    /// terminal, after [`HarnessAdapter::shell_command`] (AJ-E1537's Copy
+    /// resume command). `None` when the tool can't resume from a
+    /// terminal, or the id looks like an option (never passed).
+    #[must_use]
+    fn resume_args(&self, conversation_id: &str) -> Option<Vec<String>> {
+        let _ = conversation_id;
+        None
+    }
 }
 
 /// Single-quotes `value` for a POSIX shell (`'` becomes `'\''`), so a
@@ -394,6 +404,28 @@ pub fn shell_snippet(
     }
     let flags: Vec<String> = unset.iter().map(|key| format!("-u {key}")).collect();
     Some(format!("env {} {}", flags.join(" "), parts.join(" ")))
+}
+
+/// The copyable line that resumes `conversation_id` on the account at
+/// `state_dir`, run from `cwd` (the session's folder): the sign-in line's
+/// environment and program ([`shell_snippet`]), then the adapter's resume
+/// arguments, every word quoted. `None` when the tool can't resume from a
+/// terminal.
+#[must_use]
+pub fn shell_resume_snippet(
+    adapter: &dyn HarnessAdapter,
+    state_dir: &Path,
+    conversation_id: &str,
+    cwd: &Path,
+) -> Option<String> {
+    let args = adapter.resume_args(conversation_id)?;
+    let line = shell_snippet(adapter, state_dir, &std::collections::BTreeMap::new())?;
+    let args: Vec<String> = args.iter().map(|arg| shell_quote(arg)).collect();
+    Some(format!(
+        "cd {} && {line} {}",
+        shell_quote(&cwd.to_string_lossy()),
+        args.join(" ")
+    ))
 }
 
 /// The program word of the copyable line: `command`, as the user types

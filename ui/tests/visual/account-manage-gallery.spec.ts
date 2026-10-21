@@ -61,8 +61,11 @@ for (const theme of ["dark", "light"] as const) {
     await seed(page, theme);
     await card(page, "personal-max").click();
     const menu = page.getByRole("menu", { name: "Actions for personal-max" });
-    await expect(menu.getByRole("menuitem")).toHaveText(["Rename…", "Make the default", "Remove…"]);
-    await expect(menu.getByRole("menuitem", { name: "Rename…" })).toBeFocused();
+    // AJ-E1537: the registry's account menu; destructive last.
+    const names = await menu.getByRole("menuitem").evaluateAll((items) => items.map((item) => item.querySelector("[data-label]")?.textContent));
+    expect(names[0]).toBe("Open");
+    expect(names.slice(-3)).toEqual(["Rename…", "Make the default", "Remove…"]);
+    await expect(menu.getByRole("menuitem", { name: "Open", exact: true })).toBeFocused();
     await page.screenshot({ path: resolve(OUT, `account-menu-1280x800-${theme}.png`) });
     await axeClean(page, "account menu");
   });

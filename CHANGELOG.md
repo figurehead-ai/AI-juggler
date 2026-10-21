@@ -243,6 +243,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   you and the tool. Two ways in, **Find my accounts** and **Add a fresh
   account**, and a short "How it works". Usage and Fleet point back to
   it while no account is in.
+- **Right-click menus** (AJ-E1537). Right-click a session, a project, an
+  account, a history entry or a line on This Mac for its actions, in the
+  Mac's own menu. The same menu opens from the row's ⋯ button, a page's
+  header and Shift+F10. A greyed-out item says why, and Stop, Forget,
+  Remove and Delete sit apart at the end. New: copy a session's resume
+  command, start a new session in a project, copy a project's path.
+- **Name, pin and tidy sessions and projects** (AJ-E1502). Rename a
+  session or a project (the folder keeps its name), pin it to the top,
+  open a project in your editor, point a moved project at its new
+  folder, or forget one you're done with until you use it again.
 - **Tool marks** (AJ-E1526). Wherever a tool is named (Add account, first
   run, account cards, the rail, the inspector, Usage and This Mac), a
   small mark sits beside its name. Claude Code and Codex show a neutral

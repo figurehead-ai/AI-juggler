@@ -399,7 +399,7 @@ walk alone isn't enough.
 2. Delete moves into the row's ⋯ menu.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1536/manifest.md`.
 
-### AJ-E1537 Context menus and ⋯ menus from one action registry | Status: TODO | Priority P1 | Effort M | Depends: AJ-E1502, AJ-E1533
+### AJ-E1537 Context menus and ⋯ menus from one action registry | Status: DONE-EVIDENCED | Priority P1 | Effort M | Depends: AJ-E1502, AJ-E1533
 **Goal**: A desktop user right-clicks anything and gets the actions that matter, with the same items in the ⋯ menu and from the keyboard.
 **Requirements** (the maintainer's request, 2026-10-21):
 1. One action registry (ADR-0019). Each item type declares its actions once: session, project, account, tool, history entry and This Mac row (pools and tasks later). Each action has an id, a label, an icon, when it's enabled and why not, whether it's destructive, a shortcut and a handler. Features contribute actions; no screen keeps its own copy of a menu.

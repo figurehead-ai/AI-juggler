@@ -49,7 +49,7 @@ describe("AJ-E1504 the ? sheet", () => {
     expect(new Set(SHORTCUTS.map((entry) => entry.id)).size).toBe(SHORTCUTS.length);
     for (const area of SHORTCUT_AREAS) expect(SHORTCUTS.some((entry) => entry.area === area)).toBe(true);
     const unmatched = SHORTCUTS.filter((entry) => !("match" in entry)).map((entry) => entry.id);
-    expect(unmatched.sort()).toEqual(["close", "go-to", "home-open", "leave-terminal"]);
+    expect(unmatched.sort()).toEqual(["close", "go-to", "home-open", "leave-terminal", "row-menu"]);
   });
 
   // The anti-drift rule: App and Home test keys only through the

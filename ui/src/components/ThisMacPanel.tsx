@@ -9,6 +9,7 @@
  * such, and offers nothing to click (D-08: unowned is untouchable).
  */
 import { ToolMark } from "./ToolMark";
+import { useItemMenu } from "./ItemMenu";
 import type { JSX } from "react";
 import { Button } from "./primitives";
 import { bytesWords, reasonSentence, type ThisMacInfo, type ToolTreeInfo } from "../lib/machine";
@@ -81,8 +82,11 @@ function TreeRow({
       {numbers}
     </>
   );
+  // AJ-E1537: right-click, ⋯ or Shift+F10 — go to the session, or say
+  // it isn't AI Juggler's.
+  const menu = useItemMenu("this-mac", tree, title, { openSessionById: onOpenSession });
   return (
-    <li className="border-t border-hairline/60 first:border-t-0" data-testid="this-mac-tree" data-ours={ours ? "true" : "false"}>
+    <li className="group relative border-t border-hairline/60 first:border-t-0" data-testid="this-mac-tree" data-ours={ours ? "true" : "false"} {...menu.triggerProps}>
       {ours ? (
         <button type="button" className="-mx-2 flex w-[calc(100%+1rem)] flex-wrap items-center gap-x-3 gap-y-1 rounded-lg px-2 py-2 text-left hover:bg-surface-2" onClick={() => onOpenSession(tree.session_id!)}>
           {body}
@@ -90,6 +94,9 @@ function TreeRow({
       ) : (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2">{body}</div>
       )}
+      {/* D-08: a tool AI Juggler didn't start has no controls at all. */}
+      {ours && menu.button({ label: `Actions for ${title}`, className: "absolute -left-6 top-1/2 -translate-y-1/2" })}
+      {menu.element}
     </li>
   );
 }

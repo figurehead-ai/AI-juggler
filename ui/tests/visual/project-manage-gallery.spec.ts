@@ -76,7 +76,9 @@ for (const theme of ["dark", "light"] as const) {
     await row.hover();
     await page.getByRole("button", { name: "Session actions for feat/read-model" }).first().click();
     const menu = page.getByRole("menu");
-    await expect(menu.getByRole("menuitem").first()).toHaveText("Rename…");
+    // AJ-E1537: the registry's session menu opens on Open.
+    await expect(menu.getByRole("menuitem").first()).toHaveText("Open");
+    await expect(menu.getByRole("menuitem", { name: "Rename…" })).toBeVisible();
     await page.screenshot({ path: resolve(OUT, `session-menu-1280x800-${theme}.png`) });
     await axeClean(page, "session menu");
     await menu.getByRole("menuitem", { name: "Rename…" }).click();
@@ -94,7 +96,10 @@ for (const theme of ["dark", "light"] as const) {
     await row.hover();
     await page.getByRole("button", { name: "Project actions for old-prototype" }).click();
     const menu = page.getByRole("menu", { name: "Actions for old-prototype" });
-    await expect(menu.getByRole("menuitem")).toHaveText(["Rename…", "Pin to top", "Open in Finder", "Relocate…", "Forget…"]);
+    // AJ-E1537: the registry's project menu; Forget last, on its own.
+    const names = await menu.getByRole("menuitem").evaluateAll((items) => items.map((item) => item.querySelector("[data-label]")?.textContent));
+    expect(names).toEqual(expect.arrayContaining(["Open", "New session here", "Open in Finder", "Copy path", "Rename…", "Pin to top"]));
+    expect(names.at(-1)).toBe("Forget…");
     await page.screenshot({ path: resolve(OUT, `project-menu-1280x800-${theme}.png`) });
     await axeClean(page, "project menu");
     await menu.getByRole("menuitem", { name: "Forget…" }).click();
@@ -105,14 +110,15 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("rail-history-project").filter({ hasText: "old-prototype" })).toHaveCount(0);
   });
 
-  test(`the project view's own actions, an editor chosen — ${theme}`, async ({ page }) => {
+  // AJ-E1537: the project page's header ⋯ is the same menu as its row's.
+  test(`the project page's menu, an editor chosen — ${theme}`, async ({ page }) => {
     await seed(page, theme, "Zed");
     await page.getByTestId("rail").getByRole("button", { name: /^ai-juggler/ }).first().click();
-    await page.getByRole("tab", { name: "Actions" }).click();
-    const manage = page.getByTestId("project-manage");
-    await expect(manage).toContainText("Open in Zed");
-    await expect(manage).toContainText("Show in Finder");
-    await manage.scrollIntoViewIfNeeded();
+    await page.getByTestId("header-menu").click();
+    const menu = page.getByRole("menu", { name: "Actions for ai-juggler" });
+    await expect(menu.getByRole("menuitem", { name: "Open in Zed" })).toBeVisible();
+    await expect(menu.getByRole("menuitem", { name: "Show in Finder" })).toBeVisible();
+    await expect(menu.getByRole("menuitem", { name: "Open", exact: true })).toHaveCount(0);
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(OUT, `project-actions-1280x800-${theme}.png`) });
     await axeClean(page, "project actions");

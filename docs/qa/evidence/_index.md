@@ -66,15 +66,16 @@
 | AJ-E1409 | PASS3 | 2026-10-20 | [manifest](AJ-E1409/manifest.md) |
 | AJ-E1410 | PASS5 | 2026-10-20 | [manifest](AJ-E1410/manifest.md) |
 | AJ-E1501 | PASS11 | 2026-10-21 | [manifest](AJ-E1501/manifest.md) |
+| AJ-E1502 | PASS10 | 2026-10-21 | [manifest](AJ-E1502/manifest.md) |
 | AJ-E1503 | PASS17 | 2026-10-21 | [manifest](AJ-E1503/manifest.md) |
 | AJ-E1504 | PASS12 | 2026-10-21 | [manifest](AJ-E1504/manifest.md) |
 | AJ-E1505 | PASS12 | 2026-10-21 | [manifest](AJ-E1505/manifest.md) |
-| AJ-E1502 | PASS10 | 2026-10-21 | [manifest](AJ-E1502/manifest.md) |
 | AJ-E1521 | PASS9 | 2026-10-21 | [manifest](AJ-E1521/manifest.md) |
 | AJ-E1524 | PASS12 | 2026-10-21 | [manifest](AJ-E1524/manifest.md) |
 | AJ-E1525 | PASS12 | 2026-10-21 | [manifest](AJ-E1525/manifest.md) |
 | AJ-E1526 | PASS7 | 2026-10-21 | [manifest](AJ-E1526/manifest.md) |
 | AJ-E1531 | PASS5 | 2026-10-21 | [manifest](AJ-E1531/manifest.md) |
+| AJ-E1537 | PASS6 | 2026-10-21 | [manifest](AJ-E1537/manifest.md) |
 | AJ-E201 | PASS8 | 2026-10-16 | [manifest](AJ-E201/manifest.md) |
 | AJ-E2011 | PASS4 | 2026-10-21 | [manifest](AJ-E2011/manifest.md) |
 | AJ-E202 | PASS7 | 2026-10-16 | [manifest](AJ-E202/manifest.md) |

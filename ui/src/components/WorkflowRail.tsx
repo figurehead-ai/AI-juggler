@@ -39,8 +39,9 @@ import {
   type SortMode,
 } from "../lib/railview";
 import { Button } from "./primitives";
-import { MenuItem, RowMenu, menuPoint } from "./RowMenu";
 import { sessionTitle, useProjectManage, useSessionManage } from "./ManageWork";
+import { ActionHostProvider, useItemMenu } from "./ItemMenu";
+import type { ActionHost } from "../lib/actions";
 import {
   AccountDisc,
   ChildBadges,
@@ -66,7 +67,8 @@ import {
 import { QuotaBar, Sparkline } from "./primitives";
 
 /** Freshness timestamps per Instance id (epoch ms) driving the stale rule. */
-export type Freshness = Record<string, { resources: number; quota: number }>;
+export type { Freshness } from "../lib/live-deltas";
+import type { Freshness } from "../lib/live-deltas";
 
 
 const WIDTH_MIN = 208;
@@ -386,8 +388,7 @@ export function InstanceBoard({
   const remoteShown = hasRemote
     ? remoteMachines.filter((machine) => machineChoice === "all" || machineChoice === machine.machine_id)
     : [];
-  const [menu, setMenu] = useState<{ row: InstanceInfo; x: number; y: number } | null>(null);
-  // AJ-E1502: the same row menu names and pins sessions and projects.
+  // AJ-E1502/E1537: rows name, pin and tidy through the action registry.
   const sessionManage = useSessionManage(onChanged);
   const projectManage = useProjectManage(onChanged);
   const searchRef = useRef<HTMLInputElement | null>(null);
@@ -449,7 +450,6 @@ export function InstanceBoard({
     windowed = { start, end };
   }
 
-  const openMenu = (row: InstanceInfo, x: number, y: number) => setMenu({ row, x, y });
   // AJ-E1503: every snooze, mute and unsnooze says so, with Undo (the
   // row's earlier state comes back).
   const withUndo = (row: InstanceInfo, message: string) => {
@@ -476,7 +476,6 @@ export function InstanceBoard({
       ...current,
       [row.id]: muted ? { until: null, muted: true } : { until: ms === null ? null : Date.now() + ms, muted: false },
     }));
-    setMenu(null);
   };
   const clearSnooze = (row: InstanceInfo) => {
     withUndo(row, `${sessionLabel(row, projects)} is back on the list.`);
@@ -485,10 +484,25 @@ export function InstanceBoard({
       delete next[row.id];
       return next;
     });
-    setMenu(null);
+  };
+  // AJ-E1537: what the rail gives every session and project menu.
+  const host: ActionHost = {
+    ...sessionManage.host,
+    ...projectManage.host,
+    openSession: (row) => onSelect(row.id),
+    openProject: onSelectProject ? (project) => onSelectProject(project.id) : undefined,
+    isSnoozed: (row) => isSnoozed(row, snooze, now),
+    // "Until reset" is null: the window's reset when known, else a day.
+    snoozeSession: (row, ms) => {
+      const resetAt = row.quota?.resets_at_ms ?? null;
+      snoozeFor(row, ms ?? (resetAt !== null ? Math.max(0, resetAt - now) : 24 * 60 * 60_000));
+    },
+    muteSession: (row) => snoozeFor(row, null, true),
+    unsnoozeSession: clearSnooze,
   };
 
   return (
+    <ActionHostProvider host={host}>
     <div className="flex min-h-0 flex-1 flex-col gap-2" data-testid="instance-board">
       {/* Toolbar: search ⌘K, filter chips with counts, Sort/Group + key
           dropdowns (native selects: accessible + keyboard in a narrow rail). */}
@@ -681,7 +695,6 @@ export function InstanceBoard({
                 freshness={freshness}
                 now={now}
                 snooze={snooze}
-                onContextMenu={openMenu}
               />
             ))}
             <div style={{ height: (flatRows.length - windowed.end) * ROW_HEIGHT[effectiveDensity] }} />
@@ -701,35 +714,15 @@ export function InstanceBoard({
                     onToggle={() => toggleFold(entry.id)}
                   />
                   {effectiveGroup === "project" && onSelectProject && projects.some((p) => p.id === entry.id) ? (
-                    <div
-                      className="group relative flex min-w-0 flex-1 items-center"
-                      onContextMenu={(event) => {
-                        event.preventDefault();
-                        projectManage.openMenu(projects.find((p) => p.id === entry.id)!, { x: event.clientX, y: event.clientY });
-                      }}
+                    <RailProjectHeader
+                      project={projects.find((p) => p.id === entry.id)!}
+                      label={entry.label}
+                      rollup={entry.rollup}
+                      count={entry.rows.length}
+                      onSelect={() => onSelectProject(entry.id)}
                     >
-                      <button
-                        type="button"
-                        onClick={() => onSelectProject(entry.id)}
-                        title={entry.rollup || undefined}
-                        className="flex min-w-0 flex-1 items-baseline justify-between gap-2 rounded-md py-0.5 pl-1 pr-2.5 text-left text-[11.5px] font-semibold text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
-                        data-testid="rail-project"
-                      >
-                        <span className="flex min-w-0 items-baseline gap-1.5">
-                          <span className="min-w-0 truncate">{entry.label}</span>
-                          {projects.find((p) => p.id === entry.id)?.pinned && <PinMark />}
-                        </span>
-                        <span className="flex shrink-0 items-center gap-1.5">
-                          {folded.has(entry.id) && <FoldedNeeds rows={entry.rows} snooze={snooze} now={now} />}
-                          <span className="text-[10px] font-normal text-faint">{entry.rows.length}</span>
-                        </span>
-                      </button>
-                      <RowMenuButton
-                        label={`Project actions for ${entry.label}`}
-                        onOpen={(at) => projectManage.openMenu(projects.find((p) => p.id === entry.id)!, at)}
-                        className="absolute right-6 top-1/2 -translate-y-1/2 bg-surface"
-                      />
-                    </div>
+                      {folded.has(entry.id) && <FoldedNeeds rows={entry.rows} snooze={snooze} now={now} />}
+                    </RailProjectHeader>
                   ) : (
                     <p
                       className="flex min-w-0 flex-1 items-baseline justify-between gap-2 py-0.5 pl-1 pr-2.5 text-[11.5px] font-semibold text-muted"
@@ -756,8 +749,7 @@ export function InstanceBoard({
                   freshness={freshness}
                   now={now}
                   snooze={snooze}
-                  onContextMenu={openMenu}
-                />
+                  />
               ))}
               </div>
             </div>
@@ -792,7 +784,6 @@ export function InstanceBoard({
                       density={effectiveDensity === "compact" ? "compact" : "comfortable"}
                       now={now}
                       onSelect={(id) => onSelectProject?.(id)}
-                      onMenu={projectManage.openMenu}
                     />
                   ) : (
                     <div key={group.key} className="flex flex-col gap-0.5" data-testid="rail-repo-group">
@@ -816,8 +807,7 @@ export function InstanceBoard({
                             density={effectiveDensity === "compact" ? "compact" : "comfortable"}
                             now={now}
                             onSelect={(id) => onSelectProject?.(id)}
-                            onMenu={projectManage.openMenu}
-                          />
+                                />
                         ))}
                       </div>
                     </div>
@@ -848,30 +838,10 @@ export function InstanceBoard({
         ))}
       </div>
 
-      {menu && (
-        <RowContextMenu
-          row={menu.row}
-          snooze={snooze}
-          now={now}
-          x={menu.x}
-          y={menu.y}
-          onSnoozeFor={(ms) => snoozeFor(menu.row, ms)}
-          onMute={() => snoozeFor(menu.row, null, true)}
-          onClear={() => clearSnooze(menu.row)}
-          onRename={() => {
-            setMenu(null);
-            sessionManage.actions.rename(menu.row);
-          }}
-          onTogglePin={() => {
-            setMenu(null);
-            void sessionManage.actions.togglePin(menu.row);
-          }}
-          onClose={() => setMenu(null)}
-        />
-      )}
       {sessionManage.element}
       {projectManage.element}
     </div>
+    </ActionHostProvider>
   );
 }
 
@@ -883,7 +853,6 @@ function BoardRow({
   freshness,
   now,
   snooze,
-  onContextMenu,
 }: {
   row: InstanceInfo;
   selected: boolean;
@@ -892,11 +861,12 @@ function BoardRow({
   freshness: Freshness;
   now: number;
   snooze: SnoozeState;
-  onContextMenu: (row: InstanceInfo, x: number, y: number) => void;
 }) {
   const caption = snoozeCaption(row, snooze, now);
+  // AJ-E1537: right-click, ⋯ or Shift+F10 — the session's one menu.
+  const menu = useItemMenu("session", row, sessionTitle(row));
   return (
-    <div className="group relative">
+    <div className="group relative" {...menu.triggerProps}>
       {caption && (
         <span className="absolute -top-0.5 right-2 z-10 rounded bg-surface-3 px-1 text-[8.5px] font-medium text-muted" title={caption}>
           {caption}
@@ -918,25 +888,10 @@ function BoardRow({
           ⇄
         </span>
       )}
-      {/* The I-10 context menu trigger (Req.6): right-click the row, or
-          this ⋯ button for pointer-free access. 24 px square: the
-          WCAG 2.2 minimum target (AJ-E804). */}
-      <button
-        type="button"
-        aria-label={`Session actions for ${sessionTitle(row)}`}
-        aria-haspopup="menu"
-        onClick={(event) => {
-          const at = menuPoint(event);
-          onContextMenu(row, at.x, at.y);
-        }}
-        onContextMenu={(event) => {
-          event.preventDefault();
-          onContextMenu(row, event.clientX, event.clientY);
-        }}
-        className="absolute bottom-0 left-0 z-10 flex size-6 items-center justify-center rounded text-[10px] text-faint opacity-0 transition-opacity outline-none hover:text-ink focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-accent/60 group-hover:opacity-100"
-      >
-        ⋯
-      </button>
+      {/* The ⋯ button for pointer-free access: 24 px square, the WCAG
+          2.2 minimum target (AJ-E804). */}
+      {menu.button({ label: `Session actions for ${sessionTitle(row)}`, className: "absolute bottom-0 left-0" })}
+      {menu.element}
     </div>
   );
 }
@@ -1082,63 +1037,6 @@ export function RailRow({
         style={{ background: `hsl(${hueOf(session.account_id)} 70% 66%)` }}
       />
     </button>
-  );
-}
-
-/** The I-10 context menu: snooze durations + mute (Req.6). */
-function RowContextMenu({
-  row,
-  snooze,
-  now,
-  x,
-  y,
-  onSnoozeFor,
-  onMute,
-  onClear,
-  onRename,
-  onTogglePin,
-  onClose,
-}: {
-  row: InstanceInfo;
-  snooze: SnoozeState;
-  now: number;
-  x: number;
-  y: number;
-  onSnoozeFor: (ms: number | null) => void;
-  onMute: () => void;
-  onClear: () => void;
-  /** AJ-E1502: name the session, pin it to the top. */
-  onRename: () => void;
-  onTogglePin: () => void;
-  onClose: () => void;
-}) {
-  const snoozed = isSnoozed(row, snooze, now);
-  const resetAt = row.quota?.resets_at_ms ?? null;
-  return (
-    <RowMenu heading={sessionTitle(row)} ariaLabel={`Actions for ${sessionTitle(row)}`} at={{ x, y }} onClose={onClose}>
-      <MenuItem testId="session-rename" onClick={onRename}>
-        Rename…
-      </MenuItem>
-      <MenuItem testId="session-pin" onClick={onTogglePin}>
-        {row.pinned ? "Unpin" : "Pin to top"}
-      </MenuItem>
-      {snoozed ? (
-        <MenuItem onClick={onClear}>Unsnooze / unmute</MenuItem>
-      ) : (
-        <>
-          <MenuItem onClick={() => onSnoozeFor(15 * 60_000)}>Snooze 15m</MenuItem>
-          <MenuItem onClick={() => onSnoozeFor(60 * 60_000)}>Snooze 1h</MenuItem>
-          <MenuItem
-            onClick={() => onSnoozeFor(resetAt !== null ? Math.max(0, resetAt - now) : 24 * 60 * 60_000)}
-            disabled={resetAt === null}
-            title={resetAt === null ? "No known reset time for this quota window" : undefined}
-          >
-            Until reset
-          </MenuItem>
-          <MenuItem onClick={onMute}>Mute this session</MenuItem>
-        </>
-      )}
-    </RowMenu>
   );
 }
 
@@ -1952,25 +1850,17 @@ function ProjectRow({
   density,
   now,
   onSelect,
-  onMenu,
 }: {
   project: ProjectInfo;
   density: "comfortable" | "compact";
   now: number;
   onSelect: (id: string) => void;
-  /** AJ-E1502: the row's menu (rename, pin, open, forget…). */
-  onMenu: (project: ProjectInfo, at: { x: number; y: number }) => void;
 }): JSX.Element {
   const stats = projectStats(project, now);
   const when = stats[0]?.endsWith("ago") || stats[0] === "just now" ? stats[0] : null;
+  const menu = useItemMenu("project", project, project.name);
   return (
-    <div
-      className="group relative"
-      onContextMenu={(event) => {
-        event.preventDefault();
-        onMenu(project, { x: event.clientX, y: event.clientY });
-      }}
-    >
+    <div className="group relative" {...menu.triggerProps}>
     <button
       type="button"
       onClick={() => onSelect(project.id)}
@@ -1999,7 +1889,8 @@ function ProjectRow({
         <span className="sr-only">{project.pinned ? ", pinned" : ""}</span>
       </span>
     </button>
-    <RowMenuButton label={`Project actions for ${project.name}`} onOpen={(at) => onMenu(project, at)} className="absolute bottom-0 left-0" />
+    {menu.button({ label: `Project actions for ${project.name}`, className: "absolute bottom-0 left-0" })}
+    {menu.element}
     </div>
   );
 }
@@ -2013,26 +1904,45 @@ function PinMark(): JSX.Element {
   );
 }
 
-/** The ⋯ button that opens a row's menu (the session row's pattern):
- * shown on hover or focus, 24 px (the WCAG 2.2 target). */
-function RowMenuButton({ label, onOpen, className = "" }: { label: string; onOpen: (at: { x: number; y: number }) => void; className?: string }): JSX.Element {
+/** A project's group heading in the rail: opens the project, with its
+ * menu on right-click, ⋯ or Shift+F10 (AJ-E1537). */
+function RailProjectHeader({
+  project,
+  label,
+  rollup,
+  count,
+  onSelect,
+  children,
+}: {
+  project: ProjectInfo;
+  label: string;
+  rollup: string;
+  count: number;
+  onSelect: () => void;
+  children?: ReactNode;
+}): JSX.Element {
+  const menu = useItemMenu("project", project, label);
   return (
-    <button
-      type="button"
-      aria-label={label}
-      aria-haspopup="menu"
-      onClick={(event) => onOpen(menuPoint(event))}
-      onContextMenu={(event) => {
-        event.preventDefault();
-        onOpen({ x: event.clientX, y: event.clientY });
-      }}
-      className={
-        "z-10 flex size-6 shrink-0 items-center justify-center rounded text-[10px] text-faint opacity-0 transition-opacity outline-none hover:text-ink focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-accent/60 group-hover:opacity-100 " +
-        className
-      }
-    >
-      ⋯
-    </button>
+    <div className="group relative flex min-w-0 flex-1 items-center" {...menu.triggerProps}>
+      <button
+        type="button"
+        onClick={onSelect}
+        title={rollup || undefined}
+        className="flex min-w-0 flex-1 items-baseline justify-between gap-2 rounded-md py-0.5 pl-1 pr-2.5 text-left text-[11.5px] font-semibold text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+        data-testid="rail-project"
+      >
+        <span className="flex min-w-0 items-baseline gap-1.5">
+          <span className="min-w-0 truncate">{label}</span>
+          {project.pinned && <PinMark />}
+        </span>
+        <span className="flex shrink-0 items-center gap-1.5">
+          {children}
+          <span className="text-[10px] font-normal text-faint">{count}</span>
+        </span>
+      </button>
+      {menu.button({ label: `Project actions for ${label}`, className: "absolute right-6 top-1/2 -translate-y-1/2 bg-surface" })}
+      {menu.element}
+    </div>
   );
 }
 

@@ -77,11 +77,15 @@ describe("AJ-E1501 the account card's menu", () => {
   it("opens from the ⋯ button with Rename, Make the default and Remove, and closes on Escape", async () => {
     const view = mount();
     const menu = await openMenu(view, 1);
-    const items = [...menu.querySelectorAll("[role='menuitem']")].map((item) => item.textContent);
-    expect(items).toEqual(["Rename…", "Make the default", "Remove…"]);
-    expect(document.activeElement?.textContent).toBe("Rename…");
+    // AJ-E1537: the registry's account menu; a disabled item says why.
+    const items = [...menu.querySelectorAll("[role='menuitem']")].map((item) => item.querySelector("[data-label]")?.textContent);
+    expect(items).toEqual(["Open", "Start a session", "Edit launch settings", "Rename…", "Make the default", "Remove…"]);
+    const start = menu.querySelector("[data-testid='action-start']") as HTMLButtonElement;
+    expect(start.disabled).toBe(true);
+    expect(start.title).toBe("Add launch settings first");
+    expect(document.activeElement?.querySelector("[data-label]")?.textContent).toBe("Open");
     fireEvent.keyDown(window, { key: "ArrowDown" });
-    expect(document.activeElement?.textContent).toBe("Make the default");
+    expect(document.activeElement?.querySelector("[data-label]")?.textContent).toBe("Edit launch settings");
     fireEvent.keyDown(window, { key: "Escape" });
     expect(view.queryByRole("menu")).toBeNull();
   });
@@ -95,7 +99,7 @@ describe("AJ-E1501 the account card's menu", () => {
       return rows.find((row) => row.id === id)!;
     });
     const view = mount();
-    fireEvent.click((await openMenu(view, 1)).querySelector("[data-testid='account-rename']")!);
+    fireEvent.click((await openMenu(view, 1)).querySelector("[data-testid='action-rename']")!);
     const input = view.getByTestId("rename-account-label") as HTMLInputElement;
     expect(input.value).toBe("personal-max");
 
@@ -121,12 +125,12 @@ describe("AJ-E1501 the account card's menu", () => {
       return rows;
     });
     const view = mount();
-    fireEvent.click((await openMenu(view, 0)).querySelector("[data-testid='account-toggle-default']")!);
+    fireEvent.click((await openMenu(view, 0)).querySelector("[data-testid='action-default']")!);
     await waitFor(() => expect(view.getByTestId("account-default")).toBeTruthy());
     expect(setDefault).toHaveBeenCalledWith("acc-own");
     expect(view.getByTestId("accounts-notice").textContent).toContain("New sessions start with Mine");
     const menu = await openMenu(view, 0);
-    expect(menu.querySelector("[data-testid='account-toggle-default']")!.textContent).toBe("Stop being the default");
+    expect(menu.querySelector("[data-testid='action-default']")!.textContent).toBe("Stop being the default");
   });
 });
 
@@ -134,7 +138,7 @@ describe("AJ-E1501 the remove sheet", () => {
   it("an account used where it is: its folder stays exactly as it is — no Trash choice", async () => {
     const remove = vi.spyOn(bridge, "accountRemove").mockResolvedValue({ id: "acc-own", label: "Mine", folder: "untouched" });
     const view = mount();
-    fireEvent.click((await openMenu(view, 0)).querySelector("[data-testid='account-remove']")!);
+    fireEvent.click((await openMenu(view, 0)).querySelector("[data-testid='action-remove']")!);
     const sheet = view.getByTestId("remove-account");
     expect(sheet.dataset.kind).toBe("in-place");
     expect(sheet.textContent).toContain("Your folder stays exactly as it is");
@@ -149,7 +153,7 @@ describe("AJ-E1501 the remove sheet", () => {
   it("a copy: keep its folder by default, or move it to the Trash when chosen", async () => {
     const remove = vi.spyOn(bridge, "accountRemove").mockResolvedValue({ id: "acc-copy", label: "personal-max", folder: "trashed" });
     const view = mount();
-    fireEvent.click((await openMenu(view, 1)).querySelector("[data-testid='account-remove']")!);
+    fireEvent.click((await openMenu(view, 1)).querySelector("[data-testid='action-remove']")!);
     expect(view.getByTestId("remove-account").dataset.kind).toBe("copy");
     expect((view.getByTestId("remove-folder-keep") as HTMLInputElement).checked).toBe(true);
     fireEvent.click(view.getByTestId("remove-folder-trash"));
@@ -165,7 +169,7 @@ describe("AJ-E1501 the remove sheet", () => {
       session("s2", "acc-copy", "waiting_user", "web"),
       session("s3", "acc-copy", "finished", "old"),
     ]);
-    fireEvent.click((await openMenu(view, 1)).querySelector("[data-testid='account-remove']")!);
+    fireEvent.click((await openMenu(view, 1)).querySelector("[data-testid='action-remove']")!);
     expect(view.getByTestId("remove-account-open").textContent).toContain("has 2 sessions open: api, web");
     expect(view.queryByTestId("remove-account-confirm")).toBeNull();
     expect(remove).not.toHaveBeenCalled();
@@ -174,7 +178,7 @@ describe("AJ-E1501 the remove sheet", () => {
   it("a refusal from the app is shown in its words, and nothing changes", async () => {
     vi.spyOn(bridge, "accountRemove").mockRejectedValue({ code: "io", retryable: true, user_message: "move the copy to the Trash: the Trash is full" });
     const view = mount();
-    fireEvent.click((await openMenu(view, 1)).querySelector("[data-testid='account-remove']")!);
+    fireEvent.click((await openMenu(view, 1)).querySelector("[data-testid='action-remove']")!);
     fireEvent.click(view.getByTestId("remove-folder-trash"));
     await act(async () => {
       fireEvent.click(view.getByTestId("remove-account-confirm"));

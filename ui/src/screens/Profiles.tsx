@@ -5,16 +5,16 @@ import { renewalLabel, renewalRowVisible } from "../lib/renewal";
 import { Field, Input, Modal } from "../components/form";
 import { IconProfiles, IconTerminal } from "../components/icons";
 import { LoginQueueCard } from "../components/LoginQueueCard";
-import { MenuItem, RowMenu, menuPoint } from "../components/RowMenu";
+import { useItemMenu } from "../components/ItemMenu";
 import { BetaMatrix } from "../components/BetaMatrix";
 import { ExpertSetup } from "../components/ExpertSetup";
 import { EnvOverlayEditor } from "../components/EnvOverlayEditor";
 import { AccountRunway, runwayLines } from "../components/AccountRunway";
-import { RemoveAccountModal, RenameAccountModal, shortPath } from "./AccountManage";
+import { shortPath, useAccountManage } from "./AccountManage";
+import { ActionHostProvider } from "../components/ItemMenu";
 import { providerMark } from "../components/indicator";
 import { inPlaceProviders, ownSignIn, providerDisplayName, sameAsWords, supportsInPlace, type InPlaceSupport, limitProviders, reportsLimits, noLimitsWords } from "../lib/providers";
 import {
-  accountSetDefault,
   accountUseOriginal,
   accountsList,
   createProfile,
@@ -97,8 +97,6 @@ export function ProfilesScreen({
   const [error, setError] = useState<string | null>(null);
   // AJ-E1501: what the last change did, in words ("Removed …").
   const [notice, setNotice] = useState<string | null>(null);
-  const [renameFor, setRenameFor] = useState<AccountInfo | null>(null);
-  const [removeFor, setRemoveFor] = useState<AccountInfo | null>(null);
   const [displays, setDisplays] = useState<QuotaDisplayData[]>([]);
   // ADR-0018: which tools' copies can switch to their original — the
   // backend's static capabilities (no install probe). If the call fails
@@ -153,6 +151,8 @@ export function ProfilesScreen({
     await refresh();
     onAccountsChanged?.();
   };
+  // AJ-E1537: every account menu's rename, default and remove.
+  const accountManage = useAccountManage({ sessions, changed, failed: setError });
 
   const launch = async (recipe: LaunchRecipeInfo) => {
     setError(null);
@@ -216,6 +216,7 @@ export function ProfilesScreen({
       {accounts.length === 0 ? (
         <EmptyAccounts onAdd={onAddAccounts} />
       ) : (
+        <ActionHostProvider host={{ ...accountManage.host, signIn: setLoginFor }}>
         <div className="flex flex-col gap-4">
           {accounts.map((account) => (
             <AccountCard
@@ -232,28 +233,13 @@ export function ProfilesScreen({
               onNewProfile={() => setNewProfileFor(account)}
               onLogin={() => setLoginFor(account)}
               onInspect={() => onInspectAccount?.(account.id)}
-              onRename={() => setRenameFor(account)}
-              onRemove={() => setRemoveFor(account)}
-              onToggleDefault={async () => {
-                setError(null);
-                const wasDefault = account.is_default === true;
-                try {
-                  await accountSetDefault(wasDefault ? null : account.id);
-                  await changed(
-                    wasDefault
-                      ? `${account.label} is no longer the default. New sessions start with the account you used last.`
-                      : `New sessions start with ${account.label}, unless a project picks its own.`,
-                  );
-                } catch (cause) {
-                  setError(errorText(cause));
-                }
-              }}
               onLoginRechecked={refresh}
               display={displays.find((d) => d.account === account.id)}
               sessions={sessions.filter((session) => session.account_id === account.id)}
             />
           ))}
         </div>
+        </ActionHostProvider>
       )}
 
       {/* D-25: the pack-secrets policy lives in Settings; the matrix of
@@ -290,28 +276,7 @@ export function ProfilesScreen({
         />
       )}
 
-      {renameFor && (
-        <RenameAccountModal
-          account={renameFor}
-          onClose={() => setRenameFor(null)}
-          onDone={async (renamed, before) => {
-            setRenameFor(null);
-            await changed(renamed.label !== before ? `Renamed to ${renamed.label}.` : null);
-          }}
-        />
-      )}
-
-      {removeFor && (
-        <RemoveAccountModal
-          account={removeFor}
-          sessions={sessions.filter((session) => session.account_id === removeFor.id)}
-          onClose={() => setRemoveFor(null)}
-          onDone={async (words) => {
-            setRemoveFor(null);
-            await changed(words);
-          }}
-        />
-      )}
+      {accountManage.element}
 
       {loginFor && (
         <LoginModal
@@ -361,18 +326,11 @@ function AccountCard({
   onLogin,
   onLoginRechecked,
   onInspect,
-  onRename,
-  onRemove,
-  onToggleDefault,
   display,
   sessions = [],
   reportsLimits = true,
 }: {
   account: AccountInfo;
-  /** AJ-E1501: the card's menu. */
-  onRename: () => void;
-  onRemove: () => void;
-  onToggleDefault: () => void;
   /** 0.0.11 walk (Q3): its tool reports usage limits (else no limit rows). */
   reportsLimits?: boolean;
   /** D-25: this account's two windows (runway), if measured. */
@@ -394,19 +352,21 @@ function AccountCard({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [useOriginal, setUseOriginal] = useState(false);
   const [envFor, setEnvFor] = useState<string | null>(null);
-  const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
   const onToggleSettings = () => setSettingsOpen((v) => !v);
   const loggedIn = signedIn(account.login_state);
   const loginTone: ChipTone = loggedIn ? "success" : "warning";
+  // AJ-E1537: the card's menu, from the action registry.
+  const menu = useItemMenu("account", account, account.label, {
+    openAccount: onInspect ? () => onInspect() : undefined,
+    startSessionOn: () => onLaunch(profiles[0]!),
+    startBlockedWhy: () => (!loggedIn ? "Sign in first" : profiles.length === 0 ? "Add launch settings first" : null),
+    // Signed in already: no Sign in line (the card shows none either).
+    signIn: loggedIn ? undefined : onLogin,
+    editLaunchSettings: () => setSettingsOpen(true),
+  });
   return (
     <Card className="overflow-hidden">
-      <div
-        className="flex flex-wrap items-center gap-2.5 border-b border-hairline px-5 py-3.5"
-        onContextMenu={(event) => {
-          event.preventDefault();
-          setMenuAt({ x: event.clientX, y: event.clientY });
-        }}
-      >
+      <div className="flex flex-wrap items-center gap-2.5 border-b border-hairline px-5 py-3.5" {...menu.triggerProps}>
         <HarnessGlyph provider={account.provider} onClick={onInspect} />
         <div className="min-w-0">
           <div className="flex items-center gap-2">
@@ -457,34 +417,11 @@ function AccountCard({
               </Button>
             </>
           )}
-          {/* AJ-E1501: the row menu (the rail's pattern) — right-click
-              the header, or this button. 24 px: the WCAG 2.2 target. */}
-          <button
-            type="button"
-            aria-label={`Account actions for ${account.label}`}
-            aria-haspopup="menu"
-            aria-expanded={menuAt !== null}
-            data-testid="account-menu"
-            onClick={(event) => setMenuAt(menuPoint(event))}
-            className="flex size-6 items-center justify-center rounded text-[12px] text-muted outline-none transition-colors hover:bg-surface-2 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
-          >
-            ⋯
-          </button>
+          {/* The card's menu: right-click the header, ⋯ or Shift+F10. */}
+          {menu.button({ label: `Account actions for ${account.label}`, shown: true, testId: "account-menu" })}
         </div>
       </div>
-      {menuAt && (
-        <RowMenu heading={account.label} ariaLabel={`Actions for ${account.label}`} at={menuAt} onClose={() => setMenuAt(null)}>
-          <MenuItem testId="account-rename" onClick={() => { setMenuAt(null); onRename(); }}>
-            Rename…
-          </MenuItem>
-          <MenuItem testId="account-toggle-default" onClick={() => { setMenuAt(null); onToggleDefault(); }}>
-            {account.is_default ? "Stop being the default" : "Make the default"}
-          </MenuItem>
-          <MenuItem testId="account-remove" danger onClick={() => { setMenuAt(null); onRemove(); }}>
-            Remove…
-          </MenuItem>
-        </RowMenu>
-      )}
+      {menu.element}
 
       {/* D-25: runway lives here and on Home. A tool that doesn't
           report its limits says so once, instead of empty windows. */}

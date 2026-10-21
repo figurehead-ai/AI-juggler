@@ -131,7 +131,7 @@ describe("AJ-E1502 the session row's menu", () => {
 
     fireEvent.click(getByRole("button", { name: "Session actions for branch-a" }));
     const menu = getByRole("menu", { name: "Actions for branch-a" });
-    expect([...menu.querySelectorAll("[role='menuitem']")].map((item) => item.textContent).slice(0, 2)).toEqual(["Rename…", "Pin to top"]);
+    expect([...menu.querySelectorAll("[role='menuitem']")].map((item) => item.textContent).slice(0, 3)).toEqual(["Open", "Rename…", "Pin to top"]);
     fireEvent.click(within(menu).getByText("Rename…"));
     const name = getByTestId("rename-session-name") as HTMLInputElement;
     expect(name.placeholder).toBe("branch-a");
@@ -163,10 +163,11 @@ describe("AJ-E1502 the project row's menu", () => {
     const menu = await findByRole("menu", { name: "Actions for alpha" });
     await waitFor(() =>
       expect([...menu.querySelectorAll("[role='menuitem']")].map((item) => item.textContent)).toEqual([
+        "Open",
+        "Open in Finder",
+        "Copy path",
         "Rename…",
         "Pin to top",
-        "Open in Finder",
-        "Relocate…",
         "Forget…",
       ]),
     );
@@ -195,7 +196,8 @@ describe("AJ-E1502 the project row's menu", () => {
     const { getByRole } = board([], projects);
     fireEvent.click(getByRole("button", { name: "Project actions for beta" }));
     const menu = getByRole("menu");
-    expect((within(menu).getByText("Open in Finder") as HTMLButtonElement).disabled).toBe(true);
+    expect((within(menu).getByText("Open in Finder").closest("button") as HTMLButtonElement).disabled).toBe(true);
+    expect(within(menu).getByText("Its folder isn't there any more")).toBeTruthy();
     fireEvent.click(within(menu).getByText("Relocate…"));
     await waitFor(() => expect(relocate).toHaveBeenCalledWith("p2"));
   });

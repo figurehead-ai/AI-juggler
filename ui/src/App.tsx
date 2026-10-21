@@ -1,4 +1,6 @@
 import { ToolChip } from "./components/ToolMark";
+import { AppActions } from "./components/AppActions";
+import { useLiveDeltas } from "./lib/live-deltas";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Card } from "./components/primitives";
 import { WorkflowRail, type Freshness } from "./components/WorkflowRail";
@@ -80,8 +82,6 @@ import {
   providersDiscover,
   type SwitchBackSuggestionData,
   launchRecipesList,
-  onSessionsQuota,
-  onSessionsResources,
   onSessionsUpdated,
   onTerminalExit,
   projectsBackfill,
@@ -467,55 +467,8 @@ export default function App() {
     return onSessionsUpdated(() => void refresh());
   }, [refresh]);
 
-  // AJ-E402/E401 read-model ticks: merge the coalesced 5 s resource and
-  // 30 s quota deltas into the rows by id (no full refetch per tick) —
-  // this is what drives the I-07 sparkline history and quota countdowns.
-  // Each delta also refreshes the sampled-at timestamp per id (stale rule).
-  useEffect(() => {
-    const stopResources = onSessionsResources((deltas) => {
-      const at = Date.now();
-      setSessions((current) =>
-        current.map((row) => {
-          const delta = deltas.find((d) => d.id === row.id);
-          return delta
-            ? {
-                ...row,
-                cpu_pct: delta.cpu_pct,
-                rss_bytes: delta.rss_bytes,
-                child_count: delta.child_count,
-              }
-            : row;
-        }),
-      );
-      setFreshness((current) => {
-        const next = { ...current };
-        for (const delta of deltas) {
-          if (next[delta.id]) next[delta.id] = { ...next[delta.id]!, resources: at };
-        }
-        return next;
-      });
-    });
-    const stopQuota = onSessionsQuota((deltas) => {
-      const at = Date.now();
-      setSessions((current) =>
-        current.map((row) => {
-          const delta = deltas.find((d) => d.id === row.id);
-          return delta ? { ...row, quota: delta.quota } : row;
-        }),
-      );
-      setFreshness((current) => {
-        const next = { ...current };
-        for (const delta of deltas) {
-          if (next[delta.id]) next[delta.id] = { ...next[delta.id]!, quota: at };
-        }
-        return next;
-      });
-    });
-    return () => {
-      stopResources();
-      stopQuota();
-    };
-  }, []);
+  // AJ-E402/E401: the 5 s resource and 30 s quota ticks, merged by id.
+  useLiveDeltas(setSessions, setFreshness);
 
   // Login terminals end → mark ended (kept for scrollback until closed).
   useEffect(() => {
@@ -794,6 +747,16 @@ export default function App() {
 
   return (
     <ThisMacContext.Provider value={thisMacInfo}>
+    <AppActions
+      selectSession={selectSession}
+      selectProject={selectProject}
+      selectAccount={(id) => { setGlobal(null); setSelection({ kind: "account", id }); }}
+      selectTool={(id) => { setGlobal(null); setSelection({ kind: "provider", id }); }}
+      openAccounts={() => setGlobal("accounts")}
+      stopSession={stopSession}
+      newSessionIn={(project) => { setNewSessionDir(project.root); setNewSession(true); }}
+      refresh={() => void refresh()}
+    >
     <div className="flex h-screen w-screen overflow-hidden">
       <AttentionAnnouncer sessions={sessions} />
       <RenewalAnnouncer accounts={accounts} />
@@ -1432,6 +1395,7 @@ export default function App() {
         />
       )}
     </div>
+    </AppActions>
     </ThisMacContext.Provider>
   );
 }

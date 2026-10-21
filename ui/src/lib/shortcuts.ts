@@ -89,6 +89,8 @@ export const SHORTCUTS = [
   { id: "theme", owner: "app", area: "Anywhere", keys: ["⌘⇧L"], label: "Light, dark or match the Mac", match: cmd("l", { shift: true }) },
   { id: "undo", owner: "app", area: "Anywhere", keys: ["⌘Z"], label: "Undo what a toast offers", match: cmd("z"), fieldOwnsIt: true },
   { id: "close", owner: "sheets", area: "Anywhere", keys: ["Esc"], label: "Close a sheet, menu or search" },
+  // AJ-E1537: a focused row's menu, the same one a right-click opens.
+  { id: "row-menu", owner: "sheets", area: "Anywhere", keys: ["⇧F10"], label: "Open a row's menu" },
   // Screens
   { id: "go-home", owner: "app", area: "Screens", keys: ["⌘1"], label: "Home", match: cmdDigit([1]) },
   { id: "go-accounts", owner: "app", area: "Screens", keys: ["⌘2"], label: "Accounts", match: cmdDigit([2]) },

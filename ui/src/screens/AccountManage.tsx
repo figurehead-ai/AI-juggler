@@ -2,10 +2,11 @@
  * AJ-E1501 — managing an account from its card: rename it (and set its
  * plan), and remove it. Its own file, so Accounts stays a list (C.10).
  */
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Button } from "../components/primitives";
 import { Field, Input, Modal } from "../components/form";
-import { accountRemove, accountRename, errorText, type AccountInfo, type InstanceInfo } from "../lib/bridge";
+import { accountRemove, accountRename, accountSetDefault, errorText, type AccountInfo, type InstanceInfo } from "../lib/bridge";
+import type { ActionHost } from "../lib/actions";
 
 /** A home-relative path, for display. */
 export function shortPath(path: string): string {
@@ -194,4 +195,63 @@ export function RemoveAccountModal({
       </div>
     </Modal>
   );
+}
+
+/** AJ-E1537: an account's rename, default and remove, for every account
+ * menu (the Accounts cards, the account page). `changed` says what
+ * happened (or null) and refreshes; `failed` shows a refusal. */
+export function useAccountManage({
+  sessions,
+  changed,
+  failed,
+}: {
+  sessions: InstanceInfo[];
+  changed: (words: string | null) => Promise<void> | void;
+  failed: (message: string) => void;
+}): { host: ActionHost; element: ReactNode } {
+  const [renameFor, setRenameFor] = useState<AccountInfo | null>(null);
+  const [removeFor, setRemoveFor] = useState<AccountInfo | null>(null);
+  const host: ActionHost = {
+    renameAccount: setRenameFor,
+    removeAccount: setRemoveFor,
+    toggleDefaultAccount: async (account) => {
+      const wasDefault = account.is_default === true;
+      try {
+        await accountSetDefault(wasDefault ? null : account.id);
+        await changed(
+          wasDefault
+            ? `${account.label} is no longer the default. New sessions start with the account you used last.`
+            : `New sessions start with ${account.label}, unless a project picks its own.`,
+        );
+      } catch (cause) {
+        failed(errorText(cause));
+      }
+    },
+  };
+  const element = (
+    <>
+      {renameFor && (
+        <RenameAccountModal
+          account={renameFor}
+          onClose={() => setRenameFor(null)}
+          onDone={async (renamed, before) => {
+            setRenameFor(null);
+            await changed(renamed.label !== before ? `Renamed to ${renamed.label}.` : null);
+          }}
+        />
+      )}
+      {removeFor && (
+        <RemoveAccountModal
+          account={removeFor}
+          sessions={sessions.filter((session) => session.account_id === removeFor.id)}
+          onClose={() => setRemoveFor(null)}
+          onDone={async (words) => {
+            setRemoveFor(null);
+            await changed(words);
+          }}
+        />
+      )}
+    </>
+  );
+  return { host, element };
 }

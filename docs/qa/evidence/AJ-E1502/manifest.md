@@ -48,3 +48,32 @@ The Dev build's window can't be clicked from an agent session on this Mac (no Ac
 ## Not covered here
 
 - `open -a <editor>` and the Finder reveal themselves (Tauri's opener) weren't run against real apps: that would open windows on the maintainer's Mac. The choice of target is tested.
+
+## On release/0.1 (2026-10-21)
+
+The branch was merged into release/0.1 (`cec81e46`, after main's #108)
+and finished under its rules:
+
+- **IPC (ENGINEERING-GUIDE T1).** The nine new commands are async, with
+  their work in `ipc::blocking`.
+- **No paths from the webview (SECURITY C1).** `project_relocate` takes
+  only the project's id. The backend opens the system's own folder
+  dialog, so the path never passes through the UI, and returns `false`
+  when the user cancels. The UI test now pins that it is called with the
+  id alone.
+- **One IPC module per feature (U3).** Its calls moved to
+  `ui/src/lib/ipc/manage.ts`, and Settings' editor card to
+  `components/EditorCard.tsx`, so bridge.ts and Settings.tsx stay within
+  their size caps.
+- **One menu (AJ-E1537).** The row menus for sessions and projects now
+  come from the action registry. The rail's rows, the project page's
+  header ⋯, a right-click and Shift+F10 all list the same items, so the
+  inspector's Actions tabs no longer repeat Rename and Pin, or the
+  "This project" block. The missing-folder banner keeps its
+  Relocate….
+- **Schema 31.** `SCHEMA_RELEASES` names it "0.1.x", with its row in
+  docs/RELEASING.md § Database changes. The downgrade note goes in 0.1's
+  release notes, and the version is filled in when 0.1 is cut.
+
+The gates ran on the release head (see AJ-E1537's manifest: the same
+run).

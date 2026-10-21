@@ -214,6 +214,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::app_info,
             features::tools::commands::tools_catalog,
+            features::sessions::commands::sessions_resume_command,
             quit::app_quit_plan,
             quit::app_quit,
             quit::app_quit_ack,

@@ -7,7 +7,10 @@
  * its own confirmed dialog naming exactly what goes and what stays.
  */
 import { showToast } from "../components/Toast";
-import { useEffect, useMemo, useRef, useState, type JSX } from "react";
+import { useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from "react";
+import { ActionHostProvider, useItemMenu } from "../components/ItemMenu";
+import { sessionTitle } from "../components/ManageWork";
+import type { ActionHost } from "../lib/actions";
 import { SessionRow } from "../components/WorkflowRail";
 import { ReplayDialog } from "../components/ReplayDialog";
 import { DeleteInstanceDialog } from "../components/DeleteInstanceDialog";
@@ -98,6 +101,15 @@ export function History({
     .sort((a, b) => (b.last_activity_ms ?? b.started_at_ms) - (a.last_activity_ms ?? a.started_at_ms));
   const archivedCount = sessions.filter(archived).length;
 
+  // AJ-E1537: what History gives each row's menu.
+  const historyHost: ActionHost = {
+    replay: (session) => setReplay(session.id),
+    archive: (session) => act(session, () => instanceArchive(session.id), "archived — nothing deleted", () => instanceUnarchive(session.id)),
+    unarchive: (session) => act(session, () => instanceUnarchive(session.id), "unarchived", () => instanceArchive(session.id)),
+    isArchived: archived,
+    deleteHistory: (session) => setDeleting(session.id),
+  };
+
   // AJ-E1503: archiving answers in a toast, with Undo (the other way).
   const act = async (session: InstanceInfo, run: () => Promise<unknown>, done: string, undo: () => Promise<unknown>) => {
     const label = session.project_id ? `${projectOf(session)} · ${session.account_label}` : session.account_label;
@@ -175,17 +187,13 @@ export function History({
               : "No ended sessions yet."}
         </p>
       ) : (
+        <ActionHostProvider host={historyHost}>
         <ul className="flex flex-col gap-1.5">
           {rows.map((session) => {
             const snippet = snippets.get(session.id);
             const isArchived = archived(session);
             return (
-              <li
-                key={session.id}
-                className="flex flex-col gap-1 rounded-xl border border-hairline bg-surface/60 pb-2 pr-2"
-                data-testid="history-row"
-                data-session={session.id}
-              >
+              <HistoryItem key={session.id} session={session}>
                 <div className="flex items-center gap-2">
                   <div className="min-w-0 flex-1">
                     <SessionRow session={session} selected={false} onSelect={() => setReplay(session.id)} density="compact" />
@@ -242,10 +250,11 @@ export function History({
                     Delete…
                   </button>
                 </div>
-              </li>
+              </HistoryItem>
             );
           })}
         </ul>
+        </ActionHostProvider>
       )}
       {replay && <ReplayDialog sessionId={replay} onClose={() => setReplay(null)} />}
       {deleting && (
@@ -261,5 +270,22 @@ export function History({
         />
       )}
     </div>
+  );
+}
+
+/** A history row: its menu on right-click, ⋯ or Shift+F10 (AJ-E1537). */
+function HistoryItem({ session, children }: { session: InstanceInfo; children: ReactNode }): JSX.Element {
+  const menu = useItemMenu("history", session, sessionTitle(session));
+  return (
+    <li
+      className="group relative flex flex-col gap-1 rounded-xl border border-hairline bg-surface/60 pb-2 pr-2"
+      data-testid="history-row"
+      data-session={session.id}
+      {...menu.triggerProps}
+    >
+      {children}
+      {menu.button({ label: `History actions for ${sessionTitle(session)}`, className: "absolute bottom-1.5 right-2" })}
+      {menu.element}
+    </li>
   );
 }

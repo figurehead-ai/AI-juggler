@@ -388,6 +388,35 @@ fn isolation_keys_and_snippet() {
     );
 }
 
+/// AJ-E1537: Copy resume command — the sign-in line's environment and
+/// program, then `resume <id>`, run from the session's folder, every word
+/// quoted; an id that looks like an option is never passed.
+#[test]
+fn the_resume_line_runs_from_the_session_folder() {
+    let adapter = CodexAdapter::new();
+    let line = juggler_adapter::adapter::shell_resume_snippet(
+        &adapter,
+        Path::new("/tmp/acct one"),
+        "0199a2b3-c4d5",
+        Path::new("/w/it's here"),
+    )
+    .unwrap();
+    assert_eq!(
+        line,
+        "cd '/w/it'\\''s here' && env -u CODEX_API_KEY -u OPENAI_API_KEY CODEX_HOME='/tmp/acct one' CODEX_SQLITE_HOME='/tmp/acct one' codex 'resume' '0199a2b3-c4d5'"
+    );
+    assert!(adapter.resume_args("--yolo").is_none());
+    assert!(
+        juggler_adapter::adapter::shell_resume_snippet(
+            &adapter,
+            Path::new("/tmp/a"),
+            "-x",
+            Path::new("/w")
+        )
+        .is_none()
+    );
+}
+
 /// ADR-0018: Codex's own default home runs as a plain `codex` does —
 /// both variables unset, in the snippet and the pure rule; any other
 /// folder (a link to `~/.codex` included) is pinned by its exact path.
