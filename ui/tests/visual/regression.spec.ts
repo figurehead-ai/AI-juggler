@@ -264,6 +264,14 @@ for (const theme of THEMES) {
         await expect(page).toHaveScreenshot(`loading-accounts-${cell}.png`, SCREEN);
       });
 
+      // AJ-E1524: the welcome Home for a new install (no accounts).
+      test(`welcome — ${cell}`, async ({ page }) => {
+        await open(page, theme, density, vp, { accounts: [], profiles: [], sessions: [], projects: [] });
+        await expect(page.getByTestId("welcome-found")).not.toContainText("Looking");
+        await page.mouse.move(0, 0);
+        await expect(page).toHaveScreenshot(`welcome-${cell}.png`, SCREEN);
+      });
+
       // AJ-E1505: Settings › Sessions, the Terminal disclosure open.
       test(`settings sessions — ${cell}`, async ({ page }) => {
         await open(page, theme, density, vp);

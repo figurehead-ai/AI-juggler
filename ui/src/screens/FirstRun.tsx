@@ -34,6 +34,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "rea
 import { Button } from "../components/primitives";
 import { inPlaceProviders, ownSignIn, providerDisplayName, sameAsWords, shortSignIn, supportsInPlace, type InPlaceSupport } from "../lib/providers";
 import { firstRunToolIds, primaryToolId, toolSpec } from "../lib/tools";
+import { InstallHow } from "../components/InstallHow";
 import { funnelEvent, funnelStep, reasonCode } from "../lib/funnel";
 import {
   accountImport,
@@ -65,31 +66,6 @@ type Step = "found" | "fresh" | "folder" | "signin" | "access";
  * `setup_groups`, in order), never from a table here. */
 type Group = { key: string; id: string; tool: string; title: string; showsInstall: boolean };
 
-/** How to install a tool, from its spec: its documented command, else its
- * install page, else just the full stop. */
-function InstallHow({ tool, row }: { tool: string; row: ProviderInstallData | null }): JSX.Element {
-  const spec = toolSpec(tool);
-  if (spec.install_command) {
-    return (
-      <>
-        :{" "}<span className="font-mono text-xs">{spec.install_command}</span>
-      </>
-    );
-  }
-  const url = row?.install_url || spec.install_url;
-  if (url) {
-    return (
-      <>
-        {" "}from{" "}
-        <a className="underline" href={url} target="_blank" rel="noreferrer">
-          its install page
-        </a>
-        .
-      </>
-    );
-  }
-  return <>.</>;
-}
 
 /** The groups for these tools, in the tools' order then each spec's. */
 export function groupsFor(tools: string[]): Group[] {
@@ -1311,6 +1287,7 @@ export function FirstRun({
   onAccountsChanged,
   mode = "first-run",
   provider,
+  startAt = "found",
 }: {
   /** First run is over: Home. */
   onDone: () => void;
@@ -1321,11 +1298,13 @@ export function FirstRun({
    * than one is installed). Absent — first run on a fresh install — the
    * list brings in every supported tool's setups (AJ-E1301). */
   provider?: string;
+  /** AJ-E1524: the welcome's "Add a fresh account" opens on that step. */
+  startAt?: "found" | "fresh";
   /** An account was created or brought in (the caller refreshes). */
   onAccountsChanged?: () => void;
   openLoginTerminal: (id: string, title: string) => void;
 }): JSX.Element {
-  const [step, setStep] = useState<Step>("found");
+  const [step, setStep] = useState<Step>(startAt);
   const [folder, setFolder] = useState<string | null>(null);
   const [taken, setTaken] = useState<string[] | null>(null);
   // AJ-E1301: adding names its tool; first run on a fresh install brings

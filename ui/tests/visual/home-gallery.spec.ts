@@ -21,7 +21,7 @@ const STATES: Array<{ name: string; fixture: FixtureSet; expect: string }> = [
   { name: "needs-you", fixture: allStatuses, expect: "need you" },
   { name: "all-clear", fixture: allClear, expect: "All clear" },
   { name: "no-sessions", fixture: nothingYet, expect: "Ready when you are" },
-  { name: "no-accounts", fixture: honestEmpty, expect: "Bring in your accounts to start." },
+  { name: "no-accounts", fixture: honestEmpty, expect: "All your AI coding accounts, in one calm place." },
 ];
 const VIEWPORTS = [
   { name: "1280x800", width: 1280, height: 800 },
@@ -64,6 +64,36 @@ for (const theme of ["dark", "light"] as const) {
       });
     }
   }
+
+  // AJ-E1524: the welcome for a new install, 390 px to 1440 px, both
+  // densities, and with How it works open.
+  for (const vp of [
+    { name: "1440x900", width: 1440, height: 900 },
+    { name: "1024x680", width: 1024, height: 680 },
+  ]) {
+    test(`home — welcome — ${vp.name} — ${theme}`, async ({ page }) => {
+      await seed(page, honestEmpty, theme, vp);
+      await expect(page.getByTestId("welcome-found")).not.toContainText("Looking");
+      await page.screenshot({ path: resolve(OUT, `welcome-${vp.name}-${theme}.png`) });
+      await axeClean(page, "home welcome");
+    });
+  }
+
+  test(`home — welcome, compact rail — ${theme}`, async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem("aij.density", "compact"));
+    await seed(page, honestEmpty, theme, { width: 1280, height: 800 });
+    await expect(page.getByTestId("welcome-found")).not.toContainText("Looking");
+    await page.screenshot({ path: resolve(OUT, `welcome-compact-1280x800-${theme}.png`) });
+  });
+
+  test(`home — welcome, How it works open — ${theme}`, async ({ page }) => {
+    await seed(page, honestEmpty, theme, { width: 1280, height: 800 });
+    await page.getByTestId("welcome-how").locator("summary").click();
+    await expect(page.getByTestId("welcome-how").locator("ol > li")).toHaveCount(3);
+    await page.getByTestId("welcome-how").locator("ol > li").last().scrollIntoViewIfNeeded();
+    await page.screenshot({ path: resolve(OUT, `welcome-how-1280x800-${theme}.png`) });
+    await axeClean(page, "home welcome, how it works");
+  });
 
   test(`rail — Filters open — ${theme}`, async ({ page }) => {
     await seed(page, allStatuses, theme, { width: 1280, height: 800 });

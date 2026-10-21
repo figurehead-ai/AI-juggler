@@ -3,6 +3,7 @@
  * resets), then what your sessions used, by model and day. With nothing
  * set up it says what will appear, and how to get there — never a blank.
  */
+import { WelcomePointer } from "../components/Welcome";
 import { useEffect, useState, type JSX } from "react";
 import { AccountRunway } from "../components/AccountRunway";
 import { CostMatrix } from "../components/CostMatrix";
@@ -14,10 +15,13 @@ export function UsageScreen({
   accounts,
   sessions,
   onAddAccounts,
+  onOpenHome,
 }: {
   accounts: AccountInfo[];
   sessions: InstanceInfo[];
   onAddAccounts: () => void;
+  /** AJ-E1524: back to the welcome while no account is in. */
+  onOpenHome?: () => void;
 }): JSX.Element {
   const [displays, setDisplays] = useState<QuotaDisplayData[]>([]);
   useEffect(() => {
@@ -48,6 +52,7 @@ export function UsageScreen({
           <Button size="sm" variant="primary" onClick={onAddAccounts}>
             Find my accounts
           </Button>
+          {onOpenHome && <WelcomePointer onOpenHome={onOpenHome} />}
         </Card>
       ) : (
         <section aria-labelledby="usage-runway" className="flex flex-col gap-2.5">

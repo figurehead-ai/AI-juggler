@@ -5,7 +5,7 @@ crates/juggler-app/src/commands.rs 4613
 crates/juggler-app/src/link.rs 2382
 crates/juggler-app/src/usage_stats.rs 2084
 crates/juggler-supervisor/src/supervisor.rs 2863
-ui/src/App.tsx 1430
+ui/src/App.tsx 1427
 ui/src/components/CrossMachineSwitchFlow.tsx 518
 ui/src/components/KillSheet.tsx 622
 ui/src/components/NotificationRegion.tsx 427
@@ -20,8 +20,8 @@ ui/src/components/indicator.tsx 623
 ui/src/lib/bridge.ts 4921
 ui/src/lib/machine.ts 440
 ui/src/screens/CleanupCentre.tsx 809
-ui/src/screens/FirstRun.tsx 1540
-ui/src/screens/FleetScreen.tsx 841
+ui/src/screens/FirstRun.tsx 1519
+ui/src/screens/FleetScreen.tsx 838
 ui/src/screens/Home.tsx 816
 ui/src/screens/NewProjectSheet.tsx 413
 ui/src/screens/NewSession.tsx 520

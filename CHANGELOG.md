@@ -229,6 +229,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A welcome for new installs** (AJ-E1524). With no accounts yet, Home
+  now explains what AI Juggler is for and what it found on this Mac
+  ("We found Claude Code and Codex on this Mac", or install links when
+  nothing is there). It shows four things it does for you and a trust
+  line: it never stores your passwords or keys, and never sits between
+  you and the tool. Two ways in, **Find my accounts** and **Add a fresh
+  account**, and a short "How it works". Usage and Fleet point back to
+  it while no account is in.
 - Tools are described by their adapters (AJ-E1525, ADR-0019). Every
   screen reads a tool's name, sign-in words, install page and first run's
   groups from one catalog. A new tool needs no change to the interface,

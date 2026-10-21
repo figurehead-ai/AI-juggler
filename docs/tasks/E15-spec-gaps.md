@@ -210,7 +210,7 @@
 **Research basis**: ADR-0009; AJ-E1011 (its first half).
 **Handover note**: The colleague side of AJ-E1011 stays demand-gated.
 
-### AJ-E1524 A welcome Home for new installs | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1014
+### AJ-E1524 A welcome Home for new installs | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E1014
 **Goal**: Someone who has just installed AI Juggler is welcomed, sees what it does for them, and is encouraged to bring their accounts in.
 **User story**: As a new user, I open AI Juggler and Home tells me in a few warm lines what it's for, that it found Claude Code and Codex on my Mac, and what it will do for me, and it invites me to find my accounts.
 **Requirements** (the maintainer's request, 2026-10-21):
@@ -223,6 +223,7 @@
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1524/manifest.md`.
 **Files to touch**: `ui/src/screens/Home.tsx`, a `Welcome` component, `Usage.tsx`, `FleetScreen.tsx`.
 **Handover note**: Tool names come from the catalog (AJ-E1525), never from ids.
+**Done (2026-10-21)**: `components/Welcome.tsx` (`Welcome`, `WelcomePointer`) on Home's no-accounts branch. The found line comes from the install probe, and the lead names the first-run tools from the catalog. "Add a fresh account" opens Add account on its fresh step (`FirstRun startAt`). The mark rises in once (`.welcome-rise`) and doesn't move at all under reduced motion. Before and after screenshots are in the evidence folder.
 
 ### AJ-E1525 ToolSpec: tools as data | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: —
 **Goal**: ADR-0019 migration step 1: every layer reads a tool's facts from its adapter's spec, and no screen or command branches on a tool id.

@@ -284,6 +284,16 @@ export function IconSubtasks(props: SVGProps<SVGSVGElement>) {
 }
 
 /** I-10: needs attention — alert. */
+/** AJ-E1524: the welcome's trust line (a shield with a tick). */
+export function IconShield(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M12 3.5 19 6.5v5c0 4.2-2.9 7.6-7 9-4.1-1.4-7-4.8-7-9v-5Z" />
+      <path d="m9 12 2.2 2.2L15.3 10" />
+    </svg>
+  );
+}
+
 export function IconAlert(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...base(props)}>

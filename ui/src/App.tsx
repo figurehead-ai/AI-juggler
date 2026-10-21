@@ -27,6 +27,7 @@ import {
 } from "./lib/bridge";
 import { providerDisplayName } from "./lib/providers";
 import { primaryToolId } from "./lib/tools";
+import { NARROW_RAIL_PX, useNarrowWindow } from "./lib/window";
 import { matches, readInspectorFolded, storeInspectorFolded, type AppShortcutId } from "./lib/shortcuts";
 import { ShortcutSheet } from "./components/ShortcutSheet";
 import { holdStop, sessionLabel } from "./lib/stop";
@@ -139,24 +140,6 @@ const MORE_NAV: Array<{ id: GlobalId; label: string; hint: string }> = [
   { id: "cleanup", label: "Cleanup", hint: "Processes left behind, and the audit log" },
 ];
 
-/** D-25: below this width the rail folds to icons by itself. */
-const NARROW_RAIL_PX = 900;
-
-/** True while the window is narrower than `px` (follows resizes). */
-function useNarrowWindow(px: number): boolean {
-  const query = `(max-width: ${px - 1}px)`;
-  const read = () => typeof window.matchMedia === "function" && window.matchMedia(query).matches;
-  const [narrow, setNarrow] = useState(read);
-  useEffect(() => {
-    if (typeof window.matchMedia !== "function") return;
-    const list = window.matchMedia(query);
-    const follow = () => setNarrow(list.matches);
-    follow();
-    list.addEventListener("change", follow);
-    return () => list.removeEventListener("change", follow);
-  }, [query]);
-  return narrow;
-}
 
 type Selection =
   | { kind: "none" }
@@ -303,6 +286,11 @@ export default function App() {
   const [settingsFocusCloud, setSettingsFocusCloud] = useState(false);
   // D-25: a link elsewhere (Accounts' pack-secrets line) opens one section.
   const [settingsSection, setSettingsSection] = useState<string | undefined>(undefined);
+  // AJ-E1524: Home (the welcome while no account is in).
+  const openHome = () => {
+    setGlobal(null);
+    setSelection({ kind: "none" });
+  };
   const openCloudSettings = () => {
     setSettingsFocusCloud(true);
     setGlobal("settings");
@@ -337,8 +325,11 @@ export default function App() {
   // D-25: Accounts › Add account reuses first run's steps, for this tool
   // (AJ-E1023: chosen first only when more than one is installed).
   const [addAccounts, setAddAccounts] = useState<string | null>(null);
+  // AJ-E1524: the welcome's "Add a fresh account" opens on that step.
+  const [addFresh, setAddFresh] = useState(false);
   const [chooseTool, setChooseTool] = useState(false);
-  const startAddAccount = useCallback(() => {
+  const startAddAccount = useCallback((fresh = false) => {
+    setAddFresh(fresh);
     void providersDiscover().then(
       (rows) => {
         const ready = rows.filter((row) => row.status === "installed" || row.status === "unverified");
@@ -1027,7 +1018,7 @@ export default function App() {
               <ProfilesScreen
                 key={accountsNonce}
                 sessions={sessions}
-                onAddAccounts={startAddAccount}
+                onAddAccounts={() => startAddAccount()}
                 openTerminal={openLoginTerminal}
                 onInspectAccount={(id) => {
                   setGlobal(null);
@@ -1041,11 +1032,15 @@ export default function App() {
             </div>
           ) : global === "usage" ? (
             <div className="h-full overflow-y-auto">
-              <UsageScreen accounts={accounts} sessions={sessions} onAddAccounts={() => setFirstRun(true)} />
+              <UsageScreen accounts={accounts} sessions={sessions} onAddAccounts={() => setFirstRun(true)} onOpenHome={openHome} />
             </div>
           ) : global === "fleet" ? (
             <div className="h-full overflow-y-auto">
-              <FleetScreen onOpenCloud={openCloudSettings} onInspectRemote={inspectRemote} />
+              <FleetScreen
+                onOpenCloud={openCloudSettings}
+                onInspectRemote={inspectRemote}
+                onOpenHome={accounts.length === 0 && loaded ? openHome : undefined}
+              />
             </div>
           ) : global === "settings" ? (
             <div className="h-full overflow-y-auto">
@@ -1142,6 +1137,7 @@ export default function App() {
                     // No account yet: "Find my accounts" comes back to first
                     // run (every tool at once), as its Not now promises.
                     onAddAccounts={() => setFirstRun(true)}
+                    onFreshAccount={() => startAddAccount(true)}
                     onLimit={setLimitFor}
                     openLoginTerminal={openLoginTerminal}
                     onAccountsChanged={() => void refresh()}
@@ -1307,6 +1303,7 @@ export default function App() {
         <FirstRun
           mode="add"
           provider={addAccounts}
+          startAt={addFresh ? "fresh" : "found"}
           openLoginTerminal={openLoginTerminal}
           onDone={() => {
             setAddAccounts(null);

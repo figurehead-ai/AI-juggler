@@ -182,13 +182,14 @@ describe("D-25 Home — the screen", () => {
     expect(item.textContent).not.toContain("Claude's own sign-in");
   });
 
-  it("no accounts: one plain next step", () => {
+  // AJ-E1524: no accounts is the welcome (welcome.test.tsx holds its own
+  // tests); Find my accounts still opens first run.
+  it("no accounts: the welcome, with Find my accounts first", () => {
     const onAddAccounts = vi.fn();
     const { getByTestId, getByRole } = renderHome([], [], { onAddAccounts });
-    expect(getByTestId("home-empty-accounts").textContent).toContain("Bring in your accounts to start.");
+    expect(getByRole("heading", { level: 1 }).textContent).toBe("All your AI coding accounts, in one calm place.");
     // In place is the default, and not only Claude Code (0.0.11 walk).
-    expect(getByTestId("home-empty-accounts").textContent).toContain("uses each one where it is");
-    expect(getByTestId("home-empty-accounts").textContent).not.toContain("Claude Code setups");
+    expect(getByTestId("home-empty-accounts").textContent).toContain("used where they are");
     fireEvent.click(getByRole("button", { name: "Find my accounts" }));
     expect(onAddAccounts).toHaveBeenCalledOnce();
   });

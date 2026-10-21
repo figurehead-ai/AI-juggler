@@ -31,6 +31,7 @@ import { sessionLabel } from "../lib/stop";
 import { matches, SHORTCUTS, type KeyLike } from "../lib/shortcuts";
 import { ownSignIn } from "../lib/providers";
 import { RowPlaceholders } from "../components/Placeholder";
+import { Welcome } from "../components/Welcome";
 import { showToast } from "../components/Toast";
 import {
   accountLoginState,
@@ -182,6 +183,7 @@ export function HomeScreen({
   onOpenSession,
   onNewSession,
   onAddAccounts,
+  onFreshAccount,
   onLimit,
   openLoginTerminal,
   onAccountsChanged,
@@ -199,6 +201,8 @@ export function HomeScreen({
   onOpenSession: (id: string) => void;
   onNewSession: () => void;
   onAddAccounts: () => void;
+  /** AJ-E1524: the welcome's "Add a fresh account" (first run otherwise). */
+  onFreshAccount?: () => void;
   /** D-25: a session stopped by its limit opens the decision dialog. */
   onLimit?: (id: string) => void;
   /** D-25: an account that needs its sign-in is a "Needs you" item; its
@@ -431,16 +435,10 @@ export function HomeScreen({
     );
   }
 
+  // AJ-E1524: a new install is welcomed — what it's for, what's on this
+  // Mac, the way in.
   if (accounts.length === 0) {
-    return (
-      <div className="mx-auto flex w-full max-w-2xl flex-col items-start gap-4 py-16" data-testid="home-empty-accounts">
-        <h1 className="text-2xl font-semibold tracking-tight">Bring in your accounts to start.</h1>
-        <p className="text-[15px] leading-relaxed text-muted">
-          AI Juggler finds the setups already on this Mac and uses each one where it is, or makes its own copy if you prefer.
-        </p>
-        <Button variant="primary" onClick={onAddAccounts}>Find my accounts</Button>
-      </div>
-    );
+    return <Welcome onFindAccounts={onAddAccounts} onFreshAccount={onFreshAccount ?? onAddAccounts} />;
   }
 
   const sessionNeeds = needs.length + heavy.length;

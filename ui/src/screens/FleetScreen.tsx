@@ -1,3 +1,4 @@
+import { FleetPeersEmpty } from "../components/FleetPeersEmpty";
 import { AccountMacsCard } from "../components/AccountMacsCard";
 import { useCallback, useEffect, useRef, useState, type JSX } from "react";
 import { Button, Card, Chip } from "../components/primitives";
@@ -37,8 +38,12 @@ import {
 export function FleetScreen({
   onOpenCloud,
   onInspectRemote,
+  onOpenHome,
 }: {
   onOpenCloud?: () => void;
+  /** AJ-E1524: set while no account is in — the empty list points back to
+   * the welcome on Home. */
+  onOpenHome?: () => void;
   /** AJ-E705: open a paired machine (or an Instance on it) in the inspector. */
   onInspectRemote?: (machineId: string, instanceId: string | null) => void;
 } = {}): JSX.Element {
@@ -253,15 +258,7 @@ export function FleetScreen({
           <h3 className="text-sm font-semibold">Paired machines</h3>
         </div>
         {peers.length === 0 ? (
-          <div className="flex flex-col gap-1" data-testid="fleet-peers-empty">
-            <p className="text-xs text-muted">No paired machines yet.</p>
-            <p className="text-[11px] leading-relaxed text-muted">
-              Turn Link on here and on the other machine. Then choose Add a machine on one
-              and Join a machine on the other, enter the 6-digit code, and compare
-              fingerprints. Machines elsewhere? Connect them with Tailscale or WireGuard
-              first, then pair by address.
-            </p>
-          </div>
+          <FleetPeersEmpty onOpenHome={onOpenHome} />
         ) : (
           <>
           {peers
