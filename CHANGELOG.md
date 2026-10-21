@@ -138,6 +138,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- An account's limits no longer read "100% left" when nothing has been
+  measured yet: on Home, Accounts, Usage, a session's details and New
+  session, a window with no reading says "Not measured yet". It also
+  shows the tokens used in that window, and an empty bar instead of a full
+  one. A reset time AI Juggler only estimated from your own use says
+  "about …, estimated".
+- **Codex**: AI Juggler now shows Codex's 5-hour and weekly limits, and
+  its credit balance, as measured. Codex records them in its own session
+  files, so "Codex doesn't report its limits" is gone.
+- Home under memory pressure: the warning banner no longer covers Home's
+  headline, and Home shows the warning once, under Needs you. The figure
+  is the same everywhere: the whole Claude app across its windows ("about
+  16 GB across 3 windows"), not one window. While the warning is on,
+  This Mac says "Under memory pressure" too.
 - First run's "See a live preview of each session" (Screen Recording) no
   longer stays stuck after you allow it in System Settings. macOS only
   shows the new answer once AI Juggler reopens, so the card now says so
