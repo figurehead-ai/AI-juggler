@@ -411,6 +411,49 @@ fn bundled_seed_loads_with_the_auditable_fields() {
     assert!(rows.iter().any(|row| row.model == "claude-opus-4"));
 }
 
+/// P15 (0.0.12 QA walk): the seed priced only claude-opus-4 and
+/// claude-sonnet-4, so none of the models in real use was priced. Each
+/// model the walk saw has a price now, a dated id through its alias, at
+/// the rates on the vendor's page (docs/research/model-pricing.md).
+#[test]
+fn the_models_in_real_use_are_priced() {
+    let table = catalog(&load_seed_rows());
+    for model in [
+        "claude-opus-5-5",
+        "claude-opus-4-6",
+        "claude-haiku-4-5-20251001",
+        "claude-sonnet-4-6",
+        "claude-opus-4-8",
+        "claude-sonnet-5-5",
+        "gpt-5.5",
+        "gpt-5.3-codex",
+    ] {
+        assert!(table.row_for(model, NOW).is_some(), "{model} is priced");
+    }
+    // Claude Opus 5.5 on platform.claude.com, 2026-10-21: $4 input,
+    // $20 output, $0.20 cache hits, $5 5-minute cache writes per MTok.
+    let usd = table
+        .price_tokens(
+            "claude-opus-5-5",
+            NOW,
+            TokenCounts {
+                input: 1_000_000,
+                output: 1_000_000,
+                cache_read: 1_000_000,
+                cache_write: 1_000_000,
+                reasoning: 0,
+            },
+        )
+        .unwrap();
+    assert!((usd - 29.2).abs() < 1e-6, "{usd}");
+    // A snapshot date is only an exact eight-digit suffix.
+    assert!(table.row_for("claude-opus-4-6-2026", NOW).is_none());
+    assert!(
+        table.row_for("some-new-model", NOW).is_none(),
+        "unknown stays unpriced"
+    );
+}
+
 /// The shared-fixture-corpus cross-check (the ccusage-pattern oracle):
 /// the SAME corpus the Rust rollup prices is priced by the independent
 /// python oracle (`docs/research/evidence/billing/ccusage-oracle.py`)
