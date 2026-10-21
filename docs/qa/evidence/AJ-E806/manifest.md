@@ -384,6 +384,12 @@
   rest of the workspace passed (117 suites with `--no-fail-fast`). Neither
   binary touches the E14 change: the machine sampler is not in either. No
   budget, timeout or assertion changed; CI decides.
+  Again on the #68 review fixes (load 28): those two `orphan.rs` waits plus
+  `collector_targeted_tick_overhead_under_budget` failed inside the
+  parallel workspace run, and passed 5/5 alone twice at load 21–23. The
+  two waits had already failed the same way on #67, which doesn't have
+  the collector change. The collector's added work (CPU+memory refresh of
+  observed trees) is zero when no tool is observed, as in that test.
 
 - **Bug record, 2026-10-20 (fixed; AJ-E1010).** An older AI Juggler that
   meets data a newer one saved (schema too new) **quit at launch with no

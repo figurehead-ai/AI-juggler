@@ -49,7 +49,7 @@
 **Research basis**: PROPOSAL §6.5 "Monitor"; SPEC §5.3; Apple `ProcessInfo.thermalState`, `IOPSGetTimeRemainingEstimate`, `kern.memorystatus_vm_pressure_level`.
 **Handover note**: Pressure level is the kernel's own judgement — trust it over "used memory", which on macOS is always high (file cache). Swap *used* stays high for days after a squeeze; swap *growth* is the thrash signal.
 
-### AJ-E1402 See the AI tools AI Juggler didn't start (read-only) | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1401, `running_setups` (PR #62)
+### AJ-E1402 See the AI tools AI Juggler didn't start (read-only) | Status: IN-PROGRESS | Priority P0 | Effort M | Depends: AJ-E1401, `running_setups` (PR #62)
 **Goal**: The Claude desktop app's windows and `claude` running in a terminal count in "what your AI tools use", attributed to the Account whose folder they use, without ever being treated as ours.
 **User story**: As someone who also opens Claude in its own app and in a terminal, AI Juggler's numbers include those too, and say plainly which ones it didn't start.
 **Requirements**:
@@ -67,7 +67,7 @@
 **Research basis**: `running_setups.rs` (0.0.6 dogfood: the default `~/.claude` was the sixth Claude desktop window); D-08; PROPOSAL §4 "Every running Instance across all Providers".
 **Handover note**: "Observed" is a read model, not an Instance: it has no ledger row, no session id and no actions. Keep it that way.
 
-### AJ-E1403 The This Mac read model | Status: TODO | Priority P0 | Effort S | Depends: AJ-E1401, AJ-E1402
+### AJ-E1403 The This Mac read model | Status: DONE-EVIDENCED | Priority P0 | Effort S | Depends: AJ-E1401, AJ-E1402
 **Goal**: One payload answers "how much are my AI tools using right now, which sessions are heaviest, is anything left behind, how is the Mac".
 **User story**: As a user glancing at Home, one panel tells me the machine story.
 **Requirements**:

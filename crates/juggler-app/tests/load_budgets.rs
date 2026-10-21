@@ -267,3 +267,66 @@ fn idle_with_ten_live_instances() {
     assert!(pct < 2.0, "{pct:.2} %");
     assert!(rss_kb > 0 && rss_kb < 600 * 1024, "{rss_kb} KB");
 }
+
+/// AJ-E1403 budget (SPEC §5.3): This Mac's aggregation ≤ 200 ms at 50
+/// Instances — 50 live supervised trees (each a shell with a helper),
+/// with full rings, hog rules and the ledger's leftover count.
+#[test]
+fn this_mac_at_fifty_instances() {
+    let dir = tempfile::tempdir().unwrap();
+    seed(dir.path());
+    let state = open(dir.path());
+    let ctx = juggler_supervisor::tree::SpawnContext {
+        provider: "claude-code".into(),
+        account_id: Some("acc-0".into()),
+        project_id: None,
+        machine: commands::local_machine_id(&state),
+        role: "root",
+    };
+    let mut live = Vec::new();
+    {
+        let storage = state.storage.lock().unwrap();
+        for record in storage.sessions().list(None).unwrap() {
+            let mut record = record;
+            record.status = SessionStatus::Running;
+            storage.sessions().update(&record).unwrap();
+            live.push(record.id.clone());
+        }
+    }
+    for session in &live {
+        state
+            .supervisor
+            .spawn(
+                session,
+                &LaunchSpec {
+                    program: PathBuf::from("/bin/sh"),
+                    args: vec!["-c".into(), "sleep 120 & wait".into()],
+                    env: EnvMap::new(),
+                    cwd: dir.path().to_path_buf(),
+                    needs_pty: false,
+                },
+                &ctx,
+            )
+            .unwrap();
+    }
+    for _ in 0..4 {
+        commands::processes_tick(&state);
+        std::thread::sleep(Duration::from_millis(200));
+    }
+    let mut runs = Vec::new();
+    let mut trees = 0;
+    for _ in 0..5 {
+        let started = Instant::now();
+        let info =
+            juggler_app::machine_health::this_mac_impl(&state, Timestamp::now().millis()).unwrap();
+        runs.push(started.elapsed());
+        trees = info.ours.count;
+    }
+    for session in &live {
+        let _ = state.supervisor.stop(session, Duration::from_secs(2));
+    }
+    let mid = median(runs.clone());
+    eprintln!("[perf] this mac at 50 instances ({trees} trees): median {mid:?} (runs {runs:?})");
+    assert_eq!(trees, 50, "every live tree counted");
+    assert!(mid < Duration::from_millis(200), "{mid:?}");
+}
