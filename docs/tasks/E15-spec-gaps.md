@@ -250,6 +250,176 @@
 **Quality gates**: every catalog tool resolves to a mark or the fallback; an unknown tool gets the fallback; marks are decorative beside the visible name; re-rendered baselines with notes.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1526/manifest.md`.
 
+## The 0.1 blockers — the core verifiably working on a real multi-account Mac
+
+The maintainer's rule after testing 0.0.12 on their own Mac (2026-10-21):
+0.1 doesn't ship until the core works on a real multi-account setup. These
+come before the rest of Wave 1's polish. Any task that shows sessions,
+projects or usage carries an oracle comparison in its evidence; a hand
+walk alone isn't enough.
+
+### AJ-E1531 A realistic replica for walks and tests | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: —
+**Goal**: Every fix is walked and tested on a Mac shaped like a heavy real user's, without touching anyone's real data.
+**User story**: As a developer, `just replica` gives me a throwaway HOME with six Claude profiles, Codex, months of history and live sessions, and the app opens on it.
+**Requirements**:
+1. A generator (`scripts/replica.py build`, `just replica`) SHALL build a throwaway HOME with real-shaped files and no real content:
+   - `~/.claude` plus six profiles, with settings (two with a status line of their own), `.claude.json` and fake credentials;
+   - `~/.codex` and `~/.codex-work`;
+   - months of transcripts across 13+ git projects, including three clones of one repo (`acme-web`, `acme-web2`, `acme-web3`) and agent worktrees under `<repo>/.claude/worktrees/<name>`, some since removed;
+   - Codex rollouts with `token_count` `rate_limits`;
+   - project icons of every kind AJ-E1532 reads, including an oversized one and a "logo" that isn't an image;
+   - shell aliases pointing at the profiles.
+   It is deterministic for a seed, and it refuses a HOME that isn't empty and isn't a replica.
+2. `scripts/replica.py live` SHALL run, while a walk goes on:
+   - live `claude` and `codex` sessions: the fake harness's `write` mode under those names, appending real-shaped lines;
+   - a Claude desktop stand-in, and a ChatGPT-like helper that isn't a Claude tool;
+   - optional memory pressure.
+   Each of these exits when the walk ends.
+3. The generator writes its own ground truth (`~/.replica/truth.json`): accounts, projects, conversations per account and project, worktrees and live sessions. An oracle such as `scripts/qa/real_truth.py` is checked against it.
+4. `just replica-walk` opens AI Juggler Dev on the replica HOME. Every hand walk on release/0.1 uses it from now on.
+5. (Moved to AJ-E1529, Req.8.)
+**Quality gates**: the generator's selftest (determinism, the refusal, the shape of each file the app reads); the app's scan finds every replica account, checked against `truth.json`.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1531/manifest.md`.
+**Files to touch**: `scripts/replica.py`, `crates/juggler-adapters/src/bin/fake_harness.rs` (the `write` mode), `justfile`.
+**Handover note**: Never point it at a real HOME. Real-data checks are the QA session's, read-only, with redacted counts.
+
+### AJ-E1529 Sessions started outside AI Juggler | Status: TODO | Priority P0 | Effort L | Depends: AJ-E1531, AJ-E1502
+**Goal**: The rail shows every session on each account, not only the ones AI Juggler started.
+**User story**: As someone with six sessions open across my accounts, I open AI Juggler and see all of them, live ones first, under their projects.
+**Requirements** (the maintainer's real-setup test, 2026-10-21):
+1. Each account's recent conversations SHALL be listed from its own files (Claude `projects/**/*.jsonl`, Codex `sessions/**/rollout-*.jsonl`): title, project, last activity and tokens. AI Juggler never writes to those folders.
+2. A conversation is live when a running tool process uses that account (This Mac's detection of tools AI Juggler didn't start) and its transcript was written recently.
+3. They SHALL show in the rail under their project, with a quiet "outside AI Juggler" mark, read-only: no stop and no cleanup (D-08). Actions: open it in its app or terminal where possible, and "Continue in AI Juggler" (a resume launch in that account, on the user's click).
+4. The rail SHALL update when the history backfill finishes, through a typed event, with no reload.
+5. Worktrees map to their repo, even after they're removed:
+   - from the transcript's recorded cwd under `<repo>/.claude/worktrees/<name>`, when `<repo>` has a `.git`;
+   - otherwise from the transcript's `gitBranch` and the repo's known worktrees.
+   They merge into the repo's group, and AI Juggler's own agent worktrees never show as projects.
+6. A project's view SHALL list its conversations, including those started outside AI Juggler.
+7. The rail stays within its budget at 50+ sessions.
+8. Playwright journeys that show sessions, projects or usage read a fixture made from the replica by these readers, never hand-written (from AJ-E1531).
+**Quality gates**: the counts match an oracle. AJ-E1529 merges only when the app's projects, conversations and live sessions match `scripts/qa/real_truth.py` on the replica, and on the maintainer's real data. The real-data pass is run read-only by the QA session, with redacted counts and mismatches only.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1529/manifest.md`, with both oracle comparisons.
+**Files to touch**: `crates/juggler-app/src/features/conversations/`, `crates/juggler-adapters` (each adapter's conversation reader), `ui/src/components/WorkflowRail.tsx`, the project view.
+
+### AJ-E1532 Telling projects and sessions apart | Status: TODO | Priority P1 | Effort M | Depends: AJ-E1529, AJ-E1526
+**Goal**: With many projects, each is recognisable at a glance.
+**User story**: As someone with fifteen projects, I tell acme-web from payments-api by its mark and colour before I read the name.
+**Requirements** (the maintainer's request, 2026-10-21):
+1. A project mark, decided by the backend and served as data (ADR-0019):
+   - (a) the project's own icon, found read-only: a Tauri, Electron or Xcode app icon, `public/favicon.*`, `logo.*` or `icon.*` at the root, or `.github/*logo*`. It must be at most 512 KB and a known image type, rendered locally;
+   - (b) otherwise a two-letter monogram on a colour from an OKLCH palette of about 12 well-separated hues, AA in both themes, stable per project.
+   The user may override the colour, emoji or letters from the project's menu.
+2. Session rows show the project mark, or a coloured stripe with the mark when a group is folded, plus the tool mark and the account dot. The same components serve the rail, Home, History and the inspector (D-25).
+3. Clones of one repo share its mark, with a small number.
+4. Account avatars, at the maintainer's request ("which account, which profile is serving that session right now, or that project"). The avatar is round, in the account's colour, with 1–2 initials from its label and its name as a tooltip.
+   - **Session rows**: the serving account's avatar sits beside the tool mark, and changes when the session switches accounts. A session started outside AI Juggler gets the avatar of the account AJ-E1529 matched.
+   - **Project rows**: up to 3 stacked avatars of the accounts that worked there, then "+N". An account serving a live session there gets a ring, the same live cue sessions use.
+   - **Elsewhere**: the same component on the Accounts cards, the page headers (AJ-E1533) and, later, the menu bar.
+   - **Colour and shape**: avatar colours come from the project palette, but the avatar is round and the project mark is a rounded square, so the two are never confused.
+   - **Accessibility**: the avatar is decorative, and the row's accessible name includes the account ("on Work Max").
+**Quality gates**: palette contrast and a minimum ΔE between neighbouring hues; icon discovery on fixtures, refusing oversized and odd files; vitest; baselines with 15+ projects; walked on the replica.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1532/manifest.md`.
+
+### AJ-E1530 Usage for sessions outside AI Juggler | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1529
+**Goal**: Each account's window % is measured even when its sessions weren't started by AI Juggler.
+**User story**: As someone who mostly starts Claude in my own terminal, I let AI Juggler read my usage once, and Runway shows my real window.
+**Requirements**:
+1. Offer one user-applied change per Claude account, "Let AI Juggler read your usage". It adds AI Juggler's status-line reader to the account's own settings, chained after any status line already there. The change is previewed as a diff, applied only on click, and removable.
+2. Until then: tokens are shown as Measured, and the window % says "Not measured yet", never a made-up figure.
+3. Codex limits come from its rollouts' `rate_limits` (the bug-fix branch's parser, merged from main).
+**Quality gates**: the diff preview; apply and remove on the replica leave every other setting byte-for-byte; the oracle comparison of tokens and % on the replica.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1530/manifest.md`.
+
+### AJ-E1527 Make it smoother: the optional permissions on the welcome | Status: TODO | Priority P1 | Effort S | Depends: AJ-E1524
+**Goal**: A new user sees the optional permissions early, as a reminder that the experience is better with them, never as a requirement.
+**Requirements** (the maintainer's request, 2026-10-21):
+1. The welcome Home has a "Make it smoother" card listing the optional permissions (jump to a session's own window; a live preview of each session), each with its state and its Allow or Open System Settings action. It uses the same rows as first run's access step, from one shared component (`OsAccessRows`).
+2. It is never required. "Not now" hides it until something needs a permission, and then only that row shows, in context.
+3. After the welcome, while a permission is still missing and not dismissed, Home shows a small, dismissible reminder card ("Live previews are off. Turn on"). It is never a modal.
+4. Screen Recording's "Reopen AI Juggler" state, from the bug-fix branch's state module, comes through the same component.
+**Quality gates**: vitest; baselines; walked as a brand-new user on the replica.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1527/manifest.md`.
+
+### AJ-E1528 A This Mac page | Status: TODO | Priority P1 | Effort M | Depends: AJ-E1403, AJ-E1409
+**Goal**: "See what's using it" opens a page for it, rather than scrolling.
+**Requirements** (the maintainer's request, 2026-10-21):
+1. A This Mac screen in the shell registry. "See what's using it" and This Mac's header open it; it is also reachable from More.
+2. From the existing read model, with nothing new measured:
+   - the Mac's state, in words and meters;
+   - what's using it, grouped by tool, then by session or window, with tools AI Juggler didn't start marked;
+   - heavy sessions, with links;
+   - recommendations and recent alerts.
+   Controls appear only for what AI Juggler owns (D-08).
+3. The same rows, meters and type as Home's panel, with detail behind disclosure (D-25). Home's panel stays a summary and links to the page.
+4. The alert subject comes from the bug-fix branch's single function, never a second one.
+**Quality gates**: vitest and Playwright navigation; a11y; baselines in both themes and densities; an oracle comparison of the process groups on the replica; a hand walk under memory pressure, read-only.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1528/manifest.md`.
+
+### AJ-E1533 One page model | Status: TODO | Priority P0 | Effort L | Depends: AJ-E1529
+**Goal**: Every item opens the same kind of page, and a fact never disagrees with itself.
+**Requirements** (the coordinator's screen-by-screen review against wireframes 01–09, 2026-10-21):
+1. One shell for every item type, registered per type (ADR-0019). An identity header carries:
+   - the type label (Session, Project, Account, Tool, This Mac);
+   - the mark and the name;
+   - a breadcrumb to the parent;
+   - 2–3 type facts.
+2. Per-type tab sets, with no empty tabs:
+   - **Session**: the terminal as the body. Tabs: Usage (tokens, cost, window share and pace, with Quality merged in), Processes, and History only when it has events. Actions live in the header and its ⋯ menu.
+   - **Project** (wireframe 03): the header has the path, git branch, ahead/behind, dirty, Open in Finder or editor, and New session here. The body is the sessions list (live, then recent, across accounts and tools, including those from AJ-E1529). Tabs: Overview (worktrees with the shared-checkout warning, accounts used, sessions ever), Usage (by account and tool), and Rules & MCP (AJ-E1507). Quality and Processes go.
+   - **Account** and **Tool** pages, reached from their names on Accounts and from Tools under More.
+3. One source per fact, so the header and the tabs agree. These disagree today:
+   - "2 helpers" vs "No subprocesses";
+   - "CPU 4%" vs "collecting";
+   - project Usage says none while its session has 19k tokens;
+   - project Processes counts 0 sessions while 1 runs.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1533/manifest.md`. It holds before and after screenshots of every page at 1280 and 1024 in both themes, walked on the replica, and checked against the wireframe.
+
+### AJ-E1534 Orientation | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1533
+1. The rail shows a clear selection for every row type (a filled row, an accent bar and `aria-current`), scrolled into view.
+2. The top-nav highlight comes from the current page. Today History showed Accounts, and a session page showed Home.
+3. Tab memory is per type, never carried from a session to a project. Today the bar showed Processes while the page showed Overview.
+4. Each type has its own mark shape:
+   - project: a rounded square (AJ-E1532);
+   - session: a status dot with a terminal glyph;
+   - account: a round avatar with initials;
+   - tool: the tool's mark (AJ-E1526).
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1534/manifest.md`, as for AJ-E1533.
+
+### AJ-E1535 Plain words and consistency | Status: TODO | Priority P0 | Effort M | Depends: —
+1. Remove "COMP", "tok", "F1", "transplant", "switch-back ↺", "root: … copy" and "imported sessions: 0", and New session's footer "No folder picked — No launch settings…". A footer shows only where it applies.
+2. A finished session's row shows no account "% left".
+3. This Mac's "under 1 MB" for a Claude session: find out what it measures, and fix it or say it plainly.
+4. New session opens without delay.
+5. A plain-words lint in CI: a banned list, with an allowlist that only shrinks.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1535/manifest.md`.
+
+### AJ-E1536 History you can scan | Status: TODO | Priority P1 | Effort S | Depends: AJ-E1533
+1. Each row shows a title or the first prompt, the tool, account and project marks, and opens the session's page.
+2. Delete moves into the row's ⋯ menu.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1536/manifest.md`.
+
+### AJ-E1537 Context menus and ⋯ menus from one action registry | Status: TODO | Priority P1 | Effort M | Depends: AJ-E1502, AJ-E1533
+**Goal**: A desktop user right-clicks anything and gets the actions that matter, with the same items in the ⋯ menu and from the keyboard.
+**Requirements** (the maintainer's request, 2026-10-21):
+1. One action registry (ADR-0019). Each item type declares its actions once: session, project, account, tool, history entry and This Mac row (pools and tasks later). Each action has an id, a label, an icon, when it's enabled and why not, whether it's destructive, a shortcut and a handler. Features contribute actions; no screen keeps its own copy of a menu.
+2. Three triggers, one menu:
+   - right-click opens a native macOS menu (Tauri's menu popup);
+   - a ⋯ button on each row and in each page header;
+   - the context-menu key or Shift+F10 on a focused row.
+   The ⋯ and keyboard menus may be in-app, with the same items in the same order.
+3. The items per type:
+   - **Session**: Open; Focus its window or terminal; Continue on another account; Rename; Pin; Copy resume command; Reveal its project; Stop (destructive, with Undo, AJ-E1503).
+   - **Project**: Open; New session here; Open in editor; Reveal in Finder; Copy path; Rename; Pin; Forget; Set default account.
+   - **Account**: Open; Start a session; Sign in; Edit launch settings; Rename; Set as default; Remove.
+   - **Tool**: Open; Check for update; Its accounts.
+   - **History entry**: Open; Replay; Continue; Archive; Delete (destructive).
+   - **This Mac row**: Go to the session. A tool AI Juggler didn't start says so and has no actions.
+   A disabled item shows why: a tooltip in the in-app menu, a reason line in the native one.
+4. Destructive items sit last, in their own group, and confirm or undo (AJ-E1503). Sessions started outside AI Juggler get only read-only actions and "Continue in AI Juggler" (D-08).
+**Quality gates**: the same items for every trigger; keyboard access; a11y (`role=menu`, focus return); a snapshot of each type's menu; a disabled item's handler never runs. Right-click checked by hand on the replica's rows.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1537/manifest.md`.
+
 ## Wave 2 — usage you can act on, Fleet and support
 
 ### AJ-E1512 Sessions left and a burn-down chart | Status: TODO | Priority P1 | Effort M | Depends: AJ-E608

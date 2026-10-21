@@ -141,6 +141,25 @@ doc:
 dev: dev-icon
     cargo tauri dev --config crates/juggler-app/tauri.dev.conf.json
 
+# AJ-E1531: the replica, a throwaway HOME shaped like a heavy real user's
+# Mac, for every walk and journey. It refuses a HOME that isn't a replica.
+replica_home := env_var_or_default("AIJ_REPLICA_HOME", "/tmp/aij-replica")
+target_dir := env_var_or_default("CARGO_TARGET_DIR", "target")
+
+# Build the replica HOME (AIJ_REPLICA_HOME, default /tmp/aij-replica).
+replica:
+    python3 -I scripts/replica.py build --home {{replica_home}}
+
+# Live sessions on the replica while a walk runs (Ctrl-C stops them all).
+replica-live minutes="60" *args="":
+    cargo build -q -p juggler-adapters --bins
+    python3 -I scripts/replica.py live --home {{replica_home}} --harness {{target_dir}}/debug/fake-harness --desktop {{target_dir}}/debug/fake-desktop --minutes {{minutes}} {{args}}
+
+# Cargo, rustup and corepack keep their own homes while HOME is the replica.
+# Run AI Juggler Dev on the replica HOME.
+replica-walk: dev-icon
+    CARGO_HOME="${CARGO_HOME:-$HOME/.cargo}" RUSTUP_HOME="${RUSTUP_HOME:-$HOME/.rustup}" COREPACK_HOME="${COREPACK_HOME:-$HOME/.cache/node/corepack}" HOME={{replica_home}} cargo tauri dev --config crates/juggler-app/tauri.dev.conf.json
+
 # Release-mode build of AI Juggler Dev (unsigned, never updates).
 app: dev-icon
     cargo tauri build --config crates/juggler-app/tauri.dev.conf.json

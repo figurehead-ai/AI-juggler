@@ -73,6 +73,7 @@
 | AJ-E1524 | PASS12 | 2026-10-21 | [manifest](AJ-E1524/manifest.md) |
 | AJ-E1525 | PASS12 | 2026-10-21 | [manifest](AJ-E1525/manifest.md) |
 | AJ-E1526 | PASS7 | 2026-10-21 | [manifest](AJ-E1526/manifest.md) |
+| AJ-E1531 | PASS5 | 2026-10-21 | [manifest](AJ-E1531/manifest.md) |
 | AJ-E201 | PASS8 | 2026-10-16 | [manifest](AJ-E201/manifest.md) |
 | AJ-E2011 | PASS4 | 2026-10-21 | [manifest](AJ-E2011/manifest.md) |
 | AJ-E202 | PASS7 | 2026-10-16 | [manifest](AJ-E202/manifest.md) |

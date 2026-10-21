@@ -182,5 +182,16 @@
 | AJ-E1524 | A welcome Home for new installs | E15-spec-gaps.md | P0 | M | AJ-E1014 |
 | AJ-E1525 | ToolSpec: tools as data | E15-spec-gaps.md | P0 | M | — |
 | AJ-E1526 | Tool and company marks everywhere | E15-spec-gaps.md | P1 | M | AJ-E1525 |
-Total: 180 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+| AJ-E1527 | Make it smoother: the optional permissions on the welcome | E15-spec-gaps.md | P1 | S | AJ-E1524 |
+| AJ-E1528 | A This Mac page | E15-spec-gaps.md | P1 | M | AJ-E1403, AJ-E1409 |
+| AJ-E1529 | Sessions started outside AI Juggler | E15-spec-gaps.md | P0 | L | AJ-E1531, AJ-E1502 |
+| AJ-E1530 | Usage for sessions outside AI Juggler | E15-spec-gaps.md | P0 | M | AJ-E1529 |
+| AJ-E1531 | A realistic replica for walks and tests | E15-spec-gaps.md | P0 | M | — |
+| AJ-E1532 | Telling projects and sessions apart | E15-spec-gaps.md | P1 | M | AJ-E1529, AJ-E1526 |
+| AJ-E1533 | One page model | E15-spec-gaps.md | P0 | L | AJ-E1529 |
+| AJ-E1534 | Orientation | E15-spec-gaps.md | P0 | M | AJ-E1533 |
+| AJ-E1535 | Plain words and consistency | E15-spec-gaps.md | P0 | M | — |
+| AJ-E1536 | History you can scan | E15-spec-gaps.md | P1 | S | AJ-E1533 |
+| AJ-E1537 | Context menus and ⋯ menus from one action registry | E15-spec-gaps.md | P1 | M | AJ-E1502, AJ-E1533 |
+Total: 191 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

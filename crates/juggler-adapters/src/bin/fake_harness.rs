@@ -11,6 +11,8 @@
 //!               [--exit CODE] [--prompt TEXT] [--wait-prompt TEXT]
 //!               [--quota-exit] [--spawn-child PROG --child-args "A B"]
 //!               [--child-ignore-term]
+//! fake-harness write --format claude|codex --file PATH --cwd DIR
+//!               --session-id ID [--every-ms MS] [--used FIVE WEEK]
 //! ```
 //!
 //! Sessions are JSONL files under `--dir`: a `session_meta` line, turn pairs
@@ -21,7 +23,8 @@
 //! `--spawn-child` starts a detached child (stdio null, so it never holds
 //! the harness's output pipes) that OUTLIVES the harness — the orphan
 //! fixture (AJ-E410); `--child-ignore-term` makes it ignore SIGTERM
-//! (the stop-ladder escalation fixture, unix only).
+//! (the stop-ladder escalation fixture, unix only). `write` is the
+//! replica's live session (AJ-E1531, `support/replica_write.rs`).
 
 use std::env;
 use std::fs::{File, OpenOptions};
@@ -30,6 +33,9 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+
+#[path = "support/replica_write.rs"]
+mod replica_write;
 
 const VERSION: &str = "0.1.0";
 
@@ -41,8 +47,17 @@ fn main() -> ExitCode {
             ExitCode::SUCCESS
         }
         Some("run") => run(&args[1..]),
+        Some("write") => match replica_write::run(&args[1..]) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(message) => {
+                eprintln!("fake-harness write: {message}");
+                ExitCode::from(2)
+            }
+        },
         _ => {
-            eprintln!("usage: fake-harness --version | run --dir DIR [options]");
+            eprintln!(
+                "usage: fake-harness --version | run --dir DIR [options] | write --format F --file PATH [options]"
+            );
             ExitCode::from(2)
         }
     }
