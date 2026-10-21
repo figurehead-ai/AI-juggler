@@ -429,22 +429,28 @@ mod tests {
         assert_eq!(preview_state(true, false), ("allowed", "none", None));
     }
 
+    /// The block a held decision carries (`None` for a relaunch).
+    fn held(decision: ReopenDecision) -> Option<ReopenBlockInfo> {
+        match decision {
+            ReopenDecision::Hold(block) => Some(block),
+            ReopenDecision::Relaunch => None,
+        }
+    }
+
     #[test]
     fn reopening_asks_first_when_sessions_are_live_and_waits_for_a_switch() {
         use crate::updates::Busy;
         assert_eq!(reopen_decision(None, false), ReopenDecision::Relaunch);
-        let ReopenDecision::Hold(block) = reopen_decision(Some(Busy::Sessions(2)), false) else {
-            panic!("live sessions must be said first");
-        };
-        assert!(block.can_reopen_anyway);
+        let two = held(reopen_decision(Some(Busy::Sessions(2)), false))
+            .expect("live sessions are said first");
+        assert!(two.can_reopen_anyway);
         assert!(
-            block.reason.starts_with("2 sessions are running."),
+            two.reason.starts_with("2 sessions are running."),
             "{}",
-            block.reason
+            two.reason
         );
-        let ReopenDecision::Hold(one) = reopen_decision(Some(Busy::Sessions(1)), false) else {
-            panic!("one live session must be said first");
-        };
+        let one = held(reopen_decision(Some(Busy::Sessions(1)), false))
+            .expect("one live session is said first");
         assert!(
             one.reason.starts_with("1 session is running."),
             "{}",
@@ -456,9 +462,8 @@ mod tests {
             "Reopen anyway, after the warning"
         );
         for busy in [Busy::Switch, Busy::BringIn] {
-            let ReopenDecision::Hold(block) = reopen_decision(Some(busy), true) else {
-                panic!("{busy:?} can't be cut short, even anyway");
-            };
+            let block = held(reopen_decision(Some(busy), true))
+                .expect("a switch or a bring-in can't be cut short, even anyway");
             assert!(!block.can_reopen_anyway);
             assert!(
                 block.reason.contains("Reopen AI Juggler"),
