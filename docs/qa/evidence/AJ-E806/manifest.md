@@ -151,6 +151,12 @@
   the menu-bar code. Vitest `privacy-card.test.tsx` "renders 12 weeks of
   reports and a full week of rows in under 200 ms" took 431 ms; it passed
   3/3 alone. Budgets unchanged; CI is the arbiter.
+- **Flake record, 2026-10-21 (known class; no change).** On #85's local
+  visual gate at load average 16–20, a few regression shots timed out
+  waiting for the screen to show ("toBeVisible", about 35 s each). It was
+  9 in one run and 3 different ones in the next, with no pixel
+  differences. Those 3 passed straight after in 3.5–26 s. Timeouts
+  unchanged; CI is the arbiter.
 - a11y seeded failure is recorded DEFERRED with owning task AJ-E804 —
   the gate is named in QUALITY.md vocabulary now; its absence is
   explicit, never a silent pass (per the quarantine/deferral rule).

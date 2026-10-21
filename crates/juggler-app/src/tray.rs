@@ -1230,9 +1230,14 @@ mod tests {
             std::fs::create_dir_all(path.parent().unwrap()).unwrap();
             std::fs::write(&path, &generated).unwrap();
         }
-        let committed = std::fs::read_to_string(&path).unwrap_or_default();
+        // Compared as values: a workspace build turns on serde_json's
+        // `preserve_order`, which changes key order but never content.
+        let committed: serde_json::Value = std::fs::read_to_string(&path)
+            .ok()
+            .and_then(|text| serde_json::from_str(&text).ok())
+            .unwrap_or_default();
         assert_eq!(
-            committed, generated,
+            committed, fixture,
             "the shared menu-bar fixture is stale: run with AIJ_UPDATE_FIXTURES=1"
         );
     }
