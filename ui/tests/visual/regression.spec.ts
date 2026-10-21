@@ -248,6 +248,37 @@ for (const theme of THEMES) {
   }
 }
 
+// AJ-E1501: the account card's menu and the remove sheet (a copy: keep
+// its folder or send it to the Trash), at the main size in each theme.
+const MANAGE = {
+  ...allStatuses,
+  accounts: [
+    ...allStatuses.accounts,
+    { id: "claude-max", provider: "claude-code", label: "personal-max", plan: "max-5x", login_state: "logged_in", in_place: false, import_source_path: "/Users/you/Library/Application Support/ClaudeCodeProfiles/max" },
+  ],
+};
+for (const theme of THEMES) {
+  const cell = `${theme}-comfortable-1280x800`;
+  test(`account menu — ${cell}`, async ({ page }) => {
+    await open(page, theme, "comfortable", VIEWPORTS[0], MANAGE);
+    await goTo(page, "Accounts");
+    await page.getByRole("button", { name: "Account actions for personal-max", exact: true }).click();
+    await expect(page.getByRole("menu", { name: "Actions for personal-max" })).toBeVisible();
+    await page.mouse.move(0, 0);
+    await expect(page).toHaveScreenshot(`account-menu-${cell}.png`, SCREEN);
+  });
+
+  test(`remove account — a copy — ${cell}`, async ({ page }) => {
+    await open(page, theme, "comfortable", VIEWPORTS[0], MANAGE);
+    await goTo(page, "Accounts");
+    await page.getByRole("button", { name: "Account actions for personal-max", exact: true }).click();
+    await page.getByRole("menuitem", { name: "Remove…" }).click();
+    await expect(page.getByTestId("remove-account")).toHaveAttribute("data-kind", "copy");
+    await page.mouse.move(0, 0);
+    await expect(page).toHaveScreenshot(`remove-account-copy-${cell}.png`, SCREEN);
+  });
+}
+
 // WCAG 1.4.1: a status shown by colour must also say it in words or an
 // accessible name — a colour-only change fails even when its pixel diff
 // is small. The fixture holds an Instance in every status.

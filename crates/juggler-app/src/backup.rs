@@ -255,7 +255,9 @@ fn scrub(snapshot: &Path) -> AppResult<Vec<String>> {
         conn.execute(sql, []).map_err(core)?;
     }
     let mut withheld = Vec::new();
-    for account in storage.accounts().list()? {
+    // Every account's, removed ones too (AJ-E1501): their launch
+    // settings are still in the database.
+    for account in storage.accounts().list_all()? {
         for mut recipe in storage.profiles().list_by_account(&account.id)? {
             if recipe.settings_overlay.env.is_empty() {
                 continue;

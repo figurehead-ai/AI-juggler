@@ -28,6 +28,7 @@ pub mod lifecycle;
 pub mod link;
 pub mod machine_alerts;
 pub mod machine_health;
+pub mod manage;
 pub mod newer_data;
 pub mod os_access;
 pub mod overnight;
@@ -207,6 +208,11 @@ pub fn run() {
             commands::environment_scan,
             commands::account_import,
             commands::account_use_original,
+            manage::account_rename,
+            manage::account_remove,
+            manage::account_set_default,
+            manage::project_set_default_account,
+            manage::account_audit,
             commands::source_inspect,
             commands::isolation_check,
             fleet::fleet_self,

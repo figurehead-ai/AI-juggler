@@ -660,7 +660,8 @@ pub fn error_class(error: &crate::error::AppError) -> Option<(&'static str, &'st
         AppError::Validation { .. }
         | AppError::NotFound { .. }
         | AppError::IdentityMismatch { .. }
-        | AppError::AlreadyImported { .. } => return None,
+        | AppError::AlreadyImported { .. }
+        | AppError::Refused(_) => return None,
     })
 }
 

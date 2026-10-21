@@ -184,8 +184,8 @@ export function NewSessionModal({
   );
   const preselected = useMemo(
     () =>
-      profiles !== null ? pickRecipe(profiles, project, Object.values(quotaByAccount)) : null,
-    [profiles, project, quotaByAccount],
+      profiles !== null ? pickRecipe(profiles, project, Object.values(quotaByAccount), accounts) : null,
+    [profiles, project, quotaByAccount, accounts],
   );
 
   const recents = useMemo(
@@ -350,6 +350,13 @@ export function NewSessionModal({
                     <span className="font-mono text-[10px] text-muted">{preselected.model}</span>
                   )}
                   <VerdictChip verdict={verdictByAccount.get(preselected.account_id)} />
+                  {/* AJ-E1501: why this one, when the user picked it. */}
+                  {(project?.default_account_id === preselected.account_id ||
+                    accounts.find((account) => account.is_default)?.id === preselected.account_id) && (
+                    <span className="ml-auto text-[10px] text-muted" data-testid="launch-default">
+                      {project?.default_account_id === preselected.account_id ? "this project's default" : "your default"}
+                    </span>
+                  )}
                 </div>
                 <MachineAdviceLine advice={advice.get(preselected.id)} nameOf={(id) => sessionNames.get(id) ?? null} />
                 <div className="flex flex-wrap gap-2">

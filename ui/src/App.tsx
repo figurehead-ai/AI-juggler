@@ -1002,6 +1002,7 @@ export default function App() {
                 key={accountsNonce}
                 sessions={sessions}
                 onAddAccounts={startAddAccount}
+                onAccountsChanged={() => void refresh()}
                 openTerminal={openLoginTerminal}
                 onInspectAccount={(id) => {
                   setGlobal(null);
