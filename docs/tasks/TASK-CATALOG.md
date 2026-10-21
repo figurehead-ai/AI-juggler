@@ -206,5 +206,6 @@
 | AJ-E1904 | Tasks follow sessions and switches | E19-agent-tasks.md | P1 | S | AJ-E1901, AJ-E201 |
 | AJ-E1905 | A Claude Code plugin | E19-agent-tasks.md | P2 | S | AJ-E1902 |
 | AJ-E1906 | Links to GitHub issues and Linear | E19-agent-tasks.md | P2 | S | AJ-E1901 |
-Total: 204 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+| AJ-E1613 | Antigravity on work plans | E16-more-tools.md | P2 | L | AJ-E1521 |
+Total: 205 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

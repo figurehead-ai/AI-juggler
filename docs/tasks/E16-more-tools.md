@@ -144,7 +144,7 @@
 **User story**: As a Muse user, I see its 5-hour and weekly windows beside my other tools.
 **Requirements**:
 1. Wait for the maintainer to confirm Meta's `muse` is the one meant.
-2. API-key accounts first. Subscription accounts only after a Keychain test shows sign-ins can be kept apart per account.
+2. The goal is subscription accounts ($5–$200 plans), as for Claude Code and Codex. API-key accounts ship first; subscription accounts follow once a Keychain test shows sign-ins can be kept apart per account.
 3. Sessions and usage through `muse serve` (JSON-RPC, MIT SDK) and `usage/read`.
 **UI/UX reasoning**: Like Codex.
 **Performance budget**: as Codex.
@@ -160,7 +160,7 @@
 **User story**: As a Cursor user, I run Cursor agent sessions beside the rest.
 **Requirements**:
 1. A maintainer ruling on the Acceptable Use Policy ("automated or non-human means") first.
-2. Per-account isolation through `CURSOR_API_KEY` or a per-account `HOME`, chosen after a live test. Sessions and resume through `agent` with `--resume` and `stream-json`. Usage is unknown for individuals.
+2. The goal is subscription accounts (legacy Pro, Pro+ and Ultra, and the X Subscription). Per-account isolation goes through a per-account `HOME`, or `CURSOR_API_KEY` for key accounts, chosen after a live test. Sessions and resume through `agent` with `--resume` and `stream-json`. Usage is unknown for individuals.
 **UI/UX reasoning**: Like Codex; a note on the X Subscription pool shared with Grok.
 **Performance budget**: as Codex.
 **Quality gates**: the conformance kit.
@@ -169,6 +169,22 @@
 **Files to touch**: `crates/juggler-adapters/src/cursor*.rs`.
 **Research basis**: `cursor.md`.
 **Handover note**: If the ruling is no, this becomes track-only inside AJ-E1610.
+
+### AJ-E1613 Antigravity on work plans | Status: TODO | Priority P2 | Effort L | Depends: AJ-E1521
+**Goal**: Antigravity runs as a full tool for Workspace and Enterprise accounts, where the terms allow it, and stays track-only on Google AI consumer plans.
+**User story**: As a user with an Antigravity work subscription, I juggle it like my other tools.
+**Requirements**:
+1. Before building: read the Workspace and Enterprise terms for Antigravity and record whether supervising `agy` is allowed. Consumer plans (Google AI Pro and Ultra) stay track-only, because the FAQ says wrapping isn't supported there.
+2. The account kind is decided by the plan the account reports. Usage comes from `agy -p /usage --output-format json` (it spends no quota).
+3. Isolation: no env var moves the CLI's home, so a per-account `HOME` is tested live first.
+**UI/UX reasoning**: Consumer accounts show as track-only with one plain line explaining why.
+**Performance budget**: as Codex.
+**Quality gates**: the conformance kit; a guardrail that consumer accounts are never launched through AI Juggler.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1613/manifest.md`.
+**Visual testing**: the tool view for both kinds of account.
+**Files to touch**: `crates/juggler-adapters/src/antigravity*.rs`.
+**Research basis**: `antigravity.md`.
+**Handover note**: The maintainer pointed out (2026-10-21) that Muse, Cursor, Antigravity and Kiro all have subscriptions; the aim is subscription accounts wherever terms and isolation allow.
 
 ### AJ-E1610 Desktop apps, track-only | Status: TODO | Priority P1 | Effort M | Depends: AJ-E413, AJ-E414
 **Goal**: Every AI desktop app on the Mac shows up in AI Juggler, so its windows can be found.
