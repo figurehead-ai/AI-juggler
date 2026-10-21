@@ -340,6 +340,21 @@ rollouts report only a weekly one (`primary` `window_minutes` 10080,
 |---|---|---|---|---|---|---|---|
 | P15 the models in use are priced | `cargo test -p juggler-core --test cost_ledger the_models_in_real_use_are_priced` (the six Claude IDs QA saw, the dated Haiku through its alias, gpt-5.5, gpt-5.3-codex; Opus 5.5 at 4/20/0.20/5 per MTok = $29.20 for 1M of each; an unknown model unpriced) | pass; fails on the old seed | passed; the old seed has none of these models (by reading; not re-run) | PASS | f1043f1a | 2026-10-21 | claude-opus |
 
+## QA batch 7 and the review of this PR
+
+| Claim / Req ID | Command / fixture / live step (exact) | Threshold | Observed | Verdict | Commit SHA | Date | Reviewer |
+|---|---|---|---|---|---|---|---|
+| P26/P26b/P27 serde's nulls on the ranked and switch lists, New session and the account view's rings | `pnpm --dir ui exec vitest run src/serde-null-ranked-surfaces.test.tsx` (the account's name, never its id; "Not enough use to forecast", never ≈0; no %; no "Room left unknown") | pass | 4 passed | PASS | 937d4146 | 2026-10-21 | claude-opus |
+| R1 a response split across two tail passes | `cargo test -p juggler-adapters --test quota_ingest a_response_split_across_two_passes_keeps_its_final_figure` (output 40, then 52 → 52; the second write adds 12; a repeat adds nothing) | pass | passed | PASS | 5274e94b | 2026-10-21 | claude-opus |
+| R2 no "% left" back after a reset | `pnpm --dir ui exec vitest run src/lib/quotaWindow.test.ts` (a reset window plus a session reading → "Not measured since the reset"; a session reading past its own reset is not used); by hand in the preview: Home, Accounts and Usage all "Not measured since the reset" for the reset account | pass | passed; by hand as stated | PASS | 5274e94b | 2026-10-21 | claude-opus |
+| R3 Codex classes sum to total_tokens with cache writes | `cargo test -p juggler-adapters --test quota_ingest codex_tokens_are_counted_once` (every class, cache_write 50 included); one `codex_token_counts` for the pipeline and the inspector | pass | passed | PASS | 5274e94b | 2026-10-21 | claude-opus |
+| R4 the re-read in one transaction | `replace_session_events` (delete and store together), `insert_samples`, state saved only after both; `cargo test -p juggler-app --test usage_pipeline` | pass | 4 passed | PASS | 5274e94b | 2026-10-21 | claude-opus |
+| R5 grouping tested | `cargo test -p juggler-core --test quota_readings` (newest line lower with the later reset → 41; a reset an hour later is a new window) | pass | 6 passed | PASS | 5274e94b | 2026-10-21 | claude-opus |
+| R7 capability, not tool id | `LIMIT_WINDOWS_REPORTED` (Codex declares it); credits keyed `credits:`; `cargo test -p juggler-app --test quota_display --test codex_in_place` | pass | passed | PASS | 5274e94b | 2026-10-21 | claude-opus |
+| R-low odd readings, crash report, Copy details | `cargo test -p juggler-adapters --test quota_ingest` (width 0 with no credits: no error; a window without its figure: one); `pnpm --dir ui exec vitest run src/screen-boundary.test.tsx` (Copied; details shown when the copy fails; a failed report warns) | pass | 24 and 5 passed | PASS | 751fddde | 2026-10-21 | claude-opus |
+| Oracle on the real setup (QA) | `scripts/qa/real_truth.py --compare` on 751fddde (Batch 8 on `claude/qa-real-walk-clean`, c9e4276d): Claude tokens ×0.98–1.02 on every account and window; Codex ×1.01; cost rows 280 of 283 within 5%; no invented reset; Codex weekly only | ×1.00 | 38 OK, 10 MISMATCH (main: 15 OK, 32 MISMATCH). The rest are not this PR: P2/P9/P10, P16, P17's residue, one session sharing messages with its resumed copy (next batch: credit the earliest session), and unpriced models | PASS for this PR's items | 751fddde | 2026-10-21 | QA session |
+| P15 GPT-6 prices | the models QA saw in use: `gpt-6.1-sol`, `gpt-6-astra` (and `gpt-6-sol`, `gpt-6-luna`) from developers.openai.com/api/docs/pricing, 2026-10-21; `cargo test -p juggler-core --test cost_ledger` | priced | 14 passed | PASS | (this commit) | 2026-10-21 | claude-opus |
+
 ## Gates
 
 Local gates, run on this Mac (CARGO_TARGET_DIR shared):

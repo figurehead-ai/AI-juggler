@@ -182,6 +182,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   collapsed sidebar says "All clear" only while the Mac has room.
 - A tool that doesn't report its limits says so on every screen. Before,
   Usage could show it at "100% left" while Home said it doesn't report.
+- Suggested accounts and switch targets show the account's name, not
+  its internal id, and say "Not enough use to forecast" instead of
+  "exhausts ≈0 min". New session's account list says one thing per
+  account, in the same words as Home.
+- A screen's "Copy details" says "Copied", or shows the details to
+  select when the copy fails.
 - First run's "See a live preview of each session" (Screen Recording) no
   longer stays stuck after you allow it in System Settings. macOS only
   shows the new answer once AI Juggler reopens, so the card now says so

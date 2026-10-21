@@ -427,6 +427,9 @@ fn the_models_in_real_use_are_priced() {
         "claude-sonnet-5-5",
         "gpt-5.5",
         "gpt-5.3-codex",
+        // QA's oracle on #120: the Codex models actually in use.
+        "gpt-6.1-sol",
+        "gpt-6-astra",
     ] {
         assert!(table.row_for(model, NOW).is_some(), "{model} is priced");
     }

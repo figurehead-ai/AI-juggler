@@ -39,6 +39,10 @@ Other facts from the Anthropic pages:
 
 | Model | Input | Output | Cached input |
 |---|---|---|---|
+| gpt-6-astra | 10.00 | 50.00 | 1.00 |
+| gpt-6.1-sol | 2.00 | 10.00 | 0.10 |
+| gpt-6-sol | 2.00 | 10.00 | 0.20 |
+| gpt-6-luna | 0.10 | 0.50 | 0.01 |
 | gpt-5.6-sol | 4.00 | 20.00 | 0.40 |
 | gpt-5.6-terra | 2.00 | 12.00 | 0.20 |
 | gpt-5.6-luna | 0.20 | 1.20 | 0.02 |
@@ -65,7 +69,7 @@ The gaps below are labelled **Inferred** where they rest on our reading rather t
 - **Pricing modifiers:** Fast mode, US-only inference (1.1×) and Batch discounts are not modelled.
 - **OpenAI long context:** requests over 272K input tokens cost more. The table has short-context rates only, so such requests are under-priced.
 - **OpenAI cache writes:** their 30-minute and 12-hour prices are not modelled (cache-write rate 0). Codex's `cache_write_input_tokens` is stored apart from input, and whether it is also inside `input_tokens` is not stated on the protocol page we read (Inferred).
-- **Codex models with no row on the page** stay unpriced. This covers older `gpt-5-codex`, `gpt-5.1-codex*`, `gpt-5.2-codex` and `codex-mini-latest`.
+- **Codex models with no row on the page** stay unpriced. This covers older `gpt-5-codex`, `gpt-5.1-codex*`, `gpt-5.2-codex` and `codex-mini-latest`, and `codex-auto-review`, which the QA oracle saw in real use (252 rows). The page has no row by that name (checked 2026-10-21).
 - **Left out of the seed:** retired models (Claude Haiku 3.5), limited-availability models (Claude Mythos) and "pro" models.
 - **Reasoning tokens:** Codex's reasoning tokens are stored apart from output (P14) and priced at the output rate.
 
