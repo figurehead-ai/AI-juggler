@@ -396,6 +396,25 @@
   two waits had already failed the same way on #67, which doesn't have
   the collector change. The collector's added work (CPU+memory refresh of
   observed trees) is zero when no tool is observed, as in that test.
+- Real bugs found by the maintainer on 0.0.8 (2026-10-20, dogfood):
+  1. With setups brought in and no session run yet, the rail listed every
+     project from their transcript history as a flat row with a hard-coded
+     "0" under "No sessions yet". It read as broken, and Claude worktrees
+     (`.claude/worktrees/…`, `~/.t3/worktrees/…`) showed as separate
+     projects. Now history-only projects are a labelled, foldable
+     "Projects" list of rows built like session rows (when, conversations,
+     accounts); worktrees map to their repository (`worktree_repo_root`,
+     at launch and in the backfill, with earlier worktree-only rows
+     removed when unreferenced); clones group by their `origin` remote.
+     Regressions: `projects_backfill_worktrees` (Rust) and
+     `rail-projects.spec.ts` (Playwright: no "0", grouping, folding
+     remembered, axe).
+  2. A 0.0.7 import that failed on one of six setups had brought in the
+     other five as copies, but its screen offered no way on, so the
+     maintainer believed nothing had come in; 0.0.8 then listed their
+     history. (The all-or-nothing screen was fixed in #76.) At the
+     maintainer's request their AI Juggler data was moved aside, not
+     deleted, for a fresh start.
 
 - **Bug record, 2026-10-20 (fixed; AJ-E1010).** An older AI Juggler that
   meets data a newer one saved (schema too new) **quit at launch with no
