@@ -363,6 +363,86 @@ fn isolation_keys_and_snippet() {
     );
 }
 
+/// ADR-0018: Codex's own default home runs as a plain `codex` does —
+/// both variables unset, in the snippet and the pure rule; any other
+/// folder (a link to `~/.codex` included) is pinned by its exact path.
+#[test]
+fn the_default_home_runs_with_its_variables_unset() {
+    let home = Path::new("/Users/you");
+    let adapter = CodexAdapter::new().with_home(home);
+    assert_eq!(adapter.isolation_env_value(&home.join(".codex")), None);
+    assert_eq!(
+        adapter.isolation_env_value(Path::new("/Users/you/.codex/")),
+        None
+    );
+    assert_eq!(
+        adapter
+            .isolation_env_value(&home.join(".codex-work"))
+            .as_deref(),
+        Some("/Users/you/.codex-work")
+    );
+    let snippet = juggler_adapter::adapter::shell_snippet(
+        &adapter,
+        &home.join(".codex"),
+        &std::collections::BTreeMap::new(),
+    )
+    .unwrap();
+    assert_eq!(
+        snippet,
+        "env -u CODEX_HOME -u CODEX_SQLITE_HOME -u CODEX_API_KEY -u OPENAI_API_KEY codex"
+    );
+    assert_eq!(
+        juggler_adapters::codex::codex_home_value_in(&home.join(".codex"), home),
+        juggler_adapter::launch::ENV_UNSET
+    );
+    assert_eq!(
+        juggler_adapters::codex::codex_home_value_in(Path::new("/Users/you/link-to-codex"), home),
+        "/Users/you/link-to-codex"
+    );
+}
+
+/// ADR-0018: adopting reads and writes nothing it shouldn't: a Codex
+/// home is accepted with its sign-in; our own copy and a non-home are
+/// refused.
+#[test]
+fn adopting_a_codex_home_checks_it_and_writes_nothing() {
+    let work = tempfile::tempdir().unwrap();
+    let home = work.path().join(".codex-work");
+    std::fs::create_dir_all(home.join("sessions")).unwrap();
+    std::fs::write(home.join("config.toml"), "").unwrap();
+    std::fs::write(
+        home.join("auth.json"),
+        r#"{"auth_mode":"chatgpt","tokens":{"refresh_token":"fixture"}}"#,
+    )
+    .unwrap();
+    let before: Vec<_> = std::fs::read_dir(&home)
+        .unwrap()
+        .flatten()
+        .map(|e| e.file_name())
+        .collect();
+    let adapter = CodexAdapter::new();
+    let outcome = adapter.adopt_account(&home).unwrap();
+    assert_eq!(outcome.files_copied, 0);
+    assert_eq!(
+        outcome.login,
+        juggler_adapter::environment::LoginProbe::LoggedIn
+    );
+    let after: Vec<_> = std::fs::read_dir(&home)
+        .unwrap()
+        .flatten()
+        .map(|e| e.file_name())
+        .collect();
+    assert_eq!(before, after, "nothing added");
+
+    let ours = work.path().join("ours");
+    adapter.prepare_account(&ours).unwrap();
+    std::fs::write(ours.join("config.toml"), "").unwrap();
+    assert!(adapter.adopt_account(&ours).is_err(), "our own copy");
+    let empty = work.path().join("empty");
+    std::fs::create_dir_all(&empty).unwrap();
+    assert!(adapter.adopt_account(&empty).is_err(), "not a Codex home");
+}
+
 #[test]
 fn keychain_account_matches_codex_naming() {
     let dir = tempfile::tempdir().unwrap();

@@ -125,3 +125,13 @@ Two more problems from the same session:
   account row, the launch overlay file, and the result screen.
   `account_import` takes the mode, and Codex setups get the same choice
   when their adapter supports it.
+
+## Update — Codex (2026-10-20, AJ-E1306)
+
+Codex homes get the same choice. In place, `CODEX_HOME` and
+`CODEX_SQLITE_HOME` are the exact folder; Codex's own default `~/.codex`
+launches with both unset, as a plain `codex` does (the counterpart of
+`~/.claude` without `CLAUDE_CONFIG_DIR`). Nothing is written into the
+home — the model goes in as a flag. For Codex, in place is also the
+safer default: its refresh token is single-use, so a copied `auth.json`
+would sign one of the two out, and copies never carry it.

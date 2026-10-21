@@ -246,13 +246,21 @@ describe("D-25 first run — the flow", () => {
     expect(queryByTestId("first-run-signin")).toBeNull();
   });
 
-  it("a tool that can't be used in place (Codex, for now) comes in as a copy, with no choice shown", async () => {
+  it("Codex added on its own offers the same choice, worded for Codex (ADR-0018)", async () => {
     w().__AIJ_SCAN_REPORT__ = { ...SCAN, installs: [found("/Users/you/.codex", "vendor-default", { harness: "codex" } as Partial<DiscoveredInfo>)] };
-    const { findByTestId, queryByTestId } = render(<FirstRun mode="add" provider="codex" onDone={() => null} openLoginTerminal={() => null} />);
+    const bridge = await import("../lib/bridge");
+    const spy = vi.spyOn(bridge, "accountImport");
+    const { findByTestId, getByTestId } = render(<FirstRun mode="add" provider="codex" onDone={() => null} openLoginTerminal={() => null} />);
     const list = await findByTestId("first-run-found");
-    expect(queryByTestId("first-run-placement")).toBeNull();
-    expect(list.textContent).toContain("makes its own copy of each");
-    expect(list.textContent).not.toContain("Claude setups");
+    const inPlace = within(getByTestId("first-run-placement-in_place")).getByRole("radio") as HTMLInputElement;
+    expect(inPlace.checked).toBe(true);
+    expect(getByTestId("first-run-placement-in_place").textContent).toContain("as when you run Codex yourself");
+    expect(list.textContent).not.toContain("Claude app");
+    await act(async () => {
+      fireEvent.click(getByTestId("first-run-bring-in"));
+    });
+    expect(spy.mock.calls.map((call) => [call[0], call[6]])).toEqual([["codex", true]]);
+    spy.mockRestore();
   });
 
   it("one failing never blocks the rest: Continue with the ones that came in", async () => {
@@ -655,31 +663,26 @@ describe("AJ-E1301 — Codex setups in first run", () => {
     );
   });
 
-  it("Codex rows always come in as copies; the sign-in step names each tool", async () => {
+  it("Codex rows come in where they are too, by default", async () => {
     w().__AIJ_SCAN_REPORT__ = {
       ...SCAN,
       installs: [...SCAN.installs, codex("/Users/you/.codex", "vendor-default")],
     };
     const bridge = await import("../lib/bridge");
     const spy = vi.spyOn(bridge, "accountImport");
-    const { findByTestId, getByTestId } = render(
+    const { findByTestId, getByTestId, queryByTestId } = render(
       <FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />,
     );
     await findByTestId("first-run-group-codex");
-    expect(getByTestId("first-run-codex-copies").textContent).toContain("Codex setups always come in as copies");
-    // The subtitle says which ones are used where they are.
-    expect(getByTestId("first-run-found").textContent).toContain(
-      "uses your Claude Code setups where they are, so they stay signed in and keep their history, and makes its own copy of each Codex one",
-    );
-    // Default "where they are": Claude rows in place, the Codex row a copy.
+    // Every tool on the list can be used where it is: no copies-only note.
+    expect(queryByTestId("first-run-copy-only")).toBeNull();
+    expect(getByTestId("first-run-found").textContent).toContain("AI Juggler uses each one where it is");
+    expect(getByTestId("first-run-placement-in_place").textContent).toContain("as wherever you use them now");
     await act(async () => {
       fireEvent.click(getByTestId("first-run-bring-in"));
     });
-    const codexCall = spy.mock.calls.find((call) => call[0] === "codex");
-    expect(codexCall?.[6]).toBe(false);
-    expect(spy.mock.calls.some((call) => call[0] === "claude-code" && call[6] === true)).toBe(true);
-    const signin = await findByTestId("first-run-signin");
-    expect(signin.textContent).toContain("Codex's own sign-in (OpenAI)");
+    expect(spy.mock.calls.find((call) => call[0] === "codex")?.[6]).toBe(true);
+    expect(spy.mock.calls.every((call) => call[6] === true)).toBe(true);
     spy.mockRestore();
   });
 
@@ -750,7 +753,7 @@ describe("AJ-E1301 — Codex setups in first run", () => {
     );
   });
 
-  it("a Codex-only first run offers no placement choice and says copies", async () => {
+  it("a Codex-only first run offers the choice for Codex and no Claude note", async () => {
     w().__AIJ_SCAN_REPORT__ = { ...SCAN, installs: [codex("/Users/you/.codex", "vendor-default")] };
     // Neither tool installed: only Codex's note, over its own rows.
     w().__AIJ_PROVIDER_INSTALLS__ = [
@@ -761,22 +764,21 @@ describe("AJ-E1301 — Codex setups in first run", () => {
     const spy = vi.spyOn(bridge, "accountImport");
     const view = render(<FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />);
     await view.findByTestId("first-run-group-codex");
-    expect(view.queryByTestId("first-run-placement")).toBeNull();
-    expect(view.queryByTestId("first-run-codex-copies")).toBeNull();
+    expect(view.getByTestId("first-run-placement-in_place").textContent).toContain("as when you run Codex yourself");
+    expect(view.queryByTestId("first-run-copy-only")).toBeNull();
     const text = view.getByTestId("first-run-found").textContent ?? "";
-    expect(text).toContain("AI Juggler makes its own copy of each; your originals are never changed");
-    expect(text).not.toContain("where it is");
+    expect(text).toContain("AI Juggler uses each one where it is");
+    expect(text).not.toContain("Claude app");
     expect(await view.findByTestId("first-run-no-codex")).toBeTruthy();
     expect(view.queryByTestId("first-run-no-cli")).toBeNull();
-    expect(text).not.toContain("Claude Code itself isn't installed");
     await act(async () => {
       fireEvent.click(view.getByTestId("first-run-bring-in"));
     });
-    expect(spy.mock.calls.map((call) => [call[0], call[6]])).toEqual([["codex", false]]);
+    expect(spy.mock.calls.map((call) => [call[0], call[6]])).toEqual([["codex", true]]);
     spy.mockRestore();
   });
 
-  it("a failed Codex copy has no 'where it is' retry, and Try again stays a copy", async () => {
+  it("a failed Codex copy can come in where it is instead", async () => {
     w().__AIJ_SCAN_REPORT__ = {
       ...SCAN,
       installs: [...SCAN.installs, codex("/Users/you/.codex", "vendor-default")],
@@ -784,23 +786,22 @@ describe("AJ-E1301 — Codex setups in first run", () => {
     w().__AIJ_IMPORT_FAIL_PATHS__ = ["/Users/you/.codex"];
     const bridge = await import("../lib/bridge");
     const spy = vi.spyOn(bridge, "accountImport");
-    const { findByTestId, getByTestId, queryByTestId } = render(
+    const { findByTestId, getByTestId } = render(
       <FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />,
     );
     await findByTestId("first-run-group-codex");
+    fireEvent.click(within(getByTestId("first-run-placement-copy")).getByRole("radio"));
     await act(async () => {
       fireEvent.click(getByTestId("first-run-bring-in"));
     });
     const failed = await findByTestId("first-run-failed");
     expect(failed.textContent).toContain("Codex");
-    expect(queryByTestId("first-run-use-in-place")).toBeNull();
-    expect(failed.textContent).not.toContain("Use it where it is instead");
     spy.mockClear();
-    w().__AIJ_IMPORT_FAIL_PATHS__ = [];
     await act(async () => {
-      fireEvent.click(getByTestId("first-run-retry"));
+      fireEvent.click(getByTestId("first-run-use-in-place"));
     });
-    expect(spy.mock.calls.map((call) => [call[0], call[6]])).toEqual([["codex", false]]);
+    expect(spy.mock.calls.map((call) => [call[0], call[6]])).toEqual([["codex", true]]);
     spy.mockRestore();
   });
+
 });

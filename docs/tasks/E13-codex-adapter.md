@@ -124,3 +124,21 @@ ZCode follows the same five steps later (its own epic).
 **Files to touch**: `crates/juggler-handover/data/fidelity-register.json`, `docs/SPEC.md`, release notes.
 **Research basis**: AJ-E808, AJ-E210.
 **Handover note**: Live runs need real credentials — only the maintainer runs them; agents never sign in.
+
+### AJ-E1306 Use Codex homes where they are (ADR-0018) | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E1302, AJ-E1024
+**Goal**: A Codex home can be brought in where it is, like a Claude Code setup: no copy, no second sign-in, one history.
+**User story**: As someone with `~/.codex` (and maybe `~/.codex-work`), I bring them in and AI Juggler runs my own homes — I don't sign in again, and Codex outside AI Juggler sees the same sessions.
+**Requirements**:
+1. `CodexAdapter::adopt_account` accepts a real Codex home (config, `auth.json` or sessions present) that is not one of AI Juggler's copies, reports its sign-in from the shape of `auth.json` only, and writes nothing.
+2. Launches pin `CODEX_HOME` and `CODEX_SQLITE_HOME` to the exact folder; Codex's default `~/.codex` runs with both unset, as a plain `codex` does (Codex 0.163.0 resolves an unset home to `~/.codex` and names its Keychain item for the canonical home either way). The copyable command matches. Inherited API keys stay unset.
+3. Nothing of AI Juggler's goes into the folder — no marker, no `config.toml` edit; the model is a flag. Usage and rollout reading are unchanged. A desktop launch never prepares (marks) a folder used where it is.
+4. The bring-in choice is per tool (`canUseInPlace`): Codex setups get "Use them where they are", worded for Codex; a failed Codex copy offers "Use it where it is instead"; a Codex copy offers "Use the original instead" (the same command as Claude's).
+5. The isolation checklist describes an in-place Codex account honestly (both variables, or "unset" for the default home).
+**UI/UX reasoning**: ADR-0018 — the user decides, in plain view; a refresh token is single-use, so a copied sign-in goes stale or signs the original out, which makes in place the safer default for Codex.
+**Performance budget**: bring-in in place is metadata-only.
+**Quality gates**: `just verify`; clippy (both feature sets); vitest; full Playwright; a11y gate; visual gate.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1306/manifest.md`.
+**Visual testing**: gallery `use-original-codex-1280x800-{dark,light}.png`.
+**Files to touch**: `crates/juggler-adapters/src/{codex.rs,codex_environment.rs,claude_environment.rs}`, `crates/juggler-app/src/commands.rs`, `ui/src/lib/providers.ts`, `ui/src/screens/{FirstRun,Profiles}.tsx`.
+**Research basis**: `docs/research/codex.md` §10; Codex `rust-v0.163.0` `utils/home-dir/src/lib.rs`, `login/src/auth/storage.rs` `compute_store_key`, `core/src/config/mod.rs` (`sqlite_home` beats `CODEX_SQLITE_HOME`).
+**Handover note**: Live check (AJ-E1305): bring `~/.codex` in place, start a session in AI Juggler, see it in `codex resume` outside.

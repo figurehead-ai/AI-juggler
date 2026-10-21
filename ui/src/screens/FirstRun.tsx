@@ -32,7 +32,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { Button } from "../components/primitives";
-import { ownSignIn, providerDisplayName } from "../lib/providers";
+import { canUseInPlace, ownSignIn, providerDisplayName, sameAsWords } from "../lib/providers";
 import { funnelEvent, funnelStep, reasonCode } from "../lib/funnel";
 import {
   accountImport,
@@ -232,18 +232,22 @@ export function outcomeWords({
   return parts.join(" ");
 }
 
-const PLACEMENTS: { id: Placement; title: string; detail: string }[] = [
-  {
-    id: "in_place",
-    title: "Use them where they are",
-    detail: "Same sign-in, settings and history as your Claude app. AI Juggler adds nothing of its own to them.",
-  },
-  {
-    id: "copy",
-    title: "Make separate copies",
-    detail: "A fresh copy for AI Juggler only; your originals stay as they are. Each copy needs one sign-in.",
-  },
-];
+/** The two ways in; `tools` are the ones that can be used where they
+ * are (ADR-0018), which name what "the same" is the same as. */
+function placements(tools: string[]): { id: Placement; title: string; detail: string }[] {
+  return [
+    {
+      id: "in_place",
+      title: "Use them where they are",
+      detail: `Same sign-in, settings and history ${sameAsWords(tools)}. AI Juggler adds nothing of its own to them.`,
+    },
+    {
+      id: "copy",
+      title: "Make separate copies",
+      detail: "A fresh copy for AI Juggler only; your originals stay as they are. Each copy needs one sign-in.",
+    },
+  ];
+}
 
 function FoundStep({
   report,
@@ -282,7 +286,6 @@ function FoundStep({
   );
   // Named by Provider when they are all one kind; mixed, just "setups".
   const codexCount = installs.filter((found) => found.harness === "codex").length;
-  const claudeCount = installs.filter((found) => found.harness === "claude-code").length;
   // Rows of the chosen tool itself (its "not installed" note covers these).
   const ownCount = installs.filter((found) => found.harness === provider).length;
   // Codex's install row: the chosen tool's when adding Codex, else the
@@ -311,18 +314,17 @@ function FoundStep({
   const [showLooked, setShowLooked] = useState(false);
 
   // ADR-0018: only a tool whose adapter can use a folder where it is
-  // offers it (Codex comes in as a copy until its adapter can) — and only
-  // when one of its setups is on the list: a Codex-only first run has no
-  // choice to make.
-  const canInPlace = provider === "claude-code" && claudeCount > 0;
+  // offers it — and only when one of its setups is on the list.
+  const inPlaceTools = [...new Set(installs.map((found) => found.harness).filter(canUseInPlace))];
+  const copyOnlyTools = [...new Set(installs.map((found) => found.harness).filter((id) => !canUseInPlace(id)))];
+  const canInPlace = inPlaceTools.length > 0;
   const [chosenPlacement, setPlacement] = useState<Placement>("in_place");
   const placement: Placement = canInPlace ? chosenPlacement : "copy";
   // A failed copy can be retried "where it is" on its own.
   const [rowPlacement, setRowPlacement] = useState<Record<string, Placement>>({});
-  // Only Claude Code setups can be used where they are; a Codex row in
-  // first run's every-tool list always comes in as a copy (AJ-E1301).
+  // A tool that can't be used where it is always comes in as a copy.
   const placementOf = (found: DiscoveredInfo): Placement =>
-    found.harness === "claude-code" ? (rowPlacement[found.path] ?? placement) : "copy";
+    canUseInPlace(found.harness) ? (rowPlacement[found.path] ?? placement) : "copy";
   // Sign-ins of the ones that came in survive retries.
   const signinsRef = useRef<Map<string, Signin>>(new Map());
   const [stopped, setStopped] = useState(false);
@@ -425,11 +427,9 @@ function FoundStep({
         <p className="max-w-2xl text-[15px] leading-relaxed text-muted">
           {installs.length === 0
             ? `Add your first account and AI Juggler sets it up in its own folder. You'll sign in with ${ownSignIn(provider)}.`
-            : placement === "in_place" && codexCount > 0
-              ? "Pick the ones to bring in. AI Juggler uses your Claude Code setups where they are, so they stay signed in and keep their history, and makes its own copy of each Codex one; your originals are never changed."
-              : placement === "in_place"
-                ? "Pick the ones to bring in. AI Juggler uses each one where it is, so it stays signed in and keeps its history, the same as everywhere else you use it."
-                : "Pick the ones to bring in. AI Juggler makes its own copy of each; your originals are never changed, and you can keep using them as before."}
+            : placement === "in_place"
+              ? "Pick the ones to bring in. AI Juggler uses each one where it is, so it stays signed in and keeps its history, the same as everywhere else you use it."
+              : "Pick the ones to bring in. AI Juggler makes its own copy of each; your originals are never changed, and you can keep using them as before."}
         </p>
       </div>
 
@@ -547,7 +547,7 @@ function FoundStep({
 
       {installs.length > 0 && !showOutcome && canInPlace && (
         <div role="radiogroup" aria-label="How AI Juggler uses them" className="grid gap-2 sm:grid-cols-2" data-testid="first-run-placement">
-          {PLACEMENTS.map((option) => (
+          {placements(inPlaceTools).map((option) => (
             <label
               key={option.id}
               className={
@@ -578,9 +578,9 @@ function FoundStep({
           ))}
         </div>
       )}
-      {installs.length > 0 && !showOutcome && canInPlace && codexCount > 0 && (
-        <p className="-mt-3 text-xs text-muted" data-testid="first-run-codex-copies">
-          Codex setups always come in as copies.
+      {installs.length > 0 && !showOutcome && canInPlace && copyOnlyTools.length > 0 && (
+        <p className="-mt-3 text-xs text-muted" data-testid="first-run-copy-only">
+          {copyOnlyTools.map(providerDisplayName).join(" and ")} setups always come in as copies.
         </p>
       )}
 
@@ -607,7 +607,7 @@ function FoundStep({
                     <span className="font-medium text-ink">{labelOf(found)}</span>
                     <span className="block text-xs leading-relaxed text-danger">{progress[found.path]?.error}</span>
                   </span>
-                  {progress[found.path]?.placement === "copy" && found.harness === "claude-code" && (
+                  {progress[found.path]?.placement === "copy" && canUseInPlace(found.harness) && (
                     <button
                       type="button"
                       className="shrink-0 text-xs text-accent-hi hover:underline"

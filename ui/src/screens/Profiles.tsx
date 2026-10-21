@@ -8,7 +8,7 @@ import { BetaMatrix } from "../components/BetaMatrix";
 import { ExpertSetup } from "../components/ExpertSetup";
 import { EnvOverlayEditor } from "../components/EnvOverlayEditor";
 import { AccountRunway, runwayLines } from "../components/AccountRunway";
-import { ownSignIn, providerDisplayName } from "../lib/providers";
+import { canUseInPlace, ownSignIn, providerDisplayName, sameAsWords } from "../lib/providers";
 import {
   accountUseOriginal,
   accountsList,
@@ -309,7 +309,7 @@ function AccountCard({
               {placementWords(account) && ` · ${placementWords(account)}`}
             </span>
             {/* ADR-0018: a copy can switch to the folder it came from. */}
-            {account.import_source_path && !account.in_place && account.provider === "claude-code" && (
+            {account.import_source_path && !account.in_place && canUseInPlace(account.provider) && (
               <button
                 type="button"
                 className="shrink-0 text-accent-hi hover:underline"
@@ -482,7 +482,7 @@ function UseOriginalModal({
           {where}
         </p>
         <p className="leading-relaxed text-muted">
-          {account.label} will use your original folder: the same sign-in, settings and history as your Claude app.
+          {account.label} will use your original folder: the same sign-in, settings and history {sameAsWords([account.provider])}.
           AI Juggler's copy stays where it is (nothing is deleted); sessions you started in the copy stay in the copy, and
           won't resume from the original.
         </p>

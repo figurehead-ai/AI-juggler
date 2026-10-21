@@ -31,7 +31,8 @@ use juggler_adapter::environment::{
 };
 
 use crate::claude_environment::{
-    Layout, MAX_IMPORT_BYTES, import_with_layout, inspect_with_layout, installs_from,
+    Layout, MAX_IMPORT_BYTES, adopt_with_layout, import_with_layout, inspect_with_layout,
+    installs_from,
 };
 use crate::codex::CODEX_ID;
 
@@ -114,6 +115,22 @@ pub fn inspect_codex_source(
     login_probe: &dyn Fn(&Path) -> LoginProbe,
 ) -> Result<SourceInspect, juggler_adapter::AdapterError> {
     inspect_with_layout(&CODEX_LAYOUT, source, login_probe)
+}
+
+/// ADR-0018: use an existing Codex home where it is. Checks it is a
+/// Codex home and not one of AI Juggler's own copies, and reports its
+/// sign-in from `auth.json`'s shape — read-only: nothing is copied,
+/// marked or written, and `auth.json` stays the one copy of its
+/// single-use refresh token.
+///
+/// # Errors
+///
+/// [`juggler_adapter::AdapterError::AccountDir`] with a plain reason.
+pub fn adopt_codex_home(
+    source: &Path,
+    login_probe: &dyn Fn(&Path) -> LoginProbe,
+) -> Result<ImportOutcome, juggler_adapter::AdapterError> {
+    adopt_with_layout(&CODEX_LAYOUT, source, login_probe)
 }
 
 /// Copy-imports a Codex home into a fresh managed home.

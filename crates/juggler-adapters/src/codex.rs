@@ -9,6 +9,14 @@
 //! would move the SQLite state elsewhere — shared between accounts — so
 //! every launch pins it to the account's own directory too.
 //!
+//! In place (ADR-0018): an existing home is used where it is, at the
+//! exact path the scan found. Codex's own default, `~/.codex`, launches
+//! with both variables unset, as a plain `codex` runs it — Codex then
+//! resolves the home (and `sqlite_home` from `config.toml`, which beats
+//! the variable) exactly as it does for the user. The Keychain item, when
+//! that store is chosen, is named for the canonical home either way
+//! (`login/src/auth/storage.rs` `compute_store_key`).
+//!
 //! Every terminal launch passes `--no-daemon`: since 0.157 the TUI starts
 //! (or attaches to) a background app-server per `CODEX_HOME` that
 //! outlives the TUI — a process Juggler did not spawn and could not stop
@@ -72,8 +80,8 @@ const NO_DAEMON: &str = "--no-daemon";
 #[derive(Debug, Clone, Default)]
 pub struct CodexAdapter {
     bin: Option<PathBuf>,
-    /// The user's home for the shell-file scan (tests/fixtures; `None`
-    /// reads `$HOME`).
+    /// The user's home for the shell-file scan and for recognising
+    /// Codex's default `~/.codex` (tests/fixtures; `None` reads `$HOME`).
     home: Option<PathBuf>,
 }
 
@@ -162,7 +170,7 @@ impl CodexAdapter {
     /// [`AdapterError::InvalidLaunch`] when no codex binary resolves.
     pub fn login_spec_inherent(&self, state_dir: &Path) -> Result<LaunchSpec, AdapterError> {
         let bin = self.require_bin()?;
-        let mut env = home_env(state_dir);
+        let mut env = home_env(state_dir, self.user_home().as_deref());
         // The vendor sign-in signs THIS account in, never a key's owner.
         unset_inherited_keys(&mut env);
         Ok(LaunchSpec {
@@ -172,6 +180,11 @@ impl CodexAdapter {
             cwd: state_dir.to_path_buf(),
             needs_pty: true,
         })
+    }
+
+    /// The user's home (`with_home` in tests, else `$HOME`).
+    fn user_home(&self) -> Option<PathBuf> {
+        self.home.clone().or_else(home_dir)
     }
 
     fn require_bin(&self) -> Result<PathBuf, AdapterError> {
@@ -481,13 +494,35 @@ fn scan_probe(path: &Path) -> LoginProbe {
 }
 
 /// The isolation overlay: the home, and the SQLite home pinned inside it
-/// so an inherited `CODEX_SQLITE_HOME` can never join two accounts.
-fn home_env(state_dir: &Path) -> EnvMap {
-    let dir = state_dir.to_string_lossy().into_owned();
+/// so an inherited `CODEX_SQLITE_HOME` can never join two accounts. For
+/// Codex's default `~/.codex` both are unset instead (see module docs).
+fn home_env(state_dir: &Path, home: Option<&Path>) -> EnvMap {
+    let value = home.map_or_else(
+        || state_dir.to_string_lossy().into_owned(),
+        |home| codex_home_value_in(state_dir, home),
+    );
     let mut env = EnvMap::new();
-    env.insert(ENV_CODEX_HOME.to_string(), dir.clone());
-    env.insert(ENV_SQLITE_HOME.to_string(), dir);
+    env.insert(ENV_CODEX_HOME.to_string(), value.clone());
+    env.insert(ENV_SQLITE_HOME.to_string(), value);
     env
+}
+
+/// Whether `dir` is Codex's own default home, `<home>/.codex`, by the
+/// exact path (a link to it is a different string).
+#[must_use]
+pub fn is_codex_default_dir_in(dir: &Path, home: &Path) -> bool {
+    Path::new(dir.to_string_lossy().trim_end_matches('/')) == home.join(".codex")
+}
+
+/// The `CODEX_HOME` (and `CODEX_SQLITE_HOME`) value for a folder: its
+/// exact path, or the env-unset marker for Codex's default home.
+#[must_use]
+pub fn codex_home_value_in(dir: &Path, home: &Path) -> String {
+    if is_codex_default_dir_in(dir, home) {
+        juggler_adapter::launch::ENV_UNSET.to_owned()
+    } else {
+        dir.to_string_lossy().into_owned()
+    }
 }
 
 impl HarnessAdapter for CodexAdapter {
@@ -559,7 +594,7 @@ impl HarnessAdapter for CodexAdapter {
         // Codex refuses a CODEX_HOME that does not exist (verified on
         // 0.163.0) — the directory itself is the whole preparation.
         prepare_managed_dir_for(state_dir, CODEX_ID)?;
-        Ok(home_env(state_dir))
+        Ok(home_env(state_dir, self.user_home().as_deref()))
     }
 
     fn launch_spec(
@@ -576,7 +611,7 @@ impl HarnessAdapter for CodexAdapter {
             .unwrap_or_else(|| cwd.to_path_buf());
         // Launch-settings overrides first, isolation LAST (AJ-E309).
         let mut env: EnvMap = profile.settings_overlay.env.clone();
-        env.extend(home_env(&account.state_dir));
+        env.extend(home_env(&account.state_dir, self.user_home().as_deref()));
         // An API key in the environment would bill every managed account
         // to that key, whatever it signed in as: unset for the launch —
         // from Launch settings and from what the app itself inherited
@@ -697,6 +732,12 @@ impl HarnessAdapter for CodexAdapter {
         crate::codex_environment::import_codex_home(source, dest, &scan_probe)
     }
 
+    /// ADR-0018: a Codex home used where it is — checked, probed by the
+    /// shape of its `auth.json`, never written.
+    fn adopt_account(&self, source: &Path) -> Result<ImportOutcome, AdapterError> {
+        crate::codex_environment::adopt_codex_home(source, &scan_probe)
+    }
+
     fn inspect_source(
         &self,
         source: &Path,
@@ -720,6 +761,16 @@ impl HarnessAdapter for CodexAdapter {
     /// the copyable snippet (an inherited key would bill every account).
     fn launch_unset_keys(&self) -> &'static [&'static str] {
         INHERITED_KEYS
+    }
+
+    /// `None` for Codex's default `~/.codex`: it runs with `CODEX_HOME`
+    /// and `CODEX_SQLITE_HOME` unset, as a plain `codex` does.
+    fn isolation_env_value(&self, state_dir: &Path) -> Option<String> {
+        let value = self.user_home().map_or_else(
+            || state_dir.to_string_lossy().into_owned(),
+            |home| codex_home_value_in(state_dir, &home),
+        );
+        (value != juggler_adapter::launch::ENV_UNSET).then_some(value)
     }
 
     /// Both the home and the SQLite home point at the Account's folder —
