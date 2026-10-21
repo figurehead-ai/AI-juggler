@@ -330,6 +330,11 @@ pub fn window_state_name(
     }
 }
 
+/// A Provider's name in words ("Claude Code", "Codex").
+pub(crate) fn provider_name(provider: &str) -> String {
+    provider_display(provider).0
+}
+
 /// AJ-E610: the subscription clock's rendered state — a calendar-style
 /// date line, never merged with the window clock.
 #[derive(Clone, PartialEq, Debug, serde::Serialize)]

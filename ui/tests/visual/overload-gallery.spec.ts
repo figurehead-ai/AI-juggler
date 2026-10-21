@@ -7,7 +7,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { allStatuses } from "./fixtures";
+import { allStatuses, openRailList } from "./fixtures";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/74-overload");
 const T0 = 1_728_800_000_000;
@@ -24,6 +24,7 @@ const MEMORY = {
   subject_estimate: false,
   // The backend sends only what's high: a memory alert carries no CPU.
   subject_cpu: null,
+  subject_windows: null,
   since_ms: T0 - 45_000,
 };
 const CPU = {
@@ -37,6 +38,7 @@ const CPU = {
   subject_bytes: null,
   subject_estimate: false,
   subject_cpu: 140,
+  subject_windows: null,
   since_ms: T0 - 150_000,
 };
 const HISTORY = [
@@ -67,6 +69,21 @@ async function seed(page: Page, machine: string, alerts: unknown[], theme: "dark
   await page.goto("/");
 }
 
+/** Opens a session from the rail: the screens the banner is for. */
+async function openSession(page: Page, title: RegExp) {
+  await openRailList(page);
+  await page.getByTestId("instance-board").getByRole("button", { name: title }).first().click();
+}
+
+/** The banner takes its own space: it ends where the screen begins. */
+async function bannerAbove(page: Page) {
+  const banner = await page.getByTestId("notification-band").boundingBox();
+  const screen = await page.locator("[data-testid='notification-band'] + div").boundingBox();
+  expect(banner && screen).toBeTruthy();
+  expect(banner!.height).toBeGreaterThan(0);
+  expect(banner!.y + banner!.height).toBeLessThanOrEqual(screen!.y + 0.5);
+}
+
 async function axeClean(page: Page) {
   const results = await new AxeBuilder({ page }).analyze();
   const bad = results.violations.filter((v) => v.impact === "critical" || v.impact === "serious");
@@ -79,13 +96,32 @@ for (const theme of ["dark", "light"] as const) {
     const item = page.getByTestId("home-mac-pressure");
     await expect(item).toContainText("Your Mac is under memory pressure");
     await expect(item).toContainText("ai-juggler is using 3.2 GB");
-    await expect(page.getByTestId("machine-alert")).toContainText("Your Mac is under memory pressure — macOS reports memory pressure");
+    // Home says it once, in Needs you: no banner, a headline that points
+    // there (the 0.0.12 report).
+    await expect(page.getByTestId("home-scroll").getByRole("heading", { level: 1 })).toHaveText("Your Mac needs a look");
+    await expect(page.getByTestId("machine-alert")).toHaveCount(0);
+    await expect(page.getByText("Your Mac is under memory pressure", { exact: true })).toHaveCount(1);
     await page.screenshot({ path: resolve(OUT, `memory-pressure-1280x800-${theme}.png`) });
     await axeClean(page);
   });
 
+  // The 0.0.12 report: the banner overlapped and clipped the headline
+  // under it. On the other screens it takes its own space, at any width.
+  for (const width of [1280, 1024]) {
+    test(`overload — the banner above a session, ${width} — ${theme}`, async ({ page }) => {
+      await seed(page, "tight", [MEMORY], theme);
+      await page.setViewportSize({ width, height: 800 });
+      await openSession(page, /Fake Desk app Running/);
+      await expect(page.getByTestId("machine-alert")).toContainText("Your Mac is under memory pressure — macOS reports memory pressure");
+      await bannerAbove(page);
+      await page.screenshot({ path: resolve(OUT, `banner-above-session-${width}x800-${theme}.png`) });
+      await axeClean(page);
+    });
+  }
+
   test(`overload — busy processor, the Claude app — ${theme}`, async ({ page }) => {
     await seed(page, "tight", [CPU], theme);
+    await openSession(page, /Fake Desk app Running/);
     await expect(page.getByTestId("machine-alert")).toContainText("The Claude app is using CPU 140%");
     await page.screenshot({ path: resolve(OUT, `busy-cpu-1280x800-${theme}.png`) });
     // Told once: dismissing clears it, and nothing else is offered.

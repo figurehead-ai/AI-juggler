@@ -18,6 +18,8 @@ import type { ThisMacInfo } from "../types/generated/ThisMacInfo";
 import type { OverloadAlertInfo } from "../types/generated/OverloadAlertInfo";
 import type { ToolTreeInfo } from "../types/generated/ToolTreeInfo";
 import type { ToolTotalsInfo } from "../types/generated/ToolTotalsInfo";
+import type { ToolGroupInfo } from "../types/generated/ToolGroupInfo";
+import { providerDisplayName } from "./providers";
 
 export type { MachineHealthInfo, MachinePointInfo, RoomReasonInfo };
 
@@ -132,11 +134,11 @@ function previewAlerts(sessionId: string | null): OverloadAlertInfo[] {
   const kind = previewParam("aij_alert");
   if (kind === "memory")
     return [
-      { key: "memory_pressure", kind: "memory_pressure", title: "Your Mac is under memory pressure", detail: "macOS reports memory pressure", session_id: sessionId, place: null, subject_bytes: 3_200_000_000, subject_estimate: false, subject_cpu: null, since_ms: Date.now() - 45_000 },
+      { key: "memory_pressure", kind: "memory_pressure", title: "Your Mac is under memory pressure", detail: "macOS reports memory pressure", session_id: sessionId, place: null, subject_bytes: 3_200_000_000, subject_estimate: false, subject_cpu: null, subject_windows: null, since_ms: Date.now() - 45_000 },
     ];
   if (kind === "cpu")
     return [
-      { key: "cpu", kind: "cpu", title: "The processor has been flat out for minutes", detail: "97% busy for over two minutes", session_id: null, place: "desktop", subject_bytes: null, subject_estimate: false, subject_cpu: 140, since_ms: Date.now() - 150_000 },
+      { key: "cpu", kind: "cpu", title: "The processor has been flat out for minutes", detail: "97% busy for over two minutes", session_id: null, place: "desktop", subject_bytes: null, subject_estimate: false, subject_cpu: 140, subject_windows: null, since_ms: Date.now() - 150_000 },
     ];
   return [];
 }
@@ -194,6 +196,12 @@ export function mockHeavyNote(cpu: number | null, rss: number): string | null {
   return parts.length ? parts.join(" · ") : null;
 }
 
+/** CPU summed as Home's rows count it (100% is one core); null while any
+ * tree is unmeasured. */
+function oneCore(trees: ToolTreeInfo[]): number | null {
+  return trees.every((tree) => tree.cpu_pct !== null) ? trees.reduce((sum, tree) => sum + (tree.cpu_pct ?? 0), 0) : null;
+}
+
 function totals(trees: ToolTreeInfo[], cores: number): ToolTotalsInfo {
   const measured = trees.every((tree) => tree.cpu_pct !== null);
   return {
@@ -231,11 +239,35 @@ export function mockThisMac(
       memory_estimate: false,
     }));
   const all = [...ours, ...observed].sort((a, b) => b.rss_bytes - a.rss_bytes);
+  // As the backend: our sessions by Provider (heaviest first), then the
+  // Claude app, then claude in a terminal.
+  const providers = new Map<string, ToolTreeInfo[]>();
+  for (const tree of ours) {
+    const provider = live.find((session) => session.id === tree.session_id)?.provider ?? "claude-code";
+    providers.set(provider, [...(providers.get(provider) ?? []), tree]);
+  }
+  const byTool: ToolGroupInfo[] = [...providers.entries()]
+    .map(([provider, trees]) => ({
+      tool: provider,
+      label: providerDisplayName(provider),
+      ours: true,
+      totals: totals(trees, machine.cores),
+      cpu_one_core_pct: oneCore(trees),
+    }))
+    .sort((a, b) => b.totals.rss_bytes - a.totals.rss_bytes);
+  for (const [place, label] of [
+    ["desktop", "Claude app"],
+    ["terminal", "claude in a terminal"],
+  ] as const) {
+    const trees = observed.filter((tree) => tree.place === place);
+    if (trees.length > 0) byTool.push({ tool: place, label, ours: false, totals: totals(trees, machine.cores), cpu_one_core_pct: oneCore(trees) });
+  }
   return {
     machine,
     tools: totals(all, machine.cores),
     ours: totals(ours, machine.cores),
     theirs: totals(observed, machine.cores),
+    by_tool: byTool,
     top: all.slice(0, 3),
     heavy: all.filter((tree) => tree.heavy_note !== null),
     leftover_processes: leftovers[0],
@@ -435,6 +467,23 @@ export function alertSubject(alert: OverloadAlertInfo, nameOf: (sessionId: strin
   ].filter((figure): figure is string => figure !== null);
   if (figures.length === 0) return null;
   const what = figures.join(" and ");
+  // A tool AI Juggler didn't start is named as a whole: its windows'
+  // figure, and how many it sums (the 0.0.12 report).
+  const windows = (alert.subject_windows ?? 0) > 1 ? ` across ${alert.subject_windows} windows` : "";
   // A session's name keeps its own case ("feat/read-model").
-  return `${who} is using ${what}`;
+  return `${who} is using ${what}${windows}`;
+}
+
+/** The one source of a machine alert's words — the banner on other
+ * screens and Home's Needs you say exactly this (the 0.0.12 report). */
+export function alertWords(
+  alerts: OverloadAlertInfo[],
+  nameOf: (sessionId: string) => string | null,
+): { title: string; detail: string } | null {
+  const first = alerts[0];
+  if (!first) return null;
+  return {
+    title: first.title,
+    detail: [reasonSentence(alerts.map((alert) => alert.detail)), alertSubject(first, nameOf)].filter(Boolean).join(". "),
+  };
 }

@@ -25,7 +25,7 @@ import { hueOf } from "../components/indicator";
 import { MorningSummary } from "../components/MorningSummary";
 import { ThisMacPanel } from "../components/ThisMacPanel";
 import { measured, resetWords, tokenWords } from "../lib/quotaWindow";
-import { alertSubject, reasonSentence, type ThisMacInfo } from "../lib/machine";
+import { alertWords, reasonSentence, type ThisMacInfo } from "../lib/machine";
 import { LegendPopover } from "../components/LegendPopover";
 import { parkedWords } from "../lib/parked";
 import { noLimitsWords, reportsLimits } from "../lib/providers";
@@ -347,10 +347,7 @@ export function HomeScreen({
     ? null
     : machineAlerts.length > 0
       ? {
-          title: machineAlerts[0]!.title,
-          detail: [reasonSentence(machineAlerts.map((alert) => alert.detail)), alertSubject(machineAlerts[0]!, nameOfSession)]
-            .filter(Boolean)
-            .join(". "),
+          ...alertWords(machineAlerts, nameOfSession)!,
           severe: thisMac.machine.summary.level === "pressure",
         }
       : thisMac.machine.summary.level === "pressure"
@@ -422,7 +419,8 @@ export function HomeScreen({
         ? "1 session needs you"
         : `${sessionNeeds} sessions need you`
       : macNeed
-        ? macNeed.title
+        ? // Said once, in Needs you below; the headline only points there.
+          "Your Mac needs a look"
       : signIns.length > 0
         ? signIns.length === 1
           ? `${signIns[0]!.label} needs its sign-in`

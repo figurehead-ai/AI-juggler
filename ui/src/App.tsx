@@ -1102,17 +1102,22 @@ export default function App() {
               );
             })()
           ) : (
-            <>
+            // The region takes its own space above the screen and pushes
+            // it down — never over it, at any width (the 0.0.12 report).
+            <div className="flex h-full min-h-0 flex-col">
               {/* AJ-E611: the alert/notification region — polite
                   live-region, badge-carrying copy, reset-queue rows
                   with an explicit Resume click (the click opens the
                   picker; nothing ever launches by itself). */}
-              <NotificationRegion
-                onQueueResume={() => setNewSession(true)}
-                onOpenRemote={(machineId) => inspectRemote(machineId, null)}
-              />
+              <div className="shrink-0" data-testid="notification-band">
+                <NotificationRegion
+                  onQueueResume={() => setNewSession(true)}
+                  onOpenRemote={(machineId) => inspectRemote(machineId, null)}
+                  hideMachineAlerts={selection.kind === "none"}
+                />
+              </div>
               {selection.kind === "none" ? (
-                <div className="h-full overflow-y-auto">
+                <div className="min-h-0 flex-1 overflow-y-auto" data-testid="home-scroll">
                   <HomeScreen
                     sessions={sessions}
                     accounts={accounts}
@@ -1132,6 +1137,7 @@ export default function App() {
                   />
                 </div>
               ) : (
+              <div className="min-h-0 flex-1">
               <RightInspector
               focusTabsRequest={inspectorFocus}
               selection={
@@ -1201,8 +1207,9 @@ export default function App() {
               }}
               onNew={() => setNewSession(true)}
             />
+              </div>
               )}
-            </>
+            </div>
           )}
         </main>
       </div>
