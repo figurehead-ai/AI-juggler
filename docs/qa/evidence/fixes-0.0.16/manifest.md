@@ -18,6 +18,6 @@ Item 2 (Codex reads ×1.015 over compressed sessions) follows separately, once Q
 
 | Gate | Head | Result |
 |---|---|---|
-| `just verify` (`CARGO_INCREMENTAL=0`) | bbff9812 (the review fixes) | 150 test binaries, 1,203 passed, 0 failed; every step after the tests OK; no fixture or `yes` left running afterwards |
-| `cargo deny check` | bbff9812 | advisories, bans, licenses, sources ok |
+| `just verify` (`CARGO_INCREMENTAL=0`) | 07197d9d (the review fixes and the join) | 150 test binaries, 1,204 passed, 0 failed; every step after the tests OK; no fixture or `yes` left running afterwards |
+| `cargo deny check` | 07197d9d | advisories, bans, licenses, sources ok |
 | `vitest`, visual, a11y | — | nothing under `ui/` changed |
