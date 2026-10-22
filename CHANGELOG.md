@@ -375,6 +375,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A new account starts with your usual settings** (AJ-E1508). Add
+  account's fresh account offers **Start with the same settings as …**
+  an account of the same tool: its MCP servers, its permissions and its
+  status line, each ticked, and its plugins with the command that
+  installs them. Its sign-in, history and caches never come with it, AI
+  Juggler's own usage capture is never mistaken for your status line,
+  and each setting can be undone in Settings.
+
 - **Rules and MCP servers the same across tools** (AJ-E1507), in one
   reviewed click. The project's header says **Rules in sync** or
   **1 rules file differs** (a missing file counts only for a tool that

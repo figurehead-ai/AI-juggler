@@ -148,7 +148,7 @@
 **Research basis**: SPEC §7.5; EPICS M4-6; expected-workflow ("rules and guidelines need to work").
 **Handover note**: The MCP formats: Claude `.mcp.json` / `settings.json`, Codex `config.toml` `[mcp_servers]`. E16 adds more.
 
-### AJ-E1508 Copy shared settings into a new account | Status: TODO | Priority P1 | Effort M | Depends: AJ-E1507, AJ-E1022
+### AJ-E1508 Copy shared settings into a new account | Status: IN-PROGRESS (claude-opus, 2026-10-22) | Priority P1 | Effort M | Depends: AJ-E1507, AJ-E1022
 **Goal**: A new account starts with the user's usual MCP servers, permissions, plugins and status line.
 **User story**: As a user adding a third Claude account, I tick "same as Work" and get my servers and permissions without copying files by hand.
 **Requirements**:
