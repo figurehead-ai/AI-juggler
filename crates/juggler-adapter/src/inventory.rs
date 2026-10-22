@@ -299,13 +299,37 @@ pub fn rewrite_in_place(path: &std::path::Path, text: &str) -> std::io::Result<(
         .map(|name| name.to_string_lossy().into_owned())
         .unwrap_or_default();
     let staged = target.with_file_name(format!(".{name}.ai-juggler-{}", std::process::id()));
-    let written = std::fs::write(&staged, text)
-        .and_then(|()| std::fs::set_permissions(&staged, std::fs::metadata(&target)?.permissions()))
+    // Made with the file's permissions from the start: a 0600 config is
+    // never readable by others, even for a moment (re-review of #132).
+    let permissions = std::fs::metadata(&target)?.permissions();
+    let written = create_with(&staged, &permissions)
+        .and_then(|mut file| {
+            use std::io::Write as _;
+            file.write_all(text.as_bytes())
+        })
+        .and_then(|()| std::fs::set_permissions(&staged, permissions))
         .and_then(|()| std::fs::rename(&staged, &target));
     if written.is_err() {
         let _ = std::fs::remove_file(&staged);
     }
     written
+}
+
+/// A new file, created with `permissions` where the platform allows it.
+fn create_with(
+    path: &std::path::Path,
+    permissions: &std::fs::Permissions,
+) -> std::io::Result<std::fs::File> {
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::{OpenOptionsExt as _, PermissionsExt as _};
+        options.mode(permissions.mode());
+    }
+    #[cfg(not(unix))]
+    let _ = permissions;
+    options.open(path)
 }
 
 /// One entry of a JSON file, by its path of keys, as it was when set up:

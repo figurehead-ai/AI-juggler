@@ -257,7 +257,11 @@ fn belongs_to_session(name: &str, native_id: &str) -> bool {
     }
     let mut parts = name.split('/');
     match (parts.next(), parts.next()) {
-        (Some(only), None) => only.starts_with(native_id),
+        // Exactly the session's own name (`<id>.jsonl`, `<id>-…`): with an
+        // id `a`, a bare prefix would let in `a1b2….jsonl` (re-review).
+        (Some(only), None) => only
+            .strip_prefix(native_id)
+            .is_some_and(|rest| rest.starts_with('.') || rest.starts_with('-')),
         (Some(first), Some(_)) if first == native_id => true,
         (Some(FILE_HISTORY_AREA), Some(second)) => second == native_id && parts.next().is_some(),
         _ => false,

@@ -211,7 +211,11 @@ pub fn check_impl(
             scope: kebab(&item.scope),
             verdict: verdict.to_owned(),
             note,
-            suggested: matches!(verdict, "copy" | "translate"),
+            // A project's own item that would apply to every project on
+            // the target is offered, not pre-ticked (re-review of #132).
+            suggested: matches!(verdict, "copy" | "translate")
+                && !(item.scope == juggler_adapter::inventory::Scope::ProjectPrivate
+                    && item.tool != sides.target.harness.as_str()),
         });
     }
     offers.sort_by_key(|offer| {
@@ -427,13 +431,18 @@ fn undo(how: &Undo) -> AppResult<()> {
             cwd,
             unless_changed,
         } => {
-            if unless_changed
-                .as_ref()
-                .is_some_and(|entry| !entry.unchanged())
-            {
-                return Err(AppError::Refused(
-                    "it has changed since it was set up, so it was left as it is".to_owned(),
-                ));
+            if let Some(entry) = unless_changed {
+                match juggler_adapter::inventory::JsonEntry::fingerprint(&entry.file, &entry.keys) {
+                    // Already removed by the user: nothing left to undo.
+                    None => return Ok(()),
+                    Some(now) if now != entry.sha256 => {
+                        return Err(AppError::Refused(
+                            "it has changed since it was set up, so it was left as it is"
+                                .to_owned(),
+                        ));
+                    }
+                    Some(_) => {}
+                }
             }
             let (program, args) = argv
                 .split_first()

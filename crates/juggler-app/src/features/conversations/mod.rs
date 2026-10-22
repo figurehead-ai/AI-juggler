@@ -570,8 +570,12 @@ pub(crate) fn primed_conversation(
             (modified >= since).then_some((modified, path))
         })
         .collect();
+    // More than the cap could hide a second match: find nothing rather
+    // than guess (re-review of #132).
+    if recent.len() > PRIMED_SCAN_MAX {
+        return None;
+    }
     recent.sort_by_key(|(modified, _)| std::cmp::Reverse(*modified));
-    recent.truncate(PRIMED_SCAN_MAX);
     let mut found = recent.into_iter().map(|(_, path)| path).filter_map(|path| {
         let summary = adapter
             .read_conversation_quick(&path)

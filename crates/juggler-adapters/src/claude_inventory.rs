@@ -310,11 +310,22 @@ fn add_mcp(
             name.into(),
         ],
     };
-    let unless_changed = JsonEntry::fingerprint(state_file, &keys).map(|sha256| JsonEntry {
-        file: state_file.to_path_buf(),
-        keys,
-        sha256,
-    });
+    // Claude may file the project under its resolved path (`/private/tmp`
+    // for `/tmp`): try that too, so the undo keeps its check.
+    let resolved = folder.and_then(|folder| std::fs::canonicalize(folder).ok());
+    let candidates = std::iter::once(keys.clone()).chain(resolved.map(|resolved| {
+        let mut keys = keys.clone();
+        keys[1] = resolved.to_string_lossy().into_owned();
+        keys
+    }));
+    let unless_changed = candidates
+        .into_iter()
+        .find_map(|keys| JsonEntry::fingerprint(state_file, &keys).map(|sha256| (keys, sha256)))
+        .map(|(keys, sha256)| JsonEntry {
+            file: state_file.to_path_buf(),
+            keys,
+            sha256,
+        });
     Ok(Applied {
         summary: format!("Added the MCP server {name} to this account"),
         undo: Undo::Command {

@@ -211,6 +211,30 @@ fn the_other_claude_account_is_offered_what_it_lacks_and_gets_only_what_is_picke
         args.starts_with("mcp\nremove\n-s\nuser\n--\ngithub\n"),
         "{args}"
     );
+
+    // Set up again, then removed by the user: the undo has nothing left to
+    // do, and says it's done rather than failing for ever (re-review).
+    std::fs::write(&state_file, "{}").unwrap(); // what Claude's remove left
+    let check = check_impl(&lab.state, &lab.session, profile_b).unwrap();
+    let again = check
+        .offers
+        .iter()
+        .find(|o| o.name == "github")
+        .unwrap()
+        .id
+        .clone();
+    let record = apply_impl(&lab.state, &lab.session, profile_b, &[again]).unwrap()[0]
+        .record
+        .clone()
+        .unwrap();
+    std::fs::write(&state_file, "{\"mcpServers\":{}}").unwrap();
+    undo_impl(&lab.state, &record).unwrap();
+    assert!(
+        list_impl(&lab.state)
+            .unwrap()
+            .iter()
+            .all(|s| s.record != record)
+    );
 }
 
 #[test]
