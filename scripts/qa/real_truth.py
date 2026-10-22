@@ -871,6 +871,17 @@ def compare(truth: dict, harness: dict) -> str:
             mac_verdict(len(shown) == len(claude) and all(abs(a - b) <= 0.15 * b for a, b in zip(shown, claude)),
                     f"This Mac every tree: backend {len(shown)} (top {len(top)} + others {len(others)}) "
                     f"{[round(t / 1e9, 1) for t in shown]}; ps {len(claude)} {[round(t / 1e9, 1) for t in claude]}")
+        # Rows that name their tree's root: each against that root's ps tree.
+        rows_all = list(panel.get("top") or []) + list(others or [])
+        paired = [(r.get("root_pid"), r.get("rss_bytes") or 0) for r in rows_all if r.get("root_pid")]
+        if paired:
+            off = []
+            for pid, got in paired:
+                want_tree = tree(pid) if pid in rss else None
+                if want_tree is None or not (abs(got - want_tree) <= 0.15 * max(want_tree, 1)):
+                    off.append((pid, got, want_tree))
+            mac_verdict(not off, f"This Mac rows by root: {len(paired) - len(off)} of {len(paired)} within 15% of their own ps tree"
+                        + (f"; off: {[(round(g / 1e9, 1), None if w is None else round(w / 1e9, 1)) for _, g, w in off]}" if off else ""))
         cpu = tools.get("cpu_pct")
         mac_verdict(True, f"This Mac tools CPU: backend {cpu if cpu is None else round(cpu, 1)}% of all cores (ps %CPU is a decaying average, not compared)")
     kinds = [a["kind"] for a in harness.get("machine_alerts", [])]
