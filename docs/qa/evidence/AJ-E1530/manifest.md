@@ -114,6 +114,23 @@ on that account; one such session measures the account.
   own page lists it; no uncited price is added (the coordinator,
   2026-10-22).
 
+## Known blocker at this push (not from E1530)
+
+- `load_budgets::monitoring_costs_under_one_percent_of_a_core` measured
+  1.38% of a core inside the full `just verify` on a loaded Mac (load
+  average above 20). Run alone it measured 0.40–0.66% across nine runs.
+  For this push the workspace suite ran with only that test skipped (158
+  green), plus three solo runs of it.
+- The coordinator (2026-10-22): the 1.38% is probably real, not noise.
+  fix-reports measured 1.36–1.43% beside a busy Claude app, because the
+  observed process trees are re-read on every tick. It is a **0.1
+  blocker** and the first item of fix batch 4
+  (`fix/maintainer-reports-4`).
+- Next steps: merge main once #126 lands (it replaces the test with
+  counter assertions plus the CPU bound), then merge again once batch 4
+  lands. From then on the test has to pass inside a full verify on a
+  loaded Mac.
+
 ## Walked: the three questions (Req.1)
 
 Walked on the preview. The backend's whole path, from turning it on to a
