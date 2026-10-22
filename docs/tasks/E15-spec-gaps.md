@@ -163,20 +163,23 @@
 **Research basis**: Max-Depth report (profile clone, settings sync).
 **Handover note**: —
 
-### AJ-E1509 Auto-restart a crashed session (opt-in) | Status: TODO | Priority P1 | Effort S | Depends: AJ-E505
-**Goal**: A session that crashes can come back by itself, when the user asked for that.
-**User story**: As a user running an overnight job, I turn on auto-restart for that launch setting, and a crash resumes it instead of ending the night.
+### AJ-E1509 Always on: keep working sessions going | Status: TODO | Priority P1 | Effort L | Depends: AJ-E505, AJ-E1503, AJ-E1505, AJ-E1527
+**Goal**: What should stay on stays on, and comes back if it stops or crashes: a crashed session (when the user asked), the Mac while work runs, AI Juggler itself.
+**User story**: As a user running an overnight job, I leave the Mac plugged in and walk away: it doesn't fall asleep mid-run, a crashed session resumes instead of ending the night, and if AI Juggler itself crashes it comes back with my sessions shown as they really are.
 **Requirements**:
-1. An opt-in per launch setting: a session that exits with an error SHALL be started again with the same settings and resumed. This never applies to a quota stop, a stop the user made, or a sign-in failure.
-2. At most 3 tries in 10 minutes; then it stays ended and says why. Each try is recorded in the session's history.
-**UI/UX reasoning**: Off by default; ADR-0003 allows a behaviour the user turned on.
-**Performance budget**: n/a.
-**Quality gates**: tests for the limit and for each never-restart case.
+1. **Restart a crashed session.** Settings › Sessions has "Restart sessions that crash" (off by default), and a launch setting can override it. A session that exits with an error SHALL be started again with the same settings and resumed. Never after a quota stop, a stop the user made, or a sign-in failure. At most 3 tries in 10 minutes; then it stays ended and says why. Each try is recorded in the session's history.
+2. **Keep the Mac awake while work runs.** While at least one session is working (running; not idle or waiting for the user), AI Juggler SHALL hold a macOS power assertion that prevents idle system sleep (the display may still sleep), named so `pmset -g assertions` shows "AI Juggler: N sessions working", and release it as soon as nothing is working. Settings › Sessions: "Keep the Mac awake while sessions work", on by default on power, off on battery unless the user turns that on too. It never prevents a sleep the user asks for (closing the lid, the Apple menu).
+3. **No App Nap while sessions run.** While anything is supervised, AI Juggler SHALL declare an activity (`NSProcessInfo beginActivity`, user-initiated, allowing idle sleep) so its monitoring and timers aren't throttled in the background.
+4. **AI Juggler stays running.** "Open AI Juggler at login" is opt-in, through `SMAppService` (a login item), offered in the welcome's Make it smoother card and in Settings. If AI Juggler quits unexpectedly (a crash, not the user quitting), it SHALL be started again (a launchd agent with KeepAlive on an unsuccessful exit, or the login item's relaunch) and pick up its sessions. On that restart, the sessions it was supervising are shown as they are: re-attached if still alive; otherwise ended with the reason and, where requirement 1 allows, resumed.
+5. **Honest about it.** A small row on This Mac says what is keeping the Mac awake and why, with its setting one click away.
+**UI/UX reasoning**: ADR-0003 (revised 2026-10-22): each behaviour is one the user turned on, or a default they can see and change; none touches an account or starts new work. One row on This Mac, the settings in Settings › Sessions (D-25: depth on demand).
+**Performance budget**: taking or releasing the assertion is off the UI thread and under 10 ms; no polling beyond the existing 5 s tick.
+**Quality gates**: tests for every never-restart case and for the 3-in-10-minutes limit; the power assertion taken and released (`pmset -g assertions` in a test, or a seam); a crash test: the app killed with SIGKILL comes back up with its sessions shown correctly; nothing left running after any test (reaper, `pgrep` clean).
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1509/manifest.md`.
-**Visual testing**: the setting, and a session's history with a restart.
-**Files to touch**: `crates/juggler-supervisor/src/lifecycle.rs`, launch settings.
-**Research basis**: SPEC §1 and §5.4; EPICS M2-7.
-**Handover note**: —
+**Visual testing**: the settings, the welcome's login-item row, the This Mac row (awake and not), and a session's history with a restart.
+**Files to touch**: `crates/juggler-supervisor/src/lifecycle.rs`, launch settings, Settings › Sessions, a macOS power module, the login item, `SmootherCard.tsx`, This Mac.
+**Research basis**: SPEC §1 and §5.4; EPICS M2-7; the maintainer's "always on" request (2026-10-22); Apple: IOKit power assertions, `NSProcessInfo` activities, `SMAppService`.
+**Handover note**: Widened from "Auto-restart a crashed session (opt-in)" (2026-10-22); the ID is kept so the counts don't change.
 
 ### AJ-E1510 System notifications | Status: TODO | Priority P1 | Effort M | Depends: AJ-E611, AJ-E1408
 **Goal**: What needs the user reaches them outside the window, when they want it to.
