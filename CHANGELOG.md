@@ -142,6 +142,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   at once, and ends a pairing still in progress. Before, a connection that
   was open when you turned it off kept receiving their sessions and saving
   them until it broke, and a pairing could still finish afterwards.
+- Turning Fleet Link off also stops your other machines acting on this
+  one: a session they were moving here, a command they sent, or a
+  pairing they were finishing is refused from that moment, even if you
+  then say yes to a question it asked. Clicking Link on and off quickly,
+  or while AI Juggler is starting, no longer leaves it running when it
+  shows as off, and its port is free again at once.
 - Codex's older conversations count: Codex compresses older session files
   (`.jsonl.zst`), and AI Juggler read none of them, so their tokens and
   costs were missing (on a Mac used for a while, most of them).
