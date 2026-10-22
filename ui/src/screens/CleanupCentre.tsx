@@ -64,7 +64,7 @@ export interface CleanupInventoryData {
 export const CLEANUP_FILTERS = [
   { id: "needs-attention", label: "Needs attention" },
   { id: "all-managed", label: "All managed" },
-  { id: "re-adopted", label: "Re-adopted" },
+  { id: "re-adopted", label: "Picked up after restart" },
   { id: "history", label: "History (7 days)" },
 ] as const;
 

@@ -25,7 +25,7 @@ import { hueOf } from "../components/indicator";
 import { MorningSummary } from "../components/MorningSummary";
 import { ThisMacPanel } from "../components/ThisMacPanel";
 import { ScreenBoundary } from "../components/ScreenBoundary";
-import { runwayOf } from "../components/AccountRunway";
+import { newWorkAdvice, runwayOf } from "../components/AccountRunway";
 import { alertWords, reasonSentence, type ThisMacInfo } from "../lib/machine";
 import { LegendPopover } from "../components/LegendPopover";
 import { parkedWords } from "../lib/parked";
@@ -372,7 +372,8 @@ export function HomeScreen({
     account,
     ...runwayOf(quota.find((q) => q.account === account.id), sessions.filter((s) => s.account_id === account.id)),
   }));
-  const best = runway.filter((r) => r.left !== null).sort((a, b) => (b.left ?? 0) - (a.left ?? 0))[0];
+  const advice = newWorkAdvice(accounts, quota, sessions);
+  const best = advice.best;
   const low = runway.find((r) => r.left !== null && r.left <= 25);
 
   // AJ-E1503 Req.4: rows shaped like Home's while the first load answers.
@@ -411,7 +412,11 @@ export function HomeScreen({
           : "All clear";
   const subline = [
     running.length + elsewhere.length > 0 ? `${running.length + elsewhere.length} running` : null,
-    low ? `${low.account.label} has ${low.left}% left — start new work on ${best && best.account.id !== low.account.id ? best.account.label : "another account"}` : best ? `Most runway: ${best.account.label}` : null,
+    low
+      ? `${low.account.label} has ${low.left}% left${best ? ` — start new work on ${best.account.label}` : ""}`
+      : best
+        ? `Most runway: ${best.account.label}`
+        : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -678,9 +683,9 @@ export function HomeScreen({
                 <span className="text-[11px] text-faint">{row.left !== null ? (row.resets ?? row.words) : row.words}</span>
               </div>
             ))}
-            {best && runway.length > 1 && (
-              <p className="border-t border-hairline/60 py-3 text-xs text-muted">
-                Best for new work: <span className="font-semibold text-ink">{best.account.label}</span>, {best.left}% left.
+            {advice.words && runway.length > 1 && (
+              <p className="border-t border-hairline/60 py-3 text-xs text-muted" data-testid="new-work-advice">
+                {advice.words}
               </p>
             )}
           </div>

@@ -79,8 +79,11 @@ jobs:
         run: cargo doc --workspace --no-deps
       - name: Evidence store (AJ-E801 gate)
         run: ./scripts/evidence_check.sh
-      - name: Terminology (AJ-E108 gate)
-        run: ./scripts/terminology_lint.sh
+      - name: Terminology and plain words (AJ-E108, AJ-E1535 gates)
+        run: |
+          ./scripts/terminology_lint.sh
+          python3 scripts/plain_words_lint.py --selftest
+          python3 scripts/plain_words_lint.py
       - name: No tool-id literal outside the adapters (AJ-E1525, ADR-0019)
         run: |
           python3 scripts/tool_literal_lint.py --selftest

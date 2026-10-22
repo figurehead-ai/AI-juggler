@@ -2591,7 +2591,7 @@ export interface SwitchTargetData {
   provider?: string;
   account_id: string;
   account_label: string;
-  /** Ordered-pair badge wire name ("F1 · Beta" — never "lossless"
+  /** Ordered-pair badge wire name ("Full story, fresh start · Beta" — never "lossless"
    * below F4; cross-Provider always carries Beta, D-04/D-11). */
   badge: string;
   /** Validated state (false until E210's fixtures flip cells). */
@@ -2615,7 +2615,7 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
     recipe_id: "recipe-work-max",
     account_id: "acct-work",
     account_label: "Work Max",
-    badge: "F1 · Beta",
+    badge: "Full story, fresh start · Beta",
     validated: false,
     cross_provider: true,
     drops: ["todo list", "subagent state"],
@@ -2631,7 +2631,7 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
     recipe_id: "recipe-personal",
     account_id: "acct-personal",
     account_label: "Personal",
-    badge: "F1 · Beta",
+    badge: "Full story, fresh start · Beta",
     validated: false,
     cross_provider: true,
     drops: ["todo list", "subagent state"],
@@ -2647,7 +2647,7 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
     recipe_id: "recipe-lab",
     account_id: "acct-lab",
     account_label: "Lab",
-    badge: "F2 · Beta",
+    badge: "Same conversation, new account (compacted) · Beta",
     validated: false,
     cross_provider: true,
     drops: ["rewind history", "subagent state"],
@@ -2689,7 +2689,7 @@ export interface EpochNodeData {
 export interface GraphEdgeData {
   from: string;
   to?: string | null;
-  /** "transplant F1 · 12:04" / "replay F1 · ≈41k tok" / "switch-back ↺". */
+  /** What carried, in plain words ("Full story, fresh start"; "Switched back · …"). */
   label: string;
   failed_reason?: string | null;
   switch_back: boolean;
@@ -2716,8 +2716,8 @@ const DEFAULT_SWITCH_GRAPH: WorkGraphData[] = [
       { id: "ep-3", provider: "claude-code", account_label: "Work Max", kind: "terminal", resumable: true, session_id: "sess-c" },
     ],
     edges: [
-      { from: "ep-1", to: "ep-2", label: "transplant F1 · 12:04", switch_back: false },
-      { from: "ep-2", to: "ep-3", label: "switch-back ↺ · F1", switch_back: true },
+      { from: "ep-1", to: "ep-2", label: "Full story, fresh start", switch_back: false },
+      { from: "ep-2", to: "ep-3", label: "Switched back · Full story, fresh start", switch_back: true },
     ],
     collapsed: 2,
     hop_note: "3 switches so far ≈41k tokens",
@@ -2803,7 +2803,7 @@ export interface ValidationCellData {
 }
 
 /** The no-backend matrix default (mirrors the researched table:
- * one real-CI row, everything honestly open beta debt). */
+ * one pair with real-tool tests, every pair honestly in beta). */
 const DEFAULT_VALIDATION_MATRIX: ValidationCellData[] = [
   ["claude-code", "claude-code", "transplant", "F1", true],
   ["codex", "codex", "transplant", "F1", false],
@@ -2822,14 +2822,14 @@ const DEFAULT_VALIDATION_MATRIX: ValidationCellData[] = [
   mechanism: mechanism as string,
   researched_ceiling: ceiling as string,
   advertised: ceiling as string,
-  badge: `${ceiling as string} · Beta`,
+  badge: `${ceiling === "F1" ? "Full story, fresh start" : "Briefing pack"} · Beta`,
   validated: false,
   mechanism_green: true,
   ci_green: ciGreen as boolean,
   dogfood: null,
   status: ciGreen
-    ? "CI fixtures green · live dogfood pending — open beta debt"
-    : "Real-adapter fixtures not landed · live dogfood pending — open beta debt",
+    ? "Automatic tests pass with the real tools; not tried by hand yet"
+    : "Automatic tests with the real tools aren't in place; not tried by hand yet",
   notes: [],
 }));
 

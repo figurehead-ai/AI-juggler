@@ -600,11 +600,15 @@ fn rank_candidates_for(
 ///
 /// Returns the typed [`AppError`] on storage failures.
 #[tauri::command]
-pub fn ranking_rows(
+pub async fn ranking_rows(
     state: tauri::State<'_, std::sync::Arc<crate::state::AppState>>,
     project: Option<String>,
 ) -> AppResult<Vec<RankedRowInfo>> {
-    ranking_rows_inner(&state, project)
+    // Off the main thread (AJ-E1535): New session opens without waiting.
+    crate::ipc::blocking(state.inner(), "rank the accounts", move |state| {
+        ranking_rows_inner(state, project)
+    })
+    .await
 }
 
 /// AJ-E611: one emitted alert on the wire (the notification region's
@@ -1381,7 +1385,7 @@ pub struct InstanceInfo {
     /// Instance kind: `terminal` | `desktop`.
     pub kind: String,
     /// True when crash recovery re-adopted this Instance's verified
-    /// root (AJ-E510): `Running — re-adopted`, terminal detached
+    /// root (AJ-E510): `Running — picked up after restart`, terminal detached
     /// (output from before the crash is unavailable), stop via the
     /// AJ-E507 sheet.
     pub adopted: bool,
@@ -2141,82 +2145,7 @@ pub fn expert_reveal_target(
     Ok(target)
 }
 
-/// `_`-delimited key segments that mark an environment key as
-/// credential-shaped (`ANTHROPIC_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`)
-/// — whole segments, so `CLAUDE_CODE_MAX_OUTPUT_TOKENS` stays allowed.
-const CREDENTIAL_KEY_SEGMENTS: &[&str] = &[
-    "KEY",
-    "APIKEY",
-    "TOKEN",
-    "SECRET",
-    "PASSWORD",
-    "PASSWD",
-    "CREDENTIAL",
-    "CREDENTIALS",
-    "AUTH",
-    "OAUTH",
-    "BEARER",
-    "COOKIE",
-];
-
-/// The most overrides one Launch settings may carry.
-const ENV_OVERLAY_MAX: usize = 32;
-
-/// AJ-E309: validates a Launch-settings environment overlay. Keys are
-/// shell-style (`[A-Z_][A-Z0-9_]*`, ≤ 64); values are one line
-/// (≤ 1024 bytes). Isolation keys are refused (they would repoint the
-/// Account's folder), and so are credential-shaped keys — vendor
-/// credentials are never stored by AI Juggler; the vendor's own
-/// sign-in owns them.
-///
-/// # Errors
-///
-/// Returns [`AppError::Validation`] naming the first offending key.
-pub fn validate_env_overlay(
-    protected: &[&str],
-    env: &std::collections::BTreeMap<String, String>,
-) -> AppResult<()> {
-    let refuse = |message: String| AppError::Validation {
-        subject: "environment override",
-        message,
-    };
-    if env.len() > ENV_OVERLAY_MAX {
-        return Err(refuse(format!(
-            "at most {ENV_OVERLAY_MAX} overrides per Launch settings"
-        )));
-    }
-    for (key, value) in env {
-        let mut bytes = key.bytes();
-        let shaped = matches!(bytes.next(), Some(b'A'..=b'Z' | b'_'))
-            && key.len() <= 64
-            && bytes.all(|b| matches!(b, b'A'..=b'Z' | b'0'..=b'9' | b'_'));
-        if !shaped {
-            return Err(refuse(format!(
-                "“{key}” isn't a valid variable name — use capitals, digits and _"
-            )));
-        }
-        if protected.contains(&key.as_str()) {
-            return Err(refuse(format!(
-                "{key} is managed by AI Juggler — it keeps this account isolated"
-            )));
-        }
-        if key
-            .split('_')
-            .any(|segment| CREDENTIAL_KEY_SEGMENTS.contains(&segment))
-        {
-            return Err(refuse(format!(
-                "{key} looks like a credential — sign in with the vendor's own flow instead; \
-                 AI Juggler never stores credentials"
-            )));
-        }
-        if value.len() > 1024 || value.contains(['\0', '\n', '\r']) {
-            return Err(refuse(format!(
-                "the value for {key} must be a single line under 1 KB"
-            )));
-        }
-    }
-    Ok(())
-}
+pub use crate::env_overlay::validate_env_overlay;
 
 /// AJ-E309 Req.5: one Launch settings' environment overrides.
 ///
@@ -3010,9 +2939,15 @@ pub fn login_open_web(
 /// # Errors
 ///
 /// Returns the typed [`AppError`] message on failure.
-pub fn profiles_list(state: tauri::State<'_, Arc<AppState>>) -> AppResult<Vec<LaunchRecipeInfo>> {
-    let storage = lock_storage(&state)?;
-    profile_infos(&storage)
+pub async fn profiles_list(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<Vec<LaunchRecipeInfo>> {
+    // Off the main thread (AJ-E1535): the storage lock may be held by a
+    // tick, and New session opens without waiting on it.
+    crate::ipc::blocking(state.inner(), "list launch settings", |state| {
+        profile_infos(&*lock_storage_arc(state)?)
+    })
+    .await
 }
 
 /// Creates a profile under an account.
@@ -5006,7 +4941,9 @@ fn session_infos(
             let stats = if terminal {
                 None
             } else {
-                live.get(&record.id.to_string()).copied()
+                live.get(&record.id.to_string())
+                    .copied()
+                    .and_then(juggler_supervisor::LiveProcessStats::measured)
             };
             InstanceInfo {
                 adopted: adopted_ids.contains(&record.id),
@@ -5917,7 +5854,7 @@ fn switch_execute_core(
         .ok_or_else(|| AppError::Io {
             context: "hand over",
             message: format!(
-                "{} has no transplant support — replay/pack only",
+                "{} can't take over this conversation — only a fresh start or a briefing pack",
                 account_b.harness
             ),
         })?;
@@ -7629,7 +7566,7 @@ pub struct CleanupInventoryInfo {
 pub fn cleanup_state_label(state: &str) -> &'static str {
     match state {
         "orphaned" => "Still running after its session closed",
-        "re-adopted" | "adopted" => "Running — re-adopted",
+        "re-adopted" | "adopted" => "Running — picked up after restart",
         "unverifiable" => "Unverifiable — will not be touched",
         "running" => "Running",
         "exited" => "Exited",
@@ -10954,10 +10891,10 @@ pub mod legacy_aliases {
     /// # Errors
     ///
     /// Returns the parent command's typed error on failure.
-    pub fn profiles_list_alias(
+    pub async fn profiles_list_alias(
         state: tauri::State<'_, Arc<AppState>>,
     ) -> AppResult<Vec<LaunchRecipeInfo>> {
-        profiles_list(state)
+        profiles_list(state).await
     }
 
     /// Legacy alias of `instances_list`.
@@ -12256,7 +12193,7 @@ pub struct SwitchTargetInfo {
     pub account_id: String,
     /// Its account label.
     pub account_label: String,
-    /// The ordered-pair badge wire name ("F1 · Beta" — never
+    /// The ordered-pair badge wire name ("Full story, fresh start · Beta" — never
     /// "lossless" below F4; cross-Provider always carries Beta).
     pub badge: String,
     /// Validated state (false until E210's fixtures flip cells).
@@ -12410,7 +12347,7 @@ pub fn switch_targets_impl(
                 account_id: account.id.to_string(),
                 account_label: account.label.clone(),
                 badge: matrix_row.as_ref().map_or_else(
-                    || "F0 · Beta".to_owned(),
+                    || "Briefing pack · Beta".to_owned(),
                     |row| row.badge_for(&installed, true),
                 ),
                 validated: matrix_row
@@ -12456,8 +12393,9 @@ pub struct EdgeInfo {
     pub from: String,
     /// To epoch id (None until launched).
     pub to: Option<String>,
-    /// The arrow's label ("transplant F1 · 12:04" / "replay F1 ·
-    /// ≈41k tok" / "switch-back ↺").
+    /// The arrow's label in plain words: what carried ("Full story,
+    /// fresh start"), "Switched back · …" for a return, or the failure
+    /// (AJ-E1535: never "transplant F1" or "switch-back ↺").
     pub label: String,
     /// The §9 reason, when the edge failed (dashed red + recovery).
     pub failed_reason: Option<String>,
@@ -12602,29 +12540,38 @@ fn work_graph_info(
     })
 }
 
-/// Wires one work's edges for the timeline: labels (mechanism +
-/// fidelity shown, switch-back ↺, failed reason) and the hop/token
-/// counts feeding the S-F9 note.
+/// What an edge carried, in the user's words: the fidelity it showed
+/// (its user label), else what its mechanism does.
+fn edge_carried_words(edge: &juggler_core::model::SwitchEdge) -> &'static str {
+    use juggler_core::model::SwitchMechanism;
+    if let Some(level) = edge
+        .fidelity_shown
+        .as_deref()
+        .and_then(juggler_handover::fidelity::FidelityLabel::from_wire)
+    {
+        return level.user_label();
+    }
+    match edge.mechanism {
+        SwitchMechanism::NativeResume => "Continues exactly",
+        SwitchMechanism::Transplant => "Same conversation, new account",
+        SwitchMechanism::Replay => "Full story, fresh start",
+        SwitchMechanism::Pack => "Briefing pack",
+    }
+}
+
+/// Wires one work's edges for the timeline: labels (what carried, a
+/// switch back, the failed reason) and the hop/token counts feeding
+/// the S-F9 note.
 fn graph_edge_summary(edges: &[juggler_core::model::SwitchEdge]) -> (Vec<EdgeInfo>, u32, u64) {
     use juggler_core::model::EdgeState;
     let mut wire_edges = Vec::new();
     for edge in edges {
         let back = edge.parent_edge_a.is_some();
+        let carried = edge_carried_words(edge);
         let label = match &edge.state {
             EdgeState::Failed { reason, .. } => format!("failed · {reason}"),
-            _ if back => format!(
-                "switch-back ↺ · {}",
-                edge.fidelity_shown.as_deref().unwrap_or("F4")
-            ),
-            _ => {
-                let mech = match edge.mechanism {
-                    juggler_core::model::SwitchMechanism::NativeResume => "native-resume",
-                    juggler_core::model::SwitchMechanism::Transplant => "transplant",
-                    juggler_core::model::SwitchMechanism::Replay => "replay",
-                    juggler_core::model::SwitchMechanism::Pack => "pack",
-                };
-                format!("{mech} {}", edge.fidelity_shown.as_deref().unwrap_or("F0"))
-            }
+            _ if back => format!("Switched back · {carried}"),
+            _ => carried.to_owned(),
         };
         wire_edges.push(EdgeInfo {
             from: edge.from_epoch.to_string(),
@@ -12983,7 +12930,7 @@ pub struct ValidationCellInfo {
     /// The advertised ceiling after validation gating (a FAILED live
     /// cell lowers it one level until fixed).
     pub advertised: String,
-    /// The wire badge ("F1 · Beta" / "F3 · Validated").
+    /// The wire badge ("Full story, fresh start · Beta" / "Same conversation, new account · Proven").
     pub badge: String,
     /// Validated = real-CI row green AND a passing live cell.
     pub validated: bool,
@@ -12994,8 +12941,8 @@ pub struct ValidationCellInfo {
     /// The recorded live cell, when one exists (dates + verdict +
     /// hashes — never secrets).
     pub dogfood: Option<DogfoodCellInfo>,
-    /// One-line status ("CI fixtures green · live dogfood pending —
-    /// open beta debt").
+    /// One-line status in plain words ("Automatic tests pass with the
+    /// real tools; not tried by hand yet").
     pub status: String,
     /// Honest notes (blocks, pending adapters), verbatim.
     pub notes: Vec<String>,
@@ -13096,7 +13043,7 @@ pub fn validation_matrix_impl(state: &Arc<AppState>) -> AppResult<Vec<Validation
 /// AJ-E210: records a live dogfood cell for one ordered pair — a
 /// HUMAN ran the pair on real binaries and reports the outcome (the
 /// app never launches vendor binaries for validation). Recording a
-/// PASS on a real-CI-green pair flips its badge to "· Validated"; a
+/// PASS on a real-CI-green pair flips its badge to "· Proven"; a
 /// FAIL lowers the advertised ceiling one level until fixed.
 ///
 /// # Errors
@@ -13149,7 +13096,7 @@ pub fn validation_dogfood_record_impl(
     use juggler_handover::validation::{DogfoodCell, DogfoodVerdict};
     if juggler_handover::validation::pair_cell(from, to).is_none() {
         return Err(AppError::Io {
-            context: "record dogfood cell",
+            context: "record a hand check",
             message: format!(
                 "{from}→{to} is not a researched pair — cells are recorded, never invented"
             ),
@@ -13164,7 +13111,7 @@ pub fn validation_dogfood_record_impl(
         },
         other => {
             return Err(AppError::Io {
-                context: "record dogfood cell",
+                context: "record a hand check",
                 message: format!("Unknown verdict {other:?} — pass or fail"),
             });
         }
@@ -13180,7 +13127,7 @@ pub fn validation_dogfood_record_impl(
     let mut cells = dogfood_cells_of(&storage);
     cells.insert(dogfood_key(from, to), cell);
     let blob = serde_json::to_string(&cells).map_err(|error| AppError::Io {
-        context: "record dogfood cell",
+        context: "record a hand check",
         message: error.to_string(),
     })?;
     storage

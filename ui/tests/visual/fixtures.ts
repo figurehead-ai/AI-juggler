@@ -63,7 +63,8 @@ const mk = (n: number, status: InstanceInfo["status"], label: string): InstanceI
         ? { input: 12_345, output: 6_789, cache_read: 100, cache_write: 200, reasoning: 42 }
         : null,
     cpu_pct: status === "running" ? 3.5 : null,
-    rss_bytes: status === "running" ? 123_456 : null,
+    // A Claude Code session as measured on a real Mac (126–208 MB, AJ-E1535).
+    rss_bytes: status === "running" ? 180_000_000 : null,
     child_count: active ? (status === "running" ? 2 : null) : 0,
     subtask_count: null,
     git_branch: work ? "feat/read-model" : null,
@@ -279,7 +280,7 @@ const CLEANUP_ROW = (pid: number, state: string) => ({
     state === "orphaned"
       ? "Still running after its session closed"
       : state === "adopted"
-        ? "Running — re-adopted"
+        ? "Running — picked up after restart"
         : state === "unverifiable"
           ? "Unverifiable — will not be touched"
           : "Running",

@@ -51,7 +51,7 @@ blockers: Array<string>,
  */
 fidelity: string, 
 /**
- * The badge text (`F3 · Unvalidated`) — never colour alone.
+ * The badge text (`Same conversation, new account · Not proven yet`) — never colour alone.
  */
 badge: string, 
 /**

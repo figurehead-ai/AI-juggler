@@ -169,6 +169,20 @@ impl FidelityLabel {
         }
     }
 
+    /// The level a wire name (`F0`..`F4`) names; `None` for anything
+    /// else.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        match wire {
+            "F0" => Some(Self::F0),
+            "F1" => Some(Self::F1),
+            "F2" => Some(Self::F2),
+            "F3" => Some(Self::F3),
+            "F4" => Some(Self::F4),
+            _ => None,
+        }
+    }
+
     /// One level lower (AJ-E210 Req.4: a failing validation cell
     /// lowers the pair's advertised ceiling until fixed). F0 stays
     /// F0 — the floor is honest, never negative.

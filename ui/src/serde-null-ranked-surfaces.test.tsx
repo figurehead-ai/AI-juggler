@@ -65,7 +65,7 @@ it("switch targets: no forecast when there isn't one", () => {
     recipe_id: "r-1",
     account_id: RAW_ID,
     account_label: "Work Max",
-    badge: "F1 · Beta",
+    badge: "Full story, fresh start · Beta",
     validated: false,
     cross_provider: false,
     drops: [],

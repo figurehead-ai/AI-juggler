@@ -430,7 +430,7 @@ for (const theme of ["dark", "light"] as const) {
         theme,
         recovery: {
           summary:
-            "2 sessions re-adopted, 1 helpers left behind, 1 processes could not be verified and were left alone.",
+            "2 sessions picked up again, 1 helper left behind, 1 process could not be checked and was left alone.",
           adopted: 2,
           left_behind: 1,
           unverifiable: 1,
@@ -1097,11 +1097,11 @@ for (const theme of ["dark", "light"] as const) {
               { id: "ep-b", provider: "codex", account_label: "Personal", kind: "terminal", resumable: true, session_id: "sess-2" },
             ],
             edges: [
-              { from: "ep-a", to: "ep-b", label: "transplant F1 · 12:04", switch_back: false },
+              { from: "ep-a", to: "ep-b", label: "Full story, fresh start", switch_back: false },
               {
                 from: "ep-b",
                 to: null,
-                label: "transplant F1 · target launch failed",
+                label: "failed · target launch failed",
                 failed_reason: "S-F6: target window closed mid-launch",
                 switch_back: false,
               },
@@ -1199,7 +1199,7 @@ for (const theme of ["dark", "light"] as const) {
     await expect(rowHeader).toContainText("→");
     // Status in text, never colour-only.
     await expect(page.getByTestId("beta-matrix-row").first()).toContainText(
-      "Beta — not yet validated",
+      "Beta — not proven yet",
     );
     const scan = await new AxeBuilder({ page })
       .include("[data-testid='beta-matrix']")
@@ -1900,8 +1900,8 @@ for (const theme of ["dark", "light"] as const) {
         const base = {
           machine_id: "machine-mini", machine_label: "Mac mini", recipe_id: "rec-mini", recipe_name: "Main",
           account_label: "Team", provider: "claude-code", mechanism: "transplant", readiness: "needs_mapping",
-          blockers: ["ai-juggler isn't at the same path on Mac mini — pick its copy there (you confirm the mapping) or use T3."],
-          fidelity: "F3", badge: "F3 · Unvalidated", validated: false, carried: ["chat transcript"], regenerated: [],
+          blockers: ["ai-juggler isn't at the same path on Mac mini — pick its copy there (you confirm the mapping) or use “Full story, fresh start”."],
+          fidelity: "F3", badge: "Same conversation, new account · Not proven yet", validated: false, carried: ["chat transcript"], regenerated: [],
           dropped: ["todo list"], same_path_project: null,
           projects: [{ project_id: "proj-m1", name: "ai-juggler", same_path: false, same_name: true }],
           replay_available: true, version_here: "2.1.0", version_there: "2.1.0",

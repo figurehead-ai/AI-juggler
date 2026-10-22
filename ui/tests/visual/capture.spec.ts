@@ -1659,7 +1659,7 @@ for (const theme of THEMES) {
 
 const RECOVERY_SUMMARY = {
   summary:
-    "2 sessions re-adopted, 1 helpers left behind, 1 processes could not be verified and were left alone.",
+    "2 sessions picked up again, 1 helper left behind, 1 process could not be checked and was left alone.",
   adopted: 2,
   left_behind: 1,
   unverifiable: 1,
@@ -1677,7 +1677,7 @@ const RECOVERY_CLEANUP = {
       rows: [
         {
           pid: 8402, pgid: 8400, role: "root", state: "adopted",
-          state_label: "Running — re-adopted", down_period: false,
+          state_label: "Running — picked up after restart", down_period: false,
           role_guess: "sh (guess)", exe_path: "/bin/sh", cmdline: "sh -c claude",
           age_ms: 45 * 60_000, rss_bytes: 12_000_000, cpu_pct: 0.2, ports: null,
           hog: false, hog_rules: [],
@@ -1738,7 +1738,7 @@ for (const theme of THEMES) {
     await expect(dialog).toBeVisible();
     // The exact drill text (one source of truth with the Rust test).
     await expect(page.getByTestId("recovery-summary-text")).toHaveText(RECOVERY_SUMMARY.summary);
-    await expect(dialog).toContainText("stays suspended for 24 hours");
+    await expect(dialog).toContainText("stays paused for 24 hours");
     await page.screenshot({
       path: resolve(GALLERY, `22-recovery/summary-dialog-1440x900-${theme}.png`),
     });
@@ -1772,11 +1772,11 @@ for (const theme of THEMES) {
       .filter({ hasText: /running/i })
       .first()
       .click();
-    await expect(page.getByTestId("instance-adopted-chip")).toContainText("↻ re-adopted");
+    await expect(page.getByTestId("instance-adopted-chip")).toContainText("↻ picked up after restart");
     await page.getByRole("tab", { name: "Processes" }).click();
     const notice = page.getByTestId("instance-detached-notice");
     await expect(notice).toBeVisible();
-    await expect(notice).toContainText("Running — re-adopted after restart");
+    await expect(notice).toContainText("Running — picked up after restart");
     await expect(notice).toContainText("terminal is detached");
     await page.screenshot({
       path: resolve(GALLERY, `22-recovery/adopted-panel-1440x900-${theme}.png`),
@@ -1787,8 +1787,8 @@ for (const theme of THEMES) {
     await seedRecoveryPage(page, theme, { __AIJ_CLEANUP__: RECOVERY_CLEANUP });
     await goTo(page, "Cleanup");
     await expect(page.getByTestId("cleanup-centre")).toBeVisible();
-    await page.getByRole("radio", { name: "Re-adopted" }).click();
-    await expect(page.getByTestId("cleanup-state-8402")).toContainText("Running — re-adopted");
+    await page.getByRole("radio", { name: "Picked up after restart" }).click();
+    await expect(page.getByTestId("cleanup-state-8402")).toContainText("Running — picked up after restart");
     await expect(page.getByTestId("cleanup-state-8301")).toContainText(
       "left behind while Juggler was closed",
     );
@@ -2940,8 +2940,8 @@ const GRAPH_LINEAR = [
       { id: "ep-a2", provider: "claude-code", account_label: "Work Max", kind: "terminal", resumable: true, session_id: "sess-3" },
     ],
     edges: [
-      { from: "ep-a", to: "ep-b", label: "transplant F1 · 12:04", switch_back: false },
-      { from: "ep-b", to: "ep-a2", label: "switch-back ↺ · F1", switch_back: true },
+      { from: "ep-a", to: "ep-b", label: "Full story, fresh start", switch_back: false },
+      { from: "ep-b", to: "ep-a2", label: "Switched back · Full story, fresh start", switch_back: true },
     ],
     collapsed: 2,
     hop_note: "3 switches so far ≈41k tokens",
@@ -2958,10 +2958,10 @@ const GRAPH_FORK_MERGE = [
       { id: "ep-m", provider: "claude-code", account_label: "Work Max", kind: "terminal", resumable: true, session_id: "sess-m" },
     ],
     edges: [
-      { from: "ep-s", to: "ep-l", label: "replay F1 · ≈41k tok", switch_back: false },
-      { from: "ep-s", to: "ep-r", label: "transplant F1 · 15:12", switch_back: false },
-      { from: "ep-l", to: "ep-m", label: "switch-back ↺ · F1", switch_back: true },
-      { from: "ep-r", to: "ep-m", label: "pack F1 · 16:40", switch_back: false },
+      { from: "ep-s", to: "ep-l", label: "Full story, fresh start", switch_back: false },
+      { from: "ep-s", to: "ep-r", label: "Same conversation, new account", switch_back: false },
+      { from: "ep-l", to: "ep-m", label: "Switched back · Full story, fresh start", switch_back: true },
+      { from: "ep-r", to: "ep-m", label: "Briefing pack", switch_back: false },
     ],
     collapsed: 0,
     hop_note: null,
@@ -2979,11 +2979,11 @@ const GRAPH_FAILED = [
       {
         from: "ep-src",
         to: null,
-        label: "transplant F1 · target launch failed",
+        label: "failed · target launch failed",
         failed_reason: "S-F6: target window closed mid-launch",
         switch_back: false,
       },
-      { from: "ep-src", to: "ep-dst", label: "transplant F1 · 18:02 (retry)", switch_back: false },
+      { from: "ep-src", to: "ep-dst", label: "Same conversation, new account", switch_back: false },
     ],
     collapsed: 0,
     hop_note: null,
@@ -2995,7 +2995,7 @@ const BADGE_SET_TARGETS = [
     recipe_id: "r-validated",
     account_id: "a-1",
     account_label: "Work Max",
-    badge: "F4 · Validated",
+    badge: "Continues exactly · Proven",
     validated: true,
     cross_provider: false,
     drops: [],
@@ -3010,7 +3010,7 @@ const BADGE_SET_TARGETS = [
     recipe_id: "r-beta",
     account_id: "a-2",
     account_label: "Personal",
-    badge: "F1 · Beta",
+    badge: "Full story, fresh start · Beta",
     validated: false,
     cross_provider: true,
     drops: ["todo list", "subagent state"],
@@ -3025,7 +3025,7 @@ const BADGE_SET_TARGETS = [
     recipe_id: "r-filtered",
     account_id: "a-3",
     account_label: "Lab",
-    badge: "F0 · Beta",
+    badge: "Briefing pack · Beta",
     validated: false,
     cross_provider: true,
     drops: ["rewind history"],
@@ -3179,8 +3179,8 @@ for (const theme of THEMES) {
       await page.getByRole("button", { name: /Work Max/ }).first().click();
       const solid = page.locator("[data-testid='fidelity-badge'][data-validated='true']");
       const hatched = page.locator("[data-testid='fidelity-badge'][data-validated='false']");
-      await expect(solid).toContainText("F4 · Validated");
-      await expect(hatched.first()).toContainText("Not yet validated");
+      await expect(solid).toContainText("Continues exactly · Proven");
+      await expect(hatched.first()).toContainText("Not proven yet");
       await page.screenshot({
         path: resolve(GALLERY, `32-graph/badges-${vp.name}-${theme}.png`),
       });
@@ -3189,23 +3189,23 @@ for (const theme of THEMES) {
 }
 
 /**
- * AJ-E210 gallery 33 — the Beta validation matrix (Settings → Beta,
- * disclosure only): the researched table (all pairs open beta debt),
- * a failed live cell's lowered-ceiling disclosure, a validated pair
- * graduating its badge, and one unvalidated badge in situ on the
+ * AJ-E210 gallery 33 — which switches are proven (Accounts, disclosure
+ * only): the researched table (every switch in beta), a failed hand
+ * check's one-level-less note, a proven switch graduating its badge,
+ * and one badge that's not proven yet in situ on the
  * wizard — across 1280×800 + 800×600 × light+dark. The table is the
  * same one the switch badges derive from (one source, no drift).
  */
 const MATRIX_FAILED: import("../src/lib/bridge").ValidationCellData[] = [
   {
     from: "claude-code", to: "claude-code", mechanism: "transplant",
-    researched_ceiling: "F1", advertised: "F0", badge: "F0 · Beta",
+    researched_ceiling: "F1", advertised: "F0", badge: "Briefing pack · Beta",
     validated: false, mechanism_green: true, ci_green: true,
     dogfood: {
       at: "2026-10-16", project_shape: "monorepo", verdict: "fail",
       source_sha256: "aa", target_sha256: "bb", note: "S-F4: rules ring lost",
     },
-    status: "Live cell FAILED 2026-10-16 — S-F4: rules ring lost; ceiling lowered one level",
+    status: "Failed when tried by hand 2026-10-16: the rules didn't carry. It promises one level less until fixed",
     notes: [],
   },
 ];
@@ -3213,22 +3213,22 @@ const MATRIX_FAILED: import("../src/lib/bridge").ValidationCellData[] = [
 const MATRIX_MIXED: import("../src/lib/bridge").ValidationCellData[] = [
   {
     from: "claude-code", to: "claude-code", mechanism: "transplant",
-    researched_ceiling: "F1", advertised: "F1", badge: "F1 · Validated",
+    researched_ceiling: "F1", advertised: "F1", badge: "Full story, fresh start · Proven",
     validated: true, mechanism_green: true, ci_green: true,
     dogfood: {
       at: "2026-10-17", project_shape: "tiny", verdict: "pass",
       source_sha256: "aa", target_sha256: "bb",
       note: "target answered the pre-switch question",
     },
-    status: "Validated — live cell passed 2026-10-17 (tiny shape)",
+    status: "Proven: tried by hand 2026-10-17 on a tiny project",
     notes: [],
   },
   {
     from: "claude-code", to: "codex", mechanism: "replay",
-    researched_ceiling: "F1", advertised: "F1", badge: "F1 · Beta",
+    researched_ceiling: "F1", advertised: "F1", badge: "Full story, fresh start · Beta",
     validated: false, mechanism_green: true, ci_green: false, dogfood: null,
-    status: "Real-adapter fixtures not landed · live dogfood pending — open beta debt",
-    notes: ["codex target adapter not landed"],
+    status: "Automatic tests with the real tools aren't in place; not tried by hand yet",
+    notes: ["Replays the story into a new Codex session; tested with stand-in tools"],
   },
 ];
 
@@ -3262,10 +3262,10 @@ for (const theme of THEMES) {
     test(`beta — matrix, all pairs open debt — ${vp.name} — ${theme}`, async ({ page }) => {
       await openProfiles(page);
       await expect(page.getByTestId("beta-matrix-summary")).toContainText(
-        "All 11 tool pairs ship in beta",
+        "None of the 4 switches is proven yet",
       );
       await expect(page.getByTestId("beta-matrix-row").first()).toContainText(
-        "Beta — not yet validated",
+        "Beta — not proven yet",
       );
       await page.screenshot({
         path: resolve(GALLERY, `33-beta/matrix-default-${vp.name}-${theme}.png`),
@@ -3275,7 +3275,7 @@ for (const theme of THEMES) {
     test(`beta — failed cell lowers the ceiling — ${vp.name} — ${theme}`, async ({ page }) => {
       await openProfiles(page, MATRIX_FAILED);
       await expect(page.getByTestId("beta-matrix-row").first()).toContainText(
-        "lowered from F1 — a live cell failed",
+        "one level less — a hand check failed",
       );
       await page.screenshot({
         path: resolve(GALLERY, `33-beta/matrix-failed-${vp.name}-${theme}.png`),
@@ -3285,9 +3285,9 @@ for (const theme of THEMES) {
     test(`beta — validated pair graduates — ${vp.name} — ${theme}`, async ({ page }) => {
       await openProfiles(page, MATRIX_MIXED);
       await expect(page.getByTestId("beta-matrix-summary")).toContainText(
-        "1 of 2 pairs validated",
+        "1 of 2 switches proven",
       );
-      await expect(page.getByTestId("beta-matrix-row").first()).toContainText("Validated ✓");
+      await expect(page.getByTestId("beta-matrix-row").first()).toContainText("Proven ✓");
       await page.screenshot({
         path: resolve(GALLERY, `33-beta/matrix-validated-${vp.name}-${theme}.png`),
       });
@@ -3318,7 +3318,7 @@ for (const theme of THEMES) {
         .click();
       await expect(page.getByTestId("switch-wizard")).toBeVisible();
       // AJ-E808: the register's words for an unvalidated pair, verbatim.
-      await expect(page.getByTestId("switch-wizard")).toContainText("· Beta · Not yet validated");
+      await expect(page.getByTestId("switch-wizard")).toContainText("· Beta · Not proven yet");
       await page.screenshot({
         path: resolve(GALLERY, `33-beta/badge-in-situ-${vp.name}-${theme}.png`),
       });
@@ -4600,7 +4600,7 @@ const crossTarget = (over: Record<string, unknown> = {}) => ({
   readiness: "t2_ready",
   blockers: [],
   fidelity: "F3",
-  badge: "F3 · Unvalidated",
+  badge: "Same conversation, new account · Not proven yet",
   validated: false,
   carried: ["chat transcript", "rules & guidelines", "uncommitted git diff"],
   regenerated: [],
@@ -4620,10 +4620,10 @@ const CROSS_TARGETS = [
     account_label: "Personal",
     readiness: "t2_blocked",
     mechanism: "replay",
-    blockers: ["claude-code 2.1.0 here, 2.0.9 on Studio Mac — T2 needs the same version."],
+    blockers: ["claude-code 2.1.0 here, 2.0.9 on Studio Mac — moving the same conversation needs the same version."],
     version_there: "2.0.9",
     fidelity: "F1",
-    badge: "F1 · Unvalidated",
+    badge: "Full story, fresh start · Not proven yet",
   }),
   crossTarget({
     machine_id: "machine-mini",
@@ -4632,7 +4632,7 @@ const CROSS_TARGETS = [
     account_label: "Team",
     readiness: "needs_mapping",
     same_path_project: null,
-    blockers: ["ai-juggler isn't at the same path on Mac mini — pick its copy there (you confirm the mapping) or use T3."],
+    blockers: ["ai-juggler isn't at the same path on Mac mini — pick its copy there (you confirm the mapping) or use “Full story, fresh start”."],
     projects: [
       { project_id: "proj-m1", name: "ai-juggler", same_path: false, same_name: true },
       { project_id: "proj-m2", name: "storefront", same_path: false, same_name: false },

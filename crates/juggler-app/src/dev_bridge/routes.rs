@@ -194,14 +194,14 @@ read_routes! {
     "accounts_list" => result commands::accounts_list(state);
     "account_audit" => async_result manage::account_audit(state; account_id: String);
     "account_storage" => result history::account_storage(state);
-    "launch_recipes_list" => result commands::profiles_list(state);
+    "launch_recipes_list" => async_result commands::profiles_list(state);
     "instances_list" => result commands::sessions_list(state);
     "instance_quality" => result commands::instance_quality(state; session_id: String);
     "instance_processes" => result commands::instance_processes(state; session_id: String);
     "instance_replay" => result history::instance_replay(state; session_id: String);
     "transcript_search" => result history::transcript_search(state; query: String);
     "projects_list" => result commands::projects_list(state);
-    "ranking_rows" => result commands::ranking_rows(state; project: Option<String>);
+    "ranking_rows" => async_result commands::ranking_rows(state; project: Option<String>);
     "switch_back_suggestions" => result commands::switch_back_suggestions(state);
     "parked_list" => value parked::parked_list(state);
     "overnight_summary" => result overnight::overnight_summary(state; since_ms: Option<i64>);

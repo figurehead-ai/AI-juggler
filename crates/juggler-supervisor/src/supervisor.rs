@@ -59,33 +59,7 @@ pub struct SpawnedProcess {
     pub identity: Option<crate::tree::ProcessIdentity>,
 }
 
-/// Live process statistics for one supervised Instance (AJ-E401 read
-/// model). Sums cover the root process plus its descendants; CPU% is
-/// only reported once the collector has two table samples (a single
-/// refresh cannot measure a delta).
-#[derive(Debug, Clone, Copy, Default, PartialEq)]
-pub struct LiveProcessStats {
-    /// Descendant process count (the root itself is not counted).
-    pub child_count: u32,
-    /// CPU utilization summed over the tree, percent; `None` until the
-    /// second table refresh (never a fabricated 0.0).
-    pub cpu_pct: Option<f64>,
-    /// Resident memory summed over the tree, bytes.
-    pub rss_bytes: u64,
-}
-
-impl LiveProcessStats {
-    /// Definitive zeros for a session whose process has exited — nothing
-    /// can be running or resident after exit.
-    #[must_use]
-    pub fn dead() -> Self {
-        Self {
-            child_count: 0,
-            cpu_pct: Some(0.0),
-            rss_bytes: 0,
-        }
-    }
-}
+pub use crate::stats::LiveProcessStats;
 
 /// One live process in a supervised tree (the Processes tab row,
 /// AJ-E410). `cpu_pct` stays `None` until the second table sample.
@@ -1389,7 +1363,7 @@ pub struct Supervisor {
     /// provider/account/project/machine; kept for the ledger tick.
     spawn_contexts: Mutex<HashMap<SessionId, crate::tree::SpawnContext>>,
     /// Sessions re-adopted by crash recovery (AJ-E510): the
-    /// `Running — re-adopted` marker set. These ARE supervised again
+    /// `Running — picked up after restart` marker set. These ARE supervised again
     /// (stoppable through the E507 path) — the old heuristic "adopted
     /// = journal-live minus supervised" could not say that.
     adopted: Mutex<HashMap<SessionId, Arc<ChildHandle>>>,

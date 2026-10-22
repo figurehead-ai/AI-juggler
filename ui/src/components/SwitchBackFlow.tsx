@@ -141,7 +141,7 @@ export function SwitchBackFlow({
             <h3 className="text-sm font-semibold">
               Switch back to {plan.original_account}
               <span className="ml-2 rounded border border-accent/50 px-1 text-[10px] text-accent">
-                {plan.original_alive ? "resume + one delta turn" : "fresh start · F0"}
+                {plan.original_alive ? "Continues, with what changed since" : "Briefing pack"}
               </span>
             </h3>
             {/* Req.3 verbatim — suggested, never executed. */}
@@ -154,7 +154,7 @@ export function SwitchBackFlow({
                 {plan.sf7_fallback.startsWith("nearest-epoch") &&
                   " — the nearest surviving conversation resumes instead."}
                 {plan.sf7_fallback === "fresh-f0" &&
-                  " — a fresh session starts, pack-primed honestly at F0."}
+                  " — a fresh session starts from a briefing pack."}
               </p>
             )}
             <p className="text-[11px] text-muted" data-testid="switch-back-divergence">

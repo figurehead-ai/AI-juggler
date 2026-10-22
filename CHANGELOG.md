@@ -40,6 +40,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   accounts' quota. An account's history says how long ago each session
   started (it said "now ago"), in days once it's more than two. A quota
   with no reading says "Not measured yet" everywhere, as Accounts does.
+- Plain words everywhere: a quota reads "measured", "worked out" or
+  "estimate" (never "MEAS"/"COMP"/"EST"), token counts say "tokens", and
+  switching says what carries ("Full story, fresh start", "Same
+  conversation, new account", "Switched back") instead of "F1",
+  "transplant" or "switch-back ↺". A switch is "proven" or "not proven
+  yet", and Accounts › "Which switches between accounts are proven"
+  explains each one with "automatic tests" and "tried by hand". Sessions
+  still running after a restart are "picked up after restart" (not
+  "re-adopted"). The launch settings each account starts with are
+  "Default" everywhere, also in a project's actions and New session.
+  New session's footer speaks only when a folder is picked. A lint keeps
+  developer words off the screen.
+- Home and Accounts never recommend an account that's low for new work.
+  When only a low one is measured, they say AI Juggler can't tell which
+  account has room (Home used to say both "start new work on another
+  account" and "Best for new work" for the same account at 6% left).
+- On a large setup, sessions running outside AI Juggler show as running
+  within seconds of the first launch: the newest files are read first,
+  and what's live is worked out as the first pass goes, not only at its
+  end (it took minutes).
+- A finished session's row no longer shows its account's "% left";
+  only a running one does, once the account runs low.
+- This Mac no longer lists a session as "under 1 MB": that was a session
+  whose process had already exited, so nothing was measured. Such a
+  session isn't listed, and its view shows its memory as unknown.
+- New session opens without waiting: its launch settings and ranking
+  load off the app's main thread, and it reuses the sessions the app
+  already has. Its account lines say what Home says (an account with no
+  reading of its own shows its latest session's), and Customise keeps
+  keyboard focus, so Esc still closes it.
 - On Home, J/K keep working after you mark a session reviewed or resume
   it, and A works from a row's own Mark reviewed button. Handed-over
   sessions no longer show under "Pick up where you left off". Home's

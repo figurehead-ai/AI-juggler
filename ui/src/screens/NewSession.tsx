@@ -19,9 +19,13 @@ import {
   type QuotaDisplayData,
   type AccountInfo,
   type LaunchRecipeInfo,
+  type InstanceInfo,
   type ProjectInfo, errorText,
   signedIn,
 } from "../lib/bridge";
+import { launchSettingsName, launchTitle } from "../lib/account-words";
+import { sessionTitle } from "../components/ManageWork";
+import { useTwinToggle } from "../lib/use-twin-toggle";
 
 /**
  * New session — zero typing: recent projects (real history), a native
@@ -31,6 +35,7 @@ import {
 export function NewSessionModal({
   projects,
   accounts,
+  sessions = [],
   initialDirectory,
   onClose,
   onLaunched,
@@ -39,6 +44,8 @@ export function NewSessionModal({
 }: {
   projects: ProjectInfo[];
   accounts: AccountInfo[];
+  /** The sessions the app already has: names for "Closing … frees about …". */
+  sessions?: InstanceInfo[];
   initialDirectory: string | null;
   onClose: () => void;
   onLaunched: (sessionId: string, title: string) => void;
@@ -55,7 +62,8 @@ export function NewSessionModal({
   const [dragging, setDragging] = useState(false);
   // AJ-E306 flow (e): Launch settings collapsed under Customise ▸ —
   // the recommended "Main" rides preselected; ⌘↩ launches it.
-  const [customiseOpen, setCustomiseOpen] = useState(false);
+  const customise = useTwinToggle();
+  const customiseOpen = customise.open;
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
 
@@ -107,26 +115,16 @@ export function NewSessionModal({
 
   // E14 (AJ-E1407): "Has this Mac got room?" per launch setting, and the
   // running sessions' names for "Closing … frees about …".
+  // AJ-E1535: the names come from the sessions the app already has (one
+  // read fewer on every open), named as everywhere else.
   const [advice, setAdvice] = useState<Map<string, MachineAdviceInfo>>(new Map());
-  const [sessionNames, setSessionNames] = useState<Map<string, string>>(new Map());
+  const sessionNames = useMemo(() => new Map(sessions.map((row) => [row.id, sessionTitle(row)])), [sessions]);
+  const sessionsOf = (accountId: string) => sessions.filter((row) => row.account_id === accountId);
   useEffect(() => {
     let alive = true;
     void machineAdvice().then(
       (rows) => alive && setAdvice(new Map(rows.map((row) => [row.recipe_id, row]))),
       () => null,
-    );
-    void import("../lib/bridge").then((bridge) =>
-      bridge.instancesList().then((rows) => {
-        if (!alive) return;
-        setSessionNames(
-          new Map(
-            rows.map((row) => {
-              const folder = (row.cwd ?? "").replace(/\/+$/, "").split("/").pop() || row.account_label;
-              return [row.id, row.git_branch ?? folder];
-            }),
-          ),
-        );
-      }),
     );
     return () => {
       alive = false;
@@ -222,7 +220,7 @@ export function NewSessionModal({
         setBusy(false);
         return;
       }
-      onLaunched(result.session_id, `${recipe.account_label} · ${recipe.name}`);
+      onLaunched(result.session_id, launchTitle(recipe));
     } catch (cause) {
       setError(errorText(cause));
       setBusy(false);
@@ -342,7 +340,7 @@ export function NewSessionModal({
                 <div className="flex flex-wrap items-center gap-2 text-xs">
                   <IconTerminal width={13} height={13} />
                   <span className="font-medium">{preselected.account_label}</span>
-                  <RunwayWords display={quotaByAccount[preselected.account_id]} />
+                  <RunwayWords display={quotaByAccount[preselected.account_id]} sessions={sessionsOf(preselected.account_id)} />
                   <span className="text-muted">·</span>
                   <span className="text-muted">Launch settings: {preselected.name}</span>
                   {preselected.model && (
@@ -369,9 +367,10 @@ export function NewSessionModal({
                     Launch →
                   </Button>
                   <Button
+                    ref={customise.showRef}
                     size="sm"
                     variant="secondary"
-                    onClick={() => setCustomiseOpen(true)}
+                    onClick={() => customise.toggle(true)}
                     aria-expanded={customiseOpen}
                   >
                     Customise ▸
@@ -393,8 +392,9 @@ export function NewSessionModal({
             )}
             {customiseOpen && (
               <button
+                ref={customise.hideRef}
                 type="button"
-                onClick={() => setCustomiseOpen(false)}
+                onClick={() => customise.toggle(false)}
                 className="self-start text-[11px] text-muted underline-offset-2 hover:text-ink hover:underline"
                 aria-expanded={customiseOpen}
               >
@@ -415,9 +415,9 @@ export function NewSessionModal({
                   >
                     <IconTerminal width={13} height={13} />
                     <span className="font-medium">{recipe.account_label}</span>
-                    <RunwayWords display={quotaByAccount[recipe.account_id]} />
+                    <RunwayWords display={quotaByAccount[recipe.account_id]} sessions={sessionsOf(recipe.account_id)} />
                     <span className="text-muted">·</span>
-                    <span className="text-muted">Launch settings: {recipe.name}</span>
+                    <span className="text-muted">Launch settings: {launchSettingsName(recipe.name)}</span>
                     <VerdictChip verdict={verdictByAccount.get(recipe.account_id)} />
                     <MachineChip advice={advice.get(recipe.id)} />
                     <span className="flex-1" />
@@ -478,11 +478,8 @@ export function NewSessionModal({
         </div>
 
         <div className="flex items-center justify-between border-t border-hairline/60 px-6 py-4">
-          <span className="text-[11px] text-muted">
-            {directory
-              ? `Launching in ${directory.split("/").pop()}`
-              : "No folder picked — the Launch settings' default folder applies"}
-          </span>
+          {/* AJ-E1535: the footer speaks only when a folder is picked. */}
+          <span className="text-[11px] text-muted">{directory ? `Launching in ${directory.split("/").pop()}` : null}</span>
           <Button size="sm" variant="secondary" onClick={onClose}>
             Close
           </Button>

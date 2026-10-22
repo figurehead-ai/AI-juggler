@@ -20,6 +20,7 @@ pub mod machine;
 pub mod orphans;
 pub mod ports;
 pub mod ring;
+pub mod stats;
 pub mod supervisor;
 pub mod tree;
 

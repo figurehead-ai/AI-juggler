@@ -315,6 +315,10 @@ export default function App() {
     { id: string; title: string; ended: boolean }[]
   >([]);
   const [newSession, setNewSession] = useState(false);
+  const closeNewSession = () => {
+    setNewSession(false);
+    setNewSessionDir(null);
+  };
   // AJ-E205: the executing switch flow (freeze dialog → stages →
   // source-safe failure banner). Null = closed.
   // D-25: Accounts › Add account reuses first run's steps, for this tool
@@ -1194,24 +1198,20 @@ export default function App() {
         <NewSessionModal
           projects={shownProjects}
           accounts={accounts}
+          sessions={sessions}
           initialDirectory={newSessionDir}
           openLoginTerminal={openLoginTerminal}
-          onClose={() => {
-            setNewSession(false);
-            setNewSessionDir(null);
-          }}
+          onClose={closeNewSession}
           onLaunched={(sessionId) => {
             // AJ-E309 Req.6: once per install (the backend dedupes and
             // computes seconds_since_install itself).
             funnelEvent("first_launch");
-            setNewSession(false);
-            setNewSessionDir(null);
+            closeNewSession();
             void refresh();
             selectSession(sessionId);
           }}
           onManageLaunchSettings={() => {
-            setNewSession(false);
-            setNewSessionDir(null);
+            closeNewSession();
             setGlobal("accounts");
           }}
         />

@@ -382,11 +382,19 @@ fn run_startup_recovery(
     {
         // Req.3: ONE summary, exact template, shown once, audited as
         // actor=system:recovery.
+        // AJ-E1535: plain words ("picked up again", never "re-adopted").
+        let count =
+            |n: usize, one: &str, many: &str| format!("{n} {}", if n == 1 { one } else { many });
         let summary = format!(
-            "{} sessions re-adopted, {} helpers left behind, {} processes could not be verified and were left alone.",
-            report.adopted.len(),
-            report.left_behind.len(),
-            report.unverifiable.len()
+            "{} picked up again, {} left behind, {} could not be checked and {} left alone.",
+            count(report.adopted.len(), "session", "sessions"),
+            count(report.left_behind.len(), "helper", "helpers"),
+            count(report.unverifiable.len(), "process", "processes"),
+            if report.unverifiable.len() == 1 {
+                "was"
+            } else {
+                "were"
+            }
         );
         let _ = storage.app_settings().set("recovery_summary", &summary);
         let _ = storage.app_settings().set("recovery_summary_consumed", "0");

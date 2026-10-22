@@ -71,9 +71,12 @@ stats-events:
 evidence:
     ./scripts/evidence_check.sh
 
-# Terminology gate (AJ-E108): legacy user-facing nouns cannot creep back.
+# Terminology gate (AJ-E108): legacy user-facing nouns cannot creep back;
+# AJ-E1535: nor can developer words on screen (its allowlist only shrinks).
 terminology:
     ./scripts/terminology_lint.sh
+    python3 scripts/plain_words_lint.py --selftest
+    python3 scripts/plain_words_lint.py
 
 # AJ-E1525 (ADR-0019 §5): no tool-id literal outside the adapters; the
 # allowlist of today's sites only shrinks.

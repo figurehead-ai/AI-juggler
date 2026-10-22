@@ -189,7 +189,7 @@ describe("AJ-E610 grep gates", () => {
     expect(newSessionRaw).toContain("<RunwayWords");
     expect(newSessionRaw).not.toContain("percent={0}");
     const runwayRaw = (await import("./AccountRunway.tsx?raw")).default as string;
-    expect(runwayRaw).toMatch(/export function RunwayWords[\s\S]*runwayOf\(display\)/);
+    expect(runwayRaw).toMatch(/export function RunwayWords[\s\S]*runwayOf\(display, sessions\)/);
   });
 
   it("D-12: no-date accounts carry unknown copy and no inferred dates", () => {

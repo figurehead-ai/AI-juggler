@@ -126,7 +126,7 @@ cwd: string,
 kind: string, 
 /**
  * True when crash recovery re-adopted this Instance's verified
- * root (AJ-E510): `Running — re-adopted`, terminal detached
+ * root (AJ-E510): `Running — picked up after restart`, terminal detached
  * (output from before the crash is unavailable), stop via the
  * AJ-E507 sheet.
  */

@@ -177,7 +177,7 @@ function RedactionBlock({
 
 /** AJ-E808: the same words the switch rows use for the pair's state. */
 function validationWords(validated: boolean | undefined): string {
-  return validated ? "Validated" : "Beta · Not yet validated";
+  return validated ? "Proven" : "Beta · Not proven yet";
 }
 
 export function SwitchFlow({

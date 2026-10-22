@@ -8,7 +8,7 @@ import { PageHeader, type Crumb } from "./PageShell";
 import type { PageKind } from "./registry";
 import { ProjectFacts } from "./ProjectPage";
 import { Button, Chip, type ChipTone } from "../components/primitives";
-import { AccountDisc, STATE_WORDS, hueOf, isActiveStatus, stateChip } from "../components/indicator";
+import { AccountDisc, STATE_WORDS, hueOf, isActiveStatus, lowLeftWords, stateChip } from "../components/indicator";
 import { ToolMark } from "../components/ToolMark";
 import { InspectorHeaderMenu } from "../components/InspectorHeaderMenu";
 import { useActionHost } from "../components/ItemMenu";
@@ -186,7 +186,7 @@ export function InspectorHeader({
       {/* AJ-E510: re-adopted after a crash; its earlier output is gone. */}
       {kind === "instance" && instance?.adopted && (
         <span data-testid="instance-adopted-chip">
-          <Chip tone="accent">↻ re-adopted</Chip>
+          <Chip tone="accent">↻ picked up after restart</Chip>
         </span>
       )}
       {data.machineId && data.machineId !== "this-mac" && (
@@ -292,8 +292,7 @@ const ENDED = ["finished", "stopped", "failed", "handed_over"];
 /** A session's facts: its account, how long, and how much is left once
  * that runs low (its project is the crumb above). */
 function sessionFacts(session: InstanceInfo, now: number): string {
-  const left = session.quota ? Math.max(0, Math.round(100 - session.quota.used_percentage)) : null;
-  return [session.account_label, `started ${since(session.started_at_ms, now)} ago`, left !== null && left <= 25 ? `${left}% left` : null]
+  return [session.account_label, `started ${since(session.started_at_ms, now)} ago`, lowLeftWords(session)]
     .filter(Boolean)
     .join(" · ");
 }

@@ -139,11 +139,44 @@ fn merged(conversations: impl Iterator<Item = Conversation>) -> Vec<Conversation
 ///
 /// As [`refresh_impl`].
 pub fn tick(state: &Arc<AppState>) -> AppResult<bool> {
-    let files_changed = refresh_impl(state)?;
+    tick_with(state, PROGRESS_EVERY, &|| {})
+}
+
+/// [`tick`], telling `progress` while a long pass is still reading (QA,
+/// batch 8: a first pass over a heavy setup takes minutes). Every
+/// `every` (the app uses [`PROGRESS_EVERY`]) that read something, which
+/// conversations are live
+/// is worked out again from what's read so far, and `progress` runs; the
+/// newest files are read first, so a running session shows within
+/// seconds, not after the whole pass.
+///
+/// # Errors
+///
+/// As [`refresh_impl`].
+pub fn tick_with(
+    state: &Arc<AppState>,
+    every: std::time::Duration,
+    progress: &dyn Fn(),
+) -> AppResult<bool> {
+    let files_changed = refresh_with(state, every, &|| {
+        if update_live(state).is_ok() {
+            progress();
+        }
+    })?;
     if files_changed {
         // New folders become projects without the UI asking.
         crate::commands::projects_backfill_impl(state)?;
     }
+    let live_changed = update_live(state)?;
+    Ok(files_changed || live_changed)
+}
+
+/// How often a long pass reports what it has read so far.
+pub const PROGRESS_EVERY: std::time::Duration = std::time::Duration::from_secs(2);
+
+/// Which conversations are live now, from the process table and what's
+/// indexed; `true` when that changed.
+fn update_live(state: &Arc<AppState>) -> AppResult<bool> {
     let accounts = lock_storage_arc(state)?.accounts().list()?;
     let running = live::running_sessions(state, &accounts);
     let now = live::live_ids(&state.conversations.all()?, &running);
@@ -152,9 +185,9 @@ pub fn tick(state: &Arc<AppState>) -> AppResult<bool> {
         .live
         .lock()
         .map_err(|_| AppError::StatePoisoned)?;
-    let live_changed = *live != now;
+    let changed = *live != now;
     *live = now;
-    Ok(files_changed || live_changed)
+    Ok(changed)
 }
 
 /// Brings the index up to date with every account's files: new and
@@ -165,9 +198,22 @@ pub fn tick(state: &Arc<AppState>) -> AppResult<bool> {
 ///
 /// Storage errors listing the accounts; a poisoned lock.
 pub fn refresh_impl(state: &Arc<AppState>) -> AppResult<bool> {
+    refresh_with(state, PROGRESS_EVERY, &|| {})
+}
+
+/// [`refresh_impl`], newest files first, calling `progress` every
+/// `every` that read something.
+fn refresh_with(
+    state: &Arc<AppState>,
+    every: std::time::Duration,
+    progress: &dyn Fn(),
+) -> AppResult<bool> {
     let accounts = lock_storage_arc(state)?.accounts().list()?;
     let mut seen: Vec<PathBuf> = Vec::new();
     let mut changed = false;
+    // Every account's files, listed first (cheap), then read newest
+    // first: a running session's file is among the newest.
+    let mut found = Vec::new();
     for account in &accounts {
         let Some(adapter) = state.registry.get(&account.harness) else {
             continue;
@@ -176,55 +222,72 @@ pub fn refresh_impl(state: &Arc<AppState>) -> AppResult<bool> {
             let Ok(meta) = std::fs::metadata(&path) else {
                 continue;
             };
-            let (len, modified) = (meta.len(), meta.modified().ok());
-            seen.push(path.clone());
-            let fresh = state
-                .conversations
-                .files
-                .lock()
-                .map_err(|_| AppError::StatePoisoned)?
-                .get(&path)
-                .is_some_and(|entry| entry.len == len && entry.modified == modified);
-            if fresh {
-                continue;
-            }
-            // Read outside the lock: a big transcript never holds up a reader.
-            // A conversation that records no time was last written when
-            // its file was.
-            let written = modified
-                .and_then(|at| at.duration_since(std::time::UNIX_EPOCH).ok())
-                .and_then(|since| i64::try_from(since.as_millis()).ok());
-            let conversation = adapter
-                .read_conversation(&path)
-                .map(|mut summary| {
-                    summary.last_ms = summary.last_ms.or(written);
-                    summary
-                })
-                .map(|summary| Conversation {
-                    folder: summary
-                        .cwd
-                        .as_ref()
-                        .map(|cwd| std::fs::canonicalize(cwd).unwrap_or_else(|_| cwd.clone())),
-                    summary,
-                    account_id: account.id.to_string(),
-                    tool: account.harness.to_string(),
-                    path: path.clone(),
-                });
-            state
-                .conversations
-                .files
-                .lock()
-                .map_err(|_| AppError::StatePoisoned)?
-                .insert(
-                    path,
-                    Entry {
-                        len,
-                        modified,
-                        conversation,
-                    },
-                );
-            changed = true;
+            found.push((
+                account,
+                std::sync::Arc::clone(&adapter),
+                path,
+                meta.len(),
+                meta.modified().ok(),
+            ));
         }
+    }
+    found.sort_by_key(|entry| std::cmp::Reverse(entry.4));
+    let mut reported = std::time::Instant::now();
+    let mut unreported = false;
+    for (account, adapter, path, len, modified) in found {
+        if unreported && reported.elapsed() >= every {
+            progress();
+            reported = std::time::Instant::now();
+            unreported = false;
+        }
+        seen.push(path.clone());
+        let fresh = state
+            .conversations
+            .files
+            .lock()
+            .map_err(|_| AppError::StatePoisoned)?
+            .get(&path)
+            .is_some_and(|entry| entry.len == len && entry.modified == modified);
+        if fresh {
+            continue;
+        }
+        // Read outside the lock: a big transcript never holds up a reader.
+        // A conversation that records no time was last written when
+        // its file was.
+        let written = modified
+            .and_then(|at| at.duration_since(std::time::UNIX_EPOCH).ok())
+            .and_then(|since| i64::try_from(since.as_millis()).ok());
+        let conversation = adapter
+            .read_conversation(&path)
+            .map(|mut summary| {
+                summary.last_ms = summary.last_ms.or(written);
+                summary
+            })
+            .map(|summary| Conversation {
+                folder: summary
+                    .cwd
+                    .as_ref()
+                    .map(|cwd| std::fs::canonicalize(cwd).unwrap_or_else(|_| cwd.clone())),
+                summary,
+                account_id: account.id.to_string(),
+                tool: account.harness.to_string(),
+                path: path.clone(),
+            });
+        state
+            .conversations
+            .files
+            .lock()
+            .map_err(|_| AppError::StatePoisoned)?
+            .insert(
+                path,
+                Entry {
+                    len,
+                    modified,
+                    conversation,
+                },
+            );
+        changed = true;
+        unreported = true;
     }
     let mut files = state
         .conversations

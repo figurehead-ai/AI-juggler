@@ -26,7 +26,7 @@ const target = (account: string, label: string, extra: Partial<SwitchTargetData>
   recipe_id: `r-${account}`,
   account_id: account,
   account_label: label,
-  badge: "F1 · Beta",
+  badge: "Full story, fresh start · Beta",
   validated: false,
   cross_provider: false,
   drops: ["tool approvals"],

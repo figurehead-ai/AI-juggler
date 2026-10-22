@@ -1019,9 +1019,22 @@ pub fn assemble(
     leftovers: (u32, u32),
 ) -> ThisMacInfo {
     let cores = machine.cores;
-    let all: Vec<&TreeInput> = trees.iter().collect();
-    let ours: Vec<&TreeInput> = trees.iter().filter(|t| t.session_id.is_some()).collect();
-    let theirs: Vec<&TreeInput> = trees.iter().filter(|t| t.session_id.is_none()).collect();
+    // A tree with nothing measured (its process has exited, or it has no
+    // sample yet) isn't on This Mac — never listed as "under 1 MB".
+    let all: Vec<&TreeInput> = trees
+        .iter()
+        .filter(|t| t.stats.measured().is_some())
+        .collect();
+    let ours: Vec<&TreeInput> = all
+        .iter()
+        .copied()
+        .filter(|t| t.session_id.is_some())
+        .collect();
+    let theirs: Vec<&TreeInput> = all
+        .iter()
+        .copied()
+        .filter(|t| t.session_id.is_none())
+        .collect();
     let mut by_memory = all.clone();
     by_memory.sort_by_key(|tree| std::cmp::Reverse(tree.stats.rss_bytes));
     ThisMacInfo {
@@ -1948,6 +1961,27 @@ mod tests {
             "nothing running uses nothing"
         );
         assert!(empty.top.is_empty());
+    }
+
+    /// AJ-E1535: a session whose process has exited before it's marked
+    /// ended reports zero sums. That is nothing measured, never a tree
+    /// "under 1 MB": This Mac leaves it out, and its totals with it.
+    #[test]
+    fn a_tree_with_nothing_measured_is_not_on_this_mac() {
+        let machine = health_of(
+            &MachineSnapshot {
+                cores: 8,
+                ..MachineSnapshot::default()
+            },
+            &RoomThresholds::default(),
+        );
+        let mut gone = tree(Some("gone"), 0.0, 0, 0);
+        gone.stats = LiveProcessStats::dead();
+        let info = assemble(machine, &[gone, tree(Some("s1"), 10.0, G, 60)], (0, 0));
+        assert_eq!(info.top.len(), 1);
+        assert_eq!(info.top[0].session_id.as_deref(), Some("s1"));
+        assert_eq!((info.ours.count, info.ours.rss_bytes), (1, G));
+        assert!(LiveProcessStats::dead().measured().is_none());
     }
 }
 

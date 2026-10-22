@@ -75,3 +75,20 @@ it("after a reset, a session's old reading doesn't bring '% left' back (Home, th
   // A live session reading still helps when nothing else is known.
   expect(runwayOf(none, [session(NOW + 3_600_000)]).words).toBe("64% left, from its latest session");
 });
+
+it("New session says what Home says for the same account (AJ-E1535)", async () => {
+  const { render } = await import("@testing-library/react");
+  const { createElement } = await import("react");
+  const { RunwayWords, runwayOf } = await import("../components/AccountRunway");
+  const session = {
+    id: "s",
+    status: "running",
+    started_at_ms: NOW - 3_600_000,
+    last_activity_ms: NOW - 60_000,
+    quota: { used_percentage: 42, resets_at_ms: NOW + 3_600_000, confidence: "measured" },
+  } as unknown as import("./bridge").InstanceInfo;
+  const none = quotaDisplay("a");
+  const view = render(createElement(RunwayWords, { display: none, sessions: [session] }));
+  expect(view.getByTestId("launch-runway").textContent).toBe(runwayOf(none, [session]).words);
+  expect(view.getByTestId("launch-runway").textContent).toBe("58% left, from its latest session");
+});

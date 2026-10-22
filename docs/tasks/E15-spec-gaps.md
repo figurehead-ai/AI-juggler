@@ -283,7 +283,7 @@ walk alone isn't enough.
 **Files to touch**: `scripts/replica.py`, `crates/juggler-adapters/src/bin/fake_harness.rs` (the `write` mode), `justfile`.
 **Handover note**: Never point it at a real HOME. Real-data checks are the QA session's, read-only, with redacted counts.
 
-### AJ-E1529 Sessions started outside AI Juggler | Status: IN-REVIEW | Priority P0 | Effort L | Depends: AJ-E1531, AJ-E1502
+### AJ-E1529 Sessions started outside AI Juggler | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E1531, AJ-E1502
 **Goal**: The rail shows every session on each account, not only the ones AI Juggler started.
 **User story**: As someone with six sessions open across my accounts, I open AI Juggler and see all of them, live ones first, under their projects.
 **Requirements** (the maintainer's real-setup test, 2026-10-21):
@@ -386,7 +386,7 @@ walk alone isn't enough.
    - tool: the tool's mark (AJ-E1526).
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1534/manifest.md`, as for AJ-E1533.
 
-### AJ-E1535 Plain words and consistency | Status: TODO | Priority P0 | Effort M | Depends: —
+### AJ-E1535 Plain words and consistency | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: —
 1. Remove "COMP", "tok", "F1", "transplant", "switch-back ↺", "root: … copy" and "imported sessions: 0", and New session's footer "No folder picked — No launch settings…". A footer shows only where it applies.
 2. A finished session's row shows no account "% left".
 3. This Mac's "under 1 MB" for a Claude session: find out what it measures, and fix it or say it plainly.

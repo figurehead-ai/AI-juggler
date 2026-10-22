@@ -170,12 +170,13 @@ export function StatCard({
   );
 }
 
-/** I-05 quota tier tag — always adjacent to the number (WCAG/NN-g:
- * recognition over recall). `Meas`/`Comp`/`Est` per SPEC §6. */
+/** I-05 quota tier word — always adjacent to the number (WCAG/NN-g:
+ * recognition over recall). SPEC §6's tiers in plain words (AJ-E1535:
+ * never "MEAS"/"COMP"/"EST"). */
 export function quotaTierTag(confidence: string): string {
-  if (confidence === "measured") return "Meas";
-  if (confidence === "computed") return "Comp";
-  return "Est";
+  if (confidence === "measured") return "measured";
+  if (confidence === "computed") return "worked out";
+  return "estimate";
 }
 
 /** I-05: the quota bar for a row/card — filled by `% left`, reset
@@ -206,7 +207,7 @@ export function QuotaBar({
   return (
     <span
       className={`inline-flex min-w-0 items-center gap-1.5 ${className}`}
-      title={`Quota: ${Math.round(left)}% left${reset} · ${quota.confidence}`}
+      title={`Quota: ${Math.round(left)}% left${reset} · ${quotaTierTag(quota.confidence)}`}
     >
       <span className="relative inline-block h-1.5 w-14 overflow-hidden rounded-full bg-surface-3">
         <span
@@ -217,7 +218,7 @@ export function QuotaBar({
       <span className="whitespace-nowrap text-[10px] tabular-nums text-muted">
         {Math.round(left)}% left
       </span>
-      <span className="shrink-0 rounded border border-hairline px-1 text-[9px] font-medium uppercase tracking-wide text-faint">
+      <span className="shrink-0 whitespace-nowrap text-[10px] text-faint">
         {quotaTierTag(quota.confidence)}
       </span>
     </span>

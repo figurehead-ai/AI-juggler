@@ -22,6 +22,7 @@ pub mod crossmachine;
 #[cfg(all(debug_assertions, feature = "dev-bridge"))]
 pub mod dev_bridge;
 pub mod edition;
+pub mod env_overlay;
 pub mod error;
 pub mod features;
 pub mod figurehead;
@@ -775,9 +776,17 @@ fn spawn_read_model_ticks(
         let conversations_state = index_state.clone();
         std::thread::spawn(move || {
             loop {
-                if let Ok(true) = features::conversations::tick(&conversations_state) {
-                    use tauri::Emitter;
+                use tauri::Emitter;
+                // QA batch 8: a long first pass tells the UI as it goes.
+                let tell = || {
                     let _ = conversations_app.emit(features::conversations::EVENT_CHANGED, ());
+                };
+                if let Ok(true) = features::conversations::tick_with(
+                    &conversations_state,
+                    features::conversations::PROGRESS_EVERY,
+                    &tell,
+                ) {
+                    tell();
                 }
                 std::thread::sleep(std::time::Duration::from_secs(15));
             }

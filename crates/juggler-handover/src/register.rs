@@ -384,16 +384,13 @@ fn render_matrix(out: &mut String, register: &Register, matrix: &[crate::validat
             .find(|row| row.from == pair.from && row.to == pair.to);
         let validated = row.is_some_and(crate::validation::PairCell::validated);
         let badge = row.map_or_else(
-            || "F0 · Beta".to_owned(),
+            || "Briefing pack · Beta".to_owned(),
             crate::validation::PairCell::badge,
         );
         let (switch_rows, settings) = if validated {
-            (badge, "Validated ✓")
+            (badge, "Proven ✓")
         } else {
-            (
-                format!("{badge} · Not yet validated"),
-                "Beta — not yet validated",
-            )
+            (format!("{badge} · Not proven yet"), "Beta — not proven yet")
         };
         let cells: Vec<&str> = AREAS
             .iter()

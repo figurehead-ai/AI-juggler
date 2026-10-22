@@ -98,12 +98,12 @@ export function formatTokens(n: number): string {
   return String(n);
 }
 
-/** `18.2k tok` from input+output; `null` when usage was never observed. */
+/** `18.2k tokens` from input+output; `null` when usage was never observed. */
 export function tokenSummary(
   tokens: InstanceInfo["tokens"],
 ): string | null {
   if (!tokens) return null;
-  return `${formatTokens(tokens.input + tokens.output)} tok`;
+  return `${formatTokens(tokens.input + tokens.output)} tokens`;
 }
 
 /**
@@ -239,79 +239,6 @@ export function rememberResourceSample(
     }
   }
   return resourceHistory.get(id) ?? { cpu: [], ram: [] };
-}
-
-// --- Screen-reader summary ----------------------------------------------------
-
-/** Full field text for `aria-label`: every number reachable as text. */
-export function ariaSummary(session: InstanceInfo, nowMs: number = Date.now()): string {
-  const mark = providerMark(session.provider);
-  const chip = stateChip(session.status);
-  const badge = attentionBadge(session);
-  const parts: string[] = [
-    `${mark.abbrev} provider`,
-    session.account_label,
-    session.model ?? "default model",
-    badge ? badge.text : chip.label,
-  ];
-  if (session.quota) {
-    parts.push(
-      `quota ${Math.round(100 - session.quota.used_percentage)}% left, ${session.quota.confidence}`,
-    );
-  } else {
-    parts.push("Quota: not measured yet");
-  }
-  const tokens = tokenSummary(session.tokens);
-  if (tokens) parts.push(tokens);
-  if (session.cpu_pct !== null && session.rss_bytes !== null) {
-    parts.push(`cpu ${Math.round(session.cpu_pct)}%, ram ${formatBytes(session.rss_bytes)}`);
-  }
-  if (session.child_count) parts.push(`${session.child_count} children`);
-  if (session.subtask_count) parts.push(`${session.subtask_count} subtasks`);
-  if (session.git_branch) parts.push(gitWords(session));
-  parts.push(ageSummary(session.started_at_ms, session.last_activity_ms, nowMs));
-  const suffix = attentionSuffix(session, nowMs);
-  if (badge && suffix) parts.push(suffix);
-  const reason = attentionTooltip(session);
-  if (reason) parts.push(reason);
-  return parts.join(", ");
-}
-
-/**
- * The details a row doesn't show as text, for its `aria-describedby`
- * (WCAG 2.5.3 — the row's name is its visible content; everything else
- * a screen reader needs is here).
- */
-export function ariaDetails(session: InstanceInfo, nowMs: number = Date.now()): string {
-  const parts: string[] = [];
-  parts.push(
-    session.quota
-      ? `quota ${Math.round(100 - session.quota.used_percentage)}% left, ${session.quota.confidence}`
-      : "Quota: not measured yet",
-  );
-  const tokens = tokenSummary(session.tokens);
-  if (tokens) parts.push(tokens);
-  if (session.cpu_pct !== null && session.rss_bytes !== null) {
-    parts.push(`cpu ${Math.round(session.cpu_pct)}%, ram ${formatBytes(session.rss_bytes)}`);
-  }
-  if (session.child_count) parts.push(`${session.child_count} children`);
-  if (session.subtask_count) parts.push(`${session.subtask_count} subtasks`);
-  parts.push(ageSummary(session.started_at_ms, session.last_activity_ms, nowMs));
-  const reason = attentionTooltip(session);
-  if (reason) parts.push(reason);
-  return parts.join(", ");
-}
-
-/**
- * A row's described-by text: `hidden`, so it never joins the row's name
- * from content, but still read as its description.
- */
-export function RowDetails({ id, session }: { id: string; session: InstanceInfo }): ReactNode {
-  return (
-    <span id={id} hidden>
-      {ariaDetails(session)}
-    </span>
-  );
 }
 
 /** `1.1 GB` / `890 MB` byte formatting. */
@@ -518,6 +445,14 @@ function legendTone(tone: StateChipTone): string {
  */
 export function isActiveStatus(status: string): boolean {
   return status === "starting" || status === "running" || status === "waiting_user" || status === "stuck" || status === "quota_blocked";
+}
+
+/** "18% left" once a live session's account runs low (25 % or less);
+ * a finished session says nothing about its account's quota (AJ-E1535). */
+export function lowLeftWords(session: InstanceInfo): string | null {
+  if (!session.quota || !isActiveStatus(session.status)) return null;
+  const left = Math.max(0, Math.round(100 - session.quota.used_percentage));
+  return left <= 25 ? `${left}% left` : null;
 }
 
 // --- WCAG 4.1.3: attention changes announced politely (AJ-E405) ---------

@@ -8,13 +8,11 @@ import {
   launchRecipesList,
   launchSession,
   pickDirectory,
-  type LaunchRecipeInfo,
-  type ProjectInfo,
-  type AccountInfo,
-  type QuotaDisplayData,
+  type LaunchRecipeInfo, type ProjectInfo, type AccountInfo, type QuotaDisplayData,
   errorText,
   signedIn,
 } from "../lib/bridge";
+import { launchSettingsName, launchTitle } from "../lib/account-words";
 
 /**
  * AJ-E305 flow (b): a new project in ≤ 3 clicks and zero typed
@@ -148,7 +146,7 @@ export function NewProjectSheet({
         setBusy(false);
         return;
       }
-      onLaunched(result.session_id, `${recipe.account_label} · ${recipe.name}`);
+      onLaunched(result.session_id, launchTitle(recipe));
     } catch (cause) {
       setError(errorText(cause));
       setBusy(false);
@@ -357,7 +355,7 @@ export function NewProjectSheet({
                             {quotaByAccount.get(recipe.account_id)?.forecast.badge ?? "quota unknown"}
                           </Chip>
                           <span className="text-muted">·</span>
-                          <span className="text-muted">{recipe.name}</span>
+                          <span className="text-muted">{launchSettingsName(recipe.name)}</span>
                           {!ready && <Chip tone="neutral">needs sign-in (Ready home)</Chip>}
                         </button>
                       );

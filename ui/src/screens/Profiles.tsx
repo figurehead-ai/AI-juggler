@@ -6,12 +6,12 @@ import { Field, Input, Modal } from "../components/form";
 import { IconProfiles, IconTerminal } from "../components/icons";
 import { LoginQueueCard } from "../components/LoginQueueCard";
 import { useItemMenu } from "../components/ItemMenu";
-import { activityWords } from "../lib/account-words";
+import { activityWords, launchSettingsName, launchTitle } from "../lib/account-words";
 import { liveOutside, useConversations } from "../lib/conversations";
 import { BetaMatrix } from "../components/BetaMatrix";
 import { ExpertSetup } from "../components/ExpertSetup";
 import { EnvOverlayEditor } from "../components/EnvOverlayEditor";
-import { AccountRunway, runwayLines } from "../components/AccountRunway";
+import { AccountRunway, newWorkAdvice } from "../components/AccountRunway";
 import { shortPath, useAccountManage } from "./AccountManage";
 import { ActionHostProvider } from "../components/ItemMenu";
 import { providerMark } from "../components/indicator";
@@ -34,24 +34,6 @@ import {
   type InstanceInfo,
   type QuotaDisplayData,
 } from "../lib/bridge";
-
-/** The account with the most runway left for new work, if any is measured. */
-export function bestForNewWork(
-  accounts: AccountInfo[],
-  displays: QuotaDisplayData[],
-  sessions: InstanceInfo[],
-): { account: AccountInfo; left: number } | null {
-  let best: { account: AccountInfo; left: number } | null = null;
-  for (const account of accounts) {
-    if (!signedIn(account.login_state)) continue;
-    const lines = runwayLines(displays.find((d) => d.account === account.id), sessions.filter((s) => s.account_id === account.id));
-    const measured = lines.filter((line) => line.left !== null).map((line) => line.left!);
-    if (measured.length === 0) continue;
-    const left = Math.min(...measured);
-    if (!best || left > best.left) best = { account, left };
-  }
-  return best;
-}
 
 /**
  * Accounts screen (M1-3; component name kept from the M1 "Profiles"
@@ -157,7 +139,7 @@ export function ProfilesScreen({
       // Interactive sessions stream straight into the terminal dock.
       openTerminal(
         result.session_id,
-        `${recipe.account_label} · ${recipe.name}`,
+        launchTitle(recipe),
       );
     } catch (cause) {
       setError(errorText(cause));
@@ -181,10 +163,10 @@ export function ProfilesScreen({
           <h2 className="text-lg font-semibold tracking-tight">Accounts</h2>
           <p className="text-xs text-muted" data-testid="accounts-summary">
             {(() => {
-              const best = bestForNewWork(accounts, displays, sessions);
-              return best
-                ? `Best for new work: ${best.account.label}, ${best.left}% left.`
-                : "Each account is its own sign-in, kept apart from the others.";
+              return (
+                newWorkAdvice(accounts, displays, sessions).words ??
+                "Each account is its own sign-in, kept apart from the others."
+              );
             })()}
           </p>
         </div>
@@ -250,7 +232,7 @@ export function ProfilesScreen({
       </p>
       <details className="group" data-testid="accounts-beta-matrix">
         <summary className="cursor-pointer text-xs text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
-          Which switches between accounts are proven (Beta)
+          Which switches between accounts are proven
         </summary>
         <div className="mt-3">
           <BetaMatrix />
@@ -463,7 +445,7 @@ function AccountCard({
         ) : (
           profiles.map((recipe) => (
             <div key={recipe.id} className="group flex flex-wrap items-center gap-3 px-5 py-2.5">
-              <span className="text-sm">{recipe.name === "Main" ? "Default" : recipe.name}</span>
+              <span className="text-sm">{launchSettingsName(recipe.name)}</span>
               {recipe.model ? (
                 <Chip tone="neutral">{recipe.model}</Chip>
               ) : (

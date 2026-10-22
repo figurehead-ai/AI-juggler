@@ -2,9 +2,8 @@
 
 Task: `docs/tasks/E15-spec-gaps.md` AJ-E1529, sessions started outside AI
 Juggler (a 0.1 blocker, from the maintainer's real-setup test). Status:
-**IN-REVIEW**: everything is built and passes on the replica. The
-real-data pass (qa-real, read-only, with redacted counts) comes before
-DONE-EVIDENCED.
+**DONE-EVIDENCED**: QA accepted it on the real setup (release/0.1
+3542530d, read-only, redacted counts; below), after the replica.
 
 Gallery: `docs/qa/evidence/_gallery/78-outside/` (Home and the rail, an
 outside conversation's page, Accounts and a project's page, in both
@@ -134,6 +133,56 @@ to no account.
   Once worktrees fold (above), removed worktrees aren't projects at all.
 - **New session's top folders** leave out moved projects. "1 prior
   sessions" reads "1 prior session".
+
+## QA's real-data pass (accepted)
+
+qa-real on the maintainer's real setup, release/0.1 `3542530d`,
+read-only, with redacted counts. Overall 60 OK, 2 MISMATCH, 1 INFO. The
+snapshot was clean: no path was added or removed.
+
+- **Setups and projects:** 7 of 7 setups found and brought in. Projects
+  show 9 rows against 9, and every project's counts and account set
+  match.
+- **Conversations:** all 7 accounts match the oracle (20, 3, 2, 2, 15,
+  2 and 258).
+- **Live:** 4/4, 1/1, 1/1, 1/1 and 10/10, plus 0/0 and 0/0 (the
+  `--resume=<id>` fix holds). No live session lacks an account. The 8
+  stand-ins are left out as INFO.
+- **Window tokens:** every line ×1.00.
+- **The two MISMATCH lines aren't this item's:**
+  - Cost per session (×0.40 to ×12.49) is the shared-message credit,
+    which #126 fixes on main.
+  - 214 of 467 priced: `codex-auto-review` is the only unpriced model.
+- **The rail walk through the bridge:**
+  - Every session is found. The rail reads "Running 17" grouped by
+    project, and Home lists the same 17.
+  - On Home the account is obvious. In the rail it is the account's
+    disc (low: on the real setup, labels that share a first word give
+    near-identical initials; for AJ-E1532's monograms).
+
+## QA batch 8 (from the real-data pass)
+
+- **(High) Home contradicted itself.** It said "Account G has 6% left —
+  start new work on another account" and then "Best for new work:
+  Account G, 6% left". G was the only account measured. One rule now
+  decides for Home and Accounts (`AccountRunway.tsx` `newWorkAdvice`):
+  - A low account (25% left or less) is never recommended.
+  - When others aren't measured, the words name them ("Account A isn't
+    measured yet") and say AI Juggler can't tell which has room.
+  - Signed-out accounts are left out.
+  - The old copy on Accounts (`bestForNewWork`) is gone.
+  - vitest `account-runway`: "never recommends a low account, and says
+    when it can't tell".
+- **(Medium) Nothing read as running for about 5 minutes on a heavy
+  setup.** The first pass indexed 300 conversations over about 4 minutes
+  and worked out which were live only at its end. Now:
+  - the pass reads the newest files first (a running session's file is
+    among them);
+  - every 2 s of reading it works out what's live from what it has so
+    far, and tells the UI.
+
+  Integration test `conversations`
+  `a_long_pass_reads_the_newest_files_first_and_reports_as_it_goes`.
 
 ## Walked on the replica: the three questions
 

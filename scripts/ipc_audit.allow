@@ -107,7 +107,6 @@ sync kill_verify
 sync launch_port_warning
 sync launch_recipe_env_get
 sync launch_recipe_env_set
-sync launch_recipes_list
 sync launch_session
 sync link_status
 sync login_open_web
@@ -144,7 +143,6 @@ sync pricing_override_clear
 sync pricing_override_set
 sync profile_create
 sync profile_delete
-sync profiles_list_alias
 sync projects_backfill
 sync projects_list
 sync providers_capabilities
@@ -152,7 +150,6 @@ sync providers_discover
 sync providers_list
 sync quota_display
 sync quota_display_all
-sync ranking_rows
 sync recommendation_for
 sync recovery_summary_dismiss
 sync recovery_summary_get

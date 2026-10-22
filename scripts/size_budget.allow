@@ -5,30 +5,30 @@
 # main's #108/#112/#115 were written before this budget existed. Profiles'
 # account sheets moved to AccountManage.tsx; the rest are capped where
 # the merge left them.
-crates/juggler-app/src/commands.rs 4310
+crates/juggler-app/src/commands.rs 4245
 crates/juggler-app/src/link.rs 2382
 crates/juggler-app/src/usage_stats.rs 2085
-crates/juggler-supervisor/src/supervisor.rs 2874
+crates/juggler-supervisor/src/supervisor.rs 2848
 ui/src/App.tsx 1248
 ui/src/components/CrossMachineSwitchFlow.tsx 518
 ui/src/components/KillSheet.tsx 622
 ui/src/components/NotificationRegion.tsx 425
 ui/src/components/RemoteTabs.tsx 496
-ui/src/components/RightInspector.tsx 1832
+ui/src/components/RightInspector.tsx 1831
 ui/src/components/SettingsSections.tsx 604
 ui/src/components/SwitchFlow.tsx 762
 ui/src/components/SwitchGraph.tsx 433
 ui/src/components/UpdatesCard.tsx 434
 ui/src/components/WorkflowRail.tsx 1847
-ui/src/components/indicator.tsx 614
+ui/src/components/indicator.tsx 548
 ui/src/lib/bridge.ts 4952
 ui/src/lib/machine.ts 426
 ui/src/screens/CleanupCentre.tsx 809
 ui/src/screens/FirstRun.tsx 1432
 ui/src/screens/FleetScreen.tsx 838
 ui/src/screens/Home.tsx 818
-ui/src/screens/NewProjectSheet.tsx 425
-ui/src/screens/NewSession.tsx 527
+ui/src/screens/NewProjectSheet.tsx 423
+ui/src/screens/NewSession.tsx 524
 ui/src/screens/PairingWizard.tsx 816
 ui/src/screens/Profiles.tsx 767
 ui/src/screens/Settings.tsx 826

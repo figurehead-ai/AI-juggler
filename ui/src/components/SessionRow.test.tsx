@@ -95,7 +95,7 @@ describe("AJ-E402 honesty copy — absence is exact, never fabricated", () => {
 
   it("no pricing source renders tokens only — never `$0.00`", () => {
     const text = rowText(mk({}));
-    expect(text).toContain("19.1k tok");
+    expect(text).toContain("19.1k tokens");
     expect(text).not.toContain("$");
   });
 
@@ -176,7 +176,7 @@ describe("AJ-E402 card/row parity and screen-reader access", () => {
       "opus",
       "Running",
       "% left",
-      "19.1k tok",
+      "19.1k tokens",
       "feat/read-model",
     ]) {
       expect(card).toContain(field);
@@ -199,7 +199,7 @@ describe("AJ-E402 card/row parity and screen-reader access", () => {
     for (const part of ["Claude", "Work Max", "opus", "Running", "feat/read-model"]) {
       expect(name).toContain(part);
     }
-    for (const part of ["quota 58% left, computed", "19.1k tok", "cpu 4%, ram 121 KB", "2 children"]) {
+    for (const part of ["quota 58% left, worked out", "19.1k tokens", "cpu 4%, ram 121 KB", "2 children"]) {
       expect(described).toContain(part);
     }
     expect(all).not.toContain("!");

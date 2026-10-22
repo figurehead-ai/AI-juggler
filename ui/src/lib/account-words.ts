@@ -14,3 +14,16 @@ export function activityWords(sessions: InstanceInfo[], elsewhere = 0): string {
   const parts = [running > 0 ? `${running} running` : null, needs.length > 0 ? `${needs.length} need${needs.length === 1 ? "s" : ""} you` : null].filter(Boolean);
   return parts.length > 0 ? parts.join(" · ") : "Nothing running";
 }
+
+/** A launch settings' name as every surface shows it: the one each
+ * account starts with is "Default" (stored as "Main"; AJ-E1535 — one
+ * name in Accounts, project actions and New session). */
+export function launchSettingsName(name: string): string {
+  return name === "Main" ? "Default" : name;
+}
+
+/** A launched session's first title: its account and launch settings
+ * ("Work Max · Default"). */
+export function launchTitle(recipe: { account_label: string; name: string }): string {
+  return `${recipe.account_label} · ${launchSettingsName(recipe.name)}`;
+}

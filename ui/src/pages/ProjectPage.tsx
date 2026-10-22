@@ -18,6 +18,7 @@ import { IconTerminal } from "../components/icons";
 import { Button, Card } from "../components/primitives";
 import { signedIn, type AccountInfo, type InstanceInfo, type LaunchRecipeInfo, type ProjectInfo } from "../lib/bridge";
 import { SessionsList, useSessionRows } from "./SessionsList";
+import { launchSettingsName } from "../lib/account-words";
 
 export type ProjectPanelProps = {
   project: ProjectInfo;
@@ -201,12 +202,12 @@ export function ProjectOverview(props: ProjectPanelProps) {
           {ranked.map(({ recipe, usual }) => {
             const ready = signedIn(props.accounts.find((a) => a.id === recipe.account_id)?.login_state);
             return (
-              <Button key={recipe.id} size="sm" variant="secondary" disabled={!ready} title={ready ? recipe.name : "Needs sign-in first"} onClick={() => launch(recipe)}>
+              <Button key={recipe.id} size="sm" variant="secondary" disabled={!ready} title={ready ? launchSettingsName(recipe.name) : "Needs sign-in first"} onClick={() => launch(recipe)}>
                 <AccountDisc accountId={recipe.account_id} label={recipe.account_label} size={14} />
                 {recipe.account_label}
                 {/* An account with several launch settings: say which. */}
                 {ranked.filter((other) => other.recipe.account_id === recipe.account_id).length > 1 && (
-                  <span className="text-muted">· {recipe.name}</span>
+                  <span className="text-muted">· {launchSettingsName(recipe.name)}</span>
                 )}
                 {usual && <span className="text-[9px] text-accent-hi">Usual</span>}
               </Button>

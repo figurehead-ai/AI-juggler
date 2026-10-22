@@ -59,9 +59,8 @@ import {
   attentionBadge,
   attentionSuffix,
   attentionTooltip,
-  ariaSummary,
-  RowDetails,
   isActiveStatus,
+  lowLeftWords,
   providerMark,
   rememberResourceSample,
   stateChip,
@@ -71,6 +70,7 @@ import {
   type StateChipTone,
 } from "./indicator";
 import { QuotaBar, Sparkline } from "./primitives";
+import { ariaSummary, RowDetails } from "./row-details";
 
 /** Freshness timestamps per Instance id (epoch ms) driving the stale rule. */
 export type { Freshness } from "../lib/live-deltas";
@@ -951,8 +951,7 @@ export function RailRow({
   const ended = ["finished", "stopped", "handed_over"].includes(session.status);
   const parked = parkedWords(session, now);
   const state = parked ? parked.chip : (RAIL_STATE[session.status] ?? chip.label);
-  const left = session.quota ? Math.round(100 - session.quota.used_percentage) : null;
-  const low = left !== null && left <= 25 ? `${Math.max(0, left)}% left` : null;
+  const low = lowLeftWords(session);
   const when = sessionWhen(session, now);
   // D-25: the row stays calm — these markers appear only when they are
   // the exception worth a glance (a sign-in to check, uncommitted work,

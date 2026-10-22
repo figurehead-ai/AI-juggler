@@ -282,7 +282,7 @@ fn t2_at_the_same_path_switches_to_the_other_mac_with_shared_lineage() {
     assert_eq!(row.machine_label, "Studio Mac");
     assert_eq!(row.account_label, "Desktop Max");
     assert_eq!(row.mechanism, "transplant");
-    assert!(row.badge.ends_with("· Unvalidated"), "{}", row.badge);
+    assert!(row.badge.ends_with("· Not proven yet"), "{}", row.badge);
     assert!(!row.validated);
     assert_eq!(
         row.same_path_project.as_deref(),

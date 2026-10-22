@@ -17,7 +17,7 @@ const target = (recipe: string, suggested: boolean): SwitchTargetData => ({
   provider: "codex",
   account_id: `a-${recipe}`,
   account_label: `Account ${recipe}`,
-  badge: "F1 · Beta",
+  badge: "Full story, fresh start · Beta",
   validated: false,
   cross_provider: false,
   drops: [],

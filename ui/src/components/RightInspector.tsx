@@ -48,6 +48,7 @@ import {
   type RemoteSwitchTargetInfo,
 } from "../lib/bridge";
 import { RemoteTabBody, type RemoteContext } from "./RemoteTabs";
+import { launchSettingsName } from "../lib/account-words";
 
 /**
  * RightInspector — the page of a session, a project, an account or a
@@ -919,10 +920,8 @@ function InstanceOverview(props: PanelProps) {
                     <IconTerminal width={13} height={13} />
                     <span className="font-medium">{recipe.account_label}</span>
                     <span className="text-faint">·</span>
-                    <span className="text-muted">{recipe.name}</span>
-                    {recipe.model && (
-                      <span className="ml-auto font-mono text-[10px] text-faint">{recipe.model}</span>
-                    )}
+                    <span className="text-muted">{launchSettingsName(recipe.name)}</span>
+                    {recipe.model && <span className="ml-auto font-mono text-[10px] text-faint">{recipe.model}</span>}
                     {!ready && <Chip tone="neutral">sign in first</Chip>}
                   </button>
                 );
@@ -1573,7 +1572,7 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
   // E507 sheet) is the way to end it.
   const adoptedNotice = instance.adopted ? (
     <Card className="flex flex-col gap-1 p-3" data-testid="instance-detached-notice">
-      <p className="text-[11.5px] font-medium text-ink">Running — re-adopted after restart</p>
+      <p className="text-[11.5px] font-medium text-ink">Running — picked up after restart</p>
       <p className="text-[10.5px] text-muted">
         The terminal is detached: output from before the app closed is not available. Stop
         runs through the verified sheet (Terminate… on a row below).
