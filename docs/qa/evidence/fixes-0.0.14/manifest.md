@@ -1,0 +1,9 @@
+# Evidence manifest — the fourth fix batch (fix/maintainer-reports-4)
+
+Not a task's evidence. This covers the coordinator's list after #126: the monitoring budget beside a busy Claude app (a 0.1 blocker), and #126's review follow-ups. CPU figures are this thread's CPU time over one simulated minute, measured on the maintainer's Mac while other sessions ran.
+
+| Claim / Req ID | Command / fixture / live step (exact) | Threshold | Observed | Verdict | Commit SHA | Date | Reviewer |
+|---|---|---|---|---|---|---|---|
+| Monitoring under 1 % beside a busy Claude app (SPEC §1, AJ-E1410) | `cargo test -p juggler-app --test load_budgets monitoring_beside_a_busy_claude_app -- --nocapture`: a stand-in Claude app (`fake-desktop` copied to `…/Claude.app/Contents/MacOS/Claude`, running a shell with 290 `sleep`s), plus this Mac's own Claude apps; 30 ticks and 12 This Mac emissions | < 1 % locally, < 2 % on CI | before (main e7b633ba): debug 1.102–1.160 %, release 0.790 %. After: debug 0.665–0.716 %, release 0.519–0.566 %. Without the stand-in (`monitoring_costs_under_one_percent_of_a_core`): debug 0.622–0.735 %, release 0.456–0.465 % | PASS | 29db6f4b | 2026-10-22 | claude-opus |
+| Where the cost was | temporary per-phase timers in `LiveStatsCollector::tick` (not committed), the busy case in debug | — | before: the other tools' processes read every tick 219 ms a minute, the P16 listing 198 ms, full scans 120 ms, the rest ~130 ms. After: one listing every 2nd tick reads CPU and memory too and the other tools' trees are built from it (no per-tick read of them); no listing on a full scan's tick after warm-up | PASS | 29db6f4b | 2026-10-22 | claude-opus |
+| Five minutes of history at any cadence | `cargo test -p juggler-supervisor --test supervisor the_sample_ring_keeps_the_newest_five_minutes` (2 s: 150 samples; 4 s: 76, never more than 5 minutes) | — | passed | PASS | 29db6f4b | 2026-10-22 | claude-opus |
