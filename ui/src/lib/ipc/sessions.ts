@@ -1,7 +1,7 @@
 /**
  * AJ-E1537 — the sessions feature's calls (ENGINEERING-GUIDE U3).
  */
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "./transport";
 import { hasLiveBackend } from "../bridge";
 
 /** The copyable line that resumes a session in a terminal: built by its

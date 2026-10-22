@@ -777,7 +777,7 @@ fn spawn_read_model_ticks(
             loop {
                 if let Ok(true) = features::conversations::tick(&conversations_state) {
                     use tauri::Emitter;
-                    let _ = conversations_app.emit("conversations://changed", ());
+                    let _ = conversations_app.emit(features::conversations::EVENT_CHANGED, ());
                 }
                 std::thread::sleep(std::time::Duration::from_secs(15));
             }

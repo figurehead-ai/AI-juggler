@@ -3,7 +3,7 @@
  * file per feature). "Stuck after" reaches the heuristics at once; a save
  * fires `SESSION_PREFS_EVENT` so open terminals follow.
  */
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import type { SessionPrefsInfo } from "../../types/generated/SessionPrefsInfo";
 

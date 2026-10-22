@@ -4,8 +4,7 @@
  * backend reads them from each tool's own files and says when they
  * change (`conversations://changed`).
  */
-import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { invoke, listen } from "./transport";
 import { hasLiveBackend, refused, type LaunchResult } from "../bridge";
 import type { ConversationInfo } from "../../types/generated/ConversationInfo";
 import { PREVIEW_TOOLS } from "../../preview/tools";

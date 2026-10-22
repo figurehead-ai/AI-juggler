@@ -3,7 +3,7 @@
  * editor projects open in (ENGINEERING-GUIDE U3: one IPC module per
  * feature). In preview mode each call changes the preview's own rows.
  */
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "./transport";
 import { hasLiveBackend, MOCK_PROJECTS, MOCK_SESSIONS, pickDirectory, refused } from "../bridge";
 import type { EditorChoicesInfo } from "../../types/generated/EditorChoicesInfo";
 

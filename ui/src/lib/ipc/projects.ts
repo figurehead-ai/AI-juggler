@@ -1,7 +1,7 @@
 /**
  * AJ-E1533 — the projects feature's calls (ENGINEERING-GUIDE U3).
  */
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import type { GitStatusInfo } from "../../types/generated/GitStatusInfo";
 

@@ -11,6 +11,10 @@ pub mod commands;
 pub mod dto;
 pub mod live;
 
+/// Emitted when the conversations or which are live changed (the rail
+/// reads them again).
+pub const EVENT_CHANGED: &str = "conversations://changed";
+
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};

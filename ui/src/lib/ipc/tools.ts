@@ -1,7 +1,7 @@
 /**
  * AJ-E1525 — the tools catalog over IPC (ADR-0019 §1): every tool as data.
  */
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import { PREVIEW_TOOLS } from "../../preview/tools";
 import type { ToolSpecInfo } from "../../types/generated/ToolSpecInfo";

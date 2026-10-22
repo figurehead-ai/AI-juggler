@@ -18,8 +18,8 @@ use tauri::Manager as _;
 
 use crate::state::AppState;
 use crate::{
-    commands, crash, history, link, machine_health, manage, newer_data, os_access, overnight,
-    parked, settings_policy, updates, usage_stats,
+    commands, crash, features, history, link, machine_health, manage, newer_data, os_access,
+    overnight, parked, settings_policy, updates, usage_stats,
 };
 
 /// The settings the UI reads; others (the one-time confirmation tokens
@@ -192,7 +192,7 @@ read_routes! {
     "providers_list" => value commands::harnesses_list();
     "providers_capabilities" => result commands::providers_capabilities(state);
     "accounts_list" => result commands::accounts_list(state);
-    "account_audit" => result manage::account_audit(state; account_id: String);
+    "account_audit" => async_result manage::account_audit(state; account_id: String);
     "account_storage" => result history::account_storage(state);
     "launch_recipes_list" => result commands::profiles_list(state);
     "instances_list" => result commands::sessions_list(state);
@@ -231,4 +231,12 @@ read_routes! {
     "crash_info" => value crash::crash_info(state);
     "usage_stats_info" => value usage_stats::usage_stats_info(state);
     "link_status" => value link::link_status(state);
+    // release/0.1's reads (AJ-E1525, E1502, E1504, E1529, E1533).
+    "tools_catalog" => async_result features::tools::commands::tools_catalog(state);
+    "conversations_list" => async_result features::conversations::commands::conversations_list(state);
+    "conversations_resume_command" => async_result features::conversations::commands::conversations_resume_command(state; account_id: String, conversation_id: String);
+    "sessions_resume_command" => async_result features::sessions::commands::sessions_resume_command(state; session_id: String);
+    "projects_git_status" => async_result features::projects::git::projects_git_status(state; project_id: String);
+    "editor_choices" => async_result manage::editor_choices(state);
+    "session_prefs_get" => async_result settings_policy::session_prefs_get(state);
 }
