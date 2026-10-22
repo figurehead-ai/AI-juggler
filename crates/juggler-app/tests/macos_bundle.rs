@@ -23,7 +23,7 @@ fn value_after<'a>(plist: &'a str, key: &str) -> &'a str {
         .find(&format!("<key>{key}</key>"))
         .unwrap_or_else(|| panic!("{key} is missing"));
     let rest = &plist[at..];
-    let end = rest.find("</string>").map_or(rest.len(), |end| end);
+    let end = rest.find("</string>").unwrap_or(rest.len());
     &rest[..end]
 }
 
