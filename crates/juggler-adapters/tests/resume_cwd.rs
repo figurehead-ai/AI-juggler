@@ -106,7 +106,7 @@ fn stub(dir: &Path) -> PathBuf {
 fn claude_resumes_and_replays_in_the_work_folder() {
     let bin = tempfile::tempdir().unwrap();
     check(
-        &ClaudeCodeAdapter::with_bin(&stub(bin.path())),
+        &ClaudeCodeAdapter::with_bin(stub(bin.path())),
         "claude-code",
     );
 }
@@ -114,5 +114,5 @@ fn claude_resumes_and_replays_in_the_work_folder() {
 #[test]
 fn codex_resumes_and_replays_in_the_work_folder() {
     let bin = tempfile::tempdir().unwrap();
-    check(&CodexAdapter::with_bin(&stub(bin.path())), "codex");
+    check(&CodexAdapter::with_bin(stub(bin.path())), "codex");
 }
