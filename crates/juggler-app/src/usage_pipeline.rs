@@ -44,9 +44,11 @@ pub const CREDITS_KEY_PREFIX: &str = "credits:";
 /// no longer depends on the reading order (a copy of a copy, a fork); a
 /// compaction counted once wherever a pass ends. 4 = Codex's compressed
 /// rollouts read (`.jsonl.zst`): their history comes in as a re-read, not
-/// as new use. A cross-branch number, like a migration's: release/0.1 also
-/// takes 4 (P19); where the two meet it becomes 5.
-const REREAD_VERSION: u32 = 4;
+/// as new use. 5 = a Codex compaction that names its own model call opens
+/// no row of its own (P21: one counted another thread's call again). A
+/// cross-branch number, like a migration's: release/0.1 takes 4 for P19;
+/// where the two meet it becomes 6, so both re-reads happen.
+const REREAD_VERSION: u32 = 5;
 
 /// Quota samples gathered in one pass: (account, window, sample).
 type SampleBatch = Vec<(

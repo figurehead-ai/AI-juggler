@@ -714,7 +714,17 @@ impl RolloutCarry {
         match (kind, inner) {
             (Some("compacted"), _) => {
                 self.compactions += 1;
-                self.compacted = Some(OpenCompaction {
+                // P21: Codex names the compaction's own model call
+                // (`latest_token_usage_record`). That call is a
+                // `token_usage_record`, counted where it is written: in
+                // this file, or in the thread whose history this one
+                // opens with. Named as none (a forked thread's copied
+                // summary), there is no call of its own here. Only a
+                // `compacted` from before Codex named it waits for its
+                // `token_count` (P17).
+                let names_its_call = payload
+                    .is_some_and(|payload| payload.get("latest_token_usage_record").is_some());
+                self.compacted = (!names_its_call).then_some(OpenCompaction {
                     before: self.last_total,
                 });
             }

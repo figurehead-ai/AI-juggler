@@ -138,6 +138,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Codex: a conversation that opens by summarising another one no longer
+  counts that conversation's last model call again (on the maintainer's
+  Mac, about 367,000 tokens across three conversations). Usage already
+  counted is read again once.
 - Codex's older conversations count: Codex compresses older session files
   (`.jsonl.zst`), and AI Juggler read none of them, so their tokens and
   costs were missing (on a Mac used for a while, most of them).
