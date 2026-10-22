@@ -1012,6 +1012,91 @@ OK        This Mac tools CPU: backend 6.6% of all cores (ps %CPU is a decaying a
 OK        alerts over the run: 1 (memory_pressure)
 ```
 
+## Batch 9 — AJ-E1529 (sessions and projects started outside AI Juggler) on `release/0.1` `cc1e9321`
+
+### How
+
+- One run on `release/0.1` (which carries the oracle at `580521ce`): the harness, read
+  only, Finder-like, on a fresh data folder.
+- **Overall**: 26 OK, 35 MISMATCH, 2 INFO. The token, reset, Codex-window and cost lines
+  belong to #120 and AJ-E1530, which aren't on this branch.
+- **Before trusting a green result**, I reviewed the driver's oracle changes:
+  - resolved folders: no effect here;
+  - a Codex CLI matched by its folder: fine;
+  - a Codex thread counted once: fine.
+- **One gap closed in the oracle** (`5edc0070`): an unattributable live session now fails,
+  instead of dropping out of both sides. Temp-folder stand-ins are left out as INFO.
+
+### The acceptance lines (redacted)
+
+```text
+OK        setups found: 7 of 7
+OK        brought in where they are: 7 of 7
+OK        projects: backend 9 rows, oracle 9
+MISMATCH  Project 1: backend 252 conversations in 1 row(s), accounts ['Account A', 'Account G']; oracle 4 Claude + 249 Codex, accounts ['Account A', 'Account G']
+OK        Project 2: backend 14 conversations in 1 row(s), accounts ['Account E']; oracle 14 Claude + 0 Codex, accounts ['Account E']
+OK        Project 3: backend 13 conversations in 1 row(s), accounts ['Account A']; oracle 13 Claude + 0 Codex, accounts ['Account A']
+OK        Project 4: backend 11 conversations in 1 row(s), accounts ['Account G']; oracle 0 Claude + 11 Codex, accounts ['Account G']
+OK        Project 5: backend 6 conversations in 1 row(s), accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account E', 'Account F']; oracle 6 Claude + 0 Codex, accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account E', 'Account F']
+OK        Project 6: backend 3 conversations in 1 row(s), accounts ['Account A', 'Account F']; oracle 3 Claude + 0 Codex, accounts ['Account A', 'Account F']
+OK        Project 7: backend 3 conversations in 1 row(s), accounts ['Account B', 'Account C']; oracle 3 Claude + 0 Codex, accounts ['Account B', 'Account C']
+OK        Project 8: backend 1 conversations in 1 row(s), accounts ['Account D']; oracle 1 Claude + 0 Codex, accounts ['Account D']
+OK        Project 9: backend 1 conversations in 1 row(s), accounts ['Account G']; oracle 0 Claude + 1 Codex, accounts ['Account G']
+OK        Account A conversations: backend 20, oracle 20
+MISMATCH  Account A live: backend 0, running 4
+OK        Account B conversations: backend 3, oracle 3
+MISMATCH  Account B live: backend 0, running 1
+OK        Account C conversations: backend 2, oracle 2
+MISMATCH  Account C live: backend 0, running 1
+OK        Account D conversations: backend 2, oracle 2
+MISMATCH  Account D live: backend 0, running 1
+OK        Account E conversations: backend 15, oracle 15
+MISMATCH  Account E live: backend 0, running 10
+OK        Account F conversations: backend 2, oracle 2
+OK        Account F live: backend 0, running 0
+MISMATCH  Account G conversations: backend 260, oracle 261
+OK        Account G live: backend 0, running 0
+OK        live sessions with no account in the oracle: 0
+INFO      left out: 8 stand-in CLI(s) run from a temp folder (tests, not sessions)
+MISMATCH  cost rows per session: 291 sessions in both; 1 within 5% of the transcripts; ratio min ×1.00, median ×1.94, max ×2.50; 0 only in the backend, 2 only in the transcripts; 7 still being written during the run, left out
+```
+
+### What a user would see against what is on disk
+
+- **All right**:
+  - all 9 projects, each with its accounts;
+  - every account's conversation count (A 20, B 3, C 2, D 2, E 15, F 2);
+  - each Codex thread exactly once (260 entries for 260 ids; a13f221b holds).
+- **Timing, not a bug**: Account G's 260 against 261, and Project 1's 252 against 253.
+  That Codex thread was created 2.9 minutes after the backend read the files.
+- **Blocker: not one of the 17 sessions running in the Claude app shows as live.** The
+  backend has 0 live on every account, against A 4, B 1, C 1, D 1, E 10.
+  - `session_process` (`crates/juggler-adapters/src/claude_conversations.rs:157-162`)
+    drops any `claude` whose executable path contains `.app/`.
+  - Every Claude-app Code session runs from
+    `…/claude-code/<version>/<hash>/claude.app/Contents/MacOS/claude`: 13 under the
+    profile instances, 4 under the default app.
+  - The desktop app's own executable is `Claude` (capital C), which the name test
+    already rejects.
+  - The replica passed only because its fakes aren't inside a `.app`. Both a fix and a
+    replica case are proposed.
+
+### Snapshot
+
+- No path added or removed. `~/.codex` changed (the live Codex), and two profiles'
+  managed-settings syncs ran on their own schedule.
+- **One config file**: Account C's `.claude.json` (same size) and a backup at 20:35:12.
+  - That's off the profile's 6-hour backup cadence (00:00, 06:00, 12:00, 18:00).
+  - Its live session wrote its transcript 76 s before and 66 s after.
+  - No probe or scan passes a profile's `CLAUDE_CONFIG_DIR` to `claude`.
+  - Attributed to that session: strong, not proven.
+
+### The rail walk: blocked
+
+- `release/0.1` doesn't carry the read-only bridge (#122).
+- A local cherry-pick conflicts in the command registry, where the new conversation
+  commands would need a class. That is release work, so it's left to the driver.
+
 ## Not walked (blocked by W0, before the bridge)
 
 These need the window:
