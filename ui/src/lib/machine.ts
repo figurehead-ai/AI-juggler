@@ -190,6 +190,7 @@ const thisMacSeams = () => window as unknown as ThisMacSeams;
 
 // The preview's This Mac (no backend) lives with the other preview data.
 import { mockThisMac } from "../preview/this-mac";
+import { PREVIEW_OBSERVED } from "../preview/machine";
 export { mockHeavyNote, mockThisMac } from "../preview/this-mac";
 
 /** This Mac now. */
@@ -207,7 +208,15 @@ export async function thisMac(): Promise<ThisMacInfo> {
     const top = sessions.find((session) => session.status === "running");
     const alerts = seams.__AIJ_ALERTS__ ?? previewAlerts(top?.id ?? null);
     const advice = seams.__AIJ_RECOMMENDATIONS__ ?? (previewParam("aij_history") ? PREVIEW_HISTORY : []);
-    return mockThisMac(sessions, await machineHealth(), seams.__AIJ_OBSERVED__, leftovers, alerts, advice);
+    // `?aij_windows=N`: N Claude app windows, heaviest first (the "and N
+    // more" state).
+    const windows = Number(previewParam("aij_windows") ?? 0);
+    const observed =
+      seams.__AIJ_OBSERVED__ ??
+      (windows > 0
+        ? Array.from({ length: windows }, (_, at) => ({ ...PREVIEW_OBSERVED[0]!, root_pid: 600 + at, account_label: `Window ${at + 1}`, rss_bytes: Math.round(7_400_000_000 / (at + 1)) }))
+        : undefined);
+    return mockThisMac(sessions, await machineHealth(), observed, leftovers, alerts, advice);
   }
   return invoke<ThisMacInfo>("this_mac");
 }

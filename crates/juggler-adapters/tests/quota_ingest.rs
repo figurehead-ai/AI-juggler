@@ -12,12 +12,13 @@
     clippy::pedantic
 )]
 
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use juggler_adapters::quota_ingest::{
-    self, SPOOL_ROTATE_BYTES, gemini_events, install_statusline, rollout_events, spool_path,
-    statusline_samples, tail_spool, tail_transcript, uninstall_statusline, zcode_events,
-    zcode_is_peak,
+    self, RolloutCarry, SPOOL_ROTATE_BYTES, gemini_events, install_statusline,
+    rollout_events, spool_path, statusline_samples, tail_rollout, tail_spool, tail_transcript,
+    uninstall_statusline, zcode_events, zcode_is_peak,
 };
 use juggler_core::model::Confidence;
 use juggler_core::quota::{UsageSource, WindowKind};
@@ -288,6 +289,543 @@ fn a_response_split_across_two_passes_keeps_its_final_figure() {
     assert_eq!(again[0].added, juggler_core::model::TokenCounts::default());
 }
 
+/// A resumed copy repeats its original's history under its own session id
+/// (QA: 58% of one session's messages also sat in its copy). Each shared
+/// message belongs to the original, whichever file is read first: the
+/// same per-session split both ways, and the account total unchanged.
+#[test]
+fn a_shared_message_belongs_to_the_session_that_came_first() {
+    let line = |session: &str, id: &str, ts: &str, output: u64| {
+        format!(
+            "{{\"type\":\"assistant\",\"uuid\":\"{session}-{id}\",\"requestId\":\"req_{id}\",\"sessionId\":\"{session}\",\"timestamp\":\"{ts}\",\"message\":{{\"id\":\"msg_{id}\",\"role\":\"assistant\",\"model\":\"claude-opus-4\",\"usage\":{{\"input_tokens\":10,\"output_tokens\":{output},\"cache_read_input_tokens\":0,\"cache_creation_input_tokens\":0}}}}}}\n"
+        )
+    };
+    // The original, and its copy: the same two responses, with their
+    // original times, then one of its own. The copy's id sorts first, so
+    // the id alone would credit it.
+    let original = [
+        line("sess-a", "1", "2026-10-20T09:00:00.000Z", 100),
+        line("sess-a", "2", "2026-10-20T09:05:00.000Z", 200),
+    ]
+    .concat();
+    let copy = [
+        line("sess-0", "1", "2026-10-20T09:00:00.000Z", 100),
+        line("sess-0", "2", "2026-10-20T09:05:00.000Z", 200),
+        line("sess-0", "3", "2026-10-21T10:00:00.000Z", 400),
+    ]
+    .concat();
+    let split = |first: &str, second: &str| {
+        let storage = Storage::open_in_memory().unwrap();
+        for bytes in [first, second] {
+            let outcome =
+                juggler_adapters::quota_ingest::transcript_events("acc", bytes.as_bytes());
+            storage.usage().store_events(&outcome.events).unwrap();
+        }
+        let mut by_session = std::collections::BTreeMap::<String, u64>::new();
+        for row in storage.usage().events_for_account("acc", 0).unwrap() {
+            *by_session.entry(row.session.unwrap()).or_default() += row.tokens.output;
+        }
+        by_session
+    };
+    let original_first = split(&original, &copy);
+    let copy_first = split(&copy, &original);
+    assert_eq!(
+        original_first, copy_first,
+        "the reading order never changes the answer"
+    );
+    assert_eq!(
+        original_first.get("sess-a"),
+        Some(&300),
+        "the history stays with the original"
+    );
+    assert_eq!(
+        original_first.get("sess-0"),
+        Some(&400),
+        "the copy keeps only its own"
+    );
+    assert_eq!(
+        original_first.values().sum::<u64>(),
+        700,
+        "the account total is unchanged"
+    );
+}
+
+/// One session's transcript: its messages `(id, minute)`, the copied ones
+/// with their original times (as Claude Code writes a resumed copy).
+fn session(id: &str, messages: &[(u32, u32)]) -> Vec<juggler_core::quota::UsageEvent> {
+    let bytes: String = messages
+        .iter()
+        .map(|(message, minute)| {
+            format!(
+                "{{\"type\":\"assistant\",\"uuid\":\"{id}-{message}\",\"requestId\":\"req_{message}\",\"sessionId\":\"{id}\",\"timestamp\":\"2026-10-20T09:{minute:02}:00.000Z\",\"message\":{{\"id\":\"msg_{message}\",\"role\":\"assistant\",\"model\":\"claude-opus-4\",\"usage\":{{\"input_tokens\":0,\"output_tokens\":{message},\"cache_read_input_tokens\":0,\"cache_creation_input_tokens\":0}}}}}}\n"
+            )
+        })
+        .collect();
+    juggler_adapters::quota_ingest::transcript_events("acc", bytes.as_bytes()).events
+}
+
+/// Stores each pass in one batch; returns which messages each session keeps.
+fn kept(passes: &[Vec<juggler_core::quota::UsageEvent>]) -> BTreeMap<String, Vec<u64>> {
+    let storage = Storage::open_in_memory().unwrap();
+    for pass in passes {
+        storage.usage().store_events(pass).unwrap();
+    }
+    kept_in(&storage)
+}
+
+fn kept_in(storage: &Storage) -> BTreeMap<String, Vec<u64>> {
+    let mut by_session = BTreeMap::<String, Vec<u64>>::new();
+    for row in storage.usage().events_for_account("acc", 0).unwrap() {
+        by_session
+            .entry(row.session.unwrap())
+            .or_default()
+            .push(row.tokens.output);
+    }
+    by_session.values_mut().for_each(|ids| ids.sort_unstable());
+    by_session
+}
+
+fn expected(rows: &[(&str, &[u64])]) -> BTreeMap<String, Vec<u64>> {
+    rows.iter()
+        .map(|(session, ids)| ((*session).to_owned(), ids.to_vec()))
+        .collect()
+}
+
+/// The same split however the passes come: every order of `passes` as
+/// separate passes, all in one pass, and a fresh re-read of every session
+/// (each replaced by all it offered, as the pipeline's re-read does) after
+/// the passes.
+fn every_order_gives(
+    passes: &[Vec<juggler_core::quota::UsageEvent>],
+    want: &BTreeMap<String, Vec<u64>>,
+) {
+    let mut orders: Vec<Vec<usize>> = vec![vec![]];
+    for _ in 0..passes.len() {
+        orders = orders
+            .into_iter()
+            .flat_map(|order| {
+                (0..passes.len())
+                    .filter(|at| !order.contains(at))
+                    .map(|at| [order.clone(), vec![at]].concat())
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+    }
+    for order in &orders {
+        let ordered: Vec<_> = order.iter().map(|at| passes[*at].clone()).collect();
+        assert_eq!(&kept(&ordered), want, "separate passes in order {order:?}");
+    }
+    assert_eq!(&kept(&[passes.concat()]), want, "one pass");
+    let storage = Storage::open_in_memory().unwrap();
+    for pass in passes {
+        storage.usage().store_events(pass).unwrap();
+    }
+    let everything = passes.concat();
+    let sessions: std::collections::BTreeSet<String> = everything
+        .iter()
+        .filter_map(|event| event.session.clone())
+        .collect();
+    for session in sessions {
+        let mine: Vec<_> = everything
+            .iter()
+            .filter(|event| event.session.as_deref() == Some(session.as_str()))
+            .cloned()
+            .collect();
+        storage
+            .usage()
+            .replace_session_events(
+                &[("acc".into(), UsageSource::Transcript, session.clone())],
+                &mine,
+            )
+            .unwrap();
+        assert_eq!(&kept_in(&storage), want, "after reading {session} again");
+    }
+}
+
+/// H1 (#126 review): a copy that is itself resumed. O (messages 1–2), C
+/// resumed from O (1–4), D resumed from C (1–6): each keeps only what it
+/// wrote, in every reading order, in one pass, as the files grow, and after
+/// a fresh re-read. Before, a session that had lost messages looked newer,
+/// so the answer depended on the order.
+#[test]
+fn a_chain_of_copies_keeps_each_message_with_its_writer_in_any_order() {
+    let want = expected(&[("o", &[1, 2]), ("c", &[3, 4]), ("d", &[5, 6])]);
+    every_order_gives(
+        &[
+            session("o", &[(1, 0), (2, 1)]),
+            session("c", &[(1, 0), (2, 1), (3, 2), (4, 3)]),
+            session("d", &[(1, 0), (2, 1), (3, 2), (4, 3), (5, 4), (6, 5)]),
+        ],
+        &want,
+    );
+    // The files as they were written: C's last message lands in a pass of
+    // its own.
+    every_order_gives(
+        &[
+            session("c", &[(1, 0), (2, 1), (3, 2)]),
+            session("d", &[(1, 0), (2, 1), (3, 2), (4, 3), (5, 4), (6, 5)]),
+            session("c", &[(4, 3)]),
+            session("o", &[(1, 0), (2, 1)]),
+        ],
+        &want,
+    );
+}
+
+/// H1: a fork both sides go on writing. F forked from O after message 2
+/// and wrote 3–4; O went on later with 5–6. The shared history stays with
+/// O however long either grows, in every reading order.
+#[test]
+fn a_fork_leaves_the_shared_history_with_the_original_as_both_grow() {
+    every_order_gives(
+        &[
+            session("o", &[(1, 0), (2, 1)]),
+            session("f", &[(1, 0), (2, 1), (3, 2), (4, 3)]),
+            session("o", &[(5, 10), (6, 11)]),
+        ],
+        &expected(&[("o", &[1, 2, 5, 6]), ("f", &[3, 4])]),
+    );
+}
+
+/// L-a (#126 re-review): reading a session again whose file no longer has
+/// a message another session holds never drops it from the account's
+/// total; it goes to the holder left.
+#[test]
+fn a_re_read_never_drops_a_message_another_session_holds() {
+    let storage = Storage::open_in_memory().unwrap();
+    storage
+        .usage()
+        .store_events(&session("o", &[(1, 0), (2, 1)]))
+        .unwrap();
+    storage
+        .usage()
+        .store_events(&session("c", &[(1, 0), (2, 1), (3, 2), (4, 3)]))
+        .unwrap();
+    assert_eq!(
+        kept_in(&storage),
+        expected(&[("o", &[1, 2]), ("c", &[3, 4])])
+    );
+    storage
+        .usage()
+        .replace_session_events(
+            &[("acc".into(), UsageSource::Transcript, "o".into())],
+            &session("o", &[(1, 0)]),
+        )
+        .unwrap();
+    let after = kept_in(&storage);
+    assert_eq!(
+        after.values().flatten().sum::<u64>(),
+        10,
+        "the total is unchanged"
+    );
+    assert_eq!(after, expected(&[("o", &[1]), ("c", &[2, 3, 4])]));
+}
+
+/// Known limit (L-d, #126 re-review): O goes on writing, C forks from it,
+/// and C is resumed into D before writing anything. C has nothing of its
+/// own, so it takes O's history. The total is right.
+#[test]
+fn the_known_limit_a_fork_resumed_before_it_wrote_takes_the_history() {
+    let got = kept(&[
+        session("o", &[(1, 0), (2, 1), (5, 10), (6, 11)]),
+        session("c", &[(1, 0), (2, 1)]),
+        session("d", &[(1, 0), (2, 1), (3, 2), (4, 3)]),
+    ]);
+    assert_eq!(
+        got,
+        expected(&[("o", &[5, 6]), ("c", &[1, 2]), ("d", &[3, 4])])
+    );
+    assert_eq!(got.values().flatten().sum::<u64>(), 21);
+}
+
+/// Known limit (L-d): a resume that never writes ties the original on
+/// everything but the id, and the smaller id keeps the history.
+#[test]
+fn the_known_limit_an_empty_resume_wins_the_tie_on_its_id() {
+    let got = kept(&[
+        session("o", &[(1, 0), (2, 1)]),
+        session("a-copy", &[(1, 0), (2, 1)]),
+    ]);
+    assert_eq!(got, expected(&[("a-copy", &[1, 2])]));
+}
+
+/// The rule's known limit, pinned so a change to it is deliberate: when
+/// the original writes first after the fork (5 at minute 2) and the fork
+/// later (3 at minute 4), the fork is credited the shared part. The
+/// account's total is the same either way.
+#[test]
+fn the_known_limit_an_original_that_writes_first_after_a_fork() {
+    let got = kept(&[
+        session("o", &[(1, 0), (2, 1), (5, 2)]),
+        session("f", &[(1, 0), (2, 1), (3, 4)]),
+    ]);
+    assert_eq!(got, expected(&[("o", &[5]), ("f", &[1, 2, 3])]));
+    assert_eq!(got.values().flatten().sum::<u64>(), 11);
+}
+
+/// Rollout lines shaped like QA's (P17): `compacted`, then one
+/// `token_count` before the next turn, which no record covers. Values are
+/// invented.
+fn codex_line(kind: &str, ts: &str, body: &str) -> String {
+    format!(
+        "{{\"timestamp\":\"2026-10-21T10:{ts}.000Z\",\"type\":\"{kind}\",\"payload\":{body}}}\n"
+    )
+}
+
+fn count(ts: &str, last: u64, total: u64) -> String {
+    codex_line(
+        "event_msg",
+        ts,
+        &format!(
+            r#"{{"type":"token_count","info":{{"last_token_usage":{{"input_tokens":{last},"cached_input_tokens":0,"output_tokens":0,"reasoning_output_tokens":0,"total_tokens":{last}}},"total_token_usage":{{"input_tokens":{total},"cached_input_tokens":0,"output_tokens":0,"reasoning_output_tokens":0,"total_tokens":{total}}}}},"rate_limits":null}}"#
+        ),
+    )
+}
+
+fn record(ts: &str, turn: &str, input: u64) -> String {
+    codex_line(
+        "token_usage_record",
+        ts,
+        &format!(
+            r#"{{"thread_id":"th-sub","turn_id":"{turn}","response_id":"r-{turn}","usage":{{"input_tokens":{input},"cached_input_tokens":0,"cache_write_input_tokens":0,"output_tokens":0,"reasoning_output_tokens":0,"total_tokens":{input}}}}}"#
+        ),
+    )
+}
+
+fn started(ts: &str) -> String {
+    codex_line("event_msg", ts, r#"{"type":"task_started"}"#)
+}
+
+/// P17: a subagent's rollout opens with `compacted`, then one token_count
+/// whose total carries its parent's tokens (13.9× its own here) and whose
+/// own usage no record covers. Its own usage counts, once, under the
+/// thread the next record names; the parent's total never does.
+#[test]
+fn a_compactions_own_usage_counts_once_never_the_starting_total() {
+    let bytes = [
+        codex_line("compacted", "00:00", "{}"),
+        count("00:01", 160, 2_224),
+        started("00:02"),
+        record("00:03", "t1", 100),
+        count("00:04", 100, 2_324),
+    ]
+    .concat();
+    let outcome = rollout_events("acc", bytes.as_bytes());
+    assert_eq!(outcome.carry.pending, [], "nothing left waiting");
+    let keys: Vec<_> = outcome
+        .events
+        .iter()
+        .map(|e| e.msg_uuid.clone().unwrap())
+        .collect();
+    assert_eq!(keys, ["th-sub/compacted/1792576801000/1", "th-sub/t1/r-t1"]);
+    assert_eq!(
+        outcome.events.iter().map(|e| e.tokens.input).sum::<u64>(),
+        260,
+        "each turn's own usage: 160 + 100, never the 2,224 it started with"
+    );
+}
+
+/// A compaction mid-thread whose token_count only repeats the total
+/// before it adds nothing.
+fn repeated_total() -> Vec<String> {
+    vec![
+        started("00:00"),
+        record("00:01", "t1", 100),
+        count("00:02", 100, 500),
+        codex_line("compacted", "00:03", "{}"),
+        count("00:04", 100, 500),
+        started("00:05"),
+        record("00:06", "t2", 50),
+    ]
+}
+
+#[test]
+fn a_compaction_that_repeats_the_total_adds_nothing() {
+    let outcome = rollout_events("acc", repeated_total().concat().as_bytes());
+    assert_eq!(outcome.events.len(), 2, "the two records, no compaction");
+}
+
+/// The file read in two passes, the first ending after `split` lines: the
+/// stored keys and their input tokens.
+fn read_in_two_passes(lines: &[String], split: usize) -> BTreeMap<String, u64> {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("rollout.jsonl");
+    let storage = Storage::open_in_memory().unwrap();
+    std::fs::write(&path, lines[..split].concat()).unwrap();
+    let first = tail_rollout(&path, "acc", 0, &RolloutCarry::default());
+    assert_eq!(
+        first.offset,
+        lines[..split].concat().len() as u64,
+        "the read position is never held back"
+    );
+    storage.usage().store_events(&first.events).unwrap();
+    std::fs::write(&path, lines.concat()).unwrap();
+    let second = tail_rollout(&path, "acc", first.offset, &first.carry);
+    storage.usage().store_events(&second.events).unwrap();
+    let third = tail_rollout(&path, "acc", second.offset, &second.carry);
+    assert!(third.events.is_empty(), "nothing read twice");
+    storage
+        .usage()
+        .events_for_account("acc", 0)
+        .unwrap()
+        .into_iter()
+        .map(|row| (row.msg_uuid.unwrap(), row.tokens.input))
+        .collect()
+}
+
+/// Where a pass ends never changes the count: every split of the file
+/// into two passes stores what one read of it does (H2: a pass that ended
+/// just before `compacted` counted a repeated total again).
+fn every_split_reads_as_one(lines: &[String]) -> BTreeMap<String, u64> {
+    let whole = read_in_two_passes(lines, lines.len());
+    for split in 0..lines.len() {
+        assert_eq!(
+            read_in_two_passes(lines, split),
+            whole,
+            "the first pass ended after {split} lines"
+        );
+    }
+    whole
+}
+
+#[test]
+fn a_repeated_total_adds_nothing_wherever_a_pass_ends() {
+    let stored = every_split_reads_as_one(&repeated_total());
+    assert_eq!(stored.values().sum::<u64>(), 150, "the two records only");
+}
+
+#[test]
+fn a_compactions_own_usage_counts_once_wherever_a_pass_ends() {
+    let stored = every_split_reads_as_one(&[
+        codex_line("compacted", "00:00", "{}"),
+        count("00:01", 160, 2_224),
+        started("00:02"),
+        record("00:03", "t1", 100),
+        count("00:04", 100, 2_324),
+    ]);
+    assert_eq!(stored.values().sum::<u64>(), 260);
+}
+
+/// Two compactions before the next record each keep their own usage.
+#[test]
+fn two_compactions_before_a_record_both_count() {
+    let stored = every_split_reads_as_one(&[
+        started("00:00"),
+        record("00:01", "t1", 100),
+        count("00:02", 100, 500),
+        codex_line("compacted", "00:03", "{}"),
+        count("00:04", 40, 540),
+        codex_line("compacted", "00:05", "{}"),
+        count("00:06", 30, 570),
+        started("00:07"),
+        record("00:08", "t2", 50),
+    ]);
+    let compactions: Vec<_> = stored
+        .iter()
+        .filter(|(key, _)| key.contains("/compacted/"))
+        .map(|(_, input)| *input)
+        .collect();
+    assert_eq!(compactions, [40, 30]);
+    assert_eq!(stored.values().sum::<u64>(), 220);
+}
+
+/// A compaction with no record after it yet (the session ended there)
+/// doesn't hold the file back: the next pass starts at the end, and the
+/// usage counts once a record comes, even much later.
+#[test]
+fn a_compaction_waits_for_its_record_without_holding_the_file_back() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("rollout.jsonl");
+    let first = [
+        codex_line("compacted", "00:00", "{}"),
+        count("00:01", 160, 2_224),
+        codex_line("event_msg", "00:02", r#"{"type":"task_complete"}"#),
+    ]
+    .concat();
+    std::fs::write(&path, &first).unwrap();
+    let pass1 = tail_rollout(&path, "acc", 0, &RolloutCarry::default());
+    assert!(pass1.events.is_empty());
+    assert_eq!(pass1.offset, first.len() as u64);
+    assert_eq!(pass1.carry.pending.len(), 1);
+    let idle = tail_rollout(&path, "acc", pass1.offset, &pass1.carry);
+    assert_eq!(idle.offset, pass1.offset);
+    assert_eq!(idle.carry, pass1.carry, "an idle pass keeps the carry");
+    std::fs::write(
+        &path,
+        [first, started("09:00"), record("09:01", "t1", 100)].concat(),
+    )
+    .unwrap();
+    let pass2 = tail_rollout(&path, "acc", idle.offset, &idle.carry);
+    let inputs: Vec<_> = pass2.events.iter().map(|e| e.tokens.input).collect();
+    assert_eq!(inputs, [160, 100]);
+    assert_eq!(pass2.carry.pending, []);
+}
+
+/// L-b (#126 re-review): a rollout truncated or replaced (shorter than
+/// where the last pass ended) is read from its start with nothing carried
+/// from the old content: a compaction waiting in the old file isn't
+/// credited to the new one's first record.
+#[test]
+fn a_truncated_rollout_starts_over_with_nothing_carried() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("rollout.jsonl");
+    let old = [
+        codex_line("compacted", "00:00", "{}"),
+        count("00:01", 160, 2_224),
+        codex_line("event_msg", "00:02", r#"{"type":"task_complete"}"#),
+    ]
+    .concat();
+    std::fs::write(&path, &old).unwrap();
+    let first = tail_rollout(&path, "acc", 0, &RolloutCarry::default());
+    assert_eq!(first.carry.pending.len(), 1);
+    std::fs::write(&path, record("09:01", "t1", 100)).unwrap();
+    let after = tail_rollout(&path, "acc", first.offset, &first.carry);
+    let inputs: Vec<_> = after.events.iter().map(|e| e.tokens.input).collect();
+    assert_eq!(inputs, [100], "the new file's record only");
+    assert_eq!(after.carry.pending, []);
+}
+
+/// L-g (#126 re-review): two compactions at the same millisecond (or with
+/// no time at all) are two keys, and a compaction dropped past the cap is
+/// counted.
+#[test]
+fn compactions_at_the_same_moment_are_two_and_a_drop_is_counted() {
+    let bytes = [
+        started("00:00"),
+        record("00:01", "t1", 100),
+        count("00:02", 100, 500),
+        codex_line("compacted", "00:03", "{}"),
+        count("00:03", 40, 540),
+        codex_line("compacted", "00:03", "{}"),
+        count("00:03", 30, 570),
+        started("00:04"),
+        record("00:05", "t2", 50),
+    ]
+    .concat();
+    let outcome = rollout_events("acc", bytes.as_bytes());
+    let compactions: Vec<_> = outcome
+        .events
+        .iter()
+        .filter(|e| {
+            e.msg_uuid
+                .as_deref()
+                .is_some_and(|k| k.contains("/compacted/"))
+        })
+        .map(|e| (e.msg_uuid.clone().unwrap(), e.tokens.input))
+        .collect();
+    assert_eq!(compactions.len(), 2, "{compactions:?}");
+    assert_ne!(compactions[0].0, compactions[1].0);
+    let mut many = String::new();
+    let mut total = 0;
+    for _ in 0..20 {
+        total += 10;
+        many.push_str(&codex_line("compacted", "00:00", "{}"));
+        many.push_str(&count("00:00", 10, total));
+    }
+    let outcome = rollout_events("acc", many.as_bytes());
+    assert_eq!(outcome.carry.pending.len(), 16);
+    assert_eq!(outcome.dropped, 4);
+}
+
 #[test]
 fn iso_timestamps_parse_strictly() {
     assert_eq!(
@@ -366,7 +904,7 @@ fn codex_usage_takes_the_model_its_turn_context_names() {
         .map(|event| event.model.as_deref())
         .collect();
     assert_eq!(models, [None, Some("gpt-5-codex")]);
-    assert_eq!(outcome.model.as_deref(), Some("gpt-5-codex"));
+    assert_eq!(outcome.carry.model.as_deref(), Some("gpt-5-codex"));
 }
 
 /// The 0.0.12 report: Codex's rollouts carry its own limit readings on

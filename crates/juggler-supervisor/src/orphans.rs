@@ -376,7 +376,7 @@ fn fresh_table(pids: &[u32]) -> sysinfo::System {
     system.refresh_processes_specifics(
         ProcessesToUpdate::Some(&targets),
         true,
-        ProcessRefreshKind::nothing().with_memory(),
+        ProcessRefreshKind::nothing().without_tasks().with_memory(),
     );
     system
 }

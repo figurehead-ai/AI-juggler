@@ -4,10 +4,15 @@
 //! UI's reads all along.
 
 // Test crates are pragmatic by policy (QUALITY.md §2).
-#![allow(clippy::unwrap_used, clippy::expect_used, clippy::pedantic)]
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::pedantic
+)]
 
 use std::sync::Arc;
-use std::sync::mpsc;
+use std::sync::{TryLockError, mpsc};
 use std::time::{Duration, Instant};
 
 use juggler_adapter::AdapterRegistry;
@@ -39,30 +44,49 @@ fn a_slow_disk_tick_never_holds_the_machine_lock() {
         let state = Arc::clone(&state);
         std::thread::spawn(move || machine_health::tick(&state, 0))
     };
-    let mut ticker_slot = Some(ticker);
-    let ticker = ticker_slot.as_ref().unwrap();
-    // The tick takes the lock for its cheap part only, then waits on
-    // storage: the lock comes free while the tick is still running …
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while state.machine.try_lock().is_err() {
-        assert!(Instant::now() < deadline, "the lock never came free");
-        std::thread::sleep(Duration::from_millis(5));
+    // The tick takes the lock for its cheap part only: once its count
+    // moved (read under the lock, so that part is over), the tick goes on
+    // to storage, which is held — it can't finish …
+    // try_lock: a tick that kept the lock makes this fail, not hang.
+    let started = Instant::now();
+    loop {
+        match state.machine.try_lock() {
+            Ok(watch) if watch.ticks() > 0 => break,
+            Ok(_) | Err(TryLockError::WouldBlock) => {}
+            Err(TryLockError::Poisoned(_)) => panic!("the sampler's lock is poisoned"),
+        }
+        assert!(
+            started.elapsed() < Duration::from_secs(60),
+            "the tick's count never showed: it never ran, or it kept the lock"
+        );
+        std::thread::yield_now();
     }
-    // … and stays free the whole time the tick waits.
-    for _ in 0..10 {
+    // … and the lock stays free while it waits: a blocking lock() returns.
+    // If the tick held the lock across its storage wait, this would wait
+    // until storage is let go — which happens only after this check. (The
+    // bound is a safety net, not a timing assumption.)
+    for _ in 0..3 {
+        let (sent, got) = mpsc::channel();
+        let reader = {
+            let state = Arc::clone(&state);
+            std::thread::spawn(move || {
+                let _watch = state.machine.lock().unwrap();
+                sent.send(()).unwrap();
+            })
+        };
+        assert!(
+            got.recv_timeout(Duration::from_secs(60)).is_ok(),
+            "the sampler's lock is free while the tick waits on storage"
+        );
+        reader.join().unwrap();
         assert!(
             !ticker.is_finished(),
             "the tick is still waiting on storage"
         );
-        assert!(
-            state.machine.try_lock().is_ok(),
-            "the sampler's lock is free while the tick waits"
-        );
-        std::thread::sleep(Duration::from_millis(30));
     }
     release.send(()).unwrap();
     holder.join().unwrap();
-    ticker_slot.take().unwrap().join().unwrap();
+    ticker.join().unwrap();
     // The disk half landed once storage answered.
     let health = machine_health::machine_health_impl(&state).unwrap();
     assert!(health.sampled);

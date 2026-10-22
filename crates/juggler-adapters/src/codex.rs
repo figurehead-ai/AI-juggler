@@ -382,7 +382,7 @@ fn keychain_entry_exists(state_dir: &Path) -> bool {
     let Some(account) = keychain_account(state_dir) else {
         return false;
     };
-    std::process::Command::new("security")
+    std::process::Command::new(juggler_adapter::system_tools::SECURITY)
         .args(["find-generic-password", "-s", "Codex Auth", "-a", &account])
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())

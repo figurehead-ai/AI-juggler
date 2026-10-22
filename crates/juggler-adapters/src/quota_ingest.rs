@@ -64,14 +64,16 @@ pub struct TailOutcome {
     pub samples: Vec<(WindowKind, QuotaSample)>,
     /// The newest Codex credits snapshot seen this pass, when any.
     pub credits: Option<CreditsSnapshot>,
-    /// The model the slice's last Codex `turn_context` named. A rollout's
-    /// usage lines carry no model: the next slice's lines before their
-    /// own `turn_context` ran on this one (the pipeline carries it).
-    pub model: Option<String>,
+    /// Codex: what this slice leaves for the file's next one (its model,
+    /// last total and unsettled compactions). Passed back in next pass.
+    pub carry: RolloutCarry,
     /// Bytes consumed — the next pass starts here.
     pub offset: u64,
     /// Malformed lines seen this pass.
     pub parse_errors: u64,
+    /// Codex: compactions dropped this pass, past the waiting cap, before
+    /// a record named their thread (their usage isn't counted).
+    pub dropped: u64,
 }
 
 // ---------------------------------------------------------------------------
@@ -540,8 +542,16 @@ fn response_key(value: &serde_json::Value) -> Option<String> {
 /// latest `turn_context` named.
 #[must_use]
 pub fn rollout_events(account: &str, bytes: &[u8]) -> TailOutcome {
+    rollout_events_after(account, bytes, RolloutCarry::default())
+}
+
+/// [`rollout_events`] for a slice that follows another: `carry` is what
+/// the previous slice left ([`TailOutcome::carry`]).
+#[must_use]
+pub fn rollout_events_after(account: &str, bytes: &[u8], carry: RolloutCarry) -> TailOutcome {
     let text = String::from_utf8_lossy(bytes);
     let mut outcome = TailOutcome::default();
+    let mut carry = carry;
     for line in text.lines() {
         if line.trim().is_empty() {
             continue;
@@ -550,6 +560,7 @@ pub fn rollout_events(account: &str, bytes: &[u8]) -> TailOutcome {
             outcome.parse_errors += 1;
             continue;
         };
+        carry.see(&value, account, &mut outcome);
         if take_token_count(&value, &mut outcome) {
             continue;
         }
@@ -559,7 +570,7 @@ pub fn rollout_events(account: &str, bytes: &[u8]) -> TailOutcome {
                 .and_then(|payload| payload.get("model"))
                 .and_then(serde_json::Value::as_str)
             {
-                outcome.model = Some(model.to_owned());
+                carry.model = Some(model.to_owned());
             }
             continue;
         }
@@ -599,7 +610,7 @@ pub fn rollout_events(account: &str, bytes: &[u8]) -> TailOutcome {
             account: account.to_owned(),
             session: Some(thread.clone()),
             ts,
-            model: outcome.model.clone(),
+            model: carry.model.clone(),
             tokens,
             credits: None,
             usd_est: None,
@@ -608,7 +619,146 @@ pub fn rollout_events(account: &str, bytes: &[u8]) -> TailOutcome {
             msg_uuid: Some(format!("{thread}/{turn}/{response}")),
         });
     }
+    outcome.carry = carry;
     outcome
+}
+
+/// What one slice of a Codex rollout leaves for the next. A file is read
+/// in passes, and these facts span them; the pipeline keeps one per file
+/// beside its offset, and a re-read starts from the default. Nothing is
+/// read twice to recover them.
+#[derive(Clone, PartialEq, Eq, Debug, Default, serde::Serialize, serde::Deserialize)]
+pub struct RolloutCarry {
+    /// The model the last `turn_context` named. Usage lines carry no
+    /// model: lines before the slice's own `turn_context` ran on this one.
+    #[serde(default)]
+    pub model: Option<String>,
+    /// The running total the last `token_count` showed.
+    #[serde(default)]
+    pub last_total: Option<u64>,
+    /// A `compacted` line whose pre-turn `token_count` hasn't come yet.
+    #[serde(default)]
+    pub compacted: Option<OpenCompaction>,
+    /// Compactions' own usage waiting for a record to name their thread,
+    /// oldest first.
+    #[serde(default)]
+    pub pending: Vec<PendingUsage>,
+    /// Compactions seen in the file so far: each one's number in its key,
+    /// so two at the same millisecond (or with no time) never share one.
+    #[serde(default)]
+    pub compactions: u64,
+}
+
+/// A compaction seen, its usage not yet (see [`RolloutCarry`]).
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
+pub struct OpenCompaction {
+    /// The running total before it, when the file showed one.
+    pub before: Option<u64>,
+}
+
+/// A compaction's own usage and its time (see [`RolloutCarry`]).
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
+pub struct PendingUsage {
+    /// The compaction's own usage (its `last_token_usage`).
+    pub tokens: TokenCounts,
+    /// When its `token_count` was written (epoch ms).
+    pub ts: i64,
+    /// Its number in the file (see [`RolloutCarry::compactions`]).
+    #[serde(default)]
+    pub seq: u64,
+}
+
+/// Compactions held for a record at most; older ones are dropped (counted
+/// in [`TailOutcome::dropped`]), so a file that never writes another record
+/// can't grow the carry.
+const PENDING_CAP: usize = 16;
+
+/// P17: the usage of a context compaction. After a `compacted` line, Codex
+/// writes one `token_count` before the next turn begins, and no
+/// `token_usage_record` covers it. Its own `last_token_usage` is counted
+/// (never its running total, which for a subagent starts with its
+/// parent's), keyed by the thread the next record names. A `token_count`
+/// that only repeats the total before the compaction adds nothing. Every
+/// fact it needs is carried across passes, so where a pass ends never
+/// changes the count, and the read position is never held back.
+impl RolloutCarry {
+    fn see(&mut self, value: &serde_json::Value, account: &str, outcome: &mut TailOutcome) {
+        let kind = value.get("type").and_then(serde_json::Value::as_str);
+        let payload = value.get("payload");
+        let inner = payload
+            .and_then(|payload| payload.get("type"))
+            .and_then(serde_json::Value::as_str);
+        match (kind, inner) {
+            (Some("compacted"), _) => {
+                self.compactions += 1;
+                self.compacted = Some(OpenCompaction {
+                    before: self.last_total,
+                });
+            }
+            (Some("event_msg"), Some("token_count")) => {
+                let Some(info) = payload
+                    .and_then(|payload| payload.get("info"))
+                    .filter(|info| !info.is_null())
+                else {
+                    return;
+                };
+                let total = info
+                    .get("total_token_usage")
+                    .and_then(|total| total.get("total_tokens"))
+                    .and_then(serde_json::Value::as_u64)
+                    .unwrap_or_default();
+                if let Some(open) = self.compacted.take() {
+                    let tokens = info
+                        .get("last_token_usage")
+                        .map(codex_token_counts)
+                        .unwrap_or_default();
+                    let ts = value
+                        .get("timestamp")
+                        .and_then(serde_json::Value::as_str)
+                        .and_then(juggler_core::time::timestamp_ms)
+                        .unwrap_or_default();
+                    if open.before != Some(total) && tokens != TokenCounts::default() {
+                        self.pending.push(PendingUsage {
+                            tokens,
+                            ts,
+                            seq: self.compactions,
+                        });
+                        let over = self.pending.len().saturating_sub(PENDING_CAP);
+                        self.pending.drain(..over);
+                        outcome.dropped += over as u64;
+                    }
+                }
+                self.last_total = Some(total);
+            }
+            // A turn began, or a record came, before any pre-turn count:
+            // that compaction has no usage of its own.
+            (Some("event_msg"), Some("task_started")) => self.compacted = None,
+            (Some("token_usage_record"), _) => {
+                self.compacted = None;
+                let Some(thread) = payload
+                    .and_then(|payload| payload.get("thread_id"))
+                    .and_then(serde_json::Value::as_str)
+                else {
+                    return;
+                };
+                for PendingUsage { tokens, ts, seq } in self.pending.drain(..) {
+                    outcome.events.push(UsageEvent {
+                        account: account.to_owned(),
+                        session: Some(thread.to_owned()),
+                        ts,
+                        model: self.model.clone(),
+                        tokens,
+                        credits: None,
+                        usd_est: None,
+                        source: UsageSource::Rollout,
+                        confidence: Confidence::Measured,
+                        msg_uuid: Some(format!("{thread}/compacted/{ts}/{seq}")),
+                    });
+                }
+            }
+            _ => {}
+        }
+    }
 }
 
 /// One Codex `usage` object as disjoint classes, the one place this split
@@ -945,30 +1095,34 @@ pub fn gemini_events() -> Vec<UsageEvent> {
 
 /// Tails a JSONL source file from `offset`, returning the new bytes'
 /// parse outcome. Truncation (size < offset) resets to 0 — a full
-/// reparse whose duplicate events the store dedupes by uuid.
+/// reparse whose duplicate events the store dedupes by uuid. `carry` is
+/// what the file's previous slice left; it comes back unchanged when
+/// there is nothing new to read, and starts over with the file when it was
+/// truncated or replaced (its facts were about the old content).
 #[must_use]
 pub fn tail_jsonl(
     path: &Path,
-    account: &str,
     offset: u64,
-    parse: fn(&str, &[u8]) -> TailOutcome,
+    carry: &RolloutCarry,
+    parse: impl FnOnce(&[u8], RolloutCarry) -> TailOutcome,
 ) -> TailOutcome {
+    let unchanged = |offset, carry: &RolloutCarry| TailOutcome {
+        offset,
+        carry: carry.clone(),
+        ..TailOutcome::default()
+    };
     let Ok(mut file) = std::fs::File::open(path) else {
-        return TailOutcome {
-            offset,
-            ..TailOutcome::default()
-        };
+        return unchanged(offset, carry);
     };
     let len = file.metadata().map_or(offset, |meta| meta.len());
     let mut start = offset;
+    let mut carry = carry.clone();
     if len < start {
         start = 0;
+        carry = RolloutCarry::default();
     }
     if start >= len {
-        return TailOutcome {
-            offset: start,
-            ..TailOutcome::default()
-        };
+        return unchanged(start, &carry);
     }
     if let Ok(seeked) = std::io::Seek::seek(&mut file, std::io::SeekFrom::Start(start)) {
         start = seeked;
@@ -981,7 +1135,10 @@ pub fn tail_jsonl(
         .iter()
         .rposition(|byte| *byte == b'\n')
         .map_or(0, |index| index + 1);
-    let mut outcome = parse(account, &bytes[..consumed]);
+    if consumed == 0 {
+        return unchanged(start, &carry);
+    }
+    let mut outcome = parse(&bytes[..consumed], carry);
     outcome.offset = start + consumed as u64;
     outcome
 }
@@ -989,13 +1146,18 @@ pub fn tail_jsonl(
 /// Convenience: [`tail_jsonl`] with the Claude transcript parser.
 #[must_use]
 pub fn tail_transcript(path: &Path, account: &str, offset: u64) -> TailOutcome {
-    tail_jsonl(path, account, offset, transcript_events)
+    tail_jsonl(path, offset, &RolloutCarry::default(), |bytes, _| {
+        transcript_events(account, bytes)
+    })
 }
 
-/// Convenience: [`tail_jsonl`] with the Codex rollout parser.
+/// Convenience: [`tail_jsonl`] with the Codex rollout parser; `carry` is
+/// the previous pass's [`TailOutcome::carry`] for this file.
 #[must_use]
-pub fn tail_rollout(path: &Path, account: &str, offset: u64) -> TailOutcome {
-    tail_jsonl(path, account, offset, rollout_events)
+pub fn tail_rollout(path: &Path, account: &str, offset: u64, carry: &RolloutCarry) -> TailOutcome {
+    tail_jsonl(path, offset, carry, |bytes, carry| {
+        rollout_events_after(account, bytes, carry)
+    })
 }
 
 /// The spool path for an account config dir (managed-dir-only law).

@@ -52,13 +52,14 @@ fn inside_desktop_app(process: &ProcFacts) -> bool {
         .is_some_and(|exe| exe.contains("/Claude.app/"))
 }
 
+/// The adapter's rule for a `claude` session (its helpers, run under
+/// their own names, aren't one).
 fn is_cli(process: &ProcFacts) -> bool {
-    process.name == "claude"
-        || process
-            .exe
-            .as_deref()
-            .is_some_and(|exe| exe.ends_with("/claude"))
-        || process.cmd.contains("@anthropic-ai/claude-code")
+    juggler_adapters::claude_code::is_cli_process(
+        &process.name,
+        process.exe.as_deref().map(Path::new),
+        &process.cmd,
+    )
 }
 
 fn normalized(path: &str, home: &Path) -> PathBuf {
@@ -167,6 +168,7 @@ pub fn running_processes() -> Vec<ProcFacts> {
         ProcessesToUpdate::All,
         true,
         ProcessRefreshKind::nothing()
+            .without_tasks()
             .with_exe(UpdateKind::Always)
             .with_cmd(UpdateKind::Always)
             .with_environ(UpdateKind::Always),
@@ -238,7 +240,9 @@ fn config_dirs_of(pids: &[u32]) -> HashMap<u32, String> {
     system.refresh_processes_specifics(
         ProcessesToUpdate::Some(&targets),
         false,
-        ProcessRefreshKind::nothing().with_environ(UpdateKind::Always),
+        ProcessRefreshKind::nothing()
+            .without_tasks()
+            .with_environ(UpdateKind::Always),
     );
     system
         .processes()
@@ -396,6 +400,51 @@ mod tool_roots {
         assert_eq!(pids, [(10, "desktop"), (21, "terminal")]);
         assert!(uses_folder(&roots[1], "/Users/you/.claude-work/", home));
         assert!(uses_folder(&roots[0], "~/.claude", home));
+    }
+}
+
+/// QA on #126: Claude Code's executable run as its search helper
+/// (`ugrep`), left behind by a finished session under an orphaned shell,
+/// is not a `claude` in a terminal. A `claude` run by a path with spaces
+/// still is.
+#[cfg(test)]
+mod helpers_by_another_name {
+    use super::*;
+
+    fn proc(pid: u32, ppid: u32, exe: &str, cmd: &str) -> ProcFacts {
+        ProcFacts {
+            pid,
+            ppid: Some(ppid),
+            exe: Some(exe.to_owned()),
+            name: "claude".to_owned(),
+            cmd: cmd.to_owned(),
+            config_dir: None,
+            start_time: None,
+        }
+    }
+
+    #[test]
+    fn a_claude_run_as_ugrep_is_not_a_tool() {
+        let home = Path::new("/Users/you");
+        let copy = "/Users/you/Library/Application Support/ClaudeProfiles/b/claude-code/2.1/abc/claude.app/Contents/MacOS/claude";
+        let processes = vec![
+            ProcFacts {
+                name: "zsh".into(),
+                ..proc(30, 1, "/bin/zsh", "/bin/zsh -c ugrep")
+            },
+            proc(31, 30, copy, "ugrep -r --json needle ."),
+            ProcFacts {
+                name: "rg".into(),
+                ..proc(32, 1, "/opt/homebrew/bin/rg", "rg needle")
+            },
+            proc(40, 1, copy, &format!("{copy} --resume")),
+            proc(41, 1, "/Users/you/.local/bin/claude", "claude"),
+        ];
+        let pids: Vec<u32> = tools(&processes, home)
+            .iter()
+            .map(|tool| tool.pid)
+            .collect();
+        assert_eq!(pids, [40, 41]);
     }
 }
 

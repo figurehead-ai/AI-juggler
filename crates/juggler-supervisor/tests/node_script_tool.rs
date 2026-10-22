@@ -15,8 +15,6 @@
     clippy::pedantic
 )]
 #![cfg(unix)]
-
-use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -24,6 +22,8 @@ use juggler_adapter::{HarnessAdapter, InstallStatus, LaunchMode};
 use juggler_adapters::CodexAdapter;
 use juggler_core::model::{AccountId, HarnessId, Profile, ProfileId, SessionId};
 use juggler_supervisor::{ExitKind, LifecycleEvent, Supervisor};
+#[path = "fixtures/stand_in.rs"]
+mod stand_in;
 
 /// What an app opened from Finder inherits.
 const FINDER_PATH: &str = "/usr/bin:/bin:/usr/sbin:/sbin";
@@ -33,8 +33,7 @@ const CHILD: &str = "AJ_NODE_SCRIPT_TOOL_CHILD";
 const FIXTURE: &str = "AJ_NODE_SCRIPT_TOOL_BIN";
 
 fn executable(path: &Path, body: &str) {
-    std::fs::write(path, body).unwrap();
-    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    stand_in::write(path, body);
 }
 
 /// `bin/node` (a stand-in: it answers `--version` for the script it runs

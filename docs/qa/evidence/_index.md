@@ -77,6 +77,7 @@
 | AJ-E1529 | PASS14 | — | [manifest](AJ-E1529/manifest.md) |
 | AJ-E1530 | PASS6 | 2026-10-22 | [manifest](AJ-E1530/manifest.md) |
 | AJ-E1531 | PASS5 | 2026-10-21 | [manifest](AJ-E1531/manifest.md) |
+| AJ-E1532 | PASS8 | — | [manifest](AJ-E1532/manifest.md) |
 | AJ-E1533 | PASS8 | — | [manifest](AJ-E1533/manifest.md) |
 | AJ-E1534 | PASS5 | — | [manifest](AJ-E1534/manifest.md) |
 | AJ-E1535 | PASS8 | — | [manifest](AJ-E1535/manifest.md) |
@@ -156,7 +157,7 @@
 | AJ-E803 | PASS6 | 2026-10-20 | [manifest](AJ-E803/manifest.md) |
 | AJ-E804 | PASS6 | 2026-10-19 | [manifest](AJ-E804/manifest.md) |
 | AJ-E805 | PASS15 | 2026-10-19 | [manifest](AJ-E805/manifest.md) |
-| AJ-E806 | PASS4 | 2026-10-21 | [manifest](AJ-E806/manifest.md) |
+| AJ-E806 | PASS4 | 2026-10-22 | [manifest](AJ-E806/manifest.md) |
 | AJ-E807 | PASS7 | 2026-10-19 | [manifest](AJ-E807/manifest.md) |
 | AJ-E808 | PASS4 | 2026-10-19 | [manifest](AJ-E808/manifest.md) |
 | AJ-E809 | PASS4 | 2026-10-19 | [manifest](AJ-E809/manifest.md) |
@@ -173,5 +174,6 @@
 | AJ-E909 | (no claims yet) | 2026-10-13 | [manifest](AJ-E909/manifest.md) |
 | AJ-E910 | (directory without manifest — add one) | — | — |
 | fixes-0.0.12 | PASS45 | 2026-10-21 | [manifest](fixes-0.0.12/manifest.md) |
+| fixes-0.0.13 | PASS32 | 2026-10-22 | [manifest](fixes-0.0.13/manifest.md) |
 | fixes | PASS7 | 2026-10-21 | [manifest](fixes/manifest.md) |
 | walks | (no claims yet) | 2026-10-21 | [manifest](walks/manifest.md) |

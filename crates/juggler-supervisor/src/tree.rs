@@ -412,7 +412,9 @@ impl IdentityProbe for OsIdentityProbe {
         system.refresh_processes_specifics(
             ProcessesToUpdate::Some(&[sysinfo::Pid::from_u32(pid)]),
             true,
-            ProcessRefreshKind::nothing().with_exe(UpdateKind::Always),
+            ProcessRefreshKind::nothing()
+                .without_tasks()
+                .with_exe(UpdateKind::Always),
         );
         let process = system.process(sysinfo::Pid::from_u32(pid))?;
         // A missing exe is a probe error (fail closed), not a pass.
@@ -636,7 +638,7 @@ fn member_gone(pid: u32) -> bool {
     system.refresh_processes_specifics(
         ProcessesToUpdate::Some(&[target]),
         true,
-        ProcessRefreshKind::nothing(),
+        ProcessRefreshKind::nothing().without_tasks(),
     );
     system
         .process(target)
@@ -883,6 +885,7 @@ pub fn live_details(pid: u32) -> Option<(String, String)> {
         ProcessesToUpdate::Some(&[target]),
         true,
         ProcessRefreshKind::nothing()
+            .without_tasks()
             .with_cmd(UpdateKind::Always)
             .with_cwd(UpdateKind::Always),
     );
@@ -907,7 +910,11 @@ pub fn live_details(pid: u32) -> Option<(String, String)> {
 pub fn pgid_members(pgid: u32) -> Vec<u32> {
     use sysinfo::{ProcessRefreshKind, ProcessesToUpdate};
     let mut system = crate::new_system();
-    system.refresh_processes_specifics(ProcessesToUpdate::All, true, ProcessRefreshKind::nothing());
+    system.refresh_processes_specifics(
+        ProcessesToUpdate::All,
+        true,
+        ProcessRefreshKind::nothing().without_tasks(),
+    );
     let mut members = Vec::new();
     for sys_pid in system.processes().keys() {
         let pid = sys_pid.as_u32();
