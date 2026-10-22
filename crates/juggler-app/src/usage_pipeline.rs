@@ -315,6 +315,7 @@ fn ingest_claude(
     let projects = dir.join("projects");
     let mut files = Vec::new();
     collect_jsonl(&projects, &mut files);
+    forget_missing(ingest, account, &projects, &files);
     ingest_files(
         account,
         "transcript",
@@ -339,6 +340,7 @@ fn ingest_codex(
     let sessions = dir.join("sessions");
     let mut files = Vec::new();
     collect_jsonl(&sessions, &mut files);
+    forget_missing(ingest, account, &sessions, &files);
     let mut latest: Option<juggler_adapters::CreditsSnapshot> = None;
     for path in files {
         let outcome = tail_one(
@@ -393,6 +395,26 @@ fn ingest_zcode(
 
 /// Reads one file's next slice: its path, account, offset and carry.
 type Tail = fn(&Path, &str, u64, &juggler_adapters::RolloutCarry) -> juggler_adapters::TailOutcome;
+
+/// Forgets the offsets and carries of an account's files that are no longer
+/// on disk (deleted, or moved away), so the state doesn't grow with every
+/// file there ever was. Only when `root` could be listed: a folder that is
+/// gone or unreadable for a moment forgets nothing (else the next pass
+/// would read every file again from its start).
+fn forget_missing(ingest: &mut IngestState, account: &str, root: &Path, files: &[PathBuf]) {
+    if std::fs::read_dir(root).is_err() {
+        return;
+    }
+    let Some(offsets) = ingest.offsets.get_mut(account) else {
+        return;
+    };
+    let present: std::collections::BTreeSet<String> = files
+        .iter()
+        .map(|path| path.to_string_lossy().to_string())
+        .collect();
+    offsets.files.retain(|path, _| present.contains(path));
+    offsets.carries.retain(|path, _| present.contains(path));
+}
 
 /// Tails a set of JSONL files with per-file offsets.
 fn ingest_files(

@@ -437,3 +437,70 @@ fn codex_usage_keeps_its_turns_model_across_passes() {
         assert_eq!(t.input + t.cache_read + t.output + t.reasoning, 120);
     }
 }
+
+/// #126 follow-up: the pipeline forgets the offsets and carries of files
+/// that are gone, so its state doesn't grow with every rollout there ever
+/// was; a sessions folder that is missing for a moment forgets nothing.
+#[test]
+fn a_deleted_rollout_is_forgotten_and_a_missing_folder_forgets_nothing() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    let home = dir.path().join("codex-home");
+    let day = home.join("sessions/2026/10/21");
+    std::fs::create_dir_all(&day).unwrap();
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../juggler-adapters/tests/fixtures/quota/codex-rollout-rate-limits.jsonl");
+    let kept = day.join("rollout-2026-10-21T10-00-00-th-1.jsonl");
+    let gone = day.join("rollout-2026-10-21T11-00-00-th-2.jsonl");
+    std::fs::copy(&fixture, &kept).unwrap();
+    std::fs::copy(&fixture, &gone).unwrap();
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .accounts()
+        .insert(&Account {
+            id: AccountId::new("acc-codex"),
+            harness: HarnessId::new("codex"),
+            label: "codex".into(),
+            plan: None,
+            state_dir: home.clone(),
+            cleanup_opt_in: false,
+            renewal_date: None,
+            preview_opt_in: false,
+            import_source_path: None,
+            import_origin: None,
+            imported_at: None,
+            in_place: false,
+        })
+        .unwrap();
+    let tracked = || {
+        let blob = state
+            .storage
+            .lock()
+            .unwrap()
+            .app_settings()
+            .get("usage_ingest_state")
+            .unwrap()
+            .unwrap();
+        let value: serde_json::Value = serde_json::from_str(&blob).unwrap();
+        let mut files: Vec<String> = value["offsets"]["acc-codex"]["files"]
+            .as_object()
+            .unwrap()
+            .keys()
+            .cloned()
+            .collect();
+        files.sort();
+        files
+    };
+    usage_pipeline::ingest_pass(&state, 4);
+    assert_eq!(tracked().len(), 2);
+    std::fs::remove_file(&gone).unwrap();
+    usage_pipeline::ingest_pass(&state, 8);
+    assert_eq!(tracked(), [kept.to_string_lossy().to_string()]);
+    // The whole folder away for a moment: nothing is forgotten.
+    let aside = dir.path().join("sessions-aside");
+    std::fs::rename(home.join("sessions"), &aside).unwrap();
+    usage_pipeline::ingest_pass(&state, 12);
+    assert_eq!(tracked(), [kept.to_string_lossy().to_string()]);
+}
