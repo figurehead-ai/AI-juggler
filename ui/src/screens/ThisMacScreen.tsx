@@ -12,7 +12,7 @@ import { useContext, type JSX, type ReactNode } from "react";
 import { Button } from "../components/primitives";
 import { SectionTitle } from "../components/SectionTitle";
 import { ToolMark } from "../components/ToolMark";
-import { MachineState, MemoryMeter, TreeRow, cpuWords } from "../components/this-mac-parts";
+import { AwakeLine, MachineState, MemoryMeter, TreeRow, cpuWords } from "../components/this-mac-parts";
 import { RowPlaceholders } from "../components/Placeholder";
 import { alertSubject, bytesWords, ThisMacContext, type ThisMacInfo, type ToolTreeInfo } from "../lib/machine";
 import type { ToolGroupInfo } from "../types/generated/ToolGroupInfo";
@@ -105,6 +105,7 @@ export function ThisMacScreen({
           <Section id="this-mac-state" title="Now">
             <MachineState info={info} reasonsShown={machine.summary.reasons.length} />
             <MemoryMeter info={info} />
+            <AwakeLine info={info} />
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs" data-testid="this-mac-figures">
               <dt className="text-muted">CPU</dt>
               <dd className="font-mono text-ink">{machine.cpu_pct === null ? "—" : `${Math.round(machine.cpu_pct)}% of all ${machine.cores} cores`}</dd>

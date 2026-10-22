@@ -156,3 +156,34 @@ export function MemoryMeter({ info }: { info: ThisMacInfo }): JSX.Element | null
           </div>
   );
 }
+
+/** AJ-E1509 Req.5: whether AI Juggler keeps the Mac awake for the
+ * sessions working now, and why not when it doesn't — with the setting a
+ * click away. Said only while sessions work. */
+export function AwakeLine({ info }: { info: ThisMacInfo }): JSX.Element | null {
+  const { working, kept_awake: kept, on_battery: battery } = info.awake;
+  if (working === 0) return null;
+  // Only the sessions AI Juggler runs keep the Mac awake: said so, beside
+  // a Home that also lists other tools' conversations as running.
+  const sessions = working === 1 ? "1 AI Juggler session works" : `${working} AI Juggler sessions work`;
+  const words = kept
+    ? `Kept awake while ${sessions}`
+    : battery
+      ? `On battery, so not kept awake while ${sessions}`
+      : `Not kept awake while ${sessions} (off in Settings)`;
+  return (
+    <p className="flex flex-wrap items-center gap-x-2 text-[11px] text-muted" data-testid="this-mac-awake" data-kept={kept ? "true" : "false"}>
+      <span aria-hidden="true" className={`size-1.5 rounded-full ${kept ? "bg-live" : "bg-faint"}`} />
+      <span>{words}</span>
+      <button
+        type="button"
+        className="text-muted underline-offset-2 hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
+        onClick={() => window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "sessions" } }))}
+        data-testid="this-mac-awake-settings"
+      >
+        Settings{" "}
+        <span className="sr-only">› Sessions</span>
+      </button>
+    </p>
+  );
+}

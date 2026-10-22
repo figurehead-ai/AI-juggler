@@ -96,7 +96,7 @@ const account: AccountInfo = {
 };
 const recipe: LaunchRecipeInfo = {
   id: "p-3", name: "App", account_id: "fake-desk", account_label: "Fake Desk",
-  provider: "fake-desktop", model: null, default_cwd: null,
+  provider: "fake-desktop", model: null, default_cwd: null, restart_on_crash: null,
 };
 
 function shell(instance: InstanceInfo) {

@@ -22,3 +22,21 @@ pub async fn sessions_resume_command(
     })
     .await
 }
+
+/// AJ-E1509: a launch setting's own choice about restarting its crashed
+/// sessions — `null` to follow Settings › Sessions again.
+///
+/// # Errors
+///
+/// As [`super::restart::set_launch_choice`].
+#[tauri::command]
+pub async fn sessions_restart_choice_set(
+    state: tauri::State<'_, Arc<AppState>>,
+    recipe_id: String,
+    restart: Option<bool>,
+) -> AppResult<()> {
+    crate::ipc::blocking(state.inner(), "the restart choice", move |state| {
+        super::restart::set_launch_choice(state, &recipe_id, restart)
+    })
+    .await
+}

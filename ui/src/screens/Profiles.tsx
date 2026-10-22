@@ -11,7 +11,7 @@ import { activityWords, launchSettingsName, launchTitle } from "../lib/account-w
 import { liveOutside, useConversations } from "../lib/conversations";
 import { BetaMatrix } from "../components/BetaMatrix";
 import { ExpertSetup } from "../components/ExpertSetup";
-import { EnvOverlayEditor } from "../components/EnvOverlayEditor";
+import { RecipeOptions } from "../components/RecipeOptions";
 import { AccountRunway, newWorkAdvice } from "../components/AccountRunway";
 import { shortPath, useAccountManage } from "./AccountManage";
 import { ActionHostProvider } from "../components/ItemMenu";
@@ -28,7 +28,6 @@ import {
   providersCapabilities,
   type AccountInfo,
   type LaunchRecipeInfo,
-  expertSetupInfo,
   errorText,
   signedIn,
   quotaDisplayAll,
@@ -465,7 +464,7 @@ function AccountCard({
                 className="rounded-md px-2 py-1 text-[11px] text-muted hover:bg-surface hover:text-ink"
                 data-testid="recipe-env-toggle"
               >
-                Environment {envFor === recipe.id ? "▾" : "▸"}
+                Options {envFor === recipe.id ? "▾" : "▸"}
               </button>
               <div className="ml-auto flex items-center gap-1 opacity-60 transition-opacity group-hover:opacity-100">
                 <Button
@@ -485,11 +484,7 @@ function AccountCard({
               </div>
               {envFor === recipe.id && (
                 <div className="basis-full pt-1">
-                  <RecipeEnvEditor
-                    provider={account.provider}
-                    accountId={account.id}
-                    recipeId={recipe.id}
-                  />
+                  <RecipeOptions provider={account.provider} accountId={account.id} recipe={recipe} />
                 </div>
               )}
             </div>
@@ -705,39 +700,6 @@ function LoginModal({
       />
     </Modal>
   );
-}
-
-/** The env-override editor for one Launch settings, with the
- * Provider's protected (isolation) keys fetched from the backend —
- * never a hard-coded Provider list in the UI. */
-function RecipeEnvEditor({
-  provider,
-  accountId,
-  recipeId,
-}: {
-  provider: string;
-  accountId: string;
-  recipeId: string;
-}) {
-  const [protectedKeys, setProtectedKeys] = useState<string[] | null>(null);
-  useEffect(() => {
-    let alive = true;
-    void expertSetupInfo(provider, accountId)
-      .then((info) => {
-        if (alive) setProtectedKeys(info.protected_env_keys);
-      })
-      .catch(() => {
-        // The backend still refuses protected keys on Save.
-        if (alive) setProtectedKeys([]);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [provider, accountId]);
-  if (protectedKeys === null) {
-    return <p className="text-[11px] text-muted">Loading…</p>;
-  }
-  return <EnvOverlayEditor recipeId={recipeId} protectedKeys={protectedKeys} />;
 }
 
 /** ADR-0018: where an account lives, in a few words — "uses ~/x where

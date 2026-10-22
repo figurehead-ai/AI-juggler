@@ -1163,6 +1163,9 @@ pub struct LaunchRecipeInfo {
     pub model: Option<String>,
     /// Default working directory, if any.
     pub default_cwd: Option<String>,
+    /// AJ-E1509: restart its crashed sessions — `null` follows Settings ›
+    /// Sessions.
+    pub restart_on_crash: Option<bool>,
 }
 
 /// Deprecated alias (one version). AJ-E107.
@@ -2794,6 +2797,7 @@ pub fn create_profile(
         settings_overlay: SettingsOverlay {
             model,
             env: std::collections::BTreeMap::default(),
+            restart_on_crash: None,
         },
         default_cwd: default_cwd.clone().map(std::path::PathBuf::from),
     };
@@ -2806,6 +2810,7 @@ pub fn create_profile(
         provider: account.harness.to_string(),
         model: profile.settings_overlay.model,
         default_cwd,
+        restart_on_crash: profile.settings_overlay.restart_on_crash,
     })
 }
 
@@ -4465,6 +4470,7 @@ fn profile_infos(storage: &Storage) -> AppResult<Vec<ProfileInfo>> {
                     .default_cwd
                     .as_ref()
                     .map(|p| p.to_string_lossy().into_owned()),
+                restart_on_crash: profile.settings_overlay.restart_on_crash,
             });
         }
     }
@@ -10258,6 +10264,7 @@ mod tests {
                     settings_overlay: SettingsOverlay {
                         model: model.map(String::from),
                         env: Default::default(),
+                        restart_on_crash: None,
                     },
                     default_cwd: None,
                 })

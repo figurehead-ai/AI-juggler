@@ -102,8 +102,65 @@ pub struct AppState {
     /// AJ-E1532: the icon each project's mark uses, as the project list
     /// last found it: the only files `projects_icon_read` reads.
     pub project_icons: std::sync::Mutex<std::collections::HashMap<String, PathBuf>>,
+    /// AJ-E1509: the restarts of crashed sessions so far, by lineage.
+    pub restarts: std::sync::Mutex<crate::features::sessions::restart::Restarts>,
+    /// AJ-E1509: what keeps the Mac awake and App Nap off for the sessions.
+    pub awake: std::sync::Mutex<crate::features::app::awake::Awake>,
+    /// AJ-E1509: sessions the last run's crash ended, to resume (where
+    /// restarting is on) once the app is up.
+    pub ended_by_crash: std::sync::Mutex<Vec<SessionId>>,
+    /// AJ-E1509: the watchdog that reopens AI Juggler after a crash.
+    pub watchdog: std::sync::Mutex<Option<std::process::Child>>,
 }
 
+impl Drop for AppState {
+    /// The state closed as asked (tests; the app itself marks a quit in
+    /// its exit path, where nothing is dropped): not a crash.
+    fn drop(&mut self) {
+        crate::features::app::crash::end_run(&self.data_dir);
+    }
+}
+
+/// Ends the sessions recorded live (running, starting, waiting or stuck)
+/// whose processes didn't survive the restart: stopped after a quit;
+/// after a crash, failed with the reason. Returns the crash's.
+fn reconcile_after_restart(
+    storage: &Storage,
+    supervisor: &juggler_supervisor::Supervisor,
+    crashed: bool,
+) -> Vec<SessionId> {
+    use juggler_core::model::SessionStatus;
+    let adopted = supervisor.alive_adopted_sessions();
+    let mut ended = Vec::new();
+    for record in storage.sessions().list(None).unwrap_or_default() {
+        let live = matches!(
+            record.status,
+            SessionStatus::Starting
+                | SessionStatus::Running
+                | SessionStatus::WaitingUser
+                | SessionStatus::Stuck
+        );
+        if !live || adopted.contains(&record.id) {
+            continue;
+        }
+        let mut reconciled = record;
+        reconciled.last_activity = Some(juggler_core::model::Timestamp::now());
+        if crashed {
+            reconciled.status = SessionStatus::Failed;
+            reconciled.attention = Some(juggler_core::model::AttentionReason {
+                rule: crate::features::app::crash::QUIT_UNEXPECTEDLY_RULE.to_owned(),
+                inputs: vec!["AI Juggler quit unexpectedly while it ran".to_owned()],
+                since_ms: juggler_core::model::Timestamp::now().millis(),
+            });
+            ended.push(reconciled.id.clone());
+        } else {
+            reconciled.status = SessionStatus::Stopped;
+            reconciled.attention = None;
+        }
+        let _ = storage.sessions().update(&reconciled);
+    }
+    ended
+}
 impl AppState {
     /// Builds the state rooted at `data_dir` with the built-in adapters.
     ///
@@ -183,26 +240,14 @@ impl AppState {
                 && report.left_behind.is_empty()
                 && report.unverifiable.is_empty()),
         };
-        // Crash/restart reconciliation: sessions recorded running whose
-        // processes did not survive the restart are marked stopped —
-        // never a permanently fake "live" dot (survivors stay running).
-        let adopted = supervisor.alive_adopted_sessions();
-        {
-            let records = storage.sessions().list(None).unwrap_or_default();
-            for record in records {
-                if matches!(
-                    record.status,
-                    juggler_core::model::SessionStatus::Starting
-                        | juggler_core::model::SessionStatus::Running
-                ) && !adopted.contains(&record.id)
-                {
-                    let mut reconciled = record;
-                    reconciled.status = juggler_core::model::SessionStatus::Stopped;
-                    reconciled.last_activity = Some(juggler_core::model::Timestamp::now());
-                    let _ = storage.sessions().update(&reconciled);
-                }
-            }
-        }
+        // Crash/restart reconciliation: sessions recorded live whose
+        // processes did not survive the restart are ended — never a
+        // permanently fake "live" dot (survivors stay running). AJ-E1509:
+        // after a quit they're stopped; after a crash (the run marker
+        // never said "clean") they're ended with that reason, and resumed
+        // once the app is up where restarting is on.
+        let crashed = crate::features::app::crash::begin_run(&data_dir);
+        let ended_by_crash = reconcile_after_restart(&storage, &supervisor, crashed);
         // AJ-E508 Req.5 (per AJ-E510): any recovery finding suspends
         // Tiers 1-2 for 24 h until the user re-confirms in the Cleanup
         // Centre — identity data is least trustworthy right after a
@@ -248,6 +293,10 @@ impl AppState {
             provider_versions: Mutex::new(std::collections::HashMap::new()),
             conversations: crate::features::conversations::ConversationIndex::default(),
             project_icons: std::sync::Mutex::default(),
+            restarts: std::sync::Mutex::default(),
+            awake: std::sync::Mutex::default(),
+            ended_by_crash: std::sync::Mutex::new(ended_by_crash),
+            watchdog: std::sync::Mutex::default(),
             preview: Mutex::new(None),
             launch_facts,
             data_dir,
