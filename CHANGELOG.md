@@ -60,6 +60,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   within seconds of the first launch: the newest files are read first,
   and what's live is worked out as the first pass goes, not only at its
   end (it took minutes).
+- Opening AI Juggler right after it was force-quit (or crashed) starts
+  it, instead of saying another one "is already open and isn't
+  answering" when none was. When one really is open and stuck, the
+  message offers **Try again**.
+- At a start, the conversation list and the projects no longer wait on
+  the usage history being written: it's written in small steps, and the
+  first read of your conversations runs once, not three times at once.
+- Home never says "All clear" while an account has run out; it says so.
 - A finished session's row no longer shows its account's "% left";
   only a running one does, once the account runs low.
 - This Mac no longer lists a session as "under 1 MB": that was a session

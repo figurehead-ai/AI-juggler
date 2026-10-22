@@ -393,6 +393,7 @@ export function HomeScreen({
   }
 
   const sessionNeeds = needs.length + heavy.length;
+  const out = runway.filter((r) => r.left === 0);
   const headline =
     sessionNeeds > 0
       ? sessionNeeds === 1
@@ -405,6 +406,11 @@ export function HomeScreen({
         ? signIns.length === 1
           ? `${signIns[0]!.label} needs its sign-in`
           : `${signIns.length} accounts need their sign-in`
+      : // QA batch 9: never "All clear" while an account has run out.
+        out.length > 0
+        ? out.length === 1
+          ? `${out[0]!.account.label} has run out`
+          : `${out.length} accounts have run out`
       : running.length + elsewhere.length > 0
         ? "All clear — nothing needs you"
         : sessions.length + elsewhere.length === 0

@@ -17,10 +17,9 @@ use crate::state::AppState;
 ///
 /// Storage errors; a poisoned lock.
 pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
-    // The first ask after a start reads the files itself.
-    if state.conversations.all()?.is_empty() {
-        super::refresh_impl(state)?;
-    }
+    // The first ask after a start reads the files itself, unless the
+    // background pass already is.
+    super::read_if_cold(state)?;
     let (labels, projects, sessions) = {
         let storage = lock_storage_arc(state)?;
         let labels: HashMap<String, String> = storage

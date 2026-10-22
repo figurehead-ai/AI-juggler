@@ -57,6 +57,10 @@ pub struct ConversationIndex {
     files: Mutex<HashMap<PathBuf, Entry>>,
     /// `(account, tool, id)` of the conversations a running session is on.
     live: Mutex<std::collections::HashSet<live::Live>>,
+    /// Held while a pass reads the files: one pass at a time (QA batch 9:
+    /// at a start, the background pass, the conversation list and the
+    /// projects backfill each read every file at once).
+    pass: Mutex<()>,
 }
 
 impl ConversationIndex {
@@ -158,16 +162,27 @@ pub fn tick_with(
     every: std::time::Duration,
     progress: &dyn Fn(),
 ) -> AppResult<bool> {
-    let files_changed = refresh_with(state, every, &|| {
-        if update_live(state).is_ok() {
-            progress();
-        }
-    })?;
+    // The accounts once, up front: the pass's progress never waits on
+    // storage (QA batch 9: it waited behind the usage pipeline's first
+    // write, and nothing showed as running for over a minute).
+    let accounts = lock_storage_arc(state)?.accounts().list()?;
+    let files_changed = {
+        let _pass = state
+            .conversations
+            .pass
+            .lock()
+            .map_err(|_| AppError::StatePoisoned)?;
+        refresh_with(state, &accounts, every, &|| {
+            if update_live(state, &accounts).is_ok() {
+                progress();
+            }
+        })?
+    };
     if files_changed {
         // New folders become projects without the UI asking.
         crate::commands::projects_backfill_impl(state)?;
     }
-    let live_changed = update_live(state)?;
+    let live_changed = update_live(state, &accounts)?;
     Ok(files_changed || live_changed)
 }
 
@@ -176,9 +191,11 @@ pub const PROGRESS_EVERY: std::time::Duration = std::time::Duration::from_secs(2
 
 /// Which conversations are live now, from the process table and what's
 /// indexed; `true` when that changed.
-fn update_live(state: &Arc<AppState>) -> AppResult<bool> {
-    let accounts = lock_storage_arc(state)?.accounts().list()?;
-    let running = live::running_sessions(state, &accounts);
+fn update_live(
+    state: &Arc<AppState>,
+    accounts: &[juggler_core::model::Account],
+) -> AppResult<bool> {
+    let running = live::running_sessions(state, accounts);
     let now = live::live_ids(&state.conversations.all()?, &running);
     let mut live = state
         .conversations
@@ -198,23 +215,52 @@ fn update_live(state: &Arc<AppState>) -> AppResult<bool> {
 ///
 /// Storage errors listing the accounts; a poisoned lock.
 pub fn refresh_impl(state: &Arc<AppState>) -> AppResult<bool> {
-    refresh_with(state, PROGRESS_EVERY, &|| {})
+    let accounts = lock_storage_arc(state)?.accounts().list()?;
+    let _pass = state
+        .conversations
+        .pass
+        .lock()
+        .map_err(|_| AppError::StatePoisoned)?;
+    refresh_with(state, &accounts, PROGRESS_EVERY, &|| {})
+}
+
+/// The first read, for a command that finds the index empty: done here
+/// unless a pass is already reading (then the command answers with what
+/// is read so far, and the pass tells the UI as it goes) — a command never
+/// waits minutes on a cold pass.
+///
+/// # Errors
+///
+/// As [`refresh_impl`].
+pub fn read_if_cold(state: &Arc<AppState>) -> AppResult<()> {
+    if !state.conversations.all()?.is_empty() {
+        return Ok(());
+    }
+    let accounts = lock_storage_arc(state)?.accounts().list()?;
+    let pass = match state.conversations.pass.try_lock() {
+        Ok(pass) => pass,
+        Err(std::sync::TryLockError::WouldBlock) => return Ok(()),
+        Err(std::sync::TryLockError::Poisoned(_)) => return Err(AppError::StatePoisoned),
+    };
+    refresh_with(state, &accounts, PROGRESS_EVERY, &|| {})?;
+    drop(pass);
+    Ok(())
 }
 
 /// [`refresh_impl`], newest files first, calling `progress` every
 /// `every` that read something.
 fn refresh_with(
     state: &Arc<AppState>,
+    accounts: &[juggler_core::model::Account],
     every: std::time::Duration,
     progress: &dyn Fn(),
 ) -> AppResult<bool> {
-    let accounts = lock_storage_arc(state)?.accounts().list()?;
     let mut seen: Vec<PathBuf> = Vec::new();
     let mut changed = false;
     // Every account's files, listed first (cheap), then read newest
     // first: a running session's file is among the newest.
     let mut found = Vec::new();
-    for account in &accounts {
+    for account in accounts {
         let Some(adapter) = state.registry.get(&account.harness) else {
             continue;
         };

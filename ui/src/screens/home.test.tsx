@@ -134,6 +134,16 @@ describe("D-25 Home — the screen", () => {
     expect(renderHome([]).getByTestId("home").textContent).toContain("Ready when you are");
   });
 
+  it("never 'all clear' while an account has run out (QA batch 9)", async () => {
+    w().__AIJ_QUOTA_DISPLAY__ = [
+      { account: "work", five_hour: { percentage: 100, state: "measured", resets_at_ms: null }, weekly: { percentage: 40, state: "measured", resets_at_ms: null } },
+    ];
+    const { getByTestId } = renderHome([mk("r")]);
+    await waitFor(() => expect(getByTestId("home").textContent).toMatch(/has run out/));
+    expect(getByTestId("home").textContent).not.toContain("All clear");
+    delete w().__AIJ_QUOTA_DISPLAY__;
+  });
+
   it("runway reads each account's measured window", async () => {
     w().__AIJ_QUOTA_DISPLAY__ = [
       { account: "work", five_hour: { percentage: 90, state: "measured", resets_at_ms: null }, weekly: { percentage: 20, state: "measured", resets_at_ms: null } },

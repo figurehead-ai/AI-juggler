@@ -438,16 +438,25 @@ pub fn run() {
     if !newer_data::hold_instance_lock(&data_dir) {
         match handover.as_ref().map(|h| h.ask(handover::ANSWER_WAIT)) {
             Some(handover::Answer::Answered) => std::process::exit(0),
-            Some(handover::Answer::NotAnswering) => not_answering(),
+            // QA batch 9: an AI Juggler that was just force-quit can hold
+            // the lock a moment longer: wait for it before calling it open,
+            // and keep offering Try again while it really is.
+            Some(handover::Answer::NotAnswering) => {
+                not_answering(&data_dir, handover.as_ref());
+            }
             Some(handover::Answer::Untrusted) => {
                 eprintln!("ai-juggler: the hand-over socket isn't ours; not asking it");
             }
-            // An older AI Juggler (no such socket), or one still starting:
-            // the plugin's hand-over, as before.
+            // An older AI Juggler (no such socket), one still starting, or
+            // one just ended (its socket left behind): the lock decides.
             Some(handover::Answer::NoneListening) | None => {}
         }
-        context.config_mut().app.windows.clear();
-        hand_over_to_the_running_instance(context);
+        if !newer_data::hold_instance_lock(&data_dir)
+            && !newer_data::wait_for_instance_lock(&data_dir, newer_data::LOCK_GRACE)
+        {
+            context.config_mut().app.windows.clear();
+            hand_over_to_the_running_instance(context);
+        }
     }
     let app_state = Arc::new(match state::AppState::init(data_dir.clone()) {
         Ok(state) => state,
@@ -639,12 +648,31 @@ fn hand_over_to_the_running_instance(context: tauri::Context<tauri::Wry>) -> ! {
         tauri_plugin_single_instance::destroy(app);
     }
     drop(built);
-    not_answering();
+    let app = edition::current().app_name();
+    newer_data::cannot_start(&not_answering_words(&format!("Then open {app} again.")));
+    std::process::exit(1);
 }
 
-/// Says the open AI Juggler isn't answering and how to quit it, then
-/// quits without opening the data.
-fn not_answering() -> ! {
+/// The open AI Juggler isn't answering. If it lets go of the data within
+/// a few seconds (it was ending), this launch goes on; else it says how to
+/// quit it and offers Try again, and Quit quits without opening the data.
+fn not_answering(data_dir: &std::path::Path, handover: Option<&handover::Handover>) {
+    loop {
+        if newer_data::wait_for_instance_lock(data_dir, newer_data::LOCK_GRACE) {
+            return;
+        }
+        if handover.is_some_and(|h| h.ask(handover::ANSWER_WAIT) == handover::Answer::Answered) {
+            std::process::exit(0);
+        }
+        if !newer_data::try_again_or_quit(&not_answering_words("Then choose Try again.")) {
+            std::process::exit(1);
+        }
+    }
+}
+
+/// What to do when the open AI Juggler isn't answering, in words, ending
+/// with `then`.
+fn not_answering_words(then: &str) -> String {
     let app = edition::current().app_name();
     let how = if cfg!(target_os = "macos") {
         format!(
@@ -659,10 +687,9 @@ fn not_answering() -> ! {
             "Switch to it and quit it. If it doesn't respond, end it from your system monitor ({app})."
         )
     };
-    newer_data::cannot_start(&format!(
-        "Another {app} is already open with this data and isn't answering. It may be showing a message, or be stuck.\n\n{how}\n\nThen open {app} again."
-    ));
-    std::process::exit(1);
+    format!(
+        "Another {app} is open with this data and isn't answering. It may be showing a message, or be stuck.\n\n{how}\n\n{then}"
+    )
 }
 
 /// Resolves and creates the data dir, exiting with a plain-language

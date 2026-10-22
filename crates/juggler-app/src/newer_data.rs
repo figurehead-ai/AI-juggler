@@ -500,6 +500,52 @@ pub fn hold_instance_lock(data_dir: &Path) -> bool {
     }
 }
 
+/// How long a launch waits for an ending AI Juggler to let go of the
+/// lock before calling it open (QA batch 9: after a forced quit, the lock
+/// outlived the process for a moment, and the relaunch said "already open
+/// and isn't answering" with nothing open).
+pub const LOCK_GRACE: std::time::Duration = std::time::Duration::from_secs(5);
+
+/// Takes the instance lock, waiting up to `grace` for whoever holds it to
+/// let go; `true` once it's held.
+#[must_use]
+pub fn wait_for_instance_lock(data_dir: &Path, grace: std::time::Duration) -> bool {
+    let deadline = std::time::Instant::now() + grace;
+    loop {
+        if hold_instance_lock(data_dir) {
+            return true;
+        }
+        if std::time::Instant::now() >= deadline {
+            return false;
+        }
+        // poll: the lock has no release event; a launch only, until the
+        // deadline above (a few seconds) or the lock is ours.
+        std::thread::sleep(std::time::Duration::from_millis(200));
+    }
+}
+
+/// The "isn't answering" alert with **Try again** (QA batch 9: the open
+/// one may be ending, and quitting it may be all it takes); `true` for
+/// Try again.
+#[must_use]
+pub fn try_again_or_quit(reason: &str) -> bool {
+    let app_name = crate::edition::current().app_name();
+    let title = format!("{app_name} can't start yet");
+    if no_dialogs(&title, reason) {
+        return false;
+    }
+    let answer = rfd::MessageDialog::new()
+        .set_level(rfd::MessageLevel::Warning)
+        .set_title(title)
+        .set_description(reason)
+        .set_buttons(rfd::MessageButtons::OkCancelCustom(
+            "Try again".to_owned(),
+            "Quit".to_owned(),
+        ))
+        .show();
+    matches!(answer, rfd::MessageDialogResult::Custom(label) if label == "Try again")
+}
+
 /// At launch: shows the alert and, if the user chooses to go back, goes
 /// back and returns the state to start with (after saying what is left to
 /// do). Quitting exits. Only reached with the instance lock held (a second

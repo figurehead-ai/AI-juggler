@@ -5051,9 +5051,7 @@ pub fn projects_backfill_impl(state: &Arc<AppState>) -> AppResult<u32> {
         last_ms: Option<i64>,
     }
 
-    if state.conversations.all()?.is_empty() {
-        crate::features::conversations::refresh_impl(state)?;
-    }
+    crate::features::conversations::read_if_cold(state)?;
     let labels: std::collections::HashMap<String, String> = lock_storage_arc(state)?
         .accounts()
         .list()?

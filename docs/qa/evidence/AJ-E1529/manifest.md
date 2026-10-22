@@ -184,6 +184,53 @@ snapshot was clean: no path was added or removed.
   Integration test `conversations`
   `a_long_pass_reads_the_newest_files_first_and_reports_as_it_goes`.
 
+## QA batch 9 (the re-check of batch 8, on the real setup)
+
+QA re-checked `e385f5b9` on the real setup:
+- Home's contradiction is fixed.
+- The first pass was better but not quick: nothing was live for 74–94
+  s, and in one launch `conversations_list` didn't answer for 94 s.
+- New: after a forced quit, the relaunch said "already open and isn't
+  answering" with nothing open.
+
+What changed:
+- **Nothing blocks the first pass any more.** Three causes, each fixed:
+  - **The pass waited for storage.** Its 2-second progress step read
+    the account list from storage, and the usage pipeline held storage
+    for its whole first write. The pass now reads the accounts once,
+    up front, and works out what's live without touching storage.
+  - **That write was one long lock.** The pipeline now writes in chunks
+    of 2,000 events, one lock and one transaction each. A re-read keeps
+    each session's rows in one chunk (`session_chunks`), so no session
+    is half replaced. Offsets are saved once every chunk is in.
+  - **Three cold reads ran at once.** At a start, the background pass,
+    the conversation list and the projects backfill each read every
+    file. Now one pass runs at a time (`ConversationIndex::pass`). A
+    command that finds the index empty reads only if no pass is running
+    (`read_if_cold`); otherwise it answers at once with what's read so
+    far.
+- **A relaunch after a forced quit starts.**
+  - When the hand-over gets no answer, or the lock is held with nobody
+    listening, the launch waits up to 5 s for the lock
+    (`newer_data::wait_for_instance_lock`) and starts as soon as it's
+    free.
+  - Only an instance that keeps holding the data gets the alert, which
+    now has **Try again** as well as Quit; each try waits again and asks
+    the open one again.
+- **Home never says "All clear" while an account has run out.** The
+  headline reads "Account G has run out" (or "N accounts have run
+  out").
+
+Tests:
+- `conversations`: `the_list_answers_at_once_while_a_pass_is_reading`
+  fails on the old code (the list read all 3 files itself) and passes
+  now.
+- `usage_pipeline` `a_reread_is_chunked_without_splitting_a_session`.
+- `instance_lock`: `a_launch_waits_for_an_ending_instance_to_let_go_of_the_data`.
+- `second_launch`: a frozen app still gets the alert, the data is
+  untouched, and the launch ends within 20 s.
+- vitest `home`: "never 'all clear' while an account has run out".
+
 ## Walked on the replica: the three questions
 
 The replica has 9 accounts (7 Claude, 2 Codex), 16 projects, 346

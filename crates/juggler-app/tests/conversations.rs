@@ -164,3 +164,78 @@ fn a_long_pass_reads_the_newest_files_first_and_reports_as_it_goes() {
     );
     assert_eq!(state.conversations.all().unwrap().len(), 3);
 }
+
+/// QA batch 9: at a start, the conversation list read every file itself
+/// while the background pass did too, and didn't answer for 94 s. While a
+/// pass is reading, the list answers at once with what's read so far.
+#[test]
+fn the_list_answers_at_once_while_a_pass_is_reading() {
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().canonicalize().unwrap();
+    let repo = root.join("Dev/app");
+    std::fs::create_dir_all(repo.join(".git")).unwrap();
+    let config = root.join("setup");
+    std::fs::create_dir_all(&config).unwrap();
+    std::fs::write(config.join("settings.json"), "{}").unwrap();
+    let mut registry = AdapterRegistry::new();
+    registry.register(Arc::new(ClaudeCodeAdapter::with_bin("/bin/true")));
+    let state = Arc::new(AppState::init_with_registry(root.join("app-data"), registry).unwrap());
+    commands::account_import_mode_impl(
+        &state,
+        CLAUDE_CODE_ID,
+        config.to_str().unwrap(),
+        "Work",
+        commands::ImportRequest {
+            in_place: true,
+            ..commands::ImportRequest::default()
+        },
+    )
+    .unwrap();
+    for id in ["c-1", "c-2", "c-3"] {
+        transcript(&config, &repo, id, "Work on it");
+    }
+    // The newest file isn't a conversation: after reading it the index is
+    // still empty, as at a start before the first conversation is read.
+    let folder = config
+        .join("projects")
+        .join(repo.to_string_lossy().replace(['/', '.'], "-"));
+    std::fs::write(folder.join("notes.jsonl"), "not a transcript\n").unwrap();
+    std::fs::File::options()
+        .write(true)
+        .open(folder.join("notes.jsonl"))
+        .unwrap()
+        .set_modified(std::time::SystemTime::now() + std::time::Duration::from_secs(60))
+        .unwrap();
+    // A pass that stalls after its first file (a slow disk), holding on.
+    let (reading, started) = std::sync::mpsc::channel();
+    let pass_state = Arc::clone(&state);
+    let pass = std::thread::spawn(move || {
+        let reading = std::sync::Mutex::new(Some(reading));
+        conversations::tick_with(&pass_state, std::time::Duration::ZERO, &|| {
+            if let Some(reading) = reading.lock().unwrap().take() {
+                reading.send(()).unwrap();
+                std::thread::sleep(std::time::Duration::from_millis(1_500));
+            }
+        })
+        .unwrap();
+    });
+    started.recv().unwrap();
+    let asked = std::time::Instant::now();
+    let listed = list_impl(&state).unwrap();
+    assert!(
+        asked.elapsed() < std::time::Duration::from_millis(1_000),
+        "it didn't wait for the pass: {:?}",
+        asked.elapsed()
+    );
+    assert!(
+        listed.is_empty(),
+        "nothing read yet, and it didn't read every file itself: {}",
+        listed.len()
+    );
+    pass.join().unwrap();
+    assert_eq!(
+        list_impl(&state).unwrap().len(),
+        3,
+        "all, once the pass is done"
+    );
+}
