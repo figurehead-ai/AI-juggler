@@ -215,7 +215,9 @@ account (in place or a copy) happens only for an item the user picked:
   - **A Claude MCP server:** through Claude's own `claude mcp add-json`, so
     Claude writes its own file.
   - **A Codex MCP server:** one new `[mcp_servers.<name>]` table appended
-    to `config.toml`, after a backup, and checked to still parse.
+    to `config.toml`, checked to still parse. Before the first set-up the
+    file is copied to `config.toml.before-ai-juggler`; the last undo that
+    needs that copy removes it, so nothing is left behind.
   - **Skills, commands, subagents and rules:** copied as new files.
   - **Secrets:** a secret becomes a reference to an environment variable
     (`${NAME}`, `env_vars`, `bearer_token_env_var`), never its value.

@@ -215,6 +215,12 @@ fn codex_is_offered_the_claude_setup_in_its_own_form() {
         Some("GITHUB_TOKEN")
     );
     assert!(!config.contains("ghp_this"));
+    let backup = x.join("config.toml.before-ai-juggler");
+    assert_eq!(
+        std::fs::read_to_string(&backup).unwrap(),
+        "model = \"gpt-6\"\n",
+        "the backup is the file from before the set-up"
+    );
     assert_eq!(
         std::fs::read_to_string(x.join("AGENTS.md")).unwrap(),
         "Be brief.\n"
@@ -233,4 +239,6 @@ fn codex_is_offered_the_claude_setup_in_its_own_form() {
         std::fs::read_to_string(x.join("config.toml")).unwrap(),
         "model = \"gpt-6\"\n"
     );
+    // Lab 6: the backup outlived the undo in the user's Codex folder.
+    assert!(!backup.exists(), "the backup goes with the last undo");
 }

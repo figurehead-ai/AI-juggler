@@ -8,8 +8,9 @@
 //! - plugins (`[plugins."name@marketplace"]`).
 //!
 //! Setting up an MCP server appends one new `[mcp_servers.<name>]` table to
-//! `config.toml` (a backup is kept first, and the exact text appended is
-//! the undo record); nothing already there is changed. A skill goes into
+//! `config.toml` (the file from before the first set-up is kept as a
+//! backup until the last undo, and the exact text appended is the undo
+//! record); nothing already there is changed. A skill goes into
 //! the shared `~/.agents/skills/`, a Claude command becomes a skill, and
 //! Claude rules become the home's `AGENTS.md`, as new files only.
 
@@ -227,8 +228,11 @@ fn add_mcp(home: &Path, name: &str, server: &McpServer) -> Result<Applied, Adapt
             "the change didn't add the server".to_owned(),
         ));
     }
-    if config.is_file() {
-        std::fs::copy(&config, home.join("config.toml.before-ai-juggler"))?;
+    // The backup holds the file as it was before AI Juggler's first
+    // set-up: a later set-up keeps it rather than copying over it.
+    let backup = home.join("config.toml.before-ai-juggler");
+    if config.is_file() && !backup.exists() {
+        std::fs::copy(&config, &backup)?;
     }
     let staged = home.join(format!(".config.toml.ai-juggler-{}", std::process::id()));
     std::fs::write(&staged, &text)?;
@@ -238,6 +242,7 @@ fn add_mcp(home: &Path, name: &str, server: &McpServer) -> Result<Applied, Adapt
         undo: Undo::RemoveAppended {
             file: config,
             text: appended,
+            backup: backup.is_file().then_some(backup),
         },
     })
 }

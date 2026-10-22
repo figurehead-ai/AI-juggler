@@ -175,6 +175,11 @@ pub enum Undo {
         file: PathBuf,
         /// The exact text appended.
         text: String,
+        /// The copy kept from before the first set-up, removed by the last
+        /// undo that needs it (records made before it was named carry
+        /// none).
+        #[serde(default)]
+        backup: Option<PathBuf>,
     },
     /// Run the tool's own command that removes it (`claude mcp remove …`).
     Command {

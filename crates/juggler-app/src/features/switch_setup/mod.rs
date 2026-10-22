@@ -289,6 +289,19 @@ pub fn undo_impl(state: &Arc<AppState>, record_id: &str) -> AppResult<String> {
     undo(&records[at].applied.undo)?;
     let record = records.remove(at);
     write(state, &records)?;
+    // The tool's backup goes with the last set-up that needed it.
+    if let Undo::RemoveAppended {
+        backup: Some(backup),
+        ..
+    } = &record.applied.undo
+    {
+        let still_needed = records.iter().any(|other| {
+            matches!(&other.applied.undo, Undo::RemoveAppended { backup: Some(b), .. } if b == backup)
+        });
+        if !still_needed {
+            let _ = std::fs::remove_file(backup);
+        }
+    }
     Ok(format!("Undid: {}", record.applied.summary))
 }
 
@@ -317,7 +330,7 @@ fn undo(how: &Undo) -> AppResult<()> {
             }
             Ok(())
         }
-        Undo::RemoveAppended { file, text } => {
+        Undo::RemoveAppended { file, text, .. } => {
             let now =
                 std::fs::read_to_string(file).map_err(|e| AppError::io("undo the set-up", &e))?;
             let Some(at) = now.find(text.as_str()) else {

@@ -32,7 +32,9 @@
 //! name. The server's tool `probe_word` answers `KESTREL` (only with its
 //! environment carried), and the skill's word is `PEREGRINE`. Before each
 //! switch the lab sets up only those two on the target, asks the target
-//! for both words, and at the end undoes every set-up.
+//! for both words in a fresh session (the switched conversation already
+//! holds the words, so asking there would prove nothing), and at the end
+//! undoes every set-up.
 //!
 //! It never signs in, never reads a credential, and starts nothing outside
 //! the lab project. Before and after, it records every account folder's
@@ -186,10 +188,21 @@ fn claude_turn(
 /// A headless Codex turn in the lab project. Returns (thread id, last
 /// agent message, ok).
 fn codex_turn(lab: &Lab, resume: Option<&str>, prompt: &str) -> (Option<String>, String, bool) {
+    codex_turn_with(lab, resume, &[], prompt)
+}
+
+/// [`codex_turn`] with extra `codex exec` flags.
+fn codex_turn_with(
+    lab: &Lab,
+    resume: Option<&str>,
+    flags: &[&str],
+    prompt: &str,
+) -> (Option<String>, String, bool) {
     let mut cmd = Command::new("codex");
     cmd.current_dir(&lab.project)
         .env("CODEX_HOME", &lab.codex)
-        .arg("exec");
+        .arg("exec")
+        .args(flags);
     if let Some(id) = resume {
         cmd.args(["resume", id]);
     } else {
@@ -479,11 +492,15 @@ fn switch_lab_live() {
                 ),
             );
             let uses = lab.probe.as_ref().map(|_| {
-                let turn = claude_turn(&lab, &lab.claude_b.clone(), None, Some(&resume_id), PROBE_ASK);
+                // A fresh session: the switched one can't have heard the words yet,
+                // but the next target's copy will, so every check starts clean.
+                let turn = claude_turn(&lab, &lab.claude_b.clone(), None, None, PROBE_ASK);
                 probe_answer(turn["result"].as_str().unwrap_or_default())
             });
-            lab.steps.push(json!({"step": "2b set-up on B", "ok": setup_ok(&setup_b, uses.as_ref()),
-                                  "setup": setup_b, "uses": uses}));
+            lab.steps.push(
+                json!({"step": "2b set-up on B", "ok": setup_ok(&setup_b, uses.as_ref()),
+                                  "setup": setup_b, "uses": uses}),
+            );
             json!({"step": "2 switch A→B", "ok": carried && tests_pass(&lab.project),
                    "transcript_resume": carried, "tasks": tasks_carried,
                    "probe": answer, "continued": cont["result"], "launch": argv,
@@ -536,11 +553,13 @@ fn switch_lab_live() {
                     ),
                     None => (None, String::new(), false),
                 };
-                let uses = match (&lab.probe, &thread) {
-                    (Some(_), Some(id)) => Some(probe_answer(&codex_turn(&lab, Some(id), PROBE_ASK).1)),
-                    (Some(_), None) => Some(json!({"answer": "", "mcp": false, "skill": false})),
-                    _ => None,
-                };
+                // A fresh session: the switched thread was primed with B's
+                // conversation, which already holds both words (lab 6 passed on
+                // that alone, with the tool call blocked). Codex's automatic
+                // review approves the tool call; nothing else runs.
+                let uses = lab.probe.as_ref().map(|_| {
+                    probe_answer(&codex_turn_with(&lab, None, &["--approve-for-me"], PROBE_ASK).1)
+                });
                 lab.steps.push(json!({"step": "3b set-up on Codex",
                                       "ok": setup_ok(&setup_x, uses.as_ref()),
                                       "setup": setup_x, "uses": uses}));
@@ -577,7 +596,8 @@ fn switch_lab_live() {
             let offered = offers["offers"]
                 .as_array()
                 .is_some_and(|all| all.iter().any(|o| o["name"] == probe.as_str()));
-            lab.steps.push(json!({"step": "4b A already has the probe", "ok": !offered,
+            lab.steps
+                .push(json!({"step": "4b A already has the probe", "ok": !offered,
                                   "check": offers}));
         }
         let back =
@@ -619,15 +639,18 @@ fn switch_lab_live() {
             .records
             .iter()
             .rev()
-            .map(|record| {
-                match juggler_app::features::switch_setup::undo_impl(&state, record) {
+            .map(
+                |record| match juggler_app::features::switch_setup::undo_impl(&state, record) {
                     Ok(message) => json!({"record": record, "ok": true, "message": message}),
-                    Err(error) => json!({"record": record, "ok": false, "error": format!("{error:?}")}),
-                }
-            })
+                    Err(error) => {
+                        json!({"record": record, "ok": false, "error": format!("{error:?}")})
+                    }
+                },
+            )
             .collect();
         let all = undone.iter().all(|u| u["ok"] == true) && !undone.is_empty();
-        lab.steps.push(json!({"step": "5 undo every set-up", "ok": all, "undone": undone}));
+        lab.steps
+            .push(json!({"step": "5 undo every set-up", "ok": all, "undone": undone}));
     }
 
     let after = snapshot(&roots);
@@ -662,7 +685,17 @@ const PROBE_ASK: &str = "Without changing any file: call the probe_word tool of 
 
 /// Whether an answer has both probe words.
 fn probe_answer(answer: &str) -> Value {
-    json!({"answer": answer, "mcp": answer.contains(MCP_WORD) && !answer.contains("NO-ENV"),
+    let blocked = [
+        "blocked",
+        "couldn't",
+        "could not",
+        "unable",
+        "prior session",
+    ]
+    .iter()
+    .any(|word| answer.to_lowercase().contains(word));
+    json!({"answer": answer,
+           "mcp": answer.contains(MCP_WORD) && !answer.contains("NO-ENV") && !blocked,
            "skill": answer.contains(SKILL_WORD)})
 }
 
