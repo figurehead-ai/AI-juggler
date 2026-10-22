@@ -4,10 +4,15 @@
 //! UI's reads all along.
 
 // Test crates are pragmatic by policy (QUALITY.md §2).
-#![allow(clippy::unwrap_used, clippy::expect_used, clippy::pedantic)]
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::pedantic
+)]
 
 use std::sync::Arc;
-use std::sync::mpsc;
+use std::sync::{TryLockError, mpsc};
 use std::time::{Duration, Instant};
 
 use juggler_adapter::AdapterRegistry;
@@ -42,11 +47,17 @@ fn a_slow_disk_tick_never_holds_the_machine_lock() {
     // The tick takes the lock for its cheap part only: once its count
     // moved (read under the lock, so that part is over), the tick goes on
     // to storage, which is held — it can't finish …
+    // try_lock: a tick that kept the lock makes this fail, not hang.
     let started = Instant::now();
-    while state.machine.lock().unwrap().ticks() == 0 {
+    loop {
+        match state.machine.try_lock() {
+            Ok(watch) if watch.ticks() > 0 => break,
+            Ok(_) | Err(TryLockError::WouldBlock) => {}
+            Err(TryLockError::Poisoned(_)) => panic!("the sampler's lock is poisoned"),
+        }
         assert!(
             started.elapsed() < Duration::from_secs(60),
-            "the tick never started"
+            "the tick's count never showed: it never ran, or it kept the lock"
         );
         std::thread::yield_now();
     }

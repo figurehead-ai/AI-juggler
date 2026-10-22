@@ -26,6 +26,14 @@ use juggler_core::model::{
     ProfileId, SessionId, SessionStatus, SettingsOverlay, Timestamp,
 };
 
+/// Each budget is measured alone: the others spawn tens of processes,
+/// which a measurement running beside them would count as its own cost.
+fn alone() -> std::sync::MutexGuard<'static, ()> {
+    static TURN: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    TURN.lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
 fn median(mut runs: Vec<Duration>) -> Duration {
     runs.sort();
     runs[runs.len() / 2]
@@ -117,6 +125,7 @@ fn seed(dir: &Path) {
 /// shows; the webview's own share is measured by the UI load spec.
 #[test]
 fn backend_cold_start_at_scale() {
+    let _alone = alone();
     let dir = tempfile::tempdir().unwrap();
     seed(dir.path());
     let mut runs = Vec::new();
@@ -139,6 +148,7 @@ fn backend_cold_start_at_scale() {
 /// the echoed bytes being readable for the terminal, through a real PTY.
 #[test]
 fn terminal_input_echo_under_50ms() {
+    let _alone = alone();
     let work = tempfile::tempdir().unwrap();
     let state = open(&work.path().join("app-data"));
     let id = SessionId::new("s-echo");
@@ -273,6 +283,7 @@ fn idle_with_ten_live_instances() {
 /// with full rings, hog rules and the ledger's leftover count.
 #[test]
 fn this_mac_at_fifty_instances() {
+    let _alone = alone();
     let dir = tempfile::tempdir().unwrap();
     seed(dir.path());
     let state = open(dir.path());
@@ -334,15 +345,22 @@ fn this_mac_at_fifty_instances() {
 /// AJ-E1410 budget (SPEC §1): resource monitoring costs < 1 % of one core.
 /// One simulated minute: 30 of the 2 s ticks and 12 of the 5 s This Mac
 /// emissions, with 5 live sessions. The budget is held by doing little, and
-/// that is what this asserts, deterministically:
+/// that is asserted deterministically:
 /// - a full scan (every process on the Mac) at most every 5th tick;
-/// - between them, only the known processes are read, a handful per tick.
+/// - a list-only read of every process (P16) at most every 2nd tick
+///   between them;
+/// - otherwise only the known processes are read, a handful per tick.
 ///
-/// CPU time is measured and printed too, but not asserted: a full scan's
-/// cost grows with the other processes on the machine, so on a shared CI
-/// runner it measured the runner (1.118 % once, AJ-E806).
+/// CPU time is asserted too, but it measures the machine as well as us: a
+/// full scan's cost grows with every process on it, and the other tools'
+/// trees (the Claude app and what it runs, builds included) are read every
+/// tick. The budget itself, 1 %, is held where those are few (under 100
+/// processes a tick); on a CI runner (1.118 % once, AJ-E806) or beside a
+/// busy Claude app (1.36 % at 290 of its processes a tick, 0.79 % at 155)
+/// the bound is 2 %.
 #[test]
 fn monitoring_costs_under_one_percent_of_a_core() {
+    let _alone = alone();
     use cpu_time::ThreadTime;
     let dir = tempfile::tempdir().unwrap();
     seed(dir.path());
@@ -412,20 +430,33 @@ fn monitoring_costs_under_one_percent_of_a_core() {
     let full = after.full_scans - before.full_scans;
     let ours = after.targeted_ours - before.targeted_ours;
     let observed = after.targeted_observed - before.targeted_observed;
+    let listings = after.listings - before.listings;
     eprintln!(
-        "[perf] monitoring: {ticks} ticks, {full} full scans; between them {ours} of our sessions' processes and {observed} of other tools' read; {used:?} CPU per simulated minute = {share:.3} % of one core (5 sessions); the E14 machine half alone {machine_share:.3} %"
+        "[perf] monitoring: {ticks} ticks, {full} full scans, {listings} listings; between them {ours} of our sessions' processes and {observed} of other tools' read; {used:?} CPU per simulated minute = {share:.3} % of one core (5 sessions); the E14 machine half alone {machine_share:.3} %"
     );
     assert_eq!(ticks, 30);
     assert!(full <= 6, "a full scan at most every 5th tick: {full}");
     // Between full scans, only what is watched is read: each session's
-    // root, its shell and its `sleep` (3 reads a tick), never the Mac's
-    // other processes. Other tools' trees (the Claude app, if this Mac runs
-    // one) are read as they are; how many is up to the machine.
+    // root shell and its `sleep`, once each (2 reads a tick; a root read
+    // twice made it 3), never the Mac's other processes. Other tools' trees
+    // (the Claude app, if this Mac runs one) are read as they are; how many
+    // is up to the machine.
     let between = ticks - full;
-    assert!(
-        ours > 0 && ours <= between * 5 * 3,
-        "our sessions' processes only: {ours} over {between} ticks"
+    assert_eq!(
+        ours,
+        between * 5 * 2,
+        "our sessions' processes, once each: {ours} over {between} ticks"
     );
+    assert!(
+        listings > 0 && listings <= between.div_ceil(2),
+        "a listing at most every 2nd tick: {listings} over {between} ticks"
+    );
+    let bound = if std::env::var_os("CI").is_some() || observed >= between * 100 {
+        2.0
+    } else {
+        1.0
+    };
+    assert!(share < bound, "{share:.3} % of a core (bound {bound} %)");
 }
 
 /// P16 (QA): a tree's new processes counted at once. The collector read the
@@ -436,6 +467,7 @@ fn monitoring_costs_under_one_percent_of_a_core() {
 /// already counts them.
 #[test]
 fn a_trees_new_processes_count_at_the_next_tick() {
+    let _alone = alone();
     let dir = tempfile::tempdir().unwrap();
     seed(dir.path());
     let state = open(dir.path());
