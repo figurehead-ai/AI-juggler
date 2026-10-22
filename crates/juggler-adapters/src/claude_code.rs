@@ -1049,33 +1049,6 @@ fn keychain_entry_exists(service: &str) -> bool {
         .is_ok_and(|status| status.success())
 }
 
-/// Writes the managed `settings.json` for a config dir from a profile's
-/// settings overlay (model preference). Atomic, and confined to the managed
-/// dir by construction.
-///
-/// # Errors
-///
-/// Returns [`AdapterError::AccountDir`] when the file cannot be written.
-pub fn write_settings_overlay(
-    state_dir: &Path,
-    overlay: &juggler_core::model::SettingsOverlay,
-) -> Result<(), AdapterError> {
-    let Some(model) = &overlay.model else {
-        return Ok(()); // nothing to overlay — no file written
-    };
-    let settings = serde_json::json!({ "model": model });
-    let bytes = serde_json::to_vec_pretty(&settings).map_err(|error| AdapterError::AccountDir {
-        path: state_dir.to_path_buf(),
-        message: error.to_string(),
-    })?;
-    juggler_core::fs::atomic_write(&state_dir.join("settings.json"), &bytes).map_err(|error| {
-        AdapterError::AccountDir {
-            path: state_dir.to_path_buf(),
-            message: error.to_string(),
-        }
-    })
-}
-
 /// AJ-E1001: Claude Code's sign-in metadata for a config dir (see
 /// [`ClaudeCodeAdapter::probe_identity`]).
 #[must_use]
