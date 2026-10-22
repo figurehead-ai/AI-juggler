@@ -123,6 +123,18 @@ live sessions run as the real CLIs do (`claude`, `claude --resume
 shell's own `CLAUDE_CONFIG_DIR`, and the backend correctly attributed it
 to no account.
 
+## QA batch 7 (account view, New session)
+
+- The account's "Running sessions (0)" while 10 ran is now **Running
+  now**: the account's live rows from the same list as its Sessions tab,
+  so AI Juggler's sessions and the ones started outside it count alike
+  (the old card counted only running or starting).
+- **Usual projects** leaves out a moved project (it says so on its own
+  page), lists newest first, and drops the "usual" tag on every row.
+  Once worktrees fold (above), removed worktrees aren't projects at all.
+- **New session's top folders** leave out moved projects. "1 prior
+  sessions" reads "1 prior session".
+
 ## Walked on the replica: the three questions
 
 The replica has 9 accounts (7 Claude, 2 Codex), 16 projects, 346

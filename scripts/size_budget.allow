@@ -14,7 +14,7 @@ ui/src/components/CrossMachineSwitchFlow.tsx 518
 ui/src/components/KillSheet.tsx 622
 ui/src/components/NotificationRegion.tsx 425
 ui/src/components/RemoteTabs.tsx 496
-ui/src/components/RightInspector.tsx 2153
+ui/src/components/RightInspector.tsx 1832
 ui/src/components/SettingsSections.tsx 604
 ui/src/components/SwitchFlow.tsx 762
 ui/src/components/SwitchGraph.tsx 433

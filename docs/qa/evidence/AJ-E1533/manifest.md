@@ -124,6 +124,14 @@ account, tool and outside-session pages, by mouse and by the crumbs.
      the same component and rule as Usage, Accounts and Home's Runway
      (vitest `inspector-aggregate`, "each account's line is Runway's own").
 
+## QA batch 7
+
+The account page had an empty Usage tab ("No usage measured" against
+13.7G tokens on Usage). It has no Usage tab now, and its Overview reads
+the same windows as Usage and the Accounts cards. The account page's
+parts moved to `pages/AccountPage.tsx`, taking RightInspector from 2153
+to 1832 lines.
+
 ## Decisions
 
 - **Single column, not the wireframe's side inspector.** Wireframes 03

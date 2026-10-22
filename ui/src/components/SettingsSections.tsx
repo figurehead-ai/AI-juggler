@@ -6,7 +6,7 @@
  */
 import { useCallback, useEffect, useState, type JSX } from "react";
 import { Button, Card, Chip } from "./primitives";
-import { TierToggles } from "./RightInspector";
+import { TierToggles } from "../pages/AccountPage";
 import { AccessSheet } from "../screens/FleetScreen";
 import { providerDisplayName } from "../lib/providers";
 import {

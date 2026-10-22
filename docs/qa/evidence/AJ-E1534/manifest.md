@@ -39,6 +39,14 @@ title and highlight, at 1280 and 1024, both themes, on the replica.
    absolute path): in the rail, New session's picker and the project
    header (`lib/project-words.ts` `homeRelative`, one rule).
 
+## QA batch 7 (names a screen reader hears)
+
+The account page's cleanup and preview checkboxes, read as "on" by QA's
+tool, carry their labels explicitly. The fee field is "Flat fee,
+dollars a month", where QA's tool read its placeholder ("200", now
+"e.g. 200"). Usual-project buttons are named by the project. Axe passed
+before too; these names now hold for any tool that reads the tree.
+
 ## Every page type, side by side
 
 Each page's mark, its rail row selected and the top bar's title and

@@ -191,7 +191,7 @@ export function NewSessionModal({
 
   const recents = useMemo(
     () =>
-      [...projects]
+      projects.filter((project) => !project.missing) // a moved one waits for Relocate…
         .sort(
           (a, b) => (b.last_activity_ms ?? 0) - (a.last_activity_ms ?? 0),
         )
@@ -298,7 +298,7 @@ export function NewSessionModal({
                   )}
                 </span>
                 <span className="truncate text-[10px] text-muted">
-                  {project.history_sessions > 0 ? `${project.history_sessions} prior sessions · ${project.accounts_used.join(", ")}` : homeRelative(project.root)}
+                  {project.history_sessions > 0 ? `${project.history_sessions} prior session${project.history_sessions === 1 ? "" : "s"} · ${project.accounts_used.join(", ")}` : homeRelative(project.root)}
                 </span>
               </button>
             ))}

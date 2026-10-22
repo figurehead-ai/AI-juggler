@@ -8,10 +8,9 @@
 import type { JSX } from "react";
 import { useActionHost, useItemMenu } from "./ItemMenu";
 import { AccountDisc, hueOf, stateChip } from "./indicator";
-import { conversationTitle, liveOutside, outside, useConversations } from "../lib/conversations";
+import { conversationTitle, outside, useConversations } from "../lib/conversations";
 import type { ConversationInfo } from "../lib/ipc/conversations";
-import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
-import { Card } from "./primitives";
+import type { ProjectInfo } from "../lib/bridge";
 import type { ChipFilters, RowGroup } from "../lib/railview";
 import { ago, agoWords } from "../lib/time-words";
 
@@ -164,47 +163,6 @@ export function OutsideRows({
         </button>
       )}
     </>
-  );
-}
-
-/** An account's running sessions: AI Juggler's and, AJ-E1529, those
- * started outside it (from its own conversations). */
-export function AccountRunningCard({
-  accountId,
-  running,
-  now,
-  onOpenSession,
-}: {
-  accountId: string;
-  running: InstanceInfo[];
-  now: number;
-  onOpenSession: (id: string) => void;
-}): JSX.Element {
-  const { all } = useConversations();
-  const host = useActionHost();
-  const elsewhere = liveOutside(all, accountId);
-  const count = running.length + elsewhere.length;
-  return (
-    <Card className="flex flex-col gap-1.5 p-4" data-testid="account-running">
-      <p className="text-[11px] uppercase tracking-wider text-muted">Running sessions ({count})</p>
-      {count === 0 && <p className="text-[11.5px] text-muted">None right now.</p>}
-      {running.map((row) => (
-        <button key={row.id} type="button" onClick={() => onOpenSession(row.id)} className="flex items-center gap-2 py-1 text-left text-xs">
-          <span className="min-w-0 flex-1 truncate font-medium">{row.label ?? row.git_branch ?? row.account_label}</span>
-          <span className="shrink-0 text-[11px] text-muted">{stateChip(row.status).label}</span>
-        </button>
-      ))}
-      {elsewhere.map((conversation) => (
-        <ConversationRow
-          key={conversation.id}
-          conversation={conversation}
-          selected={false}
-          density="compact"
-          now={now}
-          onOpen={(c) => host.openConversation?.(c)}
-        />
-      ))}
-    </Card>
   );
 }
 
