@@ -23,7 +23,10 @@ export function ServersSection({ project }: { project: ProjectInfo }) {
     setDone(null);
     try {
       const applied = await projectSyncServersApply(project.id, offer);
-      setDone({ message: applied.message, record: applied.record });
+      // Nothing set up (it's there now, or it went from the source): say
+      // why, as a problem, not as a done line.
+      if (applied.record === null) setError(applied.message);
+      else setDone({ message: applied.message, record: applied.record });
       await load();
     } catch (cause) {
       setError(errorText(cause));
@@ -31,7 +34,13 @@ export function ServersSection({ project }: { project: ProjectInfo }) {
       setBusy(null);
     }
   };
-  if (!servers) return null;
+  if (!servers) {
+    return error ? (
+      <p className="text-xs text-danger" role="alert">
+        {error}
+      </p>
+    ) : null;
+  }
   return (
     <section className="flex flex-col gap-2" aria-labelledby="sync-servers-heading" data-testid="project-sync-servers">
       <h3 id="sync-servers-heading" className={SYNC_HEADING}>

@@ -1,5 +1,7 @@
 import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import * as sync from "../lib/ipc/projectSync";
+import * as setup from "../lib/ipc/switchSetup";
 import { ProjectSyncSheet } from "./ProjectSyncSheet";
 import { ProjectFacts } from "../pages/ProjectPage";
 import { EXAMPLE_PROJECT_SYNC, type ProjectSyncSeam } from "../preview/project-sync";
@@ -25,6 +27,7 @@ const seed = (seam: ProjectSyncSeam = EXAMPLE_PROJECT_SYNC) => {
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
   delete (window as never as Seams).__AIJ_PROJECT_SYNC__;
 });
 
@@ -128,5 +131,54 @@ describe("the rules and servers sheet", () => {
     const view = render(<ProjectSyncSheet project={PROJECT} onClose={() => undefined} />);
     expect(await view.findByText(/nothing to compare/)).toBeTruthy();
     expect(view.queryByTestId("sync-apply")).toBeNull();
+  });
+
+  it("says why an apply was refused, and leaves the panel to try again", async () => {
+    seed();
+    vi.spyOn(sync, "projectSyncApply").mockRejectedValue({
+      code: "refused",
+      retryable: false,
+      user_message: "AGENTS.md or CLAUDE.md changed since you looked: look again before applying",
+    });
+    const view = render(<ProjectSyncSheet project={PROJECT} onClose={() => undefined} />);
+    await view.findByTestId("sync-diff");
+    fireEvent.click(view.getByRole("button", { name: "Apply to AGENTS.md" }));
+    await waitFor(() => expect(view.getByRole("alert").textContent).toContain("changed since you looked"));
+    expect(view.getByRole("button", { name: "Apply to AGENTS.md" })).toBeTruthy();
+    expect(view.queryByRole("status")).toBeNull();
+  });
+
+  it("undoes an apply from the sheet", async () => {
+    seed();
+    const undo = vi.spyOn(setup, "switchSetupUndo").mockResolvedValue("Put back the rules in AGENTS.md as it was");
+    const view = render(<ProjectSyncSheet project={PROJECT} onClose={() => undefined} />);
+    await view.findByTestId("sync-diff");
+    fireEvent.click(view.getByRole("button", { name: "Apply to AGENTS.md" }));
+    fireEvent.click(await view.findByRole("button", { name: "Undo" }));
+    await waitFor(() => expect(view.getByRole("status").textContent).toContain("Put back the rules in AGENTS.md as it was"));
+    expect(undo).toHaveBeenCalledWith("record-AGENTS.md");
+    expect(view.queryByRole("button", { name: "Undo" })).toBeNull();
+    expect(document.activeElement).toBe(view.getByRole("status"));
+  });
+
+  it("doesn't push a missing file the summary doesn't count", async () => {
+    const seam = structuredClone(EXAMPLE_PROJECT_SYNC);
+    seam.rules = {
+      ...seam.rules!,
+      in_sync: true,
+      summary: "Rules in sync",
+      files: [
+        seam.rules!.files[0]!,
+        { ...seam.rules!.files[1]!, standing: "missing", words: "Not there", counts: false, sha256: null, modified_ms: null },
+      ],
+    };
+    seed(seam);
+    const view = render(<ProjectSyncSheet project={PROJECT} onClose={() => undefined} />);
+    const row = await view.findByTestId("sync-file-AGENTS.md");
+    expect(view.queryByTestId("sync-apply")).toBeNull();
+    expect(within(row).getByText("Not there").className).not.toContain("text-warning");
+    // It can still be applied, on request.
+    fireEvent.click(within(row).getByRole("button", { name: "Show changes" }));
+    expect(await view.findByTestId("sync-apply")).toBeTruthy();
   });
 });

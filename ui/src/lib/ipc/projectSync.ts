@@ -48,6 +48,7 @@ export async function projectSyncRules(projectId: string, master: string | null 
         standing: file.name === master ? "master" : file.standing === "master" ? "differs" : file.standing,
         words: file.name === master ? "The master" : `Differs from ${master}`,
         can_apply: file.name !== master,
+        counts: file.name !== master,
       })),
     };
   }
@@ -85,7 +86,7 @@ export async function projectSyncApply(
     if (current?.rules) {
       const files = current.rules.files.map((candidate) =>
         candidate.name === file
-          ? { ...candidate, standing: how === "read" ? "reads" : "same", words: `${how === "read" ? "Reads" : "Same as"} ${master}` }
+          ? { ...candidate, standing: how === "read" ? "reads" : "same", words: `${how === "read" ? "Reads" : "Same as"} ${master}`, counts: false }
           : candidate,
       );
       current.rules = { ...current.rules, files, in_sync: true, summary: "Rules in sync" };

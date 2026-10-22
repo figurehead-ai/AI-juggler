@@ -23,9 +23,14 @@ import { projectSyncApply, projectSyncDiff, projectSyncRules, type RulesDiffInfo
 import { ServersSection } from "./ProjectSyncServers";
 import { DoneLine, SYNC_HEADING, type Done } from "./SyncDoneLine";
 
-/** A file whose tools don't see the master's rules, and that can be
- * changed. */
-const needsApply = (file: RulesFileInfo) => file.can_apply && (file.standing === "differs" || file.standing === "missing");
+/** A file the master can be applied to that differs from it, or isn't
+ * there. */
+const canApply = (file: RulesFileInfo) => file.can_apply && (file.standing === "differs" || file.standing === "missing");
+
+/** One the project's summary counts: the sheet opens on the first. A
+ * missing file for a tool that hasn't worked here can be applied, but
+ * isn't pushed. */
+const needsApply = (file: RulesFileInfo) => canApply(file) && file.counts;
 
 /** Sent when the sheet closes, with the project's id: whatever shows the
  * project's rules (its header line) reads them again. */
@@ -54,7 +59,7 @@ function RulesSection({ project }: { project: ProjectInfo }) {
       const next = await projectSyncRules(project.id, master);
       setRules(next);
       setOpen((current) =>
-        current && next.files.some((file) => file.name === current && needsApply(file))
+        current && next.files.some((file) => file.name === current && canApply(file))
           ? current
           : (next.files.find(needsApply)?.name ?? null),
       );
@@ -103,7 +108,7 @@ function RulesSection({ project }: { project: ProjectInfo }) {
       )}
       {master &&
         rules.files
-          .filter((file) => file.name === open && needsApply(file))
+          .filter((file) => file.name === open && canApply(file))
           .map((file) => (
             <ApplyPanel
               key={`${file.name}|${master.name}`}
@@ -145,7 +150,8 @@ function RulesRow({
   isOpen: boolean;
   onToggle: () => void;
 }) {
-  const differs = file.standing === "differs" || file.standing === "missing";
+  // Warning colour only for what the summary counts.
+  const differs = file.counts;
   return (
     <div
       className={`flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border px-3 py-2 text-xs ${isMaster ? "border-accent/60 bg-accent-soft" : "border-hairline"}`}
@@ -158,7 +164,7 @@ function RulesRow({
       <span className="text-muted">{file.tools.join(", ")}</span>
       <span className={differs ? "text-warning" : "text-muted"}>{file.words}</span>
       {file.modified_ms !== null && <span className="text-faint">changed {agoWords(file.modified_ms, Date.now())}</span>}
-      {needsApply(file) && (
+      {canApply(file) && (
         <button
           type="button"
           onClick={onToggle}
@@ -191,6 +197,7 @@ function ApplyPanel({
   useEffect(() => {
     let alive = true;
     setDiff(null);
+    setError(null);
     projectSyncDiff(project.id, master.name, file.name, how).then(
       (next) => alive && setDiff(next),
       (cause) => alive && setError(errorText(cause)),
