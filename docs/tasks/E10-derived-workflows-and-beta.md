@@ -129,7 +129,7 @@
 **Research basis**: first-report F1.3; deep/10 session lifecycle; pass2/07 W10 cost-review dependency.
 **Handover note**: Retention cleanup interacts with E5's never-touch-unowned rule: retention deletes Juggler-managed data only, listed by the dry-run, never by age alone without user confirmation.
 
-### AJ-E1008 Provider outage failover day [inferred — falsify first] | Status: IN-PROGRESS | Priority P2 | Effort M | Depends: AJ-E1006
+### AJ-E1008 Provider outage failover day [inferred — falsify first] | Status: REJECTED (D-27, 2026-10-20) | Priority P2 | Effort M | Depends: AJ-E1006
 **Goal**: Determine, from observed outage behaviour, whether whole-project failover to another Provider needs a built flow or is already served by switching.
 **User story**: As a developer whose provider is down, I want to move a whole project to a working provider without re-explaining context per session.
 **Requirements**:
@@ -145,6 +145,7 @@
 **Files to touch**: `docs/qa/evidence/AJ-E1008/`, `docs/review/decision-log.md` (outcome entry), E2 (consumed machinery).
 **Research basis**: pass2/07 W11 `[inferred]`; critic note requiring outage logging before building.
 **Handover note**: Same rule as AJ-E1006: an evidence-based REJECTED closes this task successfully. Do not build monitoring infrastructure for a hypothetical.
+**Outcome (2026-10-20, D-27)**: REJECTED; no project-level failover flow and no detector. The status pages show each coding tool down as a whole about 3 times in 8 weeks, for 1 to 2½ hours where stated, and never on the same day as the other tool. Most incidents are one model erroring, fixed with `/model`. Moving a session by hand is 5 clicks with its fidelity shown, and no user has reported that hurting. The outage log stays open through beta: 3 user-reported events with project-level pain reopen it as a new task, specified as in Req.2 (`docs/qa/evidence/AJ-E1008/`). The guide now says what to do in both cases (Req.4).
 
 ### AJ-E1009 Backup, restore and machine migration of Juggler's own data | Status: DONE-EVIDENCED | Priority P1 | Effort M | Depends: AJ-E1007
 **Goal**: Let users export and restore Juggler's database, packs and settings so a new machine or a corrupt store never costs them their history.
