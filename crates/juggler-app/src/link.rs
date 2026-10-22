@@ -182,6 +182,10 @@ pub struct LinkManager {
     /// Remote commands this console has sent and still waits on; `stop`
     /// ends them ([`run_outbound`]).
     outbound: Mutex<Vec<tokio::task::AbortHandle>>,
+    /// Test seam: how long a pairing waits for the other machine's first
+    /// Hello before its row says it didn't finish. Never a stored setting,
+    /// so nothing in a real install can hide or flash the line.
+    pub(crate) unfinished_wait_ms: Mutex<Option<i64>>,
 }
 
 /// Runs `work` this console started on another machine on Link's runtime,
@@ -2501,6 +2505,15 @@ pub fn link_disable_discovery_for_test(state: &Arc<AppState>) {
         .store(true, std::sync::atomic::Ordering::Relaxed);
 }
 
+/// Test seam: how long a pairing waits for the other machine's first
+/// Hello before its row says it didn't finish (30 s otherwise).
+#[doc(hidden)]
+pub fn pairing_wait_for_test(state: &Arc<AppState>, wait_ms: i64) {
+    if let Ok(mut wait) = state.link.unfinished_wait_ms.lock() {
+        *wait = Some(wait_ms);
+    }
+}
+
 /// A command waiting for this Mac's user.
 #[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
@@ -2630,15 +2643,90 @@ mod unfinished_pairing_tests {
                 .map(|peer| peer.pairing_unfinished)
         };
         assert_eq!(unfinished(), Some(false), "not within a pairing's time");
-        state
-            .storage
-            .lock()
-            .unwrap()
-            .app_settings()
-            .set("fleet_pairing_unfinished_after_ms", "0")
-            .unwrap();
+        pairing_wait_for_test(&state, 0);
         assert_eq!(unfinished(), Some(true), "no Hello from it since");
         AppDirectory(Arc::downgrade(&state)).hello_accepted(&joiner, "m-joiner");
         assert_eq!(unfinished(), Some(false), "its first Hello finishes it");
+    }
+
+    /// The note never touches the signed peer list: while a peer is
+    /// unfinished, `peers.json` holds only what older builds read (they
+    /// refuse an unknown field), noting and finishing never rewrite it,
+    /// and a restart keeps both the peer and the note.
+    #[test]
+    fn an_unfinished_pairing_leaves_the_peer_list_as_older_builds_read_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let data = dir.path().join("app-data");
+        let open = |data: &std::path::Path| {
+            let state = Arc::new(
+                AppState::init_with_registry(
+                    data.to_path_buf(),
+                    juggler_adapter::AdapterRegistry::new(),
+                )
+                .unwrap(),
+            );
+            if let Ok(mut open) = state.link.open.write() {
+                *open = true;
+            }
+            pairing_wait_for_test(&state, 0);
+            state
+        };
+        let state = open(&data);
+        let joiner = juggler_link::MachineIdentity::load_or_create(&dir.path().join("joiner"))
+            .unwrap()
+            .public()
+            .to_bytes();
+        let candidate = PairCandidate {
+            machine_id: "m-joiner".to_owned(),
+            label: "Laptop".to_owned(),
+            key: joiner,
+            reach: None,
+            fingerprint: juggler_link::fingerprint_of(&joiner),
+        };
+        let _ = crate::fleet::pin_candidate(&state, &candidate, Permission::View);
+        let peers = data.join("fleet/peers.json");
+        let pinned = std::fs::read(&peers).unwrap();
+
+        crate::fleet::mark_pairing_unfinished(&state, "m-joiner", 1);
+        assert_eq!(
+            std::fs::read(&peers).unwrap(),
+            pinned,
+            "noting never rewrites it"
+        );
+        let file: serde_json::Value = serde_json::from_slice(&pinned).unwrap();
+        let older = [
+            "machine_id",
+            "label",
+            "public_key",
+            "fingerprint",
+            "permission",
+            "ask_each_time",
+            "paired_via",
+            "paired_at_ms",
+            "last_seen_ms",
+        ];
+        for peer in file["body"]["peers"].as_array().unwrap() {
+            for key in peer.as_object().unwrap().keys() {
+                assert!(
+                    older.contains(&key.as_str()),
+                    "a field older builds refuse: {key}"
+                );
+            }
+        }
+
+        drop(state);
+        let restarted = open(&data);
+        let row = crate::fleet::fleet_peers_impl(&restarted)
+            .unwrap()
+            .into_iter()
+            .find(|peer| peer.machine_id == "m-joiner")
+            .expect("the peer list still loads (trust intact)");
+        assert!(row.pairing_unfinished, "a restart keeps the note");
+        AppDirectory(Arc::downgrade(&restarted)).hello_accepted(&joiner, "m-joiner");
+        assert_eq!(
+            std::fs::read(&peers).unwrap(),
+            pinned,
+            "finishing never rewrites it"
+        );
     }
 }

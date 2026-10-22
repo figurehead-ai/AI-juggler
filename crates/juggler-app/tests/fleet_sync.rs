@@ -750,13 +750,7 @@ fn unfinished(node: &Arc<AppState>, peer: &Arc<AppState>) -> Option<bool> {
 
 /// Shows the note as soon as a pairing has no Hello (tests don't wait).
 fn no_wait(state: &Arc<AppState>) {
-    state
-        .storage
-        .lock()
-        .unwrap()
-        .app_settings()
-        .set("fleet_pairing_unfinished_after_ms", "0")
-        .unwrap();
+    link::pairing_wait_for_test(state, 0);
 }
 
 /// A normal pairing (no new message: an older joiner pairs the same way)

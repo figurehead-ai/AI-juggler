@@ -631,7 +631,7 @@ const UNFINISHED_PREFIX: &str = "fleet_pairing_unfinished:";
 
 /// How long a pairing may wait for the other machine's first Hello before
 /// its row says it didn't finish (a normal pairing's comes in seconds).
-const UNFINISHED_AFTER_KEY: &str = "fleet_pairing_unfinished_after_ms";
+/// Fixed: only a test changes it (`link::pairing_wait_for_test`).
 const UNFINISHED_AFTER_MS: i64 = 30_000;
 
 /// Notes a pairing this Mac finished as host at `at_ms`.
@@ -658,17 +658,18 @@ pub(crate) fn pairing_finished(state: &AppState, machine_id: &str) {
 /// Whether the row says the pairing didn't finish: noted, and no Hello for
 /// longer than a normal pairing takes.
 fn pairing_unfinished(state: &AppState, machine_id: &str, now: i64) -> bool {
+    let after = state
+        .link
+        .unfinished_wait_ms
+        .lock()
+        .ok()
+        .and_then(|wait| *wait)
+        .unwrap_or(UNFINISHED_AFTER_MS);
     let Ok(storage) = state.storage.lock() else {
         return false;
     };
-    let settings = storage.app_settings();
-    let after = settings
-        .get(UNFINISHED_AFTER_KEY)
-        .ok()
-        .flatten()
-        .and_then(|raw| raw.parse::<i64>().ok())
-        .unwrap_or(UNFINISHED_AFTER_MS);
-    settings
+    storage
+        .app_settings()
         .get(&format!("{UNFINISHED_PREFIX}{machine_id}"))
         .ok()
         .flatten()
