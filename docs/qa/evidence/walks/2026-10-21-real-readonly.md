@@ -1097,6 +1097,65 @@ MISMATCH  cost rows per session: 291 sessions in both; 1 within 5% of the transc
 - A local cherry-pick conflicts in the command registry, where the new conversation
   commands would need a class. That is release work, so it's left to the driver.
 
+## Batch 10 — AJ-E1529 re-run on `release/0.1` `c89b49c6` (the live fix)
+
+### How
+
+- One run, read only, Finder-like, on a fresh data folder. The oracle is identical to
+  this branch's.
+- **Snapshot**: no config file changed, no path added or removed. Only `~/.codex` (the
+  live Codex) and one profile's managed-settings sync wrote.
+- **Overall**: 34 OK, 28 MISMATCH, 1 INFO. The token, cost and Codex-window lines are
+  #120's, not on this branch.
+
+### The acceptance lines (redacted)
+
+```text
+OK        setups found: 7 of 7
+OK        brought in where they are: 7 of 7
+OK        projects: backend 9 rows, oracle 9
+OK        Project 1: backend 253 conversations in 1 row(s), accounts ['Account A', 'Account G']; oracle 4 Claude + 249 Codex, accounts ['Account A', 'Account G']
+OK        Project 2: backend 14 conversations in 1 row(s), accounts ['Account E']; oracle 14 Claude + 0 Codex, accounts ['Account E']
+OK        Project 3: backend 13 conversations in 1 row(s), accounts ['Account A']; oracle 13 Claude + 0 Codex, accounts ['Account A']
+OK        Project 4: backend 11 conversations in 1 row(s), accounts ['Account G']; oracle 0 Claude + 11 Codex, accounts ['Account G']
+OK        Project 5: backend 6 conversations in 1 row(s), accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account E', 'Account F']; oracle 6 Claude + 0 Codex, accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account E', 'Account F']
+OK        Project 6: backend 3 conversations in 1 row(s), accounts ['Account A', 'Account F']; oracle 3 Claude + 0 Codex, accounts ['Account A', 'Account F']
+OK        Project 7: backend 3 conversations in 1 row(s), accounts ['Account B', 'Account C']; oracle 3 Claude + 0 Codex, accounts ['Account B', 'Account C']
+OK        Project 8: backend 1 conversations in 1 row(s), accounts ['Account D']; oracle 1 Claude + 0 Codex, accounts ['Account D']
+OK        Project 9: backend 1 conversations in 1 row(s), accounts ['Account G']; oracle 0 Claude + 1 Codex, accounts ['Account G']
+OK        Account A conversations: backend 20, oracle 20
+MISMATCH  Account A live: backend 3, running 4
+OK        Account B conversations: backend 3, oracle 3
+OK        Account B live: backend 1, running 1
+OK        Account C conversations: backend 2, oracle 2
+OK        Account C live: backend 1, running 1
+OK        Account D conversations: backend 2, oracle 2
+OK        Account D live: backend 1, running 1
+OK        Account E conversations: backend 15, oracle 15
+OK        Account E live: backend 10, running 10
+OK        Account F conversations: backend 2, oracle 2
+OK        Account F live: backend 0, running 0
+OK        Account G conversations: backend 261, oracle 261
+OK        Account G live: backend 0, running 0
+OK        live sessions with no account in the oracle: 0
+MISMATCH  cost rows per session: 291 sessions in both; 1 within 5% of the transcripts; ratio min ×1.00, median ×1.94, max ×2.50; 0 only in the backend, 2 only in the transcripts; 7 still being written during the run, left out
+```
+
+### Result
+
+- **The `.app/` fix works**: 16 of the 17 Claude-app sessions are live, on the right
+  account (through `CLAUDE_CONFIG_DIR`, or the `~/.claude` fallback).
+- **Everything else matches the disk**: projects, conversations and Codex threads.
+- **One miss: Account A, 3 live against 4.**
+  - `value_after` (`crates/juggler-adapter/src/conversation.rs:91-95`) reads only
+    `--resume <id>` as two tokens. The Claude app passes `--resume=<id>`, so no
+    Claude-app session's resume id is read.
+  - Each falls back to "the newest conversation in its folder newer than the session's
+    start". That's right for 16. The 17th has been idle about 34 h, in a folder with 8
+    conversations, so nothing there is newer than its start.
+  - Fix proposed: accept `--flag=value` too, plus a replica case.
+- **The rail walk**: still waiting for #122 on `release/0.1`.
+
 ## Not walked (blocked by W0, before the bridge)
 
 These need the window:
