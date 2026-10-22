@@ -117,6 +117,18 @@ fn reads(file: &RulesFile, other: &str, specs: &[ToolSpec]) -> bool {
         })
 }
 
+/// The rules file `file` reads through its tool's import line that isn't
+/// there, if any: its tools then see none of those rules.
+#[must_use]
+pub fn reads_missing(file: &RulesFile, files: &[RulesFile], specs: &[ToolSpec]) -> Option<String> {
+    files
+        .iter()
+        .find(|other| {
+            other.name != file.name && other.text.is_none() && reads(file, &other.name, specs)
+        })
+        .map(|other| other.name.clone())
+}
+
 /// The line that would make `file` read `master` instead of repeating
 /// it, when every tool reading `file` has one and they agree.
 #[must_use]
@@ -301,6 +313,23 @@ mod tests {
         let missing = file("IMPORTER.md", "importer", None, 0);
         assert_eq!(standing(&missing, &master, &specs()), Standing::Missing);
         assert!(!Standing::Missing.in_sync());
+    }
+
+    #[test]
+    fn a_file_reading_one_that_isnt_there_is_told_apart() {
+        let files = vec![
+            file("IMPORTER.md", "importer", Some("@PLAIN.md\n"), 2),
+            file("PLAIN.md", "plain", None, 0),
+        ];
+        assert_eq!(
+            reads_missing(&files[0], &files, &specs()).as_deref(),
+            Some("PLAIN.md")
+        );
+        let there = vec![
+            files[0].clone(),
+            file("PLAIN.md", "plain", Some("# Rules\n"), 1),
+        ];
+        assert_eq!(reads_missing(&there[0], &there, &specs()), None);
     }
 
     #[test]

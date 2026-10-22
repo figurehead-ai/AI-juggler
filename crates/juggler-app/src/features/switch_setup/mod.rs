@@ -23,6 +23,11 @@ use crate::state::AppState;
 /// The file the set-ups are recorded in, in AI Juggler's data folder.
 const RECORD: &str = "switch-setups.json";
 
+/// Held while the record file is read and written again: commands run in
+/// parallel, and two saves at once would drop one record (review of
+/// AJ-E1507, M3).
+static RECORDS: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 /// One thing the target could get.
 #[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
@@ -91,7 +96,9 @@ pub struct SetUpInfo {
 #[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 struct Record {
     id: String,
-    account: String,
+    /// The account it was set up on; `None` for a change to a project's
+    /// own files (AJ-E1507). Older records always have one.
+    account: Option<String>,
     at_ms: i64,
     applied: Applied,
     /// What it is, in words ("skill release-notes"); empty in records
@@ -190,21 +197,13 @@ pub fn check_impl(
     session_id: &str,
     target_profile_id: &str,
 ) -> AppResult<SetupCheckInfo> {
-    check_sides(state, &sides(state, session_id, target_profile_id)?, None)
+    check_sides(state, &sides(state, session_id, target_profile_id)?)
 }
 
-/// What `sides.target` lacks of `sides.source`'s items (of `only` that
-/// kind, when given), each with the target tool's verdict. Read-only.
-pub(crate) fn check_sides(
-    state: &Arc<AppState>,
-    sides: &Sides,
-    only: Option<ItemKind>,
-) -> AppResult<SetupCheckInfo> {
+/// What `sides.target` lacks of `sides.source`'s items, each with the
+/// target tool's verdict. Read-only.
+pub(crate) fn check_sides(state: &Arc<AppState>, sides: &Sides) -> AppResult<SetupCheckInfo> {
     let (from, to) = inventories(state, sides)?;
-    let from: Vec<Item> = from
-        .into_iter()
-        .filter(|item| only.is_none_or(|kind| item.kind == kind))
-        .collect();
     let target_adapter = state
         .registry
         .get(&sides.target.harness)
@@ -278,17 +277,28 @@ pub fn apply_impl(
     target_profile_id: &str,
     picked: &[String],
 ) -> AppResult<Vec<AppliedInfo>> {
-    apply_sides(state, &sides(state, session_id, target_profile_id)?, picked)
+    apply_sides(
+        state,
+        &sides(state, session_id, target_profile_id)?,
+        picked,
+        None,
+    )
 }
 
-/// Sets up the picked offers of `sides.source` on `sides.target`, each
-/// recorded so it can be undone; see [`apply_impl`].
+/// Sets up the picked offers of `sides.source` on `sides.target` (of
+/// `only` that kind, when given: the project sync copies servers and
+/// nothing else), each recorded so it can be undone; see [`apply_impl`].
 pub(crate) fn apply_sides(
     state: &Arc<AppState>,
     sides: &Sides,
     picked: &[String],
+    only: Option<ItemKind>,
 ) -> AppResult<Vec<AppliedInfo>> {
     let (from, to) = inventories(state, sides)?;
+    let from: Vec<Item> = from
+        .into_iter()
+        .filter(|item| only.is_none_or(|kind| item.kind == kind))
+        .collect();
     let target_adapter = state
         .registry
         .get(&sides.target.harness)
@@ -318,7 +328,7 @@ pub(crate) fn apply_sides(
                 let note = applied.note.clone();
                 let record = record(
                     state,
-                    sides.target.id.to_string(),
+                    Some(sides.target.id.to_string()),
                     None,
                     what.clone(),
                     applied,
@@ -362,8 +372,10 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<SetUpInfo>> {
         .map(|record| SetUpInfo {
             place: match &record.project {
                 Some(project) => project.clone(),
-                None => labels
-                    .get(&record.account)
+                None => record
+                    .account
+                    .as_ref()
+                    .and_then(|account| labels.get(account))
                     .cloned()
                     .unwrap_or_else(|| "an account no longer here".to_owned()),
             },
@@ -388,6 +400,9 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<SetUpInfo>> {
 /// [`AppError::Refused`] when there's no such record, or what was made has
 /// changed since (then nothing is removed); the undo's error.
 pub fn undo_impl(state: &Arc<AppState>, record_id: &str) -> AppResult<String> {
+    let _records = RECORDS
+        .lock()
+        .map_err(|_| AppError::Refused("set-ups are busy".to_owned()))?;
     let mut records = load(state);
     let at = records
         .iter()
@@ -411,6 +426,8 @@ pub fn undo_impl(state: &Arc<AppState>, record_id: &str) -> AppResult<String> {
     }
     Ok(if record.what.is_empty() {
         format!("Undid: {}", record.applied.summary)
+    } else if matches!(record.applied.undo, Undo::Restore { .. }) {
+        format!("Put back the {} as it was", record.what)
     } else {
         format!("Removed the {}", record.what)
     })
@@ -425,6 +442,9 @@ pub fn undo_impl(state: &Arc<AppState>, record_id: &str) -> AppResult<String> {
 ///
 /// [`AppError::Refused`] when there's no such record; storage errors.
 pub fn forget_impl(state: &Arc<AppState>, record_id: &str) -> AppResult<String> {
+    let _records = RECORDS
+        .lock()
+        .map_err(|_| AppError::Refused("set-ups are busy".to_owned()))?;
     let mut records = load(state);
     let at = records
         .iter()
@@ -438,6 +458,11 @@ pub fn forget_impl(state: &Arc<AppState>, record_id: &str) -> AppResult<String> 
         format!("the {}", record.what)
     };
     Ok(format!("Forgot {what}. It stays as it is now."))
+}
+
+/// Undoes `how` straight away, for a change that couldn't be recorded.
+pub(crate) fn undo_now(how: &Undo) -> AppResult<()> {
+    undo(how)
 }
 
 fn undo(how: &Undo) -> AppResult<()> {
@@ -547,9 +572,18 @@ fn remove_appended(file: &Path, text: &str) -> AppResult<()> {
         .map_err(|e| AppError::io("undo the set-up", &e))
 }
 
-/// Puts back a file that was replaced, while it's still exactly what was
-/// written (AJ-E1507).
+/// Puts back a file that was replaced, while it's still a plain file with
+/// exactly what was written (AJ-E1507). One replaced by a link since is left
+/// alone: the write would go through the link to another file, the master
+/// above all (review of AJ-E1507, H1). A hard link is safe: the write
+/// replaces the name, it doesn't write through it.
 fn restore(file: &Path, backup: &Path, sha256: &str) -> AppResult<()> {
+    if std::fs::symlink_metadata(file).map_or(true, |meta| !meta.file_type().is_file()) {
+        return Err(AppError::Refused(format!(
+            "{} has been replaced since, so it was left as it is",
+            file.display()
+        )));
+    }
     let now = std::fs::read(file).map_err(|e| AppError::io("undo the change", &e))?;
     if juggler_adapter::handover::sha256_hex(&now) != sha256 {
         return Err(AppError::Refused(format!(
@@ -582,7 +616,7 @@ fn load(state: &Arc<AppState>) -> Vec<Record> {
 /// or to `project`'s own files. Returns the record's id.
 pub(crate) fn record(
     state: &Arc<AppState>,
-    account: String,
+    account: Option<String>,
     project: Option<String>,
     what: String,
     applied: Applied,
@@ -600,6 +634,9 @@ pub(crate) fn record(
 }
 
 fn save(state: &Arc<AppState>, record: &Record) -> AppResult<()> {
+    let _records = RECORDS
+        .lock()
+        .map_err(|_| AppError::Refused("set-ups are busy".to_owned()))?;
     let mut records = load(state);
     records.push(record.clone());
     write(state, &records)

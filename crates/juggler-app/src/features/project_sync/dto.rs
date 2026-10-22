@@ -8,8 +8,9 @@ pub struct RulesFileInfo {
     pub name: String,
     /// The tools that read it, by name.
     pub tools: Vec<String>,
-    /// `master`, `same`, `reads`, `link`, `differs`, `missing`, or
-    /// `unreadable` (not text, or too big to compare).
+    /// `master`, `same`, `reads`, `link`, `differs`, `missing`, `broken`
+    /// (it reads a rules file that isn't there), or `unreadable` (not a
+    /// text file, or too big to compare).
     pub standing: String,
     /// How it stands, in a few words ("Reads AGENTS.md", "12 lines differ").
     pub words: String,
@@ -21,6 +22,9 @@ pub struct RulesFileInfo {
     /// Applying the master to it is possible (it isn't a link, and it's
     /// text).
     pub can_apply: bool,
+    /// The project's summary counts it as differing; the sheet opens on
+    /// the first one that does.
+    pub counts: bool,
     /// The line that would make it read the master instead of repeating it,
     /// when its tools have one.
     pub import_line: Option<String>,

@@ -22,12 +22,13 @@ use juggler_app::commands;
 use juggler_app::features::project_sync::{
     RulesSyncInfo, apply_impl, diff_impl, rules_impl, servers_apply_impl, servers_impl,
 };
-use juggler_app::features::switch_setup::{list_impl, undo_impl};
+use juggler_app::features::switch_setup::{check_impl, list_impl, undo_impl};
 use juggler_app::state::AppState;
 
 struct Lab {
     state: Arc<AppState>,
     project: String,
+    session: String,
     root: PathBuf,
     work: PathBuf,
     claude: PathBuf,
@@ -95,6 +96,7 @@ fn lab() -> Lab {
     Lab {
         state,
         project,
+        session: launched.session_id.clone(),
         root,
         work,
         claude,
@@ -578,4 +580,233 @@ fn listing_stays_inside_its_budget() {
         best = best.min(started.elapsed());
     }
     assert!(best < Duration::from_millis(300), "{best:?} CPU");
+}
+
+/// Applies `master` to `file` against exactly what's there now.
+fn apply_now(lab: &Lab, master: &str, file: &str, how: &str) -> Result<String, String> {
+    let rules = rules_impl(&lab.state, &lab.project, Some(master)).unwrap();
+    let sha = |name: &str| {
+        rules
+            .files
+            .iter()
+            .find(|f| f.name == name)
+            .and_then(|f| f.sha256.clone())
+    };
+    apply_impl(
+        &lab.state,
+        &lab.project,
+        master,
+        file,
+        how,
+        sha(file).as_deref(),
+        &sha(master).unwrap(),
+    )
+    .map(|applied| applied.record.unwrap())
+    .map_err(|error| error.to_string())
+}
+
+#[test]
+fn an_undo_never_writes_through_a_link_made_since() {
+    // Review of AJ-E1507 (H1): after an apply, the user links CLAUDE.md to
+    // AGENTS.md, a common way to keep them one. An undo then would write
+    // the old CLAUDE.md into AGENTS.md, the master, through the link.
+    let lab = lab();
+    write(&lab, "AGENTS.md", "# The master\n", 1);
+    write(&lab, "CLAUDE.md", "Old rules.\n", 60);
+    let record = apply_now(&lab, "AGENTS.md", "CLAUDE.md", "copy").unwrap();
+    std::fs::remove_file(lab.root.join("CLAUDE.md")).unwrap();
+    std::os::unix::fs::symlink("AGENTS.md", lab.root.join("CLAUDE.md")).unwrap();
+    let refused = undo_impl(&lab.state, &record).unwrap_err().to_string();
+    assert!(refused.contains("replaced since"), "{refused}");
+    assert_eq!(
+        read(&lab, "AGENTS.md"),
+        "# The master\n",
+        "the master is untouched"
+    );
+}
+
+#[test]
+fn an_apply_that_cant_be_recorded_is_put_back() {
+    // Review of AJ-E1507 (M1): without its record there'd be no undo.
+    let lab = lab();
+    write(&lab, "AGENTS.md", "Old.\n", 60);
+    write(&lab, "CLAUDE.md", "New.\n", 1);
+    std::fs::create_dir_all(lab.state.data_dir.join("switch-setups.json")).unwrap();
+    assert!(apply_now(&lab, "CLAUDE.md", "AGENTS.md", "copy").is_err());
+    assert_eq!(read(&lab, "AGENTS.md"), "Old.\n");
+    let backups = lab.state.data_dir.join("sync-backups");
+    assert_eq!(
+        std::fs::read_dir(backups).unwrap().count(),
+        0,
+        "no backup left behind"
+    );
+    // A file it would have created is removed again.
+    std::fs::remove_file(lab.root.join("AGENTS.md")).unwrap();
+    assert!(apply_now(&lab, "CLAUDE.md", "AGENTS.md", "copy").is_err());
+    assert!(!lab.root.join("AGENTS.md").exists());
+}
+
+#[test]
+fn the_server_copy_sets_up_servers_and_nothing_else() {
+    // Review of AJ-E1507 (M2): a skill's offer sent to the server copy.
+    let lab = lab();
+    std::fs::create_dir_all(lab.claude.join("skills/release-notes")).unwrap();
+    std::fs::write(
+        lab.claude.join("skills/release-notes/SKILL.md"),
+        "---\nname: release-notes\ndescription: x\n---\nWrite them.\n",
+    )
+    .unwrap();
+    let skill = check_impl(&lab.state, &lab.session, &lab.codex_profile)
+        .unwrap()
+        .offers
+        .into_iter()
+        .find(|offer| offer.kind == "skill")
+        .expect("Codex lacks the skill");
+    let servers = servers_impl(&lab.state, &lab.project).unwrap();
+    let id = |label: &str| {
+        servers
+            .accounts
+            .iter()
+            .find(|a| a.label == label)
+            .unwrap()
+            .account
+            .clone()
+    };
+    let applied = servers_apply_impl(
+        &lab.state,
+        &lab.project,
+        &id("Work"),
+        &id("Codex"),
+        &skill.id,
+    )
+    .unwrap();
+    assert!(applied.record.is_none(), "{}", applied.message);
+    assert!(list_impl(&lab.state).unwrap().is_empty());
+}
+
+#[test]
+fn a_master_changed_since_it_was_shown_is_refused_too() {
+    let lab = lab();
+    write(&lab, "AGENTS.md", "Old.\n", 60);
+    write(&lab, "CLAUDE.md", "New.\n", 1);
+    let rules = rules_impl(&lab.state, &lab.project, None).unwrap();
+    write(&lab, "CLAUDE.md", "Newer.\n", 0);
+    let refused = apply_impl(
+        &lab.state,
+        &lab.project,
+        "CLAUDE.md",
+        "AGENTS.md",
+        "copy",
+        file(&rules, "AGENTS.md").sha256.as_deref(),
+        file(&rules, "CLAUDE.md").sha256.as_deref().unwrap(),
+    );
+    assert!(refused.is_err());
+    assert_eq!(read(&lab, "AGENTS.md"), "Old.\n");
+}
+
+#[test]
+fn two_applies_undo_in_turn() {
+    let lab = lab();
+    write(&lab, "AGENTS.md", "One.\n", 60);
+    write(&lab, "CLAUDE.md", "Two.\n", 1);
+    let first = apply_now(&lab, "CLAUDE.md", "AGENTS.md", "copy").unwrap();
+    write(&lab, "CLAUDE.md", "Three.\n", 0);
+    let second = apply_now(&lab, "CLAUDE.md", "AGENTS.md", "copy").unwrap();
+    assert_eq!(read(&lab, "AGENTS.md"), "Three.\n");
+    // The newest first: each puts back what it replaced.
+    assert_eq!(
+        undo_impl(&lab.state, &second).unwrap(),
+        "Put back the rules in AGENTS.md as it was"
+    );
+    assert_eq!(read(&lab, "AGENTS.md"), "Two.\n");
+    undo_impl(&lab.state, &first).unwrap();
+    assert_eq!(read(&lab, "AGENTS.md"), "One.\n");
+}
+
+#[test]
+fn the_diff_numbers_lines_whatever_the_line_endings() {
+    let lab = lab();
+    write(&lab, "AGENTS.md", "a\r\nb\r\nc", 60);
+    write(&lab, "CLAUDE.md", "a\nB\nc\n", 1);
+    let diff = diff_impl(&lab.state, &lab.project, "CLAUDE.md", "AGENTS.md", "copy").unwrap();
+    assert_eq!((diff.added, diff.removed), (1, 1));
+    let line = |change: &str| {
+        diff.groups[0]
+            .iter()
+            .find(|l| l.change == change)
+            .unwrap()
+            .clone()
+    };
+    assert_eq!(
+        (line("removed").text.as_str(), line("removed").old_number),
+        ("b", Some(2))
+    );
+    assert_eq!(
+        (line("added").text.as_str(), line("added").new_number),
+        ("B", Some(2))
+    );
+    let kept: Vec<_> = diff.groups[0]
+        .iter()
+        .filter(|l| l.change == "kept")
+        .map(|l| (l.old_number, l.new_number))
+        .collect();
+    assert_eq!(kept, vec![(Some(1), Some(1)), (Some(3), Some(3))]);
+}
+
+#[test]
+fn a_rules_file_reading_one_that_isnt_there_counts() {
+    // Review of AJ-E1507 (L1): Claude Code then sees no rules at all.
+    let lab = lab();
+    write(&lab, "CLAUDE.md", "@AGENTS.md\n", 1);
+    let rules = rules_impl(&lab.state, &lab.project, None).unwrap();
+    assert_eq!(file(&rules, "CLAUDE.md").standing, "broken");
+    assert_eq!(
+        file(&rules, "CLAUDE.md").words,
+        "Reads AGENTS.md, which isn't there"
+    );
+    assert_eq!(rules.summary.as_deref(), Some("1 rules file differs"));
+}
+
+#[test]
+fn a_folder_or_a_second_name_for_the_master_is_never_written() {
+    // Review of AJ-E1507 (L3, L4): a folder named like a rules file, and
+    // one file under two names (a hard link, or a case-insensitive disk).
+    let lab = lab();
+    write(&lab, "CLAUDE.md", "# Rules\n", 1);
+    std::fs::create_dir(lab.root.join("AGENTS.md")).unwrap();
+    let rules = rules_impl(&lab.state, &lab.project, None).unwrap();
+    assert_eq!(file(&rules, "AGENTS.md").standing, "unreadable");
+    assert!(!file(&rules, "AGENTS.md").can_apply);
+
+    std::fs::remove_dir(lab.root.join("AGENTS.md")).unwrap();
+    std::fs::hard_link(lab.root.join("CLAUDE.md"), lab.root.join("AGENTS.md")).unwrap();
+    let rules = rules_impl(&lab.state, &lab.project, None).unwrap();
+    let names: Vec<_> = rules
+        .files
+        .iter()
+        .map(|f| (f.name.as_str(), f.standing.as_str(), f.can_apply))
+        .collect();
+    assert!(rules.in_sync, "{names:?}");
+    assert!(
+        rules
+            .files
+            .iter()
+            .filter(|f| f.standing == "link")
+            .all(|f| !f.can_apply),
+        "{names:?}"
+    );
+}
+
+#[test]
+fn a_link_to_a_file_elsewhere_isnt_counted() {
+    // Review of AJ-E1507 (L2): it can't be applied, so "1 rules file
+    // differs" would never go away.
+    let lab = lab();
+    write(&lab, "CLAUDE.md", "# Rules\n", 1);
+    let elsewhere = lab.work.join("team-rules.md");
+    std::fs::write(&elsewhere, "Team rules.\n").unwrap();
+    std::os::unix::fs::symlink(&elsewhere, lab.root.join("AGENTS.md")).unwrap();
+    let rules = rules_impl(&lab.state, &lab.project, Some("CLAUDE.md")).unwrap();
+    assert!(!file(&rules, "AGENTS.md").counts);
+    assert_eq!(rules.summary.as_deref(), Some("Rules in sync"));
 }

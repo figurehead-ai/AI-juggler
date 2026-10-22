@@ -236,6 +236,27 @@ pub enum Undo {
     },
 }
 
+/// Which file `path` is, following links: its device and inode, or its
+/// canonical path (without case) where there are none. `None` when there's
+/// nothing there. Two names of one file (a link, a hard link, a
+/// case-insensitive disk) give the same identity.
+#[must_use]
+pub fn file_identity(path: &std::path::Path) -> Option<String> {
+    let meta = std::fs::metadata(path).ok()?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt as _;
+        Some(format!("{}:{}", meta.dev(), meta.ino()))
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = meta;
+        std::fs::canonicalize(path)
+            .ok()
+            .map(|at| at.to_string_lossy().to_lowercase())
+    }
+}
+
 /// Whether a configuration value looks like a secret, by its key or its
 /// text. Used while a tool's config is read, so a secret's text never
 /// reaches an [`Item`].

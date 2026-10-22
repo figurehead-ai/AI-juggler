@@ -13,8 +13,9 @@ name: string,
  */
 tools: Array<string>, 
 /**
- * `master`, `same`, `reads`, `link`, `differs`, `missing`, or
- * `unreadable` (not text, or too big to compare).
+ * `master`, `same`, `reads`, `link`, `differs`, `missing`, `broken`
+ * (it reads a rules file that isn't there), or `unreadable` (not a
+ * text file, or too big to compare).
  */
 standing: string, 
 /**
@@ -34,6 +35,11 @@ can_be_master: boolean,
  * text).
  */
 can_apply: boolean, 
+/**
+ * The project's summary counts it as differing; the sheet opens on
+ * the first one that does.
+ */
+counts: boolean, 
 /**
  * The line that would make it read the master instead of repeating it,
  * when its tools have one.

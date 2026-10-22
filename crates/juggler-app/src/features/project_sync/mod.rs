@@ -143,28 +143,36 @@ fn read_files(root: &Path, specs: &[ToolSpec]) -> Vec<Read> {
             }
         }
     }
-    let canonical: Vec<(String, Option<PathBuf>)> = names
+    // Which file each name is: a link, a hard link or a case-insensitive
+    // disk can make two names one file, and it's then compared as a link
+    // and never written (review: a "read" apply would replace the master).
+    let ids: Vec<Option<String>> = names
         .iter()
-        .map(|(name, _)| (name.clone(), std::fs::canonicalize(root.join(name)).ok()))
+        .map(|(name, _)| juggler_adapter::inventory::file_identity(&root.join(name)))
         .collect();
+    let all: Vec<String> = names.iter().map(|(name, _)| name.clone()).collect();
     names
         .into_iter()
-        .map(|(name, tools)| {
+        .enumerate()
+        .map(|(at, (name, tools))| {
             let path = root.join(&name);
-            let is_link =
+            let is_symlink =
                 std::fs::symlink_metadata(&path).is_ok_and(|meta| meta.file_type().is_symlink());
-            let link_to = if is_link {
-                let target = std::fs::canonicalize(&path).ok();
-                canonical
-                    .iter()
-                    .find(|(other, at)| *other != name && at.is_some() && *at == target)
-                    .map(|(other, _)| other.clone())
-            } else {
-                None
-            };
-            let meta = std::fs::metadata(&path)
-                .ok()
-                .filter(std::fs::Metadata::is_file);
+            // A link names the file it points to; of two plain names of one
+            // file, the later one is the link.
+            let link_to = ids[at].as_ref().and_then(|id| {
+                ids.iter()
+                    .enumerate()
+                    .find(|(other, other_id)| {
+                        *other != at && other_id.as_ref() == Some(id) && (is_symlink || *other < at)
+                    })
+                    .map(|(other, _)| all[other].clone())
+            });
+            let found = std::fs::metadata(&path).ok();
+            // Something by that name that isn't a file (a folder) can't be
+            // compared or written.
+            let not_a_file = found.as_ref().is_some_and(|meta| !meta.is_file());
+            let meta = found.filter(std::fs::Metadata::is_file);
             let modified_ms = meta.as_ref().and_then(|meta| {
                 meta.modified()
                     .ok()
@@ -177,18 +185,18 @@ fn read_files(root: &Path, specs: &[ToolSpec]) -> Vec<Read> {
                 .and_then(|_| std::fs::read(&path).ok());
             let sha256 = bytes.as_deref().map(juggler_adapter::handover::sha256_hex);
             let text = bytes.and_then(|bytes| String::from_utf8(bytes).ok());
-            let unreadable = meta.is_some() && text.is_none();
+            let unreadable = not_a_file || (meta.is_some() && text.is_none());
             Read {
                 file: RulesFile {
                     name,
                     tools,
                     modified_ms: text.as_ref().and(modified_ms),
                     text,
-                    link_to,
+                    link_to: link_to.clone(),
                 },
                 path,
                 unreadable,
-                is_link,
+                is_link: is_symlink || link_to.is_some(),
                 sha256,
             }
         })
@@ -246,8 +254,15 @@ pub fn rules_impl(
     let mut differ = 0usize;
     for read in &reads {
         let file = &read.file;
+        let broken = sync::reads_missing(file, &files, &specs);
         let (standing, words) = if read.unreadable {
-            ("unreadable", "Not text, or too big to compare".to_owned())
+            (
+                "unreadable",
+                "Not a text file, or too big to compare".to_owned(),
+            )
+        } else if let Some(other) = &broken {
+            // Its tools see none of those rules (review: it read as "same").
+            ("broken", format!("Reads {other}, which isn't there"))
         } else {
             match master_file.map(|master| (master, sync::standing(file, master, &specs))) {
                 None if file.text.is_none() => ("missing", "Not there".to_owned()),
@@ -262,10 +277,14 @@ pub fn rules_impl(
                 Some((_, Standing::Missing)) => ("missing", "Not there".to_owned()),
             }
         };
-        // A missing file counts only for a tool that works here: a Codex
-        // account doesn't make every project without AGENTS.md "differ".
+        let can_apply = !read.unreadable && !read.is_link && master.as_deref() != Some(&file.name);
+        // What the summary counts, and what the sheet opens on. A missing
+        // file counts only for a tool that works here: a Codex account
+        // doesn't make every project without AGENTS.md "differ". A link to
+        // somewhere else can't be applied, so it isn't counted for ever.
         let counts = match standing {
-            "differs" => true,
+            "broken" => true,
+            "differs" => can_apply,
             "missing" => file
                 .tools
                 .iter()
@@ -285,7 +304,8 @@ pub fn rules_impl(
             words,
             modified_ms: file.modified_ms,
             can_be_master: !read.unreadable && sync::can_be_master(file, &files, &specs),
-            can_apply: !read.unreadable && !read.is_link && master.as_deref() != Some(&file.name),
+            can_apply,
+            counts,
             import_line: master
                 .as_deref()
                 .filter(|master| *master != file.name)
@@ -293,7 +313,7 @@ pub fn rules_impl(
             sha256: read.sha256.clone(),
         });
     }
-    let summary = master.as_ref().map(|_| match differ {
+    let summary = (master.is_some() || differ > 0).then(|| match differ {
         0 => "Rules in sync".to_owned(),
         1 => "1 rules file differs".to_owned(),
         n => format!("{n} rules files differ"),
@@ -472,8 +492,7 @@ pub fn apply_impl(
             crate::commands::unique_suffix(),
             file.replace(['/', '\\'], "_")
         ));
-        std::fs::write(&backup, before)
-            .map_err(|e| AppError::io("keep the file from before", &e))?;
+        create_new(&backup, before).map_err(|e| AppError::io("keep the file from before", &e))?;
         if let Err(error) = juggler_adapter::inventory::rewrite_in_place(&target.path, &new) {
             let _ = std::fs::remove_file(&backup);
             return Err(AppError::io("apply the rules", &error));
@@ -484,13 +503,7 @@ pub fn apply_impl(
             sha256: written,
         }
     } else {
-        use std::io::Write as _;
-        std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&target.path)
-            .and_then(|mut created| created.write_all(new.as_bytes()))
-            .map_err(|e| AppError::io("apply the rules", &e))?;
+        create_new(&target.path, &new).map_err(|e| AppError::io("apply the rules", &e))?;
         Undo::RemoveCreated {
             files: vec![(target.path.clone(), written)],
             dirs: Vec::new(),
@@ -501,22 +514,42 @@ pub fn apply_impl(
     } else {
         format!("{file} now has the rules from {master}")
     };
-    let record = switch_setup::record(
+    let applied = Applied {
+        summary: message.clone(),
+        undo,
+        note: None,
+    };
+    let recorded = switch_setup::record(
         state,
-        String::new(),
+        None,
         Some(pair.project.name.clone()),
         format!("rules in {file}"),
-        Applied {
-            summary: message.clone(),
-            undo,
-            note: None,
-        },
-    )?;
+        applied.clone(),
+    );
+    let record = match recorded {
+        Ok(record) => record,
+        Err(error) => {
+            // Without a record there'd be no way to undo it: put the file
+            // back as it was (review of AJ-E1507, M1).
+            let _ = switch_setup::undo_now(&applied.undo);
+            return Err(error);
+        }
+    };
     Ok(AppliedInfo {
         offer: file.to_owned(),
         record: Some(record),
         message,
     })
+}
+
+/// Writes a new file, refusing one that's already there.
+fn create_new(path: &Path, text: &str) -> std::io::Result<()> {
+    use std::io::Write as _;
+    std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path)
+        .and_then(|mut created| created.write_all(text.as_bytes()))
 }
 
 /// An account, its tool's adapter, and its MCP servers for the project.
@@ -653,8 +686,13 @@ pub fn servers_apply_impl(
         target: account(to)?,
         project: Some(project.root),
     };
-    switch_setup::apply_sides(state, &sides, &[offer.to_owned()])?
-        .into_iter()
-        .next()
-        .ok_or_else(|| AppError::Refused("nothing was copied".to_owned()))
+    switch_setup::apply_sides(
+        state,
+        &sides,
+        &[offer.to_owned()],
+        Some(ItemKind::McpServer),
+    )?
+    .into_iter()
+    .next()
+    .ok_or_else(|| AppError::Refused("nothing was copied".to_owned()))
 }
