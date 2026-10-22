@@ -317,26 +317,26 @@ fn an_offline_console_catches_up_with_only_what_it_missed_and_keeps_last_known_r
         "Offline — 5 changes queued"
     );
 
-    // Back home: the console catches up from its high-water mark with
-    // exactly the changes it missed — never a full transfer. Its own mark,
-    // read now: a batch already on its way when the link went down can
-    // land after `high_water` was read (CI: it asked from 31).
+    // Link off means nothing arrived while it was off (CI once saw the
+    // console ask from 31, past `high_water`: its telemetry task outlived
+    // Link off and kept applying).
     let mark = console_mark(&b, &a, &origin);
-    let missed = {
-        let storage = a.storage.lock().unwrap();
-        storage
-            .fleet_sync()
-            .outbox_since(mark, 100_000)
-            .unwrap()
-            .len() as u64
-    };
+    assert!(
+        mark <= high_water,
+        "the console applied {mark} while its Link was off (high water {high_water})"
+    );
+
+    // Back home: the console catches up from its high-water mark with
+    // exactly the missing changes — never a full transfer.
     link::link_set_enabled_impl(&b, true).unwrap();
     wait_for("caught up", || converged(&a, &b, &origin));
     let log = catch_ups(&a);
     let resumed = log[catch_ups_before..].first().copied().unwrap();
-    assert!(mark > 0 && mark < top, "mark {mark}, top {top}");
-    assert_eq!(resumed.0, mark, "asked from its own mark: {log:?}");
-    assert_eq!(resumed.1, missed, "only the missed changes: {log:?}");
+    assert!(
+        resumed.0 > 0 && resumed.0 <= high_water && resumed.0 < top,
+        "{log:?}"
+    );
+    assert_eq!(resumed.1, missing, "only the missing changes: {log:?}");
     assert_eq!(
         replica(&b, &origin),
         latest,
@@ -378,6 +378,59 @@ fn an_offline_console_catches_up_with_only_what_it_missed_and_keeps_last_known_r
     );
     link::link_set_enabled_impl(&a, false).unwrap();
     link::link_set_enabled_impl(&b, false).unwrap();
+}
+
+/// Link off means off: once a console turns its Link off, nothing from
+/// its peers is applied, even while the node keeps changing and keeps its
+/// own Link on. `stop` used to abort the reconcile loop only, which
+/// detached (never ended) each connection's telemetry task: it kept
+/// streaming and writing the replica.
+#[test]
+fn a_console_with_its_link_off_applies_nothing() {
+    let work = tempfile::tempdir().unwrap();
+    let a = app_state(&work.path().join("a"));
+    let b = app_state(&work.path().join("b"));
+    seed_account(&a, work.path());
+    {
+        let storage = a.storage.lock().unwrap();
+        storage
+            .sessions()
+            .insert(&instance("inst-off", work.path(), SessionStatus::Running))
+            .unwrap();
+    }
+    link::link_set_enabled_impl(&a, true).unwrap();
+    link::link_set_enabled_impl(&b, true).unwrap();
+    pair(&a, &b);
+    let origin = machine_id(&a);
+    wait_for("first sync", || converged(&a, &b, &origin));
+
+    link::link_set_enabled_impl(&b, false).unwrap();
+    let mark = console_mark(&b, &a, &origin);
+    let replica_before = replica(&b, &origin);
+    // The node keeps working, Link on. Its own 2 s pass records each
+    // change and sends it to whoever is subscribed (a test's own sync pass
+    // would record it without sending it).
+    for round in 0..4_i64 {
+        {
+            let storage = a.storage.lock().unwrap();
+            let mut row = storage.sessions().get(&SessionId::new("inst-off")).unwrap();
+            row.last_activity = Some(Timestamp::from_millis(2_000_000 + round));
+            storage.sessions().update(&row).unwrap();
+        }
+        let before = outbox_latest(&a).1;
+        wait_for("the node's pass", || {
+            (outbox_latest(&a).1 > before).then_some(())
+        });
+        // Time for a subscriber to receive and apply it.
+        std::thread::sleep(Duration::from_millis(500));
+    }
+    assert!(outbox_latest(&a).1 > mark, "the node did change");
+    assert_eq!(
+        console_mark(&b, &a, &origin),
+        mark,
+        "nothing applied after Link off"
+    );
+    assert_eq!(replica(&b, &origin), replica_before);
 }
 
 #[test]
