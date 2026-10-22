@@ -302,6 +302,7 @@ def build(args) -> dict:
     per_account = {}
     transcripts_by_session = {}
     session_usage = defaultdict(dict)  # session id → {(message id, request id): (ts, tokens)}
+    session_span = {}  # session id → (first message, last message)
     session_totals = {}  # session id → its own tokens
     session_mtime = {}  # session id → newest write of its files
     # (account idx, the folder resolved) → [(mtime, session)]: a running
@@ -317,6 +318,12 @@ def build(args) -> dict:
                 sid = conv["session_id"] or conv["session"]
                 session_usage[sid].update(conv["usage"])
                 session_mtime[sid] = max(session_mtime.get(sid, 0), conv["mtime"])
+                first, last = session_span.get(sid, (None, None))
+                if conv["first"] is not None:
+                    first = conv["first"] if first is None else min(first, conv["first"])
+                if conv["last"] is not None:
+                    last = conv["last"] if last is None else max(last, conv["last"])
+                session_span[sid] = (first, last)
                 if "subagents" in path.parts:
                     # A subagent's usage is the account's usage; it is
                     # not a conversation of its own.
@@ -412,7 +419,24 @@ def build(args) -> dict:
             entry["project"] = project_of(proc["cwd"])[0]
         live.append(entry)
 
+    # A message a resumed copy repeats belongs to one session: the one with
+    # the earliest first message (then the earlier last message, then the
+    # id), as the app credits it. Account totals don't change.
+    holders = defaultdict(list)
     for session, records in session_usage.items():
+        for key in records:
+            holders[key].append(session)
+    inf = float("inf")
+
+    def rank(session):
+        first, last = session_span.get(session, (None, None))
+        return (inf if first is None else first, inf if last is None else last, session)
+
+    owned = defaultdict(dict)
+    for key, sessions in holders.items():
+        owner = min(sessions, key=rank)
+        owned[owner][key] = session_usage[owner][key]
+    for session, records in owned.items():
         if records:
             session_totals[session] = sum_tokens(records.values())["total"]
     return {"generated": now, "accounts": accounts, "per_account": per_account, "projects": projects,
@@ -823,6 +847,12 @@ def compare(truth: dict, harness: dict) -> str:
         verdict(len(top) == min(3, len(claude)) and all(abs(a - b) <= 0.15 * b for a, b in zip(top, claude)),
                 f"This Mac top rows (GB): backend {[round(t / 1e9, 1) for t in top]}; ps trees {[round(t / 1e9, 1) for t in claude[:3]]}"
                 f"; {max(0, len(claude) - len(top))} instance(s) not shown")
+        others = panel.get("others")
+        if others is not None:
+            shown = sorted(top + [r.get("rss_bytes") or 0 for r in others], reverse=True)
+            verdict(len(shown) == len(claude) and all(abs(a - b) <= 0.15 * b for a, b in zip(shown, claude)),
+                    f"This Mac every tree: backend {len(shown)} (top {len(top)} + others {len(others)}) "
+                    f"{[round(t / 1e9, 1) for t in shown]}; ps {len(claude)} {[round(t / 1e9, 1) for t in claude]}")
         cpu = tools.get("cpu_pct")
         verdict(True, f"This Mac tools CPU: backend {cpu if cpu is None else round(cpu, 1)}% of all cores (ps %CPU is a decaying average, not compared)")
     kinds = [a["kind"] for a in harness.get("machine_alerts", [])]
