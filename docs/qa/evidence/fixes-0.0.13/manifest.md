@@ -42,6 +42,16 @@ Not a task's evidence. This covers QA's findings on 0.0.12/0.0.13 (walks on the 
 
 ## Gates
 
+After the re-review fixes, on 00cf1763 (6db6ad2a adds a comment only; clippy and `cargo doc -D warnings` were rerun on it):
+
+| Gate | Head | Result |
+|---|---|---|
+| `just verify` | 00cf1763 | exit 0; 148 test binaries, 1,173 passed, 0 failed |
+| `tsc --noEmit`, `vitest run` | 00cf1763 | OK; 78 files, 612 passed |
+| `cargo deny check` | 00cf1763 | advisories, bans, licenses, sources ok |
+| `just visual-gate`, `just a11y-gate` | b4aef149 | no change under `ui/` since then (`git diff --stat b4aef149 HEAD -- ui/` is empty): 141 passed; 682 passed with 0 findings |
+| `usage_owners_props` at 20,000 cases | eec7741c | passed (release build) |
+
 After the review fixes, on b4aef149:
 
 | Gate | Head | Result |
