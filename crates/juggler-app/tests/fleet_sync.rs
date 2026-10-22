@@ -165,6 +165,25 @@ fn catch_ups(node: &Arc<AppState>) -> Vec<(u64, u64)> {
         .collect()
 }
 
+/// The console's high-water mark for `node`: what it will ask from.
+fn console_mark(console: &Arc<AppState>, node: &Arc<AppState>, origin: &str) -> u64 {
+    let epoch = node
+        .storage
+        .lock()
+        .unwrap()
+        .app_settings()
+        .get("fleet_sync_epoch")
+        .unwrap()
+        .unwrap_or_default();
+    console
+        .storage
+        .lock()
+        .unwrap()
+        .fleet_sync()
+        .replica_high_water(origin, &epoch)
+        .unwrap()
+}
+
 fn converged(node: &Arc<AppState>, console: &Arc<AppState>, origin: &str) -> Option<()> {
     let (latest, _) = outbox_latest(node);
     (!latest.is_empty() && replica(console, origin) == latest).then_some(())
@@ -298,6 +317,15 @@ fn an_offline_console_catches_up_with_only_what_it_missed_and_keeps_last_known_r
         "Offline — 5 changes queued"
     );
 
+    // Link off means nothing arrived while it was off (CI once saw the
+    // console ask from 31, past `high_water`: its telemetry task outlived
+    // Link off and kept applying).
+    let mark = console_mark(&b, &a, &origin);
+    assert!(
+        mark <= high_water,
+        "the console applied {mark} while its Link was off (high water {high_water})"
+    );
+
     // Back home: the console catches up from its high-water mark with
     // exactly the missing changes — never a full transfer.
     link::link_set_enabled_impl(&b, true).unwrap();
@@ -350,6 +378,91 @@ fn an_offline_console_catches_up_with_only_what_it_missed_and_keeps_last_known_r
     );
     link::link_set_enabled_impl(&a, false).unwrap();
     link::link_set_enabled_impl(&b, false).unwrap();
+}
+
+/// Link off means off: once a console turns its Link off, nothing from
+/// its peers is applied, even while the node keeps changing and keeps its
+/// own Link on. `stop` used to abort the reconcile loop only, which
+/// detached (never ended) each connection's telemetry task: it kept
+/// streaming and writing the replica.
+#[test]
+fn a_console_with_its_link_off_applies_nothing() {
+    let work = tempfile::tempdir().unwrap();
+    let a = app_state(&work.path().join("a"));
+    let b = app_state(&work.path().join("b"));
+    seed_account(&a, work.path());
+    {
+        let storage = a.storage.lock().unwrap();
+        storage
+            .sessions()
+            .insert(&instance("inst-off", work.path(), SessionStatus::Running))
+            .unwrap();
+    }
+    link::link_set_enabled_impl(&a, true).unwrap();
+    link::link_set_enabled_impl(&b, true).unwrap();
+    pair(&a, &b);
+    let origin = machine_id(&a);
+    wait_for("first sync", || converged(&a, &b, &origin));
+
+    link::link_set_enabled_impl(&b, false).unwrap();
+    let mark = console_mark(&b, &a, &origin);
+    let replica_before = replica(&b, &origin);
+    // The node keeps working, Link on. Its own 2 s pass records each
+    // change and sends it to whoever is subscribed (a test's own sync pass
+    // would record it without sending it).
+    for round in 0..4_i64 {
+        {
+            let storage = a.storage.lock().unwrap();
+            let mut row = storage.sessions().get(&SessionId::new("inst-off")).unwrap();
+            row.last_activity = Some(Timestamp::from_millis(2_000_000 + round));
+            storage.sessions().update(&row).unwrap();
+        }
+        let before = outbox_latest(&a).1;
+        wait_for("the node's pass", || {
+            (outbox_latest(&a).1 > before).then_some(())
+        });
+        // Time for a subscriber to receive and apply it.
+        std::thread::sleep(Duration::from_millis(500));
+    }
+    assert!(outbox_latest(&a).1 > mark, "the node did change");
+    assert_eq!(
+        console_mark(&b, &a, &origin),
+        mark,
+        "nothing applied after Link off"
+    );
+    assert_eq!(replica(&b, &origin), replica_before);
+}
+
+/// Link off ends a join in flight too: this Mac's confirm, arriving after
+/// Link went off, pairs nothing, even though the other Mac confirms.
+#[test]
+fn a_join_in_flight_when_link_goes_off_pairs_nothing() {
+    let work = tempfile::tempdir().unwrap();
+    let a = app_state(&work.path().join("a"));
+    let b = app_state(&work.path().join("b"));
+    link::link_set_enabled_impl(&a, true).unwrap();
+    link::link_set_enabled_impl(&b, true).unwrap();
+    let code = link::pairing_host_open_impl(&a).unwrap().code.unwrap();
+    let address = format!("127.0.0.1:{}", link::link_status_impl(&a).port.unwrap());
+    link::pairing_join_start_impl(&b, None, Some(&address), &code).unwrap();
+    wait_for("joiner confirm", || {
+        phase(link::pairing_join_state_impl(&b).unwrap(), "confirm")
+    });
+    wait_for("host confirm", || {
+        phase(link::pairing_host_state_impl(&a).unwrap(), "confirm")
+    });
+
+    link::link_set_enabled_impl(&b, false).unwrap();
+    // Both users confirm, this Mac's after its Link went off.
+    let _ = link::pairing_join_decide_impl(&b, true, Permission::View);
+    let _ = link::pairing_host_decide_impl(&a, true, Permission::View);
+    std::thread::sleep(Duration::from_secs(2));
+
+    assert!(
+        fleet::fleet_peers_impl(&b).unwrap().is_empty(),
+        "nothing paired after Link off"
+    );
+    assert_ne!(link::pairing_join_state_impl(&b).unwrap().phase, "paired");
 }
 
 #[test]

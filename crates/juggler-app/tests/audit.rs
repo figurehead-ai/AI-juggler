@@ -11,6 +11,7 @@
     clippy::pedantic
 )]
 
+use std::os::unix::process::CommandExt as _;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
@@ -22,6 +23,11 @@ use juggler_app::state::AppState;
 use juggler_core::storage::{CleanupAuditRecord, CleanupAuditRepo};
 use juggler_supervisor::ExitSnapshot;
 use juggler_supervisor::OrphanTracker;
+
+// The shared reaper (nothing else from the kit).
+#[allow(dead_code)]
+#[path = "../../juggler-supervisor/tests/fixtures/mod.rs"]
+mod fixtures;
 
 fn now_ms() -> i64 {
     std::time::SystemTime::now()
@@ -140,9 +146,14 @@ fn fault_injection_no_audit_means_no_signal() {
         .current_dir(dir.path())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
+        .process_group(0)
         .spawn()
         .unwrap();
     let pid = child.id();
+    // The shell and its `sleep` (its own group) die with the test, a failed
+    // assertion's unwind included.
+    let mut reaper = fixtures::Reaper::default();
+    reaper.group(pid);
     let session = juggler_core::model::SessionId::new("sess-fault");
     state.orphans.record_exit(ExitSnapshot {
         session: session.clone(),

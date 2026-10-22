@@ -131,6 +131,8 @@ struct Running {
     port: u16,
     reconcile: tokio::task::JoinHandle<()>,
     ticker: tokio::task::JoinHandle<()>,
+    /// Every live connection's tasks, which `stop` ends and waits for.
+    watches: Watches,
 }
 
 /// The link manager (one per app).
@@ -144,6 +146,9 @@ pub struct LinkManager {
     host_message: Arc<Mutex<Option<(String, String)>>>,
     guard: Arc<Mutex<Option<PairingGuard<SettingsGuardStore>>>>,
     join: Arc<Mutex<JoinPhase>>,
+    /// The join in flight (this Mac pairing with another), which `stop`
+    /// ends: Link off, nothing pairs after.
+    join_task: Mutex<Option<tokio::task::JoinHandle<()>>>,
     telemetry: OnceLock<tokio::sync::broadcast::Sender<proto::TelemetryDelta>>,
     last_error: Mutex<Option<String>>,
     /// What paired machines report, as this console last heard it.
@@ -1303,6 +1308,7 @@ fn start(state: &Arc<AppState>) -> AppResult<()> {
         message: e.to_string(),
     })?;
     let (advertiser, browser, discovery_error) = start_discovery(manager, port, &key, &instance_id);
+    let watches = Watches::default();
     let reconcile = runtime.spawn(reconcile_loop(
         weak.clone(),
         browser.clone(),
@@ -1310,6 +1316,7 @@ fn start(state: &Arc<AppState>) -> AppResult<()> {
         manager.peers.clone(),
         manager.remote.clone(),
         manager.reconnect.clone(),
+        watches.clone(),
     ));
     let ticker = runtime.spawn(resource_ticker(weak, live));
     if let Ok(mut last) = manager.last_error.lock() {
@@ -1325,6 +1332,7 @@ fn start(state: &Arc<AppState>) -> AppResult<()> {
         port,
         reconcile,
         ticker,
+        watches,
     });
     Ok(())
 }
@@ -1369,8 +1377,16 @@ fn stop(state: &Arc<AppState>) {
         .ok()
         .and_then(|mut running| running.take());
     if let Some(running) = running {
-        running.reconcile.abort();
-        running.ticker.abort();
+        // Off means off: every task Link started ends before this returns,
+        // so nothing from a peer is applied after (a dropped JoinHandle
+        // only detaches its task, and an abort lands at the next await).
+        if let Ok(runtime) = manager.runtime() {
+            runtime.block_on(end_tasks(
+                running.reconcile,
+                running.ticker,
+                &running.watches,
+            ));
+        }
         if let Some(advertiser) = running.advertiser {
             advertiser.stop();
         }
@@ -1383,6 +1399,25 @@ fn stop(state: &Arc<AppState>) {
         if let Ok(runtime) = manager.runtime() {
             runtime.block_on(running.node.stop());
         }
+    }
+    // A join in flight ends too, and is waited for: its writes (the pin,
+    // the address) hold no await, so they either finished before this or
+    // never happen.
+    let join = manager
+        .join_task
+        .lock()
+        .ok()
+        .and_then(|mut task| task.take());
+    if let Some(join) = join {
+        join.abort();
+        if let Ok(runtime) = manager.runtime() {
+            let _ = runtime.block_on(join);
+        }
+    }
+    if let Ok(mut phase) = manager.join.lock()
+        && matches!(*phase, JoinPhase::Connecting | JoinPhase::Confirm { .. })
+    {
+        *phase = JoinPhase::Idle;
     }
     if let Ok(mut peers) = manager.peers.lock() {
         peers.clear();
@@ -1409,6 +1444,33 @@ type Watch = (
     tokio::task::JoinHandle<()>,
 );
 
+/// The live connections by machine id, shared by the reconcile loop (which
+/// holds it through a pass) and `stop` (which ends them).
+type Watches = Arc<tokio::sync::Mutex<HashMap<String, Watch>>>;
+
+/// Ends the reconcile loop and the ticker, then every connection's
+/// heartbeat and telemetry task, waiting for each: a task in the middle of
+/// applying a change finishes it, and none starts another.
+async fn end_tasks(
+    reconcile: tokio::task::JoinHandle<()>,
+    ticker: tokio::task::JoinHandle<()>,
+    watches: &Watches,
+) {
+    reconcile.abort();
+    ticker.abort();
+    // The loop holds the connections through a pass: once it has ended,
+    // no new one can be added.
+    let _ = reconcile.await;
+    let _ = ticker.await;
+    let mut live = watches.lock().await;
+    for (_, (_, heartbeat, telemetry)) in live.drain() {
+        heartbeat.abort();
+        telemetry.abort();
+        let _ = heartbeat.await;
+        let _ = telemetry.await;
+    }
+}
+
 /// Keeps a heartbeat connection to every pinned peer it can reach: the
 /// addresses mDNS shows for it, then the address it was last reached at
 /// (how a peer over the user's VPN stays connected).
@@ -1419,8 +1481,8 @@ async fn reconcile_loop(
     peers: Arc<Mutex<HashMap<String, PeerLink>>>,
     remote: crate::remote::RemoteCache,
     reconnect: Arc<Mutex<std::collections::HashSet<String>>>,
+    watches: Watches,
 ) {
-    let mut live: HashMap<String, Watch> = HashMap::new();
     let mut tick = 0_u64;
     loop {
         tick = tick.wrapping_add(1);
@@ -1431,6 +1493,7 @@ async fn reconcile_loop(
         let pinned = crate::fleet::pinned_keys(&app);
         let remembered = remembered_addresses(&app);
         drop(app);
+        let mut live = watches.lock().await;
         live.retain(|machine_id, (_, heartbeat, telemetry)| {
             let keep = pinned.iter().any(|(id, _)| id == machine_id);
             if !keep {
@@ -1512,6 +1575,7 @@ async fn reconcile_loop(
                 Err(detail) => set_peer(&peers, &machine_id, "offline", None, Some(detail), None),
             }
         }
+        drop(live);
         tokio::time::sleep(RECONCILE_EVERY).await;
     }
 }
@@ -2027,7 +2091,7 @@ pub fn pairing_join_start_impl(
     *manager.join.lock().map_err(|_| AppError::StatePoisoned)? = JoinPhase::Connecting;
     let join = manager.join.clone();
     let weak = Arc::downgrade(state);
-    manager.runtime()?.spawn(async move {
+    let task = manager.runtime()?.spawn(async move {
         let mut last = JoinError::Cancelled;
         for address in addresses {
             let phase = join.clone();
@@ -2085,6 +2149,15 @@ pub fn pairing_join_start_impl(
             };
         }
     });
+    // A newer join replaces one still in flight.
+    if let Some(older) = manager
+        .join_task
+        .lock()
+        .map_err(|_| AppError::StatePoisoned)?
+        .replace(task)
+    {
+        older.abort();
+    }
     pairing_join_state_impl(state)
 }
 

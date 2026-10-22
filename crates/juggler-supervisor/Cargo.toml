@@ -20,6 +20,8 @@ sysinfo = "0.39.6"
 thiserror = "2.0.21"
 
 [dev-dependencies]
+# This thread's CPU time for the hot path's budget (as juggler-app's tests).
+cpu-time = "1"
 juggler-adapters = { version = "0.0.1", path = "../juggler-adapters" }
 tempfile = "3.27.0"
 

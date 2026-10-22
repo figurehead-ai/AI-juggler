@@ -36,6 +36,11 @@ bitflags::bitflags! {
         /// `window_minutes`): the core shows the windows it reports, never
         /// ones assumed for the tool or plan (P13).
         const LIMIT_WINDOWS_REPORTED = 1 << 11;
+        /// Each usage record's key names its own session (Codex:
+        /// `thread/turn/response`), so no two sessions ever share one: the
+        /// store keeps no record of who holds them (a resumed copy can't
+        /// repeat them under another session).
+        const USAGE_KEYS_PER_SESSION = 1 << 12;
     }
 }
 

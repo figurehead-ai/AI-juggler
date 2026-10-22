@@ -134,7 +134,7 @@ impl FixtureSet {
 
     /// One background line per in-tree fixture, for the root script
     /// (`sh -c "<lines>; wait"`). The `shell` kind is a direct `sh`
-    /// child (TerminalShell role); the rest ride the python helper.
+    /// child (`TerminalShell` role); the rest ride the python helper.
     pub fn root_script(&self) -> String {
         let mut lines = Vec::new();
         for fixture in &self.fixtures {
@@ -169,7 +169,7 @@ impl FixtureSet {
                     "bash -c 'exec 9>>{trap}; \
                      trap \"echo TERM >&9\" TERM; trap \"echo HUP >&9\" HUP; \
                      trap \"echo INT >&9\" INT; echo $$ > {ready}.pid; touch {ready}; \
-                     while :; do sleep 1; done' &"
+                     i=0; while [ $i -lt {FIXTURE_LIFETIME_SECS} ]; do sleep 1; i=$((i+1)); done' &"
                 ),
                 _ => unreachable!("fixture kind"),
             };
@@ -208,7 +208,7 @@ impl FixtureSet {
             let fixture = self.get(kind);
             let signals = fixture.signals();
             if !signals.is_empty() {
-                violations.push(format!("{kind}: {:?}", signals));
+                violations.push(format!("{kind}: {signals:?}"));
             }
         }
         assert!(
@@ -283,14 +283,122 @@ pub fn unmanaged_fixture(dir: &Path) -> Fixture {
     fixture(dir, "unmanaged")
 }
 
+/// How long a fixture lives at most, in seconds (`trap_helper.py`'s cap is
+/// the same): a test killed outright, where no `Drop` runs, can't leave
+/// one behind for longer.
+pub const FIXTURE_LIFETIME_SECS: u32 = 300;
+
+/// A shell command that serves HTTP on `127.0.0.1:<port>` with `python3`
+/// and ends itself after [`FIXTURE_LIFETIME_SECS`] (`python3 -m
+/// http.server` never does). Its command line still names `http.server`.
+#[allow(dead_code)] // shared: each suite uses the parts it needs
+pub fn http_server(port: u16) -> String {
+    server_command(port, "")
+}
+
+/// [`http_server`] leaving the caller's process group and session first
+/// (`setsid`): the escapee no group-scoped kill reaches.
+#[allow(dead_code)]
+pub fn escaping_http_server(port: u16) -> String {
+    server_command(port, "os.setsid(); ")
+}
+
+fn server_command(port: u16, first: &str) -> String {
+    format!(
+        "python3 -c 'import http.server as h, os, threading; {first}\
+         threading.Timer({FIXTURE_LIFETIME_SECS}, os._exit, [0]).start(); \
+         h.ThreadingHTTPServer((\"127.0.0.1\", {port}), h.SimpleHTTPRequestHandler).serve_forever()'"
+    )
+}
+
+/// Kills what a test started when the test ends, a panic's unwind
+/// included: each process group (`kill -s KILL -- -<pgid>`, the form
+/// both macOS's and Linux's `kill` read as a group) and each lone pid.
+/// Register a process the moment it is spawned.
+///
+/// A test may reap a process itself first, and the system may then hand
+/// its pid to another. So each target's start time is noted when it is
+/// registered, and at the end it is signalled only when that pid is gone
+/// or is still the same process:
+/// - a lone pid is killed only while it is the same process;
+/// - a group is killed unless its leader's pid now names another process.
+///   While a group has members, no new process can take its id, so once
+///   the leader is gone, what's left in it is ours.
+///
+/// Ids 0 and 1 are never signalled: `-1` reaches every process the user
+/// owns, and `-0` the test runner's own group.
+#[derive(Default)]
+pub struct Reaper {
+    groups: Vec<(u32, Option<String>)>,
+    pids: Vec<(u32, Option<String>)>,
+}
+
+/// When `pid` started (`ps -o lstart=`), `None` when it isn't running.
+fn started(pid: u32) -> Option<String> {
+    let out = std::process::Command::new("ps")
+        .args(["-o", "lstart=", "-p", &pid.to_string()])
+        .output()
+        .ok()?;
+    let text = String::from_utf8_lossy(&out.stdout).trim().to_owned();
+    (out.status.success() && !text.is_empty()).then_some(text)
+}
+
+// Shared test support: each suite uses the parts it needs.
+#[allow(dead_code)]
+impl Reaper {
+    /// Kills this process group at the end.
+    pub fn group(&mut self, pgid: u32) {
+        if pgid > 1 {
+            self.groups.push((pgid, started(pgid)));
+        }
+    }
+
+    /// Kills this process at the end.
+    pub fn pid(&mut self, pid: u32) {
+        if pid > 1 {
+            self.pids.push((pid, started(pid)));
+        }
+    }
+}
+
+// Shared test support: each suite uses the parts it needs.
+#[allow(dead_code)]
+impl Reaper {
+    /// What the end signals, given when each id's process started now
+    /// (`started`, or a stand-in in tests): `-<pgid>` for a group, the pid
+    /// for a lone process.
+    pub fn targets(&self, now: impl Fn(u32) -> Option<String>) -> Vec<String> {
+        let groups = self.groups.iter().filter_map(|(pgid, at)| {
+            let current = now(*pgid);
+            (current.is_none() || current == *at).then(|| format!("-{pgid}"))
+        });
+        let pids = self
+            .pids
+            .iter()
+            .filter(|(pid, at)| at.is_some() && now(*pid) == *at)
+            .map(|(pid, _)| pid.to_string());
+        groups.chain(pids).collect()
+    }
+}
+
+impl Drop for Reaper {
+    fn drop(&mut self) {
+        for target in self.targets(started) {
+            let _ = std::process::Command::new("/bin/kill")
+                .args(["-s", "KILL", "--", &target])
+                .stderr(std::process::Stdio::null())
+                .status();
+        }
+    }
+}
+
 /// Is the pid alive? (`kill -0`)
 pub fn alive(pid: u32) -> bool {
     std::process::Command::new("kill")
         .arg("-0")
         .arg(pid.to_string())
         .status()
-        .map(|status| status.success())
-        .unwrap_or(false)
+        .is_ok_and(|status| status.success())
 }
 
 /// SIGKILL, ignoring errors (cleanup).

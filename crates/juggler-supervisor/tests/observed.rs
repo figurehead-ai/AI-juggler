@@ -5,9 +5,15 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use std::collections::HashSet;
+#[cfg(unix)]
+use std::os::unix::process::CommandExt as _;
 
 use juggler_supervisor::supervisor::observed_sums;
 use juggler_supervisor::{LiveStatsCollector, ObservedRoot, ProcessRow, Supervisor};
+
+// The shared reaper (the rest of the kit serves other suites).
+#[allow(dead_code)]
+mod fixtures;
 
 fn row(pid: u32, parent: u32, rss: u64, cpu: f64) -> ProcessRow {
     ProcessRow {
@@ -49,9 +55,12 @@ fn a_tree_we_did_not_start_is_measured_without_touching_it() {
     // A small tree outside the supervisor: sh → two sleeps.
     let mut child = std::process::Command::new("/bin/sh")
         .args(["-c", "sleep 30 & sleep 30 & wait"])
+        .process_group(0)
         .spawn()
         .unwrap();
     let root = child.id();
+    let mut reaper = fixtures::Reaper::default();
+    reaper.group(root);
     let supervisor = Supervisor::new();
     let mut collector = LiveStatsCollector::new();
     collector.set_observed_roots(vec![ObservedRoot {
@@ -95,11 +104,23 @@ fn a_tree_we_did_not_start_is_measured_without_touching_it() {
 #[cfg(unix)]
 #[test]
 fn a_busy_helper_reads_one_core_not_five() {
+    // The busy loop stops itself after the fixtures' lifetime (bash's
+    // `SECONDS`, no forks), and its group dies with the test, a failed
+    // assertion's unwind included: a leaked one would hold a core.
     let mut child = std::process::Command::new("/bin/sh")
-        .args(["-c", "sh -c 'while :; do :; done' & wait"])
+        .args([
+            "-c",
+            &format!(
+                "bash -c 'while [ $SECONDS -lt {} ]; do :; done' & wait",
+                fixtures::FIXTURE_LIFETIME_SECS
+            ),
+        ])
+        .process_group(0)
         .spawn()
         .unwrap();
     let root = child.id();
+    let mut reaper = fixtures::Reaper::default();
+    reaper.group(root);
     let supervisor = Supervisor::new();
     let mut collector = LiveStatsCollector::new();
     collector.set_observed_roots(vec![ObservedRoot {
@@ -119,11 +140,8 @@ fn a_busy_helper_reads_one_core_not_five() {
             readings.push(cpu);
         }
     }
-    child.kill().unwrap();
+    drop(reaper);
     let _ = child.wait();
-    let _ = std::process::Command::new("pkill")
-        .args(["-f", "while :; do :; done"])
-        .status();
     assert!(readings.len() >= 8, "measured: {readings:?}");
     let max = readings.iter().copied().fold(0.0_f64, f64::max);
     assert!(

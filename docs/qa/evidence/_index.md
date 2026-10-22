@@ -182,6 +182,10 @@
 | AJ-E909 | (no claims yet) | 2026-10-13 | [manifest](AJ-E909/manifest.md) |
 | AJ-E910 | (directory without manifest — add one) | — | — |
 | fixes-0.0.12 | PASS45 | 2026-10-21 | [manifest](fixes-0.0.12/manifest.md) |
-| fixes-0.0.13 | PASS32 | 2026-10-22 | [manifest](fixes-0.0.13/manifest.md) |
+| fixes-0.0.13 | PASS33 | 2026-10-22 | [manifest](fixes-0.0.13/manifest.md) |
+| fixes-0.0.14 | PASS17 | 2026-10-22 | [manifest](fixes-0.0.14/manifest.md) |
+| fixes-0.0.15 | PASS14 | 2026-10-22 | [manifest](fixes-0.0.15/manifest.md) |
+| fixes-0.0.16 | PASS5 | 2026-10-22 | [manifest](fixes-0.0.16/manifest.md) |
+| fixes-0.0.17 | PASS6 | 2026-10-22 | [manifest](fixes-0.0.17/manifest.md) |
 | fixes | PASS7 | 2026-10-21 | [manifest](fixes/manifest.md) |
 | walks | (no claims yet) | 2026-10-21 | [manifest](walks/manifest.md) |
