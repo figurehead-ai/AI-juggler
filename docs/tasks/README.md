@@ -4,12 +4,12 @@
 > researched, evidence-gated tasks that survive context compaction,
 > context loss and agent handover. A new agent with zero chat history
 > must be able to start from this directory alone.
-> Status of this system: all tasks are `TODO`. Nothing here is done
+> Each task carries its own status in its epic file. Nothing here is done
 > until its evidence exists (see "Definition of done" below).
 
 ## Start here (cold-agent reading order)
 
-1. [AGENT-HANDOVER.md](AGENT-HANDOVER.md) — state snapshot, invariants,
+1. [AGENT-HANDOVER.md](../internal/AGENT-HANDOVER.md) — state snapshot, invariants,
    claiming protocol, compaction-recovery steps.
 2. [../review/decision-log.md](../review/decision-log.md) — settled
    decisions D-01..D-25. Do not re-litigate them; supersede only via a

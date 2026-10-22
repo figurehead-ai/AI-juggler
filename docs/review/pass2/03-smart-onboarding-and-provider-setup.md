@@ -1,7 +1,7 @@
 # 03 — Smart Onboarding & Provider Setup (Second Pass)
 
 > Second pass over the canonical maintainer workflow in
-> [expected-worfklow.md](../../expected-worfklow.md#L11)
+> [expected-workflow.md](../../internal/expected-workflow.md#L11)
 > ("fully smart and automated onboarding wizard … scanning directories,
 > existing providers … making recommendations"). This file does **not**
 > restate the prior report; it cites it, then extends or corrects it.
@@ -15,7 +15,7 @@
 ## 0. Second-pass charter — what was under-weighted, wrong, or missed
 
 The prior research audited the wizard that exists. The maintainer's
-ask in [expected-worfklow.md](../../expected-worfklow.md#L11)
+ask in [expected-workflow.md](../../internal/expected-workflow.md#L11)
 is broader: onboarding for *first install, new project, add provider,
 add account, add instance* as one near-zero-config intelligence.
 Six gaps follow; the rest of this file designs the fix.
@@ -47,7 +47,7 @@ community multi-account pattern per
 (canonical gist: https://gist.github.com/KMJ-007/0979814968722051620461ab2aa01bf2).
 
 **P2-5 evidence.** The maintainer names the trio explicitly at
-[expected-worfklow.md](../../expected-worfklow.md#L11)
+[expected-workflow.md](../../internal/expected-workflow.md#L11)
 ("we should call them providers, accounts, and instances of the
 tool"). No `provider` symbol exists in `crates/` or `ui/src/`
 (grep-verified this pass); §2 maps the vocabularies instead of
@@ -100,7 +100,7 @@ name for what code calls *harness*.
 
 The maintainer's bar is "it can't have thousands of options, it
 needs to do most of the figuring out on its own" at
-[expected-worfklow.md](../../expected-worfklow.md#L11).
+[expected-workflow.md](../../internal/expected-workflow.md#L11).
 Operationalised as four rules the prior report never stated:
 
 - **R1 Scan before ask.** No question the filesystem, env, or a
@@ -245,7 +245,7 @@ add it when plan becomes confirm-not-type (§6).
 Input: the §4 inventory. Output: one proposed set the user can
 accept in a single click. This is the piece the maintainer's
 "making recommendations" clause at
-[expected-worfklow.md](../../expected-worfklow.md#L11)
+[expected-workflow.md](../../internal/expected-workflow.md#L11)
 demands and no prior section designs (closest: `MDR` Executive #5
 needs-attention inbox — a *daily* surface, not an onboarding one).
 
@@ -462,7 +462,7 @@ button. No row may surface a raw backend string (blocker,
 
 N6 deserves emphasis: the maintainer's core case is *multiple
 subscriptions from the same lab*
-([expected-worfklow.md](../../expected-worfklow.md#L5));
+([expected-workflow.md](../../internal/expected-workflow.md#L5));
 two dirs sharing one login silently defeats quota juggling, and
 no prior section names it. Detection stays heuristic + honest
 ("may be"), never a block.

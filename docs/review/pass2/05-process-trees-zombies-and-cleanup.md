@@ -5,7 +5,7 @@
 > F-1..F-10), §6 (scale model), §8 (target architecture / ADR-0010), and
 > `docs/review/deep/08-architecture-data-supervisor-security.md` §5; UX
 > cross-check `docs/review/full-competitive-ux-review.md` §Q5/F5.1.
-> Canonical demand: `docs/expected-worfklow.md:15,17-18`. Spec anchor:
+> Canonical demand: `docs/internal/expected-workflow.md:15,17-18`. Spec anchor:
 > `docs/SPEC.md:216-252` (§5.1–§5.3) and `docs/plan/EPICS.md:46,80`
 > (M0-5, M2-6, M2-7). Code read in full:
 > `crates/juggler-supervisor/src/supervisor.rs` (585 lines),
@@ -20,14 +20,14 @@ tools “crash, exist, and their subprocesses, cli commands, terminals
 and dev local services they started they end up running long after
 the session closed, they end up being zombie processes” and the tool
 “should have super easy way to track that, offer auomatic and manual
-clean ups, all with verifications” (`docs/expected-worfklow.md:17-18`).
+clean ups, all with verifications” (`docs/internal/expected-workflow.md:17-18`).
 Pass 1 correctly found the kill-path defect (F-9) and the adoption
 identity defect (F-2), but treated both as supervisor bugs to patch.
 That under-weights the demand in three ways. First, the expected
 workflow asks for a *product surface* — per-session resource and
 sub-process visibility (“for each tool, session, we should [show] how
 much resources it is using, cpu, ram, did it spawn any sub tasks, sub
-processes, and allow to track those”, `docs/expected-worfklow.md:15`)
+processes, and allow to track those”, `docs/internal/expected-workflow.md:15`)
 plus a cleanup experience — and no pass-1 section designs that surface.
 Second, pass 1’s F-5 verdict (“our zombies: none”, Maximum-Depth §5)
 answers the narrow Unix-reaping question and thereby closes the topic
@@ -43,9 +43,9 @@ verify-before-kill, tiered auto-cleanup, audit, and crash recovery.
 ## 1. Terminology: maintainer language over code language
 
 Maintainer vocabulary is explicit: “we should call them providers,
-accounts, and instances of the tool” (`docs/expected-worfklow.md:11`),
+accounts, and instances of the tool” (`docs/internal/expected-workflow.md:11`),
 with daily indicators “which provider it is, account, models currently
-running” (`docs/expected-worfklow.md:13`). The code speaks a different
+running” (`docs/internal/expected-workflow.md:13`). The code speaks a different
 dialect. Mapping (adopt maintainer terms in UI; keep code names only
 where renaming is churn):
 
@@ -69,7 +69,7 @@ children are waited (`crates/juggler-supervisor/src/supervisor.rs:157-171,242-25
 and that `alive_pids` excludes `Zombie|Dead`
 (`crates/juggler-supervisor/src/journal.rs:199-216`). It then
 concludes “None; keep zombie filter”. That is the under-weighting:
-the maintainer’s “zombie processes” (`docs/expected-worfklow.md:17`)
+the maintainer’s “zombie processes” (`docs/internal/expected-workflow.md:17`)
 is the colloquial umbrella for at least five mechanically distinct
 states, each needing different detection and different UX:
 
@@ -88,7 +88,7 @@ survivors that are working as designed. Suggested labels:
 (T3), `Unverifiable — will not be touched` (T5). (b) F-5’s “residual:
 piped grandchildren reparented to init — out of scope, document it”
 is precisely T2, which the expected workflow puts *in* scope
-(`docs/expected-worfklow.md:17-18`). Pass 2 reverses that scoping:
+(`docs/internal/expected-workflow.md:17-18`). Pass 2 reverses that scoping:
 T2 is the product; T1 is the footnote.
 
 ## 3. What pass 1 got right, and what it missed or under-weighted
@@ -132,7 +132,7 @@ table; identical text at `deep/08` §5):
   exists in the supervisor or app crates (no `TcpListener`/LISTEN/`lsof`
   usage; `crates/juggler-supervisor/Cargo.toml:19` has `sysinfo` only).
   Yet the maintainer’s examples are port-holders: “dev local services
-  they started” (`docs/expected-worfklow.md:17`). A cleanup list that
+  they started” (`docs/internal/expected-workflow.md:17`). A cleanup list that
   cannot say “PID 8123 holds :5173” cannot earn user trust.
 - **Missed — no resource attribution to show.** SPEC §5.2 already
   promises per-session tree RSS/CPU “attributed to the session even as
@@ -334,8 +334,8 @@ decisions informed, deferring the full advisor to M2-6
 A new global surface (top-right global menus per ADR-0007’s
 “global / setup mode”, `docs/adr/0007-…md:20-23`; not a rail peer of
 Projects/Instances/Sessions). It is the answer to “super easy way to
-track that” (`docs/expected-worfklow.md:18`) and to the per-Instance
-resource demand (`docs/expected-worfklow.md:15`).
+track that” (`docs/internal/expected-workflow.md:18`) and to the per-Instance
+resource demand (`docs/internal/expected-workflow.md:15`).
 
 ### 9.1 List model
 
@@ -353,7 +353,7 @@ state: “Nothing left behind — N Instances running clean.”
 The Instance panel (ADR-0007 Decision 2: “status, account/profile,
 kind, age, resources, actions”, `docs/adr/0007-…md:35-40`) embeds the
 same rows filtered to that Instance, satisfying
-`docs/expected-worfklow.md:14-15` without a second data path.
+`docs/internal/expected-workflow.md:14-15` without a second data path.
 
 ### 9.2 Verify-before-kill flow (no exceptions)
 
@@ -396,7 +396,7 @@ record (§11). “Already gone” is a success, not an error.
 ## 10. Safe auto-cleanup policy (opt-in tiers)
 
 The expected workflow asks for “auomatic and manual clean ups”
-(`docs/expected-worfklow.md:18`), but SPEC’s automation invariant
+(`docs/internal/expected-workflow.md:18`), but SPEC’s automation invariant
 forbids state-changing actions without a click, with one narrow
 exception (opt-in per-profile auto-restart, `docs/SPEC.md:26`).
 Auto-cleanup therefore needs the same treatment: an explicit,

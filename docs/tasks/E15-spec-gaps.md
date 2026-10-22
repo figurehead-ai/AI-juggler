@@ -145,7 +145,7 @@
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1507/manifest.md`.
 **Visual testing**: the sync sheet, the diff, and the project-view line.
 **Files to touch**: `crates/juggler-handover/` (a sync module beside packs), the adapters' config writers, `commands.rs`, the project view.
-**Research basis**: SPEC §7.5; EPICS M4-6; expected-worfklow ("rules and guidelines need to work").
+**Research basis**: SPEC §7.5; EPICS M4-6; expected-workflow ("rules and guidelines need to work").
 **Handover note**: The MCP formats: Claude `.mcp.json` / `settings.json`, Codex `config.toml` `[mcp_servers]`. E16 adds more.
 
 ### AJ-E1508 Copy shared settings into a new account | Status: TODO | Priority P1 | Effort M | Depends: AJ-E1507, AJ-E1022

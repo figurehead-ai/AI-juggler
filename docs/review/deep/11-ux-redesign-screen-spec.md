@@ -1,5 +1,5 @@
 # 11 — UX Redesign: Build-Ready Screen Spec (Deep)
-> Parent: [full review](../full-competitive-ux-review.md#L1) · Prompt: [agent-review-prompt.md](../agent-review-prompt.md#L30) · Contract: [SPEC.md](../../SPEC.md#L316) §9 + [ADR-0007](../../adr/0007-instance-centric-information-architecture.md#L1). Audience: designer + frontend engineer; every screen is implementable without a follow-up question. Evidence: `file:line` = repo truth, URL = competitor bar. **Keep/Fix/New/Remove** + P0/P1/P2 as in [full review](../full-competitive-ux-review.md#L10).
+> Parent: [full review](../full-competitive-ux-review.md#L1) · Prompt: [agent-review-prompt.md](../../internal/agent-review-prompt.md#L30) · Contract: [SPEC.md](../../SPEC.md#L316) §9 + [ADR-0007](../../adr/0007-instance-centric-information-architecture.md#L1). Audience: designer + frontend engineer; every screen is implementable without a follow-up question. Evidence: `file:line` = repo truth, URL = competitor bar. **Keep/Fix/New/Remove** + P0/P1/P2 as in [full review](../full-competitive-ux-review.md#L10).
 
 ## 0. How to build from this doc
 - Order: §3 shell/state → §4.1 Inbox → §4.17 palette → §4.9 Handover → rest. Quota feed (M3) gates §4.10–4.11 data only; layouts + honest empty states ship first.

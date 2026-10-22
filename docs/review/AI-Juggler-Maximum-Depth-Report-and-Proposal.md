@@ -184,7 +184,7 @@ relay pricing rejected (12 §7). The 13-week week-by-week plan is
 > Scope: every interactive element in `ui/src` at audit time.
 > Method: full read of all 27 files under `ui/src` (see §1),
 > cross-checked against `docs/review/full-competitive-ux-review.md`
-> and `docs/review/agent-review-prompt.md`. No runtime/browser
+> and `docs/internal/agent-review-prompt.md`. No runtime/browser
 > test was run; a11y claims are code-read only.
 > Verdict key: **Keep** = ship as-is · **Fix** = keep, change spec
 > below · **Remove** = delete · **Add** = missing, create.
@@ -2211,7 +2211,7 @@ Conductor is "closed source, no public GitHub repo"
 or API key" [https://github.com/rodgi040/secret-ai-beaver-sauce/blob/HEAD/skills/secret-ai-beaver-source/references/TOOLS.md](https://github.com/rodgi040/secret-ai-beaver-sauce/blob/HEAD/skills/secret-ai-beaver-source/references/TOOLS.md).
 That means: no audit path, no fork path, no offline guarantee.
 Juggler is MIT (`Cargo.toml:17`, `README.md:83`) and local-only
-by invariant (`docs/review/agent-review-prompt.md:70`). The
+by invariant (`docs/internal/agent-review-prompt.md:70`). The
 contrast is a positioning asset Juggler under-uses today.
 
 ---
@@ -2331,7 +2331,7 @@ changelog shows ongoing workspace-status investment
 
 Juggler's daily loop is a left rail (Projects / Instances /
 Sessions) with embedded live terminals
-(`docs/review/agent-review-prompt.md:51-53`). Two scale
+(`docs/internal/agent-review-prompt.md:51-53`). Two scale
 defects are already documented and confirmed in code:
 the rail "caps at `slice(0,15)` sessions / `slice(0,8)` recents
 with no search or filter (WorkflowRail.tsx:184-195,328-384)"
@@ -2482,7 +2482,7 @@ is the fix; this section is its competitive proof.
   to the separate command [https://github.com/smtg-ai/claude-squad/pull/123](https://github.com/smtg-ai/claude-squad/pull/123).
   Lesson: in a review flow, *when* a push happens is a trust
   boundary. Juggler's passive invariant
-  (`docs/review/agent-review-prompt.md:64-66`) must make push
+  (`docs/internal/agent-review-prompt.md:64-66`) must make push
   an explicit, labelled click — never a side effect of pause.
 - Diff itself is terminal-grade: "preview diffs, commit/push
   (`s`), commit-and-pause (`c`)" with isolation as the safety
@@ -2530,7 +2530,7 @@ is the fix; this section is its competitive proof.
 A `grep` for `diff|Diff|branch` across `ui/src/components/*.tsx`
 and `ui/src/screens/*.tsx` returns zero hits (verified
 in-session). Sessions embed their live terminal
-(`docs/review/agent-review-prompt.md:52`) and handover copies
+(`docs/internal/agent-review-prompt.md:52`) and handover copies
 a transcript (`crates/juggler-app/src/commands.rs:1088-1194`),
 but there is no changed-files view, no diff, no PR action.
 The spec's only diff mention is inside the handover pack
@@ -5391,7 +5391,7 @@ empty state before the first fetch resolves.
 
 
 # 11 — UX Redesign: Build-Ready Screen Spec (Deep)
-> Parent: [full review](full-competitive-ux-review.md#L1) · Prompt: [agent-review-prompt.md](agent-review-prompt.md#L30) · Contract: [SPEC.md](../SPEC.md#L316) §9 + [ADR-0007](../adr/0007-instance-centric-information-architecture.md#L1). Audience: designer + frontend engineer; every screen is implementable without a follow-up question. Evidence: `file:line` = repo truth, URL = competitor bar. **Keep/Fix/New/Remove** + P0/P1/P2 as in [full review](full-competitive-ux-review.md#L10).
+> Parent: [full review](full-competitive-ux-review.md#L1) · Prompt: [agent-review-prompt.md](../internal/agent-review-prompt.md#L30) · Contract: [SPEC.md](../SPEC.md#L316) §9 + [ADR-0007](../adr/0007-instance-centric-information-architecture.md#L1). Audience: designer + frontend engineer; every screen is implementable without a follow-up question. Evidence: `file:line` = repo truth, URL = competitor bar. **Keep/Fix/New/Remove** + P0/P1/P2 as in [full review](full-competitive-ux-review.md#L10).
 
 ## 0. How to build from this doc
 - Order: §3 shell/state → §4.1 Inbox → §4.17 palette → §4.9 Handover → rest. Quota feed (M3) gates §4.10–4.11 data only; layouts + honest empty states ship first.

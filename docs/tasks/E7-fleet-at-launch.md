@@ -119,7 +119,7 @@
 **Evidence/validation proof**: Strict: fixture peer emitting partial data proves Unavailable rendering; two-machine dogfood: select remote Instance, read Usage/Processes, screenshot + timing log in `docs/qa/gate-E7.md`; pass = every field source-labelled. Security evidence: view-only peer action buttons provably disabled and commands rejected node-side (AJ-E709 test reference).
 **Visual testing**: Screenshots: remote Instance Overview/Processes (live, stale, offline, view-only) at 1440×900 and 1024×768, light/dark; a11y contrast ≥4.5:1, stale icon+text redundant; comparison = side-by-side local vs remote layout diff, pixel-identical tab geometry.
 **Files to touch**: [WorkPanels.tsx](../../ui/src/screens/WorkPanels.tsx), [WorkflowRail.tsx](../../ui/src/components/WorkflowRail.tsx), [bridge.ts](../../ui/src/lib/bridge.ts), [SPEC.md S9](../SPEC.md#L316)
-**Research basis**: D-06/D-07 in decision-log.md:60-77; pass2/04 §§5-6; SPEC.md:350,385-389; expected-worfklow.md:14-15.
+**Research basis**: D-06/D-07 in decision-log.md:60-77; pass2/04 §§5-6; SPEC.md:350,385-389; expected-workflow.md:14-15.
 **Handover note**: Depends on the local inspector existing — if E-inspector tasks slip, ship remote inspector read-model against the same DTO, do not fork a fleet-only panel. Trap: never hide staleness to look "real-time".
 
 ### AJ-E706 Cross-machine switching implications | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E703, AJ-E705
@@ -207,7 +207,7 @@ Clean buttons enabled on unverified rows.
 **Files to touch**: [supervisor.rs](../../crates/juggler-supervisor/src/supervisor.rs), [journal.rs](../../crates/juggler-supervisor/src/journal.rs), [lib.rs](../../crates/juggler-link/src/lib.rs), [WorkPanels.tsx](../../ui/src/screens/WorkPanels.tsx)
 **Research basis**:
 D-08 (decision-log.md:79-87); pass2/05 §§2,9-10; SPEC.md:224-225,
-234; expected-worfklow.md:17-18; deep/08 §1 (journal PID-only risk).
+234; expected-workflow.md:17-18; deep/08 §1 (journal PID-only risk).
 **Handover note**:
 Trap: today's journal is PID-only (deep/08) and unsafe under
 PID reuse — AJ-E707 must land start-time identity before any
@@ -347,7 +347,7 @@ identifiable on every row without colour.
 **Files to touch**: [WorkflowRail.tsx](../../ui/src/components/WorkflowRail.tsx), [App.tsx](../../ui/src/App.tsx), [lib.rs](../../crates/juggler-link/src/lib.rs), [SPEC.md S11.4](../SPEC.md#L385)
 **Research basis**:
 Pass2/04 §§3-5 (indicators I-01..I-11, inspector); SPEC.md:350,
-381,389; expected-worfklow.md:13; D-12 (expiry unknown, never guessed).
+381,389; expected-workflow.md:13; D-12 (expiry unknown, never guessed).
 **Handover note**:
 Trap: UI-hidden buttons are not permission enforcement —
 reviewers must check the node-side rejection test, not the

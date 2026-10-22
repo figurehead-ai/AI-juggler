@@ -1,5 +1,5 @@
 # E5 — Process Ownership & Cleanup (Epic Tasks)
-> Settled basis: D-01 (Clean is trust proof; zero false kills is success metric), D-08 (notify-only default, Clean-safe opt-in **per Account**, verified-owned only, every kill audit-logged; ADR-0010 required), D-13 (fleet-shaped from day one), D-15 (this file is implementation-ready task spec only; product code starts under separate approval). Canonical demand: `docs/expected-worfklow.md:15,17-18`. Design source: `docs/review/pass2/05-process-trees-zombies-and-cleanup.md` (§§2-14). Do NOT re-litigate D-08 tiers as per-Provider: pass2 §10 says per-Provider, decision-log D-08 overrides to per-Account; per-Provider MAY be a UI grouping, storage key SHALL be `account_id`.
+> Settled basis: D-01 (Clean is trust proof; zero false kills is success metric), D-08 (notify-only default, Clean-safe opt-in **per Account**, verified-owned only, every kill audit-logged; ADR-0010 required), D-13 (fleet-shaped from day one), D-15 (this file is implementation-ready task spec only; product code starts under separate approval). Canonical demand: `docs/internal/expected-workflow.md:15,17-18`. Design source: `docs/review/pass2/05-process-trees-zombies-and-cleanup.md` (§§2-14). Do NOT re-litigate D-08 tiers as per-Provider: pass2 §10 says per-Provider, decision-log D-08 overrides to per-Account; per-Provider MAY be a UI grouping, storage key SHALL be `account_id`.
 > Sequencing: ledger+PGID+identity (E501-E503) before any tree-kill; read-only Centre (E506) before ladder; tiers last. No one-click kill. UI vocabulary Provider/Account/Instance/Helper/Orphan; never label T2/T3 "zombie" (pass2 §2).
 
 ### AJ-E501 Persistent spawn ledger with intent-before-spawn | Status: DONE-EVIDENCED (evidence: docs/qa/evidence/AJ-E501/manifest.md) | Priority P0 | Effort L | Depends: none
@@ -284,7 +284,7 @@ Unverifiable, empty-success, ledger-degraded. Method: pixel-diff against committ
 
 **Research basis**: pass2/05 §9.1 (lines 340-356), §2 labels (lines 84-92), §8
 (lines 306-330); decision-log D-06:60-68, D-09:88-95;
-`docs/expected-worfklow.md:15,18`.
+`docs/internal/expected-workflow.md:15,18`.
 
 **Handover note**:
 Trap: do not "preview" kill buttons in this task — a rendered-but- disabled kill trains the wrong trust model and breaks the Tier-0 guardrail test in AJ-E508. Trap: the Instance panel embedding must reuse `ProcessRow`, not a copy; divergence here is how T3 survivors later get mislabelled as orphans.

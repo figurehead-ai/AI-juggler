@@ -1,40 +1,42 @@
-name: ✨ Feature request
-description: Propose a capability or improvement
-labels: ["enhancement", "triage"]
+name: Feature request
+description: Suggest something AI Juggler should do
+labels: ["enhancement"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        For a rough idea or a question, [Discussions › Ideas](https://github.com/figurehead-ai/AI-juggler/discussions)
+        is often a better start. The README's roadmap lists what's already planned.
   - type: textarea
     id: problem
     attributes:
       label: What problem are you trying to solve?
-      description: Describe the pain — what do you have to do manually today, and why does it hurt? Feature requests anchored in a real workflow get priority.
-      placeholder: |
-        Today, when I … I have to … which breaks when …
+      description: What do you do by hand today, and why does it hurt? Requests grounded in a real workflow get priority.
+      placeholder: Today, when I … I have to … which breaks when …
     validations:
       required: true
   - type: textarea
     id: solution
     attributes:
       label: What would "solved" look like?
-      description: Your idea of the solution — UI, CLI behavior, workflow. Rough is fine.
+      description: Your idea of the result. Rough is fine.
     validations:
       required: true
   - type: dropdown
-    id: harness
+    id: tools
     attributes:
-      label: Which harness does this involve?
+      label: Which tools does it involve?
       multiple: true
       options:
         - Claude Code
         - Codex
-        - ZCode
-        - Another / future adapter
-        - App-level (all harnesses)
+        - The Claude app
+        - A tool AI Juggler doesn't support yet
+        - All of them
   - type: checkboxes
     id: checks
     attributes:
-      label: Sanity checks
+      label: Checks
       options:
-        - label: I checked the proposal & spec — this is not already planned or explicitly out of scope
-          required: true
-        - label: This stays within each tool's terms of service (no login automation, credential sharing, or limit evasion)
+        - label: It stays within each tool's terms (no sign-in automation, credential sharing or getting around limits)
           required: true

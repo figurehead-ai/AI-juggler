@@ -4,13 +4,13 @@
 > session row/card shows at a glance, and what the right-hand
 > inspector shows on selection. Onboarding, handover mechanics,
 > and fleet transport are cited, not re-specified here.
-> **Canonical input:** [expected-worfklow.md](../../expected-worfklow.md#L13)
+> **Canonical input:** [expected-workflow.md](../../internal/expected-workflow.md#L13)
 > lines 13–18 — "lots of indicators … which provider it is,
 > account, models currently running. Amount of quota left",
 > "whole right section … stats, actions to manage, switch",
 > "how much resources it is using, cpu, ram, did it spawn any
 > sub tasks, sub processes", plus zombie/orphan tracking
-> ([expected-worfklow.md](../../expected-worfklow.md#L17)).
+> ([expected-workflow.md](../../internal/expected-workflow.md#L17)).
 > **Method:** full read of the canonical workflow, then targeted
 > windows of the prior reports, `docs/SPEC.md`, `docs/PROPOSAL.md`,
 > `docs/plan/EPICS.md`, and the live code they audit. Every claim
@@ -22,7 +22,7 @@
 ## 1. Terminology — adopt maintainer language, map, flag conflicts
 
 The maintainer names three nouns
-([expected-worfklow.md](../../expected-worfklow.md#L11)):
+([expected-workflow.md](../../internal/expected-workflow.md#L11)):
 "we should call them providers, accounts, and instances of
 the tool". This pass adopts that language in all user-visible
 copy. The code/spec use different words for two of the three.
@@ -84,7 +84,7 @@ conversation, Profile = launch preset (secondary only).
 Prior work is strong on *actions* (deep 01/02 button audits)
 and *states* (deep 02 §7). It under-weights the maintainer's
 actual daily question in
-[expected-worfklow.md](../../expected-worfklow.md#L13):
+[expected-workflow.md](../../internal/expected-workflow.md#L13):
 "at a glance, which of my many running things needs me, is
 about to die on quota, or is eating the machine?" Five gaps:
 
@@ -109,7 +109,7 @@ ppid-map, and the supervisor already exposes `descendants()`
 ([supervisor.rs](../../../crates/juggler-supervisor/src/supervisor.rs#L341)).
 No prior report puts a child-count badge on the row or a
 Processes tab in the inspector. The maintainer's zombie
-problem ([expected-worfklow.md](../../expected-worfklow.md#L17))
+problem ([expected-workflow.md](../../internal/expected-workflow.md#L17))
 is therefore invisible until it hurts. This pass adds both
 (§3 I-08, §5 Processes tab). Prior: full review F1.1/F5.1
 discuss scale, not per-instance child visibility.
@@ -118,7 +118,7 @@ discuss scale, not per-instance child visibility.
 specified as an indicator.** Deep 02 §6 notes "no branch/dirty
 indicator exists anywhere" and parks worktree choice in a
 launch popover (PP-05). The maintainer workflow is
-project-first ([expected-worfklow.md](../../expected-worfklow.md#L5)):
+project-first ([expected-workflow.md](../../internal/expected-workflow.md#L5)):
 two instances on the same repo on different branches is the
 normal case, and a dirty tree is the top handover risk.
 This pass makes branch + dirty count a first-class row and
@@ -381,7 +381,7 @@ Empty: missing dir → danger banner + `Relocate…` (deep 02
 PP-02); no sessions yet → `Start first session` CTA.
 
 **Processes-tab orphan contract (all selections, maintainer
-zombie requirement, [expected-worfklow.md](../../expected-worfklow.md#L17)):**
+zombie requirement, [expected-workflow.md](../../internal/expected-workflow.md#L17)):**
 when an Instance ends (any state except Stopped-clean), its
 descendant set is snapshotted; survivors after 10 s grace
 appear in an `Orphaned — left behind (N)` section with PID,

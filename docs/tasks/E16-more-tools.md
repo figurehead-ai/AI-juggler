@@ -226,6 +226,6 @@
 **Quality gates**: the evidence standard (live, never with real users' secrets).
 **Evidence/validation proof**: one capture per tool.
 **Visual testing**: n/a.
-**Files to touch**: `docs/research/evidence/`, `docs/MAINTAINER-STEPS.md`.
+**Files to touch**: `docs/research/evidence/`, `docs/internal/MAINTAINER-STEPS.md`.
 **Research basis**: the evidence standard, rule 3.
 **Handover note**: The maintainer's step: agents prepare the checklists; the maintainer runs them.
