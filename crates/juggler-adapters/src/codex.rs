@@ -825,6 +825,30 @@ impl HarnessAdapter for CodexAdapter {
         Some("codex")
     }
 
+    fn inventory(
+        &self,
+        state_dir: &Path,
+        _project: Option<&Path>,
+    ) -> Vec<juggler_adapter::inventory::Item> {
+        crate::codex_inventory::inventory(state_dir, crate::claude_code::home_dir().as_deref())
+    }
+
+    fn can_set_up(
+        &self,
+        item: &juggler_adapter::inventory::Item,
+    ) -> juggler_adapter::inventory::SetUp {
+        crate::codex_inventory::can_set_up(item)
+    }
+
+    fn set_up(
+        &self,
+        state_dir: &Path,
+        _project: Option<&Path>,
+        item: &juggler_adapter::inventory::Item,
+    ) -> Result<juggler_adapter::inventory::Applied, AdapterError> {
+        crate::codex_inventory::set_up(state_dir, crate::claude_code::home_dir().as_deref(), item)
+    }
+
     fn conversation_files(&self, state_dir: &Path) -> Vec<PathBuf> {
         crate::codex_conversations::conversation_files(state_dir)
     }

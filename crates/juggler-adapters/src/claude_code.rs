@@ -400,6 +400,39 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         Some("claude")
     }
 
+    fn inventory(
+        &self,
+        state_dir: &Path,
+        project: Option<&Path>,
+    ) -> Vec<juggler_adapter::inventory::Item> {
+        crate::claude_inventory::inventory(state_dir, &claude_state_file(state_dir), project)
+    }
+
+    fn can_set_up(
+        &self,
+        item: &juggler_adapter::inventory::Item,
+    ) -> juggler_adapter::inventory::SetUp {
+        crate::claude_inventory::can_set_up(item)
+    }
+
+    fn set_up(
+        &self,
+        state_dir: &Path,
+        project: Option<&Path>,
+        item: &juggler_adapter::inventory::Item,
+    ) -> Result<juggler_adapter::inventory::Applied, AdapterError> {
+        let claude = self
+            .resolve_bin()
+            .ok_or_else(|| AdapterError::Unsupported("Claude Code isn't installed".to_owned()))?;
+        let env = config_dir_value(state_dir);
+        let env = if env == juggler_adapter::launch::ENV_UNSET {
+            String::new()
+        } else {
+            env
+        };
+        crate::claude_inventory::set_up(state_dir, &claude, &env, project, item)
+    }
+
     fn conversation_files(&self, state_dir: &Path) -> Vec<PathBuf> {
         crate::claude_conversations::conversation_files(state_dir)
     }

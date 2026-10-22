@@ -21,6 +21,7 @@ pub mod environment;
 pub mod error;
 pub mod handover;
 pub mod identity;
+pub mod inventory;
 pub mod jsonc;
 pub mod launch;
 pub mod registry;
