@@ -1,40 +1,34 @@
-## What & why
+## What and why
 
-<!-- What does this PR change, and why? Link the issue it addresses ("Closes #123"). -->
+<!-- What does this change, and why? Link the issue it addresses ("Closes #123"). -->
 
-## Definition of Done ([docs/plan/QUALITY.md](../docs/plan/QUALITY.md) — required for every PR)
+## Checklist
 
-- [ ] Acceptance criteria from the issue demonstrably pass
-- [ ] `just verify` clean (fmt, clippy `-D warnings`, tests, docs) — zero warnings
-- [ ] Public APIs documented; typed errors; no `unwrap`/`expect`/`panic!` in production paths
-- [ ] Tests added (unit + integration/fixtures for new flows; corpus grown if parsers touched)
-- [ ] Architecture layering respected (QUALITY.md §4); no new `unsafe`; `cargo-deny` clean
-- [ ] Engineering guide checklist passes (docs/engineering/ENGINEERING-GUIDE.md): right module, no tool-id literal outside adapters, thin async commands, typed errors, no new duplication
-- [ ] Security guidelines followed (docs/engineering/SECURITY-GUIDELINES.md); any new attack surface has its threat-model row and tests
-- [ ] CHANGELOG updated; spec/docs updated if behavior changed; ADR if a decision was made
-- [ ] UI changes: both themes captured in the gallery, a11y scan added, `pnpm --dir ui exec playwright test` green, `just visual-gate` green (or baselines re-rendered with a note per screen)
-- [ ] Evidence stored under `docs/qa/evidence/<task-id>/` when this closes a task
-- [ ] **Nothing personal or secret**: no real account names, e-mails, home paths, hostnames, tokens, or screenshots of a real desktop
+- [ ] `just verify` passes
+- [ ] Tests cover the change (new behaviour, or the bug this fixes)
+- [ ] Docs and the CHANGELOG are updated if users will notice the change
+- [ ] **Nothing personal or secret**: no real account names, emails, home paths, hostnames, tokens, or screenshots of a real desktop
 - [ ] Every commit is signed off ([DCO](../CONTRIBUTING.md#licensing-and-sign-off), `git commit -s`)
 
+<details>
+<summary>For larger or interface changes (the full <a href="../docs/plan/QUALITY.md">Definition of Done</a>)</summary>
+
+- [ ] Typed errors; no `unwrap`, `expect` or `panic!` in production code; public APIs documented
+- [ ] Layering respected, nothing tool-specific outside an adapter, no new duplication ([engineering guide](../docs/engineering/ENGINEERING-GUIDE.md))
+- [ ] No new `unsafe`; `cargo deny check` clean; any new attack surface has its threat-model row and tests ([security guidelines](../docs/engineering/SECURITY-GUIDELINES.md))
+- [ ] Interface changes: both themes checked, `pnpm --dir ui exec playwright test` and `just visual-gate` pass, and an accessibility scan covers the new state
+- [ ] An ADR when this makes an architecture decision
+
+</details>
+
 ## Visual baselines
 
-<!-- Only when this PR changes files under ui/tests/visual/__baselines__/ (AJ-E803):
-     name the task (AJ-E…) and, one line per changed baseline, its file name and the
-     intentional change — e.g. `settings-dark-comfortable-1280x800: Privacy card added`.
-     CI rejects baseline changes without a note for each. Maintainer approval required. -->
-
-## Visual baselines
-
-<!-- Only when this PR changes files under ui/tests/visual/__baselines__/ (AJ-E803):
-     name the task (AJ-E…) and, one line per changed baseline, its file name and the
-     intentional change — e.g. `settings-dark-comfortable-1280x800: Privacy card added`.
-     CI rejects baseline changes without a note for each. Maintainer approval required. -->
-
-## Reviewer checklist
-
-Structure & naming · layering · error handling · test quality · docs · CHANGELOG · no secrets · bench impact on hot paths
+<!-- Only when this PR changes files under ui/tests/visual/__baselines__/:
+     name the issue (#123) or task (AJ-E…) and, one line per changed baseline,
+     its file name and the intentional change, for example
+     `settings-dark-comfortable-1280x800: Privacy card added`.
+     CI rejects baseline changes without a note for each. -->
 
 ## Notes for reviewers
 
-<!-- Anything non-obvious, tradeoffs made, or things you want a second opinion on. -->
+<!-- Anything non-obvious, trade-offs, or where you'd like a second opinion. -->

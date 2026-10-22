@@ -4,7 +4,7 @@
 > researched, evidence-gated tasks that survive context compaction,
 > context loss and agent handover. A new agent with zero chat history
 > must be able to start from this directory alone.
-> Status of this system: all tasks are `TODO`. Nothing here is done
+> Each task carries its own status in its epic file. Nothing here is done
 > until its evidence exists (see "Definition of done" below).
 
 ## Start here (cold-agent reading order)

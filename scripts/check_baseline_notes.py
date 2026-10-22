@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """AJ-E803: a PR that changes visual baselines must explain each one.
 
-The PR body needs a "## Visual baselines" section naming the task ID
-(AJ-E…) and, for every changed baseline, a line that names it (the file
+The PR body needs a "## Visual baselines" section naming what the change
+is for (a task ID, AJ-E…, or an issue, #123) and, for every changed
+baseline, a line that names it (the file
 name, without ".png") with a note on the intentional change. A bulk
 "updated all baselines" without per-screen notes fails.
 
@@ -37,8 +38,8 @@ def main() -> int:
         return 1
     section = match.group(1)
     problems = []
-    if not re.search(r"\bAJ-E\d{3,4}\b", section):
-        problems.append("the section names no task ID (AJ-E…)")
+    if not re.search(r"\bAJ-E\d{3,4}\b|(?<![\w&])#\d+\b", section):
+        problems.append("the section names no task (AJ-E…) or issue (#123)")
     for path in files:
         name = os.path.basename(path)[: -len(".png")]
         line = next((l for l in section.splitlines() if name in l), None)
