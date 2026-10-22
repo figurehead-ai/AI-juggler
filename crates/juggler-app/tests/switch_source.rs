@@ -161,3 +161,137 @@ fn a_session_that_knows_its_conversation_switches_by_it() {
         "B continues the same conversation, byte for byte"
     );
 }
+
+/// AJ-E1541: A → B → C, then back to where it started. Every switch after
+/// the first starts from the epoch the previous switch made, so the chain is
+/// one path: the plan offers B and A, and returning to A carries what was
+/// new on B and on C (found by the live lab: each switch started a new
+/// chain, and "back" could only reach the last hop).
+#[test]
+fn a_chain_of_switches_returns_to_where_it_started_with_every_hop() {
+    let work = tempfile::tempdir().unwrap();
+    let state = app_state(work.path());
+    let project = work.path().join("lab");
+    std::fs::create_dir_all(&project).unwrap();
+    let cwd = project.to_string_lossy().into_owned();
+    let account = |label: &str| {
+        let account = commands::create_account(&state, CLAUDE_CODE_ID, label, None).unwrap();
+        let profile = commands::create_profile(&state, &account.id, "Main", None, None).unwrap();
+        (account.id, profile.id)
+    };
+    let (a, profile_a) = account("Alpha");
+    let (b, profile_b) = account("Bravo");
+    let (_c, profile_c) = account("Charlie");
+    let file_of = |account: &str, native: &str| {
+        state
+            .accounts_dir()
+            .join(CLAUDE_CODE_ID)
+            .join(account)
+            .join("projects")
+            .join(cwd.replace('/', "-"))
+            .join(format!("{native}.jsonl"))
+    };
+    let append = |path: &std::path::Path, uuid: &str, kind: &str, text: &str| {
+        use std::io::Write as _;
+        let mut file = std::fs::OpenOptions::new().append(true).open(path).unwrap();
+        writeln!(
+            file,
+            "{{\"type\":\"{kind}\",\"uuid\":\"{uuid}\",\"cwd\":\"{cwd}\",\"message\":{{\"role\":\"{kind}\",\"content\":\"{text}\"}}}}"
+        )
+        .unwrap();
+    };
+    let native = "0b5e0e5c-6c0b-4c55-9a6b-2a7d3c9f1e22";
+    let a_file = file_of(&a, native);
+    seed(&a_file, native, &cwd);
+
+    let machine = commands::local_machine_id(&state);
+    let session = SessionId::new("chain-start");
+    {
+        let storage = state.storage.lock().unwrap();
+        let project_row = storage
+            .projects()
+            .touch(&juggler_core::storage::project_root(&project), None)
+            .unwrap();
+        storage
+            .sessions()
+            .insert(&InstanceRecord {
+                id: session.clone(),
+                conversation: Some(ConversationId::new(native)),
+                profile: juggler_core::model::ProfileId::new(profile_a.clone()),
+                machine,
+                kind: InstanceKind::Terminal,
+                project: Some(project_row.id),
+                cwd: project.clone(),
+                status: SessionStatus::Finished,
+                started_at: Timestamp::from_millis(Timestamp::now().millis() + 60_000),
+                last_activity: None,
+                usage: Default::default(),
+                attention: None,
+                running: None,
+                window: None,
+                transcript_ref: None,
+            })
+            .unwrap();
+    }
+
+    let on_b =
+        commands::switch_execute_impl(&state, session.as_str(), &profile_b, "stop-now", None, &[])
+            .unwrap();
+    append(
+        &file_of(&b, native),
+        "b1",
+        "user",
+        "name the multiply function times",
+    );
+    let on_c =
+        commands::switch_execute_impl(&state, &on_b.session_id, &profile_c, "stop-now", None, &[])
+            .unwrap();
+    let c_file = {
+        let storage = state.storage.lock().unwrap();
+        storage
+            .sessions()
+            .get(&SessionId::new(on_c.session_id.clone()))
+            .unwrap()
+            .transcript_ref
+            .unwrap()
+            .path
+    };
+    append(
+        &c_file,
+        "c1",
+        "assistant",
+        "the release name is Copper Kettle",
+    );
+
+    let plan = commands::switch_back_plan_impl(&state, &on_c.session_id).unwrap();
+    let offered: Vec<(&str, bool)> = plan
+        .returns
+        .iter()
+        .map(|r| (r.account.as_str(), r.start))
+        .collect();
+    assert_eq!(offered, vec![("Bravo", false), ("Alpha", true)]);
+    let start = plan
+        .returns
+        .iter()
+        .find(|r| r.start)
+        .unwrap()
+        .epoch_id
+        .clone();
+
+    let back = commands::switch_back_plan_to_impl(&state, &on_c.session_id, Some(&start)).unwrap();
+    assert_eq!(back.original_account, "Alpha");
+    let delta = &back.delta_preview;
+    assert!(
+        delta.starts_with("While you were away, this work continued on Bravo, then Charlie"),
+        "{delta}"
+    );
+    assert!(
+        delta.contains("name the multiply function times"),
+        "{delta}"
+    );
+    assert!(delta.contains("Copper Kettle"), "{delta}");
+    assert!(
+        !delta.contains("calc.py is written"),
+        "A's own turns aren't news to A: {delta}"
+    );
+}

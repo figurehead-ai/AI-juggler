@@ -483,33 +483,48 @@ pub(crate) fn transcript_of(
         path,
         native_id: Some(id.to_owned()),
     };
-    if let Ok(all) = state.conversations.all() {
-        if let Some(found) = all.into_iter().find(|conversation| {
+    if let Ok(all) = state.conversations.all()
+        && let Some(found) = all.into_iter().find(|conversation| {
             conversation.account_id == account.id.as_str()
                 && conversation.summary.id == id
                 && !taken.contains(&conversation.path)
-        }) {
-            return Some(reference(found.path));
-        }
+        })
+    {
+        return Some(reference(found.path));
     }
     let adapter = state.registry.get(&account.harness)?;
-    let mut files: Vec<PathBuf> = adapter
+    let holds_it = |path: &PathBuf| {
+        adapter
+            .read_conversation_quick(path)
+            .or_else(|| adapter.read_conversation(path))
+            .is_some_and(|summary| summary.id == id)
+    };
+    let (named, others): (Vec<PathBuf>, Vec<PathBuf>) = adapter
         .conversation_files(&account.state_dir)
         .into_iter()
         .filter(|path| !taken.contains(path))
-        .collect();
-    // The files named for it first: both tools put the id in the name.
-    files.sort_by_key(|path| {
-        !path
-            .file_name()
-            .is_some_and(|name| name.to_string_lossy().contains(id))
-    });
-    files.into_iter().find_map(|path| {
-        let summary = adapter
-            .read_conversation_quick(&path)
-            .or_else(|| adapter.read_conversation(&path))?;
-        (summary.id == id).then(|| reference(path))
-    })
+        .partition(|path| {
+            path.file_name()
+                .is_some_and(|name| name.to_string_lossy().contains(id))
+        });
+    // Both tools put the id in the file name. A tool that writes a new file
+    // on every resume (Codex) has several: the newest holds the latest turns.
+    let modified = |path: &PathBuf| {
+        std::fs::metadata(path)
+            .and_then(|meta| meta.modified())
+            .ok()
+    };
+    if let Some(newest) = named
+        .into_iter()
+        .filter(|path| holds_it(path))
+        .max_by_key(|path| modified(path))
+    {
+        return Some(reference(newest));
+    }
+    others
+        .into_iter()
+        .find(|path| holds_it(path))
+        .map(reference)
 }
 
 /// The copyable line that resumes a conversation started outside AI

@@ -6509,29 +6509,52 @@ fn record_edge_staged(
             message: "session has no project link".into(),
         });
     };
-    let work = match graph.works_for_project(project)?.into_iter().next_back() {
-        Some(existing) => existing,
-        None => graph
-            .create_work(project, "Work")
-            .map_err(|error| AppError::Io {
-                context: "hand over",
-                message: error.to_string(),
-            })?,
+    // AJ-E1541: a session that itself came from a switch already has an
+    // epoch (the one that switch created for it). This switch starts from
+    // that epoch, in its work, so the chain A → B → Codex stays one path
+    // and switching back can walk all of it. A new epoch only for a session
+    // no switch has touched.
+    let works = graph.works_for_project(project)?;
+    let mut existing = None;
+    for work in works.iter().rev() {
+        if let Some(epoch) = graph
+            .epochs_for_work(&work.id)?
+            .into_iter()
+            .rev()
+            .find(|epoch| epoch.session_ref.as_ref() == Some(&source.id))
+        {
+            existing = Some((work.clone(), epoch));
+            break;
+        }
+    }
+    let (work, from) = if let Some(found) = existing {
+        found
+    } else {
+        let work = match works.into_iter().next_back() {
+            Some(existing) => existing,
+            None => graph
+                .create_work(project, "Work")
+                .map_err(|error| AppError::Io {
+                    context: "hand over",
+                    message: error.to_string(),
+                })?,
+        };
+        let from = Epoch {
+            id: EpochId::new(format!("ep-{}", unique_suffix())),
+            work: work.id.clone(),
+            session_ref: Some(source.id.clone()),
+            native_id: reference.native_id.clone(),
+            account: account_a.id.clone(),
+            provider: account_a.harness.clone(),
+            resumed_from_epoch: None,
+            machine: None,
+        };
+        graph.insert_epoch(&from).map_err(|error| AppError::Io {
+            context: "hand over",
+            message: error.to_string(),
+        })?;
+        (work, from)
     };
-    let from = Epoch {
-        id: EpochId::new(format!("ep-{}", unique_suffix())),
-        work: work.id.clone(),
-        session_ref: Some(source.id.clone()),
-        native_id: reference.native_id.clone(),
-        account: account_a.id.clone(),
-        provider: account_a.harness.clone(),
-        resumed_from_epoch: None,
-        machine: None,
-    };
-    graph.insert_epoch(&from).map_err(|error| AppError::Io {
-        context: "hand over",
-        message: error.to_string(),
-    })?;
     let edge_id = SwitchEdgeId::new(format!("edge-{}", unique_suffix()));
     graph
         .append_edge(&SwitchEdge {
@@ -10777,6 +10800,22 @@ pub struct SwitchBackPlanInfo {
     pub base_turns: u32,
     /// Tracked-artifact conflicts needing a choice.
     pub conflicts: Vec<FileConflictInfo>,
+    /// AJ-E1541: every account this work can go back to, nearest first
+    /// (A → B → Codex: B, then A, where it started).
+    pub returns: Vec<SwitchBackReturnInfo>,
+    /// The epoch this plan returns to (one of `returns`).
+    pub return_to: String,
+}
+
+/// One account a switch back can return to (AJ-E1541).
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize)]
+pub struct SwitchBackReturnInfo {
+    /// The epoch to pass back as `to_epoch`.
+    pub epoch_id: String,
+    /// The account's label.
+    pub account: String,
+    /// Whether this is where the work started.
+    pub start: bool,
 }
 
 /// One user resolution from the review UI.
@@ -10802,6 +10841,24 @@ struct BackLineage {
     away_session: juggler_core::model::InstanceRecord,
     /// The original session row, when it still exists.
     original_session: Option<juggler_core::model::InstanceRecord>,
+    /// AJ-E1541: the epochs the work went through between the original
+    /// and the away one, oldest first (A → B → Codex, returning to A: B).
+    intermediate: Vec<BackHop>,
+    /// Whether the away epoch began as a replay (another tool): its first
+    /// user turn is the replay, not new work.
+    away_primed: bool,
+    /// Every epoch this away one can return to, nearest first.
+    returns: Vec<(juggler_core::model::EpochId, juggler_core::model::AccountId)>,
+}
+
+/// One epoch between the original and the away one (AJ-E1541).
+struct BackHop {
+    /// The epoch.
+    epoch: juggler_core::model::Epoch,
+    /// Its session row, when it still exists.
+    session: Option<juggler_core::model::InstanceRecord>,
+    /// Whether it began as a replay from another tool.
+    primed: bool,
 }
 
 /// Walks the graph from an away instance to its fork: the confirmed
@@ -10814,12 +10871,13 @@ struct BackLineage {
 fn back_lineage(
     state: &Arc<AppState>,
     session_id: &str,
+    to_epoch: Option<&str>,
 ) -> AppResult<(
     BackLineage,
     juggler_core::model::Account,
     juggler_core::model::Account,
 )> {
-    use juggler_core::model::{EdgeState, SessionId};
+    use juggler_core::model::SessionId;
 
     let storage = lock_storage_arc(state)?;
     let away_session = storage
@@ -10852,20 +10910,26 @@ fn back_lineage(
         else {
             continue;
         };
-        let Some(fork_edge) = graph.edges_for_work(&work.id)?.into_iter().find(|edge| {
-            edge.to_epoch.as_ref() == Some(&away_epoch.id)
-                && matches!(edge.state, EdgeState::Confirmed)
-        }) else {
+        let mut chain = chain_back(&epochs, &graph.edges_for_work(&work.id)?, &away_epoch)?;
+        if chain.is_empty() {
             continue;
+        }
+        let target = match to_epoch {
+            Some(id) => chain
+                .iter()
+                .position(|(_, epoch)| epoch.id.as_str() == id)
+                .ok_or_else(|| {
+                    AppError::Refused("That account isn't one this work came from".to_owned())
+                })?,
+            None => 0,
         };
-        let original_epoch = graph
-            .epochs_for_work(&work.id)?
-            .into_iter()
-            .find(|epoch| epoch.id == fork_edge.from_epoch)
-            .ok_or_else(|| AppError::Io {
-                context: "switch back",
-                message: "The switch's source epoch is missing from the graph".to_owned(),
-            })?;
+        let away_primed = is_replay(&chain[0].0);
+        let intermediate = hops_of(&storage, &chain, target);
+        let returns = chain
+            .iter()
+            .map(|(_, epoch)| (epoch.id.clone(), epoch.account.clone()))
+            .collect();
+        let (fork_edge, original_epoch) = chain.swap_remove(target);
         let original_session = original_epoch
             .session_ref
             .as_ref()
@@ -10877,6 +10941,9 @@ fn back_lineage(
             fork_edge,
             away_session,
             original_session,
+            intermediate,
+            away_primed,
+            returns,
         });
         break;
     }
@@ -10903,6 +10970,127 @@ fn back_lineage(
             )
         })?;
     Ok((lineage, away_account, original_account))
+}
+
+/// AJ-E1541: the confirmed edges back from `away`, nearest first: (the
+/// edge into each epoch, the epoch it came from). A loop back to an epoch
+/// already visited stops the walk at its first visit.
+fn chain_back(
+    epochs: &[juggler_core::model::Epoch],
+    edges: &[juggler_core::model::SwitchEdge],
+    away: &juggler_core::model::Epoch,
+) -> AppResult<Vec<(juggler_core::model::SwitchEdge, juggler_core::model::Epoch)>> {
+    let mut chain: Vec<(juggler_core::model::SwitchEdge, juggler_core::model::Epoch)> = Vec::new();
+    let mut current = away.id.clone();
+    while let Some(edge) = edges.iter().find(|edge| {
+        edge.to_epoch.as_ref() == Some(&current)
+            && matches!(edge.state, juggler_core::model::EdgeState::Confirmed)
+    }) {
+        let Some(from) = epochs
+            .iter()
+            .find(|epoch| epoch.id == edge.from_epoch)
+            .cloned()
+        else {
+            return Err(AppError::Io {
+                context: "switch back",
+                message: "The switch's source epoch is missing from the graph".to_owned(),
+            });
+        };
+        if chain.iter().any(|(_, seen)| seen.id == from.id) {
+            break;
+        }
+        current = from.id.clone();
+        chain.push((edge.clone(), from));
+    }
+    Ok(chain)
+}
+
+/// AJ-E1541: the epochs between the return target (`chain[target]`) and
+/// the away one, oldest first: the epoch each nearer edge came from, with
+/// whether that epoch's own way in was a replay.
+fn hops_of(
+    storage: &juggler_core::storage::Storage,
+    chain: &[(juggler_core::model::SwitchEdge, juggler_core::model::Epoch)],
+    target: usize,
+) -> Vec<BackHop> {
+    (0..target)
+        .rev()
+        .map(|index| {
+            let epoch = chain[index].1.clone();
+            let session = epoch
+                .session_ref
+                .as_ref()
+                .and_then(|id| storage.sessions().get(id).ok());
+            BackHop {
+                primed: is_replay(&chain[index + 1].0),
+                epoch,
+                session,
+            }
+        })
+        .collect()
+}
+
+/// AJ-E1541: a session started by a switch to another tool has no
+/// transcript link until its tool writes one. Links every session on the
+/// way back (persisted, the same lookup the switch uses) before the facts
+/// are read.
+fn link_chain(state: &Arc<AppState>, session_id: &str, to_epoch: Option<&str>) -> AppResult<()> {
+    let (lineage, _, _) = back_lineage(state, session_id, to_epoch)?;
+    let unlinked: Vec<String> = std::iter::once(&lineage.away_session)
+        .chain(
+            lineage
+                .intermediate
+                .iter()
+                .filter_map(|hop| hop.session.as_ref()),
+        )
+        .chain(lineage.original_session.iter())
+        .filter(|row| row.transcript_ref.is_none())
+        .map(|row| row.id.to_string())
+        .collect();
+    drop(lineage);
+    for id in &unlinked {
+        let _ = handover_source_linked(state, id);
+    }
+    Ok(())
+}
+
+/// Whether an edge was a replay into another tool (AJ-E1541).
+fn is_replay(edge: &juggler_core::model::SwitchEdge) -> bool {
+    matches!(edge.mechanism, juggler_core::model::SwitchMechanism::Replay)
+}
+
+/// AJ-E1541: what was new on each hop between the account returned to and
+/// the away one, oldest first. `previous` starts as the returned-to
+/// account's uuids and gains each hop's, so a later hop counts only its own.
+fn hops_between(
+    state: &Arc<AppState>,
+    hops: &[BackHop],
+    previous: &mut std::collections::HashSet<String>,
+) -> AppResult<Vec<juggler_handover::switch_back::DeltaHop>> {
+    let mut out = Vec::new();
+    for hop in hops {
+        let Some(row) = hop.session.as_ref() else {
+            continue;
+        };
+        let account = {
+            let storage = lock_storage_arc(state)?;
+            storage.accounts().get(&hop.epoch.account).ok()
+        };
+        let Some(account) = account else {
+            continue;
+        };
+        let reference = newest_transcript(state, &account, row.transcript_ref.clone());
+        let Some((uuids, turns)) = reference.as_ref().and_then(|r| transcript_side(&r.path)) else {
+            continue;
+        };
+        let turns = new_turns(turns, previous, hop.primed);
+        previous.extend(uuids);
+        out.push(juggler_handover::switch_back::DeltaHop {
+            account: account.label.clone(),
+            turns,
+        });
+    }
+    Ok(out)
 }
 
 /// One side's conversation facts: the uuid set (reconciliation) and
@@ -10938,6 +11126,44 @@ fn transcript_side(
     Some((uuids, turns))
 }
 
+/// AJ-E1541: the turns of one hop that are new on it: not in what came
+/// before (`previous`), and without its first user turn when it began as
+/// a replay from another tool (that turn is the replay, not new work).
+fn new_turns(
+    turns: Vec<juggler_handover::pack::IrTurn>,
+    previous: &std::collections::HashSet<String>,
+    primed: bool,
+) -> Vec<juggler_handover::pack::IrTurn> {
+    let mut skipped_prime = !primed;
+    turns
+        .into_iter()
+        .filter(|turn| {
+            if !skipped_prime && turn.role == juggler_handover::pack::IrRole::User {
+                skipped_prime = true;
+                return false;
+            }
+            turn.uuid
+                .as_ref()
+                .is_none_or(|uuid| !previous.contains(uuid))
+        })
+        .collect()
+}
+
+/// AJ-E1541: the newest file of a linked conversation. A tool that writes
+/// a new file on every resume (Codex) leaves the first link behind; the
+/// conversation's id finds the file that holds the latest turns.
+fn newest_transcript(
+    state: &Arc<AppState>,
+    account: &juggler_core::model::Account,
+    reference: Option<juggler_core::model::TranscriptRef>,
+) -> Option<juggler_core::model::TranscriptRef> {
+    let reference = reference?;
+    let Some(id) = reference.native_id.clone() else {
+        return Some(reference);
+    };
+    crate::features::conversations::transcript_of(state, account, &id, &[]).or(Some(reference))
+}
+
 /// Hashes the fork manifest's FILE-domain rows on one side now
 /// (transcript-kind rows are the conversation domain — uuid sets,
 /// never file choices; that split is how the copy-back ban stays
@@ -10970,6 +11196,7 @@ fn file_domain_hashes_now(
 fn back_facts(
     state: &Arc<AppState>,
     session_id: &str,
+    to_epoch: Option<&str>,
 ) -> AppResult<(
     BackLineage,
     juggler_core::model::Account,
@@ -10981,8 +11208,13 @@ fn back_facts(
 )> {
     use juggler_handover::reconcile::{reconcile_conversation, reconcile_files};
 
-    let (lineage, away_account, original_account) = back_lineage(state, session_id)?;
-    let away_reference = lineage.away_session.transcript_ref.clone();
+    link_chain(state, session_id, to_epoch)?;
+    let (lineage, away_account, original_account) = back_lineage(state, session_id, to_epoch)?;
+    let away_reference = newest_transcript(
+        state,
+        &away_account,
+        lineage.away_session.transcript_ref.clone(),
+    );
     let original_reference = lineage
         .original_session
         .as_ref()
@@ -11030,9 +11262,21 @@ fn back_facts(
         .as_ref()
         .and_then(|reference| transcript_side(&reference.path));
     let empty = std::collections::HashSet::new();
-    let (away_uuids, away_turns) = away_side.unwrap_or_else(|| (empty.clone(), Vec::new()));
+    let (mut away_uuids, mut away_turns) = away_side.unwrap_or_else(|| (empty.clone(), Vec::new()));
     let (original_uuids, _) = original_side.unwrap_or_else(|| (empty, Vec::new()));
-    let conversation = reconcile_conversation(&away_uuids, &original_uuids);
+    // AJ-E1541: the hops between, each reduced to what was new on it; a
+    // hop (or the away epoch) that began as a replay drops its first user
+    // turn, which is the replay itself.
+    let mut previous_uuids = original_uuids.clone();
+    let earlier_hops = hops_between(state, &lineage.intermediate, &mut previous_uuids)?;
+    if lineage.away_primed {
+        away_turns = new_turns(away_turns, &std::collections::HashSet::new(), true);
+        away_uuids = away_turns
+            .iter()
+            .filter_map(|turn| turn.uuid.clone())
+            .collect();
+    }
+    let conversation = reconcile_conversation(&away_uuids, &previous_uuids);
 
     // File domain: the fork manifest's non-transcript rows, hashed
     // on both sides now (three-way; conflicts never auto-merge).
@@ -11060,6 +11304,7 @@ fn back_facts(
         conversation: conversation.clone(),
         diff_stat: None, // the away pack's freeze-time stat rides E209's pack surfaces
         todo_note: None,
+        earlier_hops,
     };
     let away_live = matches!(
         lineage.away_session.status.as_str(),
@@ -11087,8 +11332,9 @@ fn back_facts(
 pub fn switch_back_plan(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
+    to_epoch: Option<String>,
 ) -> AppResult<SwitchBackPlanInfo> {
-    switch_back_plan_impl(state.inner(), &session_id)
+    switch_back_plan_to_impl(state.inner(), &session_id, to_epoch.as_deref())
 }
 
 /// Core implementation shared with integration tests.
@@ -11100,13 +11346,46 @@ pub fn switch_back_plan_impl(
     state: &Arc<AppState>,
     session_id: &str,
 ) -> AppResult<SwitchBackPlanInfo> {
+    switch_back_plan_to_impl(state, session_id, None)
+}
+
+/// [`switch_back_plan_impl`] returning to a chosen earlier epoch
+/// (AJ-E1541): `None` is the account the work came from last.
+///
+/// # Errors
+///
+/// [`AppError::Refused`] when `to_epoch` isn't one this work came from;
+/// otherwise as [`switch_back_plan_impl`].
+pub fn switch_back_plan_to_impl(
+    state: &Arc<AppState>,
+    session_id: &str,
+    to_epoch: Option<&str>,
+) -> AppResult<SwitchBackPlanInfo> {
     use juggler_handover::switch_back::{
         OriginalSession, Sf7Fallback, both_live_copy, delta_turn_text, divergence_copy,
         suggestion_copy,
     };
 
-    let (_lineage, _away_account, original_account, delta_input, conflicts, away_live, verdict) =
-        back_facts(state, session_id)?;
+    let (lineage, _away_account, original_account, delta_input, conflicts, away_live, verdict) =
+        back_facts(state, session_id, to_epoch)?;
+    let returns = {
+        let storage = lock_storage_arc(state)?;
+        let last = lineage.returns.len().saturating_sub(1);
+        lineage
+            .returns
+            .iter()
+            .enumerate()
+            .map(|(index, (epoch, account))| SwitchBackReturnInfo {
+                epoch_id: epoch.to_string(),
+                account: storage
+                    .accounts()
+                    .get(account)
+                    .map_or_else(|_| account.to_string(), |found| found.label),
+                start: index == last,
+            })
+            .collect::<Vec<_>>()
+    };
+    let return_to = lineage.original_epoch.id.to_string();
     let away_only_turns =
         u32::try_from(juggler_handover::switch_back::delta_turns(&delta_input).len())
             .unwrap_or(u32::MAX);
@@ -11146,6 +11425,8 @@ pub fn switch_back_plan_impl(
             .unwrap_or(u32::MAX),
         base_turns: u32::try_from(delta_input.conversation.base_uuids).unwrap_or(u32::MAX),
         conflicts: conflicts.iter().map(FileConflictInfo::of).collect(),
+        returns,
+        return_to,
     })
 }
 
@@ -11168,8 +11449,15 @@ pub fn switch_back_execute(
     session_id: String,
     choices: Vec<SwitchBackChoiceIn>,
     keep_away_running: bool,
+    to_epoch: Option<String>,
 ) -> AppResult<LaunchResult> {
-    switch_back_execute_impl(state.inner(), &session_id, &choices, keep_away_running)
+    switch_back_execute_to_impl(
+        state.inner(),
+        &session_id,
+        &choices,
+        keep_away_running,
+        to_epoch.as_deref(),
+    )
 }
 
 /// Core implementation shared with integration tests.
@@ -11183,10 +11471,27 @@ pub fn switch_back_execute_impl(
     choices: &[SwitchBackChoiceIn],
     keep_away_running: bool,
 ) -> AppResult<LaunchResult> {
+    switch_back_execute_to_impl(state, session_id, choices, keep_away_running, None)
+}
+
+/// [`switch_back_execute_impl`] returning to a chosen earlier epoch
+/// (AJ-E1541): `None` is the account the work came from last.
+///
+/// # Errors
+///
+/// [`AppError::Refused`] when `to_epoch` isn't one this work came from;
+/// otherwise as [`switch_back_execute_impl`].
+pub fn switch_back_execute_to_impl(
+    state: &Arc<AppState>,
+    session_id: &str,
+    choices: &[SwitchBackChoiceIn],
+    keep_away_running: bool,
+    to_epoch: Option<&str>,
+) -> AppResult<LaunchResult> {
     use juggler_handover::switch_back::{plan_resolutions, unresolved};
 
     let (lineage, away_account, original_account, delta_input, conflicts, away_live, verdict) =
-        back_facts(state, session_id)?;
+        back_facts(state, session_id, to_epoch)?;
     // S-F8: every conflict resolved or the work stays forked — an
     // error, never a guess.
     let resolutions = parse_switch_back_choices(choices);

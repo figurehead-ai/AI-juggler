@@ -55,6 +55,9 @@ use serde_json::{Value, json};
 const CODENAME: &str = "BLUE-HERON";
 /// The name chosen on account B for the multiply function.
 const MUL_NAME: &str = "times";
+/// A release name chosen on Codex and only said, never written to a
+/// file: switching back can know it only from the conversation.
+const RELEASE: &str = "Copper Kettle";
 
 struct Lab {
     project: PathBuf,
@@ -502,7 +505,9 @@ fn switch_lab_live() {
                         Some(id),
                         &format!(
                             "Now add the multiply function under the name chosen earlier, with a \
-                             test, run `python3 -m unittest`, and mark it done."
+                             test, run `python3 -m unittest`, and mark it done. Then tell me, \
+                             only in your reply and in no file, that this version's release name \
+                             is \"{RELEASE}\"."
                         ),
                     ),
                     None => (None, String::new(), false),
@@ -525,8 +530,16 @@ fn switch_lab_live() {
 
     // 4. Switch back to A.
     if let Some((away, _thread)) = &on_codex {
+        // Back to where the work started (A), not the last hop (B).
         let plan = commands::switch_back_plan_impl(&state, away);
-        let back = commands::switch_back_execute_impl(&state, away, &[], false);
+        let start = plan.as_ref().ok().and_then(|plan| {
+            plan.returns
+                .iter()
+                .find(|r| r.start)
+                .map(|r| r.epoch_id.clone())
+        });
+        let back =
+            commands::switch_back_execute_to_impl(&state, away, &[], false, start.as_deref());
         let step4 = match &back {
             Ok(done) => {
                 let argv = take_launch(&state, &done.session_id, done.pid);
@@ -538,12 +551,15 @@ fn switch_lab_live() {
                     None,
                     Some(&native),
                     &format!(
-                        "{delta}\n\n---\nWithout changing any file: what is the codename, what was \
-                         done while you were away, and which tasks are still open? One short line."
+                        "{delta}\n\n---\nWithout changing or reading any file: what is the \
+                         codename, what release name was picked while you were away, and what was \
+                         done meanwhile? One short line."
                     ),
                 );
                 let answer = probe["result"].as_str().unwrap_or_default().to_owned();
-                let carried = mentions(&answer, CODENAME) && mentions(&answer, MUL_NAME);
+                // Only the conversation knows the release name: it was never
+                // written to a file.
+                let carried = mentions(&answer, CODENAME) && mentions(&answer, RELEASE);
                 json!({"step": "4 switch back to A", "ok": carried && tests_pass(&lab.project),
                        "switch_back": carried, "probe": answer, "delta": delta,
                        "plan": plan.as_ref().map(|p| serde_json::to_value(p).unwrap()).ok()})

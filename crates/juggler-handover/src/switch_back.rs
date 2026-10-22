@@ -24,7 +24,16 @@ use crate::reconcile::{self, ConflictChoice, ConversationReconciliation, FileCon
 const MAX_RENDERED_TURNS: usize = 40;
 
 /// Characters per rendered turn one-liner.
-const MAX_LINE_CHARS: usize = 120;
+const MAX_LINE_CHARS: usize = 160;
+
+/// The newest turns rendered in full (bounded by [`FULL_TURN_CHARS`]):
+/// the latest decisions are what the returning session most needs, and
+/// they are often at the end of a long reply (AJ-E1541, found by the live
+/// lab: a name said only in the last reply was cut off at 120 chars).
+const FULL_TURNS: usize = 6;
+
+/// Characters kept from each of the [`FULL_TURNS`] newest turns.
+const FULL_TURN_CHARS: usize = 1_500;
 
 /// Everything the delta turn renders from (already reconciled).
 #[derive(Clone, PartialEq, Debug)]
@@ -45,6 +54,21 @@ pub struct DeltaInput {
     pub diff_stat: Option<String>,
     /// The away pack's todo changes line, when any.
     pub todo_note: Option<String>,
+    /// AJ-E1541: the hops between the account returned to and the away
+    /// one, oldest first (A → B → Codex, returning to A: B's new turns),
+    /// each already reduced to what was new on it. Empty for a one-hop
+    /// return.
+    pub earlier_hops: Vec<DeltaHop>,
+}
+
+/// One account the work continued on before the away one, and what was
+/// new there (AJ-E1541).
+#[derive(Clone, PartialEq, Debug)]
+pub struct DeltaHop {
+    /// The account's label.
+    pub account: String,
+    /// The turns new on that account, in file order.
+    pub turns: Vec<IrTurn>,
 }
 
 /// The away turns that belong to the delta, in file order, deduped
@@ -69,47 +93,87 @@ pub fn delta_turns(input: &DeltaInput) -> Vec<IrTurn> {
     turns
 }
 
-/// Renders the ONE "While you were away" delta turn (§6.1): turns,
-/// diff stat, todo changes — summarised, with the pack attached by
-/// the caller. Bounded: at most `MAX_RENDERED_TURNS` one-liners of at
-/// most `MAX_LINE_CHARS` each (the ≤4k-token default; the full detail
-/// rides the pack, it is never replayed verbatim).
+/// Renders the ONE "While you were away" delta turn (§6.1): what was new
+/// on every account since this one, oldest hop first, then the diff stat
+/// and todo changes. Bounded: the newest [`MAX_RENDERED_TURNS`] turns, of
+/// which the newest [`FULL_TURNS`] keep up to [`FULL_TURN_CHARS`] and the
+/// rest are one-liners of [`MAX_LINE_CHARS`]; older turns are counted.
+/// Nothing is promised that isn't in the text (no pack is attached).
 #[must_use]
 pub fn delta_turn_text(input: &DeltaInput) -> String {
     use std::fmt::Write as _;
-    let turns = delta_turns(input);
-    let mut text = String::new();
-    let original_only_note = if input.conversation.original_only_uuids > 0 {
-        format!(
-            ", {} new here on {}",
-            input.conversation.original_only_uuids, input.original_account
-        )
-    } else {
-        String::new()
-    };
-    let _ = writeln!(
-        text,
-        "While you were away on {} — {} new turns ({} shared before the switch{}).\n",
-        input.away_account,
-        turns.len(),
-        input.conversation.base_uuids,
-        original_only_note
+    let last = delta_turns(input);
+    let mut all: Vec<(&str, IrTurn)> = Vec::new();
+    for hop in &input.earlier_hops {
+        all.extend(
+            hop.turns
+                .iter()
+                .map(|turn| (hop.account.as_str(), turn.clone())),
+        );
+    }
+    all.extend(
+        last.into_iter()
+            .map(|turn| (input.away_account.as_str(), turn)),
     );
-    for turn in turns.iter().take(MAX_RENDERED_TURNS) {
+    let mut text = String::new();
+    if input.earlier_hops.is_empty() {
+        let original_only_note = if input.conversation.original_only_uuids > 0 {
+            format!(
+                ", {} new here on {}",
+                input.conversation.original_only_uuids, input.original_account
+            )
+        } else {
+            String::new()
+        };
+        let _ = writeln!(
+            text,
+            "While you were away on {} — {} new turns ({} shared before the switch{}).\n",
+            input.away_account,
+            all.len(),
+            input.conversation.base_uuids,
+            original_only_note
+        );
+    } else {
+        let route: Vec<&str> = input
+            .earlier_hops
+            .iter()
+            .map(|hop| hop.account.as_str())
+            .chain(std::iter::once(input.away_account.as_str()))
+            .collect();
+        let _ = writeln!(
+            text,
+            "While you were away, this work continued on {} — {} new turns.\n",
+            route.join(", then "),
+            all.len()
+        );
+    }
+    let shown_from = all.len().saturating_sub(MAX_RENDERED_TURNS);
+    if shown_from > 0 {
+        let _ = writeln!(text, "…{shown_from} earlier turns, not shown.");
+    }
+    let full_from = all.len().saturating_sub(FULL_TURNS);
+    let mut current: Option<&str> = None;
+    for (index, (account, turn)) in all.iter().enumerate().skip(shown_from) {
+        if !input.earlier_hops.is_empty() && current != Some(*account) {
+            let _ = writeln!(text, "On {account}:");
+            current = Some(*account);
+        }
         let role = match turn.role {
             crate::pack::IrRole::User => "user",
             crate::pack::IrRole::Assistant => "assistant",
         };
-        let mut line = turn.text.replace(['\n', '\r'], " ");
-        line.truncate(MAX_LINE_CHARS);
+        let limit = if index >= full_from {
+            FULL_TURN_CHARS
+        } else {
+            MAX_LINE_CHARS
+        };
+        let line: String = turn
+            .text
+            .replace(['\n', '\r'], " ")
+            .chars()
+            .take(limit)
+            .collect();
         let _ = writeln!(text, "- [{role}] {line}");
-    }
-    if turns.len() > MAX_RENDERED_TURNS {
-        let _ = writeln!(
-            text,
-            "…and {} more turns in the attached pack.",
-            turns.len() - MAX_RENDERED_TURNS
-        );
     }
     if let Some(diff) = &input.diff_stat {
         let _ = writeln!(text, "\nDiff while away: {diff}.");
@@ -119,7 +183,8 @@ pub fn delta_turn_text(input: &DeltaInput) -> String {
     }
     let _ = write!(
         text,
-        "\nFull detail: the attached switch pack (not replayed)."
+        "\nThe project's files are as they were left on {}. Pick up from here.",
+        input.away_account
     );
     text
 }
@@ -301,6 +366,7 @@ mod tests {
             conversation: reconcile_conversation(&away_uuids, &original_uuids),
             diff_stat: Some("+120 −8 across 3 files".into()),
             todo_note: Some("\"add retry\" → done".into()),
+            earlier_hops: Vec::new(),
         }
     }
 
@@ -323,10 +389,14 @@ mod tests {
         assert!(text.contains("- [user] fixed the login bug"));
         assert!(text.contains("Diff while away: +120 −8 across 3 files."));
         assert!(text.contains("Todos changed: \"add retry\" → done."));
-        assert!(text.ends_with("Full detail: the attached switch pack (not replayed)."));
-        // Bounded: one-liners only, no newlines inside a turn line
-        // beyond the bullet break.
-        assert!(text.lines().all(|line| line.chars().count() <= 160));
+        assert!(text.ends_with("as they were left on Personal. Pick up from here."));
+        // Nothing promised that isn't there.
+        assert!(!text.contains("pack"));
+        // Bounded: one line per turn, each within the full-turn limit.
+        assert!(
+            text.lines()
+                .all(|line| line.chars().count() <= FULL_TURN_CHARS + 20)
+        );
     }
 
     #[test]
@@ -345,9 +415,39 @@ mod tests {
         };
         let text = delta_turn_text(&input);
         assert!(text.contains("100 new turns"));
-        assert!(text.contains("…and 60 more turns in the attached pack."));
+        assert!(text.contains("…60 earlier turns, not shown."));
         let rendered = text.lines().filter(|line| line.starts_with("- [")).count();
         assert_eq!(rendered, MAX_RENDERED_TURNS);
+    }
+
+    #[test]
+    fn the_newest_turns_keep_what_was_said_at_their_end() {
+        let mut input = delta_fixture();
+        let long = format!("{} The release name is Copper Kettle.", "x".repeat(400));
+        input.away_turns = vec![turn(Some("b1"), IrRole::Assistant, &long)];
+        let text = delta_turn_text(&input);
+        assert!(text.contains("Copper Kettle"), "{text}");
+    }
+
+    #[test]
+    fn a_return_over_several_hops_names_each_and_keeps_their_turns() {
+        let mut input = delta_fixture();
+        input.away_account = "Codex".into();
+        input.earlier_hops = vec![DeltaHop {
+            account: "Personal".into(),
+            turns: vec![turn(Some("p1"), IrRole::User, "add sub and name mul times")],
+        }];
+        let text = delta_turn_text(&input);
+        assert!(
+            text.starts_with(
+                "While you were away, this work continued on Personal, then Codex — 3 new turns."
+            ),
+            "{text}"
+        );
+        let personal = text.find("On Personal:").unwrap();
+        let codex = text.find("On Codex:").unwrap();
+        assert!(personal < codex);
+        assert!(text.contains("- [user] add sub and name mul times"));
     }
 
     #[test]
