@@ -187,6 +187,9 @@ fn a_usage_write_waits_for_another_connection_that_changes_the_database() {
     }
 }
 
+/// One store write, run against a competing writer.
+type Write<'a> = Box<dyn Fn() -> Result<(), juggler_core::error::CoreError> + 'a>;
+
 /// The other stores' write transactions, audited after #126's CI (only the
 /// usage store read before it wrote): each begins with a write, so SQLite
 /// takes the lock with a fresh snapshot and waits its turn. Each is run
@@ -207,10 +210,7 @@ fn every_store_write_waits_for_another_connection_that_changes_the_database() {
         payload: vec![1],
         wall_ms: 1,
     };
-    let writes: Vec<(
-        &str,
-        Box<dyn Fn() -> Result<(), juggler_core::error::CoreError> + '_>,
-    )> = vec![
+    let writes: Vec<(&str, Write<'_>)> = vec![
         (
             "transcript index append",
             Box::new(|| {
