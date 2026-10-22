@@ -25,6 +25,7 @@ const peer = (over: Partial<FleetPeerInfo> = {}): FleetPeerInfo => ({
   protocol: "v1.0",
   connection_detail: null,
   queued_changes: 0,
+  pairing_unfinished: false,
   ...over,
 });
 

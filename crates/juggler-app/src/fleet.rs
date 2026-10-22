@@ -98,6 +98,9 @@ pub struct FleetPeerInfo {
     /// what it receives when it reconnects.
     #[ts(type = "number | null")]
     pub queued_changes: Option<u64>,
+    /// This Mac finished pairing with it, but it may not have (it never
+    /// said Hello here since): "Pair again to finish it."
+    pub pairing_unfinished: bool,
 }
 
 fn link_error(error: impl std::fmt::Display) -> AppError {
@@ -239,10 +242,13 @@ pub fn fleet_peers_impl(state: &Arc<AppState>) -> AppResult<Vec<FleetPeerInfo>> 
                 protocol: None,
                 connection_detail: None,
                 queued_changes: None,
+                pairing_unfinished: false,
             })
             .collect::<Vec<_>>())
     })?;
+    let now = crate::commands::now_millis();
     for peer in &mut peers {
+        peer.pairing_unfinished = pairing_unfinished(state, &peer.machine_id, now);
         let link = state.link.peer_state(&peer.machine_id);
         peer.connection = link.state;
         peer.protocol = link.protocol;
@@ -259,6 +265,7 @@ pub fn fleet_peers_impl(state: &Arc<AppState>) -> AppResult<Vec<FleetPeerInfo>> 
 /// Returns the typed [`AppError`] for an unknown peer, broken trust, or
 /// a storage failure.
 pub fn fleet_unpair_impl(state: &Arc<AppState>, machine_id: &str) -> AppResult<()> {
+    pairing_finished(state, machine_id);
     with_fleet(state, |fleet| {
         let removed = fleet
             .registry
@@ -613,6 +620,60 @@ pub fn bind_account_peer(
         machine_id: peer.machine_id,
         permission: peer.permission,
     })
+}
+
+/// A pairing this Mac finished as host that the other machine may not have
+/// (it was stopped between its "yes" and the end): the time of the pin,
+/// kept until that machine's first Hello here. Display-only: it grants
+/// nothing, and it lives outside the signed peer list (which older builds
+/// would refuse with an extra field).
+const UNFINISHED_PREFIX: &str = "fleet_pairing_unfinished:";
+
+/// How long a pairing may wait for the other machine's first Hello before
+/// its row says it didn't finish (a normal pairing's comes in seconds).
+const UNFINISHED_AFTER_KEY: &str = "fleet_pairing_unfinished_after_ms";
+const UNFINISHED_AFTER_MS: i64 = 30_000;
+
+/// Notes a pairing this Mac finished as host at `at_ms`.
+pub(crate) fn mark_pairing_unfinished(state: &AppState, machine_id: &str, at_ms: i64) {
+    if let Ok(storage) = state.storage.lock() {
+        let _ = storage.app_settings().set(
+            &format!("{UNFINISHED_PREFIX}{machine_id}"),
+            &at_ms.to_string(),
+        );
+    }
+}
+
+/// The other machine said Hello, or was unpaired: nothing is unfinished.
+/// Writes only when something was noted (a Hello comes every connection).
+pub(crate) fn pairing_finished(state: &AppState, machine_id: &str) {
+    let key = format!("{UNFINISHED_PREFIX}{machine_id}");
+    if let Ok(storage) = state.storage.lock()
+        && storage.app_settings().get(&key).ok().flatten().is_some()
+    {
+        let _ = storage.app_settings().set(&key, "");
+    }
+}
+
+/// Whether the row says the pairing didn't finish: noted, and no Hello for
+/// longer than a normal pairing takes.
+fn pairing_unfinished(state: &AppState, machine_id: &str, now: i64) -> bool {
+    let Ok(storage) = state.storage.lock() else {
+        return false;
+    };
+    let settings = storage.app_settings();
+    let after = settings
+        .get(UNFINISHED_AFTER_KEY)
+        .ok()
+        .flatten()
+        .and_then(|raw| raw.parse::<i64>().ok())
+        .unwrap_or(UNFINISHED_AFTER_MS);
+    settings
+        .get(&format!("{UNFINISHED_PREFIX}{machine_id}"))
+        .ok()
+        .flatten()
+        .and_then(|raw| raw.parse::<i64>().ok())
+        .is_some_and(|since| now - since >= after)
 }
 
 /// Records that a pinned peer answered.

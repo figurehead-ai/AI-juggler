@@ -737,3 +737,87 @@ fn a_join_racing_link_off_pairs_nothing() {
         "nothing paired after Link off"
     );
 }
+
+/// The "unfinished" note on `node`'s row for `peer`, when it lists it.
+fn unfinished(node: &Arc<AppState>, peer: &Arc<AppState>) -> Option<bool> {
+    let id = machine_id(peer);
+    fleet::fleet_peers_impl(node)
+        .unwrap()
+        .into_iter()
+        .find(|row| row.machine_id == id)
+        .map(|row| row.pairing_unfinished)
+}
+
+/// Shows the note as soon as a pairing has no Hello (tests don't wait).
+fn no_wait(state: &Arc<AppState>) {
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .app_settings()
+        .set("fleet_pairing_unfinished_after_ms", "0")
+        .unwrap();
+}
+
+/// A normal pairing (no new message: an older joiner pairs the same way)
+/// never leaves the line: the joiner's first Hello finishes it, even
+/// with no wait.
+#[test]
+fn a_normal_pairing_never_shows_it_unfinished() {
+    let work = tempfile::tempdir().unwrap();
+    let a = app_state(&work.path().join("a"));
+    let b = app_state(&work.path().join("b"));
+    no_wait(&a);
+    link::link_set_enabled_impl(&a, true).unwrap();
+    link::link_set_enabled_impl(&b, true).unwrap();
+    pair(&a, &b);
+    wait_for("the joiner's Hello", || {
+        (unfinished(&a, &b) == Some(false)).then_some(())
+    });
+    assert_eq!(unfinished(&b, &a), Some(false), "the joiner notes nothing");
+}
+
+/// A joiner stopped between the decisions and the end of the exchange:
+/// whenever the host pinned it and it didn't pin the host, the host's row
+/// says the pairing didn't finish. Pairing again (its Hello) finishes it.
+#[test]
+fn a_joiner_stopped_mid_way_leaves_the_host_unfinished() {
+    for _ in 0..4 {
+        let work = tempfile::tempdir().unwrap();
+        let a = app_state(&work.path().join("a"));
+        let b = app_state(&work.path().join("b"));
+        no_wait(&a);
+        link::link_set_enabled_impl(&a, true).unwrap();
+        link::link_set_enabled_impl(&b, true).unwrap();
+        let code = link::pairing_host_open_impl(&a).unwrap().code.unwrap();
+        let address = format!("127.0.0.1:{}", link::link_status_impl(&a).port.unwrap());
+        link::pairing_join_start_impl(&b, None, Some(&address), &code).unwrap();
+        wait_for("joiner confirm", || {
+            phase(link::pairing_join_state_impl(&b).unwrap(), "confirm")
+        });
+        wait_for("host confirm", || {
+            phase(link::pairing_host_state_impl(&a).unwrap(), "confirm")
+        });
+        link::pairing_host_decide_impl(&a, true, Permission::View).unwrap();
+        std::thread::scope(|scope| {
+            scope.spawn(|| {
+                let _ = link::pairing_join_decide_impl(&b, true, Permission::View);
+            });
+            scope.spawn(|| link::link_set_enabled_impl(&b, false).unwrap());
+        });
+        std::thread::sleep(Duration::from_secs(1));
+        let joiner_pinned = !fleet::fleet_peers_impl(&b).unwrap().is_empty();
+        match unfinished(&a, &b) {
+            Some(shown) if !joiner_pinned => {
+                assert!(shown, "the host shows it didn't finish");
+                // Pairing again finishes it.
+                link::link_set_enabled_impl(&b, true).unwrap();
+                pair(&a, &b);
+                wait_for("the joiner's Hello", || {
+                    (unfinished(&a, &b) == Some(false)).then_some(())
+                });
+            }
+            _ => {}
+        }
+    }
+}

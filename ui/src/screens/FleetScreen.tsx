@@ -332,11 +332,32 @@ export function FleetScreen({
                 {peer.paired_via === "account" && (
                   <span className="text-[11px] text-muted">via your Figurehead account</span>
                 )}
-                <span className="text-[11px] text-muted">
-                  {peer.last_seen_ms === null
-                    ? "Not seen yet"
-                    : `Last seen ${new Date(peer.last_seen_ms).toLocaleString()}`}
-                </span>
+                {peer.pairing_unfinished ? (
+                  <>
+                    <span
+                      className="text-[11px] text-muted"
+                      role="status"
+                      data-testid="fleet-pairing-unfinished"
+                    >
+                      Pairing didn't finish on {peer.label}. Pair again to finish it.
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={!link?.enabled || self?.trust === "broken"}
+                      onClick={() => setWizard("host")}
+                      data-testid="fleet-pair-again"
+                    >
+                      Pair again<span className="sr-only"> with {peer.label}</span>
+                    </Button>
+                  </>
+                ) : (
+                  <span className="text-[11px] text-muted">
+                    {peer.last_seen_ms === null
+                      ? "Not seen yet"
+                      : `Last seen ${new Date(peer.last_seen_ms).toLocaleString()}`}
+                  </span>
+                )}
                 {onInspectRemote && (
                   <Button
                     size="sm"

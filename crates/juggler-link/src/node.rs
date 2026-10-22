@@ -73,6 +73,9 @@ pub trait PeerDirectory: Send + Sync + 'static {
     fn bind_account_peer(&self, _key: &[u8; 32], _machine_id: &str) -> Option<PeerAccess> {
         None
     }
+    /// A pinned peer's Hello was accepted: it is paired on its side too
+    /// (it only connects to machines it pinned). The default notes nothing.
+    fn hello_accepted(&self, _key: &[u8; 32], _machine_id: &str) {}
 }
 
 /// Why the node's handler refused a command.
@@ -972,6 +975,8 @@ impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore, P: PairingHost> proto::li
                 },
             );
         }
+        self.directory
+            .hello_accepted(&conn.peer_key, &access.machine_id);
         Ok(Response::new(proto::HelloResponse {
             version: Some(proto::ProtocolVersion {
                 major: PROTOCOL_MAJOR,

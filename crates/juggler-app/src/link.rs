@@ -352,6 +352,12 @@ impl PeerDirectory for AppDirectory {
         let identity = PublicIdentity::from_bytes(key).ok()?;
         crate::fleet::bind_account_peer(&state, &identity, machine_id)
     }
+
+    fn hello_accepted(&self, _key: &[u8; 32], machine_id: &str) {
+        if let Some(state) = self.0.upgrade() {
+            crate::fleet::pairing_finished(&state, machine_id);
+        }
+    }
 }
 
 /// What this node serves and executes.
@@ -1136,6 +1142,9 @@ impl PairingHost for AppPairing {
                 return;
             };
             let _ = crate::fleet::pin_candidate(&state, candidate, permission);
+            // Until its first Hello here: the joiner may have stopped
+            // before it pinned this Mac.
+            crate::fleet::mark_pairing_unfinished(&state, &candidate.machine_id, now_ms());
             SettingsReplayStore(self.state.clone()).reset(&candidate.machine_id);
             mark_reconnect(&state, &candidate.machine_id);
             if let Some(reach) = candidate.reach {
@@ -2569,5 +2578,67 @@ pub fn refresh_permissions_for_test(state: &Arc<AppState>) {
                 crate::remote::refresh_permission(&state.link.remote, &id, &own).await;
             }
         });
+    }
+}
+
+#[cfg(test)]
+mod unfinished_pairing_tests {
+    use super::*;
+
+    /// A pairing this Mac finished as host: unfinished until the other
+    /// machine's first Hello here (it may have stopped before it pinned
+    /// this Mac), shown only once that is longer than a pairing takes.
+    #[test]
+    fn a_hosts_pairing_is_unfinished_until_the_other_machines_first_hello() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = Arc::new(
+            AppState::init_with_registry(
+                dir.path().join("app-data"),
+                juggler_adapter::AdapterRegistry::new(),
+            )
+            .unwrap(),
+        );
+        if let Ok(mut open) = state.link.open.write() {
+            *open = true;
+        }
+        let joiner = juggler_link::MachineIdentity::load_or_create(&dir.path().join("joiner"))
+            .unwrap()
+            .public()
+            .to_bytes();
+        let host = AppPairing {
+            state: Arc::downgrade(&state),
+            guard: state.link.guard.clone(),
+            phase: state.link.host.clone(),
+            message: state.link.host_message.clone(),
+            key: [0; 32],
+        };
+        host.succeeded(
+            &PairCandidate {
+                machine_id: "m-joiner".to_owned(),
+                label: "Laptop".to_owned(),
+                key: joiner,
+                reach: None,
+                fingerprint: juggler_link::fingerprint_of(&joiner),
+            },
+            Permission::View,
+        );
+        let unfinished = || {
+            crate::fleet::fleet_peers_impl(&state)
+                .unwrap()
+                .into_iter()
+                .find(|peer| peer.machine_id == "m-joiner")
+                .map(|peer| peer.pairing_unfinished)
+        };
+        assert_eq!(unfinished(), Some(false), "not within a pairing's time");
+        state
+            .storage
+            .lock()
+            .unwrap()
+            .app_settings()
+            .set("fleet_pairing_unfinished_after_ms", "0")
+            .unwrap();
+        assert_eq!(unfinished(), Some(true), "no Hello from it since");
+        AppDirectory(Arc::downgrade(&state)).hello_accepted(&joiner, "m-joiner");
+        assert_eq!(unfinished(), Some(false), "its first Hello finishes it");
     }
 }
