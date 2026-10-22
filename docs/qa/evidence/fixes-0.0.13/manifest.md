@@ -1,0 +1,24 @@
+# Evidence manifest — the third fix batch (fix/maintainer-reports-3)
+
+Not a task's evidence. This covers QA's findings on 0.0.12/0.0.13 (walks on the real setup, read-only) and the coordinator's batch list after #120, with each fix's proof. "Before" lines are QA's on main 5675de90; "after" lines come from QA's re-run on this branch.
+
+| Claim / Req ID | Command / fixture / live step (exact) | Threshold | Observed | Verdict | Commit SHA | Date | Reviewer |
+|---|---|---|---|---|---|---|---|
+| P16 a tree's new processes count at once | `cargo test -p juggler-app --test load_budgets a_trees_new_processes_count_at_the_next_tick`: the session's shell starts two children after the warm-up's full scans; tick 4 (targeted) has them | in the tree at the next tick; fails without the listing | passed; with the listing off it failed (only the root) | PASS | 9f3529a9 | 2026-10-22 | claude-opus |
+| P16 cost | the same file's `monitoring_costs_under_one_percent_of_a_core` prints CPU: listing every 2nd tick 0.59–0.62 % of a core here (0.38 % before; every tick 0.89 %) | < 1 % | as stated | PASS | 9f3529a9 | 2026-10-22 | claude-opus |
+| P16 by hand, read-only | the real collector against this Mac's 5 Claude app trees vs `ps` | match | 14,735 vs 14,736 MB on the largest (50/50 processes); the others within a few MB | PASS | — | 2026-10-22 | claude-opus |
+| P16 QA's −2.2 GB | QA: the missing 2.5 GB process was its own harness, inside its own session's tree. The collector leaves out its own pid and subtree, which is correct; QA's oracle now drops it too | — | explained, no change | INFO | — | 2026-10-22 | QA session |
+| P6 no row dropped | `cargo test -p juggler-app --lib no_tree_is_dropped_past_the_top_three` (5 trees: top [5,4,3], others [2,1]); `pnpm --dir ui exec vitest run src/components/this-mac.test.tsx` (6 windows: 3 rows, "and 3 more", all 6, "Show fewer"; ≤3: no button) | pass | passed | PASS | 0de19c3c | 2026-10-22 | claude-opus |
+| P6 by hand | the preview `?aij_windows=6` (6 windows + the mock's running session) | 3 rows and "and 4 more", opening all 7 | as stated; the footer reads "This Mac · Plenty of room" | PASS | 4053c0e3 | 2026-10-22 | claude-opus |
+| P17 compaction usage | `cargo test -p juggler-adapters --test quota_ingest`: `a_compactions_own_usage_counts_once_never_the_starting_total` (subagent opens with `compacted`: 160 + 100, never the 2,224 total), `a_compaction_that_repeats_the_total_adds_nothing`, `a_compaction_split_across_passes_counts_once` (held back, then counted once) | pass | 28 passed | PASS | 2d76f161 | 2026-10-22 | claude-opus |
+| Shared messages: the earliest session | `cargo test -p juggler-adapters --test quota_ingest a_shared_message_belongs_to_the_session_that_came_first` (the original and its copy, read in both orders: the same split, history with the original, the account total unchanged). Rule: earliest first message, then earlier last message, then smaller id (approved) | pass; fails with first-file-wins | passed | PASS | db889ddc | 2026-10-22 | claude-opus |
+| Existing data | `REREAD_VERSION` 2: stored transcripts and rollouts are read again once, so P17 and the shared-message rule reach them | — | `cargo test -p juggler-app --test usage_pipeline` 4 passed | PASS | 2d76f161 | 2026-10-22 | claude-opus |
+| C2 tools by absolute path | `cargo test -p juggler-app --test no_bare_tools no_system_tool_is_spawned_by_bare_name` (scans the product source); `juggler_adapter::system_tools` (`/usr/bin/security`, `/usr/bin/open`, `/usr/bin/xdg-open`, git resolved once to an absolute path) | no bare spawn; fails when one is put back | passed; failed with `"open"` restored | PASS | ab15c8b2 | 2026-10-22 | claude-opus |
+| Threads are not processes | `cargo test -p juggler-app --test no_bare_tools every_process_refresh_leaves_out_threads` (every `ProcessRefreshKind::nothing()` says `.without_tasks()`) | pass | passed | PASS | 9ac4c10c | 2026-10-22 | claude-opus |
+| Deterministic tests | `machine_lock` (blocking lock while storage is held, after the tick's count moved); `load_budgets` monitoring (asserts work: ≤6 full scans, only our processes between); `guardrails` (each fixture's own pid; 10/10); AJ-E806's flake log | pass | passed | PASS | b90c6a0c, aaa7d666 | 2026-10-22 | claude-opus |
+| Stand-in writers | `juggler-supervisor/tests/fixtures/stand_in.rs`: every test that writes a fake tool does it from a child `sh` (25 sites) | the converted binaries pass | 20 juggler-app binaries, all adapter tests, `node_script_tool` passed | PASS | d036ac48 | 2026-10-22 | claude-opus |
+| Prices | OpenAI's pricing page, 2026-10-22: no row for gpt-5-codex, gpt-5.1-codex(-max/-mini), gpt-5.2-codex, codex-auto-review or codex-mini-latest. Claude Haiku 5.5 is priced by prompt length, which a per-row table can't represent | add only with a source | none added | PASS | — | 2026-10-22 | claude-opus |
+
+## Gates
+
+GATES_TBD
