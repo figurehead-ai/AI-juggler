@@ -67,6 +67,20 @@ Found and fixed on the way:
   first run's state is in `lib/first-run.ts`).
 - The caps are lowered.
 
+## Every page type, side by side
+
+After: `_gallery/79-pages/` on the replica, also at 1024 (`-1024x680-`). Before: the same type from cc1e9321's baselines (`before/`), where every page had the six fixed tabs.
+
+| Page | Dark, 1280 | Light, 1280 | Before (dark, 1280) |
+|---|---|---|---|
+| Session: Terminal | [dark](../_gallery/79-pages/session-terminal-1280x800-dark.png) | [light](../_gallery/79-pages/session-terminal-1280x800-light.png) | [before](before/inspector-instance-dark-comfortable-1280x800.png) |
+| Session: Usage | [dark](../_gallery/79-pages/session-usage-1280x800-dark.png) | [light](../_gallery/79-pages/session-usage-1280x800-light.png) | — |
+| Project: Sessions | [dark](../_gallery/79-pages/project-sessions-1280x800-dark.png) | [light](../_gallery/79-pages/project-sessions-1280x800-light.png) | [before](before/inspector-project-dark-comfortable-1280x800.png) |
+| Project: Overview | [dark](../_gallery/79-pages/project-overview-1280x800-dark.png) | [light](../_gallery/79-pages/project-overview-1280x800-light.png) | — |
+| Account | [dark](../_gallery/79-pages/account-1280x800-dark.png) | [light](../_gallery/79-pages/account-1280x800-light.png) | [before](before/inspector-account-dark-comfortable-1280x800.png) |
+| Tool | [dark](../_gallery/79-pages/tool-1280x800-dark.png) | [light](../_gallery/79-pages/tool-1280x800-light.png) | [before](before/inspector-tool-dark-comfortable-1280x800.png) |
+| Outside session | [dark](../_gallery/79-pages/outside-session-1280x800-dark.png) | [light](../_gallery/79-pages/outside-session-1280x800-light.png) | — |
+
 ## Proof
 
 | Requirement | Evidence | Result |

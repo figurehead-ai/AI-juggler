@@ -39,6 +39,14 @@ title and highlight, at 1280 and 1024, both themes, on the replica.
    absolute path): in the rail, New session's picker and the project
    header (`lib/project-words.ts` `homeRelative`, one rule).
 
+## Every page type, side by side
+
+Each page's mark, its rail row selected and the top bar's title and
+highlight are in AJ-E1533's side-by-side table
+([../AJ-E1533/manifest.md](../AJ-E1533/manifest.md)). It covers session,
+project, account, tool and outside-session pages, dark and light, at
+1280 and 1024, on the replica.
+
 ## Proof
 
 | Requirement | Evidence | Result |
