@@ -26,13 +26,15 @@ const PLAN: SwitchBackPlanData = {
   divergence:
     "Both sides moved since the switch. 3 new turns and 1 file conflicts need your choice — nothing is merged silently.",
   delta_preview:
-    "While you were away on Personal — 3 new turns (5 shared before the switch).\n\n- [user] fixed the login bug\n\nFull detail: the attached switch pack (not replayed).",
+    "While you were away, this work continued on Personal — 3 new turns.\n\n- You: fix the login bug\n\nThe project's files are as they were left on Personal. Pick up from here.",
   away_only_turns: 3,
   original_only_turns: 0,
   base_turns: 5,
   conflicts: [
     { rel_path: "todos.json", base_sha: "h0", away_sha: "h1", original_sha: "h2" },
   ],
+  returns: [{ epoch_id: "epoch-a", account: "Work Max", start: true }],
+  return_to: "epoch-a",
 };
 
 type Seams = {
@@ -42,6 +44,7 @@ type Seams = {
     sessionId: string;
     choices: { rel_path: string; choice: string }[];
     keepAwayRunning: boolean;
+    toEpoch?: string;
   }[];
 };
 
@@ -103,7 +106,7 @@ describe("AJ-E207 switch-back flow", () => {
 
   it("renders the S-F8 forked copy when the return is refused", async () => {
     (window as never as Seams).__AIJ_SWITCH_BACK_EXECUTE_FAIL__ =
-      "S-F8: merge conflict unresolved — work stays forked, both sides resumable";
+      "files changed on both sides and need your choice — the work stays split, and both sides can still be resumed";
     const view = mount();
     await waitFor(() => expect(view.getByTestId("switch-back-review")).toBeTruthy());
     fireEvent.click(view.getByLabelText("Keep original"));
@@ -120,14 +123,14 @@ describe("AJ-E207 switch-back flow", () => {
       original_alive: false,
       original_native_id: "",
       sf7_fallback: "fresh-f0",
-      sf7_copy: "S-F7: the original session is gone — nearest epoch or pack-primed fresh start",
+      sf7_copy: "The original conversation on Work Max is gone, so it can't be resumed",
       conflicts: [],
     };
     const view = render(
       <SwitchBackFlow sessionId="sess-away-1" onClose={() => {}} onSwitched={() => {}} />,
     );
     await waitFor(() => expect(view.getByTestId("switch-back-review")).toBeTruthy());
-    expect(view.getByTestId("switch-back-sf7").textContent).toContain("S-F7");
+    expect(view.getByTestId("switch-back-sf7").textContent).toContain("is gone");
     expect(view.getByTestId("switch-back-sf7").textContent).toContain("fresh session");
   });
 
@@ -136,8 +139,53 @@ describe("AJ-E207 switch-back flow", () => {
     await waitFor(() => expect(view.getByTestId("switch-back-suggestion")).toBeTruthy());
     expect(view.getByTestId("switch-back-suggestion").textContent).toBe(PLAN.suggestion);
     expect(view.getByTestId("switch-back-delta").textContent).toContain(
-      "While you were away on Personal",
+      "While you were away, this work continued on Personal",
     );
     expect(view.queryByText(/we switched/i)).toBeNull();
+  });
+});
+
+describe("AJ-E1541: where to go back to", () => {
+  // A → B → Codex: from Codex the work can go back to B, or to A where it started.
+  const HOPS: SwitchBackPlanData = {
+    ...PLAN,
+    original_account: "Personal",
+    away_account: "Codex",
+    conflicts: [],
+    returns: [
+      { epoch_id: "epoch-b", account: "Personal", start: false },
+      { epoch_id: "epoch-a", account: "Work Max", start: true },
+    ],
+    return_to: "epoch-b",
+  };
+
+  it("offers each account, nearest first, and returns where the user picks", async () => {
+    (window as never as Seams).__AIJ_SWITCH_BACK_PLAN__ = HOPS;
+    const view = render(
+      <SwitchBackFlow sessionId="sess-codex" onClose={() => {}} onSwitched={() => {}} />,
+    );
+    await waitFor(() => expect(view.getByTestId("switch-back-returns")).toBeTruthy());
+    expect((view.getByLabelText("Personal") as HTMLInputElement).checked).toBe(true);
+    expect(view.getByText("(where it started)")).toBeTruthy();
+
+    (window as never as Seams).__AIJ_SWITCH_BACK_PLAN__ = {
+      ...HOPS,
+      original_account: "Work Max",
+      return_to: "epoch-a",
+    };
+    fireEvent.click(view.getByLabelText(/Work Max/));
+    await waitFor(() =>
+      expect(view.getByTestId("switch-back-confirm").textContent).toContain("Resume Work Max"),
+    );
+    fireEvent.click(view.getByTestId("switch-back-confirm"));
+    await waitFor(() => expect(view.getByTestId("switch-back-done")).toBeTruthy());
+    const calls = (window as never as Seams).__AIJ_SWITCH_BACK_EXECUTE_CALLS__ ?? [];
+    expect(calls.at(-1)?.toEpoch).toBe("epoch-a");
+  });
+
+  it("shows no choice when there is only one place to go back to", async () => {
+    const view = mount();
+    await waitFor(() => expect(view.getByTestId("switch-back-review")).toBeTruthy());
+    expect(view.queryByTestId("switch-back-returns")).toBeNull();
   });
 });

@@ -16,8 +16,9 @@ use std::path::{Path, PathBuf};
 use juggler_adapter::HarnessAdapter;
 use juggler_adapter::error::AdapterError;
 use juggler_adapter::handover::{
-    BundleFile, BundleManifest, Fidelity, InstallOutcome, SessionBundle, TurnText, embedded_cwd,
-    fork_session_id, mangled_dir, sibling_paths, tail_parses,
+    BundleFile, BundleManifest, FILE_HISTORY_AREA, Fidelity, InstallOutcome, SessionBundle,
+    TurnText, embedded_cwd, fork_session_id, is_safe_bundle_name, mangled_dir, session_files,
+    tail_parses, tree_files,
 };
 use juggler_adapter::model::Account;
 use juggler_core::model::{Timestamp, TranscriptRef};
@@ -44,30 +45,34 @@ impl juggler_adapter::handover::HandoverSupport for ClaudeCodeAdapter {
             .map(|name| name.to_string_lossy().into_owned())
             .unwrap_or_default();
 
-        // F-H-04: the FULL sibling set, manifest row per file. A
-        // partial read or torn tail refuses the whole bundle.
+        // F-H-04: the FULL session, manifest row per file: the files
+        // beside the transcript, its `<id>/` folder (subagents, tool
+        // results; AJ-E1540) and its file history in the account's
+        // `file-history/<id>/`. A partial read or torn tail refuses the
+        // whole bundle.
+        let mut entries = session_files(dir, &stem);
+        if let Some(account_dir) = dir.parent().and_then(Path::parent) {
+            let history = account_dir.join("file-history").join(&stem);
+            if history.is_dir() {
+                tree_files(
+                    &history,
+                    &format!("{FILE_HISTORY_AREA}/{stem}"),
+                    4,
+                    &mut entries,
+                );
+            }
+        }
         let mut files = Vec::new();
-        for sibling in sibling_paths(dir, &stem) {
+        for (name, sibling) in entries {
             let bytes = std::fs::read(&sibling)?;
-            if sibling
-                .file_name()
-                .map(|n| n.to_string_lossy().into_owned())
-                == Some(main_name.clone())
-                && !tail_parses(&bytes)
-            {
+            if name == main_name && !tail_parses(&bytes) {
                 // F-H-02: the source is still writing (or corrupt) —
                 // freeze first, never copy torn bytes.
                 return Err(AdapterError::Unsupported(
                     "source transcript tail does not parse — stop the session first".into(),
                 ));
             }
-            files.push(BundleFile {
-                name: sibling
-                    .file_name()
-                    .map(|n| n.to_string_lossy().into_owned())
-                    .unwrap_or_default(),
-                bytes,
-            });
+            files.push(BundleFile { name, bytes });
         }
         let main = files
             .iter()
@@ -123,7 +128,7 @@ impl juggler_adapter::handover::HandoverSupport for ClaudeCodeAdapter {
         if let Some(bad) = bundle
             .files
             .iter()
-            .find(|file| !is_plain_file_name(&file.name))
+            .find(|file| !belongs_to_session(&file.name, &bundle.manifest.native_id))
         {
             return Err(AdapterError::AccountDir {
                 path: target.state_dir.clone(),
@@ -160,7 +165,11 @@ impl juggler_adapter::handover::HandoverSupport for ClaudeCodeAdapter {
             path: staging.clone(),
             message: error.to_string(),
         })?;
-        for file in &bundle.files {
+        // Each file is staged under its index, with where it goes: beside
+        // the transcript, or (AJ-E1540) the account's own file history.
+        let history_area = format!("{FILE_HISTORY_AREA}/");
+        let mut planned: Vec<(PathBuf, PathBuf)> = Vec::new();
+        for (index, file) in bundle.files.iter().enumerate() {
             let bytes = if collision && file.name.to_ascii_lowercase().ends_with(".jsonl") {
                 fork_session_id(&file.bytes, &installed_id)
             } else {
@@ -171,27 +180,25 @@ impl juggler_adapter::handover::HandoverSupport for ClaudeCodeAdapter {
             } else {
                 file.name.clone()
             };
-            if let Err(error) = std::fs::write(staging.join(&name), &bytes) {
+            let to = match name.strip_prefix(&history_area) {
+                Some(rest) => target.state_dir.join("file-history").join(rest),
+                None => dir_b.join(&name),
+            };
+            let staged = staging.join(index.to_string());
+            if let Err(error) = std::fs::write(&staged, &bytes) {
                 let _ = std::fs::remove_dir_all(&staging);
                 return Err(AdapterError::AccountDir {
-                    path: staging.join(&name),
+                    path: staged,
                     message: error.to_string(),
                 });
             }
+            planned.push((staged, to));
         }
         // Never replace a file the target already has (copy, never
         // overwrite): refuse the whole install before moving anything.
-        let staged: Vec<_> = std::fs::read_dir(&staging)
-            .into_iter()
-            .flatten()
-            .flatten()
-            .collect();
-        if let Some(existing) = staged
-            .iter()
-            .map(|entry| dir_b.join(entry.file_name()))
-            // symlink_metadata: a dangling link at the name counts too.
-            .find(|to| to.symlink_metadata().is_ok())
-        {
+        // symlink_metadata: a dangling link at the name counts too.
+        if let Some((_, existing)) = planned.iter().find(|(_, to)| to.symlink_metadata().is_ok()) {
+            let existing = existing.clone();
             let _ = std::fs::remove_dir_all(&staging);
             return Err(AdapterError::AccountDir {
                 path: existing,
@@ -199,20 +206,9 @@ impl juggler_adapter::handover::HandoverSupport for ClaudeCodeAdapter {
                     .to_owned(),
             });
         }
-        for entry in staged {
-            let from = entry.path();
-            let to = dir_b.join(entry.file_name());
-            // hard_link refuses an existing name (no window where a file
-            // that appeared since the check gets replaced); staging is
-            // inside the target, so it's the same volume.
-            if let Err(error) = std::fs::hard_link(&from, &to) {
-                let _ = std::fs::remove_dir_all(&staging);
-                return Err(AdapterError::AccountDir {
-                    path: to,
-                    message: error.to_string(),
-                });
-            }
-            let _ = std::fs::remove_file(&from);
+        if let Err(error) = place_staged(&planned) {
+            let _ = std::fs::remove_dir_all(&staging);
+            return Err(error);
         }
         let _ = std::fs::remove_dir_all(&staging);
 
@@ -247,6 +243,54 @@ impl juggler_adapter::handover::HandoverSupport for ClaudeCodeAdapter {
         }
         Ok(out)
     }
+}
+
+/// AJ-E1540: a bundle name this session may install: a safe name that is
+/// the session's own file beside the transcript (`<id>…`, as a bundle
+/// names them), or inside the session's own folder (`<id>/…`), or its own
+/// file history (`~file-history/<id>/…`). Anything else in a bundle from a
+/// paired Mac is refused: it can't bring in another conversation (review
+/// of #132).
+fn belongs_to_session(name: &str, native_id: &str) -> bool {
+    if !is_safe_bundle_name(name) {
+        return false;
+    }
+    let mut parts = name.split('/');
+    match (parts.next(), parts.next()) {
+        // Exactly the session's own name (`<id>.jsonl`, `<id>-…`): with an
+        // id `a`, a bare prefix would let in `a1b2….jsonl` (re-review).
+        (Some(only), None) => only
+            .strip_prefix(native_id)
+            .is_some_and(|rest| rest.starts_with('.') || rest.starts_with('-')),
+        (Some(first), Some(_)) if first == native_id => true,
+        (Some(FILE_HISTORY_AREA), Some(second)) => second == native_id && parts.next().is_some(),
+        _ => false,
+    }
+}
+
+/// Moves each staged file to where it goes (`hard_link`, which refuses an
+/// existing name, so a file that appeared since the check is never
+/// replaced), making its folders. On a failure, this install's own files
+/// are removed again: nothing is left half-installed.
+fn place_staged(planned: &[(PathBuf, PathBuf)]) -> Result<(), AdapterError> {
+    let mut placed: Vec<&PathBuf> = Vec::new();
+    for (from, to) in planned {
+        let linked = to
+            .parent()
+            .map_or(Ok(()), std::fs::create_dir_all)
+            .and_then(|()| std::fs::hard_link(from, to));
+        if let Err(error) = linked {
+            for done in &placed {
+                let _ = std::fs::remove_file(done);
+            }
+            return Err(AdapterError::AccountDir {
+                path: to.clone(),
+                message: error.to_string(),
+            });
+        }
+        placed.push(to);
+    }
+    Ok(())
 }
 
 /// One path component that names a file: no separators, no `..`, not

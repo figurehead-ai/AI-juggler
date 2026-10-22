@@ -352,12 +352,13 @@ export function cleanupFixture(state: string) {
 export const DOOR_WIZARD = {
   mechanism: "transplant",
   fidelity: "F2",
+  fidelity_words: "Same conversation, new account (compacted)",
   score: 0.78,
   warnings: ["This conversation was compacted. Early detail carries as text, not as live memory — it may ask about early decisions."],
   zombies: [],
   diff_snapshotted: true,
   source_live: true,
-  experimental_copy: "Experimental: only the main transcript moves. Subagent files and rewind history stay on the source. The source stays resumable.",
+  experimental_copy: "Beta, not proven yet: the whole session moves, with its subagents and file history. The source stays resumable.",
   door: "wizard" as const,
   wizard_steps: ["Target", "What's carried", "Confirm"],
   wizard_reasons: ["This isn't the usual account for this project."],
@@ -367,6 +368,7 @@ export const DOOR_WIZARD = {
 export const DOOR_ONECLICK = {
   ...DOOR_WIZARD,
   fidelity: "F4",
+  fidelity_words: "Continues exactly",
   warnings: [],
   door: "one-click" as const,
   wizard_steps: [],

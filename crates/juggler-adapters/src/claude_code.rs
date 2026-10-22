@@ -400,6 +400,46 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         Some("claude")
     }
 
+    fn inventory(
+        &self,
+        state_dir: &Path,
+        project: Option<&Path>,
+    ) -> Vec<juggler_adapter::inventory::Item> {
+        crate::claude_inventory::inventory(state_dir, &claude_state_file(state_dir), project)
+    }
+
+    fn can_set_up(
+        &self,
+        item: &juggler_adapter::inventory::Item,
+    ) -> juggler_adapter::inventory::SetUp {
+        crate::claude_inventory::can_set_up(item)
+    }
+
+    fn set_up(
+        &self,
+        state_dir: &Path,
+        project: Option<&Path>,
+        item: &juggler_adapter::inventory::Item,
+    ) -> Result<juggler_adapter::inventory::Applied, AdapterError> {
+        let claude = self
+            .resolve_bin()
+            .ok_or_else(|| AdapterError::Unsupported("Claude Code isn't installed".to_owned()))?;
+        let env = config_dir_value(state_dir);
+        let env = if env == juggler_adapter::launch::ENV_UNSET {
+            String::new()
+        } else {
+            env
+        };
+        crate::claude_inventory::set_up(
+            state_dir,
+            &claude,
+            &env,
+            &claude_state_file(state_dir),
+            project,
+            item,
+        )
+    }
+
     fn conversation_files(&self, state_dir: &Path) -> Vec<PathBuf> {
         crate::claude_conversations::conversation_files(state_dir)
     }
@@ -473,10 +513,16 @@ impl HarnessAdapter for ClaudeCodeAdapter {
                 "claude binary not found; run discovery for details".into(),
             ));
         };
-        let effective_cwd = profile
-            .default_cwd
-            .clone()
-            .unwrap_or_else(|| cwd.to_path_buf());
+        // AJ-E1540: a resumed or primed session continues work that lives
+        // in `cwd` (its conversation, its files): it runs there. The
+        // launch settings' folder is only where a fresh session starts.
+        let effective_cwd = match mode {
+            LaunchMode::Resume { .. } | LaunchMode::Primed { .. } => cwd.to_path_buf(),
+            _ => profile
+                .default_cwd
+                .clone()
+                .unwrap_or_else(|| cwd.to_path_buf()),
+        };
         // Launch-settings overrides first, isolation LAST: an
         // override can never repoint the config dir (AJ-E309 — the
         // env editor refuses these keys too; this is the backstop).
@@ -1062,9 +1108,7 @@ pub fn claude_state_file_in(dir: &Path, home: &Path) -> PathBuf {
 }
 
 pub(crate) fn home_dir() -> Option<PathBuf> {
-    std::env::var_os("HOME")
-        .or_else(|| std::env::var_os("USERPROFILE"))
-        .map(PathBuf::from)
+    crate::inventory_files::user_home()
 }
 
 pub(crate) fn home_relative(relative: &str) -> Option<PathBuf> {

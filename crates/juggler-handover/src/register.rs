@@ -602,10 +602,13 @@ mod tests {
         let open = embedded().beta_exit_open(&unknown_versions, &|_, to| {
             to == "gemini-cli" || to == "opencode"
         });
+        // The live lab (AJ-E1539, 2026-10-22) passed seven cells:
+        // claude→claude transcript, todos and MCP; claude→codex those
+        // three and switch-back. Every other shipped cell is open.
         assert_eq!(
             open.len(),
-            9 * AREAS.len(),
-            "today every shipped cell is open"
+            9 * AREAS.len() - 7,
+            "only the lab's seven PASS cells are closed"
         );
     }
 }

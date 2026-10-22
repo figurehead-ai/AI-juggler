@@ -377,8 +377,8 @@ fn sf7_offers_the_honest_fallback_when_the_original_is_deleted() {
     assert!(!plan.original_alive);
     assert_eq!(plan.sf7_fallback, "fresh-f0", "no surviving epoch on A");
     assert!(
-        plan.sf7_copy.contains("S-F7"),
-        "§7.1 copy names the situation: {}",
+        plan.sf7_copy.contains("is gone, so it can't be resumed"),
+        "says the original is gone, in plain words: {}",
         plan.sf7_copy
     );
 }

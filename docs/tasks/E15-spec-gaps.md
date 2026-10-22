@@ -446,6 +446,64 @@ walk alone isn't enough.
 **Quality gates**: `just verify` (with `load_budgets`) passes unchanged; the size budget passes with the lower cap.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1544/manifest.md`.
 
+## Switching you can rely on — a 0.1 core
+
+The maintainer (2026-10-22): "One of the main features that must work in 0.1.* is switching and migrating sessions between different accounts of the same provider and in between totally different providers." The journey that must work: a simple coding task on Claude account A, switched to Claude account B, then to Codex, then back to A, with the chat history, tasks, context and project state carried at every step. Before a switch, AI Juggler checks the target's MCP servers, skills and the rest, and offers to set up what's missing; the user sees everything and approves each item.
+
+What the code does today (mapped 2026-10-22 on release/0.1): a same-tool switch copies the transcript and resumes it, but the source keeps running (the freeze choice is dropped, `pipeline.rs` `let _ = freeze`), and Claude's `<session>/subagents/` folder makes the copy fail. A cross-tool switch passes only user and assistant text as one command-line argument (96 KiB), dropping tool calls, results, tasks and older turns, and a switch back from it probably carries nothing. Nothing detects MCP servers, skills, commands, subagents, rules or settings. No pair has ever run live: every fidelity-register cell is UNVALIDATED and nothing can fill one. Research: `docs/research/switching-capabilities.md`.
+
+### AJ-E1539 A live switching lab | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E808
+**Goal**: The real tools prove each switch, and the proof fills the fidelity register.
+**Requirements**:
+1. An ignored, env-gated test (`crates/juggler-app/tests/switch_lab_live.rs`, `just switch-lab`) runs in AI Juggler Dev's data model over a throwaway data folder, in a new throwaway project (a git repo under the user's Dev folder or a temp folder), with real Claude Code and Codex on accounts the person running it names. The maintainer allowed their own accounts on 2026-10-22, in a lab project only.
+2. The journey: a small coding task on Claude A (headless `claude -p --session-id`, a file plus its test, a task list); switch A→B with AI Juggler's own switch code; continue on B; switch B→Codex; continue; switch back to A. After each switch a probe asks something only the earlier conversation can answer (a name chosen in step 1, the last test result, the open tasks) and checks the answer, the files and the task list.
+3. Each step records the tool versions, the commands, the probe and its answer (redacted), and writes the register cell's verdict (`run: live`). A failure records a drop note.
+4. Before and after snapshots (paths, sizes, mtimes, never contents) of every account folder involved. The only differences allowed are the lab sessions' own files and the changes the user approved in the preflight (AJ-E1542).
+5. It never signs in, never reads credentials, and never starts anything outside the lab folder.
+**Quality gates**: the harness fails a step it can't verify (never "pass by default"); the snapshot diff is part of the evidence.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1539/manifest.md`, plus the cells in `docs/qa/evidence/AJ-E808/cells/`.
+
+### AJ-E1540 Same-tool switches done right | Status: IN-PROGRESS (claude-opus, 2026-10-22) | Priority P0 | Effort M | Depends: AJ-E1539
+**Goal**: Claude→Claude and Codex→Codex continue exactly where the conversation was, and the source stops cleanly.
+**Requirements**:
+1. Freeze is real on a local switch: "Finish this turn" waits for the source to go idle, then stops it; "Stop now" stops it at once. Only then is the transcript copied. A source started outside AI Juggler is never stopped; the switch says the original keeps running and the copy is a separate continuation.
+2. Claude's whole session travels: the `<id>.jsonl`, its `<id>/` folder (`subagents/`, `tool-results/`), its `file-history/<id>/` and its task list (`tasks/`), into the target's matching places, without overwriting anything.
+3. The target resumes in the source's working folder (never the target profile's default folder) and is linked to its transcript, so a later switch or switch-back finds it.
+4. Codex: the rollout resumes by id in the other CODEX_HOME (the lab proves it); a compressed rollout (`.jsonl.zst`) is decompressed into the copy rather than refused.
+**Quality gates**: the register's claude→claude and codex→codex cells PASS from the lab; a test with a real-shaped subagents folder.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1540/manifest.md`.
+
+### AJ-E1541 Cross-tool continuity | Status: IN-PROGRESS (claude-opus, 2026-10-22) | Priority P0 | Effort L | Depends: AJ-E1539
+**Goal**: Moving to Codex, or back to Claude, continues the work, not just the chat.
+**Requirements**:
+1. A handover file replaces the single command-line argument: written in AI Juggler's data folder for the switch (`switches/<edge>/HANDOVER.md` plus `state.json`), and the target is started with a short prompt that points at it.
+2. It carries: the conversation (newest first within a budget the target can read, with older turns summarised by count and topic, never silently dropped), what each tool call did and its result in one line, the files changed (from git, with the diff stat), the task list mapped onto the target's (Claude tasks ↔ Codex's plan), the working folder and branch, and the rules files in play.
+3. The new session is linked to its own transcript as soon as it exists, so switching back finds what happened while away.
+4. Switch-back from another tool resumes the original with the away delta, including the files changed and the task list's state.
+5. What can't carry (subagents, Claude-only tools, thinking) is listed in the switch screen before the user confirms.
+**Quality gates**: the register's claude→codex, codex→claude and switch-back cells PASS from the lab; the handover file never holds a secret the redaction policy removes.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1541/manifest.md`.
+
+### AJ-E1542 The capability preflight | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E1507
+**Goal**: Before a switch, the user sees what the target account lacks and sets it up in one reviewed step.
+**Requirements**:
+1. Detection, by parsing files (never by starting a tool or an MCP server), for both sides: MCP servers (Claude user, local and project scopes; Codex `config.toml` and trusted project layers), skills, custom commands and prompts, subagents, user-level rules (CLAUDE.md, `rules/`, AGENTS.md), plugins, and the project's rules files.
+2. The switch screen lists what the target is missing, per item: set it up (translated to the target's format), skip, or "needs you" (an OAuth login or a value to fill in). Items are ticked by default only when the copy is exact and safe.
+3. Secrets are never copied: literal secret values in env or headers become a named variable the target must provide, and the screen says which. OAuth tokens never move; the screen offers the tool's own login.
+4. Each write is previewed, made through the tool's own command where one exists (`claude mcp add-json`, `codex mcp add`) or as a new file that never overwrites, recorded in the switch's manifest, and undone from the same place.
+5. ADR-0018 is amended: these are user-approved writes into the target account, like AJ-E1530's.
+6. Things with no equivalent (claude.ai-synced skills and connectors, plugins across tools, SSE servers on Codex) are listed as "can't be set up there", with the reason.
+**Quality gates**: a no-write guardrail test without an approval; translation fixtures per pair; the secret filter test; the lab's journey runs with one MCP server and one skill on A only, and checks they're offered and set up on B and Codex.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1542/manifest.md`.
+
+### AJ-E1543 One switch screen | Status: IN-PROGRESS (claude-opus, 2026-10-22) | Priority P0 | Effort M | Depends: AJ-E1540, AJ-E1541, AJ-E1542
+**Goal**: The least work for the user, with everything in view.
+**Requirements**:
+1. One screen per switch: where it goes, what carries over and what doesn't (in plain words), the capability checklist from AJ-E1542, the freeze choice, and a single confirm.
+2. Progress in steps the user understands, and a clear result: "Continued on B", with switch back and undo.
+3. A pair the lab has proven says so; one it hasn't stays labelled Beta. Never "lossless".
+4. Walked by hand on the replica and once on the real lab, with the three questions (the user's problem solved, clear without explanation, consistent).
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1543/manifest.md`.
 ## Wave 2 — usage you can act on, Fleet and support
 
 ### AJ-E1512 Sessions left and a burn-down chart | Status: TODO | Priority P1 | Effort M | Depends: AJ-E608

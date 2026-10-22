@@ -2373,6 +2373,7 @@ void preflightSeams;
 const SWITCH_WIZARD_FIXTURE = {
   mechanism: "transplant",
   fidelity: "F2",
+  fidelity_words: "Same conversation, new account (compacted)",
   score: 0.78,
   warnings: [
     "This conversation was compacted. Early detail carries as text, not as live memory — it may ask about early decisions.",
@@ -2381,18 +2382,18 @@ const SWITCH_WIZARD_FIXTURE = {
   diff_snapshotted: true,
   source_live: true,
   experimental_copy:
-    "Experimental: only the main transcript moves. Subagent files and rewind history stay on the source. The source stays resumable.",
+    "Beta, not proven yet: the whole session moves, with its subagents and file history. The source stays resumable.",
   door: "wizard" as const,
   wizard_steps: ["Target", "What's carried", "Confirm"],
   wizard_reasons: [
     "This isn't the usual account for this project.",
-    "The carry-list drops: todo list.",
+    "This switch leaves behind: subagent state.",
   ],
   usual_account: false,
   carry: {
     carried: ["chat transcript", "rules & guidelines", "uncommitted git diff"],
     regenerated: [],
-    dropped: ["todo list", "subagent state"],
+    dropped: ["subagent state"],
   },
 };
 
@@ -2498,7 +2499,7 @@ for (const theme of THEMES) {
           w.__AIJ_FIXTURE__ = fixture;
           w.__AIJ_SWITCH_PREFLIGHT__ = fixture.doorFixture;
           w.__AIJ_SWITCH_EXECUTE_FAIL__ =
-            "S-F5: target launch failed — staged for retry (terminal spawn failed).";
+            "the session on the other account didn't start — the switch is ready to try again (terminal spawn failed).";
           localStorage.setItem("aij.theme", themeName);
           localStorage.setItem("aij.onboarding.dismissed", "1");
           sessionStorage.setItem("aij.ready.skipped", "1");
@@ -2531,13 +2532,14 @@ for (const theme of THEMES) {
 const SWITCH_ONECLICK_FIXTURE = {
   mechanism: "transplant",
   fidelity: "F4",
+  fidelity_words: "Continues exactly",
   score: 1.0,
   warnings: [],
   zombies: [],
   diff_snapshotted: false,
   source_live: true,
   experimental_copy:
-    "Experimental: only the main transcript moves. Subagent files and rewind history stay on the source. The source stays resumable.",
+    "Beta, not proven yet: the whole session moves, with its subagents and file history. The source stays resumable.",
   door: "one-click" as const,
   wizard_steps: [],
   wizard_reasons: [],
@@ -2561,7 +2563,7 @@ const SWITCH_WIZARD_5STEP_FIXTURE = {
   wizard_steps: ["Target", "What's carried", "Conflicts", "Rules & diff", "Confirm"],
   wizard_reasons: [
     "This isn't the usual account for this project.",
-    "The carry-list drops: todo list.",
+    "This switch leaves behind: subagent state.",
   ],
 };
 
@@ -2631,7 +2633,7 @@ for (const theme of THEMES) {
       await openDoor(page, SWITCH_WIZARD_FIXTURE);
       await page.getByTestId("switch-continue").click();
       await expect(page.getByTestId("switch-steps")).toContainText("Step 2 of 3: What's carried");
-      await expect(page.getByTestId("switch-carry-dropped")).toContainText("todo list");
+      await expect(page.getByTestId("switch-carry-dropped")).toContainText("subagent state");
       await page.screenshot({
         path: resolve(GALLERY, `29-door/wizard-3step-carried-${vp.name}-${theme}.png`),
       });
@@ -2641,7 +2643,7 @@ for (const theme of THEMES) {
       await openDoor(page, SWITCH_WIZARD_5STEP_FIXTURE);
       await page.getByTestId("switch-continue").click();
       await expect(page.getByTestId("switch-steps")).toContainText("Step 2 of 5: What's carried");
-      await expect(page.getByTestId("switch-carry-dropped")).toContainText("todo list");
+      await expect(page.getByTestId("switch-carry-dropped")).toContainText("subagent state");
       await page.screenshot({
         path: resolve(GALLERY, `29-door/wizard-5step-carried-${vp.name}-${theme}.png`),
       });
@@ -2753,20 +2755,22 @@ for (const theme of THEMES) {
           original_alive: false,
           sf7_fallback: "fresh-f0",
           sf7_copy:
-            "S-F7: the original session is gone — nearest epoch or pack-primed fresh start",
+            "The original conversation on Work Max is gone, so it can't be resumed",
           away_live: false,
           both_live_copy: "",
           divergence: "Both sides moved since the switch. 2 new turns and 0 file conflicts need your choice — nothing is merged silently.",
           delta_preview:
-            "While you were away on Personal — 2 new turns (4 shared before the switch).\n\nFull detail: the attached switch pack (not replayed).",
+            "While you were away on Personal — 2 new turns (4 shared before the switch).\n\n- [user] fix the login bug\n- [assistant] Fixed it; the suite passes.\n\nThe project's files are as they were left on Personal. Pick up from here.",
           away_only_turns: 2,
           original_only_turns: 0,
           base_turns: 4,
           conflicts: [],
+          returns: [{ epoch_id: "epoch-a", account: "Work Max", start: true }],
+          return_to: "epoch-a",
         },
       });
       await page.getByTestId("switch-back-card").click();
-      await expect(page.getByTestId("switch-back-sf7")).toContainText("S-F7");
+      await expect(page.getByTestId("switch-back-sf7")).toContainText("is gone");
       await expect(page.getByTestId("switch-back-sf7")).toContainText("fresh session");
       await page.screenshot({
         path: resolve(GALLERY, `30-switchback/sf7-${vp.name}-${theme}.png`),
@@ -2776,7 +2780,7 @@ for (const theme of THEMES) {
     test(`switch-back — S-F8 forked (refused merge) — ${vp.name} — ${theme}`, async ({ page }) => {
       await openInspector(page, {
         __AIJ_SWITCH_BACK_EXECUTE_FAIL__:
-          "S-F8: merge conflict unresolved — work stays forked, both sides resumable",
+          "files changed on both sides and need your choice — the work stays split, and both sides can still be resumed",
       });
       await page.getByTestId("switch-back-card").click();
       await expect(page.getByTestId("switch-back-review")).toBeVisible();
@@ -2802,7 +2806,7 @@ for (const theme of THEMES) {
  * Settings; no secret VALUE ever appears (masked previews only).
  */
 const REDACTION_LINE_GLOBAL =
-  "Redaction for claude-code: Strip — replace keys with ••• (your global choice)";
+  "Redaction for Claude Code: Strip — replace keys with ••• (your global choice)";
 
 for (const theme of THEMES) {
   for (const vp of SWITCH_VP) {
@@ -2883,7 +2887,7 @@ for (const theme of THEMES) {
           override: "strip",
           effective: "strip",
           source: "override",
-          line: "Redaction for claude-code: Strip — replace keys with ••• (override)",
+          line: "Redaction for Claude Code: Strip — replace keys with ••• (override)",
         },
         redaction_items: [
           { kind: "sk-key", preview: "s•••5678", segment: 0 },
@@ -2908,7 +2912,7 @@ for (const theme of THEMES) {
           override: null,
           effective: "ask",
           source: "global",
-          line: "Redaction for claude-code: Ask each time (your global choice)",
+          line: "Redaction for Claude Code: Ask each time (your global choice)",
         },
         redaction_items: [],
       });
@@ -2984,7 +2988,7 @@ const GRAPH_FAILED = [
         from: "ep-src",
         to: null,
         label: "failed · target launch failed",
-        failed_reason: "S-F6: target window closed mid-launch",
+        failed_reason: "the session on the other account closed while it started",
         switch_back: false,
       },
       { from: "ep-src", to: "ep-dst", label: "Same conversation, new account", switch_back: false },
@@ -3017,7 +3021,7 @@ const BADGE_SET_TARGETS = [
     badge: "Full story, fresh start · Beta",
     validated: false,
     cross_provider: true,
-    drops: ["todo list", "subagent state"],
+    drops: ["subagent state"],
     score: 0.44,
     top_factors: ["35% headroom", "quiet"],
     factors: [["35% headroom", 0.16], ["quiet", 0.1]],
@@ -3138,7 +3142,7 @@ for (const theme of THEMES) {
       await openProjectOverview(page); // AJ-E1533: the graph is on Overview
       await expect(page.getByTestId("switch-graph-failed-edge")).toBeVisible();
       await page.getByTestId("switch-graph-failed-edge").click();
-      await expect(page.getByTestId("switch-graph-failed-detail")).toContainText("S-F6");
+      await expect(page.getByTestId("switch-graph-failed-detail")).toContainText("closed while it started");
       await page.screenshot({
         path: resolve(GALLERY, `32-graph/failed-${vp.name}-${theme}.png`),
       });

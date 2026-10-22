@@ -5001,7 +5001,7 @@ fn resolve_source(
     session_id: &str,
     persist: bool,
 ) -> AppResult<(juggler_core::model::InstanceRecord, Account)> {
-    let (mut source, account_a, taken, ambiguous) = {
+    let (mut source, account_a, taken, ambiguous, replayed_into) = {
         let storage = lock_storage_arc(state)?;
         let source = storage
             .sessions()
@@ -5042,19 +5042,56 @@ fn resolve_source(
                 && other.cwd == source.cwd
                 && !ended_before(other, source.started_at.millis())
         });
-        (source, account_a, taken, ambiguous)
+        // A replay started this session: its first message is known.
+        let replayed_into = storage
+            .switch_graph()
+            .edges_for_session(source.id.as_str())
+            .unwrap_or_default()
+            .iter()
+            .any(|(edge, outgoing)| !outgoing && is_replay(edge));
+        (source, account_a, taken, ambiguous, replayed_into)
     };
-    if ambiguous {
-        return Ok((source, account_a));
-    }
-    let Some(found) = state.registry.get(&account_a.harness).and_then(|adapter| {
-        adapter.locate_transcript(
-            &account_a.state_dir,
-            &source.cwd,
-            source.started_at.millis(),
+    // AJ-E1540: a session that knows its conversation (picked up with
+    // "Continue in AI Juggler") is found by that id, not by when its file
+    // appeared: its file is older than the session record.
+    let by_id = source.conversation.as_ref().and_then(|conversation| {
+        crate::features::conversations::transcript_of(
+            state,
+            &account_a,
+            conversation.as_str(),
             &taken,
         )
-    }) else {
+    });
+    let by_time = || {
+        if ambiguous {
+            return None;
+        }
+        state.registry.get(&account_a.harness).and_then(|adapter| {
+            adapter.locate_transcript(
+                &account_a.state_dir,
+                &source.cwd,
+                source.started_at.millis(),
+                &taken,
+            )
+        })
+    };
+    // AJ-E1541 (lab 8): when time alone can't tell (another session of the
+    // tool began in the same folder), a replay's own first message can.
+    let by_prompt = || {
+        replayed_into
+            .then(|| {
+                crate::features::conversations::primed_conversation(
+                    state,
+                    &account_a,
+                    &source.cwd,
+                    source.started_at.millis().saturating_sub(2_000),
+                    &replay_header(state, &account_a.harness),
+                    &taken,
+                )
+            })
+            .flatten()
+    };
+    let Some(found) = by_id.or_else(by_time).or_else(by_prompt) else {
         return Ok((source, account_a));
     };
     source.transcript_ref = Some(found);
@@ -5127,6 +5164,9 @@ pub struct PreflightInfo {
     pub mechanism: String,
     /// The F-label shown (F0–F4).
     pub fidelity: String,
+    /// AJ-E1543: the same label in plain words ("Continues exactly",
+    /// "Full story, fresh start"): what the screen shows.
+    pub fidelity_words: String,
     /// The capped score (internal honesty; the label is the UI).
     pub score: f64,
     /// §7.1 warning copy (verbatim table renders).
@@ -5137,6 +5177,10 @@ pub struct PreflightInfo {
     pub diff_snapshotted: bool,
     /// Whether the source instance is live (freeze dialog needed).
     pub source_live: bool,
+    /// AJ-E1540: live, but not a session AI Juggler can stop (started
+    /// outside it): the switch leaves it running and the copy is a
+    /// separate continuation.
+    pub source_keeps_running: bool,
     /// The F1-experimental transplant copy (until E210 proves pairs).
     pub experimental_copy: String,
     /// AJ-E206 §8 door verdict: `one-click` or `wizard`.
@@ -5185,12 +5229,15 @@ pub struct CarryListInfo {
 /// Returns the typed [`AppError`] when resolution fails or a hard
 /// gate stops the switch.
 #[tauri::command]
-pub fn switch_preflight(
+pub async fn switch_preflight(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
     target_profile_id: String,
 ) -> AppResult<PreflightInfo> {
-    switch_preflight_impl(state.inner(), &session_id, &target_profile_id)
+    crate::ipc::blocking(state.inner(), "check the switch", move |state| {
+        switch_preflight_impl(state, &session_id, &target_profile_id)
+    })
+    .await
 }
 
 /// Core implementation shared with integration tests.
@@ -5259,6 +5306,9 @@ pub fn switch_preflight_impl(
         .map(|situation| pipeline::user_copy(situation.clone()))
         .collect();
     let source_live = matches!(source.status.as_str(), "running" | "starting");
+    // The same rule `freeze_source` follows: only a session AI Juggler
+    // supervises is stopped.
+    let source_keeps_running = source_live && !state.supervisor.is_supervised(&source.id);
 
     // AJ-E206 §8: choose the door from the same preflight facts.
     // Headroom ≥ Tight holds unless the tight warn fired (exhausted
@@ -5279,7 +5329,7 @@ pub fn switch_preflight_impl(
     let (redaction, redaction_items) = {
         let storage = lock_storage_arc(state)?;
         let policy = RedactionPolicyInfo::from_parts(
-            &account_b.harness,
+            &crate::features::tools::display_name(&state.registry, account_b.harness.as_str()),
             redaction_global_of(&storage),
             redaction_override_of(&storage, account_b.harness.as_str()),
         );
@@ -5300,11 +5350,13 @@ pub fn switch_preflight_impl(
             pipeline::Mechanism::PackOnly => "pack".to_owned(),
         },
         fidelity: report.pair.label.as_str().to_owned(),
+        fidelity_words: report.pair.label.user_label().to_owned(),
         score: report.pair.score,
         warnings,
         zombies: report.zombie_children.clone(),
         diff_snapshotted: report.diff_snapshotted,
         source_live,
+        source_keeps_running,
         experimental_copy: pipeline::user_copy(CopySituation::TransplantUnproven {
             account_a: account_a.label.clone(),
         }),
@@ -5492,7 +5544,7 @@ fn wizard_reasons_of(
     }
     if !carry.dropped.is_empty() {
         reasons.push(format!(
-            "The carry-list drops: {}.",
+            "This switch leaves behind: {}.",
             carry.dropped.join(", ")
         ));
     }
@@ -5545,7 +5597,7 @@ pub struct SwitchExecutedInfo {
 /// Returns the typed [`AppError`] message on any failure; the source
 /// is exactly resumable in all of them (S-F contract).
 #[tauri::command]
-pub fn switch_execute(
+pub async fn switch_execute(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
     target_profile_id: String,
@@ -5561,15 +5613,20 @@ pub fn switch_execute(
         Some("suggestion") => "suggestion",
         _ => "manual",
     };
-    switch_execute_core(
-        state.inner(),
-        &session_id,
-        &target_profile_id,
-        &freeze_choice,
-        redaction_choice.as_deref(),
-        &redaction_unredact.unwrap_or_default(),
-        trigger,
-    )
+    // Off the main thread (T1): "Finish this turn" can wait minutes for
+    // the source to go quiet, and the screen must keep drawing.
+    crate::ipc::blocking(state.inner(), "switch", move |state| {
+        switch_execute_core(
+            state,
+            &session_id,
+            &target_profile_id,
+            &freeze_choice,
+            redaction_choice.as_deref(),
+            &redaction_unredact.unwrap_or_default(),
+            trigger,
+        )
+    })
+    .await
 }
 
 /// Core implementation shared with integration tests.
@@ -5597,6 +5654,40 @@ pub fn switch_execute_impl(
 }
 
 /// [`switch_execute_impl`] with the switch's trigger (AJ-E1103).
+/// A session's switch in progress: held for the whole switch, released
+/// however it ends.
+pub(crate) struct SwitchSlot<'a> {
+    state: &'a Arc<AppState>,
+    session: String,
+}
+
+impl<'a> SwitchSlot<'a> {
+    /// Takes `session`'s slot, refusing while another switch of it runs.
+    pub(crate) fn take(state: &'a Arc<AppState>, session: &str) -> AppResult<Self> {
+        let mut running = state
+            .switching
+            .lock()
+            .map_err(|_| AppError::Refused("switching is unavailable right now".to_owned()))?;
+        if !running.insert(session.to_owned()) {
+            return Err(AppError::Refused(
+                "This session is already being switched: wait for that to finish".to_owned(),
+            ));
+        }
+        Ok(Self {
+            state,
+            session: session.to_owned(),
+        })
+    }
+}
+
+impl Drop for SwitchSlot<'_> {
+    fn drop(&mut self) {
+        if let Ok(mut running) = self.state.switching.lock() {
+            running.remove(&self.session);
+        }
+    }
+}
+
 fn switch_execute_core(
     state: &Arc<AppState>,
     session_id: &str,
@@ -5607,6 +5698,7 @@ fn switch_execute_core(
     trigger: &'static str,
 ) -> AppResult<SwitchExecutedInfo> {
     use juggler_handover::pipeline::{self, Mechanism};
+    let _slot = SwitchSlot::take(state, session_id)?;
 
     let freeze = freeze_of(freeze_choice);
     let sides = switch_sides(state, session_id, target_profile_id)?;
@@ -5614,7 +5706,14 @@ fn switch_execute_core(
     // primed session — one vendor's file is never installed into the
     // other's home.
     if sides.account_a.harness != sides.account_b.harness {
-        return switch_replay(state, &sides, redaction_choice, redaction_unredact, trigger);
+        return switch_replay(
+            state,
+            &sides,
+            freeze,
+            redaction_choice,
+            redaction_unredact,
+            trigger,
+        );
     }
     let SwitchSides {
         source,
@@ -5623,20 +5722,14 @@ fn switch_execute_core(
         profile_b,
         account_b,
     } = sides;
-    let support = state
-        .registry
-        .handover(&account_b.harness)
-        .ok_or_else(|| AppError::Io {
-            context: "hand over",
-            message: format!(
-                "{} can't take over this conversation — only a fresh start or a briefing pack",
-                account_b.harness
-            ),
-        })?;
+    let support = handover_support(state, &account_b)?;
 
     // AJ-E1001: the target Account must be who it was, before anything
     // moves.
     let assertion = crate::identity::assert_identity(state, &account_b)?;
+    // AJ-E1540: the source stops (after its turn, or now) before its file
+    // is copied, so the conversation never has two writers.
+    freeze_source(state, &source, &reference, freeze)?;
 
     // Record (E201): the Staged edge exists BEFORE anything moves;
     // failures transition it, history is never rewritten.
@@ -5723,6 +5816,103 @@ fn switch_execute_core(
     })
 }
 
+/// How long the source's conversation and terminal must be quiet for its
+/// turn to count as finished (AJ-E1540).
+const TURN_QUIET: std::time::Duration = std::time::Duration::from_secs(3);
+
+/// How long "Finish this turn" waits before saying the session is still
+/// working (AJ-E1540).
+const TURN_LIMIT: std::time::Duration = std::time::Duration::from_secs(120);
+
+/// AJ-E1540: the freeze choice made real on a local switch. A session AI
+/// Juggler started and that is still running stops before its file is
+/// read: at once for "Stop now", or once its turn has finished (its
+/// conversation file and its terminal quiet for [`TURN_QUIET`], the file's
+/// last line whole) for "Finish this turn". A session started outside AI
+/// Juggler isn't ours to stop: it keeps running, and the copy continues
+/// from what it has written so far (the switch screen says so).
+///
+/// # Errors
+///
+/// [`AppError::Refused`] when the turn is still going after
+/// [`TURN_LIMIT`], or the session won't stop.
+fn freeze_source(
+    state: &Arc<AppState>,
+    source: &juggler_core::model::InstanceRecord,
+    reference: &juggler_core::model::TranscriptRef,
+    freeze: juggler_handover::pipeline::FreezeChoice,
+) -> AppResult<()> {
+    use std::time::{Duration, Instant, SystemTime};
+    let id = &source.id;
+    if !state.supervisor.is_supervised(id) || state.supervisor.is_finished(id) {
+        return Ok(());
+    }
+    if matches!(
+        freeze,
+        juggler_handover::pipeline::FreezeChoice::FinishTurnThenSwitch
+    ) {
+        let started = Instant::now();
+        loop {
+            let file_quiet = std::fs::metadata(&reference.path)
+                .and_then(|meta| meta.modified())
+                .ok()
+                .and_then(|at| SystemTime::now().duration_since(at).ok())
+                .is_none_or(|idle| idle >= TURN_QUIET);
+            let output_quiet = state.supervisor.last_output_ms(id).is_none_or(|at| {
+                Timestamp::now().millis().saturating_sub(at)
+                    >= i64::try_from(TURN_QUIET.as_millis()).unwrap_or(i64::MAX)
+            });
+            let whole = std::fs::read(&reference.path)
+                .is_ok_and(|bytes| juggler_adapter::handover::tail_parses(&bytes));
+            if (file_quiet && output_quiet && whole) || state.supervisor.is_finished(id) {
+                break;
+            }
+            if started.elapsed() >= TURN_LIMIT {
+                return Err(AppError::Refused(
+                    "The session is still working: choose Stop now, or try again once its turn \
+                     is done"
+                        .to_owned(),
+                ));
+            }
+            std::thread::sleep(Duration::from_millis(250));
+        }
+    }
+    if state.supervisor.is_finished(id) {
+        return Ok(());
+    }
+    state
+        .supervisor
+        .stop(id, Duration::from_secs(5))
+        .map_err(|error| AppError::Refused(format!("The session didn't stop: {error}")))?;
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !state.supervisor.is_finished(id) {
+        if Instant::now() >= deadline {
+            return Err(AppError::Refused(
+                "The session didn't stop, so nothing was switched".to_owned(),
+            ));
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    Ok(())
+}
+
+/// The target tool's transplant support, or why it has none.
+fn handover_support(
+    state: &Arc<AppState>,
+    account: &juggler_core::model::Account,
+) -> AppResult<Arc<dyn juggler_adapter::handover::HandoverSupport>> {
+    state
+        .registry
+        .handover(&account.harness)
+        .ok_or_else(|| AppError::Io {
+            context: "hand over",
+            message: format!(
+                "{} can't take over this conversation — only a fresh start or a briefing pack",
+                account.harness
+            ),
+        })
+}
+
 /// The user's freeze choice (`stop-now`, else finish the turn first).
 fn freeze_of(choice: &str) -> juggler_handover::pipeline::FreezeChoice {
     match choice {
@@ -5788,6 +5978,7 @@ const REPLAY_HEADER_BYTES: usize = 2 * 1024;
 fn switch_replay(
     state: &Arc<AppState>,
     sides: &SwitchSides,
+    freeze: juggler_handover::pipeline::FreezeChoice,
     redaction_choice: Option<&str>,
     redaction_unredact: &[u32],
     trigger: &'static str,
@@ -5798,8 +5989,14 @@ fn switch_replay(
         context: "hand over",
         message,
     };
+    // Review of #132 (M4): what can refuse the switch without the final
+    // conversation is checked before anything is stopped.
+    let strip = replay_strip(state, sides, redaction_choice)?;
+    replayable_turns(&sides.reference.path)?;
+    // AJ-E1540: the source stops first, so the replay holds its last turn.
+    freeze_source(state, &sides.source, &sides.reference, freeze)?;
     let (prompt, source_sha, source_bytes) =
-        replay_prompt(state, sides, redaction_choice, redaction_unredact)?;
+        replay_prompt(state, sides, strip, redaction_unredact)?;
     let (work, from_epoch, edge) = record_edge_staged(
         state,
         &sides.source,
@@ -5837,7 +6034,7 @@ fn switch_replay(
     .map_err(|error| SwitchFailure::LaunchFailed(error.to_string()));
     // Copy-never-move, checked after the launch as the pipeline does.
     let checked = launched.and_then(|started| {
-        std::fs::read(&sides.reference.path)
+        juggler_adapters::read_session_file(&sides.reference.path)
             .is_ok_and(|now| juggler_adapter::handover::sha256_hex(&now) == source_sha)
             .then_some(started)
             .ok_or_else(|| {
@@ -5884,26 +6081,20 @@ fn switch_replay(
 /// conversation read in its own format, redacted under the user's policy
 /// for the target Provider (unset blocks — D-14), bounded, and handed to
 /// the target's prime.
-fn replay_prompt(
+/// Whether the replay strips secrets: the choice made on this switch, else
+/// the policy. Unset, or "Ask each time" with no answer, refuses (the
+/// conversation never leaves unredacted by default). Reads no
+/// conversation, so it runs before the source is stopped.
+fn replay_strip(
     state: &Arc<AppState>,
     sides: &SwitchSides,
     redaction_choice: Option<&str>,
-    redaction_unredact: &[u32],
-) -> AppResult<(String, String, u64)> {
-    use juggler_handover::pipeline::SwitchFailure;
-    use juggler_handover::redaction::{RedactionPolicy, strip_segments};
-
+) -> AppResult<bool> {
+    use juggler_handover::redaction::RedactionPolicy;
     let refused = |message: String| AppError::Io {
         context: "hand over",
         message,
     };
-    let bytes = std::fs::read(&sides.reference.path)
-        .map_err(|_| refused(SwitchFailure::UnresolvedSource.copy(&sides.account_a.label)))?;
-    if !juggler_adapter::handover::tail_parses(&bytes) {
-        return Err(refused(
-            SwitchFailure::TornTail.copy(&sides.account_a.label),
-        ));
-    }
     let policy = {
         let storage = lock_storage_arc(state)?;
         juggler_handover::redaction::resolve_policy(
@@ -5911,31 +6102,57 @@ fn replay_prompt(
             redaction_override_of(&storage, sides.account_b.harness.as_str()),
         )
     };
-    // Unset, or "Ask each time" with no answer on this switch, blocks:
-    // the conversation never leaves unredacted by default.
-    let strip = match redaction_choice
+    match redaction_choice
         .and_then(RedactionPolicy::from_wire)
         .or(policy)
     {
-        Some(RedactionPolicy::Strip) => true,
-        Some(RedactionPolicy::Keep) => false,
-        Some(RedactionPolicy::AskEachTime) | None => {
-            return Err(refused(
-                "Choose how secrets in the conversation are handled for this switch — \
-                 a replay sends the conversation to the other Provider."
-                    .to_owned(),
-            ));
-        }
+        Some(RedactionPolicy::Strip) => Ok(true),
+        Some(RedactionPolicy::Keep) => Ok(false),
+        Some(RedactionPolicy::AskEachTime) | None => Err(refused(
+            "Choose how secrets in the conversation are handled for this switch — \
+             a replay sends the conversation to the other Provider."
+                .to_owned(),
+        )),
+    }
+}
+
+/// The conversation's turns, refusing one that can't be read or has none.
+fn replayable_turns(path: &std::path::Path) -> AppResult<Vec<juggler_handover::pack::IrTurn>> {
+    let refused = |message: &str| AppError::Io {
+        context: "hand over",
+        message: message.to_owned(),
     };
-    // The preview's own segments, so a per-item un-redact lines up.
-    let (_, turns) = transcript_side(&sides.reference.path).ok_or_else(|| {
-        refused("Couldn't read this session's conversation, so it can't be replayed.".to_owned())
+    let (_, turns) = transcript_side(path).ok_or_else(|| {
+        refused("Couldn't read this session's conversation, so it can't be replayed.")
     })?;
     if turns.is_empty() {
+        return Err(refused("This session has no conversation to replay yet."));
+    }
+    Ok(turns)
+}
+
+fn replay_prompt(
+    state: &Arc<AppState>,
+    sides: &SwitchSides,
+    strip: bool,
+    redaction_unredact: &[u32],
+) -> AppResult<(String, String, u64)> {
+    use juggler_handover::pipeline::SwitchFailure;
+    use juggler_handover::redaction::strip_segments;
+
+    let refused = |message: String| AppError::Io {
+        context: "hand over",
+        message,
+    };
+    let bytes = juggler_adapters::read_session_file(&sides.reference.path)
+        .map_err(|_| refused(SwitchFailure::UnresolvedSource.copy(&sides.account_a.label)))?;
+    if !juggler_adapter::handover::tail_parses(&bytes) {
         return Err(refused(
-            "This session has no conversation to replay yet.".to_owned(),
+            SwitchFailure::TornTail.copy(&sides.account_a.label),
         ));
     }
+    // The preview's own segments, so a per-item un-redact lines up.
+    let turns = replayable_turns(&sides.reference.path)?;
     let segments: Vec<String> = turns.iter().map(|turn| turn.text.clone()).collect();
     let keep: std::collections::BTreeSet<usize> = redaction_unredact
         .iter()
@@ -5948,11 +6165,62 @@ fn replay_prompt(
         .handover(&sides.account_b.harness)
         .and_then(|support| support.prime_prompt(&prime_turns).ok())
         .unwrap_or_else(|| plain_prime(&prime_turns));
+    // AJ-E1541: where the work stands, after the conversation: the task
+    // list as last set, and what changed in the project and isn't
+    // committed, so the other tool continues the work, not just the chat.
+    let prompt = match work_state_note(
+        juggler_adapters::parse_any(&bytes).tasks.as_deref(),
+        &sides.source.cwd,
+    ) {
+        Some(note) => format!("{prompt}\n\n{note}"),
+        None => prompt,
+    };
     Ok((
         prompt,
         juggler_adapter::handover::sha256_hex(&bytes),
         u64::try_from(bytes.len()).unwrap_or(u64::MAX),
     ))
+}
+
+/// AJ-E1541: "where the work stands" for a handover: the task list as the
+/// last call set it, and the project's uncommitted changes. `None` when
+/// there's neither.
+fn work_state_note(
+    tasks: Option<&[juggler_adapters::tool_summary::TaskItem]>,
+    cwd: &std::path::Path,
+) -> Option<String> {
+    use std::fmt::Write as _;
+    let changes = crate::worktree::work_changes(cwd).filter(|changes| !changes.files.is_empty());
+    let tasks = tasks.filter(|tasks| !tasks.is_empty());
+    if changes.is_none() && tasks.is_none() {
+        return None;
+    }
+    let mut note = String::from("Where the work stands now:\n");
+    if let Some(tasks) = tasks {
+        let _ = write!(
+            note,
+            "\nTask list:\n{}",
+            juggler_adapters::tool_summary::render_tasks(tasks)
+        );
+    }
+    if let Some(changes) = changes {
+        let branch = changes
+            .branch
+            .as_deref()
+            .map(|branch| format!(" on {branch}"))
+            .unwrap_or_default();
+        let _ = writeln!(note, "\nNot committed yet{branch}:");
+        for file in &changes.files {
+            let _ = writeln!(note, "  {file}");
+        }
+        if changes.more > 0 {
+            let _ = writeln!(note, "  …and {} more", changes.more);
+        }
+        if let Some(stat) = &changes.stat {
+            let _ = writeln!(note, "  ({stat})");
+        }
+    }
+    Some(note.trim_end().to_owned())
 }
 
 /// Records a succeeded replay: the source rests (`HandedOver`), the
@@ -6078,6 +6346,17 @@ fn replay_turns(
 }
 
 /// The replay brief when the target Provider has no prime of its own.
+/// The first line every replay into `harness` opens with (its tool's
+/// prime, else the plain one): how a replay's conversation is told apart.
+fn replay_header(state: &Arc<AppState>, harness: &juggler_core::model::HarnessId) -> String {
+    let prime = state
+        .registry
+        .handover(harness)
+        .and_then(|support| support.prime_prompt(&[]).ok())
+        .unwrap_or_else(|| plain_prime(&[]));
+    prime.lines().next().unwrap_or_default().to_owned()
+}
+
 fn plain_prime(turns: &[juggler_adapter::handover::TurnText]) -> String {
     let mut out = String::from(
         "You are continuing a session that previously ran under another Provider. \
@@ -6502,29 +6781,52 @@ fn record_edge_staged(
             message: "session has no project link".into(),
         });
     };
-    let work = match graph.works_for_project(project)?.into_iter().next_back() {
-        Some(existing) => existing,
-        None => graph
-            .create_work(project, "Work")
-            .map_err(|error| AppError::Io {
-                context: "hand over",
-                message: error.to_string(),
-            })?,
+    // AJ-E1541: a session that itself came from a switch already has an
+    // epoch (the one that switch created for it). This switch starts from
+    // that epoch, in its work, so the chain A → B → Codex stays one path
+    // and switching back can walk all of it. A new epoch only for a session
+    // no switch has touched.
+    let works = graph.works_for_project(project)?;
+    let mut existing = None;
+    for work in works.iter().rev() {
+        if let Some(epoch) = graph
+            .epochs_for_work(&work.id)?
+            .into_iter()
+            .rev()
+            .find(|epoch| epoch.session_ref.as_ref() == Some(&source.id))
+        {
+            existing = Some((work.clone(), epoch));
+            break;
+        }
+    }
+    let (work, from) = if let Some(found) = existing {
+        found
+    } else {
+        let work = match works.into_iter().next_back() {
+            Some(existing) => existing,
+            None => graph
+                .create_work(project, "Work")
+                .map_err(|error| AppError::Io {
+                    context: "hand over",
+                    message: error.to_string(),
+                })?,
+        };
+        let from = Epoch {
+            id: EpochId::new(format!("ep-{}", unique_suffix())),
+            work: work.id.clone(),
+            session_ref: Some(source.id.clone()),
+            native_id: reference.native_id.clone(),
+            account: account_a.id.clone(),
+            provider: account_a.harness.clone(),
+            resumed_from_epoch: None,
+            machine: None,
+        };
+        graph.insert_epoch(&from).map_err(|error| AppError::Io {
+            context: "hand over",
+            message: error.to_string(),
+        })?;
+        (work, from)
     };
-    let from = Epoch {
-        id: EpochId::new(format!("ep-{}", unique_suffix())),
-        work: work.id.clone(),
-        session_ref: Some(source.id.clone()),
-        native_id: reference.native_id.clone(),
-        account: account_a.id.clone(),
-        provider: account_a.harness.clone(),
-        resumed_from_epoch: None,
-        machine: None,
-    };
-    graph.insert_epoch(&from).map_err(|error| AppError::Io {
-        context: "hand over",
-        message: error.to_string(),
-    })?;
     let edge_id = SwitchEdgeId::new(format!("edge-{}", unique_suffix()));
     graph
         .append_edge(&SwitchEdge {
@@ -10824,6 +11126,22 @@ pub struct SwitchBackPlanInfo {
     pub base_turns: u32,
     /// Tracked-artifact conflicts needing a choice.
     pub conflicts: Vec<FileConflictInfo>,
+    /// AJ-E1541: every account this work can go back to, nearest first
+    /// (A → B → Codex: B, then A, where it started).
+    pub returns: Vec<SwitchBackReturnInfo>,
+    /// The epoch this plan returns to (one of `returns`).
+    pub return_to: String,
+}
+
+/// One account a switch back can return to (AJ-E1541).
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize)]
+pub struct SwitchBackReturnInfo {
+    /// The epoch to pass back as `to_epoch`.
+    pub epoch_id: String,
+    /// The account's label.
+    pub account: String,
+    /// Whether this is where the work started.
+    pub start: bool,
 }
 
 /// One user resolution from the review UI.
@@ -10849,6 +11167,24 @@ struct BackLineage {
     away_session: juggler_core::model::InstanceRecord,
     /// The original session row, when it still exists.
     original_session: Option<juggler_core::model::InstanceRecord>,
+    /// AJ-E1541: the epochs the work went through between the original
+    /// and the away one, oldest first (A → B → Codex, returning to A: B).
+    intermediate: Vec<BackHop>,
+    /// Whether the away epoch began as a replay (another tool): its first
+    /// user turn is the replay, not new work.
+    away_primed: bool,
+    /// Every epoch this away one can return to, nearest first.
+    returns: Vec<(juggler_core::model::EpochId, juggler_core::model::AccountId)>,
+}
+
+/// One epoch between the original and the away one (AJ-E1541).
+struct BackHop {
+    /// The epoch.
+    epoch: juggler_core::model::Epoch,
+    /// Its session row, when it still exists.
+    session: Option<juggler_core::model::InstanceRecord>,
+    /// Whether it began as a replay from another tool.
+    primed: bool,
 }
 
 /// Walks the graph from an away instance to its fork: the confirmed
@@ -10861,12 +11197,13 @@ struct BackLineage {
 fn back_lineage(
     state: &Arc<AppState>,
     session_id: &str,
+    to_epoch: Option<&str>,
 ) -> AppResult<(
     BackLineage,
     juggler_core::model::Account,
     juggler_core::model::Account,
 )> {
-    use juggler_core::model::{EdgeState, SessionId};
+    use juggler_core::model::SessionId;
 
     let storage = lock_storage_arc(state)?;
     let away_session = storage
@@ -10899,20 +11236,26 @@ fn back_lineage(
         else {
             continue;
         };
-        let Some(fork_edge) = graph.edges_for_work(&work.id)?.into_iter().find(|edge| {
-            edge.to_epoch.as_ref() == Some(&away_epoch.id)
-                && matches!(edge.state, EdgeState::Confirmed)
-        }) else {
+        let mut chain = chain_back(&epochs, &graph.edges_for_work(&work.id)?, &away_epoch)?;
+        if chain.is_empty() {
             continue;
+        }
+        let target = match to_epoch {
+            Some(id) => chain
+                .iter()
+                .position(|(_, epoch)| epoch.id.as_str() == id)
+                .ok_or_else(|| {
+                    AppError::Refused("That account isn't one this work came from".to_owned())
+                })?,
+            None => 0,
         };
-        let original_epoch = graph
-            .epochs_for_work(&work.id)?
-            .into_iter()
-            .find(|epoch| epoch.id == fork_edge.from_epoch)
-            .ok_or_else(|| AppError::Io {
-                context: "switch back",
-                message: "The switch's source epoch is missing from the graph".to_owned(),
-            })?;
+        let away_primed = is_replay(&chain[0].0);
+        let intermediate = hops_of(&storage, &chain, target);
+        let returns = chain
+            .iter()
+            .map(|(_, epoch)| (epoch.id.clone(), epoch.account.clone()))
+            .collect();
+        let (fork_edge, original_epoch) = chain.swap_remove(target);
         let original_session = original_epoch
             .session_ref
             .as_ref()
@@ -10924,6 +11267,9 @@ fn back_lineage(
             fork_edge,
             away_session,
             original_session,
+            intermediate,
+            away_primed,
+            returns,
         });
         break;
     }
@@ -10952,6 +11298,134 @@ fn back_lineage(
     Ok((lineage, away_account, original_account))
 }
 
+/// AJ-E1541: the confirmed edges back from `away`, nearest first: (the
+/// edge into each epoch, the epoch it came from). A loop back to an epoch
+/// already visited stops the walk at its first visit.
+fn chain_back(
+    epochs: &[juggler_core::model::Epoch],
+    edges: &[juggler_core::model::SwitchEdge],
+    away: &juggler_core::model::Epoch,
+) -> AppResult<Vec<(juggler_core::model::SwitchEdge, juggler_core::model::Epoch)>> {
+    let mut chain: Vec<(juggler_core::model::SwitchEdge, juggler_core::model::Epoch)> = Vec::new();
+    let mut current = away.id.clone();
+    while let Some(edge) = edges.iter().find(|edge| {
+        edge.to_epoch.as_ref() == Some(&current)
+            && matches!(edge.state, juggler_core::model::EdgeState::Confirmed)
+    }) {
+        let Some(from) = epochs
+            .iter()
+            .find(|epoch| epoch.id == edge.from_epoch)
+            .cloned()
+        else {
+            return Err(AppError::Io {
+                context: "switch back",
+                message: "The switch's source epoch is missing from the graph".to_owned(),
+            });
+        };
+        if chain.iter().any(|(_, seen)| seen.id == from.id) {
+            break;
+        }
+        current = from.id.clone();
+        chain.push((edge.clone(), from));
+    }
+    Ok(chain)
+}
+
+/// AJ-E1541: the epochs between the return target (`chain[target]`) and
+/// the away one, oldest first: the epoch each nearer edge came from, with
+/// whether that epoch's own way in was a replay.
+fn hops_of(
+    storage: &juggler_core::storage::Storage,
+    chain: &[(juggler_core::model::SwitchEdge, juggler_core::model::Epoch)],
+    target: usize,
+) -> Vec<BackHop> {
+    (0..target)
+        .rev()
+        .map(|index| {
+            let epoch = chain[index].1.clone();
+            let session = epoch
+                .session_ref
+                .as_ref()
+                .and_then(|id| storage.sessions().get(id).ok());
+            BackHop {
+                primed: is_replay(&chain[index + 1].0),
+                epoch,
+                session,
+            }
+        })
+        .collect()
+}
+
+/// AJ-E1541: a session started by a switch to another tool has no
+/// transcript link until its tool writes one. Links every session on the
+/// way back (persisted, the same lookup the switch uses) before the facts
+/// are read.
+fn link_chain(state: &Arc<AppState>, session_id: &str, to_epoch: Option<&str>) -> AppResult<()> {
+    let (lineage, _, _) = back_lineage(state, session_id, to_epoch)?;
+    let unlinked: Vec<String> = std::iter::once(&lineage.away_session)
+        .chain(
+            lineage
+                .intermediate
+                .iter()
+                .filter_map(|hop| hop.session.as_ref()),
+        )
+        .chain(lineage.original_session.iter())
+        .filter(|row| row.transcript_ref.is_none())
+        .map(|row| row.id.to_string())
+        .collect();
+    drop(lineage);
+    for id in &unlinked {
+        let _ = handover_source_linked(state, id);
+    }
+    Ok(())
+}
+
+/// Whether an edge was a replay into another tool (AJ-E1541).
+fn is_replay(edge: &juggler_core::model::SwitchEdge) -> bool {
+    matches!(edge.mechanism, juggler_core::model::SwitchMechanism::Replay)
+}
+
+/// AJ-E1541: what was new on each hop between the account returned to and
+/// the away one, oldest first. `previous` starts as the returned-to
+/// account's uuids and gains each hop's, so a later hop counts only its own.
+/// A hop whose conversation can't be found goes into `unread`, so the
+/// update names it.
+fn hops_between(
+    state: &Arc<AppState>,
+    hops: &[BackHop],
+    previous: &mut std::collections::HashSet<String>,
+    unread: &mut Vec<String>,
+) -> AppResult<Vec<juggler_handover::switch_back::DeltaHop>> {
+    let mut out = Vec::new();
+    for hop in hops {
+        let account = {
+            let storage = lock_storage_arc(state)?;
+            storage.accounts().get(&hop.epoch.account).ok()
+        };
+        // A hop that can't be read is named, never left out (review of
+        // #132, M5).
+        let (Some(row), Some(account)) = (hop.session.as_ref(), account.as_ref()) else {
+            unread.push(account.map_or_else(
+                || "an account that's no longer here".to_owned(),
+                |account| account.label.clone(),
+            ));
+            continue;
+        };
+        let reference = newest_transcript(state, account, row.transcript_ref.clone());
+        let Some((uuids, turns)) = reference.as_ref().and_then(|r| transcript_side(&r.path)) else {
+            unread.push(account.label.clone());
+            continue;
+        };
+        let turns = new_turns(turns, previous, hop.primed);
+        previous.extend(uuids);
+        out.push(juggler_handover::switch_back::DeltaHop {
+            account: account.label.clone(),
+            turns,
+        });
+    }
+    Ok(out)
+}
+
 /// One side's conversation facts: the uuid set (reconciliation) and
 /// the user/assistant turns in file order (the delta body).
 fn transcript_side(
@@ -10961,7 +11435,8 @@ fn transcript_side(
     Vec<juggler_handover::pack::IrTurn>,
 )> {
     use juggler_adapters::claude_transcript::MessageRole;
-    let bytes = std::fs::read(path).ok()?;
+    // AJ-E1540: a compressed rollout (`.jsonl.zst`) reads like any other.
+    let bytes = juggler_adapters::read_session_file(path).ok()?;
     let parsed = juggler_adapters::parse_any(&bytes);
     let mut uuids = std::collections::HashSet::new();
     let mut turns = Vec::new();
@@ -10974,15 +11449,82 @@ fn transcript_side(
             MessageRole::Assistant => juggler_handover::pack::IrRole::Assistant,
             MessageRole::Other => continue,
         };
+        // AJ-E1541: what the turn's tool calls did, after what it said, so
+        // a handover carries the work and not only the chat.
+        let text = match (message.text.trim().is_empty(), message.tools.is_empty()) {
+            (_, true) => message.text,
+            (true, false) => format!("({})", message.tools.join("; ")),
+            (false, false) => format!("{}\n({})", message.text, message.tools.join("; ")),
+        };
         turns.push(juggler_handover::pack::IrTurn {
             uuid: message.uuid,
             role,
-            text: message.text,
+            text,
             at_ms: None,
             tokens: None,
         });
     }
     Some((uuids, turns))
+}
+
+/// AJ-E1541: what changed in the project while away, for the switch-back
+/// delta: git's diff stat, else how many files changed.
+fn away_diff_stat(cwd: &std::path::Path) -> Option<String> {
+    crate::worktree::work_changes(cwd).and_then(|changes| {
+        changes.stat.or_else(|| {
+            (!changes.files.is_empty()).then(|| format!("{} files changed", changes.files.len()))
+        })
+    })
+}
+
+/// AJ-E1541: the task list as the away session left it, on one line.
+fn away_task_note(reference: Option<&juggler_core::model::TranscriptRef>) -> Option<String> {
+    let bytes = juggler_adapters::read_session_file(&reference?.path).ok()?;
+    let tasks = juggler_adapters::parse_any(&bytes).tasks?;
+    (!tasks.is_empty()).then(|| {
+        juggler_adapters::tool_summary::render_tasks(&tasks)
+            .lines()
+            .collect::<Vec<_>>()
+            .join("; ")
+    })
+}
+
+/// AJ-E1541: the turns of one hop that are new on it: not in what came
+/// before (`previous`), and without its first user turn when it began as
+/// a replay from another tool (that turn is the replay, not new work).
+fn new_turns(
+    turns: Vec<juggler_handover::pack::IrTurn>,
+    previous: &std::collections::HashSet<String>,
+    primed: bool,
+) -> Vec<juggler_handover::pack::IrTurn> {
+    let mut skipped_prime = !primed;
+    turns
+        .into_iter()
+        .filter(|turn| {
+            if !skipped_prime && turn.role == juggler_handover::pack::IrRole::User {
+                skipped_prime = true;
+                return false;
+            }
+            turn.uuid
+                .as_ref()
+                .is_none_or(|uuid| !previous.contains(uuid))
+        })
+        .collect()
+}
+
+/// AJ-E1541: the newest file of a linked conversation. A tool that writes
+/// a new file on every resume (Codex) leaves the first link behind; the
+/// conversation's id finds the file that holds the latest turns.
+fn newest_transcript(
+    state: &Arc<AppState>,
+    account: &juggler_core::model::Account,
+    reference: Option<juggler_core::model::TranscriptRef>,
+) -> Option<juggler_core::model::TranscriptRef> {
+    let reference = reference?;
+    let Some(id) = reference.native_id.clone() else {
+        return Some(reference);
+    };
+    crate::features::conversations::transcript_of(state, account, &id, &[]).or(Some(reference))
 }
 
 /// Hashes the fork manifest's FILE-domain rows on one side now
@@ -11011,12 +11553,70 @@ fn file_domain_hashes_now(
     hashes
 }
 
+/// The conversation side of a switch back: the away turns, how the two
+/// sides' conversations relate, the hops between, and the accounts whose
+/// conversation couldn't be found.
+struct BackConversation {
+    away_turns: Vec<juggler_handover::pack::IrTurn>,
+    conversation: juggler_handover::reconcile::ConversationReconciliation,
+    earlier_hops: Vec<juggler_handover::switch_back::DeltaHop>,
+    unread: Vec<String>,
+}
+
+fn back_conversation(
+    state: &Arc<AppState>,
+    lineage: &BackLineage,
+    away_label: &str,
+    away_reference: Option<&juggler_core::model::TranscriptRef>,
+    original_reference: Option<&juggler_core::model::TranscriptRef>,
+) -> AppResult<BackConversation> {
+    // Conversation: base = intersection (B began as A's bytes);
+    // away-only renders the delta; original-only is a no-op.
+    let away_side = away_reference.and_then(|reference| transcript_side(&reference.path));
+    let original_side = original_reference.and_then(|reference| transcript_side(&reference.path));
+    let empty = std::collections::HashSet::new();
+    let away_side_missing = away_side.is_none();
+    let (mut away_uuids, mut away_turns) = away_side.unwrap_or_else(|| (empty.clone(), Vec::new()));
+    let (original_uuids, _) = original_side.unwrap_or_else(|| (empty, Vec::new()));
+    // AJ-E1541: the hops between, each reduced to what was new on it; a
+    // hop (or the away epoch) that began as a replay drops its first user
+    // turn, which is the replay itself.
+    let mut previous_uuids = original_uuids.clone();
+    let mut unread = Vec::new();
+    let earlier_hops = hops_between(
+        state,
+        &lineage.intermediate,
+        &mut previous_uuids,
+        &mut unread,
+    )?;
+    if away_side_missing {
+        unread.push(away_label.to_owned());
+    }
+    if lineage.away_primed {
+        away_turns = new_turns(away_turns, &std::collections::HashSet::new(), true);
+        away_uuids = away_turns
+            .iter()
+            .filter_map(|turn| turn.uuid.clone())
+            .collect();
+    }
+    Ok(BackConversation {
+        conversation: juggler_handover::reconcile::reconcile_conversation(
+            &away_uuids,
+            &previous_uuids,
+        ),
+        away_turns,
+        earlier_hops,
+        unread,
+    })
+}
+
 /// Assembles the plan facts shared by plan/execute (one walk, one
 /// reconcile — the same truth both halves render and act on).
 #[allow(clippy::type_complexity)]
 fn back_facts(
     state: &Arc<AppState>,
     session_id: &str,
+    to_epoch: Option<&str>,
 ) -> AppResult<(
     BackLineage,
     juggler_core::model::Account,
@@ -11026,10 +11626,15 @@ fn back_facts(
     bool,
     juggler_handover::switch_back::OriginalSession,
 )> {
-    use juggler_handover::reconcile::{reconcile_conversation, reconcile_files};
+    use juggler_handover::reconcile::reconcile_files;
 
-    let (lineage, away_account, original_account) = back_lineage(state, session_id)?;
-    let away_reference = lineage.away_session.transcript_ref.clone();
+    link_chain(state, session_id, to_epoch)?;
+    let (lineage, away_account, original_account) = back_lineage(state, session_id, to_epoch)?;
+    let away_reference = newest_transcript(
+        state,
+        &away_account,
+        lineage.away_session.transcript_ref.clone(),
+    );
     let original_reference = lineage
         .original_session
         .as_ref()
@@ -11068,18 +11673,18 @@ fn back_facts(
         nearest_surviving.as_deref(),
     );
 
-    // Conversation: base = intersection (B began as A's bytes);
-    // away-only renders the delta; original-only is a no-op.
-    let away_side = away_reference
-        .as_ref()
-        .and_then(|reference| transcript_side(&reference.path));
-    let original_side = original_reference
-        .as_ref()
-        .and_then(|reference| transcript_side(&reference.path));
-    let empty = std::collections::HashSet::new();
-    let (away_uuids, away_turns) = away_side.unwrap_or_else(|| (empty.clone(), Vec::new()));
-    let (original_uuids, _) = original_side.unwrap_or_else(|| (empty, Vec::new()));
-    let conversation = reconcile_conversation(&away_uuids, &original_uuids);
+    let BackConversation {
+        away_turns,
+        conversation,
+        earlier_hops,
+        unread,
+    } = back_conversation(
+        state,
+        &lineage,
+        &away_account.label,
+        away_reference.as_ref(),
+        original_reference.as_ref(),
+    )?;
 
     // File domain: the fork manifest's non-transcript rows, hashed
     // on both sides now (three-way; conflicts never auto-merge).
@@ -11105,8 +11710,10 @@ fn back_facts(
         away_turns,
         away_only_uuids: conversation.away_only_uuids.iter().cloned().collect(),
         conversation: conversation.clone(),
-        diff_stat: None, // the away pack's freeze-time stat rides E209's pack surfaces
-        todo_note: None,
+        diff_stat: away_diff_stat(&lineage.away_session.cwd),
+        todo_note: away_task_note(away_reference.as_ref()),
+        earlier_hops,
+        unread,
     };
     let away_live = matches!(
         lineage.away_session.status.as_str(),
@@ -11131,11 +11738,15 @@ fn back_facts(
 ///
 /// Returns the typed [`AppError`] when the lineage walk fails.
 #[tauri::command]
-pub fn switch_back_plan(
+pub async fn switch_back_plan(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
+    to_epoch: Option<String>,
 ) -> AppResult<SwitchBackPlanInfo> {
-    switch_back_plan_impl(state.inner(), &session_id)
+    crate::ipc::blocking(state.inner(), "plan the switch back", move |state| {
+        switch_back_plan_to_impl(state, &session_id, to_epoch.as_deref())
+    })
+    .await
 }
 
 /// Core implementation shared with integration tests.
@@ -11147,13 +11758,46 @@ pub fn switch_back_plan_impl(
     state: &Arc<AppState>,
     session_id: &str,
 ) -> AppResult<SwitchBackPlanInfo> {
+    switch_back_plan_to_impl(state, session_id, None)
+}
+
+/// [`switch_back_plan_impl`] returning to a chosen earlier epoch
+/// (AJ-E1541): `None` is the account the work came from last.
+///
+/// # Errors
+///
+/// [`AppError::Refused`] when `to_epoch` isn't one this work came from;
+/// otherwise as [`switch_back_plan_impl`].
+pub fn switch_back_plan_to_impl(
+    state: &Arc<AppState>,
+    session_id: &str,
+    to_epoch: Option<&str>,
+) -> AppResult<SwitchBackPlanInfo> {
     use juggler_handover::switch_back::{
         OriginalSession, Sf7Fallback, both_live_copy, delta_turn_text, divergence_copy,
         suggestion_copy,
     };
 
-    let (_lineage, _away_account, original_account, delta_input, conflicts, away_live, verdict) =
-        back_facts(state, session_id)?;
+    let (lineage, _away_account, original_account, delta_input, conflicts, away_live, verdict) =
+        back_facts(state, session_id, to_epoch)?;
+    let returns = {
+        let storage = lock_storage_arc(state)?;
+        let last = lineage.returns.len().saturating_sub(1);
+        lineage
+            .returns
+            .iter()
+            .enumerate()
+            .map(|(index, (epoch, account))| SwitchBackReturnInfo {
+                epoch_id: epoch.to_string(),
+                account: storage
+                    .accounts()
+                    .get(account)
+                    .map_or_else(|_| account.to_string(), |found| found.label),
+                start: index == last,
+            })
+            .collect::<Vec<_>>()
+    };
+    let return_to = lineage.original_epoch.id.to_string();
     let away_only_turns =
         u32::try_from(juggler_handover::switch_back::delta_turns(&delta_input).len())
             .unwrap_or(u32::MAX);
@@ -11167,9 +11811,10 @@ pub fn switch_back_plan_impl(
                 }
                 Sf7Fallback::FreshPackF0 => "fresh-f0".to_owned(),
             },
+            // Plain words (AJ-E1543): the screen adds what happens instead.
             format!(
-                "{}",
-                juggler_handover::pipeline::SwitchFailure::OriginalSessionGone
+                "The original conversation on {} is gone, so it can't be resumed",
+                original_account.label
             ),
         ),
     };
@@ -11193,6 +11838,8 @@ pub fn switch_back_plan_impl(
             .unwrap_or(u32::MAX),
         base_turns: u32::try_from(delta_input.conversation.base_uuids).unwrap_or(u32::MAX),
         conflicts: conflicts.iter().map(FileConflictInfo::of).collect(),
+        returns,
+        return_to,
     })
 }
 
@@ -11210,13 +11857,23 @@ pub fn switch_back_plan_impl(
 /// the work stays forked, both sides resumable), spawn failure, or
 /// graph write failure.
 #[tauri::command]
-pub fn switch_back_execute(
+pub async fn switch_back_execute(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
     choices: Vec<SwitchBackChoiceIn>,
     keep_away_running: bool,
+    to_epoch: Option<String>,
 ) -> AppResult<LaunchResult> {
-    switch_back_execute_impl(state.inner(), &session_id, &choices, keep_away_running)
+    crate::ipc::blocking(state.inner(), "switch back", move |state| {
+        switch_back_execute_to_impl(
+            state,
+            &session_id,
+            &choices,
+            keep_away_running,
+            to_epoch.as_deref(),
+        )
+    })
+    .await
 }
 
 /// Core implementation shared with integration tests.
@@ -11230,10 +11887,28 @@ pub fn switch_back_execute_impl(
     choices: &[SwitchBackChoiceIn],
     keep_away_running: bool,
 ) -> AppResult<LaunchResult> {
+    switch_back_execute_to_impl(state, session_id, choices, keep_away_running, None)
+}
+
+/// [`switch_back_execute_impl`] returning to a chosen earlier epoch
+/// (AJ-E1541): `None` is the account the work came from last.
+///
+/// # Errors
+///
+/// [`AppError::Refused`] when `to_epoch` isn't one this work came from;
+/// otherwise as [`switch_back_execute_impl`].
+pub fn switch_back_execute_to_impl(
+    state: &Arc<AppState>,
+    session_id: &str,
+    choices: &[SwitchBackChoiceIn],
+    keep_away_running: bool,
+    to_epoch: Option<&str>,
+) -> AppResult<LaunchResult> {
     use juggler_handover::switch_back::{plan_resolutions, unresolved};
 
+    let _slot = SwitchSlot::take(state, session_id)?;
     let (lineage, away_account, original_account, delta_input, conflicts, away_live, verdict) =
-        back_facts(state, session_id)?;
+        back_facts(state, session_id, to_epoch)?;
     // S-F8: every conflict resolved or the work stays forked — an
     // error, never a guess.
     let resolutions = parse_switch_back_choices(choices);
@@ -11744,7 +12419,7 @@ impl RedactionPolicyInfo {
     /// Builds the info block (line verbatim per Req.2).
     #[must_use]
     pub fn from_parts(
-        provider: &juggler_core::model::HarnessId,
+        provider_name: &str,
         global: Option<juggler_handover::redaction::RedactionPolicy>,
         r#override: Option<juggler_handover::redaction::RedactionPolicy>,
     ) -> Self {
@@ -11758,7 +12433,7 @@ impl RedactionPolicyInfo {
                 (Some(_), None) => "global".to_owned(),
                 (None, None) => "unset".to_owned(),
             },
-            line: redaction_line(provider.as_str(), global, r#override),
+            line: redaction_line(provider_name, global, r#override),
         }
     }
 }
@@ -11866,7 +12541,11 @@ pub fn redaction_policy_get_impl(
             (Some(_), None) => "global".to_owned(),
             (None, None) => "unset".to_owned(),
         },
-        line: redaction_line(provider, global, r#override),
+        line: redaction_line(
+            &crate::features::tools::display_name(&state.registry, provider),
+            global,
+            r#override,
+        ),
     })
 }
 

@@ -96,6 +96,10 @@ pub struct AppState {
     /// a fidelity-register PASS recorded on other versions reads
     /// UNVALIDATED (the upgrade resets it by itself).
     pub provider_versions: Mutex<std::collections::HashMap<String, String>>,
+    /// Sessions a switch or switch-back is running for right now: one at
+    /// a time per session (re-review of #132: off the main thread, two
+    /// could run at once and transplant the same source twice).
+    pub switching: Mutex<std::collections::HashSet<String>>,
     /// AJ-E1529: every account's conversations, read from the tools' own
     /// files (kept in memory; rebuilt from the files after a restart).
     pub conversations: crate::features::conversations::ConversationIndex,
@@ -291,6 +295,7 @@ impl AppState {
             link: crate::link::LinkManager::default(),
             figurehead: crate::figurehead::FigureheadManager::default(),
             provider_versions: Mutex::new(std::collections::HashMap::new()),
+            switching: Mutex::default(),
             conversations: crate::features::conversations::ConversationIndex::default(),
             project_icons: std::sync::Mutex::default(),
             restarts: std::sync::Mutex::default(),

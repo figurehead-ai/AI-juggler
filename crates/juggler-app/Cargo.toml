@@ -91,6 +91,8 @@ juggler-stats = { version = "0.0.1", path = "../juggler-stats" }
 cpu-time = "1"
 juggler-handover = { version = "0.0.1", path = "../juggler-handover" }
 tempfile = "3.27.0"
+# AJ-E1542: reads the Codex config a set-up wrote.
+toml = "1"
 # AJ-E1010: the real updater plugin against a local feed — a mock Tauri
 # app, and minisign signatures made in the test (signature fixtures).
 tauri = { version = "2.12.3", features = ["test"] }

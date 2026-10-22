@@ -167,12 +167,8 @@ sync session_handover
 sync sessions_list_alias
 sync source_inspect
 sync stop_session
-sync switch_back_execute
-sync switch_back_plan
 sync switch_back_suggestions
-sync switch_execute
 sync switch_graph_overview
-sync switch_preflight
 sync switch_targets
 sync switch_undo
 sync terminal_attach

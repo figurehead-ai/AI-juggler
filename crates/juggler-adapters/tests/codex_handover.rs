@@ -297,3 +297,40 @@ fn cwd_helpers_read_and_remap_codex_payloads() {
     let remapped = String::from_utf8(remap_cwd(claude, "/Users/a", "/Users/b")).unwrap();
     assert!(remapped.contains("\"cwd\":\"/Users/b/app\""), "{remapped}");
 }
+
+/// AJ-E1540: Codex compresses older rollouts (`.jsonl.zst`; most of them
+/// on the maintainer's Mac). Switching one was refused; now it travels
+/// decompressed, as a plain `.jsonl` of the same name.
+#[test]
+fn a_compressed_rollout_travels_decompressed() {
+    let a = tempfile::tempdir().unwrap();
+    let b = tempfile::tempdir().unwrap();
+    let plain = source_rollout(a.path());
+    let original = std::fs::read(&plain).unwrap();
+    let compressed = plain.with_file_name(format!(
+        "{}.zst",
+        plain.file_name().unwrap().to_string_lossy()
+    ));
+    std::fs::write(
+        &compressed,
+        zstd::stream::encode_all(&original[..], 3).unwrap(),
+    )
+    .unwrap();
+    std::fs::remove_file(&plain).unwrap();
+
+    let bundle = CodexAdapter::new()
+        .bundle_session(&reference(&compressed))
+        .expect("a compressed rollout bundles");
+    assert_eq!(bundle.files.len(), 1);
+    assert!(
+        bundle.files[0].name.ends_with(".jsonl"),
+        "{}",
+        bundle.files[0].name
+    );
+    assert_eq!(bundle.files[0].bytes, original);
+    let outcome = CodexAdapter::new()
+        .install_bundle(&bundle, &account(b.path()))
+        .unwrap();
+    assert_eq!(std::fs::read(&outcome.reference.path).unwrap(), original);
+    assert!(compressed.is_file(), "the source is untouched");
+}

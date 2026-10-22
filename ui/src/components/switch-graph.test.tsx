@@ -210,7 +210,7 @@ describe("AJ-E209 SwitchGraph — the timeline", () => {
             from: "ep-src",
             to: null,
             label: "failed · target launch failed",
-            failed_reason: "S-F6: target window closed mid-launch",
+            failed_reason: "the session on the other account closed while it started",
             switch_back: false,
           },
         ],
@@ -226,7 +226,7 @@ describe("AJ-E209 SwitchGraph — the timeline", () => {
     );
     fireEvent.click(container.querySelector('[data-testid="switch-graph-failed-edge"]')!);
     const detail = container.querySelector('[data-testid="switch-graph-failed-detail"]')!;
-    expect(detail.textContent).toContain("S-F6: target window closed mid-launch");
+    expect(detail.textContent).toContain("the session on the other account closed while it started");
     expect(detail.textContent).toContain("the source stayed resumable");
     fireEvent.click(
       Array.from(detail.querySelectorAll<HTMLButtonElement>("button")).find((button) =>

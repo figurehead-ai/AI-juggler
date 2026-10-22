@@ -123,6 +123,21 @@ gate-packet:
 gate-signed:
     python3 scripts/gate_packet.py signed docs/qa/gate-beta.md
 
+# Real Claude Code and Codex on accounts whose owner agreed, in a new
+# throwaway project: it spends a little usage and adds the lab's sessions
+# to the accounts. Arguments: a new project folder, two Claude config
+# folders, a Codex home, and the report's path (keep it out of the
+# repository: it holds real paths). AIJ_LAB_PROBE=<name> also checks the
+# set-up step.
+# AJ-E1539: the live switching lab (read the test's header first).
+switch-lab project claude_a claude_b codex out:
+    cargo test -p juggler-app --test switch_lab_live --no-run
+    env -u CLAUDE_CONFIG_DIR -u CODEX_HOME \
+      AIJ_LAB_DATA="$(mktemp -d)/data" AIJ_LAB_PROJECT="{{project}}" \
+      AIJ_LAB_CLAUDE_A="{{claude_a}}" AIJ_LAB_CLAUDE_B="{{claude_b}}" \
+      AIJ_LAB_CODEX="{{codex}}" AIJ_LAB_OUT="{{out}}" \
+      cargo test -p juggler-app --test switch_lab_live -- --ignored --nocapture
+
 # AJ-E808: render the provider-pair fidelity register (a test fails on drift).
 fidelity-register:
     mkdir -p docs/qa/evidence/AJ-E808

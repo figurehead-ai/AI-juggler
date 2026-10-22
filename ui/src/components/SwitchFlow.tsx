@@ -14,6 +14,9 @@
  * clicked, the user switched.
  */
 import { useEffect, useRef, useState, type JSX } from "react";
+import { SwitchFreezeChoice } from "./SwitchFreezeChoice";
+import { SwitchSetupList, SwitchSetupResults } from "./SwitchSetupList";
+import { useSwitchSetup } from "../lib/useSwitchSetup";
 import { showToast } from "./Toast";
 import {
   switchPreflight,
@@ -201,11 +204,17 @@ export function SwitchFlow({
   const [askChoice, setAskChoice] = useState<"strip" | "keep" | null>(null);
   const [chooserPick, setChooserPick] = useState<string | null>(null);
   const [unredact, setUnredact] = useState<Set<number>>(new Set());
+  // AJ-E1542: what the target lacks, and what the user picked to set up.
+  const setupCheck = useSwitchSetup(sessionId, targetProfileId);
+  const { setup, picked, toggle: togglePicked } = setupCheck;
   const dialogRef = useRef<HTMLDivElement | null>(null);
   // AJ-E804 (WCAG 2.4.3): cancelling returns focus to the control that
   // opened the switch. (A completed switch hands focus to the undo
   // toast instead.)
   const invokerRef = useRef<Element | null>(null);
+  // One switch per confirm: a second ⏎ before the phase re-renders would
+  // read the stale "confirm" and start another (review of #132).
+  const started = useRef(false);
   if (invokerRef.current === null) invokerRef.current = document.activeElement;
   const cancel = () => {
     const invoker = invokerRef.current;
@@ -316,10 +325,14 @@ export function SwitchFlow({
   };
 
   const execute = async () => {
-    if (phase.kind !== "confirm") return;
+    if (phase.kind !== "confirm" || started.current) return;
+    started.current = true;
     const oneClick = phase.preflight.door === "one-click";
     setPhase({ kind: "executing", startedAt: Date.now() });
     try {
+      // AJ-E1542: what the user picked is set up first, so the target
+      // starts with it.
+      const applied = await setupCheck.applyPicked();
       const result = await switchExecute(
         sessionId,
         targetProfileId,
@@ -327,7 +340,7 @@ export function SwitchFlow({
         askChoice,
         [...unredact],
       );
-      if (oneClick) {
+      if (oneClick && applied.length === 0) {
         // The modal closes into the undo window (App renders the
         // toast); the graph keeps the edge as the undo handle.
         onSwitched(result.session_id, { edgeId: result.edge_id });
@@ -360,11 +373,11 @@ export function SwitchFlow({
             <h3 className="text-sm font-semibold">
               Switch to {targetLabel}
               <span className="ml-2 rounded border border-accent/50 px-1 text-[10px] text-accent">
-                {phase.preflight.fidelity} · usual account · {validationWords(phase.preflight.validated)}
+                {phase.preflight.fidelity_words} · usual account · {validationWords(phase.preflight.validated)}
               </span>
             </h3>
             <p className="text-[11px] text-muted" data-testid="switch-oneclick-carry">
-              {carryOneLiner(phase.preflight.carry)} — cost: one switch hop.
+              {carryOneLiner(phase.preflight.carry)}.
             </p>
             <p className="text-[11px] text-muted">{phase.preflight.experimental_copy}</p>
             {phase.preflight.warnings.length > 0 && (
@@ -387,29 +400,13 @@ export function SwitchFlow({
               unredact={unredact}
               onToggleItem={toggleUnredact}
             />
-            <fieldset className="flex flex-col gap-1.5">
-              <legend className="text-[11px] uppercase tracking-wider text-muted">
-                {phase.preflight.source_live ? "Freeze the source first" : "The source is at rest"}
-              </legend>
-              <label className="flex items-center gap-2 text-xs">
-                <input
-                  type="radio"
-                  name="freeze"
-                  checked={freeze === "finish-turn"}
-                  onChange={() => setFreeze("finish-turn")}
-                />
-                Finish this turn, then switch <span className="text-muted">(default)</span>
-              </label>
-              <label className="flex items-center gap-2 text-xs">
-                <input
-                  type="radio"
-                  name="freeze"
-                  checked={freeze === "stop-now"}
-                  onChange={() => setFreeze("stop-now")}
-                />
-                Stop now and switch <span className="text-muted">(partial turn marked truncated)</span>
-              </label>
-            </fieldset>
+            {setup && <SwitchSetupList check={setup} picked={picked} onToggle={togglePicked} />}
+            <SwitchFreezeChoice
+              sourceLive={phase.preflight.source_live}
+              keepsRunning={phase.preflight.source_keeps_running}
+              value={freeze}
+              onChange={setFreeze}
+            />
             <div className="flex justify-end gap-2">
               <button
                 type="button"
@@ -473,7 +470,7 @@ export function SwitchFlow({
                 <h3 className="text-sm font-semibold">
                   Switch to {targetLabel}
                   <span className="ml-2 rounded border border-accent/50 px-1 text-[10px] text-accent">
-                    {phase.preflight.fidelity} · {validationWords(phase.preflight.validated)}
+                    {phase.preflight.fidelity_words} · {validationWords(phase.preflight.validated)}
                   </span>
                 </h3>
                 <ul className="flex flex-col gap-1" data-testid="switch-wizard-reasons">
@@ -498,7 +495,7 @@ export function SwitchFlow({
               <div className="flex flex-col gap-2" data-testid="switch-step-carried">
                 <h3 className="text-sm font-semibold">What's carried</h3>
                 <p className="text-[11px] text-muted">
-                  The pack contains exactly this list — nothing else moves.
+                  Only what's listed here moves.
                 </p>
                 <div className="flex flex-col gap-1 text-[11px]">
                   {phase.preflight.carry.carried.length > 0 && (
@@ -560,8 +557,7 @@ export function SwitchFlow({
               <div className="flex flex-col gap-2" data-testid="switch-step-confirm">
                 <h3 className="text-sm font-semibold">Confirm the switch</h3>
                 <p className="text-[11px] text-muted" data-testid="switch-cost">
-                  Cost: one switch hop · {phase.preflight.fidelity} fidelity ·{" "}
-                  {phase.preflight.mechanism}
+                  {phase.preflight.fidelity_words}
                   {phase.preflight.usual_account ? " · usual account" : ""}
                 </p>
                 <RedactionBlock
@@ -588,32 +584,13 @@ export function SwitchFlow({
                     ))}
                   </ul>
                 )}
-                <fieldset className="flex flex-col gap-1.5">
-                  <legend className="text-[11px] uppercase tracking-wider text-muted">
-                    {phase.preflight.source_live
-                      ? "Freeze the source first"
-                      : "The source is at rest"}
-                  </legend>
-                  <label className="flex items-center gap-2 text-xs">
-                    <input
-                      type="radio"
-                      name="freeze"
-                      checked={freeze === "finish-turn"}
-                      onChange={() => setFreeze("finish-turn")}
-                    />
-                    Finish this turn, then switch <span className="text-muted">(default)</span>
-                  </label>
-                  <label className="flex items-center gap-2 text-xs">
-                    <input
-                      type="radio"
-                      name="freeze"
-                      checked={freeze === "stop-now"}
-                      onChange={() => setFreeze("stop-now")}
-                    />
-                    Stop now and switch{" "}
-                    <span className="text-muted">(partial turn marked truncated)</span>
-                  </label>
-                </fieldset>
+                {setup && <SwitchSetupList check={setup} picked={picked} onToggle={togglePicked} />}
+                <SwitchFreezeChoice
+                  sourceLive={phase.preflight.source_live}
+                  keepsRunning={phase.preflight.source_keeps_running}
+                  value={freeze}
+                  onChange={setFreeze}
+                />
               </div>
             )}
 
@@ -681,9 +658,10 @@ export function SwitchFlow({
           <div className="flex flex-col gap-3" data-testid="switch-done">
             <h3 className="text-sm font-semibold">Switched to {targetLabel}</h3>
             <p className="text-[11px] text-muted">
-              You switched — the continuation session is starting. The source rests and stays
-              resumable from the graph.
+              {targetLabel} is picking up the conversation. The original has stopped, and you can
+              switch back to it any time.
             </p>
+            <SwitchSetupResults target={targetLabel} results={setupCheck.results} />
             <div className="flex justify-end">
               <button
                 type="button"
@@ -705,6 +683,8 @@ export function SwitchFlow({
             <p className="text-[11px] text-muted">
               The source is safe — resume it exactly where you left it.
             </p>
+            {/* What was set up before the switch failed stays undoable. */}
+            <SwitchSetupResults target={targetLabel} results={setupCheck.results} />
             <div className="flex justify-end">
               <button
                 type="button"
