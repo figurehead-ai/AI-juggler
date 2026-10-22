@@ -1632,6 +1632,54 @@ carried.
 Not checked: the replica's live mode (the "damaged" dialog), because this walk was on the
 real setup.
 
+## Batch 22 — PR #131 (`2b55db16`): the usage pipeline reads `.jsonl.zst`
+
+The harness, built on the PR's head, ran Finder-like into a fresh scratch folder. The
+snapshots changed only where live CLIs and the Codex app write.
+
+| | main, before (batch 20) | #131, after |
+|---|---|---|
+| Codex sessions with a cost row | 266 | 2,202 |
+| Sessions with tokens and no cost row | 1,886 | **2** |
+| Cost rows only the backend has | 0 | 0 (after the oracle fix below; 43 before it) |
+| Codex all-time tokens, backend / oracle | ×0.07 | **×0.47**: the 2 missing sessions hold 10.35 B |
+| `gpt-6-sol` | not seen | priced (165 rows) |
+| Rows priced | 221 of 482 | 698 of 2,521; every unpriced row is `codex-auto-review` (1,823) |
+| Account G 7 d tokens | ×1.01 | ×1.01 |
+
+**P20 — two compressed rollouts are too big for #131's 512 MiB cap.** Both missing
+sessions are top-level threads whose `.zst` files decompress to 2.28 GB (260 MB on disk;
+7.59 B tokens, 50,258 turns) and 1.58 GB (496 MB on disk; 2.76 B tokens, 18,587 turns).
+`read_session_file` reads a file whole into memory and refuses it above
+`SESSION_FILE_MAX`, so their 10.35 B tokens are left out: Codex's total reads ×0.47.
+Decompressing as a stream, line by line, would need no whole-file cap; a cap on line
+length would still guard against a hostile file. With both read, the total would be
+about 19.4 B against the oracle's 19.3 B.
+
+- **Rows outside 5%**: 12 of 2,255. Six are the switched conversations of P19
+  (×1.24–1.48). Six are small Codex sessions at ×1.05–1.06. Over all compressed sessions
+  the backend reads ×1.015, at a median of ×1.000, and every class reads slightly high.
+  That looks like rows a forked or resumed thread repeats being counted again. Minor next
+  to P20.
+- **Account G weekly**: MISMATCH by timing. The harness read 100% before the window
+  moved (it resets Thursday 13:09); the oracle ran afterwards.
+- **Not #131's**: Codex threads in projects and sessions. On main the backend's projects
+  have no Codex threads at all; `release/0.1`'s `codex_conversations` covers them.
+
+### The oracle's third blind spot: a subagent's rollout names its parent too
+
+43 rollouts carry two `session_meta` lines: first their own thread (the file's name), then
+the parent's they were forked from (`forked_from_id`, `source.subagent.thread_spawn`).
+The oracle kept the last one, so it credited those 43 threads' 3.82 B tokens to their two
+parents. The backend keys them by their own id, which is right. The oracle now:
+
+- names a rollout's thread by its first `session_meta`;
+- counts a subagent's thread like a Claude subagent: its tokens are its own session's, but
+  it isn't a conversation (400 such threads here; Account G has 1,926 conversations);
+- counts a turn (timestamp, running total) once, wherever a fork or resume repeats it;
+- adds a "Codex all time" line to the compare: backend against oracle over every Codex
+  session not written during the run.
+
 ## Not walked (blocked by W0, before the bridge)
 
 These need the window:

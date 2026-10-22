@@ -217,7 +217,7 @@ def rollout_lines(path: Path):
 
 def read_codex_rollout(path: Path) -> dict:
     path = current_rollout(path)
-    roll = {"session": None, "mtime": path.stat().st_mtime, "cwd": None, "first": None, "model": None,
+    roll = {"session": None, "parent": None, "mtime": path.stat().st_mtime, "cwd": None, "first": None, "model": None,
             "compressed": path.suffix == ".zst", "totals": [], "turns": [], "turn_detail": [],
             "rate_limits": None, "rate_ts": None}
     for raw in rollout_lines(path):
@@ -232,9 +232,15 @@ def read_codex_rollout(path: Path) -> dict:
             continue
         ts = iso_to_epoch(line.get("timestamp"))
         if line.get("type") == "session_meta":
-            roll["session"] = payload.get("id") or roll["session"]
-            roll["cwd"] = payload.get("cwd") if isinstance(payload.get("cwd"), str) else roll["cwd"]
-            roll["first"] = iso_to_epoch(payload.get("timestamp")) or ts
+            # The first names the file's own thread. A subagent's rollout
+            # then carries its parent's (the history it was forked from).
+            if roll["session"] is None:
+                roll["session"] = payload.get("id")
+                roll["cwd"] = payload.get("cwd") if isinstance(payload.get("cwd"), str) else None
+                roll["first"] = iso_to_epoch(payload.get("timestamp")) or ts
+                spawn = ((payload.get("source") or {}).get("subagent") or {}).get("thread_spawn") \
+                    if isinstance(payload.get("source"), dict) else None
+                roll["parent"] = payload.get("forked_from_id") or (spawn or {}).get("parent_thread_id")
         elif line.get("type") == "turn_context":
             roll["model"] = payload.get("model") if isinstance(payload.get("model"), str) else roll["model"]
         elif payload.get("type") == "token_count" and ts is not None:
@@ -426,7 +432,10 @@ def build(args) -> dict:
             newest = None
             window_tokens = {name: 0 for name, _ in WINDOWS}
             threads = set()  # a resumed thread is a rollout per resume: one conversation
-            seen_turns = set()  # (thread, timestamp, running total): a resume that repeats its parent's rows counts them once
+            # (timestamp, running total): a resume, or a subagent forked
+            # from its parent's history, repeats the rows it carries; each
+            # turn counts once, on the thread that wrote it first.
+            seen_turns = set()
             acc["files"] = {"plain": 0, "compressed": 0}
             all_time = acc["codex_all_time"] = {"turns": 0, "total": 0, **{name: 0 for name, _ in CODEX_CLASSES},
                                                 "by_model": {}}
@@ -442,10 +451,10 @@ def build(args) -> dict:
                 thread = roll["session"] or str(path)
                 own, own_detail = [], []
                 for (ts, n, running), detail in zip(roll["turns"], roll["turn_detail"]):
-                    if (thread, ts, running) not in seen_turns:
+                    if (ts, running) not in seen_turns:
                         own.append((ts, n))
                         own_detail.append(detail)
-                seen_turns.update((thread, ts, running) for ts, _, running in roll["turns"])
+                seen_turns.update((ts, running) for ts, _, running in roll["turns"])
                 for (_, n), (model, classes) in zip(own, own_detail):
                     all_time["turns"] += 1
                     all_time["total"] += n
@@ -471,7 +480,11 @@ def build(args) -> dict:
                     continue
                 root, how = project_of(roll["cwd"])
                 p = projects[root]
-                if thread not in threads:
+                if roll["parent"]:
+                    # A subagent's thread: its tokens are its own session's,
+                    # but it is not a conversation of its own.
+                    acc["subagent_files"] += 1
+                elif thread not in threads:
                     threads.add(thread)
                     acc["conversations"] += 1
                     p["per_account"][idx] += 1
@@ -553,6 +566,7 @@ def build(args) -> dict:
             session_totals[session] = sum_tokens(records.values())["total"]
     return {"generated": now, "accounts": accounts, "per_account": per_account, "projects": projects,
             "carried": {"sessions": carried_sessions, "tokens": carried},
+            "codex_sessions": sorted(s for s, (i, _) in transcripts_by_session.items() if accounts[i][1] == "codex"),
             "live": live, "session_totals": session_totals, "session_mtime": session_mtime, "desktop_roots": desktop_roots()}
 
 
@@ -934,6 +948,15 @@ def compare(truth: dict, harness: dict) -> str:
                 f"ratio min ×{ratios[0]:.2f}, median ×{ratios[len(ratios) // 2]:.2f}, max ×{ratios[-1]:.2f}; "
                 f"{only_backend} only in the backend, {only_oracle} with tokens only in the transcripts; "
                 f"{skipped} still being written during the run, left out")
+    # All of Codex's history, summed: the sessions both read (left out:
+    # those written during the run).
+    codex = [k for k in truth.get("codex_sessions", []) if k in oracle_sessions]
+    if codex:
+        mine = sum(oracle_sessions[k] for k in codex)
+        theirs = sum(backend_sessions.get(k, 0) for k in codex)
+        verdict(abs(theirs - mine) <= 0.05 * mine,
+                f"Codex all time: backend {theirs:,} tokens in {sum(1 for k in codex if k in backend_sessions)} sessions, "
+                f"oracle {mine:,} in {len(codex)} (×{theirs / mine:.2f})")
     unpriced = sum(1 for r in cost["rows"] if (r.get("usd") or {}).get("usd") is None)
     verdict(unpriced == 0, f"cost rows priced: {len(cost['rows']) - unpriced} of {len(cost['rows'])}")
 
