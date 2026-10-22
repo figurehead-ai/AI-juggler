@@ -27,6 +27,16 @@ Not a task's evidence. This covers the coordinator's list after #126: the monito
 
 ## Gates
 
+After #130's review fixes, on fc82c39f (`CARGO_INCREMENTAL=0`):
+
+| Gate | Head | Result |
+|---|---|---|
+| `just verify` | fc82c39f | exit 0; 149 test binaries, 1,188 passed, 0 failed |
+| `vitest run`, `cargo deny check` | eb6a84fc (no UI or dependency change since) | 612 passed; advisories, bans, licenses, sources ok |
+| Two local flakes on the way, recorded in AJ-E806 | — | `processes` (pre-existing; passed 6/6 alone); `switch_back_path` (fixed: claude stubs write their argv whole, then move it into place, in all eight tests that had them) |
+
+Before the review:
+
 | Gate | Head | Result |
 |---|---|---|
 | `just verify` (fmt, clippy with and without default features and with dev-bridge, `cargo test --workspace`, docs, evidence, terminology, polling audit, release self-test, dev-bridge check) | 721e91c4 | exit 0; 149 test binaries, 1,185 passed, 0 failed |
