@@ -349,9 +349,22 @@ fn undo(how: &Undo) -> AppResult<()> {
                     file.display()
                 )));
             };
+            // Lines the user added under our table since belong to it: taking
+            // the table out would leave them under the one before.
+            let added_under = now[at + text.len()..]
+                .lines()
+                .take_while(|line| !line.trim_start().starts_with('['))
+                .any(|line| !line.trim().is_empty() && !line.trim_start().starts_with('#'));
+            if added_under {
+                return Err(AppError::Refused(format!(
+                    "{} has settings added to it since, so it was left as it is",
+                    file.display()
+                )));
+            }
             let mut restored = now.clone();
             restored.replace_range(at..at + text.len(), "");
-            atomic_write(file, &restored)
+            juggler_adapter::inventory::rewrite_in_place(file, &restored)
+                .map_err(|e| AppError::io("undo the set-up", &e))
         }
         Undo::Command {
             argv,

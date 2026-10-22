@@ -237,9 +237,11 @@ fn add_mcp(home: &Path, name: &str, server: &McpServer) -> Result<Applied, Adapt
     if config.is_file() && !backup.exists() {
         std::fs::copy(&config, &backup)?;
     }
-    let staged = home.join(format!(".config.toml.ai-juggler-{}", std::process::id()));
-    std::fs::write(&staged, &text)?;
-    std::fs::rename(&staged, &config)?;
+    if config.exists() {
+        juggler_adapter::inventory::rewrite_in_place(&config, &text)?;
+    } else {
+        std::fs::write(&config, &text)?;
+    }
     Ok(Applied {
         summary: format!("Added the MCP server {name} to Codex"),
         undo: Undo::RemoveAppended {

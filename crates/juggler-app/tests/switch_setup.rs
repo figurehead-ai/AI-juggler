@@ -277,3 +277,61 @@ fn codex_is_offered_the_claude_setup_in_its_own_form() {
     // Lab 6: the backup outlived the undo in the user's Codex folder.
     assert!(!backup.exists(), "the backup goes with the last undo");
 }
+
+#[test]
+fn codex_config_stays_a_link_with_its_permissions_and_its_users_settings() {
+    // Review of #132 (M2): the rewrite replaced a dotfiles link with a
+    // plain file at default permissions, and the undo moved settings the
+    // user added under our table into the one before.
+    use std::os::unix::fs::PermissionsExt;
+    let lab = lab();
+    let (profile_x, x) = &lab.codex;
+    let real = x.join("dotfiles-config.toml");
+    std::fs::rename(x.join("config.toml"), &real).unwrap();
+    std::fs::set_permissions(&real, std::fs::Permissions::from_mode(0o600)).unwrap();
+    std::os::unix::fs::symlink(&real, x.join("config.toml")).unwrap();
+
+    let check = check_impl(&lab.state, &lab.session, profile_x).unwrap();
+    let github = check
+        .offers
+        .iter()
+        .find(|o| o.name == "github")
+        .unwrap()
+        .id
+        .clone();
+    let applied = apply_impl(&lab.state, &lab.session, profile_x, &[github]).unwrap();
+    let record = applied[0].record.clone().expect("set up");
+    let link = std::fs::symlink_metadata(x.join("config.toml")).unwrap();
+    assert!(link.file_type().is_symlink(), "still a link");
+    let mode = std::fs::metadata(&real).unwrap().permissions().mode() & 0o777;
+    assert_eq!(mode, 0o600, "its permissions kept");
+    assert!(
+        std::fs::read_to_string(&real)
+            .unwrap()
+            .contains("[mcp_servers.github]")
+    );
+
+    // The user adds a setting under our table: the undo leaves it all.
+    let with_user = std::fs::read_to_string(&real).unwrap() + "startup_timeout_sec = 30\n";
+    std::fs::write(&real, &with_user).unwrap();
+    assert!(undo_impl(&lab.state, &record).is_err());
+    assert_eq!(std::fs::read_to_string(&real).unwrap(), with_user);
+
+    // Without it, the undo restores the file, through the link.
+    std::fs::write(&real, with_user.replace("startup_timeout_sec = 30\n", "")).unwrap();
+    undo_impl(&lab.state, &record).unwrap();
+    assert_eq!(
+        std::fs::read_to_string(&real).unwrap(),
+        "model = \"gpt-6\"\n"
+    );
+    assert!(
+        std::fs::symlink_metadata(x.join("config.toml"))
+            .unwrap()
+            .file_type()
+            .is_symlink()
+    );
+    assert_eq!(
+        std::fs::metadata(&real).unwrap().permissions().mode() & 0o777,
+        0o600
+    );
+}

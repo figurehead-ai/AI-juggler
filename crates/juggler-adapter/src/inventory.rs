@@ -264,6 +264,35 @@ pub fn looks_secret(key: &str, value: &str) -> bool {
         && value.chars().filter(char::is_ascii_alphanumeric).count() * 10 >= value.len() * 9
 }
 
+/// Replaces a tool's own file with `text`, atomically, as the file it is:
+/// through a symlink to the file it points at (a dotfiles-managed config
+/// stays a link), and with the file's own permissions (a 0600 config
+/// stays 0600). Review of #132 (M2).
+///
+/// # Errors
+///
+/// The write's, the permissions' or the rename's error; the file is
+/// unchanged then.
+pub fn rewrite_in_place(path: &std::path::Path, text: &str) -> std::io::Result<()> {
+    let target = if std::fs::symlink_metadata(path)?.file_type().is_symlink() {
+        std::fs::canonicalize(path)?
+    } else {
+        path.to_path_buf()
+    };
+    let name = target
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let staged = target.with_file_name(format!(".{name}.ai-juggler-{}", std::process::id()));
+    let written = std::fs::write(&staged, text)
+        .and_then(|()| std::fs::set_permissions(&staged, std::fs::metadata(&target)?.permissions()))
+        .and_then(|()| std::fs::rename(&staged, &target));
+    if written.is_err() {
+        let _ = std::fs::remove_file(&staged);
+    }
+    written
+}
+
 /// One entry of a JSON file, by its path of keys, as it was when set up:
 /// an undo checks it before removing anything (review of #132).
 #[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
