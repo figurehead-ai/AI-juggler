@@ -522,8 +522,9 @@ pub fn execute(
 fn verify_installed(
     install: &InstallOutcome,
     bundle: &juggler_adapter::handover::SessionBundle,
-    _target: &Account,
+    target: &Account,
 ) -> Vec<ManifestRow> {
+    let history_area = format!("{}/", juggler_adapter::handover::FILE_HISTORY_AREA);
     let dir = install
         .reference
         .path
@@ -542,7 +543,13 @@ fn verify_installed(
             } else {
                 file.name.clone()
             };
-            let bytes = std::fs::read(dir.join(&name)).unwrap_or_default();
+            // AJ-E1540: a file-history file lives in the account's own
+            // `file-history/`, not beside the transcript.
+            let path = match name.strip_prefix(&history_area) {
+                Some(rest) => target.state_dir.join("file-history").join(rest),
+                None => dir.join(&name),
+            };
+            let bytes = std::fs::read(path).unwrap_or_default();
             ManifestRow {
                 rel_path: name,
                 sha256: sha256_hex(&bytes),
