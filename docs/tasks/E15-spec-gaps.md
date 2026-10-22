@@ -321,7 +321,7 @@ walk alone isn't enough.
 **Quality gates**: palette contrast and a minimum ΔE between neighbouring hues; icon discovery on fixtures, refusing oversized and odd files; vitest; baselines with 15+ projects; walked on the replica.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1532/manifest.md`.
 
-### AJ-E1530 Usage for sessions outside AI Juggler | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1529
+### AJ-E1530 Usage for sessions outside AI Juggler | Status: IN-PROGRESS | Priority P0 | Effort M | Depends: AJ-E1529
 **Goal**: Each account's window % is measured even when its sessions weren't started by AI Juggler.
 **User story**: As someone who mostly starts Claude in my own terminal, I let AI Juggler read my usage once, and Runway shows my real window.
 **Requirements**:
