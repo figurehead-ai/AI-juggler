@@ -112,6 +112,15 @@ impl FixtureSet {
         Self { helper, fixtures }
     }
 
+    /// The pid of one fixture, as it wrote it (`<ready>.pid`, before its
+    /// ready file): the process a test should signal. A ledger row found
+    /// by a command-line needle can name another fixture — its command
+    /// line may still be the root shell's, from before the exec.
+    pub fn pid(&self, kind: &str) -> Option<u32> {
+        let path = PathBuf::from(format!("{}.pid", self.get(kind).ready.to_string_lossy()));
+        std::fs::read_to_string(path).ok()?.trim().parse().ok()
+    }
+
     /// The port the vite fixture actually bound (ready-file
     /// handshake; call after [`FixtureSet::wait_ready`]). Port 0 in
     /// the script = OS-assigned, killing the probe-then-bind race.
@@ -156,7 +165,7 @@ impl FixtureSet {
                 "shell" => format!(
                     "bash -c 'exec 9>>{trap}; \
                      trap \"echo TERM >&9\" TERM; trap \"echo HUP >&9\" HUP; \
-                     trap \"echo INT >&9\" INT; touch {ready}; \
+                     trap \"echo INT >&9\" INT; echo $$ > {ready}.pid; touch {ready}; \
                      while :; do sleep 1; done' &"
                 ),
                 _ => unreachable!("fixture kind"),
