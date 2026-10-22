@@ -438,9 +438,9 @@ fn monitoring_costs_under_one_percent_of_a_core() {
         ours > 0 && ours <= between * 5 * 2,
         "our sessions' processes, once each: {ours} over {between} ticks"
     );
-    assert!(
-        listings > 0 && listings <= ticks.div_ceil(2),
-        "a listing at most every 2nd tick: {listings} over {ticks} ticks"
+    assert_eq!(
+        listings, 12,
+        "a listing every 2nd tick, none on a full scan's: {listings} over {ticks} ticks"
     );
     assert_cpu_within_budget(&state, share);
 }
@@ -472,31 +472,46 @@ fn simulated_minute(
     )
 }
 
-/// The CPU budget, measured as the best of up to three simulated minutes.
-/// Other work on the machine only ever adds to this thread's CPU time (a
-/// Mac at load 27 read 1.2 % where it reads 0.7 % alone), so the lowest is
-/// the closest to our own cost; a real regression is over the bound every
-/// time.
+/// The CPU budget. Other work on the machine only ever adds to this
+/// thread's CPU time (a Mac at load 27 read 1.2 % where it reads 0.7 %
+/// alone), so a reading over the bound is measured again, up to three in
+/// all, only while the machine is busier than its cores (the 1-minute load
+/// average); on a quiet machine the first reading stands. Every reading is
+/// printed.
 fn assert_cpu_within_budget(state: &Arc<AppState>, first: f64) {
-    let mut best = first;
-    for _ in 0..2 {
-        if best < bound() {
-            break;
-        }
+    let cores = std::thread::available_parallelism().map_or(1, std::num::NonZero::get) as f64;
+    let busy = || sysinfo::System::load_average().one > cores;
+    let mut readings = vec![first];
+    let mut loads = vec![sysinfo::System::load_average().one];
+    while readings.iter().copied().fold(f64::MAX, f64::min) >= bound()
+        && readings.len() < 3
+        && busy()
+    {
         let (used, _, _) = simulated_minute(state);
-        best = best.min(used.as_secs_f64() / 60.0 * 100.0);
+        readings.push(used.as_secs_f64() / 60.0 * 100.0);
+        loads.push(sysinfo::System::load_average().one);
     }
+    let best = readings.iter().copied().fold(f64::MAX, f64::min);
+    eprintln!(
+        "[perf] CPU readings {readings:.3?} % at 1-minute loads {loads:.1?} on {cores} cores"
+    );
     assert!(
         best < bound(),
-        "{best:.3} % of a core at best of three (bound {} %)",
+        "{best:.3} % of a core, the best of {readings:.3?} (bound {} %)",
         bound()
     );
 }
 
-/// SPEC §1's 1 % of a core; 2 % on a shared CI runner (see above).
+/// SPEC §1's 1 % of a core, for what ships: a release build. A debug build
+/// (`cargo test`, `just verify`) runs this code 1.3–1.6× slower (beside the
+/// busy app 0.52–0.57 % release, 0.67–1.04 % debug), so it gets 1.5 %; a
+/// shared CI runner 2 % (see above). What the budget rests on, reading the
+/// other tools' processes at the listings only, is asserted exactly.
 fn bound() -> f64 {
     if std::env::var_os("CI").is_some() {
         2.0
+    } else if cfg!(debug_assertions) {
+        1.5
     } else {
         1.0
     }
@@ -591,20 +606,41 @@ fn a_trees_new_processes_count_at_the_next_tick() {
     }
 }
 
-/// The `fake-desktop` binary (juggler-adapters), as `desktop.rs` finds it.
+/// The `fake-desktop` binary (juggler-adapters), beside this test's own
+/// build: built now when it isn't there (`cargo test -p juggler-app` alone
+/// doesn't build another package's binaries).
 fn fake_desktop_bin() -> PathBuf {
     if let Some(path) = option_env!("CARGO_BIN_EXE_fake-desktop") {
         return PathBuf::from(path);
     }
     let me = std::env::current_exe().unwrap();
-    let target = me.ancestors().nth(3).unwrap().to_path_buf();
-    for profile in ["debug", "release"] {
-        let candidate = target.join(profile).join("fake-desktop");
-        if candidate.exists() {
-            return candidate;
+    let profile_dir = me.ancestors().nth(2).unwrap().to_path_buf();
+    let built = profile_dir.join("fake-desktop");
+    if !built.exists() {
+        let mut cargo = std::process::Command::new(env!("CARGO"));
+        cargo.args([
+            "build",
+            "-q",
+            "-p",
+            "juggler-adapters",
+            "--bin",
+            "fake-desktop",
+        ]);
+        if profile_dir.ends_with("release") {
+            cargo.arg("--release");
         }
+        let target = profile_dir.parent().unwrap();
+        assert!(
+            cargo
+                .env("CARGO_TARGET_DIR", target)
+                .status()
+                .unwrap()
+                .success(),
+            "building fake-desktop"
+        );
     }
-    panic!("fake-desktop binary not found under {}", target.display())
+    assert!(built.exists(), "fake-desktop at {}", built.display());
+    built
 }
 
 /// A stand-in for a busy Claude app: `fake-desktop` copied to
@@ -632,12 +668,16 @@ impl BusyClaudeApp {
             ),
         )
         .unwrap();
-        let app = std::process::Command::new(&exe)
-            .args(["--spawn-child", "/bin/sh", "--child-args"])
-            .arg(&script)
-            .process_group(0)
-            .spawn()
-            .unwrap();
+        // Held (and killed when dropped) from the moment it starts: a
+        // failure while its children start leaves nothing behind.
+        let guard = Self {
+            app: std::process::Command::new(&exe)
+                .args(["--spawn-child", "/bin/sh", "--child-args"])
+                .arg(&script)
+                .process_group(0)
+                .spawn()
+                .unwrap(),
+        };
         let started = Instant::now();
         while !ready.exists() {
             assert!(
@@ -646,7 +686,7 @@ impl BusyClaudeApp {
             );
             std::thread::sleep(Duration::from_millis(20));
         }
-        Self { app }
+        guard
     }
 }
 
@@ -689,6 +729,23 @@ fn monitoring_beside_a_busy_claude_app() {
     assert!(
         observed >= 290,
         "the app's processes were watched: {observed}"
+    );
+    // Its processes are read at each listing only, never every tick (the
+    // old code read them at all 24 ticks between full scans: about twice
+    // this). The trees' size now, with room for a few that came and went.
+    let listings = after.listings - before.listings;
+    assert_eq!(listings, 12);
+    let trees: u64 = state
+        .resources
+        .lock()
+        .unwrap()
+        .observed_snapshot()
+        .values()
+        .map(|tree| tree.pids.len() as u64)
+        .sum();
+    assert!(
+        observed <= listings * (trees + 30),
+        "read at the listings only: {observed} for {listings} listings of {trees} processes"
     );
     assert_cpu_within_budget(&state, share);
 }

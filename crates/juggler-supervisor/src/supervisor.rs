@@ -458,8 +458,9 @@ impl LiveStatsCollector {
         // Every 2nd tick, the listing: our trees' new processes (P16: a
         // build fanning out under `claude` counts within 4 s, not up to 10 s
         // later) and the other tools' trees, from one read. Not on a full
-        // scan's tick (it already read everything; the other tools wait 2 s
-        // more), except while warming up, so they show from the start.
+        // scan's tick (it already read everything), except while warming
+        // up, so they show from the start: the other tools are read every
+        // 4 s, 8 s across a full scan.
         let listed =
             self.ticks.is_multiple_of(LIST_EVERY) && (!full || self.ticks <= WARMUP_FULL_TICKS);
         if listed {

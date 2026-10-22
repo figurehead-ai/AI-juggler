@@ -149,9 +149,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   carries the Apple Events permission macOS asks about, instead of being
   refused without a prompt.
 - Watching your Mac's processes stays under 1 % of one core beside a busy
-  Claude app: the other tools' processes are now measured every 4 seconds,
-  in the same read that finds new ones, instead of every 2 seconds on top
-  of it.
+  Claude app: the other tools' processes are now measured every 4 seconds
+  (8 at most), in the same read that finds new ones, instead of every 2
+  seconds on top of it.
 - Going back to an earlier version and forward again no longer leaves
   some cost credited to the wrong session: AI Juggler notices what the
   earlier version wrote and reads the conversations again once.
