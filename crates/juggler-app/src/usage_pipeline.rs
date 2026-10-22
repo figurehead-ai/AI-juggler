@@ -430,6 +430,17 @@ fn tail_one(
     if latest.is_some() || errors > 0 {
         record_health(ingest, account, source, latest, errors, "");
     }
+    if outcome.dropped > 0 {
+        // Damage, counted like a bad line: usage that won't be counted.
+        record_health(
+            ingest,
+            account,
+            source,
+            None,
+            outcome.dropped,
+            "compactions dropped before their thread was known",
+        );
+    }
     outcome
 }
 

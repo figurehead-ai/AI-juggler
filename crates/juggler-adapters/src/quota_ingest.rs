@@ -72,6 +72,9 @@ pub struct TailOutcome {
     pub offset: u64,
     /// Malformed lines seen this pass.
     pub parse_errors: u64,
+    /// Codex: compactions dropped this pass, past the waiting cap, before
+    /// a record named their thread (their usage isn't counted).
+    pub dropped: u64,
 }
 
 // ---------------------------------------------------------------------------
@@ -652,6 +655,10 @@ pub struct RolloutCarry {
     /// oldest first.
     #[serde(default)]
     pub pending: Vec<PendingUsage>,
+    /// Compactions seen in the file so far: each one's number in its key,
+    /// so two at the same millisecond (or with no time) never share one.
+    #[serde(default)]
+    pub compactions: u64,
 }
 
 /// A compaction seen, its usage not yet (see [`RolloutCarry`]).
@@ -666,12 +673,16 @@ pub struct OpenCompaction {
 pub struct PendingUsage {
     /// The compaction's own usage (its `last_token_usage`).
     pub tokens: TokenCounts,
-    /// When its `token_count` was written (epoch ms): the key's time.
+    /// When its `token_count` was written (epoch ms).
     pub ts: i64,
+    /// Its number in the file (see [`RolloutCarry::compactions`]).
+    #[serde(default)]
+    pub seq: u64,
 }
 
-/// Compactions held for a record at most; older ones are dropped, so a
-/// file that never writes another record can't grow the carry.
+/// Compactions held for a record at most; older ones are dropped (counted
+/// in [`TailOutcome::dropped`]), so a file that never writes another record
+/// can't grow the carry.
 const PENDING_CAP: usize = 16;
 
 /// P17: the usage of a context compaction. After a `compacted` line, Codex
@@ -691,6 +702,7 @@ impl RolloutCarry {
             .and_then(serde_json::Value::as_str);
         match (kind, inner) {
             (Some("compacted"), _) => {
+                self.compactions += 1;
                 self.compacted = Some(OpenCompaction {
                     before: self.last_total,
                 });
@@ -718,9 +730,14 @@ impl RolloutCarry {
                         .and_then(iso_to_epoch_ms)
                         .unwrap_or_default();
                     if open.before != Some(total) && tokens != TokenCounts::default() {
-                        self.pending.push(PendingUsage { tokens, ts });
+                        self.pending.push(PendingUsage {
+                            tokens,
+                            ts,
+                            seq: self.compactions,
+                        });
                         let over = self.pending.len().saturating_sub(PENDING_CAP);
                         self.pending.drain(..over);
+                        outcome.dropped += over as u64;
                     }
                 }
                 self.last_total = Some(total);
@@ -736,7 +753,7 @@ impl RolloutCarry {
                 else {
                     return;
                 };
-                for PendingUsage { tokens, ts } in self.pending.drain(..) {
+                for PendingUsage { tokens, ts, seq } in self.pending.drain(..) {
                     outcome.events.push(UsageEvent {
                         account: account.to_owned(),
                         session: Some(thread.to_owned()),
@@ -747,7 +764,7 @@ impl RolloutCarry {
                         usd_est: None,
                         source: UsageSource::Rollout,
                         confidence: Confidence::Measured,
-                        msg_uuid: Some(format!("{thread}/compacted/{ts}")),
+                        msg_uuid: Some(format!("{thread}/compacted/{ts}/{seq}")),
                     });
                 }
             }

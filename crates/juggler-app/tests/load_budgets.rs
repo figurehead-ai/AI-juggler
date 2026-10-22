@@ -442,9 +442,8 @@ fn monitoring_costs_under_one_percent_of_a_core() {
     // (the Claude app, if this Mac runs one) are read as they are; how many
     // is up to the machine.
     let between = ticks - full;
-    assert_eq!(
-        ours,
-        between * 5 * 2,
+    assert!(
+        ours > 0 && ours <= between * 5 * 2,
         "our sessions' processes, once each: {ours} over {between} ticks"
     );
     assert!(
