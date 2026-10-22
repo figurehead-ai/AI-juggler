@@ -93,6 +93,20 @@ describe("what the target lacks", () => {
     expect(results).not.toContain("team-style");
   });
 
+  it("can undo each set-up afterwards", async () => {
+    const view = mount();
+    await waitFor(() => expect(view.getByTestId("switch-setup")).toBeTruthy());
+    fireEvent.click(view.getByTestId("switch-confirm"));
+    await waitFor(() => expect(view.getByTestId("switch-setup-results")).toBeTruthy());
+    fireEvent.click(view.getByRole("button", { name: "Undo" }));
+    await waitFor(() =>
+      expect(view.getByTestId("switch-setup-results").textContent).toContain(
+        "Undid record-skill-release-notes",
+      ),
+    );
+    expect(view.queryByRole("button", { name: "Undo" })).toBeNull();
+  });
+
   it("says so when the target already has everything", () => {
     expect(setupSummary({ ...EXAMPLE_SETUP, offers: [] }, new Set())).toBe(
       "Personal already has everything Work Max has set up.",

@@ -5,8 +5,13 @@
  * Rows that can be set up safely start ticked; the user can untick any,
  * or tick one that needs them. Nothing is written until the switch runs.
  */
-import type { JSX } from "react";
-import type { OfferInfo, SetupCheckInfo } from "../lib/ipc/switchSetup";
+import { useState, type JSX } from "react";
+import {
+  switchSetupUndo,
+  type AppliedInfo,
+  type OfferInfo,
+  type SetupCheckInfo,
+} from "../lib/ipc/switchSetup";
 
 const KIND_WORDS: Record<string, string> = {
   "mcp-server": "MCP server",
@@ -86,5 +91,46 @@ export function SwitchSetupList({
         </ul>
       )}
     </section>
+  );
+}
+
+/** What was set up when the switch ran, each with its own Undo. */
+export function SwitchSetupResults({
+  target,
+  results,
+}: {
+  target: string;
+  results: AppliedInfo[];
+}): JSX.Element | null {
+  const [undone, setUndone] = useState<Record<string, string>>({});
+  if (results.length === 0) return null;
+  const undo = async (record: string) => {
+    try {
+      const message = await switchSetupUndo(record);
+      setUndone((current) => ({ ...current, [record]: message }));
+    } catch (cause) {
+      setUndone((current) => ({ ...current, [record]: String(cause) }));
+    }
+  };
+  return (
+    <ul className="flex flex-col gap-1" data-testid="switch-setup-results" aria-label={`Set up on ${target}`}>
+      {results.map((result) => {
+        const record = result.record;
+        return (
+          <li key={result.offer} className={"flex items-center gap-2 text-[11px] " + (record ? "text-muted" : "text-warning")}>
+            <span>{record && undone[record] ? undone[record] : result.message}</span>
+            {record && !undone[record] && (
+              <button
+                type="button"
+                onClick={() => void undo(record)}
+                className="rounded border border-hairline px-1.5 py-0.5 text-[10px] hover:bg-surface-2"
+              >
+                Undo
+              </button>
+            )}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
