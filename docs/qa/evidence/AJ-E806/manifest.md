@@ -542,3 +542,18 @@
   of 3 times (3.2 s). The batch doesn't touch fleet code. The fix belongs
   in the test: wait for the first catch-up before counting. Nothing
   changed here.
+- **Flake record, 2026-10-22 (fixed, fix/maintainer-reports-5).** CI on
+  PR #132 (run 39821992531) failed
+  `guardrails :: idle_nudge_fires_exactly_once_per_orphan`, "the idle
+  nudge fired", after 112 s; locally it passes, even with 60 busy
+  processes on 30 cores. The fixed 1,200 ms sleep never gated anything:
+  the nudge's age counts from the helper's process start, already more
+  than 3 s back. What can hold it is the CPU condition (under 1 %). The
+  read used the collector's last sample, and on Linux CPU time comes in
+  10 ms clock ticks, so a helper that wakes every 0.2 s can catch one in
+  a short window and read 1 % or more. The test now ticks the collector
+  until the product's own conditions hold (orphaned, aged past the
+  threshold, CPU under 1 %), within 30 s. Past that, it fails naming the
+  state, age and CPU it last saw. Then one read must fire and the next
+  must not. No assertion changed; the cause isn't reproduced here, so a
+  repeat names the condition.
