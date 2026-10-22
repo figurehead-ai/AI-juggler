@@ -67,8 +67,20 @@ pub fn parse_porcelain(text: &str) -> GitStatus {
     status
 }
 
+/// git, from the one place AI Juggler trusts it (C2), or the plain words
+/// for a Mac that has none.
+fn git_command() -> Result<Command, AppError> {
+    juggler_adapter::system_tools::git()
+        .map(Command::new)
+        .ok_or_else(|| AppError::Io {
+            context: "run git",
+            message: juggler_adapter::system_tools::GIT_MISSING.to_owned(),
+        })
+}
+
 fn git(dir: &Path, args: &[&str]) -> Option<String> {
-    let output = Command::new(juggler_adapter::system_tools::git())
+    let output = git_command()
+        .ok()?
         .arg("-C")
         .arg(dir)
         .args(args)
@@ -361,7 +373,7 @@ pub fn worktree_create_impl(
         std::fs::create_dir_all(parent)
             .map_err(|e| AppError::io("create the worktree folder", &e))?;
     }
-    let output = Command::new(juggler_adapter::system_tools::git())
+    let output = git_command()?
         .arg("-C")
         .arg(&root)
         .args(["worktree", "add", "-b", branch])
@@ -501,7 +513,7 @@ pub fn worktree_remove_impl(
         .find(|row| row.path == path)
         .cloned()
         .ok_or_else(|| invalid("unknown worktree"))?;
-    let mut command = Command::new(juggler_adapter::system_tools::git());
+    let mut command = git_command()?;
     command
         .arg("-C")
         .arg(&row.repo_root)
