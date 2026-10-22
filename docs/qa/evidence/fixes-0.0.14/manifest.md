@@ -17,3 +17,13 @@ Not a task's evidence. This covers the coordinator's list after #126: the monito
 | Apple Events for "jump to a session's window" (docs fact-check) | `NSAppleEventsUsageDescription` in `Info.plist`; `entitlements.plist` with `com.apple.security.automation.apple-events`, set in `tauri.conf.json` (`bundle.macOS.entitlements`) and in build-macos.yml's overlay. `juggler-app --test macos_bundle jumping_to_a_window_may_send_apple_events`. The ad-hoc signed build: `codesign -d --entitlements -` shows the entitlement; `codesign -dv` flags `adhoc,runtime` (hardened runtime) | in the signature | passed; present in the built app's signature | PASS | 70465500 | 2026-10-22 | claude-opus |
 | Not done here: the prompts on a Developer ID build | needs the release signing (the maintainer's secrets) and answering macOS prompts, which this session doesn't do. To check on the next signed nightly: turning Fleet on asks for Local Network; the first jump to a session's window asks for Automation (System Events), and focusing works once allowed | — | open | INFO | — | 2026-10-22 | claude-opus |
 | The CPU check measures our cost, not the machine's | in `just verify` at load average 20–27 (other sessions building) the monitoring test read 1.219 % (0.73 % alone). Other work only adds to this thread's CPU time, so both monitoring tests take the best of up to three simulated minutes (`assert_cpu_within_budget`): a real regression is over the bound every time; a busy machine isn't. The deterministic work checks use the first minute | < 1 % locally | 0.72–0.86 % (both tests, alone, after) | PASS | 4fec75de | 2026-10-22 | claude-opus |
+
+## Gates
+
+| Gate | Head | Result |
+|---|---|---|
+| `just verify` (fmt, clippy with and without default features and with dev-bridge, `cargo test --workspace`, docs, evidence, terminology, polling audit, release self-test, dev-bridge check) | 721e91c4 | exit 0; 149 test binaries, 1,185 passed, 0 failed |
+| `tsc --noEmit`, `vitest run` | 721e91c4 (tsc on 25c686bc) | 612 passed |
+| `cargo deny check` | 721e91c4 | advisories, bans, licenses, sources ok |
+| `just visual-gate`, `just a11y-gate` | — | not rerun: nothing under `ui/` changed since main (`git diff --stat origin/main HEAD -- ui/` is empty); main passed both |
+| An ad-hoc signed app build (`cargo tauri build --bundles app`, Dev edition) | 70465500 | Info.plist has the three keys; the signature carries the Apple Events entitlement with the hardened runtime |
