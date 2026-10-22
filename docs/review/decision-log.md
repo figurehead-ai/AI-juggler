@@ -491,6 +491,32 @@
     tool view (what's installed, its accounts' quota) opens from the tool
     chip in a session's or an account's header.
 
+### D-26 Pair review and model arbitrage are not built as workflows — SETTLED (2026-10-20)
+
+- **Question** (AJ-E1006): do "author on one account, review on another"
+  (W5) and "a cheap model drafts, a strong one finishes" (W6) need their
+  own flows in AI Juggler? Both came from the research, marked
+  `[inferred]`, with no observed users.
+- **Evidence** (`docs/qa/evidence/AJ-E1006/desk-falsification.md`): the
+  step each one says is missing is already there.
+  - W6 within one account is Claude Code's `opusplan` (Opus plans,
+    Sonnet executes) and `/model`. Across accounts it is the app's
+    Switch account…, which shows each destination's fidelity badge and
+    what doesn't carry over before anything moves.
+  - W5's review is the tools' own (`/review`, `codex review --base`, and
+    OpenAI's `/codex:review` plugin inside Claude Code). Reaching the
+    second account is New session → the project → Customise → its
+    Launch: 4 clicks, reading the diff from git with no copy, and the
+    author's session untouched.
+- **Decision**: neither is built; the roadmap doesn't carry them. What
+  they would add on top (a per-leg cost split, "send comments back", an
+  "authored by A, reviewed by B" pair) has no evidence of demand.
+- **Not settled by this**: whether people do these things. The user
+  round in AJ-E1006's `protocol.md` didn't run, because the AJ-E809
+  cohort has no participants yet. **Reopen** when 3 or more participants
+  show either habit and friction with the paths above; that opens a new
+  task, specified as in AJ-E1006 Req.2 and Req.4.
+
 ## Unresolved (in discussion order)
 
 - None. D-01..D-15 were marked Final on maintainer instruction

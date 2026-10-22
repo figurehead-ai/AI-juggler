@@ -63,6 +63,9 @@ defective — fix the task before starting work (see CRITIC-CHECKS.md).
 - `IN-PROGRESS (agent, date)` — claimed; record who/when in the status.
 - `BLOCKED (reason, task-ID)` — only with the blocking task or decision
   named.
+- `REJECTED (decision, date)` — an `[inferred]` task closed on evidence
+  that the feature isn't needed; the decision-log entry says what would
+  bring it back. A successful outcome, not a failure.
 - `DONE-EVIDENCED` — only when the task's Evidence/validation proof
   exists at its stated path and passes at its stated threshold, and
   its Visual testing artifacts are stored. Code merged without
