@@ -93,10 +93,14 @@ fn live_reading() {
 
 /// AJ-E1401 budget: the machine half of the tick (CPU + memory + the
 /// pressure read every tick; disks every 15th, power/thermal every 30th).
-/// The budget is 2 ms p95; the assertion leaves room for a loaded CI box
-/// running an unoptimised build, and the evidence records the real p95.
+/// The budget is 2 ms p95 of this thread's CPU time (wall time on a busy
+/// machine counts other programs' turns: 2.6 ms at load 21, where alone it
+/// reads well under). Wall time is printed beside it. Under the lock the UI
+/// also reads: its CPU p95 inside the same budget, and never the disk
+/// listing (50–150 ms), which the wall-time maximum catches.
 #[test]
 fn tick_cost_stays_inside_the_budget() {
+    use cpu_time::ThreadTime;
     let _serial = SERIAL
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -105,27 +109,35 @@ fn tick_cost_stays_inside_the_budget() {
     // the budget is the steady state.
     sampler.tick_with(0, || vec![std::env::temp_dir()]);
     let mut costs: Vec<u128> = Vec::new();
+    let mut walls: Vec<u128> = Vec::new();
     let mut locked: Vec<u128> = Vec::new();
+    let mut locked_wall: Vec<u128> = Vec::new();
     for i in 0..60 {
         let started = std::time::Instant::now();
+        let cpu = ThreadTime::now();
         // What runs under the lock the UI also reads …
         let work = sampler.tick((i + 1) * 2_000);
-        locked.push(started.elapsed().as_micros());
+        locked.push(cpu.elapsed().as_micros());
+        locked_wall.push(started.elapsed().as_micros());
         // … and the disk half, done outside it.
         if let Some(mut work) = work {
             let volumes = work.volumes(&[std::env::temp_dir()]);
             sampler.finish_disks(work, volumes);
         }
-        costs.push(started.elapsed().as_micros());
+        costs.push(cpu.elapsed().as_micros());
+        walls.push(started.elapsed().as_micros());
     }
     costs.sort_unstable();
+    walls.sort_unstable();
+    locked_wall.sort_unstable();
     locked.sort_unstable();
     let p95 = costs[costs.len() * 95 / 100];
     let median = costs[costs.len() / 2];
-    let locked_max = *locked.last().unwrap();
+    let locked_max = *locked_wall.last().unwrap();
     let locked_p95 = locked[locked.len() * 95 / 100];
+    let wall_p95 = walls[walls.len() * 95 / 100];
     println!(
-        "machine tick: median {median} µs, p95 {p95} µs over 60 ticks; under the lock p95 {locked_p95} µs, max {locked_max} µs"
+        "machine tick: CPU median {median} µs, p95 {p95} µs over 60 ticks (wall p95 {wall_p95} µs); under the lock p95 {locked_p95} µs, max {locked_max} µs"
     );
     assert!(p95 < 2_000, "p95 {p95} µs");
     // Never the disk listing (50–150 ms) under the lock; the max allows
