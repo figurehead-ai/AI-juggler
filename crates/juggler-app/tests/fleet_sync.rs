@@ -645,3 +645,95 @@ fn a_thousand_queued_changes_catch_up_inside_three_seconds() {
     link::link_set_enabled_impl(&a, false).unwrap();
     link::link_set_enabled_impl(&b, false).unwrap();
 }
+
+/// Link off means off however clicks race: several "on" at once start
+/// one Link, and the "off" after them leaves none running. (That its
+/// port is free is `juggler-link`'s `a_stopped_nodes_port_is_free_at_once`:
+/// tests here share the preferred port.)
+#[test]
+fn starts_at_once_run_one_link_and_off_ends_it() {
+    let work = tempfile::tempdir().unwrap();
+    let a = app_state(&work.path().join("a"));
+    let ports: Vec<Option<u16>> = std::thread::scope(|scope| {
+        let starts: Vec<_> = (0..4)
+            .map(|_| scope.spawn(|| link::link_set_enabled_impl(&a, true).unwrap().port))
+            .collect();
+        starts
+            .into_iter()
+            .map(|start| start.join().unwrap())
+            .collect()
+    });
+    let first = ports[0];
+    assert!(first.is_some());
+    assert!(
+        ports.iter().all(|port| *port == first),
+        "one Link: {ports:?}"
+    );
+    let off = link::link_set_enabled_impl(&a, false).unwrap();
+    assert!(!off.enabled && off.port.is_none());
+}
+
+/// Off during the launch start (Link left on last time): the start
+/// waits its turn or finds the setting off, and Link stays off.
+#[test]
+fn off_during_the_launch_start_stays_off() {
+    let work = tempfile::tempdir().unwrap();
+    let a = app_state(&work.path().join("a"));
+    link::link_set_enabled_impl(&a, true).unwrap();
+    link::link_set_enabled_impl(&a, false).unwrap();
+    {
+        // As a quit with Link on leaves it.
+        let storage = a.storage.lock().unwrap();
+        storage
+            .app_settings()
+            .set("fleet_link_enabled", "1")
+            .unwrap();
+    }
+    link::resume_if_enabled(Arc::clone(&a));
+    let off = link::link_set_enabled_impl(&a, false).unwrap();
+    assert!(!off.enabled);
+    std::thread::sleep(Duration::from_secs(3));
+    let status = link::link_status_impl(&a);
+    assert!(
+        !status.enabled && status.port.is_none(),
+        "the setting says off and nothing runs: {status:?}"
+    );
+}
+
+/// A join started while Link goes off: it either never starts ("Turn Link
+/// on first") or is ended by the off. Nothing pairs and no join is left
+/// "connecting".
+#[test]
+fn a_join_racing_link_off_pairs_nothing() {
+    let work = tempfile::tempdir().unwrap();
+    let a = app_state(&work.path().join("a"));
+    let b = app_state(&work.path().join("b"));
+    link::link_set_enabled_impl(&a, true).unwrap();
+    let address = format!("127.0.0.1:{}", link::link_status_impl(&a).port.unwrap());
+    for _ in 0..5 {
+        link::link_set_enabled_impl(&b, true).unwrap();
+        let code = link::pairing_host_open_impl(&a).unwrap().code.unwrap();
+        std::thread::scope(|scope| {
+            scope.spawn(|| {
+                let _ = link::pairing_join_start_impl(&b, None, Some(&address), &code);
+            });
+            scope.spawn(|| link::link_set_enabled_impl(&b, false).unwrap());
+        });
+        // Whatever the order, a confirm now finds nothing to finish.
+        let _ = link::pairing_join_decide_impl(&b, true, Permission::View);
+        let _ = link::pairing_host_decide_impl(&a, true, Permission::View);
+        let phase = link::pairing_join_state_impl(&b).unwrap().phase;
+        if !link::link_status_impl(&b).enabled {
+            assert!(
+                phase != "connecting" && phase != "confirm",
+                "a join left {phase} after Link off"
+            );
+        }
+        link::pairing_host_close_impl(&a);
+    }
+    std::thread::sleep(Duration::from_secs(1));
+    assert!(
+        fleet::fleet_peers_impl(&b).unwrap().is_empty(),
+        "nothing paired after Link off"
+    );
+}
