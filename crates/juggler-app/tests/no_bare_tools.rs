@@ -260,14 +260,41 @@ fn every_process_refresh_leaves_out_threads() {
     );
 }
 
-/// The files a tool keeps its sign-in secrets in (ADR-0003, SECURITY).
-const SECRET_FILES: &[&str] = &[
-    "\".credentials.json\"",
-    "\"auth.json\"",
-    "credentials_file_of(",
+/// The files a tool keeps its sign-in secrets in (ADR-0003, SECURITY):
+/// named only in `juggler-adapters/src/sign_in.rs`.
+const SIGN_IN_FILES: &[&str] = &["\".credentials.json\"", "\"auth.json\""];
+
+/// The module that owns them, and its name constants.
+const SIGN_IN_MODULE: &str = "juggler-adapters/src/sign_in.rs";
+const SIGN_IN_CONSTANTS: &[&str] = &["CLAUDE_CREDENTIALS", "CODEX_AUTH"];
+
+/// Its reads: each streams `auth.json` into a presence-only shape.
+const SIGN_IN_READS: &[&str] = &["codex_auth", "codex_account_id"];
+
+/// Claude's `settings.json` can hold an API key (`apiKey`, `primaryApiKey`,
+/// `env.ANTHROPIC_API_KEY`): read only here, each for a reason.
+const SETTINGS_FILES: &[&str] = &["\"settings.json\""];
+const SETTINGS_READS: &[(&str, &str)] = &[
+    // Presence-only shape: whether an API-key field is filled.
+    (
+        "juggler-adapters/src/claude_code.rs",
+        "settings_name_an_api_key",
+    ),
+    // Narrow shape: `statusLine.command` only.
+    (
+        "juggler-adapters/src/quota_ingest.rs",
+        "ensure_launch_overlay",
+    ),
+    // Rewritten whole with only `statusLine` changed (atomic); the other
+    // values pass through, never stored or logged.
+    ("juggler-adapters/src/quota_ingest.rs", "install_statusline"),
+    (
+        "juggler-adapters/src/quota_ingest.rs",
+        "uninstall_statusline",
+    ),
 ];
 
-/// What opens a file for its contents (a copy reads it too).
+/// What opens a file for its contents (a copy, or `cat`, reads it too).
 const READS: &[&str] = &[
     "read_to_string(",
     "fs::read(",
@@ -275,15 +302,25 @@ const READS: &[&str] = &[
     "OpenOptions",
     "from_reader(",
     "fs::copy(",
+    "io::copy(",
+    "tokio::fs",
+    "Command::new(",
 ];
 
-/// The functions allowed to open one: each streams it into a shape that
-/// keeps only which fields are filled (`presence::Present`), plus
-/// `auth_mode` and `tokens.account_id`, which aren't secrets.
-const SHAPE_READS: &[(&str, &str)] = &[
-    ("juggler-adapters/src/codex.rs", "codex_login_state"),
-    ("juggler-adapters/src/codex.rs", "probe_codex_identity"),
-];
+/// The code without its comments (a name in a comment isn't a use).
+fn without_comments(code: &str) -> String {
+    code.lines()
+        .map(|line| {
+            let trimmed = line.trim_start();
+            if trimmed.starts_with("//") {
+                ""
+            } else {
+                line.split(" // ").next().unwrap_or(line)
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
 
 /// A file's functions: name and body (bodiless declarations skipped).
 fn functions(code: &str) -> Vec<(String, &str)> {
@@ -319,14 +356,14 @@ fn functions(code: &str) -> Vec<(String, &str)> {
 
 /// The functions a body hands a sign-in file's path to: `let x = ….join(
 /// "<secret>")` and then `f(&x` / `f(x`.
-fn handed_the_path(body: &str) -> Vec<String> {
+fn handed_the_path(body: &str, files: &[&str]) -> Vec<String> {
     let mut callees = Vec::new();
     for line in body.lines() {
         let line = line.trim();
         let Some(binding) = line.strip_prefix("let ") else {
             continue;
         };
-        if !SECRET_FILES.iter().any(|secret| line.contains(secret)) {
+        if !files.iter().any(|file| line.contains(file)) {
             continue;
         }
         let name: String = binding
@@ -358,10 +395,16 @@ fn handed_the_path(body: &str) -> Vec<String> {
     callees
 }
 
-/// The docs fact-check (fix batch 4): AI Juggler never opens a sign-in
-/// file for its contents (Claude's `.credentials.json` was read for an
-/// expiry). A product function that names one and also reads a file fails
-/// here, unless it is one of the shape-only reads above.
+/// The docs fact-check (fix batch 4) and #130's review: AI Juggler never
+/// opens a sign-in file for its contents (Claude's `.credentials.json` was
+/// read for an expiry). Structural: the names live in one module that
+/// hands out no path, and this fails when
+/// - a sign-in file's name appears anywhere else in the product;
+/// - a function outside that module uses its name constants (they're for
+///   the copy rules' lists);
+/// - that module reads other than through its presence-only shapes;
+/// - a function names `settings.json`, or is handed its path, and reads
+///   it, other than the ones listed with their reasons.
 #[test]
 fn no_sign_in_file_is_read() {
     let crates = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
@@ -372,36 +415,57 @@ fn no_sign_in_file_is_read() {
             sources(&src, &mut files);
         }
     }
+    let reads = |body: &str| READS.iter().any(|read| body.contains(read));
     let mut found = Vec::new();
     for file in files {
         let name = file.to_string_lossy().replace('\\', "/");
-        let code = product(&std::fs::read_to_string(&file).unwrap());
+        let code = without_comments(&product(&std::fs::read_to_string(&file).unwrap()));
+        let owner = name.ends_with(SIGN_IN_MODULE);
+        if !owner && SIGN_IN_FILES.iter().any(|secret| code.contains(secret)) {
+            found.push(format!(
+                "{name}: names a sign-in file (only {SIGN_IN_MODULE} may)"
+            ));
+        }
         let all = functions(&code);
-        let reads = |body: &str| READS.iter().any(|read| body.contains(read));
-        let allowed = |function: &str| {
-            SHAPE_READS
-                .iter()
-                .any(|(f, func)| name.ends_with(f) && *func == function)
-        };
         for (function, body) in &all {
-            let names_secret = SECRET_FILES.iter().any(|secret| body.contains(secret));
-            if names_secret && reads(body) && !allowed(function) {
-                found.push(format!("{name}: fn {function}"));
+            if !owner
+                && SIGN_IN_CONSTANTS
+                    .iter()
+                    .any(|constant| body.contains(constant))
+            {
+                found.push(format!(
+                    "{name}: fn {function} uses a sign-in name constant"
+                ));
             }
-            // A function handed the path reads it just the same.
-            for callee in handed_the_path(body) {
+            if owner && reads(body) && !SIGN_IN_READS.contains(&function.as_str()) {
+                found.push(format!("{name}: fn {function} reads in the sign-in module"));
+            }
+            let settings_allowed = |func: &str| {
+                SETTINGS_READS
+                    .iter()
+                    .any(|(f, allowed)| name.ends_with(f) && *allowed == func)
+            };
+            if SETTINGS_FILES.iter().any(|file| body.contains(file))
+                && reads(body)
+                && !settings_allowed(function)
+            {
+                found.push(format!("{name}: fn {function} reads settings.json"));
+            }
+            for callee in handed_the_path(body, SETTINGS_FILES) {
                 if let Some((_, callee_body)) = all.iter().find(|(f, _)| *f == callee)
                     && reads(callee_body)
-                    && !allowed(&callee)
+                    && !settings_allowed(&callee)
                 {
-                    found.push(format!("{name}: fn {callee} (handed it by {function})"));
+                    found.push(format!(
+                        "{name}: fn {callee} reads settings.json (handed it by {function})"
+                    ));
                 }
             }
         }
     }
     assert!(
         found.is_empty(),
-        "these read a sign-in file's contents (presence and size only, ADR-0003):\n{}",
+        "sign-in files and settings.json are read only where listed (ADR-0003):\n{}",
         found.join("\n")
     );
 }

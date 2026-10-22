@@ -564,8 +564,7 @@ impl ClaudeCodeAdapter {
         // Juggler never opens it (ADR-0003). Whether a sign-in has expired
         // can't be told without its contents; Claude says so itself when
         // it's used.
-        let credentials = state_dir.join(".credentials.json");
-        if let Ok(meta) = std::fs::metadata(&credentials) {
+        if let Some(meta) = crate::sign_in::metadata(CLAUDE_CODE_ID, state_dir) {
             if meta.len() == 0 {
                 return LoginState::Partial;
             }

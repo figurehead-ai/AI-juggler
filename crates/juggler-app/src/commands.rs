@@ -3056,9 +3056,8 @@ pub fn source_inspect_impl(
     // Keychain-bound: signed in with NO credentials file (the login
     // cannot move — E303's caveat, surfaced at Confirm-source).
     let keychain_bound = inspect.login == juggler_adapter::environment::LoginProbe::LoggedIn
-        && !std::path::Path::new(source_path)
-            .join(credentials_file_of(harness))
-            .exists();
+        && juggler_adapters::sign_in::metadata(harness, std::path::Path::new(source_path))
+            .is_none();
     Ok(SourceInspectInfo {
         total_bytes: inspect.total_bytes,
         file_count: inspect.file_count,
@@ -14274,10 +14273,8 @@ fn scan_walk(state: &Arc<AppState>) -> ScanWalk {
 
 /// The wire form of one discovered install.
 fn discovered_info_of(found: juggler_adapter::environment::DiscoveredInstall) -> DiscoveredInfo {
-    let credentials_len =
-        std::fs::metadata(found.path.join(credentials_file_of(found.harness.as_str())))
-            .ok()
-            .map(|meta| meta.len());
+    let credentials_len = juggler_adapters::sign_in::metadata(found.harness.as_str(), &found.path)
+        .map(|meta| meta.len());
     let now_secs = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|span| span.as_secs())
@@ -14341,16 +14338,6 @@ fn inference_info_of(
     }
 }
 
-/// The file a Provider keeps its sign-in in when it is file-based (its
-/// absence while signed in means the sign-in lives in the Keychain and
-/// cannot move with a copy). Size metadata only — never read.
-fn credentials_file_of(provider: &str) -> &'static str {
-    match provider {
-        juggler_adapters::CODEX_ID => "auth.json",
-        _ => ".credentials.json",
-    }
-}
-
 /// The Provider whose state dir a shell variable points at (S5).
 fn provider_of_variable(variable: &str) -> &'static str {
     match variable {
@@ -14390,9 +14377,8 @@ pub fn alias_installs_of(
             continue;
         }
         let harness = provider_of_variable(&hint.variable);
-        let credentials_len = std::fs::metadata(hint.path.join(credentials_file_of(harness)))
-            .ok()
-            .map(|meta| meta.len());
+        let credentials_len =
+            juggler_adapters::sign_in::metadata(harness, &hint.path).map(|meta| meta.len());
         out.push(DiscoveredInfo {
             inference: inference_info_of(&hint.path, None, false, credentials_len, None, false),
             signals: vec!["shell-alias".to_owned()],
