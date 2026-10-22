@@ -246,16 +246,18 @@ impl juggler_adapter::handover::HandoverSupport for ClaudeCodeAdapter {
 }
 
 /// AJ-E1540: a bundle name this session may install: a safe name that is
-/// a file beside the transcript, or inside the session's own folder
-/// (`<id>/…`), or its own file history (`~file-history/<id>/…`). Anything
-/// else in a bundle from a paired Mac is refused.
+/// the session's own file beside the transcript (`<id>…`, as a bundle
+/// names them), or inside the session's own folder (`<id>/…`), or its own
+/// file history (`~file-history/<id>/…`). Anything else in a bundle from a
+/// paired Mac is refused: it can't bring in another conversation (review
+/// of #132).
 fn belongs_to_session(name: &str, native_id: &str) -> bool {
     if !is_safe_bundle_name(name) {
         return false;
     }
     let mut parts = name.split('/');
     match (parts.next(), parts.next()) {
-        (Some(_), None) => true,
+        (Some(only), None) => only.starts_with(native_id),
         (Some(first), Some(_)) if first == native_id => true,
         (Some(FILE_HISTORY_AREA), Some(second)) => second == native_id && parts.next().is_some(),
         _ => false,

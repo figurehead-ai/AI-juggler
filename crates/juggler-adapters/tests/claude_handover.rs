@@ -697,3 +697,28 @@ fn a_bundle_name_that_climbs_out_is_refused() {
                 })
     );
 }
+
+#[test]
+fn a_bundle_cant_bring_in_another_conversation() {
+    // Review of #132: any plain file name beside the transcript was
+    // accepted, so a paired Mac's bundle could add `<other id>.jsonl`.
+    let a = tempfile::tempdir().unwrap();
+    let b = tempfile::tempdir().unwrap();
+    let cwd = "/Users/you/Dev/shopfront";
+    let session = "1f0e3c9a-7b5d-4c2e-9f8a-0d1e2f3a4b5d";
+    let main = seed_sibling_tree(a.path(), cwd, session);
+    let reference = TranscriptRef {
+        path: main,
+        native_id: Some(session.to_owned()),
+    };
+    let mut bundle = adapter().bundle_session(&reference).unwrap();
+    bundle.files.push(juggler_adapter::handover::BundleFile {
+        name: "9e9e9e9e-0000-4000-8000-000000000000.jsonl".to_owned(),
+        bytes: b"{}\n".to_vec(),
+    });
+    assert!(
+        adapter()
+            .install_bundle(&bundle, &account(b.path(), "B"))
+            .is_err()
+    );
+}
