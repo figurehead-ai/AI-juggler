@@ -28,6 +28,8 @@ pub struct ParsedTranscript {
     pub messages: Vec<ParsedMessage>,
     /// Summed token usage across assistant messages.
     pub usage: TokenCounts,
+    /// AJ-E1541: the task list as the last call that set one left it.
+    pub tasks: Option<Vec<crate::tool_summary::TaskItem>>,
 }
 
 /// One conversation message extracted from a transcript.
@@ -43,6 +45,8 @@ pub struct ParsedMessage {
     pub role: MessageRole,
     /// Concatenated text content (tool calls/results excluded).
     pub text: String,
+    /// AJ-E1541: one line per tool call this message made, in order.
+    pub tools: Vec<String>,
     /// Token usage carried by this line, if any.
     pub usage: Option<TokenCounts>,
     /// The model this assistant turn actually ran (verbatim vendor
@@ -94,6 +98,11 @@ pub fn parse_transcript(bytes: &[u8]) -> ParsedTranscript {
             && let Some(message) = extract_message(&value, &kind)
         {
             accumulate_usage(&mut parsed.usage, message.usage);
+            for (name, input) in tool_uses(value.get("message").and_then(|m| m.get("content"))) {
+                if let Some(tasks) = crate::tool_summary::task_list(name, input) {
+                    parsed.tasks = Some(tasks);
+                }
+            }
             parsed.messages.push(message);
         }
     }
@@ -116,6 +125,10 @@ fn extract_message(value: &serde_json::Value, kind: &str) -> Option<ParsedMessag
         session_id: string_field(value, "sessionId"),
         role,
         text: extract_text(message.get("content")),
+        tools: tool_uses(message.get("content"))
+            .into_iter()
+            .map(|(name, input)| crate::tool_summary::summarize(name, input))
+            .collect(),
         usage: extract_usage(message.get("usage")),
         model,
         sidechain: value
@@ -150,6 +163,23 @@ fn extract_text(content: Option<&serde_json::Value>) -> String {
             .join("\n"),
         _ => String::new(),
     }
+}
+
+/// The `tool_use` parts of a message's content: (tool name, its input).
+fn tool_uses(content: Option<&serde_json::Value>) -> Vec<(&str, &serde_json::Value)> {
+    let Some(serde_json::Value::Array(parts)) = content else {
+        return Vec::new();
+    };
+    parts
+        .iter()
+        .filter(|part| part.get("type").and_then(serde_json::Value::as_str) == Some("tool_use"))
+        .filter_map(|part| {
+            Some((
+                part.get("name")?.as_str()?,
+                part.get("input").unwrap_or(&serde_json::Value::Null),
+            ))
+        })
+        .collect()
 }
 
 fn extract_usage(usage: Option<&serde_json::Value>) -> Option<TokenCounts> {

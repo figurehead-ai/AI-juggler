@@ -26,6 +26,7 @@ pub mod fake;
 pub mod inference;
 pub mod quota_ingest;
 pub mod scan_signals;
+pub mod tool_summary;
 pub mod transcript;
 
 pub use claude_code::{CLAUDE_CODE_ID, ClaudeCodeAdapter, LoginState, claude_code_spec};

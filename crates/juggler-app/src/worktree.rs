@@ -101,6 +101,46 @@ pub fn read_status(dir: &Path) -> Option<GitStatus> {
     .map(|out| parse_porcelain(&out))
 }
 
+/// AJ-E1541: what has changed in a project and isn't committed yet, for
+/// a handover: the branch, up to [`CHANGES_SHOWN`] files as git names them
+/// (`M calc.py`, `?? test_calc.py`), how many more, and the diff stat.
+#[derive(Clone, PartialEq, Eq, Debug, Default)]
+pub struct WorkChanges {
+    /// The branch, when on one.
+    pub branch: Option<String>,
+    /// The changed files, as `git status --short` lines.
+    pub files: Vec<String>,
+    /// Changed files not listed.
+    pub more: usize,
+    /// `git diff --shortstat HEAD`: `2 files changed, 12 insertions(+)`.
+    pub stat: Option<String>,
+}
+
+/// Files a handover lists by name; the rest are counted.
+pub const CHANGES_SHOWN: usize = 30;
+
+/// Reads `dir`'s uncommitted changes now (two git subprocesses). `None`
+/// outside a repository.
+#[must_use]
+pub fn work_changes(dir: &Path) -> Option<WorkChanges> {
+    let short = git(dir, &["status", "--short", "--untracked-files=normal"])?;
+    let lines: Vec<String> = short
+        .lines()
+        .map(str::trim_end)
+        .filter(|line| !line.is_empty())
+        .map(str::to_owned)
+        .collect();
+    let more = lines.len().saturating_sub(CHANGES_SHOWN);
+    Some(WorkChanges {
+        branch: branch_of(dir),
+        files: lines.into_iter().take(CHANGES_SHOWN).collect(),
+        more,
+        stat: git(dir, &["diff", "--shortstat", "HEAD"])
+            .map(|out| out.trim().to_owned())
+            .filter(|out| !out.is_empty()),
+    })
+}
+
 /// Folder → (when read, status); `None` = not a git folder.
 type StatusCache = Mutex<HashMap<PathBuf, (Instant, Option<GitStatus>)>>;
 

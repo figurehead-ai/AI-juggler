@@ -407,3 +407,81 @@ fn a_session_with_no_conversation_is_not_replayed() {
         SessionStatus::HandedOver
     );
 }
+
+/// AJ-E1541: a switch to another tool carries the work, not only the chat:
+/// what each tool call did, the task list as last set, and the project's
+/// uncommitted changes. Before, only user and assistant text travelled.
+#[test]
+fn claude_to_codex_carries_tool_calls_the_task_list_and_the_changes() {
+    let work = tempfile::tempdir().unwrap();
+    let s = setup(work.path(), CLAUDE_CODE_ID, CODEX_ID);
+    let git = |args: &[&str]| {
+        assert!(
+            std::process::Command::new("git")
+                .args(args)
+                .current_dir(&s.cwd)
+                .output()
+                .unwrap()
+                .status
+                .success()
+        );
+    };
+    git(&["init", "-q"]);
+    std::fs::write(std::path::Path::new(&s.cwd).join("README.md"), "start\n").unwrap();
+    git(&["add", "-A"]);
+    git(&[
+        "-c",
+        "user.name=t",
+        "-c",
+        "user.email=t@example.com",
+        "commit",
+        "-qm",
+        "start",
+    ]);
+    std::fs::write(
+        std::path::Path::new(&s.cwd).join("calc.py"),
+        "def add(a, b):\n    return a + b\n",
+    )
+    .unwrap();
+
+    let dir = s.source_home.join("projects").join(s.cwd.replace('/', "-"));
+    std::fs::create_dir_all(&dir).unwrap();
+    let cwd = &s.cwd;
+    let lines = [
+        format!(
+            r#"{{"type":"user","uuid":"u1","cwd":"{cwd}","sessionId":"claude-sess-2","message":{{"role":"user","content":"Write calc.py with add, and keep a task list"}}}}"#
+        ),
+        format!(
+            r#"{{"type":"assistant","uuid":"u2","cwd":"{cwd}","sessionId":"claude-sess-2","message":{{"role":"assistant","content":[{{"type":"tool_use","id":"t1","name":"Write","input":{{"file_path":"{cwd}/calc.py","content":"…"}}}},{{"type":"tool_use","id":"t2","name":"TodoWrite","input":{{"todos":[{{"content":"add","status":"completed"}},{{"content":"sub","status":"pending"}}]}}}}]}}}}"#
+        ),
+        format!(
+            r#"{{"type":"assistant","uuid":"u3","cwd":"{cwd}","sessionId":"claude-sess-2","message":{{"role":"assistant","content":[{{"type":"text","text":"calc.py has add."}}]}}}}"#
+        ),
+    ];
+    std::fs::write(dir.join("claude-sess-2.jsonl"), lines.join("\n") + "\n").unwrap();
+    commands::redaction_policy_set_global_impl(&s.state, Some("strip")).unwrap();
+
+    commands::switch_execute_impl(
+        &s.state,
+        &s.source_session,
+        &s.target_recipe,
+        "finish-turn",
+        None,
+        &[],
+    )
+    .unwrap();
+    let prompt = args_of(&s.target_home)[1..].join("\n");
+    assert!(
+        prompt.contains("Write storefront/calc.py"),
+        "the tool call travels: {prompt}"
+    );
+    assert!(
+        prompt.contains("Task list:\n[x] add\n[ ] sub"),
+        "the task list travels: {prompt}"
+    );
+    assert!(
+        prompt.contains("Not committed yet"),
+        "the changes travel: {prompt}"
+    );
+    assert!(prompt.contains("?? calc.py"), "{prompt}");
+}

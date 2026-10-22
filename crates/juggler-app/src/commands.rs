@@ -6056,11 +6056,62 @@ fn replay_prompt(
         .handover(&sides.account_b.harness)
         .and_then(|support| support.prime_prompt(&prime_turns).ok())
         .unwrap_or_else(|| plain_prime(&prime_turns));
+    // AJ-E1541: where the work stands, after the conversation: the task
+    // list as last set, and what changed in the project and isn't
+    // committed, so the other tool continues the work, not just the chat.
+    let prompt = match work_state_note(
+        juggler_adapters::parse_any(&bytes).tasks.as_deref(),
+        &sides.source.cwd,
+    ) {
+        Some(note) => format!("{prompt}\n\n{note}"),
+        None => prompt,
+    };
     Ok((
         prompt,
         juggler_adapter::handover::sha256_hex(&bytes),
         u64::try_from(bytes.len()).unwrap_or(u64::MAX),
     ))
+}
+
+/// AJ-E1541: "where the work stands" for a handover: the task list as the
+/// last call set it, and the project's uncommitted changes. `None` when
+/// there's neither.
+fn work_state_note(
+    tasks: Option<&[juggler_adapters::tool_summary::TaskItem]>,
+    cwd: &std::path::Path,
+) -> Option<String> {
+    use std::fmt::Write as _;
+    let changes = crate::worktree::work_changes(cwd).filter(|changes| !changes.files.is_empty());
+    let tasks = tasks.filter(|tasks| !tasks.is_empty());
+    if changes.is_none() && tasks.is_none() {
+        return None;
+    }
+    let mut note = String::from("Where the work stands now:\n");
+    if let Some(tasks) = tasks {
+        let _ = write!(
+            note,
+            "\nTask list:\n{}",
+            juggler_adapters::tool_summary::render_tasks(tasks)
+        );
+    }
+    if let Some(changes) = changes {
+        let branch = changes
+            .branch
+            .as_deref()
+            .map(|branch| format!(" on {branch}"))
+            .unwrap_or_default();
+        let _ = writeln!(note, "\nNot committed yet{branch}:");
+        for file in &changes.files {
+            let _ = writeln!(note, "  {file}");
+        }
+        if changes.more > 0 {
+            let _ = writeln!(note, "  …and {} more", changes.more);
+        }
+        if let Some(stat) = &changes.stat {
+            let _ = writeln!(note, "  ({stat})");
+        }
+    }
+    Some(note.trim_end().to_owned())
 }
 
 /// Records a succeeded replay: the source rests (`HandedOver`), the
@@ -11217,15 +11268,44 @@ fn transcript_side(
             MessageRole::Assistant => juggler_handover::pack::IrRole::Assistant,
             MessageRole::Other => continue,
         };
+        // AJ-E1541: what the turn's tool calls did, after what it said, so
+        // a handover carries the work and not only the chat.
+        let text = match (message.text.trim().is_empty(), message.tools.is_empty()) {
+            (_, true) => message.text,
+            (true, false) => format!("({})", message.tools.join("; ")),
+            (false, false) => format!("{}\n({})", message.text, message.tools.join("; ")),
+        };
         turns.push(juggler_handover::pack::IrTurn {
             uuid: message.uuid,
             role,
-            text: message.text,
+            text,
             at_ms: None,
             tokens: None,
         });
     }
     Some((uuids, turns))
+}
+
+/// AJ-E1541: what changed in the project while away, for the switch-back
+/// delta: git's diff stat, else how many files changed.
+fn away_diff_stat(cwd: &std::path::Path) -> Option<String> {
+    crate::worktree::work_changes(cwd).and_then(|changes| {
+        changes.stat.or_else(|| {
+            (!changes.files.is_empty()).then(|| format!("{} files changed", changes.files.len()))
+        })
+    })
+}
+
+/// AJ-E1541: the task list as the away session left it, on one line.
+fn away_task_note(reference: Option<&juggler_core::model::TranscriptRef>) -> Option<String> {
+    let bytes = juggler_adapters::read_session_file(&reference?.path).ok()?;
+    let tasks = juggler_adapters::parse_any(&bytes).tasks?;
+    (!tasks.is_empty()).then(|| {
+        juggler_adapters::tool_summary::render_tasks(&tasks)
+            .lines()
+            .collect::<Vec<_>>()
+            .join("; ")
+    })
 }
 
 /// AJ-E1541: the turns of one hop that are new on it: not in what came
@@ -11404,8 +11484,8 @@ fn back_facts(
         away_turns,
         away_only_uuids: conversation.away_only_uuids.iter().cloned().collect(),
         conversation: conversation.clone(),
-        diff_stat: None, // the away pack's freeze-time stat rides E209's pack surfaces
-        todo_note: None,
+        diff_stat: away_diff_stat(&lineage.away_session.cwd),
+        todo_note: away_task_note(away_reference.as_ref()),
         earlier_hops,
     };
     let away_live = matches!(
