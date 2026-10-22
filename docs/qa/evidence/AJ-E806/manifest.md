@@ -531,3 +531,14 @@
     the work that holds the budget: a full scan at most every 5th tick,
     and between them only our sessions' processes
     (`LiveStatsCollector::work`). CPU is still printed.
+- **Flake record, 2026-10-22 (observed; open, a follow-up).** In the
+  batch 5 verify of 7bcd862b (fix/maintainer-reports-5), with other
+  sessions' builds running,
+  `fleet_sync :: an_offline_console_catches_up_with_only_what_it_missed_and_keeps_last_known_rows`
+  took 9.45 s and failed: the catch-up log was `[(0, 10), (31, 5)]`. The
+  first sync's full catch-up landed in the log after the test had taken
+  `catch_ups_before`, so it read that one as the resume, and the real
+  resume (31, 5: only the missing changes) came second. Alone it passed 3
+  of 3 times (3.2 s). The batch doesn't touch fleet code. The fix belongs
+  in the test: wait for the first catch-up before counting. Nothing
+  changed here.
