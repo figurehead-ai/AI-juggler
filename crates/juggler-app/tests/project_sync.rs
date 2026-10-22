@@ -144,17 +144,12 @@ fn snapshot(dir: &Path) -> BTreeMap<PathBuf, Vec<u8>> {
     out
 }
 
-/// AI Juggler's own SQLite files, right in its data folder.
-fn is_database(path: &Path, data_dir: &Path) -> bool {
-    path.parent() == Some(data_dir)
-        && path
-            .file_name()
-            .and_then(|name| name.to_str())
-            .is_some_and(|name| {
-                [".db", ".db-wal", ".db-shm", ".sqlite"]
-                    .iter()
-                    .any(|end| name.ends_with(end))
-            })
+/// What the guardrail watches: everything but AI Juggler's own
+/// bookkeeping in its data folder (its database, its logs), which a read
+/// may touch. The accounts' folders in it, where the tools' configs live,
+/// are watched in full.
+fn watched(path: &Path, data_dir: &Path) -> bool {
+    !path.starts_with(data_dir) || path.starts_with(data_dir.join("accounts"))
 }
 
 fn file<'a>(
@@ -191,9 +186,9 @@ fn nothing_is_written_until_the_user_applies() {
         .iter()
         .filter(|(path, bytes)| before.get(*path) != Some(bytes))
         .map(|(path, _)| path)
-        // AI Juggler's own database may note the reads; nothing else may
-        // change, the accounts' folders inside app-data included.
-        .filter(|path| !is_database(path, &lab.work.join("app-data")))
+        // AI Juggler's own database and logs may note the reads; nothing
+        // else may change, the accounts' folders inside app-data included.
+        .filter(|path| watched(path, &lab.work.join("app-data")))
         .collect();
     assert!(changed.is_empty(), "written without an apply: {changed:?}");
     assert_eq!(before.len(), after.len());
