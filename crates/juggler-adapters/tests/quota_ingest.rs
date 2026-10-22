@@ -350,85 +350,113 @@ fn expected(rows: &[(&str, &[u64])]) -> BTreeMap<String, Vec<u64>> {
         .collect()
 }
 
+/// The same split however the passes come: every order of `passes` as
+/// separate passes, all in one pass, and a fresh re-read of every session
+/// (each replaced by all it offered, as the pipeline's re-read does) after
+/// the passes.
+fn every_order_gives(
+    passes: &[Vec<juggler_core::quota::UsageEvent>],
+    want: &BTreeMap<String, Vec<u64>>,
+) {
+    let mut orders: Vec<Vec<usize>> = vec![vec![]];
+    for _ in 0..passes.len() {
+        orders = orders
+            .into_iter()
+            .flat_map(|order| {
+                (0..passes.len())
+                    .filter(|at| !order.contains(at))
+                    .map(|at| [order.clone(), vec![at]].concat())
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+    }
+    for order in &orders {
+        let ordered: Vec<_> = order.iter().map(|at| passes[*at].clone()).collect();
+        assert_eq!(&kept(&ordered), want, "separate passes in order {order:?}");
+    }
+    assert_eq!(&kept(&[passes.concat()]), want, "one pass");
+    let storage = Storage::open_in_memory().unwrap();
+    for pass in passes {
+        storage.usage().store_events(pass).unwrap();
+    }
+    let everything = passes.concat();
+    let sessions: std::collections::BTreeSet<String> = everything
+        .iter()
+        .filter_map(|event| event.session.clone())
+        .collect();
+    for session in sessions {
+        let mine: Vec<_> = everything
+            .iter()
+            .filter(|event| event.session.as_deref() == Some(session.as_str()))
+            .cloned()
+            .collect();
+        storage
+            .usage()
+            .replace_session_events(
+                &[("acc".into(), UsageSource::Transcript, session.clone())],
+                &mine,
+            )
+            .unwrap();
+        assert_eq!(&kept_in(&storage), want, "after reading {session} again");
+    }
+}
+
 /// H1 (#126 review): a copy that is itself resumed. O (messages 1–2), C
 /// resumed from O (1–4), D resumed from C (1–6): each keeps only what it
-/// wrote, read in any order, in separate passes or one, or as the files
-/// grow. Before, a session that had lost messages looked newer, so the
-/// answer depended on the order.
+/// wrote, in every reading order, in one pass, as the files grow, and after
+/// a fresh re-read. Before, a session that had lost messages looked newer,
+/// so the answer depended on the order.
 #[test]
 fn a_chain_of_copies_keeps_each_message_with_its_writer_in_any_order() {
-    let o = || session("o", &[(1, 0), (2, 1)]);
-    let c = || session("c", &[(1, 0), (2, 1), (3, 2), (4, 3)]);
-    let d = || session("d", &[(1, 0), (2, 1), (3, 2), (4, 3), (5, 4), (6, 5)]);
     let want = expected(&[("o", &[1, 2]), ("c", &[3, 4]), ("d", &[5, 6])]);
-    let files = [o, c, d];
-    for (a, b, c) in [
-        (0, 1, 2),
-        (0, 2, 1),
-        (1, 0, 2),
-        (1, 2, 0),
-        (2, 0, 1),
-        (2, 1, 0),
-    ] {
-        let passes = [files[a](), files[b](), files[c]()];
-        assert_eq!(kept(&passes), want, "separate passes in order {a}{b}{c}");
-    }
-    let one = [o(), c(), d()].concat();
-    assert_eq!(kept(&[one]), want, "one pass");
-    // The files as they were written: C's last message lands after D
-    // was read, and O's file is read last.
-    let growing = [
-        session("c", &[(1, 0), (2, 1), (3, 2)]),
-        d(),
-        session("c", &[(4, 3)]),
-        o(),
-    ];
-    assert_eq!(kept(&growing), want, "as the files grow");
+    every_order_gives(
+        &[
+            session("o", &[(1, 0), (2, 1)]),
+            session("c", &[(1, 0), (2, 1), (3, 2), (4, 3)]),
+            session("d", &[(1, 0), (2, 1), (3, 2), (4, 3), (5, 4), (6, 5)]),
+        ],
+        &want,
+    );
+    // The files as they were written: C's last message lands in a pass of
+    // its own.
+    every_order_gives(
+        &[
+            session("c", &[(1, 0), (2, 1), (3, 2)]),
+            session("d", &[(1, 0), (2, 1), (3, 2), (4, 3), (5, 4), (6, 5)]),
+            session("c", &[(4, 3)]),
+            session("o", &[(1, 0), (2, 1)]),
+        ],
+        &want,
+    );
 }
 
 /// H1: a fork both sides go on writing. F forked from O after message 2
 /// and wrote 3–4; O went on later with 5–6. The shared history stays with
-/// O however long either grows, read in either order.
+/// O however long either grows, in every reading order.
 #[test]
 fn a_fork_leaves_the_shared_history_with_the_original_as_both_grow() {
-    let want = expected(&[("o", &[1, 2, 5, 6]), ("f", &[3, 4])]);
-    let o_start = || session("o", &[(1, 0), (2, 1)]);
-    let f = || session("f", &[(1, 0), (2, 1), (3, 2), (4, 3)]);
-    let o_more = || session("o", &[(5, 10), (6, 11)]);
-    assert_eq!(kept(&[o_start(), f(), o_more()]), want);
-    assert_eq!(kept(&[f(), o_start(), o_more()]), want);
-    assert_eq!(kept(&[o_more(), f(), o_start()]), want);
-    assert_eq!(kept(&[[o_start(), o_more(), f()].concat()]), want);
+    every_order_gives(
+        &[
+            session("o", &[(1, 0), (2, 1)]),
+            session("f", &[(1, 0), (2, 1), (3, 2), (4, 3)]),
+            session("o", &[(5, 10), (6, 11)]),
+        ],
+        &expected(&[("o", &[1, 2, 5, 6]), ("f", &[3, 4])]),
+    );
 }
 
-/// Reading a session again (the pipeline's re-read) gives the same
-/// answer, and the account total is unchanged.
+/// The rule's known limit, pinned so a change to it is deliberate: when
+/// the original writes first after the fork (5 at minute 2) and the fork
+/// later (3 at minute 4), the fork is credited the shared part. The
+/// account's total is the same either way.
 #[test]
-fn reading_a_copy_again_keeps_the_same_split() {
-    let storage = Storage::open_in_memory().unwrap();
-    for pass in [
-        session("o", &[(1, 0), (2, 1)]),
-        session("c", &[(1, 0), (2, 1), (3, 2), (4, 3)]),
-        session("d", &[(1, 0), (2, 1), (3, 2), (4, 3), (5, 4), (6, 5)]),
-    ] {
-        storage.usage().store_events(&pass).unwrap();
-    }
-    let before = kept_in(&storage);
-    for (id, messages) in [
-        ("c", &[(1, 0), (2, 1), (3, 2), (4, 3)][..]),
-        ("o", &[(1, 0), (2, 1)][..]),
-    ] {
-        storage
-            .usage()
-            .replace_session_events(
-                &[("acc".into(), UsageSource::Transcript, id.into())],
-                &session(id, messages),
-            )
-            .unwrap();
-        assert_eq!(kept_in(&storage), before, "after reading {id} again");
-    }
-    let total: u64 = before.values().flatten().sum();
-    assert_eq!(total, 21);
+fn the_known_limit_an_original_that_writes_first_after_a_fork() {
+    let got = kept(&[
+        session("o", &[(1, 0), (2, 1), (5, 2)]),
+        session("f", &[(1, 0), (2, 1), (3, 4)]),
+    ]);
+    assert_eq!(got, expected(&[("o", &[5]), ("f", &[1, 2, 3])]));
+    assert_eq!(got.values().flatten().sum::<u64>(), 11);
 }
 
 /// Rollout lines shaped like QA's (P17): `compacted`, then one

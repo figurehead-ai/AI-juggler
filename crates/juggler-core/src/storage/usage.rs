@@ -498,6 +498,17 @@ impl Span {
     ///
     /// None of these moves as a session grows past its own start, so a
     /// message's keeper doesn't either.
+    ///
+    /// Why 2 holds: Claude's resume writes a copy holding everything up to
+    /// the point it was resumed, so the original has messages of its own
+    /// only after the fork. That puts the shared part on the original in a
+    /// chain of copies, in a fork, and when the original never writes again.
+    ///
+    /// Known limit: when the original writes first after a fork and the
+    /// copy writes later, the copy's own start is the later one, and it is
+    /// credited the shared part. Only the split between the two sessions is
+    /// affected; an account's totals never are (each message is counted
+    /// once, whoever keeps it).
     fn rank<'s>(&self, session: &'s str) -> (i64, std::cmp::Reverse<i64>, i64, &'s str) {
         (
             self.first,

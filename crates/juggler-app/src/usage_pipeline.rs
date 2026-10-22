@@ -156,24 +156,16 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
         }
     }
 
-    // Single writer: ONE storage lock for the whole batch.
+    // Single writer, in chunks (QA batch 9: a first pass on a heavy setup
+    // held storage for over a minute in one write, and every screen and
+    // the conversation index waited behind it). Offsets are saved only
+    // once every chunk is in: when a write fails, the next pass reads the
+    // same lines again (the store dedupes what an earlier chunk kept).
+    let Some(stored) = store_in_chunks(state, rereading, &store_batch) else {
+        return;
+    };
     if let Ok(storage) = state.storage.lock() {
         let usage = storage.usage();
-        // Events and their offsets go together: when the write fails,
-        // nothing of this pass is kept (offsets included), and the next
-        // pass reads the same lines again.
-        let stored = if rereading {
-            // Every file still on disk was read from its start: its
-            // sessions' old rows go and the rows just read replace them, in
-            // one transaction. A session whose files are gone keeps the
-            // rows it had.
-            usage.replace_session_events(&reread_sessions(&store_batch), &store_batch)
-        } else {
-            usage.store_events(&store_batch)
-        };
-        let Ok(stored) = stored else {
-            return;
-        };
         if rereading {
             ingest.reread = REREAD_VERSION;
         } else {
@@ -196,6 +188,67 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
             let _ = storage.app_settings().set(INGEST_STATE_KEY, &blob);
         }
     }
+}
+
+/// Events per storage write: one chunk holds the lock for a moment, and
+/// whatever waits on storage gets it between chunks.
+const STORE_CHUNK: usize = 2_000;
+
+/// Stores the pass's events a chunk at a time, each in its own lock and
+/// transaction; `None` when a write fails. A re-read replaces each
+/// session's rows in the chunk that holds all of them, so a session is
+/// never left half-replaced. The results come back in `batch`'s order
+/// (a re-read's order isn't used).
+fn store_in_chunks(
+    state: &Arc<AppState>,
+    rereading: bool,
+    batch: &[juggler_core::quota::UsageEvent],
+) -> Option<Vec<juggler_core::storage::Stored>> {
+    let chunks: Vec<Vec<juggler_core::quota::UsageEvent>> = if rereading {
+        session_chunks(batch, STORE_CHUNK)
+    } else {
+        batch.chunks(STORE_CHUNK).map(<[_]>::to_vec).collect()
+    };
+    let mut stored = Vec::with_capacity(batch.len());
+    for chunk in &chunks {
+        let storage = state.storage.lock().ok()?;
+        let usage = storage.usage();
+        // Every file still on disk was read from its start: its sessions'
+        // old rows go and the rows just read replace them. A session whose
+        // files are gone keeps the rows it had.
+        let done = if rereading {
+            usage.replace_session_events(&reread_sessions(chunk), chunk)
+        } else {
+            usage.store_events(chunk)
+        };
+        stored.extend(done.ok()?);
+    }
+    Some(stored)
+}
+
+/// The events grouped so that all of one session's are in the same chunk,
+/// chunks filled up to about `size` (a session bigger than that is a chunk
+/// of its own).
+fn session_chunks(
+    batch: &[juggler_core::quota::UsageEvent],
+    size: usize,
+) -> Vec<Vec<juggler_core::quota::UsageEvent>> {
+    let mut by_session: BTreeMap<(String, Option<String>), Vec<juggler_core::quota::UsageEvent>> =
+        BTreeMap::new();
+    for event in batch {
+        by_session
+            .entry((event.account.clone(), event.session.clone()))
+            .or_default()
+            .push(event.clone());
+    }
+    let mut chunks: Vec<Vec<juggler_core::quota::UsageEvent>> = Vec::new();
+    for events in by_session.into_values() {
+        match chunks.last_mut() {
+            Some(last) if last.len() + events.len() <= size => last.extend(events),
+            _ => chunks.push(events),
+        }
+    }
+    chunks
 }
 
 /// Claude: spool tail every pass; transcript scan every file-scan cadence.
@@ -528,5 +581,63 @@ fn collect_jsonl_depth(root: &Path, out: &mut Vec<PathBuf>, depth: u32) {
         {
             out.push(path);
         }
+    }
+}
+
+#[cfg(test)]
+mod chunk_tests {
+    #![allow(clippy::unwrap_used)]
+    use super::session_chunks;
+    use juggler_core::quota::{UsageEvent, UsageSource};
+
+    fn event(session: &str, n: usize) -> UsageEvent {
+        UsageEvent {
+            account: "a".into(),
+            session: Some(session.into()),
+            ts: i64::try_from(n).unwrap(),
+            model: None,
+            tokens: juggler_core::model::TokenCounts::default(),
+            credits: None,
+            usd_est: None,
+            source: UsageSource::Transcript,
+            confidence: juggler_core::model::Confidence::Measured,
+            msg_uuid: Some(format!("{session}-{n}")),
+        }
+    }
+
+    /// QA batch 9: a re-read is written a chunk at a time, and a session's
+    /// rows are replaced in one chunk, never split across two.
+    #[test]
+    fn a_reread_is_chunked_without_splitting_a_session() {
+        let mut batch = Vec::new();
+        for (session, rows) in [("s1", 3), ("s2", 4), ("s3", 9), ("s4", 2)] {
+            batch.extend((0..rows).map(|n| event(session, n)));
+        }
+        let chunks = session_chunks(&batch, 5);
+        let sessions: Vec<Vec<&str>> = chunks
+            .iter()
+            .map(|chunk| {
+                let mut ids: Vec<&str> = chunk
+                    .iter()
+                    .map(|e| e.session.as_deref().unwrap())
+                    .collect();
+                ids.dedup();
+                ids
+            })
+            .collect();
+        assert_eq!(sessions, [vec!["s1"], vec!["s2"], vec!["s3"], vec!["s4"]]);
+        assert_eq!(chunks.iter().map(Vec::len).sum::<usize>(), batch.len());
+        // Small sessions share a chunk up to its size.
+        let small: Vec<UsageEvent> = ["x", "y", "z"]
+            .iter()
+            .flat_map(|s| (0..2).map(|n| event(s, n)))
+            .collect();
+        assert_eq!(
+            session_chunks(&small, 4)
+                .iter()
+                .map(Vec::len)
+                .collect::<Vec<_>>(),
+            [4, 2]
+        );
     }
 }
