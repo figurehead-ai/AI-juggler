@@ -31,16 +31,22 @@ struct Lab {
     root: PathBuf,
     work: PathBuf,
     claude: PathBuf,
+    personal: PathBuf,
     codex: PathBuf,
     codex_profile: String,
     _dir: tempfile::TempDir,
 }
 
-/// A `claude` (and `codex`) that does nothing but exit.
+/// A `claude` (and `codex`): `claude mcp add-json` writes the entry into
+/// the account's state file, as Claude does; anything else just exits.
 fn stub(dir: &Path) -> PathBuf {
     use std::os::unix::fs::PermissionsExt;
     let path = dir.join("tool-stub");
-    std::fs::write(&path, "#!/bin/sh\nexit 0\n").unwrap();
+    std::fs::write(
+        &path,
+        "#!/bin/sh\nif [ \"$2\" = add-json ]; then printf '{\"mcpServers\":{\"%s\":%s}}' \"$6\" \"$7\" > \"$CLAUDE_CONFIG_DIR/.claude.json\"; fi\nexit 0\n",
+    )
+    .unwrap();
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
     path
 }
@@ -63,6 +69,7 @@ fn lab() -> Lab {
         (profile.id, dir)
     };
     let (claude_profile, claude) = make(CLAUDE_CODE_ID, "Work");
+    let (_, personal) = make(CLAUDE_CODE_ID, "Personal");
     let (codex_profile, codex) = make(CODEX_ID, "Codex");
     std::fs::write(codex.join("config.toml"), "model = \"gpt-6\"\n").unwrap();
     let root = work.join("shop");
@@ -91,6 +98,7 @@ fn lab() -> Lab {
         root,
         work,
         claude,
+        personal,
         codex,
         codex_profile,
         _dir: dir,
@@ -499,4 +507,75 @@ fn a_server_is_copied_across_tools_without_its_secret_and_undone() {
         std::fs::read_to_string(lab.codex.join("config.toml")).unwrap(),
         before
     );
+}
+
+#[test]
+fn every_pair_of_tools_is_offered_what_it_lacks_the_same_tool_first() {
+    // AJ-E1507's quality gate: fixtures for each pair of tools. Codex has
+    // a server neither Claude Code account has; Work has one Personal
+    // lacks. Personal gets Work's as it is (the same tool first), and both
+    // can get Codex's in their own form.
+    let lab = lab();
+    std::fs::write(
+        lab.codex.join("config.toml"),
+        "model = \"gpt-6\"\n\n[mcp_servers.search]\ncommand = \"search-mcp\"\nargs = [\"--fast\"]\n",
+    )
+    .unwrap();
+    std::fs::write(
+        lab.claude.join(".claude.json"),
+        serde_json::json!({"mcpServers": {"docs": {"type": "stdio", "command": "docs-mcp"}}})
+            .to_string(),
+    )
+    .unwrap();
+    let servers = servers_impl(&lab.state, &lab.project).unwrap();
+    let offer = |server: &str, to: &str| {
+        servers
+            .copies
+            .iter()
+            .find(|copy| copy.server == server && copy.to_label == to)
+            .unwrap_or_else(|| panic!("{to} is offered {server}: {:?}", servers.copies))
+            .clone()
+    };
+    let docs = offer("docs", "Personal");
+    assert_eq!(
+        (docs.from_label.as_str(), docs.verdict.as_str()),
+        ("Work", "copy")
+    );
+    // Across tools: whatever the target tool's adapter says, as long as
+    // it can be set up there.
+    let can = |verdict: &str| matches!(verdict, "copy" | "translate");
+    assert!(can(&offer("docs", "Codex").verdict));
+    assert_eq!(offer("search", "Work").from_label, "Codex");
+    assert!(can(&offer("search", "Personal").verdict));
+
+    // Codex → Claude Code: the server lands in Personal's own config.
+    let search = offer("search", "Personal");
+    let applied = servers_apply_impl(
+        &lab.state,
+        &lab.project,
+        &search.from,
+        &search.to,
+        &search.offer,
+    )
+    .unwrap();
+    assert!(applied.record.is_some(), "{}", applied.message);
+    let config = std::fs::read_to_string(lab.personal.join(".claude.json")).unwrap();
+    assert!(config.contains("search-mcp"), "{config}");
+}
+
+#[test]
+fn listing_stays_inside_its_budget() {
+    // AJ-E1507's budget: listing under 300 ms per project. This thread's
+    // CPU time, the best of five, so a busy Mac doesn't decide it.
+    let lab = lab();
+    write(&lab, "AGENTS.md", &"Use tabs.\n".repeat(2000), 60);
+    write(&lab, "CLAUDE.md", &"Use spaces.\n".repeat(2000), 1);
+    let mut best = Duration::MAX;
+    for _ in 0..5 {
+        let started = cpu_time::ThreadTime::now();
+        rules_impl(&lab.state, &lab.project, None).unwrap();
+        servers_impl(&lab.state, &lab.project).unwrap();
+        best = best.min(started.elapsed());
+    }
+    assert!(best < Duration::from_millis(300), "{best:?} CPU");
 }

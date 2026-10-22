@@ -375,6 +375,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Rules and MCP servers the same across tools** (AJ-E1507), in one
+  reviewed click. The project's header says **Rules in sync** or
+  **1 rules file differs** (a missing file counts only for a tool that
+  works there), and opens one sheet, also in every project's menu
+  (**Compare rules and servers…**). Pick the master copy, see the diff
+  applying it would make, and apply it to one file; a tool that can read
+  another file (Claude Code's `@AGENTS.md`) can read the master instead
+  of a copy. A link, or a file that changed since you looked, is never
+  written. Each account's MCP servers are listed too, and one can be
+  copied to another account in that tool's own form; secrets stay
+  behind, named. Every change can be undone there or in Settings.
+
 - **A This Mac page** (AJ-E1528). "See what's using it", the This Mac
   panel's "See all", More › This Mac and the rail's "This Mac" line open
   it. It shows the Mac's state in words and meters, then what's using it:
