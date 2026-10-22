@@ -55,7 +55,7 @@ impl UsageRepo<'_> {
     /// transaction rolls back atomically.
     pub fn store_events(&self, events: &[UsageEvent]) -> Result<Vec<Stored>, CoreError> {
         let tx = self.conn.unchecked_transaction()?;
-        let stored = store_in(&tx, events, Vec::new())?;
+        let stored = store_in(&tx, events, Removed::default())?;
         tx.commit()?;
         Ok(stored)
     }
@@ -74,8 +74,8 @@ impl UsageRepo<'_> {
         events: &[UsageEvent],
     ) -> Result<Vec<Stored>, CoreError> {
         let tx = self.conn.unchecked_transaction()?;
-        let (_, recheck) = delete_in(&tx, sessions)?;
-        let stored = store_in(&tx, events, recheck)?;
+        let (_, removed) = delete_in(&tx, sessions)?;
+        let stored = store_in(&tx, events, removed)?;
         tx.commit()?;
         Ok(stored)
     }
@@ -114,8 +114,8 @@ impl UsageRepo<'_> {
         sessions: &[(String, UsageSource, String)],
     ) -> Result<usize, CoreError> {
         let tx = self.conn.unchecked_transaction()?;
-        let (deleted, recheck) = delete_in(&tx, sessions)?;
-        store_in(&tx, &[], recheck)?;
+        let (deleted, removed) = delete_in(&tx, sessions)?;
+        store_in(&tx, &[], removed)?;
         tx.commit()?;
         Ok(deleted)
     }
@@ -757,12 +757,12 @@ impl<'c> Owners<'c> {
     }
 }
 
-/// Stores `events`; `recheck` are sessions whose standing must be counted
-/// again in full (they shared messages with a session just removed).
+/// Stores `events`, then settles what removing sessions left (see
+/// [`Removed`]).
 fn store_in(
     conn: &Connection,
     events: &[UsageEvent],
-    recheck: Vec<SessionKey>,
+    removed: Removed,
 ) -> Result<Vec<Stored>, CoreError> {
     let mut stored = Vec::with_capacity(events.len());
     let mut find = conn.prepare(
@@ -770,7 +770,8 @@ fn store_in(
          WHERE account = ?1 AND msg_uuid = ?2",
     )?;
     let mut owners = Owners::new(conn)?;
-    owners.recount.extend(recheck);
+    owners.recount.extend(removed.recheck);
+    owners.keys.extend(removed.keys);
     let mut insert = conn.prepare(
         "INSERT OR IGNORE INTO usage_events
              (account, session, ts, model, input, output, cache_r, cache_w,
@@ -858,17 +859,25 @@ fn store_in(
     Ok(stored)
 }
 
-/// Deletes the sessions' rows and what they offered; returns how many rows
-/// went, and the sessions that shared messages with them (whose standing
-/// must be counted again).
+/// What removing sessions leaves to settle: sessions that shared messages
+/// with them (their standing is counted again), and the shared messages
+/// they held (kept, and given to the best holder left).
+#[derive(Default)]
+struct Removed {
+    recheck: Vec<SessionKey>,
+    keys: Vec<(String, String)>,
+}
+
+/// Deletes what the sessions offered, and their rows that no other session
+/// holds; returns how many rows went. A row another session also holds
+/// stays (an account's total never drops because one holder's file was
+/// read again without it) and is settled again.
 fn delete_in(
     conn: &Connection,
     sessions: &[(String, UsageSource, String)],
-) -> Result<(usize, Vec<SessionKey>), CoreError> {
-    let mut stmt = conn
-        .prepare("DELETE FROM usage_events WHERE account = ?1 AND source = ?2 AND session = ?3")?;
-    let mut sharers = conn.prepare(
-        "SELECT DISTINCT o.session FROM usage_holders h JOIN usage_holders o
+) -> Result<(usize, Removed), CoreError> {
+    let mut shared = conn.prepare(
+        "SELECT h.msg_uuid, o.session FROM usage_holders h JOIN usage_holders o
            ON o.account = h.account AND o.msg_uuid = h.msg_uuid AND o.session <> h.session
          WHERE h.account = ?1 AND h.session = ?2",
     )?;
@@ -876,21 +885,39 @@ fn delete_in(
         conn.prepare("DELETE FROM usage_holders WHERE account = ?1 AND session = ?2")?;
     let mut forget_span =
         conn.prepare("DELETE FROM usage_spans WHERE account = ?1 AND session = ?2")?;
+    let mut delete = conn.prepare(
+        "DELETE FROM usage_events
+         WHERE account = ?1 AND source = ?2 AND session = ?3 AND (msg_uuid IS NULL OR NOT EXISTS (
+             SELECT 1 FROM usage_holders o
+             WHERE o.account = usage_events.account AND o.msg_uuid = usage_events.msg_uuid))",
+    )?;
     let mut deleted = 0;
     let mut recheck = BTreeSet::new();
+    let mut keys = BTreeSet::new();
     for (account, source, session) in sessions {
-        let others = sharers
-            .query_map(params![account, session], |row| row.get::<_, String>(0))?
+        let pairs = shared
+            .query_map(params![account, session], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })?
             .collect::<Result<Vec<_>, _>>()?;
-        recheck.extend(others.into_iter().map(|other| (account.clone(), other)));
+        for (key, other) in pairs {
+            keys.insert((account.clone(), key));
+            recheck.insert((account.clone(), other));
+        }
         forget.execute(params![account, session])?;
         forget_span.execute(params![account, session])?;
-        deleted += stmt.execute(params![account, source.as_str(), session])?;
+        deleted += delete.execute(params![account, source.as_str(), session])?;
     }
     for (account, _, session) in sessions {
         recheck.remove(&(account.clone(), session.clone()));
     }
-    Ok((deleted, recheck.into_iter().collect()))
+    Ok((
+        deleted,
+        Removed {
+            recheck: recheck.into_iter().collect(),
+            keys: keys.into_iter().collect(),
+        },
+    ))
 }
 
 fn confidence_name(confidence: Confidence) -> &'static str {

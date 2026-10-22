@@ -1092,29 +1092,32 @@ pub fn gemini_events() -> Vec<UsageEvent> {
 /// parse outcome. Truncation (size < offset) resets to 0 — a full
 /// reparse whose duplicate events the store dedupes by uuid. `carry` is
 /// what the file's previous slice left; it comes back unchanged when
-/// there is nothing new to read.
+/// there is nothing new to read, and starts over with the file when it was
+/// truncated or replaced (its facts were about the old content).
 #[must_use]
 pub fn tail_jsonl(
     path: &Path,
     offset: u64,
     carry: &RolloutCarry,
-    parse: impl FnOnce(&[u8]) -> TailOutcome,
+    parse: impl FnOnce(&[u8], RolloutCarry) -> TailOutcome,
 ) -> TailOutcome {
-    let unchanged = |offset| TailOutcome {
+    let unchanged = |offset, carry: &RolloutCarry| TailOutcome {
         offset,
         carry: carry.clone(),
         ..TailOutcome::default()
     };
     let Ok(mut file) = std::fs::File::open(path) else {
-        return unchanged(offset);
+        return unchanged(offset, carry);
     };
     let len = file.metadata().map_or(offset, |meta| meta.len());
     let mut start = offset;
+    let mut carry = carry.clone();
     if len < start {
         start = 0;
+        carry = RolloutCarry::default();
     }
     if start >= len {
-        return unchanged(start);
+        return unchanged(start, &carry);
     }
     if let Ok(seeked) = std::io::Seek::seek(&mut file, std::io::SeekFrom::Start(start)) {
         start = seeked;
@@ -1128,9 +1131,9 @@ pub fn tail_jsonl(
         .rposition(|byte| *byte == b'\n')
         .map_or(0, |index| index + 1);
     if consumed == 0 {
-        return unchanged(start);
+        return unchanged(start, &carry);
     }
-    let mut outcome = parse(&bytes[..consumed]);
+    let mut outcome = parse(&bytes[..consumed], carry);
     outcome.offset = start + consumed as u64;
     outcome
 }
@@ -1138,7 +1141,7 @@ pub fn tail_jsonl(
 /// Convenience: [`tail_jsonl`] with the Claude transcript parser.
 #[must_use]
 pub fn tail_transcript(path: &Path, account: &str, offset: u64) -> TailOutcome {
-    tail_jsonl(path, offset, &RolloutCarry::default(), |bytes| {
+    tail_jsonl(path, offset, &RolloutCarry::default(), |bytes, _| {
         transcript_events(account, bytes)
     })
 }
@@ -1147,8 +1150,8 @@ pub fn tail_transcript(path: &Path, account: &str, offset: u64) -> TailOutcome {
 /// the previous pass's [`TailOutcome::carry`] for this file.
 #[must_use]
 pub fn tail_rollout(path: &Path, account: &str, offset: u64, carry: &RolloutCarry) -> TailOutcome {
-    tail_jsonl(path, offset, carry, |bytes| {
-        rollout_events_after(account, bytes, carry.clone())
+    tail_jsonl(path, offset, carry, |bytes, carry| {
+        rollout_events_after(account, bytes, carry)
     })
 }
 

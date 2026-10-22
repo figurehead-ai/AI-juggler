@@ -445,6 +445,40 @@ fn a_fork_leaves_the_shared_history_with_the_original_as_both_grow() {
     );
 }
 
+/// L-a (#126 re-review): reading a session again whose file no longer has
+/// a message another session holds never drops it from the account's
+/// total; it goes to the holder left.
+#[test]
+fn a_re_read_never_drops_a_message_another_session_holds() {
+    let storage = Storage::open_in_memory().unwrap();
+    storage
+        .usage()
+        .store_events(&session("o", &[(1, 0), (2, 1)]))
+        .unwrap();
+    storage
+        .usage()
+        .store_events(&session("c", &[(1, 0), (2, 1), (3, 2), (4, 3)]))
+        .unwrap();
+    assert_eq!(
+        kept_in(&storage),
+        expected(&[("o", &[1, 2]), ("c", &[3, 4])])
+    );
+    storage
+        .usage()
+        .replace_session_events(
+            &[("acc".into(), UsageSource::Transcript, "o".into())],
+            &session("o", &[(1, 0)]),
+        )
+        .unwrap();
+    let after = kept_in(&storage);
+    assert_eq!(
+        after.values().flatten().sum::<u64>(),
+        10,
+        "the total is unchanged"
+    );
+    assert_eq!(after, expected(&[("o", &[1]), ("c", &[2, 3, 4])]));
+}
+
 /// The rule's known limit, pinned so a change to it is deliberate: when
 /// the original writes first after the fork (5 at minute 2) and the fork
 /// later (3 at minute 4), the fork is credited the shared part. The
@@ -655,6 +689,30 @@ fn a_compaction_waits_for_its_record_without_holding_the_file_back() {
     let inputs: Vec<_> = pass2.events.iter().map(|e| e.tokens.input).collect();
     assert_eq!(inputs, [160, 100]);
     assert_eq!(pass2.carry.pending, []);
+}
+
+/// L-b (#126 re-review): a rollout truncated or replaced (shorter than
+/// where the last pass ended) is read from its start with nothing carried
+/// from the old content: a compaction waiting in the old file isn't
+/// credited to the new one's first record.
+#[test]
+fn a_truncated_rollout_starts_over_with_nothing_carried() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("rollout.jsonl");
+    let old = [
+        codex_line("compacted", "00:00", "{}"),
+        count("00:01", 160, 2_224),
+        codex_line("event_msg", "00:02", r#"{"type":"task_complete"}"#),
+    ]
+    .concat();
+    std::fs::write(&path, &old).unwrap();
+    let first = tail_rollout(&path, "acc", 0, &RolloutCarry::default());
+    assert_eq!(first.carry.pending.len(), 1);
+    std::fs::write(&path, record("09:01", "t1", 100)).unwrap();
+    let after = tail_rollout(&path, "acc", first.offset, &first.carry);
+    let inputs: Vec<_> = after.events.iter().map(|e| e.tokens.input).collect();
+    assert_eq!(inputs, [100], "the new file's record only");
+    assert_eq!(after.carry.pending, []);
 }
 
 #[test]
