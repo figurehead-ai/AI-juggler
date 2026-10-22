@@ -35,14 +35,14 @@ pub fn user_copy(situation: CopySituation) -> String {
             "Continues on {account_b} with the full conversation. Running tools and subagents stop; {account_a} stays resumable."
         ),
         CopySituation::TransplantUnproven { account_a } => format!(
-            "Experimental: only the main transcript moves. Subagent files and rewind history stay on {account_a}. {account_a} stays resumable."
+            "Beta, not proven yet: the whole session moves, with its subagents and file history. {account_a} stays resumable."
         ),
         CopySituation::ReplayCrossProvider {
             provider_b,
             turns,
             tokens,
         } => format!(
-            "Fresh start on {provider_b}: it re-reads the full conversation as text ({turns} turns, ≈{tokens} tokens). Native todos and tool state don't carry — they're rebuilt from the story."
+            "Fresh start on {provider_b}: it reads the conversation, what each tool did, the task list and the project's changes ({turns} turns, ≈{tokens} tokens). Tool state and subagents don't carry."
         ),
         CopySituation::CompactedSource { provider_b } => format!(
             "This conversation was compacted. Early detail carries as text, not as live memory — {provider_b} may ask about early decisions."

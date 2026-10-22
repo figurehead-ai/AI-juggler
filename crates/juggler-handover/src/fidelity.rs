@@ -445,8 +445,10 @@ pub fn base_dispositions(from: &str, to: &str) -> FidelityInput {
         }
         map
     };
-    // Todos default Drop until a fixture proves carriage (§H2).
-    let todos_drop = (ArtifactKind::Todos, Disposition::Drop);
+    // AJ-E1541: the task list is rebuilt from the conversation (its calls
+    // travel in the transcript); Claude's newer task folder isn't copied
+    // yet, so it isn't a byte copy.
+    let todos_drop = (ArtifactKind::Todos, Disposition::Regenerate);
 
     let dispositions = match (from, to) {
         ("claude-code", "claude-code") => copy_all(&[todos_drop]),
@@ -508,7 +510,8 @@ fn cross_provider(pair: &CrossPair) -> BTreeMap<ArtifactKind, Disposition> {
     map.insert(ArtifactKind::Mcp, tr());
     map.insert(ArtifactKind::GitDiff, Disposition::Copy);
     map.insert(ArtifactKind::EnvModel, tr());
-    map.insert(ArtifactKind::Todos, Disposition::Drop);
+    // AJ-E1541: the handover carries the task list as it stood.
+    map.insert(ArtifactKind::Todos, Disposition::Regenerate);
     map.insert(ArtifactKind::Subagents, Disposition::Drop);
     match pair {
         CrossPair::ClaudeCodex => {

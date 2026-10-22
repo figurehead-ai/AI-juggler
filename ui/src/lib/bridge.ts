@@ -2227,7 +2227,7 @@ const DEFAULT_PREFLIGHT: PreflightInfoData = {
   diff_snapshotted: false,
   source_live: true,
   experimental_copy:
-    "Experimental: only the main transcript moves. Subagent files and rewind history stay on the source. The source stays resumable.",
+    "Beta, not proven yet: the whole session moves, with its subagents and file history. The source stays resumable.",
   door: "wizard",
   wizard_steps: ["Target", "What's carried", "Confirm"],
   wizard_reasons: ["This isn't the usual account for this project."],

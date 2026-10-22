@@ -14,6 +14,13 @@
  * clicked, the user switched.
  */
 import { useEffect, useRef, useState, type JSX } from "react";
+import { SwitchSetupList } from "./SwitchSetupList";
+import {
+  switchSetupApply,
+  switchSetupCheck,
+  type AppliedInfo,
+  type SetupCheckInfo,
+} from "../lib/ipc/switchSetup";
 import { showToast } from "./Toast";
 import {
   switchPreflight,
@@ -201,6 +208,10 @@ export function SwitchFlow({
   const [askChoice, setAskChoice] = useState<"strip" | "keep" | null>(null);
   const [chooserPick, setChooserPick] = useState<string | null>(null);
   const [unredact, setUnredact] = useState<Set<number>>(new Set());
+  // AJ-E1542: what the target lacks, and what the user picked to set up.
+  const [setup, setSetup] = useState<SetupCheckInfo | null>(null);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [setupResults, setSetupResults] = useState<AppliedInfo[]>([]);
   const dialogRef = useRef<HTMLDivElement | null>(null);
   // AJ-E804 (WCAG 2.4.3): cancelling returns focus to the control that
   // opened the switch. (A completed switch hands focus to the undo
@@ -234,10 +245,33 @@ export function SwitchFlow({
       .catch((cause) => {
         if (alive) setPhase({ kind: "failed", message: errorText(cause) });
       });
+    // The setup check never blocks the switch: without it, the flow
+    // simply shows no list.
+    switchSetupCheck(sessionId, targetProfileId)
+      .then((check) => {
+        if (!alive) return;
+        setSetup(check);
+        setPicked(new Set(check.offers.filter((offer) => offer.suggested).map((offer) => offer.id)));
+      })
+      .catch(() => {
+        if (alive) setSetup(null);
+      });
     return () => {
       alive = false;
     };
   }, [sessionId, targetProfileId]);
+
+  const togglePicked = (id: string) => {
+    setPicked((current) => {
+      const next = new Set(current);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
 
   const steps =
     phase.kind === "confirm" && phase.preflight.door === "wizard"
@@ -320,6 +354,10 @@ export function SwitchFlow({
     const oneClick = phase.preflight.door === "one-click";
     setPhase({ kind: "executing", startedAt: Date.now() });
     try {
+      // AJ-E1542: what the user picked is set up first, so the target
+      // starts with it.
+      const applied = picked.size > 0 ? await switchSetupApply(sessionId, targetProfileId, [...picked]) : [];
+      setSetupResults(applied);
       const result = await switchExecute(
         sessionId,
         targetProfileId,
@@ -327,7 +365,7 @@ export function SwitchFlow({
         askChoice,
         [...unredact],
       );
-      if (oneClick) {
+      if (oneClick && applied.length === 0) {
         // The modal closes into the undo window (App renders the
         // toast); the graph keeps the edge as the undo handle.
         onSwitched(result.session_id, { edgeId: result.edge_id });
@@ -387,6 +425,7 @@ export function SwitchFlow({
               unredact={unredact}
               onToggleItem={toggleUnredact}
             />
+            {setup && <SwitchSetupList check={setup} picked={picked} onToggle={togglePicked} />}
             <fieldset className="flex flex-col gap-1.5">
               <legend className="text-[11px] uppercase tracking-wider text-muted">
                 {phase.preflight.source_live ? "Freeze the source first" : "The source is at rest"}
@@ -588,6 +627,7 @@ export function SwitchFlow({
                     ))}
                   </ul>
                 )}
+                {setup && <SwitchSetupList check={setup} picked={picked} onToggle={togglePicked} />}
                 <fieldset className="flex flex-col gap-1.5">
                   <legend className="text-[11px] uppercase tracking-wider text-muted">
                     {phase.preflight.source_live
@@ -681,9 +721,22 @@ export function SwitchFlow({
           <div className="flex flex-col gap-3" data-testid="switch-done">
             <h3 className="text-sm font-semibold">Switched to {targetLabel}</h3>
             <p className="text-[11px] text-muted">
-              You switched — the continuation session is starting. The source rests and stays
-              resumable from the graph.
+              {targetLabel} is picking up the conversation. The original has stopped, and you can
+              switch back to it any time.
             </p>
+            {setupResults.length > 0 && (
+              <ul
+                className="flex flex-col gap-1"
+                data-testid="switch-setup-results"
+                aria-label={`Set up on ${targetLabel}`}
+              >
+                {setupResults.map((result) => (
+                  <li key={result.offer} className={"text-[11px] " + (result.record ? "text-muted" : "text-warning")}>
+                    {result.message}
+                  </li>
+                ))}
+              </ul>
+            )}
             <div className="flex justify-end">
               <button
                 type="button"

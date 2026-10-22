@@ -15,7 +15,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use juggler_adapter::inventory::{Applied, Item, ItemKind, Scope, SetUp, Undo};
+use juggler_adapter::inventory::{Applied, Item, ItemKind, SetUp, Undo};
 
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
@@ -24,16 +24,17 @@ use crate::state::AppState;
 const RECORD: &str = "switch-setups.json";
 
 /// One thing the target could get.
-#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct OfferInfo {
     /// Pass back to apply it.
     pub id: String,
     /// `mcp-server`, `skill`, `command`, `subagent`, `rules`, `plugin`.
-    pub kind: ItemKind,
+    pub kind: String,
     /// Its name.
     pub name: String,
     /// `user` or `project-private`.
-    pub scope: Scope,
+    pub scope: String,
     /// `copy`, `translate`, `needs-you`, `impossible`.
     pub verdict: String,
     /// What the verdict means for this one, in a sentence.
@@ -43,7 +44,8 @@ pub struct OfferInfo {
 }
 
 /// What the target lacks, for one switch.
-#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct SetupCheckInfo {
     /// The source account's name.
     pub from: String,
@@ -52,11 +54,12 @@ pub struct SetupCheckInfo {
     /// What the target lacks, the ones that can be set up first.
     pub offers: Vec<OfferInfo>,
     /// How many items the source has that the target already has.
-    pub already_there: usize,
+    pub already_there: u32,
 }
 
 /// What applying one offer did.
-#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct AppliedInfo {
     /// The offer.
     pub offer: String,
@@ -131,6 +134,14 @@ fn key(item: &Item) -> (ItemKind, String) {
     (item.kind, name)
 }
 
+/// An enum's wire name (`mcp-server`, `project-private`).
+fn kebab<T: serde::Serialize>(value: &T) -> String {
+    serde_json::to_value(value)
+        .ok()
+        .and_then(|v| v.as_str().map(str::to_owned))
+        .unwrap_or_default()
+}
+
 /// A stable id for an offer: its kind, name, scope and source tool.
 fn offer_id(item: &Item) -> String {
     juggler_adapter::handover::sha256_hex(
@@ -161,7 +172,7 @@ pub fn check_impl(
         .get(&sides.target.harness)
         .ok_or_else(|| AppError::UnknownHarness(sides.target.harness.to_string()))?;
     let have: std::collections::HashSet<(ItemKind, String)> = to.iter().map(key).collect();
-    let mut already_there = 0;
+    let mut already_there: u32 = 0;
     let mut offers = Vec::new();
     for item in &from {
         if have.contains(&key(item)) {
@@ -176,9 +187,9 @@ pub fn check_impl(
         };
         offers.push(OfferInfo {
             id: offer_id(item),
-            kind: item.kind,
+            kind: kebab(&item.kind),
             name: item.name.clone(),
-            scope: item.scope,
+            scope: kebab(&item.scope),
             verdict: verdict.to_owned(),
             note,
             suggested: matches!(verdict, "copy" | "translate"),
@@ -187,7 +198,7 @@ pub fn check_impl(
     offers.sort_by_key(|offer| {
         (
             offer.verdict == "impossible",
-            offer.kind,
+            offer.kind.clone(),
             offer.name.clone(),
         )
     });
