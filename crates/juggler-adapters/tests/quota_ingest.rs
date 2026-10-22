@@ -16,8 +16,8 @@ use std::path::{Path, PathBuf};
 
 use juggler_adapters::quota_ingest::{
     self, SPOOL_ROTATE_BYTES, gemini_events, install_statusline, iso_to_epoch_ms, rollout_events,
-    spool_path, statusline_samples, tail_spool, tail_transcript, uninstall_statusline,
-    zcode_events, zcode_is_peak,
+    spool_path, statusline_samples, tail_rollout, tail_spool, tail_transcript,
+    uninstall_statusline, zcode_events, zcode_is_peak,
 };
 use juggler_core::model::Confidence;
 use juggler_core::quota::{UsageSource, WindowKind};
@@ -306,6 +306,117 @@ fn a_shared_message_belongs_to_the_session_that_came_first() {
         700,
         "the account total is unchanged"
     );
+}
+
+/// Rollout lines shaped like QA's (P17): `compacted`, then one
+/// `token_count` before the next turn, which no record covers. Values are
+/// invented.
+fn codex_line(kind: &str, ts: &str, body: &str) -> String {
+    format!(
+        "{{\"timestamp\":\"2026-10-21T10:{ts}.000Z\",\"type\":\"{kind}\",\"payload\":{body}}}\n"
+    )
+}
+
+fn count(ts: &str, last: u64, total: u64) -> String {
+    codex_line(
+        "event_msg",
+        ts,
+        &format!(
+            r#"{{"type":"token_count","info":{{"last_token_usage":{{"input_tokens":{last},"cached_input_tokens":0,"output_tokens":0,"reasoning_output_tokens":0,"total_tokens":{last}}},"total_token_usage":{{"input_tokens":{total},"cached_input_tokens":0,"output_tokens":0,"reasoning_output_tokens":0,"total_tokens":{total}}}}},"rate_limits":null}}"#
+        ),
+    )
+}
+
+fn record(ts: &str, turn: &str, input: u64) -> String {
+    codex_line(
+        "token_usage_record",
+        ts,
+        &format!(
+            r#"{{"thread_id":"th-sub","turn_id":"{turn}","response_id":"r-{turn}","usage":{{"input_tokens":{input},"cached_input_tokens":0,"cache_write_input_tokens":0,"output_tokens":0,"reasoning_output_tokens":0,"total_tokens":{input}}}}}"#
+        ),
+    )
+}
+
+fn started(ts: &str) -> String {
+    codex_line("event_msg", ts, r#"{"type":"task_started"}"#)
+}
+
+/// P17: a subagent's rollout opens with `compacted`, then one token_count
+/// whose total carries its parent's tokens (13.9× its own here) and whose
+/// own usage no record covers. Its own usage counts, once, under the
+/// thread the next record names; the parent's total never does.
+#[test]
+fn a_compactions_own_usage_counts_once_never_the_starting_total() {
+    let bytes = [
+        codex_line("compacted", "00:00", "{}"),
+        count("00:01", 160, 2_224),
+        started("00:02"),
+        record("00:03", "t1", 100),
+        count("00:04", 100, 2_324),
+    ]
+    .concat();
+    let outcome = rollout_events("acc", bytes.as_bytes());
+    assert_eq!(outcome.hold_back, None);
+    let keys: Vec<_> = outcome
+        .events
+        .iter()
+        .map(|e| e.msg_uuid.clone().unwrap())
+        .collect();
+    assert_eq!(keys, ["th-sub/compacted/1792576801000", "th-sub/t1/r-t1"]);
+    assert_eq!(
+        outcome.events.iter().map(|e| e.tokens.input).sum::<u64>(),
+        260,
+        "each turn's own usage: 160 + 100, never the 2,224 it started with"
+    );
+}
+
+/// A compaction mid-thread whose token_count only repeats the total
+/// before it adds nothing.
+#[test]
+fn a_compaction_that_repeats_the_total_adds_nothing() {
+    let bytes = [
+        started("00:00"),
+        record("00:01", "t1", 100),
+        count("00:02", 100, 500),
+        codex_line("compacted", "00:03", "{}"),
+        count("00:04", 100, 500),
+        started("00:05"),
+        record("00:06", "t2", 50),
+    ]
+    .concat();
+    let outcome = rollout_events("acc", bytes.as_bytes());
+    assert_eq!(outcome.events.len(), 2, "the two records, no compaction");
+}
+
+/// A pass that ends before the compaction's thread is known holds those
+/// lines back; the next pass reads them again and counts the usage once.
+#[test]
+fn a_compaction_split_across_passes_counts_once() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("rollout.jsonl");
+    let first = [
+        codex_line("compacted", "00:00", "{}"),
+        count("00:01", 160, 2_224),
+    ]
+    .concat();
+    std::fs::write(&path, &first).unwrap();
+    let storage = Storage::open_in_memory().unwrap();
+    let pass1 = tail_rollout(&path, "acc", 0);
+    assert!(pass1.events.is_empty());
+    assert_eq!(pass1.offset, 0, "held back to the compaction");
+    storage.usage().store_events(&pass1.events).unwrap();
+    std::fs::write(
+        &path,
+        [first, started("00:02"), record("00:03", "t1", 100)].concat(),
+    )
+    .unwrap();
+    let pass2 = tail_rollout(&path, "acc", pass1.offset);
+    storage.usage().store_events(&pass2.events).unwrap();
+    let pass3 = tail_rollout(&path, "acc", pass2.offset);
+    assert!(pass3.events.is_empty(), "nothing read twice");
+    let rows = storage.usage().events_for_account("acc", 0).unwrap();
+    assert_eq!(rows.len(), 2);
+    assert_eq!(rows.iter().map(|row| row.tokens.input).sum::<u64>(), 260);
 }
 
 #[test]

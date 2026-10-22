@@ -38,8 +38,9 @@ pub const CREDITS_KEY_PREFIX: &str = "credits:";
 /// must be read again: the next pass re-reads every file still on disk
 /// from the start, replacing its sessions' rows. 1 = 0.0.13 (Claude
 /// content blocks counted per line; Codex's nested token classes and
-/// missing model).
-const REREAD_VERSION: u32 = 1;
+/// missing model). 2 = Codex compactions' own usage (P17), and a message a
+/// resumed copy shares credited to the session that came first.
+const REREAD_VERSION: u32 = 2;
 
 /// Quota samples gathered in one pass: (account, window, sample).
 type SampleBatch = Vec<(

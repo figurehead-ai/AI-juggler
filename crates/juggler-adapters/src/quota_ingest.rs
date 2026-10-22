@@ -69,6 +69,11 @@ pub struct TailOutcome {
     /// usage lines carry no model: the next slice's lines before their
     /// own `turn_context` ran on this one (the pipeline carries it).
     pub model: Option<String>,
+    /// Bytes of the slice to consume, when fewer than all: a compaction
+    /// whose usage can't be settled yet (its thread comes with the next
+    /// record) is read again from here next pass. Re-reading is harmless:
+    /// events are keyed and samples replaced.
+    pub hold_back: Option<usize>,
     /// Bytes consumed — the next pass starts here.
     pub offset: u64,
     /// Malformed lines seen this pass.
@@ -554,7 +559,12 @@ fn response_key(value: &serde_json::Value) -> Option<String> {
 pub fn rollout_events(account: &str, bytes: &[u8]) -> TailOutcome {
     let text = String::from_utf8_lossy(bytes);
     let mut outcome = TailOutcome::default();
-    for line in text.lines() {
+    let mut compaction = Compaction::default();
+    let mut at = 0usize;
+    for raw in text.split_inclusive('\n') {
+        let line_start = at;
+        at += raw.len();
+        let line = raw.trim_end_matches(['\n', '\r']);
         if line.trim().is_empty() {
             continue;
         }
@@ -562,6 +572,7 @@ pub fn rollout_events(account: &str, bytes: &[u8]) -> TailOutcome {
             outcome.parse_errors += 1;
             continue;
         };
+        compaction.see(&value, line_start, account, &mut outcome);
         if take_token_count(&value, &mut outcome) {
             continue;
         }
@@ -620,7 +631,121 @@ pub fn rollout_events(account: &str, bytes: &[u8]) -> TailOutcome {
             msg_uuid: Some(format!("{thread}/{turn}/{response}")),
         });
     }
+    outcome.hold_back = compaction.unsettled();
     outcome
+}
+
+/// P17: the usage of a context compaction. After a `compacted` line, Codex
+/// writes one `token_count` before the next turn begins, and no
+/// `token_usage_record` covers it. Its own `last_token_usage` is counted
+/// (never its running total, which for a subagent starts with its
+/// parent's), keyed by the thread the next record names. A `token_count`
+/// that only repeats the previous total adds nothing and is skipped.
+#[derive(Default)]
+struct Compaction {
+    /// Where the open compaction's lines begin (the last `token_count`
+    /// before it, so a re-read sees the total it is compared with).
+    since: Option<usize>,
+    /// Where the last `token_count` with a usage began, and its total.
+    last_count: Option<(usize, u64)>,
+    /// The total before the compaction, when seen.
+    before: Option<u64>,
+    /// The pre-turn usage and its time, once seen.
+    usage: Option<(TokenCounts, i64)>,
+    /// A turn began: no more pre-turn `token_count`.
+    turn_begun: bool,
+}
+
+impl Compaction {
+    fn see(
+        &mut self,
+        value: &serde_json::Value,
+        line_start: usize,
+        account: &str,
+        outcome: &mut TailOutcome,
+    ) {
+        let kind = value.get("type").and_then(serde_json::Value::as_str);
+        let payload = value.get("payload");
+        let inner = payload
+            .and_then(|payload| payload.get("type"))
+            .and_then(serde_json::Value::as_str);
+        let info = payload
+            .and_then(|payload| payload.get("info"))
+            .filter(|info| !info.is_null());
+        match (kind, inner) {
+            (Some("compacted"), _) => {
+                *self = Self {
+                    since: Some(self.last_count.map_or(line_start, |(at, _)| at)),
+                    before: self.last_count.map(|(_, total)| total),
+                    last_count: self.last_count,
+                    ..Self::default()
+                };
+            }
+            (Some("event_msg"), Some("token_count")) => {
+                let Some(info) = info else { return };
+                let total = info
+                    .get("total_token_usage")
+                    .and_then(|total| total.get("total_tokens"))
+                    .and_then(serde_json::Value::as_u64)
+                    .unwrap_or_default();
+                if self.since.is_some() && !self.turn_begun && self.usage.is_none() {
+                    let repeat = self.before == Some(total);
+                    let usage = info
+                        .get("last_token_usage")
+                        .map(codex_token_counts)
+                        .unwrap_or_default();
+                    let ts = value
+                        .get("timestamp")
+                        .and_then(serde_json::Value::as_str)
+                        .and_then(iso_to_epoch_ms)
+                        .unwrap_or_default();
+                    // A repeat or an empty usage settles at the next record
+                    // with nothing to count.
+                    self.usage = Some(if repeat {
+                        (TokenCounts::default(), ts)
+                    } else {
+                        (usage, ts)
+                    });
+                }
+                self.last_count = Some((line_start, total));
+            }
+            (Some("event_msg"), Some("task_started")) if self.since.is_some() => {
+                self.turn_begun = true;
+                if self.usage.is_none() {
+                    self.since = None; // no pre-turn usage: nothing to settle
+                }
+            }
+            (Some("token_usage_record"), _) if self.since.is_some() => {
+                let thread = payload
+                    .and_then(|payload| payload.get("thread_id"))
+                    .and_then(serde_json::Value::as_str);
+                if let (Some(thread), Some((tokens, ts))) = (thread, self.usage)
+                    && tokens != TokenCounts::default()
+                {
+                    outcome.events.push(UsageEvent {
+                        account: account.to_owned(),
+                        session: Some(thread.to_owned()),
+                        ts,
+                        model: outcome.model.clone(),
+                        tokens,
+                        credits: None,
+                        usd_est: None,
+                        source: UsageSource::Rollout,
+                        confidence: Confidence::Measured,
+                        msg_uuid: Some(format!("{thread}/compacted/{ts}")),
+                    });
+                }
+                self.since = None;
+                self.usage = None;
+            }
+            _ => {}
+        }
+    }
+
+    /// Where to read from again when a compaction isn't settled yet.
+    fn unsettled(&self) -> Option<usize> {
+        self.since
+    }
 }
 
 /// One Codex `usage` object as disjoint classes, the one place this split
@@ -994,7 +1119,10 @@ pub fn tail_jsonl(
         .rposition(|byte| *byte == b'\n')
         .map_or(0, |index| index + 1);
     let mut outcome = parse(account, &bytes[..consumed]);
-    outcome.offset = start + consumed as u64;
+    let kept = outcome
+        .hold_back
+        .map_or(consumed, |held| held.min(consumed));
+    outcome.offset = start + kept as u64;
     outcome
 }
 
