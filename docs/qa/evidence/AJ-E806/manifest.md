@@ -557,3 +557,19 @@
   state, age and CPU it last saw. Then one read must fire and the next
   must not. No assertion changed; the cause isn't reproduced here, so a
   repeat names the condition.
+- **Hang record, 2026-10-22 (fixed, fix/maintainer-reports-5).** In
+  Linux CI, `load_budgets :: monitoring_beside_a_busy_claude_app` (from
+  #130) sat for an hour while the other three budgets waited their turn
+  behind it. On main's own run after #130 merged (39814972300), the file
+  "finished in 3605.30s". #131's first run (39830985754) was cancelled
+  after 36 minutes. The stand-in Claude app (`fake-desktop`) exits on its
+  own after 3,600 s. Its guard sent `/bin/kill -9 -<pgid>` and then
+  waited for it. Linux's `kill` doesn't read that form as a process
+  group, so the wait lasted the app's full hour; macOS reads it, which is
+  why it never showed here. The guard now sends
+  `kill -s KILL -- -<pgid>`, a form both systems read as a group, then
+  kills the app itself through `Child::kill`, so the wait can't outlast
+  it. On macOS the test passes in 1.9 s with no `sleep 600` left over.
+  The Linux side is shown by CI. No product code changed:
+  `juggler-supervisor/Cargo.toml` in #131 adds only a dev-dependency
+  (`cpu-time`), and `sysinfo`'s features are as on main.

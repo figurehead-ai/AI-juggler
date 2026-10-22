@@ -691,10 +691,14 @@ impl BusyClaudeApp {
 }
 
 impl Drop for BusyClaudeApp {
+    /// The group in the form both macOS's and Linux's `kill` read as a
+    /// group (`-9 -<pgid>` isn't, on Linux), then the app itself: `wait`
+    /// must never sit out its hour (CI on #130 and #131 waited 3,600 s).
     fn drop(&mut self) {
         let _ = std::process::Command::new("/bin/kill")
-            .args(["-9", &format!("-{}", self.app.id())])
+            .args(["-s", "KILL", "--", &format!("-{}", self.app.id())])
             .status();
+        let _ = self.app.kill();
         let _ = self.app.wait();
     }
 }
