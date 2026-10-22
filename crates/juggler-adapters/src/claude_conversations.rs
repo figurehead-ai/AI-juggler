@@ -149,17 +149,18 @@ fn counts_of(usage: &serde_json::Value) -> TokenCounts {
     }
 }
 
-/// A `claude` CLI (the binary, or the npm package run by node) outside
-/// the desktop app is a session; `--resume <id>` (or `-r`) names its
-/// conversation. The desktop app's own processes are the app's.
+/// A `claude` CLI (the binary, or the npm package run by node) is a
+/// session, wherever it's installed: the desktop app runs each of its Code
+/// sessions as one, from `…/claude-code/<version>/…/claude.app/Contents/
+/// MacOS/claude`. The app's own executable is `Claude`, which isn't one.
+/// `--resume <id>` (or `-r`) names its conversation.
 #[must_use]
 pub fn session_process(exe: Option<&Path>, args: &[String]) -> Option<SessionProcess> {
-    let in_app = exe.is_some_and(|exe| exe.to_string_lossy().contains(".app/"));
     let cli = exe.is_some_and(|exe| exe.file_name().is_some_and(|name| name == "claude"))
         || args
             .iter()
             .any(|arg| arg.contains("@anthropic-ai/claude-code"));
-    (cli && !in_app).then(|| SessionProcess {
+    cli.then(|| SessionProcess {
         resumes: value_after(args, &["--resume", "-r"]),
     })
 }
@@ -225,7 +226,7 @@ mod tests {
     }
 
     #[test]
-    fn a_cli_outside_the_app_is_a_session_and_names_what_it_resumes() {
+    fn a_cli_is_a_session_wherever_installed_and_names_what_it_resumes() {
         let args = |list: &[&str]| list.iter().map(|arg| (*arg).to_owned()).collect::<Vec<_>>();
         let cli = Path::new("/usr/local/bin/claude");
         assert_eq!(
@@ -247,15 +248,20 @@ mod tests {
             )
             .is_some()
         );
-        assert!(
-            session_process(
-                Some(Path::new(
-                    "/Applications/Claude.app/Contents/Resources/claude"
-                )),
-                &args(&["claude"])
-            )
-            .is_none()
+        // The desktop app's Code sessions run a bundled CLI: sessions.
+        let bundled = Path::new(
+            "/Users/u/Library/Application Support/Claude/claude-code/2.1.0/ab12/claude.app/Contents/MacOS/claude",
         );
+        assert_eq!(
+            session_process(Some(bundled), &args(&["claude", "-r", "s-2"]))
+                .unwrap()
+                .resumes
+                .as_deref(),
+            Some("s-2")
+        );
+        // The app itself is not one.
+        let app = Path::new("/Applications/Claude.app/Contents/MacOS/Claude");
+        assert!(session_process(Some(app), &args(&["Claude"])).is_none());
         assert!(session_process(Some(node), &args(&["node", "server.js"])).is_none());
     }
 

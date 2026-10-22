@@ -245,7 +245,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   it while no account is in.
 - **Sessions started outside AI Juggler** (AJ-E1529). Every account's
   conversations now show, the ones you started in your own terminal or
-  app too: under their project in the list (live ones first, with a
+  in the Claude app too: under their project in the list (live ones first, with a
   quiet "outside AI Juggler" mark), on Home, in each account's running
   count and in the go-to palette. Open one to see where it ran and on
   which account, then continue it in AI Juggler or copy the command that

@@ -405,7 +405,10 @@ def live(args: argparse.Namespace) -> None:
     # Claude desktop app's main executable.
     claude_bin = bin_dir / "claude"
     codex_bin = bin_dir / "codex"
-    for target in (claude_bin, codex_bin):
+    # The desktop app runs each of its Code sessions from a bundled CLI.
+    bundled_bin = home / MARKER / "claude-code" / "2.1.0" / "claude.app" / "Contents" / "MacOS" / "claude"
+    bundled_bin.parent.mkdir(parents=True, exist_ok=True)
+    for target in (claude_bin, codex_bin, bundled_bin):
         shutil.copy2(args.harness, target)
     app = home / MARKER / "Applications" / "Claude.app" / "Contents" / "MacOS" / "Claude"
     helper = home / MARKER / "Applications" / "ChatGPT.app" / "Contents" / "Frameworks" / "ChatGPT Helper"
@@ -435,16 +438,18 @@ def live(args: argparse.Namespace) -> None:
         # (`claude --resume <id>`); the rest start fresh (`claude`).
         earlier = [c for c in truth["conversations"]
                    if c["tool"] == "claude-code" and c["account"] == account["label"] and c["cwd"] == project["path"]]
+        # Every third runs as the desktop app's Code sessions do.
+        exe = str(bundled_bin if i % 3 == 2 else claude_bin)
         if i % 2 == 1 and earlier:
             session = earlier[0]["id"]
-            argv = [str(claude_bin), "--resume", session]
+            argv = [exe, "--resume", session]
         else:
             session = str(uuid.UUID(int=rng.getrandbits(128)))
-            argv = [str(claude_bin)]
+            argv = [exe]
         folder = Path(account["folder"]) / "projects" / claude_dir_name(project["path"])
         options = ["--format", "claude", "--file", str(folder / f"{session}.jsonl"),
                    "--cwd", project["path"], "--session-id", session, "--every-ms", "4000"]
-        if argv == [str(claude_bin)]:
+        if len(argv) == 1:
             options += ["--ask", rng.choice(TOPICS)]  # a fresh one starts with a real ask
         env["AIJ_REPLICA_WRITE"] = writer(options)
         procs.append(subprocess.Popen(argv, cwd=project["path"], env=env,
