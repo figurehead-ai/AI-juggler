@@ -216,6 +216,9 @@ pub fn set_up(
 }
 
 fn mcp_verdict(name: &str, server: &McpServer) -> SetUp {
+    if let Some(verdict) = server.inline_secret_verdict() {
+        return verdict;
+    }
     let secrets: Vec<String> = secret_names(name, server);
     if server.oauth {
         return SetUp::NeedsYou(format!(
@@ -267,7 +270,15 @@ fn add_mcp(
     };
     let mut command = std::process::Command::new(claude);
     command
-        .args(["mcp", "add-json", "-s", scope_word, name, &json.to_string()])
+        .args([
+            "mcp",
+            "add-json",
+            "-s",
+            scope_word,
+            "--",
+            name,
+            &json.to_string(),
+        ])
         .stdin(std::process::Stdio::null());
     if let Some(project) = project.filter(|_| scope == Scope::ProjectPrivate) {
         command.current_dir(project);
@@ -296,6 +307,8 @@ fn add_mcp(
                 "remove".into(),
                 "-s".into(),
                 scope_word.into(),
+                // A name can't be read as an option (review of #132).
+                "--".into(),
                 name.into(),
             ],
             env,

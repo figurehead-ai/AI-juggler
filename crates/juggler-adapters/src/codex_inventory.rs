@@ -173,6 +173,9 @@ pub fn set_up(home: &Path, user_home: Option<&Path>, item: &Item) -> Result<Appl
 }
 
 fn mcp_verdict(name: &str, server: &McpServer) -> SetUp {
+    if let Some(verdict) = server.inline_secret_verdict() {
+        return verdict;
+    }
     if let McpTransport::Other { kind, .. } = &server.transport {
         return SetUp::Impossible(format!(
             "Codex can't reach a {kind} server; if it also offers streamable HTTP, add that address"

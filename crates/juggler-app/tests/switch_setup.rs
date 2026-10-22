@@ -162,7 +162,7 @@ fn the_other_claude_account_is_offered_what_it_lacks_and_gets_only_what_is_picke
     assert!(!b.join("commands").exists(), "only what was picked");
     let args = std::fs::read_to_string(b.join("mcp-args")).unwrap();
     assert!(
-        args.starts_with("mcp\nadd-json\n-s\nuser\ngithub\n"),
+        args.starts_with("mcp\nadd-json\n-s\nuser\n--\ngithub\n"),
         "{args}"
     );
     assert!(

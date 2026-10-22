@@ -241,6 +241,9 @@ pub fn looks_secret(key: &str, value: &str) -> bool {
     if KEY_WORDS.iter().any(|word| key.contains(word)) {
         return true;
     }
+    if carries_secret(value) {
+        return true;
+    }
     let value = value.trim();
     let value = value.strip_prefix("Bearer ").unwrap_or(value);
     if PREFIXES.iter().any(|prefix| value.starts_with(prefix)) {
@@ -251,6 +254,79 @@ pub fn looks_secret(key: &str, value: &str) -> bool {
         && !value.contains(char::is_whitespace)
         && !value.contains('/')
         && value.chars().filter(char::is_ascii_alphanumeric).count() * 10 >= value.len() * 9
+}
+
+/// Words in a name that mark its value as a secret.
+const SECRET_NAME_WORDS: [&str; 9] = [
+    "key",
+    "token",
+    "secret",
+    "password",
+    "passwd",
+    "pwd",
+    "auth",
+    "sig",
+    "credential",
+];
+
+/// Review of #132 (H3): a secret inside a longer text. Matches a URL with
+/// a password (`postgres://user:pass@host`), and a `name=value` pair
+/// whose name reads as secret: a query string (`?access_token=…`), a
+/// connection string (`Password=…`) or a flag (`--api-key=…`).
+#[must_use]
+pub fn carries_secret(text: &str) -> bool {
+    if let Some((_, rest)) = text.split_once("://") {
+        let authority = rest.split(['/', '?', '#']).next().unwrap_or_default();
+        if let Some((userinfo, _)) = authority.rsplit_once('@')
+            && userinfo.contains(':')
+        {
+            return true;
+        }
+    }
+    text.split(['?', '&', ';', ' ', ','])
+        .filter_map(|pair| pair.split_once('='))
+        .any(|(name, value)| {
+            let name = name.trim_start_matches('-').to_ascii_lowercase();
+            !value.trim().is_empty() && SECRET_NAME_WORDS.iter().any(|word| name.contains(word))
+        })
+}
+
+impl McpServer {
+    /// The verdict every tool gives a server with a secret written into
+    /// its arguments or address: it can't be set up elsewhere, so the
+    /// secret never leaves this account (not in the target's config, a
+    /// command line, or an undo record).
+    #[must_use]
+    pub fn inline_secret_verdict(&self) -> Option<SetUp> {
+        self.secret_inline().then(|| {
+            SetUp::Impossible(
+                "a secret is written into its arguments or address, and secrets are never \
+                 copied: set it up on the other account yourself"
+                    .to_owned(),
+            )
+        })
+    }
+
+    /// Whether a secret is written into its arguments or its address,
+    /// where no variable can stand in for it in every tool: such a server
+    /// can't be set up elsewhere (its secret would travel with it).
+    #[must_use]
+    pub fn secret_inline(&self) -> bool {
+        match &self.transport {
+            McpTransport::Stdio { args, .. } => args.iter().enumerate().any(|(at, arg)| {
+                // `--api-key sk-…`: a secret-named flag takes the next word.
+                let flag = arg.starts_with('-')
+                    && !arg.contains('=')
+                    && SECRET_NAME_WORDS
+                        .iter()
+                        .any(|word| arg.to_ascii_lowercase().contains(word))
+                    && args.get(at + 1).is_some_and(|next| !next.starts_with('-'));
+                flag || looks_secret("", arg)
+            }),
+            McpTransport::Http { url, .. } => carries_secret(url),
+            McpTransport::Other { url, .. } => url.as_deref().is_some_and(carries_secret),
+        }
+    }
 }
 
 /// A value from a tool's config, as [`Value`]: a whole `${NAME}` reference
@@ -346,5 +422,58 @@ mod tests {
             secret_variable("linear-mcp", "Authorization"),
             "LINEAR_MCP_AUTHORIZATION"
         );
+    }
+
+    fn stdio(args: &[&str]) -> McpServer {
+        McpServer {
+            transport: McpTransport::Stdio {
+                command: "server".into(),
+                args: args.iter().map(|arg| (*arg).to_owned()).collect(),
+                env: Vec::new(),
+            },
+            oauth: false,
+        }
+    }
+
+    #[test]
+    fn a_secret_inside_a_longer_text_is_found() {
+        // Review of #132 (H3): these passed as plain values.
+        assert!(looks_secret(
+            "DATABASE_URL",
+            "postgres://app:hunter2@db.local/app"
+        ));
+        assert!(carries_secret(
+            "https://api.example.com/mcp?access_token=abc123"
+        ));
+        assert!(carries_secret("Server=db;User Id=app;Password=hunter2;"));
+        assert!(carries_secret("--api-key=abc123"));
+        // Not secrets: a URL with a user and no password, a plain query.
+        assert!(!carries_secret("https://git@github.com/org/repo"));
+        assert!(!carries_secret(
+            "https://example.com/mcp?region=eu&limit=10"
+        ));
+        assert!(!looks_secret("LOG_LEVEL", "info"));
+    }
+
+    #[test]
+    fn a_server_with_a_secret_in_its_arguments_or_address_cant_move() {
+        assert!(stdio(&["--api-key", "abc123"]).secret_inline());
+        assert!(stdio(&["--token=abc123"]).secret_inline());
+        assert!(stdio(&["serve", "sk-live-0123456789abcdef"]).secret_inline());
+        assert!(!stdio(&["--port", "8080", "--verbose"]).secret_inline());
+        assert!(!stdio(&["--api-key-file", "--verbose"]).secret_inline());
+        let http = |url: &str| McpServer {
+            transport: McpTransport::Http {
+                url: url.into(),
+                headers: Vec::new(),
+            },
+            oauth: false,
+        };
+        assert!(http("https://u:p@mcp.example.com").secret_inline());
+        assert!(!http("https://mcp.example.com/sse").secret_inline());
+        assert!(matches!(
+            stdio(&["--api-key", "abc123"]).inline_secret_verdict(),
+            Some(SetUp::Impossible(_))
+        ));
     }
 }
