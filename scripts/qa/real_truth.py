@@ -349,6 +349,9 @@ def build(args) -> dict:
                 p["per_account"][idx] += 1
                 p["cwds"].add(conv["cwd"])
                 p["last"] = max(p["last"], conv["last"] or conv["mtime"])
+            # Each message's (time, tokens), for a compare that cuts at the
+            # moment the backend read the files.
+            acc["points"] = [(ts, sum(t.values())) for ts, t in records.values()]
             for name, span in WINDOWS:
                 acc["tokens"][name] = sum_tokens((ts, t) for ts, t in records.values() if now - ts < span)
                 acc["tokens_per_line"][name] = sum_tokens((ts, t) for ts, t in lines if now - ts < span)
@@ -375,6 +378,7 @@ def build(args) -> dict:
                         session_totals[roll["session"]] = session_totals.get(roll["session"], 0) + sum(n for _, n in own)
                 if roll["rate_ts"] and (newest is None or roll["rate_ts"] > newest[0]):
                     newest = (roll["rate_ts"], roll["rate_limits"])
+                acc.setdefault("points", []).extend(own)
                 for name, span in WINDOWS:
                     window_tokens[name] += codex_window_tokens(own, now - span)
                 if not roll["cwd"]:
@@ -742,6 +746,12 @@ def compare(truth: dict, harness: dict) -> str:
             elif resets is not None and resets < now_ms:
                 verdict(False, f"{name} {window}: reset time already passed ({round((now_ms - resets) / 60000)} min ago)")
             truth_tokens = (acc["tokens"].get(window) or {}).get("total")
+            if "ingested_ms" in harness and acc.get("points") is not None:
+                # Only what was on disk when the backend read it, in the window
+                # as it stood then: live writers after that aren't a miss.
+                cut = harness["ingested_ms"] / 1000
+                span = dict(WINDOWS)[window]
+                truth_tokens = sum(n for ts, n in acc["points"] if cut - span <= ts <= cut)
             burned = w.get("burned_tokens")
             if truth_tokens is not None and burned is not None:
                 ratio = burned / truth_tokens if truth_tokens else (0 if burned == 0 else float("inf"))
@@ -886,6 +896,7 @@ def selftest() -> None:
     assert not is_temp("/Applications/Claude.app/Contents/MacOS/claude")
     assert not is_temp(str(HOME / "bin/claude"))
     assert not is_host(None) and not is_host(str(HOME / "Dev/app"))
+    assert dict(WINDOWS)["5h"] == 5 * 3600 and dict(WINDOWS)["7d"] == 7 * 86400
     print("real_truth selftest: OK")
 
 
