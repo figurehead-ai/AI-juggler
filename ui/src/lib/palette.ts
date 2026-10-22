@@ -7,8 +7,10 @@
  * lightness and contrast rules (styles.css `.acct-disc`, AJ-E804).
  */
 
-/** The twelve hues, degrees (HSL). */
-export const PALETTE_HUES = [0, 25, 45, 90, 140, 170, 195, 215, 245, 270, 295, 325] as const;
+/** The twelve hues, degrees (HSL), in the order accounts get them: the
+ * first few far apart on the wheel, and amber and red — the app's warning
+ * and error colours — last, so they only appear with eleven accounts. */
+export const PALETTE_HUES = [215, 325, 170, 270, 90, 25, 195, 295, 140, 245, 45, 0] as const;
 
 /** The user's accounts, each with its own slot (assigned by id, so the
  * same account keeps its colour while the others come and go less often

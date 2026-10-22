@@ -23,6 +23,15 @@ describe("the account palette", () => {
     expect(PALETTE_HUES).toContain(paletteHue("someone-new"));
   });
 
+  it("the first accounts get hues far apart, and never warning amber or error red", () => {
+    const apart = (a: number, b: number) => Math.min(Math.abs(a - b), 360 - Math.abs(a - b));
+    const first = PALETTE_HUES.slice(0, 6);
+    const gaps = first.flatMap((a, i) => first.slice(i + 1).map((b) => apart(a, b)));
+    expect(Math.min(...gaps)).toBeGreaterThanOrEqual(40);
+    expect(PALETTE_HUES.slice(0, 10)).not.toContain(0);
+    expect(PALETTE_HUES.slice(0, 10)).not.toContain(45);
+  });
+
   it("neighbouring hues are at least 20° apart, all the way round", () => {
     const sorted = [...PALETTE_HUES].sort((a, b) => a - b);
     const gaps = sorted.map((hue, i) => ((sorted[(i + 1) % sorted.length]! - hue + 360) % 360));

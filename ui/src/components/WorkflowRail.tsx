@@ -893,7 +893,7 @@ function BoardRow({
           aria-label={modelDrift(row)!}
           tabIndex={0}
           data-testid="model-drift"
-          className="absolute right-6 top-1.5 z-10 rounded-full border border-warning/25 bg-warning-soft px-1 text-[10px] font-medium text-warning outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
+          className="absolute right-7 top-1.5 z-10 rounded-full border border-warning/25 bg-warning-soft px-1 text-[10px] font-medium text-warning outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
         >
           ⇄
         </span>
