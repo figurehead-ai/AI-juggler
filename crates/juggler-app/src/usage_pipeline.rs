@@ -222,9 +222,18 @@ fn store_in_chunks(
             usage.store_events(chunk)
         };
         stored.extend(done.ok()?);
+        drop(storage);
+        // Storage's lock isn't fair: taken again at once, it goes back to
+        // this loop before a woken reader runs, and a screen could wait the
+        // whole re-read (2.2 s on the replica at the maintainer's size). A
+        // millisecond between chunks lets it in.
+        std::thread::sleep(CHUNK_PAUSE);
     }
     Some(stored)
 }
+
+/// The pause between two chunks' writes (see [`store_in_chunks`]).
+const CHUNK_PAUSE: std::time::Duration = std::time::Duration::from_millis(1);
 
 /// The events grouped so that all of one session's are in the same chunk,
 /// chunks filled up to about `size` (a session bigger than that is a chunk
@@ -614,6 +623,55 @@ mod chunk_tests {
             confidence: juggler_core::model::Confidence::Measured,
             msg_uuid: Some(format!("{session}-{n}")),
         }
+    }
+
+    /// #126: a screen waiting on storage gets it between two chunks, not
+    /// after the whole pass (the lock isn't fair; without the pause it went
+    /// straight back to the writer).
+    #[test]
+    fn a_reader_gets_storage_between_chunks() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = std::sync::Arc::new(
+            crate::state::AppState::init_with_registry(
+                dir.path().join("data"),
+                juggler_adapter::AdapterRegistry::new(),
+            )
+            .unwrap(),
+        );
+        let batch: Vec<UsageEvent> = (0..super::STORE_CHUNK * 20)
+            .map(|n| event("s", n))
+            .collect();
+        let reader = {
+            let state = std::sync::Arc::clone(&state);
+            std::thread::spawn(move || {
+                // Once the first chunk is in, wait for storage like a screen.
+                loop {
+                    let stored = state
+                        .storage
+                        .lock()
+                        .unwrap()
+                        .usage()
+                        .events_for_account("a", 0)
+                        .unwrap()
+                        .len();
+                    if stored > 0 {
+                        break;
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(1));
+                }
+                state
+                    .storage
+                    .lock()
+                    .unwrap()
+                    .usage()
+                    .events_for_account("a", 0)
+                    .unwrap()
+                    .len()
+            })
+        };
+        super::store_in_chunks(&state, false, &batch).unwrap();
+        let seen = reader.join().unwrap();
+        assert!(seen < batch.len(), "the reader waited for all {seen} rows");
     }
 
     /// QA batch 9: a re-read is written a chunk at a time, and a session's
