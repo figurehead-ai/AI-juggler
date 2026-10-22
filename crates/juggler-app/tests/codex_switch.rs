@@ -594,3 +594,55 @@ fn switching_back_says_when_it_cant_tell_which_conversation() {
         plan.delta_preview
     );
 }
+
+#[test]
+fn a_replay_that_cant_go_never_stops_the_source() {
+    // Review of #132 (M4): the source was stopped first, and the missing
+    // secrets choice refused the switch after: the user's session ended
+    // for nothing. A Claude stand-in that keeps running shows it.
+    let work = tempfile::tempdir().unwrap();
+    let dir = work.path();
+    let mut registry = AdapterRegistry::new();
+    let lingering = dir.join("claude-lingering");
+    stand_in::write(&lingering, "#!/bin/sh\nexec sleep 30\n");
+    let claude = Arc::new(ClaudeCodeAdapter::with_bin(lingering));
+    let codex = Arc::new(CodexAdapter::with_bin(stub(
+        dir,
+        "codex-stub",
+        "CODEX_HOME",
+    )));
+    registry.register(claude.clone());
+    registry.register_handover(claude);
+    registry.register(codex.clone());
+    registry.register_handover(codex);
+    let state = Arc::new(AppState::init_with_registry(dir.join("app-data"), registry).unwrap());
+    let project = dir.join("storefront");
+    std::fs::create_dir_all(&project).unwrap();
+    let cwd = project.to_string_lossy().into_owned();
+    let a = commands::create_account(&state, CLAUDE_CODE_ID, "Source", None).unwrap();
+    let b = commands::create_account(&state, CODEX_ID, "Target", None).unwrap();
+    let recipe_a = commands::create_profile(&state, &a.id, "Main", None, None).unwrap();
+    let recipe_b = commands::create_profile(&state, &b.id, "Main", None, None).unwrap();
+    let launched = commands::launch_profile(&state, &recipe_a.id, Some(cwd.clone())).unwrap();
+    write_claude_transcript(&home(&state, CLAUDE_CODE_ID, &a.id), &cwd);
+    let source = SessionId::new(launched.session_id.clone());
+    assert!(state.supervisor.is_supervised(&source));
+
+    let refused = commands::switch_execute_impl(
+        &state,
+        &launched.session_id,
+        &recipe_b.id,
+        "stop-now",
+        None,
+        &[],
+    )
+    .unwrap_err();
+    assert!(refused.to_string().contains("secrets"), "{refused}");
+    assert!(
+        !state.supervisor.is_finished(&source),
+        "the source keeps running"
+    );
+    let _ = state
+        .supervisor
+        .stop(&source, std::time::Duration::from_secs(2));
+}

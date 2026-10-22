@@ -5948,10 +5948,14 @@ fn switch_replay(
         context: "hand over",
         message,
     };
+    // Review of #132 (M4): what can refuse the switch without the final
+    // conversation is checked before anything is stopped.
+    let strip = replay_strip(state, sides, redaction_choice)?;
+    replayable_turns(&sides.reference.path)?;
     // AJ-E1540: the source stops first, so the replay holds its last turn.
     freeze_source(state, &sides.source, &sides.reference, freeze)?;
     let (prompt, source_sha, source_bytes) =
-        replay_prompt(state, sides, redaction_choice, redaction_unredact)?;
+        replay_prompt(state, sides, strip, redaction_unredact)?;
     let (work, from_epoch, edge) = record_edge_staged(
         state,
         &sides.source,
@@ -6036,14 +6040,64 @@ fn switch_replay(
 /// conversation read in its own format, redacted under the user's policy
 /// for the target Provider (unset blocks — D-14), bounded, and handed to
 /// the target's prime.
-fn replay_prompt(
+/// Whether the replay strips secrets: the choice made on this switch, else
+/// the policy. Unset, or "Ask each time" with no answer, refuses (the
+/// conversation never leaves unredacted by default). Reads no
+/// conversation, so it runs before the source is stopped.
+fn replay_strip(
     state: &Arc<AppState>,
     sides: &SwitchSides,
     redaction_choice: Option<&str>,
+) -> AppResult<bool> {
+    use juggler_handover::redaction::RedactionPolicy;
+    let refused = |message: String| AppError::Io {
+        context: "hand over",
+        message,
+    };
+    let policy = {
+        let storage = lock_storage_arc(state)?;
+        juggler_handover::redaction::resolve_policy(
+            redaction_global_of(&storage),
+            redaction_override_of(&storage, sides.account_b.harness.as_str()),
+        )
+    };
+    match redaction_choice
+        .and_then(RedactionPolicy::from_wire)
+        .or(policy)
+    {
+        Some(RedactionPolicy::Strip) => Ok(true),
+        Some(RedactionPolicy::Keep) => Ok(false),
+        Some(RedactionPolicy::AskEachTime) | None => Err(refused(
+            "Choose how secrets in the conversation are handled for this switch — \
+             a replay sends the conversation to the other Provider."
+                .to_owned(),
+        )),
+    }
+}
+
+/// The conversation's turns, refusing one that can't be read or has none.
+fn replayable_turns(path: &std::path::Path) -> AppResult<Vec<juggler_handover::pack::IrTurn>> {
+    let refused = |message: &str| AppError::Io {
+        context: "hand over",
+        message: message.to_owned(),
+    };
+    let (_, turns) = transcript_side(path).ok_or_else(|| {
+        refused("Couldn't read this session's conversation, so it can't be replayed.")
+    })?;
+    if turns.is_empty() {
+        return Err(refused("This session has no conversation to replay yet."));
+    }
+    Ok(turns)
+}
+
+fn replay_prompt(
+    state: &Arc<AppState>,
+    sides: &SwitchSides,
+    strip: bool,
     redaction_unredact: &[u32],
 ) -> AppResult<(String, String, u64)> {
     use juggler_handover::pipeline::SwitchFailure;
-    use juggler_handover::redaction::{RedactionPolicy, strip_segments};
+    use juggler_handover::redaction::strip_segments;
 
     let refused = |message: String| AppError::Io {
         context: "hand over",
@@ -6056,38 +6110,8 @@ fn replay_prompt(
             SwitchFailure::TornTail.copy(&sides.account_a.label),
         ));
     }
-    let policy = {
-        let storage = lock_storage_arc(state)?;
-        juggler_handover::redaction::resolve_policy(
-            redaction_global_of(&storage),
-            redaction_override_of(&storage, sides.account_b.harness.as_str()),
-        )
-    };
-    // Unset, or "Ask each time" with no answer on this switch, blocks:
-    // the conversation never leaves unredacted by default.
-    let strip = match redaction_choice
-        .and_then(RedactionPolicy::from_wire)
-        .or(policy)
-    {
-        Some(RedactionPolicy::Strip) => true,
-        Some(RedactionPolicy::Keep) => false,
-        Some(RedactionPolicy::AskEachTime) | None => {
-            return Err(refused(
-                "Choose how secrets in the conversation are handled for this switch — \
-                 a replay sends the conversation to the other Provider."
-                    .to_owned(),
-            ));
-        }
-    };
     // The preview's own segments, so a per-item un-redact lines up.
-    let (_, turns) = transcript_side(&sides.reference.path).ok_or_else(|| {
-        refused("Couldn't read this session's conversation, so it can't be replayed.".to_owned())
-    })?;
-    if turns.is_empty() {
-        return Err(refused(
-            "This session has no conversation to replay yet.".to_owned(),
-        ));
-    }
+    let turns = replayable_turns(&sides.reference.path)?;
     let segments: Vec<String> = turns.iter().map(|turn| turn.text.clone()).collect();
     let keep: std::collections::BTreeSet<usize> = redaction_unredact
         .iter()
@@ -11332,17 +11356,20 @@ fn hops_between(
 ) -> AppResult<Vec<juggler_handover::switch_back::DeltaHop>> {
     let mut out = Vec::new();
     for hop in hops {
-        let Some(row) = hop.session.as_ref() else {
-            continue;
-        };
         let account = {
             let storage = lock_storage_arc(state)?;
             storage.accounts().get(&hop.epoch.account).ok()
         };
-        let Some(account) = account else {
+        // A hop that can't be read is named, never left out (review of
+        // #132, M5).
+        let (Some(row), Some(account)) = (hop.session.as_ref(), account.as_ref()) else {
+            unread.push(account.map_or_else(
+                || "an account that's no longer here".to_owned(),
+                |account| account.label.clone(),
+            ));
             continue;
         };
-        let reference = newest_transcript(state, &account, row.transcript_ref.clone());
+        let reference = newest_transcript(state, account, row.transcript_ref.clone());
         let Some((uuids, turns)) = reference.as_ref().and_then(|r| transcript_side(&r.path)) else {
             unread.push(account.label.clone());
             continue;
