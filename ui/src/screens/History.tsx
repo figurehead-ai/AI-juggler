@@ -1,19 +1,23 @@
 /**
- * AJ-E1007 — History: find any past Instance in seconds and act on it.
- * One search covers project, Account, Provider, model, branch, date
- * (YYYY-MM-DD) and transcript text (a local index; the matching words
- * are shown in context). Ended and Archived are separate lists. Each row
- * offers Replay (read-only), Archive or Unarchive, and Delete…, which is
- * its own confirmed dialog naming exactly what goes and what stays.
+ * AJ-E1007, AJ-E1536 — History you can scan: every session that has
+ * ended, AI Juggler's and the ones started outside it (AJ-E1529), each
+ * named by what it was about (its title, else the first thing asked),
+ * with its tool, project and account marks, opening its page. One search
+ * covers the title, project, account, tool, model, branch, date
+ * (YYYY-MM-DD) and, for AI Juggler's sessions, the transcript text (a
+ * local index; the matching words show in context). Ended and Archived
+ * are separate lists. Replay, Archive and Delete… are in the row's ⋯
+ * menu (and on right-click), with every other item for what it is;
+ * Delete is its own confirmed dialog naming what goes and what stays.
  */
 import { showToast } from "../components/Toast";
-import { useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from "react";
-import { ActionHostProvider, useItemMenu } from "../components/ItemMenu";
-import { sessionTitle } from "../components/ManageWork";
+import { useEffect, useRef, useState, type JSX } from "react";
+import { ActionHostProvider, useActionHost } from "../components/ItemMenu";
 import type { ActionHost } from "../lib/actions";
-import { SessionRow } from "../components/WorkflowRail";
 import { ReplayDialog } from "../components/ReplayDialog";
 import { DeleteInstanceDialog } from "../components/DeleteInstanceDialog";
+import { SessionsList, useSessionRows, type Row } from "../pages/SessionsList";
+import { providerDisplayName } from "../lib/providers";
 import {
   errorText,
   instanceArchive,
@@ -25,32 +29,58 @@ import {
 
 type ListId = "ended" | "archived";
 
-const ENDED = new Set(["finished", "stopped", "failed", "handed_over"]);
-
 function localDate(ms: number): string {
   const at = new Date(ms);
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}`;
 }
 
-/** Does every word of `query` match one of the Instance's fields? */
-export function matchesFields(session: InstanceInfo, project: string, query: string): boolean {
-  const fields = [
-    project,
-    session.account_label,
-    session.provider,
-    session.model ?? "",
-    session.git_branch ?? "",
-    localDate(session.started_at_ms),
-    session.last_activity_ms ? localDate(session.last_activity_ms) : "",
-  ]
-    .join(" ")
-    .toLowerCase();
+/** Does every word of `query` match one of these fields? */
+function matchesWords(fields: (string | null | undefined)[], query: string): boolean {
+  const text = fields.filter(Boolean).join(" ").toLowerCase();
   return query
     .toLowerCase()
     .split(/\s+/)
     .filter(Boolean)
-    .every((word) => fields.includes(word));
+    .every((word) => text.includes(word));
+}
+
+/** Does every word of `query` match one of the Instance's fields? */
+export function matchesFields(session: InstanceInfo, project: string, query: string): boolean {
+  return matchesWords(
+    [
+      session.label,
+      session.title,
+      project,
+      session.account_label,
+      session.provider,
+      providerDisplayName(session.provider),
+      session.model,
+      session.git_branch,
+      localDate(session.started_at_ms),
+      session.last_activity_ms ? localDate(session.last_activity_ms) : null,
+    ],
+    query,
+  );
+}
+
+/** A row's fields for the search: the session's, or the conversation's. */
+function rowMatches(row: Row, project: string, query: string): boolean {
+  if (row.item.kind !== "conversation") return matchesFields(row.item.session, project, query);
+  const c = row.item.conversation;
+  return matchesWords(
+    [
+      row.title,
+      project,
+      c.account_label,
+      c.tool,
+      providerDisplayName(c.tool),
+      c.git_branch,
+      c.started_ms ? localDate(c.started_ms) : null,
+      c.last_activity_ms ? localDate(c.last_activity_ms) : null,
+    ],
+    query,
+  );
 }
 
 export function History({
@@ -69,8 +99,10 @@ export function History({
   const [replay, setReplay] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
-  const names = useMemo(() => new Map(projects.map((project) => [project.id, project.name])), [projects]);
-  const projectOf = (session: InstanceInfo) => (session.project_id ? (names.get(session.project_id) ?? "") : "");
+  const names = new Map(projects.map((project) => [project.id, project.name]));
+  const projectName = (id: string | null) => (id ? (names.get(id) ?? "") : "");
+  const host = useActionHost();
+  const all = useSessionRows(sessions, {}, (id) => host.openSessionById?.(id), Date.now());
 
   useEffect(() => searchRef.current?.focus(), []);
   // Transcript text: debounced, so typing never waits on the index.
@@ -95,24 +127,25 @@ export function History({
   }, [query]);
 
   const archived = (session: InstanceInfo) => session.lifecycle === "archived";
-  const rows = sessions
-    .filter((session) => (list === "archived" ? archived(session) : ENDED.has(session.status) && !archived(session)))
-    .filter((session) => !query.trim() || snippets.has(session.id) || matchesFields(session, projectOf(session), query))
-    .sort((a, b) => (b.last_activity_ms ?? b.started_at_ms) - (a.last_activity_ms ?? a.started_at_ms));
-  const archivedCount = sessions.filter(archived).length;
-
-  // AJ-E1537: what History gives each row's menu.
-  const historyHost: ActionHost = {
-    replay: (session) => setReplay(session.id),
-    archive: (session) => act(session, () => instanceArchive(session.id), "archived — nothing deleted", () => instanceUnarchive(session.id)),
-    unarchive: (session) => act(session, () => instanceUnarchive(session.id), "unarchived", () => instanceArchive(session.id)),
-    isArchived: archived,
-    deleteHistory: (session) => setDeleting(session.id),
+  const sessionOf = (row: Row) => (row.item.kind === "conversation" ? null : row.item.session);
+  const snippetOf = (row: Row) => {
+    const session = sessionOf(row);
+    return session ? snippets.get(session.id) : undefined;
   };
+  const rows = all
+    .filter((row) => !row.live)
+    .filter((row) => {
+      const session = sessionOf(row);
+      // Archiving is AI Juggler's: a conversation started outside it is
+      // only ever under Ended.
+      return list === "archived" ? session !== null && archived(session) : session === null || !archived(session);
+    })
+    .filter((row) => !query.trim() || snippetOf(row) !== undefined || rowMatches(row, projectName(row.projectId), query));
+  const archivedCount = sessions.filter(archived).length;
 
   // AJ-E1503: archiving answers in a toast, with Undo (the other way).
   const act = async (session: InstanceInfo, run: () => Promise<unknown>, done: string, undo: () => Promise<unknown>) => {
-    const label = session.project_id ? `${projectOf(session)} · ${session.account_label}` : session.account_label;
+    const label = session.project_id ? `${projectName(session.project_id)} · ${session.account_label}` : session.account_label;
     try {
       await run();
       showToast({
@@ -131,13 +164,22 @@ export function History({
     }
   };
 
+  // AJ-E1537: what History gives each row's menu.
+  const historyHost: ActionHost = {
+    replay: (session) => setReplay(session.id),
+    archive: (session) => act(session, () => instanceArchive(session.id), "archived — nothing deleted", () => instanceUnarchive(session.id)),
+    unarchive: (session) => act(session, () => instanceUnarchive(session.id), "unarchived", () => instanceArchive(session.id)),
+    isArchived: archived,
+    deleteHistory: (session) => setDeleting(session.id),
+  };
+
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-4" data-testid="history">
       <header className="flex flex-col gap-1">
         <h2 className="text-lg font-semibold tracking-tight">History</h2>
         <p className="text-xs text-muted">
-          Every session that has ended. Search by project, account, tool, model, branch, date (2026-10-01) or
-          anything said in the conversation.
+          Every session that has ended, AI Juggler's and the ones started outside it. Search by what it was about,
+          project, account, tool, model, branch, date (2026-10-01) or anything said in AI Juggler's sessions.
         </p>
       </header>
       <div className="flex flex-wrap items-center gap-2">
@@ -176,86 +218,35 @@ export function History({
         </div>
       </div>
       <p className="sr-only" aria-live="polite" data-testid="history-status">
-        {(searching ? "Searching transcripts…" : `${rows.length} found`)}
+        {searching ? "Searching transcripts…" : `${rows.length} found`}
       </p>
-      {rows.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-hairline p-6 text-center text-sm text-muted" data-testid="history-empty">
-          {query.trim()
-            ? `Nothing matches “${query.trim()}”${searching ? " yet — still searching transcripts" : ""}.`
-            : list === "archived"
-              ? "Nothing archived. Archive an ended session to tidy the rail — nothing is deleted."
-              : "No ended sessions yet."}
-        </p>
-      ) : (
-        <ActionHostProvider host={historyHost}>
-        <ul className="flex flex-col gap-1.5">
-          {rows.map((session) => {
-            const snippet = snippets.get(session.id);
-            const isArchived = archived(session);
-            return (
-              <HistoryItem key={session.id} session={session}>
-                <div className="flex items-center gap-2">
-                  <div className="min-w-0 flex-1">
-                    <SessionRow session={session} selected={false} onSelect={() => setReplay(session.id)} density="compact" />
-                  </div>
-                  {isArchived && (
-                    <span className="shrink-0 rounded-full border border-hairline px-2 py-0.5 text-[10px] text-muted">
-                      Archived
-                    </span>
-                  )}
-                  {projectOf(session) && <span className="shrink-0 text-[11px] text-muted">{projectOf(session)}</span>}
-                  <span className="shrink-0 text-[11px] text-muted">
-                    {localDate(session.last_activity_ms ?? session.started_at_ms)}
-                  </span>
-                </div>
-                {snippet && (
-                  <p className="mx-3 rounded bg-surface-2/60 px-2 py-1 font-mono text-[11px] text-ink" data-testid="history-snippet">
-                    {snippet}
-                  </p>
-                )}
-                <div className="flex flex-wrap gap-1.5 px-3">
-                  <button
-                    type="button"
-                    onClick={() => setReplay(session.id)}
-                    className="rounded-lg border border-hairline px-2.5 py-1 text-[11px] font-medium text-ink hover:border-accent/50"
-                    data-testid="history-replay"
-                  >
-                    Replay
-                  </button>
-                  {isArchived ? (
-                    <button
-                      type="button"
-                      onClick={() => void act(session, () => instanceUnarchive(session.id), "unarchived", () => instanceArchive(session.id))}
-                      className="rounded-lg border border-hairline px-2.5 py-1 text-[11px] text-ink hover:border-accent/50"
-                      data-testid="history-unarchive"
-                    >
-                      Unarchive
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => void act(session, () => instanceArchive(session.id), "archived — nothing deleted", () => instanceUnarchive(session.id))}
-                      className="rounded-lg border border-hairline px-2.5 py-1 text-[11px] text-ink hover:border-accent/50"
-                      data-testid="history-archive"
-                    >
-                      Archive
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setDeleting(session.id)}
-                    className="rounded-lg border border-hairline px-2.5 py-1 text-[11px] text-ink hover:border-danger/50"
-                    data-testid="history-delete"
-                  >
-                    Delete…
-                  </button>
-                </div>
-              </HistoryItem>
-            );
-          })}
-        </ul>
-        </ActionHostProvider>
-      )}
+      <ActionHostProvider host={historyHost}>
+        <SessionsList
+          rows={rows}
+          projects={projects}
+          empty={
+            query.trim()
+              ? `Nothing matches “${query.trim()}”${searching ? " yet — still searching transcripts" : ""}.`
+              : list === "archived"
+                ? "Nothing archived. Archive an ended session to tidy the rail — nothing is deleted."
+                : "No ended sessions yet."
+          }
+          badge={(row) => {
+            const session = sessionOf(row);
+            return session && archived(session) ? (
+              <span className="shrink-0 rounded-full border border-hairline px-2 py-0.5 text-[10px] text-muted">Archived</span>
+            ) : null;
+          }}
+          below={(row) => {
+            const snippet = snippetOf(row);
+            return snippet ? (
+              <p className="mx-4 mb-2 rounded bg-surface-2/60 px-2 py-1 font-mono text-[11px] text-ink" data-testid="history-snippet">
+                {snippet}
+              </p>
+            ) : null;
+          }}
+        />
+      </ActionHostProvider>
       {replay && <ReplayDialog sessionId={replay} onClose={() => setReplay(null)} />}
       {deleting && (
         <DeleteInstanceDialog
@@ -270,22 +261,5 @@ export function History({
         />
       )}
     </div>
-  );
-}
-
-/** A history row: its menu on right-click, ⋯ or Shift+F10 (AJ-E1537). */
-function HistoryItem({ session, children }: { session: InstanceInfo; children: ReactNode }): JSX.Element {
-  const menu = useItemMenu("history", session, sessionTitle(session));
-  return (
-    <li
-      className="group relative flex flex-col gap-1 rounded-xl border border-hairline bg-surface/60 pb-2 pr-2"
-      data-testid="history-row"
-      data-session={session.id}
-      {...menu.triggerProps}
-    >
-      {children}
-      {menu.button({ label: `History actions for ${sessionTitle(session)}`, className: "absolute bottom-1.5 right-2" })}
-      {menu.element}
-    </li>
   );
 }

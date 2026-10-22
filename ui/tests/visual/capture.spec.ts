@@ -5128,14 +5128,17 @@ for (const theme of THEMES) {
       await page.screenshot({ path: resolve(GALLERY, `56-history/search-${vp.name}-${theme}.png`) });
       await page.getByTestId("history-search").fill("");
       await page.getByTestId("history-tab-archived").click();
-      await expect(page.getByTestId("history-row")).toHaveCount(1);
+      await expect(page.getByTestId("page-session-item")).toHaveCount(1);
       await page.screenshot({ path: resolve(GALLERY, `56-history/archived-${vp.name}-${theme}.png`) });
-      await page.getByTestId("history-replay").first().click();
+      // AJ-E1536: Replay and Delete are in the row's menu.
+      await page.getByTestId("page-session-item").first().click({ button: "right" });
+      await page.getByTestId("action-replay").click();
       await expect(page.getByTestId("replay-process-list")).toContainText("root 48211");
       await page.screenshot({ path: resolve(GALLERY, `56-history/replay-${vp.name}-${theme}.png`) });
       await page.getByTestId("replay-close").click();
       await page.getByTestId("history-tab-ended").click();
-      await page.getByTestId("history-delete").first().click();
+      await page.getByTestId("page-session-item").first().click({ button: "right" });
+      await page.getByTestId("action-delete").click();
       await expect(page.getByTestId("delete-keeps")).toContainText("transcript file");
       await page.screenshot({ path: resolve(GALLERY, `56-history/delete-${vp.name}-${theme}.png`) });
       await page.keyboard.press("Escape");

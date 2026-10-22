@@ -71,6 +71,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   so your conversations and running sessions show within seconds even
   with gigabytes of history; their token counts follow.
 - Home never says "All clear" while an account has run out; it says so.
+- History lists every session that has ended, including the ones you
+  ran outside AI Juggler, each by what it was about (its title or first
+  question), with its tool, project and account, and opens its page.
+  Replay, Archive and Delete are in the row's ⋯ menu (and on
+  right-click). Sessions everywhere are named by what they were about
+  when you haven't named them.
 - A finished session's row no longer shows its account's "% left";
   only a running one does, once the account runs low.
 - This Mac no longer lists a session as "under 1 MB": that was a session

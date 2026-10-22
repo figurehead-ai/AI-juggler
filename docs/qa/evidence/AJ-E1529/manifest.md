@@ -262,6 +262,17 @@ The fix reads each large file's two ends first:
   --large-rollout-mb N` makes the newest Codex rollout about N MB with
   reasoning items. The truth is unchanged (no tokens, no new ask).
 
+**QA's re-check of `0811c21b` on the real setup (accepted):**
+- All 16 live sessions show 3.4 s after a first launch; on `8293c0f3`
+  it was 95–97 s. QA polled every second:
+  - 1.4 s: 16 conversations, 0 live;
+  - 2.4 s: 247 conversations;
+  - 3.4 s: 309 conversations and 16 live, stable after.
+- That was the Dev build, on 6.6 GB of Codex rollouts.
+- A thread sample 10 s in showed no thread waiting on a mutex. The
+  earlier This Mac and processes waits had sat behind the old single
+  long ingest write.
+
 Tests:
 - `codex_conversations` `a_large_rollouts_quick_read_takes_its_ends`;
 - `conversations` `a_large_file_is_listed_from_its_ends_first_and_counted_after`;

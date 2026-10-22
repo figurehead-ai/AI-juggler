@@ -8,7 +8,8 @@ import { PageHeader, type Crumb } from "./PageShell";
 import type { PageKind } from "./registry";
 import { ProjectFacts } from "./ProjectPage";
 import { Button, Chip, type ChipTone } from "../components/primitives";
-import { AccountDisc, STATE_WORDS, hueOf, isActiveStatus, lowLeftWords, stateChip } from "../components/indicator";
+import { AccountDisc, STATE_WORDS, isActiveStatus, lowLeftWords, stateChip } from "../components/indicator";
+import { ProjectMark } from "../components/ProjectMark";
 import { ToolMark } from "../components/ToolMark";
 import { InspectorHeaderMenu } from "../components/InspectorHeaderMenu";
 import { useActionHost } from "../components/ItemMenu";
@@ -165,13 +166,7 @@ export function InspectorHeader({
         <span aria-hidden="true" className={"absolute -bottom-0.5 -right-1 size-2 rounded-full ring-2 ring-canvas " + DOT[state.tone]} />
       </span>
     ) : kind === "project" && data.project ? (
-      <span
-        className="flex size-5 items-center justify-center rounded-md"
-        style={{ background: `hsl(${hueOf(data.project.id)} 60% 50% / 0.18)`, color: `hsl(${hueOf(data.project.id)} 60% 66%)` }}
-        data-testid="mark-project"
-      >
-        <IconProjects width={12} height={12} />
-      </span>
+      <ProjectMark projectId={data.project.id} />
     ) : (
       <KindIcon kind={kind} />
     );

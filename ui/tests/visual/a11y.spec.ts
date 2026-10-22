@@ -2179,7 +2179,9 @@ for (const theme of ["dark", "light"] as const) {
     await page.getByRole("button", { name: "History" }).click();
     await expect(page.getByTestId("history-search")).toBeFocused();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
-    await page.getByTestId("history-delete").first().click();
+    // AJ-E1536: Delete is in the row's menu.
+    await page.getByTestId("page-session-item").first().click({ button: "right" });
+    await page.getByTestId("action-delete").click();
     await expect(page.getByTestId("delete-confirm")).toBeFocused();
     await expect(page.getByTestId("delete-go")).toBeDisabled();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);

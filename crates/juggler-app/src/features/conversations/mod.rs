@@ -224,6 +224,33 @@ fn merged(conversations: impl Iterator<Item = Conversation>) -> Vec<Conversation
     by_id.into_values().collect()
 }
 
+/// AJ-E1536: AI Juggler's sessions with their conversations' titles (the
+/// tool's summary, else the first thing asked), so a session reads as
+/// what it was about wherever it shows, as one started outside does.
+///
+/// # Errors
+///
+/// [`AppError::StatePoisoned`] when the index's lock is poisoned.
+pub fn titled(
+    state: &Arc<AppState>,
+    mut rows: Vec<crate::commands::InstanceInfo>,
+) -> AppResult<Vec<crate::commands::InstanceInfo>> {
+    let titles: HashMap<(String, String), String> = state
+        .conversations
+        .all()?
+        .into_iter()
+        .filter_map(|c| Some(((c.account_id, c.summary.id), c.summary.title?)))
+        .collect();
+    for row in &mut rows {
+        if let (Some(account), Some(conversation)) = (&row.account_id, &row.conversation_id) {
+            row.title = titles
+                .get(&(account.clone(), conversation.clone()))
+                .cloned();
+        }
+    }
+    Ok(rows)
+}
+
 /// One refresh of the files and of which conversations are live; `true`
 /// when anything the UI shows changed.
 ///

@@ -2,6 +2,7 @@
 //! session's menu needs from the backend that no other command gives.
 
 pub mod commands;
+pub mod dto;
 
 use std::sync::Arc;
 

@@ -110,7 +110,7 @@ for (const theme of ["dark", "light"] as const) {
   test(`a history entry — ${theme}`, async ({ page }) => {
     await seed(page, theme);
     await goTo(page, "History");
-    await page.getByTestId("history-row").first().click({ button: "right" });
+    await page.getByTestId("page-session-item").first().click({ button: "right" });
     const items = await labels(page);
     expect(items[0]).toBe("Open");
     expect(items.at(-1)).toBe("Delete…");

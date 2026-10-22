@@ -194,6 +194,12 @@ lifecycle_at_ms?: number,
  */
 label?: string, 
 /**
+ * AJ-E1536: its conversation's title (the tool's summary, else the
+ * first thing asked), from the conversation index; `null` until
+ * that's read. Shown when the user hasn't named it.
+ */
+title?: string, 
+/**
  * AJ-E1502: pinned to the top of its group in the rail.
  */
 pinned?: boolean, };

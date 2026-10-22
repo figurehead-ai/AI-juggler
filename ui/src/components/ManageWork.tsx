@@ -17,10 +17,11 @@ import { editorChoices, projectForget, projectOpen, projectRelocate, projectRena
  * and the sheets to render.
  */
 
-/** A session's title on screen: the user's label, else its branch, else
- * its folder (the rail's rule). */
+/** A session's title on screen: the user's label, else what it was about
+ * (its conversation's title: the tool's summary or the first thing asked,
+ * AJ-E1536), else its branch, else its folder (the rail's rule). */
 export function sessionTitle(session: InstanceInfo): string {
-  return session.label ?? ownTitle(session);
+  return session.label ?? session.title ?? ownTitle(session);
 }
 
 /** The title a session has without a label. */

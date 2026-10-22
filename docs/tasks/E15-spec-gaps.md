@@ -394,7 +394,7 @@ walk alone isn't enough.
 5. A plain-words lint in CI: a banned list, with an allowlist that only shrinks.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1535/manifest.md`.
 
-### AJ-E1536 History you can scan | Status: TODO | Priority P1 | Effort S | Depends: AJ-E1533
+### AJ-E1536 History you can scan | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: AJ-E1533
 1. Each row shows a title or the first prompt, the tool, account and project marks, and opens the session's page.
 2. Delete moves into the row's ⋯ menu.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1536/manifest.md`.
