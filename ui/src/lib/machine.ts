@@ -280,6 +280,7 @@ export function mockThisMac(
     theirs: totals(observed, machine.cores),
     by_tool: byTool,
     top: all.slice(0, 3),
+    others: all.slice(3),
     heavy: all.filter((tree) => tree.heavy_note !== null),
     leftover_processes: leftovers[0],
     leftover_ports: leftovers[1],

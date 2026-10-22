@@ -8,7 +8,7 @@
  * Claude app, `claude` in a terminal) is shown and counted, labelled as
  * such, and offers nothing to click (D-08: unowned is untouchable).
  */
-import type { JSX } from "react";
+import { useState, type JSX } from "react";
 import { Button } from "./primitives";
 import { bytesWords, machineStatus, reasonSentence, type ThisMacInfo, type ToolTreeInfo } from "../lib/machine";
 
@@ -99,6 +99,7 @@ export function ThisMacPanel({
   onOpenSession: (id: string) => void;
   onOpenCleanup?: () => void;
 }): JSX.Element | null {
+  const [showAll, setShowAll] = useState(false);
   // Nothing to say until the first sample lands.
   const level = machineStatus(info);
   if (!info || !level) return null;
@@ -171,7 +172,7 @@ export function ThisMacPanel({
 
         {info.top.length > 0 && (
           <ul className="flex flex-col" aria-label="Heaviest right now" data-testid="this-mac-top">
-            {info.top.map((tree) => (
+            {[...info.top, ...(showAll ? info.others : [])].map((tree) => (
               <TreeRow
                 key={tree.session_id ?? `${tree.place}-${tree.account_label}-${tree.rss_bytes}`}
                 tree={tree}
@@ -180,6 +181,19 @@ export function ThisMacPanel({
               />
             ))}
           </ul>
+        )}
+        {/* Never a row dropped without a word (QA, P6): the rest are one
+            click away. */}
+        {info.others.length > 0 && (
+          <button
+            type="button"
+            className="self-start text-xs text-muted underline-offset-2 hover:text-ink hover:underline"
+            aria-expanded={showAll}
+            onClick={() => setShowAll((open) => !open)}
+            data-testid="this-mac-more"
+          >
+            {showAll ? "Show fewer" : `and ${info.others.length} more`}
+          </button>
         )}
         {info.theirs.count > 0 && info.top.every((tree) => tree.session_id !== null) && (
           <p className="text-[11px] text-muted">

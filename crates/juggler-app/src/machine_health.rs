@@ -902,6 +902,9 @@ pub struct ThisMacInfo {
     pub by_tool: Vec<ToolGroupInfo>,
     /// The heaviest trees by memory, at most three.
     pub top: Vec<ToolTreeInfo>,
+    /// Every other tree, heaviest first: shown behind "and N more", never
+    /// dropped (QA, P6: 3 of 6 Claude app windows, and no word of the rest).
+    pub others: Vec<ToolTreeInfo>,
     /// Every heavy tree (the rail's notes, Home's Needs you).
     pub heavy: Vec<ToolTreeInfo>,
     /// Processes left running after their session closed.
@@ -1139,6 +1142,11 @@ pub fn assemble(
         top: by_memory
             .iter()
             .take(3)
+            .map(|tree| tree_info(tree))
+            .collect(),
+        others: by_memory
+            .iter()
+            .skip(3)
             .map(|tree| tree_info(tree))
             .collect(),
         heavy: by_memory
@@ -2055,6 +2063,28 @@ mod tests {
             "nothing running uses nothing"
         );
         assert!(empty.top.is_empty());
+    }
+
+    /// P6 (QA): This Mac showed 3 of 6 Claude app windows and said nothing
+    /// of the rest. The top three, then every other tree, heaviest first.
+    #[test]
+    fn no_tree_is_dropped_past_the_top_three() {
+        let machine = health_of(
+            &MachineSnapshot {
+                cores: 8,
+                ..MachineSnapshot::default()
+            },
+            &RoomThresholds::default(),
+        );
+        let trees: Vec<TreeInput> = [5, 1, 4, 2, 3]
+            .into_iter()
+            .map(|gigs| tree(None, 0.0, gigs * G, 0))
+            .collect();
+        let info = assemble(machine, &trees, (0, 0));
+        let sizes =
+            |list: &[ToolTreeInfo]| list.iter().map(|t| t.rss_bytes / G).collect::<Vec<_>>();
+        assert_eq!(sizes(&info.top), [5, 4, 3]);
+        assert_eq!(sizes(&info.others), [2, 1]);
     }
 }
 

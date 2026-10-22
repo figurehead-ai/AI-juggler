@@ -534,6 +534,7 @@ mod tests {
                 tree(Some("s-big"), None, 4 * G, 30.0, None),
                 tree(None, Some("desktop"), 2 * G, 140.0, None),
             ],
+            others: Vec::new(),
             heavy: Vec::new(),
             leftover_processes: 0,
             leftover_ports: 0,
