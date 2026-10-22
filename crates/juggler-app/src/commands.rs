@@ -5621,7 +5621,14 @@ fn switch_execute_core(
     // primed session — one vendor's file is never installed into the
     // other's home.
     if sides.account_a.harness != sides.account_b.harness {
-        return switch_replay(state, &sides, redaction_choice, redaction_unredact, trigger);
+        return switch_replay(
+            state,
+            &sides,
+            freeze,
+            redaction_choice,
+            redaction_unredact,
+            trigger,
+        );
     }
     let SwitchSides {
         source,
@@ -5630,20 +5637,14 @@ fn switch_execute_core(
         profile_b,
         account_b,
     } = sides;
-    let support = state
-        .registry
-        .handover(&account_b.harness)
-        .ok_or_else(|| AppError::Io {
-            context: "hand over",
-            message: format!(
-                "{} can't take over this conversation — only a fresh start or a briefing pack",
-                account_b.harness
-            ),
-        })?;
+    let support = handover_support(state, &account_b)?;
 
     // AJ-E1001: the target Account must be who it was, before anything
     // moves.
     let assertion = crate::identity::assert_identity(state, &account_b)?;
+    // AJ-E1540: the source stops (after its turn, or now) before its file
+    // is copied, so the conversation never has two writers.
+    freeze_source(state, &source, &reference, freeze)?;
 
     // Record (E201): the Staged edge exists BEFORE anything moves;
     // failures transition it, history is never rewritten.
@@ -5730,6 +5731,103 @@ fn switch_execute_core(
     })
 }
 
+/// How long the source's conversation and terminal must be quiet for its
+/// turn to count as finished (AJ-E1540).
+const TURN_QUIET: std::time::Duration = std::time::Duration::from_secs(3);
+
+/// How long "Finish this turn" waits before saying the session is still
+/// working (AJ-E1540).
+const TURN_LIMIT: std::time::Duration = std::time::Duration::from_secs(120);
+
+/// AJ-E1540: the freeze choice made real on a local switch. A session AI
+/// Juggler started and that is still running stops before its file is
+/// read: at once for "Stop now", or once its turn has finished (its
+/// conversation file and its terminal quiet for [`TURN_QUIET`], the file's
+/// last line whole) for "Finish this turn". A session started outside AI
+/// Juggler isn't ours to stop: it keeps running, and the copy continues
+/// from what it has written so far (the switch screen says so).
+///
+/// # Errors
+///
+/// [`AppError::Refused`] when the turn is still going after
+/// [`TURN_LIMIT`], or the session won't stop.
+fn freeze_source(
+    state: &Arc<AppState>,
+    source: &juggler_core::model::InstanceRecord,
+    reference: &juggler_core::model::TranscriptRef,
+    freeze: juggler_handover::pipeline::FreezeChoice,
+) -> AppResult<()> {
+    use std::time::{Duration, Instant, SystemTime};
+    let id = &source.id;
+    if !state.supervisor.is_supervised(id) || state.supervisor.is_finished(id) {
+        return Ok(());
+    }
+    if matches!(
+        freeze,
+        juggler_handover::pipeline::FreezeChoice::FinishTurnThenSwitch
+    ) {
+        let started = Instant::now();
+        loop {
+            let file_quiet = std::fs::metadata(&reference.path)
+                .and_then(|meta| meta.modified())
+                .ok()
+                .and_then(|at| SystemTime::now().duration_since(at).ok())
+                .is_none_or(|idle| idle >= TURN_QUIET);
+            let output_quiet = state.supervisor.last_output_ms(id).is_none_or(|at| {
+                Timestamp::now().millis().saturating_sub(at)
+                    >= i64::try_from(TURN_QUIET.as_millis()).unwrap_or(i64::MAX)
+            });
+            let whole = std::fs::read(&reference.path)
+                .is_ok_and(|bytes| juggler_adapter::handover::tail_parses(&bytes));
+            if (file_quiet && output_quiet && whole) || state.supervisor.is_finished(id) {
+                break;
+            }
+            if started.elapsed() >= TURN_LIMIT {
+                return Err(AppError::Refused(
+                    "The session is still working: choose Stop now, or try again once its turn \
+                     is done"
+                        .to_owned(),
+                ));
+            }
+            std::thread::sleep(Duration::from_millis(250));
+        }
+    }
+    if state.supervisor.is_finished(id) {
+        return Ok(());
+    }
+    state
+        .supervisor
+        .stop(id, Duration::from_secs(5))
+        .map_err(|error| AppError::Refused(format!("The session didn't stop: {error}")))?;
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !state.supervisor.is_finished(id) {
+        if Instant::now() >= deadline {
+            return Err(AppError::Refused(
+                "The session didn't stop, so nothing was switched".to_owned(),
+            ));
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    Ok(())
+}
+
+/// The target tool's transplant support, or why it has none.
+fn handover_support(
+    state: &Arc<AppState>,
+    account: &juggler_core::model::Account,
+) -> AppResult<Arc<dyn juggler_adapter::handover::HandoverSupport>> {
+    state
+        .registry
+        .handover(&account.harness)
+        .ok_or_else(|| AppError::Io {
+            context: "hand over",
+            message: format!(
+                "{} can't take over this conversation — only a fresh start or a briefing pack",
+                account.harness
+            ),
+        })
+}
+
 /// The user's freeze choice (`stop-now`, else finish the turn first).
 fn freeze_of(choice: &str) -> juggler_handover::pipeline::FreezeChoice {
     match choice {
@@ -5795,6 +5893,7 @@ const REPLAY_HEADER_BYTES: usize = 2 * 1024;
 fn switch_replay(
     state: &Arc<AppState>,
     sides: &SwitchSides,
+    freeze: juggler_handover::pipeline::FreezeChoice,
     redaction_choice: Option<&str>,
     redaction_unredact: &[u32],
     trigger: &'static str,
@@ -5805,6 +5904,8 @@ fn switch_replay(
         context: "hand over",
         message,
     };
+    // AJ-E1540: the source stops first, so the replay holds its last turn.
+    freeze_source(state, &sides.source, &sides.reference, freeze)?;
     let (prompt, source_sha, source_bytes) =
         replay_prompt(state, sides, redaction_choice, redaction_unredact)?;
     let (work, from_epoch, edge) = record_edge_staged(

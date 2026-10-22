@@ -295,3 +295,70 @@ fn a_chain_of_switches_returns_to_where_it_started_with_every_hop() {
         "A's own turns aren't news to A: {delta}"
     );
 }
+
+/// AJ-E1540: the freeze choice is real. A source session AI Juggler started
+/// and that is still running stops before its conversation is copied: at
+/// once for "Stop now", after its turn for "Finish this turn". Before, the
+/// choice was dropped and the source kept running beside its continuation.
+fn freezing(freeze: &str) {
+    use std::os::unix::fs::PermissionsExt;
+    let work = tempfile::tempdir().unwrap();
+    // A tool that keeps running and says nothing: a session between turns.
+    let stub = work.path().join("claude-busy");
+    std::fs::write(&stub, "#!/bin/sh\nexec sleep 60\n").unwrap();
+    std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let mut registry = AdapterRegistry::new();
+    let claude = Arc::new(ClaudeCodeAdapter::with_bin(&stub));
+    registry.register(claude.clone());
+    registry.register_handover(claude);
+    let state =
+        Arc::new(AppState::init_with_registry(work.path().join("app-data"), registry).unwrap());
+    let project = work.path().join("lab");
+    std::fs::create_dir_all(&project).unwrap();
+    let cwd = project.to_string_lossy().into_owned();
+    let account_a = commands::create_account(&state, CLAUDE_CODE_ID, "Work", None).unwrap();
+    let account_b = commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap();
+    let profile_a = commands::create_profile(&state, &account_a.id, "Main", None, None).unwrap();
+    let profile_b = commands::create_profile(&state, &account_b.id, "Main", None, None).unwrap();
+    let launched = commands::launch_profile(&state, &profile_a.id, Some(cwd.clone())).unwrap();
+    let source = SessionId::new(launched.session_id.clone());
+    let native = "0b5e0e5c-6c0b-4c55-9a6b-2a7d3c9f1e33";
+    let transcript = state
+        .accounts_dir()
+        .join(CLAUDE_CODE_ID)
+        .join(&account_a.id)
+        .join("projects")
+        .join(cwd.replace('/', "-"))
+        .join(format!("{native}.jsonl"));
+    seed(&transcript, native, &cwd);
+    {
+        let storage = state.storage.lock().unwrap();
+        let mut record = storage.sessions().get(&source).unwrap();
+        record.transcript_ref = Some(TranscriptRef {
+            path: transcript.clone(),
+            native_id: Some(native.to_owned()),
+        });
+        storage.sessions().update(&record).unwrap();
+    }
+    assert!(
+        !state.supervisor.is_finished(&source),
+        "the source is running"
+    );
+
+    commands::switch_execute_impl(&state, source.as_str(), &profile_b.id, freeze, None, &[])
+        .expect("the switch goes ahead once the source has stopped");
+    assert!(
+        state.supervisor.is_finished(&source),
+        "{freeze}: the source stopped before its conversation was copied"
+    );
+}
+
+#[test]
+fn stop_now_stops_the_source_before_the_copy() {
+    freezing("stop-now");
+}
+
+#[test]
+fn finish_this_turn_stops_the_source_once_it_is_quiet() {
+    freezing("finish-turn");
+}
