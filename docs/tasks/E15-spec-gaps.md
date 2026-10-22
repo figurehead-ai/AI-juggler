@@ -434,14 +434,14 @@ walk alone isn't enough.
 **Quality gates**: the size shown before turning it on matches the built index within 10%; turning it off leaves no index behind; the first-pass speed of AJ-E1529 is unchanged with it on.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1538/manifest.md`.
 
-### AJ-E1539 LiveStatsCollector in its own module | Status: TODO | Priority P2 | Effort S | Depends: AJ-E2011
+### AJ-E1544 LiveStatsCollector in its own module | Status: TODO | Priority P2 | Effort S | Depends: AJ-E2011
 **Goal**: `juggler-supervisor/src/supervisor.rs` fits its size budget again.
 **Context** (the coordinator, 2026-10-22): main's #126 grew supervisor.rs past its cap, and main has no size budget, so the cap was re-based at that merge (2848 → 2962 lines). Fix batch 4 (#130) changes the same collector code; splitting it before #130 is in release/0.1 would only make conflicts.
 **Requirements**:
 1. Once #130 has merged into release/0.1, `LiveStatsCollector` and its helpers move into their own module of `juggler-supervisor`, behaviour unchanged.
 2. supervisor.rs's cap in `scripts/size_budget.allow` goes back down to its new size.
 **Quality gates**: `just verify` (with `load_budgets`) passes unchanged; the size budget passes with the lower cap.
-**Evidence/validation proof**: `docs/qa/evidence/AJ-E1539/manifest.md`.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1544/manifest.md`.
 
 ## Wave 2 — usage you can act on, Fleet and support
 
