@@ -15,7 +15,7 @@ AI Juggler is a native desktop application that **supervises** AI coding harness
 
 | Requirement | Target |
 |---|---|
-| Platform (v0.x) | macOS 13+ (Universal: Apple Silicon + Intel). Windows/Linux post-1.0; the Rust core and adapters are cross-platform from day one (CI builds all three OSes) so ports need no rewrites |
+| Platform (v0.x) | macOS 14+ (Universal: Apple Silicon + Intel). Windows/Linux post-1.0; the Rust core and adapters are cross-platform from day one (CI builds all three OSes) so ports need no rewrites |
 | Startup | < 1.5s cold start; session board interactive < 500ms after launch |
 | Footprint | < 150 MB RSS typical; UI at 60 fps with 20 live sessions |
 | Reliability | App crash never kills supervised sessions (children survive; state journaled); recovery on relaunch |
@@ -602,7 +602,7 @@ glossed on first use in product copy.)
 
 - **App:** `tauri-plugin-updater` + GitHub Releases feed (`latest.json` via tauri-action), staged: download → verify signature → apply on quit or relaunch prompt; channel switch in settings; "check for updates" manual trigger; disable-able entirely.
 - **Harness tracking:** adapters' `discover()` records installed versions; a background daily check against vendor release channels (GitHub/npm APIs) surfaces "Claude Code 2.1.301 available (you run 2.1.296)" with the adapter's verified-range status — the app never auto-updates a harness (its updater, your call).
-- **Versioning & channels:** strict semver. Pre-1.0 ships as `0.x.0-beta.N` releases on the **beta** channel (early feedback); the **stable** channel opens with 1.0. Every release is a git tag `vX.Y.Z` with a CHANGELOG entry, updater-signed artifacts, and a notarized macOS build.
+- **Versioning & channels:** strict semver on one version stream (D-20): every build gets the next version, and the nightly, beta and stable channels point at builds that have earned them; 0.1 is the first stable release (see `docs/RELEASING.md`). Every release is a git tag `vX.Y.Z` with a CHANGELOG entry, updater-signed artifacts, and a notarized macOS build.
 - **macOS signing/notarization:** Apple Developer Program membership (Vuxtra) provides Developer ID Application signing + `notarytool` notarization in CI (secrets via GitHub Environments). Open-source license unaffected — binaries are simply signed by the publishing identity, the standard model for company-published OSS.
 
 ## 11. Fleet: multi-machine operation — at launch, in beta (D-13, ADR-0013)

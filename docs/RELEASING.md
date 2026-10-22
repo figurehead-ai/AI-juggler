@@ -26,6 +26,8 @@ workflows do the mechanical work:
 - **`nightly.yml`** plans the build and calls **`build-macos.yml`**, which
   builds, signs, notarizes and publishes the version as a pre-release, as
   both apps (below); then it moves the nightly feed.
+- **`promote.yml`** moves the beta or stable feed to an existing version
+  after its checks and the maintainer's approval.
 
 ## Editions: side by side on one Mac (D-23)
 
@@ -45,10 +47,10 @@ with their name. The edition comes from the bundle identifier
 overlay `tauri.conf.json`); a debug build is always Dev. So:
 
 - **Use AI Juggler for real work and AI Juggler Nightly to try what's
-  coming**, at the same time. Each makes its own copy of an Account inside
-  its own data folder, so the two never write to the same Claude setup or
-  to `~/.claude`; you sign in once inside each copy, and both draw on the
-  same subscription's usage. Both want ⌥Space for Go to instance, and only
+  coming**, at the same time. Each edition keeps its own list of accounts:
+  it can use a setup where it is (ADR-0018) or make its own copy inside its
+  own data folder, and the two editions never share a copy. A copy needs its
+  own sign-in, and every edition draws on the same subscription's usage. Both want ⌥Space for Go to instance, and only
   the one opened first gets it: give Nightly another shortcut (⌘K, then
   change it there).
 - **Developers and agents run only AI Juggler Dev**, which can never open an
@@ -57,8 +59,6 @@ overlay `tauri.conf.json`); a debug build is always Dev. So:
   of a version (`latest.json`); the nightly feed points at its AI Juggler
   Nightly build (`latest-nightly.json`). Both workflows check they carry the
   right app.
-- **`promote.yml`** moves the beta or stable feed to an existing version
-  after its checks and the maintainer's approval.
 
 ## How users get updates
 
