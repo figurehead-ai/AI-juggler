@@ -446,9 +446,29 @@ fn from_sql(count: i64) -> u64 {
 fn store_in(conn: &Connection, events: &[UsageEvent]) -> Result<Vec<Stored>, CoreError> {
     let mut stored = Vec::with_capacity(events.len());
     let mut find = conn.prepare(
-        "SELECT input, output, cache_r, cache_w, reasoning FROM usage_events
+        "SELECT input, output, cache_r, cache_w, reasoning, session FROM usage_events
          WHERE account = ?1 AND msg_uuid = ?2",
     )?;
+    let mut span_stored = conn
+        .prepare("SELECT MIN(ts), MAX(ts) FROM usage_events WHERE account = ?1 AND session = ?2")?;
+    let mut move_to =
+        conn.prepare("UPDATE usage_events SET session = ?3 WHERE account = ?1 AND msg_uuid = ?2")?;
+    // Each session's first and last message in this batch: with the
+    // store's, they decide who keeps a message two sessions share, whatever
+    // order the files arrive in.
+    let mut span_in_batch: std::collections::HashMap<(&str, &str), (i64, i64)> =
+        std::collections::HashMap::new();
+    for event in events {
+        if let Some(session) = &event.session {
+            span_in_batch
+                .entry((event.account.as_str(), session.as_str()))
+                .and_modify(|(first, last)| {
+                    *first = (*first).min(event.ts);
+                    *last = (*last).max(event.ts);
+                })
+                .or_insert((event.ts, event.ts));
+        }
+    }
     let mut insert = conn.prepare(
         "INSERT OR IGNORE INTO usage_events
              (account, session, ts, model, input, output, cache_r, cache_w,
@@ -465,18 +485,21 @@ fn store_in(conn: &Connection, events: &[UsageEvent]) -> Result<Vec<Stored>, Cor
         let known = match &event.msg_uuid {
             Some(key) => find
                 .query_row(params![event.account, key], |row| {
-                    Ok(TokenCounts {
-                        input: from_sql(row.get(0)?),
-                        output: from_sql(row.get(1)?),
-                        cache_read: from_sql(row.get(2)?),
-                        cache_write: from_sql(row.get(3)?),
-                        reasoning: from_sql(row.get(4)?),
-                    })
+                    Ok((
+                        TokenCounts {
+                            input: from_sql(row.get(0)?),
+                            output: from_sql(row.get(1)?),
+                            cache_read: from_sql(row.get(2)?),
+                            cache_write: from_sql(row.get(3)?),
+                            reasoning: from_sql(row.get(4)?),
+                        },
+                        row.get::<_, Option<String>>(5)?,
+                    ))
                 })
                 .optional()?,
             None => None,
         };
-        let Some(was) = known else {
+        let Some((was, held_by)) = known else {
             insert.execute(params![
                 event.account,
                 event.session,
@@ -506,6 +529,33 @@ fn store_in(conn: &Connection, events: &[UsageEvent]) -> Result<Vec<Stored>, Cor
             cache_write: was.cache_write.max(event.tokens.cache_write),
             reasoning: was.reasoning.max(event.tokens.reasoning),
         };
+        // Two sessions share this message (a resumed copy repeats its
+        // original's history): it belongs to the session whose first
+        // message came first. A copy keeps the original lines' times, so
+        // their first messages tie; the copy then goes on past the
+        // original's end, so the earlier last message wins, then the
+        // smaller id. The same answer in either reading order.
+        if let (Some(held), Some(offered)) = (&held_by, &event.session)
+            && held != offered
+        {
+            let mut span = |session: &str| -> Result<(i64, i64), CoreError> {
+                let (min, max): (Option<i64>, Option<i64>) = span_stored
+                    .query_row(params![event.account, session], |row| {
+                        Ok((row.get(0)?, row.get(1)?))
+                    })?;
+                let batch = span_in_batch.get(&(event.account.as_str(), session));
+                let first = min.into_iter().chain(batch.map(|span| span.0)).min();
+                let last = max.into_iter().chain(batch.map(|span| span.1)).max();
+                Ok((first.unwrap_or(i64::MAX), last.unwrap_or(i64::MAX)))
+            };
+            let (offered_first, offered_last) = span(offered)?;
+            let (held_first, held_last) = span(held)?;
+            if (offered_first, offered_last, offered.as_str())
+                < (held_first, held_last, held.as_str())
+            {
+                move_to.execute(params![event.account, event.msg_uuid, offered])?;
+            }
+        }
         if now != was {
             raise.execute(params![
                 event.account,

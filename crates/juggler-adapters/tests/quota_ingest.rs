@@ -247,6 +247,67 @@ fn a_response_split_across_two_passes_keeps_its_final_figure() {
     assert_eq!(again[0].added, juggler_core::model::TokenCounts::default());
 }
 
+/// A resumed copy repeats its original's history under its own session id
+/// (QA: 58% of one session's messages also sat in its copy). Each shared
+/// message belongs to the original, whichever file is read first: the
+/// same per-session split both ways, and the account total unchanged.
+#[test]
+fn a_shared_message_belongs_to_the_session_that_came_first() {
+    let line = |session: &str, id: &str, ts: &str, output: u64| {
+        format!(
+            "{{\"type\":\"assistant\",\"uuid\":\"{session}-{id}\",\"requestId\":\"req_{id}\",\"sessionId\":\"{session}\",\"timestamp\":\"{ts}\",\"message\":{{\"id\":\"msg_{id}\",\"role\":\"assistant\",\"model\":\"claude-opus-4\",\"usage\":{{\"input_tokens\":10,\"output_tokens\":{output},\"cache_read_input_tokens\":0,\"cache_creation_input_tokens\":0}}}}}}\n"
+        )
+    };
+    // The original, and its copy: the same two responses, with their
+    // original times, then one of its own. The copy's id sorts first, so
+    // the id alone would credit it.
+    let original = [
+        line("sess-a", "1", "2026-10-20T09:00:00.000Z", 100),
+        line("sess-a", "2", "2026-10-20T09:05:00.000Z", 200),
+    ]
+    .concat();
+    let copy = [
+        line("sess-0", "1", "2026-10-20T09:00:00.000Z", 100),
+        line("sess-0", "2", "2026-10-20T09:05:00.000Z", 200),
+        line("sess-0", "3", "2026-10-21T10:00:00.000Z", 400),
+    ]
+    .concat();
+    let split = |first: &str, second: &str| {
+        let storage = Storage::open_in_memory().unwrap();
+        for bytes in [first, second] {
+            let outcome =
+                juggler_adapters::quota_ingest::transcript_events("acc", bytes.as_bytes());
+            storage.usage().store_events(&outcome.events).unwrap();
+        }
+        let mut by_session = std::collections::BTreeMap::<String, u64>::new();
+        for row in storage.usage().events_for_account("acc", 0).unwrap() {
+            *by_session.entry(row.session.unwrap()).or_default() += row.tokens.output;
+        }
+        by_session
+    };
+    let original_first = split(&original, &copy);
+    let copy_first = split(&copy, &original);
+    assert_eq!(
+        original_first, copy_first,
+        "the reading order never changes the answer"
+    );
+    assert_eq!(
+        original_first.get("sess-a"),
+        Some(&300),
+        "the history stays with the original"
+    );
+    assert_eq!(
+        original_first.get("sess-0"),
+        Some(&400),
+        "the copy keeps only its own"
+    );
+    assert_eq!(
+        original_first.values().sum::<u64>(),
+        700,
+        "the account total is unchanged"
+    );
+}
+
 #[test]
 fn iso_timestamps_parse_strictly() {
     assert_eq!(
