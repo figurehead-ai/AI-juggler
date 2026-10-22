@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render } from "@testing-library/react";
+import { cleanup, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RightInspector } from "./RightInspector";
 import { RenewalAnnouncer } from "./indicator";
@@ -171,9 +171,9 @@ describe("AJ-E411 Account inspector states + editor", () => {
     expect(editor.querySelector("button")!.textContent).toContain("Clear");
   });
 
-  it("Actions offers Edit renewal date... which jumps to the Overview editor", () => {
+  it("the renewal date is edited on the account's own page (AJ-E1533: no Actions tab)", () => {
     const row = account();
-    const { container } = render(
+    const { getByTestId } = render(
       <RightInspector
         selection={{ kind: "account", id: row.id }}
         data={{ instance: null, project: null, account: row, provider: null, machineId: "this-mac" }}
@@ -182,16 +182,7 @@ describe("AJ-E411 Account inspector states + editor", () => {
         {...base}
       />,
     );
-    fireEvent.click(container.querySelector("#inspector-tab-actions")!);
-    const entry = [...container.querySelectorAll("button")].find(
-      (button) => button.textContent === "Edit renewal date...",
-    )!;
-    expect(entry).toBeDefined();
-    const listener = vi.fn();
-    window.addEventListener("aij:edit-renewal", listener);
-    fireEvent.click(entry);
-    expect(listener).toHaveBeenCalled();
-    window.removeEventListener("aij:edit-renewal", listener);
+    expect(getByTestId("renewal-editor").closest("section")!.hasAttribute("hidden")).toBe(false);
   });
 });
 

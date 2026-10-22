@@ -1,6 +1,8 @@
 //! Projects as a feature module (ADR-0019 §3). Their wire type lives
 //! here; the commands move from `commands.rs` with AJ-E2017.
 
+pub mod git;
+
 /// A tracked project for the UI — the juggling anchor (ADR-0007).
 #[derive(Debug, Clone, serde::Serialize, ts_rs::TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]

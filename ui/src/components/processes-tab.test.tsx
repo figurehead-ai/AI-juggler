@@ -148,7 +148,7 @@ function processesShell(row: InstanceInfo) {
       {...base}
     />,
   );
-  fireEvent.click(view.container.querySelector("#inspector-tab-processes")!);
+  fireEvent.click(view.container.querySelector("#page-tab-processes")!);
   return view;
 }
 

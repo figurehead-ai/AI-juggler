@@ -574,16 +574,22 @@ pub fn git_status_refresh_impl(
             .get(&juggler_core::model::SessionId::new(session_id))?
             .cwd
     };
-    Ok(refresh_status(&cwd).map(|status| GitStatusInfo {
+    Ok(status_info(state, &cwd))
+}
+
+/// `dir`'s git status now (at most every 2 s) as the UI shows it, `None`
+/// for a folder that isn't a git checkout: a session's, or a project's.
+pub(crate) fn status_info(state: &Arc<AppState>, dir: &Path) -> Option<GitStatusInfo> {
+    refresh_status(dir).map(|status| GitStatusInfo {
         branch: status.branch,
         changed: status.changed,
         untracked: status.untracked,
         ahead: status.ahead,
         behind: status.behind,
-        worktree: is_linked_worktree(&cwd),
-        created_by_juggler: juggler_created(state, &cwd),
-        path: cwd.to_string_lossy().into_owned(),
-    }))
+        worktree: is_linked_worktree(dir),
+        created_by_juggler: juggler_created(state, dir),
+        path: dir.to_string_lossy().into_owned(),
+    })
 }
 
 // ---------------------------------------------------------- the commands

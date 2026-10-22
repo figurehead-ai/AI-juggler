@@ -26,7 +26,7 @@ afterEach(() => {
   sessionStorage.clear();
 });
 
-it("Enter on About Claude Code opens the tool view with focus on its selected tab", async () => {
+it("Enter on About Claude Code opens the tool's page with focus on its name (a page that is its body alone)", async () => {
   const user = userEvent.setup();
   const view = render(<App />);
   const rail = await waitFor(() => {
@@ -45,7 +45,7 @@ it("Enter on About Claude Code opens the tool view with focus on its selected ta
   await user.keyboard("{Enter}");
   await waitFor(() => expect(view.getByRole("heading", { level: 1 }).textContent).toBe("Claude Code"));
   expect(view.queryByRole("button", { name: "About Claude Code" })).toBeNull();
-  await waitFor(() => expect(document.activeElement?.getAttribute("role")).toBe("tab"));
-  expect(document.activeElement?.getAttribute("aria-selected")).toBe("true");
-  expect(document.activeElement?.closest("[role='tablist']")).not.toBeNull();
+  // The opener went away: focus lands on the page, never on <body>.
+  await waitFor(() => expect(document.activeElement?.getAttribute("data-testid")).toBe("page-name"));
+  expect(document.activeElement?.textContent).toBe("Claude Code");
 });

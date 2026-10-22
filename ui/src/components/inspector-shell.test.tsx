@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { INSPECTOR_TABS, RightInspector, type InspectorSelection } from "./RightInspector";
+import { RightInspector, type InspectorSelection } from "./RightInspector";
 import type {
   AccountInfo,
   InstanceInfo,
@@ -9,10 +9,10 @@ import type {
 } from "../lib/bridge";
 
 /**
- * AJ-E406 evidence: the RightInspector shell across all five selection
- * types — six tabs always present (D-06), header contract, per-type tab
- * persistence, keyboard switching, honest-empty tabs, source footers,
- * and the never-unmounting terminal.
+ * AJ-E406, then AJ-E1533 (one page model): every type's page — its
+ * identity header, its own tabs with its body first and none empty,
+ * per-type tab memory, keyboard switching, source footers, and the
+ * never-unmounting terminal.
  */
 
 vi.mock("./TerminalView", () => ({
@@ -126,102 +126,112 @@ beforeEach(() => {
   localStorage.clear();
 });
 
-describe("AJ-E406 the shell across the five selection types (D-06)", () => {
-  const kinds: { kind: InspectorSelection; name: string; type: string }[] = [
-    // D-25: on screen an Instance is a "session", a Session a "conversation".
-    // D-25: a session is titled by its place (branch, else folder).
-    { kind: { kind: "instance", id: "sess-1" }, name: "main", type: "Session" },
-    { kind: { kind: "session", id: "conv-1" }, name: "Conversation", type: "Conversation" },
-    { kind: { kind: "provider", id: "claude-code" }, name: "claude-code", type: "Tool" },
-    { kind: { kind: "account", id: "claude-work" }, name: "Work Max", type: "Account" },
-    { kind: { kind: "project", id: "proj-1" }, name: "alpha", type: "Project" },
+describe("AJ-E1533 one page model: each type's header and its own tabs", () => {
+  const kinds: { kind: InspectorSelection; name: string; type: string; tabs: string[] }[] = [
+    // D-25: a session is titled by its label, else its place (branch, else folder).
+    { kind: { kind: "instance", id: "sess-1" }, name: "main", type: "Session", tabs: ["Terminal", "Usage", "Processes"] },
+    // A tool's page is its body alone: no tab strip.
+    { kind: { kind: "provider", id: "claude-code" }, name: "claude-code", type: "Tool", tabs: [] },
+    { kind: { kind: "account", id: "claude-work" }, name: "Work Max", type: "Account", tabs: ["Overview", "Sessions"] },
+    // Nothing measured yet: no Usage tab (no empty tabs).
+    { kind: { kind: "project", id: "proj-1" }, name: "alpha", type: "Project", tabs: ["Sessions", "Overview"] },
   ];
 
   for (const entry of kinds) {
-    it(`renders all six tabs and the header for ${entry.type}`, () => {
-      const { container } = shell(entry.kind);
-      const tabs = [...container.querySelectorAll("[role='tab']")];
-      expect(tabs.map((tab) => tab.textContent)).toEqual([
-        "Overview",
-        "Usage",
-        "History",
-        "Quality / Performance",
-        "Processes",
-        "Actions",
-      ]);
-      expect(container.querySelector(`[title='${entry.type}']`)).not.toBeNull();
-      expect(container.querySelector("h2")?.textContent).toContain(entry.name);
-      // D-06: every tab is present — none hidden or disabled.
-      for (const tab of tabs) {
-        expect((tab as HTMLButtonElement).disabled).toBe(false);
-      }
+    it(`a ${entry.type}'s page: its type, its name, and only the tabs with something to show`, () => {
+      const { container, getByTestId } = shell(entry.kind);
+      expect(getByTestId("page-type").textContent).toBe(entry.type);
+      expect(getByTestId("page-name").textContent).toBe(entry.name);
+      expect([...container.querySelectorAll("[role='tab']")].map((tab) => tab.textContent)).toEqual(entry.tabs);
     });
   }
 
-  it("the Instance header carries the I-04 state chip", () => {
-    const { container } = shell({ kind: "instance", id: "sess-1" });
+  it("the session header carries the I-04 state chip, and its project as the crumb", () => {
+    const openProject = vi.fn();
+    const { container, getByTestId } = render(
+      <RightInspector selection={{ kind: "instance", id: "sess-1" }} data={{ instance, machineId: "this-mac" }} {...props} onOpenProject={openProject} />,
+    );
     expect(container.textContent).toContain("Running");
+    fireEvent.click(getByTestId("crumb-project"));
+    expect(openProject).toHaveBeenCalledWith("proj-1");
+  });
+
+  it("a project's Usage tab appears once something is measured, by account", () => {
+    const measured = { ...instance, tokens: { input: 1200, output: 300, cache_read: 5000, cache_write: 0, reasoning: 0 } };
+    const { container, getByTestId } = render(
+      <RightInspector selection={{ kind: "project", id: "proj-1" }} data={{ project, machineId: "this-mac" }} {...props} sessions={[measured]} />,
+    );
+    fireEvent.click(container.querySelector("#page-tab-usage")!);
+    expect(getByTestId("project-usage-total").textContent).toBe("2k");
+  });
+
+  it("a project's header reads its root's git state: branch, ahead/behind, not committed", async () => {
+    (window as unknown as { __AIJ_PROJECT_GIT__?: unknown }).__AIJ_PROJECT_GIT__ = {
+      "proj-1": { branch: "trunk", changed: 2, untracked: 1, ahead: 2, behind: 0, worktree: false, created_by_juggler: false, path: "/w/alpha" },
+    };
+    const { findByTestId, getByTestId, queryByTestId } = shell({ kind: "project", id: "proj-1" });
+    expect((await findByTestId("project-uncommitted")).textContent).toBe("· 3 files not committed");
+    expect(getByTestId("project-branch").textContent).toBe("· trunk");
+    expect(getByTestId("project-upstream").textContent).toBe("· 2 ahead");
+    delete (window as unknown as { __AIJ_PROJECT_GIT__?: unknown }).__AIJ_PROJECT_GIT__;
+    cleanup();
+    // Not a git checkout (or not answered yet): its sessions' branches, nothing more.
+    const plain = shell({ kind: "project", id: "proj-1" });
+    expect(plain.getByTestId("project-branch").textContent).toBe("· main");
+    expect(queryByTestId("project-uncommitted")).toBeNull();
+  });
+
+  it("a project's body lists its sessions, live first", () => {
+    const { getAllByTestId, getByTestId } = shell({ kind: "project", id: "proj-1" });
+    expect(getAllByTestId("page-session-row")).toHaveLength(1);
+    expect(getByTestId("page-sessions-count").textContent).toBe("1 session · 1 running");
   });
 });
 
-describe("AJ-E406 tab persistence per selection type (Req.3)", () => {
-  it("restores a type's last tab across reselection", () => {
+describe("AJ-E1533 tab memory per type (AJ-E1534)", () => {
+  it("restores a type's last tab, never carrying it to another type", () => {
     const first = shell({ kind: "instance", id: "sess-1" });
-    fireEvent.click(first.container.querySelector("#inspector-tab-usage")!);
-    expect(localStorage.getItem("aij.inspector.tab.instance")).toBe("usage");
+    fireEvent.click(first.container.querySelector("#page-tab-usage")!);
+    expect(localStorage.getItem("aij.page.tab.session")).toBe("usage");
     cleanup();
 
     const other = shell({ kind: "project", id: "proj-1" });
-    expect(other.container.querySelector("#inspector-tab-overview")!.getAttribute("aria-selected")).toBe("true");
+    expect(other.container.querySelector("#page-tab-sessions")!.getAttribute("aria-selected")).toBe("true");
     cleanup();
 
     const back = shell({ kind: "instance", id: "sess-1" });
-    expect(back.container.querySelector("#inspector-tab-usage")!.getAttribute("aria-selected")).toBe("true");
+    expect(back.container.querySelector("#page-tab-usage")!.getAttribute("aria-selected")).toBe("true");
   });
 });
 
-describe("AJ-E406 keyboard + honest empties + footers", () => {
-  // AJ-E1504: ⌘1–4 open the main screens, so the tabs moved to ⌥⌘1–6
+describe("AJ-E1533 keyboard, footers, the terminal", () => {
+  // AJ-E1504: ⌘1–4 open the main screens, so the tabs are ⌥⌘1…n
   // (⌥ changes what `key` reads; the digit comes from `code`).
-  it("Option+Cmd/Ctrl+1..6 switches tabs inside the inspector (Req.6); Cmd+digit alone doesn't", () => {
-    const { container } = shell({ kind: "account", id: "claude-work" });
-    fireEvent.keyDown(window, { key: "3", code: "Digit3", metaKey: true });
-    expect(container.querySelector("#inspector-tab-history")!.getAttribute("aria-selected")).toBe("false");
-    fireEvent.keyDown(window, { key: "£", code: "Digit3", metaKey: true, altKey: true });
-    expect(container.querySelector("#inspector-tab-history")!.getAttribute("aria-selected")).toBe("true");
-    fireEvent.keyDown(window, { key: "§", code: "Digit6", ctrlKey: true, altKey: true });
-    expect(container.querySelector("#inspector-tab-actions")!.getAttribute("aria-selected")).toBe("true");
-    // Focus moved to the selected tab button.
-    expect(document.activeElement?.id).toBe("inspector-tab-actions");
-  });
-
-  it("a tab without data renders its honest empty state, never blank (D-06)", () => {
-    const { container } = shell({ kind: "account", id: "claude-work" });
-    fireEvent.click(container.querySelector("#inspector-tab-usage")!);
-    expect(container.textContent).toContain("Unavailable");
-    expect(container.textContent).toContain("No usage measured for this yet.");
-    expect(container.textContent).not.toMatch(/lands with|\bAJ-E\d+/);
-  });
-
-  it("every tab footer names the field's real source (Req.5)", () => {
+  it("Option+Cmd/Ctrl+digit picks a tab; Cmd+digit alone doesn't", () => {
     const { container } = shell({ kind: "instance", id: "sess-1" });
-    const footer = container.querySelector("section:not([hidden]) footer");
-    expect(footer?.textContent).toContain("from this Mac's process monitor");
-    fireEvent.click(container.querySelector("#inspector-tab-usage")!);
-    const usageFooter = container.querySelector("section:not([hidden]) footer");
-    expect(usageFooter?.textContent).toContain("from usage tracking");
+    fireEvent.keyDown(window, { key: "3", code: "Digit3", metaKey: true });
+    expect(container.querySelector("#page-tab-processes")!.getAttribute("aria-selected")).toBe("false");
+    fireEvent.keyDown(window, { key: "£", code: "Digit3", metaKey: true, altKey: true });
+    expect(container.querySelector("#page-tab-processes")!.getAttribute("aria-selected")).toBe("true");
+    expect(document.activeElement?.id).toBe("page-tab-processes");
+  });
+
+  it("every tab's footer names where its numbers come from", () => {
+    const { container } = shell({ kind: "instance", id: "sess-1" });
+    expect(container.querySelector("section:not([hidden]) footer")?.textContent).toContain("from this Mac's process monitor");
+    fireEvent.click(container.querySelector("#page-tab-usage")!);
+    expect(container.querySelector("section:not([hidden]) footer")?.textContent).toContain("from usage tracking");
   });
 
   it("switching tabs NEVER unmounts the embedded terminal (gate)", () => {
     const { container } = shell({ kind: "instance", id: "sess-1" });
     expect(container.querySelector('[data-testid="instance-terminal"]')).not.toBeNull();
-    fireEvent.click(container.querySelector("#inspector-tab-history")!);
-    // Still in the DOM (hidden panel) — no unmount, no focus steal.
+    fireEvent.click(container.querySelector("#page-tab-processes")!);
     expect(container.querySelector('[data-testid="instance-terminal"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="instance-terminal"]')!.closest("section")!.hasAttribute("hidden")).toBe(true);
   });
 
-  it("the session header says where and on which account, and offers Switch account…", () => {
+  it("the session header says on which account and since when, and offers Switch account…", () => {
     const { getByTestId } = shell({ kind: "instance", id: "sess-1" });
     expect(getByTestId("session-subline").textContent).toContain("Work Max");
     expect(getByTestId("session-subline").textContent).toMatch(/started .+ ago/);
@@ -252,13 +262,11 @@ describe("AJ-E406 keyboard + honest empties + footers", () => {
     expect(container.textContent).toContain("studio-desk");
   });
 
-  it("the tab list is fixed order and labeled for a11y (WCAG 2.4.6)", () => {
+  it("the tab list is labelled, and each panel by its tab (WCAG 2.4.6)", () => {
     const { container } = shell({ kind: "project", id: "proj-1" });
-    const tablist = container.querySelector("[role='tablist']");
-    expect(tablist?.getAttribute("aria-label")).toBe("Project inspector tabs");
-    for (const tab of INSPECTOR_TABS) {
-      const panel = container.querySelector(`#inspector-panel-${tab.id}`);
-      expect(panel?.getAttribute("aria-labelledby")).toBe(`inspector-tab-${tab.id}`);
+    expect(container.querySelector("[role='tablist']")?.getAttribute("aria-label")).toBe("Project tabs");
+    for (const id of ["sessions", "overview"]) {
+      expect(container.querySelector(`#page-panel-${id}`)?.getAttribute("aria-labelledby")).toBe(`page-tab-${id}`);
     }
   });
 });

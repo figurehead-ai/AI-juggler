@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { RightInspector, installWords, since, useToolInstall } from "./RightInspector";
+import { RightInspector, installWords, useToolInstall } from "./RightInspector";
+import { since } from "../lib/time-words";
 import { providerDisplayName } from "../lib/providers";
 import type {
   AccountInfo,
@@ -120,7 +121,7 @@ function shell(kind: "provider" | "account" | "project", id: string) {
 }
 
 const open = (container: HTMLElement, tab: string) =>
-  fireEvent.click(container.querySelector(`#inspector-tab-${tab}`)!);
+  fireEvent.click(container.querySelector(`#page-tab-${tab}`)!);
 
 describe("AJ-E408 Provider (§5.3, Req.1-2)", () => {
   it("Overview: counts, worst-first aggregate, what's installed (no placeholders)", async () => {
@@ -148,13 +149,11 @@ describe("AJ-E408 Provider (§5.3, Req.1-2)", () => {
     expect(container.textContent).toContain("mixed");
   });
 
-  it("Actions: Add account is real; actions not built yet aren't shown (D-25)", () => {
-    const { container } = shell("provider", "claude-code");
-    open(container, "actions");
-    expect(container.querySelector('[data-testid="provider-actions"]')).not.toBeNull();
-    expect(container.querySelector('[data-testid="action-add-account"] button')!.getAttribute("disabled")).toBeNull();
-    expect(container.querySelector('[data-testid="action-check-for-an-update"]')).toBeNull();
-    expect(container.querySelector('[data-testid="action-open-tool-settings"]')).toBeNull();
+  it("Add account is a header button; actions not built yet aren't shown (D-25)", () => {
+    const { getByTestId, container } = shell("provider", "claude-code");
+    expect(getByTestId("header-add-account").textContent).toBe("Add account…");
+    expect(container.querySelector("#page-tab-actions")).toBeNull();
+    expect(container.textContent).not.toMatch(/Check for an update|Open tool settings/);
   });
 
   it("a failed install check says so instead of showing nothing", async () => {
@@ -204,8 +203,9 @@ describe("AJ-E408 Provider (§5.3, Req.1-2)", () => {
   it("no tab of the tool, account or project views shows a task code or an internal id (D-25)", () => {
     for (const [kind, id] of [["provider", "claude-code"], ["account", "claude-work"], ["project", "proj-1"], ["project", "proj-2"]] as const) {
       const { container } = shell(kind, id);
-      for (const tab of ["overview", "usage", "history", "quality", "processes", "actions"]) {
-        open(container, tab);
+      const tabs = [...container.querySelectorAll<HTMLElement>("[role='tab']")].map((tab) => tab.id.replace("page-tab-", ""));
+      for (const tab of tabs.length > 0 ? tabs : ["body"]) {
+        if (tab !== "body") open(container, tab);
         // innerText-like: hidden screen-reader text counts too.
         const text = container.textContent ?? "";
         expect(text, `${kind} › ${tab}`).not.toMatch(/\bAJ-E\d+|\bE\d+\+|\(E\d+\)|\bD-\d{2}\b/);
@@ -271,36 +271,25 @@ describe("AJ-E408 Account (§5.4, Req.3-4)", () => {
     expect(container.textContent).toContain("signed out");
   });
 
-  it("History groups sessions Today; Actions honour D-10 and show only what works (D-25)", () => {
-    const { container } = shell("account", "claude-work");
-    open(container, "history");
-    expect(container.querySelector('[data-testid="account-history"]')).not.toBeNull();
-    expect(container.textContent).toContain("Today");
-    // Each row says how long ago it started — never "now ago".
+  it("Sessions lists the account's sessions with how long ago; its actions are the header's (D-25)", () => {
+    const { container, getAllByTestId } = shell("account", "claude-work");
+    open(container, "sessions");
+    expect(getAllByTestId("page-session-row").length).toBeGreaterThan(0);
     expect(container.textContent).not.toContain("now ago");
-    expect(container.textContent).toMatch(/\d+[smh] ago/);
-    cleanup();
-    const actions = shell("account", "claude-work");
-    open(actions.container, "actions");
-    expect(actions.container.querySelector('[data-testid="action-launch-session"]')).not.toBeNull();
-    expect(actions.container.textContent).not.toContain("New profile");
-    // Not built yet, so not shown: New launch settings…, Rename, Delete
-    // account… (when Delete lands it keeps the managed-dir note, PF-08).
-    for (const id of ["action-new-launch-settings", "action-rename", "action-delete-account"]) {
-      expect(actions.container.querySelector(`[data-testid="${id}"]`)).toBeNull();
-    }
+    expect(container.querySelector("#page-tab-actions")).toBeNull();
+    expect(container.textContent).not.toContain("New profile");
   });
 });
 
 describe("AJ-E408 Project (§5.5, Req.5-6)", () => {
-  it("Overview: On-it-now card, copyable root, branch summary, dirty total, counts", () => {
-    const { container } = shell("project", "proj-1");
-    expect(container.querySelector('[data-testid="project-on-it-now"]')).not.toBeNull();
-    expect(container.querySelector('[data-testid="project-root"]')?.textContent).toContain("/w/ai-juggler");
-    const summary = container.querySelector('[data-testid="project-summary"]')!;
-    expect(summary.textContent).toContain("main");
+  it("the header says where it is and its branch; Overview, its sessions ever and accounts", () => {
+    const { container, getByTestId } = shell("project", "proj-1");
+    expect(getByTestId("project-root").getAttribute("title")).toBe("/w/ai-juggler");
+    expect(getByTestId("page-facts").textContent).toContain("main");
+    open(container, "overview");
+    const summary = getByTestId("project-summary");
     expect(summary.textContent).toContain("Work Max");
-    expect(summary.textContent).toContain("imported sessions: 2");
+    expect(getByTestId("project-sessions-ever").textContent).toMatch(/^1/);
   });
 
   it("a missing directory renders the danger banner with Relocate… (AJ-E1502)", () => {
@@ -309,15 +298,15 @@ describe("AJ-E408 Project (§5.5, Req.5-6)", () => {
     expect(banner).not.toBeNull();
     expect(banner!.getAttribute("role")).toBe("alert");
     expect(banner!.textContent).toContain("missing");
-    const relocate = banner!.querySelector('[data-testid="action-relocate"] button');
-    expect(relocate?.textContent).toBe("Relocate…");
+    const relocate = [...banner!.querySelectorAll("button")].find((button) => button.textContent === "Relocate…");
+    expect(relocate).toBeDefined();
     expect((relocate as HTMLButtonElement).disabled).toBe(false);
   });
 
-  it("Actions: ranked by headroom with the `Usual` star", () => {
+  it("Overview's Accounts: ranked by headroom with the `Usual` star", () => {
     const { container } = shell("project", "proj-1");
-    open(container, "actions");
-    const buttons = [...container.querySelectorAll('[data-testid="project-actions"] > button')];
+    open(container, "overview");
+    const buttons = [...container.querySelectorAll('[data-testid="project-accounts"] button')].filter((button) => !button.closest('[data-testid="project-default-account"]'));
     expect(buttons.length).toBeGreaterThanOrEqual(2);
     // Work Max (45% left) ranks above Personal (5% left).
     expect(buttons[0]!.textContent).toContain("Work Max");

@@ -74,6 +74,7 @@ import type { PreviewFrameInfo } from "../types/generated/PreviewFrameInfo";
 import type { PreviewStateInfo } from "../types/generated/PreviewStateInfo";
 import type { FocusOutcomeInfo } from "../types/generated/FocusOutcomeInfo";
 import type { ProcessesInfo } from "../types/generated/ProcessesInfo";
+import { MOCK_PROCESSES } from "./preview-processes";
 import type { StopOutcomeInfo } from "../types/generated/StopOutcomeInfo";
 import type { LaunchResult } from "../types/generated/LaunchResult";
 import type { NeedsAttention } from "../types/generated/NeedsAttention";
@@ -281,40 +282,6 @@ const MOCK_QUALITY: Record<string, QualitySignalsInfo> = {
   },
 };
 
-// AJ-E410 mock trees: a 3-level live tree (the §7.3 wireframe shape)
-// plus a 2-orphan section — one fresh, one already `gone`.
-const MOCK_PROCESSES: Record<string, ProcessesInfo> = {
-  "sess-8": {
-    rows: [
-      { pid: 41201, parent_pid: 40100, name: "claude", cpu_pct: 11.0, rss_bytes: 890_000_000, age_ms: 42 * 60_000, child_count: 2, depth: 0 },
-      { pid: 41233, parent_pid: 41201, name: "node (mcp)", cpu_pct: 1.0, rss_bytes: 96_000_000, age_ms: 40 * 60_000, child_count: 1, depth: 1 },
-      { pid: 41302, parent_pid: 41233, name: "rg (search)", cpu_pct: 4.0, rss_bytes: 120_000_000, age_ms: 12_000, child_count: 0, depth: 2 },
-    ],
-    spark: Array.from({ length: 24 }, (_, i) => ({
-      at_ms: Date.now() - (24 - i) * 2_000,
-      cpu_pct: 6 + ((i * 7) % 9),
-      rss_bytes: 980_000_000 + ((i * 13) % 5) * 20_000_000,
-    })),
-    orphans: [
-      { session_id: "sess-8", pid: 39871, name: "node dev-server", rss_bytes: 210_000_000, parent_label: "claude", age_since_parent_exit_ms: 18 * 60_000, stop_state: null },
-      { session_id: "sess-8", pid: 39890, name: "vite", rss_bytes: 88_000_000, parent_label: "claude", age_since_parent_exit_ms: 18 * 60_000, stop_state: "gone" },
-    ],
-    unavailable_reason: null,
-  },
-  "sess-2": {
-    rows: [
-      { pid: 51001, parent_pid: 50900, name: "claude", cpu_pct: 3.0, rss_bytes: 240_000_000, age_ms: 9 * 60_000, child_count: 0, depth: 0 },
-    ],
-    spark: Array.from({ length: 24 }, (_, i) => ({
-      at_ms: Date.now() - (24 - i) * 2_000,
-      cpu_pct: 2 + ((i * 3) % 4),
-      rss_bytes: 240_000_000,
-    })),
-    orphans: [],
-    unavailable_reason: null,
-  },
-};
-
 const MOCK_STATS: StatsInfo =
   seeded.stats ?? {
     accounts: 2,
@@ -346,7 +313,7 @@ export const MOCK_SESSIONS: InstanceInfo[] = seeded.sessions ?? [
     }),
     tokens: Some({ input: 12_345, output: 6_789, cache_read: 100, cache_write: 200, reasoning: 42 }),
     cpu_pct: Some(3.5),
-    rss_bytes: Some(123_456),
+    rss_bytes: Some(640_000_000),
     child_count: Some(2),
     subtask_count: null,
     git_branch: Some("feat/read-model"),

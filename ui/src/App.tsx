@@ -7,6 +7,7 @@ import { onConversationsChanged } from "./lib/ipc/conversations";
 import { withPalette } from "./lib/palette";
 import { useFirstRun } from "./lib/first-run";
 import { useLiveDeltas } from "./lib/live-deltas";
+import { MoreMenu } from "./components/MoreMenu";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Card } from "./components/primitives";
 import { WorkflowRail, type Freshness } from "./components/WorkflowRail";
@@ -246,24 +247,6 @@ export default function App() {
   }, []);
   const [selection, setSelection] = useState<Selection>({ kind: "none" });
   const [global, setGlobal] = useState<GlobalId | null>(null);
-  const [moreOpen, setMoreOpen] = useState(false);
-  const moreRef = useRef<HTMLDivElement | null>(null);
-  // The More menu closes on a click elsewhere or Escape, like any menu.
-  useEffect(() => {
-    if (!moreOpen) return;
-    const onDown = (event: MouseEvent) => {
-      if (moreRef.current && !moreRef.current.contains(event.target as Node)) setMoreOpen(false);
-    };
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMoreOpen(false);
-    };
-    window.addEventListener("mousedown", onDown);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("mousedown", onDown);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [moreOpen]);
   // D-25: Cleanup and Fleet surface only when they're relevant.
   const [cleanupCount, setCleanupCount] = useState(0);
   const [pairedCount, setPairedCount] = useState(0);
@@ -795,7 +778,6 @@ export default function App() {
                     onClick={() => {
                       setSettingsFocusCloud(false);
                       setSettingsSection(undefined);
-                      setMoreOpen(false);
                       if (item.id === "home") {
                         setGlobal(null);
                         setSelection({ kind: "none" });
@@ -817,7 +799,6 @@ export default function App() {
                   type="button"
                   aria-current={global === "fleet" ? "page" : undefined}
                   onClick={() => {
-                    setMoreOpen(false);
                     setGlobal("fleet");
                   }}
                   className={
@@ -832,7 +813,6 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => {
-                    setMoreOpen(false);
                     setGlobal("cleanup");
                   }}
                   className="ml-1 rounded-full border border-warning/40 bg-warning-soft px-2.5 py-1 text-[11px] font-medium text-ink"
@@ -841,45 +821,13 @@ export default function App() {
                   {cleanupCount === 1 ? "1 thing to clean up" : `${cleanupCount} things to clean up`}
                 </button>
               )}
-              <div className="relative" ref={moreRef}>
-                <button
-                  type="button"
-                  aria-expanded={moreOpen}
-                  aria-controls="nav-more"
-                  onClick={() => setMoreOpen((open) => !open)}
-                  className={
-                    "rounded-md px-2 py-1.5 text-xs font-medium transition-colors xl:px-2.5 " +
-                    (MORE_NAV.some((item) => item.id === global) ? "bg-surface text-ink sheen" : "text-muted hover:bg-surface/60 hover:text-ink")
-                  }
-                >
-                  More
-                </button>
-                {moreOpen && (
-                  <div
-                    id="nav-more"
-                    className="absolute right-0 top-full z-40 mt-1.5 flex w-72 flex-col rounded-xl border border-hairline bg-surface p-1.5 shadow-xl"
-                    onKeyDown={(event) => {
-                      if (event.key === "Escape") setMoreOpen(false);
-                    }}
-                  >
-                    {MORE_NAV.map((item) => (
-                      <button
-                        key={item.id}
-                        type="button"
-                        aria-current={global === item.id ? "page" : undefined}
-                        onClick={() => {
-                          setMoreOpen(false);
-                          setGlobal(item.id);
-                        }}
-                        className="flex flex-col items-start gap-0.5 rounded-lg px-3 py-2 text-left hover:bg-surface-2"
-                      >
-                        <span className="text-xs font-medium text-ink">{item.label}</span>
-                        <span className="text-[11px] text-muted">{item.hint}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <MoreMenu
+                items={MORE_NAV}
+                current={global}
+                onPick={setGlobal}
+                toolIds={[...new Set(accounts.map((account) => account.provider))]}
+                onOpenTool={(id) => { setGlobal(null); setSelection({ kind: "provider", id }); }}
+              />
             </nav>
             <Button size="sm" variant="primary" onClick={() => setNewSession(true)}>
               <IconTerminal width={14} height={14} />
@@ -1031,7 +979,7 @@ export default function App() {
                   />
                 </div>
               ) : selection.kind === "conversation" ? (
-                <ConversationPage accountId={selection.accountId} id={selection.id} now={now} />
+                <ConversationPage accountId={selection.accountId} id={selection.id} now={now} projects={projects} />
               ) : (
               <RightInspector
               folded={inspectorFolded}

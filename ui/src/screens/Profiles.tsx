@@ -363,7 +363,7 @@ function AccountCard({
         <HarnessGlyph provider={account.provider} onClick={onInspect} />
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="truncate text-sm font-semibold" data-testid="account-label">{account.label}</span>
+            <button type="button" onClick={onInspect} title={`Open ${account.label}'s page`} className="truncate rounded text-sm font-semibold outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="account-label">{account.label}</button>
             {account.plan && <Chip tone="accent">{account.plan}</Chip>}
             {account.is_default && (
               <span title="New sessions start with this account, unless a project picks its own" data-testid="account-default">

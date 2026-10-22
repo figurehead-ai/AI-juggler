@@ -218,6 +218,7 @@ pub fn run() {
             features::conversations::commands::conversations_list,
             features::conversations::commands::conversations_resume_command,
             features::conversations::commands::conversations_continue,
+            features::projects::git::projects_git_status,
             quit::app_quit_plan,
             quit::app_quit,
             quit::app_quit_ack,
