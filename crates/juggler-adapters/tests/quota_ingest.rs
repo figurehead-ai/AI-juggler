@@ -1649,3 +1649,102 @@ fn a_compressed_rollout_that_grows_is_read_again() {
     let rows = storage.usage().events_for_account("acc", 0).unwrap();
     assert_eq!(rows.iter().map(|row| row.tokens.input).sum::<u64>(), 150);
 }
+
+/// QA's mid-file shape, as lines.
+fn mid_file_named() -> Vec<String> {
+    vec![
+        started("00:00"),
+        record_of("th-sub", "00:01", "t1", "r-a", 223_574),
+        count("00:02", 223_574, 11_294_597),
+        record_of("th-sub", "00:03", "t1", "r-compact", 234_936),
+        compacted_naming("00:04", Some(("th-sub", "t1", "r-compact", 234_936))),
+        codex_line("turn_context", "00:05", r#"{"model":"gpt-5"}"#),
+        count("00:06", 20_240, 11_294_597),
+        record_of("th-sub", "00:07", "t1", "r-b", 35_615),
+        count("00:08", 35_615, 11_330_212),
+    ]
+}
+
+/// P21's opening shape, as lines (the named call is another thread's).
+fn opens_with_another_threads_call() -> Vec<String> {
+    vec![
+        compacted_naming("00:03", Some(("th-parent", "tp", "r-compact", 136_658))),
+        count("00:04", 136_658, 1_899_060),
+        started("00:05"),
+        record_of("th-sub", "00:06", "t1", "r-t1", 100),
+        count("00:07", 100, 1_899_160),
+    ]
+}
+
+/// #134 review: a `compacted` line that names no call (`null`) further
+/// into a file, followed by a total that moves: that usage still counts,
+/// as P17's does. Never silently dropped.
+#[test]
+fn a_mid_file_compaction_naming_no_call_still_counts_its_usage() {
+    let thread = [
+        started("00:00"),
+        record_of("th-sub", "00:01", "t1", "r-t1", 100),
+        count("00:02", 100, 500),
+        compacted_naming("00:03", None),
+        count("00:04", 60, 560),
+        started("00:05"),
+        record_of("th-sub", "00:06", "t2", "r-t2", 50),
+    ]
+    .concat();
+    assert_eq!(
+        stored(&[&thread]),
+        BTreeMap::from([
+            ("th-sub/compacted/1792576804000/1".to_owned(), 60),
+            ("th-sub/t1/r-t1".to_owned(), 100),
+            ("th-sub/t2/r-t2".to_owned(), 50),
+        ])
+    );
+}
+
+/// A named call is never counted again wherever a pass ends: in a file
+/// that opens with another thread's, and mid-file.
+#[test]
+fn a_named_call_counts_once_wherever_a_pass_ends() {
+    assert_eq!(
+        every_split_reads_as_one(&opens_with_another_threads_call()),
+        BTreeMap::from([("th-sub/t1/r-t1".to_owned(), 100)])
+    );
+    assert_eq!(
+        every_split_reads_as_one(&mid_file_named()),
+        BTreeMap::from([
+            ("th-sub/t1/r-a".to_owned(), 223_574),
+            ("th-sub/t1/r-b".to_owned(), 35_615),
+            ("th-sub/t1/r-compact".to_owned(), 234_936),
+        ])
+    );
+}
+
+/// The same inside a compressed rollout (`.jsonl.zst`): the events read
+/// like the plain file's.
+#[test]
+fn a_named_call_in_a_compressed_rollout_reads_like_the_plain_one() {
+    let dir = tempfile::tempdir().unwrap();
+    for (name, lines) in [
+        ("opens", opens_with_another_threads_call()),
+        ("mid", mid_file_named()),
+    ] {
+        let bytes = lines.concat();
+        let plain = dir.path().join(format!("rollout-{name}.jsonl"));
+        let zst = dir.path().join(format!("rollout-{name}.jsonl.zst"));
+        std::fs::write(&plain, &bytes).unwrap();
+        std::fs::write(&zst, zstd::encode_all(bytes.as_bytes(), 3).unwrap()).unwrap();
+        let keys = |path: &Path| -> Vec<String> {
+            tail_rollout(path, "acc", 0, &RolloutCarry::default())
+                .events
+                .into_iter()
+                .map(|event| event.msg_uuid.unwrap())
+                .collect()
+        };
+        let read = keys(&zst);
+        assert_eq!(read, keys(&plain), "{name}");
+        assert!(
+            read.iter().all(|key| !key.contains("/compacted/")),
+            "{name}: {read:?}"
+        );
+    }
+}
