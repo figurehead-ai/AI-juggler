@@ -15,7 +15,7 @@
 //! own file. Files are copied as new files, never over existing ones.
 
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use juggler_adapter::error::AdapterError;
 use juggler_adapter::inventory::{
@@ -24,6 +24,7 @@ use juggler_adapter::inventory::{
 };
 
 use crate::claude_code::CLAUDE_CODE_ID;
+use crate::inventory_files::{children, secret_names};
 
 /// The parts of Claude's state file the inventory reads.
 #[derive(serde::Deserialize, Default)]
@@ -237,20 +238,6 @@ fn mcp_verdict(name: &str, server: &McpServer) -> SetUp {
     SetUp::Copy
 }
 
-/// The variables a server's dropped secrets become.
-pub(crate) fn secret_names(name: &str, server: &McpServer) -> Vec<String> {
-    let pairs = match &server.transport {
-        McpTransport::Stdio { env, .. } => env.as_slice(),
-        McpTransport::Http { headers, .. } => headers.as_slice(),
-        McpTransport::Other { .. } => &[],
-    };
-    pairs
-        .iter()
-        .filter(|(_, value)| *value == Value::Secret)
-        .map(|(key, _)| secret_variable(name, key))
-        .collect()
-}
-
 /// `claude mcp add-json -s <scope> -- <name> '<json>'`, for the account
 /// (and in the project's folder, for a server private to it). The undo
 /// runs in the same folder, and only while the entry Claude wrote in
@@ -448,31 +435,6 @@ fn item(kind: ItemKind, name: &str, detail: Detail) -> Item {
         scope: Scope::User,
         detail,
     }
-}
-
-/// `dir`'s entries (folders when `dirs`, else files), by name, sorted,
-/// hidden ones and `.trash` left out.
-pub(crate) fn children(dir: &Path, dirs: bool) -> Vec<(String, PathBuf)> {
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return Vec::new();
-    };
-    let mut out: Vec<(String, PathBuf)> = entries
-        .flatten()
-        .filter(|entry| {
-            entry
-                .file_type()
-                .is_ok_and(|kind| if dirs { kind.is_dir() } else { kind.is_file() })
-        })
-        .map(|entry| {
-            (
-                entry.file_name().to_string_lossy().into_owned(),
-                entry.path(),
-            )
-        })
-        .filter(|(name, _)| !name.starts_with('.'))
-        .collect();
-    out.sort();
-    out
 }
 
 /// A Codex prompt's `$1…$9` (1-based) as a Claude command's `$0…$8`.

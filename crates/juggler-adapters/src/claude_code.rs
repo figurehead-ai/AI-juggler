@@ -1108,9 +1108,7 @@ pub fn claude_state_file_in(dir: &Path, home: &Path) -> PathBuf {
 }
 
 pub(crate) fn home_dir() -> Option<PathBuf> {
-    std::env::var_os("HOME")
-        .or_else(|| std::env::var_os("USERPROFILE"))
-        .map(PathBuf::from)
+    crate::inventory_files::user_home()
 }
 
 pub(crate) fn home_relative(relative: &str) -> Option<PathBuf> {

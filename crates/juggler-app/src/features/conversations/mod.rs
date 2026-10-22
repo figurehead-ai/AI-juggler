@@ -527,6 +527,9 @@ pub(crate) fn transcript_of(
         .map(reference)
 }
 
+/// The most conversation files one replay lookup reads.
+const PRIMED_SCAN_MAX: usize = 200;
+
 /// How much of a title must match a replay's header to count as its
 /// opening (a short title says too little to tell).
 const OPENING_MIN: usize = 24;
@@ -554,32 +557,38 @@ pub(crate) fn primed_conversation(
     let adapter = state.registry.get(&account.harness)?;
     let since = std::time::UNIX_EPOCH
         + std::time::Duration::from_millis(u64::try_from(after_ms).unwrap_or(0));
-    let mut found = adapter
+    // Newest first, and only so many: a session started days ago can't
+    // make this read a large history whole (review of #132).
+    let mut recent: Vec<(std::time::SystemTime, PathBuf)> = adapter
         .conversation_files(&account.state_dir)
         .into_iter()
         .filter(|path| !taken.contains(path))
-        .filter(|path| {
-            std::fs::metadata(path)
-                .and_then(|meta| meta.modified())
-                .is_ok_and(|modified| modified >= since)
-        })
         .filter_map(|path| {
-            let summary = adapter
-                .read_conversation_quick(&path)
-                .or_else(|| adapter.read_conversation(&path))?;
-            let opens = summary.title.as_deref().is_some_and(|title| {
-                // A title is the first line, cut at a length with "…" added.
-                let title = title.trim().trim_end_matches('…').trim_end();
-                title.chars().count() >= OPENING_MIN.min(header.chars().count())
-                    && (header.starts_with(title) || title.starts_with(header))
-            });
-            let here = summary.cwd.as_deref() == Some(cwd);
-            let after = summary.started_ms.is_some_and(|at| at >= after_ms);
-            (opens && here && after).then_some(juggler_core::model::TranscriptRef {
-                path,
-                native_id: Some(summary.id),
-            })
+            let modified = std::fs::metadata(&path)
+                .and_then(|meta| meta.modified())
+                .ok()?;
+            (modified >= since).then_some((modified, path))
+        })
+        .collect();
+    recent.sort_by_key(|(modified, _)| std::cmp::Reverse(*modified));
+    recent.truncate(PRIMED_SCAN_MAX);
+    let mut found = recent.into_iter().map(|(_, path)| path).filter_map(|path| {
+        let summary = adapter
+            .read_conversation_quick(&path)
+            .or_else(|| adapter.read_conversation(&path))?;
+        let opens = summary.title.as_deref().is_some_and(|title| {
+            // A title is the first line, cut at a length with "…" added.
+            let title = title.trim().trim_end_matches('…').trim_end();
+            title.chars().count() >= OPENING_MIN.min(header.chars().count())
+                && (header.starts_with(title) || title.starts_with(header))
         });
+        let here = summary.cwd.as_deref() == Some(cwd);
+        let after = summary.started_ms.is_some_and(|at| at >= after_ms);
+        (opens && here && after).then_some(juggler_core::model::TranscriptRef {
+            path,
+            native_id: Some(summary.id),
+        })
+    });
     let first = found.next()?;
     found.next().is_none().then_some(first)
 }

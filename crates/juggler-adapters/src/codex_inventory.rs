@@ -22,8 +22,8 @@ use juggler_adapter::inventory::{
     secret_variable, value_of,
 };
 
-use crate::claude_inventory::{children, secret_names};
 use crate::codex::CODEX_ID;
+use crate::inventory_files::{children, secret_names};
 
 /// Everything the Codex home `home` has set up. `user_home` is the user's
 /// home folder (for the shared `~/.agents/skills`).
@@ -93,6 +93,10 @@ pub fn inventory(home: &Path, user_home: Option<&Path>) -> Vec<Item> {
     items
 }
 
+/// Where a project's own server goes in Codex.
+const EVERY_PROJECT: &str =
+    "for every project in this Codex home: Codex has no servers for one project only";
+
 /// Whether Codex can set up `item`.
 #[must_use]
 pub fn can_set_up(item: &Item) -> SetUp {
@@ -101,7 +105,23 @@ pub fn can_set_up(item: &Item) -> SetUp {
         (_, Detail::FromTheAccount) => SetUp::Impossible(
             "it comes with the claude.ai account, so Codex can't have it".to_owned(),
         ),
-        (ItemKind::McpServer, Detail::Mcp(server)) => mcp_verdict(&item.name, server),
+        (ItemKind::McpServer, Detail::Mcp(server)) => {
+            let verdict = mcp_verdict(&item.name, server);
+            // Codex keeps servers per home, not per project: say so before
+            // a project's own server becomes everyone's (review of #132).
+            match (item.scope, verdict) {
+                (Scope::ProjectPrivate, SetUp::Copy) => SetUp::Translate(EVERY_PROJECT.to_owned()),
+                (Scope::ProjectPrivate, SetUp::Translate(note)) => {
+                    SetUp::Translate(format!("{note}; {EVERY_PROJECT}"))
+                }
+                (_, verdict) => verdict,
+            }
+        }
+        // The shared skills folder is read by every Codex home on this Mac,
+        // and an undo takes it away from all of them.
+        (ItemKind::Skill, Detail::Files { .. }) if !from_codex => SetUp::Translate(
+            "into ~/.agents/skills, which every Codex home on this Mac reads".to_owned(),
+        ),
         (ItemKind::Skill, Detail::Files { .. }) => SetUp::Copy,
         (ItemKind::Command | ItemKind::Subagent | ItemKind::MainRules, Detail::Files { .. })
             if from_codex =>

@@ -814,7 +814,7 @@ impl HarnessAdapter for CodexAdapter {
     fn scan_shell_aliases(&self) -> Vec<juggler_adapter::environment::AliasHint> {
         self.home
             .clone()
-            .or_else(crate::claude_code::home_dir)
+            .or_else(crate::inventory_files::user_home)
             .map_or_else(Vec::new, |home| codex_aliases(&home))
     }
 
@@ -830,7 +830,7 @@ impl HarnessAdapter for CodexAdapter {
         state_dir: &Path,
         _project: Option<&Path>,
     ) -> Vec<juggler_adapter::inventory::Item> {
-        crate::codex_inventory::inventory(state_dir, crate::claude_code::home_dir().as_deref())
+        crate::codex_inventory::inventory(state_dir, crate::inventory_files::user_home().as_deref())
     }
 
     fn can_set_up(
@@ -846,7 +846,11 @@ impl HarnessAdapter for CodexAdapter {
         _project: Option<&Path>,
         item: &juggler_adapter::inventory::Item,
     ) -> Result<juggler_adapter::inventory::Applied, AdapterError> {
-        crate::codex_inventory::set_up(state_dir, crate::claude_code::home_dir().as_deref(), item)
+        crate::codex_inventory::set_up(
+            state_dir,
+            crate::inventory_files::user_home().as_deref(),
+            item,
+        )
     }
 
     fn conversation_files(&self, state_dir: &Path) -> Vec<PathBuf> {

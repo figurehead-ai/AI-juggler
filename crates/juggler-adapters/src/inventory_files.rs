@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 
 use juggler_adapter::error::AdapterError;
 use juggler_adapter::handover::sha256_hex;
-use juggler_adapter::inventory::{Applied, Undo};
+use juggler_adapter::inventory::{Applied, McpServer, McpTransport, Undo, Value, secret_variable};
 
 /// The most files a copied folder may hold.
 pub const MAX_FILES: usize = 500;
@@ -167,6 +167,53 @@ fn unreachable_entries(from: &Path, depth: usize) -> Vec<String> {
     let mut out = Vec::new();
     walk(from, "", depth, &mut out);
     out
+}
+
+/// The user's home folder (shared by every tool's inventory: Codex reads
+/// the shared `~/.agents/skills` there).
+pub(crate) fn user_home() -> Option<PathBuf> {
+    std::env::var_os("HOME")
+        .or_else(|| std::env::var_os("USERPROFILE"))
+        .map(PathBuf::from)
+}
+
+/// `dir`'s entries (folders when `dirs`, else files), by name, sorted,
+/// hidden ones and `.trash` left out.
+pub(crate) fn children(dir: &Path, dirs: bool) -> Vec<(String, PathBuf)> {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return Vec::new();
+    };
+    let mut out: Vec<(String, PathBuf)> = entries
+        .flatten()
+        .filter(|entry| {
+            entry
+                .file_type()
+                .is_ok_and(|kind| if dirs { kind.is_dir() } else { kind.is_file() })
+        })
+        .map(|entry| {
+            (
+                entry.file_name().to_string_lossy().into_owned(),
+                entry.path(),
+            )
+        })
+        .filter(|(name, _)| !name.starts_with('.'))
+        .collect();
+    out.sort();
+    out
+}
+
+/// The variables a server's dropped secrets become.
+pub(crate) fn secret_names(name: &str, server: &McpServer) -> Vec<String> {
+    let pairs = match &server.transport {
+        McpTransport::Stdio { env, .. } => env.as_slice(),
+        McpTransport::Http { headers, .. } => headers.as_slice(),
+        McpTransport::Other { .. } => &[],
+    };
+    pairs
+        .iter()
+        .filter(|(_, value)| *value == Value::Secret)
+        .map(|(key, _)| secret_variable(name, key))
+        .collect()
 }
 
 /// Text through `transform`; anything that isn't UTF-8 as it is.
