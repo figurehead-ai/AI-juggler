@@ -246,6 +246,16 @@ pub fn looks_secret(key: &str, value: &str) -> bool {
         "private",
         "dsn",
     ];
+    let key = key.to_ascii_lowercase();
+    if KEY_WORDS.iter().any(|word| key.contains(word)) {
+        return true;
+    }
+    carries_secret(value) || looks_token(value)
+}
+
+/// Whether one word reads as a token by its shape: a known key prefix, or
+/// a long run of letters and digits with no spaces.
+fn looks_token(value: &str) -> bool {
     const PREFIXES: [&str; 10] = [
         "sk-",
         "ghp_",
@@ -258,19 +268,11 @@ pub fn looks_secret(key: &str, value: &str) -> bool {
         "AIza",
         "eyJ",
     ];
-    let key = key.to_ascii_lowercase();
-    if KEY_WORDS.iter().any(|word| key.contains(word)) {
-        return true;
-    }
-    if carries_secret(value) {
-        return true;
-    }
     let value = value.trim();
     let value = value.strip_prefix("Bearer ").unwrap_or(value);
     if PREFIXES.iter().any(|prefix| value.starts_with(prefix)) {
         return true;
     }
-    // A long run of letters and digits with no spaces reads as a token.
     value.len() >= 32
         && !value.contains(char::is_whitespace)
         && !value.contains('/')
@@ -335,6 +337,13 @@ impl JsonEntry {
     }
 }
 
+/// Whether a `Name: value` header holds a secret.
+fn header_is_secret(header: &str) -> bool {
+    header
+        .split_once(':')
+        .is_some_and(|(name, value)| looks_secret(name.trim(), value.trim()))
+}
+
 /// Words in a name that mark its value as a secret.
 const SECRET_NAME_WORDS: [&str; 9] = [
     "key",
@@ -359,6 +368,12 @@ pub fn carries_secret(text: &str) -> bool {
         if let Some((userinfo, _)) = authority.rsplit_once('@')
             && userinfo.contains(':')
         {
+            return true;
+        }
+        // A token as a path segment (`…/api/mcp/s/<token>/mcp`), by its
+        // shape (re-review of #132).
+        let path = rest.split(['?', '#']).next().unwrap_or_default();
+        if path.split('/').skip(1).any(looks_token) {
             return true;
         }
     }
@@ -400,7 +415,12 @@ impl McpServer {
                         .iter()
                         .any(|word| arg.to_ascii_lowercase().contains(word))
                     && args.get(at + 1).is_some_and(|next| !next.starts_with('-'));
-                flag || looks_secret("", arg)
+                // `--header "Authorization: Bearer …"` (mcp-remote and the
+                // like): the next word is a header, checked as one.
+                let header = matches!(arg.as_str(), "--header" | "-H")
+                    && args.get(at + 1).is_some_and(|next| header_is_secret(next));
+                let inline_header = arg.strip_prefix("--header=").is_some_and(header_is_secret);
+                flag || header || inline_header || looks_secret("", arg)
             }),
             McpTransport::Http { url, .. } => carries_secret(url),
             McpTransport::Other { url, .. } => url.as_deref().is_some_and(carries_secret),
@@ -549,6 +569,31 @@ mod tests {
             oauth: false,
         };
         assert!(http("https://u:p@mcp.example.com").secret_inline());
+        // Re-review of #132: a header passed as an argument, and a token
+        // as a URL path segment.
+        assert!(
+            stdio(&[
+                "mcp-remote",
+                "https://x.example/mcp",
+                "--header",
+                "Authorization: Bearer abc123"
+            ])
+            .secret_inline()
+        );
+        assert!(stdio(&["--header=X-Api-Key: abc123"]).secret_inline());
+        assert!(!stdio(&["--header", "Accept: text/event-stream"]).secret_inline());
+        assert!(
+            http("https://mcp.zapier.com/api/mcp/s/aB3dE5fG7hJ9kL1mN3pQ5rS7tU9vW1xY3zA5/mcp")
+                .secret_inline()
+        );
+        assert!(
+            stdio(&[
+                "mcp-remote",
+                "https://mcp.zapier.com/api/mcp/s/aB3dE5fG7hJ9kL1mN3pQ5rS7tU9vW1xY3zA5/mcp"
+            ])
+            .secret_inline()
+        );
+        assert!(!http("https://mcp.linear.app/v1/sse").secret_inline());
         assert!(!http("https://mcp.example.com/sse").secret_inline());
         assert!(matches!(
             stdio(&["--api-key", "abc123"]).inline_secret_verdict(),

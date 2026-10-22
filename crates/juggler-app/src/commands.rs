@@ -5538,7 +5538,7 @@ fn wizard_reasons_of(
     }
     if !carry.dropped.is_empty() {
         reasons.push(format!(
-            "The carry-list drops: {}.",
+            "This switch leaves behind: {}.",
             carry.dropped.join(", ")
         ));
     }
@@ -5648,6 +5648,40 @@ pub fn switch_execute_impl(
 }
 
 /// [`switch_execute_impl`] with the switch's trigger (AJ-E1103).
+/// A session's switch in progress: held for the whole switch, released
+/// however it ends.
+pub(crate) struct SwitchSlot<'a> {
+    state: &'a Arc<AppState>,
+    session: String,
+}
+
+impl<'a> SwitchSlot<'a> {
+    /// Takes `session`'s slot, refusing while another switch of it runs.
+    pub(crate) fn take(state: &'a Arc<AppState>, session: &str) -> AppResult<Self> {
+        let mut running = state
+            .switching
+            .lock()
+            .map_err(|_| AppError::Refused("switching is unavailable right now".to_owned()))?;
+        if !running.insert(session.to_owned()) {
+            return Err(AppError::Refused(
+                "This session is already being switched: wait for that to finish".to_owned(),
+            ));
+        }
+        Ok(Self {
+            state,
+            session: session.to_owned(),
+        })
+    }
+}
+
+impl Drop for SwitchSlot<'_> {
+    fn drop(&mut self) {
+        if let Ok(mut running) = self.state.switching.lock() {
+            running.remove(&self.session);
+        }
+    }
+}
+
 fn switch_execute_core(
     state: &Arc<AppState>,
     session_id: &str,
@@ -5658,6 +5692,7 @@ fn switch_execute_core(
     trigger: &'static str,
 ) -> AppResult<SwitchExecutedInfo> {
     use juggler_handover::pipeline::{self, Mechanism};
+    let _slot = SwitchSlot::take(state, session_id)?;
 
     let freeze = freeze_of(freeze_choice);
     let sides = switch_sides(state, session_id, target_profile_id)?;
@@ -11864,6 +11899,7 @@ pub fn switch_back_execute_to_impl(
 ) -> AppResult<LaunchResult> {
     use juggler_handover::switch_back::{plan_resolutions, unresolved};
 
+    let _slot = SwitchSlot::take(state, session_id)?;
     let (lineage, away_account, original_account, delta_input, conflicts, away_live, verdict) =
         back_facts(state, session_id, to_epoch)?;
     // S-F8: every conflict resolved or the work stays forked — an
