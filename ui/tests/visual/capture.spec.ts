@@ -2373,6 +2373,7 @@ void preflightSeams;
 const SWITCH_WIZARD_FIXTURE = {
   mechanism: "transplant",
   fidelity: "F2",
+  fidelity_words: "Same conversation, new account (compacted)",
   score: 0.78,
   warnings: [
     "This conversation was compacted. Early detail carries as text, not as live memory — it may ask about early decisions.",
@@ -2381,18 +2382,18 @@ const SWITCH_WIZARD_FIXTURE = {
   diff_snapshotted: true,
   source_live: true,
   experimental_copy:
-    "Experimental: only the main transcript moves. Subagent files and rewind history stay on the source. The source stays resumable.",
+    "Beta, not proven yet: the whole session moves, with its subagents and file history. The source stays resumable.",
   door: "wizard" as const,
   wizard_steps: ["Target", "What's carried", "Confirm"],
   wizard_reasons: [
     "This isn't the usual account for this project.",
-    "The carry-list drops: todo list.",
+    "This switch leaves behind: subagent state.",
   ],
   usual_account: false,
   carry: {
     carried: ["chat transcript", "rules & guidelines", "uncommitted git diff"],
     regenerated: [],
-    dropped: ["todo list", "subagent state"],
+    dropped: ["subagent state"],
   },
 };
 
@@ -2531,13 +2532,14 @@ for (const theme of THEMES) {
 const SWITCH_ONECLICK_FIXTURE = {
   mechanism: "transplant",
   fidelity: "F4",
+  fidelity_words: "Continues exactly",
   score: 1.0,
   warnings: [],
   zombies: [],
   diff_snapshotted: false,
   source_live: true,
   experimental_copy:
-    "Experimental: only the main transcript moves. Subagent files and rewind history stay on the source. The source stays resumable.",
+    "Beta, not proven yet: the whole session moves, with its subagents and file history. The source stays resumable.",
   door: "one-click" as const,
   wizard_steps: [],
   wizard_reasons: [],
@@ -2561,7 +2563,7 @@ const SWITCH_WIZARD_5STEP_FIXTURE = {
   wizard_steps: ["Target", "What's carried", "Conflicts", "Rules & diff", "Confirm"],
   wizard_reasons: [
     "This isn't the usual account for this project.",
-    "The carry-list drops: todo list.",
+    "This switch leaves behind: subagent state.",
   ],
 };
 
@@ -2631,7 +2633,7 @@ for (const theme of THEMES) {
       await openDoor(page, SWITCH_WIZARD_FIXTURE);
       await page.getByTestId("switch-continue").click();
       await expect(page.getByTestId("switch-steps")).toContainText("Step 2 of 3: What's carried");
-      await expect(page.getByTestId("switch-carry-dropped")).toContainText("todo list");
+      await expect(page.getByTestId("switch-carry-dropped")).toContainText("subagent state");
       await page.screenshot({
         path: resolve(GALLERY, `29-door/wizard-3step-carried-${vp.name}-${theme}.png`),
       });
@@ -2641,7 +2643,7 @@ for (const theme of THEMES) {
       await openDoor(page, SWITCH_WIZARD_5STEP_FIXTURE);
       await page.getByTestId("switch-continue").click();
       await expect(page.getByTestId("switch-steps")).toContainText("Step 2 of 5: What's carried");
-      await expect(page.getByTestId("switch-carry-dropped")).toContainText("todo list");
+      await expect(page.getByTestId("switch-carry-dropped")).toContainText("subagent state");
       await page.screenshot({
         path: resolve(GALLERY, `29-door/wizard-5step-carried-${vp.name}-${theme}.png`),
       });
@@ -2804,7 +2806,7 @@ for (const theme of THEMES) {
  * Settings; no secret VALUE ever appears (masked previews only).
  */
 const REDACTION_LINE_GLOBAL =
-  "Redaction for claude-code: Strip — replace keys with ••• (your global choice)";
+  "Redaction for Claude Code: Strip — replace keys with ••• (your global choice)";
 
 for (const theme of THEMES) {
   for (const vp of SWITCH_VP) {
@@ -2885,7 +2887,7 @@ for (const theme of THEMES) {
           override: "strip",
           effective: "strip",
           source: "override",
-          line: "Redaction for claude-code: Strip — replace keys with ••• (override)",
+          line: "Redaction for Claude Code: Strip — replace keys with ••• (override)",
         },
         redaction_items: [
           { kind: "sk-key", preview: "s•••5678", segment: 0 },
@@ -2910,7 +2912,7 @@ for (const theme of THEMES) {
           override: null,
           effective: "ask",
           source: "global",
-          line: "Redaction for claude-code: Ask each time (your global choice)",
+          line: "Redaction for Claude Code: Ask each time (your global choice)",
         },
         redaction_items: [],
       });
@@ -3019,7 +3021,7 @@ const BADGE_SET_TARGETS = [
     badge: "Full story, fresh start · Beta",
     validated: false,
     cross_provider: true,
-    drops: ["todo list", "subagent state"],
+    drops: ["subagent state"],
     score: 0.44,
     top_factors: ["35% headroom", "quiet"],
     factors: [["35% headroom", 0.16], ["quiet", 0.1]],

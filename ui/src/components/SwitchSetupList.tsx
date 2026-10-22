@@ -54,7 +54,9 @@ export function SwitchSetupList({
   check: SetupCheckInfo;
   picked: ReadonlySet<string>;
   onToggle: (id: string) => void;
-}): JSX.Element {
+}): JSX.Element | null {
+  // Nothing missing, nothing to show: the switch screen stays short.
+  if (check.offers.length === 0) return null;
   return (
     <section className="flex flex-col gap-2" data-testid="switch-setup" aria-labelledby="switch-setup-title">
       <h4 id="switch-setup-title" className="text-xs font-semibold">

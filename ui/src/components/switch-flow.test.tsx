@@ -26,7 +26,7 @@ const ONECLICK: PreflightInfoData = {
   source_live: true,
   source_keeps_running: false,
   experimental_copy:
-    "Experimental: only the main transcript moves. Subagent files and rewind history stay on the source. The source stays resumable.",
+    "Beta, not proven yet: the whole session moves, with its subagents and file history. The source stays resumable.",
   door: "one-click",
   wizard_steps: [],
   wizard_reasons: [],
@@ -41,7 +41,7 @@ const ONECLICK: PreflightInfoData = {
     override: null,
     effective: "strip",
     source: "global",
-    line: "Redaction for claude-code: Strip — replace keys with ••• (your global choice)",
+    line: "Redaction for Claude Code: Strip — replace keys with ••• (your global choice)",
   },
   redaction_items: [],
 };
@@ -49,6 +49,7 @@ const ONECLICK: PreflightInfoData = {
 const WIZARD: PreflightInfoData = {
   ...ONECLICK,
   fidelity: "F2",
+  fidelity_words: "Same conversation, new account (compacted)",
   door: "wizard",
   wizard_steps: ["Target", "What's carried", "Confirm"],
   wizard_reasons: ["This isn't the usual account for this project."],
