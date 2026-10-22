@@ -985,3 +985,46 @@ fn a_handover_waiting_when_link_goes_off_launches_nothing() {
         "{outcome:?}"
     );
 }
+
+/// A take from before an off-then-on is refused: the user turns this
+/// Mac's Link off and on while it asks, then says yes. That take belongs
+/// to the earlier run, and nothing launches.
+#[test]
+fn a_handover_from_before_link_off_and_on_launches_nothing() {
+    let pair = setup("2.1.0", true, Permission::Control);
+    let laptop_id = fleet::fleet_self_impl(&pair.laptop).unwrap().machine_id;
+    fleet::fleet_set_permission_impl(&pair.desktop, &laptop_id, "control", true).unwrap();
+    let _ = target(&pair, "t2_ready");
+
+    let laptop = Arc::clone(&pair.laptop);
+    let request = request(&pair, "transplant");
+    let switch = std::thread::spawn(move || {
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        runtime.block_on(crossmachine::fleet_switch_execute_impl(
+            laptop,
+            request,
+            |_| {},
+        ))
+    });
+    let prompt = wait_for("the desktop asks its user", || {
+        link::prompts_impl(&pair.desktop).into_iter().next()
+    });
+    link::link_set_enabled_impl(&pair.desktop, false).unwrap();
+    link::link_set_enabled_impl(&pair.desktop, true).unwrap();
+    link::prompt_decide_impl(&pair.desktop, prompt.id, true);
+    let outcome = switch.join().unwrap();
+    std::thread::sleep(Duration::from_secs(1));
+
+    let launched = pair
+        .desktop
+        .accounts_dir()
+        .join(CLAUDE_CODE_ID)
+        .join(&pair.desktop_account)
+        .join("last-args");
+    assert!(!launched.exists(), "nothing launched from the earlier run");
+    assert!(
+        outcome.as_ref().map_or(true, |outcome| !outcome.accepted),
+        "{outcome:?}"
+    );
+    link::link_set_enabled_impl(&pair.desktop, false).unwrap();
+}

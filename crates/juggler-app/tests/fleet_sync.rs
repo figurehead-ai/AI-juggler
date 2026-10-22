@@ -647,13 +647,24 @@ fn a_thousand_queued_changes_catch_up_inside_three_seconds() {
 }
 
 /// Link off means off however clicks race: several "on" at once start
-/// one Link, and the "off" after them leaves none running. (That its
-/// port is free is `juggler-link`'s `a_stopped_nodes_port_is_free_at_once`:
-/// tests here share the preferred port.)
+/// one Link, and the "off" after them leaves none running: no run's loop
+/// is left, and the port it took is free.
 #[test]
 fn starts_at_once_run_one_link_and_off_ends_it() {
     let work = tempfile::tempdir().unwrap();
     let a = app_state(&work.path().join("a"));
+    // Its own port (tests here share the preferred one), free to check.
+    let own = std::net::TcpListener::bind("0.0.0.0:0")
+        .unwrap()
+        .local_addr()
+        .unwrap()
+        .port();
+    a.storage
+        .lock()
+        .unwrap()
+        .app_settings()
+        .set("fleet_link_last_port", &own.to_string())
+        .unwrap();
     let ports: Vec<Option<u16>> = std::thread::scope(|scope| {
         let starts: Vec<_> = (0..4)
             .map(|_| scope.spawn(|| link::link_set_enabled_impl(&a, true).unwrap().port))
@@ -669,8 +680,15 @@ fn starts_at_once_run_one_link_and_off_ends_it() {
         ports.iter().all(|port| *port == first),
         "one Link: {ports:?}"
     );
+    assert_eq!(first, Some(own), "the run took its own port");
+    assert_eq!(link::link_runs_for_test(&a), 1, "one run");
     let off = link::link_set_enabled_impl(&a, false).unwrap();
     assert!(!off.enabled && off.port.is_none());
+    assert_eq!(link::link_runs_for_test(&a), 0, "no run left");
+    assert!(
+        std::net::TcpListener::bind(("0.0.0.0", own)).is_ok(),
+        ":{own} is free after off"
+    );
 }
 
 /// Off during the launch start (Link left on last time): the start
@@ -776,6 +794,7 @@ fn a_normal_pairing_never_shows_it_unfinished() {
 /// says the pairing didn't finish. Pairing again (its Hello) finishes it.
 #[test]
 fn a_joiner_stopped_mid_way_leaves_the_host_unfinished() {
+    let mut reached = 0;
     for _ in 0..4 {
         let work = tempfile::tempdir().unwrap();
         let a = app_state(&work.path().join("a"));
@@ -803,7 +822,8 @@ fn a_joiner_stopped_mid_way_leaves_the_host_unfinished() {
         let joiner_pinned = !fleet::fleet_peers_impl(&b).unwrap().is_empty();
         match unfinished(&a, &b) {
             Some(shown) if !joiner_pinned => {
-                assert!(shown, "the host shows it didn't finish");
+                reached += 1;
+                assert!(shown, "the host shows it may not have finished");
                 // Pairing again finishes it.
                 link::link_set_enabled_impl(&b, true).unwrap();
                 pair(&a, &b);
@@ -814,4 +834,5 @@ fn a_joiner_stopped_mid_way_leaves_the_host_unfinished() {
             _ => {}
         }
     }
+    assert!(reached > 0, "no round stopped the joiner mid-way");
 }

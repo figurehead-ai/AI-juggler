@@ -123,7 +123,7 @@ describe("AJ-E702 Fleet screen", () => {
   });
 });
 
-describe("a pairing that didn't finish", () => {
+describe("a pairing that may not have finished", () => {
   it("says so on the machine's row, with Pair again opening the pairing", async () => {
     w().__AIJ_LINK__ = { enabled: true, port: 47821, error: null };
     w().__AIJ_FLEET_PEERS__ = [{ ...PEER, pairing_unfinished: true }];
@@ -133,7 +133,7 @@ describe("a pairing that didn't finish", () => {
       expect(found).not.toBeNull();
       return found!;
     });
-    expect(line.textContent).toBe("Pairing didn't finish on Mac mini. Pair again to finish it.");
+    expect(line.textContent).toBe("Pairing may not have finished on Mac mini. Pair again to be sure.");
     expect(line.getAttribute("role")).toBe("status");
     expect(container.textContent).not.toMatch(/Not seen yet/);
     const again = container.querySelector<HTMLButtonElement>("[data-testid='fleet-pair-again']")!;

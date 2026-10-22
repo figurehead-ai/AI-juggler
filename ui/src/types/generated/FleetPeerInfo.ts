@@ -61,6 +61,6 @@ connection_detail: string | null,
 queued_changes: number | null, 
 /**
  * This Mac finished pairing with it, but it may not have (it never
- * said Hello here since): "Pair again to finish it."
+ * said Hello here since): "Pair again to be sure."
  */
 pairing_unfinished: boolean, };

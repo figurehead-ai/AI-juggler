@@ -99,7 +99,7 @@ pub struct FleetPeerInfo {
     #[ts(type = "number | null")]
     pub queued_changes: Option<u64>,
     /// This Mac finished pairing with it, but it may not have (it never
-    /// said Hello here since): "Pair again to finish it."
+    /// said Hello here since): "Pair again to be sure."
     pub pairing_unfinished: bool,
 }
 
@@ -462,6 +462,10 @@ pub fn fleet_set_permission_impl(
             )
             .map_err(link_error)
     })?;
+    // No access: it can't say Hello here, so nothing waits on one.
+    if permission == Permission::NoAccess {
+        pairing_finished(state, machine_id);
+    }
     fleet_peers_impl(state)
 }
 
