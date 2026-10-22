@@ -353,7 +353,8 @@ def build(args) -> dict:
     for d in codex_dirs(args.codex_dir):
         accounts.append(("~/.codex" if d == HOME / ".codex" else d.name, "codex", d))
 
-    projects = defaultdict(lambda: {"how": set(), "per_account": defaultdict(int), "cwds": set(), "last": 0.0})
+    projects = defaultdict(lambda: {"how": set(), "per_account": defaultdict(int), "cwds": set(), "last": 0.0,
+                                    "claude_sessions": set()})
     per_account = {}
     transcripts_by_session = {}
     session_usage = defaultdict(dict)  # session id → {(message id, request id): (ts, tokens)}
@@ -363,6 +364,14 @@ def build(args) -> dict:
     # (account idx, the folder resolved) → [(mtime, session)]: a running
     # CLI's folder (from lsof, resolved) finds its conversations by it.
     newest_in_folder = defaultdict(list)
+    # A switch copies a conversation into the next account under the same
+    # session id, its earlier messages included (same message and request
+    # ids). Those were used on the account they came from: each Claude
+    # account's records are kept here and a message shared by copies is
+    # credited to one account once every account is read.
+    claude_records = {}  # account idx → {(message id, request id): (ts, tokens)}
+    claude_lines = {}  # account idx → [(ts, tokens)] per line
+    copies = defaultdict(dict)  # session id → {account idx: (first, last)}
     for idx, (label, tool, folder) in enumerate(accounts):
         acc = {"label": label, "tool": tool, "conversations": 0, "empty_files": 0, "subagent_files": 0,
                "changed": {"1h": 0, "24h": 0}, "tokens": {}, "tokens_per_line": {}, "codex_limits": None}
@@ -379,6 +388,13 @@ def build(args) -> dict:
                 if conv["last"] is not None:
                     last = conv["last"] if last is None else max(last, conv["last"])
                 session_span[sid] = (first, last)
+                if "subagents" not in path.parts:
+                    first, last = copies[sid].get(idx, (None, None))
+                    if conv["first"] is not None:
+                        first = conv["first"] if first is None else min(first, conv["first"])
+                    if conv["last"] is not None:
+                        last = conv["last"] if last is None else max(last, conv["last"])
+                    copies[sid][idx] = (first, last)
                 if "subagents" in path.parts:
                     # A subagent's usage is the account's usage; it is
                     # not a conversation of its own.
@@ -402,14 +418,10 @@ def build(args) -> dict:
                 p = projects[root]
                 p["how"].add(how)
                 p["per_account"][idx] += 1
+                p["claude_sessions"].add(sid)
                 p["cwds"].add(conv["cwd"])
                 p["last"] = max(p["last"], conv["last"] or conv["mtime"])
-            # Each message's (time, tokens), for a compare that cuts at the
-            # moment the backend read the files.
-            acc["points"] = [(ts, sum(t.values())) for ts, t in records.values()]
-            for name, span in WINDOWS:
-                acc["tokens"][name] = sum_tokens((ts, t) for ts, t in records.values() if now - ts < span)
-                acc["tokens_per_line"][name] = sum_tokens((ts, t) for ts, t in lines if now - ts < span)
+            claude_records[idx], claude_lines[idx] = records, lines
         else:
             newest = None
             window_tokens = {name: 0 for name, _ in WINDOWS}
@@ -471,6 +483,30 @@ def build(args) -> dict:
                 acc["codex_limits"] = codex_limits(newest[1], newest[0], now)
         per_account[idx] = acc
 
+    # A message in several accounts' copies of one conversation belongs to
+    # the copy it was first written in: the one whose last message is
+    # earliest (the copy a switch left), then the earlier first, then the
+    # account's order.
+    inf = float("inf")
+    carried = 0
+    for sid, held in copies.items():
+        if len(held) < 2:
+            continue
+        order = sorted(held, key=lambda i: (inf if held[i][1] is None else held[i][1],
+                                            inf if held[i][0] is None else held[i][0], i))
+        for n, later in enumerate(order[1:], 1):
+            for key in [k for k in claude_records[later] if any(k in claude_records[o] for o in order[:n])]:
+                carried += sum(claude_records[later].pop(key)[1].values())
+    for idx, records in claude_records.items():
+        acc = per_account[idx]
+        # Each message's (time, tokens), for a compare that cuts at the
+        # moment the backend read the files.
+        acc["points"] = [(ts, sum(t.values())) for ts, t in records.values()]
+        for name, span in WINDOWS:
+            acc["tokens"][name] = sum_tokens((ts, t) for ts, t in records.values() if now - ts < span)
+            acc["tokens_per_line"][name] = sum_tokens((ts, t) for ts, t in claude_lines[idx] if now - ts < span)
+    carried_sessions = sum(1 for held in copies.values() if len(held) > 1)
+
     live = []
     for proc in processes():
         entry = dict(proc)
@@ -503,7 +539,6 @@ def build(args) -> dict:
     for session, records in session_usage.items():
         for key in records:
             holders[key].append(session)
-    inf = float("inf")
 
     def rank(session):
         first, last = session_span.get(session, (None, None))
@@ -517,6 +552,7 @@ def build(args) -> dict:
         if records:
             session_totals[session] = sum_tokens(records.values())["total"]
     return {"generated": now, "accounts": accounts, "per_account": per_account, "projects": projects,
+            "carried": {"sessions": carried_sessions, "tokens": carried},
             "live": live, "session_totals": session_totals, "session_mtime": session_mtime, "desktop_roots": desktop_roots()}
 
 
@@ -612,6 +648,10 @@ def report(truth: dict, key_file: str | None, as_json: bool, live_minutes: int =
             out.append(f"    limits (read {lim['age_minutes']} min ago): primary {p and p['used_percent']}% used = {p and p['left_percent']}% left, "
                        f"window {p and p['window_minutes']} min, resets {p and p['resets_at']}{' (passed)' if p and p['reset_passed'] else ''}; "
                        f"secondary {lim['secondary'] or 'none'}; plan {lim['plan_type']}; credits {lim['credits']}")
+    carried = truth.get("carried") or {}
+    if carried.get("sessions"):
+        out.append(f"- {carried['sessions']} conversation(s) carried into another account by a switch: "
+                   f"{carried['tokens']:,} tokens of their earlier messages counted once, on the account they came from")
     out += ["", f"Projects ({len(data['projects'])}; agent worktrees folded into their repo)"]
     for p in data["projects"]:
         convs = ", ".join(f"{k} {v}" for k, v in p["conversations"].items())
@@ -743,7 +783,10 @@ def compare(truth: dict, harness: dict) -> str:
     verdict(len(harness["projects"]) == len(ranked),
             f"projects: backend {len(harness['projects'])} rows, oracle {len(ranked)}")
     for root, p in ranked:
-        claude_convs = sum(n for i, n in p["per_account"].items() if accounts[i][1] == "claude")
+        # A conversation a switch carried into another account is one
+        # conversation, in both accounts' lists.
+        claude_convs = len(p["claude_sessions"])
+        carried = sum(n for i, n in p["per_account"].items() if accounts[i][1] == "claude") - claude_convs
         codex_convs = sum(n for i, n in p["per_account"].items() if accounts[i][1] == "codex")
         got = rows.get(root, [])
         shown = sum(r["history_sessions"] or 0 for r in got)
@@ -752,8 +795,14 @@ def compare(truth: dict, harness: dict) -> str:
         want = sorted({acc_name[i] for i in p["per_account"]})
         detail = (f"{proj_name[root]}: backend {shown} conversations in {len(got)} row(s)"
                   f"{' (' + str(len(extra)) + ' split off as their own projects)' if extra else ''}, accounts {names or '-'}; "
-                  f"oracle {claude_convs} Claude + {codex_convs} Codex, accounts {want}")
+                  f"oracle {claude_convs} Claude{f' ({carried} also in another account)' if carried else ''} + {codex_convs} Codex, accounts {want}")
         verdict(len(got) == 1 and shown == claude_convs + codex_convs and names == want, detail)
+
+    carried = truth.get("carried") or {}
+    if carried.get("sessions"):
+        verdict(None, f"switch copies: {carried['sessions']} conversation(s) also in another account; "
+                      f"{carried['tokens']:,} tokens of their earlier messages count once, on the account they came from "
+                      "(windows and cost rows that count them again read high)")
 
     # Sessions: the rail's list against what is running.
     live = [l for l in truth["live"] if l["kind"] == "session"]

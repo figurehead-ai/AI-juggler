@@ -1529,6 +1529,109 @@ WALs, one profile's live session).
 Main's project rows have no Codex threads at all, in either mode. That's AJ-E1529, fixed
 on `release/0.1`, so on main the compressed rollouts show cleanly only in the cost rows.
 
+## Batch 21 — `release/0.1` `e8bf5801` through the bridge (marks, avatars, permissions)
+
+A Dev build of `e8bf5801` with `--features dev-bridge`. Its harness brought the 7 setups in
+where they are, into a fresh `AI Juggler Dev` folder, with redacted labels: 7 of 7, all
+signed in. The UI ran on Vite 5281 through the bridge, with read-only clicks only, and
+nothing was pressed on the "Before you uninstall" card.
+
+- **Snapshots**: no path added or removed, and no `settings.json` or `config.toml`
+  changed. Changed by mtime, at the same size: `remote-settings.json` in three places,
+  and `.claude.json` in two profiles, whose `backups` folders changed too. Both are live
+  Claude Code sessions' own writes, as in earlier batches.
+- **Afterwards**: the app was stopped, the Dev folder was renamed
+  `AI Juggler Dev (qa-e8bf walk 2026-10-22)`, and the build was deleted.
+- **No captures**: at this pane size the marks are a few pixels wide, so every check
+  below was read from the page structure (DOM) and the bridge. No real-data image was
+  made.
+
+### AJ-E1532 project marks — work; one odd pick
+
+| | Seen |
+|---|---|
+| Projects | 14: 13 letters, 1 the project's own icon (a PNG) |
+| Icon pick, done independently (the same search order, sniff and limits) | agrees on all 14 |
+| Clones of one repository | 4, sharing one letter pair and colour, numbered 1–4 on the rail |
+| Letter-and-colour pairs that repeat, clones aside | none; the other 10 projects use 10 different colours |
+| A candidate icon that's a link or over 512 KB | none on this Mac, so that rule isn't exercised here |
+
+- **Odd pick**: five projects whose names differ only by a trailing number (`…-1` to
+  `…-5`) get `AS`, `AL`, `AW`, `AI` and `AT`, letters from deeper in the name. The rail's
+  History lists them one after another, and nothing in the mark tells which is which. A
+  name that ends in a number could keep the number (`A1`…`A5`).
+
+### Account avatars — work
+
+- The walk's labels "Account A"…"Account G" share their first word, so the avatars read
+  `A`…`G`, each in its own colour, on the rail, the project rows and Accounts.
+- The real label set: the names an in-place bring-in gives (the folder names), put
+  through `e8bf5801`'s own `distinctInitials`, give 7 different initials. The four profiles
+  whose names share a first word are told apart by their second word. The letters aren't
+  given here, because they come from real names.
+
+### Rail rows and project headings
+
+- **Project headings** have their accounts as their description, for example
+  "on Account C (running) and Account B (running)". That's on the rail; the project page's
+  own header shows the path, branch and uncommitted files, not the accounts.
+- **Session rows started outside AI Juggler** (every live row here) read
+  "<title>, Running, outside AI Juggler, on Account C". The tool isn't named: the `CC`/`Co`
+  mark beside it is `aria-hidden` (`ToolMark.tsx`), so a screen reader can't tell a
+  Claude Code row from a Codex row. AI Juggler's own session rows weren't seen, because
+  none was running.
+
+### Screen Recording — gone
+
+- `os_access_list` through the bridge returns one entry: "Jump to a session's own
+  window" (Accessibility and Automation), not asked. Nothing on Settings mentions Screen
+  Recording.
+- **Before you uninstall** (Settings › Data) reads as described, with one button, "Prepare
+  to uninstall". It wasn't pressed. `app_prepare_uninstall` isn't on the bridge's allowlist,
+  so the bridge would refuse it anyway.
+
+### The compare, and what it found
+
+`e8bf5801`'s backend output against the oracle: 61 OK, 11 MISMATCH, 2 INFO, once the
+oracle stopped counting a carried conversation twice (below). Ten of the eleven mismatches
+are Codex's compressed rollouts (batch 20), which `release/0.1` doesn't read yet: Account G
+273 conversations against 2,274, and 1,886 sessions with tokens and no cost row. The rest:
+cost rows priced, 229 of 494.
+
+**P19 — a switched conversation's cost row counts its earlier messages twice.** Three of
+today's switching-lab conversations went from Account B to Account C. C's copy keeps the
+same session id and carries B's earlier messages, with the same message and request ids.
+The backend's cost row for each is the sum of both copies:
+
+| Conversation | B's copy | C's copy | Messages counted once | Backend row |
+|---|---|---|---|---|
+| 1 | 263,375 | 183,643 | 302,792 | 447,018 (×1.48) |
+| 2 | 228,566 | 147,706 | 267,789 | 376,272 (×1.41) |
+| 3 | 227,722 | 147,420 | 267,002 | 375,142 (×1.41) |
+
+The 360,849 tokens carried over were spent on B. Counted on C they would also raise C's
+5-hour and 7-day windows. Here that's 0.1% of C's 5 hours, too little to tell from the
+run's timing, so the windows still read OK. With switching a 0.1 feature, a bigger
+conversation carried this way would show a wrong runway on the account switched to.
+
+The oracle had a blind spot of its own: it deduplicated messages within an account only,
+so it counted the copied messages on both accounts too. It now credits a message found in
+several copies to the copy whose last message is earliest, the one the switch left. It
+counts a carried conversation once in its project, and an INFO line says how much was
+carried.
+
+### Building on this Mac (no Xcode)
+
+- A from-scratch link fails: the `apple-metal` Swift bridge wants `swiftCompatibility56`
+  from an Xcode toolchain path. `-L …/CommandLineTools/usr/lib/swift/macosx` plus an rpath
+  to `/usr/lib/swift` fixes both the link and the launch, as
+  `scripts/ensure_swift_runtime.sh` does.
+- Building the harness test after the app relinks `target/debug/juggler-app` without
+  `--features dev-bridge`, so build and copy the app binary first.
+
+Not checked: the replica's live mode (the "damaged" dialog), because this walk was on the
+real setup.
+
 ## Not walked (blocked by W0, before the bridge)
 
 These need the window:
