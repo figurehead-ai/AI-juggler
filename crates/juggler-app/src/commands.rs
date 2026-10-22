@@ -5945,7 +5945,7 @@ fn switch_replay(
     .map_err(|error| SwitchFailure::LaunchFailed(error.to_string()));
     // Copy-never-move, checked after the launch as the pipeline does.
     let checked = launched.and_then(|started| {
-        std::fs::read(&sides.reference.path)
+        juggler_adapters::read_session_file(&sides.reference.path)
             .is_ok_and(|now| juggler_adapter::handover::sha256_hex(&now) == source_sha)
             .then_some(started)
             .ok_or_else(|| {
@@ -6005,7 +6005,7 @@ fn replay_prompt(
         context: "hand over",
         message,
     };
-    let bytes = std::fs::read(&sides.reference.path)
+    let bytes = juggler_adapters::read_session_file(&sides.reference.path)
         .map_err(|_| refused(SwitchFailure::UnresolvedSource.copy(&sides.account_a.label)))?;
     if !juggler_adapter::handover::tail_parses(&bytes) {
         return Err(refused(
@@ -11203,7 +11203,8 @@ fn transcript_side(
     Vec<juggler_handover::pack::IrTurn>,
 )> {
     use juggler_adapters::claude_transcript::MessageRole;
-    let bytes = std::fs::read(path).ok()?;
+    // AJ-E1540: a compressed rollout (`.jsonl.zst`) reads like any other.
+    let bytes = juggler_adapters::read_session_file(path).ok()?;
     let parsed = juggler_adapters::parse_any(&bytes);
     let mut uuids = std::collections::HashSet::new();
     let mut turns = Vec::new();

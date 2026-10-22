@@ -40,16 +40,15 @@ impl juggler_adapter::handover::HandoverSupport for CodexAdapter {
             .file_name()
             .map(|name| name.to_string_lossy().into_owned())
             .unwrap_or_default();
-        if Path::new(&name)
-            .extension()
-            .is_some_and(|ext| ext.eq_ignore_ascii_case("zst"))
-        {
-            return Err(AdapterError::Unsupported(
-                "this session is stored compressed — resume it once on its own account first"
-                    .into(),
-            ));
-        }
-        let bytes = std::fs::read(path)?;
+        // AJ-E1540: Codex compresses older rollouts (`.jsonl.zst`). The copy
+        // travels decompressed, as a plain `.jsonl` of the same name, which
+        // Codex reads like any rollout.
+        let bytes = crate::transcript::read_session_file(path)?;
+        let name = if crate::transcript::is_compressed(path) {
+            name.trim_end_matches(".zst").to_owned()
+        } else {
+            name
+        };
         if !tail_parses(&bytes) {
             return Err(AdapterError::Unsupported(
                 "source rollout tail does not parse — stop the session first".into(),
