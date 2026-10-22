@@ -41,10 +41,35 @@ impl Drop for Reaped {
 /// plugin's socket, so a launch in one test could hand over to another's.
 static SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
-fn serial() -> std::sync::MutexGuard<'static, ()> {
-    SERIAL
+/// Where every checkout's second-launch tests queue: beside the
+/// single-instance socket they all share.
+const SERIAL_LOCK: &str = "/tmp/aij-second-launch-tests.lock";
+
+/// One test at a time: in this binary (its mutex), and across every
+/// checkout on this Mac (a file lock). Two checkouts' launches share the
+/// single-instance socket, so one could hand over to the other's: the
+/// coordinator saw all five fail in a full run beside another checkout's.
+struct Serial {
+    _local: std::sync::MutexGuard<'static, ()>,
+    _machine: std::fs::File,
+}
+
+fn serial() -> Serial {
+    let local = SERIAL
         .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let machine = std::fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(SERIAL_LOCK)
+        .unwrap();
+    // Released when the file closes, even if a test panics.
+    machine.lock().unwrap();
+    Serial {
+        _local: local,
+        _machine: machine,
+    }
 }
 
 /// Where a debug build (AI Juggler Dev) keeps its data under `home`.
