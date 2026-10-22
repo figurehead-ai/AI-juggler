@@ -358,7 +358,7 @@ fn ingest_codex(
 ) {
     let sessions = dir.join("sessions");
     let mut files = Vec::new();
-    collect_jsonl(&sessions, &mut files);
+    collect_rollouts(&sessions, &mut files, 0);
     forget_missing(ingest, account, &sessions, &files);
     let mut latest: Option<juggler_adapters::CreditsSnapshot> = None;
     for path in files {
@@ -626,6 +626,33 @@ fn collect_jsonl(root: &Path, out: &mut Vec<PathBuf>) {
 }
 
 const MAX_WALK_DEPTH: u32 = 5;
+
+/// Codex's rollouts under `sessions/`: `rollout-*.jsonl`, and the older
+/// ones Codex compressed to `rollout-*.jsonl.zst` (most of them, on a Mac
+/// used for a while). A thread caught mid-compression has both; its events
+/// are keyed, so reading both counts them once.
+fn collect_rollouts(root: &Path, out: &mut Vec<PathBuf>, depth: u32) {
+    if depth > MAX_WALK_DEPTH {
+        return;
+    }
+    let Ok(entries) = std::fs::read_dir(root) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            collect_rollouts(&path, out, depth + 1);
+            continue;
+        }
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if name.starts_with("rollout-")
+            && (name.ends_with(".jsonl") || name.ends_with(".jsonl.zst"))
+        {
+            out.push(path);
+        }
+    }
+}
 
 fn collect_jsonl_depth(root: &Path, out: &mut Vec<PathBuf>, depth: u32) {
     if depth > MAX_WALK_DEPTH {

@@ -1412,3 +1412,46 @@ fn our_own_wrapper_is_never_chained() {
         "no chain to ourselves: {script}"
     );
 }
+
+/// Fix batch 5 (P0 for 0.1): Codex compresses older rollouts to
+/// `rollout-*.jsonl.zst` (2,043 of 2,375 files on the maintainer's Mac),
+/// and none were read. A compressed copy of a real-shaped rollout gives
+/// the same events and limit readings as the plain file, read whole once;
+/// a later pass with the file unchanged reads nothing.
+#[test]
+fn a_compressed_rollout_reads_like_the_plain_one_once() {
+    let plain = fixture("codex-rollout-rate-limits.jsonl");
+    let bytes = std::fs::read(&plain).unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let zst = dir
+        .path()
+        .join("rollout-2026-10-21T10-00-00-th-9.jsonl.zst");
+    std::fs::write(&zst, zstd::encode_all(&bytes[..], 3).unwrap()).unwrap();
+
+    let want = tail_rollout(&plain, "acc", 0, &RolloutCarry::default());
+    let got = tail_rollout(&zst, "acc", 0, &RolloutCarry::default());
+    assert!(!want.events.is_empty() || !want.samples.is_empty());
+    assert_eq!(got.events, want.events);
+    assert_eq!(got.samples, want.samples);
+    assert_eq!(got.credits, want.credits);
+    assert_eq!(got.offset, std::fs::metadata(&zst).unwrap().len());
+    let again = tail_rollout(&zst, "acc", got.offset, &RolloutCarry::default());
+    assert!(
+        again.events.is_empty() && again.samples.is_empty(),
+        "read once"
+    );
+    assert_eq!(again.offset, got.offset);
+}
+
+/// A compressed rollout that isn't valid zstd (damaged, or still being
+/// written) is one bad line, never a crash or a half read.
+#[test]
+fn a_damaged_compressed_rollout_is_a_bad_line() {
+    let dir = tempfile::tempdir().unwrap();
+    let zst = dir.path().join("rollout-x.jsonl.zst");
+    std::fs::write(&zst, b"not zstd at all").unwrap();
+    let outcome = tail_rollout(&zst, "acc", 0, &RolloutCarry::default());
+    assert!(outcome.events.is_empty());
+    assert_eq!(outcome.parse_errors, 1);
+    assert_eq!(outcome.offset, 15);
+}

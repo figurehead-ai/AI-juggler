@@ -1172,12 +1172,55 @@ pub fn tail_transcript(path: &Path, account: &str, offset: u64) -> TailOutcome {
 }
 
 /// Convenience: [`tail_jsonl`] with the Codex rollout parser; `carry` is
-/// the previous pass's [`TailOutcome::carry`] for this file.
+/// the previous pass's [`TailOutcome::carry`] for this file. A compressed
+/// rollout (`rollout-*.jsonl.zst`: Codex compresses older ones) is read
+/// whole instead (see [`read_compressed_rollout`]).
 #[must_use]
 pub fn tail_rollout(path: &Path, account: &str, offset: u64, carry: &RolloutCarry) -> TailOutcome {
+    if crate::transcript::is_compressed(path) {
+        return read_compressed_rollout(path, account, offset);
+    }
     tail_jsonl(path, offset, carry, |bytes, carry| {
         rollout_events_after(account, bytes, carry)
     })
+}
+
+/// A compressed rollout: complete, and Codex never writes to it again. It
+/// is read whole once (decompressed, bounded by
+/// [`crate::transcript::SESSION_FILE_MAX`]), from a fresh carry. Its offset
+/// is the compressed file's size, so a later pass with the same size reads
+/// nothing. A read that fails (a file still being written, a damaged one)
+/// counts as a bad line and records the size too: a file that is still
+/// being written changes size, and is read again once it's whole.
+fn read_compressed_rollout(path: &Path, account: &str, offset: u64) -> TailOutcome {
+    let Ok(meta) = std::fs::metadata(path) else {
+        return TailOutcome {
+            offset,
+            ..TailOutcome::default()
+        };
+    };
+    let size = meta.len();
+    if offset == size {
+        return TailOutcome {
+            offset,
+            ..TailOutcome::default()
+        };
+    }
+    let mut outcome = match crate::transcript::read_session_file(path) {
+        Ok(bytes) => {
+            let whole = bytes
+                .iter()
+                .rposition(|byte| *byte == b'\n')
+                .map_or(0, |index| index + 1);
+            rollout_events_after(account, &bytes[..whole], RolloutCarry::default())
+        }
+        Err(_) => TailOutcome {
+            parse_errors: 1,
+            ..TailOutcome::default()
+        },
+    };
+    outcome.offset = size;
+    outcome
 }
 
 /// The spool path for an account config dir (managed-dir-only law).
