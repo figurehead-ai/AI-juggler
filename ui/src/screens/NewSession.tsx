@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { homeRelative } from "../lib/project-words";
 import { Button, Card, Chip } from "../components/primitives";
 import { IconProjects, IconTerminal } from "../components/icons";
-import { runwayOf } from "../components/AccountRunway";
+import { RunwayWords } from "../components/AccountRunway";
 import { RankedRows } from "../components/RankedRows";
 import { pickRecipe } from "./NewProjectSheet";
 import { ExpertSetup } from "../components/ExpertSetup";
@@ -525,13 +525,3 @@ function VerdictChip({
   return null;
 }
 
-/** The account's room in the one runway's words (`runwayOf`): the same
- * sentence Home shows, never a bare or defaulted number. */
-function RunwayWords({ display }: { display?: QuotaDisplayData }): JSX.Element {
-  // No reading for the account yet reads "Not measured yet", as on Home.
-  return (
-    <span className="text-[11px] text-muted" data-testid="launch-runway">
-      {runwayOf(display).words}
-    </span>
-  );
-}

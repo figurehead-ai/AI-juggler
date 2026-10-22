@@ -11,6 +11,7 @@
  * card says what it is waiting for. A development build says plainly
  * that it does not update itself.
  */
+import { UpdateProgress } from "./UpdateProgress";
 import { useEffect, useRef, useState, type JSX } from "react";
 import { Card } from "./primitives";
 import { ReleaseNotes } from "./ReleaseNotes";
@@ -347,24 +348,7 @@ export function UpdatesCard({ focus = false }: { focus?: boolean } = {}): JSX.El
               </div>
             )}
             {status.state === "backing_up" && <p className="text-ink">Backing up {status.app_name}'s data first…</p>}
-            {status.state === "downloading" && (
-              <div className="flex flex-col gap-1">
-                {/* No progress figure yet is no figure, never "0%". */}
-                <span className="text-ink">Downloading and verifying…{status.progress != null ? ` ${status.progress}%` : ""}</span>
-                <div
-                  role="progressbar"
-                  aria-label="Update download"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={status.progress ?? undefined}
-                  className="h-1.5 w-full overflow-hidden rounded-full bg-surface-2"
-                >
-                  {status.progress != null && (
-                    <div className="h-full rounded-full bg-accent" style={{ width: `${status.progress}%` }} />
-                  )}
-                </div>
-              </div>
-            )}
+            {status.state === "downloading" && <UpdateProgress progress={status.progress} />}
             {status.state === "installed" && (
               <div className="flex flex-col gap-0.5 text-ink" data-testid="update-installed">
                 <p>

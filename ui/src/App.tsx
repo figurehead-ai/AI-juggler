@@ -7,7 +7,7 @@ import { onConversationsChanged } from "./lib/ipc/conversations";
 import { withPalette } from "./lib/palette";
 import { useFirstRun } from "./lib/first-run";
 import { useLiveDeltas } from "./lib/live-deltas";
-import { MoreMenu } from "./components/MoreMenu";
+import { MainNav } from "./components/MainNav";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Card } from "./components/primitives";
 import { WorkflowRail, type Freshness } from "./components/WorkflowRail";
@@ -769,70 +769,26 @@ export default function App() {
           </div>
 
           <div className="ml-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-0.5 xl:gap-1.5" data-tauri-drag-region={false}>
-            <nav aria-label="Main" className="flex flex-wrap items-center gap-0.5 xl:gap-1">
-              {PRIMARY_NAV.map((item) => {
-                // AJ-E1534: from the page shown — an account's page is under Accounts.
-                const current = item.id === "home" ? global === null && selection.kind === "none" : global === item.id || (global === null && item.id === "accounts" && selection.kind === "account");
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    aria-current={current ? "page" : undefined}
-                    onClick={() => {
-                      setSettingsFocusCloud(false);
-                      setSettingsSection(undefined);
-                      if (item.id === "home") {
-                        setGlobal(null);
-                        setSelection({ kind: "none" });
-                      } else {
-                        setGlobal(item.id);
-                      }
-                    }}
-                    className={
-                      "rounded-md px-2 py-1.5 text-xs font-medium transition-colors xl:px-2.5 " +
-                      (current ? "bg-surface text-ink sheen" : "text-muted hover:bg-surface/60 hover:text-ink")
-                    }
-                  >
-                    {item.label}
-                  </button>
-                );
-              })}
-              {pairedCount > 0 && (
-                <button
-                  type="button"
-                  aria-current={global === "fleet" ? "page" : undefined}
-                  onClick={() => {
-                    setGlobal("fleet");
-                  }}
-                  className={
-                    "rounded-md px-2 py-1.5 text-xs font-medium transition-colors xl:px-2.5 " +
-                    (global === "fleet" ? "bg-surface text-ink sheen" : "text-muted hover:bg-surface/60 hover:text-ink")
-                  }
-                >
-                  Fleet
-                </button>
-              )}
-              {cleanupCount > 0 && global !== "cleanup" && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setGlobal("cleanup");
-                  }}
-                  className="ml-1 rounded-full border border-warning/40 bg-warning-soft px-2.5 py-1 text-[11px] font-medium text-ink"
-                  data-testid="nav-cleanup-pill"
-                >
-                  {cleanupCount === 1 ? "1 thing to clean up" : `${cleanupCount} things to clean up`}
-                </button>
-              )}
-              <MoreMenu
-                items={MORE_NAV}
-                current={global}
-                inTools={global === null && selection.kind === "provider"}
-                onPick={setGlobal}
-                toolIds={[...new Set(accounts.map((account) => account.provider))]}
-                onOpenTool={(id) => { setGlobal(null); setSelection({ kind: "provider", id }); }}
-              />
-            </nav>
+            <MainNav
+              primary={PRIMARY_NAV}
+              more={MORE_NAV}
+              global={global}
+              page={selection.kind}
+              pairedCount={pairedCount}
+              cleanupCount={cleanupCount}
+              toolIds={[...new Set(accounts.map((account) => account.provider))]}
+              onPick={(id) => {
+                if (PRIMARY_NAV.some((item) => item.id === id)) {
+                  setSettingsFocusCloud(false);
+                  setSettingsSection(undefined);
+                }
+                if (id === "home") {
+                  setGlobal(null);
+                  setSelection({ kind: "none" });
+                } else setGlobal(id);
+              }}
+              onOpenTool={(id) => { setGlobal(null); setSelection({ kind: "provider", id }); }}
+            />
             <Button size="sm" variant="primary" onClick={() => setNewSession(true)}>
               <IconTerminal width={14} height={14} />
               New session
