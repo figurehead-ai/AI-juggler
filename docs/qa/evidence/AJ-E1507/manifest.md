@@ -43,6 +43,48 @@ In the browser preview with the example data, I opened the project, clicked "1 r
 - **Escape didn't close the sheet after Apply or Copy.** The button that was clicked disappears, and focus left the sheet with it. Focus now moves to the result line.
 - **The header line kept its old words** when the sheet was opened from the project menu. The sheet now tells the page when it closes.
 
+### On the real setup, in throwaway labs (`de40d664`, 2026-10-22)
+
+A Dev build of this branch, walked by QA through the read-only Dev bridge. The full record is
+walk batch 26 in `docs/qa/evidence/walks/2026-10-21-real-readonly.md` on
+`claude/qa-real-walk-clean` (`16d84cc5`).
+
+- **Setup**: the real setups were brought in where they are, with redacted labels. Two labs were
+  made for the walk and are now in the Trash: one with a CLAUDE.md and an AGENTS.md that differ,
+  and one with no rules files. They were added as projects in AI Juggler Dev's own data. No real
+  session ran.
+- **The reads, through the bridge** (all OK):
+  - the header line, "1 rules file differs";
+  - the sheet, from the line and from "Compare rules and servers…";
+  - the diff;
+  - "Reads AGENTS.md" for a CLAUDE.md of `@AGENTS.md`;
+  - "A link to AGENTS.md" and, reversed, "A link to CLAUDE.md", with nothing to apply to either;
+  - no line for the project without rules files;
+  - Tab staying inside the sheet;
+  - Escape closing it, with focus back on the line.
+- **The servers against each real account's own files, read-only** (OK):
+  - six Claude Code accounts show "None", and their state files hold no servers;
+  - the Codex account shows its one enabled server, with a second, `enabled = false`, skipped on purpose;
+  - each Claude account is offered the Codex server, translated.
+- **The writes** ran as `tests/qa_sync_lab.rs` `sync_lab_writes` on a scratch copy of the lab, with
+  fixture accounts and a stub tool (OK):
+  - apply CLAUDE.md to AGENTS.md, so the files are equal and the summary says "Rules in sync";
+  - Undo in the sheet, which puts the bytes back;
+  - apply again, then Undo from Settings › Context packs & secrets, listed under the lab's name,
+    which puts the bytes back;
+  - no rows and no backups left.
+- **Snapshots**: the real accounts had no path added or removed. Their configs changed only where
+  the vendors write on their own, at the same size. AI Juggler Dev made no backups, so nothing was
+  applied through it.
+
 ## Left
 
-- **A walk of the Dev build, in a throwaway lab project.** Compare, apply and undo the lab's own rules files. List the servers read-only; nothing is copied to the real accounts.
+- **P22: the diff shows an unchanged last line as removed and added.**
+  - `sync::normalized` trims each text's end, its final newline included, so a file's last line
+    no longer equals the same line in the middle of the other file.
+  - Example: AGENTS.md ending "Keep functions short." applied to a CLAUDE.md that has it in the
+    middle reads "2 lines added, 3 removed"; the true diff is 1 and 2.
+  - Fix: keep one final newline after the trim.
+- **A gap not seen on the real setup:** Claude Code also loads a project's own `.mcp.json`
+  (project scope), which `claude_inventory` doesn't read. No real project here has one.
+- Focus after Apply is left to the gallery's `82-project-sync` "after applying and copying".
