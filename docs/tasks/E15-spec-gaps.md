@@ -460,7 +460,7 @@ What the code does today (mapped 2026-10-22 on release/0.1): a same-tool switch 
 **Quality gates**: the harness fails a step it can't verify (never "pass by default"); the snapshot diff is part of the evidence.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1539/manifest.md`, plus the cells in `docs/qa/evidence/AJ-E808/cells/`.
 
-### AJ-E1540 Same-tool switches done right | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1539
+### AJ-E1540 Same-tool switches done right | Status: IN-PROGRESS (claude-opus, 2026-10-22) | Priority P0 | Effort M | Depends: AJ-E1539
 **Goal**: Claude→Claude and Codex→Codex continue exactly where the conversation was, and the source stops cleanly.
 **Requirements**:
 1. Freeze is real on a local switch: "Finish this turn" waits for the source to go idle, then stops it; "Stop now" stops it at once. Only then is the transcript copied. A source started outside AI Juggler is never stopped; the switch says the original keeps running and the copy is a separate continuation.
@@ -470,7 +470,7 @@ What the code does today (mapped 2026-10-22 on release/0.1): a same-tool switch 
 **Quality gates**: the register's claude→claude and codex→codex cells PASS from the lab; a test with a real-shaped subagents folder.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1540/manifest.md`.
 
-### AJ-E1541 Cross-tool continuity | Status: TODO | Priority P0 | Effort L | Depends: AJ-E1539
+### AJ-E1541 Cross-tool continuity | Status: IN-PROGRESS (claude-opus, 2026-10-22) | Priority P0 | Effort L | Depends: AJ-E1539
 **Goal**: Moving to Codex, or back to Claude, continues the work, not just the chat.
 **Requirements**:
 1. A handover file replaces the single command-line argument: written in AI Juggler's data folder for the switch (`switches/<edge>/HANDOVER.md` plus `state.json`), and the target is started with a short prompt that points at it.
@@ -481,7 +481,7 @@ What the code does today (mapped 2026-10-22 on release/0.1): a same-tool switch 
 **Quality gates**: the register's claude→codex, codex→claude and switch-back cells PASS from the lab; the handover file never holds a secret the redaction policy removes.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1541/manifest.md`.
 
-### AJ-E1542 The capability preflight | Status: TODO | Priority P0 | Effort L | Depends: AJ-E1507
+### AJ-E1542 The capability preflight | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E1507
 **Goal**: Before a switch, the user sees what the target account lacks and sets it up in one reviewed step.
 **Requirements**:
 1. Detection, by parsing files (never by starting a tool or an MCP server), for both sides: MCP servers (Claude user, local and project scopes; Codex `config.toml` and trusted project layers), skills, custom commands and prompts, subagents, user-level rules (CLAUDE.md, `rules/`, AGENTS.md), plugins, and the project's rules files.
@@ -493,7 +493,7 @@ What the code does today (mapped 2026-10-22 on release/0.1): a same-tool switch 
 **Quality gates**: a no-write guardrail test without an approval; translation fixtures per pair; the secret filter test; the lab's journey runs with one MCP server and one skill on A only, and checks they're offered and set up on B and Codex.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1542/manifest.md`.
 
-### AJ-E1543 One switch screen | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1540, AJ-E1541, AJ-E1542
+### AJ-E1543 One switch screen | Status: IN-PROGRESS (claude-opus, 2026-10-22) | Priority P0 | Effort M | Depends: AJ-E1540, AJ-E1541, AJ-E1542
 **Goal**: The least work for the user, with everything in view.
 **Requirements**:
 1. One screen per switch: where it goes, what carries over and what doesn't (in plain words), the capability checklist from AJ-E1542, the freeze choice, and a single confirm.
