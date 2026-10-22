@@ -41,7 +41,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(OUT, `this-mac-awake-1280x800-${theme}.png`) });
     await axe(page, `This Mac awake ${theme}`);
-    await line.getByRole("button", { name: "Settings › Sessions" }).click();
+    await line.getByRole("button", { name: "Change when the Mac is kept awake" }).click();
     const keep = page.getByTestId("settings-keep-going");
     await expect(keep).toBeVisible();
     await expect(page.getByLabel("Restart sessions that crash")).not.toBeChecked();

@@ -287,6 +287,9 @@ const SETTINGS_READS: &[(&str, &str)] = &[
     ),
     // Rewritten whole with only `statusLine` changed (atomic); the other
     // values pass through, never stored or logged.
+    // Narrow shape: `enabledPlugins` only (the switch's set-up check,
+    // AJ-E1542).
+    ("juggler-adapters/src/claude_inventory.rs", "inventory"),
     ("juggler-adapters/src/quota_ingest.rs", "install_statusline"),
     (
         "juggler-adapters/src/quota_ingest.rs",

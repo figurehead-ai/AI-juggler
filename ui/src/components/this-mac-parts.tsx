@@ -181,8 +181,8 @@ export function AwakeLine({ info }: { info: ThisMacInfo }): JSX.Element | null {
         onClick={() => window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "sessions" } }))}
         data-testid="this-mac-awake-settings"
       >
-        Settings{" "}
-        <span className="sr-only">› Sessions</span>
+        Change{" "}
+        <span className="sr-only">when the Mac is kept awake</span>
       </button>
     </p>
   );

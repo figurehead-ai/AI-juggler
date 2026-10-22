@@ -80,7 +80,7 @@ describe("This Mac: what keeps it awake", () => {
     const listen = (event: Event) => opened((event as CustomEvent<{ section: string }>).detail.section);
     window.addEventListener("aij:open-settings", listen);
     render(<AwakeLine info={info({ working: 2, kept_awake: true, on_battery: false })} />);
-    fireEvent.click(screen.getByRole("button", { name: "Settings › Sessions" }));
+    fireEvent.click(screen.getByRole("button", { name: "Change when the Mac is kept awake" }));
     window.removeEventListener("aij:open-settings", listen);
     expect(opened).toHaveBeenCalledWith("sessions");
   });
