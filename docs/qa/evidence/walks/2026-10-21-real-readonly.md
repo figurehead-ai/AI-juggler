@@ -1177,6 +1177,28 @@ MISMATCH  cost rows per session: 291 sessions in both; 1 within 5% of the transc
   session's own profile (Account E, 10 live sessions), whose backups run every few
   minutes (21:01, 21:11, 21:17) and whose transcripts were written within seconds.
 
+## Batch 12 — #126 (P16, P6, P17, shared messages): before and after
+
+Both scored with the same compare (`7673dd07`). It credits a message a resumed copy repeats
+to the session with the earliest first message, as #126 does, and counts This Mac's top
+rows plus `others` against the `ps` trees. Read only; both snapshots clean (only the live
+Codex changed).
+
+| | main `5675de90` (before) | #126 `a7fa83fc` (after) |
+|---|---|---|
+| Overall | 35 OK, 13 MISMATCH | 42 OK, 7 MISMATCH |
+| Cost rows per session | 285 of 289 within 5%; min ×0.40, max ×12.49 | 292 of 292 within 5%; ×1.00–1.03 |
+| This Mac top rows | [7.6, 4.9, 1.6] against [7.7, 7.1, 1.6] (the −2.2 GB was the harness) | [6.3, 3.8, 2.0] against [6.3, 3.8, 2.0] |
+| This Mac every tree | 3 rows, no "others" | 5 = 3 + 2 others, sizes equal to `ps` |
+| Unpriced models | codex-auto-review, gpt-6.1-sol, gpt-6-astra | codex-auto-review (258 rows) |
+
+- **Before, explained**: ×0.40 was the original conversation, and ×12.49 was its resumed
+  copy credited with the original's messages. The two Codex sessions at ×0.84 and ×0.93
+  were missing their compacted pre-turn usage.
+- **Left on #126, not its scope**: projects and sessions (AJ-E1529, on `release/0.1`),
+  `codex-auto-review` unpriced, and honest null fee fields (INFO).
+- **The UI's "and N more"** is for the bridge walk on a build with #122.
+
 ## Not walked (blocked by W0, before the bridge)
 
 These need the window:
