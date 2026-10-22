@@ -142,6 +142,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Claude app: the other tools' processes are now measured every 4 seconds,
   in the same read that finds new ones, instead of every 2 seconds on top
   of it.
+- Going back to an earlier version and forward again no longer leaves
+  some cost credited to the wrong session: AI Juggler notices what the
+  earlier version wrote and reads the conversations again once.
 - This Mac counts what a session starts as soon as it starts (within about
   4 seconds). A build fanning out under a Claude app session could be
   missed for up to 10 seconds, so the app's figure read far too low.

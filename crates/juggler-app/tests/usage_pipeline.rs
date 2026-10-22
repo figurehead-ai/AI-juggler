@@ -504,3 +504,56 @@ fn a_deleted_rollout_is_forgotten_and_a_missing_folder_forgets_nothing() {
     usage_pipeline::ingest_pass(&state, 12);
     assert_eq!(tracked(), [kept.to_string_lossy().to_string()]);
 }
+
+/// L-c (#126 re-review): after going back to a build without the holders
+/// and forward again, the next pass reads everything again, so the holders
+/// are whole, and clears the mark.
+#[test]
+fn a_pass_after_an_older_build_wrote_reads_everything_again() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    seed_claude_account(&state, dir.path());
+    usage_pipeline::ingest_pass(&state, 4);
+    let db = dir.path().join("app-data/juggler.sqlite");
+    let holders = || {
+        rusqlite::Connection::open(&db)
+            .unwrap()
+            .query_row("SELECT COUNT(*) FROM usage_holders", [], |row| {
+                row.get::<_, i64>(0)
+            })
+            .unwrap()
+    };
+    assert!(holders() > 0);
+    // The older build: it never kept holders, and it stores a message.
+    {
+        let older = rusqlite::Connection::open(&db).unwrap();
+        older.execute("DELETE FROM usage_holders", []).unwrap();
+        older
+            .execute(
+                "INSERT INTO usage_events (account, session, ts, output, source, confidence, msg_uuid)
+                 VALUES ('acc-pipe', 's', 5, 9, 'transcript', 'measured', 'older-1')",
+                [],
+            )
+            .unwrap();
+    }
+    assert!(
+        state
+            .storage
+            .lock()
+            .unwrap()
+            .usage()
+            .derived_dirty()
+            .unwrap()
+    );
+    usage_pipeline::ingest_pass(&state, 8);
+    assert!(holders() > 0, "the holders are read again");
+    assert!(
+        !state
+            .storage
+            .lock()
+            .unwrap()
+            .usage()
+            .derived_dirty()
+            .unwrap()
+    );
+}

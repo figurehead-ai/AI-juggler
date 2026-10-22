@@ -95,17 +95,20 @@ pub fn spawn(state: Arc<AppState>) {
 
 /// One ingest pass (public for tests): accounts → sources → store.
 pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
-    let accounts = {
+    let (accounts, dirty) = {
         let Ok(storage) = state.storage.lock() else {
             return;
         };
         let Ok(list) = storage.accounts().list() else {
             return;
         };
-        list
+        // A build without the holders wrote usage rows here (gone back to,
+        // then forward again): read everything again so they're whole.
+        let dirty = storage.usage().derived_dirty().unwrap_or(false);
+        (list, dirty)
     };
     let mut ingest = load_state(state);
-    let rereading = ingest.reread < REREAD_VERSION;
+    let rereading = ingest.reread < REREAD_VERSION || dirty;
     if rereading {
         for offsets in ingest.offsets.values_mut() {
             offsets.files.values_mut().for_each(|offset| *offset = 0);
@@ -168,6 +171,9 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
         let usage = storage.usage();
         if rereading {
             ingest.reread = REREAD_VERSION;
+            if usage.clear_derived_dirty().is_err() {
+                return;
+            }
         } else {
             // AJ-E1103: Measured tokens this pass added (D-06): a new
             // response, or the rest of one an earlier pass began. A re-read

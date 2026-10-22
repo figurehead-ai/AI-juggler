@@ -60,6 +60,35 @@ impl UsageRepo<'_> {
         Ok(stored)
     }
 
+    /// Whether usage rows were written that the holders don't account for
+    /// (a build without them wrote here): every transcript and rollout
+    /// should be read again.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn derived_dirty(&self) -> Result<bool, CoreError> {
+        self.conn
+            .query_row("SELECT dirty FROM usage_derived WHERE id = 1", [], |row| {
+                row.get::<_, i64>(0)
+            })
+            .optional()
+            .map(|dirty| dirty.unwrap_or(0) != 0)
+            .map_err(CoreError::Storage)
+    }
+
+    /// Marks the holders whole again (after reading everything again).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn clear_derived_dirty(&self) -> Result<(), CoreError> {
+        self.conn
+            .execute("UPDATE usage_derived SET dirty = 0 WHERE id = 1", [])
+            .map(|_| ())
+            .map_err(CoreError::Storage)
+    }
+
     /// [`Self::delete_session_events`] and then [`Self::store_events`],
     /// in ONE transaction: the re-read replaces a session's rows, or
     /// nothing changes.
@@ -465,6 +494,13 @@ fn from_sql(count: i64) -> u64 {
 ///   whichever one keeps it.
 /// - `usage_spans`: each session's standing under the shared-message rule
 ///   ([`Span`]).
+/// - `usage_derived`: one row, `dirty` once something wrote usage rows the
+///   holders don't account for. A build that predates these tables (gone
+///   back to, then forward again) does exactly that, and the triggers below
+///   fire for it too, since they live in the file: a row inserted, or moved
+///   to a session, that holds no holder row. This build records the holder
+///   first, so its own writes never set it. The pipeline reads everything
+///   again when it is set ([`UsageRepo::derived_dirty`]).
 pub(crate) const DERIVED: &str = "
 CREATE TABLE IF NOT EXISTS usage_holders (
     account TEXT NOT NULL,
@@ -482,6 +518,25 @@ CREATE TABLE IF NOT EXISTS usage_spans (
     own_start INTEGER,
     PRIMARY KEY (account, session)
 ) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS usage_derived (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    dirty INTEGER NOT NULL DEFAULT 0
+);
+INSERT OR IGNORE INTO usage_derived (id, dirty) VALUES (1, 0);
+CREATE TRIGGER IF NOT EXISTS usage_events_unheld_insert AFTER INSERT ON usage_events
+WHEN NEW.msg_uuid IS NOT NULL AND NEW.session IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM usage_holders h
+    WHERE h.account = NEW.account AND h.msg_uuid = NEW.msg_uuid AND h.session = NEW.session)
+BEGIN
+    UPDATE usage_derived SET dirty = 1 WHERE id = 1;
+END;
+CREATE TRIGGER IF NOT EXISTS usage_events_unheld_move AFTER UPDATE OF session ON usage_events
+WHEN NEW.msg_uuid IS NOT NULL AND NEW.session IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM usage_holders h
+    WHERE h.account = NEW.account AND h.msg_uuid = NEW.msg_uuid AND h.session = NEW.session)
+BEGIN
+    UPDATE usage_derived SET dirty = 1 WHERE id = 1;
+END;
 ";
 
 /// One session's standing for the messages it shares, from every message

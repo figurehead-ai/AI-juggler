@@ -214,6 +214,7 @@ proptest! {
             prop_assert_eq!(after, total, "the total while re-reading");
         }
         prop_assert_eq!(kept(&storage), want, "after the re-read");
+        prop_assert!(!storage.usage().derived_dirty().unwrap(), "our own writes never mark it");
     }
 }
 
@@ -286,4 +287,48 @@ fn a_version_two_store_re_read_in_chunks_with_a_file_missing() {
     .map(|(s, keys)| (s.to_owned(), keys))
     .collect();
     assert_eq!(by_session, want);
+}
+
+/// L-c (#126 re-review): a build without the holders (gone back to) that
+/// writes usage rows marks them dirty, through triggers that live in the
+/// file: a row inserted, or moved to a session, with no holder row.
+#[test]
+fn a_build_without_holders_marks_them_dirty() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("juggler.sqlite");
+    let storage = Storage::open(&path).unwrap();
+    storage
+        .usage()
+        .store_events(&[event("o", 1, 0), event("c", 1, 0), event("c", 2, 1)])
+        .unwrap();
+    assert!(!storage.usage().derived_dirty().unwrap());
+    let older = rusqlite::Connection::open(&path).unwrap();
+    // An older build stores a new message (as it would: no holder row).
+    older
+        .execute(
+            "INSERT INTO usage_events (account, session, ts, output, source, confidence, msg_uuid)
+             VALUES ('acc', 'n', 5, 9, 'transcript', 'measured', 'm9')",
+            [],
+        )
+        .unwrap();
+    assert!(storage.usage().derived_dirty().unwrap());
+    storage.usage().clear_derived_dirty().unwrap();
+    // It credits a shared message by its own rule (a move to a session
+    // that isn't a holder of it).
+    older
+        .execute(
+            "UPDATE usage_events SET session = 'x' WHERE msg_uuid = 'm1'",
+            [],
+        )
+        .unwrap();
+    assert!(storage.usage().derived_dirty().unwrap());
+    storage.usage().clear_derived_dirty().unwrap();
+    // A move to a holder, as this build makes, doesn't.
+    older
+        .execute(
+            "UPDATE usage_events SET session = 'o' WHERE msg_uuid = 'm1'",
+            [],
+        )
+        .unwrap();
+    assert!(!storage.usage().derived_dirty().unwrap());
 }
