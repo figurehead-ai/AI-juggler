@@ -1433,6 +1433,19 @@ sample at 10 s. Snapshot clean: only the live Codex changed.
   - **Expected**: require `argv[0]` to be `claude`, or treat `ugrep`/`rg` as helpers.
     Medium.
 
+## Batch 18 — #126's re-review fixes (`77ce6037`)
+
+- **The run**: one, read only, on a fresh scratch data folder. 43 OK, 7 MISMATCH, 1 INFO
+  (65174b7f: 41 and 9).
+- **Snapshot**: clean; only the live Codex and one profile's own sync changed.
+- **This Mac**: 5 trees = 5 Claude app instances. Every tree, every root and the memory
+  (13.2 GB) match `ps`. Eight stray `ugrep` helpers were still running on this Mac during
+  the run: the batch 17 finding is fixed on real leftovers.
+- **Cost rows per session**: 296 of 296 within 5% (×1.00–1.03).
+- **Window tokens**: 7 d ×1.00, 5 h ×0.99–1.03, Codex ×1.01.
+- **Left, not #126's**: projects and sessions (AJ-E1529, done on `release/0.1`), and one
+  unpriced model (`codex-auto-review`).
+
 ## Not walked (blocked by W0, before the bridge)
 
 These need the window:
