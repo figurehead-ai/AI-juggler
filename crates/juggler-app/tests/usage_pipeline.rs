@@ -237,7 +237,7 @@ fn codex_rollout_limits_reach_the_display_as_measured_with_credits() {
     assert_eq!(five.len(), 2);
     assert_eq!(week.len(), 1);
 
-    let now = juggler_adapters::quota_ingest::iso_to_epoch_ms("2026-10-21T10:35:00.000Z").unwrap();
+    let now = juggler_core::time::timestamp_ms("2026-10-21T10:35:00.000Z").unwrap();
     let info = juggler_app::commands::quota_display_inner(&storage, &account, now);
     let five = info.five_hour.as_ref().unwrap();
     assert_eq!(five.state, "tracking");
@@ -255,7 +255,7 @@ fn codex_rollout_limits_reach_the_display_as_measured_with_credits() {
     // Its "as of" is the reading's own time (10:30).
     assert_eq!(
         five.measured_at_ms,
-        juggler_adapters::quota_ingest::iso_to_epoch_ms("2026-10-21T10:30:00.000Z")
+        juggler_core::time::timestamp_ms("2026-10-21T10:30:00.000Z")
     );
     let credits = info.credits.as_ref().unwrap();
     assert_eq!(credits.balance.as_deref(), Some("16.25"));

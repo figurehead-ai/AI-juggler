@@ -25,6 +25,7 @@ pub mod ranking;
 pub mod recommendation;
 pub mod renewal;
 pub mod storage;
+pub mod time;
 
 pub use error::CoreError;
 pub use model::{

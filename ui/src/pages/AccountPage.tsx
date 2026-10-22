@@ -4,6 +4,7 @@
  * works — and its Sessions. Moved from RightInspector (the size budget);
  * the cleanup toggles serve Settings too.
  */
+import { AccountCapture } from "./AccountCapture";
 import { useEffect, useRef, useState } from "react";
 import { Button, Card, Chip, formatCountdown } from "../components/primitives";
 import { WindowRing } from "../components/QuotaRings";
@@ -115,6 +116,8 @@ export function AccountOverview(props: AccountPanelProps) {
           </span>
         </div>
       </Card>
+      {/* AJ-E1530 Req.1: opt-in, shown only where it applies. */}
+      <AccountCapture accountId={account.id} />
       {/* AJ-E1529: AI Juggler's and those started outside it — the same
           rows as the account's Sessions and a project's (AJ-E1533). */}
       <AccountRunning {...props} />

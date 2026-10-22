@@ -208,6 +208,8 @@ read_routes! {
     "dashboard_stats" => result commands::dashboard_stats(state);
     "quota_display" => result commands::quota_display(state; account: String);
     "quota_display_all" => value commands::quota_display_all(state);
+    "quota_capture_status" => async_result features::quota::capture::quota_capture_status(state; account_id: String);
+    "quota_capture_preview" => async_result features::quota::capture::quota_capture_preview(state; account_id: String);
     "cost_rollups" => value commands::cost_rollups(state; account: Option<String>);
     "pricing_catalog_info" => value commands::pricing_catalog_info(state);
     "usage_source_health" => value commands::usage_source_health(state);

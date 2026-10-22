@@ -15,13 +15,14 @@
 use std::path::{Path, PathBuf};
 
 use juggler_adapters::quota_ingest::{
-    self, SPOOL_ROTATE_BYTES, gemini_events, install_statusline, iso_to_epoch_ms, rollout_events,
-    spool_path, statusline_samples, tail_spool, tail_transcript, uninstall_statusline,
-    zcode_events, zcode_is_peak,
+    self, SPOOL_ROTATE_BYTES, gemini_events, install_statusline, rollout_events, spool_path,
+    statusline_samples, tail_spool, tail_transcript, uninstall_statusline, zcode_events,
+    zcode_is_peak,
 };
 use juggler_core::model::Confidence;
 use juggler_core::quota::{UsageSource, WindowKind};
 use juggler_core::storage::Storage;
+use juggler_core::time::timestamp_ms;
 
 const FIXTURES: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/quota");
 
@@ -89,22 +90,22 @@ fn a_status_line_reset_reads_as_epoch_seconds_ms_or_an_rfc3339_string() {
 #[test]
 fn iso_times_read_offsets_and_short_fractions() {
     assert_eq!(
-        iso_to_epoch_ms("2026-10-14T01:00:00Z"),
+        timestamp_ms("2026-10-14T01:00:00Z"),
         Some(1_791_939_600_000)
     );
     assert_eq!(
-        iso_to_epoch_ms("2026-10-14T06:30:00+05:30"),
+        timestamp_ms("2026-10-14T06:30:00+05:30"),
         Some(1_791_939_600_000)
     );
     assert_eq!(
-        iso_to_epoch_ms("2026-10-14T01:00:00.5Z"),
+        timestamp_ms("2026-10-14T01:00:00.5Z"),
         Some(1_791_939_600_500)
     );
     assert_eq!(
-        iso_to_epoch_ms("2026-10-14T01:00:00.391Z"),
+        timestamp_ms("2026-10-14T01:00:00.391Z"),
         Some(1_791_939_600_391)
     );
-    assert_eq!(iso_to_epoch_ms("2026-10-14T01:00:00.Z"), None);
+    assert_eq!(timestamp_ms("2026-10-14T01:00:00.Z"), None);
 }
 
 #[test]
@@ -185,7 +186,7 @@ fn transcript_events_skip_unkeyed_and_double_usage() {
         .unwrap();
     assert_eq!(a2.tokens.input, 200);
     assert_eq!(a2.tokens.cache_write, 2);
-    assert_eq!(a2.ts, iso_to_epoch_ms("2026-10-15T20:00:02.456Z").unwrap());
+    assert_eq!(a2.ts, timestamp_ms("2026-10-15T20:00:02.456Z").unwrap());
     assert_eq!(a2.source, UsageSource::Transcript);
     assert_eq!(a2.confidence, Confidence::Measured);
     assert_eq!(a2.session.as_deref(), Some("sess-t"));
@@ -225,7 +226,7 @@ fn one_response_written_as_several_content_blocks_counts_once() {
     // The response's first line gives its time.
     assert_eq!(
         outcome.events[1].ts,
-        iso_to_epoch_ms("2026-10-20T09:00:04.000Z").unwrap()
+        timestamp_ms("2026-10-20T09:00:04.000Z").unwrap()
     );
 }
 
@@ -290,12 +291,12 @@ fn a_response_split_across_two_passes_keeps_its_final_figure() {
 #[test]
 fn iso_timestamps_parse_strictly() {
     assert_eq!(
-        iso_to_epoch_ms("2026-10-15T20:00:02.456Z"),
+        timestamp_ms("2026-10-15T20:00:02.456Z"),
         Some(1_792_094_402_456)
     );
-    assert_eq!(iso_to_epoch_ms("1970-01-01T00:00:00Z"), Some(0));
-    assert_eq!(iso_to_epoch_ms("2026-13-01T00:00:00Z"), None);
-    assert_eq!(iso_to_epoch_ms("not-a-date"), None);
+    assert_eq!(timestamp_ms("1970-01-01T00:00:00Z"), Some(0));
+    assert_eq!(timestamp_ms("2026-13-01T00:00:00Z"), None);
+    assert_eq!(timestamp_ms("not-a-date"), None);
 }
 
 // ---------------------------------------------------------------------------
@@ -387,8 +388,8 @@ fn rollout_token_counts_become_measured_samples_and_the_credits() {
         1,
         "tokens still come from token_usage_record"
     );
-    let first_ts = iso_to_epoch_ms("2026-10-21T10:01:00.000Z").unwrap();
-    let later_ts = iso_to_epoch_ms("2026-10-21T10:30:00.000Z").unwrap();
+    let first_ts = timestamp_ms("2026-10-21T10:01:00.000Z").unwrap();
+    let later_ts = timestamp_ms("2026-10-21T10:30:00.000Z").unwrap();
     let samples: Vec<(WindowKind, f64, Option<i64>, i64)> = outcome
         .samples
         .iter()

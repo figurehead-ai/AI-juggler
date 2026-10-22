@@ -222,9 +222,19 @@ fn store_in_chunks(
             usage.store_events(chunk)
         };
         stored.extend(done.ok()?);
+        drop(storage);
+        // poll: a pause between chunks, so a reader the lock woke gets it
+        // first (see `CHUNK_PAUSE`); a pass of N chunks waits N ms.
+        std::thread::sleep(CHUNK_PAUSE);
     }
     Some(stored)
 }
+
+/// Between two chunk writes. Storage is a `std::sync::Mutex`, which isn't
+/// fair: re-locked at once, it starved a woken reader for the whole pass
+/// (2.2 s at the maintainer's size, measured on #126); with this, a
+/// reader waits one chunk at most.
+const CHUNK_PAUSE: std::time::Duration = std::time::Duration::from_millis(1);
 
 /// The events grouped so that all of one session's are in the same chunk,
 /// chunks filled up to about `size` (a session bigger than that is a chunk
@@ -586,7 +596,7 @@ fn collect_jsonl_depth(root: &Path, out: &mut Vec<PathBuf>, depth: u32) {
 #[cfg(test)]
 mod chunk_tests {
     #![allow(clippy::unwrap_used)]
-    use super::session_chunks;
+    use super::{STORE_CHUNK, session_chunks, store_in_chunks};
     use juggler_core::quota::{UsageEvent, UsageSource};
 
     fn event(session: &str, n: usize) -> UsageEvent {
@@ -637,6 +647,49 @@ mod chunk_tests {
                 .map(Vec::len)
                 .collect::<Vec<_>>(),
             [4, 2]
+        );
+    }
+
+    /// A reader that wants storage while a long pass is writing gets it
+    /// between two chunks, not after the whole pass (main's #126, the same
+    /// test). It counts rows, not time.
+    #[test]
+    fn a_reader_gets_storage_between_chunks() {
+        let dir = tempfile::tempdir().unwrap();
+        let state =
+            std::sync::Arc::new(crate::state::AppState::init(dir.path().join("data")).unwrap());
+        let total = STORE_CHUNK * 20;
+        let batch: Vec<UsageEvent> = (0..total)
+            .map(|n| UsageEvent {
+                session: None,
+                ..event("x", n)
+            })
+            .collect();
+        let writer = {
+            let state = std::sync::Arc::clone(&state);
+            std::thread::spawn(move || {
+                store_in_chunks(&state, false, &batch).map(|stored| stored.len())
+            })
+        };
+        // Once the first chunk is in, block on storage like a screen does.
+        let count = || {
+            state
+                .storage
+                .lock()
+                .unwrap()
+                .usage()
+                .events_for_account("a", 0)
+                .unwrap()
+                .len()
+        };
+        let mut seen = 0;
+        while seen == 0 {
+            seen = count();
+        }
+        assert_eq!(writer.join().unwrap(), Some(total));
+        assert!(
+            seen < total,
+            "it waited out the whole pass: saw {seen} of {total}"
         );
     }
 }

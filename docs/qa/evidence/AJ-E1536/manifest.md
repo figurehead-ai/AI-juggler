@@ -3,8 +3,8 @@
 Task: `docs/tasks/E15-spec-gaps.md` AJ-E1536, History you can scan (P1),
 with QA's P20 (History covers every account's sessions). Status:
 **DONE-EVIDENCED** (IN-REVIEW until the release PR). Full-text search
-over the conversations started outside AI Juggler waits on the
-coordinator's answer (below).
+over the conversations started outside AI Juggler is AJ-E1538 (opt-in,
+TODO), as the coordinator decided (below).
 
 Gallery: `docs/qa/evidence/_gallery/56-history/` (search, archived,
 replay, delete) and `_gallery/77-menus/history-menu-*`, both themes.
@@ -47,13 +47,20 @@ replay, delete) and `_gallery/77-menus/history-menu-*`, both themes.
    - A list across projects shows each row's project.
    - The time column no longer wraps ("10 min ago").
 
-## Decision pending (P20, full text everywhere)
+## Decided (P20, full text everywhere): later, opt-in
 
-Indexing every outside transcript's text means a copy of it all in
-AI Juggler's data folder. On the maintainer's Mac that is about 6.6 GB
-of Codex rollouts, likely 0.5–1 GB of index. I asked the coordinator to
-choose between doing that (with its size and a switch in Settings) and
-field search only for outside conversations (built now).
+The coordinator chose option (c) on 2026-10-22:
+- **Now:** sessions started outside AI Juggler are found by their title,
+  project, account, tool, branch and date.
+- **Later, opt-in (AJ-E1538, TODO):** full-text search of their words,
+  with Settings showing the index size and a switch. Its trade-offs
+  (disk, a copy of all conversation text, privacy) are written up there.
+- **History says what it searches**, so a missing text match isn't
+  taken to mean there is none:
+  - its description says words are searched in AI Juggler's sessions
+    only;
+  - "Nothing matches" adds that words said in sessions started outside
+    aren't searched.
 
 ## Proof
 

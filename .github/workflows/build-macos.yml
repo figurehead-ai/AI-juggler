@@ -190,6 +190,9 @@ jobs:
           xcrun stapler validate "$dmg"
           python3 scripts/apple_retry.py -- spctl --assess --type open --context context:primary-signature --verbose=4 "$dmg"
           ls "$bundle"/macos/*.app.tar.gz "$bundle"/macos/*.app.tar.gz.sig
+          # No test seam ships (SECURITY-GUIDELINES C8): the variables that
+          # silence or answer dialogs are compiled into debug builds only.
+          scripts/release_seams_check.sh "$app"/Contents/MacOS/*
 
       - name: Collect this edition's assets
         run: |

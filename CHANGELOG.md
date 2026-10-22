@@ -63,7 +63,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Opening AI Juggler right after it was force-quit (or crashed) starts
   it, instead of saying another one "is already open and isn't
   answering" when none was. When one really is open and stuck, the
-  message offers **Try again**.
+  message offers **Try again**, and **Quit** quits. On macOS the message
+  is AI Juggler's own window, so it never stays on screen after AI
+  Juggler is gone.
 - At a start, the conversation list and the projects no longer wait on
   the usage history being written: it's written in small steps, and the
   first read of your conversations runs once, not three times at once.
@@ -77,6 +79,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Replay, Archive and Delete are in the row's ⋯ menu (and on
   right-click). Sessions everywhere are named by what they were about
   when you haven't named them.
+- **Claude: measure limits for sessions started elsewhere (opt-in).** On
+  an account used where it is, AI Juggler can add its capture to the
+  account's status line, so sessions you start in the Claude app or a
+  terminal report their limits too. It's off until you turn it on, after
+  you see the exact one-line change. Your own status line keeps showing,
+  nothing else in the file changes, and turning it off puts the file
+  back as it was.
 - A finished session's row no longer shows its account's "% left";
   only a running one does, once the account runs low.
 - This Mac no longer lists a session as "under 1 MB": that was a session

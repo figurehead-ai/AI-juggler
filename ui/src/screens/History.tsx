@@ -177,9 +177,10 @@ export function History({
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-4" data-testid="history">
       <header className="flex flex-col gap-1">
         <h2 className="text-lg font-semibold tracking-tight">History</h2>
-        <p className="text-xs text-muted">
+        <p className="text-xs text-muted" data-testid="history-scope">
           Every session that has ended, AI Juggler's and the ones started outside it. Search by what it was about,
-          project, account, tool, model, branch, date (2026-10-01) or anything said in AI Juggler's sessions.
+          project, account, tool, model, branch or date (2026-10-01). Words said in a conversation are searched in AI
+          Juggler's sessions only; sessions started outside it are found by everything else.
         </p>
       </header>
       <div className="flex flex-wrap items-center gap-2">
@@ -226,7 +227,7 @@ export function History({
           projects={projects}
           empty={
             query.trim()
-              ? `Nothing matches “${query.trim()}”${searching ? " yet — still searching transcripts" : ""}.`
+              ? `Nothing matches “${query.trim()}”${searching ? " yet — still searching transcripts" : ""}. Words said in sessions started outside AI Juggler aren't searched.`
               : list === "archived"
                 ? "Nothing archived. Archive an ended session to tidy the rail — nothing is deleted."
                 : "No ended sessions yet."

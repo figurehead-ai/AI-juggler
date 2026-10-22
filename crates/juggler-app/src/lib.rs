@@ -32,7 +32,9 @@ pub mod focus;
 pub mod handover;
 pub mod history;
 pub mod identity;
+pub mod in_place;
 pub mod ipc;
+pub mod launch_alert;
 pub mod lifecycle;
 pub mod link;
 pub mod machine_alerts;
@@ -156,6 +158,10 @@ macro_rules! app_commands {
             Read  commands::pricing_catalog_info,
             Read  commands::quota_display,
             Read  commands::quota_display_all,
+            Read  features::quota::capture::quota_capture_status,
+            Read  features::quota::capture::quota_capture_preview,
+            Write features::quota::capture::quota_capture_turn_on,
+            Write features::quota::capture::quota_capture_turn_off,
             Write commands::account_set_fee,
             Read  commands::ranking_rows,
             Write commands::alerts_tick,
@@ -413,6 +419,8 @@ pub const COMMANDS: &[(&str, CommandAccess)] = app_commands!(command_table);
 /// Builds and runs the desktop application.
 #[allow(clippy::too_many_lines)] // the command registry is one flat list by design
 pub fn run() {
+    // A launch that only shows another launch's "can't start" alert.
+    launch_alert::show_if_asked();
     // AJ-E1103: cold start runs from here to the end of setup.
     let launched = std::time::Instant::now();
     // The user's PATH from their login shell, on its own thread: opened
@@ -649,16 +657,26 @@ fn hand_over_to_the_running_instance(context: tauri::Context<tauri::Wry>) -> ! {
     }
     drop(built);
     let app = edition::current().app_name();
-    newer_data::cannot_start(&not_answering_words(&format!("Then open {app} again.")));
-    std::process::exit(1);
+    // A Tauri app was built and dropped here: the alert shows from a
+    // fresh launch (see `launch_alert::in_fresh_process`).
+    launch_alert::in_fresh_process(
+        &format!("{app} can't start"),
+        &not_answering_words(&format!("Then open {app} again.")),
+    );
 }
 
 /// The open AI Juggler isn't answering. If it lets go of the data within
 /// a few seconds (it was ending), this launch goes on; else it says how to
 /// quit it and offers Try again, and Quit quits without opening the data.
 fn not_answering(data_dir: &std::path::Path, handover: Option<&handover::Handover>) {
+    let mut asked = false;
     loop {
         if newer_data::wait_for_instance_lock(data_dir, newer_data::LOCK_GRACE) {
+            // The alert made this process an app before Tauri's own: start
+            // again in a fresh one, which finds the data free.
+            if asked {
+                relaunch();
+            }
             return;
         }
         if handover.is_some_and(|h| h.ask(handover::ANSWER_WAIT) == handover::Answer::Answered) {
@@ -667,7 +685,22 @@ fn not_answering(data_dir: &std::path::Path, handover: Option<&handover::Handove
         if !newer_data::try_again_or_quit(&not_answering_words("Then choose Try again.")) {
             std::process::exit(1);
         }
+        asked = true;
     }
+}
+
+/// Starts this app again, as it was started, and quits this launch.
+fn relaunch() -> ! {
+    let started = std::env::current_exe().and_then(|exe| {
+        std::process::Command::new(exe)
+            .args(std::env::args_os().skip(1))
+            .spawn()
+    });
+    if let Err(error) = started {
+        newer_data::cannot_start(&format!("It couldn't start again: {error}"));
+        std::process::exit(1);
+    }
+    std::process::exit(0);
 }
 
 /// What to do when the open AI Juggler isn't answering, in words, ending

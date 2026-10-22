@@ -4,9 +4,8 @@
 
 use std::path::{Path, PathBuf};
 
-use juggler_adapter::conversation::{
-    ConversationSummary, SessionProcess, timestamp_ms, title_from, value_after,
-};
+use juggler_adapter::conversation::{ConversationSummary, SessionProcess, title_from, value_after};
+use juggler_core::time::timestamp_ms;
 
 use crate::claude_transcript::MessageRole;
 use crate::codex_transcript::{parse_rollout, rollout_cwd, rollout_thread_id};

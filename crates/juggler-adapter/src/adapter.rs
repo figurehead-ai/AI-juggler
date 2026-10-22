@@ -152,6 +152,30 @@ pub trait HarnessAdapter: Send + Sync {
         None
     }
 
+    /// AJ-E1530 Req.1 (ADR-0018 amendment, opt-in): the one change this
+    /// tool's own settings take so that its sessions started outside AI
+    /// Juggler report their limits too: a top-level key of a settings
+    /// file under the account's folder. `None` when the tool reports its
+    /// limits some other way (Codex: in its rollouts), or not at all.
+    #[must_use]
+    fn limits_capture(&self) -> Option<LimitsCapture> {
+        None
+    }
+
+    /// The value [`HarnessAdapter::limits_capture`]'s key takes: a call
+    /// to AI Juggler's capture (`wrapper`, one shell word) that keeps
+    /// what the user's own value (`original`) said, so what they see is
+    /// unchanged.
+    #[must_use]
+    fn limits_capture_value(
+        &self,
+        wrapper: &str,
+        original: Option<&serde_json::Value>,
+    ) -> Option<serde_json::Value> {
+        let _ = (wrapper, original);
+        None
+    }
+
     /// QA batch 10: a quick read of a large conversation file, from its
     /// start and end only (`conversation::file_ends`): its id, folder,
     /// branch, first and last activity and, when the start has it, its
@@ -500,3 +524,13 @@ pub type SharedAdapter = Arc<dyn HarnessAdapter>;
 
 /// ADR-0008 vocabulary alias: adapters integrate one *Provider*.
 pub type ProviderAdapter = dyn HarnessAdapter;
+
+/// AJ-E1530 Req.1: where a tool takes the opt-in limits capture: `key`,
+/// top-level in `file` (relative to the account's folder).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct LimitsCapture {
+    /// The settings file, relative to the account's folder.
+    pub file: &'static str,
+    /// The top-level key whose value is set.
+    pub key: &'static str,
+}

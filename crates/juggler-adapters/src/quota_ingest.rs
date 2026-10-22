@@ -28,7 +28,6 @@ use std::path::{Path, PathBuf};
 use juggler_core::model::Confidence;
 use juggler_core::model::TokenCounts;
 use juggler_core::quota::{QuotaSample, UsageEvent, UsageSource, WindowKind};
-use juggler_core::renewal::CalendarDate;
 
 /// Spool rotation threshold (Req.6): 10 MB per spool file.
 pub const SPOOL_ROTATE_BYTES: u64 = 10 * 1024 * 1024;
@@ -398,58 +397,6 @@ pub fn statusline_samples(ts: i64, payload: &serde_json::Value) -> Vec<(WindowKi
 // ISO-timestamp → epoch-ms (line-level, no chrono dependency)
 // ---------------------------------------------------------------------------
 
-/// Parses `YYYY-MM-DDTHH:MM:SS(.fff)?` with `Z` or a `±HH:MM` offset
-/// (Claude's status line writes `2026-10-13T18:00:00-07:00`) into epoch
-/// milliseconds. Returns `None` for anything else — an unparseable
-/// timestamp is honest damage (counted), never a fabricated one.
-#[must_use]
-pub fn iso_to_epoch_ms(raw: &str) -> Option<i64> {
-    let date_end = raw.find('T')?;
-    let date = CalendarDate::parse(&raw[..date_end])?;
-    let time = &raw[date_end + 1..];
-    // The offset, east of UTC in minutes: the local time minus it is UTC.
-    let (time, offset_minutes) = if let Some(utc) = time.strip_suffix('Z') {
-        (utc, 0)
-    } else if time.len() > 6
-        && matches!(time.as_bytes()[time.len() - 6], b'+' | b'-')
-        && time.as_bytes()[time.len() - 3] == b':'
-    {
-        let (clock, zone) = time.split_at(time.len() - 6);
-        let hours: i64 = zone[1..3].parse().ok()?;
-        let minutes: i64 = zone[4..6].parse().ok()?;
-        let sign = if zone.starts_with('-') { -1 } else { 1 };
-        (clock, sign * (hours * 60 + minutes))
-    } else {
-        (time, 0)
-    };
-    let (hms, millis) = match time.split_once('.') {
-        // A fraction is of a second: ".5" is 500 ms, ".391" 391 ms.
-        Some((hms, frac)) if !frac.is_empty() && frac.bytes().all(|b| b.is_ascii_digit()) => (
-            hms,
-            format!("{:0<3}", &frac[..frac.len().min(3)])
-                .parse::<i64>()
-                .ok()?,
-        ),
-        Some(_) => return None,
-        None => (time, 0),
-    };
-    let mut parts = hms.split(':');
-    let hours: i64 = parts.next()?.parse().ok()?;
-    let minutes: i64 = parts.next()?.parse().ok()?;
-    let seconds: i64 = parts.next()?.parse().ok()?;
-    if parts.next().is_some()
-        || !(0..24).contains(&hours)
-        || !(0..60).contains(&minutes)
-        || !(0..60).contains(&seconds)
-    {
-        return None;
-    }
-    Some(
-        date.civil_days() * 86_400_000 + (hours * 3_600 + minutes * 60 + seconds) * 1000 + millis
-            - offset_minutes * 60_000,
-    )
-}
-
 /// A status line's `resets_at` as epoch ms: epoch seconds (×1000), epoch
 /// milliseconds, or an RFC 3339 string. Anything else is no reset time
 /// (never a guessed one).
@@ -463,7 +410,7 @@ fn reset_ms(value: &serde_json::Value) -> Option<i64> {
             number
         });
     }
-    value.as_str().and_then(iso_to_epoch_ms)
+    value.as_str().and_then(juggler_core::time::timestamp_ms)
 }
 
 // ---------------------------------------------------------------------------
@@ -507,7 +454,7 @@ pub fn transcript_events(account: &str, bytes: &[u8]) -> TailOutcome {
         let ts = value
             .get("timestamp")
             .and_then(serde_json::Value::as_str)
-            .and_then(iso_to_epoch_ms);
+            .and_then(juggler_core::time::timestamp_ms);
         let read = |key: &str| {
             usage
                 .get(key)
@@ -646,7 +593,7 @@ pub fn rollout_events(account: &str, bytes: &[u8]) -> TailOutcome {
         let ts = value
             .get("timestamp")
             .and_then(serde_json::Value::as_str)
-            .and_then(iso_to_epoch_ms)
+            .and_then(juggler_core::time::timestamp_ms)
             .unwrap_or_default();
         outcome.events.push(UsageEvent {
             account: account.to_owned(),
@@ -711,7 +658,7 @@ fn take_token_count(value: &serde_json::Value, outcome: &mut TailOutcome) -> boo
     let Some(ts) = value
         .get("timestamp")
         .and_then(serde_json::Value::as_str)
-        .and_then(iso_to_epoch_ms)
+        .and_then(juggler_core::time::timestamp_ms)
     else {
         outcome.parse_errors += 1;
         return true;
@@ -1065,12 +1012,62 @@ pub fn spool_path(config_dir: &Path) -> PathBuf {
 /// in-place account.
 const OVERLAY_SETTINGS_NAME: &str = "launch-settings.json";
 
+/// AJ-E1530 Req.1: the record of an opted-in capture, in the account's
+/// overlay folder (never the user's).
+pub const OUTSIDE_CAPTURE_RECORD: &str = "outside-capture.json";
+
+/// The full `settings.json` from just before the opted-in change, kept in
+/// the overlay folder (never the user's).
+pub const OUTSIDE_CAPTURE_BACKUP: &str = "settings-before-capture.json";
+
+/// What an opted-in capture changed (ADR-0018 amendment): the key's value
+/// before (its text as written; `None` when there was none), AI
+/// Juggler's value, and the whole file as written, by hash, so turning
+/// it off knows whether the user edited the file since.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct OutsideCaptureRecord {
+    /// The settings file it changed, as the account's folder names it.
+    pub file: String,
+    /// The top-level key.
+    pub key: String,
+    /// The key's value before, as written; `None` when it had none.
+    pub original: Option<String>,
+    /// AI Juggler's value, as written.
+    pub ours: String,
+    /// SHA-256 (hex) of the whole file as AI Juggler wrote it.
+    pub written_sha256: String,
+    /// When it was turned on, epoch ms.
+    pub at_ms: i64,
+}
+
+/// The opted-in capture's record for an account, when it's on.
+#[must_use]
+pub fn outside_capture_record(
+    overlays_root: &Path,
+    account_id: &str,
+) -> Option<OutsideCaptureRecord> {
+    let bytes =
+        std::fs::read(overlay_dir(overlays_root, account_id).join(OUTSIDE_CAPTURE_RECORD)).ok()?;
+    serde_json::from_slice(&bytes).ok()
+}
+
 /// Where AI Juggler keeps an in-place account's own files (wrapper,
 /// spool, launch settings): `<overlays root>/<account id>/`. Never the
 /// user's folder.
 #[must_use]
 pub fn overlay_dir(overlays_root: &Path, account_id: &str) -> PathBuf {
     overlays_root.join(account_id)
+}
+
+/// The capture wrapper of an account (see [`overlay_dir`]), as the one
+/// shell word a status line `command` takes.
+#[must_use]
+pub fn overlay_wrapper_command(overlays_root: &Path, account_id: &str) -> String {
+    shell_word(
+        &overlay_dir(overlays_root, account_id)
+            .join(WRAPPER_NAME)
+            .to_string_lossy(),
+    )
 }
 
 /// The spool of an in-place account (see [`overlay_dir`]).
@@ -1108,6 +1105,20 @@ pub fn ensure_launch_overlay(
             .map(str::to_owned)
     };
     let chain = match read("settings.json").and_then(command) {
+        // The user turned on the capture for sessions started elsewhere
+        // (AJ-E1530): chain their own line, as it was before, from the
+        // record in AI Juggler's folder.
+        Some(ours) if ours.contains(WRAPPER_NAME) && dir.join(OUTSIDE_CAPTURE_RECORD).exists() => {
+            outside_capture_record(overlays_root, account_id)
+                .and_then(|record| record.original)
+                .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
+                .and_then(|value| {
+                    value
+                        .get("command")
+                        .and_then(serde_json::Value::as_str)
+                        .map(str::to_owned)
+                })
+        }
         // A copy an earlier version wired to its own wrapper (left as it
         // is): chain what that wrapper chained, the user's own line, kept
         // in its backup — never the wrapper itself.

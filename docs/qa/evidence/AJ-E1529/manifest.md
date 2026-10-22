@@ -231,6 +231,60 @@ Tests:
   untouched, and the launch ends within 20 s.
 - vitest `home`: "never 'all clear' while an account has run out".
 
+### The launch alert can never outlive the app (the coordinator, after batch 9)
+
+- **Cause:** rfd shows a dialog without a parent window as a
+  `CFUserNotification`, which the system owns. Killed mid-alert, AI
+  Juggler was gone and the alert stayed, with a Quit that only
+  dismissed it.
+- **Fix:** the launch alerts ("can't start", "isn't answering") are now
+  an `NSAlert` in AI Juggler's own process on macOS (`launch_alert.rs`).
+  - Every call is a safe one (objc2's `MainThreadMarker` API): no
+    `unsafe`, no new crate, no decision record.
+  - Quit exits.
+  - Try again re-checks the lock in this process first. Once the data is
+    free, it starts again in a fresh launch, because the alert made this
+    process an app before Tauri's own.
+- **The hand-over path:** the one alert shown after a Tauri app was
+  built and dropped (the hand-over to an older AI Juggler) aborted there,
+  because tao's run-loop observers stay behind. That alert now shows from
+  a fresh launch of the app that does nothing else, still the app's own
+  process.
+- **Drawing:** a process that never ran the app's loop hadn't finished
+  launching, and its alert drew as an empty white window. The
+  maintainer saw one, left over from an earlier check run. The alert now
+  finishes launching first, and draws in full:
+  [launch-alert.png](launch-alert.png), the alert window alone.
+- **Check (`scripts/qa/launch_alert_check.sh`, by hand with
+  `AIJ_ALLOW_WINDOWS=1`):**
+  - It runs the real binary with its data held, waits for the alert,
+    captures it, and kills the app with SIGKILL while the alert is up.
+  - It then finds no window of it, or of the system's notification
+    agent, left, and no process of the run left. Every process it starts
+    is tagged and reaped on any exit.
+  - Result: [launch-alert-check.txt](launch-alert-check.txt) (PASS).
+- **Both buttons, on the real binary** (`second_launch`):
+  - `the_isnt_answering_alerts_quit_quits`: Quit exits, and the data
+    folder is untouched.
+  - `the_isnt_answering_alerts_try_again_starts_once_the_data_is_free`:
+    Try again is pressed while the data is held, then the open app lets
+    go. The launch starts again in a fresh one and exits 0; the fresh
+    one is found by an environment tag and ended.
+  - These use a debug build's `AIJ_DIALOG_ANSWER=<label>`. QA presses
+    the real buttons on their next walk.
+- **The seams never ship:**
+  - `AIJ_DIALOG_ANSWER` and `AIJ_NO_DIALOGS` are compiled into debug
+    builds only (`launch_alert::seams`), and are listed in
+    SECURITY-GUIDELINES C8's test seams.
+  - `scripts/release_seams_check.sh` fails a release binary that
+    contains either. It runs on the built app in build-macos.yml, and
+    its self-test (in `dev_bridge_check.sh`) sees both in the debug
+    binary.
+- **Nothing left running:** the gate run reaps whatever it started on
+  any exit, and ends by checking that no `debug/juggler-app` is
+  running. `second_launch` kills its child when the test ends, however
+  it ends.
+
 ## QA batch 10 (the re-check of batch 9)
 
 QA re-checked `8293c0f3` on the real setup:
@@ -277,6 +331,24 @@ Tests:
 - `codex_conversations` `a_large_rollouts_quick_read_takes_its_ends`;
 - `conversations` `a_large_file_is_listed_from_its_ends_first_and_counted_after`;
 - the reporting test, now with its report after round one.
+
+## QA: a search helper isn't a session
+
+- **What QA found on the real setup:** Claude Code runs its search
+  helpers as the same multi-call `claude` executable under another name
+  (`ugrep`). Five were left running for hours under an orphaned shell.
+- **The risk:** they could be taken for sessions, and folder-matched
+  liveness could then mark a recent conversation in their folder live.
+- **The fix:** `claude_conversations::session_process` now needs the
+  program name (`argv[0]`) to be `claude` too, not only the executable.
+  Unit test: `ugrep`, `rg` and a full path to them are not sessions; the
+  binary started by its full path still is.
+- **On the replica:** `replica-live` starts one such helper (the `claude`
+  binary as `ugrep`, on an account and in a project with a live session,
+  started just before it). The oracle with it running: every account's
+  live count matches ([oracle-replica-with-helper.txt](oracle-replica-with-helper.txt)).
+  The three MISMATCH lines are the known ones: `gpt-5-codex` unpriced,
+  and This Mac counting the host's apps on a replica.
 
 ## Walked on the replica: the three questions
 

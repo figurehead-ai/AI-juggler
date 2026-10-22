@@ -113,7 +113,7 @@ pub struct DeletePreviewInfo {
 }
 
 /// Lowercase hex of `bytes`.
-fn hex(bytes: &[u8]) -> String {
+pub(crate) fn hex(bytes: &[u8]) -> String {
     use std::fmt::Write as _;
     bytes.iter().fold(String::new(), |mut out, byte| {
         let _ = write!(out, "{byte:02x}");

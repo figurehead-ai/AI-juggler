@@ -26,6 +26,27 @@
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
+/// The launched app, killed when the test ends however it ends (a failed
+/// assertion included): nothing it started outlives the test.
+struct Reaped(std::process::Child);
+
+impl Drop for Reaped {
+    fn drop(&mut self) {
+        let _ = self.0.kill();
+        let _ = self.0.wait();
+    }
+}
+
+/// One test at a time: every launch here shares the single-instance
+/// plugin's socket, so a launch in one test could hand over to another's.
+static SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+fn serial() -> std::sync::MutexGuard<'static, ()> {
+    SERIAL
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
 /// Where a debug build (AI Juggler Dev) keeps its data under `home`.
 fn dev_data_dir(home: &std::path::Path) -> PathBuf {
     if cfg!(target_os = "macos") {
@@ -54,6 +75,7 @@ fn ai_juggler_is_open() -> bool {
 
 #[test]
 fn a_second_launch_never_opens_the_data() {
+    let _serial = serial();
     if ai_juggler_is_open() {
         eprintln!("skipped: AI Juggler is open, and this build shares its single-instance name");
         return;
@@ -74,14 +96,17 @@ fn a_second_launch_never_opens_the_data() {
         .unwrap();
     running.try_lock().unwrap();
 
-    let mut second = std::process::Command::new(env!("CARGO_BIN_EXE_juggler-app"))
-        .env("HOME", home.path())
-        .env("XDG_DATA_HOME", home.path().join(".local/share"))
-        .env("AIJ_NO_DIALOGS", "1")
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::piped())
-        .spawn()
-        .unwrap();
+    let mut second = Reaped(
+        std::process::Command::new(env!("CARGO_BIN_EXE_juggler-app"))
+            .env("HOME", home.path())
+            .env("XDG_DATA_HOME", home.path().join(".local/share"))
+            .env("AIJ_NO_DIALOGS", "1")
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .unwrap(),
+    );
+    let second = &mut second.0;
     let deadline = Instant::now() + Duration::from_secs(60);
     let status = loop {
         if let Some(status) = second.try_wait().unwrap() {
@@ -169,6 +194,7 @@ fn held_home() -> (tempfile::TempDir, PathBuf, std::fs::File) {
 /// says it isn't answering, and quits without touching the data.
 #[test]
 fn a_second_launch_says_a_frozen_app_isnt_answering() {
+    let _serial = serial();
     if ai_juggler_is_open() {
         eprintln!("skipped: AI Juggler is open, and this build shares its single-instance name");
         return;
@@ -211,6 +237,7 @@ fn a_second_launch_says_a_frozen_app_isnt_answering() {
 /// The open AI Juggler answers: the second launch quits at once, quietly.
 #[test]
 fn a_second_launch_hands_over_to_an_app_that_answers() {
+    let _serial = serial();
     if ai_juggler_is_open() {
         eprintln!("skipped: AI Juggler is open, and this build shares its single-instance name");
         return;
@@ -227,4 +254,179 @@ fn a_second_launch_hands_over_to_an_app_that_answers() {
     handover.stop();
     let _ = std::fs::remove_dir(socket.parent().unwrap());
     drop(lock);
+}
+
+/// A frozen app's hand-over socket: accepts every ask, never answers.
+fn frozen_socket(data: &std::path::Path) -> (PathBuf, std::thread::JoinHandle<()>) {
+    let socket = juggler_app::handover::socket_path("ai.figurehead.juggler", data).unwrap();
+    std::os::unix::fs::DirBuilderExt::mode(&mut std::fs::DirBuilder::new(), 0o700)
+        .create(socket.parent().unwrap())
+        .unwrap();
+    let listener = std::os::unix::net::UnixListener::bind(&socket).unwrap();
+    listener.set_nonblocking(true).unwrap();
+    let path = socket.clone();
+    let frozen = std::thread::spawn(move || {
+        let mut held = Vec::new();
+        let until = Instant::now() + Duration::from_secs(40);
+        while Instant::now() < until && path.exists() {
+            if let Ok((stream, _)) = listener.accept() {
+                held.push(stream); // read nothing, answer nothing
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
+    });
+    (socket, frozen)
+}
+
+/// The processes whose environment carries `tag` (this test's launches,
+/// the relaunched one included), killed; how many there were.
+fn reap_tagged(tag: &str) -> usize {
+    let out = std::process::Command::new("ps")
+        .args(["eww", "-axo", "pid=,command="])
+        .output()
+        .unwrap();
+    let pids: Vec<String> = String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .filter(|line| line.contains(tag) && !line.contains(" ps "))
+        .filter_map(|line| line.split_whitespace().next().map(str::to_owned))
+        .collect();
+    for pid in &pids {
+        let _ = std::process::Command::new("kill")
+            .args(["-9", pid])
+            .status();
+    }
+    pids.len()
+}
+
+/// Ends every process carrying the tag when dropped (see [`reap_tagged`]),
+/// and the single-instance socket a killed launch leaves behind.
+struct ReapTagged(String);
+
+impl Drop for ReapTagged {
+    fn drop(&mut self) {
+        reap_tagged(&self.0);
+        std::thread::sleep(Duration::from_millis(200));
+        // A launch killed mid-start leaves this build's socket: never the
+        // installed app's (the test doesn't run while that's open).
+        #[cfg(target_os = "macos")]
+        if !ai_juggler_is_open() {
+            let _ = std::fs::remove_file(SOCKET);
+        }
+    }
+}
+
+/// The "isn't answering" alert's two buttons, pressed on the real binary
+/// (a debug build's `AIJ_DIALOG_ANSWER`): Quit quits, and touches nothing.
+#[test]
+fn the_isnt_answering_alerts_quit_quits() {
+    let _serial = serial();
+    if ai_juggler_is_open() {
+        eprintln!("skipped: AI Juggler is open, and this build shares its single-instance name");
+        return;
+    }
+    let (home, data, lock) = held_home();
+    let (socket, frozen) = frozen_socket(&data);
+    let out = std::process::Command::new(env!("CARGO_BIN_EXE_juggler-app"))
+        .env("HOME", home.path())
+        .env("XDG_DATA_HOME", home.path().join(".local/share"))
+        .env("AIJ_DIALOG_ANSWER", "Quit")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::piped())
+        .output()
+        .unwrap();
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(!out.status.success(), "{stderr}");
+    assert!(
+        stderr.contains("can't start yet") && stderr.contains("(answered: Quit)"),
+        "{stderr}"
+    );
+    let left: Vec<String> = std::fs::read_dir(&data)
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(left, ["juggler.lock"], "the data folder is untouched");
+    let _ = std::fs::remove_file(&socket);
+    let _ = std::fs::remove_dir(socket.parent().unwrap());
+    frozen.join().unwrap();
+    drop(lock);
+}
+
+/// Try again, once the open app has let go: this launch starts again in a
+/// fresh one (the alert made it an app before Tauri's own) and quits.
+#[test]
+fn the_isnt_answering_alerts_try_again_starts_once_the_data_is_free() {
+    let _serial = serial();
+    if ai_juggler_is_open() {
+        eprintln!("skipped: AI Juggler is open, and this build shares its single-instance name");
+        return;
+    }
+    let (home, data, lock) = held_home();
+    let (socket, frozen) = frozen_socket(&data);
+    let tag = format!("AIJ_TEST_TAG=try-again-{}", std::process::id());
+    // However the test ends, every process it started (the fresh launch
+    // included) is ended, and the single-instance socket a fresh launch
+    // may have taken goes with it.
+    let _reaper = ReapTagged(tag.clone());
+    let (key, value) = tag.split_once('=').unwrap();
+    let mut launch = Reaped(
+        std::process::Command::new(env!("CARGO_BIN_EXE_juggler-app"))
+            .env("HOME", home.path())
+            .env("XDG_DATA_HOME", home.path().join(".local/share"))
+            .env("AIJ_DIALOG_ANSWER", "Try again")
+            .env(key, value)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .unwrap(),
+    );
+    // The open app lets go once Try again is pressed.
+    let stderr = launch.0.stderr.take().unwrap();
+    let watcher = std::thread::spawn(move || {
+        let mut lock = Some(lock);
+        let mut seen = String::new();
+        for line in std::io::BufRead::lines(std::io::BufReader::new(stderr)).map_while(Result::ok) {
+            if line.contains("(answered: Try again)") {
+                drop(lock.take());
+            }
+            seen.push_str(&line);
+            seen.push('\n');
+        }
+        seen
+    });
+    let deadline = Instant::now() + Duration::from_secs(60);
+    let status = loop {
+        if let Some(status) = launch.0.try_wait().unwrap() {
+            break status;
+        }
+        if Instant::now() > deadline {
+            reap_tagged(&tag);
+            let seen = watcher.join().unwrap_or_default();
+            panic!("the launch didn't end within a minute: {seen}");
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    };
+    // The data is held again at once, so the fresh launch (asking the
+    // frozen socket for 3 s first) never starts the app for real: it's
+    // found by its tag, and ended.
+    // (If the fresh launch was quicker and took it, it starts the app for
+    // real: that's ended below just the same.)
+    let again = std::fs::OpenOptions::new()
+        .write(true)
+        .open(data.join("juggler.lock"))
+        .unwrap();
+    let _ = again.try_lock();
+    let mut relaunched = 0;
+    let until = Instant::now() + Duration::from_secs(5);
+    while relaunched == 0 && Instant::now() < until {
+        std::thread::sleep(Duration::from_millis(100));
+        relaunched = reap_tagged(&tag);
+    }
+    let seen = watcher.join().unwrap();
+    assert!(seen.contains("(answered: Try again)"), "{seen}");
+    assert!(status.success(), "it handed on to a fresh launch: {seen}");
+    assert!(relaunched >= 1, "a fresh launch started: {seen}");
+    drop(again);
+    let _ = std::fs::remove_file(&socket);
+    let _ = std::fs::remove_dir(socket.parent().unwrap());
+    frozen.join().unwrap();
 }

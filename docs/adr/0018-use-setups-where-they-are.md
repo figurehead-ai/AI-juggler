@@ -135,3 +135,47 @@ launches with both unset, as a plain `codex` does (the counterpart of
 home — the model goes in as a flag. For Codex, in place is also the
 safer default: its refresh token is single-use, so a copied `auth.json`
 would sign one of the two out, and copies never carry it.
+
+## Amendment — measuring limits for sessions started elsewhere, opt-in (2026-10-22, AJ-E1530 Req.1)
+
+The maintainer's decision, 2026-10-22: **"Offer it, opt-in."**
+
+§2's rule, "in place, AI Juggler writes nothing of its own into your
+folder", had a cost. Claude reports its limits only through the status
+line. So the windows of an account whose sessions are all started in the
+Claude app or a terminal stay "Not measured yet", even while that is all
+the account does. The alternative this ADR first rejected (installing
+the capture into the user's `settings.json`) is now offered, and never
+done unasked.
+
+- **Off by default.** It is offered per account, for an account used
+  where it is, as "Measure limits for sessions started elsewhere". A
+  diff preview of the exact change comes first, and nothing is written
+  before the user confirms it.
+- **One value changes.** Only the top-level `statusLine` value in
+  `settings.json` is replaced, or added when there is none. It is
+  spliced into the text, so every other byte stays as it was: comments,
+  key order and line endings included.
+  - The write is atomic.
+  - A full copy of the file from before the change is kept in AI
+    Juggler's own data.
+- **Their own status line keeps working.** The user's command is
+  chained after the capture, and its output is shown unchanged.
+- **Our files stay ours.** The wrapper and the spool live in
+  `overlays/<account-id>/`. Nothing else is ever written to the user's
+  folder.
+- **Turning it off is in the same place.**
+  - It puts their original `statusLine` value back, byte for byte.
+  - If they edited the file since, only AI Juggler's value is spliced
+    out. The old backup is never restored over their edits.
+- **Unsafe states are refused in plain words.** That covers a
+  `settings.json` that is missing, unreadable as JSON, or changed
+  between the preview and the change. If their status line becomes
+  something else later, AI Juggler says so and leaves it alone.
+- **The isolation check** allows exactly that one key, while the user
+  has it on. Any other write still fails it.
+
+Trade-off: the user's own configuration now holds one value that points
+into AI Juggler's data. That is the price of measured limits for
+everything they run. It stays their choice: off unless they turn it on,
+visible as a diff before it happens, and undone exactly.

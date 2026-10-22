@@ -2115,7 +2115,7 @@ pub fn isolation_check_impl(
     };
     let dir = account.state_dir.clone();
     if account.in_place {
-        return in_place_isolation_rows(state, &account);
+        return crate::in_place::in_place_isolation_rows(state, &account);
     }
     let mut rows = Vec::new();
 
@@ -2221,7 +2221,7 @@ pub fn isolation_check_impl(
 /// variable to what the adapter pins for its folder — the path exactly,
 /// or unset for the vendor's own folder (AJ-E1521: launches, the shell
 /// line and this check read the one `pinned_env` list).
-fn launch_env_pinned(
+pub(crate) fn launch_env_pinned(
     adapter: &juggler_adapter::adapter::ProviderAdapter,
     account: &Account,
 ) -> bool {
@@ -2251,76 +2251,6 @@ fn launch_env_pinned(
                         (None, _) => false,
                     })
             })
-}
-
-/// ADR-0018: the checklist for an account that uses the user's folder
-/// where it is. "Owner-only" and "marker present" are promises about AI
-/// Juggler's own copies; here the promises are that AI Juggler put
-/// nothing of its own in the folder and launches point only at it.
-fn in_place_isolation_rows(
-    state: &Arc<AppState>,
-    account: &Account,
-) -> AppResult<Vec<IsolationRowInfo>> {
-    let dir = account.state_dir.clone();
-    let mut rows = vec![IsolationRowInfo {
-        id: "in_place_folder_present",
-        label: "Uses your folder where it is".into(),
-        pass: dir.is_dir(),
-        detail: format!("{}", dir.display()),
-    }];
-    let ours = [
-        juggler_adapters::claude_code::MANAGED_MARKER,
-        "juggler-statusline.sh",
-        "juggler-statusline-backup.json",
-        "quota-spool",
-    ];
-    let untouched = ours.iter().all(|name| !dir.join(name).exists());
-    rows.push(IsolationRowInfo {
-        id: "in_place_no_juggler_files",
-        label: "AI Juggler put nothing of its own in your folder".into(),
-        pass: untouched,
-        detail: "its launch settings and usage capture live in AI Juggler's own folder".into(),
-    });
-    let adapter = state
-        .registry
-        .get(&account.harness)
-        .ok_or_else(|| AppError::UnknownHarness(account.harness.as_str().to_owned()))?;
-    // Every pinned variable is the folder exactly, or — for the vendor's
-    // own default folder — unset, as the vendor runs it.
-    let pinned = adapter.pinned_env_keys();
-    let default_folder = adapter
-        .pinned_env(&dir)
-        .iter()
-        .all(|(_, value)| value.is_none());
-    let env_ok = launch_env_pinned(adapter.as_ref(), account);
-    let keys = pinned.join(" and ");
-    rows.push(IsolationRowInfo {
-        id: "launch_env_managed_only",
-        label: "Launch environment points only at this account's folder".into(),
-        pass: env_ok,
-        detail: if default_folder {
-            format!(
-                "the default folder runs as {} runs it ({keys} unset)",
-                provider_display(&state.registry, account.harness.as_str()).0
-            )
-        } else {
-            format!(
-                "{keys} {} this folder, exactly",
-                if pinned.len() > 1 { "are" } else { "is" }
-            )
-        },
-    });
-    let probe_state = login_state_of(&state.registry, account);
-    rows.push(IsolationRowInfo {
-        id: "probe_independence",
-        label: "Login state reads only this account's folder".into(),
-        pass: !matches!(probe_state, juggler_adapters::LoginState::Unknown),
-        detail: format!(
-            "probe classified this dir as {}",
-            login_state_name(probe_state)
-        ),
-    });
-    Ok(rows)
 }
 
 /// Inspects a candidate import source BEFORE any copy (metadata-only).
@@ -4084,7 +4014,7 @@ fn scan_rollout_line(
             scan.events.push(juggler_core::quality::UsageEvent {
                 at_ms: value["timestamp"]
                     .as_str()
-                    .and_then(chrono_like_ms)
+                    .and_then(juggler_core::time::timestamp_ms)
                     .unwrap_or(now),
                 // Disjoint classes, split as the usage pipeline does.
                 tokens: juggler_adapters::quota_ingest::codex_token_counts(usage),
@@ -4224,7 +4154,7 @@ fn scan_transcript(record: &SessionRecord, now: i64) -> TranscriptScan {
         // to one bucket, never fabricated).
         let at_ms = value["timestamp"]
             .as_str()
-            .and_then(chrono_like_ms)
+            .and_then(juggler_core::time::timestamp_ms)
             .unwrap_or(now);
         scan.events.push(juggler_core::quality::UsageEvent {
             at_ms,
@@ -4328,39 +4258,6 @@ pub fn instance_quality(
             since_ms: reason.since_ms,
         }),
     })
-}
-
-/// RFC3339-ish timestamp → epoch ms without pulling chrono (the
-/// transcripts use `2026-10-13T12:34:56.789Z`-style stamps).
-// Fractional seconds land in f64; the ms truncation is below the
-// per-minute bar resolution we compute from it.
-#[allow(clippy::cast_possible_truncation)]
-fn chrono_like_ms(raw: &str) -> Option<i64> {
-    let date_time = raw.split('T').nth(1)?.split(['Z', '+']).next()?;
-    let mut parts = date_time.split(':');
-    let h: i64 = parts.next()?.parse().ok()?;
-    let m: i64 = parts.next()?.parse().ok()?;
-    let sec: f64 = parts.next()?.parse().ok()?;
-    let day_ms = raw.strip_suffix('Z').map(str::to_string).and_then(|s| {
-        let date = s.split('T').next()?.to_string();
-        let mut d = date.split('-');
-        let y: i64 = d.next()?.parse().ok()?;
-        let mo: i64 = d.next()?.parse().ok()?;
-        let da: i64 = d.next()?.parse().ok()?;
-        Some(days_from_civil(y, mo, da) * 86_400_000)
-    })?;
-    Some(day_ms + h * 3_600_000 + m * 60_000 + (sec * 1000.0) as i64)
-}
-
-/// Days since epoch (Howard Hinnant's civil-from-days inverse).
-fn days_from_civil(y: i64, m: i64, d: i64) -> i64 {
-    let y = if m <= 2 { y - 1 } else { y };
-    let era = if y >= 0 { y } else { y - 399 } / 400;
-    let yoe = y - era * 400;
-    let mp = (m + 9) % 12;
-    let doy = (153 * mp + 2) / 5 + d - 1;
-    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
-    era * 146_097 + doe - 719_468
 }
 
 /// Emits the refreshed session list to the UI.
@@ -4513,7 +4410,7 @@ fn login_probe_name(probe: juggler_adapter::LoginProbe) -> String {
 /// Wire-format name for a login state — the AJ-E308 Req.1 taxonomy
 /// (`signed_in|partial|expired|sso_pending|api_key|logged_out|unknown`).
 /// `unknown` renders "sign in when online", NEVER as logged out.
-fn login_state_name(state: juggler_adapters::LoginState) -> &'static str {
+pub(crate) fn login_state_name(state: juggler_adapters::LoginState) -> &'static str {
     match state {
         juggler_adapters::LoginState::SignedIn => "signed_in",
         juggler_adapters::LoginState::Partial => "partial",
@@ -4527,7 +4424,7 @@ fn login_state_name(state: juggler_adapters::LoginState) -> &'static str {
 
 /// The Account's sign-in state from its own Provider's adapter in the
 /// app's registry. Unknown Providers report logged out, as before.
-fn login_state_of(
+pub(crate) fn login_state_of(
     registry: &juggler_adapter::AdapterRegistry,
     account: &Account,
 ) -> juggler_adapters::LoginState {
@@ -13016,7 +12913,7 @@ pub fn validation_dogfood_record_impl(
 
 /// Vendor display metadata for one Provider, from its adapter's spec
 /// (ADR-0019): the name, and the install page ("" when there is none).
-fn provider_display(
+pub(crate) fn provider_display(
     registry: &juggler_adapter::AdapterRegistry,
     provider: &str,
 ) -> (String, String) {

@@ -321,7 +321,7 @@ walk alone isn't enough.
 **Quality gates**: palette contrast and a minimum ΔE between neighbouring hues; icon discovery on fixtures, refusing oversized and odd files; vitest; baselines with 15+ projects; walked on the replica.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1532/manifest.md`.
 
-### AJ-E1530 Usage for sessions outside AI Juggler | Status: IN-PROGRESS | Priority P0 | Effort M | Depends: AJ-E1529
+### AJ-E1530 Usage for sessions outside AI Juggler | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E1529
 **Goal**: Each account's window % is measured even when its sessions weren't started by AI Juggler.
 **User story**: As someone who mostly starts Claude in my own terminal, I let AI Juggler read my usage once, and Runway shows my real window.
 **Requirements**:
@@ -419,6 +419,20 @@ walk alone isn't enough.
 4. Destructive items sit last, in their own group, and confirm or undo (AJ-E1503). Sessions started outside AI Juggler get only read-only actions and "Continue in AI Juggler" (D-08).
 **Quality gates**: the same items for every trigger; keyboard access; a11y (`role=menu`, focus return); a snapshot of each type's menu; a disabled item's handler never runs. Right-click checked by hand on the replica's rows.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1537/manifest.md`.
+
+### AJ-E1538 Search the words of sessions started outside AI Juggler (opt-in) | Status: TODO | Priority P2 | Effort M | Depends: AJ-E1536
+**Goal**: History's search finds words said in any session, including the ones started outside AI Juggler, for people who choose to index them.
+**Context** (P20, the coordinator's option (c), 2026-10-22): today History finds sessions started outside AI Juggler by their title, project, account, tool, branch and date. Only AI Juggler's own sessions have their words indexed. History says so in its description and when nothing matches.
+**Requirements**:
+1. Off by default. Settings › Privacy offers "Search the words of every session", with the index's size on this Mac before and after it is built, and a switch.
+2. The index is built in the background from each tool's own files (read-only), newest first and incrementally, as AJ-E1529's index reads them. Turning it off deletes the index.
+3. Search shows the matching words in context for outside sessions, as it does for AI Juggler's.
+**Trade-offs** (why it is opt-in):
+- **Disk:** on the maintainer's Mac, about 6.6 GB of Codex rollouts alone; the index would likely take 0.5–1 GB.
+- **A copy of all conversation text:** it would sit in AI Juggler's data folder, beside the tools' own files.
+- **Privacy:** that copy is one more place holding everything said, including what the tools keep and later delete (it is removed with the tool's file and when the switch is turned off).
+**Quality gates**: the size shown before turning it on matches the built index within 10%; turning it off leaves no index behind; the first-pass speed of AJ-E1529 is unchanged with it on.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1538/manifest.md`.
 
 ## Wave 2 — usage you can act on, Fleet and support
 

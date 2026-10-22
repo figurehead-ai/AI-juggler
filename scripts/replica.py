@@ -491,6 +491,20 @@ def live(args: argparse.Namespace) -> None:
             options += ["--ask", rng.choice(TOPICS)]  # a fresh one starts with a real ask
         if idle:
             options += ["--idle"]
+        if i == 0:
+            # QA (the real setup): Claude Code runs its search helpers as the
+            # same `claude` binary under another name (`ugrep`), and they can
+            # outlive their session under a stray shell. One sits here, on
+            # this account and in this project, started just before the
+            # session: it must never count as one (it's in no truth list).
+            helper_env = {**env, "AIJ_REPLICA_WRITE": writer([
+                "--format", "claude", "--file", str(home / MARKER / "helper-scratch.jsonl"),
+                "--cwd", project["path"], "--session-id", "helper", "--every-ms", "60000", "--idle"])}
+            procs.append(subprocess.Popen(["ugrep", "-r", "TODO", "."], executable=exe, cwd=project["path"],
+                                          env=helper_env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL))
+            truth["helpers"] = [{"name": "ugrep", "pid": procs[-1].pid, "account": account["label"],
+                                 "project": Path(project["path"]).name}]
+            time.sleep(0.2)
         env["AIJ_REPLICA_WRITE"] = writer(options)
         procs.append(subprocess.Popen(argv, cwd=project["path"], env=env,
                                       stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL))

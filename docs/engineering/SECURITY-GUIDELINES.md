@@ -101,6 +101,13 @@ Report a vulnerability through [SECURITY.md](../../SECURITY.md), never in a publ
 | MUST publish SHA256SUMS, a CycloneDX SBOM and GitHub build-provenance attestations for each release asset; SHOULD build with `cargo auditable` | CI |
 | MUST keep a written key-compromise and rotation runbook (updater key, Developer ID) | Review |
 | MUST NOT add hardened-runtime exception entitlements or `get-task-allow` to release builds | CI (`codesign -d --entitlements -` check in the verify step) |
+| MUST NOT ship a test seam. The only seams are listed below; each is compiled into debug builds only (`cfg(debug_assertions)`, or a feature a release build refuses) | CI (`scripts/dev_bridge_check.sh`; `scripts/release_seams_check.sh` on the release binary in build-macos.yml) |
+
+**The test seams** (debug builds only):
+
+- **The dev bridge** (`dev-bridge` feature, AIJ_DEV_BRIDGE): read-only routes for QA in a browser (docs/qa/DEV-BRIDGE.md). A release build with the feature doesn't compile.
+- **`AIJ_NO_DIALOGS`**: launch dialogs go to stderr and answer their last button, for headless runs and the tests that start the real binary (`launch_alert::seams`).
+- **`AIJ_DIALOG_ANSWER=<label>`**: launch dialogs answer with that button, for the tests that press Try again or Quit on the real binary (`launch_alert::seams`). An environment variable that answers a dialog is a lever someone else could pull, so a release binary must not contain it.
 
 ### C9. Dependencies
 

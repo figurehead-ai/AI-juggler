@@ -115,3 +115,10 @@ macos-accessibility-client = "0.0.2"
 # AJ-E1501: a removed copy's folder goes to the Trash (NSFileManager
 # trashItem — never deleted, never Finder scripting).
 trash = { version = "5.2.9", default-features = false }
+# The launch alerts (QA batch 9): an NSAlert in AI Juggler's own process,
+# so one can never outlive it (rfd's alert without a window is the
+# system's, and stayed up after the app was gone). Safe calls only, with
+# a MainThreadMarker; already in the tree through rfd and tao.
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSAlert", "NSApplication", "NSButton", "NSControl", "NSResponder", "NSRunningApplication", "NSView"] }

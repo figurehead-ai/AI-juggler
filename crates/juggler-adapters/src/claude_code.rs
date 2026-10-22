@@ -418,6 +418,32 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         crate::claude_conversations::read_conversation_quick(path)
     }
 
+    // AJ-E1530 Req.1: Claude reports its limits only to its status line,
+    // so the opt-in capture is the `statusLine` of the account's
+    // `settings.json` (ADR-0018 amendment).
+    fn limits_capture(&self) -> Option<juggler_adapter::LimitsCapture> {
+        Some(juggler_adapter::LimitsCapture {
+            file: "settings.json",
+            key: "statusLine",
+        })
+    }
+
+    fn limits_capture_value(
+        &self,
+        wrapper: &str,
+        original: Option<&serde_json::Value>,
+    ) -> Option<serde_json::Value> {
+        // The user's own status line object keeps its other keys (its
+        // padding, say); the wrapper runs their command after it captures.
+        let mut value = original
+            .and_then(serde_json::Value::as_object)
+            .cloned()
+            .unwrap_or_default();
+        value.insert("type".into(), "command".into());
+        value.insert("command".into(), wrapper.into());
+        Some(serde_json::Value::Object(value))
+    }
+
     fn session_process(
         &self,
         exe: Option<&Path>,

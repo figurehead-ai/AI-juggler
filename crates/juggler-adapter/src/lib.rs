@@ -21,6 +21,7 @@ pub mod environment;
 pub mod error;
 pub mod handover;
 pub mod identity;
+pub mod jsonc;
 pub mod launch;
 pub mod registry;
 pub mod spec;
@@ -31,7 +32,7 @@ pub mod watcher;
 /// (they still come from `juggler-core`, the single source of truth).
 pub use juggler_core::model;
 
-pub use adapter::{HarnessAdapter, SharedAdapter};
+pub use adapter::{HarnessAdapter, LimitsCapture, SharedAdapter};
 pub use capabilities::Capabilities;
 pub use discovery::{DiscoveryReport, InstallStatus, VerificationStatus};
 pub use environment::{

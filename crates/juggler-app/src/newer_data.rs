@@ -530,20 +530,12 @@ pub fn wait_for_instance_lock(data_dir: &Path, grace: std::time::Duration) -> bo
 #[must_use]
 pub fn try_again_or_quit(reason: &str) -> bool {
     let app_name = crate::edition::current().app_name();
-    let title = format!("{app_name} can't start yet");
-    if no_dialogs(&title, reason) {
-        return false;
-    }
-    let answer = rfd::MessageDialog::new()
-        .set_level(rfd::MessageLevel::Warning)
-        .set_title(title)
-        .set_description(reason)
-        .set_buttons(rfd::MessageButtons::OkCancelCustom(
-            "Try again".to_owned(),
-            "Quit".to_owned(),
-        ))
-        .show();
-    matches!(answer, rfd::MessageDialogResult::Custom(label) if label == "Try again")
+    crate::launch_alert::show(
+        crate::launch_alert::Level::Warning,
+        &format!("{app_name} can't start yet"),
+        reason,
+        &["Try again", "Quit"],
+    ) == 0
 }
 
 /// At launch: shows the alert and, if the user chooses to go back, goes
@@ -622,11 +614,7 @@ enum Choice {
 /// are written to stderr instead, and every question is answered Quit —
 /// for headless runs and the tests that start the real binary.
 fn no_dialogs(title: &str, text: &str) -> bool {
-    let quiet = std::env::var_os("AIJ_NO_DIALOGS").is_some();
-    if quiet {
-        eprintln!("ai-juggler: {title}\n{text}");
-    }
-    quiet
+    crate::launch_alert::quiet(title, text)
 }
 
 /// The launch alert (a native dialog on every desktop platform; it runs
@@ -673,13 +661,10 @@ fn tell(title: &str, text: &str) {
 /// Says that the app can't start, and why (before any window exists).
 pub fn cannot_start(reason: &str) {
     let app_name = crate::edition::current().app_name();
-    if no_dialogs(&format!("{app_name} can't start"), reason) {
-        return;
-    }
-    let _ = rfd::MessageDialog::new()
-        .set_level(rfd::MessageLevel::Error)
-        .set_title(format!("{app_name} can't start"))
-        .set_description(reason)
-        .set_buttons(rfd::MessageButtons::OkCustom("Quit".to_owned()))
-        .show();
+    let _ = crate::launch_alert::show(
+        crate::launch_alert::Level::Error,
+        &format!("{app_name} can't start"),
+        reason,
+        &["Quit"],
+    );
 }

@@ -6,6 +6,8 @@
 
 #![allow(clippy::wildcard_imports)]
 
+pub mod capture;
+
 use crate::commands::*;
 
 /// AJ-E610: one window clock's rendered state — the typed shape every
