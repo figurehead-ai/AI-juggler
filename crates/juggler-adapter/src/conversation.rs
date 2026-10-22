@@ -85,18 +85,61 @@ pub struct SessionProcess {
     pub resumes: Option<String>,
 }
 
-/// The word after `flag` in `args` (`--resume <id>`), when there is one
-/// and it isn't another option.
+/// The value `flag` takes in `args`: the word after it (`--resume <id>`,
+/// when that isn't another option), or after its `=` (`--resume=<id>`,
+/// how the Claude app passes it).
 #[must_use]
 pub fn value_after(args: &[String], flags: &[&str]) -> Option<String> {
-    args.windows(2)
-        .find(|pair| flags.contains(&pair[0].as_str()) && !pair[1].starts_with('-'))
-        .map(|pair| pair[1].clone())
+    args.iter().enumerate().find_map(|(index, arg)| {
+        if let Some((flag, value)) = arg.split_once('=')
+            && flags.contains(&flag)
+        {
+            return (!value.is_empty()).then(|| value.to_owned());
+        }
+        if !flags.contains(&arg.as_str()) {
+            return None;
+        }
+        args.get(index + 1)
+            .filter(|next| !next.starts_with('-'))
+            .cloned()
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_resume_id_reads_as_two_words_or_one() {
+        let args = |list: &[&str]| list.iter().map(|arg| (*arg).to_owned()).collect::<Vec<_>>();
+        let flags = ["--resume", "-r"];
+        assert_eq!(
+            value_after(&args(&["claude", "--resume", "abc"]), &flags).as_deref(),
+            Some("abc")
+        );
+        // The Claude app's own Code sessions pass it as one word.
+        assert_eq!(
+            value_after(&args(&["claude", "--resume=abc"]), &flags).as_deref(),
+            Some("abc")
+        );
+        assert_eq!(
+            value_after(&args(&["claude", "-r", "abc"]), &flags).as_deref(),
+            Some("abc")
+        );
+        assert_eq!(
+            value_after(&args(&["claude", "--resume", "--verbose"]), &flags),
+            None
+        );
+        assert_eq!(value_after(&args(&["claude", "--resume="]), &flags), None);
+        assert_eq!(
+            value_after(&args(&["claude", "--model=opus"]), &flags),
+            None
+        );
+        assert_eq!(
+            value_after(&args(&["codex", "resume", "0199"]), &["resume"]).as_deref(),
+            Some("0199")
+        );
+    }
 
     #[test]
     fn timestamps_read_as_utc_epoch_ms() {

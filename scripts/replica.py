@@ -438,11 +438,23 @@ def live(args: argparse.Namespace) -> None:
         # (`claude --resume <id>`); the rest start fresh (`claude`).
         earlier = [c for c in truth["conversations"]
                    if c["tool"] == "claude-code" and c["account"] == account["label"] and c["cwd"] == project["path"]]
-        # Every third runs as the desktop app's Code sessions do.
-        exe = str(bundled_bin if i % 3 == 2 else claude_bin)
+        # Every third runs as the desktop app's Code sessions do: from its
+        # bundled CLI, resuming with `--resume=<id>` (one word). A resumed
+        # one of those sits idle, so only its id names its conversation
+        # (nothing in its folder is newer than its start).
+        app_run = i % 3 == 2
+        exe = str(bundled_bin if app_run else claude_bin)
+        idle = False
+        if app_run and i % 2 == 1:
+            # Any of the account's own conversations, in its own folder.
+            mine = [c for c in truth["conversations"] if c["tool"] == "claude-code" and c["account"] == account["label"]]
+            if mine:
+                project = {"path": mine[0]["cwd"]}
+                earlier = mine[:1]
         if i % 2 == 1 and earlier:
             session = earlier[0]["id"]
-            argv = [exe, "--resume", session]
+            argv = [exe, f"--resume={session}"] if app_run else [exe, "--resume", session]
+            idle = app_run
         else:
             session = str(uuid.UUID(int=rng.getrandbits(128)))
             argv = [exe]
@@ -451,6 +463,8 @@ def live(args: argparse.Namespace) -> None:
                    "--cwd", project["path"], "--session-id", session, "--every-ms", "4000"]
         if len(argv) == 1:
             options += ["--ask", rng.choice(TOPICS)]  # a fresh one starts with a real ask
+        if idle:
+            options += ["--idle"]
         env["AIJ_REPLICA_WRITE"] = writer(options)
         procs.append(subprocess.Popen(argv, cwd=project["path"], env=env,
                                       stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL))

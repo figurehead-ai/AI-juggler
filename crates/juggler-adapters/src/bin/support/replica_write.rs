@@ -8,7 +8,11 @@
 //! ```text
 //! fake-harness write --format claude|codex --file PATH --cwd DIR
 //!                    --session-id ID [--every-ms MS] [--used FIVE WEEK]
+//!                    [--idle]
 //! ```
+//!
+//! `--idle` runs without writing: a resumed session left waiting, whose
+//! conversation only its `--resume` id names (nothing newer is written).
 //!
 //! `claude` writes Claude Code's `projects/<cwd>/<id>.jsonl` lines (user
 //! and assistant turns, with `message.usage`); `codex` writes a rollout
@@ -32,6 +36,8 @@ struct WriteOptions {
     used: (f64, f64),
     /// The first thing the user asks (a fresh session's title).
     ask: Option<String>,
+    /// Running, writing nothing.
+    idle: bool,
 }
 
 fn parse(args: &[String]) -> Result<WriteOptions, String> {
@@ -43,6 +49,7 @@ fn parse(args: &[String]) -> Result<WriteOptions, String> {
         every_ms: 4000,
         used: (0.0, 0.0),
         ask: None,
+        idle: false,
     };
     let mut i = 0;
     while i < args.len() {
@@ -51,6 +58,11 @@ fn parse(args: &[String]) -> Result<WriteOptions, String> {
                 .cloned()
                 .ok_or_else(|| format!("missing value for {}", args[i]))
         };
+        if args[i] == "--idle" {
+            opts.idle = true;
+            i += 1;
+            continue;
+        }
         match args[i].as_str() {
             "--format" => opts.format = value(i + 1)?,
             "--file" => opts.file = PathBuf::from(value(i + 1)?),
@@ -188,20 +200,23 @@ pub fn run(args: &[String]) -> Result<(), String> {
     let mut previous: Option<String> = None;
     let mut turn: u64 = 0;
     loop {
-        let lines = if opts.format == "claude" {
+        let lines = if opts.idle {
+            Vec::new()
+        } else if opts.format == "claude" {
             claude_lines(&opts, turn, &mut previous)
         } else {
             codex_lines(&opts, turn)
         };
-        let mut file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&opts.file)
-            .map_err(|e| format!("{}: {e}", opts.file.display()))?;
-        for line in lines {
-            writeln!(file, "{line}").map_err(|e| e.to_string())?;
+        if !lines.is_empty() {
+            let mut file = OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&opts.file)
+                .map_err(|e| format!("{}: {e}", opts.file.display()))?;
+            for line in lines {
+                writeln!(file, "{line}").map_err(|e| e.to_string())?;
+            }
         }
-        drop(file);
         thread::sleep(Duration::from_millis(opts.every_ms));
         #[cfg(unix)]
         if std::os::unix::process::parent_id() != parent {

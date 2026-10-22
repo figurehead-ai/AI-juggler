@@ -59,7 +59,11 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
                 .as_deref()
                 .map(juggler_core::storage::project_root);
             ConversationInfo {
-                live: state.conversations.is_live(&conversation.tool, &summary.id),
+                live: state.conversations.is_live(
+                    &conversation.account_id,
+                    &conversation.tool,
+                    &summary.id,
+                ),
                 session_id: sessions.get(&summary.id).cloned(),
                 project_id: root.and_then(|root| projects.get(&root).cloned()),
                 account_label: labels

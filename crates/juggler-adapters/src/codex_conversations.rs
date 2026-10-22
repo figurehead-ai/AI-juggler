@@ -89,11 +89,13 @@ pub fn read_conversation(path: &Path) -> Option<ConversationSummary> {
     Some(summary)
 }
 
-/// Codex subcommands that aren't a session: the desktop app's servers,
-/// MCP, sign-in and the like.
+/// Codex subcommands that aren't a session: the desktop app's servers
+/// and its command sandbox, MCP, sign-in and the like.
 const HELPERS: &[&str] = &[
     "app-server",
     "exec-server",
+    "sandbox",
+    "debug",
     "mcp",
     "mcp-server",
     "proto",
@@ -103,23 +105,21 @@ const HELPERS: &[&str] = &[
     "apply",
 ];
 
-/// A `codex` CLI (the binary, or the npm package run by node) outside an
-/// app bundle, not one of its helper subcommands, is a session;
-/// `codex resume <id>` names its conversation.
+/// A `codex` CLI (the binary, or the npm package run by node), wherever
+/// it's installed, is a session unless it runs one of its helper
+/// subcommands (an app's `app-server`, `exec-server`, …: told by what
+/// it does, not by its path). `codex resume <id>` names its conversation.
 #[must_use]
 pub fn session_process(exe: Option<&Path>, args: &[String]) -> Option<SessionProcess> {
-    let in_app = exe.is_some_and(|exe| exe.to_string_lossy().contains(".app/"))
-        || args
-            .first()
-            .is_some_and(|program| program.contains(".app/"));
     let cli = exe.is_some_and(|exe| exe.file_name().is_some_and(|name| name == "codex"))
         || args.iter().any(|arg| arg.contains("@openai/codex"));
-    let subcommand = args
+    // Anywhere in its arguments: options come first (`codex -c key=value
+    // app-server`), so the first bare word can be an option's value.
+    let helper = args
         .iter()
         .skip(1)
-        .find(|arg| !arg.starts_with('-') && !arg.contains("@openai/codex"));
-    let helper = subcommand.is_some_and(|word| HELPERS.contains(&word.as_str()));
-    (cli && !in_app && !helper).then(|| SessionProcess {
+        .any(|arg| HELPERS.contains(&arg.as_str()));
+    (cli && !helper).then(|| SessionProcess {
         resumes: value_after(args, &["resume"]),
     })
 }
@@ -148,6 +148,44 @@ mod tests {
         assert!(session_process(Some(app), &args(&["codex", "app-server"])).is_none());
         assert!(session_process(Some(cli), &args(&["codex", "exec-server"])).is_none());
         assert!(session_process(Some(cli), &args(&["codex", "login"])).is_none());
+        // A session the app runs from its bundle is a session; the app
+        // itself isn't one.
+        assert!(session_process(Some(app), &args(&["codex", "resume", "0199a2b3"])).is_some());
+        // The app's helpers as it runs them: options before the subcommand.
+        let bundled = Path::new(
+            "/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex",
+        );
+        for helper in [
+            &[
+                "codex",
+                "-c",
+                "features.code_mode_host=true",
+                "app-server",
+                "--analytics-default-enabled",
+            ][..],
+            &[
+                "codex",
+                "-c",
+                "forced_login_method=\"chatgpt\"",
+                "exec-server",
+                "--remote",
+                "https://example.invalid",
+            ][..],
+            &[
+                "codex",
+                "sandbox",
+                "-c",
+                "shell_environment_policy.inherit=\"all\"",
+            ][..],
+            &["codex", "app-server", "--listen", "stdio://"][..],
+        ] {
+            assert!(
+                session_process(Some(bundled), &args(helper)).is_none(),
+                "{helper:?}"
+            );
+        }
+        let chatgpt = Path::new("/Applications/ChatGPT.app/Contents/MacOS/ChatGPT");
+        assert!(session_process(Some(chatgpt), &args(&["ChatGPT"])).is_none());
     }
 
     #[test]

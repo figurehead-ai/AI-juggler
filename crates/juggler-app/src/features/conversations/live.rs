@@ -25,14 +25,24 @@ pub struct RunningSession {
     pub started_ms: Option<i64>,
 }
 
-/// The `(tool, id)` of every conversation a running session is on. Each
-/// session is on one conversation at most, and each conversation is
-/// claimed once.
+/// A live conversation: `(account, tool, id)`.
+pub type Live = (String, String, String);
+
+/// A resumed session's key: on its own account.
+fn live_key(tool: &str, id: &str, session: &RunningSession) -> Live {
+    (
+        session.account_id.clone().unwrap_or_default(),
+        tool.to_owned(),
+        id.to_owned(),
+    )
+}
+
+/// The `(account, tool, id)` of every conversation a running session is
+/// on. Each session is on one conversation at most, each conversation is
+/// claimed once, and only on the session's own account (two accounts'
+/// conversations can share an id).
 #[must_use]
-pub fn live_ids(
-    conversations: &[Conversation],
-    running: &[RunningSession],
-) -> HashSet<(String, String)> {
+pub fn live_ids(conversations: &[Conversation], running: &[RunningSession]) -> HashSet<Live> {
     let mut live = HashSet::new();
     // A session on a folder that isn't one of the user's accounts is
     // nobody's here: never attributed to one.
@@ -50,7 +60,7 @@ pub fn live_ids(
                 .iter()
                 .any(|c| c.tool == session.tool && c.summary.id == *id && same_account(c, session))
         {
-            live.insert((session.tool.clone(), id.clone()));
+            live.insert(live_key(&session.tool, id, session));
         }
     }
     for session in running.iter().filter(|session| session.resumes.is_none()) {
@@ -59,7 +69,9 @@ pub fn live_ids(
             .iter()
             .filter(|c| c.tool == session.tool && same_account(c, session))
             .filter(|c| c.folder.as_ref() == Some(cwd))
-            .filter(|c| !live.contains(&(c.tool.clone(), c.summary.id.clone())))
+            .filter(|c| {
+                !live.contains(&(c.account_id.clone(), c.tool.clone(), c.summary.id.clone()))
+            })
             .filter(|c| match (c.summary.last_ms, session.started_ms) {
                 (Some(last), Some(started)) => last >= started,
                 (Some(_), None) => true,
@@ -67,7 +79,11 @@ pub fn live_ids(
             })
             .max_by_key(|c| c.summary.last_ms);
         if let Some(conversation) = newest {
-            live.insert((conversation.tool.clone(), conversation.summary.id.clone()));
+            live.insert((
+                conversation.account_id.clone(),
+                conversation.tool.clone(),
+                conversation.summary.id.clone(),
+            ));
         }
     }
     live
@@ -213,7 +229,10 @@ mod tests {
             conversation("new", "a", "/w", 50),
         ];
         let live = live_ids(&all, &[running(Some("a"), "/w", Some("old"), 100)]);
-        assert_eq!(live, HashSet::from([("t".into(), "old".into())]));
+        assert_eq!(
+            live,
+            HashSet::from([("a".into(), "t".into(), "old".into())])
+        );
     }
 
     #[test]
@@ -225,7 +244,7 @@ mod tests {
         ];
         assert_eq!(
             live_ids(&all, &[running(Some("a"), "/w", None, 100)]),
-            HashSet::from([("t".into(), "since".into())])
+            HashSet::from([("a".into(), "t".into(), "since".into())])
         );
         // Nothing written since it started (it hasn't said anything yet): none.
         assert!(live_ids(&all[..1], &[running(Some("a"), "/w", None, 100)]).is_empty());
@@ -254,5 +273,20 @@ mod tests {
             ],
         );
         assert_eq!(live.len(), 3);
+    }
+
+    #[test]
+    fn a_live_id_is_live_only_on_its_own_account() {
+        // Two accounts' conversations with one id: only the running
+        // session's account's is live.
+        let all = [
+            conversation("same", "a", "/w", 150),
+            conversation("same", "b", "/v", 150),
+        ];
+        let live = live_ids(&all, &[running(Some("a"), "/w", Some("same"), 100)]);
+        assert_eq!(
+            live,
+            HashSet::from([("a".into(), "t".into(), "same".into())])
+        );
     }
 }

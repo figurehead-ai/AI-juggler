@@ -51,8 +51,8 @@ struct Entry {
 #[derive(Debug, Default)]
 pub struct ConversationIndex {
     files: Mutex<HashMap<PathBuf, Entry>>,
-    /// `(tool, id)` of the conversations a running session is on.
-    live: Mutex<std::collections::HashSet<(String, String)>>,
+    /// `(account, tool, id)` of the conversations a running session is on.
+    live: Mutex<std::collections::HashSet<live::Live>>,
 }
 
 impl ConversationIndex {
@@ -78,12 +78,12 @@ impl ConversationIndex {
         Ok(out)
     }
 
-    /// Whether a running session is on `(tool, id)`.
+    /// Whether a running session is on `account`'s `(tool, id)`.
     #[must_use]
-    pub fn is_live(&self, tool: &str, id: &str) -> bool {
+    pub fn is_live(&self, account: &str, tool: &str, id: &str) -> bool {
         self.live
             .lock()
-            .is_ok_and(|live| live.contains(&(tool.to_owned(), id.to_owned())))
+            .is_ok_and(|live| live.contains(&(account.to_owned(), tool.to_owned(), id.to_owned())))
     }
 }
 
@@ -287,7 +287,10 @@ pub fn continue_impl(
         ConversationId, InstanceKind, InstanceRecord, SessionId, SessionStatus, Timestamp,
     };
     let conversation = find(state, account_id, id)?;
-    if state.conversations.is_live(&conversation.tool, id) {
+    if state
+        .conversations
+        .is_live(account_id, &conversation.tool, id)
+    {
         return Err(AppError::Refused(
             "it's open in another session now: close it there first, then continue here".to_owned(),
         ));
