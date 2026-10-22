@@ -179,3 +179,55 @@ Trade-off: the user's own configuration now holds one value that points
 into AI Juggler's data. That is the price of measured limits for
 everything they run. It stays their choice: off unless they turn it on,
 visible as a diff before it happens, and undone exactly.
+
+## Amendment: setting up what a switch's target lacks, on approval (2026-10-22, AJ-E1542)
+
+The maintainer (2026-10-22), on switching: AI Juggler "should check MCP
+server and capabilities, and our system should recognize if there are any
+MCP servers missing or skills missing and offer to initialize to those other
+accounts. All this should be presented to user, and user has control if
+they choose to do it or not. Least amount of work for the user, but user
+oversees that and views it."
+
+So before a switch, AI Juggler compares what the source account has set up
+with the target's, and offers what's missing. A write into the target
+account (in place or a copy) happens only for an item the user picked:
+
+- **What is read.** Each tool's adapter reads its own files only, never
+  starting the tool or a server:
+  - MCP servers;
+  - skills, commands and subagents;
+  - the account's own rules;
+  - plugins.
+
+  Only the keys it needs are parsed. A value that looks like a secret is
+  dropped while it's read, so it can't be shown or copied.
+- **What is offered.** Everything the source has and the target doesn't,
+  with the target tool's verdict:
+  - set up as it is;
+  - translated (and how);
+  - needs you (a login, or a variable to provide), with what to do;
+  - can't be set up there, and why. This covers claude.ai-synced skills,
+    plugins across tools, and SSE servers on Codex.
+
+  A target that has its own rules is never given more.
+- **How it is written.**
+  - **A Claude MCP server:** through Claude's own `claude mcp add-json`, so
+    Claude writes its own file.
+  - **A Codex MCP server:** one new `[mcp_servers.<name>]` table appended
+    to `config.toml`, checked to still parse. Before the first set-up the
+    file is copied to `config.toml.before-ai-juggler`; the last undo that
+    needs that copy removes it, so nothing is left behind.
+  - **Skills, commands, subagents and rules:** copied as new files.
+  - **Secrets:** a secret becomes a reference to an environment variable
+    (`${NAME}`, `env_vars`, `bearer_token_env_var`), never its value.
+
+  Nothing the target has is ever replaced.
+- **Undone from the same place.** Each set-up is recorded with how to undo
+  it. Undo removes only files still exactly as they were made, takes out
+  exactly the text that was appended, or runs the tool's own removal. If
+  something changed since, it's left as it is and the user is told.
+
+Trade-off: the target account's own configuration gains what the user
+picked. That's the point of the feature. It stays their choice, item by
+item, shown before it happens and undoable.

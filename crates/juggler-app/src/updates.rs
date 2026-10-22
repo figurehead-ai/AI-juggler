@@ -693,6 +693,14 @@ pub fn launch_check(state: &Arc<AppState>, feed: &dyn UpdateFeed) -> bool {
 ///
 /// Returns the typed storage error.
 pub(crate) fn switch_in_flight(state: &Arc<AppState>) -> AppResult<bool> {
+    // A switch still freezing its source has no edge yet.
+    if state
+        .switching
+        .lock()
+        .is_ok_and(|running| !running.is_empty())
+    {
+        return Ok(true);
+    }
     switch_in_flight_in(&*crate::commands::lock_storage_arc(state)?)
 }
 

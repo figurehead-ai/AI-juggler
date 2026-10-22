@@ -122,9 +122,10 @@ variables** → **Actions**.
 
 ### 6. The app icon (when you have it)
 
-- [ ] A 1024×1024 PNG brand icon. Hand it over, or replace
-      `crates/juggler-app/icons/icon.png`. The build generates every
-      size from it.
+- [x] Done (2026-10-22): `scripts/app_icon.swift` draws the icon as
+      vectors at 1024×1024 on Apple's grid, into
+      `crates/juggler-app/icons/icon.png`. The build generates every size
+      from it. To change the artwork, edit the script and re-run it.
 
 ---
 

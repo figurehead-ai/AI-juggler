@@ -2741,6 +2741,7 @@ dependencies = [
  "bitflags 2.13.2",
  "juggler-core",
  "nix 0.31.3",
+ "serde",
  "serde_json",
  "sha2 0.11.1",
  "tempfile",
@@ -2759,6 +2760,8 @@ dependencies = [
  "serde_json",
  "sha2 0.11.1",
  "tempfile",
+ "toml 1.1.8+spec-1.1.0",
+ "zstd",
 ]
 
 [[package]]
@@ -2811,6 +2814,7 @@ dependencies = [
  "thiserror 2.0.21",
  "thread-priority",
  "tokio",
+ "toml 1.1.8+spec-1.1.0",
  "trash",
  "ts-rs",
  "zeroize",

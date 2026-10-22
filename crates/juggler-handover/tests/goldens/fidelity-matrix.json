@@ -1,6 +1,63 @@
 [
   {
     "pair": "claude-code→claude-code",
+    "score": 0.9500000000000002,
+    "label": "F1",
+    "caps": [
+      {
+        "cap": "f4-requires-same-account-native-resume",
+        "capped_at": "F3"
+      },
+      {
+        "cap": "unvalidated-pair",
+        "capped_at": "F1"
+      }
+    ],
+    "carry_list": [
+      {
+        "artifact": "Chat",
+        "word": "carried",
+        "reason": "carried"
+      },
+      {
+        "artifact": "Rules",
+        "word": "carried",
+        "reason": "carried"
+      },
+      {
+        "artifact": "GitDiff",
+        "word": "carried",
+        "reason": "carried"
+      },
+      {
+        "artifact": "Todos",
+        "word": "rebuilt",
+        "reason": "rebuilt"
+      },
+      {
+        "artifact": "Mcp",
+        "word": "carried",
+        "reason": "carried"
+      },
+      {
+        "artifact": "Skills",
+        "word": "carried",
+        "reason": "carried"
+      },
+      {
+        "artifact": "EnvModel",
+        "word": "carried",
+        "reason": "carried"
+      },
+      {
+        "artifact": "Subagents",
+        "word": "carried",
+        "reason": "carried"
+      }
+    ]
+  },
+  {
+    "pair": "codex→codex",
     "score": 0.9000000000000001,
     "label": "F1",
     "caps": [
@@ -27,61 +84,8 @@
       },
       {
         "artifact": "Todos",
-        "word": "stays",
-        "reason": "stays"
-      },
-      {
-        "artifact": "Mcp",
-        "word": "carried",
-        "reason": "carried"
-      },
-      {
-        "artifact": "Skills",
-        "word": "carried",
-        "reason": "carried"
-      },
-      {
-        "artifact": "EnvModel",
-        "word": "carried",
-        "reason": "carried"
-      },
-      {
-        "artifact": "Subagents",
-        "word": "carried",
-        "reason": "carried"
-      }
-    ]
-  },
-  {
-    "pair": "codex→codex",
-    "score": 0.8500000000000001,
-    "label": "F1",
-    "caps": [
-      {
-        "cap": "unvalidated-pair",
-        "capped_at": "F1"
-      }
-    ],
-    "carry_list": [
-      {
-        "artifact": "Chat",
-        "word": "carried",
-        "reason": "carried"
-      },
-      {
-        "artifact": "Rules",
-        "word": "carried",
-        "reason": "carried"
-      },
-      {
-        "artifact": "GitDiff",
-        "word": "carried",
-        "reason": "carried"
-      },
-      {
-        "artifact": "Todos",
-        "word": "stays",
-        "reason": "stays"
+        "word": "rebuilt",
+        "reason": "rebuilt"
       },
       {
         "artifact": "Mcp",
@@ -107,7 +111,7 @@
   },
   {
     "pair": "zcode→zcode",
-    "score": 0.5,
+    "score": 0.5499999999999999,
     "label": "F0",
     "caps": [
       {
@@ -133,8 +137,8 @@
       },
       {
         "artifact": "Todos",
-        "word": "stays",
-        "reason": "stays"
+        "word": "rebuilt",
+        "reason": "rebuilt"
       },
       {
         "artifact": "Mcp",
@@ -160,7 +164,7 @@
   },
   {
     "pair": "claude-code→codex",
-    "score": 0.6699999999999999,
+    "score": 0.72,
     "label": "F1",
     "caps": [],
     "carry_list": [
@@ -181,8 +185,8 @@
       },
       {
         "artifact": "Todos",
-        "word": "stays",
-        "reason": "stays"
+        "word": "rebuilt",
+        "reason": "rebuilt"
       },
       {
         "artifact": "Mcp",
@@ -208,7 +212,7 @@
   },
   {
     "pair": "codex→claude-code",
-    "score": 0.6699999999999999,
+    "score": 0.72,
     "label": "F1",
     "caps": [],
     "carry_list": [
@@ -229,8 +233,8 @@
       },
       {
         "artifact": "Todos",
-        "word": "stays",
-        "reason": "stays"
+        "word": "rebuilt",
+        "reason": "rebuilt"
       },
       {
         "artifact": "Mcp",
@@ -256,9 +260,13 @@
   },
   {
     "pair": "claude-code→zcode",
-    "score": 0.72,
+    "score": 0.77,
     "label": "F0",
     "caps": [
+      {
+        "cap": "unvalidated-pair",
+        "capped_at": "F1"
+      },
       {
         "cap": "zcode-target",
         "capped_at": "F0"
@@ -282,8 +290,8 @@
       },
       {
         "artifact": "Todos",
-        "word": "stays",
-        "reason": "stays"
+        "word": "rebuilt",
+        "reason": "rebuilt"
       },
       {
         "artifact": "Mcp",
@@ -309,7 +317,7 @@
   },
   {
     "pair": "zcode→claude-code",
-    "score": 0.6699999999999999,
+    "score": 0.72,
     "label": "F1",
     "caps": [],
     "carry_list": [
@@ -330,8 +338,8 @@
       },
       {
         "artifact": "Todos",
-        "word": "stays",
-        "reason": "stays"
+        "word": "rebuilt",
+        "reason": "rebuilt"
       },
       {
         "artifact": "Mcp",
@@ -357,9 +365,13 @@
   },
   {
     "pair": "codex→zcode",
-    "score": 0.7,
+    "score": 0.75,
     "label": "F0",
     "caps": [
+      {
+        "cap": "unvalidated-pair",
+        "capped_at": "F1"
+      },
       {
         "cap": "zcode-target",
         "capped_at": "F0"
@@ -383,8 +395,8 @@
       },
       {
         "artifact": "Todos",
-        "word": "stays",
-        "reason": "stays"
+        "word": "rebuilt",
+        "reason": "rebuilt"
       },
       {
         "artifact": "Mcp",
@@ -410,7 +422,7 @@
   },
   {
     "pair": "zcode→codex",
-    "score": 0.6699999999999999,
+    "score": 0.72,
     "label": "F1",
     "caps": [],
     "carry_list": [
@@ -431,8 +443,8 @@
       },
       {
         "artifact": "Todos",
-        "word": "stays",
-        "reason": "stays"
+        "word": "rebuilt",
+        "reason": "rebuilt"
       },
       {
         "artifact": "Mcp",

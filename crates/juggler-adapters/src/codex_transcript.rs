@@ -36,6 +36,9 @@ pub fn parse_rollout(bytes: &[u8]) -> ParsedTranscript {
     // One usage row per response: a forked or resumed rollout repeats
     // its parent's rows (the usage pipeline's dedupe key).
     let mut counted: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    // AJ-E1541: tool calls wait for what Codex says next, so a call and
+    // the reply after it are one turn ("ran tests; added the test").
+    let mut pending_tools: Vec<String> = Vec::new();
     for (index, line) in bytes.split(|b| *b == b'\n').enumerate() {
         if line.iter().all(u8::is_ascii_whitespace) {
             continue;
@@ -82,6 +85,14 @@ pub fn parse_rollout(bytes: &[u8]) -> ParsedTranscript {
                 {
                     continue;
                 }
+                if role == MessageRole::User && !pending_tools.is_empty() {
+                    flush_tools(
+                        &mut parsed,
+                        &mut pending_tools,
+                        session_id.as_deref(),
+                        index,
+                    );
+                }
                 parsed.messages.push(ParsedMessage {
                     // Rollouts are append-only: the line number is a
                     // stable identity when the item carries no id.
@@ -97,6 +108,11 @@ pub fn parse_rollout(bytes: &[u8]) -> ParsedTranscript {
                     session_id: session_id.clone(),
                     role,
                     text: body,
+                    tools: if role == MessageRole::Assistant {
+                        std::mem::take(&mut pending_tools)
+                    } else {
+                        Vec::new()
+                    },
                     usage: None,
                     model: (role == MessageRole::Assistant)
                         .then(|| model.clone())
@@ -104,10 +120,72 @@ pub fn parse_rollout(bytes: &[u8]) -> ParsedTranscript {
                     sidechain: false,
                 });
             }
+            // AJ-E1541: a tool call is its own item in a rollout: one line
+            // saying what it did, and the plan it set.
+            "response_item"
+                if matches!(
+                    text(&payload, "type").as_deref(),
+                    Some("function_call" | "custom_tool_call")
+                ) =>
+            {
+                tool_call(&mut parsed, &mut pending_tools, &payload);
+            }
             _ => {}
         }
     }
+    flush_tools(
+        &mut parsed,
+        &mut pending_tools,
+        session_id.as_deref(),
+        usize::MAX,
+    );
     parsed
+}
+
+/// AJ-E1541: a rollout's tool call (`function_call`, or a custom call
+/// such as `apply_patch`): one line saying what it did, kept for the next
+/// thing Codex says, and the plan it set, if it set one.
+fn tool_call(
+    parsed: &mut ParsedTranscript,
+    pending: &mut Vec<String>,
+    payload: &serde_json::Value,
+) {
+    let Some(name) = text(payload, "name") else {
+        return;
+    };
+    // `function_call` carries JSON in a string; a custom call its raw input.
+    let input = match text(payload, "arguments") {
+        Some(arguments) => serde_json::from_str(&arguments).unwrap_or_default(),
+        None => serde_json::json!({ "input": text(payload, "input").unwrap_or_default() }),
+    };
+    if let Some(tasks) = crate::tool_summary::task_list(&name, &input) {
+        parsed.tasks = Some(tasks);
+    }
+    pending.push(crate::tool_summary::summarize(&name, &input));
+}
+
+/// Tool calls nothing was said after (the turn ended on them, or the user
+/// spoke next): a turn of their own.
+fn flush_tools(
+    parsed: &mut ParsedTranscript,
+    pending: &mut Vec<String>,
+    session_id: Option<&str>,
+    index: usize,
+) {
+    if pending.is_empty() {
+        return;
+    }
+    parsed.messages.push(ParsedMessage {
+        uuid: Some(format!("{}:tools:{index}", session_id.unwrap_or("rollout"))),
+        parent_uuid: None,
+        session_id: session_id.map(str::to_owned),
+        role: MessageRole::Assistant,
+        text: String::new(),
+        tools: std::mem::take(pending),
+        usage: None,
+        model: None,
+        sidechain: false,
+    });
 }
 
 /// The thread id a rollout belongs to: `session_meta.payload.id` (the

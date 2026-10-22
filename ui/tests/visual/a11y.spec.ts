@@ -737,12 +737,13 @@ for (const theme of ["dark", "light"] as const) {
 const DOOR_WIZARD_FIXTURE = {
   mechanism: "transplant",
   fidelity: "F2",
+  fidelity_words: "Same conversation, new account (compacted)",
   score: 0.78,
   warnings: ["This conversation was compacted. Early detail carries as text, not as live memory — it may ask about early decisions."],
   zombies: [],
   diff_snapshotted: true,
   source_live: true,
-  experimental_copy: "Experimental: only the main transcript moves. Subagent files and rewind history stay on the source. The source stays resumable.",
+  experimental_copy: "Beta, not proven yet: the whole session moves, with its subagents and file history. The source stays resumable.",
   door: "wizard" as const,
   wizard_steps: ["Target", "What's carried", "Confirm"],
   wizard_reasons: ["This isn't the usual account for this project."],
@@ -757,6 +758,7 @@ const DOOR_WIZARD_FIXTURE = {
 const DOOR_ONECLICK_FIXTURE = {
   ...DOOR_WIZARD_FIXTURE,
   fidelity: "F4",
+  fidelity_words: "Continues exactly",
   warnings: [],
   door: "one-click" as const,
   wizard_steps: [],
@@ -787,7 +789,7 @@ for (const theme of ["dark", "light"] as const) {
         t0: T0,
         theme,
         preflight: DOOR_WIZARD_FIXTURE,
-        fail: "S-F5: target launch failed — staged for retry (terminal spawn failed).",
+        fail: "the session on the other account didn't start — the switch is ready to try again (terminal spawn failed).",
       },
     );
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
@@ -987,6 +989,7 @@ for (const theme of ["dark", "light"] as const) {
         w.__AIJ_SWITCH_PREFLIGHT__ = {
           mechanism: "transplant",
           fidelity: "F2",
+          fidelity_words: "Same conversation, new account (compacted)",
           score: 0.78,
           warnings: [],
           zombies: [],
@@ -1042,7 +1045,7 @@ for (const theme of ["dark", "light"] as const) {
           override: null,
           effective: "strip",
           source: "global",
-          line: "Redaction for claude-code: Strip — replace keys with ••• (your global choice)",
+          line: "Redaction for Claude Code: Strip — replace keys with ••• (your global choice)",
         };
         w.__AIJ_SWITCH_PREFLIGHT__.redaction_items = [
           { kind: "sk-key", preview: "s•••5678", segment: 0 },
@@ -1102,7 +1105,7 @@ for (const theme of ["dark", "light"] as const) {
                 from: "ep-b",
                 to: null,
                 label: "failed · target launch failed",
-                failed_reason: "S-F6: target window closed mid-launch",
+                failed_reason: "the session on the other account closed while it started",
                 switch_back: false,
               },
             ],
@@ -1160,7 +1163,7 @@ for (const theme of ["dark", "light"] as const) {
     const failedEdge = page.getByTestId("switch-graph-failed-edge");
     await failedEdge.focus();
     await failedEdge.press("Enter");
-    await expect(page.getByTestId("switch-graph-failed-detail")).toContainText("S-F6");
+    await expect(page.getByTestId("switch-graph-failed-detail")).toContainText("closed while it started");
     const nodes = page.getByTestId("switch-graph-node");
     await nodes.first().focus();
     await nodes.first().press("ArrowDown");

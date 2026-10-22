@@ -2160,11 +2160,15 @@ export async function sessionHandover(
 export interface PreflightInfoData {
   mechanism: string;
   fidelity: string;
+  /** AJ-E1543: the label in plain words, what the screen shows. */
+  fidelity_words: string;
   score: number;
   warnings: string[];
   zombies: string[];
   diff_snapshotted: boolean;
   source_live: boolean;
+  /** AJ-E1540: live, but AI Juggler can't stop it (started outside it). */
+  source_keeps_running: boolean;
   experimental_copy: string;
   /** AJ-E206 §8 door verdict: "one-click" | "wizard". */
   door: "one-click" | "wizard";
@@ -2221,28 +2225,32 @@ export interface SwitchExecutedData {
 const DEFAULT_PREFLIGHT: PreflightInfoData = {
   mechanism: "transplant",
   fidelity: "F1",
+  fidelity_words: "Full story, fresh start",
   score: 0.85,
   warnings: [],
   zombies: [],
   diff_snapshotted: false,
   source_live: true,
+  source_keeps_running: false,
   experimental_copy:
-    "Experimental: only the main transcript moves. Subagent files and rewind history stay on the source. The source stays resumable.",
+    "Beta, not proven yet: the whole session moves, with its subagents and file history. The source stays resumable.",
   door: "wizard",
   wizard_steps: ["Target", "What's carried", "Confirm"],
   wizard_reasons: ["This isn't the usual account for this project."],
   usual_account: false,
+  // A same-tool switch, as the fidelity table has it (AJ-E1540/E1541):
+  // the whole session moves, and the task list is rebuilt from it.
   carry: {
-    carried: ["chat transcript", "rules & guidelines", "uncommitted git diff"],
-    regenerated: [],
-    dropped: ["todo list", "subagent state"],
+    carried: ["chat transcript", "rules & guidelines", "uncommitted git diff", "subagent state"],
+    regenerated: ["todo list"],
+    dropped: [],
   },
   redaction: {
     global: "strip",
     override: null,
     effective: "strip",
     source: "global",
-    line: "Redaction for claude-code: Strip — replace keys with ••• (your global choice)",
+    line: "Redaction for Claude Code: Strip — replace keys with ••• (your global choice)",
   },
   redaction_items: [],
 };
@@ -2393,122 +2401,8 @@ export function onFolderDropped(handler: (path: string) => void): () => void {
   };
 }
 
-/** AJ-E207: one tracked-artifact conflict (three radio choices each). */
-export interface SwitchBackConflictData {
-  rel_path: string;
-  base_sha: string | null;
-  away_sha: string | null;
-  original_sha: string | null;
-}
-
-/** AJ-E207: the switch-back plan (suggest-only; the user clicks). */
-export interface SwitchBackPlanData {
-  suggestion: string;
-  original_account: string;
-  away_account: string;
-  original_native_id: string;
-  original_alive: boolean;
-  sf7_fallback: string;
-  sf7_copy: string;
-  away_live: boolean;
-  both_live_copy: string;
-  divergence: string;
-  delta_preview: string;
-  away_only_turns: number;
-  original_only_turns: number;
-  base_turns: number;
-  conflicts: SwitchBackConflictData[];
-}
-
-/** AJ-E207: one suggested return (the card the user clicks). */
-export interface SwitchBackSuggestionData {
-  session_id: string;
-  original_account: string;
-  away_account: string;
-  copy: string;
-}
-
-/** AJ-E207 Req.3: the suggested returns whose original account has
- * quota headroom again (the reset trigger) — suggest-only. */
-export async function switchBackSuggestions(): Promise<SwitchBackSuggestionData[]> {
-  if (!hasBackend) {
-    return (
-      (window as unknown as { __AIJ_SWITCH_BACK_SUGGESTIONS__?: SwitchBackSuggestionData[] })
-        .__AIJ_SWITCH_BACK_SUGGESTIONS__ ?? []
-    );
-  }
-  return invoke<SwitchBackSuggestionData[]>("switch_back_suggestions");
-}
-
-/** AJ-E207: the plan for one return — verbatim suggestion, S-F7
- * verdict, both-live warning, divergence counts, delta preview,
- * conflict list. Read-only. */
-export async function switchBackPlan(sessionId: string): Promise<SwitchBackPlanData> {
-  if (!hasBackend) {
-    return (
-      (window as unknown as { __AIJ_SWITCH_BACK_PLAN__?: SwitchBackPlanData })
-        .__AIJ_SWITCH_BACK_PLAN__ ?? {
-        suggestion:
-          "Work Max has reset. Resume the original conversation there? Work from Personal arrives as one 'while you were away' update.",
-        original_account: "Work Max",
-        away_account: "Personal",
-        original_native_id: "native-5",
-        original_alive: true,
-        sf7_fallback: "",
-        sf7_copy: "",
-        away_live: true,
-        both_live_copy:
-          "Both accounts are now live on this work item: Work Max (resumed) and Personal (still running). Check which one you type into.",
-        divergence:
-          "Both sides moved since the switch. 3 new turns and 1 file conflicts need your choice — nothing is merged silently.",
-        delta_preview:
-          "While you were away on Personal — 3 new turns (5 shared before the switch, 1 new here on Work Max).\n\n- [user] fixed the login bug\n- [assistant] suite green — 34 passing\n\nFull detail: the attached switch pack (not replayed).",
-        away_only_turns: 3,
-        original_only_turns: 1,
-        base_turns: 5,
-        conflicts: [
-          { rel_path: "todos.json", base_sha: "h0", away_sha: "h1", original_sha: "h2" },
-        ],
-      }
-    );
-  }
-  return invoke<SwitchBackPlanData>("switch_back_plan", { sessionId });
-}
-
-/** AJ-E207: executes the return with the user's choices — resumes
- * the ORIGINAL native session with one delta turn; never a
- * copy-back. */
-export async function switchBackExecute(
-  sessionId: string,
-  choices: { rel_path: string; choice: string }[],
-  keepAwayRunning: boolean,
-): Promise<LaunchResult> {
-  if (!hasBackend) {
-    const seams = window as unknown as {
-      __AIJ_SWITCH_BACK_EXECUTE_FAIL__?: string;
-      __AIJ_SWITCH_BACK_EXECUTE_HANG__?: boolean;
-      __AIJ_SWITCH_BACK_EXECUTE_CALLS__?: unknown[];
-    };
-    // The guardrail seam: executions are observable so tests can
-    // prove they fire ONLY from the click.
-    seams.__AIJ_SWITCH_BACK_EXECUTE_CALLS__ = [
-      ...(seams.__AIJ_SWITCH_BACK_EXECUTE_CALLS__ ?? []),
-      { sessionId, choices, keepAwayRunning },
-    ];
-    if (seams.__AIJ_SWITCH_BACK_EXECUTE_FAIL__ !== undefined) {
-      return Promise.reject(seams.__AIJ_SWITCH_BACK_EXECUTE_FAIL__);
-    }
-    if (seams.__AIJ_SWITCH_BACK_EXECUTE_HANG__) {
-      return new Promise<LaunchResult>(() => {});
-    }
-    return { session_id: `sess-return-${Date.now()}`, pid: 0 };
-  }
-  return invoke<LaunchResult>("switch_back_execute", {
-    sessionId,
-    choices,
-    keepAwayRunning,
-  });
-}
+// AJ-E207/AJ-E1541: switching back (lib/ipc/switchBack.ts).
+export * from "./ipc/switchBack";
 
 /** AJ-E208: the redaction policy for one Provider (settings + the
  * switch confirm line). */
@@ -2612,7 +2506,7 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
     badge: "Full story, fresh start · Beta",
     validated: false,
     cross_provider: true,
-    drops: ["todo list", "subagent state"],
+    drops: ["subagent state"],
     score: 0.62,
     top_factors: ["80% headroom", "usual account for this repo"],
     factors: [["80% headroom", 0.36], ["usual account for this repo", 0.2], ["fidelity 1 · Beta", 0.15], ["≈$0.12 replay", 0.07], ["quiet", 0.1]],
@@ -2628,7 +2522,7 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
     badge: "Full story, fresh start · Beta",
     validated: false,
     cross_provider: true,
-    drops: ["todo list", "subagent state"],
+    drops: ["subagent state"],
     score: 0.41,
     top_factors: ["35% headroom", "quiet"],
     factors: [["35% headroom", 0.16], ["quiet", 0.1], ["fidelity 1 · Beta", 0.15]],
@@ -2644,7 +2538,7 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
     badge: "Same conversation, new account (compacted) · Beta",
     validated: false,
     cross_provider: true,
-    drops: ["rewind history", "subagent state"],
+    drops: [],
     filtered_reason: "exhausted — resets in 3h",
     top_factors: [],
     factors: [],

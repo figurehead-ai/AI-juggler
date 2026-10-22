@@ -149,16 +149,11 @@ fn preflight_opens_the_wizard_until_the_pair_is_proven() {
         !info.usual_account,
         "no history for B on this project ⇒ not the usual account"
     );
-    // §H2: todos default Drop until a fixture proves carriage — the
-    // carry-list names the drop, never "some context".
-    assert!(info.carry.dropped.contains(&"todo list".to_owned()));
-    assert!(
-        info.wizard_reasons
-            .iter()
-            .any(|reason| reason.contains("carry-list drops: todo list")),
-        "reasons name the drop: {:?}",
-        info.wizard_reasons
-    );
+    // AJ-E1541: the task list is rebuilt from the conversation (proven by
+    // the lab and the handover tests), and the carry-list says so, never
+    // "some context" and never a byte copy.
+    assert!(info.carry.regenerated.contains(&"todo list".to_owned()));
+    assert!(!info.carry.dropped.contains(&"todo list".to_owned()));
     assert!(
         info.wizard_reasons
             .iter()

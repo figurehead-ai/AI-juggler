@@ -618,10 +618,16 @@ impl HarnessAdapter for CodexAdapter {
         mode: &LaunchMode,
     ) -> Result<LaunchSpec, AdapterError> {
         let bin = self.require_bin()?;
-        let effective_cwd = profile
-            .default_cwd
-            .clone()
-            .unwrap_or_else(|| cwd.to_path_buf());
+        // AJ-E1540: a resumed or primed session continues work that lives
+        // in `cwd` (its conversation, its files): it runs there. The
+        // launch settings' folder is only where a fresh session starts.
+        let effective_cwd = match mode {
+            LaunchMode::Resume { .. } | LaunchMode::Primed { .. } => cwd.to_path_buf(),
+            _ => profile
+                .default_cwd
+                .clone()
+                .unwrap_or_else(|| cwd.to_path_buf()),
+        };
         // Launch-settings overrides first, isolation LAST (AJ-E309).
         let mut env: EnvMap = profile.settings_overlay.env.clone();
         env.extend(home_env(&account.state_dir, self.user_home().as_deref()));
@@ -808,7 +814,7 @@ impl HarnessAdapter for CodexAdapter {
     fn scan_shell_aliases(&self) -> Vec<juggler_adapter::environment::AliasHint> {
         self.home
             .clone()
-            .or_else(crate::claude_code::home_dir)
+            .or_else(crate::inventory_files::user_home)
             .map_or_else(Vec::new, |home| codex_aliases(&home))
     }
 
@@ -817,6 +823,34 @@ impl HarnessAdapter for CodexAdapter {
     /// not one Juggler tracks — the daemon reasoning applies to launches.
     fn shell_command(&self) -> Option<&'static str> {
         Some("codex")
+    }
+
+    fn inventory(
+        &self,
+        state_dir: &Path,
+        _project: Option<&Path>,
+    ) -> Vec<juggler_adapter::inventory::Item> {
+        crate::codex_inventory::inventory(state_dir, crate::inventory_files::user_home().as_deref())
+    }
+
+    fn can_set_up(
+        &self,
+        item: &juggler_adapter::inventory::Item,
+    ) -> juggler_adapter::inventory::SetUp {
+        crate::codex_inventory::can_set_up(item)
+    }
+
+    fn set_up(
+        &self,
+        state_dir: &Path,
+        _project: Option<&Path>,
+        item: &juggler_adapter::inventory::Item,
+    ) -> Result<juggler_adapter::inventory::Applied, AdapterError> {
+        crate::codex_inventory::set_up(
+            state_dir,
+            crate::inventory_files::user_home().as_deref(),
+            item,
+        )
     }
 
     fn conversation_files(&self, state_dir: &Path) -> Vec<PathBuf> {

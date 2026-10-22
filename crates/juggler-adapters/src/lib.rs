@@ -16,16 +16,20 @@ pub mod claude_code;
 pub mod claude_conversations;
 pub mod claude_environment;
 pub mod claude_handover;
+pub mod claude_inventory;
 pub mod claude_transcript;
 pub mod codex;
 pub mod codex_conversations;
 pub mod codex_environment;
 pub mod codex_handover;
+pub mod codex_inventory;
 pub mod codex_transcript;
 pub mod fake;
 pub mod inference;
+pub mod inventory_files;
 pub mod quota_ingest;
 pub mod scan_signals;
+pub mod tool_summary;
 pub mod transcript;
 
 pub use claude_code::{CLAUDE_CODE_ID, ClaudeCodeAdapter, LoginState, claude_code_spec};
@@ -41,6 +45,6 @@ pub use quota_ingest::{
     tail_spool, tail_transcript, uninstall_statusline, zcode_events, zcode_is_peak,
     zcode_multiplier,
 };
-pub use transcript::parse_any;
+pub use transcript::{is_compressed, parse_any, read_session_file};
 pub mod fake_desktop;
 pub use fake_desktop::{FAKE_DESKTOP_ID, FakeDesktopAdapter, SINGLE_ACCOUNT_LABEL};

@@ -134,6 +134,45 @@ pub trait HarnessAdapter: Send + Sync {
         None
     }
 
+    /// AJ-E1542: what this account has set up (MCP servers, skills,
+    /// commands, subagents, user rules, plugins), read from its files.
+    /// Never starts the tool or a server, and never keeps a secret's text
+    /// (see [`crate::inventory`]). `project` adds what's set up for that
+    /// project only. Default: nothing.
+    #[must_use]
+    fn inventory(&self, state_dir: &Path, project: Option<&Path>) -> Vec<crate::inventory::Item> {
+        let _ = (state_dir, project);
+        Vec::new()
+    }
+
+    /// AJ-E1542: whether this tool can set up `item`, which another
+    /// account or tool has. Default: not yet.
+    #[must_use]
+    fn can_set_up(&self, item: &crate::inventory::Item) -> crate::inventory::SetUp {
+        crate::inventory::SetUp::Impossible(format!("{} can't set up {} yet", self.id(), item.name))
+    }
+
+    /// AJ-E1542: sets up `item` in this account (only on the user's
+    /// approval, after [`HarnessAdapter::can_set_up`] said it can), and
+    /// says how to undo it. Never replaces anything the account has.
+    ///
+    /// # Errors
+    ///
+    /// [`AdapterError::Unsupported`] when it can't; the write's error.
+    fn set_up(
+        &self,
+        state_dir: &Path,
+        project: Option<&Path>,
+        item: &crate::inventory::Item,
+    ) -> Result<crate::inventory::Applied, AdapterError> {
+        let _ = (state_dir, project);
+        Err(AdapterError::Unsupported(format!(
+            "{} can't set up {} yet",
+            self.id(),
+            item.name
+        )))
+    }
+
     /// AJ-E1529: the conversation files this account's tool keeps under
     /// `state_dir` (every one, AI Juggler's or not). Lists only; reads
     /// nothing. Default: none (a tool without a readable history).

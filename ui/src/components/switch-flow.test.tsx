@@ -18,13 +18,15 @@ import type { PreflightInfoData } from "../lib/bridge";
 const ONECLICK: PreflightInfoData = {
   mechanism: "transplant",
   fidelity: "F4",
+  fidelity_words: "Continues exactly",
   score: 1.0,
   warnings: [],
   zombies: [],
   diff_snapshotted: false,
   source_live: true,
+  source_keeps_running: false,
   experimental_copy:
-    "Experimental: only the main transcript moves. Subagent files and rewind history stay on the source. The source stays resumable.",
+    "Beta, not proven yet: the whole session moves, with its subagents and file history. The source stays resumable.",
   door: "one-click",
   wizard_steps: [],
   wizard_reasons: [],
@@ -39,7 +41,7 @@ const ONECLICK: PreflightInfoData = {
     override: null,
     effective: "strip",
     source: "global",
-    line: "Redaction for claude-code: Strip — replace keys with ••• (your global choice)",
+    line: "Redaction for Claude Code: Strip — replace keys with ••• (your global choice)",
   },
   redaction_items: [],
 };
@@ -47,6 +49,7 @@ const ONECLICK: PreflightInfoData = {
 const WIZARD: PreflightInfoData = {
   ...ONECLICK,
   fidelity: "F2",
+  fidelity_words: "Same conversation, new account (compacted)",
   door: "wizard",
   wizard_steps: ["Target", "What's carried", "Confirm"],
   wizard_reasons: ["This isn't the usual account for this project."],
@@ -170,7 +173,7 @@ describe("AJ-E206 undo window", () => {
   });
 
   it("keeps the failure honest when undo fails (source stays resumable)", async () => {
-    (window as never as Seams).__AIJ_SWITCH_UNDO_FAIL__ = "S-F7: the source session is gone";
+    (window as never as Seams).__AIJ_SWITCH_UNDO_FAIL__ = "the original conversation is gone";
     const view = render(<ToastHost />);
     act(() => void showSwitchUndoToast({ edgeId: "edge-42", targetLabel: "Personal", onUndone: () => {} }));
     await waitFor(() => expect(view.getByTestId("switch-undo-toast")).toBeTruthy());
@@ -197,5 +200,23 @@ describe("AJ-E206 undo window", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("AJ-E1540 a source AI Juggler can't stop", () => {
+  it("says it keeps running and offers no stop choice", async () => {
+    const view = mount({ ...ONECLICK, source_keeps_running: true }, vi.fn());
+    await waitFor(() => expect(view.getByTestId("switch-oneclick")).toBeTruthy());
+    expect(view.getByTestId("switch-keeps-running").textContent).toContain(
+      "AI Juggler can't stop this session",
+    );
+    expect(view.queryByRole("radio", { name: /Stop now/ })).toBeNull();
+  });
+
+  it("offers the choice for a session it started", async () => {
+    const view = mount(ONECLICK, vi.fn());
+    await waitFor(() => expect(view.getByTestId("switch-oneclick")).toBeTruthy());
+    expect(view.queryByTestId("switch-keeps-running")).toBeNull();
+    expect(view.getByRole("radio", { name: /Stop now/ })).toBeTruthy();
   });
 });

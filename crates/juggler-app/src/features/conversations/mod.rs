@@ -466,6 +466,137 @@ fn find(state: &Arc<AppState>, account_id: &str, id: &str) -> AppResult<Conversa
         .ok_or_else(|| AppError::Refused("that conversation isn't there any more".to_owned()))
 }
 
+/// AJ-E1540: the file that holds `account`'s conversation `id`, for a
+/// session that knows which conversation it is (one picked up with
+/// "Continue in AI Juggler", or recorded from outside) but has no
+/// transcript link yet. The index first; then the tool's own files, those
+/// whose name carries the id checked first, each confirmed by reading its
+/// id (never by its name alone). Files in `taken` belong to other sessions
+/// and are skipped. Read-only.
+pub(crate) fn transcript_of(
+    state: &Arc<AppState>,
+    account: &juggler_adapter::model::Account,
+    id: &str,
+    taken: &[PathBuf],
+) -> Option<juggler_core::model::TranscriptRef> {
+    let reference = |path: PathBuf| juggler_core::model::TranscriptRef {
+        path,
+        native_id: Some(id.to_owned()),
+    };
+    if let Ok(all) = state.conversations.all()
+        && let Some(found) = all.into_iter().find(|conversation| {
+            conversation.account_id == account.id.as_str()
+                && conversation.summary.id == id
+                && !taken.contains(&conversation.path)
+        })
+    {
+        return Some(reference(found.path));
+    }
+    let adapter = state.registry.get(&account.harness)?;
+    let holds_it = |path: &PathBuf| {
+        adapter
+            .read_conversation_quick(path)
+            .or_else(|| adapter.read_conversation(path))
+            .is_some_and(|summary| summary.id == id)
+    };
+    let (named, others): (Vec<PathBuf>, Vec<PathBuf>) = adapter
+        .conversation_files(&account.state_dir)
+        .into_iter()
+        .filter(|path| !taken.contains(path))
+        .partition(|path| {
+            path.file_name()
+                .is_some_and(|name| name.to_string_lossy().contains(id))
+        });
+    // Both tools put the id in the file name. A tool that writes a new file
+    // on every resume (Codex) has several: the newest holds the latest turns.
+    let modified = |path: &PathBuf| {
+        std::fs::metadata(path)
+            .and_then(|meta| meta.modified())
+            .ok()
+    };
+    if let Some(newest) = named
+        .into_iter()
+        .filter(|path| holds_it(path))
+        .max_by_key(|path| modified(path))
+    {
+        return Some(reference(newest));
+    }
+    others
+        .into_iter()
+        .find(|path| holds_it(path))
+        .map(reference)
+}
+
+/// The most conversation files one replay lookup reads.
+const PRIMED_SCAN_MAX: usize = 200;
+
+/// How much of a title must match a replay's header to count as its
+/// opening (a short title says too little to tell).
+const OPENING_MIN: usize = 24;
+
+/// AJ-E1541 (lab 8): the conversation a replay started, when finding it by
+/// time alone is ambiguous (another session of the same tool began in the
+/// same folder since). A replay's first message opens with `header`, the
+/// target tool's replay header: the one conversation in `cwd` that began
+/// after `after_ms` and opens with it is the one. Only files changed since
+/// then are read, so a large history costs a directory listing. Several
+/// matches (two replays into one folder at once) find nothing: never a
+/// guess. Read-only.
+pub(crate) fn primed_conversation(
+    state: &Arc<AppState>,
+    account: &juggler_adapter::model::Account,
+    cwd: &std::path::Path,
+    after_ms: i64,
+    header: &str,
+    taken: &[PathBuf],
+) -> Option<juggler_core::model::TranscriptRef> {
+    let header = header.trim();
+    if header.is_empty() {
+        return None;
+    }
+    let adapter = state.registry.get(&account.harness)?;
+    let since = std::time::UNIX_EPOCH
+        + std::time::Duration::from_millis(u64::try_from(after_ms).unwrap_or(0));
+    // Newest first, and only so many: a session started days ago can't
+    // make this read a large history whole (review of #132).
+    let mut recent: Vec<(std::time::SystemTime, PathBuf)> = adapter
+        .conversation_files(&account.state_dir)
+        .into_iter()
+        .filter(|path| !taken.contains(path))
+        .filter_map(|path| {
+            let modified = std::fs::metadata(&path)
+                .and_then(|meta| meta.modified())
+                .ok()?;
+            (modified >= since).then_some((modified, path))
+        })
+        .collect();
+    // More than the cap could hide a second match: find nothing rather
+    // than guess (re-review of #132).
+    if recent.len() > PRIMED_SCAN_MAX {
+        return None;
+    }
+    recent.sort_by_key(|(modified, _)| std::cmp::Reverse(*modified));
+    let mut found = recent.into_iter().map(|(_, path)| path).filter_map(|path| {
+        let summary = adapter
+            .read_conversation_quick(&path)
+            .or_else(|| adapter.read_conversation(&path))?;
+        let opens = summary.title.as_deref().is_some_and(|title| {
+            // A title is the first line, cut at a length with "…" added.
+            let title = title.trim().trim_end_matches('…').trim_end();
+            title.chars().count() >= OPENING_MIN.min(header.chars().count())
+                && (header.starts_with(title) || title.starts_with(header))
+        });
+        let here = summary.cwd.as_deref() == Some(cwd);
+        let after = summary.started_ms.is_some_and(|at| at >= after_ms);
+        (opens && here && after).then_some(juggler_core::model::TranscriptRef {
+            path,
+            native_id: Some(summary.id),
+        })
+    });
+    let first = found.next()?;
+    found.next().is_none().then_some(first)
+}
+
 /// The copyable line that resumes a conversation started outside AI
 /// Juggler: its tool's adapter builds it, on its account's folder, from
 /// its own folder.
