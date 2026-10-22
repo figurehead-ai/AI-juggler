@@ -5158,6 +5158,9 @@ pub struct PreflightInfo {
     pub mechanism: String,
     /// The F-label shown (F0–F4).
     pub fidelity: String,
+    /// AJ-E1543: the same label in plain words ("Continues exactly",
+    /// "Full story, fresh start"): what the screen shows.
+    pub fidelity_words: String,
     /// The capped score (internal honesty; the label is the UI).
     pub score: f64,
     /// §7.1 warning copy (verbatim table renders).
@@ -5317,7 +5320,7 @@ pub fn switch_preflight_impl(
     let (redaction, redaction_items) = {
         let storage = lock_storage_arc(state)?;
         let policy = RedactionPolicyInfo::from_parts(
-            &account_b.harness,
+            &crate::features::tools::display_name(&state.registry, account_b.harness.as_str()),
             redaction_global_of(&storage),
             redaction_override_of(&storage, account_b.harness.as_str()),
         );
@@ -5338,6 +5341,7 @@ pub fn switch_preflight_impl(
             pipeline::Mechanism::PackOnly => "pack".to_owned(),
         },
         fidelity: report.pair.label.as_str().to_owned(),
+        fidelity_words: report.pair.label.user_label().to_owned(),
         score: report.pair.score,
         warnings,
         zombies: report.zombie_children.clone(),
@@ -12320,7 +12324,7 @@ impl RedactionPolicyInfo {
     /// Builds the info block (line verbatim per Req.2).
     #[must_use]
     pub fn from_parts(
-        provider: &juggler_core::model::HarnessId,
+        provider_name: &str,
         global: Option<juggler_handover::redaction::RedactionPolicy>,
         r#override: Option<juggler_handover::redaction::RedactionPolicy>,
     ) -> Self {
@@ -12334,7 +12338,7 @@ impl RedactionPolicyInfo {
                 (Some(_), None) => "global".to_owned(),
                 (None, None) => "unset".to_owned(),
             },
-            line: redaction_line(provider.as_str(), global, r#override),
+            line: redaction_line(provider_name, global, r#override),
         }
     }
 }
@@ -12442,7 +12446,11 @@ pub fn redaction_policy_get_impl(
             (Some(_), None) => "global".to_owned(),
             (None, None) => "unset".to_owned(),
         },
-        line: redaction_line(provider, global, r#override),
+        line: redaction_line(
+            &crate::features::tools::display_name(&state.registry, provider),
+            global,
+            r#override,
+        ),
     })
 }
 

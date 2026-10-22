@@ -48,7 +48,7 @@ export function SwitchFreezeChoice({
           checked={value === "stop-now"}
           onChange={() => onChange("stop-now")}
         />
-        Stop now and switch <span className="text-muted">(partial turn marked truncated)</span>
+        Stop now and switch <span className="text-muted">(an unfinished reply is marked as cut off)</span>
       </label>
     </fieldset>
   );

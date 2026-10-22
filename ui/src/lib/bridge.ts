@@ -2160,6 +2160,8 @@ export async function sessionHandover(
 export interface PreflightInfoData {
   mechanism: string;
   fidelity: string;
+  /** AJ-E1543: the label in plain words, what the screen shows. */
+  fidelity_words: string;
   score: number;
   warnings: string[];
   zombies: string[];
@@ -2223,6 +2225,7 @@ export interface SwitchExecutedData {
 const DEFAULT_PREFLIGHT: PreflightInfoData = {
   mechanism: "transplant",
   fidelity: "F1",
+  fidelity_words: "Full story, fresh start",
   score: 0.85,
   warnings: [],
   zombies: [],
@@ -2235,17 +2238,19 @@ const DEFAULT_PREFLIGHT: PreflightInfoData = {
   wizard_steps: ["Target", "What's carried", "Confirm"],
   wizard_reasons: ["This isn't the usual account for this project."],
   usual_account: false,
+  // A same-tool switch, as the fidelity table has it (AJ-E1540/E1541):
+  // the whole session moves, and the task list is rebuilt from it.
   carry: {
-    carried: ["chat transcript", "rules & guidelines", "uncommitted git diff"],
-    regenerated: [],
-    dropped: ["todo list", "subagent state"],
+    carried: ["chat transcript", "rules & guidelines", "uncommitted git diff", "subagent state"],
+    regenerated: ["todo list"],
+    dropped: [],
   },
   redaction: {
     global: "strip",
     override: null,
     effective: "strip",
     source: "global",
-    line: "Redaction for claude-code: Strip — replace keys with ••• (your global choice)",
+    line: "Redaction for Claude Code: Strip — replace keys with ••• (your global choice)",
   },
   redaction_items: [],
 };
@@ -2501,7 +2506,7 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
     badge: "Full story, fresh start · Beta",
     validated: false,
     cross_provider: true,
-    drops: ["todo list", "subagent state"],
+    drops: ["subagent state"],
     score: 0.62,
     top_factors: ["80% headroom", "usual account for this repo"],
     factors: [["80% headroom", 0.36], ["usual account for this repo", 0.2], ["fidelity 1 · Beta", 0.15], ["≈$0.12 replay", 0.07], ["quiet", 0.1]],
@@ -2517,7 +2522,7 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
     badge: "Full story, fresh start · Beta",
     validated: false,
     cross_provider: true,
-    drops: ["todo list", "subagent state"],
+    drops: ["subagent state"],
     score: 0.41,
     top_factors: ["35% headroom", "quiet"],
     factors: [["35% headroom", 0.16], ["quiet", 0.1], ["fidelity 1 · Beta", 0.15]],
@@ -2533,7 +2538,7 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
     badge: "Same conversation, new account (compacted) · Beta",
     validated: false,
     cross_provider: true,
-    drops: ["rewind history", "subagent state"],
+    drops: [],
     filtered_reason: "exhausted — resets in 3h",
     top_factors: [],
     factors: [],

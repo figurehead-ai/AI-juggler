@@ -369,11 +369,11 @@ export function SwitchFlow({
             <h3 className="text-sm font-semibold">
               Switch to {targetLabel}
               <span className="ml-2 rounded border border-accent/50 px-1 text-[10px] text-accent">
-                {phase.preflight.fidelity} · usual account · {validationWords(phase.preflight.validated)}
+                {phase.preflight.fidelity_words} · usual account · {validationWords(phase.preflight.validated)}
               </span>
             </h3>
             <p className="text-[11px] text-muted" data-testid="switch-oneclick-carry">
-              {carryOneLiner(phase.preflight.carry)} — cost: one switch hop.
+              {carryOneLiner(phase.preflight.carry)}.
             </p>
             <p className="text-[11px] text-muted">{phase.preflight.experimental_copy}</p>
             {phase.preflight.warnings.length > 0 && (
@@ -466,7 +466,7 @@ export function SwitchFlow({
                 <h3 className="text-sm font-semibold">
                   Switch to {targetLabel}
                   <span className="ml-2 rounded border border-accent/50 px-1 text-[10px] text-accent">
-                    {phase.preflight.fidelity} · {validationWords(phase.preflight.validated)}
+                    {phase.preflight.fidelity_words} · {validationWords(phase.preflight.validated)}
                   </span>
                 </h3>
                 <ul className="flex flex-col gap-1" data-testid="switch-wizard-reasons">
@@ -491,7 +491,7 @@ export function SwitchFlow({
               <div className="flex flex-col gap-2" data-testid="switch-step-carried">
                 <h3 className="text-sm font-semibold">What's carried</h3>
                 <p className="text-[11px] text-muted">
-                  The pack contains exactly this list — nothing else moves.
+                  Only what's listed here moves.
                 </p>
                 <div className="flex flex-col gap-1 text-[11px]">
                   {phase.preflight.carry.carried.length > 0 && (
@@ -553,8 +553,7 @@ export function SwitchFlow({
               <div className="flex flex-col gap-2" data-testid="switch-step-confirm">
                 <h3 className="text-sm font-semibold">Confirm the switch</h3>
                 <p className="text-[11px] text-muted" data-testid="switch-cost">
-                  Cost: one switch hop · {phase.preflight.fidelity} fidelity ·{" "}
-                  {phase.preflight.mechanism}
+                  {phase.preflight.fidelity_words}
                   {phase.preflight.usual_account ? " · usual account" : ""}
                 </p>
                 <RedactionBlock

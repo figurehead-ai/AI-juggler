@@ -113,7 +113,7 @@ fn policy_is_remembered_and_persists_across_restart() {
     assert_eq!(global.source, "global");
     assert_eq!(
         global.line,
-        "Redaction for claude-code: Strip — replace keys with ••• (your global choice)"
+        "Redaction for Claude Code: Strip — replace keys with ••• (your global choice)"
     );
 
     // A Provider override wins and the line says so.
@@ -169,7 +169,7 @@ fn preflight_shows_the_line_and_masked_items_only() {
     let info = commands::switch_preflight_impl(&state, &session_id, &target_profile).unwrap();
     assert_eq!(
         info.redaction.line,
-        "Redaction for claude-code: Strip — replace keys with ••• (your global choice)"
+        "Redaction for Claude Code: Strip — replace keys with ••• (your global choice)"
     );
     // The canary is DETECTED and MASKED — the value itself never
     // crosses the bridge.
