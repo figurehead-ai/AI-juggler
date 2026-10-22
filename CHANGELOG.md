@@ -368,6 +368,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Make it smoother** (AJ-E1527). The welcome lists the optional
+  permissions (today, jumping to a session's own window), each with its
+  state and its Allow or Open System Settings, in the same rows as first
+  run's. They're never required: "Not now" puts them away. Afterwards,
+  while one is still off, Home shows a small reminder row, never a
+  modal, and its own "Not now".
 - **Telling projects and sessions apart** (AJ-E1532). Every project has
   a mark, the same on the rail, Home, History and its page: its own icon
   when its folder has one (a Tauri, Electron or Xcode app icon, a

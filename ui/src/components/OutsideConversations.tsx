@@ -5,6 +5,7 @@
  * show; then the most recent few, the rest one click away on the
  * project's page, so the rail stays within its budget at 50+.
  */
+import { providerDisplayName } from "../lib/providers";
 import { AccountAvatar } from "./Avatar";
 import { ProjectMark } from "./ProjectMark";
 import { ToolMark } from "./ToolMark";
@@ -112,7 +113,7 @@ export function ConversationRow({
             </span>
           )}
           <span className="sr-only">
-            , {state}, outside AI Juggler, on {conversation.account_label}
+            , {state}, outside AI Juggler, {providerDisplayName(conversation.tool)} on {conversation.account_label}
           </span>
         </span>
         <ToolMark tool={conversation.tool} size={12} className="shrink-0 text-muted" />
@@ -195,7 +196,7 @@ export function HomeOutsideRows({ rows, now }: { rows: ConversationInfo[]; now: 
             <span className="flex items-center gap-1.5 text-xs text-muted">
               <ToolMark tool={conversation.tool} size={12} className="shrink-0" />
               <AccountAvatar accountId={conversation.account_id} label={conversation.account_label} size={16} />
-              <span><span className="sr-only">on </span>{conversation.account_label}</span>
+              <span><span className="sr-only">{providerDisplayName(conversation.tool)} on </span>{conversation.account_label}</span>
             </span>
             {/* Its last activity: a resumed one can be months old. */}
             <span className="w-14 text-right font-mono text-xs text-faint" title="Last activity">

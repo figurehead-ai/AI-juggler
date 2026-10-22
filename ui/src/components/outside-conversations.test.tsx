@@ -78,6 +78,9 @@ describe("AJ-E1529 the rail's share of outside conversations", () => {
     const row = screen.getByTestId("rail-outside");
     expect(row.textContent).toContain("outside AI Juggler");
     expect(row.textContent).toContain("on Work Max");
+    // Its tool, in words: the mark beside it is hidden from screen readers
+    // (QA, walk 21).
+    expect(row.textContent).toContain("Claude Code on Work Max");
     // AJ-E1532: the account at a glance — its avatar, initials and colour —
     // beside the tool's mark.
     expect(row.querySelector("[data-testid='account-avatar']")?.textContent).toBe("WM");

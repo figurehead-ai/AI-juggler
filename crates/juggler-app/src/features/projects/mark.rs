@@ -279,6 +279,31 @@ pub fn monogram<S: std::hash::BuildHasher>(name: &str, taken: &HashSet<String, S
     };
     let lead: String = first.to_uppercase().collect();
     let mut candidates: Vec<String> = Vec::new();
+    // A name that ends in a number keeps it: projects told apart only by
+    // it (`api-1` … `api-5`) read A1 … A5, not five unrelated pairs (QA,
+    // the real setup).
+    // Only a number that is its own word (`api-2`, not `web2`).
+    let trimmed = name.trim_end_matches(|c: char| !c.is_alphanumeric());
+    let digits = trimmed
+        .chars()
+        .rev()
+        .take_while(char::is_ascii_digit)
+        .count();
+    let own_word = trimmed
+        .chars()
+        .rev()
+        .nth(digits)
+        .is_some_and(|c| !c.is_alphanumeric());
+    let number: String = if own_word {
+        trimmed[trimmed.len() - digits..].to_owned()
+    } else {
+        String::new()
+    };
+    match number.len() {
+        1 => candidates.push(format!("{lead}{number}")),
+        2 => candidates.push(number.clone()),
+        _ => {}
+    }
     if words.len() >= 2 {
         for word in &words[1..] {
             candidates.push(format!("{lead}{}", word[0].to_uppercase()));
@@ -405,6 +430,32 @@ mod tests {
         assert_eq!(monogram("acme-web2", &none), "AW");
         assert_eq!(monogram("2024", &none), "?");
         assert_eq!(monogram("日本語", &none), "日本");
+    }
+
+    #[test]
+    fn a_name_that_ends_in_a_number_keeps_it() {
+        let mut taken = HashSet::new();
+        let picked: Vec<String> = ["acme-1", "acme-2", "acme-3", "acme-4", "acme-5"]
+            .iter()
+            .map(|name| {
+                let letters = monogram(name, &taken);
+                taken.insert(letters.to_lowercase());
+                letters
+            })
+            .collect();
+        assert_eq!(picked, ["A1", "A2", "A3", "A4", "A5"]);
+        assert_eq!(monogram("build-12", &HashSet::new()), "12");
+        assert_eq!(monogram("v2", &HashSet::new()), "V2");
+        assert_eq!(
+            monogram("acme-web2", &HashSet::new()),
+            "AW",
+            "a number in a word stays part of it"
+        );
+        assert_eq!(
+            monogram("acme-web", &HashSet::new()),
+            "AW",
+            "no number: initials as before"
+        );
     }
 
     #[test]

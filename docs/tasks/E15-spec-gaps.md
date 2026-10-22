@@ -331,7 +331,7 @@ walk alone isn't enough.
 **Quality gates**: the diff preview; apply and remove on the replica leave every other setting byte-for-byte; the oracle comparison of tokens and % on the replica.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1530/manifest.md`.
 
-### AJ-E1527 Make it smoother: the optional permissions on the welcome | Status: TODO | Priority P1 | Effort S | Depends: AJ-E1524
+### AJ-E1527 Make it smoother: the optional permissions on the welcome | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: AJ-E1524
 **Goal**: A new user sees the optional permissions early, as a reminder that the experience is better with them, never as a requirement.
 **Requirements** (the maintainer's request, 2026-10-21):
 1. The welcome Home has a "Make it smoother" card listing the optional permissions (jump to a session's own window; a live preview of each session), each with its state and its Allow or Open System Settings action. It uses the same rows as first run's access step, from one shared component (`OsAccessRows`).

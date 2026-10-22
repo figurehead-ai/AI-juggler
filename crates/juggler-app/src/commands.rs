@@ -6772,7 +6772,7 @@ pub fn projects_list_impl(state: &Arc<AppState>) -> AppResult<Vec<ProjectInfo>> 
             served.insert(info.id.clone(), icon.path.clone());
         }
     }
-    crate::features::projects::icon::remember_served(served);
+    crate::features::projects::icon::remember_served(state, served);
     Ok(infos)
 }
 
@@ -10621,9 +10621,19 @@ mod tests {
     #[allow(clippy::panic)] // failure message names the missing file
     fn generated_ts_contains_read_model_fields() {
         let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../ui/src/types/generated");
+        // The export tests in this binary rewrite these files as it runs:
+        // read one once it's whole (its type declared), not mid-write.
         let read = |name: &str| {
-            std::fs::read_to_string(format!("{dir}/{name}.ts"))
-                .unwrap_or_else(|error| panic!("generated {name}.ts: {error}"))
+            for _ in 0..100 {
+                let text = std::fs::read_to_string(format!("{dir}/{name}.ts"))
+                    .unwrap_or_else(|error| panic!("generated {name}.ts: {error}"));
+                if text.contains(&format!("export type {name} ")) && text.trim_end().ends_with(';')
+                {
+                    return text;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+            panic!("generated {name}.ts never read whole");
         };
         let instance = read("InstanceInfo");
         for field in [

@@ -114,6 +114,12 @@ on that account; one such session measures the account.
   own page lists it; no uncited price is added (the coordinator,
   2026-10-22).
 
+- The same family, at a later push (2026-10-22, with E1527):
+  `juggler-supervisor` `orphan::collector_targeted_tick_overhead_under_budget`
+  measured 32 ms against its 20 ms budget inside the full verify (load
+  average 17–24); alone it passed three runs of three. The workspace
+  suite passed with only it skipped. Fix batch 4's, as above.
+
 ## After the docs fact-check (2026-10-22)
 
 - **The status line can't be left dangling.** The line written into the

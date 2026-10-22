@@ -30,7 +30,7 @@ ui/src/lib/machine.ts 426
 ui/src/screens/CleanupCentre.tsx 809
 ui/src/screens/FirstRun.tsx 1432
 ui/src/screens/FleetScreen.tsx 838
-ui/src/screens/Home.tsx 781
+ui/src/screens/Home.tsx 776
 ui/src/screens/NewProjectSheet.tsx 423
 ui/src/screens/NewSession.tsx 524
 ui/src/screens/PairingWizard.tsx 816
