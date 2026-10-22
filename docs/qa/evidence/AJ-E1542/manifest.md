@@ -31,6 +31,25 @@ Task: `docs/tasks/E15-spec-gaps.md` AJ-E1542 (the capability preflight). Status:
 | Gate: translation fixtures per pair | `a_claude_command_becomes_a_skill`, `a_codex_prompt_becomes_a_claude_command`, the Codex MCP translation test | PASS |
 | Gate: the lab with one MCP server and one skill on A only | Live labs 7 and 8 (`docs/qa/evidence/AJ-E1539/manifest.md`). Before each switch, both were offered and set up. B and then Codex used them from a fresh session ("KESTREL PEREGRINE"), which needs a working tool call and the skill. A wasn't offered what it had. Every set-up was undone, and A's, B's and Codex's configs matched copies taken before. | PASS |
 
+## After the independent review of #132
+
+The review found three blockers in this area and several smaller issues. All are fixed, each with a test.
+
+- **Secrets in a server's arguments or address.** A password in a URL (`postgres://u:pass@h`), a token in a query string, and `--api-key …` passed as plain values and started ticked. `carries_secret` now finds a secret inside a longer text. A server with a secret in its arguments or address gets one shared "can't be set up there" verdict that both adapters give first, so its secret reaches no target, command line or record (`inventory` `a_secret_inside_a_longer_text_is_found`, `a_server_with_a_secret_in_its_arguments_or_address_cant_move`).
+- **The undo of a project's own Claude server.** It ran outside the project folder. Now it runs in that folder, and only while the entry Claude wrote is unchanged; a fingerprint is kept for the check. Setting up a project's server without knowing the folder is refused (`switch_setup`).
+- **Codex's `config.toml`.**
+  - It now stays a link when it is one, and keeps its permissions (0600 stays 0600).
+  - An undo after the user added settings under our table refuses and leaves the file as it is (`codex_config_stays_a_link_with_its_permissions_and_its_users_settings`).
+- **Set-ups outlive the switch screen.**
+  - The failed view lists them with Undo.
+  - Settings › Context packs & secrets has "Set up by switches" with every set-up still in place (`switch_setup_list`; vitest `switch-set-ups`).
+- **A copied skill.**
+  - Hidden files (`.env`, `.git/`) stay behind, and links and folders deeper than six levels are named as left out.
+  - Files keep their permissions, so a skill's scripts stay runnable (`inventory_files`).
+- **The main rules file.** It's its own kind (`MainRules`), set by each adapter, so the app names no tool's files. Only Claude's main rules file becomes Codex's `AGENTS.md`; a further rules file "needs you".
+- **What the verdicts say.** Codex's verdicts say a project's server becomes every project's in that home, and that a skill goes to the folder every Codex home shares.
+- **The command line.** `claude mcp add-json` and `remove` put `--` before the name.
+
 ## Not covered here
 
 - A Codex MCP server set up on Codex asks for approval when first used, as Codex does for every server. The lab used Codex's automatic review (`--approve-for-me`) for its check.

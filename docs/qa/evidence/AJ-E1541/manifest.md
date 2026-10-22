@@ -15,6 +15,13 @@ Task: `docs/tasks/E15-spec-gaps.md` AJ-E1541 (cross-tool continuity). Status: **
 
 Live cells PASS: claude→codex transcript-resume, todos, mcp-references and switch-back (`docs/qa/evidence/AJ-E1539/manifest.md`).
 
+## After the independent review of #132
+
+- **Off the main thread.** The switch and switch-back commands now run off the main thread. "Finish this turn" could hold the whole app for up to two minutes.
+- **The replay's checks come first.** A replay that can't go no longer stops the source. The secrets choice and "is there a conversation" are checked before anything stops (`codex_switch` `a_replay_that_cant_go_never_stops_the_source`).
+- **Every hop is named.** A hop whose session record or account is missing is named in the update, not skipped.
+- **A capped lookup.** Finding a replay's conversation reads at most the 200 newest files changed since the switch.
+
 ## Left
 
 - **Req.1 a handover file.** The replay still goes to the target as one prompt, which the budget keeps under the argument limit. The task asks for `switches/<edge>/HANDOVER.md` and `state.json` in AI Juggler's data, with a short prompt pointing at them.

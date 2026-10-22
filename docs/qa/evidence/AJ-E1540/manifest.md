@@ -16,6 +16,11 @@ Task: `docs/tasks/E15-spec-gaps.md` AJ-E1540 (same-tool switches done right). St
 
 Live: the register's claude→claude transcript-resume, todos and mcp-references cells are PASS from labs 5–8 (`docs/qa/evidence/AJ-E1539/manifest.md`).
 
+## After the independent review of #132
+
+- **Usage after a switch (P19).** The filter now keys on the copy's own id, as installed. A copy installed beside one the target already had (a back-and-forth) leaves the target's own conversation its usage. A failed switch carries nothing (`usage_carried`: four cases, two of which fail under the old rule).
+- **Bundles from a paired Mac.** A bundle can't bring another conversation in beside the transcript (`claude_handover` `a_bundle_cant_bring_in_another_conversation`).
+
 ## Left
 
 - **Codex → Codex live (Req.4, the gate).** The lab needs a second signed-in Codex home, and this Mac has one. Whoever runs it next adds a Codex→Codex hop to the journey.
