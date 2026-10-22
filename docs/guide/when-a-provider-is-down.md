@@ -18,6 +18,6 @@ When you decide a Provider is down, move each session you need yourself:
 When the Provider is back, use **Switch back** in the session's
 Inspector to return the work to where it started.
 
-There is no "move the whole project" button yet. AJ-E1008 is collecting
-real outage reports first. If this happens to you, please tell us what
-happened (see `docs/qa/evidence/AJ-E1008/outage-log.md`).
+There is no "move the whole project" button yet: we want to learn from real
+outages first. If this happens to you, please tell us what happened in
+[Discussions](https://github.com/figurehead-ai/AI-juggler/discussions).

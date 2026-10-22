@@ -25,6 +25,9 @@ AI Juggler is an open-source project published by
 
 ## Releases
 
-Releases follow [Semantic Versioning](https://semver.org/). `0.x` builds
-ship on the beta channel; the stable channel opens at `1.0`. Notable
-changes are listed in the [CHANGELOG](./CHANGELOG.md).
+Releases follow [Semantic Versioning](https://semver.org/) on one version
+stream: every build gets the next version, and the Nightly, Beta and Stable
+channels point at builds that have earned them. 0.1 is the first Stable
+release. [docs/RELEASING.md](./docs/RELEASING.md) describes how a build moves
+between channels. Notable changes are listed in the
+[CHANGELOG](./CHANGELOG.md).

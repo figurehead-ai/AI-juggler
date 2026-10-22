@@ -1,7 +1,7 @@
 # Pass 2 — Proposal Delta and Plan Updates (Synthesis)
 
 > Second pass, synthesis-ready. Canonical input:
-> `docs/expected-worfklow.md:1` (21 lines, maintainer example).
+> `docs/internal/expected-workflow.md:1` (21 lines, maintainer example).
 > Prior research cited, not restated: Maximum-Depth Report
 > `docs/review/AI-Juggler-Maximum-Depth-Report-and-Proposal.md`
 > (6,739 lines; cited as MD §/Part), `docs/review/deep/`
@@ -11,7 +11,7 @@
 > `docs/plan/EPICS.md:1`. Pass-2 siblings 01–07 in this folder
 > are the evidence base; this file only synthesises their deltas.
 > Terminology: **Provider / Account / Instance** per
-> `docs/expected-worfklow.md:11`; legacy terms appear only in
+> `docs/internal/expected-workflow.md:11`; legacy terms appear only in
 > the migration map (§3.4) or in quoted prior text.
 
 ## 0. How to use this file in the maintainer meeting
@@ -29,7 +29,7 @@ Effort is T-shirt converted: S≈1 wk, M≈2 wk, L≈4 wk.
 What this pass changed in one sentence: prior research made
 quota the product (MD Executive decisions 1–6; D10 §25 ranks
 Quota+forecast RICE 600 as Must); the maintainer workflow at
-`docs/expected-worfklow.md:5`–`:7`, `:14`, `:17` makes
+`docs/internal/expected-workflow.md:5`–`:7`, `:14`, `:17` makes
 *switching, seeing, and cleaning up* the product, with quota
 as one input to all three. §§1–2 enact that re-centring.
 
@@ -42,19 +42,19 @@ does profiles/parallelism, quota dashboards, and handover.
 That ordering is the error pass 2 corrects: it lists quota
 second and handover third as if they were peers, when the
 maintainer workflow makes handover the *daily motion*
-(`docs/expected-worfklow.md:7`, "as many times I want …
+(`docs/internal/expected-workflow.md:7`, "as many times I want …
 back and forth") and quota merely its trigger
-(`docs/expected-worfklow.md:5`, "if I ran out of credits").
+(`docs/internal/expected-workflow.md:5`, "if I ran out of credits").
 
 **Revised thesis.** AI Juggler is the switching layer for
 AI coding work: it lets a developer start on any Provider
 Account, exhaust it, and continue the *same work* — chat,
 rules, project state — on any other Account or Provider,
 unlimited times in both directions, without manual
-configuration (`docs/expected-worfklow.md:6`,`:9`), while
+configuration (`docs/internal/expected-workflow.md:6`,`:9`), while
 always showing which Provider/Account/model is running
 where and owning every process an Instance spawns until
-it is verifiably gone (`docs/expected-worfklow.md:13`–`:18`).
+it is verifiably gone (`docs/internal/expected-workflow.md:13`–`:18`).
 
 Three load-bearing differences from the prior thesis:
 
@@ -63,12 +63,12 @@ Three load-bearing differences from the prior thesis:
    The maintainer requires an unbounded chain (§2, F-N1/F-U1;
    evidence: pass2/02 §§2–6, pass2/01 R5 = Missing).
 2. **Visibility is a surface, not a dashboard page.** The
-   right inspector on selection (`docs/expected-worfklow.md:14`)
+   right inspector on selection (`docs/internal/expected-workflow.md:14`)
    — not the Overview page (`docs/SPEC.md:345`) — is where
    quota, resources, children, and history compose (§2, F-N3).
 3. **Ownership outlives the session.** Processes, ports, and
    dev services an Instance spawned are Juggler's problem
-   after close (`docs/expected-worfklow.md:17`–`:18`); prior
+   after close (`docs/internal/expected-workflow.md:17`–`:18`); prior
    SPEC §5 covers only live trees (`docs/SPEC.md:234`) (§2, F-N2).
 
 ### 1.2 Positioning sentence options (pick one; §5 D1)
@@ -116,7 +116,7 @@ actors where noted. "Provider" below = harness vendor/tool
 #### F-N1. Portable Context Pack as the canonical switch artifact — P0
 
 - **Persona:** P1/P3 mid-task at a quota wall
-  (`docs/expected-worfklow.md:5`–`:6`); pass2/07 W5, W6, W9.
+  (`docs/internal/expected-workflow.md:5`–`:6`); pass2/07 W5, W6, W9.
 - **Flow:** On "Switch…" the app assembles the pack in the
   background (pre-staged on quota-warning, not on click);
   user picks target Account/Provider, sees a one-line fidelity
@@ -142,7 +142,7 @@ actors where noted. "Provider" below = harness vendor/tool
 #### F-N2. Process Cleanup Centre (zombie & orphan ownership) — P0
 
 - **Persona:** P4 Operator; any user whose closed Instance left
-  a dev server holding a port (`docs/expected-worfklow.md:17`).
+  a dev server holding a port (`docs/internal/expected-workflow.md:17`).
 - **Flow:** Every spawn is ledgered at launch; on Instance
   close, crash, or app restart, survivors surface in Cleanup
   Centre grouped by owning Instance with age, CPU/RAM, ports.
@@ -171,7 +171,7 @@ actors where noted. "Provider" below = harness vendor/tool
 #### F-N3. Right Inspector (selection snapshot surface) — P0
 
 - **Persona:** All; the daily driver at
-  `docs/expected-worfklow.md:14`–`:15`.
+  `docs/internal/expected-workflow.md:14`–`:15`.
 - **Flow:** Selecting any session, Instance, Provider, or
   Account opens the right inspector: identity (Provider /
   Account / model), quota headroom + reset, live resources
@@ -198,7 +198,7 @@ actors where noted. "Provider" below = harness vendor/tool
 #### F-N4. Indicator system (ambient Provider/Account/model/quota) — P0
 
 - **Persona:** P1 glancing across 10+ Instances
-  (`docs/expected-worfklow.md:13`); pass2/07 W3 morning triage.
+  (`docs/internal/expected-workflow.md:13`); pass2/07 W3 morning triage.
 - **Flow:** Every row/card/chip carries the same indicator
   grammar: Provider icon, Account label, model, status dot,
   quota micro-bar with reset time. Legend is one hover away;
@@ -221,7 +221,7 @@ actors where noted. "Provider" below = harness vendor/tool
 #### F-N5. Switch-back with divergence handling (Return+) — P0/P1
 
 - **Persona:** P1 whose original Account window reset mid-detour
-  (`docs/expected-worfklow.md:7`; `docs/SPEC.md:288`).
+  (`docs/internal/expected-workflow.md:7`; `docs/SPEC.md:288`).
 - **Flow:** On reset, "Switch back" is suggested (never executed).
   If the detour Instance diverged (new turns, file edits), the
   user sees a divergence summary — turns added, files touched,
@@ -278,7 +278,7 @@ still P0: it is the top-of-funnel gate for every other score.
 Upgrade in kind, not just size: split the two clocks (window
 reset vs plan renewal/expiry, pass2/01 R2), add per-model burn
 attribution (maintainer: "models currently running",
-`docs/expected-worfklow.md:13`), and feed *switch pre-staging*
+`docs/internal/expected-workflow.md:13`), and feed *switch pre-staging*
 (pre-assemble F-N1 pack at warning threshold) — quota stops
 being a dashboard and becomes switching's trigger. Forecast
 honesty rules unchanged (`docs/SPEC.md:259`). Acceptance adds:
@@ -320,7 +320,7 @@ sync, promoted from P2/Could — see §2.2.)
 |---|---|---|---|---|
 | D-1 Review/Diff Queue | §11, Could, RICE 120 | **Deferred post-1.0** (read-only diff in inspector only) | Demand was single-persona `[inferred]` (D10 §26); inspector History (F-N3) covers the daily need | 5 dogfood diaries request review routing (D10's own gate) |
 | D-2 Fleet teaser/control | §20 Could; SPEC M6–M7 | **Schema-only in Phase 0; control post-1.0** | Switching/inspector/cleanup are unproven locally; fleet multiplies every failure (FCUR F6.4) | Local switch loop passes Gate V4-equivalent (§4) |
-| D-3 Templates/Prompts Library | §16, Could, RICE 280 | **Cut from roadmap; community/plugin surface** | No maintainer-workflow sentence supports it (`docs/expected-worfklow.md:1`–`:21` silent); pack (F-N1) already carries prompts in context | Pack users export/share packs repeatedly (W9 signal) |
+| D-3 Templates/Prompts Library | §16, Could, RICE 280 | **Cut from roadmap; community/plugin surface** | No maintainer-workflow sentence supports it (`docs/internal/expected-workflow.md:1`–`:21` silent); pack (F-N1) already carries prompts in context | Pack users export/share packs repeatedly (W9 signal) |
 | D-4 Multi-repo grouping / Present mode | §15, Could, RICE 300 | **Deferred; grouping = filter only** | Agency Present-mode demand unverified (D10 §26 "invented" risk); W4 needs grouping-as-filter, not a mode | 3 agency interviews (D10 §30) confirm invoice/present value |
 
 Explicitly *not* demoted despite low RICE: F-U2 onboarding
@@ -356,7 +356,7 @@ moves after F-N3, since the inspector becomes its main target.
    primary detail surface; indicator grammar; Cleanup Centre;
    reverse the "merge Instances away" direction (MD 01 §B-08 /
    FCUR F2.2) — Instances stay, per ADR-0007 and
-   `docs/expected-worfklow.md:11`. Add subscription-expiry to
+   `docs/internal/expected-workflow.md:11`. Add subscription-expiry to
    Overview health strip (`:345`).
 6. **§12.1 Onboarding** (`docs/SPEC.md:409`): generalise the
    Claude-only scan to the cross-Provider recommender (F-U2).
@@ -408,7 +408,7 @@ types renamed with serialisation-compatible aliases
 Phase C: docs/SPEC/EPICS swept; `Profile` survives only in
 settings-overlay contexts. Conflicts to flag in ADR-0008:
 (i) code `Profile` vs maintainer's "profiles are complicated"
-(`docs/expected-worfklow.md:9`) — the word itself is the burden;
+(`docs/internal/expected-workflow.md:9`) — the word itself is the burden;
 (ii) prior "delete Instances" (MD 01 §B-08) vs ADR-0007 +
 maintainer mandate — maintainer wins; (iii) D10 §23 naming
 proposal (quota-wedge language) superseded by §1.2 above.
@@ -466,7 +466,7 @@ M5 release engineering (`:113`) gates at Phase-3 exit.
 
 1. **(5 min) Thesis check.** Does §1.1's re-centring (switch →
    see → clean; quota as trigger) match intent at
-   `docs/expected-worfklow.md:5`–`:18`? If not, which pillar
+   `docs/internal/expected-workflow.md:5`–`:18`? If not, which pillar
    is overweighted? *Outcome: thesis adopted or amended.*
 2. **(10 min) Decisions D2, D3, D4** (§5) — the three that
    change code this month. D1/D5–D7 can be async. *Outcome:

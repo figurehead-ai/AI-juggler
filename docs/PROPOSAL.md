@@ -1,6 +1,6 @@
 # AI Juggler — Product Proposal
 
-**Status:** draft for review · **Date:** 2026-10-12 · **Author:** Faruk Brbovic
+**Status:** historical proposal (October 2026), kept for the reasoning behind the project. For what AI Juggler does today, see the [README](../README.md). · **Date:** 2026-10-12 · **Author:** Faruk Brbovic
 Companion document: [Technical specification](./SPEC.md) · Evidence base: [research notes](./research/)
 
 ---
@@ -32,7 +32,7 @@ Modern AI-assisted development means several subscriptions across several tools.
 - **G2 — Know before you go:** accurate, visual, per-Account usage across all Providers — window clocks and (user-entered) subscription clocks — with alerts before walls are hit.
 - **G3 — Never lose momentum:** user-initiated, unlimited, bidirectional switching between Accounts and Providers, with a portable context pack, switch-back that resumes the original, and lineage visible in a Switch Graph.
 - **G4 — See everything:** a live session board — what's running, what's idle, what's stuck, what died.
-- **G5 — Extensible:** adding a new Provider is an adapter, not a rewrite. Claude Code, Codex, ZCode first; the adapter API is public.
+- **G5 — Extensible:** adding a new Provider is an adapter, not a rewrite. Claude Code and Codex first, more tools after.
 - **G6 — Trustworthy:** local-first, credentials never handled or stored by the app, signed self-updates, resilient by construction.
 - **G7 — Machine-aware parallelism:** monitor system and per-session resources, warn *before* overload, recover from crashes, and recommend configurations that actually fit the machine.
 - **G8 — Fleet:** link multiple computers over the network — every session, usage number, and alert from every connected machine in one console; onboarding a new machine is a pairing code.
@@ -96,7 +96,7 @@ and audit-logged.
 
 The goal is **actual session continuity — sessions and chats moved with their context — not just a generated hand-off prompt**:
 
-- **Same tool, same account:** native resume — lossless.
+- **Same tool, same account:** native resume, with the tool's own conversation file.
 - **Same tool, different account:** **session transplant** — the session's native artifacts are copied into the target account's state and resumed natively there; the conversation continues exactly where it left off, with history and in-session todos intact. (Claude and Codex support this today via transcript-path/session-id resume; both accounts share the same installed binary, so compatibility is guaranteed.)
 - **Different tool:** **transcript replay** — the complete conversation is reconstructed and injected as the new session's opening context, so the target model re-reads the real chat, not a summary. (Vendor precedent: Codex itself ships a Claude-chat importer.)
 - **Return:** when the source account's quota window resets, one click resumes the original session primed with a delta of what happened meanwhile ("while you were away").
@@ -132,7 +132,7 @@ See [research/landscape-and-stack.md](./research/landscape-and-stack.md) for the
 - **opcode:** beautiful single-tool GUI.
 - **ccusage:** read-only analytics CLI for ~20 tools (proof that local-file usage parsing is viable and tolerated).
 
-**No tool combines multi-account + multi-Provider + desktop GUI + dashboards + handover.** AI Juggler is that union — and the only manager that will support ZCode at all. Guardrail difference: unlike claude-code-router (proxy — inside Anthropic's prohibition zone) or auto-rotating switchers (inside OpenAI's "circumvent rate limits" zone), AI Juggler never touches traffic and never rotates autonomously.
+**No tool combines multi-account + multi-Provider + desktop GUI + dashboards + handover.** AI Juggler is that union Guardrail difference: unlike claude-code-router (proxy — inside Anthropic's prohibition zone) or auto-rotating switchers (inside OpenAI's "circumvent rate limits" zone), AI Juggler never touches traffic and never rotates autonomously.
 
 ## 8. Risks & mitigations
 
@@ -152,7 +152,7 @@ See [research/landscape-and-stack.md](./research/landscape-and-stack.md) for the
 - A new user goes from install → two Claude accounts running in parallel in **under 5 minutes** without reading docs.
 - A second machine joins the fleet in **under 60 seconds** with a pairing code and zero configuration files.
 - Handover round-trip (A → B → back on A) preserves task continuity as judged by the user in ≥ 80% of tries.
-- Zero incidents of the app writing to Provider state beyond its own managed account directories.
+- Zero incidents of the app writing to a tool's own folders beyond the changes the user turns on and previews (see ADR-0018).
 - Stuck-session detection precision/recall ≥ 90% on the fixture corpus.
 
 ## 10. Review status & remaining questions

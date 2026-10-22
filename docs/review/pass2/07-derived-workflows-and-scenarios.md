@@ -1,7 +1,7 @@
 # Pass 2 §07 — Derived Workflows & Scenarios Beyond the Example
 
 > Parent: [Maximum-Depth Report](../AI-Juggler-Maximum-Depth-Report-and-Proposal.md#L1) ·
-> Canonical example: [expected-worfklow.md](../../expected-worfklow.md#L1) ·
+> Canonical example: [expected-workflow.md](../../internal/expected-workflow.md#L1) ·
 > Prior personas: [07-personas-and-journeys.md](../deep/07-personas-and-journeys.md#L1) ·
 > Prior feature PRDs: [10-product-proposal-missing-features.md](../deep/10-product-proposal-missing-features.md#L1)
 > Task: second pass — what prior research under-weighted, got wrong,
@@ -12,8 +12,8 @@
 
 The example workflow is one happy path: start on one tool, hit a quota wall, switch tools/accounts "as
 many times as needed," with history, rules, and context intact
-([expected-worfklow.md:5](../../expected-worfklow.md#L5),
-[expected-worfklow.md:7](../../expected-worfklow.md#L7)). Prior research optimised around that noon wall:
+([expected-workflow.md:5](../../internal/expected-workflow.md#L5),
+[expected-workflow.md:7](../../internal/expected-workflow.md#L7)). Prior research optimised around that noon wall:
 forecast (10 §1), inbox (10 §2), honest handover (UX.5, full review F3), reset-return (SPEC §7.2,
 [SPEC.md:288](../../SPEC.md#L288)). All eleven workflows below start where that model ends — at night, at
 scale, across projects, across people, or when a whole Provider is down.
@@ -34,7 +34,7 @@ or auto-send is listed as click-confirmed or as an anti-feature.
 ## 1. Terminology — adopt Provider / Account / Instance
 
 The maintainer names the stack explicitly: "we should call them providers, accounts, and instances of the
-tool" ([expected-worfklow.md:11](../../expected-worfklow.md#L11)). The codebase does not yet speak that
+tool" ([expected-workflow.md:11](../../internal/expected-workflow.md#L11)). The codebase does not yet speak that
 language. Mapping and conflicts:
 
 | Maintainer term | Repo term today | Repo cite | Conflict |
@@ -48,7 +48,7 @@ language. Mapping and conflicts:
 Three naming conflicts to rule on before any workflow ships:
 
 1. **Provider vs Harness.** SPEC and all adapters say "harness"; the maintainer and the user-facing copy
-say "Provider" ([expected-worfklow.md:13](../../expected-worfklow.md#L13): "which provider it is").
+say "Provider" ([expected-workflow.md:13](../../internal/expected-workflow.md#L13): "which provider it is").
 Recommendation: UI and docs say Provider; `HarnessAdapter` stays as the code-level trait name. Do not
 rename crates for a copy change. 2. **Instance vs Session.** ADR-0007 already defines Instance as "one
 running/tracked occurrence of a harness under an account" and Session as "the work conversation living
@@ -60,10 +60,10 @@ below say "launch an Instance on Account B" and treat Profile as an advanced det
 sheet, never as a rail noun.
 
 The example also demands per-Session indicators — Provider, Account, model, quota left
-([expected-worfklow.md:13](../../expected-worfklow.md#L13)) — and, on selection, a right-hand panel with
+([expected-workflow.md:13](../../internal/expected-workflow.md#L13)) — and, on selection, a right-hand panel with
 usage, history, quality, performance, CPU/RAM, and spawned sub-processes
-([expected-worfklow.md:14](../../expected-worfklow.md#L14),
-[expected-worfklow.md:15](../../expected-worfklow.md#L15)). Workflows assume that panel exists; §12 lists
+([expected-workflow.md:14](../../internal/expected-workflow.md#L14),
+[expected-workflow.md:15](../../internal/expected-workflow.md#L15)). Workflows assume that panel exists; §12 lists
 where prior work under-built it.
 
 ## 2. What the prior pass under-weighted, got wrong, or missed
@@ -82,8 +82,8 @@ projects, but the consultant *day* — five clients, context-switch cost, billin
 workflow, not a grouping feature. → W4. 5. **Failure is per-Session; outage is per-Provider.** Crash
 recovery is Session-scoped (SPEC §5.3, [SPEC.md:250](../../SPEC.md#L250)); zombie/orphan cleanup gets one
 line ([SPEC.md:224](../../SPEC.md#L224)) against a full maintainer paragraph
-([expected-worfklow.md:17](../../expected-worfklow.md#L17),
-[expected-worfklow.md:18](../../expected-worfklow.md#L18)). A whole lab being down (W11) and incident
+([expected-workflow.md:17](../../internal/expected-workflow.md#L17),
+[expected-workflow.md:18](../../internal/expected-workflow.md#L18)). A whole lab being down (W11) and incident
 forensics (W7) are missing. 6. **"Team" was correctly scoped out, then over-applied.** Non-goal: "sharing
 profiles or pools between people" ([PROPOSAL.md:45](../../PROPOSAL.md#L45)). Prior work lets that veto even a
 one-way, user-exported pack to a colleague. Export/import packs already exist (SPEC §7.2 flow 5,
@@ -271,7 +271,7 @@ covers this split.
 
 **Steps in Juggler.** (1) NewSession with template "Cheap grunt pass" (10 §16) → Provider GLM / budget
 model on Account Lite → [Launch]. The Instance panel header shows Provider · Account · model · burn rate,
-per the maintainer's indicator demand ([expected-worfklow.md:13](../../expected-worfklow.md#L13)). (2)
+per the maintainer's indicator demand ([expected-workflow.md:13](../../internal/expected-workflow.md#L13)). (2)
 Draft lands; Inbox row "Draft ready." (3) Click [Finish with strong model…] → sheet: target
 Provider/Account/model, fidelity tier (T3 cross-Provider replay [SPEC.md:273](../../SPEC.md#L273) or T2), and
 the estimated burn of *both* legs shown side by side. (4) [Hand over to strong model] → new Instance
@@ -300,8 +300,8 @@ scaffolding-heavy work; validate by pricing two dogfood features both ways (10 �
 **Trigger.** Production is broken; or, locally, an Instance crashed and left children behind. The
 maintainer's zombie paragraph is the seed: tools "crash, exit, and their subprocesses… end up running
 long after the session closed… zombie processes" with "automatic and manual clean ups, all with
-verifications" ([expected-worfklow.md:17](../../expected-worfklow.md#L17),
-[expected-worfklow.md:18](../../expected-worfklow.md#L18)). Prior SPEC gives this one line
+verifications" ([expected-workflow.md:17](../../internal/expected-workflow.md#L17),
+[expected-workflow.md:18](../../internal/expected-workflow.md#L18)). Prior SPEC gives this one line
 ([SPEC.md:224](../../SPEC.md#L224)) plus crash classification ([SPEC.md:250](../../SPEC.md#L250)) —
 under-weighted.
 
@@ -490,7 +490,7 @@ report's Phase 1 trio (forecast + inbox + honest handover) from the workflow sid
 **Guardrail re-check (all workflows).** None auto-rotates an Account, auto-resumes on a different
 Account, auto-kills a process, auto-sends a pack to another person, or proxies traffic. The two
 deliberate tensions, stated openly: (a) the maintainer's "automatic… clean ups"
-([expected-worfklow.md:18](../../expected-worfklow.md#L18)) is honoured as automatic detection + staged
+([expected-workflow.md:18](../../internal/expected-workflow.md#L18)) is honoured as automatic detection + staged
 cleanup, because auto-kill conflicts with [PROPOSAL.md:47](../../PROPOSAL.md#L47); (b) W9 ships a
 cross-person file while honouring the Account non-goal verbatim — the copy distinction is Accounts vs
 work.

@@ -1,6 +1,6 @@
 # Contributing to AI Juggler
 
-Thanks for helping make AI Juggler better! 🤹 This guide covers how the
+Thanks for helping make AI Juggler better. This guide covers how the
 project is organised, how to build and test it, and what a mergeable
 change looks like.
 
@@ -31,11 +31,15 @@ change looks like.
 | Where | What |
 | --- | --- |
 | `crates/juggler-core` | Domain model, storage (SQLite), pure engines (ranking, quota, recommendation, funnel). No UI, no OS calls beyond the filesystem. |
-| `crates/juggler-adapter` | The `HarnessAdapter` trait every Provider implements. |
-| `crates/juggler-adapters` | Provider adapters (Claude Code) and the fake adapters tests use. |
-| `crates/juggler-supervisor` | Spawning, PTYs, the spawn ledger and process ownership. |
+| `crates/juggler-adapter` | The `HarnessAdapter` contract every tool implements: capabilities, discovery, launch specs, session watching. |
+| `crates/juggler-adapters` | The tool adapters (Claude Code, Codex) and the fake tool the tests use. |
+| `crates/juggler-supervisor` | Spawning, PTYs, the spawn ledger, process ownership and This Mac's measurements. |
 | `crates/juggler-handover` | Switching: context packs, redaction, fidelity, the switch pipeline. |
-| `crates/juggler-app` | The Tauri app: typed commands the UI calls. |
+| `crates/juggler-link` | Fleet: discovery, pairing and the encrypted link between your Macs. |
+| `crates/juggler-account` | The optional Figurehead account client. |
+| `crates/juggler-stats` | Opt-in usage statistics, counted on the Mac. |
+| `crates/juggler-scap-init` | The one audited `unsafe` call the screen-capture path needs (decision D-17). |
+| `crates/juggler-app` | The Tauri app: the typed commands the UI calls. |
 | `ui/` | React + TypeScript webview UI. `ui/src/lib/bridge.ts` is the only place that talks to the backend; it serves deterministic mocks in a plain browser. |
 | `docs/` | Proposal, spec, ADRs, decision log, task board, research, QA evidence. |
 
@@ -51,6 +55,7 @@ Prerequisites:
 - Rust — the version in `rust-toolchain.toml` installs automatically via `rustup`
 - Node ≥ 22 and pnpm 10
 - [`just`](https://github.com/casey/just)
+- The Tauri CLI: `cargo install tauri-cli --version "^2" --locked`
 - macOS: Xcode Command Line Tools. Linux: the Tauri system packages
   listed in `.github/workflows/ci.yml` (`build-linux`)
 
@@ -92,16 +97,17 @@ pnpm --dir ui exec playwright test       # visual states + a11y (for UI changes)
   (`just visual-sweep`, D-21): the whole gallery, your branch against
   `main`, with every changed state listed — see
   [QUALITY.md](docs/plan/QUALITY.md) § Visual checks.
-- **Words:** the UI says Provider / Account / Instance / Launch settings.
-  "Profile" never means an account, and "harness" is internal-only — the
-  terminology gate enforces this.
-- **Flaky gate?** Don't skip or re-threshold it. Record it and fix the
-  cause (see AJ-E806 in `docs/qa/evidence/AJ-E806/manifest.md`).
+- **Words:** plain words on screen. "Profile" never means an account, and
+  "harness" is a code name only; `just terminology` checks both.
+- **Flaky gate?** Don't skip it or loosen its threshold. Open an issue with
+  the failure and fix the cause (the flake log is
+  `docs/qa/evidence/AJ-E806/manifest.md`).
 
 ## Picking up work
 
-The [task board](./docs/tasks/) lists every epic (`E1` … `E10`) and task
-(`AJ-E101` …) with its requirements, quality gates and status. A task is
+Issues labelled [`good first issue`](https://github.com/figurehead-ai/AI-juggler/labels/good%20first%20issue)
+are a good place to start. The [task board](./docs/tasks/) lists every epic
+and task (`AJ-E101` …) with its requirements, quality gates and status. A task is
 **DONE-EVIDENCED** only when its evidence manifest exists under
 `docs/qa/evidence/<task-id>/` and passes at the stated threshold. If you
 want to take a task, comment on its issue (or open one) first so work

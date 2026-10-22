@@ -6,7 +6,7 @@
 > (documents) and the staged implementation that follows per D-15.
 > Source evidence: `docs/review/AI-Juggler-Maximum-Depth-Report-and-Proposal.md`,
 > `docs/review/AI-Juggler-Expected-Workflow-Second-Pass.md`, and
-> `docs/expected-worfklow.md`.
+> `docs/internal/expected-workflow.md`.
 
 ## Settled decisions
 

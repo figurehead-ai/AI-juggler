@@ -133,13 +133,13 @@ axe 0 violations.
 [commands.rs](../../crates/juggler-app/src/commands.rs#L392),
 [bridge.ts](../../ui/src/lib/bridge.ts)
 **Research basis**:
-pass2/03 §5 rules 1–6 and worked example; `docs/expected-worfklow.md:11`
+pass2/03 §5 rules 1–6 and worked example; `docs/internal/expected-workflow.md:11`
 ("making recommendations"); Deep-03 §4 (funnel ends at N=1).
 **Handover note**:
 Keep the engine pure and UI-free so E4/E5 surfaces can reuse
 it. Trap: "import everything found" without the Dormant-off
 rule recreates the clutter the maintainer banned
-("thousands of options", `expected-worfklow.md:11`).
+("thousands of options", `expected-workflow.md:11`).
 
 ### AJ-E305 Flows (a) first install and (b) new project within click budgets | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E304
 **Goal**:
