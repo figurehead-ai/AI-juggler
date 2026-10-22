@@ -23,6 +23,11 @@ use juggler_app::state::AppState;
 use juggler_core::model::SessionId;
 use juggler_supervisor::tree::SpawnContext;
 
+// The shared reaper and bounded server (nothing else from the kit).
+#[allow(dead_code)]
+#[path = "../../juggler-supervisor/tests/fixtures/mod.rs"]
+mod fixtures;
+
 fn ctx(state: &Arc<AppState>) -> SpawnContext {
     SpawnContext {
         provider: "claude-code".into(),
@@ -86,12 +91,16 @@ fn cleanup_centre_dogfood_orphan_row_with_evidence_and_zero_kill_fields() {
         .spawn(
             &session,
             &sh_spec(
-                &format!("python3 -m http.server {port} --bind 127.0.0.1 & wait"),
+                &format!("{} & wait", fixtures::http_server(port)),
                 dir.path(),
             ),
             &ctx(&state),
         )
         .unwrap();
+    // The tree's group (its helper outlives the root) dies with the test,
+    // a failed assertion's unwind included.
+    let mut reaper = fixtures::Reaper::default();
+    reaper.group(spawned.pid);
 
     // Live phase: the inventory shows the healthy tree (all-managed)
     // WITH the helper row landed (a tree freezing at exit keeps only

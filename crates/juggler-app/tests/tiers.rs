@@ -29,6 +29,11 @@ use juggler_core::model::{
     SessionId, SessionStatus, Timestamp,
 };
 
+// The shared reaper and bounded server (nothing else from the kit).
+#[allow(dead_code)]
+#[path = "../../juggler-supervisor/tests/fixtures/mod.rs"]
+mod fixtures;
+
 fn now_ms() -> i64 {
     Timestamp::now().millis()
 }
@@ -148,26 +153,30 @@ fn seed_instance(state: &Arc<AppState>, dir: &Path, id: &str, account: &str) -> 
 /// One drill tree: a dev-server helper (python http.server on an
 /// ephemeral port), an MCP-role helper (`mcp-server` in its argv),
 /// and a root that exits CLEANLY (code 0) or CRASHES (SIGKILL on
-/// itself) after the helpers are discoverable. Returns the session.
+/// itself) after the helpers are discoverable. Returns the session. The
+/// tree's group dies with `reaper`, a failed assertion's unwind included.
 fn drill_tree(
     state: &Arc<AppState>,
     dir: &Path,
     id: &str,
     account: &str,
     clean: bool,
+    reaper: &mut fixtures::Reaper,
 ) -> SessionId {
     let session = seed_instance(state, dir, id, account);
     let port = free_port();
     let exit = if clean { "exit 0" } else { "kill -9 $$" };
     let script = format!(
-        "python3 -m http.server {port} --bind 127.0.0.1 & \
+        "{} & \
          python3 -c 'import time; time.sleep(300)' mcp-server & \
-         sleep 3; {exit}"
+         sleep 3; {exit}",
+        fixtures::http_server(port)
     );
-    state
+    let spawned = state
         .supervisor
         .spawn(&session, &sh_spec(&script, dir), &ctx(state))
         .unwrap();
+    reaper.group(spawned.pid);
     session
 }
 
@@ -248,10 +257,18 @@ fn app_state(dir: &Path) -> Arc<AppState> {
 /// (Tier 0 everywhere) signals nothing across the fixture suite.
 #[test]
 fn default_install_signals_nothing() {
+    let mut reaper = fixtures::Reaper::default();
     let dir = tempfile::tempdir().unwrap();
     let state = app_state(dir.path());
     seed_account(&state, dir.path(), "acc-t1", false, false);
-    let session = drill_tree(&state, dir.path(), "sess-default", "acc-t1", true);
+    let session = drill_tree(
+        &state,
+        dir.path(),
+        "sess-default",
+        "acc-t1",
+        true,
+        &mut reaper,
+    );
     let (root_exit, rows) =
         wait_ledger_orphans(&state, "sess-default").expect("orphans never surfaced in the ledger");
     let (dev, mcp) = split_roles(&rows);
@@ -283,10 +300,18 @@ fn default_install_signals_nothing() {
 /// written before the signal; the MCP-role helper is untouched.
 #[test]
 fn tier1_drill_kills_only_the_dev_server() {
+    let mut reaper = fixtures::Reaper::default();
     let dir = tempfile::tempdir().unwrap();
     let state = app_state(dir.path());
     seed_account(&state, dir.path(), "acc-t1", true, false);
-    drill_tree(&state, dir.path(), "sess-drill", "acc-t1", true);
+    drill_tree(
+        &state,
+        dir.path(),
+        "sess-drill",
+        "acc-t1",
+        true,
+        &mut reaper,
+    );
     let (root_exit, rows) =
         wait_ledger_orphans(&state, "sess-drill").expect("orphans never surfaced");
     let (dev, mcp) = split_roles(&rows);
@@ -315,10 +340,18 @@ fn tier1_drill_kills_only_the_dev_server() {
 /// flag takes effect within one tick (the sweep reads it first).
 #[test]
 fn pause_blocks_every_signal() {
+    let mut reaper = fixtures::Reaper::default();
     let dir = tempfile::tempdir().unwrap();
     let state = app_state(dir.path());
     seed_account(&state, dir.path(), "acc-t1", true, true);
-    drill_tree(&state, dir.path(), "sess-paused", "acc-t1", true);
+    drill_tree(
+        &state,
+        dir.path(),
+        "sess-paused",
+        "acc-t1",
+        true,
+        &mut reaper,
+    );
     let (root_exit, rows) =
         wait_ledger_orphans(&state, "sess-paused").expect("orphans never surfaced");
     let (dev, mcp) = split_roles(&rows);
@@ -340,12 +373,13 @@ fn pause_blocks_every_signal() {
 /// B's equally-eligible orphan.
 #[test]
 fn account_isolation_only_cleans_the_opted_in_account() {
+    let mut reaper = fixtures::Reaper::default();
     let dir = tempfile::tempdir().unwrap();
     let state = app_state(dir.path());
     seed_account(&state, dir.path(), "acc-a", true, false);
     seed_account(&state, dir.path(), "acc-b", false, false);
-    drill_tree(&state, dir.path(), "sess-a", "acc-a", true);
-    drill_tree(&state, dir.path(), "sess-b", "acc-b", true);
+    drill_tree(&state, dir.path(), "sess-a", "acc-a", true, &mut reaper);
+    drill_tree(&state, dir.path(), "sess-b", "acc-b", true, &mut reaper);
     let (exit_a, rows_a) = wait_ledger_orphans(&state, "sess-a").expect("A's orphans");
     let (exit_b, rows_b) = wait_ledger_orphans(&state, "sess-b").expect("B's orphans");
     let (dev_a, mcp_a) = split_roles(&rows_a);
@@ -369,10 +403,18 @@ fn account_isolation_only_cleans_the_opted_in_account() {
 /// forever (exactly one notification per crash-orphan).
 #[test]
 fn tier2_crash_flow_notification_undo_and_lapse() {
+    let mut reaper = fixtures::Reaper::default();
     let dir = tempfile::tempdir().unwrap();
     let state = app_state(dir.path());
     seed_account(&state, dir.path(), "acc-t1", false, true);
-    drill_tree(&state, dir.path(), "sess-crash", "acc-t1", false);
+    drill_tree(
+        &state,
+        dir.path(),
+        "sess-crash",
+        "acc-t1",
+        false,
+        &mut reaper,
+    );
     let (parent_exit, rows) =
         wait_ledger_orphans(&state, "sess-crash").expect("crash orphans never surfaced");
     let (dev, mcp) = split_roles(&rows);
@@ -424,7 +466,14 @@ fn tier2_crash_flow_notification_undo_and_lapse() {
     let dir2 = tempfile::tempdir().unwrap();
     let state2 = app_state(dir2.path());
     seed_account(&state2, dir2.path(), "acc-t1", false, true);
-    drill_tree(&state2, dir2.path(), "sess-lapse", "acc-t1", false);
+    drill_tree(
+        &state2,
+        dir2.path(),
+        "sess-lapse",
+        "acc-t1",
+        false,
+        &mut reaper,
+    );
     let (exit2, rows2) =
         wait_ledger_orphans(&state2, "sess-lapse").expect("crash orphans never surfaced");
     let (dev_row2, mcp_row2) = split_roles(&rows2);
@@ -448,10 +497,18 @@ fn tier2_crash_flow_notification_undo_and_lapse() {
 /// (list-only) with an audit note — never a signal on stale evidence.
 #[test]
 fn verification_failure_demotes_to_tier0_with_audit_note() {
+    let mut reaper = fixtures::Reaper::default();
     let dir = tempfile::tempdir().unwrap();
     let state = app_state(dir.path());
     seed_account(&state, dir.path(), "acc-t1", true, false);
-    drill_tree(&state, dir.path(), "sess-demote", "acc-t1", true);
+    drill_tree(
+        &state,
+        dir.path(),
+        "sess-demote",
+        "acc-t1",
+        true,
+        &mut reaper,
+    );
     let (root_exit, rows) =
         wait_ledger_orphans(&state, "sess-demote").expect("orphans never surfaced");
     let (dev, mcp) = split_roles(&rows);
@@ -478,6 +535,7 @@ fn verification_failure_demotes_to_tier0_with_audit_note() {
 /// the user's re-confirm (the Centre's button) resumes it.
 #[test]
 fn crash_suspension_blocks_until_reconfirmed() {
+    let mut reaper = fixtures::Reaper::default();
     let dir = tempfile::tempdir().unwrap();
     let state = app_state(dir.path());
     seed_account(&state, dir.path(), "acc-t1", true, false);
@@ -495,7 +553,7 @@ fn crash_suspension_blocks_until_reconfirmed() {
     assert!(status.suspended, "the banner's data source");
     assert!(status.suspended_until_ms.is_some());
 
-    drill_tree(&state, dir.path(), "sess-susp", "acc-t1", true);
+    drill_tree(&state, dir.path(), "sess-susp", "acc-t1", true, &mut reaper);
     let (root_exit, rows) =
         wait_ledger_orphans(&state, "sess-susp").expect("orphans never surfaced");
     let (dev, mcp) = split_roles(&rows);

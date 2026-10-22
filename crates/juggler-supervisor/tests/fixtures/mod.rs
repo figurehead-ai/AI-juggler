@@ -134,7 +134,7 @@ impl FixtureSet {
 
     /// One background line per in-tree fixture, for the root script
     /// (`sh -c "<lines>; wait"`). The `shell` kind is a direct `sh`
-    /// child (TerminalShell role); the rest ride the python helper.
+    /// child (`TerminalShell` role); the rest ride the python helper.
     pub fn root_script(&self) -> String {
         let mut lines = Vec::new();
         for fixture in &self.fixtures {
@@ -208,7 +208,7 @@ impl FixtureSet {
             let fixture = self.get(kind);
             let signals = fixture.signals();
             if !signals.is_empty() {
-                violations.push(format!("{kind}: {:?}", signals));
+                violations.push(format!("{kind}: {signals:?}"));
             }
         }
         assert!(
@@ -288,6 +288,29 @@ pub fn unmanaged_fixture(dir: &Path) -> Fixture {
 /// one behind for longer.
 pub const FIXTURE_LIFETIME_SECS: u32 = 300;
 
+/// A shell command that serves HTTP on `127.0.0.1:<port>` with `python3`
+/// and ends itself after [`FIXTURE_LIFETIME_SECS`] (`python3 -m
+/// http.server` never does). Its command line still names `http.server`.
+#[allow(dead_code)] // shared: each suite uses the parts it needs
+pub fn http_server(port: u16) -> String {
+    server_command(port, "")
+}
+
+/// [`http_server`] leaving the caller's process group and session first
+/// (`setsid`): the escapee no group-scoped kill reaches.
+#[allow(dead_code)]
+pub fn escaping_http_server(port: u16) -> String {
+    server_command(port, "os.setsid(); ")
+}
+
+fn server_command(port: u16, first: &str) -> String {
+    format!(
+        "python3 -c 'import http.server as h, os, threading; {first}\
+         threading.Timer({FIXTURE_LIFETIME_SECS}, os._exit, [0]).start(); \
+         h.ThreadingHTTPServer((\"127.0.0.1\", {port}), h.SimpleHTTPRequestHandler).serve_forever()'"
+    )
+}
+
 /// Kills what a test started when the test ends, a panic's unwind
 /// included: each process group (`kill -s KILL -- -<pgid>`, the form
 /// both macOS's and Linux's `kill` read as a group) and each lone pid.
@@ -335,8 +358,7 @@ pub fn alive(pid: u32) -> bool {
         .arg("-0")
         .arg(pid.to_string())
         .status()
-        .map(|status| status.success())
-        .unwrap_or(false)
+        .is_ok_and(|status| status.success())
 }
 
 /// SIGKILL, ignoring errors (cleanup).

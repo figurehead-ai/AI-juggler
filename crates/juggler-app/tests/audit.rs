@@ -23,6 +23,11 @@ use juggler_core::storage::{CleanupAuditRecord, CleanupAuditRepo};
 use juggler_supervisor::ExitSnapshot;
 use juggler_supervisor::OrphanTracker;
 
+// The shared reaper (nothing else from the kit).
+#[allow(dead_code)]
+#[path = "../../juggler-supervisor/tests/fixtures/mod.rs"]
+mod fixtures;
+
 fn now_ms() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -143,6 +148,10 @@ fn fault_injection_no_audit_means_no_signal() {
         .spawn()
         .unwrap();
     let pid = child.id();
+    // The shell dies with the test, a failed assertion's unwind included;
+    // its `sleep` ends by itself (300 s).
+    let mut reaper = fixtures::Reaper::default();
+    reaper.pid(pid);
     let session = juggler_core::model::SessionId::new("sess-fault");
     state.orphans.record_exit(ExitSnapshot {
         session: session.clone(),
