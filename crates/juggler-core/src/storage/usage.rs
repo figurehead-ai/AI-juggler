@@ -504,11 +504,17 @@ impl Span {
     /// only after the fork. That puts the shared part on the original in a
     /// chain of copies, in a fork, and when the original never writes again.
     ///
-    /// Known limit: when the original writes first after a fork and the
-    /// copy writes later, the copy's own start is the later one, and it is
-    /// credited the shared part. Only the split between the two sessions is
-    /// affected; an account's totals never are (each message is counted
+    /// Known limits, each pinned by a test. Only the split between sessions
+    /// is affected; an account's totals never are (each message is counted
     /// once, whoever keeps it).
+    /// - The original writes first after a fork and the copy later: the
+    ///   copy's own start is the later one, so it is credited the shared
+    ///   part.
+    /// - A fork that is itself resumed before writing anything (O goes on,
+    ///   C forks from it, D resumes C): C has nothing of its own, so it
+    ///   takes O's history.
+    /// - A resume that never writes: the original and the copy tie on
+    ///   everything but the id, so the smaller id keeps the history.
     fn rank<'s>(&self, session: &'s str) -> (i64, std::cmp::Reverse<i64>, i64, &'s str) {
         (
             self.first,

@@ -148,10 +148,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   call, which Codex records outside its turns, was missed, and could count
   twice when AI Juggler read the file just as the compaction was written.
 - A conversation resumed into a new session repeats the original's
-  history. Its cost now stays with the session that wrote it, whatever order
-  AI Juggler reads the files in, including a copy of a copy and a fork that
-  both go on. Counts already stored are read again once, so these fixes
-  reach them.
+  history. Its cost now stays with the original session, whatever order AI
+  Juggler reads the files in, including a copy of a copy and a fork that
+  both go on. In a few cases the copy is still credited with the shared
+  part: an original that writes first after a fork, a fork resumed again
+  before it wrote anything, and a resume that never wrote. An account's
+  total is right either way. Counts already stored are read again once, so
+  these fixes reach them.
 - The tools AI Juggler runs are found in fixed system places, never by
   searching your `PATH` (git included).
 

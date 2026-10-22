@@ -479,6 +479,34 @@ fn a_re_read_never_drops_a_message_another_session_holds() {
     assert_eq!(after, expected(&[("o", &[1]), ("c", &[2, 3, 4])]));
 }
 
+/// Known limit (L-d, #126 re-review): O goes on writing, C forks from it,
+/// and C is resumed into D before writing anything. C has nothing of its
+/// own, so it takes O's history. The total is right.
+#[test]
+fn the_known_limit_a_fork_resumed_before_it_wrote_takes_the_history() {
+    let got = kept(&[
+        session("o", &[(1, 0), (2, 1), (5, 10), (6, 11)]),
+        session("c", &[(1, 0), (2, 1)]),
+        session("d", &[(1, 0), (2, 1), (3, 2), (4, 3)]),
+    ]);
+    assert_eq!(
+        got,
+        expected(&[("o", &[5, 6]), ("c", &[1, 2]), ("d", &[3, 4])])
+    );
+    assert_eq!(got.values().flatten().sum::<u64>(), 21);
+}
+
+/// Known limit (L-d): a resume that never writes ties the original on
+/// everything but the id, and the smaller id keeps the history.
+#[test]
+fn the_known_limit_an_empty_resume_wins_the_tie_on_its_id() {
+    let got = kept(&[
+        session("o", &[(1, 0), (2, 1)]),
+        session("a-copy", &[(1, 0), (2, 1)]),
+    ]);
+    assert_eq!(got, expected(&[("a-copy", &[1, 2])]));
+}
+
 /// The rule's known limit, pinned so a change to it is deliberate: when
 /// the original writes first after the fork (5 at minute 2) and the fork
 /// later (3 at minute 4), the fork is credited the shared part. The
@@ -547,7 +575,7 @@ fn a_compactions_own_usage_counts_once_never_the_starting_total() {
         .iter()
         .map(|e| e.msg_uuid.clone().unwrap())
         .collect();
-    assert_eq!(keys, ["th-sub/compacted/1792576801000", "th-sub/t1/r-t1"]);
+    assert_eq!(keys, ["th-sub/compacted/1792576801000/1", "th-sub/t1/r-t1"]);
     assert_eq!(
         outcome.events.iter().map(|e| e.tokens.input).sum::<u64>(),
         260,
@@ -713,6 +741,48 @@ fn a_truncated_rollout_starts_over_with_nothing_carried() {
     let inputs: Vec<_> = after.events.iter().map(|e| e.tokens.input).collect();
     assert_eq!(inputs, [100], "the new file's record only");
     assert_eq!(after.carry.pending, []);
+}
+
+/// L-g (#126 re-review): two compactions at the same millisecond (or with
+/// no time at all) are two keys, and a compaction dropped past the cap is
+/// counted.
+#[test]
+fn compactions_at_the_same_moment_are_two_and_a_drop_is_counted() {
+    let bytes = [
+        started("00:00"),
+        record("00:01", "t1", 100),
+        count("00:02", 100, 500),
+        codex_line("compacted", "00:03", "{}"),
+        count("00:03", 40, 540),
+        codex_line("compacted", "00:03", "{}"),
+        count("00:03", 30, 570),
+        started("00:04"),
+        record("00:05", "t2", 50),
+    ]
+    .concat();
+    let outcome = rollout_events("acc", bytes.as_bytes());
+    let compactions: Vec<_> = outcome
+        .events
+        .iter()
+        .filter(|e| {
+            e.msg_uuid
+                .as_deref()
+                .is_some_and(|k| k.contains("/compacted/"))
+        })
+        .map(|e| (e.msg_uuid.clone().unwrap(), e.tokens.input))
+        .collect();
+    assert_eq!(compactions.len(), 2, "{compactions:?}");
+    assert_ne!(compactions[0].0, compactions[1].0);
+    let mut many = String::new();
+    let mut total = 0;
+    for _ in 0..20 {
+        total += 10;
+        many.push_str(&codex_line("compacted", "00:00", "{}"));
+        many.push_str(&count("00:00", 10, total));
+    }
+    let outcome = rollout_events("acc", many.as_bytes());
+    assert_eq!(outcome.carry.pending.len(), 16);
+    assert_eq!(outcome.dropped, 4);
 }
 
 #[test]
