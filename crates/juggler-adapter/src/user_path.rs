@@ -444,12 +444,27 @@ mod tests {
         assert_eq!(parse_marked(&format!("{MARK}{MARK}")), None);
     }
 
+    /// Writes a stand-in shell from a child process, never from this one.
+    /// Written here, its file is open for writing while other tests in this
+    /// binary fork; a child forked then holds it until it execs, and running
+    /// the script fails as busy (ETXTBSY) — a CI flake, 2026-10-21 (AJ-E806).
+    /// A `sh` that writes it and exits leaves no writer behind.
     #[cfg(unix)]
     fn script(dir: &Path, name: &str, body: &str) -> PathBuf {
-        use std::os::unix::fs::PermissionsExt;
         let path = dir.join(name);
-        std::fs::write(&path, body).unwrap();
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let mut writer = Command::new("/bin/sh")
+            .args(["-c", "cat > \"$1\" && chmod 755 \"$1\"", "sh"])
+            .arg(&path)
+            .stdin(Stdio::piped())
+            .spawn()
+            .unwrap();
+        writer
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(body.as_bytes())
+            .unwrap();
+        assert!(writer.wait().unwrap().success());
         path
     }
 
@@ -463,8 +478,11 @@ mod tests {
             "shell",
             "#!/bin/sh\necho 'rc noise'\nPATH=/from/login:/usr/bin\nexport PATH\nexec /bin/sh\n",
         );
+        // What is read, not how fast: a loaded CI runner can take longer
+        // than the app's 2 s to start a shell (it failed there once). The
+        // timeout has its own test below.
         assert_eq!(
-            login_shell(&shell, LOGIN_SHELL_TIMEOUT),
+            login_shell(&shell, Duration::from_secs(30)),
             Some(OsString::from("/from/login:/usr/bin"))
         );
     }
@@ -479,7 +497,7 @@ mod tests {
             "shell",
             "#!/bin/sh\nPATH=\"/env/$(/usr/bin/env | /usr/bin/cut -d= -f1 | /usr/bin/sort | /usr/bin/tr '\\n' :)\"\nexport PATH\nexec /bin/sh\n",
         );
-        let names = login_shell(&shell, LOGIN_SHELL_TIMEOUT).unwrap();
+        let names = login_shell(&shell, Duration::from_secs(30)).unwrap();
         let names = names.to_string_lossy();
         for name in names
             .trim_start_matches("/env/")

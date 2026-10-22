@@ -52,6 +52,7 @@ const TARGETS: SwitchTargetData[] = [
     ],
     confidence: "Computed",
     tte_min: 262,
+    filtered_reason: null,
     suggested: true,
   },
   {
@@ -66,6 +67,8 @@ const TARGETS: SwitchTargetData[] = [
     top_factors: [],
     factors: [],
     confidence: "Measured",
+    score: null,
+    tte_min: null,
     suggested: false,
   },
 ];

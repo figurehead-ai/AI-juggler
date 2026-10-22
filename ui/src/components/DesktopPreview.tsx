@@ -155,7 +155,7 @@ export function DesktopPreview({
         >
           <img
             src={`data:image/png;base64,${frame.png_b64}`}
-            alt={`Live preview of this session's window (captured ${ageSec ?? 0}s ago)`}
+            alt={`Live preview of this session's window${ageSec != null ? ` (captured ${ageSec}s ago)` : ""}`}
             className={
               "block w-full " + (phase?.phase === "paused" ? "opacity-40" : "opacity-100")
             }

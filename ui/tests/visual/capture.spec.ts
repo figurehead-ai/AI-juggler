@@ -3579,9 +3579,10 @@ for (const theme of THEMES) {
         .getByRole("button", { name: "Customise ▸" })
         .click();
       await expect(page.getByTestId("sign-in-first")).toBeVisible();
-      await expect(page.getByTestId("launch-sheet-accounts")).toContainText(
-        "Room left unknown",
-      );
+      // Unknown room reads in the one runway's words; no verdict chip
+      // beside it (QA P26b: one claim per row).
+      await expect(page.getByTestId("launch-sheet-accounts")).toContainText("Not measured yet");
+      await expect(page.getByTestId("launch-sheet-accounts")).not.toContainText("Room left unknown");
       await page.screenshot({
         path: resolve(GALLERY, `38-flows-cde/e-launch-expanded-${vp.name}-${theme}.png`),
         fullPage: true,

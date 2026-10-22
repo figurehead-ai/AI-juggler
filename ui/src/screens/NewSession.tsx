@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { Button, Card, Chip } from "../components/primitives";
 import { IconProjects, IconTerminal } from "../components/icons";
-import { QuotaChip } from "../components/QuotaRings";
+import { runwayOf } from "../components/AccountRunway";
 import { RankedRows } from "../components/RankedRows";
 import { pickRecipe } from "./NewProjectSheet";
 import { ExpertSetup } from "../components/ExpertSetup";
@@ -173,7 +173,7 @@ export function NewSessionModal({
   const verdictByAccount = useMemo(() => {
     const map = new Map<string, { admission?: "ok" | "tight" | "no"; unknown: boolean }>();
     for (const row of ranked) {
-      map.set(row.account, { admission: row.admission, unknown: row.headroom_unknown });
+      map.set(row.account, { admission: row.admission ?? undefined, unknown: row.headroom_unknown });
     }
     return map;
   }, [ranked]);
@@ -343,7 +343,7 @@ export function NewSessionModal({
                 <div className="flex flex-wrap items-center gap-2 text-xs">
                   <IconTerminal width={13} height={13} />
                   <span className="font-medium">{preselected.account_label}</span>
-                  <QuotaChip display={quotaByAccount[preselected.account_id]} />
+                  <RunwayWords display={quotaByAccount[preselected.account_id]} />
                   <span className="text-muted">·</span>
                   <span className="text-muted">Launch settings: {preselected.name}</span>
                   {preselected.model && (
@@ -416,7 +416,7 @@ export function NewSessionModal({
                   >
                     <IconTerminal width={13} height={13} />
                     <span className="font-medium">{recipe.account_label}</span>
-                    <QuotaChip display={quotaByAccount[recipe.account_id]} />
+                    <RunwayWords display={quotaByAccount[recipe.account_id]} />
                     <span className="text-muted">·</span>
                     <span className="text-muted">Launch settings: {recipe.name}</span>
                     <VerdictChip verdict={verdictByAccount.get(recipe.account_id)} />
@@ -504,10 +504,10 @@ function VerdictChip({
   verdict,
 }: {
   verdict?: { admission?: "ok" | "tight" | "no"; unknown: boolean };
-}): JSX.Element {
-  if (verdict === undefined) {
-    return <Chip tone="neutral">Room left unknown</Chip>;
-  }
+}): JSX.Element | null {
+  // No verdict: the runway line beside it already says what is known
+  // (QA, P26b: "0% Estimate … Room left unknown" was two claims in a row).
+  if (verdict === undefined) return null;
   if (verdict.admission === "tight") {
     return (
       <Chip tone="neutral" >
@@ -523,5 +523,16 @@ function VerdictChip({
   if (verdict.admission === "ok") {
     return <Chip tone="neutral">Enough room left</Chip>;
   }
-  return <Chip tone="neutral">Room left unknown</Chip>;
+  return null;
+}
+
+/** The account's room in the one runway's words (`runwayOf`): the same
+ * sentence Home shows, never a bare or defaulted number. */
+function RunwayWords({ display }: { display?: QuotaDisplayData }): JSX.Element {
+  // No reading for the account yet reads "Not measured yet", as on Home.
+  return (
+    <span className="text-[11px] text-muted" data-testid="launch-runway">
+      {runwayOf(display).words}
+    </span>
+  );
 }

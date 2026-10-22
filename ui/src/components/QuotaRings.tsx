@@ -15,8 +15,9 @@
  */
 import type { JSX } from "react";
 import type { QuotaDisplayData, WindowDisplay } from "../lib/bridge";
+import { asOfWords, measured, windowView } from "../lib/quotaWindow";
 
-const badgeText = (badge?: string): string =>
+const badgeText = (badge?: string | null): string =>
   badge === "measured" ? "Measured" : badge === "computed" ? "Computed" : "Estimate";
 
 const clock = (ms: number): string => {
@@ -35,9 +36,9 @@ export function WindowRing({
   kind,
   omittedReason,
 }: {
-  window?: WindowDisplay;
+  window?: WindowDisplay | null;
   kind: "5h" | "weekly";
-  omittedReason?: string;
+  omittedReason?: string | null;
 }): JSX.Element {
   if (omittedReason) {
     return (
@@ -57,6 +58,16 @@ export function WindowRing({
       </div>
     );
   }
+  // Use seen but nothing measured (the 0.0.12 report): words, never a
+  // full ring — a missing percentage is not "100% used" or "% left".
+  if (window.state !== "exhausted" && window.state !== "learning" && !measured(window)) {
+    const words = windowView(window).words;
+    return (
+      <div data-testid={`ring-${kind}`} data-state={window.state === "reset" ? "reset" : "unmeasured"} role="img" aria-label={`${label}: ${words}`}>
+        <p className="text-xs text-muted">{words}</p>
+      </div>
+    );
+  }
   if (window.state === "learning") {
     return (
       <div data-testid={`ring-${kind}`} role="img" aria-label={`${label}: learning`}>
@@ -69,15 +80,18 @@ export function WindowRing({
   const used = pct ?? 100; // exhausted ⇒ full ring
   const exhausted = window.state === "exhausted";
   const ringText =
-    pct !== undefined ? `${Math.round(pct)}%` : exhausted ? "100%" : "—";
-  const reset =
-    window.resets_at_ms !== undefined ? `resets ${clock(window.resets_at_ms)}` : "";
+    pct != null ? `${Math.round(pct)}%` : exhausted ? "100%" : "—";
+  const reset = window.resets_at_ms == null ? "" : `resets ${clock(window.resets_at_ms)}`;
+  // When the vendor's reading was taken; without one, how long Measured
+  // has been quiet.
   const stale =
-    window.stale_note_ms !== undefined
-      ? `last measured ${hoursAgo(window.stale_note_ms)} ago`
-      : "";
+    window.measured_at_ms != null
+      ? asOfWords(window.measured_at_ms)
+      : window.stale_note_ms != null
+        ? `last measured ${hoursAgo(window.stale_note_ms)} ago`
+        : "";
   const aria = `${label}: ${exhausted ? "exhausted" : `${ringText} used`}${
-    pct !== undefined ? `, ${badgeText(window.badge)}` : ""
+    pct != null ? `, ${badgeText(window.badge)}` : ""
   }${reset ? `, ${reset}` : ""}${stale ? `, ${stale}` : ""}`;
 
   // Ring geometry: a 36px donut; the arc length encodes use (colour is
@@ -98,7 +112,7 @@ export function WindowRing({
         viewBox="0 0 36 36"
         role="img"
         aria-label={aria}
-        className={stale ? "opacity-60" : undefined}
+        className={window.stale_note_ms != null ? "opacity-60" : undefined}
       >
         <circle cx="18" cy="18" r={radius} fill="none" strokeWidth="3" className="stroke-hairline" />
         <circle
@@ -197,9 +211,9 @@ export function ForecastPill({
         ? "At this pace, it won't run out this window"
         : forecast.state === "no-headroom"
           ? "set your plan cap to see a forecast"
-          : forecast.tte_min !== undefined &&
-              forecast.range_min !== undefined &&
-              forecast.range_max !== undefined
+          : forecast.tte_min != null &&
+              forecast.range_min != null &&
+              forecast.range_max != null
             ? `↑ fast · exhausts ≈${Math.round(forecast.tte_min)} min` +
               (forecast.range_max - forecast.range_min > 1
                 ? ` (range ${Math.round(forecast.range_min)}–${Math.round(forecast.range_max)} min, ${badge})`
@@ -226,7 +240,7 @@ export function QuotaChip({ display }: { display?: QuotaDisplayData }): JSX.Elem
   if (window.state === "learning") {
     return <span className="text-[10px] text-faint">learning</span>;
   }
-  if (window.percentage !== undefined) {
+  if (measured(window)) {
     return (
       <span className="text-[10px]">
         <span className="tabular-nums">{Math.round(window.percentage)}%</span>{" "}
@@ -234,5 +248,6 @@ export function QuotaChip({ display }: { display?: QuotaDisplayData }): JSX.Elem
       </span>
     );
   }
-  return <span className="text-[10px] text-danger">blocked</span>;
+  if (window.state === "exhausted") return <span className="text-[10px] text-danger">blocked</span>;
+  return <span className="text-[10px] text-faint">not measured yet</span>;
 }

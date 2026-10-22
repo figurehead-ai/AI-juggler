@@ -109,6 +109,8 @@ pub fn session_cost(
     let row = table.price(provider, model)?;
     Some(
         (tokens.input as f64 / 1000.0) * row.input_per_1k
-            + (tokens.output as f64 / 1000.0) * row.output_per_1k,
+            // Reasoning is output billed at the output rate (stored
+            // apart from `output`, never inside it).
+            + (tokens.output.saturating_add(tokens.reasoning) as f64 / 1000.0) * row.output_per_1k,
     )
 }

@@ -11,6 +11,7 @@
     allow(clippy::pedantic, clippy::unwrap_used, clippy::expect_used)
 )]
 
+pub mod app_relaunch;
 pub mod backup;
 pub mod cloud_backup;
 pub mod commands;
@@ -140,6 +141,8 @@ macro_rules! app_commands {
             Read  crash::crash_info,
             Write crash::crash_set,
             Write crash::crash_answer,
+            // A screen's error to the crash-report path (kept only if allowed).
+            Write crash::crash_ui_error,
             Read  commands::usage_source_health,
             Read  commands::cost_rollups,
             Write commands::cost_csv_export,
@@ -343,6 +346,8 @@ macro_rules! app_commands {
             Read  os_access::os_access_list,
             Write os_access::os_access_request,
             Write os_access::os_access_open_settings,
+            // Relaunches the app: never from the read-only bridge.
+            Write app_relaunch::app_relaunch,
             Read  settings_policy::notification_prefs_get,
             Write settings_policy::notification_prefs_set,
             Read  settings_policy::cleanup_default_get,

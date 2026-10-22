@@ -11,6 +11,7 @@
  * (the host's switch flow) is the user's. A11y: a labelled list of
  * buttons, ↑/↓ roving focus, no nested interactives.
  */
+import { forecastWords } from "../lib/quotaWindow";
 import { useEffect, useRef, useState, type JSX } from "react";
 import { noteSwitchPick, statsEvent, type SwitchTargetData } from "../lib/bridge";
 
@@ -99,7 +100,7 @@ export function SwitchTargetRows({
         className="flex flex-col gap-1.5"
       >
         {targets.map((target) => {
-          const filtered = target.filtered_reason !== undefined && target.filtered_reason !== null;
+          const filtered = target.filtered_reason != null;
           return (
             <li key={target.recipe_id}>
               <button
@@ -124,12 +125,7 @@ export function SwitchTargetRows({
                       Suggested
                     </span>
                   )}
-                  {target.tte_min !== undefined && !filtered && (
-                    <span className="text-[10px] text-muted">
-                      exhausts ≈{Math.round(target.tte_min)} min
-                    </span>
-                  )}
-                  <span className="ml-auto text-[10px] text-muted">{target.confidence}</span>
+                  {!filtered && <span className="ml-auto text-[10px] text-muted">{forecastWords(target.tte_min, target.confidence)}</span>}
                 </span>
                 {target.cross_provider && target.drops.length > 0 && (
                   <span className="text-[10px] text-warning" data-testid="target-drop-list">

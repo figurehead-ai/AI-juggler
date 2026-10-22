@@ -9,6 +9,7 @@
  * labelled LIST of buttons (no nested interactives inside listbox
  * options) with ↑/↓ roving focus between rows.
  */
+import { forecastWords } from "../lib/quotaWindow";
 import { useRef, useState, type JSX } from "react";
 import type { RankedRowData } from "../lib/bridge";
 
@@ -54,7 +55,7 @@ export function RankedRows({
         className="flex flex-col gap-1.5"
       >
         {rows.map((row) => {
-          const filtered = row.filtered_reason !== undefined;
+          const filtered = row.filtered_reason != null;
           return (
             <li key={row.account}>
               <button
@@ -70,19 +71,14 @@ export function RankedRows({
               >
                 <span className="flex items-center gap-2">
                   <span className={`font-medium ${filtered ? "text-muted" : ""}`}>
-                    {row.account}
+                    {row.account_label}
                   </span>
                   {row.suggested && (
                     <span className="rounded border border-accent/50 px-1 text-[10px] text-accent">
                       Suggested
                     </span>
                   )}
-                  {row.tte_min !== undefined && (
-                    <span className="text-[10px] text-muted">
-                      exhausts ≈{Math.round(row.tte_min)} min
-                    </span>
-                  )}
-                  <span className="ml-auto text-[10px] text-muted">{row.confidence}</span>
+                  {!filtered && <span className="ml-auto text-[10px] text-muted">{forecastWords(row.tte_min, row.confidence)}</span>}
                 </span>
                 {filtered ? (
                   <span className="text-[10px] text-muted">{row.filtered_reason}</span>
