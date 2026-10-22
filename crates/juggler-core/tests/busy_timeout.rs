@@ -128,3 +128,61 @@ fn the_ledger_audit_and_cleanup_settings_wait_too() {
         .expect("a cleanup-settings write waits for the lock");
     holder.join().unwrap();
 }
+
+/// #126's CI: a usage write read before it wrote (its deferred transaction
+/// began as a read), so when another connection (the process ledger) wrote
+/// and committed meanwhile, SQLite answered "database is locked" at once
+/// instead of waiting. Usage writes take the write lock first.
+#[test]
+fn a_usage_write_waits_for_another_connection_that_changes_the_database() {
+    use juggler_core::model::{Confidence, TokenCounts};
+    use juggler_core::quota::{UsageEvent, UsageSource};
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("juggler.sqlite");
+    let storage = Storage::open(&db).unwrap();
+    let event = |key: &str| UsageEvent {
+        account: "acc".into(),
+        session: Some("s".into()),
+        ts: 1,
+        model: None,
+        tokens: TokenCounts {
+            output: 1,
+            ..TokenCounts::default()
+        },
+        credits: None,
+        usd_est: None,
+        source: UsageSource::Transcript,
+        confidence: Confidence::Measured,
+        msg_uuid: Some(key.into()),
+    };
+    storage.usage().store_events(&[event("a")]).unwrap();
+    for round in 0..3 {
+        let path = db.clone();
+        let (locked, wait) = std::sync::mpsc::channel();
+        let other = std::thread::spawn(move || {
+            let conn = Connection::open(&path).unwrap();
+            conn.execute_batch("BEGIN IMMEDIATE").unwrap();
+            conn.execute(
+                "INSERT OR REPLACE INTO app_settings (key, value) VALUES ('other', ?1)",
+                [round.to_string()],
+            )
+            .unwrap();
+            locked.send(()).unwrap();
+            std::thread::sleep(HELD);
+            conn.execute_batch("COMMIT").unwrap();
+        });
+        wait.recv().unwrap();
+        storage
+            .usage()
+            .store_events(&[event("a"), event(&format!("b{round}"))])
+            .expect("the usage write waits for the other write");
+        storage
+            .usage()
+            .replace_session_events(
+                &[("acc".into(), UsageSource::Transcript, "s".into())],
+                &[event("a")],
+            )
+            .expect("so does a re-read");
+        other.join().unwrap();
+    }
+}

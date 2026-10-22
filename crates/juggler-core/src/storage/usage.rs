@@ -54,7 +54,7 @@ impl UsageRepo<'_> {
     /// Returns [`CoreError::Storage`] on SQLite failures; the
     /// transaction rolls back atomically.
     pub fn store_events(&self, events: &[UsageEvent]) -> Result<Vec<Stored>, CoreError> {
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = write_transaction(self.conn)?;
         let stored = store_in(&tx, events, Removed::default())?;
         tx.commit()?;
         Ok(stored)
@@ -73,7 +73,7 @@ impl UsageRepo<'_> {
         sessions: &[(String, UsageSource, String)],
         events: &[UsageEvent],
     ) -> Result<Vec<Stored>, CoreError> {
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = write_transaction(self.conn)?;
         let (_, removed) = delete_in(&tx, sessions)?;
         let stored = store_in(&tx, events, removed)?;
         tx.commit()?;
@@ -90,7 +90,7 @@ impl UsageRepo<'_> {
         &self,
         samples: &[(String, WindowKind, QuotaSample)],
     ) -> Result<(), CoreError> {
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = write_transaction(self.conn)?;
         for (account, kind, sample) in samples {
             UsageRepo { conn: &tx }.insert_sample(account, *kind, sample)?;
         }
@@ -113,7 +113,7 @@ impl UsageRepo<'_> {
         &self,
         sessions: &[(String, UsageSource, String)],
     ) -> Result<usize, CoreError> {
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = write_transaction(self.conn)?;
         let (deleted, removed) = delete_in(&tx, sessions)?;
         store_in(&tx, &[], removed)?;
         tx.commit()?;
@@ -424,6 +424,18 @@ impl UsageRepo<'_> {
             .map(|_| ())
             .map_err(CoreError::Storage)
     }
+}
+
+/// A write transaction that takes the write lock as it begins (`BEGIN
+/// IMMEDIATE`). A deferred one begins as a read, and these writes read
+/// first (who holds a message, where each session stands): when another
+/// connection on the file (the process ledger, the cleanup audit) wrote and
+/// committed meanwhile, SQLite answered "database is locked" at once
+/// instead of waiting (#126's CI). Taken first, the lock waits its turn
+/// under the busy timeout, and the reads see the latest data.
+fn write_transaction(conn: &Connection) -> Result<rusqlite::Transaction<'_>, CoreError> {
+    rusqlite::Transaction::new_unchecked(conn, rusqlite::TransactionBehavior::Immediate)
+        .map_err(CoreError::Storage)
 }
 
 /// Stable confidence names for storage.

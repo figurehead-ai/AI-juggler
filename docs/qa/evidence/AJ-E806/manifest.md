@@ -80,6 +80,18 @@
   each cell took 10–18 s instead of about 3 s. Re-run in the same pinned
   container, all eight History cells passed 3/3 (24/24) with no pixel
   difference. Timeouts and thresholds are unchanged; CI is the arbiter.
+- **Flake record, 2026-10-22 (fixed; a product bug).** `juggler-app --test
+  parked_reset :: not_now_snoozes_once_then_stays_parked_quietly` failed in
+  #126's CI (run 39764249611): "database is locked" (SQLITE_BUSY) storing
+  usage events. Cause: usage writes opened a deferred transaction, which
+  begins as a read, and #126's store reads before it writes. When another
+  connection on the same file (here the process ledger, writing at launch)
+  committed meanwhile, SQLite answered busy at once instead of waiting.
+  Fix: usage writes take the write lock first (`BEGIN IMMEDIATE`), so they
+  wait under the busy timeout. `juggler-core --test busy_timeout ::
+  a_usage_write_waits_for_another_connection_that_changes_the_database`
+  reproduces the exact error without the fix and passes with it;
+  `parked_reset` passed 5/5 after.
 - **Flake record, 2026-10-19 (fixed).** `juggler-app --test parked_reset
   :: a_parked_instance_is_offered_back_once_at_the_reset_and_resumes_the_original`
   failed once in `just verify` on the AJ-E1012 branch: the resume's
