@@ -152,7 +152,7 @@ type Selection =
   | { kind: "login"; id: string }
   | { kind: "account"; id: string }
   | { kind: "provider"; id: string }
-  | { kind: "conversation"; accountId: string; id: string } // AJ-E1529
+  | { kind: "conversation"; accountId: string; id: string; projectId: string | null } // AJ-E1529
   // AJ-E705: a paired machine (instanceId null) or an Instance on it.
   | { kind: "remote"; machineId: string; instanceId: string | null };
 
@@ -634,13 +634,16 @@ export default function App() {
             (projects.find((p) => p.id === selectedSession.project_id)?.name ?? "Session")
           : selectedLogin
             ? selectedLogin.title
-            : "Home";
+            : selection.kind === "none"
+              ? "Home"
+              : // AJ-E1534: a session outside AI Juggler, like one of its own, by its project.
+                (projects.find((p) => selection.kind === "conversation" && p.id === selection.projectId)?.name ?? "Session");
 
   return (
     <ThisMacContext.Provider value={thisMacInfo}>
     <ConversationsProvider>
     <AppActions
-      selectConversation={(conversation) => { setGlobal(null); setSelection({ kind: "conversation", accountId: conversation.account_id, id: conversation.id }); }}
+      selectConversation={(conversation) => { setGlobal(null); setSelection({ kind: "conversation", accountId: conversation.account_id, id: conversation.id, projectId: conversation.project_id }); }}
       selectSession={selectSession}
       selectProject={selectProject}
       selectAccount={(id) => { setGlobal(null); setSelection({ kind: "account", id }); }}
@@ -769,7 +772,8 @@ export default function App() {
           <div className="ml-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-0.5 xl:gap-1.5" data-tauri-drag-region={false}>
             <nav aria-label="Main" className="flex flex-wrap items-center gap-0.5 xl:gap-1">
               {PRIMARY_NAV.map((item) => {
-                const current = item.id === "home" ? global === null && selection.kind === "none" : global === item.id;
+                // AJ-E1534: from the page shown — an account's page is under Accounts.
+                const current = item.id === "home" ? global === null && selection.kind === "none" : global === item.id || (global === null && item.id === "accounts" && selection.kind === "account");
                 return (
                   <button
                     key={item.id}
@@ -824,6 +828,7 @@ export default function App() {
               <MoreMenu
                 items={MORE_NAV}
                 current={global}
+                inTools={global === null && selection.kind === "provider"}
                 onPick={setGlobal}
                 toolIds={[...new Set(accounts.map((account) => account.provider))]}
                 onOpenTool={(id) => { setGlobal(null); setSelection({ kind: "provider", id }); }}

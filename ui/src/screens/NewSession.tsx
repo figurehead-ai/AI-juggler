@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type JSX } from "react";
+import { homeRelative } from "../lib/project-words";
 import { Button, Card, Chip } from "../components/primitives";
 import { IconProjects, IconTerminal } from "../components/icons";
 import { QuotaChip } from "../components/QuotaRings";
@@ -297,9 +298,7 @@ export function NewSessionModal({
                   )}
                 </span>
                 <span className="truncate text-[10px] text-muted">
-                  {project.history_sessions > 0
-                    ? `${project.history_sessions} prior sessions · ${project.accounts_used.join(", ")}`
-                    : project.root}
+                  {project.history_sessions > 0 ? `${project.history_sessions} prior sessions · ${project.accounts_used.join(", ")}` : homeRelative(project.root)}
                 </span>
               </button>
             ))}

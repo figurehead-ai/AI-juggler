@@ -63,8 +63,23 @@ export type TabFacts = {
   hasSessions?: boolean;
 };
 
+/** Where an Overview's numbers come from, by page (P21: never one
+ * source named for all). */
+const OVERVIEW_SOURCE: Partial<Record<PageKind, string>> = {
+  project: "AI Juggler's projects and the tools' session files",
+  account: "the account's settings and usage tracking",
+  tool: "the tool's install and its accounts",
+  conversation: "the tool's own session files",
+};
+
 /** The page's tabs, its body first. */
 export function pageTabs(kind: PageKind, facts: TabFacts = {}): PageTab[] {
+  const source = OVERVIEW_SOURCE[kind];
+  const tabs = tabsOf(kind, facts);
+  return source ? tabs.map((tab) => (tab.id === "overview" ? { ...tab, source } : tab)) : tabs;
+}
+
+function tabsOf(kind: PageKind, facts: TabFacts): PageTab[] {
   const when = (shown: boolean | undefined, tab: PageTabId) => (shown ? [TAB[tab]] : []);
   switch (kind) {
     case "session":

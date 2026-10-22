@@ -8,7 +8,7 @@ import { PageHeader, type Crumb } from "./PageShell";
 import type { PageKind } from "./registry";
 import { ProjectFacts } from "./ProjectPage";
 import { Button, Chip, type ChipTone } from "../components/primitives";
-import { AccountDisc, STATE_WORDS, isActiveStatus, stateChip } from "../components/indicator";
+import { AccountDisc, STATE_WORDS, hueOf, isActiveStatus, stateChip } from "../components/indicator";
 import { ToolMark } from "../components/ToolMark";
 import { InspectorHeaderMenu } from "../components/InspectorHeaderMenu";
 import { useActionHost } from "../components/ItemMenu";
@@ -150,15 +150,31 @@ export function InspectorHeader({
       : kind === "account" && tool
         ? [{ label: tool.display_name, onOpen: () => host.openTool?.(tool), testId: "crumb-tool" }]
         : [];
+  const state = instance && kind === "instance" ? statusTone(instance.status) : null;
+  // AJ-E1534: each type its own mark shape — a session's terminal with its
+  // state dot, a project's rounded square, an account's round disc, a
+  // tool's own mark.
   const mark =
     kind === "provider" && data.provider ? (
       <ToolMark tool={data.provider.id} size={18} />
     ) : kind === "account" && account ? (
       <AccountDisc accountId={account.id} label={account.label} size={20} />
+    ) : kind === "instance" && state ? (
+      <span className="relative flex" data-testid="mark-session">
+        <IconTerminal width={16} height={16} />
+        <span aria-hidden="true" className={"absolute -bottom-0.5 -right-1 size-2 rounded-full ring-2 ring-canvas " + DOT[state.tone]} />
+      </span>
+    ) : kind === "project" && data.project ? (
+      <span
+        className="flex size-5 items-center justify-center rounded-md"
+        style={{ background: `hsl(${hueOf(data.project.id)} 60% 50% / 0.18)`, color: `hsl(${hueOf(data.project.id)} 60% 66%)` }}
+        data-testid="mark-project"
+      >
+        <IconProjects width={12} height={12} />
+      </span>
     ) : (
       <KindIcon kind={kind} />
     );
-  const state = instance && kind === "instance" ? statusTone(instance.status) : null;
   // An ended session starts again from its own launch settings, in its folder.
   const relaunch =
     kind === "instance" && instance && ENDED.includes(instance.status)
@@ -255,6 +271,16 @@ export function InspectorHeader({
     />
   );
 }
+
+/** A state's dot, in its chip's tone. */
+const DOT: Record<ChipTone, string> = {
+  live: "bg-live",
+  success: "bg-success",
+  warning: "bg-warning",
+  danger: "bg-danger",
+  accent: "bg-accent",
+  neutral: "bg-faint",
+};
 
 /** A session that has ended (it can be relaunched). */
 const ENDED = ["finished", "stopped", "failed", "handed_over"];

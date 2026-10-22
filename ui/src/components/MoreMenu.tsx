@@ -12,6 +12,7 @@ export type MoreItem<Id extends string> = { id: Id; label: string; hint: string 
 export function MoreMenu<Id extends string>({
   items,
   current,
+  inTools = false,
   onPick,
   toolIds,
   onOpenTool,
@@ -19,6 +20,8 @@ export function MoreMenu<Id extends string>({
   items: MoreItem<Id>[];
   /** The screen shown now, when it's one of these. */
   current: Id | null;
+  /** A tool's page is shown (its section is here). */
+  inTools?: boolean;
   onPick: (id: Id) => void;
   /** The tools the user has accounts on. */
   toolIds: string[];
@@ -55,7 +58,7 @@ export function MoreMenu<Id extends string>({
         onClick={() => setOpen((was) => !was)}
         className={
           "rounded-md px-2 py-1.5 text-xs font-medium transition-colors xl:px-2.5 " +
-          (items.some((item) => item.id === current) ? "bg-surface text-ink sheen" : "text-muted hover:bg-surface/60 hover:text-ink")
+          (inTools || items.some((item) => item.id === current) ? "bg-surface text-ink sheen" : "text-muted hover:bg-surface/60 hover:text-ink")
         }
       >
         More

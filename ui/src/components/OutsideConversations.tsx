@@ -83,6 +83,7 @@ export function ConversationRow({
         data-conversation-id={conversation.id}
         data-testid="rail-outside"
         aria-current={selected ? "true" : undefined}
+        data-rail-selected={selected ? "true" : undefined}
         onClick={() => onOpen(conversation)}
         className={
           "relative flex w-full min-w-0 items-center gap-2.5 rounded-lg pl-2.5 pr-2 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +

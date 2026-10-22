@@ -12,7 +12,7 @@ import { useActionHost } from "../components/ItemMenu";
 import { useProjectManage } from "../components/ManageWork";
 import { ProjectDefaultAccount } from "../components/ProjectDefaultAccount";
 import { SwitchGraph } from "../components/SwitchGraph";
-import { projectStats } from "../components/WorkflowRail";
+import { homeRelative, projectStats } from "../lib/project-words";
 import { AccountDisc, isActiveStatus } from "../components/indicator";
 import { IconTerminal } from "../components/icons";
 import { Button, Card } from "../components/primitives";
@@ -56,7 +56,7 @@ export function ProjectFacts({ project, sessions }: { project: ProjectInfo; sess
   return (
     <>
       <span className="font-mono text-[11px]" title={project.root} data-testid="project-root">
-        {project.root.replace(/^\/Users\/[^/]+/, "~")}
+        {homeRelative(project.root)}
       </span>
       {branches.length > 0 && <span data-testid="project-branch">· {branches.join(", ")}</span>}
       {ahead + behind > 0 && (
@@ -188,7 +188,12 @@ export function ProjectOverview(props: ProjectPanelProps) {
       <Card className="flex flex-col gap-2 p-4" data-testid="project-accounts">
         <p className="text-[11px] uppercase tracking-wider text-muted">Accounts</p>
         <ProjectDefaultAccount project={project} accounts={props.accounts} onChanged={props.onStopped} />
-        {ranked.length > 0 && <p className="text-[11px] text-muted">Start one on another account (most left first):</p>}
+        {/* Ranked only by what's known (P21): no headroom read yet, no claim. */}
+        {ranked.length > 0 && (
+          <p className="text-[11px] text-muted">
+            {ranked.some((entry) => Number.isFinite(entry.left)) ? "Start one on another account (most left first):" : "Start one on another account:"}
+          </p>
+        )}
         <div className="flex flex-wrap gap-2">
           {ranked.map(({ recipe, usual }) => {
             const ready = signedIn(props.accounts.find((a) => a.id === recipe.account_id)?.login_state);

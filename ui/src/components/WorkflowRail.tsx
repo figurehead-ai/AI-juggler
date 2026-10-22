@@ -2,7 +2,9 @@ import { identityWords } from "../lib/identity";
 import { parkedWords } from "../lib/parked";
 import { providerDisplayName } from "../lib/providers";
 import { ReactNode, useCallback, useEffect, useId, useRef, useState, type JSX } from "react";
-import { IconPin, IconProjects, IconTerminal } from "./icons";
+import { IconProjects, IconTerminal } from "./icons";
+import { PinMark, ProjectRow, RailProjectHeader } from "./RailProjectRows";
+import { lastWorked } from "../lib/project-words";
 import { RowPlaceholders } from "./Placeholder";
 import { showToast } from "./Toast";
 import { sessionLabel } from "../lib/stop";
@@ -61,7 +63,6 @@ import {
   isActiveStatus,
   providerMark,
   rememberResourceSample,
-  hueOf,
   stateChip,
   tokenSummary,
   ageSummary,
@@ -364,6 +365,10 @@ export function InstanceBoard({
     });
   }, []);
   const [allProjects, setAllProjects] = useState(false);
+  // AJ-E1534: the open page's row is in view (its selection, whatever its type).
+  useEffect(() => {
+    document.querySelector<HTMLElement>("[data-testid='rail'] [data-rail-selected='true']")?.scrollIntoView?.({ block: "nearest" });
+  }, [selectedId]);
   // AJ-E709 Req.2: machines filter the board; "All machines" is the
   // default and the choice persists across restarts.
   const [machineFilter, setMachineFilter] = useState<string>(() => {
@@ -728,6 +733,7 @@ export function InstanceBoard({
                       label={entry.label}
                       rollup={entry.rollup}
                       count={entry.rows.length + railSlice(conversations, entry.id, scope).shown.length}
+                      selected={entry.id === selectedId}
                       onSelect={() => onSelectProject(entry.id)}
                     >
                       {folded.has(entry.id) && <FoldedNeeds rows={entry.rows} snooze={snooze} now={now} />}
@@ -793,6 +799,7 @@ export function InstanceBoard({
                       project={group.projects[0]!}
                       density={effectiveDensity === "compact" ? "compact" : "comfortable"}
                       now={now}
+                      selected={group.projects[0]!.id === selectedId}
                       onSelect={(id) => onSelectProject?.(id)}
                     />
                   ) : (
@@ -816,6 +823,7 @@ export function InstanceBoard({
                             project={project}
                             density={effectiveDensity === "compact" ? "compact" : "comfortable"}
                             now={now}
+                            selected={project.id === selectedId}
                             onSelect={(id) => onSelectProject?.(id)}
                                 />
                         ))}
@@ -966,6 +974,7 @@ export function RailRow({
       type="button"
       data-instance-id={session.id}
       aria-current={selected ? "true" : undefined}
+      data-rail-selected={selected ? "true" : undefined}
       onClick={() => onSelect(session.id)}
       className={
         "relative flex w-full min-w-0 items-center gap-2.5 rounded-lg pl-2.5 pr-2 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
@@ -1757,11 +1766,6 @@ function writeFolded(folded: Set<string>): void {
   }
 }
 
-/** When a project was last worked in: here or, before that, elsewhere. */
-function lastWorked(project: ProjectInfo): number {
-  return project.history_last_used_ms ?? project.last_activity_ms ?? 0;
-}
-
 /** Projects grouped by repository (clones and checkouts of one remote
  * together), the most recently worked-in group first. */
 export function repoGroups(projects: ProjectInfo[]): { key: string; name: string; projects: ProjectInfo[] }[] {
@@ -1779,127 +1783,6 @@ export function repoGroups(projects: ProjectInfo[]): { key: string; name: string
       return { key, name, projects: sorted };
     })
     .sort((a, b) => pinned(b.projects[0]!) - pinned(a.projects[0]!) || lastWorked(b.projects[0]!) - lastWorked(a.projects[0]!));
-}
-
-/** The second line of a project row: what was done there, in a few words. */
-export function projectStats(project: ProjectInfo, now: number): string[] {
-  // When first (a narrow rail cuts from the end), then how much, then who.
-  const parts: string[] = [];
-  const at = lastWorked(project);
-  if (at > 0) parts.push(ago(at, now) === "now" ? "just now" : `${ago(at, now)} ago`);
-  const conversations = project.history_sessions + project.instance_count;
-  if (conversations > 0) parts.push(conversations === 1 ? "1 conversation" : `${conversations} conversations`);
-  const accounts = project.accounts_used.length;
-  if (accounts > 1) parts.push(`${accounts} accounts`);
-  else if (accounts === 1) parts.push(project.accounts_used[0]!);
-  return parts;
-}
-
-/**
- * A project in the rail, built like a session row (RailRow): the same
- * size, spacing, hover and selection; a folder mark tinted for the
- * project where a session shows its state; what was done there where a
- * session shows its state line.
- */
-function ProjectRow({
-  project,
-  density,
-  now,
-  onSelect,
-}: {
-  project: ProjectInfo;
-  density: "comfortable" | "compact";
-  now: number;
-  onSelect: (id: string) => void;
-}): JSX.Element {
-  const stats = projectStats(project, now);
-  const when = stats[0]?.endsWith("ago") || stats[0] === "just now" ? stats[0] : null;
-  const menu = useItemMenu("project", project, project.name);
-  return (
-    <div className="group relative" {...menu.triggerProps}>
-    <button
-      type="button"
-      onClick={() => onSelect(project.id)}
-      title={project.root}
-      className={
-        "relative flex w-full min-w-0 items-center gap-2.5 rounded-lg pl-2.5 pr-2 text-left outline-none transition-colors hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60 " +
-        (density === "compact" ? "py-1.5" : "py-2")
-      }
-      data-testid="rail-history-project"
-    >
-      <span aria-hidden="true" className="flex w-4 shrink-0 justify-center" style={{ color: `hsl(${hueOf(project.id)} 60% 66%)` }}>
-        <IconProjects width={13} height={13} />
-      </span>
-      <span className="flex min-w-0 flex-1 flex-col">
-        <span className="flex min-w-0 items-baseline gap-1.5">
-          <span className={"min-w-0 truncate text-[12.5px] font-medium " + (project.missing ? "text-muted" : "text-ink")}>{project.name}</span>
-          {project.pinned && <PinMark />}
-          {project.missing && <span className="shrink-0 text-[9.5px] font-medium uppercase tracking-wide text-muted">moved</span>}
-          {density === "compact" && when && <span className="ml-auto shrink-0 font-mono text-[10px] text-muted">{when === "just now" ? "now" : when.replace(" ago", "")}</span>}
-        </span>
-        {density === "comfortable" && stats.length > 0 && (
-          <span className="min-w-0 truncate text-[11px] text-muted" data-testid="rail-project-stats">
-            {stats.join(" · ")}
-          </span>
-        )}
-        <span className="sr-only">{project.pinned ? ", pinned" : ""}</span>
-      </span>
-    </button>
-    {menu.button({ label: `Project actions for ${project.name}`, className: "absolute bottom-0 left-0" })}
-    {menu.element}
-    </div>
-  );
-}
-
-/** AJ-E1502: a pinned row's mark, beside its title. */
-function PinMark(): JSX.Element {
-  return (
-    <span title="Pinned" className="shrink-0 text-muted" data-testid="pin-mark">
-      <IconPin width={10} height={10} aria-hidden="true" />
-    </span>
-  );
-}
-
-/** A project's group heading in the rail: opens the project, with its
- * menu on right-click, ⋯ or Shift+F10 (AJ-E1537). */
-function RailProjectHeader({
-  project,
-  label,
-  rollup,
-  count,
-  onSelect,
-  children,
-}: {
-  project: ProjectInfo;
-  label: string;
-  rollup: string;
-  count: number;
-  onSelect: () => void;
-  children?: ReactNode;
-}): JSX.Element {
-  const menu = useItemMenu("project", project, label);
-  return (
-    <div className="group relative flex min-w-0 flex-1 items-center" {...menu.triggerProps}>
-      <button
-        type="button"
-        onClick={onSelect}
-        title={rollup || undefined}
-        className="flex min-w-0 flex-1 items-baseline justify-between gap-2 rounded-md py-0.5 pl-1 pr-2.5 text-left text-[11.5px] font-semibold text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
-        data-testid="rail-project"
-      >
-        <span className="flex min-w-0 items-baseline gap-1.5">
-          <span className="min-w-0 truncate">{label}</span>
-          {project.pinned && <PinMark />}
-        </span>
-        <span className="flex shrink-0 items-center gap-1.5">
-          {children}
-          <span className="text-[10px] font-normal text-faint">{count}</span>
-        </span>
-      </button>
-      {menu.button({ label: `Project actions for ${label}`, className: "absolute right-6 top-1/2 -translate-y-1/2 bg-surface" })}
-      {menu.element}
-    </div>
-  );
 }
 
 /**
