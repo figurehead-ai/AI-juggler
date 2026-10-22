@@ -876,12 +876,14 @@ def compare(truth: dict, harness: dict) -> str:
     ratios = sorted(backend_sessions[k] / oracle_sessions[k] for k in both)
     close = sum(1 for r in ratios if 0.95 <= r <= 1.05)
     only_backend = len([k for k in backend_sessions if k not in truth["session_totals"]])
-    only_oracle = len([k for k in oracle_sessions if k not in backend_sessions])
+    # A session with tokens and no cost row is history the backend never
+    # read (e.g. Codex's compressed rollouts); one with no tokens has no row.
+    only_oracle = len([k for k, v in oracle_sessions.items() if v and k not in backend_sessions])
     if ratios:
-        verdict(close == len(ratios),
+        verdict(close == len(ratios) and only_backend == 0 and only_oracle == 0,
                 f"cost rows per session: {len(both)} sessions in both; {close} within 5% of the transcripts; "
                 f"ratio min ×{ratios[0]:.2f}, median ×{ratios[len(ratios) // 2]:.2f}, max ×{ratios[-1]:.2f}; "
-                f"{only_backend} only in the backend, {only_oracle} only in the transcripts; "
+                f"{only_backend} only in the backend, {only_oracle} with tokens only in the transcripts; "
                 f"{skipped} still being written during the run, left out")
     unpriced = sum(1 for r in cost["rows"] if (r.get("usd") or {}).get("usd") is None)
     verdict(unpriced == 0, f"cost rows priced: {len(cost['rows']) - unpriced} of {len(cost['rows'])}")

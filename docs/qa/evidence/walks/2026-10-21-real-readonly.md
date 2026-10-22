@@ -1509,6 +1509,25 @@ WALs, one profile's live session).
 - **Not read by either**: `archived_sessions/` (1 compressed rollout here).
 - With Homebrew's Python (3.15) a run takes about a minute; with the system 3.9 the
   `zstd -dc` fallback takes about four.
+- **A second blind spot, in the compare**: "cost rows per session" passed with 1,888
+  sessions only in the transcripts, because it never counted them. It now fails on any
+  session with tokens that has no cost row, and on any row only the backend has. The
+  2 sessions plain-only mode had there have 0 tokens, so they have no row.
+
+### Before, on main
+
+`dc0c084c` changes only docs since `e7b633ba`, so main's backend output from batch 19
+(08:43) stands for it. It was compared with the oracle at about 10:00.
+
+| | Oracle, plain only | Oracle, plain and compressed |
+|---|---|---|
+| Overall | 43 OK, 12 MISMATCH | 41 OK, 17 MISMATCH |
+| Cost rows per session | OK: 297 in both, 0 with tokens missing | MISMATCH: 297 in both, **1,886 with tokens missing** |
+| Projects | 14 in the oracle, 17 backend rows | 17 in both, but 3 of them hold 925, 843 and 462 Codex threads the backend shows none of |
+| Account G 7 d tokens, weekly limit | OK (×1.01), 100% | OK (×1.01), 100% |
+
+Main's project rows have no Codex threads at all, in either mode. That's AJ-E1529, fixed
+on `release/0.1`, so on main the compressed rollouts show cleanly only in the cost rows.
 
 ## Not walked (blocked by W0, before the bridge)
 
