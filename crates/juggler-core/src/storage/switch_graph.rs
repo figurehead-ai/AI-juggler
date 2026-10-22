@@ -368,6 +368,32 @@ impl SwitchGraphRepo<'_> {
         Ok(out)
     }
 
+    /// P19: what each same-tool switch carried into the account it went
+    /// to: `(account, conversation id, switch time ms)`, the latest switch
+    /// per pair. A transplant copies the conversation with its original
+    /// times and keeps its id, so in the target's copy every line older
+    /// than the switch was spent on an earlier account. The id comes from
+    /// the source epoch, known from the moment the edge is staged (a usage
+    /// pass may read the copy before the launch is recorded).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn carried_into(&self) -> Result<Vec<(String, String, i64)>, CoreError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT e.to_account, f.native_id, MAX(e.created_at)
+               FROM switch_edges e JOIN epochs f ON f.id = e.from_epoch
+              WHERE e.mechanism = 'transplant' AND f.native_id IS NOT NULL
+              GROUP BY e.to_account, f.native_id",
+        )?;
+        let rows = stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?;
+        let mut out = Vec::new();
+        for row in rows {
+            out.push(row?);
+        }
+        Ok(out)
+    }
+
     /// AJ-E1007: every edge an Instance took part in, oldest first, with
     /// `true` when the work left from it (its epoch is the edge's source)
     /// and `false` when the work arrived at it.

@@ -42,8 +42,10 @@ pub const CREDITS_KEY_PREFIX: &str = "credits:";
 /// resumed copy shares credited to the session that came first. 3 = every
 /// session that offered a message recorded, so a shared message's keeper
 /// no longer depends on the reading order (a copy of a copy, a fork); a
-/// compaction counted once wherever a pass ends.
-const REREAD_VERSION: u32 = 3;
+/// compaction counted once wherever a pass ends. 4 = the history a
+/// same-tool switch carried into the target's copy, counted again on the
+/// target (P19, ×1.41–1.48 on the lab's conversations).
+const REREAD_VERSION: u32 = 4;
 
 /// Quota samples gathered in one pass: (account, window, sample).
 type SampleBatch = Vec<(
@@ -160,6 +162,17 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
         }
     }
 
+    // P19: the history a same-tool switch carried belongs to the account
+    // it was spent on, never to the one it was copied into.
+    let emptied = drop_carried(state, &mut store_batch);
+    if rereading
+        && !emptied.is_empty()
+        && let Ok(storage) = state.storage.lock()
+        && storage.usage().delete_session_events(&emptied).is_err()
+    {
+        return;
+    }
+
     // Single writer, in chunks (QA batch 9: a first pass on a heavy setup
     // held storage for over a minute in one write, and every screen and
     // the conversation index waited behind it). Offsets are saved only
@@ -192,6 +205,60 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
             let _ = storage.app_settings().set(INGEST_STATE_KEY, &blob);
         }
     }
+}
+
+/// Removes from `batch` the lines a same-tool switch carried into an
+/// account: in the target's copy of a switched conversation, every line
+/// older than the switch. Returns the sessions it emptied, so a re-read
+/// can clear the rows they stored before.
+fn drop_carried(
+    state: &Arc<AppState>,
+    batch: &mut Vec<juggler_core::quota::UsageEvent>,
+) -> Vec<(String, juggler_core::quota::UsageSource, String)> {
+    let carried: std::collections::HashMap<(String, String), i64> = {
+        let Ok(storage) = state.storage.lock() else {
+            return Vec::new();
+        };
+        storage
+            .switch_graph()
+            .carried_into()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|(account, session, at)| ((account, session), at))
+            .collect()
+    };
+    if carried.is_empty() {
+        return Vec::new();
+    }
+    let cutoff = |event: &juggler_core::quota::UsageEvent| {
+        event
+            .session
+            .as_ref()
+            .and_then(|session| carried.get(&(event.account.clone(), session.clone())))
+            .copied()
+    };
+    let mut dropped = BTreeMap::new();
+    let mut kept = std::collections::BTreeSet::new();
+    batch.retain(|event| {
+        let key = event
+            .session
+            .clone()
+            .map(|session| (event.account.clone(), session));
+        if cutoff(event).is_some_and(|at| event.ts < at) {
+            if let Some(key) = key {
+                dropped.insert(key, event.source);
+            }
+            false
+        } else {
+            kept.extend(key);
+            true
+        }
+    });
+    dropped
+        .into_iter()
+        .filter(|(key, _)| !kept.contains(key))
+        .map(|((account, session), source)| (account, source, session))
+        .collect()
 }
 
 /// Events per storage write: one chunk holds the lock for a moment, and
