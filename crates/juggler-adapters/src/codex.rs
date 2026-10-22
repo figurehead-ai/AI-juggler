@@ -541,6 +541,8 @@ impl HarnessAdapter for CodexAdapter {
             // window named by its `window_minutes`.
             | Capabilities::USAGE_QUOTA_FEED
             | Capabilities::LIMIT_WINDOWS_REPORTED
+            // Its usage keys start with the thread they belong to.
+            | Capabilities::USAGE_KEYS_PER_SESSION
     }
 
     fn verified_against(&self) -> &'static [&'static str] {

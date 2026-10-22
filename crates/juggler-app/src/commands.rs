@@ -716,7 +716,7 @@ fn adapter_capabilities(harness: &str) -> Option<juggler_adapter::Capabilities> 
 }
 
 /// True when `harness`'s adapter declares `capability`.
-fn adapter_has(harness: &str, capability: juggler_adapter::Capabilities) -> bool {
+pub(crate) fn adapter_has(harness: &str, capability: juggler_adapter::Capabilities) -> bool {
     adapter_capabilities(harness).is_some_and(|caps| caps.contains(capability))
 }
 

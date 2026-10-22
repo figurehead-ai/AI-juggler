@@ -77,6 +77,42 @@ impl UsageRepo<'_> {
             .map_err(CoreError::Storage)
     }
 
+    /// The accounts whose usage keys name their own session (their tool's
+    /// adapter says so): no holders are kept for them, and any kept before
+    /// go. Writes only when the set changed.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn set_unshared_accounts(&self, accounts: &BTreeSet<String>) -> Result<(), CoreError> {
+        let now: BTreeSet<String> = self
+            .conn
+            .prepare("SELECT account FROM usage_unshared")?
+            .query_map([], |row| row.get::<_, String>(0))?
+            .collect::<Result<_, _>>()?;
+        if &now == accounts {
+            return Ok(());
+        }
+        let tx = write_transaction(self.conn)?;
+        tx.execute("DELETE FROM usage_unshared", [])?;
+        for account in accounts {
+            tx.execute(
+                "INSERT INTO usage_unshared (account) VALUES (?1)",
+                params![account],
+            )?;
+            tx.execute(
+                "DELETE FROM usage_holders WHERE account = ?1",
+                params![account],
+            )?;
+            tx.execute(
+                "DELETE FROM usage_spans WHERE account = ?1",
+                params![account],
+            )?;
+        }
+        tx.commit()?;
+        Ok(())
+    }
+
     /// Marks the holders whole again (after reading everything again).
     ///
     /// # Errors
@@ -494,6 +530,8 @@ fn from_sql(count: i64) -> u64 {
 ///   whichever one keeps it.
 /// - `usage_spans`: each session's standing under the shared-message rule
 ///   ([`Span`]).
+/// - `usage_unshared`: accounts whose usage keys name their own session (a
+///   tool's adapter says so): no holders are kept for them.
 /// - `usage_derived`: one row, `dirty` once something wrote usage rows the
 ///   holders don't account for. A build that predates these tables (gone
 ///   back to, then forward again) does exactly that, and the triggers below
@@ -518,6 +556,9 @@ CREATE TABLE IF NOT EXISTS usage_spans (
     own_start INTEGER,
     PRIMARY KEY (account, session)
 ) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS usage_unshared (
+    account TEXT PRIMARY KEY
+) WITHOUT ROWID;
 CREATE TABLE IF NOT EXISTS usage_derived (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     dirty INTEGER NOT NULL DEFAULT 0
@@ -527,6 +568,7 @@ CREATE TRIGGER IF NOT EXISTS usage_events_unheld_insert AFTER INSERT ON usage_ev
 WHEN NEW.msg_uuid IS NOT NULL AND NEW.session IS NOT NULL AND NOT EXISTS (
     SELECT 1 FROM usage_holders h
     WHERE h.account = NEW.account AND h.msg_uuid = NEW.msg_uuid AND h.session = NEW.session)
+  AND NOT EXISTS (SELECT 1 FROM usage_unshared u WHERE u.account = NEW.account)
 BEGIN
     UPDATE usage_derived SET dirty = 1 WHERE id = 1;
 END;
@@ -534,6 +576,7 @@ CREATE TRIGGER IF NOT EXISTS usage_events_unheld_move AFTER UPDATE OF session ON
 WHEN NEW.msg_uuid IS NOT NULL AND NEW.session IS NOT NULL AND NOT EXISTS (
     SELECT 1 FROM usage_holders h
     WHERE h.account = NEW.account AND h.msg_uuid = NEW.msg_uuid AND h.session = NEW.session)
+  AND NOT EXISTS (SELECT 1 FROM usage_unshared u WHERE u.account = NEW.account)
 BEGIN
     UPDATE usage_derived SET dirty = 1 WHERE id = 1;
 END;
@@ -848,6 +891,10 @@ fn store_in(
          WHERE account = ?1 AND msg_uuid = ?2",
     )?;
     let mut owners = Owners::new(conn)?;
+    let unshared: BTreeSet<String> = conn
+        .prepare("SELECT account FROM usage_unshared")?
+        .query_map([], |row| row.get::<_, String>(0))?
+        .collect::<Result<_, _>>()?;
     owners.recount.extend(removed.recheck);
     owners.keys.extend(removed.keys);
     let mut insert = conn.prepare(
@@ -877,7 +924,9 @@ fn store_in(
                 .optional()?,
             None => None,
         };
-        if let (Some(key), Some(session)) = (&event.msg_uuid, &event.session) {
+        if let (Some(key), Some(session)) = (&event.msg_uuid, &event.session)
+            && !unshared.contains(&event.account)
+        {
             owners.offer(&event.account, key, session, event.ts)?;
         }
         let Some(was) = known else {

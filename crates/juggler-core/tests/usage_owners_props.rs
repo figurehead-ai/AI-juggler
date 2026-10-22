@@ -332,3 +332,34 @@ fn a_build_without_holders_marks_them_dirty() {
         .unwrap();
     assert!(!storage.usage().derived_dirty().unwrap());
 }
+
+/// #126 follow-up: an account whose tool keys usage by its own session
+/// (Codex) keeps no holders — they can't be shared — and its writes don't
+/// mark the holders dirty. Holders kept before go.
+#[test]
+fn an_unshared_account_keeps_no_holders() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("juggler.sqlite");
+    let storage = Storage::open(&path).unwrap();
+    storage.usage().store_events(&[event("t1", 1, 0)]).unwrap();
+    let raw = rusqlite::Connection::open(&path).unwrap();
+    let holders = || {
+        raw.query_row("SELECT COUNT(*) FROM usage_holders", [], |row| {
+            row.get::<_, i64>(0)
+        })
+        .unwrap()
+    };
+    assert_eq!(holders(), 1);
+    storage
+        .usage()
+        .set_unshared_accounts(&BTreeSet::from(["acc".to_owned()]))
+        .unwrap();
+    assert_eq!(holders(), 0, "the holders kept before go");
+    storage
+        .usage()
+        .store_events(&[event("t1", 2, 1), event("t2", 3, 2)])
+        .unwrap();
+    assert_eq!(holders(), 0);
+    assert!(!storage.usage().derived_dirty().unwrap());
+    assert_eq!(kept(&storage).len(), 3);
+}

@@ -495,6 +495,25 @@ fn a_deleted_rollout_is_forgotten_and_a_missing_folder_forgets_nothing() {
     };
     usage_pipeline::ingest_pass(&state, 4);
     assert_eq!(tracked().len(), 2);
+    // Codex keys name their own thread: its rows keep no holders.
+    let holders: i64 = rusqlite::Connection::open(dir.path().join("app-data/juggler.sqlite"))
+        .unwrap()
+        .query_row(
+            "SELECT COUNT(*) FROM usage_holders WHERE account = 'acc-codex'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(holders, 0);
+    assert!(
+        !state
+            .storage
+            .lock()
+            .unwrap()
+            .usage()
+            .derived_dirty()
+            .unwrap()
+    );
     std::fs::remove_file(&gone).unwrap();
     usage_pipeline::ingest_pass(&state, 8);
     assert_eq!(tracked(), [kept.to_string_lossy().to_string()]);

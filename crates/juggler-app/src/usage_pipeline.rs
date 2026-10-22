@@ -105,6 +105,19 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
         // A build without the holders wrote usage rows here (gone back to,
         // then forward again): read everything again so they're whole.
         let dirty = storage.usage().derived_dirty().unwrap_or(false);
+        // Accounts whose tool's usage keys name their own session: the
+        // store keeps no holders for them.
+        let unshared: std::collections::BTreeSet<String> = list
+            .iter()
+            .filter(|account| {
+                crate::commands::adapter_has(
+                    account.harness.as_str(),
+                    juggler_adapter::Capabilities::USAGE_KEYS_PER_SESSION,
+                )
+            })
+            .map(|account| account.id.as_str().to_owned())
+            .collect();
+        let _ = storage.usage().set_unshared_accounts(&unshared);
         (list, dirty)
     };
     let mut ingest = load_state(state);
