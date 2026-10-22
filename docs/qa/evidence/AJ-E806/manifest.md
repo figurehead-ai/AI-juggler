@@ -573,3 +573,30 @@
   The Linux side is shown by CI. No product code changed:
   `juggler-supervisor/Cargo.toml` in #131 adds only a dev-dependency
   (`cpu-time`), and `sysinfo`'s features are as on main.
+- **Leak record, 2026-10-22 (fixed, fix/maintainer-reports-5).** The
+  coordinator found and stopped 29 orphaned test fixtures on the
+  developer Mac, their temp folders already gone: 24
+  `python3 -m http.server` from `juggler-app` tests/ports.rs and 5
+  `shell` fixtures (`shell.traps`, up to 4 days old) from
+  `juggler-supervisor` tests/collateral.rs. Their cleanup ran only on the
+  success path, so a failed assertion, or a run killed outright, left
+  them running. The `shell` fixture loops forever and ignores TERM by
+  design. The fix is in the tests only:
+  - a shared `fixtures::Reaper`, which on drop (a panic's unwind
+    included) sends `kill -s KILL -- -<pgid>` to each process group
+    registered with it and SIGKILL to each pid. ports.rs registers the
+    supervised root's group (its helper stays in that group after the
+    root dies) and the stranger; collateral.rs registers both trees and
+    the unmanaged server, the moment each is spawned;
+  - a lifetime cap, for a run killed outright where no `Drop` runs:
+    `FIXTURE_LIFETIME_SECS` (300 s, the same as `trap_helper.py`'s
+    existing cap). The `shell` fixture now beats 300 times instead of
+    forever, ports.rs's servers end themselves through a timer, and the
+    busy-app stand-in in load_budgets ends after 300 s instead of an hour
+    (its children sleep 300 s, not 600 s);
+  - `juggler-supervisor` tests/reaper.rs: a test that panics with a
+    group (a shell and two children) and a lone process registered
+    checks that both were ended by SIGKILL and that the group is empty.
+
+  The collateral, ports, load_budgets (6) and guardrails (10) suites
+  pass, with no fixture left behind.

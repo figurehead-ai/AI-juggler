@@ -663,7 +663,7 @@ impl BusyClaudeApp {
         std::fs::write(
             &script,
             format!(
-                "i=0; while [ $i -lt {children} ]; do sleep 600 & i=$((i+1)); done; : > '{}'; wait\n",
+                "i=0; while [ $i -lt {children} ]; do sleep 300 & i=$((i+1)); done; : > '{}'; wait\n",
                 ready.display()
             ),
         )
@@ -672,7 +672,15 @@ impl BusyClaudeApp {
         // failure while its children start leaves nothing behind.
         let guard = Self {
             app: std::process::Command::new(&exe)
-                .args(["--spawn-child", "/bin/sh", "--child-args"])
+                // Ends itself after 5 minutes (its default is an hour), so
+                // a test killed outright leaves it no longer than that.
+                .args([
+                    "--exit-after-secs",
+                    "300",
+                    "--spawn-child",
+                    "/bin/sh",
+                    "--child-args",
+                ])
                 .arg(&script)
                 .process_group(0)
                 .spawn()

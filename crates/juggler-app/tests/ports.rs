@@ -25,6 +25,22 @@ use juggler_app::state::AppState;
 use juggler_core::model::SessionId;
 use juggler_supervisor::tree::{LedgerStore as _, SpawnContext};
 
+// The shared reaper (this suite needs nothing else from the kit).
+#[allow(dead_code)]
+#[path = "../../juggler-supervisor/tests/fixtures/mod.rs"]
+mod fixtures;
+
+/// `python3 -m http.server` on `127.0.0.1:<port>`, ending itself after the
+/// fixtures' lifetime: a test killed outright can't leave it listening.
+fn bounded_server(port: u16) -> String {
+    format!(
+        "python3 -c 'import http.server as h, os, threading; \
+         threading.Timer({}, os._exit, [0]).start(); \
+         h.ThreadingHTTPServer((\"127.0.0.1\", {port}), h.SimpleHTTPRequestHandler).serve_forever()'",
+        fixtures::FIXTURE_LIFETIME_SECS
+    )
+}
+
 fn ctx(state: &Arc<AppState>) -> SpawnContext {
     SpawnContext {
         provider: "claude-code".into(),
@@ -98,6 +114,9 @@ fn port_inventory_classifies_orphan_and_unmanaged_listeners() {
     let (helper_port, stranger_port) = (port(&held.0), port(&held.1));
     assert_ne!(helper_port, stranger_port);
     drop(held);
+    // Everything this test starts dies with it, a failed assertion's
+    // unwind included (the helper outlives its root by design).
+    let mut reaper = fixtures::Reaper::default();
     // The vite-like helper holds its port inside a supervised Instance.
     let session = SessionId::new("sess-e505");
     let spawned = state
@@ -105,27 +124,24 @@ fn port_inventory_classifies_orphan_and_unmanaged_listeners() {
         .spawn(
             &session,
             &sh_spec(
-                &format!("python3 -m http.server {helper_port} --bind 127.0.0.1 & wait"),
+                &format!("{} & wait", bounded_server(helper_port)),
                 dir.path(),
             ),
             &ctx(&state),
         )
         .unwrap();
+    // The root leads its own group; the helper stays in it.
+    reaper.group(spawned.pid);
 
     // The UNSUPERVISED stranger holds its port (the user's own process).
-    let mut stranger = std::process::Command::new("python3")
-        .args([
-            "-m",
-            "http.server",
-            &stranger_port.to_string(),
-            "--bind",
-            "127.0.0.1",
-        ])
+    let mut stranger = std::process::Command::new("/bin/sh")
+        .args(["-c", &format!("exec {}", bounded_server(stranger_port))])
         .current_dir(dir.path())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .spawn()
         .unwrap();
+    reaper.pid(stranger.id());
 
     // (a) While the Instance lives: helper row carries listens_on=5173
     // (the tick join) and the inventory classifies BOTH rows.
@@ -228,12 +244,8 @@ fn port_inventory_classifies_orphan_and_unmanaged_listeners() {
     // A DIFFERENT project has no learned ports → no warning, no block.
     assert!(commands::launch_port_warning_inner(&state, Some("proj-other".into())).is_none());
 
-    // Cleanup: the orphan is OURS (ledger row) — reap by pid; the
-    // stranger we started — kill it; no process survives the test.
-    let _ = std::process::Command::new("kill")
-        .arg(row_5173.pid.to_string())
-        .status();
-    let _ = stranger.kill();
+    // Cleanup: the reaper kills both; the stranger, our child, is waited.
+    drop(reaper);
     let _ = stranger.wait();
 }
 
