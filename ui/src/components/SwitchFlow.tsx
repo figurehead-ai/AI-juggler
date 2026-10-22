@@ -679,6 +679,8 @@ export function SwitchFlow({
             <p className="text-[11px] text-muted">
               The source is safe — resume it exactly where you left it.
             </p>
+            {/* What was set up before the switch failed stays undoable. */}
+            <SwitchSetupResults target={targetLabel} results={setupCheck.results} />
             <div className="flex justify-end">
               <button
                 type="button"

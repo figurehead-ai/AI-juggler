@@ -69,6 +69,23 @@ pub struct AppliedInfo {
     pub message: String,
 }
 
+/// One set-up still in place, for the list that outlives the switch
+/// screen (review of #132, M3).
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct SetUpInfo {
+    /// The record to undo it with.
+    pub record: String,
+    /// The account it was set up on (its name).
+    pub account: String,
+    /// What it is ("the skill release-notes"), or what was done, for a
+    /// record made before that was kept.
+    pub what: String,
+    /// When, epoch ms.
+    #[ts(type = "number")]
+    pub at_ms: i64,
+}
+
 /// A recorded set-up (kept until undone).
 #[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 struct Record {
@@ -279,6 +296,41 @@ pub fn apply_impl(
     Ok(out)
 }
 
+/// Every set-up still in place, newest first. Read-only.
+///
+/// # Errors
+///
+/// Storage errors.
+pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<SetUpInfo>> {
+    let labels: std::collections::HashMap<String, String> = {
+        let storage = crate::commands::lock_storage_arc(state)?;
+        storage
+            .accounts()
+            .list()?
+            .into_iter()
+            .map(|account| (account.id.to_string(), account.label))
+            .collect()
+    };
+    let mut out: Vec<SetUpInfo> = load(state)
+        .into_iter()
+        .map(|record| SetUpInfo {
+            account: labels
+                .get(&record.account)
+                .cloned()
+                .unwrap_or_else(|| "an account no longer here".to_owned()),
+            what: if record.what.is_empty() {
+                record.applied.summary.clone()
+            } else {
+                format!("the {}", record.what)
+            },
+            at_ms: record.at_ms,
+            record: record.id,
+        })
+        .collect();
+    out.sort_by_key(|info| std::cmp::Reverse(info.at_ms));
+    Ok(out)
+}
+
 /// Undoes one recorded set-up: removes what it created, if still exactly
 /// as it was made, or runs the tool's own removal.
 ///
@@ -430,6 +482,18 @@ fn save(state: &Arc<AppState>, record: &Record) -> AppResult<()> {
 fn write(state: &Arc<AppState>, records: &[Record]) -> AppResult<()> {
     let text = serde_json::to_string_pretty(records).unwrap_or_default();
     atomic_write(&state.data_dir.join(RECORD), &text)
+}
+
+/// Every set-up still in place (Settings), newest first.
+///
+/// # Errors
+///
+/// As [`list_impl`].
+#[tauri::command]
+pub async fn switch_setup_list(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<Vec<SetUpInfo>> {
+    crate::ipc::blocking(state.inner(), "list the set-ups", list_impl).await
 }
 
 /// What the target lacks before a switch (read-only).

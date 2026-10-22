@@ -15,7 +15,7 @@ use std::sync::Arc;
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, CODEX_ID, ClaudeCodeAdapter, CodexAdapter};
 use juggler_app::commands;
-use juggler_app::features::switch_setup::{apply_impl, check_impl, undo_impl};
+use juggler_app::features::switch_setup::{apply_impl, check_impl, list_impl, undo_impl};
 use juggler_app::state::AppState;
 
 /// A `claude` that records its arguments (for `claude mcp add-json`).
@@ -266,9 +266,23 @@ fn codex_is_offered_the_claude_setup_in_its_own_form() {
             .any(|a| a.message == "Set up the MCP server github"),
         "{applied:?}"
     );
+    // Settings lists it until it's undone (review of #132, M3).
+    let listed = list_impl(&lab.state).unwrap();
+    assert!(
+        listed
+            .iter()
+            .any(|s| s.what == "the MCP server github" && s.record == server),
+        "{listed:?}"
+    );
     assert_eq!(
         undo_impl(&lab.state, &server).unwrap(),
         "Removed the MCP server github"
+    );
+    assert!(
+        list_impl(&lab.state)
+            .unwrap()
+            .iter()
+            .all(|s| s.record != server)
     );
     assert_eq!(
         std::fs::read_to_string(x.join("config.toml")).unwrap(),

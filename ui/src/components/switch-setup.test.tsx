@@ -41,6 +41,7 @@ const PREFLIGHT: PreflightInfoData = {
 type Seams = {
   __AIJ_SWITCH_PREFLIGHT__?: PreflightInfoData;
   __AIJ_SWITCH_SETUP__?: typeof EXAMPLE_SETUP;
+  __AIJ_SWITCH_EXECUTE_FAIL__?: string;
 };
 
 beforeEach(() => {
@@ -51,6 +52,7 @@ afterEach(() => {
   cleanup();
   delete (window as never as Seams).__AIJ_SWITCH_PREFLIGHT__;
   delete (window as never as Seams).__AIJ_SWITCH_SETUP__;
+  delete (window as never as Seams).__AIJ_SWITCH_EXECUTE_FAIL__;
 });
 
 function mount(onSwitched = vi.fn()) {
@@ -108,6 +110,24 @@ describe("what the target lacks", () => {
       ),
     );
     expect(view.queryByRole("button", { name: /^Undo/ })).toBeNull();
+  });
+
+  it("keeps what was set up undoable when the switch then fails", async () => {
+    // Review of #132 (M3): the failed view had no Undo, and nothing else did.
+    (window as never as Seams).__AIJ_SWITCH_EXECUTE_FAIL__ = "The target account is signed out.";
+    const view = mount();
+    await waitFor(() => expect(view.getByTestId("switch-setup")).toBeTruthy());
+    fireEvent.click(view.getByTestId("switch-confirm"));
+    await waitFor(() => expect(view.getByTestId("switch-failed")).toBeTruthy());
+    expect(view.getByTestId("switch-setup-results").textContent).toContain(
+      "Set up the skill release-notes",
+    );
+    fireEvent.click(view.getByRole("button", { name: "Undo: Set up the skill release-notes" }));
+    await waitFor(() =>
+      expect(view.getByTestId("switch-setup-results").textContent).toContain(
+        "Removed the skill release-notes",
+      ),
+    );
   });
 
   it("says so when the target already has everything", () => {

@@ -297,6 +297,7 @@ macro_rules! app_commands {
             Write commands::session_handover,
             Write commands::switch_preflight,
             Read  features::switch_setup::switch_setup_check,
+            Read  features::switch_setup::switch_setup_list,
             Write features::switch_setup::switch_setup_apply,
             Write features::switch_setup::switch_setup_undo,
             Write commands::switch_execute,

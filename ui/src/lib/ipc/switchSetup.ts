@@ -9,8 +9,9 @@ import { invoke } from "./transport";
 import type { AppliedInfo } from "../../types/generated/AppliedInfo";
 import type { OfferInfo } from "../../types/generated/OfferInfo";
 import type { SetupCheckInfo } from "../../types/generated/SetupCheckInfo";
+import type { SetUpInfo } from "../../types/generated/SetUpInfo";
 
-export type { AppliedInfo, OfferInfo, SetupCheckInfo };
+export type { AppliedInfo, OfferInfo, SetupCheckInfo, SetUpInfo };
 
 const seam = () =>
   (window as unknown as { __AIJ_SWITCH_SETUP__?: SetupCheckInfo }).__AIJ_SWITCH_SETUP__;
@@ -99,8 +100,33 @@ export async function switchSetupApply(
   return invoke<AppliedInfo[]>("switch_setup_apply", { sessionId, targetProfileId, offers });
 }
 
+/** Every set-up still in place, newest first (the preview: what it set
+ * up this session; tests set `__AIJ_SWITCH_SET_UPS__`). */
+export async function switchSetupList(): Promise<SetUpInfo[]> {
+  if (!hasLiveBackend()) {
+    const seeded = (window as unknown as { __AIJ_SWITCH_SET_UPS__?: SetUpInfo[] })
+      .__AIJ_SWITCH_SET_UPS__;
+    return (
+      seeded ??
+      [...previewSetUps].map(([record, what]) => ({
+        record,
+        account: "Personal",
+        what: `the ${what}`,
+        at_ms: 0,
+      }))
+    );
+  }
+  return invoke<SetUpInfo[]>("switch_setup_list");
+}
+
 /** Undoes one set-up. */
 export async function switchSetupUndo(record: string): Promise<string> {
-  if (!hasLiveBackend()) return `Removed the ${previewSetUps.get(record) ?? record}`;
+  if (!hasLiveBackend()) {
+    const what = previewSetUps.get(record) ?? record;
+    previewSetUps.delete(record);
+    const seam = window as unknown as { __AIJ_SWITCH_SET_UPS__?: SetUpInfo[] };
+    seam.__AIJ_SWITCH_SET_UPS__ = seam.__AIJ_SWITCH_SET_UPS__?.filter((s) => s.record !== record);
+    return `Removed the ${what}`;
+  }
   return invoke<string>("switch_setup_undo", { record });
 }
