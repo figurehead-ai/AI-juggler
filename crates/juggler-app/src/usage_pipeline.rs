@@ -223,16 +223,18 @@ fn store_in_chunks(
         };
         stored.extend(done.ok()?);
         drop(storage);
-        // Storage's lock isn't fair: taken again at once, it goes back to
-        // this loop before a woken reader runs, and a screen could wait the
-        // whole re-read (2.2 s on the replica at the maintainer's size). A
-        // millisecond between chunks lets it in.
         std::thread::sleep(CHUNK_PAUSE);
     }
     Some(stored)
 }
 
-/// The pause between two chunks' writes (see [`store_in_chunks`]).
+/// The pause between two chunks' writes, so a reader waiting on storage
+/// gets it in between. Storage is a `std::sync::Mutex`, which isn't fair:
+/// unlocked and locked again at once, it goes back to this loop before a
+/// woken waiter runs, and a screen could wait out the whole re-read (2.2 s on
+/// the replica at the maintainer's size; `yield_now` still left 1.1 s). A
+/// fair hand-off (`parking_lot`'s `unlock_fair`) would need every one of
+/// storage's lock sites changed; until then, this pause.
 const CHUNK_PAUSE: std::time::Duration = std::time::Duration::from_millis(1);
 
 /// The events grouped so that all of one session's are in the same chunk,
