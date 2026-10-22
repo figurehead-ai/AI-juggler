@@ -15,7 +15,7 @@ pub const OPEN: &str = "/usr/bin/open";
 /// The freedesktop "open with the default app".
 pub const XDG_OPEN: &str = "/usr/bin/xdg-open";
 /// Where git may be, in order: Homebrew's (Apple silicon, then Intel),
-/// MacPorts', then the system's (Apple's command-line tools shim on macOS,
+/// `MacPorts`', then the system's (Apple's command-line tools shim on macOS,
 /// the distribution's on Linux). Fixed places only, never a `PATH` search:
 /// a git from nix, asdf or similar isn't used, the system's is.
 pub const GIT_PLACES: &[&str] = &[
