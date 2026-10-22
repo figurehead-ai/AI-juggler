@@ -280,6 +280,16 @@ pub struct MachineWatch {
     advice_inputs: Option<AdviceInputs>,
 }
 
+impl MachineWatch {
+    /// How many 2 s ticks have started (read-only: lets a test know a tick
+    /// is past its locked part without timing guesses).
+    #[doc(hidden)]
+    #[must_use]
+    pub fn ticks(&self) -> u32 {
+        self.ticks
+    }
+}
+
 /// The storage half of the recommendations, cached between 5 s reads.
 #[derive(Debug, Clone)]
 struct AdviceInputs {

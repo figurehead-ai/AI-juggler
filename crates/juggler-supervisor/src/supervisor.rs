@@ -293,6 +293,25 @@ pub struct LiveStatsCollector {
     observed_roots: Vec<ObservedRoot>,
     /// The observed trees' latest stats and rings, by root pid.
     observed: HashMap<u32, ObservedTree>,
+    /// What the ticks have done so far (the monitoring budget's measure).
+    work: CollectorWork,
+}
+
+/// What the collector's ticks have done: the monitoring budget (AJ-E1410)
+/// is held by doing little, measured here as work rather than as CPU on a
+/// machine shared with other loads.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct CollectorWork {
+    /// Ticks run.
+    pub ticks: u64,
+    /// Of them, full scans (every process on the Mac read).
+    pub full_scans: u64,
+    /// Processes of AI Juggler's own sessions read by the ticks between
+    /// full scans (their trees and roots only).
+    pub targeted_ours: u64,
+    /// Processes of the observed tools (the Claude app, `claude` in a
+    /// terminal) read between full scans: as many as those tools run.
+    pub targeted_observed: u64,
 }
 
 /// One process as the running-tools scan needs it (no environment).
@@ -361,6 +380,7 @@ impl Default for LiveStatsCollector {
             last_port_probe_tick: 0,
             observed_roots: Vec::new(),
             observed: HashMap::new(),
+            work: CollectorWork::default(),
         }
     }
 }
@@ -388,7 +408,9 @@ impl LiveStatsCollector {
         self.ticks = self.ticks.saturating_add(1);
         let full = self.ticks <= WARMUP_FULL_TICKS || self.ticks.is_multiple_of(FULL_SCAN_EVERY);
         let roots = supervisor.live_roots();
+        self.work.ticks += 1;
         if full {
+            self.work.full_scans += 1;
             self.refresh_all();
         } else {
             let known: Vec<u32> = self
@@ -407,6 +429,8 @@ impl LiveStatsCollector {
                 .filter(|pid| !known.contains(pid))
                 .collect();
             self.refresh_pids_usage(&observed);
+            self.work.targeted_ours += known.len() as u64;
+            self.work.targeted_observed += observed.len() as u64;
             // Targeted refresh keeps parent edges of known pids fresh;
             // brand-new children appear at the next full scan.
         }
@@ -1015,6 +1039,12 @@ impl LiveStatsCollector {
         self.observed
             .retain(|root, _| roots.iter().any(|pinned| pinned.pid == *root));
         self.observed_roots = roots;
+    }
+
+    /// What the ticks have done so far.
+    #[must_use]
+    pub fn work(&self) -> CollectorWork {
+        self.work
     }
 
     /// The observed trees as of the last tick, by root pid.
