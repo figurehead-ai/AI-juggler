@@ -1174,7 +1174,7 @@ pub fn tail_transcript(path: &Path, account: &str, offset: u64) -> TailOutcome {
 /// Convenience: [`tail_jsonl`] with the Codex rollout parser; `carry` is
 /// the previous pass's [`TailOutcome::carry`] for this file. A compressed
 /// rollout (`rollout-*.jsonl.zst`: Codex compresses older ones) is read
-/// whole instead (see [`read_compressed_rollout`]).
+/// whole instead, once (see `read_compressed_rollout`).
 #[must_use]
 pub fn tail_rollout(path: &Path, account: &str, offset: u64, carry: &RolloutCarry) -> TailOutcome {
     if crate::transcript::is_compressed(path) {
