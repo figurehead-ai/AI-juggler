@@ -260,8 +260,10 @@ pub trait PairingHost: Send + Sync + 'static {
         &self,
         candidate: PairCandidate,
     ) -> tokio::sync::oneshot::Receiver<Option<Permission>>;
-    /// Both users confirmed: pin `candidate` with `permission`.
-    fn succeeded(&self, candidate: &PairCandidate, permission: Permission);
+    /// Both users confirmed: pin `candidate` with `permission`. `false`
+    /// when it wasn't pinned (Link went off): the joiner is told, and
+    /// pins nothing either.
+    fn succeeded(&self, candidate: &PairCandidate, permission: Permission) -> bool;
 }
 
 /// The server-side TLS stream, carrying its connection info.

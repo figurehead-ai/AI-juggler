@@ -207,8 +207,11 @@ async fn host<P: PairingHost>(
     };
     match ours {
         Some(permission) if theirs.commit => {
-            pairing.succeeded(&candidate, permission);
-            HostOutcome::Paired
+            if pairing.succeeded(&candidate, permission) {
+                HostOutcome::Paired
+            } else {
+                HostOutcome::Refused(PairingError::LinkOff)
+            }
         }
         _ => HostOutcome::Cancelled,
     }
@@ -223,6 +226,25 @@ async fn joiner_next(inbound: &mut Streaming<proto::PairMessage>) -> Result<Step
         Some(step) => Ok(step),
         None => Err(JoinError::Cancelled),
     }
+}
+
+/// Waits (5 s at most) for the host to end the stream after both
+/// decisions. A refusal instead (Link went off there before it pinned this
+/// Mac) means nothing is paired on either side.
+async fn host_ended(inbound: &mut Streaming<proto::PairMessage>) -> Result<(), JoinError> {
+    let drained = tokio::time::timeout(Duration::from_secs(5), async {
+        while let Some(step) = next_step(inbound).await {
+            if let Step::Failure(failed) = step {
+                return Err(JoinError::Host {
+                    reason_code: failed.reason_code,
+                    message: failed.message,
+                });
+            }
+        }
+        Ok(())
+    })
+    .await;
+    drained.unwrap_or(Err(JoinError::Cancelled))
 }
 
 /// What the joiner typed or pasted: the code, optionally with the host's
@@ -488,14 +510,9 @@ where
         // Keep our side open until the host ends the stream: that is the
         // proof it received our decision (and pinned, when both
         // committed). Dropping early could lose our last message.
-        let drained = tokio::time::timeout(Duration::from_secs(5), async {
-            while next_step(&mut inbound).await.is_some() {}
-        })
-        .await;
+        let drained = host_ended(&mut inbound).await;
         drop(tx);
-        if drained.is_err() {
-            return Err(JoinError::Cancelled);
-        }
+        drained?;
         match ours {
             Some(permission) if theirs.commit => Ok(JoinedHost {
                 candidate,

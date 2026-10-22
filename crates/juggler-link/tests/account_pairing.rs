@@ -112,7 +112,9 @@ impl PairingHost for NoPairing {
     ) -> tokio::sync::oneshot::Receiver<Option<Permission>> {
         tokio::sync::oneshot::channel().1
     }
-    fn succeeded(&self, _candidate: &PairCandidate, _permission: Permission) {}
+    fn succeeded(&self, _candidate: &PairCandidate, _permission: Permission) -> bool {
+        true
+    }
 }
 
 fn peer(machine_id: &str, key: &PublicIdentity, via: PairedVia) -> Peer {

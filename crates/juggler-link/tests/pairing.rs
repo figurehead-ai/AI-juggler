@@ -63,6 +63,8 @@ struct Host {
     key: [u8; 32],
     decision: Option<Permission>,
     pinned: Mutex<Vec<(PairCandidate, Permission)>>,
+    /// Link went off on the host just before it pinned.
+    refuse_pin: bool,
 }
 
 impl PairingHost for Host {
@@ -96,12 +98,16 @@ impl PairingHost for Host {
         });
         rx
     }
-    fn succeeded(&self, candidate: &PairCandidate, permission: Permission) {
+    fn succeeded(&self, candidate: &PairCandidate, permission: Permission) -> bool {
+        if self.refuse_pin {
+            return false;
+        }
         self.guard.lock().unwrap().succeed();
         self.pinned
             .lock()
             .unwrap()
             .push((candidate.clone(), permission));
+        true
     }
 }
 
@@ -123,6 +129,10 @@ struct World {
 }
 
 async fn world(decision: Option<Permission>) -> World {
+    world_with(decision, false).await
+}
+
+async fn world_with(decision: Option<Permission>, refuse_pin: bool) -> World {
     let dir = tempfile::tempdir().unwrap();
     let host_identity = MachineIdentity::load_or_create(&dir.path().join("host")).unwrap();
     let joiner_identity = MachineIdentity::load_or_create(&dir.path().join("joiner")).unwrap();
@@ -131,6 +141,7 @@ async fn world(decision: Option<Permission>) -> World {
         key: host_identity.public().to_bytes(),
         decision,
         pinned: Mutex::default(),
+        refuse_pin,
     });
     let audit = Arc::new(Audit::default());
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -222,6 +233,43 @@ async fn the_right_code_and_both_confirmations_pin_both_keys() {
             .iter()
             .any(|e| e.kind == "pairing" && e.reason_code == "paired")
     );
+}
+
+/// The host refuses at the pin (its Link went off after both users said
+/// yes): it tells the joiner, which pins nothing either, and its log says
+/// so instead of "paired".
+#[tokio::test(flavor = "multi_thread")]
+async fn a_host_that_refuses_at_the_pin_leaves_the_joiner_unpinned() {
+    let w = world_with(Some(Permission::View), true).await;
+    let code = w.open();
+    let joined = w.join(&code.display(), Some(Permission::View)).await;
+    match joined {
+        Err(JoinError::Host { reason_code, .. }) => assert_eq!(reason_code, "link_off"),
+        other => panic!("the joiner pinned or failed otherwise: {other:?}"),
+    }
+    assert!(w.host.pinned.lock().unwrap().is_empty());
+    for _ in 0..50 {
+        if w.audit
+            .0
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|e| e.kind == "pairing")
+        {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    let reasons: Vec<String> = w
+        .audit
+        .0
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|e| e.kind == "pairing")
+        .map(|e| e.reason_code.clone())
+        .collect();
+    assert_eq!(reasons, ["link_off"]);
 }
 
 #[tokio::test(flavor = "multi_thread")]
