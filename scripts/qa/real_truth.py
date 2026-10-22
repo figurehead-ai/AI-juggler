@@ -39,6 +39,7 @@ import argparse
 import calendar
 import json
 import os
+import pwd
 import re
 import subprocess
 import sys
@@ -195,7 +196,7 @@ def read_codex_rollout(path: Path) -> dict:
                     moved = not roll["totals"] or roll["totals"][-1][1]["total_tokens"] != total["total_tokens"]
                     roll["totals"].append((ts, total))
                     if moved and isinstance(last.get("total_tokens"), int):
-                        roll["turns"].append((ts, last["total_tokens"]))
+                        roll["turns"].append((ts, last["total_tokens"], total["total_tokens"]))
                 if isinstance(payload.get("rate_limits"), dict):
                     roll["rate_limits"], roll["rate_ts"] = payload["rate_limits"], ts
     return roll
@@ -220,6 +221,9 @@ def processes() -> list[dict]:
         kind = sorted(helper)[0] if tool == "codex" and helper else "session"
         if is_temp(exe):
             kind = "stand-in"  # a test's stand-in binary in a temp folder, not a user's session
+        cwd = process_cwd(pid)
+        if kind == "session" and is_host(cwd):
+            kind = "host"  # this Mac's own session, seen from a replica's HOME
         resume = None
         m = re.search(r"--resume[ =]([0-9a-f-]{36})", args)
         if m:
@@ -236,7 +240,7 @@ def processes() -> list[dict]:
                 break
             up = rows[up][0]
         found.append({"pid": pid, "tool": tool, "kind": kind, "resume": resume, "app": app or "a terminal",
-                      "cwd": process_cwd(pid)})
+                      "cwd": cwd})
     return found
 
 
@@ -261,6 +265,15 @@ def is_temp(path: str) -> bool:
     if os.environ.get("TMPDIR"):
         roots.append(os.path.realpath(os.environ["TMPDIR"]).rstrip("/") + "/")
     return any(real.startswith(r) for r in roots)
+
+
+def is_host(cwd: str | None) -> bool:
+    """On a replica (a HOME that isn't this user's own), a session working
+    outside that HOME is the host Mac's, not the replica's. Never true when
+    HOME is the user's own home, so a real-data run leaves nothing out."""
+    own = os.path.realpath(pwd.getpwuid(os.getuid()).pw_dir)
+    home = os.path.realpath(HOME)
+    return home != own and cwd is not None and not os.path.realpath(cwd).startswith(home.rstrip("/") + "/")
 
 
 def process_cwd(pid: int) -> str | None:
@@ -335,6 +348,8 @@ def build(args) -> dict:
         else:
             newest = None
             window_tokens = {name: 0 for name, _ in WINDOWS}
+            threads = set()  # a resumed thread is a rollout per resume: one conversation
+            seen_turns = set()  # (thread, timestamp, running total): a resume that repeats its parent's rows counts them once
             for path in (folder / "sessions").rglob("rollout-*.jsonl"):
                 roll = read_codex_rollout(path)
                 age = now - roll["mtime"]
@@ -343,23 +358,28 @@ def build(args) -> dict:
                 acc["changed"]["24h"] += age < 86400
                 if roll["session"] and roll["cwd"]:
                     newest_in_folder[(idx, os.path.realpath(roll["cwd"]))].append((roll["mtime"], roll["session"]))
+                thread = roll["session"] or str(path)
+                own = [(ts, n) for ts, n, running in roll["turns"] if (thread, ts, running) not in seen_turns]
+                seen_turns.update((thread, ts, running) for ts, _, running in roll["turns"])
                 if roll["session"]:
                     transcripts_by_session[roll["session"]] = (idx, roll)
-                    session_mtime[roll["session"]] = roll["mtime"]
-                    if roll["turns"]:
-                        session_totals[roll["session"]] = sum(n for _, n in roll["turns"])
+                    session_mtime[roll["session"]] = max(session_mtime.get(roll["session"], 0), roll["mtime"])
+                    if own:
+                        session_totals[roll["session"]] = session_totals.get(roll["session"], 0) + sum(n for _, n in own)
                 if roll["rate_ts"] and (newest is None or roll["rate_ts"] > newest[0]):
                     newest = (roll["rate_ts"], roll["rate_limits"])
                 for name, span in WINDOWS:
-                    window_tokens[name] += codex_window_tokens(roll["turns"], now - span)
+                    window_tokens[name] += codex_window_tokens(own, now - span)
                 if not roll["cwd"]:
                     acc["empty_files"] += 1
                     continue
-                acc["conversations"] += 1
                 root, how = project_of(roll["cwd"])
                 p = projects[root]
+                if thread not in threads:
+                    threads.add(thread)
+                    acc["conversations"] += 1
+                    p["per_account"][idx] += 1
                 p["how"].add(how)
-                p["per_account"][idx] += 1
                 p["cwds"].add(roll["cwd"])
                 p["last"] = max(p["last"], roll["totals"][-1][0] if roll["totals"] else roll["mtime"])
             acc["tokens"] = {name: {"total": v} for name, v in window_tokens.items()}
@@ -660,6 +680,9 @@ def compare(truth: dict, harness: dict) -> str:
     stand_ins = [l for l in truth["live"] if l["kind"] == "stand-in"]
     if stand_ins:
         verdict(None, f"left out: {len(stand_ins)} stand-in CLI(s) run from a temp folder (tests, not sessions)")
+    host = [l for l in truth["live"] if l["kind"] == "host"]
+    if host:
+        verdict(None, f"left out: {len(host)} of this Mac's own session(s), working outside the replica's HOME")
 
     # Quota: percent, reset, tokens per window.
     for q in harness["quota_display_all"]:
@@ -814,6 +837,7 @@ def selftest() -> None:
     assert is_temp("/tmp/x/claude") and is_temp("/private/var/folders/ab/T/x/codex")
     assert not is_temp("/Applications/Claude.app/Contents/MacOS/claude")
     assert not is_temp(str(HOME / "bin/claude"))
+    assert not is_host(None) and not is_host(str(HOME / "Dev/app"))
     print("real_truth selftest: OK")
 
 
