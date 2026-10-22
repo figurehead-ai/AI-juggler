@@ -1270,6 +1270,8 @@ pub fn claude_code_spec() -> juggler_adapter::ToolSpec {
         desktop_app: Some("Claude".to_owned()),
         kinds: vec![ToolKind::Cli, ToolKind::Desktop],
         rules_files: vec!["CLAUDE.md".to_owned()],
+        // CLAUDE.md's import: a line `@path` reads that file in its place.
+        rules_import: Some("@{file}".to_owned()),
         scan_hint: "Your default setup, your Claude profiles and anything else that looks like one. Nothing is changed."
             .to_owned(),
         // Grouped by kind of setup, not by app: the same folder serves the

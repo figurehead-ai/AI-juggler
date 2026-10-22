@@ -22,5 +22,6 @@ pub mod reconcile;
 pub mod redaction;
 pub mod register;
 pub mod switch_back;
+pub mod sync;
 pub mod transplant;
 pub mod validation;
