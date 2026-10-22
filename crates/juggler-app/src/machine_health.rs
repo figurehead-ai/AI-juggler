@@ -859,6 +859,10 @@ pub struct ToolTreeInfo {
     pub place: Option<String>,
     /// The tool's id, for its mark (AJ-E1526); `null` when it isn't known.
     pub tool: Option<String>,
+    /// The `by_tool` group it is listed under (that group's `tool`, with
+    /// `ours` as `session_id` says): the This Mac page lists each group's
+    /// trees by it (AJ-E1528).
+    pub group: String,
     /// The Account it uses, when one of yours matches.
     pub account_label: Option<String>,
     /// CPU summed over the tree, percent of ONE core (can pass 100);
@@ -1021,6 +1025,7 @@ fn tree_info(tree: &TreeInput) -> ToolTreeInfo {
         session_id: tree.session_id.clone(),
         place: tree.place.map(str::to_string),
         tool: tree.tool.clone(),
+        group: crate::machine_tools::group_of(tree),
         account_label: tree.account_label.clone(),
         cpu_pct: tree.stats.cpu_pct,
         rss_bytes: tree.stats.rss_bytes,

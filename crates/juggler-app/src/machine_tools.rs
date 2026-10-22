@@ -65,6 +65,19 @@ pub(crate) fn one_core(trees: &[&TreeInput]) -> Option<f64> {
 
 /// Each AI tool on its own: our sessions grouped by Provider (heaviest
 /// first), then the Claude app, then `claude` in a terminal.
+/// The group a tree is listed under: its [`ToolGroupInfo::tool`] — the
+/// tool of a session AI Juggler started (the observed tool when its tool
+/// isn't known yet), or the place of one it didn't (`desktop`, `terminal`).
+pub(crate) fn group_of(tree: &TreeInput) -> String {
+    match tree.place {
+        Some(place) => place.to_string(),
+        None => tree
+            .tool
+            .clone()
+            .unwrap_or_else(|| OBSERVED_TOOL.to_string()),
+    }
+}
+
 pub(crate) fn by_tool(
     ours: &[&TreeInput],
     theirs: &[&TreeInput],
@@ -73,14 +86,7 @@ pub(crate) fn by_tool(
     let mut providers: std::collections::BTreeMap<String, Vec<&TreeInput>> =
         std::collections::BTreeMap::new();
     for tree in ours {
-        providers
-            .entry(
-                tree.tool
-                    .clone()
-                    .unwrap_or_else(|| OBSERVED_TOOL.to_string()),
-            )
-            .or_default()
-            .push(tree);
+        providers.entry(group_of(tree)).or_default().push(tree);
     }
     let mut groups: Vec<ToolGroupInfo> = providers
         .into_iter()

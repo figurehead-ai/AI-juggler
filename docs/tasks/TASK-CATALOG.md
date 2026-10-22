@@ -164,7 +164,7 @@
 | AJ-E1506 | Terminal tools | E15-spec-gaps.md | P0 | M | — |
 | AJ-E1507 | Rules and MCP sync across tools, with a diff preview | E15-spec-gaps.md | P0 | L | AJ-E202 |
 | AJ-E1508 | Copy shared settings into a new account | E15-spec-gaps.md | P1 | M | AJ-E1507, AJ-E1022 |
-| AJ-E1509 | Auto-restart a crashed session (opt-in) | E15-spec-gaps.md | P1 | S | AJ-E505 |
+| AJ-E1509 | Always on: keep working sessions going | E15-spec-gaps.md | P1 | L | AJ-E505, AJ-E1503, AJ-E1505, AJ-E1527 |
 | AJ-E1510 | System notifications | E15-spec-gaps.md | P1 | M | AJ-E611, AJ-E1408 |
 | AJ-E1511 | Open a context pack in any tool | E15-spec-gaps.md | P1 | M | AJ-E202, AJ-E208 |
 | AJ-E1512 | Sessions left and a burn-down chart | E15-spec-gaps.md | P1 | M | AJ-E608 |

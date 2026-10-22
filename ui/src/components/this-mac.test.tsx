@@ -55,6 +55,7 @@ const tree = (overrides: Partial<ToolTreeInfo>): ToolTreeInfo => ({
   session_id: null,
   place: "desktop",
   tool: null,
+  group: overrides.place === null ? "claude-code" : (overrides.place ?? "desktop"),
   account_label: "Personal",
   cpu_pct: 14,
   rss_bytes: 1_600_000_000,
@@ -221,6 +222,7 @@ describe("Home's Needs you (AJ-E1404 Req.3)", () => {
   });
 
   it("raises a Mac under pressure and leads to This Mac", () => {
+    const openPage = vi.fn();
     render(
       <HomeScreen
         sessions={[mk("one")]}
@@ -231,6 +233,7 @@ describe("Home's Needs you (AJ-E1404 Req.3)", () => {
         onNewSession={vi.fn()}
         onAddAccounts={vi.fn()}
         thisMac={info("pressure", [tree({ session_id: "one", place: null })])}
+        onOpenThisMac={openPage}
       />,
     );
     // Said once, in Needs you; the headline only points there (0.0.12).
@@ -238,10 +241,9 @@ describe("Home's Needs you (AJ-E1404 Req.3)", () => {
     const item = screen.getByTestId("home-mac-pressure");
     expect(item.textContent).toContain("Your Mac is under pressure");
     expect(item.textContent).toContain("macOS reports critical memory pressure; swap is growing — 620 MB a minute");
-    const panel = document.getElementById("this-mac")!;
-    panel.scrollIntoView = vi.fn();
+    // AJ-E1528: it opens the This Mac page.
     fireEvent.click(within(item).getByRole("button", { name: "See what's using it" }));
-    expect(document.activeElement).toBe(panel);
+    expect(openPage).toHaveBeenCalledOnce();
   });
 
   it("stays quiet when the Mac is only getting tight", () => {

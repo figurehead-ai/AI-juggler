@@ -863,6 +863,19 @@ def compare(truth: dict, harness: dict) -> str:
             verdict(len(shown) == len(claude) and all(abs(a - b) <= 0.15 * b for a, b in zip(shown, claude)),
                     f"This Mac every tree: backend {len(shown)} (top {len(top)} + others {len(others)}) "
                     f"{[round(t / 1e9, 1) for t in shown]}; ps {len(claude)} {[round(t / 1e9, 1) for t in claude]}")
+        # AJ-E1528: the This Mac page's groups, by tool: the Claude app's
+        # windows against ps, and each group's rows against its own count.
+        groups = panel.get("by_tool") or []
+        desktop = next((g for g in groups if not g.get("ours") and g.get("tool") == "desktop"), None)
+        verdict(((desktop or {}).get("totals") or {}).get("count", 0) == len(claude),
+                f"This Mac page, Claude app group: backend {((desktop or {}).get('totals') or {}).get('count', 0)} windows; ps {len(claude)}")
+        every = (panel.get("top") or []) + (panel.get("others") or [])
+        for g in groups:
+            rows = [t for t in every if (t.get("session_id") is not None and (t.get("tool") or "claude-code") == g.get("tool"))
+                    or (t.get("session_id") is None and t.get("place") == g.get("tool"))]
+            count = (g.get("totals") or {}).get("count", 0)
+            verdict(len(rows) == count if g.get("ours") or g.get("tool") in ("desktop", "terminal") else True,
+                    f"This Mac page group {g.get('label')}: {len(rows)} rows for its {count} trees")
         cpu = tools.get("cpu_pct")
         verdict(True, f"This Mac tools CPU: backend {cpu if cpu is None else round(cpu, 1)}% of all cores (ps %CPU is a decaying average, not compared)")
     kinds = [a["kind"] for a in harness.get("machine_alerts", [])]

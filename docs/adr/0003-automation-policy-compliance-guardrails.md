@@ -1,7 +1,7 @@
 # ADR-0003: Automation policy & compliance guardrails
 
 **Status:** Accepted
-**Date:** 2026-10-12 (revised after review round 2)
+**Date:** 2026-10-12 (revised after review round 2; widened 2026-10-22 for AJ-E1509, points 3 and 5)
 **Deciders:** maintainer
 
 ## Context
@@ -12,9 +12,10 @@ Vendors' terms (analysis in [research/landscape-and-stack.md §3](../research/la
 
 1. The only automated behaviors are **passive**: monitoring, indexing, accounting, notifications, alerts, suggestions, and staging of actions.
 2. Every state-changing action — account switch for new work, session transplant, target priming, project sync, remote command — **executes on an explicit user click**.
-3. One narrow, opt-in, per-profile exception (off by default): **auto-restart on crash**, which relaunches into the *same* profile only.
+3. One narrow, opt-in exception (off by default): **auto-restart on crash**, globally or per launch setting, which relaunches into the *same* profile only — never after a quota stop, a stop the user made or a sign-in failure, and at most 3 times in 10 minutes (so it can never work around a limit).
 4. Additional hard guardrails (spec proposal §5): no login automation; no traffic proxying/MITM; spawn unmodified real CLIs; local-only data; vendor terms surfaced in-product.
-5. These are enforced by a dedicated guardrail test suite in CI (writes confinement, network allowlist, no account mutation without user command).
+5. **Keeping AI Juggler and the Mac working** is not an account action: holding the Mac awake while sessions work (a visible default, on when plugged in, never against a sleep the user asks for), opting out of App Nap while sessions are supervised, opening at login (opt-in) and coming back after a crash. Each is a setting the user can see and change, and none of them touches an account or starts new work (revised 2026-10-22, AJ-E1509).
+6. These are enforced by a dedicated guardrail test suite in CI (writes confinement, network allowlist, no account mutation without user command).
 
 ## Alternatives considered
 

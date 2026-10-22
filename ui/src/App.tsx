@@ -19,6 +19,8 @@ import { CrashReportPrompt } from "./components/CrashReports";
 import { CleanupCentre, focusCleanupFilter } from "./screens/CleanupCentre";
 import { toolFound } from "./lib/providers";
 import { launchPortWarning, type PortWarningInfo,} from "./lib/bridge";
+import { GLOBAL_NAV, MORE_NAV, PRIMARY_NAV, type GlobalId } from "./lib/nav";
+import { ThisMacScreen } from "./screens/ThisMacScreen";
 import { IconJuggler, IconTerminal } from "./components/icons";
 import { AttentionAnnouncer, RenewalAnnouncer } from "./components/indicator";
 import { LegendPopover } from "./components/LegendPopover";
@@ -62,7 +64,7 @@ import { ProfilesScreen } from "./screens/Profiles";
 import { History } from "./screens/History";
 import { AddProviderSheet } from "./screens/AddProviderSheet";
 import { FirstRun } from "./screens/FirstRun";
-import { HomeScreen } from "./screens/Home";
+import { HomeScreen, placeOf } from "./screens/Home";
 import { UsageScreen } from "./screens/Usage";
 import { LimitDialog } from "./components/LimitDialog";
 import { NewSessionModal } from "./screens/NewSession";
@@ -114,38 +116,6 @@ import {
  * detail panel where the selected item loads, session terminals embedded.
  * Global oversight (Overview, Accounts, Usage, Fleet) sits top-right.
  */
-
-const GLOBAL_NAV = [
-  // D-25 amendment (AJ-E1021): Triage and Overview folded into Home.
-  // AJ-E1007: every ended Instance — search, archive, replay.
-  { id: "history", label: "History" },
-  { id: "accounts", label: "Accounts" },
-  { id: "usage", label: "Usage" },
-  { id: "fleet", label: "Fleet" },
-  // AJ-E506: the Cleanup Centre is a GLOBAL surface (ADR-0007) —
-  // never a rail peer of Projects/Instances/Sessions.
-  { id: "cleanup", label: "Cleanup" },
-  // AJ-E1203: Appearance + the optional Account & Cloud (⌘,).
-  { id: "settings", label: "Settings" },
-] as const;
-
-type GlobalId = (typeof GLOBAL_NAV)[number]["id"];
-
-/** D-25: the header's four destinations; the rest are one click away
- * under More (Fleet joins the header once a Mac is paired; Cleanup shows
- * as a pill while something is left behind). */
-const PRIMARY_NAV: Array<{ id: GlobalId | "home"; label: string }> = [
-  { id: "home", label: "Home" },
-  { id: "accounts", label: "Accounts" },
-  { id: "history", label: "History" },
-  { id: "settings", label: "Settings" },
-];
-const MORE_NAV: Array<{ id: GlobalId; label: string; hint: string }> = [
-  { id: "usage", label: "Usage", hint: "Limits and cost for each account" },
-  { id: "fleet", label: "Fleet", hint: "Your other Macs" },
-  { id: "cleanup", label: "Cleanup", hint: "Processes left behind, and the audit log" },
-];
-
 
 type Selection =
   | { kind: "none" }
@@ -659,7 +629,7 @@ export default function App() {
       newSessionIn={(project) => { setNewSessionDir(project.root); setNewSession(true); }}
       refresh={() => void refresh()}
     >
-    <div className="flex h-screen w-screen overflow-hidden">
+    <div className="relative flex h-screen w-screen overflow-hidden">
       <AttentionAnnouncer sessions={sessions} />
       <RenewalAnnouncer accounts={accounts} />
       <WorkflowRail
@@ -722,11 +692,11 @@ export default function App() {
         )}
         footer={(minimal) =>
           minimal ? (
-            <MachineStatusLine minimal />
+            <MachineStatusLine minimal onOpen={() => setGlobal("thismac")} />
           ) : (
             <div className="flex flex-col gap-1.5 px-3 py-2.5">
               <div className="flex min-w-0 items-center gap-2 overflow-hidden">
-                <MachineStatusLine minimal={false} />
+                <MachineStatusLine minimal={false} onOpen={() => setGlobal("thismac")} />
                 {/* The rail-footer `?` legend popover (AJ-E403 Req.6,
                     surface 1 of 3 — identical content everywhere). */}
                 <LegendPopover />
@@ -811,7 +781,7 @@ export default function App() {
               </ScreenBoundary>
             </div>
           ) : global === "accounts" ? (
-            <div className="h-full overflow-y-auto">
+            <div className="relative h-full overflow-y-auto">
               <ScreenBoundary key="accounts" screen="accounts" label="Accounts">
                 <ProfilesScreen
                   key={accountsNonce}
@@ -827,19 +797,19 @@ export default function App() {
               </ScreenBoundary>
             </div>
           ) : global === "history" ? (
-            <div className="h-full overflow-y-auto">
+            <div className="relative h-full overflow-y-auto">
               <ScreenBoundary key="history" screen="history" label="History">
                 <History sessions={sessions} projects={projects} onChanged={() => void refresh()} />
               </ScreenBoundary>
             </div>
           ) : global === "usage" ? (
-            <div className="h-full overflow-y-auto">
+            <div className="relative h-full overflow-y-auto">
               <ScreenBoundary key="usage" screen="usage" label="Usage">
                 <UsageScreen accounts={accounts} sessions={sessions} onAddAccounts={() => setFirstRun(true)} onOpenHome={openHome} />
               </ScreenBoundary>
             </div>
           ) : global === "fleet" ? (
-            <div className="h-full overflow-y-auto">
+            <div className="relative h-full overflow-y-auto">
               <ScreenBoundary key="fleet" screen="fleet" label="Fleet">
                 <FleetScreen
                   onOpenCloud={openCloudSettings}
@@ -848,8 +818,21 @@ export default function App() {
                 />
               </ScreenBoundary>
             </div>
+          ) : global === "thismac" ? (
+            <div className="relative h-full overflow-y-auto">
+              <ScreenBoundary key="thismac" screen="this-mac-page" label="This Mac">
+                <ThisMacScreen
+                  nameOf={(id) => {
+                    const session = sessions.find((s) => s.id === id);
+                    return session ? placeOf(session, projects).title : "A session";
+                  }}
+                  onOpenSession={selectSession}
+                  onOpenCleanup={() => setGlobal("cleanup")}
+                />
+              </ScreenBoundary>
+            </div>
           ) : global === "settings" ? (
-            <div className="h-full overflow-y-auto">
+            <div className="relative h-full overflow-y-auto">
               <ScreenBoundary key="settings" screen="settings" label="Settings">
                 <SettingsScreen key={settingsSection ?? "top"} focusCloud={settingsFocusCloud} focusSection={settingsSection} />
               </ScreenBoundary>
@@ -940,7 +923,7 @@ export default function App() {
                 />
               </div>
               {selection.kind === "none" ? (
-                <div className="min-h-0 flex-1 overflow-y-auto" data-testid="home-scroll">
+                <div className="relative min-h-0 flex-1 overflow-y-auto" data-testid="home-scroll">
                   <ScreenBoundary key="home" screen="home" label="Home">
                     <HomeScreen
                       loading={!loaded}
@@ -960,6 +943,7 @@ export default function App() {
                       onChanged={() => void refresh()}
                       thisMac={thisMacInfo}
                       onOpenCleanup={() => setGlobal("cleanup")}
+                      onOpenThisMac={() => setGlobal("thismac")}
                     />
                   </ScreenBoundary>
                 </div>
