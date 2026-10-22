@@ -1759,6 +1759,32 @@ usage by its `latest_token_usage_record` (`thread/turn/response`) would let the 
 - **Resumed threads**: none on this Mac has more than one rollout file.
 - **Rows outside 5% now**: 8 of 2,261. Six are the switch copies (P19); two are P21.
 
+## Batch 25 — the This Mac page (AJ-E1528, `release/0.1` `3c6e97ff`)
+
+A Dev build with the bridge. The accounts were brought in with redacted labels (7 of 7,
+all signed in), and the UI was walked on Vite 5281, read-only. Snapshots: no path added
+or removed, and no config file changed. The Dev folder is now
+`AI Juggler Dev (qa-3c6e walk 2026-10-22)`. No captures; everything below was read from
+the page structure (DOM) and from macOS.
+
+| Check | Seen |
+|---|---|
+| Rail "This Mac · …" line | opens the page |
+| The rail's dot (density Minimal) | "This Mac · Plenty of room", level `plenty`; opens the page |
+| More › This Mac | opens the page |
+| The panel's "See all of This Mac" | opens the page |
+| Home's "See what's using it" | not shown: it appears only under memory pressure, and there was none. It calls the same `setGlobal("thismac")` as the others |
+| "Now" against macOS, the same second | "Plenty of room" = `kern.memorystatus_vm_pressure_level` 1 (normal; `memory_pressure` 73% free). Swap "1.2 GB of 2.1 GB" = `vm.swapusage` 1,142.5 of 2,048 MB. 103 GB = `hw.memsize`. CPU 18% against `top`'s 21.8% busy (separate samples). No reasons, as at normal pressure |
+| What's using it | one group: "Claude app · 6 windows · not started by AI Juggler", about 23 GB (the backend 23.3, `ps` 23.9). Folded; 6 rows, none with a button, link or tab stop |
+| `real_truth.py` (`release/0.1`'s copy) | OK "This Mac page, Claude app group: backend 6 windows; ps 6"; OK "group Claude app: 6 rows for its 6 trees"; every other This Mac line OK |
+| The window never scrolls | 100 Tabs past Home's last button at 1440 and 760 wide, and through the page: only Home's own scroll area moved (307 and 748 px). The document, `body`, `#root` and the shell's top stayed at 0 |
+
+- **Not covered**: the "Now" reasons and Home's pressure row under real memory pressure.
+  The Mac was at normal pressure throughout, and I didn't create pressure on the real
+  setup.
+- The density was changed with Ctrl+D (stored in the browser's `localStorage`, not in the
+  app's data) and set back to Comfortable.
+
 ## Not walked (blocked by W0, before the bridge)
 
 These need the window:
