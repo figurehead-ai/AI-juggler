@@ -137,14 +137,14 @@ fn a_second_launch_never_opens_the_data() {
             .unwrap(),
     );
     let second = &mut second.0;
-    let deadline = Instant::now() + Duration::from_secs(60);
+    let deadline = Instant::now() + LAUNCH_LIMIT;
     let status = loop {
         if let Some(status) = second.try_wait().unwrap() {
             break status;
         }
         if Instant::now() > deadline {
             let _ = second.kill();
-            panic!("the second launch didn't end within a minute");
+            panic!("the second launch didn't end within {LAUNCH_LIMIT:?}");
         }
         // It must never create anything there (a database would be the
         // first sign it opened the data): stop it at once if it does.
@@ -188,20 +188,51 @@ fn a_second_launch_never_opens_the_data() {
 /// folder the caller holds) and returns its status, stderr and how long
 /// it took.
 fn second_launch(home: &std::path::Path) -> (std::process::ExitStatus, String, Duration) {
-    let started = Instant::now();
-    let out = std::process::Command::new(env!("CARGO_BIN_EXE_juggler-app"))
+    let mut command = std::process::Command::new(env!("CARGO_BIN_EXE_juggler-app"));
+    command
         .env("HOME", home)
         .env("XDG_DATA_HOME", home.join(".local/share"))
-        .env("AIJ_NO_DIALOGS", "1")
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::piped())
-        .output()
-        .unwrap();
-    (
-        out.status,
-        String::from_utf8_lossy(&out.stderr).into_owned(),
-        started.elapsed(),
-    )
+        .env("AIJ_NO_DIALOGS", "1");
+    bounded(command)
+}
+
+/// How long a launch may take before it counts as hung. A debug build
+/// starts in seconds on a quiet Mac, and in about a minute beside other
+/// sessions' builds (the coordinator's full runs).
+const LAUNCH_LIMIT: Duration = Duration::from_secs(180);
+
+/// Runs a launch to its end, never past [`LAUNCH_LIMIT`]: past it, the
+/// launch is killed and the test fails, never left running.
+fn bounded(mut command: std::process::Command) -> (std::process::ExitStatus, String, Duration) {
+    let started = Instant::now();
+    let mut child = Reaped(
+        command
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .unwrap(),
+    );
+    let stderr = child.0.stderr.take().unwrap();
+    let reader = std::thread::spawn(move || {
+        let mut text = String::new();
+        let _ = std::io::Read::read_to_string(&mut std::io::BufReader::new(stderr), &mut text);
+        text
+    });
+    let status = loop {
+        if let Some(status) = child.0.try_wait().unwrap() {
+            break status;
+        }
+        if started.elapsed() > LAUNCH_LIMIT {
+            let _ = child.0.kill();
+            let _ = child.0.wait();
+            panic!(
+                "the launch didn't end within {LAUNCH_LIMIT:?}: {}",
+                reader.join().unwrap_or_default()
+            );
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    };
+    (status, reader.join().unwrap_or_default(), started.elapsed())
 }
 
 /// A home whose data folder is held, as by a running AI Juggler.
@@ -254,7 +285,7 @@ fn a_second_launch_says_a_frozen_app_isnt_answering() {
         took >= Duration::from_millis(2_900),
         "it waited for an answer: {took:?}"
     );
-    assert!(took < Duration::from_secs(20), "it didn't hang: {took:?}");
+    assert!(took < LAUNCH_LIMIT, "it didn't hang: {took:?}");
     let left: Vec<String> = std::fs::read_dir(&data)
         .unwrap()
         .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
@@ -284,13 +315,16 @@ fn a_second_launch_hands_over_to_an_app_that_answers() {
     let (status, stderr, took) = second_launch(home.path());
     assert!(status.success(), "it handed over: {stderr}");
     assert!(!stderr.contains("isn't answering"), "{stderr}");
-    assert!(took < Duration::from_secs(10), "{took:?}");
+    assert!(took < LAUNCH_LIMIT, "{took:?}");
     handover.stop();
     let _ = std::fs::remove_dir(socket.parent().unwrap());
     drop(lock);
 }
 
-/// A frozen app's hand-over socket: accepts every ask, never answers.
+/// A frozen app's hand-over socket: accepts every ask, never answers,
+/// until its test is done (the socket's file is removed). Under load a
+/// launch reaches it after a minute: with a fixed lifetime it found none,
+/// handed over to no one and stayed running (the coordinator's run).
 fn frozen_socket(data: &std::path::Path) -> (PathBuf, std::thread::JoinHandle<()>) {
     let socket = juggler_app::handover::socket_path("ai.figurehead.juggler", data).unwrap();
     std::os::unix::fs::DirBuilderExt::mode(&mut std::fs::DirBuilder::new(), 0o700)
@@ -301,7 +335,7 @@ fn frozen_socket(data: &std::path::Path) -> (PathBuf, std::thread::JoinHandle<()
     let path = socket.clone();
     let frozen = std::thread::spawn(move || {
         let mut held = Vec::new();
-        let until = Instant::now() + Duration::from_secs(40);
+        let until = Instant::now() + LAUNCH_LIMIT + Duration::from_secs(60);
         while Instant::now() < until && path.exists() {
             if let Ok((stream, _)) = listener.accept() {
                 held.push(stream); // read nothing, answer nothing
@@ -362,16 +396,13 @@ fn the_isnt_answering_alerts_quit_quits() {
     }
     let (home, data, lock) = held_home();
     let (socket, frozen) = frozen_socket(&data);
-    let out = std::process::Command::new(env!("CARGO_BIN_EXE_juggler-app"))
+    let mut command = std::process::Command::new(env!("CARGO_BIN_EXE_juggler-app"));
+    command
         .env("HOME", home.path())
         .env("XDG_DATA_HOME", home.path().join(".local/share"))
-        .env("AIJ_DIALOG_ANSWER", "Quit")
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::piped())
-        .output()
-        .unwrap();
-    let stderr = String::from_utf8_lossy(&out.stderr);
-    assert!(!out.status.success(), "{stderr}");
+        .env("AIJ_DIALOG_ANSWER", "Quit");
+    let (status, stderr, _) = bounded(command);
+    assert!(!status.success(), "it quit: {stderr}");
     assert!(
         stderr.contains("can't start yet") && stderr.contains("(answered: Quit)"),
         "{stderr}"
@@ -431,7 +462,7 @@ fn the_isnt_answering_alerts_try_again_starts_once_the_data_is_free() {
         }
         seen
     });
-    let deadline = Instant::now() + Duration::from_secs(60);
+    let deadline = Instant::now() + LAUNCH_LIMIT;
     let status = loop {
         if let Some(status) = launch.0.try_wait().unwrap() {
             break status;
@@ -439,7 +470,7 @@ fn the_isnt_answering_alerts_try_again_starts_once_the_data_is_free() {
         if Instant::now() > deadline {
             reap_tagged(&tag);
             let seen = watcher.join().unwrap_or_default();
-            panic!("the launch didn't end within a minute: {seen}");
+            panic!("the launch didn't end within {LAUNCH_LIMIT:?}: {seen}");
         }
         std::thread::sleep(Duration::from_millis(50));
     };
@@ -454,7 +485,7 @@ fn the_isnt_answering_alerts_try_again_starts_once_the_data_is_free() {
         .unwrap();
     let _ = again.try_lock();
     let mut relaunched = 0;
-    let until = Instant::now() + Duration::from_secs(5);
+    let until = Instant::now() + Duration::from_secs(60);
     while relaunched == 0 && Instant::now() < until {
         std::thread::sleep(Duration::from_millis(100));
         relaunched = reap_tagged(&tag);
