@@ -1,0 +1,24 @@
+{
+  "boxes": [
+    [
+      20,
+      72,
+      98,
+      370
+    ],
+    [
+      204,
+      110,
+      224,
+      360
+    ]
+  ],
+  "checked_by_eye": true,
+  "file": "d2-home-after-fix.jpg",
+  "note": "rail titles and project names, Running titles blacked out",
+  "sha256": "bfeb1e6779da762ea095fb141ed75daf1d8c5fd6c8091ca5f645ad438398856e",
+  "size": [
+    800,
+    500
+  ]
+}

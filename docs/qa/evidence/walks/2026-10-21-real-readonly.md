@@ -1295,6 +1295,68 @@ project names are blacked out (the fail-closed tool, opened and confirmed by eye
 This Mac lines are INFO on a replica (a HOME that isn't the user's own), since they count the
 whole Mac. With the real HOME they're unchanged.
 
+## Batch 14 — batch 13's two fixes re-checked (`release/0.1` `e385f5b9`), and a false "can't start"
+
+### How
+
+- The Dev build with the bridge, Finder-like, on a copy of batch 13's Dev data folder.
+  The conversation index lives in memory, so every launch is a first pass.
+- A poller read `conversations_list` once a second through the bridge (read only), against
+  the oracle's 16 live sessions.
+- **Snapshot**: no config file changed, no path added or removed. Only the live Codex and
+  one profile's own sync wrote.
+
+### Home: fixed
+
+[Home](2026-10-21-real-readonly/d2-home-after-fix.jpg), titles and project names blacked out.
+
+- **Subtitle**: "16 running · Account G has 0% left", with no "start new work on…".
+- **Runway footer**: "Account G has 0% left, and 6 others aren't measured yet, so AI
+  Juggler can't tell which has room."
+- G (Codex) is 100% used per its newest rollout reading, so 0% is true.
+- **Minor**: the page title says "All clear — nothing needs you" while an account has run
+  out.
+
+### Live sessions on a first launch: better, but not "within seconds"
+
+| Launch | `conversations_list` | First live | All 16 live |
+|---|---|---|---|
+| 1 (the data copy, first opened by this build) | no answer (5 s timeouts) for about 94 s | 94.5 s | 121.7 s |
+| 2 | answered at once, but 1 conversation and 0 live until 73.9 s | 73.9 s | 95.1 s |
+
+- Before the fix it was about 5 minutes. Once reading starts, newest-first works: from
+  the first live session to all 16 in about 21 s, and the list grows from 3 to 216
+  conversations meanwhile.
+- **The stall is before reading starts**: about 74–94 s in which the index reads
+  nothing. In launch 1 `conversations_list` itself didn't answer.
+- This points at startup contention, likely the usage pipeline's first full ingest holding
+  storage while the conversation tick waits for the account list. Medium.
+
+### A false "AI Juggler Dev can't start" after a forced quit — high
+
+[The alert](2026-10-21-real-readonly/e1-cant-start-after-kill.jpg).
+
+- **What happened**: the first instance was ended with SIGTERM, and I waited until no
+  process was left. A relaunch seconds later stopped at a system alert: "Another AI
+  Juggler Dev is already open with this data and isn't answering… Switch to it and quit
+  it … then Force Quit."
+- **No other instance existed.** The launch sat in that alert with 0% CPU for 7+ minutes,
+  never retrying (`run → not_answering → newer_data::cannot_start`).
+- **Cause**: `hold_instance_lock` (`newer_data.rs:481-500`) found `juggler.lock` locked
+  (`WouldBlock`). A few minutes later the lock was free (checked with a non-blocking
+  lock, released at once), and the next launch started normally. So the old instance's
+  lock was still held for a short time after its process was gone, and the new launch
+  treated that as "open and not answering".
+- **Two more problems with the alert**:
+  - Its advice can't be followed: there's nothing to switch to or force quit.
+  - It outlives the process: it's a `CFUserNotification`, owned by the system, still on
+    screen after the Dev app exited. Its one button, Quit, only dismisses it.
+- **For a user**, this is what a crash or a force quit followed by a quick relaunch looks
+  like.
+- **Expected**: when the hand-over finds no live peer, wait briefly and retry the lock
+  (it frees within moments), then start. Only say "isn't answering" when a process
+  actually holds it.
+
 ## Not walked (blocked by W0, before the bridge)
 
 These need the window:
