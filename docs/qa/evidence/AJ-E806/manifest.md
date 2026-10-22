@@ -450,11 +450,15 @@
   a stand-in shell and runs it while other tests in the binary spawn
   processes. A child forked during that write holds the file open until it
   execs, so running the script fails at once with ETXTBSY, and `login_shell`
-  reads that as no PATH. `login_shell` now retries a spawn that fails as
-  busy (`spawn_unless_busy`, up to 20 × 25 ms); the app's real shell is
-  never a freshly written file. The two tests that check what is read
-  also allow 30 s instead of the app's 2 s. Not reproduced locally; 5 of
-  5 local runs passed.
+  reads that as no PATH. The fix is in the tests, where the race starts:
+  their `script()` helper writes each stand-in from a child `sh` that exits
+  before the test runs it, so this process never holds the file open for
+  writing and no fork can inherit it. `login_shell` itself is unchanged
+  (the app's shell is never a freshly written file). The two tests that
+  check what is read also allow 30 s instead of the app's 2 s. Not
+  reproduced locally; 3 of 3 local runs passed. The other 33 sites that
+  write stand-in executables in tests (mostly `juggler-app/tests`) haven't
+  flaked; moving them to the same pattern is in the next batch.
 - **Flake record, 2026-10-21 (known class; open, next batch).** The same
   PR's CI `verify` (first attempt) failed `load_budgets ::
   monitoring_costs_under_one_percent_of_a_core` at 1.118 % of a core

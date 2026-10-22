@@ -263,13 +263,14 @@ fn known_shell(shell: &Path, etc_shells: &str) -> bool {
 pub fn login_shell(shell: &Path, timeout: Duration) -> Option<OsString> {
     let mut command = Command::new(shell);
     allowlisted_env(&mut command);
-    command
+    let mut child = command
         .env("PATH", SYSTEM_PATH)
         .arg("-l")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::null());
-    let mut child = spawn_unless_busy(&mut command)?;
+        .stderr(Stdio::null())
+        .spawn()
+        .ok()?;
     // Far below a pipe's buffer: the write never waits on the shell.
     if let Some(mut stdin) = child.stdin.take() {
         let _ = stdin.write_all(SCRIPT);
@@ -288,23 +289,6 @@ pub fn login_shell(shell: &Path, timeout: Duration) -> Option<OsString> {
     let _ = child.kill();
     let _ = child.wait();
     parse_marked(&String::from_utf8_lossy(&output?))
-}
-
-/// Spawns `command`, trying again a few times while its program is "busy"
-/// (ETXTBSY): a file another thread was writing when some process forked
-/// stays busy until that child execs. Rare outside tests, which write
-/// stand-in shells while other tests spawn (it failed on CI so).
-fn spawn_unless_busy(command: &mut Command) -> Option<std::process::Child> {
-    for _ in 0..20 {
-        match command.spawn() {
-            Ok(child) => return Some(child),
-            Err(error) if error.kind() == std::io::ErrorKind::ExecutableFileBusy => {
-                std::thread::sleep(Duration::from_millis(25));
-            }
-            Err(_) => return None,
-        }
-    }
-    None
 }
 
 /// The `PATH` between the markers, absolute folders only.
@@ -460,12 +444,27 @@ mod tests {
         assert_eq!(parse_marked(&format!("{MARK}{MARK}")), None);
     }
 
+    /// Writes a stand-in shell from a child process, never from this one.
+    /// Written here, its file is open for writing while other tests in this
+    /// binary fork; a child forked then holds it until it execs, and running
+    /// the script fails as busy (ETXTBSY) — a CI flake, 2026-10-21 (AJ-E806).
+    /// A `sh` that writes it and exits leaves no writer behind.
     #[cfg(unix)]
     fn script(dir: &Path, name: &str, body: &str) -> PathBuf {
-        use std::os::unix::fs::PermissionsExt;
         let path = dir.join(name);
-        std::fs::write(&path, body).unwrap();
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let mut writer = Command::new("/bin/sh")
+            .args(["-c", "cat > \"$1\" && chmod 755 \"$1\"", "sh"])
+            .arg(&path)
+            .stdin(Stdio::piped())
+            .spawn()
+            .unwrap();
+        writer
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(body.as_bytes())
+            .unwrap();
+        assert!(writer.wait().unwrap().success());
         path
     }
 
