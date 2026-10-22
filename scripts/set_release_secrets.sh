@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # D-20 / AJ-E1010: puts the release signing secrets into GitHub, for the
-# maintainer to run (docs/MAINTAINER-STEPS.md step 5). Run it again when a
+# maintainer to run (docs/internal/MAINTAINER-STEPS.md step 5). Run it again when a
 # certificate is renewed.
 #
 #   scripts/set_release_secrets.sh [path/to/DeveloperID.p12]

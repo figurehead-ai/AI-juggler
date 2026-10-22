@@ -9,7 +9,7 @@
 
 ## Start here (cold-agent reading order)
 
-1. [AGENT-HANDOVER.md](AGENT-HANDOVER.md) — state snapshot, invariants,
+1. [AGENT-HANDOVER.md](../internal/AGENT-HANDOVER.md) — state snapshot, invariants,
    claiming protocol, compaction-recovery steps.
 2. [../review/decision-log.md](../review/decision-log.md) — settled
    decisions D-01..D-25. Do not re-litigate them; supersede only via a

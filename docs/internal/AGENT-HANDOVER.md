@@ -6,12 +6,12 @@
 
 ## 30-minute cold start
 
-1. Read [README.md](README.md) in this directory (5 min).
+1. Read [README.md](../tasks/README.md) in this directory (5 min).
 2. Read [../review/decision-log.md](../review/decision-log.md)
    D-01..D-18 (10 min). These are settled with the maintainer. Do not
    re-ask, re-litigate or "improve" them; a change requires a new
    recorded decision with maintainer approval.
-3. Skim [TASK-CATALOG.md](TASK-CATALOG.md); note the epic of your task.
+3. Skim [TASK-CATALOG.md](../tasks/TASK-CATALOG.md); note the epic of your task.
 4. Read your task in full, then read every source it cites under
    **Research basis** (repo files at cited lines, pass2/deep sections).
 5. Check current repo state yourself (`git status`, the cited code)

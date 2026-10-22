@@ -18,7 +18,7 @@ A free, open-source, native desktop app (Rust + Tauri 2, macOS-first)
 that *supervises* the AI coding harnesses a developer already has
 installed — it never proxies traffic, never handles vendor logins,
 and never stores vendor credentials. Its core promise, in the
-maintainer's words (`docs/expected-worfklow.md`): a developer starts
+maintainer's words (`docs/internal/expected-workflow.md`): a developer starts
 work on a project with one tool/account, runs out of quota, and
 switches — super easily, unlimited times, back and forth — to another
 account or another tool, with chat history, context, rules and
@@ -29,7 +29,7 @@ project state intact, and without ever configuring profiles by hand.
 Do not skip, reorder, or substitute summaries for these. Read the
 actual files; several are long, and that is expected.
 
-1. `docs/tasks/AGENT-HANDOVER.md` — state snapshot, invariants,
+1. `docs/internal/AGENT-HANDOVER.md` — state snapshot, invariants,
    claiming protocol, compaction-recovery steps, trap list.
 2. `docs/tasks/README.md` — the task system, status workflow, and
    the definition of done.
@@ -38,7 +38,7 @@ actual files; several are long, and that is expected.
    Do not re-litigate, re-ask, or quietly improve them. If you
    believe one is wrong, implement it anyway and raise an amendment
    as a new decision-log entry citing file and section.
-4. `docs/expected-worfklow.md` — the maintainer's canonical example
+4. `docs/internal/expected-workflow.md` — the maintainer's canonical example
    workflow (21 lines). It outranks every report.
 5. `docs/tasks/TASK-CATALOG.md` and the epic files
    `docs/tasks/E1-*.md` … `docs/tasks/E10-*.md` — 107 fully
