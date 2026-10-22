@@ -27,6 +27,13 @@
 //! The interactive session each switch starts is stopped as soon as its
 //! command line has been read.
 //!
+//! With `AIJ_LAB_PROBE=<name>` it also checks the switch's set-up step
+//! (AJ-E1542): account A alone must have an MCP server and a skill of that
+//! name. The server's tool `probe_word` answers `KESTREL` (only with its
+//! environment carried), and the skill's word is `PEREGRINE`. Before each
+//! switch the lab sets up only those two on the target, asks the target
+//! for both words, and at the end undoes every set-up.
+//!
 //! It never signs in, never reads a credential, and starts nothing outside
 //! the lab project. Before and after, it records every account folder's
 //! paths, sizes and modification times (never contents); the report lists
@@ -55,6 +62,9 @@ use serde_json::{Value, json};
 const CODENAME: &str = "BLUE-HERON";
 /// The name chosen on account B for the multiply function.
 const MUL_NAME: &str = "times";
+/// What the probe MCP server's tool answers, and the probe skill's word.
+const MCP_WORD: &str = "KESTREL";
+const SKILL_WORD: &str = "PEREGRINE";
 /// A release name chosen on Codex and only said, never written to a
 /// file: switching back can know it only from the conversation.
 const RELEASE: &str = "Copper Kettle";
@@ -65,6 +75,10 @@ struct Lab {
     claude_b: PathBuf,
     codex: PathBuf,
     steps: Vec<Value>,
+    /// The probe's name (`AIJ_LAB_PROBE`), when the set-up step is checked.
+    probe: Option<String>,
+    /// Every set-up record, undone at the end.
+    records: Vec<String>,
 }
 
 /// Every file under `roots`: path → (size, modified ns). Contents are
@@ -155,7 +169,7 @@ fn claude_turn(
         ])
         .args([
             "--allowedTools",
-            "Read,Edit,Write,Bash(python3 -m unittest*)",
+            "Read,Edit,Write,Bash(python3 -m unittest*),Skill,mcp__aij-lab-probe__probe_word",
         ])
         .args(["--max-turns", "12"]);
     if let Some(id) = session {
@@ -398,6 +412,8 @@ fn switch_lab_live() {
         claude_b: claude_b.clone(),
         codex: codex.clone(),
         steps: Vec::new(),
+        probe: std::env::var("AIJ_LAB_PROBE").ok(),
+        records: Vec::new(),
     };
     let account_a = import(&state, CLAUDE_CODE_ID, &claude_a, "Lab A");
     let account_b = import(&state, CLAUDE_CODE_ID, &claude_b, "Lab B");
@@ -430,6 +446,7 @@ fn switch_lab_live() {
     // 2. Switch A → B.
     let source = adopt(&state, &profile_a, &native, &lab.project);
     let preflight_b = commands::switch_preflight_impl(&state, &source, &profile_b);
+    let setup_b = set_up_probe(&state, &mut lab, &source, &profile_b);
     let to_b = commands::switch_execute_impl(&state, &source, &profile_b, "stop-now", None, &[]);
     let step2 = match &to_b {
         Ok(done) => {
@@ -461,6 +478,12 @@ fn switch_lab_live() {
                      but don't write it yet."
                 ),
             );
+            let uses = lab.probe.as_ref().map(|_| {
+                let turn = claude_turn(&lab, &lab.claude_b.clone(), None, Some(&resume_id), PROBE_ASK);
+                probe_answer(turn["result"].as_str().unwrap_or_default())
+            });
+            lab.steps.push(json!({"step": "2b set-up on B", "ok": setup_ok(&setup_b, uses.as_ref()),
+                                  "setup": setup_b, "uses": uses}));
             json!({"step": "2 switch A→B", "ok": carried && tests_pass(&lab.project),
                    "transcript_resume": carried, "tasks": tasks_carried,
                    "probe": answer, "continued": cont["result"], "launch": argv,
@@ -477,6 +500,7 @@ fn switch_lab_live() {
     let mut on_codex = None;
     if let Some(on_b) = &on_b {
         let preflight_x = commands::switch_preflight_impl(&state, on_b, &profile_x);
+        let setup_x = set_up_probe(&state, &mut lab, on_b, &profile_x);
         let to_x =
             commands::switch_execute_impl(&state, on_b, &profile_x, "stop-now", Some("strip"), &[]);
         let step3 = match &to_x {
@@ -512,6 +536,14 @@ fn switch_lab_live() {
                     ),
                     None => (None, String::new(), false),
                 };
+                let uses = match (&lab.probe, &thread) {
+                    (Some(_), Some(id)) => Some(probe_answer(&codex_turn(&lab, Some(id), PROBE_ASK).1)),
+                    (Some(_), None) => Some(json!({"answer": "", "mcp": false, "skill": false})),
+                    _ => None,
+                };
+                lab.steps.push(json!({"step": "3b set-up on Codex",
+                                      "ok": setup_ok(&setup_x, uses.as_ref()),
+                                      "setup": setup_x, "uses": uses}));
                 on_codex = Some((done.session_id.clone(), thread.clone()));
                 json!({"step": "3 switch B→Codex", "ok": ok && carried && tests_pass(&lab.project),
                        "transcript_resume": carried, "probe": answer, "continued": cont,
@@ -538,6 +570,16 @@ fn switch_lab_live() {
                 .find(|r| r.start)
                 .map(|r| r.epoch_id.clone())
         });
+        if let Some(probe) = &lab.probe {
+            let offers = juggler_app::features::switch_setup::check_impl(&state, away, &profile_a)
+                .map(|check| serde_json::to_value(check).unwrap())
+                .unwrap_or_else(|error| json!({"error": format!("{error:?}")}));
+            let offered = offers["offers"]
+                .as_array()
+                .is_some_and(|all| all.iter().any(|o| o["name"] == probe.as_str()));
+            lab.steps.push(json!({"step": "4b A already has the probe", "ok": !offered,
+                                  "check": offers}));
+        }
         let back =
             commands::switch_back_execute_to_impl(&state, away, &[], false, start.as_deref());
         let step4 = match &back {
@@ -572,6 +614,22 @@ fn switch_lab_live() {
         lab.steps.push(step4);
     }
 
+    if lab.probe.is_some() {
+        let undone: Vec<Value> = lab
+            .records
+            .iter()
+            .rev()
+            .map(|record| {
+                match juggler_app::features::switch_setup::undo_impl(&state, record) {
+                    Ok(message) => json!({"record": record, "ok": true, "message": message}),
+                    Err(error) => json!({"record": record, "ok": false, "error": format!("{error:?}")}),
+                }
+            })
+            .collect();
+        let all = undone.iter().all(|u| u["ok"] == true) && !undone.is_empty();
+        lab.steps.push(json!({"step": "5 undo every set-up", "ok": all, "undone": undone}));
+    }
+
     let after = snapshot(&roots);
     let report = json!({
         "tools": {
@@ -594,6 +652,50 @@ fn switch_lab_live() {
         "{} lab step(s) failed; see the report",
         failed.len()
     );
+}
+
+/// The question that shows whether a target can use the probe server and
+/// skill. It changes no file.
+const PROBE_ASK: &str = "Without changing any file: call the probe_word tool of the aij-lab-probe \
+    MCP server, and use the aij-lab-probe skill to find the lab's skill word. Reply with both \
+    words on one line.";
+
+/// Whether an answer has both probe words.
+fn probe_answer(answer: &str) -> Value {
+    json!({"answer": answer, "mcp": answer.contains(MCP_WORD) && !answer.contains("NO-ENV"),
+           "skill": answer.contains(SKILL_WORD)})
+}
+
+/// The check before a switch, then setting up only the probe's offers.
+/// Everything else the target lacks is reported and left alone.
+fn set_up_probe(state: &Arc<AppState>, lab: &mut Lab, session: &str, target: &str) -> Value {
+    let Some(probe) = lab.probe.clone() else {
+        return Value::Null;
+    };
+    let check = match juggler_app::features::switch_setup::check_impl(state, session, target) {
+        Ok(check) => check,
+        Err(error) => return json!({"error": format!("{error:?}")}),
+    };
+    let picked: Vec<String> = check
+        .offers
+        .iter()
+        .filter(|offer| offer.name == probe)
+        .map(|offer| offer.id.clone())
+        .collect();
+    let applied = juggler_app::features::switch_setup::apply_impl(state, session, target, &picked)
+        .unwrap_or_default();
+    lab.records
+        .extend(applied.iter().filter_map(|a| a.record.clone()));
+    json!({"check": check, "applied": applied})
+}
+
+/// The set-up went through: both probe offers were set up, and the target
+/// answered with both words.
+fn setup_ok(setup: &Value, uses: Option<&Value>) -> bool {
+    let applied = setup["applied"].as_array().map_or(0, |all| {
+        all.iter().filter(|a| a["record"].is_string()).count()
+    });
+    applied == 2 && uses.is_some_and(|u| u["mcp"] == true && u["skill"] == true)
 }
 
 /// A random v4 UUID, for `claude --session-id`.
