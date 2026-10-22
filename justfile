@@ -188,6 +188,12 @@ replica-fixture:
     python3 -I scripts/qa/replica_fixture.py "$work/harness.json" ui/tests/visual/fixtures/replica.json
     rm -rf "$work"
 
+# The README's screenshots, both themes, from the replica's fixture only
+# (`just replica-fixture` makes it, refusing any HOME but the replica's):
+# docs/assets/readme/. Never real data.
+readme-shots:
+    cd ui && AIJ_README_SHOTS=1 AIJ_PW_PORT=${AIJ_PW_PORT:-4595} pnpm exec playwright test readme-shots
+
 # Cargo, rustup and corepack keep their own homes while HOME is the replica.
 # Run AI Juggler Dev on the replica HOME.
 replica-walk: dev-icon

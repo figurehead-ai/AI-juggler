@@ -521,7 +521,8 @@ impl UpdateFeed for StableKnows {
     }
     fn carries_this_version(&self, channel: updates::Channel) -> Result<bool, FeedError> {
         assert_eq!(channel, updates::Channel::Stable);
-        self.0.ok_or_else(|| FeedError::new(FailureKind::Network, "offline"))
+        self.0
+            .ok_or_else(|| FeedError::new(FailureKind::Network, "offline"))
     }
 }
 
@@ -538,22 +539,52 @@ fn a_fresh_install_follows_the_channel_it_was_published_to() {
         updates::update_status_impl(&state).channel
     };
     let stable = tempfile::tempdir().unwrap();
-    assert_eq!(channel(stable.path(), &StableKnows(Some(true))), "stable", "downloaded from Latest");
-    assert_eq!(channel(stable.path(), &StableKnows(Some(false))), "stable", "recorded once");
+    assert_eq!(
+        channel(stable.path(), &StableKnows(Some(true))),
+        "stable",
+        "downloaded from Latest"
+    );
+    assert_eq!(
+        channel(stable.path(), &StableKnows(Some(false))),
+        "stable",
+        "recorded once"
+    );
 
     let beta = tempfile::tempdir().unwrap();
-    assert_eq!(channel(beta.path(), &StableKnows(Some(false))), "beta", "a beta release");
-    assert_eq!(channel(beta.path(), &StableKnows(Some(true))), "beta", "promoted later: still beta");
+    assert_eq!(
+        channel(beta.path(), &StableKnows(Some(false))),
+        "beta",
+        "a beta release"
+    );
+    assert_eq!(
+        channel(beta.path(), &StableKnows(Some(true))),
+        "beta",
+        "promoted later: still beta"
+    );
 
     let offline = tempfile::tempdir().unwrap();
-    assert_eq!(channel(offline.path(), &StableKnows(None)), "beta", "offline: beta for now");
-    assert_eq!(channel(offline.path(), &StableKnows(Some(true))), "stable", "decided at the next check");
+    assert_eq!(
+        channel(offline.path(), &StableKnows(None)),
+        "beta",
+        "offline: beta for now"
+    );
+    assert_eq!(
+        channel(offline.path(), &StableKnows(Some(true))),
+        "stable",
+        "decided at the next check"
+    );
 
     // An install already in use before this rule (its data has no
     // default recorded) keeps beta.
     let existing = tempfile::tempdir().unwrap();
     let older = app_state(existing.path(), true);
-    older.storage.lock().unwrap().app_settings().set("update_channel_default", "").unwrap();
+    older
+        .storage
+        .lock()
+        .unwrap()
+        .app_settings()
+        .set("update_channel_default", "")
+        .unwrap();
     drop(older);
     assert_eq!(channel(existing.path(), &StableKnows(Some(true))), "beta");
 

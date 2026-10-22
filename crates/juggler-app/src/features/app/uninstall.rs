@@ -68,11 +68,18 @@ pub fn prepare_impl(state: &Arc<AppState>) -> AppResult<UninstallPrepInfo> {
         .iter()
         .filter(|account| {
             account.in_place
-                && juggler_adapters::quota_ingest::outside_capture_record(&overlays, account.id.as_str())
-                    .is_some()
+                && juggler_adapters::quota_ingest::outside_capture_record(
+                    &overlays,
+                    account.id.as_str(),
+                )
+                .is_some()
         })
         .map(|account| match turn_off_impl(state, account.id.as_str()) {
-            Ok(off) => StatusLineBackInfo { account: account.label.clone(), outcome: off.outcome, problem: None },
+            Ok(off) => StatusLineBackInfo {
+                account: account.label.clone(),
+                outcome: off.outcome,
+                problem: None,
+            },
             Err(error) => StatusLineBackInfo {
                 account: account.label.clone(),
                 outcome: "failed".into(),
@@ -106,6 +113,8 @@ pub fn prepare_impl(state: &Arc<AppState>) -> AppResult<UninstallPrepInfo> {
 ///
 /// As [`prepare_impl`].
 #[tauri::command]
-pub async fn app_prepare_uninstall(state: tauri::State<'_, Arc<AppState>>) -> AppResult<UninstallPrepInfo> {
+pub async fn app_prepare_uninstall(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<UninstallPrepInfo> {
     crate::ipc::blocking(state.inner(), "preparing to uninstall", prepare_impl).await
 }

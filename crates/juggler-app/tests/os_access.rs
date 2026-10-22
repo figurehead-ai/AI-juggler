@@ -26,7 +26,10 @@ fn the_list_is_per_platform_and_every_entry_says_why_and_what_next() {
     let list = os_access::os_access_list_impl(&state);
     if cfg!(target_os = "macos") {
         let ids: Vec<&str> = list.iter().map(|entry| entry.id.as_str()).collect();
-        assert_eq!(ids, ["focus", "preview"]);
+        // Screen Recording only once a tool can show a live preview: none
+        // can yet, so it's never asked for (the docs fact-check).
+        assert_eq!(ids, ["focus"]);
+        assert!(!os_access::preview_supported(&state));
     } else {
         assert!(list.is_empty(), "no OS access step where nothing is needed");
     }
@@ -64,4 +67,6 @@ fn an_id_this_platform_does_not_list_is_refused() {
     let state = app_state(dir.path());
     let refused = os_access::os_access_request_impl(&state, "full-disk").unwrap_err();
     assert!(refused.to_string().contains("isn't needed"), "{refused}");
+    // Nor Screen Recording, while no tool can use it: no prompt is raised.
+    assert!(os_access::os_access_request_impl(&state, "preview").is_err());
 }

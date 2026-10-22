@@ -317,7 +317,10 @@ struct JugglerWorktree {
 
 /// The worktrees AI Juggler made, `(path, branch)`, as recorded.
 pub(crate) fn created_worktrees(state: &Arc<AppState>) -> Vec<(String, String)> {
-    created(state).into_iter().map(|row| (row.path, row.branch)).collect()
+    created(state)
+        .into_iter()
+        .map(|row| (row.path, row.branch))
+        .collect()
 }
 
 fn created(state: &Arc<AppState>) -> Vec<JugglerWorktree> {

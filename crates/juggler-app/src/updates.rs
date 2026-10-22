@@ -152,7 +152,11 @@ const UNDECIDED: &str = "undecided";
 pub(crate) fn note_install(storage: &juggler_core::storage::Storage, fresh: bool) {
     let settings = storage.app_settings();
     if settings.get(CHANNEL_DEFAULT_KEY).ok().flatten().is_none() {
-        let value = if fresh { UNDECIDED } else { Channel::Beta.as_str() };
+        let value = if fresh {
+            UNDECIDED
+        } else {
+            Channel::Beta.as_str()
+        };
         let _ = settings.set(CHANNEL_DEFAULT_KEY, value);
     }
 }
@@ -180,9 +184,15 @@ fn first_channel(state: &Arc<AppState>, feed: &dyn UpdateFeed) {
     let Ok(on_stable) = feed.carries_this_version(Channel::Stable) else {
         return;
     };
-    let channel = if on_stable { Channel::Stable } else { Channel::Beta };
+    let channel = if on_stable {
+        Channel::Stable
+    } else {
+        Channel::Beta
+    };
     if let Ok(storage) = state.storage.lock() {
-        let _ = storage.app_settings().set(CHANNEL_DEFAULT_KEY, channel.as_str());
+        let _ = storage
+            .app_settings()
+            .set(CHANNEL_DEFAULT_KEY, channel.as_str());
     }
 }
 
@@ -358,7 +368,7 @@ pub trait UpdateFeed: Send + Sync {
     /// A [`FeedError`]; the running version is untouched.
     fn install(&self, bytes: &[u8]) -> Result<(), FeedError>;
     /// Whether `channel`'s feed carries this exact version (a fresh
-    /// install's channel, [`first_channel`]). A feed that can't tell says
+    /// install's channel, recorded on its first check). A feed that can't tell says
     /// no.
     ///
     /// # Errors

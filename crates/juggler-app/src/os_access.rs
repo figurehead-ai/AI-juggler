@@ -178,7 +178,7 @@ mod platform {
         let (status, action) = super::status_of(focus_granted, super::asked(state, "focus"));
         let (preview_status, preview_action, preview_note) =
             super::preview_state(screen_recording_allowed(), super::asked(state, "preview"));
-        vec![
+        let mut entries = vec![
             OsAccessInfo {
                 id: "focus".to_owned(),
                 title: "Jump to a session's own window".to_owned(),
@@ -199,8 +199,27 @@ mod platform {
                 action: preview_action.to_owned(),
                 note: preview_note.map(str::to_owned),
             },
-        ]
+        ];
+        // Screen Recording only once a tool can show a live preview: never
+        // ask for a permission nothing can use (the docs fact-check).
+        if !super::preview_supported(state) {
+            entries.retain(|entry| entry.id != "preview");
+        }
+        entries
     }
+}
+
+/// Whether any registered tool can show a session's live preview (its
+/// adapter declares a desktop app). None does today.
+#[must_use]
+pub fn preview_supported(state: &Arc<AppState>) -> bool {
+    state.registry.ids().iter().any(|id| {
+        state.registry.get(id).is_some_and(|adapter| {
+            adapter
+                .capabilities()
+                .contains(juggler_adapter::Capabilities::DESKTOP_APP)
+        })
+    })
 }
 
 #[cfg(not(target_os = "macos"))]

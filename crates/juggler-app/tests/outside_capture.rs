@@ -390,15 +390,31 @@ fn with_ai_jugglers_data_deleted_the_users_own_line_still_prints() {
     let root = work.path().canonicalize().unwrap();
     let (state, account, dir) = setup(&root, Some(&their_line(&root)), true);
     let preview = preview_impl(&state, &account).unwrap();
-    assert!(preview.after.contains("aij-statusline"), "the preview shows the fail-safe line: {}", preview.after);
+    assert!(
+        preview.after.contains("aij-statusline"),
+        "the preview shows the fail-safe line: {}",
+        preview.after
+    );
     turn_on_impl(&state, &account, &preview.fingerprint).unwrap();
     let text = std::fs::read_to_string(dir.join("settings.json")).unwrap();
-    let line: serde_json::Value =
-        serde_json::from_str(&juggler_adapter::jsonc::value_text(&text, "statusLine").unwrap().unwrap()).unwrap();
+    let line: serde_json::Value = serde_json::from_str(
+        &juggler_adapter::jsonc::value_text(&text, "statusLine")
+            .unwrap()
+            .unwrap(),
+    )
+    .unwrap();
     let command = line["command"].as_str().unwrap().to_owned();
-    assert_eq!(status_line(&command), "MY LINE", "with AI Juggler: their line, through the wrapper");
+    assert_eq!(
+        status_line(&command),
+        "MY LINE",
+        "with AI Juggler: their line, through the wrapper"
+    );
     std::fs::remove_dir_all(root.join("app-data")).unwrap();
-    assert_eq!(status_line(&command), "MY LINE", "AI Juggler's data gone: still their line");
+    assert_eq!(
+        status_line(&command),
+        "MY LINE",
+        "AI Juggler's data gone: still their line"
+    );
 }
 
 /// The docs fact-check: removing the account puts the user's settings
@@ -411,12 +427,28 @@ fn removing_the_account_puts_the_users_settings_back() {
     let (state, account, dir) = setup(&root, Some(&before), true);
     let preview = preview_impl(&state, &account).unwrap();
     turn_on_impl(&state, &account, &preview.fingerprint).unwrap();
-    assert_ne!(std::fs::read_to_string(dir.join("settings.json")).unwrap(), before);
-    juggler_app::manage::account_remove_impl(&state, &account, juggler_app::manage::CopyFolder::Keep, &|_| Ok(()))
-        .unwrap();
-    assert_eq!(std::fs::read_to_string(dir.join("settings.json")).unwrap(), before, "every byte back");
+    assert_ne!(
+        std::fs::read_to_string(dir.join("settings.json")).unwrap(),
+        before
+    );
+    juggler_app::manage::account_remove_impl(
+        &state,
+        &account,
+        juggler_app::manage::CopyFolder::Keep,
+        &|_| Ok(()),
+    )
+    .unwrap();
+    assert_eq!(
+        std::fs::read_to_string(dir.join("settings.json")).unwrap(),
+        before,
+        "every byte back"
+    );
     assert!(
-        juggler_adapters::quota_ingest::outside_capture_record(&root.join("app-data/overlays"), &account).is_none(),
+        juggler_adapters::quota_ingest::outside_capture_record(
+            &root.join("app-data/overlays"),
+            &account
+        )
+        .is_none(),
         "the record is gone with it"
     );
 }
@@ -436,7 +468,10 @@ fn preparing_to_uninstall_puts_status_lines_back_and_lists_whats_left() {
     let prep = juggler_app::features::app::uninstall::prepare_impl(&state).unwrap();
     assert_eq!(prep.status_lines.len(), 1);
     assert_eq!(prep.status_lines[0].outcome, "restored");
-    assert_eq!(std::fs::read_to_string(dir.join("settings.json")).unwrap(), before);
+    assert_eq!(
+        std::fs::read_to_string(dir.join("settings.json")).unwrap(),
+        before
+    );
     assert!(root.join("app-data").is_dir(), "nothing deleted");
     assert!(!prep.data_folder.is_empty());
     assert_eq!(prep.keychain_services.len(), 2);

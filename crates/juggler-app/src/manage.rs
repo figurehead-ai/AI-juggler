@@ -25,7 +25,7 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use juggler_core::model::{AccountId, ProjectId, SessionStatus};
+use juggler_core::model::{Account, AccountId, ProjectId, SessionStatus};
 use serde::Serialize;
 use ts_rs::TS;
 
@@ -228,6 +228,31 @@ pub fn account_rename_impl(
     account_info(state, account_id)
 }
 
+/// Before an account used where it is goes: the user's own status line
+/// back, by the same rules as turning measuring off (exactly as it was,
+/// or only AI Juggler's value taken out). If it can't be, the account
+/// stays: a removed account must never leave their line pointing at AI
+/// Juggler (AJ-E1530, the docs fact-check).
+fn status_line_back(state: &Arc<AppState>, account: &Account) -> AppResult<()> {
+    let measured = juggler_adapters::quota_ingest::outside_capture_record(
+        &state.overlays_dir(),
+        account.id.as_str(),
+    )
+    .is_some();
+    if !measured {
+        return Ok(());
+    }
+    crate::features::quota::capture::turn_off_impl(state, account.id.as_str())
+        .map(|_| ())
+        .map_err(|error| {
+            AppError::Refused(format!(
+                "«{}»'s status line couldn't be put back ({error}), so the account stays. \
+                 Turn off measuring on its page, then remove it",
+                account.label
+            ))
+        })
+}
+
 /// Removes (forgets) an account. Refused while it has open sessions,
 /// naming them. An account used where it is never has its folder
 /// touched; a copy's folder stays, or goes to the Trash through `trash`
@@ -275,29 +300,10 @@ pub fn account_remove_impl(
             if count == 1 { "it" } else { "them" },
         )));
     }
-    // AJ-E1530: the user's own status line goes back before the account
-    // goes, by the same rules as turning measuring off (exactly as it was,
-    // or only AI Juggler's value taken out). If it can't, the account
-    // stays: a removed account must never leave their line pointing at
-    // AI Juggler.
-    let storage = if account.in_place
-        && folder == CopyFolder::Keep
-        && juggler_adapters::quota_ingest::outside_capture_record(
-            &state.overlays_dir(),
-            account.id.as_str(),
-        )
-        .is_some()
-    {
+    // AJ-E1530: the user's own status line goes back first.
+    let storage = if account.in_place && folder == CopyFolder::Keep {
         drop(storage);
-        crate::features::quota::capture::turn_off_impl(state, account.id.as_str()).map_err(
-            |error| {
-                AppError::Refused(format!(
-                    "«{}»'s status line couldn't be put back ({error}), so the account stays. \
-                     Turn off measuring on its page, then remove it",
-                    account.label
-                ))
-            },
-        )?;
+        status_line_back(state, &account)?;
         lock_storage_arc(state)?
     } else {
         storage

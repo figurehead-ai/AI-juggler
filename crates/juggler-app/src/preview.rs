@@ -288,7 +288,12 @@ pub fn sweep_frames(dir: &std::path::Path) -> usize {
         .filter(|path| {
             path.file_name()
                 .and_then(|name| name.to_str())
-                .is_some_and(|name| name.starts_with("aij-preview-") && name.ends_with(".png"))
+                .is_some_and(|name| {
+                    name.starts_with("aij-preview-")
+                        && std::path::Path::new(name)
+                            .extension()
+                            .is_some_and(|ext| ext.eq_ignore_ascii_case("png"))
+                })
         })
         .filter(|path| old(path) && std::fs::remove_file(path).is_ok())
         .count()
@@ -438,7 +443,6 @@ mod tests {
     use std::sync::Arc;
     use std::sync::Mutex;
 
-
     #[test]
     fn old_preview_frames_are_swept_and_nothing_else() {
         let tmp = tempfile::tempdir().unwrap();
@@ -450,7 +454,12 @@ mod tests {
         }
         let hour_ago = std::time::SystemTime::now() - std::time::Duration::from_secs(3600);
         for path in [&frame, &other] {
-            std::fs::File::options().write(true).open(path).unwrap().set_modified(hour_ago).unwrap();
+            std::fs::File::options()
+                .write(true)
+                .open(path)
+                .unwrap()
+                .set_modified(hour_ago)
+                .unwrap();
         }
         assert_eq!(sweep_frames(tmp.path()), 1);
         assert!(!frame.exists() && fresh.exists() && other.exists());

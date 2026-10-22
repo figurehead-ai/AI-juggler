@@ -908,16 +908,16 @@ function BoardRow({
       )}
       <RailRow session={row} showProject={showProject} selected={selected} onSelect={onSelect} density={density} now={now} freshness={freshness} />
       {/* I-03: a model that drifted from its launch settings is worth a
-          glance (cost and behaviour differ) — beside the row, focusable.
-          Compact rows have no room beside the time; the session view
-          says it there. */}
+          glance (cost and behaviour differ) — beside the row, focusable,
+          clear of the tool's mark and the avatar. Compact rows
+          have no room beside the time; the session view says it there. */}
       {density === "comfortable" && modelDrift(row) && (
         <span
           title={modelDrift(row)!}
           aria-label={modelDrift(row)!}
           tabIndex={0}
           data-testid="model-drift"
-          className="absolute right-7 top-1.5 z-10 rounded-full border border-warning/25 bg-warning-soft px-1 text-[10px] font-medium text-warning outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
+          className="absolute right-12 top-1.5 z-10 rounded-full border border-warning/25 bg-warning-soft px-1 text-[10px] font-medium text-warning outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
         >
           ⇄
         </span>

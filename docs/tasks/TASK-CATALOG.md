@@ -194,6 +194,7 @@
 | AJ-E1536 | History you can scan | E15-spec-gaps.md | P1 | S | AJ-E1533 |
 | AJ-E1537 | Context menus and ⋯ menus from one action registry | E15-spec-gaps.md | P1 | M | AJ-E1502, AJ-E1533 |
 | AJ-E1538 | Search the words of sessions started outside AI Juggler (opt-in) | E15-spec-gaps.md | P2 | M | AJ-E1536 |
+| AJ-E1539 | LiveStatsCollector in its own module | E15-spec-gaps.md | P2 | S | AJ-E2011 |
 | AJ-E1601 | Accounts on a compatible endpoint: OpenCode Go and Kimi on Claude Code and Codex | E16-more-tools.md | P0 | S | AJ-E1521 |
 | AJ-E1602 | OpenCode CLI | E16-more-tools.md | P0 | M | AJ-E1521 |
 | AJ-E1603 | Kimi Code CLI | E16-more-tools.md | P0 | M | AJ-E1521 |
@@ -241,5 +242,5 @@
 | AJ-E2017 | Features as modules: split commands.rs and AppState | E20-engineering-and-security.md | P1 | L | AJ-E2011 |
 | AJ-E2018 | UI: split bridge.ts, keep preview out of production, a shell registry | E20-engineering-and-security.md | P1 | L | AJ-E2012 |
 | AJ-E2019 | Typed command wrappers | E20-engineering-and-security.md | P2 | M | AJ-E2018 |
-Total: 239 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+Total: 240 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

@@ -183,12 +183,14 @@ describe("D-25 first run — the flow", () => {
       fireEvent.click(getByTestId("first-run-bring-in"));
     });
     const access = await findByTestId("first-run-access");
-    expect(access.textContent).toContain("2 optional permissions make it smoother.");
+    // Screen Recording isn't asked for while no tool can show a preview.
+    expect(access.textContent).toContain("One optional permission makes it smoother.");
+    expect(access.textContent).not.toContain("Screen Recording");
     await act(async () => {
-      fireEvent.click(within(getByTestId("first-run-access-preview")).getByRole("button", { name: /^Allow/ }));
+      fireEvent.click(within(getByTestId("first-run-access-focus")).getByRole("button", { name: /^Allow/ }));
     });
-    await waitFor(() => expect(getByTestId("first-run-access-preview").textContent).toContain("Allowed"));
-    expect(w().__AIJ_OS_ACCESS_CALLS__).toEqual(["request:preview"]);
+    await waitFor(() => expect(getByTestId("first-run-access-focus").textContent).toContain("Allowed"));
+    expect(w().__AIJ_OS_ACCESS_CALLS__).toEqual(["request:focus"]);
     fireEvent.click(getByTestId("first-run-start"));
     expect(onDone).toHaveBeenCalledOnce();
   });

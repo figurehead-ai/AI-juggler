@@ -80,7 +80,9 @@ fn ai_juggler_is_open() -> bool {
 fn a_second_launch_never_opens_the_data() {
     let _serial = serial();
     if ai_juggler_is_open() {
-        eprintln!("skipped: an AI Juggler build is open, and this build shares its single-instance name");
+        eprintln!(
+            "skipped: an AI Juggler build is open, and this build shares its single-instance name"
+        );
         return;
     }
     // A socket left by an AI Juggler that crashed (none is open now) would
@@ -199,7 +201,9 @@ fn held_home() -> (tempfile::TempDir, PathBuf, std::fs::File) {
 fn a_second_launch_says_a_frozen_app_isnt_answering() {
     let _serial = serial();
     if ai_juggler_is_open() {
-        eprintln!("skipped: an AI Juggler build is open, and this build shares its single-instance name");
+        eprintln!(
+            "skipped: an AI Juggler build is open, and this build shares its single-instance name"
+        );
         return;
     }
     let (home, data, lock) = held_home();
@@ -242,7 +246,9 @@ fn a_second_launch_says_a_frozen_app_isnt_answering() {
 fn a_second_launch_hands_over_to_an_app_that_answers() {
     let _serial = serial();
     if ai_juggler_is_open() {
-        eprintln!("skipped: an AI Juggler build is open, and this build shares its single-instance name");
+        eprintln!(
+            "skipped: an AI Juggler build is open, and this build shares its single-instance name"
+        );
         return;
     }
     let (home, data, lock) = held_home();
@@ -324,7 +330,9 @@ impl Drop for ReapTagged {
 fn the_isnt_answering_alerts_quit_quits() {
     let _serial = serial();
     if ai_juggler_is_open() {
-        eprintln!("skipped: an AI Juggler build is open, and this build shares its single-instance name");
+        eprintln!(
+            "skipped: an AI Juggler build is open, and this build shares its single-instance name"
+        );
         return;
     }
     let (home, data, lock) = held_home();
@@ -360,7 +368,9 @@ fn the_isnt_answering_alerts_quit_quits() {
 fn the_isnt_answering_alerts_try_again_starts_once_the_data_is_free() {
     let _serial = serial();
     if ai_juggler_is_open() {
-        eprintln!("skipped: an AI Juggler build is open, and this build shares its single-instance name");
+        eprintln!(
+            "skipped: an AI Juggler build is open, and this build shares its single-instance name"
+        );
         return;
     }
     let (home, data, lock) = held_home();
