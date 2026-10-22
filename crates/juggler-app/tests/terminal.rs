@@ -23,6 +23,8 @@ use juggler_app::state::AppState;
 use juggler_app::terminal;
 use juggler_core::model::SessionId;
 use juggler_supervisor::Supervisor;
+#[path = "../../juggler-supervisor/tests/fixtures/stand_in.rs"]
+mod stand_in;
 
 fn ctx() -> juggler_supervisor::tree::SpawnContext {
     juggler_supervisor::tree::SpawnContext {
@@ -94,14 +96,11 @@ fn login_terminal_spawn_uses_the_account_scoped_env() {
     // (ADR-0003/0006): prove it by pointing the "claude" binary at a stub
     // that records CLAUDE_CONFIG_DIR.
     let work = tempfile::tempdir().unwrap();
-    use std::os::unix::fs::PermissionsExt;
     let stub = work.path().join("claude-stub");
-    std::fs::write(
+    stand_in::write(
         &stub,
         "#!/bin/sh\nprintf '%s' \"$CLAUDE_CONFIG_DIR\" > \"$CLAUDE_CONFIG_DIR/login-ran\"\n",
-    )
-    .unwrap();
-    std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).unwrap();
+    );
 
     let mut registry = AdapterRegistry::new();
     registry.register(Arc::new(ClaudeCodeAdapter::with_bin(&stub)));

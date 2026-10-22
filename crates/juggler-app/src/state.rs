@@ -126,7 +126,9 @@ impl AppState {
     ) -> Result<Self, crate::error::AppError> {
         std::fs::create_dir_all(&data_dir)
             .map_err(|error| crate::error::AppError::io("create app data dir", &error))?;
+        let fresh = !data_dir.join("juggler.sqlite").exists();
         let storage = Storage::open(&data_dir.join("juggler.sqlite"))?;
+        crate::updates::note_install(&storage, fresh);
         // AJ-E501: the persistent spawn ledger — its OWN connection to
         // the same WAL store (spawn threads + reconciler ticks write
         // without the app's storage mutex), attached to the supervisor

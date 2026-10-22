@@ -19,9 +19,11 @@
  * J/K or the arrows move between rows, Enter opens, A runs the row's
  * action. The ledger-degraded banner moved here from Overview.
  */
+import { AccountAvatar } from "../components/Avatar";
+import { ProjectMark } from "../components/ProjectMark";
+import { ToolMark } from "../components/ToolMark";
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent } from "react";
 import { Button } from "../components/primitives";
-import { hueOf } from "../components/indicator";
 import { MorningSummary } from "../components/MorningSummary";
 import { ThisMacPanel } from "../components/ThisMacPanel";
 import { ScreenBoundary } from "../components/ScreenBoundary";
@@ -118,9 +120,6 @@ function SectionTitle({ id, children }: { id: string; children: string }): JSX.E
   );
 }
 
-function AccountDot({ id }: { id: string | null }): JSX.Element {
-  return <span aria-hidden="true" className="size-2 shrink-0 rounded-full" style={{ background: `hsl(${hueOf(id)} 70% 66%)` }} />;
-}
 
 export function HomeScreen({
   sessions,
@@ -599,13 +598,15 @@ export function HomeScreen({
                         onClick={() => onOpenSession(session.id)}
                       >
                         <span aria-hidden="true" className="size-2 shrink-0 rounded-full bg-live shadow-[0_0_0_4px_var(--color-live-soft)]" />
+                        <ProjectMark projectId={session.project_id} size={16} />
                         <span className="min-w-0 flex-1 truncate text-sm text-ink">
                           {place.title}
                           {session.git_branch && <span className="text-faint"> · {session.git_branch}</span>}
                         </span>
                         <span className="flex items-center gap-1.5 text-xs text-muted">
-                          <AccountDot id={session.account_id} />
-                          {session.account_label}
+                          <ToolMark tool={session.provider} size={12} className="shrink-0" />
+                          <AccountAvatar accountId={session.account_id} label={session.account_label} size={16} />
+                          <span><span className="sr-only">on </span>{session.account_label}</span>
                         </span>
                         <span className="w-14 text-right font-mono text-xs text-faint">{minutes(session.started_at_ms, now)}</span>
                       </button>
@@ -627,6 +628,7 @@ export function HomeScreen({
                   return (
                     <li key={session.id} data-home-item className="flex flex-wrap items-center gap-x-3.5 gap-y-2 border-t border-hairline/60 px-4 py-2.5 first:border-t-0">
                       <span aria-hidden="true" className="w-4 shrink-0 text-center text-xs text-muted">⏸</span>
+                      <ProjectMark projectId={session.project_id} size={16} />
                       <span className="flex min-w-0 flex-1 basis-40 flex-col gap-0.5">
                         <span className="truncate text-sm text-ink">
                           {place.title}
@@ -664,7 +666,7 @@ export function HomeScreen({
               <div key={row.account.id} className="flex flex-col gap-1.5 border-t border-hairline/60 py-3 first:border-t-0" data-testid="home-runway-account">
                 <div className="flex items-center justify-between gap-3 text-sm">
                   <span className="flex min-w-0 items-center gap-2 font-medium text-ink">
-                    <AccountDot id={row.account.id} />
+                    <AccountAvatar accountId={row.account.id} label={row.account.label} size={18} />
                     <span className="truncate">{row.account.label}</span>
                   </span>
                   <span className={"shrink-0 font-mono text-xs " + (row.left !== null && row.left <= 25 ? "text-warning" : "text-muted")}>

@@ -19,12 +19,14 @@ pub mod conversation;
 pub mod discovery;
 pub mod environment;
 pub mod error;
+pub mod file_trust;
 pub mod handover;
 pub mod identity;
 pub mod jsonc;
 pub mod launch;
 pub mod registry;
 pub mod spec;
+pub mod system_tools;
 pub mod user_path;
 pub mod watcher;
 

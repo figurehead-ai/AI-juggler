@@ -43,6 +43,9 @@ pub const FEED_BASE: &str = match option_env!("AIJ_UPDATER_FEED_BASE") {
 const PINNED_ENDPOINT: Option<&str> = option_env!("AIJ_UPDATER_ENDPOINT");
 const CHECK_ON_LAUNCH_KEY: &str = "update_check_on_launch";
 const CHANNEL_KEY: &str = "update_channel";
+/// The channel a main install follows until the user chooses one: the
+/// one it was published to, recorded once (see [`first_channel`]).
+const CHANNEL_DEFAULT_KEY: &str = "update_channel_default";
 
 /// D-20: the update channels. One version stream: a build is made once
 /// (nightly) and promoted, so moving to a steadier channel never
@@ -122,16 +125,75 @@ impl Channel {
 /// back to the default). Each read also refreshes [`current_channel`].
 pub(crate) fn channel_of(state: &Arc<AppState>) -> Channel {
     let edition = crate::edition::current();
-    let channel = state
-        .storage
-        .lock()
-        .ok()
-        .and_then(|storage| storage.app_settings().get(CHANNEL_KEY).ok().flatten())
-        .and_then(|raw| Channel::parse(&raw))
-        .filter(|channel| Channel::offered(edition).contains(channel))
+    let stored = |key: &str| {
+        state
+            .storage
+            .lock()
+            .ok()
+            .and_then(|storage| storage.app_settings().get(key).ok().flatten())
+            .and_then(|raw| Channel::parse(&raw))
+            .filter(|channel| Channel::offered(edition).contains(channel))
+    };
+    let channel = stored(CHANNEL_KEY)
+        .or_else(|| stored(CHANNEL_DEFAULT_KEY))
         .unwrap_or_else(|| Channel::default_for(edition));
     CURRENT.store(channel as u8, std::sync::atomic::Ordering::Relaxed);
     channel
+}
+
+/// Not decided yet: a fresh install whose first check hasn't read the
+/// stable feed.
+const UNDECIDED: &str = "undecided";
+
+/// At startup: a fresh install is marked undecided, to learn its channel
+/// from the feeds ([`first_channel`]); an install already in use when
+/// this rule arrived keeps the channel it followed (beta, the default
+/// until then).
+pub(crate) fn note_install(storage: &juggler_core::storage::Storage, fresh: bool) {
+    let settings = storage.app_settings();
+    if settings.get(CHANNEL_DEFAULT_KEY).ok().flatten().is_none() {
+        let value = if fresh {
+            UNDECIDED
+        } else {
+            Channel::Beta.as_str()
+        };
+        let _ = settings.set(CHANNEL_DEFAULT_KEY, value);
+    }
+}
+
+/// A fresh main install's channel, recorded on its first check: stable
+/// when the stable feed carries this exact version (someone downloaded
+/// the stable release), else beta (a beta release; no stable feed yet).
+/// Promotion doesn't rebuild, so the build can't know this itself. When
+/// the stable feed can't be read, nothing is recorded and beta is used
+/// until a later check can. The user's own choice always wins.
+fn first_channel(state: &Arc<AppState>, feed: &dyn UpdateFeed) {
+    if crate::edition::current() != Edition::Main {
+        return;
+    }
+    let read = |key: &str| {
+        state
+            .storage
+            .lock()
+            .ok()
+            .and_then(|storage| storage.app_settings().get(key).ok().flatten())
+    };
+    if read(CHANNEL_KEY).is_some() || read(CHANNEL_DEFAULT_KEY).as_deref() != Some(UNDECIDED) {
+        return;
+    }
+    let Ok(on_stable) = feed.carries_this_version(Channel::Stable) else {
+        return;
+    };
+    let channel = if on_stable {
+        Channel::Stable
+    } else {
+        Channel::Beta
+    };
+    if let Ok(storage) = state.storage.lock() {
+        let _ = storage
+            .app_settings()
+            .set(CHANNEL_DEFAULT_KEY, channel.as_str());
+    }
 }
 
 static CURRENT: std::sync::atomic::AtomicU8 =
@@ -305,6 +367,17 @@ pub trait UpdateFeed: Send + Sync {
     ///
     /// A [`FeedError`]; the running version is untouched.
     fn install(&self, bytes: &[u8]) -> Result<(), FeedError>;
+    /// Whether `channel`'s feed carries this exact version (a fresh
+    /// install's channel, recorded on its first check). A feed that can't tell says
+    /// no.
+    ///
+    /// # Errors
+    ///
+    /// A [`FeedError`] when the feed can't be read.
+    fn carries_this_version(&self, channel: Channel) -> Result<bool, FeedError> {
+        let _ = channel;
+        Ok(false)
+    }
 }
 
 /// The in-memory update state (one per app).
@@ -574,6 +647,7 @@ pub fn update_check_impl(
         status.set_state("checking");
         clear_error(status);
     });
+    first_channel(state, feed);
     let result = feed.check();
     let now = juggler_core::model::Timestamp::now().millis();
     Ok(state.updates.update(|status| {
@@ -857,6 +931,34 @@ impl<R: tauri::Runtime> PluginFeed<R> {
 }
 
 impl<R: tauri::Runtime> UpdateFeed for PluginFeed<R> {
+    fn carries_this_version(&self, channel: Channel) -> Result<bool, FeedError> {
+        use tauri_plugin_updater::UpdaterExt as _;
+        // A build pinned to one feed (fixtures, local tests) can't tell.
+        if self.endpoint.is_some() || PINNED_ENDPOINT.is_some() {
+            return Ok(false);
+        }
+        let url = channel.endpoint().parse().map_err(|e| {
+            FeedError::new(
+                FailureKind::Feed,
+                format!("the update feed address is invalid ({e})"),
+            )
+        })?;
+        // Found only when the feed's version is this one.
+        let updater = self
+            .app
+            .updater_builder()
+            .pubkey(self.pubkey.clone())
+            .endpoints(vec![url])
+            .map_err(|e| feed_error(&e, FailureKind::Feed))?
+            .version_comparator(|current, remote| remote.version == current)
+            .timeout(std::time::Duration::from_secs(20))
+            .build()
+            .map_err(|e| feed_error(&e, FailureKind::Feed))?;
+        let found = tauri::async_runtime::block_on(updater.check())
+            .map_err(|e| feed_error(&e, FailureKind::Network))?;
+        Ok(found.is_some())
+    }
+
     fn check(&self) -> Result<Option<AnnouncedInfo>, FeedError> {
         let updater = self.updater()?;
         let found = tauri::async_runtime::block_on(updater.check())

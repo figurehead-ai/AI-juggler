@@ -2740,6 +2740,7 @@ version = "0.0.1"
 dependencies = [
  "bitflags 2.13.2",
  "juggler-core",
+ "nix 0.31.3",
  "serde_json",
  "sha2 0.11.1",
  "tempfile",

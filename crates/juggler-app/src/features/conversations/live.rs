@@ -104,6 +104,7 @@ pub fn running_sessions(
         ProcessesToUpdate::All,
         true,
         ProcessRefreshKind::nothing()
+            .without_tasks()
             .with_exe(UpdateKind::Always)
             .with_cmd(UpdateKind::Always),
     );
@@ -141,6 +142,7 @@ pub fn running_sessions(
         ProcessesToUpdate::Some(&wanted),
         false,
         ProcessRefreshKind::nothing()
+            .without_tasks()
             .with_environ(UpdateKind::Always)
             .with_cwd(UpdateKind::Always),
     );

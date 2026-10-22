@@ -194,6 +194,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- This Mac counts what a session starts as soon as it starts (within about
+  4 seconds). A build fanning out under a Claude app session could be
+  missed for up to 10 seconds, so the app's figure read far too low.
+- This Mac never drops a tool without a word: past the three heaviest, the
+  rest are behind "and N more". Search helpers a finished Claude Code
+  session left running are no longer counted as Claude in a terminal.
+- Codex's context compactions now count, once: the usage of the compaction
+  call, which Codex records outside its turns, was missed, and could count
+  twice when AI Juggler read the file just as the compaction was written.
+- A conversation resumed into a new session repeats the original's
+  history. Its cost now stays with the original session, whatever order AI
+  Juggler reads the files in, including a copy of a copy and a fork that
+  both go on. In a few cases the copy is still credited with the shared
+  part: an original that writes first after a fork, a fork resumed again
+  before it wrote anything, and a resume that never wrote. An account's
+  total is right either way. Counts already stored are read again once, so
+  these fixes reach them.
+- The tools AI Juggler runs are found in fixed system places, never by
+  searching your `PATH` (git included).
+
 - An account's limits no longer read "100% left" when nothing has been
   measured yet: on Home, Accounts, Usage, a session's details and New
   session, a window with no reading says "Not measured yet". It also
@@ -348,6 +368,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Telling projects and sessions apart** (AJ-E1532). Every project has
+  a mark, the same on the rail, Home, History and its page: its own icon
+  when its folder has one (a Tauri, Electron or Xcode app icon, a
+  favicon or a logo, read and never changed), else two letters on one of
+  twelve colours that stay apart in both themes. Clones of one
+  repository share their mark and carry their number. **Change its
+  mark…** in a project's menu picks the colour, letters or an emoji.
+  Every account now has a round avatar in its colour, with initials that
+  tell accounts sharing a first word apart ("Wo" and "Pe" for
+  claude-work and claude-personal). A session row shows its tool and the
+  account serving it, and says "on Work Max" to a screen reader. A
+  project's row shows the accounts that worked there, a ring on any
+  running there now. A folded project shows as a stripe in its colour.
 - **A welcome for new installs** (AJ-E1524). With no accounts yet, Home
   now explains what AI Juggler is for and what it found on this Mac
   ("We found Claude Code and Codex on this Mac", or install links when

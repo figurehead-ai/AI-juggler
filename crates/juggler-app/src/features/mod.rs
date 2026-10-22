@@ -2,6 +2,7 @@
 //! DTOs and (where it keeps state) a service and a repository. New
 //! features land here, not in `commands.rs`.
 
+pub mod app;
 pub mod conversations;
 pub mod projects;
 pub mod quota;

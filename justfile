@@ -169,7 +169,7 @@ replica-oracle:
     bin=$(ls -t {{target_dir}}/debug/deps/qa_real_readonly-* | grep -v '\.d$' | sed -n 1p)
     work=$(mktemp -d)
     env -i HOME={{replica_home}} USER="$USER" TMPDIR="$TMPDIR" PATH=/usr/bin:/bin:/usr/sbin:/sbin \
-        AIJ_QA_REAL_DATA="$work/data" AIJ_QA_REAL_OUT="$work/harness.json" "$bin" --ignored --nocapture > "$work/harness.log" 2>&1
+        AIJ_QA_REAL_DATA="$work/data" AIJ_QA_REAL_OUT="$work/harness.json" AIJ_QA_ICONS=1 "$bin" --ignored --nocapture > "$work/harness.log" 2>&1
     dirs=()
     for d in {{replica_home}}/.claude-*/; do dirs+=(--claude-dir "$d"); done
     for d in {{replica_home}}/.codex-*/; do dirs+=(--codex-dir "$d"); done
@@ -184,9 +184,15 @@ replica-fixture:
     bin=$(ls -t {{target_dir}}/debug/deps/qa_real_readonly-* | grep -v '\.d$' | sed -n 1p)
     work=$(mktemp -d)
     env -i HOME={{replica_home}} USER="$USER" TMPDIR="$TMPDIR" PATH=/usr/bin:/bin:/usr/sbin:/sbin \
-        AIJ_QA_REAL_DATA="$work/data" AIJ_QA_REAL_OUT="$work/harness.json" "$bin" --ignored --nocapture > "$work/harness.log" 2>&1
+        AIJ_QA_REAL_DATA="$work/data" AIJ_QA_REAL_OUT="$work/harness.json" AIJ_QA_ICONS=1 "$bin" --ignored --nocapture > "$work/harness.log" 2>&1
     python3 -I scripts/qa/replica_fixture.py "$work/harness.json" ui/tests/visual/fixtures/replica.json
     rm -rf "$work"
+
+# The README's screenshots, both themes, from the replica's fixture only
+# (`just replica-fixture` makes it, refusing any HOME but the replica's):
+# docs/assets/readme/. Never real data.
+readme-shots:
+    cd ui && AIJ_README_SHOTS=1 AIJ_PW_PORT=${AIJ_PW_PORT:-4595} pnpm exec playwright test readme-shots
 
 # Cargo, rustup and corepack keep their own homes while HOME is the replica.
 # Run AI Juggler Dev on the replica HOME.

@@ -1,4 +1,5 @@
 import { RowPlaceholders } from "../components/Placeholder";
+import { AccountAvatar } from "../components/Avatar";
 import { useCallback, useEffect, useState } from "react";
 import { Button, Card, Chip, type ChipTone } from "../components/primitives";
 import { renewalLabel, renewalRowVisible } from "../lib/renewal";
@@ -345,6 +346,7 @@ function AccountCard({
         <HarnessGlyph provider={account.provider} onClick={onInspect} />
         <div className="min-w-0">
           <div className="flex items-center gap-2">
+            <AccountAvatar accountId={account.id} label={account.label} size={20} />
             <button type="button" onClick={onInspect} title={`Open ${account.label}'s page`} className="truncate rounded text-sm font-semibold outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="account-label">{account.label}</button>
             {account.plan && <Chip tone="accent">{account.plan}</Chip>}
             {account.is_default && (

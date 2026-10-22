@@ -70,5 +70,5 @@ it("an account's page is under Accounts; the open project's rail heading is sele
   await waitFor(() => expect(view.getByTestId("page-type").textContent).toBe("Project"));
   expect(heading.getAttribute("aria-current")).toBe("true");
   expect(navItem(view, "Accounts").getAttribute("aria-current")).toBeNull();
-  expect(view.getByTestId("mark-project")).toBeTruthy();
+  expect(within(view.getByTestId("page-header")).getByTestId("mark-project")).toBeTruthy();
 });

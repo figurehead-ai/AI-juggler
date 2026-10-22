@@ -408,7 +408,7 @@ export const MOCK_PROJECTS: ProjectInfo[] = seeded.projects ?? [
     active_instance: MOCK_SESSIONS[0],
     accounts_used: ["Work Max"],
     instance_count: 1,
-    history_sessions: 0, history_last_used_ms: null, repo: null,
+    history_sessions: 0, history_last_used_ms: null, repo: null, mark: { letters: "AJ", swatch: 0, shows: "letters" },
     missing: false,
   },
   {
@@ -419,7 +419,7 @@ export const MOCK_PROJECTS: ProjectInfo[] = seeded.projects ?? [
     active_instance: null,
     accounts_used: ["Personal", "Work Max"],
     instance_count: 2,
-    history_sessions: 14, history_last_used_ms: null, repo: null, missing: false,
+    history_sessions: 14, history_last_used_ms: null, repo: null, missing: false, mark: { letters: "PA", swatch: 1, shows: "letters" },
   },
 ];
 
@@ -1209,16 +1209,10 @@ const MOCK_OS_ACCESS: OsAccessInfo[] = [
     action: "prompt",
     note: null,
   },
-  {
-    id: "preview",
-    title: "See a live preview of each session",
-    why: "Shows a session's window inside AI Juggler, on this Mac only; nothing is recorded or sent.",
-    system_name: "Screen Recording",
-    status: "not_asked",
-    action: "prompt",
-    note: "macOS may ask you to reopen AI Juggler after you allow it.",
-  },
 ];
+// No "preview" (Screen Recording): as the backend, it's offered only once
+// a tool can show a live preview, and none can yet. Tests of its reopen
+// flow seed it through `__AIJ_OS_ACCESS__`.
 
 /** What this OS needs, as it stands (never prompts — safe to poll). */
 export async function osAccessList(): Promise<OsAccessInfo[]> {

@@ -33,6 +33,8 @@ export interface ActionHost {
   editorName?: () => string | null;
   copyProjectPath?: (project: ProjectInfo) => void | Promise<void>;
   renameProject?: (project: ProjectInfo) => void;
+  /** AJ-E1532: its colour, letters, emoji or icon. */
+  markProject?: (project: ProjectInfo) => void;
   pinProject?: (project: ProjectInfo) => void | Promise<void>;
   relocateProject?: (project: ProjectInfo) => void | Promise<void>;
   forgetProject?: (project: ProjectInfo) => void;

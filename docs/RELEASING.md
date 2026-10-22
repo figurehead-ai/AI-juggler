@@ -68,7 +68,14 @@ overlay `tauri.conf.json`); a debug build is always Dev. So:
   only reports: the user sees the new version and its notes, and nothing is
   downloaded or installed until they choose **Install**.
 - **The channel** is chosen in AI Juggler's Settings › About & updates:
-  Stable or Beta. Installs follow Beta until the first stable release.
+  Stable or Beta. Until the user chooses, an install follows the channel
+  it was published to. Promotion doesn't rebuild, so a fresh install
+  learns this on its first update check: when the stable feed carries
+  this exact version (it was downloaded as a stable release), it follows
+  Stable; otherwise (a beta release, or no stable feed yet) Beta. If that
+  check can't read the stable feed, it follows Beta until a later check
+  can. An install that existed before this rule keeps Beta. The user's
+  own choice always wins.
   Nightly builds are the separate AI Juggler Nightly app, which always
   follows the nightly feed. Moving to a
   steadier channel never goes back to an older version: that channel is

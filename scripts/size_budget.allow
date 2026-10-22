@@ -5,10 +5,14 @@
 # main's #108/#112/#115 were written before this budget existed. Profiles'
 # account sheets moved to AccountManage.tsx; the rest are capped where
 # the merge left them.
+# Two caps re-based 2026-10-22 at the merge of main (#126): main's #126 grew
+# usage_stats.rs and supervisor.rs, and main has no budget (the
+# coordinator). AJ-E1544 splits LiveStatsCollector out once fix batch 4
+# (#130) is in release/0.1, and supervisor.rs's cap comes back down.
 crates/juggler-app/src/commands.rs 4245
 crates/juggler-app/src/link.rs 2382
-crates/juggler-app/src/usage_stats.rs 2085
-crates/juggler-supervisor/src/supervisor.rs 2848
+crates/juggler-app/src/usage_stats.rs 2088
+crates/juggler-supervisor/src/supervisor.rs 2962
 ui/src/App.tsx 1248
 ui/src/components/CrossMachineSwitchFlow.tsx 518
 ui/src/components/KillSheet.tsx 622
@@ -19,16 +23,16 @@ ui/src/components/SettingsSections.tsx 604
 ui/src/components/SwitchFlow.tsx 762
 ui/src/components/SwitchGraph.tsx 433
 ui/src/components/UpdatesCard.tsx 434
-ui/src/components/WorkflowRail.tsx 1847
-ui/src/components/indicator.tsx 548
+ui/src/components/WorkflowRail.tsx 1752
+ui/src/components/indicator.tsx 507
 ui/src/lib/bridge.ts 4952
 ui/src/lib/machine.ts 426
 ui/src/screens/CleanupCentre.tsx 809
 ui/src/screens/FirstRun.tsx 1432
 ui/src/screens/FleetScreen.tsx 838
-ui/src/screens/Home.tsx 818
+ui/src/screens/Home.tsx 781
 ui/src/screens/NewProjectSheet.tsx 423
 ui/src/screens/NewSession.tsx 524
 ui/src/screens/PairingWizard.tsx 816
-ui/src/screens/Profiles.tsx 767
-ui/src/screens/Settings.tsx 826
+ui/src/screens/Profiles.tsx 751
+ui/src/screens/Settings.tsx 780

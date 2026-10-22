@@ -3,12 +3,13 @@
  * PageShell's PageHeader): its mark and name, its parent as the crumb,
  * its state, two or three facts, and its actions with its ⋯ menu.
  */
+import { AccountAvatar } from "../components/Avatar";
 import type { ReactNode } from "react";
 import { PageHeader, type Crumb } from "./PageShell";
 import type { PageKind } from "./registry";
 import { ProjectFacts } from "./ProjectPage";
 import { Button, Chip, type ChipTone } from "../components/primitives";
-import { AccountDisc, STATE_WORDS, isActiveStatus, lowLeftWords, stateChip } from "../components/indicator";
+import { STATE_WORDS, isActiveStatus, lowLeftWords, stateChip } from "../components/indicator";
 import { ProjectMark } from "../components/ProjectMark";
 import { ToolMark } from "../components/ToolMark";
 import { InspectorHeaderMenu } from "../components/InspectorHeaderMenu";
@@ -159,7 +160,7 @@ export function InspectorHeader({
     kind === "provider" && data.provider ? (
       <ToolMark tool={data.provider.id} size={18} />
     ) : kind === "account" && account ? (
-      <AccountDisc accountId={account.id} label={account.label} size={20} />
+      <AccountAvatar accountId={account.id} label={account.label} size={20} />
     ) : kind === "instance" && state ? (
       <span className="relative flex" data-testid="mark-session">
         <IconTerminal width={16} height={16} />

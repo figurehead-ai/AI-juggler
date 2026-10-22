@@ -21,19 +21,18 @@ use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
 use juggler_app::commands;
 use juggler_app::state::AppState;
 use juggler_core::model::SessionStatus;
+#[path = "../../juggler-supervisor/tests/fixtures/stand_in.rs"]
+mod stand_in;
 
 /// A claude stub that records its argv under the isolated config dir and
 /// exits — enough to prove the switch (and undo) launched with
 /// `--resume <id>`.
 fn claude_stub(dir: &Path) -> std::path::PathBuf {
-    use std::os::unix::fs::PermissionsExt;
     let path = dir.join("claude-stub");
-    std::fs::write(
+    stand_in::write(
         &path,
         "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$CLAUDE_CONFIG_DIR/last-args\"\n",
-    )
-    .unwrap();
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    );
     path
 }
 

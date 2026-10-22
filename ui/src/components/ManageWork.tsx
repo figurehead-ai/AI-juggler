@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "./primitives";
 import { Field, Input, Modal } from "./form";
+import { MarkSheet } from "./MarkSheet";
 import type { ActionHost } from "../lib/actions";
 import {
   errorText,
@@ -141,7 +142,7 @@ function ProblemSheet({ title, message, onClose }: { title: string; message: str
  * relocate, forget. `host` gives them to the action registry. */
 export function useProjectManage(onChanged: () => void) {
   const editor = useEditorName();
-  const [sheet, setSheet] = useState<{ kind: "rename" | "forget"; project: ProjectInfo } | null>(null);
+  const [sheet, setSheet] = useState<{ kind: "rename" | "mark" | "forget"; project: ProjectInfo } | null>(null);
   const [problem, setProblem] = useState<{ title: string; message: string } | null>(null);
   const run = async (title: string, action: () => Promise<boolean | void>) => {
     try {
@@ -152,6 +153,7 @@ export function useProjectManage(onChanged: () => void) {
   };
   const actions = {
     rename: (project: ProjectInfo) => setSheet({ kind: "rename", project }),
+    mark: (project: ProjectInfo) => setSheet({ kind: "mark", project }),
     togglePin: (project: ProjectInfo) => run(`Couldn't pin ${project.name}`, () => projectSetPinned(project.id, !project.pinned)),
     open: (project: ProjectInfo) => run(`Couldn't open ${project.name}`, () => projectOpen(project.id, "editor")),
     reveal: (project: ProjectInfo) => run(`Couldn't show ${project.name}`, () => projectOpen(project.id, "finder")),
@@ -162,6 +164,7 @@ export function useProjectManage(onChanged: () => void) {
   };
   const host: ActionHost = {
     renameProject: actions.rename,
+    markProject: actions.mark,
     pinProject: actions.togglePin,
     openProjectIn: (project, how) => (how === "finder" ? actions.reveal(project) : actions.open(project)),
     editorName: () => editor,
@@ -182,6 +185,16 @@ export function useProjectManage(onChanged: () => void) {
           onClose={() => setSheet(null)}
           onSave={async (name) => {
             await projectRename(sheet.project.id, name);
+            setSheet(null);
+            onChanged();
+          }}
+        />
+      )}
+      {sheet?.kind === "mark" && (
+        <MarkSheet
+          project={sheet.project}
+          onClose={() => setSheet(null)}
+          onDone={() => {
             setSheet(null);
             onChanged();
           }}

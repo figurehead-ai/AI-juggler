@@ -20,24 +20,23 @@ use juggler_adapters::CodexAdapter;
 use juggler_app::commands;
 use juggler_app::error::AppResult;
 use juggler_app::state::AppState;
+#[path = "../../juggler-supervisor/tests/fixtures/stand_in.rs"]
+mod stand_in;
 
 const CODEX: &str = "codex";
 
 /// A `codex` stub that records its arguments and the variables that
 /// matter in a log OUTSIDE the home, so the home stays as it was.
 fn codex_stub(dir: &Path) -> (PathBuf, PathBuf) {
-    use std::os::unix::fs::PermissionsExt;
     let log = dir.join("stub.log");
     let path = dir.join("codex-stub");
-    std::fs::write(
+    stand_in::write(
         &path,
         format!(
             "#!/bin/sh\n{{\nprintf 'home=%s\\n' \"${{CODEX_HOME-UNSET}}\"\nprintf 'sqlite=%s\\n' \"${{CODEX_SQLITE_HOME-UNSET}}\"\nprintf 'key=%s\\n' \"${{OPENAI_API_KEY+SET}}\"\nfor a in \"$@\"; do printf 'arg=%s\\n' \"$a\"; done\n}} >> '{log}'\n",
             log = log.display()
         ),
-    )
-    .unwrap();
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    );
     (path, log)
 }
 

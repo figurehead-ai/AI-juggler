@@ -142,23 +142,44 @@ fn seed_instance(state: &Arc<AppState>, dir: &Path, id: &str, account: &str) -> 
 }
 
 /// Ticks until the session's helper rows include one per `needles`.
-fn tick_until_helpers(state: &Arc<AppState>, session: &SessionId, needles: &[&str]) -> Vec<u32> {
+fn tick_until_helpers(
+    state: &Arc<AppState>,
+    session: &SessionId,
+    kit: &FixtureSet,
+    needles: &[&str],
+) -> Vec<u32> {
+    // Each fixture's own pid (it writes it before its ready file), never a
+    // ledger row found by a command-line needle: a background job's first
+    // recorded command line is the root shell's, which carries every
+    // fixture's flags, so the needle could name the wrong one (CI: the
+    // TERM-ignorer drill signalled the cooperative vite).
+    let kinds: Vec<&str> = needles
+        .iter()
+        .map(|needle| match *needle {
+            "--port" => "vite",
+            "mcp-server" => "mcp",
+            "--ignore-term" => "term-ignorer",
+            "touch" => "shell",
+            "--setsid" => "escapee",
+            other => panic!("no fixture for {other}"),
+        })
+        .collect();
     let deadline = std::time::Instant::now() + Duration::from_secs(30);
     loop {
         if let Ok(mut collector) = state.resources.lock() {
             collector.tick(&state.supervisor, now_ms());
         }
-        if let Ok(rows) = state.ledger.session_rows(session) {
-            let pids: Vec<Option<u32>> = needles
-                .iter()
-                .map(|needle| {
-                    rows.iter()
-                        .find(|row| row.role == "helper" && row.cmdline_trunc.contains(needle))
-                        .and_then(|row| row.pid)
-                })
-                .collect();
-            if pids.iter().all(|pid| pid.is_some()) {
-                return pids.into_iter().map(|pid| pid.unwrap()).collect();
+        let pids: Vec<Option<u32>> = kinds.iter().map(|kind| kit.pid(kind)).collect();
+        if let (Ok(rows), true) = (
+            state.ledger.session_rows(session),
+            pids.iter().all(Option::is_some),
+        ) {
+            let listed = pids.iter().flatten().all(|pid| {
+                rows.iter()
+                    .any(|row| row.role == "helper" && row.pid == Some(*pid))
+            });
+            if listed {
+                return pids.into_iter().flatten().collect();
             }
         }
         assert!(
@@ -375,6 +396,7 @@ fn tier1_sweep_spares_every_collateral_fixture() {
     let pids = tick_until_helpers(
         &state,
         &a,
+        &kit,
         &["--port", "mcp-server", "--ignore-term", "touch", "--setsid"],
     );
     let vite_pid = pids[0];
@@ -449,6 +471,7 @@ fn tier2_crash_flow_spares_every_collateral_fixture() {
     let pids = tick_until_helpers(
         &state,
         &a,
+        &kit,
         &["--port", "mcp-server", "--ignore-term", "touch", "--setsid"],
     );
     let vite_pid = pids[0];
@@ -517,6 +540,7 @@ fn manual_pid_scope_signals_only_the_verified_pid() {
     let pids = tick_until_helpers(
         &state,
         &a,
+        &kit,
         &["--port", "mcp-server", "--ignore-term", "touch", "--setsid"],
     );
     let vite_pid = pids[0];
@@ -617,6 +641,7 @@ fn manual_pgid_scope_is_warned_and_confined_to_the_group() {
     let pids = tick_until_helpers(
         &state,
         &c,
+        &kit,
         &["--port", "mcp-server", "--ignore-term", "touch", "--setsid"],
     );
     let (vite_pid, mcp_pid, ignorer_pid, shell_pid) = (pids[0], pids[1], pids[2], pids[3]);
@@ -725,6 +750,7 @@ fn crash_recovery_signals_nothing_and_stop_stays_scoped() {
     let _ = tick_until_helpers(
         &state1,
         &a,
+        &kit,
         &["--port", "mcp-server", "--ignore-term", "touch", "--setsid"],
     );
     assert!(kit.wait_ready());
@@ -820,7 +846,7 @@ fn term_ignorer_gets_term_then_kill_only_after_grace() {
             &ctx(&state),
         )
         .unwrap();
-    let pids = tick_until_helpers(&state, &a, &["--ignore-term"]);
+    let pids = tick_until_helpers(&state, &a, &kit, &["--ignore-term"]);
     let ignorer_pid = pids[0];
     assert!(kit.wait_ready());
     let _port = kit.vite_port();
@@ -904,6 +930,7 @@ fn hog_is_never_auto_signalled_and_alerts_with_exact_copy() {
     let pids = tick_until_helpers(
         &state,
         &a,
+        &kit,
         &["--port", "mcp-server", "--ignore-term", "touch", "--setsid"],
     );
     let vite_pid = pids[0];
@@ -1050,7 +1077,7 @@ fn idle_nudge_fires_exactly_once_per_orphan() {
             &ctx(&state),
         )
         .unwrap();
-    let pids = tick_until_helpers(&state, &a, &["--port"]);
+    let pids = tick_until_helpers(&state, &a, &kit, &["--port"]);
     let vite_pid = pids[0];
     assert!(kit.wait_ready());
     let _port = kit.vite_port();
@@ -1202,6 +1229,7 @@ fn foreign_machine_row_is_refused_with_zero_signals_and_listed_display_only() {
     let pids = tick_until_helpers(
         &state,
         &a,
+        &kit,
         &["--port", "mcp-server", "--ignore-term", "touch", "--setsid"],
     );
     let vite_pid = pids[0];

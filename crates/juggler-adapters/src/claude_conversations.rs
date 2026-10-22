@@ -164,32 +164,16 @@ fn counts_of(usage: &serde_json::Value) -> TokenCounts {
     }
 }
 
-/// A `claude` CLI (the binary, or the npm package run by node) is a
-/// session, wherever it's installed: the desktop app runs each of its Code
-/// sessions as one, from `…/claude-code/<version>/…/claude.app/Contents/
-/// MacOS/claude`. The app's own executable is `Claude`, which isn't one.
-/// `--resume <id>` (or `-r`) names its conversation.
-///
-/// The binary is multi-call: Claude Code runs its search helpers as the
-/// same `claude` executable under another name (`ugrep`, `rg`), and they
-/// can outlive their session under a stray shell (QA, the real setup). So
-/// a session's program name (`argv[0]`) is `claude` too. The same rule as
-/// main's `claude_code::is_cli_process` (#126; its test
-/// `a_claude_run_as_its_search_helper_is_not_a_session`): one copy once
-/// the branches meet.
+/// A `claude` CLI session: the one rule, `claude_code::is_cli_process`
+/// (shared with This Mac's tools), over the process's name, executable
+/// and command line. `--resume <id>` (or `-r`) names its conversation.
 #[must_use]
 pub fn session_process(exe: Option<&Path>, args: &[String]) -> Option<SessionProcess> {
-    let named_claude = args.first().is_none_or(|program| {
-        Path::new(program)
-            .file_name()
-            .is_some_and(|name| name == "claude")
-    });
-    let cli = (named_claude
-        && exe.is_some_and(|exe| exe.file_name().is_some_and(|name| name == "claude")))
-        || args
-            .iter()
-            .any(|arg| arg.contains("@anthropic-ai/claude-code"));
-    cli.then(|| SessionProcess {
+    let name = exe
+        .and_then(Path::file_name)
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    crate::claude_code::is_cli_process(&name, exe, &args.join(" ")).then(|| SessionProcess {
         resumes: value_after(args, &["--resume", "-r"]),
     })
 }

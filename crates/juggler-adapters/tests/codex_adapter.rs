@@ -17,6 +17,9 @@ use juggler_adapters::codex::parse_version;
 use juggler_adapters::{CODEX_ID, CodexAdapter, LoginState};
 use juggler_core::model::{AccountId, HarnessId, Profile, ProfileId, SettingsOverlay};
 use std::path::{Path, PathBuf};
+#[cfg(unix)]
+#[path = "../../juggler-supervisor/tests/fixtures/stand_in.rs"]
+mod stand_in;
 
 fn account(state_dir: &Path) -> juggler_core::model::Account {
     juggler_core::model::Account {
@@ -48,12 +51,11 @@ fn profile(account: &juggler_core::model::Account, overlay: SettingsOverlay) -> 
 /// A stub `codex` that answers `--version` like the real 0.163.0 build.
 fn version_stub(dir: &Path, output: &str) -> PathBuf {
     let path = dir.join("codex");
-    std::fs::write(&path, format!("#!/bin/sh\necho {output:?}\n")).unwrap();
+    let body = format!("#!/bin/sh\necho {output:?}\n");
     #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
-    }
+    stand_in::write(&path, body);
+    #[cfg(not(unix))]
+    std::fs::write(&path, body).unwrap();
     path
 }
 
@@ -349,16 +351,11 @@ fn model_override_rides_the_command_line() {
 fn a_binary_whose_version_check_fails_is_found() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("codex");
-    std::fs::write(
-        &path,
-        "#!/bin/sh\necho 'env: node: No such file or directory' >&2\nexit 127\n",
-    )
-    .unwrap();
+    let body = "#!/bin/sh\necho 'env: node: No such file or directory' >&2\nexit 127\n";
     #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
-    }
+    stand_in::write(&path, body);
+    #[cfg(not(unix))]
+    std::fs::write(&path, body).unwrap();
     let report = CodexAdapter::with_bin(&path).discover();
     assert!(matches!(report.install, InstallStatus::Failed { .. }));
     assert!(!report.is_installed());
