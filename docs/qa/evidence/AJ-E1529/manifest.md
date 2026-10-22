@@ -97,14 +97,24 @@ no launch settings. The command takes ids only (SECURITY C1).
 | Req.6 a project's page lists its conversations | Playwright `replica-journey` (the count matches the fixture); gallery `project-page-*` | PASS |
 | Req.7 within the rail's budget at 50+ | live + 3 recent per project, the rest on the project's page; the replica's 346 conversations render without a long list (gallery `home-rail-*`) | PASS |
 | Req.8 journeys read a fixture made by the backend's readers | `just replica-fixture` (`scripts/qa/replica_fixture.py`, which refuses a non-replica HOME) wrote `ui/tests/visual/fixtures/replica.json`: 9 accounts, 16 projects, 346 conversations, 8 live. `replica-journey` and `outside-gallery` read it | PASS |
-| Oracle comparison on the replica | `just replica-oracle`: 37 OK, 0 MISMATCH for setups, imports, projects (each with its conversations and accounts), conversations per account and live per account. [oracle-replica.txt](oracle-replica.txt) | PASS |
+| Oracle comparison on the replica | `just replica-oracle` with QA's oracle (claude/qa-real-walk-clean eb7ecdd4, plus the two counting fixes below): 60 OK and no MISMATCH for setups, imports, projects (each with its conversations and accounts), conversations per account, or live per account; this Mac's own 17 sessions are left out as INFO. The remaining MISMATCH lines are Codex window tokens and pricing, which belong to AJ-E1530 and #120. [oracle-replica.txt](oracle-replica.txt) | PASS |
+| One conversation per thread | a resumed Codex thread is a rollout per resume, all with one id. The list showed it twice, and both copies counted as live, while projects counted it once. `ConversationIndex::all` now merges them: the newest file stands for the thread, from its earliest start, with the most tokens any one file holds (never the sum: a resumed rollout repeats its parent's rows). Test: `a_thread_written_to_several_files_is_one_conversation` | PASS |
 | Oracle comparison on the real data | qa-real runs the command below, read-only, under its snapshot check; redacted counts only | PENDING |
 | P22: Accounts and the palette count outside sessions | vitest (`activityWords`, the palette's outside rows); `replica-journey` (each card's count against the fixture) | PASS |
 | P23: a pruned worktree is no longer MOVED; the rail's count matches its rows | `project_root_tests` (pruned); the replica's oracle line "projects: backend 16 rows, oracle 16" | PASS |
 
-The oracle (`scripts/qa/real_truth.py`) learnt two things here, both true
-of real Macs too: folders compare resolved (`/tmp` is `/private/tmp`),
-and a Codex CLI is matched by its folder like Claude's. The replica's
+The oracle (`scripts/qa/real_truth.py`) is QA's. It is copied as a file
+from claude/qa-real-walk-clean, and QA keeps the same changes there. It
+learnt these here, all true of real Macs too:
+- folders compare resolved (`/tmp` is `/private/tmp`);
+- a Codex CLI is matched by its folder, like Claude's;
+- a Codex thread counts once, however many rollouts it has;
+- a live session it can't put on an account is a MISMATCH;
+- a CLI run from a temp folder is a test's stand-in, unless it is under
+  the HOME being examined (the replica's own home is in `/tmp`);
+- on a replica, this Mac's own sessions working outside that HOME are
+  left out as INFO. The last rule never applies when HOME is the user's
+  own, so the real-data pass leaves nothing out. The replica's
 live sessions run as the real CLIs do (`claude`, `claude --resume
 <id>`, `codex`), in a clean environment: a fake once inherited this
 shell's own `CLAUDE_CONFIG_DIR`, and the backend correctly attributed it

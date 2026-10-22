@@ -35,3 +35,33 @@ OK        Account H conversations: backend 24, oracle 24
 OK        Account H live: backend 1, running 1
 OK        Account I conversations: backend 20, oracle 20
 OK        Account I live: backend 1, running 1
+OK        live sessions with no account in the oracle: 0
+INFO      left out: 17 of this Mac's own session(s), working outside the replica's HOME
+OK        Account A 5h tokens: backend 1,833,530, oracle 1,833,530 (×1.00)
+OK        Account A 7d tokens: backend 2,341,018, oracle 2,341,018 (×1.00)
+OK        Account B 5h tokens: backend 1,833,530, oracle 1,833,530 (×1.00)
+OK        Account B 7d tokens: backend 2,669,811, oracle 2,669,811 (×1.00)
+OK        Account C 5h tokens: backend 1,833,530, oracle 1,833,530 (×1.00)
+OK        Account C 7d tokens: backend 2,409,996, oracle 2,409,996 (×1.00)
+OK        Account D 5h tokens: backend 1,833,530, oracle 1,833,530 (×1.00)
+OK        Account D 7d tokens: backend 2,820,923, oracle 2,820,923 (×1.00)
+OK        Account E 5h: no percent and no reset time (nothing measured)
+OK        Account E 5h tokens: backend 0, oracle 0 (×0.00)
+OK        Account E 7d tokens: backend 583,392, oracle 583,392 (×1.00)
+OK        Account F 5h tokens: backend 1,833,530, oracle 1,833,530 (×1.00)
+OK        Account F 7d tokens: backend 2,836,566, oracle 2,836,566 (×1.00)
+OK        Account G 5h tokens: backend 1,833,530, oracle 1,833,530 (×1.00)
+OK        Account G 7d tokens: backend 3,206,191, oracle 3,206,191 (×1.00)
+MISMATCH  Account H 5h tokens: backend 0, oracle 1,168,136 (×0.00)
+MISMATCH  Account H 7d tokens: backend 0, oracle 1,554,839 (×0.00)
+MISMATCH  Account I 5h tokens: backend 0, oracle 1,168,136 (×0.00)
+MISMATCH  Account I 7d tokens: backend 0, oracle 1,363,428 (×0.00)
+INFO      cost payload: null api_equivalent_usd, flat_fee_usd, value_ratio, total_usd; 324 of 324 rows with null credits/usd (honest nulls; main's CostMatrix.tsx crashes on them until its guards check for null)
+OK        cost rows per session: 296 sessions in both; 296 within 5% of the transcripts; ratio min ×1.00, median ×1.00, max ×1.00; 0 only in the backend, 42 only in the transcripts; 8 still being written during the run, left out
+MISMATCH  cost rows priced: 0 of 324
+OK        This Mac machine: CPU 24%, memory 82.9 of 103 GB (app_wired_compressed), pressure normal; tools 6
+OK        This Mac tools: backend 6; ps has 6 Claude app instances + 1 ChatGPT (Codex) not counted by design
+OK        This Mac tools memory: backend 22.4 GB; ps RSS of the Claude app trees 22.9 GB (×0.98)
+OK        This Mac top rows (GB): backend [12.0, 5.5, 2.0]; ps trees [12.0, 5.9, 2.0]; 3 instance(s) not shown
+OK        This Mac tools CPU: backend 6.1% of all cores (ps %CPU is a decaying average, not compared)
+OK        alerts over the run: 0 (none)

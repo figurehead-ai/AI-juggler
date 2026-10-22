@@ -39,6 +39,7 @@ import argparse
 import calendar
 import json
 import os
+import pwd
 import re
 import subprocess
 import sys
@@ -218,6 +219,11 @@ def processes() -> list[dict]:
         words = set(args[len(exe):].split())
         helper = words & {"app-server", "exec-server", "mcp-server", "proto"}
         kind = sorted(helper)[0] if tool == "codex" and helper else "session"
+        if is_temp(exe):
+            kind = "stand-in"  # a test's stand-in binary in a temp folder, not a user's session
+        cwd = process_cwd(pid)
+        if kind == "session" and is_host(cwd):
+            kind = "host"  # this Mac's own session, seen from a replica's HOME
         resume = None
         m = re.search(r"--resume[ =]([0-9a-f-]{36})", args)
         if m:
@@ -234,7 +240,7 @@ def processes() -> list[dict]:
                 break
             up = rows[up][0]
         found.append({"pid": pid, "tool": tool, "kind": kind, "resume": resume, "app": app or "a terminal",
-                      "cwd": process_cwd(pid)})
+                      "cwd": cwd})
     return found
 
 
@@ -248,6 +254,26 @@ def desktop_roots() -> list[dict]:
         if m and pid.isdigit():
             roots.append({"pid": int(pid), "app": m.group(1)})
     return roots
+
+
+def is_temp(path: str) -> bool:
+    """A path in a temp folder (the per-user TMPDIR, /tmp, /var/folders)."""
+    real = os.path.realpath(path)
+    if real.startswith(os.path.realpath(HOME).rstrip("/") + "/"):
+        return False  # a CLI in the user's own home is theirs (a replica's HOME may itself be in /tmp)
+    roots = ["/private/tmp/", "/private/var/folders/", "/tmp/", "/var/folders/"]
+    if os.environ.get("TMPDIR"):
+        roots.append(os.path.realpath(os.environ["TMPDIR"]).rstrip("/") + "/")
+    return any(real.startswith(r) for r in roots)
+
+
+def is_host(cwd: str | None) -> bool:
+    """On a replica (a HOME that isn't this user's own), a session working
+    outside that HOME is the host Mac's, not the replica's. Never true when
+    HOME is the user's own home, so a real-data run leaves nothing out."""
+    own = os.path.realpath(pwd.getpwuid(os.getuid()).pw_dir)
+    home = os.path.realpath(HOME)
+    return home != own and cwd is not None and not os.path.realpath(cwd).startswith(home.rstrip("/") + "/")
 
 
 def process_cwd(pid: int) -> str | None:
@@ -322,6 +348,7 @@ def build(args) -> dict:
         else:
             newest = None
             window_tokens = {name: 0 for name, _ in WINDOWS}
+            threads = set()  # a resumed thread is a rollout per resume: one conversation
             for path in (folder / "sessions").rglob("rollout-*.jsonl"):
                 roll = read_codex_rollout(path)
                 age = now - roll["mtime"]
@@ -342,11 +369,14 @@ def build(args) -> dict:
                 if not roll["cwd"]:
                     acc["empty_files"] += 1
                     continue
-                acc["conversations"] += 1
                 root, how = project_of(roll["cwd"])
                 p = projects[root]
+                thread = roll["session"] or str(path)
+                if thread not in threads:
+                    threads.add(thread)
+                    acc["conversations"] += 1
+                    p["per_account"][idx] += 1
                 p["how"].add(how)
-                p["per_account"][idx] += 1
                 p["cwds"].add(roll["cwd"])
                 p["last"] = max(p["last"], roll["totals"][-1][0] if roll["totals"] else roll["mtime"])
             acc["tokens"] = {name: {"total": v} for name, v in window_tokens.items()}
@@ -586,8 +616,9 @@ def compare(truth: dict, harness: dict) -> str:
     now_ms = harness["generated_ms"]
     lines = []
 
-    def verdict(ok: bool, text: str) -> None:
-        lines.append(("OK        " if ok else "MISMATCH  ") + text)
+    def verdict(ok, text: str) -> None:
+        # ok: True / False, or None for a fact that is neither (INFO).
+        lines.append(("INFO      " if ok is None else "OK        " if ok else "MISMATCH  ") + text)
 
     # First run: every setup found, every bring-in done.
     found = {real(i["path"]) for i in harness["scan"]["installs"]}
@@ -638,6 +669,17 @@ def compare(truth: dict, harness: dict) -> str:
             want = truth["per_account"][i]["conversations"]
             verdict(per[i] == want, f"{acc_name[i]} conversations: backend {per[i]}, oracle {want}")
             verdict(on[i] == running[i], f"{acc_name[i]} live: backend {on[i]}, running {running[i]}")
+        # A live session the oracle can't put on an account would drop out of
+        # both sides above: it must fail here instead of passing unseen.
+        unmatched = [l for l in live if l.get("account") is None]
+        verdict(not unmatched, f"live sessions with no account in the oracle: {len(unmatched)}"
+                + (f" ({', '.join(sorted({l['tool'] + ' in ' + l['app'] for l in unmatched}))})" if unmatched else ""))
+    stand_ins = [l for l in truth["live"] if l["kind"] == "stand-in"]
+    if stand_ins:
+        verdict(None, f"left out: {len(stand_ins)} stand-in CLI(s) run from a temp folder (tests, not sessions)")
+    host = [l for l in truth["live"] if l["kind"] == "host"]
+    if host:
+        verdict(None, f"left out: {len(host)} of this Mac's own session(s), working outside the replica's HOME")
 
     # Quota: percent, reset, tokens per window.
     for q in harness["quota_display_all"]:
@@ -649,6 +691,9 @@ def compare(truth: dict, harness: dict) -> str:
         for key, window in (("five_hour", "5h"), ("weekly", "7d")):
             w = q.get(key)
             if not w:
+                lim = (acc.get("codex_limits") or {}) if acc["tool"] == "codex" else {}
+                if key == "five_hour" and lim and lim.get("secondary") is None:
+                    verdict(True, f"{name} 5-hour window: none, as Codex reports (secondary null)")
                 continue
             pct = w.get("percentage")
             if acc["tool"] == "codex":
@@ -662,6 +707,8 @@ def compare(truth: dict, harness: dict) -> str:
                     verdict(False, f"{name} 5-hour window: backend tracks one ({w['state']}); Codex reports no 5-hour window (secondary null)")
             elif pct is not None:
                 verdict(True, f"{name} {window}: backend {pct}% used (Measured sample)")
+            elif w.get("resets_at_ms") is None:
+                verdict(True, f"{name} {window}: no percent and no reset time (nothing measured)")
             resets = w.get("resets_at_ms")
             if resets is not None and abs(resets - now_ms) < 5 * 60_000:
                 verdict(False, f"{name} {window}: resets at {round((resets - now_ms) / 60000, 1)} min from now — the window's start + its length, not a vendor reset")
@@ -680,15 +727,15 @@ def compare(truth: dict, harness: dict) -> str:
     if cost.get("total_usd", "absent") is None:
         nulls.append("total_usd")
     null_rows = sum(1 for r in cost["rows"] if r.get("credits", "absent") is None or (r.get("usd") or {}).get("usd", "absent") is None)
-    verdict(not nulls and not null_rows,
+    verdict(None if nulls or null_rows else True,
             f"cost payload: null {', '.join(nulls) or 'none'}; {null_rows} of {len(cost['rows'])} rows with null credits/usd"
-            " (CostMatrix.tsx crashes on these)")
+            " (honest nulls; main's CostMatrix.tsx crashes on them until its guards check for null)")
     backend_sessions = defaultdict(int)
     for r in cost["rows"]:
         t = r.get("tokens") or {}
-        # Codex's input already includes cached input and its output reasoning:
-        # compare like with like (input + output for Codex, every class for Claude).
-        backend_sessions[r["key"]] += sum(t.get(k, 0) for k in ("input", "output", "cache_read", "cache_write"))
+        # Every class: disjoint classes sum to the tool's own total (on main,
+        # Codex's input still includes its cached input, which shows as about x2).
+        backend_sessions[r["key"]] += sum(t.get(k, 0) for k in ("input", "output", "cache_read", "cache_write", "reasoning"))
     # Sessions written after the backend read them would differ for that
     # reason alone: leave them out (the harness records when it ingested;
     # older outputs: 5 minutes before they were written).
@@ -784,6 +831,10 @@ def selftest() -> None:
                         "credits": {"has_credits": True, "balance": "1"}}, 0, 60)
     assert lim["primary"]["left_percent"] == 32.0 and lim["primary"]["reset_passed"]
     assert lim["credits"]["balance"] == "present" and lim["secondary"] is None
+    assert is_temp("/tmp/x/claude") and is_temp("/private/var/folders/ab/T/x/codex")
+    assert not is_temp("/Applications/Claude.app/Contents/MacOS/claude")
+    assert not is_temp(str(HOME / "bin/claude"))
+    assert not is_host(None) and not is_host(str(HOME / "Dev/app"))
     print("real_truth selftest: OK")
 
 

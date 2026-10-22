@@ -56,17 +56,19 @@ pub struct ConversationIndex {
 }
 
 impl ConversationIndex {
-    /// Every conversation now in the index, newest activity first.
+    /// Every conversation now in the index, one per account and id,
+    /// newest activity first.
     ///
     /// # Errors
     ///
     /// [`AppError::StatePoisoned`] when the index's lock is poisoned.
     pub fn all(&self) -> AppResult<Vec<Conversation>> {
         let files = self.files.lock().map_err(|_| AppError::StatePoisoned)?;
-        let mut out: Vec<Conversation> = files
-            .values()
-            .filter_map(|entry| entry.conversation.clone())
-            .collect();
+        let mut out = merged(
+            files
+                .values()
+                .filter_map(|entry| entry.conversation.clone()),
+        );
         out.sort_by(|a, b| {
             b.summary
                 .last_ms
@@ -83,6 +85,47 @@ impl ConversationIndex {
             .lock()
             .is_ok_and(|live| live.contains(&(tool.to_owned(), id.to_owned())))
     }
+}
+
+/// One conversation per `(account, tool, id)`. A resumed or forked thread
+/// can be several files with one id (Codex writes a rollout per resume,
+/// repeating its parent's rows): the newest file stands for it, from the
+/// earliest start, with the most tokens any one file holds (never a sum,
+/// which would count the repeated rows twice).
+fn merged(conversations: impl Iterator<Item = Conversation>) -> Vec<Conversation> {
+    let total = |c: &Conversation| {
+        let t = &c.summary.tokens;
+        t.input + t.output + t.cache_read + t.cache_write + t.reasoning
+    };
+    let mut by_id: HashMap<(String, String, String), Conversation> = HashMap::new();
+    for conversation in conversations {
+        let key = (
+            conversation.account_id.clone(),
+            conversation.tool.clone(),
+            conversation.summary.id.clone(),
+        );
+        let Some(kept) = by_id.remove(&key) else {
+            by_id.insert(key, conversation);
+            continue;
+        };
+        let newer =
+            (conversation.summary.last_ms, &conversation.path) > (kept.summary.last_ms, &kept.path);
+        let (mut keep, other) = if newer {
+            (conversation, kept)
+        } else {
+            (kept, conversation)
+        };
+        keep.summary.started_ms = match (keep.summary.started_ms, other.summary.started_ms) {
+            (Some(a), Some(b)) => Some(a.min(b)),
+            (a, b) => a.or(b),
+        };
+        if total(&other) > total(&keep) {
+            keep.summary.tokens = other.summary.tokens;
+        }
+        keep.summary.title = keep.summary.title.or(other.summary.title);
+        by_id.insert(key, keep);
+    }
+    by_id.into_values().collect()
 }
 
 /// One refresh of the files and of which conversations are live; `true`
@@ -319,4 +362,50 @@ pub fn continue_impl(
         session_id: session.to_string(),
         pid: spawned.pid,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn file(path: &str, id: &str, started: i64, last: i64, input: u64) -> Conversation {
+        let mut summary = ConversationSummary {
+            id: id.to_owned(),
+            cwd: None,
+            git_branch: None,
+            title: None,
+            started_ms: Some(started),
+            last_ms: Some(last),
+            tokens: juggler_core::model::TokenCounts::default(),
+        };
+        summary.tokens.input = input;
+        Conversation {
+            summary,
+            account_id: "a".to_owned(),
+            tool: "t".to_owned(),
+            path: PathBuf::from(path),
+            folder: None,
+        }
+    }
+
+    #[test]
+    fn a_thread_written_to_several_files_is_one_conversation() {
+        let all = merged(
+            [
+                file("first.jsonl", "thread", 100, 200, 50),
+                file("resumed.jsonl", "thread", 300, 400, 80),
+                file("other.jsonl", "other", 100, 150, 5),
+            ]
+            .into_iter(),
+        );
+        assert_eq!(all.len(), 2);
+        let thread = all.iter().find(|c| c.summary.id == "thread").unwrap();
+        assert_eq!(thread.path, PathBuf::from("resumed.jsonl"));
+        assert_eq!(
+            (thread.summary.started_ms, thread.summary.last_ms),
+            (Some(100), Some(400))
+        );
+        // The resumed file repeats its parent's rows: the most, never the sum.
+        assert_eq!(thread.summary.tokens.input, 80);
+    }
 }

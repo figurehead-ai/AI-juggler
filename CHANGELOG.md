@@ -251,7 +251,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   which account, then continue it in AI Juggler or copy the command that
   resumes it. Removed and pruned worktrees fold into their repository
   instead of showing as moved projects, and Codex conversations count
-  too. AI Juggler never stops or changes what it didn't start.
+  too, once each, however often they were resumed. Each session in the
+  list ends in its account's initials, in that account's own colour,
+  the same on every screen. AI Juggler never stops or changes what it
+  didn't start.
 - **Right-click menus** (AJ-E1537). Right-click a session, a project, an
   account, a history entry or a line on This Mac for its actions, in the
   Mac's own menu. The same menu opens from the row's ⋯ button, a page's
