@@ -219,7 +219,7 @@ function totals(trees: ToolTreeInfo[], cores: number): ToolTotalsInfo {
 }
 
 const MOCK_OBSERVED: ToolTreeInfo[] = [
-  { session_id: null, place: "desktop", account_label: "Personal", cpu_pct: 14, rss_bytes: 1_600_000_000, helpers: 21, heavy_note: null, memory_estimate: true },
+  { root_pid: 501, session_id: null, place: "desktop", account_label: "Personal", cpu_pct: 14, rss_bytes: 1_600_000_000, helpers: 21, heavy_note: null, memory_estimate: true },
 ];
 
 /** The preview's This Mac, derived from the sessions on screen. */
@@ -234,7 +234,8 @@ export function mockThisMac(
   const live = sessions.filter((session) => !["finished", "stopped", "handed_over", "failed"].includes(session.status));
   const ours: ToolTreeInfo[] = live
     .filter((session) => session.rss_bytes !== null)
-    .map((session) => ({
+    .map((session, at) => ({
+      root_pid: 1000 + at,
       session_id: session.id,
       place: null,
       account_label: session.account_label,
@@ -310,7 +311,7 @@ export async function thisMac(): Promise<ThisMacInfo> {
     const observed =
       seams.__AIJ_OBSERVED__ ??
       (windows > 0
-        ? Array.from({ length: windows }, (_, at) => ({ ...MOCK_OBSERVED[0]!, account_label: `Window ${at + 1}`, rss_bytes: Math.round(7_400_000_000 / (at + 1)) }))
+        ? Array.from({ length: windows }, (_, at) => ({ ...MOCK_OBSERVED[0]!, root_pid: 600 + at, account_label: `Window ${at + 1}`, rss_bytes: Math.round(7_400_000_000 / (at + 1)) }))
         : undefined);
     return mockThisMac(sessions, await machineHealth(), observed, leftovers, alerts, advice);
   }

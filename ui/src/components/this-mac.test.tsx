@@ -51,6 +51,7 @@ function mk(id: string, overrides: Partial<InstanceInfo> = {}): InstanceInfo {
 }
 
 const tree = (overrides: Partial<ToolTreeInfo>): ToolTreeInfo => ({
+  root_pid: null,
   session_id: null,
   place: "desktop",
   account_label: "Personal",
@@ -397,6 +398,15 @@ describe("overload alerts and recommendations (AJ-E1408, AJ-E1409)", () => {
     cleanup();
     render(<ThisMacPanel info={info("plenty", windows.slice(0, 3))} nameOf={() => "x"} onOpenSession={vi.fn()} />);
     expect(screen.queryByTestId("this-mac-more")).toBeNull();
+  });
+
+  it("two app windows that look alike are two rows, each keyed by its process (#126 review, L6)", () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    const twins = [501, 502].map((pid) => tree({ root_pid: pid, account_label: "Personal", rss_bytes: 2e9 }));
+    render(<ThisMacPanel info={info("plenty", twins)} nameOf={() => "x"} onOpenSession={vi.fn()} />);
+    expect(within(screen.getByTestId("this-mac-top")).getAllByRole("listitem")).toHaveLength(2);
+    expect(errors.mock.calls.flat().join(" ")).not.toContain("same key");
+    errors.mockRestore();
   });
 
   it("shows advice from history only when there is some", () => {

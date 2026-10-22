@@ -174,7 +174,7 @@ export function ThisMacPanel({
           <ul className="flex flex-col" aria-label="Heaviest right now" data-testid="this-mac-top">
             {[...info.top, ...(showAll ? info.others : [])].map((tree) => (
               <TreeRow
-                key={tree.session_id ?? `${tree.place}-${tree.account_label}-${tree.rss_bytes}`}
+                key={tree.root_pid !== null ? `pid-${tree.root_pid}` : (tree.session_id ?? `${tree.place}-${tree.account_label}-${tree.rss_bytes}`)}
                 tree={tree}
                 nameOf={nameOf}
                 onOpenSession={onOpenSession}

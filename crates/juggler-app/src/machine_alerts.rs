@@ -161,6 +161,7 @@ fn candidates(mac: &ThisMacInfo) -> Vec<ToolTreeInfo> {
             .iter()
             .filter(|group| !group.ours)
             .map(|group| ToolTreeInfo {
+                root_pid: None,
                 session_id: None,
                 place: Some(group.tool.clone()),
                 account_label: None,
@@ -551,6 +552,7 @@ mod tests {
         note: Option<&str>,
     ) -> ToolTreeInfo {
         ToolTreeInfo {
+            root_pid: None,
             session_id: session.map(str::to_string),
             place: place.map(str::to_string),
             account_label: None,
