@@ -275,6 +275,33 @@ pub fn account_remove_impl(
             if count == 1 { "it" } else { "them" },
         )));
     }
+    // AJ-E1530: the user's own status line goes back before the account
+    // goes, by the same rules as turning measuring off (exactly as it was,
+    // or only AI Juggler's value taken out). If it can't, the account
+    // stays: a removed account must never leave their line pointing at
+    // AI Juggler.
+    let storage = if account.in_place
+        && folder == CopyFolder::Keep
+        && juggler_adapters::quota_ingest::outside_capture_record(
+            &state.overlays_dir(),
+            account.id.as_str(),
+        )
+        .is_some()
+    {
+        drop(storage);
+        crate::features::quota::capture::turn_off_impl(state, account.id.as_str()).map_err(
+            |error| {
+                AppError::Refused(format!(
+                    "«{}»'s status line couldn't be put back ({error}), so the account stays. \
+                     Turn off measuring on its page, then remove it",
+                    account.label
+                ))
+            },
+        )?;
+        lock_storage_arc(state)?
+    } else {
+        storage
+    };
     let outcome = if account.in_place {
         if folder == CopyFolder::Trash {
             return Err(AppError::Refused(format!(

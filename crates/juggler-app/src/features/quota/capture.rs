@@ -21,7 +21,7 @@ use std::sync::Arc;
 use juggler_adapter::jsonc;
 use juggler_adapters::quota_ingest::{
     OUTSIDE_CAPTURE_BACKUP, OUTSIDE_CAPTURE_RECORD, OutsideCaptureRecord, ensure_launch_overlay,
-    outside_capture_record, overlay_dir, overlay_wrapper_command,
+    fail_safe_statusline_command, outside_capture_record, overlay_dir,
 };
 use juggler_core::model::{Account, AccountId};
 
@@ -80,7 +80,7 @@ fn sha256(bytes: &[u8]) -> String {
     crate::history::hex(&sha2::Sha256::digest(bytes))
 }
 
-fn home_relative(path: &Path) -> String {
+pub(crate) fn home_relative(path: &Path) -> String {
     match dirs::home_dir().and_then(|home| path.strip_prefix(home).ok().map(Path::to_path_buf)) {
         Some(rest) => format!("~/{}", rest.display()),
         None => path.display().to_string(),
@@ -166,10 +166,15 @@ fn planned(
     let original_value = original
         .as_deref()
         .and_then(|text| serde_json::from_str::<serde_json::Value>(text).ok());
+    // Fail-safe: their own command runs when AI Juggler's wrapper is gone.
+    let theirs = original_value
+        .as_ref()
+        .and_then(|value| value.get("command"))
+        .and_then(serde_json::Value::as_str);
     let value = target
         .adapter
         .limits_capture_value(
-            &overlay_wrapper_command(&overlays, target.account.id.as_str()),
+            &fail_safe_statusline_command(&overlays, target.account.id.as_str(), theirs),
             original_value.as_ref(),
         )
         .ok_or_else(|| refused("this tool has no value to set"))?;

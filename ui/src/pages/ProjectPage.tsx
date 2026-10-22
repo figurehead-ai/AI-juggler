@@ -4,6 +4,7 @@
  * first) and its Overview (accounts, sessions ever, checkouts, which
  * account starts work here, how the work travelled).
  */
+import { AccountAvatar } from "../components/Avatar";
 import { useEffect, useState } from "react";
 import { useConversations, outside } from "../lib/conversations";
 import { projectsGitStatus } from "../lib/ipc/projects";
@@ -13,7 +14,7 @@ import { useProjectManage } from "../components/ManageWork";
 import { ProjectDefaultAccount } from "../components/ProjectDefaultAccount";
 import { SwitchGraph } from "../components/SwitchGraph";
 import { homeRelative, lastWorked, projectStats } from "../lib/project-words";
-import { AccountDisc, isActiveStatus } from "../components/indicator";
+import { isActiveStatus } from "../components/indicator";
 import { IconTerminal } from "../components/icons";
 import { Button, Card } from "../components/primitives";
 import { signedIn, type AccountInfo, type InstanceInfo, type LaunchRecipeInfo, type ProjectInfo } from "../lib/bridge";
@@ -203,7 +204,7 @@ export function ProjectOverview(props: ProjectPanelProps) {
             const ready = signedIn(props.accounts.find((a) => a.id === recipe.account_id)?.login_state);
             return (
               <Button key={recipe.id} size="sm" variant="secondary" disabled={!ready} title={ready ? launchSettingsName(recipe.name) : "Needs sign-in first"} onClick={() => launch(recipe)}>
-                <AccountDisc accountId={recipe.account_id} label={recipe.account_label} size={14} />
+                <AccountAvatar accountId={recipe.account_id} label={recipe.account_label} size={14} />
                 {recipe.account_label}
                 {/* An account with several launch settings: say which. */}
                 {ranked.filter((other) => other.recipe.account_id === recipe.account_id).length > 1 && (

@@ -1,3 +1,7 @@
+import { AccountAvatar } from "./Avatar";
+import { ProjectMark } from "./ProjectMark";
+import { ToolMark } from "./ToolMark";
+import { markOf, swatchColor } from "../lib/palette";
 import { identityWords } from "../lib/identity";
 import { parkedWords } from "../lib/parked";
 import { providerDisplayName } from "../lib/providers";
@@ -5,7 +9,7 @@ import { ReactNode, useCallback, useEffect, useId, useRef, useState, type JSX } 
 import { IconProjects, IconTerminal } from "./icons";
 import { PinMark, ProjectRow, RailProjectHeader } from "./RailProjectRows";
 import { RailCalm } from "./RailCalm";
-import { lastWorked } from "../lib/project-words";
+import { FoldButton, FoldedNeeds, HISTORY_GROUP, HISTORY_SHOWN, readFolded, repoGroups, safeId, writeFolded } from "./rail-groups";
 import { RowPlaceholders } from "./Placeholder";
 import { showToast } from "./Toast";
 import { sessionLabel } from "../lib/stop";
@@ -27,7 +31,6 @@ import {
   SORT_LABELS,
   isSnoozed,
   readSnooze,
-  unsnoozedNeedsCount,
   snoozeCaption,
   sortSessions,
   storeSnooze,
@@ -50,7 +53,6 @@ import { liveOutside, useConversations } from "../lib/conversations";
 import { sessionWhen } from "../lib/time-words";
 import type { ActionHost } from "../lib/actions";
 import {
-  AccountDisc,
   ChildBadges,
   GitBadge,
   StaleChip,
@@ -704,6 +706,7 @@ export function InstanceBoard({
               <BoardRow
                 key={row.id}
                 row={row}
+                showProject
                 selected={row.id === selectedId}
                 onSelect={onSelect}
                 density={effectiveDensity}
@@ -731,6 +734,7 @@ export function InstanceBoard({
                   {effectiveGroup === "project" && onSelectProject && projects.some((p) => p.id === entry.id) ? (
                     <RailProjectHeader
                       project={projects.find((p) => p.id === entry.id)!}
+                      rows={entry.rows}
                       label={entry.label}
                       rollup={entry.rollup}
                       count={entry.rows.length + railSlice(conversations, entry.id, scope).shown.length}
@@ -754,11 +758,16 @@ export function InstanceBoard({
                   )}
                 </div>
               )}
+              {/* AJ-E1532: a folded project's rows, as a stripe in its colour. */}
+              {folded.has(entry.id) && markOf(entry.id) && (
+                <span aria-hidden="true" data-testid="rail-folded-stripe" className="ml-7 mr-2.5 h-[3px] rounded-full opacity-70" style={{ background: swatchColor(markOf(entry.id)!.swatch) }} />
+              )}
               <div id={safeId("rail-group", entry.id)} className="flex flex-col gap-0.5" hidden={folded.has(entry.id)}>
               {entry.rows.map((row) => (
                 <BoardRow
                   key={row.id}
                   row={row}
+                  showProject={effectiveGroup !== "project"}
                   selected={row.id === selectedId}
                   onSelect={onSelect}
                   density={effectiveDensity}
@@ -812,8 +821,11 @@ export function InstanceBoard({
                           controls={safeId("rail-repo", group.key)}
                           onToggle={() => toggleFold(group.key)}
                         />
-                        <p className="flex min-w-0 flex-1 items-baseline justify-between gap-2 py-0.5 pl-1 pr-2.5 text-[11.5px] font-semibold text-muted" title={group.key}>
-                          <span className="min-w-0 truncate">{group.name}</span>
+                        <p className="flex min-w-0 flex-1 items-center justify-between gap-2 py-0.5 pl-1 pr-2.5 text-[11.5px] font-semibold text-muted" title={group.key}>
+                          <span className="flex min-w-0 items-center gap-1.5">
+                            <ProjectMark projectId={group.projects[0]!.id} size={14} />
+                            <span className="min-w-0 truncate">{group.name}</span>
+                          </span>
                           <span className="shrink-0 text-[10px] font-normal text-faint">{group.projects.length}</span>
                         </p>
                       </div>
@@ -866,6 +878,7 @@ export function InstanceBoard({
 
 function BoardRow({
   row,
+  showProject = false,
   selected,
   onSelect,
   density,
@@ -874,6 +887,8 @@ function BoardRow({
   snooze,
 }: {
   row: InstanceInfo;
+  /** Not grouped by project: the row shows its project's mark. */
+  showProject?: boolean;
   selected: boolean;
   onSelect: (id: string) => void;
   density: "comfortable" | "compact";
@@ -891,7 +906,7 @@ function BoardRow({
           {caption}
         </span>
       )}
-      <RailRow session={row} selected={selected} onSelect={onSelect} density={density} now={now} freshness={freshness} />
+      <RailRow session={row} showProject={showProject} selected={selected} onSelect={onSelect} density={density} now={now} freshness={freshness} />
       {/* I-03: a model that drifted from its launch settings is worth a
           glance (cost and behaviour differ) — beside the row, focusable.
           Compact rows have no room beside the time; the session view
@@ -929,6 +944,7 @@ const RAIL_STATE = STATE_WORDS;
  */
 export function RailRow({
   session,
+  showProject = false,
   selected,
   onSelect,
   density,
@@ -936,6 +952,7 @@ export function RailRow({
   freshness = {},
 }: {
   session: InstanceInfo;
+  showProject?: boolean;
   selected: boolean;
   onSelect: (id: string) => void;
   density: "comfortable" | "compact";
@@ -990,6 +1007,7 @@ export function RailRow({
       </span>
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="flex min-w-0 items-baseline gap-1.5">
+          {showProject && session.project_id && <ProjectMark projectId={session.project_id} size={12} />}
           <span className={"min-w-0 truncate text-[12.5px] font-medium " + (ended ? "text-muted" : "text-ink")}>{title}</span>
           {session.pinned && <PinMark />}
           {session.kind === "desktop" && (
@@ -1030,7 +1048,7 @@ export function RailRow({
           </span>
         )}
         <span className="sr-only">
-          {session.pinned ? ", pinned" : ""}, {state}, {session.account_label}
+          {session.pinned ? ", pinned" : ""}, {state}, {providerDisplayName(session.provider)} on {session.account_label}
           {low ? `, ${low}` : ""}
           {heavyNote ? `, working your Mac hard: ${heavyNote}` : ""}
         </span>
@@ -1041,8 +1059,10 @@ export function RailRow({
           {heavy}
         </span>
       )}
-      {/* AJ-E1529/E1532: the account at a glance (its initials). */}
-      <AccountDisc accountId={session.account_id} label={session.account_label} size={16} />
+      {/* AJ-E1532: the tool, and the account serving it now (its avatar
+          follows the session when it switches accounts). */}
+      <ToolMark tool={session.provider} size={12} className="shrink-0 text-muted" />
+      <AccountAvatar accountId={session.account_id} label={session.account_label} size={16} />
     </button>
   );
 }
@@ -1219,7 +1239,7 @@ export function SessionRow({
             <mark.Icon width={11} height={11} className="shrink-0 text-accent-hi" />
             <span className="truncate">{mark.abbrev}</span>
           </span>
-          <AccountDisc accountId={session.account_id} label={session.account_label} />
+          <AccountAvatar accountId={session.account_id} label={session.account_label} />
           <span className="sr-only">{session.account_label}</span>
           <span className="ml-auto inline-flex shrink-0 items-center gap-1">
             {badge ? (
@@ -1314,7 +1334,7 @@ export function SessionRow({
           <mark.Icon width={11} height={11} className="shrink-0 text-accent-hi" />
           <span className="truncate">{mark.abbrev}</span>
         </span>
-        <AccountDisc accountId={session.account_id} label={session.account_label} />
+        <AccountAvatar accountId={session.account_id} label={session.account_label} />
           <span className="sr-only">{session.account_label}</span>
         {identityWords(session) && (
           <span
@@ -1478,7 +1498,7 @@ export function MinimalInstanceColumn({
             <span className="sr-only">
               {s.account_label}, {badge ? badge.text : chip.label}
             </span>
-            <AccountDisc accountId={s.account_id} label={s.account_label} size={22} />
+            <AccountAvatar accountId={s.account_id} label={s.account_label} size={22} />
             <chip.Icon
               width={10}
               height={10}
@@ -1504,7 +1524,7 @@ export function MinimalInstanceColumn({
                 <span className="truncate text-[11.5px] font-medium text-ink">
                   {s.account_label}
                 </span>
-                <AccountDisc accountId={s.account_id} label={s.account_label} size={16} />
+                <AccountAvatar accountId={s.account_id} label={s.account_label} size={16} />
               </span>
               <span className="mt-1 block text-[10px] leading-relaxed text-muted">
                 {ariaSummary(s)}
@@ -1568,7 +1588,7 @@ export function SessionCard({ session, onSelect }: { session: InstanceInfo; onSe
           <mark.Icon width={12} height={12} className="text-accent-hi" />
           {mark.abbrev}
         </span>
-        <AccountDisc accountId={session.account_id} label={session.account_label} size={20} />
+        <AccountAvatar accountId={session.account_id} label={session.account_label} size={20} />
         <span className="min-w-0 truncate text-[12px] text-ink">{session.account_label}</span>
         <span className="min-w-0 shrink-0 truncate text-[11px] text-muted">
           {session.model ?? <span className="text-faint">default model</span>}
@@ -1730,117 +1750,3 @@ function RemoteBoardSection({
     </div>
   );
 }
-
-const FOLDED_KEY = "aij.rail.folded";
-
-/** An element id from any key (an account label with spaces, a remote
- * path): only safe characters, plus a short hash so two keys can't meet. */
-export function safeId(prefix: string, key: string): string {
-  let hash = 0;
-  for (const char of key) hash = (Math.imul(hash, 31) + char.charCodeAt(0)) | 0;
-  return `${prefix}-${key.replace(/[^A-Za-z0-9_-]/g, "-").slice(0, 40)}-${(hash >>> 0).toString(36)}`;
-}
-const HISTORY_GROUP = "history-projects";
-/** How many history projects show before "Show all". */
-const HISTORY_SHOWN = 5;
-
-function readFolded(): Set<string> {
-  try {
-    const raw = JSON.parse(localStorage.getItem(FOLDED_KEY) ?? "[]") as unknown;
-    return new Set(Array.isArray(raw) ? raw.filter((id): id is string => typeof id === "string") : []);
-  } catch {
-    return new Set();
-  }
-}
-
-function writeFolded(folded: Set<string>): void {
-  try {
-    localStorage.setItem(FOLDED_KEY, JSON.stringify([...folded]));
-  } catch {
-    /* a private window: folding still works for this visit */
-  }
-}
-
-/** Projects grouped by repository (clones and checkouts of one remote
- * together), the most recently worked-in group first. */
-export function repoGroups(projects: ProjectInfo[]): { key: string; name: string; projects: ProjectInfo[] }[] {
-  const groups = new Map<string, ProjectInfo[]>();
-  for (const project of projects) {
-    const key = project.repo ?? `folder:${project.id}`;
-    groups.set(key, [...(groups.get(key) ?? []), project]);
-  }
-  // AJ-E1502: pinned projects lead (a group leads when one of it is).
-  const pinned = (project: ProjectInfo) => (project.pinned ? 1 : 0);
-  return [...groups.entries()]
-    .map(([key, members]) => {
-      const sorted = [...members].sort((a, b) => pinned(b) - pinned(a) || lastWorked(b) - lastWorked(a));
-      const name = members.length > 1 && key.includes("/") ? (key.split("/").pop() ?? sorted[0]!.name) : sorted[0]!.name;
-      return { key, name, projects: sorted };
-    })
-    .sort((a, b) => pinned(b.projects[0]!) - pinned(a.projects[0]!) || lastWorked(b.projects[0]!) - lastWorked(a.projects[0]!));
-}
-
-/**
- * A folded group still says what needs you inside it (0.0.11 walk, Q7):
- * the same "!" mark the session rows' icons carry, and how many. The fold
- * stays the user's choice — nothing unfolds by itself.
- */
-function FoldedNeeds({ rows, snooze, now }: { rows: InstanceInfo[]; snooze: SnoozeState; now: number }): JSX.Element | null {
-  const count = unsnoozedNeedsCount(rows, snooze, now);
-  if (count === 0) return null;
-  const danger = rows.some((row) => !isSnoozed(row, snooze, now) && attentionBadge(row)?.tone === "danger");
-  return (
-    <span
-      className={"flex items-center gap-1 text-[10px] font-semibold " + (danger ? "text-danger" : "text-warning")}
-      data-testid="rail-folded-needs"
-    >
-      <span
-        aria-hidden="true"
-        className={
-          "flex size-3.5 items-center justify-center rounded-full text-[8px] font-bold " +
-          (danger ? "bg-danger text-white" : "bg-warning text-black")
-        }
-      >
-        !
-      </span>
-      <span className="tabular-nums">{count}</span>
-      <span className="sr-only">{count === 1 ? "needs you" : "need you"},</span>
-    </span>
-  );
-}
-
-/** A group's fold toggle: a chevron, named for screen readers. */
-function FoldButton({
-  open,
-  label,
-  controls,
-  onToggle,
-}: {
-  open: boolean;
-  label: string;
-  controls: string;
-  onToggle: () => void;
-}): JSX.Element {
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-expanded={open}
-      aria-controls={controls}
-      aria-label={open ? `Fold ${label}` : `Unfold ${label}`}
-      className="flex size-6 shrink-0 items-center justify-center rounded-md text-faint outline-none hover:bg-surface/60 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
-      data-testid="rail-fold"
-    >
-      <svg
-        aria-hidden="true"
-        width="10"
-        height="10"
-        viewBox="0 0 10 10"
-        className={"transition-transform motion-reduce:transition-none " + (open ? "rotate-90" : "")}
-      >
-        <path d="M3.5 2 L7 5 L3.5 8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    </button>
-  );
-}
-

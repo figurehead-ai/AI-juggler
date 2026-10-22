@@ -136,6 +136,20 @@ fn real_setup_read_models() {
         .unwrap(),
     );
     report.insert("projects".into(), serde_json::to_value(&projects).unwrap());
+    // AJ-E1532: each project's own icon, as the UI reads it — only when the
+    // replica fixture asks (`just replica-fixture`); a pass over real data
+    // records none.
+    if std::env::var_os("AIJ_QA_ICONS").is_some() {
+        let icons: serde_json::Map<String, serde_json::Value> = projects
+            .iter()
+            .filter_map(|p| {
+                let url = juggler_app::features::projects::icon::icon_read_impl(&state, &p.id)
+                    .unwrap()?;
+                Some((p.id.clone(), url.into()))
+            })
+            .collect();
+        report.insert("project_icons".into(), icons.into());
+    }
 
     let app = tauri::test::mock_builder()
         .build(tauri::test::mock_context(tauri::test::noop_assets()))

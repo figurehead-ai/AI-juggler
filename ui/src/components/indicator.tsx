@@ -1,5 +1,4 @@
 import { toolMarkIcon } from "./ToolMark";
-import { paletteHue } from "../lib/palette";
 import { toolSpec } from "../lib/tools";
 import type { ReactNode } from "react";
 import type { AccountInfo, InstanceInfo } from "../lib/bridge";
@@ -77,19 +76,6 @@ export function stateChip(status: string): {
 /** Initials for the account disc: first letters of the first and last
  * words, where "-", "_" and "." part words too — labels like
  * "claude-work" and "claude-personal" differ in their last word (AJ-E1529). */
-export function initialsOf(label: string): string {
-  const words = label.trim().split(/[\s\-_.]+/).filter(Boolean);
-  if (words.length === 0) return "?";
-  if (words.length === 1) return words[0]!.slice(0, 2).toUpperCase();
-  return (words[0]![0]! + words[words.length - 1]![0]!).toUpperCase();
-}
-
-/** Stable per-Account hue (0–359) from a hash of the account id. */
-export function hueOf(accountId: string | null): number {
-  // AJ-E1532: one of twelve well-separated hues (lib/palette.ts).
-  return paletteHue(accountId);
-}
-
 // --- I-06 tokens (no pricing source exists: tokens only, never `$0.00`) ----
 
 export function formatTokens(n: number): string {
@@ -252,33 +238,6 @@ export function formatBytes(bytes: number): string {
 // --- small shared renderers ---------------------------------------------------
 
 /** I-02 initials disc with the per-Account hue. */
-export function AccountDisc({
-  accountId,
-  label,
-  size = 18,
-}: {
-  accountId: string | null;
-  label: string;
-  size?: number;
-}) {
-  return (
-    <span
-      className="acct-disc inline-flex shrink-0 items-center justify-center rounded-full text-[9px] font-semibold"
-      style={
-        {
-          "--acct-hue": hueOf(accountId),
-          width: size,
-          height: size,
-        } as React.CSSProperties
-      }
-      title={label}
-      aria-hidden="true"
-    >
-      {initialsOf(label)}
-    </span>
-  );
-}
-
 /** I-08 children/subtask badges — hidden at 0/`null` (no `⑂ 0` noise). */
 export function ChildBadges({ session }: { session: InstanceInfo }): ReactNode {
   const children = session.child_count ?? 0;

@@ -169,7 +169,7 @@ replica-oracle:
     bin=$(ls -t {{target_dir}}/debug/deps/qa_real_readonly-* | grep -v '\.d$' | sed -n 1p)
     work=$(mktemp -d)
     env -i HOME={{replica_home}} USER="$USER" TMPDIR="$TMPDIR" PATH=/usr/bin:/bin:/usr/sbin:/sbin \
-        AIJ_QA_REAL_DATA="$work/data" AIJ_QA_REAL_OUT="$work/harness.json" "$bin" --ignored --nocapture > "$work/harness.log" 2>&1
+        AIJ_QA_REAL_DATA="$work/data" AIJ_QA_REAL_OUT="$work/harness.json" AIJ_QA_ICONS=1 "$bin" --ignored --nocapture > "$work/harness.log" 2>&1
     dirs=()
     for d in {{replica_home}}/.claude-*/; do dirs+=(--claude-dir "$d"); done
     for d in {{replica_home}}/.codex-*/; do dirs+=(--codex-dir "$d"); done
@@ -184,7 +184,7 @@ replica-fixture:
     bin=$(ls -t {{target_dir}}/debug/deps/qa_real_readonly-* | grep -v '\.d$' | sed -n 1p)
     work=$(mktemp -d)
     env -i HOME={{replica_home}} USER="$USER" TMPDIR="$TMPDIR" PATH=/usr/bin:/bin:/usr/sbin:/sbin \
-        AIJ_QA_REAL_DATA="$work/data" AIJ_QA_REAL_OUT="$work/harness.json" "$bin" --ignored --nocapture > "$work/harness.log" 2>&1
+        AIJ_QA_REAL_DATA="$work/data" AIJ_QA_REAL_OUT="$work/harness.json" AIJ_QA_ICONS=1 "$bin" --ignored --nocapture > "$work/harness.log" 2>&1
     python3 -I scripts/qa/replica_fixture.py "$work/harness.json" ui/tests/visual/fixtures/replica.json
     rm -rf "$work"
 

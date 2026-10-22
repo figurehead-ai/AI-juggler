@@ -1070,6 +1070,26 @@ pub fn overlay_wrapper_command(overlays_root: &Path, account_id: &str) -> String
     )
 }
 
+/// The status line command AI Juggler writes into a user's own settings
+/// when they turn on measuring for sessions started elsewhere (AJ-E1530):
+/// fail-safe, so deleting AI Juggler (or its data) can never break their
+/// status line. It runs the capture wrapper while that's there and
+/// runnable; otherwise their own command, kept in it as one quoted word,
+/// runs as before. Their command is never one of AI Juggler's wrappers.
+#[must_use]
+pub fn fail_safe_statusline_command(
+    overlays_root: &Path,
+    account_id: &str,
+    original: Option<&str>,
+) -> String {
+    let theirs = not_ours(original.map(str::to_owned)).unwrap_or_default();
+    format!(
+        "sh -c 'if [ -x \"$1\" ]; then exec \"$1\"; fi; if [ -n \"$2\" ]; then exec sh -c \"$2\"; fi' aij-statusline {} {}",
+        overlay_wrapper_command(overlays_root, account_id),
+        shell_word(&theirs)
+    )
+}
+
 /// The spool of an in-place account (see [`overlay_dir`]).
 #[must_use]
 pub fn overlay_spool_path(overlays_root: &Path, account_id: &str) -> PathBuf {

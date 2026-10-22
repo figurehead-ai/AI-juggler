@@ -162,6 +162,7 @@ macro_rules! app_commands {
             Read  features::quota::capture::quota_capture_preview,
             Write features::quota::capture::quota_capture_turn_on,
             Write features::quota::capture::quota_capture_turn_off,
+            Write features::app::uninstall::app_prepare_uninstall,
             Write commands::account_set_fee,
             Read  commands::ranking_rows,
             Write commands::alerts_tick,
@@ -395,6 +396,8 @@ macro_rules! app_commands {
             Read  features::sessions::commands::sessions_resume_command,
             // Reads `git status` (the 2 s cache, like a session's).
             Read  features::projects::git::projects_git_status,
+            Read  features::projects::icon::projects_icon_read,
+            Write features::projects::mark::projects_mark_set,
         }
     };
 }
@@ -466,6 +469,8 @@ pub fn run() {
             hand_over_to_the_running_instance(context);
         }
     }
+    // Live-preview frames an earlier version left in the temp folder.
+    preview::sweep_frames(&std::env::temp_dir());
     let app_state = Arc::new(match state::AppState::init(data_dir.clone()) {
         Ok(state) => state,
         // AJ-E1010: an older AI Juggler opened data a newer one saved — say

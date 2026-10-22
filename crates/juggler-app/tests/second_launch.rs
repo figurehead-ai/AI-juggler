@@ -62,14 +62,17 @@ const SOCKET: &str = "/tmp/ai_figurehead_juggler_si.sock";
 
 fn ai_juggler_is_open() -> bool {
     // Executables only (`comm`): a command line that merely mentions the
-    // app (a shell, an editor) doesn't count.
+    // app (a shell, an editor) doesn't count. Another checkout's build
+    // counts too: it answers on the same single-instance socket, so a
+    // launch here would hand over to it (two sessions' gates at once).
+    // This test's own launches are all reaped before the next test.
     std::process::Command::new("ps")
         .args(["-axo", "comm="])
         .output()
         .is_ok_and(|out| {
-            String::from_utf8_lossy(&out.stdout)
-                .lines()
-                .any(|exe| exe.contains("AI Juggler.app/Contents/MacOS/"))
+            String::from_utf8_lossy(&out.stdout).lines().any(|exe| {
+                exe.contains("AI Juggler.app/Contents/MacOS/") || exe.ends_with("/juggler-app")
+            })
         })
 }
 
@@ -77,7 +80,7 @@ fn ai_juggler_is_open() -> bool {
 fn a_second_launch_never_opens_the_data() {
     let _serial = serial();
     if ai_juggler_is_open() {
-        eprintln!("skipped: AI Juggler is open, and this build shares its single-instance name");
+        eprintln!("skipped: an AI Juggler build is open, and this build shares its single-instance name");
         return;
     }
     // A socket left by an AI Juggler that crashed (none is open now) would
@@ -196,7 +199,7 @@ fn held_home() -> (tempfile::TempDir, PathBuf, std::fs::File) {
 fn a_second_launch_says_a_frozen_app_isnt_answering() {
     let _serial = serial();
     if ai_juggler_is_open() {
-        eprintln!("skipped: AI Juggler is open, and this build shares its single-instance name");
+        eprintln!("skipped: an AI Juggler build is open, and this build shares its single-instance name");
         return;
     }
     let (home, data, lock) = held_home();
@@ -239,7 +242,7 @@ fn a_second_launch_says_a_frozen_app_isnt_answering() {
 fn a_second_launch_hands_over_to_an_app_that_answers() {
     let _serial = serial();
     if ai_juggler_is_open() {
-        eprintln!("skipped: AI Juggler is open, and this build shares its single-instance name");
+        eprintln!("skipped: an AI Juggler build is open, and this build shares its single-instance name");
         return;
     }
     let (home, data, lock) = held_home();
@@ -321,7 +324,7 @@ impl Drop for ReapTagged {
 fn the_isnt_answering_alerts_quit_quits() {
     let _serial = serial();
     if ai_juggler_is_open() {
-        eprintln!("skipped: AI Juggler is open, and this build shares its single-instance name");
+        eprintln!("skipped: an AI Juggler build is open, and this build shares its single-instance name");
         return;
     }
     let (home, data, lock) = held_home();
@@ -357,7 +360,7 @@ fn the_isnt_answering_alerts_quit_quits() {
 fn the_isnt_answering_alerts_try_again_starts_once_the_data_is_free() {
     let _serial = serial();
     if ai_juggler_is_open() {
-        eprintln!("skipped: AI Juggler is open, and this build shares its single-instance name");
+        eprintln!("skipped: an AI Juggler build is open, and this build shares its single-instance name");
         return;
     }
     let (home, data, lock) = held_home();

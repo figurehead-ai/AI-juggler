@@ -947,3 +947,45 @@ fn a_copy_wired_by_an_earlier_version_chains_its_users_own_line_and_stays_as_it_
         backup
     );
 }
+
+
+#[cfg(unix)]
+fn run(command: &str) -> (bool, String) {
+    let mut child = std::process::Command::new("sh")
+        .arg("-c")
+        .arg(command)
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    std::io::Write::write_all(child.stdin.as_mut().unwrap(), b"{}").unwrap();
+    let out = child.wait_with_output().unwrap();
+    (out.status.success(), String::from_utf8_lossy(&out.stdout).into_owned())
+}
+
+#[cfg(unix)]
+#[test]
+/// AJ-E1530 (the docs fact-check): the line written into the user's
+/// settings never breaks their status line, even with AI Juggler gone.
+fn the_fail_safe_line_runs_the_wrapper_while_it_is_there_else_the_users_own() {
+    use std::os::unix::fs::PermissionsExt as _;
+    let tmp = tempfile::tempdir().unwrap();
+    // A folder and a command with a quote and a space in them.
+    let overlays = tmp.path().join("it's data");
+    let theirs = "printf 'MY LINE'; cat > /dev/null";
+    let command = juggler_adapters::quota_ingest::fail_safe_statusline_command(&overlays, "acct", Some(theirs));
+    assert!(command.contains("juggler-statusline.sh"), "still recognised as AI Juggler's");
+    assert_eq!(run(&command), (true, "MY LINE".into()), "no wrapper: their line");
+    let wrapper = juggler_adapters::quota_ingest::overlay_dir(&overlays, "acct").join("juggler-statusline.sh");
+    std::fs::create_dir_all(wrapper.parent().unwrap()).unwrap();
+    std::fs::write(&wrapper, "#!/bin/sh\ncat > /dev/null\nprintf WRAPPED\n").unwrap();
+    std::fs::set_permissions(&wrapper, std::fs::Permissions::from_mode(0o755)).unwrap();
+    assert_eq!(run(&command), (true, "WRAPPED".into()));
+    std::fs::remove_dir_all(&overlays).unwrap();
+    assert_eq!(run(&command), (true, "MY LINE".into()), "AI Juggler's data deleted");
+    let none = juggler_adapters::quota_ingest::fail_safe_statusline_command(&overlays, "acct", None);
+    assert_eq!(run(&none), (true, String::new()), "nothing of theirs: an empty line, no error");
+    let looped = juggler_adapters::quota_ingest::fail_safe_statusline_command(&overlays, "acct", Some(&command));
+    assert_eq!(run(&looped), (true, String::new()), "never chains a wrapper of its own");
+}
+

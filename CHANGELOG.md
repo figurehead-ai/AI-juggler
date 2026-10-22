@@ -348,6 +348,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Telling projects and sessions apart** (AJ-E1532). Every project has
+  a mark, the same on the rail, Home, History and its page: its own icon
+  when its folder has one (a Tauri, Electron or Xcode app icon, a
+  favicon or a logo, read and never changed), else two letters on one of
+  twelve colours that stay apart in both themes. Clones of one
+  repository share their mark and carry their number. **Change its
+  mark…** in a project's menu picks the colour, letters or an emoji.
+  Every account now has a round avatar in its colour, with initials that
+  tell accounts sharing a first word apart ("Wo" and "Pe" for
+  claude-work and claude-personal). A session row shows its tool and the
+  account serving it, and says "on Work Max" to a screen reader. A
+  project's row shows the accounts that worked there, a ring on any
+  running there now. A folded project shows as a stripe in its colour.
 - **A welcome for new installs** (AJ-E1524). With no accounts yet, Home
   now explains what AI Juggler is for and what it found on this Mac
   ("We found Claude Code and Codex on this Mac", or install links when

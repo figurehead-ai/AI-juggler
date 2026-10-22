@@ -302,7 +302,7 @@ walk alone isn't enough.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1529/manifest.md`, with both oracle comparisons.
 **Files to touch**: `crates/juggler-app/src/features/conversations/`, `crates/juggler-adapters` (each adapter's conversation reader), `ui/src/components/WorkflowRail.tsx`, the project view.
 
-### AJ-E1532 Telling projects and sessions apart | Status: TODO | Priority P1 | Effort M | Depends: AJ-E1529, AJ-E1526
+### AJ-E1532 Telling projects and sessions apart | Status: DONE-EVIDENCED | Priority P1 | Effort M | Depends: AJ-E1529, AJ-E1526
 **Goal**: With many projects, each is recognisable at a glance.
 **User story**: As someone with fifteen projects, I tell acme-web from payments-api by its mark and colour before I read the name.
 **Requirements** (the maintainer's request, 2026-10-21):

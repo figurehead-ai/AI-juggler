@@ -2,6 +2,8 @@
 //! here; the commands move from `commands.rs` with AJ-E2017.
 
 pub mod git;
+pub mod icon;
+pub mod mark;
 
 /// A tracked project for the UI — the juggling anchor (ADR-0007).
 #[derive(Debug, Clone, serde::Serialize, ts_rs::TS)]
@@ -48,4 +50,8 @@ pub struct ProjectInfo {
     /// it is used again.
     #[ts(optional)]
     pub forgotten: Option<bool>,
+    /// AJ-E1532: its mark — its own icon, or letters on a colour — the
+    /// same on every screen. Set once its repository is known.
+    #[ts(optional)]
+    pub mark: Option<mark::ProjectMarkInfo>,
 }

@@ -8,7 +8,8 @@
  */
 import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { InstanceBoard, repoGroups } from "./WorkflowRail";
+import { InstanceBoard } from "./WorkflowRail";
+import { repoGroups } from "./rail-groups";
 import * as manage from "../lib/ipc/manage";
 import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
 import { filterSessions, groupSessions, sortSessions, NO_CHIP_FILTERS } from "../lib/railview";
@@ -167,6 +168,7 @@ describe("AJ-E1502 the project row's menu", () => {
         "Open in Finder",
         "Copy path",
         "Rename…",
+        "Change its mark…",
         "Pin to top",
         "Forget…",
       ]),
