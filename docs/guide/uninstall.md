@@ -1,8 +1,10 @@
 # Uninstall
 
-1. **Turn off measuring Claude limits for sessions started elsewhere**, on
-   each account where you turned it on. That restores the account's
-   `settings.json` exactly as it was.
+1. **In AI Juggler, open Settings › Data › Before you uninstall** and choose
+   **Prepare to uninstall**. It turns off measuring Claude limits for
+   sessions started elsewhere on every account where it's on, which puts
+   each account's `settings.json` back exactly as it was, and lists what's
+   left for you to remove.
 2. **Quit AI Juggler** and move it to the Trash (and **AI Juggler Nightly**,
    if you have it).
 3. **Delete its data** if you don't want to keep it:

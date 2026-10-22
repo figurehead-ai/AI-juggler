@@ -26,9 +26,10 @@ or Codex installed.
 - **Nightly** is a separate app, so you can try what's coming next to your
   everyday AI Juggler. The two never share data or settings.
 
-To change between Stable and Beta: Settings › About & updates. A steadier
-channel never moves you back to an older version; you get the next one when
-it reaches that channel.
+A fresh install follows the channel it was downloaded from: Stable from a
+Stable release, Beta from a Beta release. To change between them: Settings ›
+About & updates. A steadier channel never moves you back to an older
+version; you get the next one when it reaches that channel.
 
 ## Updates
 
