@@ -95,17 +95,33 @@ pub fn spawn(state: Arc<AppState>) {
 
 /// One ingest pass (public for tests): accounts → sources → store.
 pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
-    let accounts = {
+    let (accounts, dirty) = {
         let Ok(storage) = state.storage.lock() else {
             return;
         };
         let Ok(list) = storage.accounts().list() else {
             return;
         };
-        list
+        // A build without the holders wrote usage rows here (gone back to,
+        // then forward again): read everything again so they're whole.
+        let dirty = storage.usage().derived_dirty().unwrap_or(false);
+        // Accounts whose tool's usage keys name their own session: the
+        // store keeps no holders for them.
+        let unshared: std::collections::BTreeSet<String> = list
+            .iter()
+            .filter(|account| {
+                crate::commands::adapter_has(
+                    account.harness.as_str(),
+                    juggler_adapter::Capabilities::USAGE_KEYS_PER_SESSION,
+                )
+            })
+            .map(|account| account.id.as_str().to_owned())
+            .collect();
+        let _ = storage.usage().set_unshared_accounts(&unshared);
+        (list, dirty)
     };
     let mut ingest = load_state(state);
-    let rereading = ingest.reread < REREAD_VERSION;
+    let rereading = ingest.reread < REREAD_VERSION || dirty;
     if rereading {
         for offsets in ingest.offsets.values_mut() {
             offsets.files.values_mut().for_each(|offset| *offset = 0);
@@ -168,6 +184,9 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
         let usage = storage.usage();
         if rereading {
             ingest.reread = REREAD_VERSION;
+            if usage.clear_derived_dirty().is_err() {
+                return;
+            }
         } else {
             // AJ-E1103: Measured tokens this pass added (D-06): a new
             // response, or the rest of one an earlier pass began. A re-read
@@ -315,6 +334,7 @@ fn ingest_claude(
     let projects = dir.join("projects");
     let mut files = Vec::new();
     collect_jsonl(&projects, &mut files);
+    forget_missing(ingest, account, &projects, &files);
     ingest_files(
         account,
         "transcript",
@@ -339,6 +359,7 @@ fn ingest_codex(
     let sessions = dir.join("sessions");
     let mut files = Vec::new();
     collect_jsonl(&sessions, &mut files);
+    forget_missing(ingest, account, &sessions, &files);
     let mut latest: Option<juggler_adapters::CreditsSnapshot> = None;
     for path in files {
         let outcome = tail_one(
@@ -393,6 +414,26 @@ fn ingest_zcode(
 
 /// Reads one file's next slice: its path, account, offset and carry.
 type Tail = fn(&Path, &str, u64, &juggler_adapters::RolloutCarry) -> juggler_adapters::TailOutcome;
+
+/// Forgets the offsets and carries of an account's files that are no longer
+/// on disk (deleted, or moved away), so the state doesn't grow with every
+/// file there ever was. Only when `root` could be listed: a folder that is
+/// gone or unreadable for a moment forgets nothing (else the next pass
+/// would read every file again from its start).
+fn forget_missing(ingest: &mut IngestState, account: &str, root: &Path, files: &[PathBuf]) {
+    if std::fs::read_dir(root).is_err() {
+        return;
+    }
+    let Some(offsets) = ingest.offsets.get_mut(account) else {
+        return;
+    };
+    let present: std::collections::BTreeSet<String> = files
+        .iter()
+        .map(|path| path.to_string_lossy().to_string())
+        .collect();
+    offsets.files.retain(|path, _| present.contains(path));
+    offsets.carries.retain(|path, _| present.contains(path));
+}
 
 /// Tails a set of JSONL files with per-file offsets.
 fn ingest_files(

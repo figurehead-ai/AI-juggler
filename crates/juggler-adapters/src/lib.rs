@@ -22,8 +22,10 @@ pub mod codex_handover;
 pub mod codex_transcript;
 pub mod fake;
 pub mod inference;
+mod presence;
 pub mod quota_ingest;
 pub mod scan_signals;
+pub mod sign_in;
 pub mod transcript;
 
 pub use claude_code::{CLAUDE_CODE_ID, ClaudeCodeAdapter, LoginState};

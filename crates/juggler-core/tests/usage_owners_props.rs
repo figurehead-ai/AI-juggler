@@ -214,6 +214,7 @@ proptest! {
             prop_assert_eq!(after, total, "the total while re-reading");
         }
         prop_assert_eq!(kept(&storage), want, "after the re-read");
+        prop_assert!(!storage.usage().derived_dirty().unwrap(), "our own writes never mark it");
     }
 }
 
@@ -286,4 +287,111 @@ fn a_version_two_store_re_read_in_chunks_with_a_file_missing() {
     .map(|(s, keys)| (s.to_owned(), keys))
     .collect();
     assert_eq!(by_session, want);
+}
+
+/// L-c (#126 re-review): a build without the holders (gone back to) that
+/// writes usage rows marks them dirty, through triggers that live in the
+/// file: a row inserted, or moved to a session, with no holder row.
+#[test]
+fn a_build_without_holders_marks_them_dirty() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("juggler.sqlite");
+    let storage = Storage::open(&path).unwrap();
+    storage
+        .usage()
+        .store_events(&[event("o", 1, 0), event("c", 1, 0), event("c", 2, 1)])
+        .unwrap();
+    assert!(!storage.usage().derived_dirty().unwrap());
+    let older = rusqlite::Connection::open(&path).unwrap();
+    // An older build stores a new message (as it would: no holder row).
+    older
+        .execute(
+            "INSERT INTO usage_events (account, session, ts, output, source, confidence, msg_uuid)
+             VALUES ('acc', 'n', 5, 9, 'transcript', 'measured', 'm9')",
+            [],
+        )
+        .unwrap();
+    assert!(storage.usage().derived_dirty().unwrap());
+    storage.usage().clear_derived_dirty().unwrap();
+    // It credits a shared message by its own rule (a move to a session
+    // that isn't a holder of it).
+    older
+        .execute(
+            "UPDATE usage_events SET session = 'x' WHERE msg_uuid = 'm1'",
+            [],
+        )
+        .unwrap();
+    assert!(storage.usage().derived_dirty().unwrap());
+    storage.usage().clear_derived_dirty().unwrap();
+    // A move to a holder, as this build makes, doesn't.
+    older
+        .execute(
+            "UPDATE usage_events SET session = 'o' WHERE msg_uuid = 'm1'",
+            [],
+        )
+        .unwrap();
+    assert!(!storage.usage().derived_dirty().unwrap());
+}
+
+/// #126 follow-up: an account whose tool keys usage by its own session
+/// (Codex) keeps no holders — they can't be shared — and its writes don't
+/// mark the holders dirty. Holders kept before go.
+#[test]
+fn an_unshared_account_keeps_no_holders() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("juggler.sqlite");
+    let storage = Storage::open(&path).unwrap();
+    storage.usage().store_events(&[event("t1", 1, 0)]).unwrap();
+    let raw = rusqlite::Connection::open(&path).unwrap();
+    let holders = || {
+        raw.query_row("SELECT COUNT(*) FROM usage_holders", [], |row| {
+            row.get::<_, i64>(0)
+        })
+        .unwrap()
+    };
+    assert_eq!(holders(), 1);
+    storage
+        .usage()
+        .set_unshared_accounts(&BTreeSet::from(["acc".to_owned()]))
+        .unwrap();
+    assert_eq!(holders(), 0, "the holders kept before go");
+    storage
+        .usage()
+        .store_events(&[event("t1", 2, 1), event("t2", 3, 2)])
+        .unwrap();
+    assert_eq!(holders(), 0);
+    assert!(!storage.usage().derived_dirty().unwrap());
+    assert_eq!(kept(&storage).len(), 3);
+    // L4 (#130 review): leaving the set leaves it with no holders, so
+    // everything is read again.
+    storage
+        .usage()
+        .set_unshared_accounts(&BTreeSet::new())
+        .unwrap();
+    assert!(storage.usage().derived_dirty().unwrap());
+}
+
+/// L3 (#130 review): the triggers are made again at each open, so a store
+/// that holds an older definition gets the current one.
+#[test]
+fn an_older_trigger_is_replaced_on_open() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("juggler.sqlite");
+    drop(Storage::open(&path).unwrap());
+    let raw = rusqlite::Connection::open(&path).unwrap();
+    raw.execute_batch(
+        "DROP TRIGGER usage_events_unheld_insert;
+         CREATE TRIGGER usage_events_unheld_insert AFTER INSERT ON usage_events
+         BEGIN SELECT 1; END;",
+    )
+    .unwrap();
+    drop(Storage::open(&path).unwrap());
+    let sql: String = raw
+        .query_row(
+            "SELECT sql FROM sqlite_master WHERE name = 'usage_events_unheld_insert'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert!(sql.contains("usage_unshared"), "{sql}");
 }

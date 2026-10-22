@@ -138,6 +138,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- AI Juggler no longer opens Claude Code's `.credentials.json`: it read the
+  file to check an expiry date. Whether you're signed in is told from the
+  file being there, as the docs promised; Claude says itself when a sign-in
+  has expired.
+- Fleet can find your other Macs on macOS 15 and later: AI Juggler now
+  says why it needs the local network, so macOS asks instead of silently
+  blocking it.
+- Jumping to a session's window works in signed builds: AI Juggler now
+  carries the Apple Events permission macOS asks about, instead of being
+  refused without a prompt.
+- Watching your Mac's processes stays under 1 % of one core beside a busy
+  Claude app: the other tools' processes are now measured every 4 seconds
+  (8 at most), in the same read that finds new ones, instead of every 2
+  seconds on top of it.
+- Going back to an earlier version and forward again no longer leaves
+  some cost credited to the wrong session: AI Juggler notices what the
+  earlier version wrote and reads the conversations again once.
 - This Mac counts what a session starts as soon as it starts (within about
   4 seconds). A build fanning out under a Claude app session could be
   missed for up to 10 seconds, so the app's figure read far too low.

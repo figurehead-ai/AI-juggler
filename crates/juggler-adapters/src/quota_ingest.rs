@@ -225,9 +225,13 @@ pub fn install_statusline(config_dir: &Path) -> Result<bool, String> {
         "statusLine".into(),
         serde_json::json!({ "type": "command", "command": wrapper_command }),
     );
-    std::fs::write(
+    // The whole file is rewritten with only `statusLine` changed. Its other
+    // values (an API key can be among them) pass through this function's
+    // memory and nothing else: never stored, logged or returned. Written
+    // atomically, so an interrupted write can't leave it half there.
+    juggler_core::fs::atomic_write(
         &settings_path,
-        serde_json::to_vec_pretty(&settings).map_err(|error| error.to_string())?,
+        &serde_json::to_vec_pretty(&settings).map_err(|error| error.to_string())?,
     )
     .map_err(|error| format!("settings write: {error}"))?;
     Ok(true)
@@ -273,9 +277,13 @@ pub fn uninstall_statusline(config_dir: &Path) -> Result<bool, String> {
             object.remove("statusLine");
         }
     }
-    std::fs::write(
+    // The whole file is rewritten with only `statusLine` changed. Its other
+    // values (an API key can be among them) pass through this function's
+    // memory and nothing else: never stored, logged or returned. Written
+    // atomically, so an interrupted write can't leave it half there.
+    juggler_core::fs::atomic_write(
         &settings_path,
-        serde_json::to_vec_pretty(&settings).map_err(|error| error.to_string())?,
+        &serde_json::to_vec_pretty(&settings).map_err(|error| error.to_string())?,
     )
     .map_err(|error| format!("settings write: {error}"))?;
     let _ = std::fs::remove_file(&wrapper);
@@ -1182,6 +1190,23 @@ pub fn spool_path(config_dir: &Path) -> PathBuf {
 // ADR-0018: in-place accounts — the capture lives in AI Juggler's data
 // ---------------------------------------------------------------------------
 
+/// The one part of a Claude `settings.json` the launch overlay keeps: its
+/// `statusLine.command`. The file is streamed into this shape, and every
+/// other value (an API key can be among them) is skipped while parsing.
+#[derive(Default, serde::Deserialize)]
+#[serde(default)]
+struct StatusLineShape {
+    #[serde(rename = "statusLine")]
+    status_line: Option<StatusLineCommand>,
+}
+
+/// `statusLine.command` (see [`StatusLineShape`]).
+#[derive(Default, serde::Deserialize)]
+#[serde(default)]
+struct StatusLineCommand {
+    command: Option<String>,
+}
+
 /// The settings file AI Juggler passes with `claude --settings` for an
 /// in-place account.
 const OVERLAY_SETTINGS_NAME: &str = "launch-settings.json";
@@ -1216,16 +1241,13 @@ pub fn ensure_launch_overlay(
     let dir = overlay_dir(overlays_root, account_id);
     let spool_dir = dir.join(SPOOL_DIR_NAME);
     std::fs::create_dir_all(&spool_dir).map_err(|error| format!("overlay dir: {error}"))?;
-    let chain = std::fs::read(config_dir.join("settings.json"))
+    // Only `statusLine.command` is kept (see [`StatusLineShape`]).
+    let chain = std::fs::File::open(config_dir.join("settings.json"))
         .ok()
-        .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
-        .and_then(|settings| {
-            settings
-                .get("statusLine")
-                .and_then(|line| line.get("command"))
-                .and_then(serde_json::Value::as_str)
-                .map(str::to_owned)
-        });
+        .and_then(|file| {
+            serde_json::from_reader::<_, StatusLineShape>(std::io::BufReader::new(file)).ok()
+        })
+        .and_then(|settings| settings.status_line?.command);
     let chain = not_ours(chain);
     let wrapper = dir.join(WRAPPER_NAME);
     write_if_changed(
