@@ -433,6 +433,38 @@ fn a_console_with_its_link_off_applies_nothing() {
     assert_eq!(replica(&b, &origin), replica_before);
 }
 
+/// Link off ends a join in flight too: this Mac's confirm, arriving after
+/// Link went off, pairs nothing, even though the other Mac confirms.
+#[test]
+fn a_join_in_flight_when_link_goes_off_pairs_nothing() {
+    let work = tempfile::tempdir().unwrap();
+    let a = app_state(&work.path().join("a"));
+    let b = app_state(&work.path().join("b"));
+    link::link_set_enabled_impl(&a, true).unwrap();
+    link::link_set_enabled_impl(&b, true).unwrap();
+    let code = link::pairing_host_open_impl(&a).unwrap().code.unwrap();
+    let address = format!("127.0.0.1:{}", link::link_status_impl(&a).port.unwrap());
+    link::pairing_join_start_impl(&b, None, Some(&address), &code).unwrap();
+    wait_for("joiner confirm", || {
+        phase(link::pairing_join_state_impl(&b).unwrap(), "confirm")
+    });
+    wait_for("host confirm", || {
+        phase(link::pairing_host_state_impl(&a).unwrap(), "confirm")
+    });
+
+    link::link_set_enabled_impl(&b, false).unwrap();
+    // Both users confirm, this Mac's after its Link went off.
+    let _ = link::pairing_join_decide_impl(&b, true, Permission::View);
+    let _ = link::pairing_host_decide_impl(&a, true, Permission::View);
+    std::thread::sleep(Duration::from_secs(2));
+
+    assert!(
+        fleet::fleet_peers_impl(&b).unwrap().is_empty(),
+        "nothing paired after Link off"
+    );
+    assert_ne!(link::pairing_join_state_impl(&b).unwrap().phase, "paired");
+}
+
 #[test]
 fn a_console_restarted_mid_sync_resumes_from_its_durable_high_water_mark() {
     let work = tempfile::tempdir().unwrap();

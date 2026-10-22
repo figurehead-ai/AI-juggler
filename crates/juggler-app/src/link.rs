@@ -146,6 +146,9 @@ pub struct LinkManager {
     host_message: Arc<Mutex<Option<(String, String)>>>,
     guard: Arc<Mutex<Option<PairingGuard<SettingsGuardStore>>>>,
     join: Arc<Mutex<JoinPhase>>,
+    /// The join in flight (this Mac pairing with another), which `stop`
+    /// ends: Link off, nothing pairs after.
+    join_task: Mutex<Option<tokio::task::JoinHandle<()>>>,
     telemetry: OnceLock<tokio::sync::broadcast::Sender<proto::TelemetryDelta>>,
     last_error: Mutex<Option<String>>,
     /// What paired machines report, as this console last heard it.
@@ -1397,6 +1400,25 @@ fn stop(state: &Arc<AppState>) {
             runtime.block_on(running.node.stop());
         }
     }
+    // A join in flight ends too, and is waited for: its writes (the pin,
+    // the address) hold no await, so they either finished before this or
+    // never happen.
+    let join = manager
+        .join_task
+        .lock()
+        .ok()
+        .and_then(|mut task| task.take());
+    if let Some(join) = join {
+        join.abort();
+        if let Ok(runtime) = manager.runtime() {
+            let _ = runtime.block_on(join);
+        }
+    }
+    if let Ok(mut phase) = manager.join.lock()
+        && matches!(*phase, JoinPhase::Connecting | JoinPhase::Confirm { .. })
+    {
+        *phase = JoinPhase::Idle;
+    }
     if let Ok(mut peers) = manager.peers.lock() {
         peers.clear();
     }
@@ -2069,7 +2091,7 @@ pub fn pairing_join_start_impl(
     *manager.join.lock().map_err(|_| AppError::StatePoisoned)? = JoinPhase::Connecting;
     let join = manager.join.clone();
     let weak = Arc::downgrade(state);
-    manager.runtime()?.spawn(async move {
+    let task = manager.runtime()?.spawn(async move {
         let mut last = JoinError::Cancelled;
         for address in addresses {
             let phase = join.clone();
@@ -2127,6 +2149,15 @@ pub fn pairing_join_start_impl(
             };
         }
     });
+    // A newer join replaces one still in flight.
+    if let Some(older) = manager
+        .join_task
+        .lock()
+        .map_err(|_| AppError::StatePoisoned)?
+        .replace(task)
+    {
+        older.abort();
+    }
     pairing_join_state_impl(state)
 }
 

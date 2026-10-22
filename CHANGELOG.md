@@ -139,8 +139,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Turning Fleet Link off stops this Mac hearing from your other machines
-  at once. Before, a connection that was open when you turned it off
-  kept receiving their sessions and saving them, until it broke.
+  at once, and ends a pairing still in progress. Before, a connection that
+  was open when you turned it off kept receiving their sessions and saving
+  them until it broke, and a pairing could still finish afterwards.
 - Codex's older conversations count: Codex compresses older session files
   (`.jsonl.zst`), and AI Juggler read none of them, so their tokens and
   costs were missing (on a Mac used for a while, most of them).
