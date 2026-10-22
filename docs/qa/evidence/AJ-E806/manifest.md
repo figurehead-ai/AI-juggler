@@ -531,17 +531,22 @@
     the work that holds the budget: a full scan at most every 5th tick,
     and between them only our sessions' processes
     (`LiveStatsCollector::work`). CPU is still printed.
-- **Flake record, 2026-10-22 (observed; open, a follow-up).** In the
+- **Flake record, 2026-10-22 (fixed in fix/maintainer-reports-6).** In the
   batch 5 verify of 7bcd862b (fix/maintainer-reports-5), with other
   sessions' builds running,
   `fleet_sync :: an_offline_console_catches_up_with_only_what_it_missed_and_keeps_last_known_rows`
-  took 9.45 s and failed: the catch-up log was `[(0, 10), (31, 5)]`. The
-  first sync's full catch-up landed in the log after the test had taken
-  `catch_ups_before`, so it read that one as the resume, and the real
-  resume (31, 5: only the missing changes) came second. Alone it passed 3
-  of 3 times (3.2 s). The batch doesn't touch fleet code. The fix belongs
-  in the test: wait for the first catch-up before counting. Nothing
-  changed here.
+  took 9.45 s and failed: the catch-up log was `[(0, 10), (31, 5)]`. Alone
+  it passed 3 of 3 times (3.2 s), and the batch didn't touch fleet code.
+  The first reading of this record ("the first sync's full catch-up landed
+  late") was wrong: the test reads `first[0]` before it takes
+  `catch_ups_before`, so the resume it checked was (31, 5). What failed is
+  `resumed.0 <= high_water`. The console asks from its own high-water mark,
+  and a batch already on its way when its link went down landed after the
+  test had read the node's top sequence, so the console's mark (31) was
+  past it. The test now reads the console's own mark just before it
+  reconnects, and asserts the catch-up asks from exactly that mark (never
+  0) and sends exactly the changes after it. Under 24 busy processes it
+  passed 3 of 3.
 - **Flake record, 2026-10-22 (fixed, fix/maintainer-reports-5).** CI on
   PR #132 (run 39821992531) failed
   `guardrails :: idle_nudge_fires_exactly_once_per_orphan`, "the idle

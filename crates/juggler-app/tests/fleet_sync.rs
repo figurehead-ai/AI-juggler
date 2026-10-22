@@ -165,6 +165,25 @@ fn catch_ups(node: &Arc<AppState>) -> Vec<(u64, u64)> {
         .collect()
 }
 
+/// The console's high-water mark for `node`: what it will ask from.
+fn console_mark(console: &Arc<AppState>, node: &Arc<AppState>, origin: &str) -> u64 {
+    let epoch = node
+        .storage
+        .lock()
+        .unwrap()
+        .app_settings()
+        .get("fleet_sync_epoch")
+        .unwrap()
+        .unwrap_or_default();
+    console
+        .storage
+        .lock()
+        .unwrap()
+        .fleet_sync()
+        .replica_high_water(origin, &epoch)
+        .unwrap()
+}
+
 fn converged(node: &Arc<AppState>, console: &Arc<AppState>, origin: &str) -> Option<()> {
     let (latest, _) = outbox_latest(node);
     (!latest.is_empty() && replica(console, origin) == latest).then_some(())
@@ -299,16 +318,25 @@ fn an_offline_console_catches_up_with_only_what_it_missed_and_keeps_last_known_r
     );
 
     // Back home: the console catches up from its high-water mark with
-    // exactly the missing changes — never a full transfer.
+    // exactly the changes it missed — never a full transfer. Its own mark,
+    // read now: a batch already on its way when the link went down can
+    // land after `high_water` was read (CI: it asked from 31).
+    let mark = console_mark(&b, &a, &origin);
+    let missed = {
+        let storage = a.storage.lock().unwrap();
+        storage
+            .fleet_sync()
+            .outbox_since(mark, 100_000)
+            .unwrap()
+            .len() as u64
+    };
     link::link_set_enabled_impl(&b, true).unwrap();
     wait_for("caught up", || converged(&a, &b, &origin));
     let log = catch_ups(&a);
     let resumed = log[catch_ups_before..].first().copied().unwrap();
-    assert!(
-        resumed.0 > 0 && resumed.0 <= high_water && resumed.0 < top,
-        "{log:?}"
-    );
-    assert_eq!(resumed.1, missing, "only the missing changes: {log:?}");
+    assert!(mark > 0 && mark < top, "mark {mark}, top {top}");
+    assert_eq!(resumed.0, mark, "asked from its own mark: {log:?}");
+    assert_eq!(resumed.1, missed, "only the missed changes: {log:?}");
     assert_eq!(
         replica(&b, &origin),
         latest,
