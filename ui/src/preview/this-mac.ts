@@ -60,6 +60,7 @@ export function mockThisMac(
       session_id: session.id,
       place: null,
       tool: session.provider,
+      group: session.provider,
       account_label: session.account_label,
       cpu_pct: session.cpu_pct,
       rss_bytes: session.rss_bytes ?? 0,
@@ -72,7 +73,7 @@ export function mockThisMac(
   // Claude app, then claude in a terminal.
   const providers = new Map<string, ToolTreeInfo[]>();
   for (const tree of ours) {
-    const provider = tree.tool ?? "";
+    const provider = tree.group;
     providers.set(provider, [...(providers.get(provider) ?? []), tree]);
   }
   const byTool: ToolGroupInfo[] = [...providers.entries()]

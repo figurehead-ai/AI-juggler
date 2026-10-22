@@ -341,7 +341,7 @@ walk alone isn't enough.
 **Quality gates**: vitest; baselines; walked as a brand-new user on the replica.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1527/manifest.md`.
 
-### AJ-E1528 A This Mac page | Status: TODO | Priority P1 | Effort M | Depends: AJ-E1403, AJ-E1409
+### AJ-E1528 A This Mac page | Status: DONE-EVIDENCED | Priority P1 | Effort M | Depends: AJ-E1403, AJ-E1409
 **Goal**: "See what's using it" opens a page for it, rather than scrolling.
 **Requirements** (the maintainer's request, 2026-10-21):
 1. A This Mac screen in the shell registry. "See what's using it" and This Mac's header open it; it is also reachable from More.

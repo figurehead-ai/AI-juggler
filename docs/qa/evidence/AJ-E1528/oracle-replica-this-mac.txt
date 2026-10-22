@@ -1,0 +1,10 @@
+OK        This Mac machine: CPU 67%, memory 83.2 of 103 GB (app_wired_compressed), pressure warning; tools 12
+MISMATCH  This Mac tools: backend 12; ps has 6 Claude app instances + 1 ChatGPT (Codex) not counted by design
+OK        This Mac tools memory: backend 14.6 GB; ps RSS of the Claude app trees 14.6 GB (×1.00)
+OK        This Mac top rows (GB): backend [5.6, 3.1, 2.5]; ps trees [5.6, 3.1, 2.5]; 3 instance(s) not shown
+MISMATCH  This Mac every tree: backend 12 (top 3 + others 9) [5.6, 3.1, 2.5, 1.8, 1.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]; ps 6 [5.6, 3.1, 2.5, 1.8, 1.5, 0.0]
+OK        This Mac page, Claude app group: backend 6 windows; ps 6
+OK        This Mac page group Claude app: 6 rows for its 6 trees
+OK        This Mac page group claude in a terminal: 6 rows for its 6 trees
+OK        This Mac tools CPU: backend 7.0% of all cores (ps %CPU is a decaying average, not compared)
+OK        alerts over the run: 1 (memory_pressure)

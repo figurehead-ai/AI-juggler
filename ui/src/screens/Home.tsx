@@ -130,6 +130,7 @@ export function HomeScreen({
   onChanged,
   thisMac = null,
   onOpenCleanup,
+  onOpenThisMac,
   loading = false,
 }: {
   /** AJ-E1503: the first load hasn't answered yet (placeholders). */
@@ -156,6 +157,8 @@ export function HomeScreen({
   thisMac?: ThisMacInfo | null;
   /** E14: opens Cleanup (This Mac's leftovers line). */
   onOpenCleanup?: () => void;
+  /** AJ-E1528: the This Mac page. */
+  onOpenThisMac?: () => void;
 }): JSX.Element {
   const [quota, setQuota] = useState<QuotaDisplayData[]>([]);
   // 0.0.11 walk (Q3): a tool without a limits feed says so in its row.
@@ -511,11 +514,7 @@ export function HomeScreen({
                       size="sm"
                       variant="secondary"
                       className="ml-auto"
-                      onClick={() => {
-                        const panel = document.getElementById("this-mac");
-                        panel?.scrollIntoView({ block: "start" });
-                        panel?.focus({ preventScroll: true });
-                      }}
+                      onClick={onOpenThisMac}
                     >
                       See what's using it
                     </Button>
@@ -702,6 +701,7 @@ export function HomeScreen({
             }}
             onOpenSession={onOpenSession}
             onOpenCleanup={onOpenCleanup}
+            onOpenPage={onOpenThisMac}
           />
         </ScreenBoundary>
         </div>

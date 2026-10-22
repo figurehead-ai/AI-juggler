@@ -29,6 +29,7 @@ const appWindow = (rss: number, pid: number): ToolTreeInfo => ({
   session_id: null,
   place: "desktop",
   tool: "claude-code",
+  group: "desktop",
   account_label: "Personal",
   cpu_pct: 20,
   rss_bytes: rss,

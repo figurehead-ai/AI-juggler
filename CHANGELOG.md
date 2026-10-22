@@ -194,6 +194,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The whole window no longer slides up when a button low on Home takes
+  focus: screen-reader words hung below the window, so the app itself
+  could scroll.
+- On Windows and Linux, Ctrl+Shift shortcuts (Ctrl+Shift+H, the switch
+  and the others) work while you type in a session's terminal, as ⌘⇧ ones
+  do on a Mac. Ctrl+Shift+C and Ctrl+Shift+V stay the terminal's copy and
+  paste.
 - This Mac counts what a session starts as soon as it starts (within about
   4 seconds). A build fanning out under a Claude app session could be
   missed for up to 10 seconds, so the app's figure read far too low.
@@ -368,6 +375,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A This Mac page** (AJ-E1528). "See what's using it", the This Mac
+  panel's "See all", More › This Mac and the rail's "This Mac" line open
+  it. It shows the Mac's state in words and meters, then what's using it:
+  each tool with its sessions or windows (the Claude app's marked "not
+  started by AI Juggler", with nothing to click), what's working the Mac
+  hard with links, recent alerts and advice, and anything left behind.
+  Home's panel stays a summary.
 - **Make it smoother** (AJ-E1527). The welcome lists the optional
   permissions (today, jumping to a session's own window), each with its
   state and its Allow or Open System Settings, in the same rows as first

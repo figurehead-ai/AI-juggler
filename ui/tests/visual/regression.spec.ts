@@ -304,13 +304,14 @@ for (const theme of THEMES) {
       });
 
       // D-25 amendment (AJ-E1021): Triage and Overview folded into Home.
-      for (const screen of ["History", "Accounts", "Usage", "Fleet", "Cleanup", "Settings"] as const) {
+      // AJ-E1528: This Mac, the page.
+      for (const screen of ["History", "Accounts", "Usage", "Fleet", "Cleanup", "Settings", "This Mac"] as const) {
         test(`${screen.toLowerCase()} — ${cell}`, async ({ page }) => {
           await open(page, theme, density, vp);
           await goTo(page, screen); // D-25: some screens sit under More
           await page.waitForLoadState("networkidle");
           await page.mouse.move(0, 0);
-          await expect(page).toHaveScreenshot(`${screen.toLowerCase()}-${cell}.png`, SCREEN);
+          await expect(page).toHaveScreenshot(`${screen.toLowerCase().replace(" ", "-")}-${cell}.png`, SCREEN);
         });
       }
     }

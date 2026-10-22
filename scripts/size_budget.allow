@@ -13,7 +13,7 @@ crates/juggler-app/src/commands.rs 4245
 crates/juggler-app/src/link.rs 2382
 crates/juggler-app/src/usage_stats.rs 2088
 crates/juggler-supervisor/src/supervisor.rs 2962
-ui/src/App.tsx 1248
+ui/src/App.tsx 1232
 ui/src/components/CrossMachineSwitchFlow.tsx 518
 ui/src/components/KillSheet.tsx 622
 ui/src/components/NotificationRegion.tsx 425
