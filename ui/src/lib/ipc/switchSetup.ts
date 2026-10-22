@@ -111,7 +111,7 @@ export async function switchSetupList(): Promise<SetUpInfo[]> {
       seeded ??
       [...previewSetUps].map(([record, what]) => ({
         record,
-        account: "Personal",
+        place: "Personal",
         what: `the ${what}`,
         at_ms: 0,
       }))

@@ -224,6 +224,16 @@ pub enum Undo {
         #[serde(default)]
         unless_changed: Option<JsonEntry>,
     },
+    /// Put back a file that was replaced, from the copy kept before (only
+    /// while the file is still exactly what was written). AJ-E1507.
+    Restore {
+        /// The file that was replaced.
+        file: PathBuf,
+        /// The copy of it from before, in AI Juggler's data folder.
+        backup: PathBuf,
+        /// The hash of what was written.
+        sha256: String,
+    },
 }
 
 /// Whether a configuration value looks like a secret, by its key or its

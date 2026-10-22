@@ -76,8 +76,9 @@ pub struct AppliedInfo {
 pub struct SetUpInfo {
     /// The record to undo it with.
     pub record: String,
-    /// The account it was set up on (its name).
-    pub account: String,
+    /// Where it was set up: the account's name, or the project's for a
+    /// change to a project's own files (AJ-E1507).
+    pub place: String,
     /// What it is ("the skill release-notes"), or what was done, for a
     /// record made before that was kept.
     pub what: String,
@@ -97,13 +98,18 @@ struct Record {
     /// made before it was kept.
     #[serde(default)]
     what: String,
+    /// The project it changed, for a change to a project's own files
+    /// (AJ-E1507); then `account` is empty.
+    #[serde(default)]
+    project: Option<String>,
 }
 
-/// The two sides of a switch, for the setup check.
-struct Sides {
-    source: juggler_core::model::Account,
-    target: juggler_core::model::Account,
-    project: Option<PathBuf>,
+/// The two sides of a set-up: a switch's, or any two accounts in a
+/// project (AJ-E1507's server copy).
+pub(crate) struct Sides {
+    pub(crate) source: juggler_core::model::Account,
+    pub(crate) target: juggler_core::model::Account,
+    pub(crate) project: Option<PathBuf>,
 }
 
 fn sides(state: &Arc<AppState>, session_id: &str, target_profile_id: &str) -> AppResult<Sides> {
@@ -184,16 +190,47 @@ pub fn check_impl(
     session_id: &str,
     target_profile_id: &str,
 ) -> AppResult<SetupCheckInfo> {
-    let sides = sides(state, session_id, target_profile_id)?;
-    let (from, to) = inventories(state, &sides)?;
+    check_sides(state, &sides(state, session_id, target_profile_id)?, None)
+}
+
+/// What `sides.target` lacks of `sides.source`'s items (of `only` that
+/// kind, when given), each with the target tool's verdict. Read-only.
+pub(crate) fn check_sides(
+    state: &Arc<AppState>,
+    sides: &Sides,
+    only: Option<ItemKind>,
+) -> AppResult<SetupCheckInfo> {
+    let (from, to) = inventories(state, sides)?;
+    let from: Vec<Item> = from
+        .into_iter()
+        .filter(|item| only.is_none_or(|kind| item.kind == kind))
+        .collect();
     let target_adapter = state
         .registry
         .get(&sides.target.harness)
         .ok_or_else(|| AppError::UnknownHarness(sides.target.harness.to_string()))?;
+    let (offers, already_there) = offers(&sides.target, target_adapter.as_ref(), &from, &to);
+    Ok(SetupCheckInfo {
+        from: sides.source.label.clone(),
+        to: sides.target.label.clone(),
+        offers,
+        already_there,
+    })
+}
+
+/// What `target` (its items `to`, its tool `target_adapter`) lacks of the
+/// items `from`, each with the target tool's verdict, the ones that can be
+/// set up first; and how many of `from` it already has.
+pub(crate) fn offers(
+    target: &juggler_core::model::Account,
+    target_adapter: &dyn juggler_adapter::HarnessAdapter,
+    from: &[Item],
+    to: &[Item],
+) -> (Vec<OfferInfo>, u32) {
     let have: std::collections::HashSet<(ItemKind, String)> = to.iter().map(key).collect();
     let mut already_there: u32 = 0;
     let mut offers = Vec::new();
-    for item in &from {
+    for item in from {
         if have.contains(&key(item)) {
             already_there += 1;
             continue;
@@ -215,7 +252,7 @@ pub fn check_impl(
             // the target is offered, not pre-ticked (re-review of #132).
             suggested: matches!(verdict, "copy" | "translate")
                 && !(item.scope == juggler_adapter::inventory::Scope::ProjectPrivate
-                    && item.tool != sides.target.harness.as_str()),
+                    && item.tool != target.harness.as_str()),
         });
     }
     offers.sort_by_key(|offer| {
@@ -225,12 +262,7 @@ pub fn check_impl(
             offer.name.clone(),
         )
     });
-    Ok(SetupCheckInfo {
-        from: sides.source.label.clone(),
-        to: sides.target.label.clone(),
-        offers,
-        already_there,
-    })
+    (offers, already_there)
 }
 
 /// Sets up the offers the user picked, each recorded so it can be undone.
@@ -246,8 +278,17 @@ pub fn apply_impl(
     target_profile_id: &str,
     picked: &[String],
 ) -> AppResult<Vec<AppliedInfo>> {
-    let sides = sides(state, session_id, target_profile_id)?;
-    let (from, to) = inventories(state, &sides)?;
+    apply_sides(state, &sides(state, session_id, target_profile_id)?, picked)
+}
+
+/// Sets up the picked offers of `sides.source` on `sides.target`, each
+/// recorded so it can be undone; see [`apply_impl`].
+pub(crate) fn apply_sides(
+    state: &Arc<AppState>,
+    sides: &Sides,
+    picked: &[String],
+) -> AppResult<Vec<AppliedInfo>> {
+    let (from, to) = inventories(state, sides)?;
     let target_adapter = state
         .registry
         .get(&sides.target.harness)
@@ -275,17 +316,16 @@ pub fn apply_impl(
             Ok(applied) => {
                 let what = format!("{} {}", item.kind.words(), item.name);
                 let note = applied.note.clone();
-                let record = Record {
-                    id: format!("setup-{}", crate::commands::unique_suffix()),
-                    account: sides.target.id.to_string(),
-                    at_ms: juggler_core::model::Timestamp::now().millis(),
+                let record = record(
+                    state,
+                    sides.target.id.to_string(),
+                    None,
+                    what.clone(),
                     applied,
-                    what: what.clone(),
-                };
-                save(state, &record)?;
+                )?;
                 out.push(AppliedInfo {
                     offer: id.clone(),
-                    record: Some(record.id),
+                    record: Some(record),
                     message: match note {
                         Some(note) => format!("Set up the {what} ({note})"),
                         None => format!("Set up the {what}"),
@@ -320,10 +360,13 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<SetUpInfo>> {
     let mut out: Vec<SetUpInfo> = load(state)
         .into_iter()
         .map(|record| SetUpInfo {
-            account: labels
-                .get(&record.account)
-                .cloned()
-                .unwrap_or_else(|| "an account no longer here".to_owned()),
+            place: match &record.project {
+                Some(project) => project.clone(),
+                None => labels
+                    .get(&record.account)
+                    .cloned()
+                    .unwrap_or_else(|| "an account no longer here".to_owned()),
+            },
             what: if record.what.is_empty() {
                 record.applied.summary.clone()
             } else {
@@ -422,32 +465,7 @@ fn undo(how: &Undo) -> AppResult<()> {
             }
             Ok(())
         }
-        Undo::RemoveAppended { file, text, .. } => {
-            let now =
-                std::fs::read_to_string(file).map_err(|e| AppError::io("undo the set-up", &e))?;
-            let Some(at) = now.find(text.as_str()) else {
-                return Err(AppError::Refused(format!(
-                    "{} doesn't have that change any more, so it was left as it is",
-                    file.display()
-                )));
-            };
-            // Lines the user added under our table since belong to it: taking
-            // the table out would leave them under the one before.
-            let added_under = now[at + text.len()..]
-                .lines()
-                .take_while(|line| !line.trim_start().starts_with('['))
-                .any(|line| !line.trim().is_empty() && !line.trim_start().starts_with('#'));
-            if added_under {
-                return Err(AppError::Refused(format!(
-                    "{} has settings added to it since, so it was left as it is",
-                    file.display()
-                )));
-            }
-            let mut restored = now.clone();
-            restored.replace_range(at..at + text.len(), "");
-            juggler_adapter::inventory::rewrite_in_place(file, &restored)
-                .map_err(|e| AppError::io("undo the set-up", &e))
-        }
+        Undo::RemoveAppended { file, text, .. } => remove_appended(file, text),
         Undo::Command {
             argv,
             env,
@@ -493,7 +511,58 @@ fn undo(how: &Undo) -> AppResult<()> {
                 ))
             }
         }
+        Undo::Restore {
+            file,
+            backup,
+            sha256,
+        } => restore(file, backup, sha256),
     }
+}
+
+/// Takes out a block of text that was appended, if it's still there as it
+/// was and nothing was added under it.
+fn remove_appended(file: &Path, text: &str) -> AppResult<()> {
+    let now = std::fs::read_to_string(file).map_err(|e| AppError::io("undo the set-up", &e))?;
+    let Some(at) = now.find(text) else {
+        return Err(AppError::Refused(format!(
+            "{} doesn't have that change any more, so it was left as it is",
+            file.display()
+        )));
+    };
+    // Lines the user added under our table since belong to it: taking
+    // the table out would leave them under the one before.
+    let added_under = now[at + text.len()..]
+        .lines()
+        .take_while(|line| !line.trim_start().starts_with('['))
+        .any(|line| !line.trim().is_empty() && !line.trim_start().starts_with('#'));
+    if added_under {
+        return Err(AppError::Refused(format!(
+            "{} has settings added to it since, so it was left as it is",
+            file.display()
+        )));
+    }
+    let mut restored = now.clone();
+    restored.replace_range(at..at + text.len(), "");
+    juggler_adapter::inventory::rewrite_in_place(file, &restored)
+        .map_err(|e| AppError::io("undo the set-up", &e))
+}
+
+/// Puts back a file that was replaced, while it's still exactly what was
+/// written (AJ-E1507).
+fn restore(file: &Path, backup: &Path, sha256: &str) -> AppResult<()> {
+    let now = std::fs::read(file).map_err(|e| AppError::io("undo the change", &e))?;
+    if juggler_adapter::handover::sha256_hex(&now) != sha256 {
+        return Err(AppError::Refused(format!(
+            "{} has changed since, so it was left as it is",
+            file.display()
+        )));
+    }
+    let before =
+        std::fs::read_to_string(backup).map_err(|e| AppError::io("undo the change", &e))?;
+    juggler_adapter::inventory::rewrite_in_place(file, &before)
+        .map_err(|e| AppError::io("undo the change", &e))?;
+    let _ = std::fs::remove_file(backup);
+    Ok(())
 }
 
 fn atomic_write(path: &Path, text: &str) -> AppResult<()> {
@@ -507,6 +576,27 @@ fn load(state: &Arc<AppState>) -> Vec<Record> {
         .ok()
         .and_then(|bytes| serde_json::from_slice(&bytes).ok())
         .unwrap_or_default()
+}
+
+/// Records a set-up so it can be undone from Settings: made on `account`,
+/// or to `project`'s own files. Returns the record's id.
+pub(crate) fn record(
+    state: &Arc<AppState>,
+    account: String,
+    project: Option<String>,
+    what: String,
+    applied: Applied,
+) -> AppResult<String> {
+    let record = Record {
+        id: format!("setup-{}", crate::commands::unique_suffix()),
+        account,
+        at_ms: juggler_core::model::Timestamp::now().millis(),
+        applied,
+        what,
+        project,
+    };
+    save(state, &record)?;
+    Ok(record.id)
 }
 
 fn save(state: &Arc<AppState>, record: &Record) -> AppResult<()> {

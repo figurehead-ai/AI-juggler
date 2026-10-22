@@ -59,14 +59,14 @@ export function SwitchSetUpsCard(): JSX.Element | null {
           {setUps.map((setUp) => (
             <li key={setUp.record} className="flex items-center justify-between gap-2 text-xs">
               <span>
-                {setUp.what} <span className="text-muted">· {setUp.account}</span>
+                {setUp.what} <span className="text-muted">· {setUp.place}</span>
               </span>
               <span className="flex shrink-0 gap-1">
                 {refused === setUp.record && (
                   <button
                     type="button"
                     onClick={() => void run(setUp, switchSetupForget)}
-                    aria-label={`Forget: ${setUp.what} on ${setUp.account}`}
+                    aria-label={`Forget: ${setUp.what} on ${setUp.place}`}
                     title="Stop listing it here and leave it as it is"
                     className="rounded border border-hairline px-1.5 py-0.5 text-[10px] hover:bg-surface-2"
                   >
@@ -76,7 +76,7 @@ export function SwitchSetUpsCard(): JSX.Element | null {
                 <button
                   type="button"
                   onClick={() => void run(setUp, switchSetupUndo)}
-                  aria-label={`Undo: ${setUp.what} on ${setUp.account}`}
+                  aria-label={`Undo: ${setUp.what} on ${setUp.place}`}
                   className="rounded border border-hairline px-1.5 py-0.5 text-[10px] hover:bg-surface-2"
                 >
                   Undo
