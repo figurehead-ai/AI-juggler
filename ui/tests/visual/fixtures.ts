@@ -88,7 +88,9 @@ const mk = (n: number, status: InstanceInfo["status"], label: string): InstanceI
     kind: "terminal",
     isolation_label: null,
     project_id: work ? "proj-1" : "proj-2",
-    conversation_id: status === "running" ? "822e4125-e07d-4866-9954-ec9295efb079" : null,
+    // Every session past starting is on a conversation (it can be carried
+    // to another account); the running one keeps the real-looking id.
+    conversation_id: status === "running" ? "822e4125-e07d-4866-9954-ec9295efb079" : status === "starting" ? null : `conv-${n}`,
   };
 };
 

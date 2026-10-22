@@ -210,7 +210,9 @@ export function PageShell({
             aria-labelledby={strip ? `page-tab-${entry.id}` : undefined}
             data-testid={`page-panel-${entry.id}`}
             hidden={tab !== entry.id}
-            className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto"
+            // A panel scrolls: reachable by keyboard (APG tabs; WCAG 2.1.1).
+            tabIndex={0}
+            className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto rounded-lg outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
           >
             {render(entry.id, tab === entry.id)}
             {footer?.(entry)}

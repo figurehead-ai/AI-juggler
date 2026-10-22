@@ -2391,7 +2391,7 @@ for (const theme of THEMES) {
   for (const vp of SWITCH_VP) {
     const openDialog = async (page: import("@playwright/test").Page) => {
       await expectRail(page); // D-25: the list, or its icon column when narrow
-      await page.getByRole("button", { name: /Work Max/ }).first().click();
+      await page.getByRole("button", { name: /^(?!.*Starting).*Work Max/ }).first().click();
       await openSwitch(page);
       await page.getByTestId("handover-section")
         // AJ-E209: the ranked, badged row is the switch entry point.
