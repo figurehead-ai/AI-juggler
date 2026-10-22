@@ -25,7 +25,6 @@ Not a task's evidence. This covers the coordinator's P0 for 0.1: Codex's compres
 
 | Gate | Head | Result |
 |---|---|---|
-| `just verify`, tests (`CARGO_INCREMENTAL=0`) | 7d8d33f5 | 149 test binaries, 1,192 passed, 0 failed |
-| `just verify`, the steps after the tests (fmt, dev-bridge tests, leaked fixtures, `cargo doc -D warnings`, evidence, terminology, task counts, stats doc and events, polling audit, release self-test, dev-bridge check) | the head (a doc-comment fix after 7d8d33f5) | all OK |
-| `cargo deny check` | the head | advisories, bans, licenses, sources ok |
+| `just verify`, whole (`CARGO_INCREMENTAL=0`) | 8e3b14a2 (the review fixes and QA P20) | 149 test binaries, 1,199 passed, 0 failed; every step after the tests OK. The run before, on 7bcd862b, met the `fleet_sync` catch-up race under load (recorded in AJ-E806; passed 3 of 3 alone) |
+| `cargo deny check` | 7bcd862b (no dependency change since) | advisories, bans, licenses, sources ok |
 | `vitest`, visual, a11y | — | nothing under `ui/` changed since main |
