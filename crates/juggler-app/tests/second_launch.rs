@@ -41,6 +41,63 @@ impl Drop for Reaped {
 /// plugin's socket, so a launch in one test could hand over to another's.
 static SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
+/// Why these tests can't run here and now, said once per test: an AI
+/// Juggler build is open (it shares the single-instance socket), or the
+/// shared target's app binary isn't this build's any more.
+fn cannot_run() -> bool {
+    if ai_juggler_is_open() {
+        eprintln!(
+            "skipped: an AI Juggler build is open, and this build shares its single-instance name"
+        );
+        return true;
+    }
+    if !binary_is_this_builds() {
+        eprintln!(
+            "skipped: another checkout rebuilt the shared target's juggler-app after this test was built; run `cargo test -p juggler-app --test second_launch` alone"
+        );
+        return true;
+    }
+    false
+}
+
+/// Whether `target/debug/juggler-app` is still the one cargo built with
+/// this test: not much newer than this test binary itself. Checkouts on
+/// this Mac share one target folder, and another session's build can
+/// replace it minutes into a full run (the coordinator's, and this
+/// branch's, intermittent failures: the launch ran older code).
+fn binary_is_this_builds() -> bool {
+    let modified = |path: &std::path::Path| {
+        std::fs::metadata(path)
+            .and_then(|meta| meta.modified())
+            .ok()
+    };
+    let (Some(app), Some(test)) = (
+        modified(std::path::Path::new(env!("CARGO_BIN_EXE_juggler-app"))),
+        std::env::current_exe().ok().as_deref().and_then(modified),
+    ) else {
+        return true;
+    };
+    app.duration_since(test)
+        .map_or(true, |newer| newer < Duration::from_secs(120))
+}
+
+/// The app binary these tests launch: a copy of this build's, taken once,
+/// as soon as the first test runs. Checkouts on this Mac share one target
+/// folder, so `target/debug/juggler-app` is whichever checkout built it
+/// last; another session's build could swap it mid-run and these tests
+/// would launch its older code (the intermittent failures in full runs).
+fn app_binary() -> &'static std::path::Path {
+    static COPY: std::sync::OnceLock<(tempfile::TempDir, PathBuf)> = std::sync::OnceLock::new();
+    &COPY
+        .get_or_init(|| {
+            let dir = tempfile::tempdir().unwrap();
+            let copy = dir.path().join("juggler-app");
+            std::fs::copy(env!("CARGO_BIN_EXE_juggler-app"), &copy).unwrap();
+            (dir, copy)
+        })
+        .1
+}
+
 /// Where every checkout's second-launch tests queue: beside the
 /// single-instance socket they all share.
 const SERIAL_LOCK: &str = "/tmp/aij-second-launch-tests.lock";
@@ -90,7 +147,13 @@ fn ai_juggler_is_open() -> bool {
     // app (a shell, an editor) doesn't count. Another checkout's build
     // counts too: it answers on the same single-instance socket, so a
     // launch here would hand over to it (two sessions' gates at once).
-    // This test's own launches are all reaped before the next test.
+    // This test's own launches are all reaped before the next test. And
+    // whatever answers on the single-instance socket (an AI Juggler Dev
+    // another session has open) would take these launches' hand-overs.
+    #[cfg(target_os = "macos")]
+    if std::os::unix::net::UnixStream::connect(SOCKET).is_ok() {
+        return true;
+    }
     std::process::Command::new("ps")
         .args(["-axo", "comm="])
         .output()
@@ -104,10 +167,7 @@ fn ai_juggler_is_open() -> bool {
 #[test]
 fn a_second_launch_never_opens_the_data() {
     let _serial = serial();
-    if ai_juggler_is_open() {
-        eprintln!(
-            "skipped: an AI Juggler build is open, and this build shares its single-instance name"
-        );
+    if cannot_run() {
         return;
     }
     // A socket left by an AI Juggler that crashed (none is open now) would
@@ -127,7 +187,7 @@ fn a_second_launch_never_opens_the_data() {
     running.try_lock().unwrap();
 
     let mut second = Reaped(
-        std::process::Command::new(env!("CARGO_BIN_EXE_juggler-app"))
+        std::process::Command::new(app_binary())
             .env("HOME", home.path())
             .env("XDG_DATA_HOME", home.path().join(".local/share"))
             .env("AIJ_NO_DIALOGS", "1")
@@ -188,7 +248,7 @@ fn a_second_launch_never_opens_the_data() {
 /// folder the caller holds) and returns its status, stderr and how long
 /// it took.
 fn second_launch(home: &std::path::Path) -> (std::process::ExitStatus, String, Duration) {
-    let mut command = std::process::Command::new(env!("CARGO_BIN_EXE_juggler-app"));
+    let mut command = std::process::Command::new(app_binary());
     command
         .env("HOME", home)
         .env("XDG_DATA_HOME", home.join(".local/share"))
@@ -256,10 +316,7 @@ fn held_home() -> (tempfile::TempDir, PathBuf, std::fs::File) {
 #[test]
 fn a_second_launch_says_a_frozen_app_isnt_answering() {
     let _serial = serial();
-    if ai_juggler_is_open() {
-        eprintln!(
-            "skipped: an AI Juggler build is open, and this build shares its single-instance name"
-        );
+    if cannot_run() {
         return;
     }
     let (home, data, lock) = held_home();
@@ -301,10 +358,7 @@ fn a_second_launch_says_a_frozen_app_isnt_answering() {
 #[test]
 fn a_second_launch_hands_over_to_an_app_that_answers() {
     let _serial = serial();
-    if ai_juggler_is_open() {
-        eprintln!(
-            "skipped: an AI Juggler build is open, and this build shares its single-instance name"
-        );
+    if cannot_run() {
         return;
     }
     let (home, data, lock) = held_home();
@@ -372,7 +426,21 @@ struct ReapTagged(String);
 
 impl Drop for ReapTagged {
     fn drop(&mut self) {
-        reap_tagged(&self.0);
+        // Until nothing tagged is left and nothing of ours answers on the
+        // single-instance socket: a relaunch that started late would take
+        // the next test's hand-overs (seen under load).
+        let until = Instant::now() + Duration::from_secs(30);
+        loop {
+            let found = reap_tagged(&self.0);
+            #[cfg(target_os = "macos")]
+            let answering = std::os::unix::net::UnixStream::connect(SOCKET).is_ok();
+            #[cfg(not(target_os = "macos"))]
+            let answering = false;
+            if (found == 0 && !answering) || Instant::now() >= until {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(250));
+        }
         std::thread::sleep(Duration::from_millis(200));
         // A launch killed mid-start leaves this build's socket: never the
         // installed app's (the test doesn't run while that's open).
@@ -388,15 +456,12 @@ impl Drop for ReapTagged {
 #[test]
 fn the_isnt_answering_alerts_quit_quits() {
     let _serial = serial();
-    if ai_juggler_is_open() {
-        eprintln!(
-            "skipped: an AI Juggler build is open, and this build shares its single-instance name"
-        );
+    if cannot_run() {
         return;
     }
     let (home, data, lock) = held_home();
     let (socket, frozen) = frozen_socket(&data);
-    let mut command = std::process::Command::new(env!("CARGO_BIN_EXE_juggler-app"));
+    let mut command = std::process::Command::new(app_binary());
     command
         .env("HOME", home.path())
         .env("XDG_DATA_HOME", home.path().join(".local/share"))
@@ -423,10 +488,7 @@ fn the_isnt_answering_alerts_quit_quits() {
 #[test]
 fn the_isnt_answering_alerts_try_again_starts_once_the_data_is_free() {
     let _serial = serial();
-    if ai_juggler_is_open() {
-        eprintln!(
-            "skipped: an AI Juggler build is open, and this build shares its single-instance name"
-        );
+    if cannot_run() {
         return;
     }
     let (home, data, lock) = held_home();
@@ -438,7 +500,7 @@ fn the_isnt_answering_alerts_try_again_starts_once_the_data_is_free() {
     let _reaper = ReapTagged(tag.clone());
     let (key, value) = tag.split_once('=').unwrap();
     let mut launch = Reaped(
-        std::process::Command::new(env!("CARGO_BIN_EXE_juggler-app"))
+        std::process::Command::new(app_binary())
             .env("HOME", home.path())
             .env("XDG_DATA_HOME", home.path().join(".local/share"))
             .env("AIJ_DIALOG_ANSWER", "Try again")
@@ -498,4 +560,93 @@ fn the_isnt_answering_alerts_try_again_starts_once_the_data_is_free() {
     let _ = std::fs::remove_file(&socket);
     let _ = std::fs::remove_dir(socket.parent().unwrap());
     frozen.join().unwrap();
+}
+
+/// A quick double-click: the first launch holds the data and opens its
+/// hand-over socket only after 2 s. The second waits for it and hands
+/// over, never staying around without a window (the coordinator).
+#[test]
+fn a_launch_waits_for_one_still_starting_and_hands_over() {
+    let _serial = serial();
+    if cannot_run() {
+        return;
+    }
+    let (home, data, lock) = held_home();
+    let me = std::os::unix::fs::MetadataExt::uid(&std::fs::metadata(&data).unwrap());
+    let socket = juggler_app::handover::socket_path("ai.figurehead.juggler", &data).unwrap();
+    let handover = std::sync::Arc::new(juggler_app::handover::Handover::at(socket.clone(), me));
+    let starting = {
+        let handover = std::sync::Arc::clone(&handover);
+        std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_secs(2));
+            handover.serve(|| true).unwrap();
+        })
+    };
+    let (status, stderr, _) = second_launch(home.path());
+    starting.join().unwrap();
+    if handed_to_another(&stderr) {
+        return;
+    }
+    assert!(
+        status.success(),
+        "it handed over once the first was up: {stderr}"
+    );
+    assert!(!stderr.contains("isn't answering"), "{stderr}");
+    handover.stop();
+    let _ = std::fs::remove_dir(socket.parent().unwrap());
+    drop(lock);
+}
+
+/// The data held and nothing answering at all: after its wait, the launch
+/// shows the "isn't answering" alert, and Quit quits.
+#[test]
+fn with_nothing_answering_the_launch_asks_and_quit_quits() {
+    let _serial = serial();
+    if cannot_run() {
+        return;
+    }
+    let (home, data, lock) = held_home();
+    let mut command = std::process::Command::new(app_binary());
+    command
+        .env("HOME", home.path())
+        .env("XDG_DATA_HOME", home.path().join(".local/share"))
+        .env("AIJ_DIALOG_ANSWER", "Quit");
+    let (status, stderr, took) = bounded(command);
+    if handed_to_another(&stderr) {
+        return;
+    }
+    assert!(!status.success(), "it quit: {stderr}");
+    assert!(
+        stderr.contains("can't start yet") && stderr.contains("(answered: Quit)"),
+        "it asked: {stderr}"
+    );
+    assert!(
+        took >= Duration::from_secs(10),
+        "it waited for one starting first: {took:?}"
+    );
+    let left: Vec<String> = std::fs::read_dir(&data)
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(left, ["juggler.lock"], "the data folder is untouched");
+    #[cfg(target_os = "macos")]
+    assert!(
+        !std::path::Path::new(SOCKET).exists(),
+        "no single-instance socket left"
+    );
+    drop(lock);
+}
+
+/// Another session's AI Juggler build came up on the shared
+/// single-instance socket while the launch waited, and the launch handed
+/// over to it (as it should to an older AI Juggler): this test can't
+/// tell its case apart then, so it says so and stops.
+fn handed_to_another(stderr: &str) -> bool {
+    let other = stderr.contains("an older AI Juggler answers on the single-instance socket");
+    if other {
+        eprintln!(
+            "skipped: another AI Juggler build answered on the single-instance socket mid-test"
+        );
+    }
+    other
 }

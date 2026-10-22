@@ -455,18 +455,21 @@ pub fn run() {
             Some(handover::Answer::NotAnswering) => {
                 not_answering(&data_dir, handover.as_ref());
             }
-            Some(handover::Answer::Untrusted) => {
-                eprintln!("ai-juggler: the hand-over socket isn't ours; not asking it");
+            // One still starting (a quick double-click), an older AI
+            // Juggler (no such socket), or one just ended: wait for it.
+            // A socket that isn't ours is never asked, only waited past.
+            answer @ (Some(handover::Answer::NoneListening | handover::Answer::Untrusted)
+            | None) => {
+                if answer == Some(handover::Answer::Untrusted) {
+                    eprintln!("ai-juggler: the hand-over socket isn't ours; not asking it");
+                }
+                if wait_for_an_answer(&data_dir, handover.as_ref(), &context.config().identifier)
+                    == Waited::OlderApp
+                {
+                    context.config_mut().app.windows.clear();
+                    hand_over_to_the_running_instance(context);
+                }
             }
-            // An older AI Juggler (no such socket), one still starting, or
-            // one just ended (its socket left behind): the lock decides.
-            Some(handover::Answer::NoneListening) | None => {}
-        }
-        if !newer_data::hold_instance_lock(&data_dir)
-            && !newer_data::wait_for_instance_lock(&data_dir, newer_data::LOCK_GRACE)
-        {
-            context.config_mut().app.windows.clear();
-            hand_over_to_the_running_instance(context);
         }
     }
     // Live-preview frames an earlier version left in the temp folder.
@@ -668,6 +671,77 @@ fn hand_over_to_the_running_instance(context: tauri::Context<tauri::Wry>) -> ! {
         &format!("{app} can't start"),
         &not_answering_words(&format!("Then open {app} again.")),
     );
+}
+
+/// How long a second launch waits for an AI Juggler that holds the data
+/// to answer: one still starting (a quick double-click) opens its socket
+/// within moments.
+const STARTING_WAIT: std::time::Duration = std::time::Duration::from_secs(10);
+
+/// How a second launch's wait for the open AI Juggler ended.
+#[derive(Debug, PartialEq, Eq)]
+enum Waited {
+    /// The data is free (it ended): this launch goes on, holding it.
+    Free,
+    /// An older AI Juggler, which answers only on Tauri's single-instance
+    /// socket: hand over through the plugin.
+    OlderApp,
+}
+
+/// The data is held and nothing answers on its hand-over socket yet. Asks
+/// again until [`STARTING_WAIT`]: an AI Juggler still starting answers
+/// (this launch then quits), an older one is found on the plugin's socket
+/// (macOS), or the data comes free. Past it, the "isn't answering" alert
+/// (Try again, Quit): never a launch left running without a window
+/// (the coordinator, 2026-10-22).
+fn wait_for_an_answer(
+    data_dir: &std::path::Path,
+    handover: Option<&handover::Handover>,
+    identifier: &str,
+) -> Waited {
+    let deadline = std::time::Instant::now() + STARTING_WAIT;
+    loop {
+        if newer_data::hold_instance_lock(data_dir) {
+            return Waited::Free;
+        }
+        match handover.map(|h| h.ask(handover::ANSWER_WAIT)) {
+            Some(handover::Answer::Answered) => std::process::exit(0),
+            Some(handover::Answer::NotAnswering) => {
+                not_answering(data_dir, handover);
+                return Waited::Free;
+            }
+            _ => {}
+        }
+        if older_app_listening(identifier) {
+            eprintln!(
+                "ai-juggler: an older AI Juggler answers on the single-instance socket; handing over"
+            );
+            return Waited::OlderApp;
+        }
+        if std::time::Instant::now() >= deadline {
+            not_answering(data_dir, handover);
+            return Waited::Free;
+        }
+        // poll: a starting app's socket has no "ready" event; a second
+        // launch only, until the deadline above.
+        std::thread::sleep(std::time::Duration::from_millis(250));
+    }
+}
+
+/// An older AI Juggler (before its own hand-over socket) answering on
+/// Tauri's single-instance socket. macOS only; elsewhere the plugin's
+/// hand-over ends with its own alert.
+fn older_app_listening(identifier: &str) -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        let socket = format!("/tmp/{}_si.sock", identifier.replace(['.', '-'], "_"));
+        std::os::unix::net::UnixStream::connect(socket).is_ok()
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = identifier;
+        true
+    }
 }
 
 /// The open AI Juggler isn't answering. If it lets go of the data within
