@@ -394,6 +394,21 @@
      re-pointed with the user's chained line kept. Regression:
      `quota_ingest :: the_status_line_runs_from_a_folder_with_spaces`
      (fails on the old code) and `an_unquoted_install_is_repaired_and_keeps_the_chain`.
+- **Flake records, 2026-10-22 (fixed in fix batch 5).** Three tests that
+  measured the machine rather than the product:
+  - `ports :: port_inventory_classifies_orphan_and_unmanaged_listeners`
+    bound fixed ports 5173 and 8000, and a developer's own `vite` on 5173
+    made it read "not-managed". It now takes two free ports from the OS.
+  - `orphan :: collector_targeted_tick_overhead_under_budget` timed the
+    wall clock (32 ms against 20 ms at load 17–24). It now asserts the work
+    exactly (each of our processes once a targeted tick, a listing at most
+    every 2nd) and this thread's CPU time against the 1 % budget: 20 ms
+    release, 30 ms debug, 40 ms on CI, measured again only on a busy
+    machine (6 ms here).
+  - `updates_plugin :: a_package_that_fails_its_signature_never_installs`
+    required progress steps of at most 5 %; how big a step is depends on
+    how the bytes arrive, and a loaded machine read several 32 KB pieces at
+    once. It now requires progress that only rises, in at least 20 steps.
 - **Flake record, 2026-10-22 (fixed).** `switch_back_path ::
   a_to_b_to_a_resumes_original_with_one_delta_and_no_copy_back` failed once
   in `just verify` for #130 ("exactly one delta turn": 0): its `claude` stub
