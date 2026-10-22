@@ -11,3 +11,12 @@ Not a task's evidence. This covers the coordinator's batch 7: the races an indep
 | 5. One-sided pairing (the coordinator chose b: no protocol change) | The host notes the time of its pin in an app setting by machine id (outside the signed `peers.json`: older builds refuse an unknown field). The note clears on that machine's first authenticated Hello (`PeerDirectory::hello_accepted`) or on unpair. After 30 s without one (fixed; only `link::pairing_wait_for_test` changes it), the existing row's status line reads "Pairing didn't finish on {label}. Pair again to finish it.", with Pair again opening the same pairing flow. Tests: `link::unfinished_pairing_tests` (the note, the wait, its Hello; `peers.json` keeps only older fields, is never rewritten, and a restart keeps the peer and the note); `fleet_sync :: a_normal_pairing_never_shows_it_unfinished` (no pairing message changes, so an older joiner pairs the same way) and `a_joiner_stopped_mid_way_leaves_the_host_unfinished` (4 of 4 rounds reached that case; pairing again finishes it); vitest `fleet-screen.test.tsx` (the line, "Pair again with Mac mini", opening the wizard, absent when finished); captures `42-fleet/unfinished-*` (4, checked by eye) | — | passed; a11y gate 686 passed, axe 0 findings over 856 states (the 4 new included; only those 4 captures kept) | PASS | f18a5690, c420f769 | 2026-10-22 | claude-opus |
 | 6. The port is free after stop | The accept loop, which holds the listener, is always ended and awaited. `juggler-link :: transport :: a_stopped_nodes_port_is_free_at_once` (an open telemetry stream, then stop, then bind the same address) | — | new: passes; old code: failed 1 of 3 (the old abort landed after stop returned) | PASS | abc8ed31 | 2026-10-22 | claude-opus |
 | 7. A replaced join can't overwrite the newer one | The older join is aborted and awaited before the new one sets "connecting" | — | as stated | PASS | 175aa9f3 | 2026-10-22 | claude-opus |
+
+## Gates
+
+| Gate | Head | Result |
+|---|---|---|
+| `just verify` (`CARGO_INCREMENTAL=0`) | b33ee0d6 (main 845318dc merged in) | 150 test binaries, 1,220 passed, 0 failed; every step after the tests OK; nothing left running |
+| `cargo deny check` | b33ee0d6 | advisories, bans, licenses, sources ok |
+| vitest, typecheck | b33ee0d6 | 78 files, 614 passed; `tsc` clean |
+| a11y gate (`just a11y-gate`) | f18a5690 | 686 passed; axe 0 findings over 856 states. Only the 4 new `42-fleet/unfinished-*` captures kept, each checked by eye; the gate's other rewrites restored |
