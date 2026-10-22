@@ -4995,7 +4995,7 @@ fn resolve_source(
     session_id: &str,
     persist: bool,
 ) -> AppResult<(juggler_core::model::InstanceRecord, Account)> {
-    let (mut source, account_a, taken, ambiguous) = {
+    let (mut source, account_a, taken, ambiguous, replayed_into) = {
         let storage = lock_storage_arc(state)?;
         let source = storage
             .sessions()
@@ -5036,7 +5036,14 @@ fn resolve_source(
                 && other.cwd == source.cwd
                 && !ended_before(other, source.started_at.millis())
         });
-        (source, account_a, taken, ambiguous)
+        // A replay started this session: its first message is known.
+        let replayed_into = storage
+            .switch_graph()
+            .edges_for_session(source.id.as_str())
+            .unwrap_or_default()
+            .iter()
+            .any(|(edge, outgoing)| !outgoing && is_replay(edge));
+        (source, account_a, taken, ambiguous, replayed_into)
     };
     // AJ-E1540: a session that knows its conversation (picked up with
     // "Continue in AI Juggler") is found by that id, not by when its file
@@ -5049,10 +5056,10 @@ fn resolve_source(
             &taken,
         )
     });
-    if by_id.is_none() && ambiguous {
-        return Ok((source, account_a));
-    }
-    let Some(found) = by_id.or_else(|| {
+    let by_time = || {
+        if ambiguous {
+            return None;
+        }
         state.registry.get(&account_a.harness).and_then(|adapter| {
             adapter.locate_transcript(
                 &account_a.state_dir,
@@ -5061,7 +5068,24 @@ fn resolve_source(
                 &taken,
             )
         })
-    }) else {
+    };
+    // AJ-E1541 (lab 8): when time alone can't tell (another session of the
+    // tool began in the same folder), a replay's own first message can.
+    let by_prompt = || {
+        replayed_into
+            .then(|| {
+                crate::features::conversations::primed_conversation(
+                    state,
+                    &account_a,
+                    &source.cwd,
+                    source.started_at.millis().saturating_sub(2_000),
+                    &replay_header(state, &account_a.harness),
+                    &taken,
+                )
+            })
+            .flatten()
+    };
+    let Some(found) = by_id.or_else(by_time).or_else(by_prompt) else {
         return Ok((source, account_a));
     };
     source.transcript_ref = Some(found);
@@ -6245,6 +6269,17 @@ fn replay_turns(
 }
 
 /// The replay brief when the target Provider has no prime of its own.
+/// The first line every replay into `harness` opens with (its tool's
+/// prime, else the plain one): how a replay's conversation is told apart.
+fn replay_header(state: &Arc<AppState>, harness: &juggler_core::model::HarnessId) -> String {
+    let prime = state
+        .registry
+        .handover(harness)
+        .and_then(|support| support.prime_prompt(&[]).ok())
+        .unwrap_or_else(|| plain_prime(&[]));
+    prime.lines().next().unwrap_or_default().to_owned()
+}
+
 fn plain_prime(turns: &[juggler_adapter::handover::TurnText]) -> String {
     let mut out = String::from(
         "You are continuing a session that previously ran under another Provider. \
@@ -11265,10 +11300,13 @@ fn is_replay(edge: &juggler_core::model::SwitchEdge) -> bool {
 /// AJ-E1541: what was new on each hop between the account returned to and
 /// the away one, oldest first. `previous` starts as the returned-to
 /// account's uuids and gains each hop's, so a later hop counts only its own.
+/// A hop whose conversation can't be found goes into `unread`, so the
+/// update names it.
 fn hops_between(
     state: &Arc<AppState>,
     hops: &[BackHop],
     previous: &mut std::collections::HashSet<String>,
+    unread: &mut Vec<String>,
 ) -> AppResult<Vec<juggler_handover::switch_back::DeltaHop>> {
     let mut out = Vec::new();
     for hop in hops {
@@ -11284,6 +11322,7 @@ fn hops_between(
         };
         let reference = newest_transcript(state, &account, row.transcript_ref.clone());
         let Some((uuids, turns)) = reference.as_ref().and_then(|r| transcript_side(&r.path)) else {
+            unread.push(account.label.clone());
             continue;
         };
         let turns = new_turns(turns, previous, hop.primed);
@@ -11423,6 +11462,63 @@ fn file_domain_hashes_now(
     hashes
 }
 
+/// The conversation side of a switch back: the away turns, how the two
+/// sides' conversations relate, the hops between, and the accounts whose
+/// conversation couldn't be found.
+struct BackConversation {
+    away_turns: Vec<juggler_handover::pack::IrTurn>,
+    conversation: juggler_handover::reconcile::ConversationReconciliation,
+    earlier_hops: Vec<juggler_handover::switch_back::DeltaHop>,
+    unread: Vec<String>,
+}
+
+fn back_conversation(
+    state: &Arc<AppState>,
+    lineage: &BackLineage,
+    away_label: &str,
+    away_reference: Option<&juggler_core::model::TranscriptRef>,
+    original_reference: Option<&juggler_core::model::TranscriptRef>,
+) -> AppResult<BackConversation> {
+    // Conversation: base = intersection (B began as A's bytes);
+    // away-only renders the delta; original-only is a no-op.
+    let away_side = away_reference.and_then(|reference| transcript_side(&reference.path));
+    let original_side = original_reference.and_then(|reference| transcript_side(&reference.path));
+    let empty = std::collections::HashSet::new();
+    let away_side_missing = away_side.is_none();
+    let (mut away_uuids, mut away_turns) = away_side.unwrap_or_else(|| (empty.clone(), Vec::new()));
+    let (original_uuids, _) = original_side.unwrap_or_else(|| (empty, Vec::new()));
+    // AJ-E1541: the hops between, each reduced to what was new on it; a
+    // hop (or the away epoch) that began as a replay drops its first user
+    // turn, which is the replay itself.
+    let mut previous_uuids = original_uuids.clone();
+    let mut unread = Vec::new();
+    let earlier_hops = hops_between(
+        state,
+        &lineage.intermediate,
+        &mut previous_uuids,
+        &mut unread,
+    )?;
+    if away_side_missing {
+        unread.push(away_label.to_owned());
+    }
+    if lineage.away_primed {
+        away_turns = new_turns(away_turns, &std::collections::HashSet::new(), true);
+        away_uuids = away_turns
+            .iter()
+            .filter_map(|turn| turn.uuid.clone())
+            .collect();
+    }
+    Ok(BackConversation {
+        conversation: juggler_handover::reconcile::reconcile_conversation(
+            &away_uuids,
+            &previous_uuids,
+        ),
+        away_turns,
+        earlier_hops,
+        unread,
+    })
+}
+
 /// Assembles the plan facts shared by plan/execute (one walk, one
 /// reconcile — the same truth both halves render and act on).
 #[allow(clippy::type_complexity)]
@@ -11439,7 +11535,7 @@ fn back_facts(
     bool,
     juggler_handover::switch_back::OriginalSession,
 )> {
-    use juggler_handover::reconcile::{reconcile_conversation, reconcile_files};
+    use juggler_handover::reconcile::reconcile_files;
 
     link_chain(state, session_id, to_epoch)?;
     let (lineage, away_account, original_account) = back_lineage(state, session_id, to_epoch)?;
@@ -11486,30 +11582,18 @@ fn back_facts(
         nearest_surviving.as_deref(),
     );
 
-    // Conversation: base = intersection (B began as A's bytes);
-    // away-only renders the delta; original-only is a no-op.
-    let away_side = away_reference
-        .as_ref()
-        .and_then(|reference| transcript_side(&reference.path));
-    let original_side = original_reference
-        .as_ref()
-        .and_then(|reference| transcript_side(&reference.path));
-    let empty = std::collections::HashSet::new();
-    let (mut away_uuids, mut away_turns) = away_side.unwrap_or_else(|| (empty.clone(), Vec::new()));
-    let (original_uuids, _) = original_side.unwrap_or_else(|| (empty, Vec::new()));
-    // AJ-E1541: the hops between, each reduced to what was new on it; a
-    // hop (or the away epoch) that began as a replay drops its first user
-    // turn, which is the replay itself.
-    let mut previous_uuids = original_uuids.clone();
-    let earlier_hops = hops_between(state, &lineage.intermediate, &mut previous_uuids)?;
-    if lineage.away_primed {
-        away_turns = new_turns(away_turns, &std::collections::HashSet::new(), true);
-        away_uuids = away_turns
-            .iter()
-            .filter_map(|turn| turn.uuid.clone())
-            .collect();
-    }
-    let conversation = reconcile_conversation(&away_uuids, &previous_uuids);
+    let BackConversation {
+        away_turns,
+        conversation,
+        earlier_hops,
+        unread,
+    } = back_conversation(
+        state,
+        &lineage,
+        &away_account.label,
+        away_reference.as_ref(),
+        original_reference.as_ref(),
+    )?;
 
     // File domain: the fork manifest's non-transcript rows, hashed
     // on both sides now (three-way; conflicts never auto-merge).
@@ -11538,6 +11622,7 @@ fn back_facts(
         diff_stat: away_diff_stat(&lineage.away_session.cwd),
         todo_note: away_task_note(away_reference.as_ref()),
         earlier_hops,
+        unread,
     };
     let away_live = matches!(
         lineage.away_session.status.as_str(),

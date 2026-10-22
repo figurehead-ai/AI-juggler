@@ -527,6 +527,63 @@ pub(crate) fn transcript_of(
         .map(reference)
 }
 
+/// How much of a title must match a replay's header to count as its
+/// opening (a short title says too little to tell).
+const OPENING_MIN: usize = 24;
+
+/// AJ-E1541 (lab 8): the conversation a replay started, when finding it by
+/// time alone is ambiguous (another session of the same tool began in the
+/// same folder since). A replay's first message opens with `header`, the
+/// target tool's replay header: the one conversation in `cwd` that began
+/// after `after_ms` and opens with it is the one. Only files changed since
+/// then are read, so a large history costs a directory listing. Several
+/// matches (two replays into one folder at once) find nothing: never a
+/// guess. Read-only.
+pub(crate) fn primed_conversation(
+    state: &Arc<AppState>,
+    account: &juggler_adapter::model::Account,
+    cwd: &std::path::Path,
+    after_ms: i64,
+    header: &str,
+    taken: &[PathBuf],
+) -> Option<juggler_core::model::TranscriptRef> {
+    let header = header.trim();
+    if header.is_empty() {
+        return None;
+    }
+    let adapter = state.registry.get(&account.harness)?;
+    let since = std::time::UNIX_EPOCH
+        + std::time::Duration::from_millis(u64::try_from(after_ms).unwrap_or(0));
+    let mut found = adapter
+        .conversation_files(&account.state_dir)
+        .into_iter()
+        .filter(|path| !taken.contains(path))
+        .filter(|path| {
+            std::fs::metadata(path)
+                .and_then(|meta| meta.modified())
+                .is_ok_and(|modified| modified >= since)
+        })
+        .filter_map(|path| {
+            let summary = adapter
+                .read_conversation_quick(&path)
+                .or_else(|| adapter.read_conversation(&path))?;
+            let opens = summary.title.as_deref().is_some_and(|title| {
+                // A title is the first line, cut at a length with "…" added.
+                let title = title.trim().trim_end_matches('…').trim_end();
+                title.chars().count() >= OPENING_MIN.min(header.chars().count())
+                    && (header.starts_with(title) || title.starts_with(header))
+            });
+            let here = summary.cwd.as_deref() == Some(cwd);
+            let after = summary.started_ms.is_some_and(|at| at >= after_ms);
+            (opens && here && after).then_some(juggler_core::model::TranscriptRef {
+                path,
+                native_id: Some(summary.id),
+            })
+        });
+    let first = found.next()?;
+    found.next().is_none().then_some(first)
+}
+
 /// The copyable line that resumes a conversation started outside AI
 /// Juggler: its tool's adapter builds it, on its account's folder, from
 /// its own folder.

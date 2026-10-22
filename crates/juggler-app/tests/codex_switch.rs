@@ -484,3 +484,113 @@ fn claude_to_codex_carries_tool_calls_the_task_list_and_the_changes() {
     );
     assert!(prompt.contains("?? calc.py"), "{prompt}");
 }
+
+/// A Codex conversation in `cwd` whose first message is `first`, with one
+/// reply. Dated ahead, so it began after any launch in the test.
+fn write_later_rollout(home: &Path, cwd: &str, id: &str, first: &str, reply: &str) {
+    let day = home.join("sessions/2030/01/01");
+    std::fs::create_dir_all(&day).unwrap();
+    let text = |s: &str| serde_json::to_string(s).unwrap();
+    let lines = [
+        format!(
+            r#"{{"timestamp":"2030-01-01T08:00:00.000Z","type":"session_meta","payload":{{"id":"{id}","cwd":"{cwd}","cli_version":"0.163.0"}}}}"#
+        ),
+        // As real rollouts do: Codex's own context comes first.
+        r#"{"timestamp":"2030-01-01T08:00:00.500Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"<environment_context>cwd</environment_context>"}]}}"#.to_owned(),
+        format!(
+            r#"{{"timestamp":"2030-01-01T08:00:01.000Z","type":"response_item","payload":{{"type":"message","role":"user","content":[{{"type":"input_text","text":{}}}]}}}}"#,
+            text(first)
+        ),
+        format!(
+            r#"{{"timestamp":"2030-01-01T08:00:05.000Z","type":"response_item","payload":{{"type":"message","role":"assistant","content":[{{"type":"output_text","text":{}}}]}}}}"#,
+            text(reply)
+        ),
+    ];
+    std::fs::write(
+        day.join(format!("rollout-2030-01-01T08-00-00-{id}.jsonl")),
+        lines.join("\n") + "\n",
+    )
+    .unwrap();
+}
+
+#[test]
+fn switching_back_finds_the_replays_conversation_beside_another_one() {
+    // Lab 8: another Codex session began in the same folder after the
+    // replay, so its conversation couldn't be told apart by time, and
+    // switching back left the Codex work out without a word.
+    let work = tempfile::tempdir().unwrap();
+    let s = setup(work.path(), CLAUDE_CODE_ID, CODEX_ID);
+    write_claude_transcript(&s.source_home, &s.cwd);
+    commands::redaction_policy_set_global_impl(&s.state, Some("strip")).unwrap();
+    let info = commands::switch_execute_impl(
+        &s.state,
+        &s.source_session,
+        &s.target_recipe,
+        "finish-turn",
+        None,
+        &[],
+    )
+    .unwrap();
+    // What the replay hands Codex: the argument after `--`.
+    let args = args_of(&s.target_home);
+    let at = args.iter().position(|a| a == "--").unwrap();
+    let prompt = args[at + 1..].join("\n");
+    write_later_rollout(
+        &s.target_home,
+        &s.cwd,
+        "019a1b2c-0000-7000-8000-0000000000aa",
+        &prompt,
+        "Picked it up: the deploy is done.",
+    );
+    write_later_rollout(
+        &s.target_home,
+        &s.cwd,
+        "019a1b2c-0000-7000-8000-0000000000bb",
+        "What does this repo do?",
+        "It's a storefront.",
+    );
+
+    let plan = commands::switch_back_plan_impl(&s.state, &info.session_id).unwrap();
+    assert!(
+        plan.delta_preview
+            .contains("Picked it up: the deploy is done."),
+        "{}",
+        plan.delta_preview
+    );
+    assert!(!plan.delta_preview.contains("storefront"));
+    assert!(!plan.delta_preview.contains("couldn't find"));
+}
+
+#[test]
+fn switching_back_says_when_it_cant_tell_which_conversation() {
+    let work = tempfile::tempdir().unwrap();
+    let s = setup(work.path(), CLAUDE_CODE_ID, CODEX_ID);
+    write_claude_transcript(&s.source_home, &s.cwd);
+    commands::redaction_policy_set_global_impl(&s.state, Some("strip")).unwrap();
+    let info = commands::switch_execute_impl(
+        &s.state,
+        &s.source_session,
+        &s.target_recipe,
+        "finish-turn",
+        None,
+        &[],
+    )
+    .unwrap();
+    let _ = args_of(&s.target_home);
+    // Two conversations, neither the replay's: never a guess.
+    for (id, first) in [
+        ("019a1b2c-0000-7000-8000-0000000000cc", "Fix the header"),
+        ("019a1b2c-0000-7000-8000-0000000000dd", "Fix the footer"),
+    ] {
+        write_later_rollout(&s.target_home, &s.cwd, id, first, "Done.");
+    }
+
+    let plan = commands::switch_back_plan_impl(&s.state, &info.session_id).unwrap();
+    assert!(
+        plan.delta_preview.contains(
+            "On Target: AI Juggler couldn't find the conversation there, so what happened on it isn't included."
+        ),
+        "{}",
+        plan.delta_preview
+    );
+}

@@ -59,6 +59,10 @@ pub struct DeltaInput {
     /// each already reduced to what was new on it. Empty for a one-hop
     /// return.
     pub earlier_hops: Vec<DeltaHop>,
+    /// The accounts whose conversation couldn't be found (lab 8: another
+    /// session in the same folder made it ambiguous). Named in the update,
+    /// so a missing hop is never silent.
+    pub unread: Vec<String>,
 }
 
 /// One account the work continued on before the away one, and what was
@@ -177,6 +181,12 @@ pub fn delta_turn_text(input: &DeltaInput) -> String {
             .take(limit)
             .collect();
         let _ = writeln!(text, "- [{role}] {line}");
+    }
+    for account in &input.unread {
+        let _ = writeln!(
+            text,
+            "On {account}: AI Juggler couldn't find the conversation there, so what happened on it isn't included."
+        );
     }
     if let Some(diff) = &input.diff_stat {
         let _ = writeln!(text, "\nDiff while away: {diff}.");
@@ -370,7 +380,25 @@ mod tests {
             diff_stat: Some("+120 −8 across 3 files".into()),
             todo_note: Some("\"add retry\" → done".into()),
             earlier_hops: Vec::new(),
+            unread: Vec::new(),
         }
+    }
+
+    #[test]
+    fn an_account_whose_conversation_wasnt_found_is_named() {
+        // Lab 8: the Codex hop's conversation couldn't be told apart from
+        // another session in the same folder, and the update just left it
+        // out. It says so now.
+        let mut input = delta_fixture();
+        input.unread = vec!["Lab Codex".into()];
+        let text = delta_turn_text(&input);
+        assert!(
+            text.contains(
+                "On Lab Codex: AI Juggler couldn't find the conversation there, so what happened on it isn't included."
+            ),
+            "{text}"
+        );
+        assert!(!delta_turn_text(&delta_fixture()).contains("couldn't find"));
     }
 
     #[test]
