@@ -74,9 +74,12 @@ pub(crate) fn serve<P: PairingHost, H: NodeHandler>(
     mut inbound: Streaming<proto::PairMessage>,
     pairing: Arc<P>,
     handler: Arc<H>,
-) -> tokio::sync::mpsc::Receiver<Result<proto::PairMessage, Status>> {
+) -> (
+    tokio::sync::mpsc::Receiver<Result<proto::PairMessage, Status>>,
+    tokio::task::JoinHandle<()>,
+) {
     let (sender, receiver) = tokio::sync::mpsc::channel(4);
-    tokio::spawn(async move {
+    let task = tokio::spawn(async move {
         let local = handler.local_machine_id();
         let outcome = tokio::time::timeout(
             window(),
@@ -114,7 +117,7 @@ pub(crate) fn serve<P: PairingHost, H: NodeHandler>(
             count: None,
         });
     });
-    receiver
+    (receiver, task)
 }
 
 fn failure(error: &PairingError) -> proto::PairMessage {
