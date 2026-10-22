@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, renderHook, waitFor } from "@testing-librar
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RightInspector, installWords, useToolInstall } from "./RightInspector";
 import { since } from "../lib/time-words";
+import { quotaDisplay, windowDisplay } from "../lib/wire";
 import { providerDisplayName } from "../lib/providers";
 import type {
   AccountInfo,
@@ -124,6 +125,17 @@ const open = (container: HTMLElement, tab: string) =>
   fireEvent.click(container.querySelector(`#page-tab-${tab}`)!);
 
 describe("AJ-E408 Provider (§5.3, Req.1-2)", () => {
+  // What Runway reads: each account's measured 5-hour window.
+  beforeEach(() => {
+    (window as unknown as Record<string, unknown>).__AIJ_QUOTA_DISPLAY__ = [
+      quotaDisplay("claude-personal", { five_hour: windowDisplay("tracking", { percentage: 95 }) }),
+      quotaDisplay("claude-work", { five_hour: windowDisplay("tracking", { percentage: 55 }) }),
+    ];
+  });
+  afterEach(() => {
+    delete (window as unknown as Record<string, unknown>).__AIJ_QUOTA_DISPLAY__;
+  });
+
   it("Overview: counts, worst-first aggregate, what's installed (no placeholders)", async () => {
     const { container } = shell("provider", "claude-code");
     expect(container.querySelector('[data-testid="provider-overview"]')).not.toBeNull();
@@ -134,8 +146,10 @@ describe("AJ-E408 Provider (§5.3, Req.1-2)", () => {
     await waitFor(() => expect(container.querySelector('[data-testid="provider-install"]')).not.toBeNull());
     expect(container.querySelector('[data-testid="provider-install"]')!.textContent).toMatch(/^Version \S+/);
     expect(container.textContent).not.toContain("No data");
-    // Worst first: Personal (95% used → 5% left) ABOVE Work Max (55% → 45%).
+    // The least left first, by Runway's own line: Personal (95% used →
+    // 5% left) ABOVE Work Max (55% → 45%).
     const aggregate = container.querySelector('[data-testid="provider-aggregate"]')!;
+    await waitFor(() => expect(aggregate.textContent).toContain("5% left"));
     const order = [...aggregate.querySelectorAll("span")].map((n) => n.textContent ?? "");
     const personalIdx = order.findIndex((text) => text === "Personal");
     const workIdx = order.findIndex((text) => text === "Work Max");
@@ -143,10 +157,11 @@ describe("AJ-E408 Provider (§5.3, Req.1-2)", () => {
     expect(personalIdx).toBeLessThan(workIdx);
   });
 
-  it("mixed labelling appears when confidence tiers differ across accounts", () => {
+  it("each account's line is Runway's own (one source per fact, AJ-E1533)", async () => {
     const { container } = shell("provider", "claude-code");
-    expect(container.querySelector('[data-testid="provider-mixed"]')).not.toBeNull();
-    expect(container.textContent).toContain("mixed");
+    const aggregate = container.querySelector('[data-testid="provider-aggregate"]')!;
+    await waitFor(() => expect(aggregate.querySelectorAll('[data-testid="account-runway"]').length).toBe(2));
+    expect(aggregate.textContent).toContain("45% left");
   });
 
   it("Add account is a header button; actions not built yet aren't shown (D-25)", () => {

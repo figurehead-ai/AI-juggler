@@ -28,9 +28,10 @@ import type {
   ProjectInfo,
 } from "../lib/bridge";
 import { renewalLabel } from "../lib/renewal";
+import { AccountRunway, runwayOf } from "./AccountRunway";
 import { QuotaBar, formatCountdown } from "./primitives";
 import { TwoClocks, WindowRing } from "./QuotaRings";
-import { accountSetFee, quotaDisplay, switchTargets, type QuotaDisplayData, type SwitchBackSuggestionData, type SwitchTargetData, errorText,
+import { accountSetFee, quotaDisplay, quotaDisplayAll, switchTargets, type QuotaDisplayData, type SwitchBackSuggestionData, type SwitchTargetData, errorText,
   signedIn,
 } from "../lib/bridge";
 import { formatBytes } from "./indicator";
@@ -1193,30 +1194,32 @@ function ProviderOverview(props: PanelProps) {
   const provider = props.data.provider;
   const install = useToolInstall(provider?.id ?? null);
   const { all: conversations } = useConversations();
+  // One source per fact: each account's line is Runway's own (runwayOf).
+  const [quota, setQuota] = useState<QuotaDisplayData[]>([]);
+  useEffect(() => {
+    let alive = true;
+    quotaDisplayAll().then(
+      (rows) => alive && setQuota(rows),
+      () => undefined,
+    );
+    return () => {
+      alive = false;
+    };
+  }, [provider?.id]);
   if (!provider) return <HonestEmpty tab="overview" />;
   const providerAccounts = props.accounts.filter((a) => a.provider === provider.id);
   const providerSessions = props.sessions.filter((s) => s.provider === provider.id);
   // One count everywhere: its sessions running now, outside ones too (AJ-E1529).
   const running = toolRunning(provider.id, props.sessions, conversations);
-  // Aggregate quota, WORST ACCOUNT FIRST (recognition over recall); each
-  // row traces to its rail row (Req.7 — no unexplainable dashboard).
+  // Each account's runway, the least left first (recognition over
+  // recall); each line is the one Home, Usage and Accounts show.
   const perAccount = providerAccounts
     .map((account) => {
-      const rows = providerSessions.filter((s) => s.account_id === account.id && s.quota !== null);
-      const worst = rows.reduce<InstanceInfo | null>((min, row) => {
-        if (!min) return row;
-        return (100 - row.quota!.used_percentage) < (100 - min.quota!.used_percentage) ? row : min;
-      }, null);
-      return { account, worst };
+      const display = quota.find((q) => q.account === account.id);
+      const sessions = providerSessions.filter((s) => s.account_id === account.id);
+      return { account, display, sessions, left: runwayOf(display, sessions).left };
     })
-    .sort((a, b) => {
-      const leftA = a.worst ? 100 - a.worst.quota!.used_percentage : Number.POSITIVE_INFINITY;
-      const leftB = b.worst ? 100 - b.worst.quota!.used_percentage : Number.POSITIVE_INFINITY;
-      return leftA - leftB;
-    });
-  const tiers = new Set(
-    perAccount.filter((entry) => entry.worst).map((entry) => entry.worst!.quota!.confidence),
-  );
+    .sort((a, b) => (a.left ?? Number.POSITIVE_INFINITY) - (b.left ?? Number.POSITIVE_INFINITY));
   return (
     <div className="flex flex-col gap-3" data-testid="provider-overview">
       <Card className="flex flex-col gap-2 p-4">
@@ -1234,27 +1237,22 @@ function ProviderOverview(props: PanelProps) {
         )}
       </Card>
       <Card className="flex flex-col gap-1.5 p-4" data-testid="provider-aggregate">
-        <p className="text-[11px] uppercase tracking-wider text-muted">Quota, lowest first</p>
+        <p className="text-[11px] uppercase tracking-wider text-muted">Runway, least left first</p>
         {perAccount.length === 0 ? (
           <p className="text-[11.5px] text-muted">No accounts for this tool yet.</p>
         ) : (
-          perAccount.map(({ account, worst }) => (
-            <div key={account.id} className="flex flex-col gap-1 py-0.5">
+          perAccount.map(({ account, display, sessions }) => (
+            <div key={account.id} className="flex flex-col gap-1.5 py-1">
               <span className="text-[11.5px]">
                 <span className="text-ink">{account.label}</span>
                 {!signedIn(account.login_state) ? <span className="text-faint"> · signed out</span> : null}
               </span>
               {/* D-25: a signed-out account with no reading says "signed
-                  out" above; an empty bar would only repeat it. */}
-              {worst?.quota || signedIn(account.login_state) ? <QuotaBar quota={worst?.quota ?? null} /> : null}
+                  out" above; its runway would only repeat it. */}
+              {display || signedIn(account.login_state) ? <AccountRunway display={display} sessions={sessions} /> : null}
             </div>
           ))
         )}
-        {tiers.size > 1 ? (
-          <span className="text-[10px] text-muted" data-testid="provider-mixed">
-            <span className="rounded border border-hairline px-1">mixed</span> some of these are measured, some estimated
-          </span>
-        ) : null}
       </Card>
     </div>
   );

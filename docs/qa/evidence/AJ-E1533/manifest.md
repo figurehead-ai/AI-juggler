@@ -103,14 +103,12 @@ account, tool and outside-session pages, by mouse and by the crumbs.
    - All five types share one header, one tab strip, one footer and one
      menu. Session rows look the same on a project's page, an account's
      page and Home (the same disc, tool mark and words).
-   - One disagreement remains, and it waits on #120 (instructed: no
-     building on `runwayOf` until it merges). The tool page's per-account
-     quota is the lowest any session reported, while Home's Runway reads
-     the account's own (`runwayOf`).
-     - Seen on the preview: Work Max "0% left" on the tool page against
-       "58% left" in Runway.
-     - Once #120 is in, the tool page reads `runwayOf`, together with
-       AJ-E1530.
+   - The last disagreement closed once #120 was merged into release/0.1.
+     The tool page's per-account quota used to be the lowest any session
+     reported ("0% left" against Runway's "58% left" on the preview). It
+     now renders each account's `AccountRunway`, ordered by `runwayOf`:
+     the same component and rule as Usage, Accounts and Home's Runway
+     (vitest `inspector-aggregate`, "each account's line is Runway's own").
 
 ## Decisions
 
