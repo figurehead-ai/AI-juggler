@@ -19,6 +19,7 @@
  * J/K or the arrows move between rows, Enter opens, A runs the row's
  * action. The ledger-degraded banner moved here from Overview.
  */
+import { providerDisplayName } from "../lib/providers";
 import { AccountAvatar } from "../components/Avatar";
 import { ProjectMark } from "../components/ProjectMark";
 import { ToolMark } from "../components/ToolMark";
@@ -36,6 +37,8 @@ import { matches, SHORTCUTS, type KeyLike } from "../lib/shortcuts";
 import { ownSignIn } from "../lib/providers";
 import { RowPlaceholders } from "../components/Placeholder";
 import { Welcome } from "../components/Welcome";
+import { SectionTitle } from "../components/SectionTitle";
+import { SmootherCard } from "../components/SmootherCard";
 import { HomeOutsideRows } from "../components/OutsideConversations";
 import { liveOutside, useConversations } from "../lib/conversations";
 import { minutes } from "../lib/time-words";
@@ -111,15 +114,6 @@ export function placeOf(session: InstanceInfo, projects: ProjectInfo[]): { title
   const detail = [session.git_branch, session.account_label].filter(Boolean).join(" · ");
   return { title, detail };
 }
-
-function SectionTitle({ id, children }: { id: string; children: string }): JSX.Element {
-  return (
-    <h2 id={id} className="text-[11px] font-semibold uppercase tracking-wider text-muted">
-      {children}
-    </h2>
-  );
-}
-
 
 export function HomeScreen({
   sessions,
@@ -458,6 +452,7 @@ export function HomeScreen({
 
       {/* AJ-E1006: what changed while you were away — only when something did. */}
       <MorningSummary onOpenSession={onOpenSession} />
+      <SmootherCard variant="reminder" />
 
       {sessions.length === 0 && conversations.length === 0 && (
         <section className="flex flex-col items-start gap-3 rounded-2xl border border-hairline bg-surface p-6" data-testid="home-first-session">
@@ -606,7 +601,7 @@ export function HomeScreen({
                         <span className="flex items-center gap-1.5 text-xs text-muted">
                           <ToolMark tool={session.provider} size={12} className="shrink-0" />
                           <AccountAvatar accountId={session.account_id} label={session.account_label} size={16} />
-                          <span><span className="sr-only">on </span>{session.account_label}</span>
+                          <span><span className="sr-only">{providerDisplayName(session.provider)} on </span>{session.account_label}</span>
                         </span>
                         <span className="w-14 text-right font-mono text-xs text-faint">{minutes(session.started_at_ms, now)}</span>
                       </button>

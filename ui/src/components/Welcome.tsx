@@ -7,6 +7,7 @@
  * come from the catalog and the install probe (AJ-E1525), never from ids.
  * The mark's one rise-in is decorative and stops under reduced motion.
  */
+import { SmootherCard } from "./SmootherCard";
 import { useEffect, useState, type JSX } from "react";
 import { Button, Card } from "./primitives";
 import { IconDashboard, IconJuggler, IconProjects, IconSessions, IconShield, IconTerminal, IconUsage } from "./icons";
@@ -115,6 +116,8 @@ export function Welcome({
           </Button>
         </div>
       </header>
+
+      <SmootherCard variant="welcome" />
 
       <section aria-labelledby="welcome-what" className="flex flex-col gap-3">
         <h2 id="welcome-what" className="text-[11px] font-semibold uppercase tracking-wider text-muted">

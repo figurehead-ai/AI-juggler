@@ -205,16 +205,10 @@ pub fn find_icon_cached(root: &Path) -> Option<FoundIcon> {
     icon
 }
 
-/// The icons the project list last served, by project id: the only files
-/// [`projects_icon_read`] reads.
-fn served() -> &'static Mutex<HashMap<String, PathBuf>> {
-    static SERVED: OnceLock<Mutex<HashMap<String, PathBuf>>> = OnceLock::new();
-    SERVED.get_or_init(|| Mutex::new(HashMap::new()))
-}
-
-/// Remembers the icon each project's mark uses (clones share one).
-pub fn remember_served(icons: impl IntoIterator<Item = (String, PathBuf)>) {
-    if let Ok(mut map) = served().lock() {
+/// Remembers the icon each project's mark uses (clones share one): the
+/// only files [`projects_icon_read`] reads, per app state.
+pub fn remember_served(state: &AppState, icons: impl IntoIterator<Item = (String, PathBuf)>) {
+    if let Ok(mut map) = state.project_icons.lock() {
         *map = icons.into_iter().collect();
     }
 }
@@ -244,8 +238,9 @@ pub fn data_url(path: &Path) -> Option<String> {
 /// # Errors
 ///
 /// None today; the result type keeps the command's shape.
-pub fn icon_read_impl(_state: &Arc<AppState>, project_id: &str) -> AppResult<Option<String>> {
-    let path = served()
+pub fn icon_read_impl(state: &Arc<AppState>, project_id: &str) -> AppResult<Option<String>> {
+    let path = state
+        .project_icons
         .lock()
         .ok()
         .and_then(|map| map.get(project_id).cloned());

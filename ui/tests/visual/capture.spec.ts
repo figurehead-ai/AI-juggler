@@ -127,6 +127,8 @@ for (const theme of THEMES) {
       // D-25: with no accounts, Home is one plain next step.
       await expect(page.getByTestId("home-empty-accounts")).toBeVisible();
       await expect(page.getByRole("button", { name: "Find my accounts" })).toBeVisible();
+      // AJ-E1527: the optional permissions, early and never required.
+      await expect(page.getByTestId("smoother")).toBeVisible();
       await page.screenshot({
         path: resolve(GALLERY, `01-rail/honest-empty-${vp.name}-${theme}.png`),
       });
