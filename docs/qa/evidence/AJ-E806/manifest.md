@@ -615,3 +615,14 @@
 
   The collateral, ports, load_budgets (6) and guardrails (10) suites
   pass, with no fixture left behind.
+- **Flake record, 2026-10-22 (fixed in fix/codex-compaction-record).**
+  In #134's verify (bb39112c), at load average about 21, with other
+  sessions' builds running,
+  `juggler-supervisor :: machine :: tick_cost_stays_inside_the_budget`
+  read p95 2,570 µs against its 2 ms budget. That is wall time, which
+  counts other programs' turns and disk waits. Alone it reads p95 about
+  44 µs, and it passed 4 of 4 beside 60 busy processes, so this isn't
+  reproduced. The p95 budget and the under-the-lock p95 are now this
+  thread's CPU time, with wall time printed beside them; the 20 ms
+  wall-time maximum under the lock still catches the disk listing it
+  guards against. Same approach as #131's orphan tick budget.

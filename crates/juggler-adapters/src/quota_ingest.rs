@@ -714,7 +714,23 @@ impl RolloutCarry {
         match (kind, inner) {
             (Some("compacted"), _) => {
                 self.compactions += 1;
-                self.compacted = Some(OpenCompaction {
+                // P21: Codex names the compaction's own model call
+                // (`latest_token_usage_record`). That call is a
+                // `token_usage_record`, counted where it is written: in
+                // this file, or in the thread whose history this one
+                // opens with. Named as none (`null`): at the top of a file,
+                // before any total, it is a forked thread's copied summary
+                // with no call of its own here; further in, its
+                // `token_count` still counts as P17's does. A `compacted`
+                // from before Codex named it waits for its `token_count`
+                // (P17); one that only repeats the total adds nothing.
+                let waits =
+                    match payload.and_then(|payload| payload.get("latest_token_usage_record")) {
+                        Some(serde_json::Value::Object(_)) => false,
+                        Some(serde_json::Value::Null) => self.last_total.is_some(),
+                        _ => true,
+                    };
+                self.compacted = waits.then_some(OpenCompaction {
                     before: self.last_total,
                 });
             }

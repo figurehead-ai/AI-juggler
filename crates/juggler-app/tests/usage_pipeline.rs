@@ -768,3 +768,156 @@ fn an_old_compressed_rollout_never_moves_the_credits_back() {
     usage_pipeline::ingest_pass(&state, 8);
     assert_eq!(balance(), "16.25", "the newest balance stays");
 }
+
+/// P21: an older build stored a second row for a compaction that names
+/// another thread's model call (`…/compacted/…`, that call counted
+/// again). The next pass reads the threads again and drops it; the call
+/// counts once, under the thread that made it.
+#[test]
+fn a_compaction_counted_twice_by_an_older_build_is_read_again() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    let home = dir.path().join("codex-home");
+    let day = home.join("sessions/2026/10/21");
+    std::fs::create_dir_all(&day).unwrap();
+    let usage = |input: u64| {
+        format!(
+            r#"{{"input_tokens":{input},"cached_input_tokens":0,"cache_write_input_tokens":0,"output_tokens":0,"reasoning_output_tokens":0,"total_tokens":{input}}}"#
+        )
+    };
+    let line = |ts: &str, kind: &str, payload: String| {
+        format!(
+            r#"{{"timestamp":"2026-10-21T10:00:{ts}.000Z","type":"{kind}","payload":{payload}}}"#
+        ) + "\n"
+    };
+    let record = |ts: &str, thread: &str, turn: &str, response: &str, input: u64| {
+        line(
+            ts,
+            "token_usage_record",
+            format!(
+                r#"{{"thread_id":"{thread}","turn_id":"{turn}","response_id":"{response}","usage":{}}}"#,
+                usage(input)
+            ),
+        )
+    };
+    let count = |ts: &str, last: u64, total: u64| {
+        line(
+            ts,
+            "event_msg",
+            format!(
+                r#"{{"type":"token_count","info":{{"last_token_usage":{},"total_token_usage":{}}},"rate_limits":null}}"#,
+                usage(last),
+                usage(total)
+            ),
+        )
+    };
+    let parent = [
+        record("01", "th-parent", "tp", "r-compact", 136_658),
+        count("02", 136_658, 1_899_060),
+    ]
+    .concat();
+    let child = [
+        line(
+            "03",
+            "compacted",
+            format!(
+                r#"{{"compaction_response_id":null,"latest_token_usage_record":{{"thread_id":"th-parent","turn_id":"tp","response_id":"r-compact","root_turn_id":"tp","session_id":"th-parent","usage":{u},"turn_token_usage":{u},"thread_token_usage":{u}}},"window_number":1}}"#,
+                u = usage(136_658)
+            ),
+        ),
+        count("04", 136_658, 1_899_060),
+        line("05", "event_msg", r#"{"type":"task_started"}"#.to_owned()),
+        record("06", "th-sub", "t1", "r-t1", 100),
+    ]
+    .concat();
+    let parent_path = day.join("rollout-2026-10-21T10-00-00-th-parent.jsonl");
+    let child_path = day.join("rollout-2026-10-21T10-00-03-th-sub.jsonl");
+    {
+        let storage = state.storage.lock().unwrap();
+        storage
+            .accounts()
+            .insert(&Account {
+                id: AccountId::new("acc-codex"),
+                harness: HarnessId::new("codex"),
+                label: "codex".into(),
+                plan: None,
+                state_dir: home,
+                cleanup_opt_in: false,
+                renewal_date: None,
+                preview_opt_in: false,
+                import_source_path: None,
+                import_origin: None,
+                imported_at: None,
+                in_place: false,
+            })
+            .unwrap();
+    }
+    // A first pass with nothing to read settles the new account (its own
+    // reason to read everything again).
+    usage_pipeline::ingest_pass(&state, 0);
+    std::fs::write(&parent_path, &parent).unwrap();
+    std::fs::write(&child_path, &child).unwrap();
+    {
+        let storage = state.storage.lock().unwrap();
+        // What the older build left: both calls, the same call again under
+        // the child's compaction, and both files read to their end.
+        let row = |session: &str, key: &str, input: u64| juggler_core::quota::UsageEvent {
+            account: "acc-codex".into(),
+            session: Some(session.into()),
+            ts: 1_792_576_801_000,
+            model: None,
+            tokens: juggler_core::model::TokenCounts {
+                input,
+                ..Default::default()
+            },
+            credits: None,
+            usd_est: None,
+            source: juggler_core::quota::UsageSource::Rollout,
+            confidence: juggler_core::model::Confidence::Measured,
+            msg_uuid: Some(key.into()),
+        };
+        storage
+            .usage()
+            .store_events(&[
+                row("th-parent", "th-parent/tp/r-compact", 136_658),
+                row("th-sub", "th-sub/compacted/1792576804000/1", 136_658),
+                row("th-sub", "th-sub/t1/r-t1", 100),
+            ])
+            .unwrap();
+        // Only the version asks for the re-read here.
+        assert!(!storage.usage().derived_dirty().unwrap());
+        storage
+            .app_settings()
+            .set(
+                "usage_ingest_state",
+                &serde_json::json!({
+                    "reread": 4,
+                    "offsets": {"acc-codex": {"spool": 0, "files": {
+                        parent_path.to_string_lossy(): parent.len(),
+                        child_path.to_string_lossy(): child.len(),
+                    }}},
+                })
+                .to_string(),
+            )
+            .unwrap();
+    }
+
+    usage_pipeline::ingest_pass(&state, 4);
+    let stored: std::collections::BTreeMap<String, u64> = state
+        .storage
+        .lock()
+        .unwrap()
+        .usage()
+        .events_for_account("acc-codex", 0)
+        .unwrap()
+        .into_iter()
+        .map(|event| (event.msg_uuid.unwrap(), event.tokens.input))
+        .collect();
+    assert_eq!(
+        stored,
+        std::collections::BTreeMap::from([
+            ("th-parent/tp/r-compact".to_owned(), 136_658),
+            ("th-sub/t1/r-t1".to_owned(), 100),
+        ])
+    );
+}
