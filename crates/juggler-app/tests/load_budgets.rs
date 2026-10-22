@@ -663,7 +663,7 @@ impl BusyClaudeApp {
         std::fs::write(
             &script,
             format!(
-                "i=0; while [ $i -lt {children} ]; do sleep 600 & i=$((i+1)); done; : > '{}'; wait\n",
+                "i=0; while [ $i -lt {children} ]; do sleep 300 & i=$((i+1)); done; : > '{}'; wait\n",
                 ready.display()
             ),
         )
@@ -672,7 +672,15 @@ impl BusyClaudeApp {
         // failure while its children start leaves nothing behind.
         let guard = Self {
             app: std::process::Command::new(&exe)
-                .args(["--spawn-child", "/bin/sh", "--child-args"])
+                // Ends itself after 5 minutes (its default is an hour), so
+                // a test killed outright leaves it no longer than that.
+                .args([
+                    "--exit-after-secs",
+                    "300",
+                    "--spawn-child",
+                    "/bin/sh",
+                    "--child-args",
+                ])
                 .arg(&script)
                 .process_group(0)
                 .spawn()
@@ -691,10 +699,14 @@ impl BusyClaudeApp {
 }
 
 impl Drop for BusyClaudeApp {
+    /// The group in the form both macOS's and Linux's `kill` read as a
+    /// group (`-9 -<pgid>` isn't, on Linux), then the app itself: `wait`
+    /// must never sit out its hour (CI on #130 and #131 waited 3,600 s).
     fn drop(&mut self) {
         let _ = std::process::Command::new("/bin/kill")
-            .args(["-9", &format!("-{}", self.app.id())])
+            .args(["-s", "KILL", "--", &format!("-{}", self.app.id())])
             .status();
+        let _ = self.app.kill();
         let _ = self.app.wait();
     }
 }

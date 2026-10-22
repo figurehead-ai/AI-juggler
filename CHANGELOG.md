@@ -138,6 +138,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Codex's older conversations count: Codex compresses older session files
+  (`.jsonl.zst`), and AI Juggler read none of them, so their tokens and
+  costs were missing (on a Mac used for a while, most of them).
 - AI Juggler no longer opens Claude Code's `.credentials.json`: it read the
   file to check an expiry date. Whether you're signed in is told from the
   file being there, as the docs promised; Claude says itself when a sign-in

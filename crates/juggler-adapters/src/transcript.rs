@@ -50,3 +50,41 @@ pub fn parse_any(bytes: &[u8]) -> ParsedTranscript {
         TranscriptFormat::CodexRollout => parse_rollout(bytes),
     }
 }
+
+/// The most a compressed session file may decompress to (a hostile or
+/// damaged file must not exhaust memory).
+pub const SESSION_FILE_MAX: u64 = 512 * 1024 * 1024;
+
+/// AJ-E1540: a session file's bytes, decompressed when the tool stored it
+/// compressed (Codex compresses older rollouts to `.jsonl.zst`; on the
+/// maintainer's Mac most of them are). Bounded by [`SESSION_FILE_MAX`].
+///
+/// # Errors
+///
+/// The read's error; [`std::io::ErrorKind::InvalidData`] for a file that
+/// isn't valid zstd or is larger than the bound.
+pub fn read_session_file(path: &std::path::Path) -> std::io::Result<Vec<u8>> {
+    use std::io::Read as _;
+    let raw = std::fs::read(path)?;
+    if !is_compressed(path) {
+        return Ok(raw);
+    }
+    let mut out = Vec::new();
+    zstd::stream::Decoder::new(&raw[..])?
+        .take(SESSION_FILE_MAX + 1)
+        .read_to_end(&mut out)?;
+    if u64::try_from(out.len()).unwrap_or(u64::MAX) > SESSION_FILE_MAX {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "the session file is too large to read",
+        ));
+    }
+    Ok(out)
+}
+
+/// Whether a session file is stored compressed (`*.zst`).
+#[must_use]
+pub fn is_compressed(path: &std::path::Path) -> bool {
+    path.extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("zst"))
+}

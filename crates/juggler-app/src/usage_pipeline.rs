@@ -42,8 +42,11 @@ pub const CREDITS_KEY_PREFIX: &str = "credits:";
 /// resumed copy shares credited to the session that came first. 3 = every
 /// session that offered a message recorded, so a shared message's keeper
 /// no longer depends on the reading order (a copy of a copy, a fork); a
-/// compaction counted once wherever a pass ends.
-const REREAD_VERSION: u32 = 3;
+/// compaction counted once wherever a pass ends. 4 = Codex's compressed
+/// rollouts read (`.jsonl.zst`): their history comes in as a re-read, not
+/// as new use. A cross-branch number, like a migration's: release/0.1 also
+/// takes 4 (P19); where the two meet it becomes 5.
+const REREAD_VERSION: u32 = 4;
 
 /// Quota samples gathered in one pass: (account, window, sample).
 type SampleBatch = Vec<(
@@ -196,15 +199,33 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
         if usage.insert_samples(&sample_batch).is_err() {
             return;
         }
-        for (account, credits) in &credits_batch {
-            if let Ok(blob) = serde_json::to_string(credits) {
-                let _ = storage
-                    .app_settings()
-                    .set(&format!("{CREDITS_KEY_PREFIX}{account}"), &blob);
-            }
-        }
+        save_credits(&storage, &credits_batch);
         if let Ok(blob) = serde_json::to_string(&ingest) {
             let _ = storage.app_settings().set(INGEST_STATE_KEY, &blob);
+        }
+    }
+}
+
+/// Stores each account's newest credits snapshot, only ever forward: a
+/// compressed old rollout, read whole, can carry a snapshot weeks older
+/// than the one already stored.
+fn save_credits(
+    storage: &juggler_core::storage::Storage,
+    batch: &[(String, juggler_adapters::CreditsSnapshot)],
+) {
+    for (account, credits) in batch {
+        let key = format!("{CREDITS_KEY_PREFIX}{account}");
+        let stored = storage
+            .app_settings()
+            .get(&key)
+            .ok()
+            .flatten()
+            .and_then(|blob| serde_json::from_str::<juggler_adapters::CreditsSnapshot>(&blob).ok());
+        if stored.is_some_and(|stored| stored.ts >= credits.ts) {
+            continue;
+        }
+        if let Ok(blob) = serde_json::to_string(credits) {
+            let _ = storage.app_settings().set(&key, &blob);
         }
     }
 }
@@ -333,7 +354,7 @@ fn ingest_claude(
     // Transcripts: <dir>/projects/**/*.jsonl, offset-tracked.
     let projects = dir.join("projects");
     let mut files = Vec::new();
-    collect_jsonl(&projects, &mut files);
+    collect_files(&projects, &mut files, is_jsonl);
     forget_missing(ingest, account, &projects, &files);
     ingest_files(
         account,
@@ -358,7 +379,11 @@ fn ingest_codex(
 ) {
     let sessions = dir.join("sessions");
     let mut files = Vec::new();
-    collect_jsonl(&sessions, &mut files);
+    collect_files(
+        &sessions,
+        &mut files,
+        juggler_adapters::codex::is_rollout_file,
+    );
     forget_missing(ingest, account, &sessions, &files);
     let mut latest: Option<juggler_adapters::CreditsSnapshot> = None;
     for path in files {
@@ -481,6 +506,9 @@ fn tail_one(
     store.append(&mut outcome.events);
     if latest.is_some() || errors > 0 {
         record_health(ingest, account, source, latest, errors, "");
+    }
+    if let Some(reason) = outcome.unread {
+        record_health(ingest, account, source, None, 1, reason);
     }
     if outcome.dropped > 0 {
         // Damage, counted like a bad line: usage that won't be counted.
@@ -619,15 +647,14 @@ fn load_state(state: &Arc<AppState>) -> IngestState {
         .unwrap_or_default()
 }
 
-/// Collects `*.jsonl` files under `root` (depth-capped — vendor trees
-/// are shallow; a runaway walk is not part of the budget).
-fn collect_jsonl(root: &Path, out: &mut Vec<PathBuf>) {
-    collect_jsonl_depth(root, out, 0);
+/// The files under `root` (at most [`MAX_WALK_DEPTH`] folders down) that
+/// `keep` accepts: the one walk for every source the pipeline tails. What a
+/// source's files look like is its adapter's to say.
+fn collect_files(root: &Path, out: &mut Vec<PathBuf>, keep: fn(&Path) -> bool) {
+    walk(root, out, keep, 0);
 }
 
-const MAX_WALK_DEPTH: u32 = 5;
-
-fn collect_jsonl_depth(root: &Path, out: &mut Vec<PathBuf>, depth: u32) {
+fn walk(root: &Path, out: &mut Vec<PathBuf>, keep: fn(&Path) -> bool, depth: u32) {
     if depth > MAX_WALK_DEPTH {
         return;
     }
@@ -637,15 +664,20 @@ fn collect_jsonl_depth(root: &Path, out: &mut Vec<PathBuf>, depth: u32) {
     for entry in entries.flatten() {
         let path = entry.path();
         if path.is_dir() {
-            collect_jsonl_depth(&path, out, depth + 1);
-        } else if path
-            .extension()
-            .is_some_and(|extension| extension == "jsonl")
-        {
+            walk(&path, out, keep, depth + 1);
+        } else if keep(&path) {
             out.push(path);
         }
     }
 }
+
+/// A Claude transcript (`.jsonl`).
+fn is_jsonl(path: &Path) -> bool {
+    path.extension()
+        .is_some_and(|extension| extension == "jsonl")
+}
+
+const MAX_WALK_DEPTH: u32 = 5;
 
 #[cfg(test)]
 mod chunk_tests {

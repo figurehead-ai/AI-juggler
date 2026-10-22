@@ -229,6 +229,20 @@ pub fn parse_version(stdout: &str) -> Option<String> {
         .then(|| token.to_owned())
 }
 
+/// A Codex rollout: `rollout-*.jsonl`, or one Codex compressed once it was
+/// done with it (`rollout-*.jsonl.zst`: most of them, on a Mac used for a
+/// while). A thread caught mid-compression has both; its usage is keyed, so
+/// reading both counts it once.
+#[must_use]
+pub fn is_rollout_file(path: &Path) -> bool {
+    path.file_name()
+        .map(|name| name.to_string_lossy())
+        .is_some_and(|name| {
+            name.starts_with("rollout-")
+                && (name.ends_with(".jsonl") || name.ends_with(".jsonl.zst"))
+        })
+}
+
 /// See [`CodexAdapter::login_state`].
 #[must_use]
 pub fn codex_login_state(state_dir: &Path) -> LoginState {

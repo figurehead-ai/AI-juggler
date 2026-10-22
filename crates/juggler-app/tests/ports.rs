@@ -25,6 +25,22 @@ use juggler_app::state::AppState;
 use juggler_core::model::SessionId;
 use juggler_supervisor::tree::{LedgerStore as _, SpawnContext};
 
+// The shared reaper (this suite needs nothing else from the kit).
+#[allow(dead_code)]
+#[path = "../../juggler-supervisor/tests/fixtures/mod.rs"]
+mod fixtures;
+
+/// `python3 -m http.server` on `127.0.0.1:<port>`, ending itself after the
+/// fixtures' lifetime: a test killed outright can't leave it listening.
+fn bounded_server(port: u16) -> String {
+    format!(
+        "python3 -c 'import http.server as h, os, threading; \
+         threading.Timer({}, os._exit, [0]).start(); \
+         h.ThreadingHTTPServer((\"127.0.0.1\", {port}), h.SimpleHTTPRequestHandler).serve_forever()'",
+        fixtures::FIXTURE_LIFETIME_SECS
+    )
+}
+
 fn ctx(state: &Arc<AppState>) -> SpawnContext {
     SpawnContext {
         provider: "claude-code".into(),
@@ -88,28 +104,44 @@ fn port_inventory_classifies_orphan_and_unmanaged_listeners() {
     // Test-only grace tune (the default stays 30 s — never lowered).
     state.supervisor.set_orphan_grace("claude-code", 3);
 
-    // The vite-like helper holds :5173 inside a supervised Instance.
+    // Two ports nothing else holds (fixed ones collided with a developer's
+    // own `vite` on 5173): the helper's and the stranger's.
+    // Both held until both numbers are read (released one at a time, the
+    // OS could hand out the same one twice), then let go just before the
+    // listeners that take them start.
+    let held = (free_port(), free_port());
+    let port = |listener: &std::net::TcpListener| listener.local_addr().unwrap().port();
+    let (helper_port, stranger_port) = (port(&held.0), port(&held.1));
+    assert_ne!(helper_port, stranger_port);
+    drop(held);
+    // Everything this test starts dies with it, a failed assertion's
+    // unwind included (the helper outlives its root by design).
+    let mut reaper = fixtures::Reaper::default();
+    // The vite-like helper holds its port inside a supervised Instance.
     let session = SessionId::new("sess-e505");
     let spawned = state
         .supervisor
         .spawn(
             &session,
             &sh_spec(
-                "python3 -m http.server 5173 --bind 127.0.0.1 & wait",
+                &format!("{} & wait", bounded_server(helper_port)),
                 dir.path(),
             ),
             &ctx(&state),
         )
         .unwrap();
+    // The root leads its own group; the helper stays in it.
+    reaper.group(spawned.pid);
 
-    // The UNSUPERVISED stranger holds :8000 (the user's own process).
-    let mut stranger = std::process::Command::new("python3")
-        .args(["-m", "http.server", "8000", "--bind", "127.0.0.1"])
+    // The UNSUPERVISED stranger holds its port (the user's own process).
+    let mut stranger = std::process::Command::new("/bin/sh")
+        .args(["-c", &format!("exec {}", bounded_server(stranger_port))])
         .current_dir(dir.path())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .spawn()
         .unwrap();
+    reaper.pid(stranger.id());
 
     // (a) While the Instance lives: helper row carries listens_on=5173
     // (the tick join) and the inventory classifies BOTH rows.
@@ -118,24 +150,24 @@ fn port_inventory_classifies_orphan_and_unmanaged_listeners() {
             rows.iter().any(|row| {
                 row.listens_on
                     .as_deref()
-                    .is_some_and(|ports| ports.split(',').any(|p| p == "5173"))
+                    .is_some_and(|ports| ports.split(',').any(|p| p == helper_port.to_string()))
             })
         } else {
             false
         }
     });
-    assert!(joined, "the tick join never stored listens_on=5173");
+    assert!(joined, "the tick join never stored the helper's listens_on");
 
     let live = commands::port_inventory_inner(&state);
     println!("[live] {}", serde_json::to_string_pretty(&live).unwrap());
     assert!(live.note.is_none(), "the real probe works on this platform");
-    let row_5173 = live.rows.iter().find(|r| r.port == 5173).unwrap();
+    let row_5173 = live.rows.iter().find(|r| r.port == helper_port).unwrap();
     assert_eq!(row_5173.class, "managed-running");
     assert_eq!(row_5173.provider.as_deref(), Some("claude-code"));
     assert_eq!(row_5173.account.as_deref(), Some("acc-e505"));
     assert_eq!(row_5173.project.as_deref(), Some("proj-e505"));
     assert!(row_5173.killable);
-    let row_8000 = live.rows.iter().find(|r| r.port == 8000).unwrap();
+    let row_8000 = live.rows.iter().find(|r| r.port == stranger_port).unwrap();
     assert_eq!(row_8000.class, "not-managed");
     assert!(
         !row_8000.killable,
@@ -170,7 +202,11 @@ fn port_inventory_classifies_orphan_and_unmanaged_listeners() {
         "[orphan] {}",
         serde_json::to_string_pretty(&inventory).unwrap()
     );
-    let row_5173 = inventory.rows.iter().find(|r| r.port == 5173).unwrap();
+    let row_5173 = inventory
+        .rows
+        .iter()
+        .find(|r| r.port == helper_port)
+        .unwrap();
     assert_eq!(row_5173.class, "managed-orphan");
     assert_eq!(row_5173.provider.as_deref(), Some("claude-code"));
     assert_eq!(row_5173.project.as_deref(), Some("proj-e505"));
@@ -178,7 +214,11 @@ fn port_inventory_classifies_orphan_and_unmanaged_listeners() {
         row_5173.listener_age_ms.is_some(),
         "kernel-based listener age"
     );
-    let row_8000 = inventory.rows.iter().find(|r| r.port == 8000).unwrap();
+    let row_8000 = inventory
+        .rows
+        .iter()
+        .find(|r| r.port == stranger_port)
+        .unwrap();
     assert_eq!(
         row_8000.class, "not-managed",
         "the stranger stays display-only"
@@ -188,13 +228,12 @@ fn port_inventory_classifies_orphan_and_unmanaged_listeners() {
     // (the learned expected port of THIS project, held by its orphan).
     let warning = commands::launch_port_warning_inner(&state, Some("proj-e505".into()));
     let warning = warning.expect("the orphan-held learned port must warn");
-    assert_eq!(warning.port, 5173);
+    assert_eq!(warning.port, helper_port);
     assert_eq!(warning.pid, row_5173.pid);
     assert!(
-        warning
-            .message
-            .starts_with(":5173 is already held by an orphan from ")
-            && warning.message.ends_with(")."),
+        warning.message.starts_with(&format!(
+            ":{helper_port} is already held by an orphan from "
+        )) && warning.message.ends_with(")."),
         "copy-exact warning, got: {}",
         warning.message
     );
@@ -205,11 +244,13 @@ fn port_inventory_classifies_orphan_and_unmanaged_listeners() {
     // A DIFFERENT project has no learned ports → no warning, no block.
     assert!(commands::launch_port_warning_inner(&state, Some("proj-other".into())).is_none());
 
-    // Cleanup: the orphan is OURS (ledger row) — reap by pid; the
-    // stranger we started — kill it; no process survives the test.
-    let _ = std::process::Command::new("kill")
-        .arg(row_5173.pid.to_string())
-        .status();
-    let _ = stranger.kill();
+    // Cleanup: the reaper kills both; the stranger, our child, is waited.
+    drop(reaper);
     let _ = stranger.wait();
+}
+
+/// A port no process holds (the OS picks it), held by the returned
+/// listener until it is dropped.
+fn free_port() -> std::net::TcpListener {
+    std::net::TcpListener::bind("127.0.0.1:0").unwrap()
 }
