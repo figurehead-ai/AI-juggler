@@ -5,9 +5,12 @@
  * show; then the most recent few, the rest one click away on the
  * project's page, so the rail stays within its budget at 50+.
  */
+import { AccountAvatar } from "./Avatar";
+import { ProjectMark } from "./ProjectMark";
+import { ToolMark } from "./ToolMark";
 import type { JSX } from "react";
 import { useActionHost, useItemMenu } from "./ItemMenu";
-import { AccountDisc, hueOf, stateChip } from "./indicator";
+import { stateChip } from "./indicator";
 import { conversationTitle, outside, useConversations } from "../lib/conversations";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import type { ProjectInfo } from "../lib/bridge";
@@ -112,7 +115,8 @@ export function ConversationRow({
             , {state}, outside AI Juggler, on {conversation.account_label}
           </span>
         </span>
-        <AccountDisc accountId={conversation.account_id} label={conversation.account_label} size={16} />
+        <ToolMark tool={conversation.tool} size={12} className="shrink-0 text-muted" />
+        <AccountAvatar accountId={conversation.account_id} label={conversation.account_label} size={16} />
       </button>
       {menu.button({ label: `Conversation actions for ${title}`, className: "absolute bottom-0 left-0" })}
       {menu.element}
@@ -183,13 +187,15 @@ export function HomeOutsideRows({ rows, now }: { rows: ConversationInfo[]; now: 
             onClick={() => host.openConversation?.(conversation)}
           >
             <span aria-hidden="true" className="size-2 shrink-0 rounded-full bg-live shadow-[0_0_0_4px_var(--color-live-soft)]" />
+            <ProjectMark projectId={conversation.project_id} size={16} />
             <span className="min-w-0 flex-1 truncate text-sm text-ink">
               {conversationTitle(conversation)}
               <span className="text-faint"> · outside AI Juggler</span>
             </span>
             <span className="flex items-center gap-1.5 text-xs text-muted">
-              <span aria-hidden="true" className="size-2 shrink-0 rounded-full" style={{ background: `hsl(${hueOf(conversation.account_id)} 70% 66%)` }} />
-              {conversation.account_label}
+              <ToolMark tool={conversation.tool} size={12} className="shrink-0" />
+              <AccountAvatar accountId={conversation.account_id} label={conversation.account_label} size={16} />
+              <span><span className="sr-only">on </span>{conversation.account_label}</span>
             </span>
             {/* Its last activity: a resumed one can be months old. */}
             <span className="w-14 text-right font-mono text-xs text-faint" title="Last activity">

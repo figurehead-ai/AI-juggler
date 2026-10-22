@@ -12,21 +12,19 @@
 
 use std::path::Path;
 use std::sync::Arc;
+#[cfg(unix)]
+#[path = "../../juggler-supervisor/tests/fixtures/stand_in.rs"]
+mod stand_in;
 
 const CHILD: &str = "AIJ_SCAN_TEST_CHILD";
 
 fn stand_in(bin: &Path, name: &str) {
     let path = bin.join(name);
-    std::fs::write(
-        &path,
-        "#!/bin/sh\necho \"$(basename \"$0\") $*\" >> \"$AIJ_SCAN_RECORD\"\nexit 1\n",
-    )
-    .unwrap();
+    let body = "#!/bin/sh\necho \"$(basename \"$0\") $*\" >> \"$AIJ_SCAN_RECORD\"\nexit 1\n";
     #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt as _;
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
-    }
+    stand_in::write(&path, body);
+    #[cfg(not(unix))]
+    std::fs::write(&path, body).unwrap();
 }
 
 #[test]

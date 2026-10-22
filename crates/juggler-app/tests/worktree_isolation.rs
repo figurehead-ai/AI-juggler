@@ -23,12 +23,12 @@ use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
 use juggler_app::state::AppState;
 use juggler_app::{commands, worktree};
+#[path = "../../juggler-supervisor/tests/fixtures/stand_in.rs"]
+mod stand_in;
 
 fn claude_stub(dir: &Path) -> PathBuf {
-    use std::os::unix::fs::PermissionsExt;
     let path = dir.join("claude-stub");
-    std::fs::write(&path, "#!/bin/sh\nsleep 30\n").unwrap();
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    stand_in::write(&path, "#!/bin/sh\nsleep 30\n");
     path
 }
 

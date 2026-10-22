@@ -4,9 +4,9 @@
  * Juggler's sessions, and the ones it didn't start; an AI Juggler
  * session's own conversation is counted once, as the session).
  */
+import { AccountAvatar } from "../components/Avatar";
 import type { JSX } from "react";
 import { Card } from "../components/primitives";
-import { AccountDisc } from "../components/indicator";
 import { ToolMark } from "../components/ToolMark";
 import { outside, useConversations } from "../lib/conversations";
 import type { InstanceInfo } from "../lib/bridge";
@@ -50,7 +50,7 @@ export function ProjectUsage({ projectId, sessions }: { projectId: string; sessi
             <tr key={row.accountId ?? row.label} className="border-t border-hairline/60" data-testid="project-usage-row">
               <td className="py-1.5">
                 <span className="flex items-center gap-2">
-                  <AccountDisc accountId={row.accountId} label={row.label} size={16} />
+                  <AccountAvatar accountId={row.accountId} label={row.label} size={16} />
                   <ToolMark tool={row.tool} size={13} className="text-muted" />
                   <span className="text-ink">{row.label}</span>
                 </span>

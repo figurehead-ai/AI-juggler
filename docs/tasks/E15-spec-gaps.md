@@ -302,7 +302,7 @@ walk alone isn't enough.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1529/manifest.md`, with both oracle comparisons.
 **Files to touch**: `crates/juggler-app/src/features/conversations/`, `crates/juggler-adapters` (each adapter's conversation reader), `ui/src/components/WorkflowRail.tsx`, the project view.
 
-### AJ-E1532 Telling projects and sessions apart | Status: TODO | Priority P1 | Effort M | Depends: AJ-E1529, AJ-E1526
+### AJ-E1532 Telling projects and sessions apart | Status: DONE-EVIDENCED | Priority P1 | Effort M | Depends: AJ-E1529, AJ-E1526
 **Goal**: With many projects, each is recognisable at a glance.
 **User story**: As someone with fifteen projects, I tell acme-web from payments-api by its mark and colour before I read the name.
 **Requirements** (the maintainer's request, 2026-10-21):
@@ -434,6 +434,15 @@ walk alone isn't enough.
 **Quality gates**: the size shown before turning it on matches the built index within 10%; turning it off leaves no index behind; the first-pass speed of AJ-E1529 is unchanged with it on.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1538/manifest.md`.
 
+### AJ-E1544 LiveStatsCollector in its own module | Status: TODO | Priority P2 | Effort S | Depends: AJ-E2011
+**Goal**: `juggler-supervisor/src/supervisor.rs` fits its size budget again.
+**Context** (the coordinator, 2026-10-22): main's #126 grew supervisor.rs past its cap, and main has no size budget, so the cap was re-based at that merge (2848 → 2962 lines). Fix batch 4 (#130) changes the same collector code; splitting it before #130 is in release/0.1 would only make conflicts.
+**Requirements**:
+1. Once #130 has merged into release/0.1, `LiveStatsCollector` and its helpers move into their own module of `juggler-supervisor`, behaviour unchanged.
+2. supervisor.rs's cap in `scripts/size_budget.allow` goes back down to its new size.
+**Quality gates**: `just verify` (with `load_budgets`) passes unchanged; the size budget passes with the lower cap.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1544/manifest.md`.
+
 ## Switching you can rely on — a 0.1 core
 
 The maintainer (2026-10-22): "One of the main features that must work in 0.1.* is switching and migrating sessions between different accounts of the same provider and in between totally different providers." The journey that must work: a simple coding task on Claude account A, switched to Claude account B, then to Codex, then back to A, with the chat history, tasks, context and project state carried at every step. Before a switch, AI Juggler checks the target's MCP servers, skills and the rest, and offers to set up what's missing; the user sees everything and approves each item.
@@ -492,7 +501,6 @@ What the code does today (mapped 2026-10-22 on release/0.1): a same-tool switch 
 3. A pair the lab has proven says so; one it hasn't stays labelled Beta. Never "lossless".
 4. Walked by hand on the replica and once on the real lab, with the three questions (the user's problem solved, clear without explanation, consistent).
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1543/manifest.md`.
-
 ## Wave 2 — usage you can act on, Fleet and support
 
 ### AJ-E1512 Sessions left and a burn-down chart | Status: TODO | Priority P1 | Effort M | Depends: AJ-E608

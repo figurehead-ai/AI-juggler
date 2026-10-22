@@ -18,5 +18,9 @@ serde_json = "1.0.154"
 sha2 = "0.11.0"
 thiserror = "2.0.21"
 
+[target."cfg(unix)".dependencies]
+# The effective user id for file_trust (safe bindings; no `unsafe` here).
+nix = { version = "0.31.3", features = ["user"] }
+
 [dev-dependencies]
 tempfile = "3.27.0"

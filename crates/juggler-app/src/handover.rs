@@ -177,17 +177,9 @@ mod imp {
     use std::sync::Arc;
     use std::time::Duration;
 
-    pub fn owner_of(path: &Path) -> Option<u32> {
-        std::fs::metadata(path).ok().map(|meta| meta.uid())
-    }
-
-    /// The directory is a real directory (not a link), ours, and `0700`:
-    /// closed to everyone else.
-    fn dir_is_ours(dir: &Path, me: u32) -> bool {
-        std::fs::symlink_metadata(dir).is_ok_and(|meta| {
-            meta.file_type().is_dir() && meta.uid() == me && meta.mode() & 0o777 == 0o700
-        })
-    }
+    // The ownership checks are shared (juggler_adapter::file_trust).
+    use juggler_adapter::file_trust::dir_is_ours;
+    pub use juggler_adapter::file_trust::owner_of;
 
     /// The path is a socket we own (`lstat`: a link is never followed).
     fn socket_is_ours(socket: &Path, me: u32) -> bool {

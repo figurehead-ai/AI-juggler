@@ -1160,7 +1160,7 @@ fn namespaced_service(state_dir: &Path) -> String {
 /// **without** extracting any secret (`-w` deliberately absent).
 #[cfg(target_os = "macos")]
 fn keychain_entry_exists(service: &str) -> bool {
-    std::process::Command::new("security")
+    std::process::Command::new(juggler_adapter::system_tools::SECURITY)
         .args(["find-generic-password", "-s", service])
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
@@ -1281,4 +1281,33 @@ pub fn claude_code_spec() -> juggler_adapter::ToolSpec {
         },
         terms_notes: Vec::new(),
     }
+}
+
+/// Whether a process is a `claude` CLI session: the one rule for it,
+/// shared by everything that looks at running processes (This Mac's
+/// tools, live conversations). The binary is `claude`, wherever it is
+/// installed (the desktop app runs its Code sessions from
+/// `…/claude-code/<version>/…/claude.app/Contents/MacOS/claude`), or the
+/// npm package run by node. Claude Code also runs its search helpers as its
+/// own executable under their names (`ugrep`, `rg` as the first command
+/// word): the same binary, but never a session (QA on #126: five left
+/// behind by a finished session read as five tools). So the binary has to
+/// run as `claude`: its first command word, or a path to it (which may
+/// hold spaces). An unreadable command line leaves it to the name and the
+/// executable.
+#[must_use]
+pub fn is_cli_process(name: &str, exe: Option<&Path>, command_line: &str) -> bool {
+    if command_line.contains("@anthropic-ai/claude-code") {
+        return true;
+    }
+    let binary = name == "claude"
+        || exe.is_some_and(|exe| exe.file_name().is_some_and(|file| file == "claude"));
+    let cmd = command_line.trim_start();
+    let runs_as_claude = cmd.split_whitespace().next().is_none_or(|first| {
+        Path::new(first)
+            .file_name()
+            .is_some_and(|file| file == "claude")
+            || (cmd.starts_with('/') && (cmd.ends_with("/claude") || cmd.contains("/claude ")))
+    });
+    binary && runs_as_claude
 }

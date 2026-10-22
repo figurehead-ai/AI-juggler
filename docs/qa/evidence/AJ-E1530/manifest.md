@@ -114,6 +114,28 @@ on that account; one such session measures the account.
   own page lists it; no uncited price is added (the coordinator,
   2026-10-22).
 
+## After the docs fact-check (2026-10-22)
+
+- **The status line can't be left dangling.** The line written into the
+  user's `settings.json` is now fail-safe: `sh -c` runs AI Juggler's
+  wrapper while it's there and runnable, and otherwise their own command,
+  kept in it as one quoted word (`fail_safe_statusline_command`). The
+  preview shows this exact line. Deleting AI Juggler or its data never
+  breaks their status line.
+- **Removing an account turns measuring off first**, by the same rules
+  (exact restore, or only AI Juggler's value taken out). If that fails,
+  the account stays and the refusal says why.
+- **"Prepare to uninstall"** (Settings › Data): puts every measured
+  account's status line back and lists what's left (the data folder, the
+  Keychain items, the worktrees AI Juggler made). Nothing is deleted.
+- Tests: `quota_ingest::the_fail_safe_line_runs_the_wrapper_while_it_is_there_else_the_users_own`
+  (a path with a quote and a space; the wrapper; the data deleted; no
+  line of theirs; never its own wrapper), and `outside_capture`
+  `with_ai_jugglers_data_deleted_the_users_own_line_still_prints`,
+  `removing_the_account_puts_the_users_settings_back`,
+  `preparing_to_uninstall_puts_status_lines_back_and_lists_whats_left`;
+  vitest `uninstall-card`.
+
 ## Known blocker at this push (not from E1530)
 
 - `load_budgets::monitoring_costs_under_one_percent_of_a_core` measured

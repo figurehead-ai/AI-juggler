@@ -35,6 +35,8 @@ def main() -> int:
         "sessions": [],
         "profiles": [],
         "generated_ms": harness["generated_ms"],
+        # AJ-E1532: the projects' own icons, as the backend served them.
+        "project_icons": harness.get("project_icons", {}),
     }
     with open(sys.argv[2], "w") as out:
         json.dump(fixture, out, indent=1, sort_keys=True)

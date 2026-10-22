@@ -4,8 +4,9 @@
  * and tools, live first, then by last activity. Built like Home's rows
  * (what and where, the account, when) and opening their page.
  */
+import { AccountAvatar } from "../components/Avatar";
 import { useState, type JSX, type ReactNode } from "react";
-import { AccountDisc, STATE_WORDS, isActiveStatus } from "../components/indicator";
+import { STATE_WORDS, isActiveStatus } from "../components/indicator";
 import { ToolMark } from "../components/ToolMark";
 import { ProjectMark } from "../components/ProjectMark";
 import { sessionTitle } from "../components/ManageWork";
@@ -192,7 +193,7 @@ function SessionListRow({
           </span>
         )}
         <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted">
-          <AccountDisc accountId={row.accountId} label={row.accountLabel} size={16} />
+          <AccountAvatar accountId={row.accountId} label={row.accountLabel} size={16} />
           <span aria-hidden="true" className="hidden sm:inline">{row.accountLabel}</span>
           <span className="sr-only">on {row.accountLabel}</span>
         </span>

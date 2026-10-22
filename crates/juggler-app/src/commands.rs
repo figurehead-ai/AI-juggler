@@ -6862,6 +6862,7 @@ pub fn projects_list(state: tauri::State<'_, Arc<AppState>>) -> AppResult<Vec<Pr
 ///
 /// Returns the typed [`AppError`] message on failure.
 pub fn projects_list_impl(state: &Arc<AppState>) -> AppResult<Vec<ProjectInfo>> {
+    use std::collections::HashMap;
     // Collector first (never locked together with storage), then the
     // storage guard for the whole join below.
     let live_stats = live_stats_of(state);
@@ -6874,11 +6875,14 @@ pub fn projects_list_impl(state: &Arc<AppState>) -> AppResult<Vec<ProjectInfo>> 
     )?;
     // Statuses that mean "occupying the project right now".
     let live = |status: &str| matches!(status, "starting" | "running");
+    let choices = crate::features::projects::mark::choices(&storage)?;
+    let mut created: HashMap<String, i64> = HashMap::new();
     let mut infos: Vec<ProjectInfo> = storage
         .projects()
         .list()?
         .into_iter()
         .map(|project| {
+            created.insert(project.id.to_string(), project.created_at.millis());
             let id = project.id.to_string();
             let owned: Vec<&SessionInfo> = sessions
                 .iter()
@@ -6909,20 +6913,59 @@ pub fn projects_list_impl(state: &Arc<AppState>) -> AppResult<Vec<ProjectInfo>> 
                 forgotten,
                 pinned: project.pinned_at.map(|_| true),
                 default_account_id: project.default_account.map(|id| id.to_string()),
+                mark: None,
             }
         })
         .collect();
-    // File reads (each repository's .git/config) never under the storage
-    // lock; cached briefly so a slow volume can't stall every refresh.
+    // File reads (each repository's .git/config, each icon) never under
+    // the storage lock; cached briefly so a slow volume can't stall every
+    // refresh.
     drop(storage);
+    let mut icons = HashMap::new();
     for info in &mut infos {
         info.repo = repo_identity_cached(std::path::Path::new(&info.root));
+        if let Some(icon) =
+            crate::features::projects::icon::find_icon_cached(std::path::Path::new(&info.root))
+        {
+            icons.insert(info.id.clone(), icon);
+        }
     }
+    let subjects: Vec<_> = infos
+        .iter()
+        .map(|info| crate::features::projects::mark::Subject {
+            id: &info.id,
+            name: &info.name,
+            repo: info.repo.as_deref(),
+            created_ms: created.get(&info.id).copied().unwrap_or_default(),
+            icon: icons.get(&info.id).map(|icon| icon.version.clone()),
+        })
+        .collect();
+    let mut marks = crate::features::projects::mark::marks(&subjects, &choices);
+    // Clones share one icon: each serves the file its mark uses.
+    let repos: HashMap<String, Option<String>> = infos
+        .iter()
+        .map(|i| (i.id.clone(), i.repo.clone()))
+        .collect();
+    let mut served = HashMap::new();
+    for info in &mut infos {
+        info.mark = marks.remove(&info.id);
+        let Some(version) = info.mark.as_ref().and_then(|m| m.icon.clone()) else {
+            continue;
+        };
+        let shown = icons.iter().find(|(id, icon)| {
+            icon.version == version
+                && (**id == info.id || (info.repo.is_some() && repos.get(*id) == Some(&info.repo)))
+        });
+        if let Some((_, icon)) = shown {
+            served.insert(info.id.clone(), icon.path.clone());
+        }
+    }
+    crate::features::projects::icon::remember_served(served);
     Ok(infos)
 }
 
 /// [`repo_identity`], remembered for five minutes per folder.
-fn repo_identity_cached(root: &std::path::Path) -> Option<String> {
+pub(crate) fn repo_identity_cached(root: &std::path::Path) -> Option<String> {
     use std::collections::HashMap;
     use std::sync::{Mutex, OnceLock};
     use std::time::{Duration, Instant};

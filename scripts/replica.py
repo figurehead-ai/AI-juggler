@@ -14,8 +14,9 @@ disk, with real-shaped files and no real content:
   (`acme-web`, `acme-web2`, `acme-web3`) and agent worktrees under
   `<repo>/.claude/worktrees/<name>`, some of them since removed (their
   transcripts remain);
-- project icons for AJ-E1532: a Tauri icon, a favicon, a root logo, an
-  oversized logo and a "logo" that isn't an image;
+- project icons for AJ-E1532: Tauri, Electron and Xcode app icons, a
+  favicon, a root logo and a `.github` logo (each a small drawn image, so
+  a walk sees them), an oversized logo and a "logo" that isn't an image;
 - shell aliases pointing `CLAUDE_CONFIG_DIR` / `CODEX_HOME` at profiles.
 
 `live` then runs, while the walk goes on, live `claude` and `codex`
@@ -46,6 +47,9 @@ import json
 import os
 import random
 import shutil
+import struct
+import zlib
+import hashlib
 import signal
 import subprocess
 import sys
@@ -75,8 +79,8 @@ PROJECTS = [
     ("acme-web3", "clone:acme-web", "tauri"),
     ("payments-api", "repo", None),
     ("marketing-site", "repo", "favicon"),
-    ("mobile-app", "repo", "logo"),
-    ("infra", "repo", None),
+    ("mobile-app", "repo", "xcode"),
+    ("infra", "repo", "electron"),
     ("docs-portal", "repo", "github-logo"),
     ("data-pipeline", "repo", None),
     ("design-system", "repo", "oversize"),
@@ -84,7 +88,7 @@ PROJECTS = [
     ("ml-experiments", "repo", None),
     ("blog", "repo", "favicon"),
     ("AIJuggler", "repo", "tauri"),
-    ("scratch", "repo", None),
+    ("scratch", "repo", "logo"),
     ("codex-playground", "repo", None),
 ]
 # Used only from Codex: a project the Claude history never mentions.
@@ -157,25 +161,59 @@ PNG_1PX = bytes.fromhex(
     "89504e470d0a1a0a0000000d4948445200000001000000010806000000"
     "1f15c4890000000d49444154789c6360f8cfc0f01f0005fe02fea7d6a8"
     "c70000000049454e44ae426082")
-SVG_ICON = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>\n'
+def colour_of(name: str) -> tuple[int, int, int]:
+    digest = hashlib.sha256(name.encode()).digest()
+    return 60 + digest[0] % 160, 60 + digest[1] % 160, 60 + digest[2] % 160
+
+
+def png_icon(name: str, size: int = 64) -> bytes:
+    """A small drawn icon (a disc on a light tile), the same for a name."""
+    r, g, b = colour_of(name)
+    rows = []
+    for y in range(size):
+        row = bytearray([0])
+        for x in range(size):
+            inside = (x - size / 2 + 0.5) ** 2 + (y - size / 2 + 0.5) ** 2 <= (size * 0.36) ** 2
+            row += bytes([r, g, b, 255]) if inside else bytes([238, 240, 245, 255])
+        rows.append(bytes(row))
+    def chunk(kind: bytes, data: bytes) -> bytes:
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
+    header = struct.pack(">IIBBBBB", size, size, 8, 6, 0, 0, 0)
+    return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", header) + chunk(b"IDAT", zlib.compress(b"".join(rows), 9)) + chunk(b"IEND", b"")
+
+
+def svg_icon(name: str) -> str:
+    r, g, b = colour_of(name)
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect width="24" height="24" rx="5" fill="#eef0f5"/>'
+            f'<path d="M5 18 L12 5 L19 18 Z" fill="rgb({r},{g},{b})"/></svg>\n')
 
 
 def write_icon(repo: Path, kind: str | None) -> str | None:
     if kind == "tauri":
         path = repo / "src-tauri" / "icons" / "icon.png"
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(PNG_1PX)
+        path.write_bytes(png_icon(repo.name))
+    elif kind == "electron":
+        path = repo / "build" / "icon.png"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(png_icon(repo.name))
+    elif kind == "xcode":
+        icons = repo / "MobileApp" / "Assets.xcassets" / "AppIcon.appiconset"
+        icons.mkdir(parents=True, exist_ok=True)
+        (icons / "icon-40.png").write_bytes(png_icon(repo.name + "-small", 40))
+        path = icons / "icon-1024.png"
+        path.write_bytes(png_icon(repo.name, 96))
     elif kind == "favicon":
         path = repo / "public" / "favicon.svg"
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(SVG_ICON)
+        path.write_text(svg_icon(repo.name))
     elif kind == "logo":
         path = repo / "logo.png"
-        path.write_bytes(PNG_1PX)
+        path.write_bytes(png_icon(repo.name))
     elif kind == "github-logo":
         path = repo / ".github" / "docs-logo.svg"
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(SVG_ICON)
+        path.write_text(svg_icon(repo.name))
     elif kind == "oversize":  # over 512 KB: must be refused
         path = repo / "logo.png"
         path.write_bytes(PNG_1PX + b"\0" * (600 * 1024))
@@ -419,6 +457,40 @@ def summary(truth: dict) -> str:
 # ---------------------------------------------------------------- live
 
 
+INFO_PLIST = """<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleExecutable</key><string>{exe}</string>
+<key>CFBundleIdentifier</key><string>test.aij-replica.{ident}</string>
+<key>CFBundlePackageType</key><string>APPL</string>
+</dict></plist>
+"""
+
+
+def make_bundle(bundle: Path, exe: str, source: str, nested: list[Path] | None = None) -> Path:
+    """A fake `.app` macOS accepts: an Info.plist, its executable, and an
+    ad-hoc signature over the whole bundle. A bare binary copied into
+    `Contents/MacOS` keeps the linker's signature, which says the bundle
+    has resources; macOS then calls the app damaged and shows a dialog on
+    every launch (the coordinator, 2026-10-22). `codesign --verify
+    --strict` must pass before anything starts from it. (`spctl` rejects
+    every ad-hoc bundle, AI Juggler's own Dev builds included; that is not
+    what raises the dialog, so it isn't the check.)"""
+    target = bundle / "Contents" / "MacOS" / exe
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source, target)
+    ident = "".join(c if c.isalnum() else "-" for c in bundle.stem.lower())
+    (bundle / "Contents" / "Info.plist").write_text(INFO_PLIST.format(exe=exe, ident=ident))
+    if sys.platform == "darwin":
+        for path in [*(nested or []), bundle]:
+            subprocess.run(["codesign", "--force", "--sign", "-", str(path)], check=True,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        check = subprocess.run(["codesign", "--verify", "--strict", str(bundle)], capture_output=True, text=True)
+        if check.returncode != 0:
+            sys.exit(f"replica: {bundle.name} isn't a whole signed bundle, so nothing starts from it: {check.stderr.strip()}")
+    return target
+
+
 def live(args: argparse.Namespace) -> None:
     home = Path(args.home).expanduser()
     if not (home / MARKER / "truth.json").exists():
@@ -431,16 +503,18 @@ def live(args: argparse.Namespace) -> None:
     # Claude desktop app's main executable.
     claude_bin = bin_dir / "claude"
     codex_bin = bin_dir / "codex"
-    # The desktop app runs each of its Code sessions from a bundled CLI.
-    bundled_bin = home / MARKER / "claude-code" / "2.1.0" / "claude.app" / "Contents" / "MacOS" / "claude"
-    bundled_bin.parent.mkdir(parents=True, exist_ok=True)
-    for target in (claude_bin, codex_bin, bundled_bin):
+    for target in (claude_bin, codex_bin):
         shutil.copy2(args.harness, target)
-    app = home / MARKER / "Applications" / "Claude.app" / "Contents" / "MacOS" / "Claude"
-    helper = home / MARKER / "Applications" / "ChatGPT.app" / "Contents" / "Frameworks" / "ChatGPT Helper"
-    for target in (app, helper):
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(args.desktop, target)
+    # The desktop app runs each of its Code sessions from a bundled CLI;
+    # the desktop app and a ChatGPT-like helper are bundles too. Each is a
+    # whole, signed bundle (see `make_bundle`).
+    bundled_bin = make_bundle(home / MARKER / "claude-code" / "2.1.0" / "claude.app", "claude", args.harness)
+    app = make_bundle(home / MARKER / "Applications" / "Claude.app", "Claude", args.desktop)
+    chatgpt = home / MARKER / "Applications" / "ChatGPT.app"
+    helper = chatgpt / "Contents" / "Frameworks" / "ChatGPT Helper"
+    helper.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(args.desktop, helper)
+    make_bundle(chatgpt, "ChatGPT", args.desktop, nested=[helper])
 
     procs: list[subprocess.Popen] = []
     # A clean environment: nothing from the shell running this (above
@@ -565,7 +639,7 @@ def selftest() -> None:
     import tempfile
 
     with tempfile.TemporaryDirectory() as tmp:
-        ns = lambda home: argparse.Namespace(home=home, seed=7, days=30, now="2026-10-21T12:00:00+00:00")
+        ns = lambda home: argparse.Namespace(home=home, seed=7, days=30, now="2026-10-21T12:00:00+00:00", large_rollout_mb=0)
         truths = []
         for name in ("a", "b"):
             build(ns(f"{tmp}/{name}"))
@@ -579,6 +653,13 @@ def selftest() -> None:
         assert {w["state"] for w in truth["worktrees"]} == {"present", "removed", "pruned"}
         for conversation in truth["conversations"]:
             assert conversation["project"] in truth["projects"]
+        # AJ-E1532: every kind of icon, drawn; the two that must be refused.
+        icons = {p["icon_kind"]: Path(p["path"]) / p["icon"] for p in truth["projects"].values() if p["icon"]}
+        assert set(icons) == {"tauri", "electron", "xcode", "favicon", "logo", "github-logo", "oversize", "not-an-image"}
+        for kind in ("tauri", "electron", "xcode", "logo"):
+            assert icons[kind].read_bytes().startswith(b"\x89PNG") and icons[kind].stat().st_size < 512 * 1024, kind
+        assert icons["oversize"].stat().st_size > 512 * 1024
+        assert not icons["not-an-image"].read_bytes().startswith(b"\x89PNG")
         # Every transcript line is JSON; Claude's folder is named from the cwd.
         claude = list((home / ".claude-work" / "projects").glob("*/*.jsonl"))
         assert claude and all(c.parent.name == claude_dir_name(json.loads(c.read_text().splitlines()[1])["cwd"])

@@ -22,20 +22,19 @@ use juggler_adapters::{CLAUDE_CODE_ID, CODEX_ID, ClaudeCodeAdapter, CodexAdapter
 use juggler_app::commands;
 use juggler_app::state::AppState;
 use juggler_core::model::{SessionId, SessionStatus, SwitchEdgeId, SwitchMechanism};
+#[path = "../../juggler-supervisor/tests/fixtures/stand_in.rs"]
+mod stand_in;
 
 /// A stub that records its argv (one per line) under its own home —
 /// written to a temp file and renamed, so a reader never sees half.
 fn stub(dir: &Path, name: &str, home_var: &str) -> PathBuf {
-    use std::os::unix::fs::PermissionsExt;
     let path = dir.join(name);
-    std::fs::write(
+    stand_in::write(
         &path,
         format!(
             "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"${home_var}/last-args.tmp\"\nmv \"${home_var}/last-args.tmp\" \"${home_var}/last-args\"\n"
         ),
-    )
-    .unwrap();
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    );
     path
 }
 

@@ -161,6 +161,7 @@ fn candidates(mac: &ThisMacInfo) -> Vec<ToolTreeInfo> {
             .iter()
             .filter(|group| !group.ours)
             .map(|group| ToolTreeInfo {
+                root_pid: None,
                 session_id: None,
                 place: Some(group.tool.clone()),
                 // The Claude tools AI Juggler didn't start (desktop | terminal).
@@ -536,6 +537,7 @@ mod tests {
                 tree(Some("s-big"), None, 4 * G, 30.0, None),
                 tree(None, Some("desktop"), 2 * G, 140.0, None),
             ],
+            others: Vec::new(),
             heavy: Vec::new(),
             leftover_processes: 0,
             leftover_ports: 0,
@@ -552,6 +554,7 @@ mod tests {
         note: Option<&str>,
     ) -> ToolTreeInfo {
         ToolTreeInfo {
+            root_pid: None,
             session_id: session.map(str::to_string),
             place: place.map(str::to_string),
             tool: None,

@@ -55,7 +55,8 @@ export function mockThisMac(
   const live = sessions.filter((session) => !["finished", "stopped", "handed_over", "failed"].includes(session.status));
   const ours: ToolTreeInfo[] = live
     .filter((session) => session.rss_bytes !== null)
-    .map((session) => ({
+    .map((session, at) => ({
+      root_pid: 1000 + at,
       session_id: session.id,
       place: null,
       tool: session.provider,
@@ -102,10 +103,29 @@ export function mockThisMac(
     theirs: totals(observed, machine.cores),
     by_tool: byTool,
     top: all.slice(0, 3),
+    others: all.slice(3),
     heavy: all.filter((tree) => tree.heavy_note !== null),
     leftover_processes: leftovers[0],
     leftover_ports: leftovers[1],
     alerts,
     recommendations,
   };
+}
+
+/** `?aij_load=heavy`: the first running session works the Mac hard. */
+export function withHeavyLoad(sessions: InstanceInfo[]): InstanceInfo[] {
+  const first = sessions.findIndex((session) => session.status === "running");
+  return sessions.map((session, at) => (at === first ? { ...session, cpu_pct: 96, rss_bytes: 3_200_000_000, child_count: 5 } : session));
+}
+
+/** `?aij_windows=N`: N Claude app windows, heaviest first (the "and N
+ * more" state); none asked for, the default. */
+export function previewWindows(count: number): ToolTreeInfo[] | undefined {
+  if (count <= 0) return undefined;
+  return Array.from({ length: count }, (_, at) => ({
+    ...PREVIEW_OBSERVED[0]!,
+    root_pid: 600 + at,
+    account_label: `Window ${at + 1}`,
+    rss_bytes: Math.round(7_400_000_000 / (at + 1)),
+  }));
 }

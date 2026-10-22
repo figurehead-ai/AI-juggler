@@ -183,6 +183,7 @@ const PROJECT: ActionSpec<"project">[] = [
   },
   { id: "copy-path", label: "Copy path", group: "main", applies: (_, h) => has(h.copyProjectPath), run: (p, h) => h.copyProjectPath!(p) },
   { id: "rename", label: "Rename…", group: "main", applies: (_, h) => has(h.renameProject), run: (p, h) => h.renameProject!(p) },
+  { id: "mark", label: "Change its mark…", group: "main", applies: (_, h) => has(h.markProject), run: (p, h) => h.markProject!(p) },
   {
     id: "pin",
     label: (p) => (p.pinned ? "Unpin" : "Pin to top"),

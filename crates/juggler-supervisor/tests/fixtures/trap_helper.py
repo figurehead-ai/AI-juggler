@@ -74,6 +74,10 @@ if args.port is not None:
     sock.listen(8)
     bound_port = sock.getsockname()[1]
 
+# Its own pid first, so a test signals exactly this process — a ledger
+# row's command line can still be the shell's from before the exec.
+with open(args.ready + ".pid", "w") as handle:
+    handle.write(f"{os.getpid()}\n")
 with open(args.ready, "w") as handle:
     handle.write(f"{bound_port}\n")
 

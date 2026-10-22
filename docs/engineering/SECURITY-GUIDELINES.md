@@ -43,6 +43,7 @@ Report a vulnerability through [SECURITY.md](../../SECURITY.md), never in a publ
 | MUST exclude credentials by construction (allowlist of what is copied) and run the D-14 redaction scan on anything copied or exported | Test |
 | MUST treat SQLite files from outside (restore, import) as untrusted: `trusted_schema=OFF`, defensive mode, `integrity_check`, schema comparison before use | Test |
 | MUST canonicalise before comparing paths, and compare the canonical form you will actually open (no check-then-use on different strings) | Review |
+| A file read from a user's project for display (AJ-E1532's project icons) MUST be read-only, a regular file (never a link), size-capped before and while reading, and accepted only by its first bytes (an SVG with scripts or foreign content refused); the UI MUST name it by an id the backend issued, never by a path | Test (`features::projects::icon`, `tests/project_marks.rs`) |
 
 ### C4. Secrets and credentials
 

@@ -56,8 +56,8 @@ certificates).
 
 **a. Team ID** ✓ — `TH8VS427L5` (Vuxtra LLC). `APPLE_TEAM_ID` and
 `APPLE_SIGNING_IDENTITY` are already set in GitHub. In the portal, the
-team switcher at the top right must say **Vuxtra LLC**: your Apple ID
-also belongs to Advancedcompany.com, whose membership has expired.
+team switcher at the top right must say **Vuxtra LLC** if your Apple ID
+belongs to more than one team.
 
 **b. Developer ID Application certificate.** This is the certificate for
 apps distributed outside the Mac App Store.

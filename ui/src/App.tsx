@@ -4,7 +4,7 @@ import { useAppKeys } from "./lib/app-keys";
 import { ConversationPage } from "./components/ConversationPage";
 import { ConversationsProvider } from "./lib/conversations";
 import { onConversationsChanged } from "./lib/ipc/conversations";
-import { withPalette } from "./lib/palette";
+import { withMarks, withPalette } from "./lib/palette";
 import { useFirstRun } from "./lib/first-run";
 import { useLiveDeltas } from "./lib/live-deltas";
 import { MainNav } from "./components/MainNav";
@@ -405,7 +405,7 @@ export default function App() {
           launchRecipesList(),
           switchBackSuggestions().catch(() => []),
         ]);
-      setProjects(projectRows);
+      setProjects(withMarks(projectRows)); // AJ-E1532: each project its mark
       setSessions(sessionRows);
       setAccounts(withPalette(accountRows)); // AJ-E1532: each account its own colour
       setProfiles(profileRows);

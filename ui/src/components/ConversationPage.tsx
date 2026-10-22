@@ -7,11 +7,11 @@
  * AJ-E1533: the same page as every session's — its type, its project
  * as the crumb, its actions in the header.
  */
+import { AccountAvatar } from "./Avatar";
 import type { JSX } from "react";
 import { Button, Card, Chip } from "./primitives";
 import { useActionHost, useItemMenu } from "./ItemMenu";
 import { ToolMark } from "./ToolMark";
-import { AccountDisc } from "./indicator";
 import { PageHeader, PageShell, type Crumb } from "../pages/PageShell";
 import { pageTabs } from "../pages/registry";
 import { conversationTitle, useConversations } from "../lib/conversations";
@@ -77,7 +77,7 @@ function ConversationView({ conversation, now, projects }: { conversation: Conve
             }
             facts={
               <span className="inline-flex items-center gap-1.5">
-                <AccountDisc accountId={conversation.account_id} label={conversation.account_label} size={16} />
+                <AccountAvatar accountId={conversation.account_id} label={conversation.account_label} size={16} />
                 {conversation.account_label}
                 {last !== null && <span>· active {last}</span>}
               </span>

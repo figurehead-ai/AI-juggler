@@ -239,6 +239,7 @@ read_routes! {
     "conversations_resume_command" => async_result features::conversations::commands::conversations_resume_command(state; account_id: String, conversation_id: String);
     "sessions_resume_command" => async_result features::sessions::commands::sessions_resume_command(state; session_id: String);
     "projects_git_status" => async_result features::projects::git::projects_git_status(state; project_id: String);
+    "projects_icon_read" => async_result features::projects::icon::projects_icon_read(state; project_id: String);
     "editor_choices" => async_result manage::editor_choices(state);
     "session_prefs_get" => async_result settings_policy::session_prefs_get(state);
 }

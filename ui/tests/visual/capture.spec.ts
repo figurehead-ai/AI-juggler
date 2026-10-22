@@ -2197,6 +2197,7 @@ for (const theme of THEMES) {
 const rankedRows: Record<string, unknown>[] = [
   {
     account: "claude-work",
+    account_label: "Work Max",
     score: 0.87,
     top_factors: ["82% headroom (Measured)", "usual account for this repo"],
     factors: [["headroom 82%", 0.37], ["affinity", 0.2], ["fidelity", 0.075], ["cost fit", 0.1], ["calm", 0.1]],
@@ -2207,6 +2208,7 @@ const rankedRows: Record<string, unknown>[] = [
   },
   {
     account: "claude-personal",
+    account_label: "Personal",
     score: 0.54,
     top_factors: ["headroom unknown — ranked without quota", "low session load"],
     factors: [["headroom unknown", 0], ["affinity", 0.04], ["fidelity", 0.075], ["cost fit", 0.05], ["calm", 0.1]],
@@ -3573,6 +3575,7 @@ for (const theme of THEMES) {
           ranking: [
             {
               account: "claude-work",
+              account_label: "Work Max",
               score: 0.9,
               top_factors: [],
               factors: [],
@@ -3583,6 +3586,7 @@ for (const theme of THEMES) {
             },
             {
               account: "claude-personal",
+              account_label: "Personal",
               score: 0.5,
               top_factors: [],
               factors: [],
@@ -3638,6 +3642,7 @@ for (const theme of THEMES) {
           ranking: [
             {
               account: "claude-work",
+              account_label: "Work Max",
               score: 0.9,
               top_factors: [],
               factors: [],
