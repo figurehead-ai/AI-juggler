@@ -430,7 +430,14 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         } else {
             env
         };
-        crate::claude_inventory::set_up(state_dir, &claude, &env, project, item)
+        crate::claude_inventory::set_up(
+            state_dir,
+            &claude,
+            &env,
+            &claude_state_file(state_dir),
+            project,
+            item,
+        )
     }
 
     fn conversation_files(&self, state_dir: &Path) -> Vec<PathBuf> {

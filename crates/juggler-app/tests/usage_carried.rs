@@ -133,7 +133,10 @@ fn switched(state: &Arc<AppState>, native: &str, from: &str, to: &str, at: i64, 
             .insert_epoch(&epoch(&to_epoch, to, installed))
             .unwrap();
         graph
-            .mark_launched(&SwitchEdgeId::new(edge.as_str()), &EpochId::new(to_epoch.as_str()))
+            .mark_launched(
+                &SwitchEdgeId::new(edge.as_str()),
+                &EpochId::new(to_epoch.as_str()),
+            )
             .unwrap();
     }
 }

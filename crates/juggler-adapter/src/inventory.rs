@@ -202,6 +202,14 @@ pub enum Undo {
         argv: Vec<String>,
         /// Environment for it (the account's folder).
         env: Vec<(String, String)>,
+        /// The folder it runs in (a project's own server is removed from
+        /// that project); `None` in records made before it was kept.
+        #[serde(default)]
+        cwd: Option<PathBuf>,
+        /// Run only while what was set up is as it was made; `None` in
+        /// records made before it was kept.
+        #[serde(default)]
+        unless_changed: Option<JsonEntry>,
     },
 }
 
@@ -254,6 +262,35 @@ pub fn looks_secret(key: &str, value: &str) -> bool {
         && !value.contains(char::is_whitespace)
         && !value.contains('/')
         && value.chars().filter(char::is_ascii_alphanumeric).count() * 10 >= value.len() * 9
+}
+
+/// One entry of a JSON file, by its path of keys, as it was when set up:
+/// an undo checks it before removing anything (review of #132).
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
+pub struct JsonEntry {
+    /// The file.
+    pub file: PathBuf,
+    /// The keys down to the entry (`["mcpServers", "github"]`).
+    pub keys: Vec<String>,
+    /// [`JsonEntry::fingerprint`] of the entry when it was made.
+    pub sha256: String,
+}
+
+impl JsonEntry {
+    /// The entry's fingerprint in `file` now, `None` when it's gone or the
+    /// file doesn't read.
+    #[must_use]
+    pub fn fingerprint(file: &std::path::Path, keys: &[String]) -> Option<String> {
+        let value: serde_json::Value = serde_json::from_slice(&std::fs::read(file).ok()?).ok()?;
+        let entry = keys.iter().try_fold(&value, |at, key| at.get(key))?;
+        Some(crate::handover::sha256_hex(entry.to_string().as_bytes()))
+    }
+
+    /// Whether the entry is still exactly as it was made.
+    #[must_use]
+    pub fn unchanged(&self) -> bool {
+        Self::fingerprint(&self.file, &self.keys).as_deref() == Some(self.sha256.as_str())
+    }
 }
 
 /// Words in a name that mark its value as a secret.

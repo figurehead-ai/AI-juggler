@@ -353,12 +353,28 @@ fn undo(how: &Undo) -> AppResult<()> {
             restored.replace_range(at..at + text.len(), "");
             atomic_write(file, &restored)
         }
-        Undo::Command { argv, env } => {
+        Undo::Command {
+            argv,
+            env,
+            cwd,
+            unless_changed,
+        } => {
+            if unless_changed
+                .as_ref()
+                .is_some_and(|entry| !entry.unchanged())
+            {
+                return Err(AppError::Refused(
+                    "it has changed since it was set up, so it was left as it is".to_owned(),
+                ));
+            }
             let (program, args) = argv
                 .split_first()
                 .ok_or_else(|| AppError::Refused("nothing to run".to_owned()))?;
             let mut command = std::process::Command::new(program);
             command.args(args).stdin(std::process::Stdio::null());
+            if let Some(cwd) = cwd {
+                command.current_dir(cwd);
+            }
             if env.is_empty() {
                 command.env_remove("CLAUDE_CONFIG_DIR");
             }

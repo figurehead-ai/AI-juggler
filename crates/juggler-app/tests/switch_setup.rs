@@ -24,7 +24,9 @@ fn claude_stub(dir: &Path) -> PathBuf {
     let path = dir.join("claude-stub");
     std::fs::write(
         &path,
-        "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$CLAUDE_CONFIG_DIR/mcp-args.tmp\"\nmv \"$CLAUDE_CONFIG_DIR/mcp-args.tmp\" \"$CLAUDE_CONFIG_DIR/mcp-args\"\n",
+        // Records its arguments; `add-json` also writes the entry into the
+        // account's state file, as Claude does.
+        "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$CLAUDE_CONFIG_DIR/mcp-args.tmp\"\nmv \"$CLAUDE_CONFIG_DIR/mcp-args.tmp\" \"$CLAUDE_CONFIG_DIR/mcp-args\"\nif [ \"$2\" = add-json ]; then printf '{\"mcpServers\":{\"%s\":%s}}' \"$6\" \"$7\" > \"$CLAUDE_CONFIG_DIR/.claude.json\"; fi\n",
     )
     .unwrap();
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
@@ -185,6 +187,30 @@ fn the_other_claude_account_is_offered_what_it_lacks_and_gets_only_what_is_picke
     undo_impl(&lab.state, &skill).unwrap();
     assert!(!b.join("skills/release-notes").exists());
     assert!(undo_impl(&lab.state, &skill).is_err(), "undone once");
+
+    // Review of #132 (M1): a server the user changed since is left alone;
+    // as it was made, it's removed with Claude's own command.
+    let server = applied
+        .iter()
+        .find(|a| a.message.contains("github"))
+        .unwrap()
+        .record
+        .clone()
+        .unwrap();
+    let state_file = b.join(".claude.json");
+    let made = std::fs::read_to_string(&state_file).unwrap();
+    std::fs::write(&state_file, made.replace("GITHUB_TOKEN", "MY_TOKEN")).unwrap();
+    assert!(
+        undo_impl(&lab.state, &server).is_err(),
+        "changed since: left as it is"
+    );
+    std::fs::write(&state_file, &made).unwrap();
+    undo_impl(&lab.state, &server).unwrap();
+    let args = std::fs::read_to_string(b.join("mcp-args")).unwrap();
+    assert!(
+        args.starts_with("mcp\nremove\n-s\nuser\n--\ngithub\n"),
+        "{args}"
+    );
 }
 
 #[test]

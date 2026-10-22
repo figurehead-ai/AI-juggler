@@ -19,7 +19,7 @@ use std::path::{Path, PathBuf};
 
 use juggler_adapter::error::AdapterError;
 use juggler_adapter::inventory::{
-    Applied, Detail, Item, ItemKind, McpServer, McpTransport, Scope, SetUp, Undo, Value,
+    Applied, Detail, Item, ItemKind, JsonEntry, McpServer, McpTransport, Scope, SetUp, Undo, Value,
     secret_variable, value_of,
 };
 
@@ -168,14 +168,15 @@ pub fn set_up(
     dir: &Path,
     claude: &Path,
     config_env: &str,
+    state_file: &Path,
     project: Option<&Path>,
     item: &Item,
 ) -> Result<Applied, AdapterError> {
     match (&item.kind, &item.detail, can_set_up(item)) {
         (_, _, SetUp::Impossible(why)) => Err(AdapterError::Unsupported(why)),
-        (ItemKind::McpServer, Detail::Mcp(server), _) => {
-            add_mcp(claude, config_env, project, &item.name, item.scope, server)
-        }
+        (ItemKind::McpServer, Detail::Mcp(server), _) => add_mcp(
+            claude, config_env, state_file, project, &item.name, item.scope, server,
+        ),
         (ItemKind::Skill, Detail::Files { path }, _) => {
             crate::inventory_files::copy_tree(path, &dir.join("skills").join(&item.name), |text| {
                 text.to_owned()
@@ -248,11 +249,14 @@ pub(crate) fn secret_names(name: &str, server: &McpServer) -> Vec<String> {
         .collect()
 }
 
-/// `claude mcp add-json -s <scope> <name> '<json>'`, in the account's
-/// folder (and the project's, for a private one).
+/// `claude mcp add-json -s <scope> -- <name> '<json>'`, for the account
+/// (and in the project's folder, for a server private to it). The undo
+/// runs in the same folder, and only while the entry Claude wrote in
+/// `state_file` is as it was made.
 fn add_mcp(
     claude: &Path,
     config_env: &str,
+    state_file: &Path,
     project: Option<&Path>,
     name: &str,
     scope: Scope,
@@ -261,6 +265,16 @@ fn add_mcp(
     let scope_word = match scope {
         Scope::User => "user",
         Scope::ProjectPrivate => "local",
+    };
+    // A project's own server belongs to that folder; without it, Claude
+    // would file it under whatever folder this runs in.
+    let folder = match scope {
+        Scope::User => None,
+        Scope::ProjectPrivate => Some(project.ok_or_else(|| {
+            AdapterError::Unsupported(format!(
+                "{name} belongs to a project, and the project's folder isn't known"
+            ))
+        })?),
     };
     let json = claude_entry(name, server);
     let env = if config_env.is_empty() {
@@ -280,8 +294,8 @@ fn add_mcp(
             &json.to_string(),
         ])
         .stdin(std::process::Stdio::null());
-    if let Some(project) = project.filter(|_| scope == Scope::ProjectPrivate) {
-        command.current_dir(project);
+    if let Some(folder) = folder {
+        command.current_dir(folder);
     }
     if config_env.is_empty() {
         command.env_remove("CLAUDE_CONFIG_DIR");
@@ -298,6 +312,20 @@ fn add_mcp(
             String::from_utf8_lossy(&output.stderr).trim()
         )));
     }
+    let keys: Vec<String> = match folder {
+        None => vec!["mcpServers".into(), name.into()],
+        Some(folder) => vec![
+            "projects".into(),
+            folder.to_string_lossy().into_owned(),
+            "mcpServers".into(),
+            name.into(),
+        ],
+    };
+    let unless_changed = JsonEntry::fingerprint(state_file, &keys).map(|sha256| JsonEntry {
+        file: state_file.to_path_buf(),
+        keys,
+        sha256,
+    });
     Ok(Applied {
         summary: format!("Added the MCP server {name} to this account"),
         undo: Undo::Command {
@@ -312,6 +340,8 @@ fn add_mcp(
                 name.into(),
             ],
             env,
+            cwd: folder.map(Path::to_path_buf),
+            unless_changed,
         },
     })
 }
