@@ -20,6 +20,7 @@ const PREFLIGHT: PreflightInfoData = {
   zombies: [],
   diff_snapshotted: false,
   source_live: false,
+  source_keeps_running: false,
   experimental_copy: "The source stays resumable.",
   door: "one-click",
   wizard_steps: [],

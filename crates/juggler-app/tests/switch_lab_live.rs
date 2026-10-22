@@ -206,8 +206,13 @@ fn codex_turn_with(
     if let Some(id) = resume {
         cmd.args(["resume", id]);
     } else {
-        cmd.args(["--json", "-s", "workspace-write", "-C"])
-            .arg(&lab.project);
+        // Codex's automatic review (`--approve-for-me`) picks its own
+        // sandbox and refuses `-s` alongside it (lab 7).
+        cmd.arg("--json");
+        if !flags.contains(&"--approve-for-me") {
+            cmd.args(["-s", "workspace-write"]);
+        }
+        cmd.arg("-C").arg(&lab.project);
     }
     cmd.arg(prompt);
     let (ok, stdout, stderr) = run(&mut cmd, Duration::from_secs(300));

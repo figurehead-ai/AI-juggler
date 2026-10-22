@@ -19,6 +19,7 @@ const BASE: PreflightInfoData = {
   zombies: [],
   diff_snapshotted: false,
   source_live: true,
+  source_keeps_running: false,
   experimental_copy: "Experimental copy.",
   door: "one-click",
   wizard_steps: [],

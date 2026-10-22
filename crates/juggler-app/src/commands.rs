@@ -5144,6 +5144,10 @@ pub struct PreflightInfo {
     pub diff_snapshotted: bool,
     /// Whether the source instance is live (freeze dialog needed).
     pub source_live: bool,
+    /// AJ-E1540: live, but not a session AI Juggler can stop (started
+    /// outside it): the switch leaves it running and the copy is a
+    /// separate continuation.
+    pub source_keeps_running: bool,
     /// The F1-experimental transplant copy (until E210 proves pairs).
     pub experimental_copy: String,
     /// AJ-E206 §8 door verdict: `one-click` or `wizard`.
@@ -5266,6 +5270,9 @@ pub fn switch_preflight_impl(
         .map(|situation| pipeline::user_copy(situation.clone()))
         .collect();
     let source_live = matches!(source.status.as_str(), "running" | "starting");
+    // The same rule `freeze_source` follows: only a session AI Juggler
+    // supervises is stopped.
+    let source_keeps_running = source_live && !state.supervisor.is_supervised(&source.id);
 
     // AJ-E206 §8: choose the door from the same preflight facts.
     // Headroom ≥ Tight holds unless the tight warn fired (exhausted
@@ -5312,6 +5319,7 @@ pub fn switch_preflight_impl(
         zombies: report.zombie_children.clone(),
         diff_snapshotted: report.diff_snapshotted,
         source_live,
+        source_keeps_running,
         experimental_copy: pipeline::user_copy(CopySituation::TransplantUnproven {
             account_a: account_a.label.clone(),
         }),

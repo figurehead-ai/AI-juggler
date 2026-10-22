@@ -399,6 +399,7 @@ export function SwitchFlow({
             {setup && <SwitchSetupList check={setup} picked={picked} onToggle={togglePicked} />}
             <SwitchFreezeChoice
               sourceLive={phase.preflight.source_live}
+              keepsRunning={phase.preflight.source_keeps_running}
               value={freeze}
               onChange={setFreeze}
             />
@@ -583,6 +584,7 @@ export function SwitchFlow({
                 {setup && <SwitchSetupList check={setup} picked={picked} onToggle={togglePicked} />}
                 <SwitchFreezeChoice
                   sourceLive={phase.preflight.source_live}
+                  keepsRunning={phase.preflight.source_keeps_running}
                   value={freeze}
                   onChange={setFreeze}
                 />

@@ -2165,6 +2165,8 @@ export interface PreflightInfoData {
   zombies: string[];
   diff_snapshotted: boolean;
   source_live: boolean;
+  /** AJ-E1540: live, but AI Juggler can't stop it (started outside it). */
+  source_keeps_running: boolean;
   experimental_copy: string;
   /** AJ-E206 §8 door verdict: "one-click" | "wizard". */
   door: "one-click" | "wizard";
@@ -2226,6 +2228,7 @@ const DEFAULT_PREFLIGHT: PreflightInfoData = {
   zombies: [],
   diff_snapshotted: false,
   source_live: true,
+  source_keeps_running: false,
   experimental_copy:
     "Beta, not proven yet: the whole session moves, with its subagents and file history. The source stays resumable.",
   door: "wizard",

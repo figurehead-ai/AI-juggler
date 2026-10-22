@@ -23,6 +23,7 @@ const ONECLICK: PreflightInfoData = {
   zombies: [],
   diff_snapshotted: false,
   source_live: true,
+  source_keeps_running: false,
   experimental_copy:
     "Experimental: only the main transcript moves. Subagent files and rewind history stay on the source. The source stays resumable.",
   door: "one-click",
@@ -197,5 +198,23 @@ describe("AJ-E206 undo window", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("AJ-E1540 a source AI Juggler can't stop", () => {
+  it("says it keeps running and offers no stop choice", async () => {
+    const view = mount({ ...ONECLICK, source_keeps_running: true }, vi.fn());
+    await waitFor(() => expect(view.getByTestId("switch-oneclick")).toBeTruthy());
+    expect(view.getByTestId("switch-keeps-running").textContent).toContain(
+      "AI Juggler can't stop this session",
+    );
+    expect(view.queryByRole("radio", { name: /Stop now/ })).toBeNull();
+  });
+
+  it("offers the choice for a session it started", async () => {
+    const view = mount(ONECLICK, vi.fn());
+    await waitFor(() => expect(view.getByTestId("switch-oneclick")).toBeTruthy());
+    expect(view.queryByTestId("switch-keeps-running")).toBeNull();
+    expect(view.getByRole("radio", { name: /Stop now/ })).toBeTruthy();
   });
 });
