@@ -302,6 +302,7 @@ def build(args) -> dict:
     per_account = {}
     transcripts_by_session = {}
     session_usage = defaultdict(dict)  # session id → {(message id, request id): (ts, tokens)}
+    session_span = {}  # session id → (first message, last message)
     session_totals = {}  # session id → its own tokens
     session_mtime = {}  # session id → newest write of its files
     # (account idx, the folder resolved) → [(mtime, session)]: a running
@@ -317,6 +318,12 @@ def build(args) -> dict:
                 sid = conv["session_id"] or conv["session"]
                 session_usage[sid].update(conv["usage"])
                 session_mtime[sid] = max(session_mtime.get(sid, 0), conv["mtime"])
+                first, last = session_span.get(sid, (None, None))
+                if conv["first"] is not None:
+                    first = conv["first"] if first is None else min(first, conv["first"])
+                if conv["last"] is not None:
+                    last = conv["last"] if last is None else max(last, conv["last"])
+                session_span[sid] = (first, last)
                 if "subagents" in path.parts:
                     # A subagent's usage is the account's usage; it is
                     # not a conversation of its own.
@@ -342,6 +349,9 @@ def build(args) -> dict:
                 p["per_account"][idx] += 1
                 p["cwds"].add(conv["cwd"])
                 p["last"] = max(p["last"], conv["last"] or conv["mtime"])
+            # Each message's (time, tokens), for a compare that cuts at the
+            # moment the backend read the files.
+            acc["points"] = [(ts, sum(t.values())) for ts, t in records.values()]
             for name, span in WINDOWS:
                 acc["tokens"][name] = sum_tokens((ts, t) for ts, t in records.values() if now - ts < span)
                 acc["tokens_per_line"][name] = sum_tokens((ts, t) for ts, t in lines if now - ts < span)
@@ -368,6 +378,7 @@ def build(args) -> dict:
                         session_totals[roll["session"]] = session_totals.get(roll["session"], 0) + sum(n for _, n in own)
                 if roll["rate_ts"] and (newest is None or roll["rate_ts"] > newest[0]):
                     newest = (roll["rate_ts"], roll["rate_limits"])
+                acc.setdefault("points", []).extend(own)
                 for name, span in WINDOWS:
                     window_tokens[name] += codex_window_tokens(own, now - span)
                 if not roll["cwd"]:
@@ -412,7 +423,24 @@ def build(args) -> dict:
             entry["project"] = project_of(proc["cwd"])[0]
         live.append(entry)
 
+    # A message a resumed copy repeats belongs to one session: the one with
+    # the earliest first message (then the earlier last message, then the
+    # id), as the app credits it. Account totals don't change.
+    holders = defaultdict(list)
     for session, records in session_usage.items():
+        for key in records:
+            holders[key].append(session)
+    inf = float("inf")
+
+    def rank(session):
+        first, last = session_span.get(session, (None, None))
+        return (inf if first is None else first, inf if last is None else last, session)
+
+    owned = defaultdict(dict)
+    for key, sessions in holders.items():
+        owner = min(sessions, key=rank)
+        owned[owner][key] = session_usage[owner][key]
+    for session, records in owned.items():
         if records:
             session_totals[session] = sum_tokens(records.values())["total"]
     return {"generated": now, "accounts": accounts, "per_account": per_account, "projects": projects,
@@ -718,6 +746,12 @@ def compare(truth: dict, harness: dict) -> str:
             elif resets is not None and resets < now_ms:
                 verdict(False, f"{name} {window}: reset time already passed ({round((now_ms - resets) / 60000)} min ago)")
             truth_tokens = (acc["tokens"].get(window) or {}).get("total")
+            if "ingested_ms" in harness and acc.get("points") is not None:
+                # Only what was on disk when the backend read it, in the window
+                # as it stood then: live writers after that aren't a miss.
+                cut = harness["ingested_ms"] / 1000
+                span = dict(WINDOWS)[window]
+                truth_tokens = sum(n for ts, n in acc["points"] if cut - span <= ts <= cut)
             burned = w.get("burned_tokens")
             if truth_tokens is not None and burned is not None:
                 ratio = burned / truth_tokens if truth_tokens else (0 if burned == 0 else float("inf"))
@@ -773,11 +807,21 @@ def compare(truth: dict, harness: dict) -> str:
     if ps_rows:
         children = defaultdict(list)
         rss = {}
-        for pid, ppid, kb, _cpu in ps_rows:
+        for row in ps_rows:
+            pid, ppid, kb = row[0], row[1], row[2]
             if pid is None:
                 continue
             children[ppid].append(pid)
             rss[pid] = (kb or 0) * 1024
+        # The app leaves its own process tree out (here, the test that ran
+        # it, often inside a Claude app session): so does the ps side.
+        own = harness.get("qa_pid")
+        if own in rss:
+            todo = [own]
+            while todo:
+                p = todo.pop()
+                if rss.pop(p, None) is not None:
+                    todo += children.get(p, [])
 
         def tree(pid):
             todo, seen = [pid], set()
@@ -789,7 +833,15 @@ def compare(truth: dict, harness: dict) -> str:
                 todo += children.get(p, [])
             return sum(rss[p] for p in seen)
 
-        roots = [r for r in truth["desktop_roots"] if r["pid"] in rss]
+        # The desktop apps' main processes as they were during the run, when
+        # the snapshot names them; else as they are now.
+        named = {row[0]: row[5] for row in ps_rows if len(row) >= 6 and row[0] is not None}
+        parent = {row[0]: row[1] for row in ps_rows if row[0] is not None}
+        if named:
+            roots = [{"pid": pid, "app": name} for pid, name in named.items()
+                     if name in ("Claude", "ChatGPT") and named.get(parent.get(pid)) != name and pid in rss]
+        else:
+            roots = [r for r in truth["desktop_roots"] if r["pid"] in rss]
         claude = sorted((tree(r["pid"]) for r in roots if r["app"] == "Claude"), reverse=True)
         chatgpt = [tree(r["pid"]) for r in roots if r["app"] == "ChatGPT"]
         tools = panel.get("tools") or {}
@@ -805,6 +857,12 @@ def compare(truth: dict, harness: dict) -> str:
         verdict(len(top) == min(3, len(claude)) and all(abs(a - b) <= 0.15 * b for a, b in zip(top, claude)),
                 f"This Mac top rows (GB): backend {[round(t / 1e9, 1) for t in top]}; ps trees {[round(t / 1e9, 1) for t in claude[:3]]}"
                 f"; {max(0, len(claude) - len(top))} instance(s) not shown")
+        others = panel.get("others")
+        if others is not None:
+            shown = sorted(top + [r.get("rss_bytes") or 0 for r in others], reverse=True)
+            verdict(len(shown) == len(claude) and all(abs(a - b) <= 0.15 * b for a, b in zip(shown, claude)),
+                    f"This Mac every tree: backend {len(shown)} (top {len(top)} + others {len(others)}) "
+                    f"{[round(t / 1e9, 1) for t in shown]}; ps {len(claude)} {[round(t / 1e9, 1) for t in claude]}")
         cpu = tools.get("cpu_pct")
         verdict(True, f"This Mac tools CPU: backend {cpu if cpu is None else round(cpu, 1)}% of all cores (ps %CPU is a decaying average, not compared)")
     kinds = [a["kind"] for a in harness.get("machine_alerts", [])]
@@ -838,6 +896,7 @@ def selftest() -> None:
     assert not is_temp("/Applications/Claude.app/Contents/MacOS/claude")
     assert not is_temp(str(HOME / "bin/claude"))
     assert not is_host(None) and not is_host(str(HOME / "Dev/app"))
+    assert dict(WINDOWS)["5h"] == 5 * 3600 and dict(WINDOWS)["7d"] == 7 * 86400
     print("real_truth selftest: OK")
 
 
