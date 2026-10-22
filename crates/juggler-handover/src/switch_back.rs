@@ -99,9 +99,9 @@ pub fn delta_turns(input: &DeltaInput) -> Vec<IrTurn> {
 
 /// Renders the ONE "While you were away" delta turn (§6.1): what was new
 /// on every account since this one, oldest hop first, then the diff stat
-/// and todo changes. Bounded: the newest [`MAX_RENDERED_TURNS`] turns, of
-/// which the newest [`FULL_TURNS`] keep up to [`FULL_TURN_CHARS`] and the
-/// rest are one-liners of [`MAX_LINE_CHARS`]; older turns are counted.
+/// and todo changes. Bounded: the newest `MAX_RENDERED_TURNS` turns, of
+/// which the newest `FULL_TURNS` keep up to `FULL_TURN_CHARS` and the
+/// rest are one-liners of `MAX_LINE_CHARS`; older turns are counted.
 /// Nothing is promised that isn't in the text (no pack is attached).
 #[must_use]
 pub fn delta_turn_text(input: &DeltaInput) -> String {
