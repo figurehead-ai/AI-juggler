@@ -142,6 +142,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   file to check an expiry date. Whether you're signed in is told from the
   file being there, as the docs promised; Claude says itself when a sign-in
   has expired.
+- Fleet can find your other Macs on macOS 15 and later: AI Juggler now
+  says why it needs the local network, so macOS asks instead of silently
+  blocking it.
+- Jumping to a session's window works in signed builds: AI Juggler now
+  carries the Apple Events permission macOS asks about, instead of being
+  refused without a prompt.
 - Watching your Mac's processes stays under 1 % of one core beside a busy
   Claude app: the other tools' processes are now measured every 4 seconds,
   in the same read that finds new ones, instead of every 2 seconds on top
