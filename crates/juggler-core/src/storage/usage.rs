@@ -662,13 +662,20 @@ impl<'c> Owners<'c> {
 
     /// `session` offered the message `key` at `ts`.
     fn offer(&mut self, account: &str, key: &str, session: &str, ts: i64) -> Result<(), CoreError> {
-        if self.hold.execute(params![account, key, session, ts])? == 0 {
+        let holders = self.holders(account, key)?;
+        if holders.iter().any(|(holder, _)| holder == session) {
             return Ok(()); // it had offered it before
         }
+        // Every standing this offer can move is read before it is written:
+        // a session without a stored standing is counted from the holders,
+        // which must not include this offer yet, or its move goes unseen.
         let who = (account.to_owned(), session.to_owned());
-        let holders = self.holders(account, key)?;
-        let own = holders.len() == 1;
         let was = self.span(&who)?;
+        for (holder, _) in &holders {
+            self.span(&(account.to_owned(), holder.clone()))?;
+        }
+        self.hold.execute(params![account, key, session, ts])?;
+        let own = holders.is_empty();
         let span = was.map_or(
             Span {
                 first: ts,
@@ -691,9 +698,7 @@ impl<'c> Owners<'c> {
         }
         // A message that was another session's own is now shared: its
         // own start may have been this one.
-        if holders.len() == 2
-            && let Some((other, at)) = holders.iter().find(|(holder, _)| holder != session)
-        {
+        if let [(other, at)] = holders.as_slice() {
             let other = (account.to_owned(), other.clone());
             if self.span(&other)?.and_then(|span| span.own_start) == Some(*at) {
                 self.recount.insert(other);
