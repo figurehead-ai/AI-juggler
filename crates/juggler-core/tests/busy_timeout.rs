@@ -210,6 +210,36 @@ fn every_store_write_waits_for_another_connection_that_changes_the_database() {
         payload: vec![1],
         wall_ms: 1,
     };
+    let helper = || juggler_core::storage::LedgerRow {
+        pid: Some(4242),
+        pgid: Some(4242),
+        started_at: Some(1),
+        exe_path: "/bin/sh".into(),
+        cmdline_hash: "h".into(),
+        cmdline_trunc: "sh".into(),
+        boot_id: "boot".into(),
+        session_id: "s".into(),
+        instance_id: None,
+        provider: "claude-code".into(),
+        account_id: None,
+        project_id: None,
+        machine_id: "m".into(),
+        root_pid: None,
+        parent_pid: None,
+        depth: 1,
+        role: juggler_core::storage::ROLE_HELPER.into(),
+        state: String::new(),
+        listens_on: None,
+        cwd: "/".into(),
+        peak_rss: None,
+        peak_cpu: None,
+        exit_kind: None,
+        reaped_by_us: None,
+        escaped_group: false,
+        down_period: false,
+        first_seen: 1,
+        last_seen: 1,
+    };
     let writes: Vec<(&str, Write<'_>)> = vec![
         (
             "transcript index append",
@@ -253,6 +283,10 @@ fn every_store_write_waits_for_another_connection_that_changes_the_database() {
             "ledger ports",
             Box::new(|| ledger.apply_ports(&[(1, "boot", "[]")])),
         ),
+        (
+            "ledger helpers",
+            Box::new(|| ledger.upsert_helpers("s", &[helper()])),
+        ),
     ];
     for (round, (name, write)) in writes.iter().enumerate() {
         let path = db.clone();
@@ -273,4 +307,48 @@ fn every_store_write_waits_for_another_connection_that_changes_the_database() {
         write().unwrap_or_else(|error| panic!("{name} waits for the other write: {error}"));
         other.join().unwrap();
     }
+}
+
+/// The audit (#130 review L10): an upgrade's migrations wait for another
+/// connection that is writing (opening a database a version behind).
+#[test]
+fn a_migration_waits_for_another_connection_that_changes_the_database() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("juggler.sqlite");
+    drop(Storage::open(&db).unwrap());
+    // One version behind: the last migration is undone by hand and runs
+    // again on open.
+    let version: i64 = Connection::open(&db)
+        .unwrap()
+        .query_row("PRAGMA user_version", [], |row| row.get(0))
+        .unwrap();
+    {
+        let conn = Connection::open(&db).unwrap();
+        conn.execute_batch(
+            "DROP TABLE account_audit;
+             ALTER TABLE accounts DROP COLUMN removed_at;
+             ALTER TABLE projects DROP COLUMN default_account;",
+        )
+        .unwrap();
+        conn.pragma_update(None, "user_version", version - 1)
+            .unwrap();
+    }
+    let path = db.clone();
+    let (locked, wait) = std::sync::mpsc::channel();
+    let other = std::thread::spawn(move || {
+        let conn = Connection::open(&path).unwrap();
+        conn.execute_batch("BEGIN IMMEDIATE").unwrap();
+        conn.execute(
+            "INSERT OR REPLACE INTO app_settings (key, value) VALUES ('other', '1')",
+            [],
+        )
+        .unwrap();
+        locked.send(()).unwrap();
+        std::thread::sleep(HELD);
+        conn.execute_batch("COMMIT").unwrap();
+    });
+    wait.recv().unwrap();
+    let storage = Storage::open(&db).expect("the migration waits its turn");
+    assert!(storage.migrated_on_open());
+    other.join().unwrap();
 }

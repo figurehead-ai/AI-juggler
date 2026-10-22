@@ -79,7 +79,9 @@ impl UsageRepo<'_> {
 
     /// The accounts whose usage keys name their own session (their tool's
     /// adapter says so): no holders are kept for them, and any kept before
-    /// go. Writes only when the set changed.
+    /// go. An account that leaves the set has none, so the holders are
+    /// marked dirty and everything is read again. Writes only when the set
+    /// changed.
     ///
     /// # Errors
     ///
@@ -94,6 +96,9 @@ impl UsageRepo<'_> {
             return Ok(());
         }
         let tx = write_transaction(self.conn)?;
+        if now.iter().any(|account| !accounts.contains(account)) {
+            tx.execute("UPDATE usage_derived SET dirty = 1 WHERE id = 1", [])?;
+        }
         tx.execute("DELETE FROM usage_unshared", [])?;
         for account in accounts {
             tx.execute(
@@ -538,7 +543,9 @@ fn from_sql(count: i64) -> u64 {
 ///   fire for it too, since they live in the file: a row inserted, or moved
 ///   to a session, that holds no holder row. This build records the holder
 ///   first, so its own writes never set it. The pipeline reads everything
-///   again when it is set ([`UsageRepo::derived_dirty`]).
+///   again when it is set ([`UsageRepo::derived_dirty`]). The triggers are
+///   dropped and made again at each open, so a change to them always
+///   lands.
 pub(crate) const DERIVED: &str = "
 CREATE TABLE IF NOT EXISTS usage_holders (
     account TEXT NOT NULL,
@@ -564,7 +571,8 @@ CREATE TABLE IF NOT EXISTS usage_derived (
     dirty INTEGER NOT NULL DEFAULT 0
 );
 INSERT OR IGNORE INTO usage_derived (id, dirty) VALUES (1, 0);
-CREATE TRIGGER IF NOT EXISTS usage_events_unheld_insert AFTER INSERT ON usage_events
+DROP TRIGGER IF EXISTS usage_events_unheld_insert;
+CREATE TRIGGER usage_events_unheld_insert AFTER INSERT ON usage_events
 WHEN NEW.msg_uuid IS NOT NULL AND NEW.session IS NOT NULL AND NOT EXISTS (
     SELECT 1 FROM usage_holders h
     WHERE h.account = NEW.account AND h.msg_uuid = NEW.msg_uuid AND h.session = NEW.session)
@@ -572,7 +580,8 @@ WHEN NEW.msg_uuid IS NOT NULL AND NEW.session IS NOT NULL AND NOT EXISTS (
 BEGIN
     UPDATE usage_derived SET dirty = 1 WHERE id = 1;
 END;
-CREATE TRIGGER IF NOT EXISTS usage_events_unheld_move AFTER UPDATE OF session ON usage_events
+DROP TRIGGER IF EXISTS usage_events_unheld_move;
+CREATE TRIGGER usage_events_unheld_move AFTER UPDATE OF session ON usage_events
 WHEN NEW.msg_uuid IS NOT NULL AND NEW.session IS NOT NULL AND NOT EXISTS (
     SELECT 1 FROM usage_holders h
     WHERE h.account = NEW.account AND h.msg_uuid = NEW.msg_uuid AND h.session = NEW.session)

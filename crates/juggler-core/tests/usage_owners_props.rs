@@ -362,4 +362,36 @@ fn an_unshared_account_keeps_no_holders() {
     assert_eq!(holders(), 0);
     assert!(!storage.usage().derived_dirty().unwrap());
     assert_eq!(kept(&storage).len(), 3);
+    // L4 (#130 review): leaving the set leaves it with no holders, so
+    // everything is read again.
+    storage
+        .usage()
+        .set_unshared_accounts(&BTreeSet::new())
+        .unwrap();
+    assert!(storage.usage().derived_dirty().unwrap());
+}
+
+/// L3 (#130 review): the triggers are made again at each open, so a store
+/// that holds an older definition gets the current one.
+#[test]
+fn an_older_trigger_is_replaced_on_open() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("juggler.sqlite");
+    drop(Storage::open(&path).unwrap());
+    let raw = rusqlite::Connection::open(&path).unwrap();
+    raw.execute_batch(
+        "DROP TRIGGER usage_events_unheld_insert;
+         CREATE TRIGGER usage_events_unheld_insert AFTER INSERT ON usage_events
+         BEGIN SELECT 1; END;",
+    )
+    .unwrap();
+    drop(Storage::open(&path).unwrap());
+    let sql: String = raw
+        .query_row(
+            "SELECT sql FROM sqlite_master WHERE name = 'usage_events_unheld_insert'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert!(sql.contains("usage_unshared"), "{sql}");
 }

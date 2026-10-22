@@ -7,10 +7,12 @@
     <key>NSScreenCaptureUsageDescription</key>
     <string>AI Juggler mirrors a desktop instance's window inside its panel so you can supervise it without switching apps. Capture is read-only; nothing is recorded or sent anywhere.</string>
     <!-- Fleet (AJ-E7): finding and pairing your other Macs on this network.
-         Since macOS 15, mDNS and connections to the local network fail
-         silently without the Local Network permission, and the system asks
-         for it only when this description and the service type are here.
-         The type is juggler-link's SERVICE_TYPE (a test keeps them equal). -->
+         Since macOS 15, mDNS and connections to the local network need the
+         Local Network permission; macOS asks for it with this description,
+         and without one the access fails silently. NSBonjourServices lists
+         the Bonjour service type Fleet advertises and browses, which macOS
+         requires for Bonjour use; it's juggler-link's SERVICE_TYPE (a test
+         keeps them equal). -->
     <key>NSLocalNetworkUsageDescription</key>
     <string>AI Juggler finds your other Macs running AI Juggler on this network, and talks to the ones you pair, so Fleet can show and move their sessions.</string>
     <key>NSBonjourServices</key>
