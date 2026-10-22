@@ -22,6 +22,7 @@ pub mod handover;
 pub mod identity;
 pub mod launch;
 pub mod registry;
+pub mod system_tools;
 pub mod user_path;
 pub mod watcher;
 

@@ -68,7 +68,7 @@ pub fn parse_porcelain(text: &str) -> GitStatus {
 }
 
 fn git(dir: &Path, args: &[&str]) -> Option<String> {
-    let output = Command::new("git")
+    let output = Command::new(juggler_adapter::system_tools::git())
         .arg("-C")
         .arg(dir)
         .args(args)
@@ -361,7 +361,7 @@ pub fn worktree_create_impl(
         std::fs::create_dir_all(parent)
             .map_err(|e| AppError::io("create the worktree folder", &e))?;
     }
-    let output = Command::new("git")
+    let output = Command::new(juggler_adapter::system_tools::git())
         .arg("-C")
         .arg(&root)
         .args(["worktree", "add", "-b", branch])
@@ -501,7 +501,7 @@ pub fn worktree_remove_impl(
         .find(|row| row.path == path)
         .cloned()
         .ok_or_else(|| invalid("unknown worktree"))?;
-    let mut command = Command::new("git");
+    let mut command = Command::new(juggler_adapter::system_tools::git());
     command
         .arg("-C")
         .arg(&row.repo_root)

@@ -1061,7 +1061,7 @@ fn namespaced_service(state_dir: &Path) -> String {
 /// **without** extracting any secret (`-w` deliberately absent).
 #[cfg(target_os = "macos")]
 fn keychain_entry_exists(service: &str) -> bool {
-    std::process::Command::new("security")
+    std::process::Command::new(juggler_adapter::system_tools::SECURITY)
         .args(["find-generic-password", "-s", service])
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
