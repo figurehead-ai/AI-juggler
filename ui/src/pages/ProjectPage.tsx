@@ -5,7 +5,10 @@
  * account starts work here, how the work travelled).
  */
 import { AccountAvatar } from "../components/Avatar";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import { PROJECT_SYNC_EVENT, ProjectSyncSheet } from "../components/ProjectSyncSheet";
+import { projectSyncRules } from "../lib/ipc/projectSync";
 import { useConversations, outside } from "../lib/conversations";
 import { projectsGitStatus } from "../lib/ipc/projects";
 import type { GitStatusInfo } from "../types/generated/GitStatusInfo";
@@ -69,6 +72,58 @@ export function ProjectFacts({ project, sessions }: { project: ProjectInfo; sess
           · {uncommitted === 1 ? "1 file" : `${uncommitted} files`} not committed
         </span>
       )}
+      <RulesLine project={project} />
+    </>
+  );
+}
+
+/** AJ-E1507: whether the project's rules files agree ("Rules in sync",
+ * "1 rules file differs"), opening the sheet that compares them. Nothing
+ * shows where there's nothing to compare. */
+function RulesLine({ project }: { project: ProjectInfo }) {
+  const [summary, setSummary] = useState<{ words: string; inSync: boolean } | null>(null);
+  const [open, setOpen] = useState(false);
+  const read = useCallback(() => {
+    let alive = true;
+    projectSyncRules(project.id).then(
+      (rules) => alive && setSummary(rules.summary ? { words: rules.summary, inSync: rules.in_sync } : null),
+      () => alive && setSummary(null),
+    );
+    return () => {
+      alive = false;
+    };
+  }, [project.id]);
+  useEffect(read, [read]);
+  // The sheet can also be opened from the project's menu.
+  useEffect(() => {
+    const again = (event: Event) => {
+      if ((event as CustomEvent<string>).detail === project.id) read();
+    };
+    window.addEventListener(PROJECT_SYNC_EVENT, again);
+    return () => window.removeEventListener(PROJECT_SYNC_EVENT, again);
+  }, [project.id, read]);
+  if (!summary) return null;
+  return (
+    <>
+      <span>
+        ·{" "}
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className={`underline decoration-dotted underline-offset-2 hover:text-ink ${summary.inSync ? "" : "text-warning"}`}
+          data-testid="project-rules"
+        >
+          {summary.words}
+        </button>
+      </span>
+      {open &&
+        createPortal(
+          <ProjectSyncSheet
+            project={project}
+            onClose={() => setOpen(false)}
+          />,
+          document.body,
+        )}
     </>
   );
 }
