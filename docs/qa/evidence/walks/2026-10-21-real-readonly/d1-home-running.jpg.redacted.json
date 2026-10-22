@@ -1,0 +1,30 @@
+{
+  "boxes": [
+    [
+      20,
+      72,
+      98,
+      370
+    ],
+    [
+      204,
+      186,
+      224,
+      290
+    ],
+    [
+      218,
+      118,
+      290,
+      12
+    ]
+  ],
+  "checked_by_eye": true,
+  "file": "d1-home-running.jpg",
+  "note": "rail titles and project names, Running titles, the Needs-you line blacked out",
+  "sha256": "1044c785ab8b40b1cfbad04ae822e4889e88b5126eff2624373d84791f4428ef",
+  "size": [
+    800,
+    500
+  ]
+}

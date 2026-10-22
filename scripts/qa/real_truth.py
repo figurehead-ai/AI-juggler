@@ -800,6 +800,14 @@ def compare(truth: dict, harness: dict) -> str:
         verdict(True, f"This Mac machine: CPU {round(m['machine'].get('cpu_pct') or -1)}%, memory {m['machine']['memory_used'] / 1e9:.1f} of "
                       f"{m['machine']['memory_total'] / 1e9:.0f} GB ({m['machine']['memory_basis']}), pressure {m['machine']['pressure']}; "
                       f"tools {m['tools']['count']}")
+    # This Mac counts the whole Mac. On a replica (a HOME that isn't this
+    # user's own) the host's apps are in it too, so these lines are facts
+    # there, not checks.
+    replica = os.path.realpath(pwd.getpwuid(os.getuid()).pw_dir) != os.path.realpath(HOME)
+
+    def mac_verdict(ok, text: str) -> None:
+        verdict(None if replica else ok, text + (" (a replica: This Mac counts the whole Mac)" if replica else ""))
+
     # This Mac's tools against `ps` trees of the desktop apps' main processes
     # and the CLIs outside them, from the ps rows the harness took with its last read.
     panel = (harness.get("this_mac") or [{}])[-1]
@@ -845,26 +853,26 @@ def compare(truth: dict, harness: dict) -> str:
         claude = sorted((tree(r["pid"]) for r in roots if r["app"] == "Claude"), reverse=True)
         chatgpt = [tree(r["pid"]) for r in roots if r["app"] == "ChatGPT"]
         tools = panel.get("tools") or {}
-        verdict(tools.get("count") == len(claude),
+        mac_verdict(tools.get("count") == len(claude),
                 f"This Mac tools: backend {tools.get('count')}; ps has {len(claude)} Claude app instances"
                 f"{' + ' + str(len(chatgpt)) + ' ChatGPT (Codex) not counted by design' if chatgpt else ''}")
         total = tools.get("rss_bytes") or 0
         want = sum(claude)
-        verdict(want and 0.85 <= total / want <= 1.15,
+        mac_verdict(want and 0.85 <= total / want <= 1.15,
                 f"This Mac tools memory: backend {total / 1e9:.1f} GB; ps RSS of the Claude app trees {want / 1e9:.1f} GB"
                 + (f" (×{total / want:.2f})" if want else ""))
         top = [r.get("rss_bytes") or 0 for r in panel.get("top") or []]
-        verdict(len(top) == min(3, len(claude)) and all(abs(a - b) <= 0.15 * b for a, b in zip(top, claude)),
+        mac_verdict(len(top) == min(3, len(claude)) and all(abs(a - b) <= 0.15 * b for a, b in zip(top, claude)),
                 f"This Mac top rows (GB): backend {[round(t / 1e9, 1) for t in top]}; ps trees {[round(t / 1e9, 1) for t in claude[:3]]}"
                 f"; {max(0, len(claude) - len(top))} instance(s) not shown")
         others = panel.get("others")
         if others is not None:
             shown = sorted(top + [r.get("rss_bytes") or 0 for r in others], reverse=True)
-            verdict(len(shown) == len(claude) and all(abs(a - b) <= 0.15 * b for a, b in zip(shown, claude)),
+            mac_verdict(len(shown) == len(claude) and all(abs(a - b) <= 0.15 * b for a, b in zip(shown, claude)),
                     f"This Mac every tree: backend {len(shown)} (top {len(top)} + others {len(others)}) "
                     f"{[round(t / 1e9, 1) for t in shown]}; ps {len(claude)} {[round(t / 1e9, 1) for t in claude]}")
         cpu = tools.get("cpu_pct")
-        verdict(True, f"This Mac tools CPU: backend {cpu if cpu is None else round(cpu, 1)}% of all cores (ps %CPU is a decaying average, not compared)")
+        mac_verdict(True, f"This Mac tools CPU: backend {cpu if cpu is None else round(cpu, 1)}% of all cores (ps %CPU is a decaying average, not compared)")
     kinds = [a["kind"] for a in harness.get("machine_alerts", [])]
     verdict(len(kinds) == len(set(kinds)), f"alerts over the run: {len(kinds)} ({', '.join(kinds) or 'none'})")
     return "\n".join(lines)

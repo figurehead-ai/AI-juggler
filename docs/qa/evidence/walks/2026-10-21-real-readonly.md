@@ -1199,6 +1199,102 @@ Codex changed).
   `codex-auto-review` unpriced, and honest null fee fields (INFO).
 - **The UI's "and N more"** is for the bridge walk on a build with #122.
 
+## Batch 13 — AJ-E1529 accepted on the real setup (`release/0.1` `3542530d`), and the rail walk
+
+### The real-data pass
+
+- One harness run, read only, Finder-like, into a fresh `AI Juggler Dev` folder (the
+  same folder then seeded the bridge walk).
+- **Overall**: 60 OK, 2 MISMATCH, 1 INFO. The two MISMATCH lines are #126's
+  shared-message credit (not on this branch yet) and one unpriced model
+  (`codex-auto-review`).
+- **Snapshot**: no path added or removed.
+  - `~/.claude/.claude.json` (same size) and a backup, one second after that account's
+    scheduled settings sync (00:07:36). Its syncs run at :07 and :50, and it has 4 live
+    sessions: Claude Code's own write.
+  - `~/.codex`: the live Codex.
+  - During the walk: the live Codex, and one profile's own sync.
+
+```text
+OK        setups found: 7 of 7
+OK        brought in where they are: 7 of 7
+OK        projects: backend 9 rows, oracle 9
+OK        Project 1: backend 250 conversations in 1 row(s), accounts ['Account A', 'Account G']; oracle 4 Claude + 246 Codex, accounts ['Account A', 'Account G']
+OK        Project 2: backend 14 conversations in 1 row(s), accounts ['Account E']; oracle 14 Claude + 0 Codex, accounts ['Account E']
+OK        Project 3: backend 13 conversations in 1 row(s), accounts ['Account A']; oracle 13 Claude + 0 Codex, accounts ['Account A']
+OK        Project 4: backend 11 conversations in 1 row(s), accounts ['Account G']; oracle 0 Claude + 11 Codex, accounts ['Account G']
+OK        Project 5: backend 6 conversations in 1 row(s), accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account E', 'Account F']; oracle 6 Claude + 0 Codex, accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account E', 'Account F']
+OK        Project 6: backend 3 conversations in 1 row(s), accounts ['Account A', 'Account F']; oracle 3 Claude + 0 Codex, accounts ['Account A', 'Account F']
+OK        Project 7: backend 3 conversations in 1 row(s), accounts ['Account B', 'Account C']; oracle 3 Claude + 0 Codex, accounts ['Account B', 'Account C']
+OK        Project 8: backend 1 conversations in 1 row(s), accounts ['Account D']; oracle 1 Claude + 0 Codex, accounts ['Account D']
+OK        Project 9: backend 1 conversations in 1 row(s), accounts ['Account G']; oracle 0 Claude + 1 Codex, accounts ['Account G']
+OK        Account A conversations: backend 20, oracle 20
+OK        Account A live: backend 4, running 4
+OK        Account B conversations: backend 3, oracle 3
+OK        Account B live: backend 1, running 1
+OK        Account C conversations: backend 2, oracle 2
+OK        Account C live: backend 1, running 1
+OK        Account D conversations: backend 2, oracle 2
+OK        Account D live: backend 1, running 1
+OK        Account E conversations: backend 15, oracle 15
+OK        Account E live: backend 10, running 10
+OK        Account F conversations: backend 2, oracle 2
+OK        Account F live: backend 0, running 0
+OK        Account G conversations: backend 258, oracle 258
+OK        Account G live: backend 0, running 0
+OK        live sessions with no account in the oracle: 0
+OK        Account A 5h tokens: backend 269,974,696, oracle 273,923,349 (×0.99)
+OK        Account A 7d tokens: backend 9,913,952,216, oracle 9,913,952,216 (×1.00)
+OK        Account B 5h tokens: backend 231,733,657, oracle 230,287,110 (×1.01)
+OK        Account B 7d tokens: backend 7,134,748,941, oracle 7,133,302,394 (×1.00)
+OK        Account C 5h tokens: backend 456,391,876, oracle 463,101,019 (×0.99)
+OK        Account C 7d tokens: backend 8,295,952,217, oracle 8,295,395,704 (×1.00)
+OK        Account D 5h tokens: backend 14,765,003, oracle 14,765,003 (×1.00)
+OK        Account D 7d tokens: backend 12,496,996,247, oracle 12,496,996,247 (×1.00)
+OK        Account E 5h tokens: backend 720,813,464, oracle 726,468,681 (×0.99)
+OK        Account E 7d tokens: backend 7,775,756,750, oracle 7,774,790,274 (×1.00)
+OK        Account F 5h tokens: backend 0, oracle 0 (×0.00)
+OK        Account F 7d tokens: backend 2,498,492,913, oracle 2,498,492,913 (×1.00)
+OK        Account G 7d tokens: backend 8,310,727,296, oracle 8,211,666,536 (×1.01)
+MISMATCH  cost rows per session: 289 sessions in both; 285 within 5% of the transcripts; ratio min ×0.40, median ×1.00, max ×12.49; 0 only in the backend, 2 only in the transcripts; 6 still being written during the run, left out
+```
+
+**Accepted**: setups, projects, conversations and live sessions all match the disk. That
+includes A 4 of 4 live (the `--resume=<id>` fix), and each Codex thread exactly once.
+
+### The rail through the bridge
+
+[Home with the rail](2026-10-21-real-readonly/d1-home-running.jpg). Conversation titles and
+project names are blacked out (the fail-closed tool, opened and confirmed by eye).
+
+- **Can you find every session?** Yes, once indexed.
+  - The rail says "Running 17", the same 17 the oracle sees, grouped under their
+    projects. Each row reads "Running · outside AI Juggler" with its age.
+  - Home's Running list shows the same 17 with the account written out.
+- **Is each one's account obvious?**
+  - On Home, yes: the label in full.
+  - In the rail, only a two-letter chip in the account's colour (the full "on Account D"
+    is in the accessible name). With real labels, several sharing the first word would
+    give near-identical chips. Low.
+- **First launch on a heavy setup: no live sessions for about 5 minutes.**
+  - The first index pass reads the whole history (25 → 48 → 232 → 300 conversations over
+    about 4 minutes) and sets liveness only when the pass ends.
+  - Until then the rail and Home say nothing is running, while 17 are.
+  - Medium. Suggestion: set liveness first (from the process table), or after each batch.
+- **Home contradicts itself.**
+  - The subtitle says "Account G has 6% left — start new work on another account".
+  - The Runway footer says "Best for new work: Account G, 6% left".
+  - G (Codex, 94% used: true, from its rollouts) is the only account with a measured
+    percent. The Claude accounts say "Not measured yet · N tokens used" (honest), so
+    "best" picks the one that's nearly out.
+  - High: an account at 6% shouldn't be recommended, and "best" should say it can't tell
+    when the others aren't measured.
+
+### The oracle
+
+This Mac lines are INFO on a replica (a HOME that isn't the user's own), since they count the
+whole Mac. With the real HOME they're unchanged.
+
 ## Not walked (blocked by W0, before the bridge)
 
 These need the window:
