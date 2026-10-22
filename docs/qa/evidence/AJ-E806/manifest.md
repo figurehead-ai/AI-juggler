@@ -531,17 +531,32 @@
     the work that holds the budget: a full scan at most every 5th tick,
     and between them only our sessions' processes
     (`LiveStatsCollector::work`). CPU is still printed.
-- **Flake record, 2026-10-22 (observed; open, a follow-up).** In the
-  batch 5 verify of 7bcd862b (fix/maintainer-reports-5), with other
+- **Flake record, 2026-10-22: a product bug (fixed in fix/maintainer-reports-6).**
+  In the batch 5 verify of 7bcd862b (fix/maintainer-reports-5), with other
   sessions' builds running,
   `fleet_sync :: an_offline_console_catches_up_with_only_what_it_missed_and_keeps_last_known_rows`
-  took 9.45 s and failed: the catch-up log was `[(0, 10), (31, 5)]`. The
-  first sync's full catch-up landed in the log after the test had taken
-  `catch_ups_before`, so it read that one as the resume, and the real
-  resume (31, 5: only the missing changes) came second. Alone it passed 3
-  of 3 times (3.2 s). The batch doesn't touch fleet code. The fix belongs
-  in the test: wait for the first catch-up before counting. Nothing
-  changed here.
+  failed with the catch-up log `[(0, 10), (31, 5)]`: the console asked
+  from 31, past the node's top sequence when its Link went off. This
+  record's first two readings were wrong:
+  - "a late first catch-up": the test reads `first[0]` before counting;
+  - "a batch already on its way": seq 31 didn't exist until the node's
+    edits, which began after the console's Link was off.
+
+  The coordinator's review found the cause. `stop()` aborted the
+  reconcile loop only, and dropping its map of connections detached
+  (didn't end) each connection's heartbeat and telemetry tasks. So the
+  console kept streaming, and kept writing the node's changes into its
+  replica, after the user had turned Link off. It shows only when the
+  node's own 2 s pass sends a change; a test's direct sync pass records
+  without sending.
+  - **Fix:** `stop()` now ends the loop, then every connection's tasks,
+    and waits for each, so nothing is applied after it returns.
+  - **New test:** `a_console_with_its_link_off_applies_nothing` failed
+    2 of 2 on the old code (the mark went from 1 to 5) and passes on the
+    new.
+  - **Original test:** its `resumed.0 <= high_water` check, which caught
+    this, is unchanged; a direct check that the mark stayed at or below
+    `high_water` while Link was off is added.
 - **Flake record, 2026-10-22 (fixed, fix/maintainer-reports-5).** CI on
   PR #132 (run 39821992531) failed
   `guardrails :: idle_nudge_fires_exactly_once_per_orphan`, "the idle
