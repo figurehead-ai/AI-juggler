@@ -116,6 +116,9 @@ impl FixtureSet {
     /// ready file): the process a test should signal. A ledger row found
     /// by a command-line needle can name another fixture — its command
     /// line may still be the root shell's, from before the exec.
+    // Shared test support: juggler-app's guardrails use it; the
+    // supervisor's own suites don't.
+    #[allow(dead_code)]
     pub fn pid(&self, kind: &str) -> Option<u32> {
         let path = PathBuf::from(format!("{}.pid", self.get(kind).ready.to_string_lossy()));
         std::fs::read_to_string(path).ok()?.trim().parse().ok()
