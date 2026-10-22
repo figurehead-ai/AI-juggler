@@ -314,12 +314,33 @@ fn server_command(port: u16, first: &str) -> String {
 /// Kills what a test started when the test ends, a panic's unwind
 /// included: each process group (`kill -s KILL -- -<pgid>`, the form
 /// both macOS's and Linux's `kill` read as a group) and each lone pid.
-/// Register a process the moment it is spawned. It lives no longer than
-/// its test, so a pid it holds isn't one the system has handed out again.
+/// Register a process the moment it is spawned.
+///
+/// A test may reap a process itself first, and the system may then hand
+/// its pid to another. So each target's start time is noted when it is
+/// registered, and at the end it is signalled only when that pid is gone
+/// or is still the same process:
+/// - a lone pid is killed only while it is the same process;
+/// - a group is killed unless its leader's pid now names another process.
+///   While a group has members, no new process can take its id, so once
+///   the leader is gone, what's left in it is ours.
+///
+/// Ids 0 and 1 are never signalled: `-1` reaches every process the user
+/// owns, and `-0` the test runner's own group.
 #[derive(Default)]
 pub struct Reaper {
-    groups: Vec<u32>,
-    pids: Vec<u32>,
+    groups: Vec<(u32, Option<String>)>,
+    pids: Vec<(u32, Option<String>)>,
+}
+
+/// When `pid` started (`ps -o lstart=`), `None` when it isn't running.
+fn started(pid: u32) -> Option<String> {
+    let out = std::process::Command::new("ps")
+        .args(["-o", "lstart=", "-p", &pid.to_string()])
+        .output()
+        .ok()?;
+    let text = String::from_utf8_lossy(&out.stdout).trim().to_owned();
+    (out.status.success() && !text.is_empty()).then_some(text)
 }
 
 // Shared test support: each suite uses the parts it needs.
@@ -327,23 +348,42 @@ pub struct Reaper {
 impl Reaper {
     /// Kills this process group at the end.
     pub fn group(&mut self, pgid: u32) {
-        self.groups.push(pgid);
+        if pgid > 1 {
+            self.groups.push((pgid, started(pgid)));
+        }
     }
 
     /// Kills this process at the end.
     pub fn pid(&mut self, pid: u32) {
-        self.pids.push(pid);
+        if pid > 1 {
+            self.pids.push((pid, started(pid)));
+        }
+    }
+}
+
+// Shared test support: each suite uses the parts it needs.
+#[allow(dead_code)]
+impl Reaper {
+    /// What the end signals, given when each id's process started now
+    /// (`started`, or a stand-in in tests): `-<pgid>` for a group, the pid
+    /// for a lone process.
+    pub fn targets(&self, now: impl Fn(u32) -> Option<String>) -> Vec<String> {
+        let groups = self.groups.iter().filter_map(|(pgid, at)| {
+            let current = now(*pgid);
+            (current.is_none() || current == *at).then(|| format!("-{pgid}"))
+        });
+        let pids = self
+            .pids
+            .iter()
+            .filter(|(pid, at)| at.is_some() && now(*pid) == *at)
+            .map(|(pid, _)| pid.to_string());
+        groups.chain(pids).collect()
     }
 }
 
 impl Drop for Reaper {
     fn drop(&mut self) {
-        let targets = self
-            .groups
-            .iter()
-            .map(|pgid| format!("-{pgid}"))
-            .chain(self.pids.iter().map(u32::to_string));
-        for target in targets {
+        for target in self.targets(started) {
             let _ = std::process::Command::new("/bin/kill")
                 .args(["-s", "KILL", "--", &target])
                 .stderr(std::process::Stdio::null())

@@ -11,6 +11,7 @@
     clippy::pedantic
 )]
 
+use std::os::unix::process::CommandExt as _;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
@@ -145,13 +146,14 @@ fn fault_injection_no_audit_means_no_signal() {
         .current_dir(dir.path())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
+        .process_group(0)
         .spawn()
         .unwrap();
     let pid = child.id();
-    // The shell dies with the test, a failed assertion's unwind included;
-    // its `sleep` ends by itself (300 s).
+    // The shell and its `sleep` (its own group) die with the test, a failed
+    // assertion's unwind included.
     let mut reaper = fixtures::Reaper::default();
-    reaper.pid(pid);
+    reaper.group(pid);
     let session = juggler_core::model::SessionId::new("sess-fault");
     state.orphans.record_exit(ExitSnapshot {
         session: session.clone(),

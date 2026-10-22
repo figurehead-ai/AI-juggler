@@ -79,3 +79,55 @@ fn a_test_that_panics_midway_leaves_nothing_behind() {
         members(group)
     );
 }
+
+/// A process the test already reaped is never signalled (its pid may be
+/// another's by then), nor one whose pid now names another process; a
+/// group whose leader is gone still is (what's left in it is ours).
+#[test]
+fn only_what_the_test_started_is_signalled() {
+    let mut lone = Command::new("sleep").arg("300").spawn().unwrap();
+    let mut leader = Command::new("sleep")
+        .arg("300")
+        .process_group(0)
+        .spawn()
+        .unwrap();
+    let (lone_pid, group) = (lone.id(), leader.id());
+    let mut reaper = fixtures::Reaper::default();
+    reaper.pid(lone_pid);
+    reaper.group(group);
+    let lone_target = lone_pid.to_string();
+    let group_target = format!("-{group}");
+
+    let live = reaper.targets(|pid| {
+        Command::new("ps")
+            .args(["-o", "lstart=", "-p", &pid.to_string()])
+            .output()
+            .ok()
+            .map(|out| String::from_utf8_lossy(&out.stdout).trim().to_owned())
+            .filter(|text| !text.is_empty())
+    });
+    assert_eq!(live, vec![group_target.clone(), lone_target.clone()]);
+    // Both pids now name other processes: neither is signalled.
+    let reused = reaper.targets(|_| Some("another process".to_owned()));
+    assert!(reused.is_empty(), "{reused:?}");
+    // Both gone (reaped by the test): the group still is, the pid isn't.
+    lone.kill().unwrap();
+    lone.wait().unwrap();
+    leader.kill().unwrap();
+    leader.wait().unwrap();
+    assert_eq!(reaper.targets(|_| None), vec![group_target]);
+}
+
+/// `-1` reaches every process the user owns and `-0` the runner's own
+/// group: ids 0 and 1 are never registered.
+#[test]
+fn ids_zero_and_one_are_never_signalled() {
+    let mut reaper = fixtures::Reaper::default();
+    reaper.group(0);
+    reaper.group(1);
+    reaper.pid(0);
+    reaper.pid(1);
+    let targets = reaper.targets(|_| None);
+    assert!(targets.is_empty(), "{targets:?}");
+    // Nothing registered, so dropping it signals nothing.
+}
