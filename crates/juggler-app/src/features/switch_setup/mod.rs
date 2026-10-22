@@ -373,6 +373,30 @@ pub fn undo_impl(state: &Arc<AppState>, record_id: &str) -> AppResult<String> {
     })
 }
 
+/// Stops keeping a set-up that can't be undone any more (what it made has
+/// changed, or is gone). Nothing on disk changes: what it set up stays,
+/// and so does the tool's backup, which may be the only copy of how its
+/// settings were before.
+///
+/// # Errors
+///
+/// [`AppError::Refused`] when there's no such record; storage errors.
+pub fn forget_impl(state: &Arc<AppState>, record_id: &str) -> AppResult<String> {
+    let mut records = load(state);
+    let at = records
+        .iter()
+        .position(|record| record.id == record_id)
+        .ok_or_else(|| AppError::Refused("there's nothing to forget".to_owned()))?;
+    let record = records.remove(at);
+    write(state, &records)?;
+    let what = if record.what.is_empty() {
+        record.applied.summary
+    } else {
+        format!("the {}", record.what)
+    };
+    Ok(format!("Forgot {what}. It stays as it is now."))
+}
+
 fn undo(how: &Undo) -> AppResult<()> {
     match how {
         Undo::RemoveCreated { files, dirs } => {
@@ -539,6 +563,22 @@ pub async fn switch_setup_apply(
 ) -> AppResult<Vec<AppliedInfo>> {
     crate::ipc::blocking(state.inner(), "set it up", move |state| {
         apply_impl(state, &session_id, &target_profile_id, &offers)
+    })
+    .await
+}
+
+/// Stops keeping a set-up (Settings), leaving everything as it is.
+///
+/// # Errors
+///
+/// As [`forget_impl`].
+#[tauri::command]
+pub async fn switch_setup_forget(
+    state: tauri::State<'_, Arc<AppState>>,
+    record: String,
+) -> AppResult<String> {
+    crate::ipc::blocking(state.inner(), "forget the set-up", move |state| {
+        forget_impl(state, &record)
     })
     .await
 }

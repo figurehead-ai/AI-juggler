@@ -131,3 +131,15 @@ export async function switchSetupUndo(record: string): Promise<string> {
   }
   return invoke<string>("switch_setup_undo", { record });
 }
+
+/** Stops keeping a set-up that can't be undone, leaving it as it is. */
+export async function switchSetupForget(record: string): Promise<string> {
+  if (!hasLiveBackend()) {
+    const what = previewSetUps.get(record) ?? record;
+    previewSetUps.delete(record);
+    const seam = window as unknown as { __AIJ_SWITCH_SET_UPS__?: SetUpInfo[] };
+    seam.__AIJ_SWITCH_SET_UPS__ = seam.__AIJ_SWITCH_SET_UPS__?.filter((s) => s.record !== record);
+    return `Forgot the ${what}. It stays as it is now.`;
+  }
+  return invoke<string>("switch_setup_forget", { record });
+}

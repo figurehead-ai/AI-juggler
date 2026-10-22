@@ -19,6 +19,7 @@ Live: the register's claude→claude transcript-resume, todos and mcp-references
 ## After the independent review of #132
 
 - **Usage after a switch (P19).** The filter now keys on the copy's own id, as installed. A copy installed beside one the target already had (a back-and-forth) leaves the target's own conversation its usage. A failed switch carries nothing (`usage_carried`: four cases, two of which fail under the old rule).
+- **No usage pass mid-switch.** Between the install and the launch record, a back-and-forth's copy was still keyed by the source's id. A pass in that gap dropped the target's own history, and kept that for good because offsets are saved. No pass runs while a switch holds its slot (`usage_carried` `no_pass_reads_a_copy_while_its_switch_runs`, which fails without the guard).
 - **Bundles from a paired Mac.** A bundle can't bring another conversation in beside the transcript (`claude_handover` `a_bundle_cant_bring_in_another_conversation`).
 
 ## Left

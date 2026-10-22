@@ -43,6 +43,7 @@ The review found three blockers in this area and several smaller issues. All are
 - **Set-ups outlive the switch screen.**
   - The failed view lists them with Undo.
   - Settings › Context packs & secrets has "Set up by switches" with every set-up still in place (`switch_setup_list`; vitest `switch-set-ups`).
+  - A set-up whose Undo is refused, because it was changed after it was made, gets a Forget on its row. Forget stops listing it and changes nothing on disk, not even the tool's backup (`a_set_up_that_cant_be_undone_can_be_forgotten_leaving_it_as_it_is`; vitest "offers Forget only for a set-up whose Undo was refused").
 - **A copied skill.**
   - Hidden files (`.env`, `.git/`) stay behind, and links and folders deeper than six levels are named as left out.
   - Files keep their permissions, so a skill's scripts stay runnable (`inventory_files`).

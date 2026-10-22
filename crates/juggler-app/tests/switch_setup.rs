@@ -15,7 +15,9 @@ use std::sync::Arc;
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, CODEX_ID, ClaudeCodeAdapter, CodexAdapter};
 use juggler_app::commands;
-use juggler_app::features::switch_setup::{apply_impl, check_impl, list_impl, undo_impl};
+use juggler_app::features::switch_setup::{
+    apply_impl, check_impl, forget_impl, list_impl, undo_impl,
+};
 use juggler_app::state::AppState;
 
 /// A `claude` that records its arguments (for `claude mcp add-json`).
@@ -372,4 +374,36 @@ fn codex_config_stays_a_link_with_its_permissions_and_its_users_settings() {
         std::fs::metadata(&real).unwrap().permissions().mode() & 0o777,
         0o600
     );
+}
+
+#[test]
+fn a_set_up_that_cant_be_undone_can_be_forgotten_leaving_it_as_it_is() {
+    // Re-review of #132 (Low): a set-up the user has changed since can't
+    // be undone, and Settings kept offering an Undo that always failed.
+    let lab = lab();
+    let (profile_x, x) = &lab.codex;
+    let check = check_impl(&lab.state, &lab.session, profile_x).unwrap();
+    let github = check
+        .offers
+        .iter()
+        .find(|o| o.name == "github")
+        .unwrap()
+        .id
+        .clone();
+    let applied = apply_impl(&lab.state, &lab.session, profile_x, &[github]).unwrap();
+    let record = applied[0].record.clone().expect("set up");
+    let config = x.join("config.toml");
+    let changed = std::fs::read_to_string(&config).unwrap() + "startup_timeout_sec = 30\n";
+    std::fs::write(&config, &changed).unwrap();
+    assert!(undo_impl(&lab.state, &record).is_err());
+
+    let message = forget_impl(&lab.state, &record).unwrap();
+    assert!(message.starts_with("Forgot the "), "{message}");
+    assert_eq!(
+        std::fs::read_to_string(&config).unwrap(),
+        changed,
+        "nothing changes"
+    );
+    assert!(list_impl(&lab.state).unwrap().is_empty());
+    assert!(forget_impl(&lab.state, &record).is_err(), "forgotten once");
 }

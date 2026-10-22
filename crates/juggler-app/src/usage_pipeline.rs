@@ -101,6 +101,17 @@ pub fn spawn(state: Arc<AppState>) {
 
 /// One ingest pass (public for tests): accounts → sources → store.
 pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
+    // P19: while a switch runs, its copy may be installed before the
+    // launch records the copy's own id, and a pass then would key the
+    // copy by the source's id; offsets are saved, so that would be for
+    // good. The next pass after the switch reads it.
+    if state
+        .switching
+        .lock()
+        .is_ok_and(|running| !running.is_empty())
+    {
+        return;
+    }
     let accounts = {
         let Ok(storage) = state.storage.lock() else {
             return;
