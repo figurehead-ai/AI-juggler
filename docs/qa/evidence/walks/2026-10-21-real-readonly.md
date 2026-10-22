@@ -1357,6 +1357,41 @@ whole Mac. With the real HOME they're unchanged.
   (it frees within moments), then start. Only say "isn't answering" when a process
   actually holds it.
 
+## Batch 15 — batch 14's fixes re-checked (`release/0.1` `8293c0f3`)
+
+Three launches of the Dev build with the bridge, Finder-like, on a copy of batch 13's data.
+The 1-second poller ran against the oracle's 16 live sessions.
+
+- **Snapshot**: no path added or removed. One profile's `.claude.json` (same size) and a
+  backup: Account E, this QA session's own profile, saving every few minutes (03:01,
+  03:11, 03:17). Otherwise the live Codex and that profile's sync.
+
+### Fixed
+
+- **Relaunch after a forced quit**: after SIGTERM, I relaunched 0.02 s after the old
+  process was gone. It started in about 2 s, with no alert.
+- **Home**: the headline is "Account G has run out", not "All clear". The footer still
+  reads "Account G has 0% left, and 6 others aren't measured yet, so AI Juggler can't
+  tell which has room." G is 100% used (true).
+- **`conversations_list` answers at once** during the first pass (no 5 s timeouts).
+
+### Still slow: about 72–75 s before anything is read
+
+| Launch | Nothing read until | First live | All 16 live |
+|---|---|---|---|
+| 1 (data copy opened by this build) | 75 s | 78.1 s | 97.3 s |
+| 2 (SIGTERM, immediate relaunch) | 72.8 s | 72.8 s | 95.0 s |
+
+- **The cause, from a thread sample 20 s into launch 3**:
+  - The conversation tick's thread (`spawn_read_model_ticks`, the conversations closure)
+    is busy in `codex_transcript::parse_rollouts → parse_rollout → message_text`, parsing
+    the message text of every Codex rollout: 6.6 GB in 265 files here.
+  - Nothing else is indexed until it's done.
+  - Meanwhile the This Mac emit and the 2 s process tick wait on a mutex.
+- **Expected**: read only each rollout's head (its `session_meta`) to find, order and
+  date the threads, and work out liveness from that. The full text (titles) can come
+  later, newest first, or on demand.
+
 ## Not walked (blocked by W0, before the bridge)
 
 These need the window:
