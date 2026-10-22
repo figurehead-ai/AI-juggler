@@ -17,8 +17,18 @@ Not a task's evidence. This covers QA's findings on 0.0.12/0.0.13 (walks on the 
 | Threads are not processes | `cargo test -p juggler-app --test no_bare_tools every_process_refresh_leaves_out_threads` (every `ProcessRefreshKind::nothing()` says `.without_tasks()`) | pass | passed | PASS | 9ac4c10c | 2026-10-22 | claude-opus |
 | Deterministic tests | `machine_lock` (blocking lock while storage is held, after the tick's count moved); `load_budgets` monitoring (asserts work: ≤6 full scans, only our processes between); `guardrails` (each fixture's own pid; 10/10); AJ-E806's flake log | pass | passed | PASS | b90c6a0c, aaa7d666 | 2026-10-22 | claude-opus |
 | Stand-in writers | `juggler-supervisor/tests/fixtures/stand_in.rs`: every test that writes a fake tool does it from a child `sh` (25 sites) | the converted binaries pass | 20 juggler-app binaries, all adapter tests, `node_script_tool` passed | PASS | d036ac48 | 2026-10-22 | claude-opus |
+| QA after: P16 and P6 on the real setup | QA's Dev-build walk, read-only, of this branch at a7fa83fc; oracle `real_truth.py` at 7673dd07 on `claude/qa-real-walk-clean` (counts top + others, leaves out the harness's own subtree on both sides) | backend = `ps` | "This Mac tools: backend 5; ps has 5 Claude app instances"; memory 13.9 GB vs 13.9 GB (×1.00); top rows [6.3, 3.8, 2.0] = ps; every tree: backend 5 (top 3 + others 2) [6.3, 3.8, 2.0, 1.0, 0.8] = ps. Before (main 5675de90): ×0.88, 3 of 6 rows | PASS | a7fa83fc | 2026-10-22 | QA session |
+| QA after: P17 and the shared-message credit | the same walk: cost rows per session against the transcripts, same credit rule on both sides | within 5 % | 292 sessions in both, 292 within 5 %; ratio min ×1.00, median ×1.00, max ×1.03; 7 still being written, left out. Before: 285 of 289; min ×0.40 (an original), max ×12.49 (its resumed copy); Codex compactions ×0.84 and ×0.93 | PASS | a7fa83fc | 2026-10-22 | QA session |
+| QA after: overall | the same walk; snapshot before and after clean (only `~/.codex`, the live Codex, changed) | — | 42 OK, 7 MISMATCH, 1 INFO (before: 35 OK, 13 MISMATCH). The 7 left are not this batch: projects/sessions (AJ-E1529, passing on release/0.1) and "cost rows priced: 213 of 471" (only `codex-auto-review` unpriced; see Prices) | INFO | a7fa83fc | 2026-10-22 | QA session |
+| "and N more" in the built app | the bridge walk on a build with #122 | — | not run yet; the unit test and the preview cover it here | INFO | — | 2026-10-22 | claude-opus |
 | Prices | OpenAI's pricing page, 2026-10-22: no row for gpt-5-codex, gpt-5.1-codex(-max/-mini), gpt-5.2-codex, codex-auto-review or codex-mini-latest. Claude Haiku 5.5 is priced by prompt length, which a per-row table can't represent | add only with a source | none added | PASS | — | 2026-10-22 | claude-opus |
 
 ## Gates
 
-GATES_TBD
+| Gate | Head | Result |
+|---|---|---|
+| `just verify` (fmt, clippy with and without default features and with dev-bridge, `cargo test --workspace`, docs, evidence, terminology, polling audit, release self-test, dev-bridge check) | a7fa83fc | exit 0; 147 test binaries, 1,152 passed, 0 failed |
+| `tsc --noEmit`, `vitest run` | a7fa83fc | OK; 78 files, 611 passed |
+| `cargo deny check` | a7fa83fc | advisories, bans, licenses, sources ok |
+| `just visual-gate` (Docker) | 4053c0e3 (no UI change after it) | 141 passed; no baseline changed |
+| `just a11y-gate` | 4053c0e3 (no UI change after it) | 682 passed; 852 states, 0 critical / serious / moderate / minor: PASS |
