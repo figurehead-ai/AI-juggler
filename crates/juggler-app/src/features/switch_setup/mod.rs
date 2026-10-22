@@ -272,6 +272,7 @@ pub fn apply_impl(
         match target_adapter.set_up(&sides.target.state_dir, sides.project.as_deref(), item) {
             Ok(applied) => {
                 let what = format!("{} {}", item.kind.words(), item.name);
+                let note = applied.note.clone();
                 let record = Record {
                     id: format!("setup-{}", crate::commands::unique_suffix()),
                     account: sides.target.id.to_string(),
@@ -283,7 +284,10 @@ pub fn apply_impl(
                 out.push(AppliedInfo {
                     offer: id.clone(),
                     record: Some(record.id),
-                    message: format!("Set up the {what}"),
+                    message: match note {
+                        Some(note) => format!("Set up the {what} ({note})"),
+                        None => format!("Set up the {what}"),
+                    },
                 });
             }
             Err(error) => out.push(AppliedInfo {

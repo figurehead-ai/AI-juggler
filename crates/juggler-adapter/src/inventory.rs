@@ -169,6 +169,10 @@ pub struct Applied {
     pub summary: String,
     /// How to undo it.
     pub undo: Undo,
+    /// What the user should know about it ("left out: .env"), when
+    /// anything.
+    #[serde(default)]
+    pub note: Option<String>,
 }
 
 /// How to undo one set-up.

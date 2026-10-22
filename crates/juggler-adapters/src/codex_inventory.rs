@@ -249,6 +249,7 @@ fn add_mcp(home: &Path, name: &str, server: &McpServer) -> Result<Applied, Adapt
             text: appended,
             backup: backup.is_file().then_some(backup),
         },
+        note: None,
     })
 }
 

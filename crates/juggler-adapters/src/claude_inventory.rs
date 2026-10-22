@@ -343,6 +343,7 @@ fn add_mcp(
             cwd: folder.map(Path::to_path_buf),
             unless_changed,
         },
+        note: None,
     })
 }
 
