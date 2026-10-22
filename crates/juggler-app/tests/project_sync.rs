@@ -810,3 +810,45 @@ fn a_link_to_a_file_elsewhere_isnt_counted() {
     assert!(!file(&rules, "AGENTS.md").counts);
     assert_eq!(rules.summary.as_deref(), Some("Rules in sync"));
 }
+
+#[test]
+fn a_claude_md_linked_to_agents_md_is_in_sync_with_it() {
+    // Re-review of AJ-E1507 (N1): the link the other way round. CLAUDE.md
+    // is the link, AGENTS.md the file; AGENTS.md is the master.
+    let lab = lab();
+    write(&lab, "AGENTS.md", "# Rules\n", 1);
+    std::os::unix::fs::symlink("AGENTS.md", lab.root.join("CLAUDE.md")).unwrap();
+    let rules = rules_impl(&lab.state, &lab.project, None).unwrap();
+    assert_eq!(rules.master.as_deref(), Some("AGENTS.md"));
+    assert_eq!(file(&rules, "CLAUDE.md").standing, "link");
+    assert_eq!(rules.summary.as_deref(), Some("Rules in sync"));
+}
+
+#[test]
+fn a_project_without_rules_files_says_nothing() {
+    // Re-review of AJ-E1507 (N2): Claude Code works here, and there's no
+    // rules file at all: nothing to differ from, so no line.
+    let lab = lab();
+    let rules = rules_impl(&lab.state, &lab.project, None).unwrap();
+    assert_eq!(rules.master, None);
+    assert_eq!(rules.summary, None);
+    assert!(rules.in_sync);
+}
+
+#[test]
+fn an_undo_leaves_a_link_the_user_put_in_place_of_a_new_file() {
+    // Re-review of AJ-E1507 (N3): the file the apply created, replaced by a
+    // link to the master (whose text is the same).
+    let lab = lab();
+    write(&lab, "CLAUDE.md", "# Rules\n", 1);
+    let record = apply_now(&lab, "CLAUDE.md", "AGENTS.md", "copy").unwrap();
+    std::fs::remove_file(lab.root.join("AGENTS.md")).unwrap();
+    std::os::unix::fs::symlink("CLAUDE.md", lab.root.join("AGENTS.md")).unwrap();
+    assert!(undo_impl(&lab.state, &record).is_err());
+    assert!(
+        std::fs::symlink_metadata(lab.root.join("AGENTS.md"))
+            .unwrap()
+            .file_type()
+            .is_symlink()
+    );
+}

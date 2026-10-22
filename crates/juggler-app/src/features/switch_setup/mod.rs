@@ -402,7 +402,8 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<SetUpInfo>> {
 pub fn undo_impl(state: &Arc<AppState>, record_id: &str) -> AppResult<String> {
     let _records = RECORDS
         .lock()
-        .map_err(|_| AppError::Refused("set-ups are busy".to_owned()))?;
+        // A panic elsewhere mid-save leaves the file as it was: carry on.
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let mut records = load(state);
     let at = records
         .iter()
@@ -444,7 +445,8 @@ pub fn undo_impl(state: &Arc<AppState>, record_id: &str) -> AppResult<String> {
 pub fn forget_impl(state: &Arc<AppState>, record_id: &str) -> AppResult<String> {
     let _records = RECORDS
         .lock()
-        .map_err(|_| AppError::Refused("set-ups are busy".to_owned()))?;
+        // A panic elsewhere mid-save leaves the file as it was: carry on.
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let mut records = load(state);
     let at = records
         .iter()
@@ -468,11 +470,15 @@ pub(crate) fn undo_now(how: &Undo) -> AppResult<()> {
 fn undo(how: &Undo) -> AppResult<()> {
     match how {
         Undo::RemoveCreated { files, dirs } => {
+            // A file the user has since replaced with a link is theirs now,
+            // whatever the link points to.
             let changed: Vec<&PathBuf> = files
                 .iter()
                 .filter(|(path, sha)| {
-                    std::fs::read(path)
-                        .is_ok_and(|bytes| juggler_adapter::handover::sha256_hex(&bytes) != *sha)
+                    std::fs::symlink_metadata(path).is_ok_and(|meta| meta.file_type().is_symlink())
+                        || std::fs::read(path).is_ok_and(|bytes| {
+                            juggler_adapter::handover::sha256_hex(&bytes) != *sha
+                        })
                 })
                 .map(|(path, _)| path)
                 .collect();
@@ -636,7 +642,8 @@ pub(crate) fn record(
 fn save(state: &Arc<AppState>, record: &Record) -> AppResult<()> {
     let _records = RECORDS
         .lock()
-        .map_err(|_| AppError::Refused("set-ups are busy".to_owned()))?;
+        // A panic elsewhere mid-save leaves the file as it was: carry on.
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let mut records = load(state);
     records.push(record.clone());
     write(state, &records)

@@ -151,20 +151,32 @@ fn read_files(root: &Path, specs: &[ToolSpec]) -> Vec<Read> {
         .map(|(name, _)| juggler_adapter::inventory::file_identity(&root.join(name)))
         .collect();
     let all: Vec<String> = names.iter().map(|(name, _)| name.clone()).collect();
+    let symlinks: Vec<bool> = names
+        .iter()
+        .map(|(name, _)| {
+            std::fs::symlink_metadata(root.join(name))
+                .is_ok_and(|meta| meta.file_type().is_symlink())
+        })
+        .collect();
     names
         .into_iter()
         .enumerate()
         .map(|(at, (name, tools))| {
             let path = root.join(&name);
-            let is_symlink =
-                std::fs::symlink_metadata(&path).is_ok_and(|meta| meta.file_type().is_symlink());
-            // A link names the file it points to; of two plain names of one
-            // file, the later one is the link.
+            let is_symlink = symlinks[at];
+            // A link names the file it points to, a plain file. Of two plain
+            // names of one file (a hard link, a case-insensitive disk), the
+            // later one is the link. A plain file is never a link to a
+            // symlink pointing at it (re-review: CLAUDE.md → AGENTS.md made
+            // both links, and nothing could be compared).
             let link_to = ids[at].as_ref().and_then(|id| {
                 ids.iter()
                     .enumerate()
                     .find(|(other, other_id)| {
-                        *other != at && other_id.as_ref() == Some(id) && (is_symlink || *other < at)
+                        *other != at
+                            && other_id.as_ref() == Some(id)
+                            && !symlinks[*other]
+                            && (is_symlink || *other < at)
                     })
                     .map(|(other, _)| all[other].clone())
             });
@@ -285,10 +297,15 @@ pub fn rules_impl(
         let counts = match standing {
             "broken" => true,
             "differs" => can_apply,
-            "missing" => file
-                .tools
-                .iter()
-                .any(|tool| project.tools_used.contains(tool)),
+            // Only beside a master: a project with no rules file at all has
+            // nothing to differ from (re-review: it warned on every one).
+            "missing" => {
+                master.is_some()
+                    && file
+                        .tools
+                        .iter()
+                        .any(|tool| project.tools_used.contains(tool))
+            }
             _ => false,
         };
         differ += usize::from(counts);
