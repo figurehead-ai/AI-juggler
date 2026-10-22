@@ -1,7 +1,7 @@
 # 06 — External Developer Pain Research (Second Pass)
 
 > Parent: maintainer canonical workflow in
-> [expected-worfklow.md](../../expected-worfklow.md#L1).
+> [expected-workflow.md](../../internal/expected-workflow.md#L1).
 > Prior research cited as: Maximum-Depth Report (MDR) §01–§13 in
 > [AI-Juggler-Maximum-Depth-Report-and-Proposal.md](../AI-Juggler-Maximum-Depth-Report-and-Proposal.md#L1)
 > and Competitive UX Review (CUX) F1–F7 in
@@ -32,7 +32,7 @@
   marker (see §7). `[verified]`
 - The maintainer workflow demands switching "as many times as
   I want, back and forth" in
-  [expected-worfklow.md](../../expected-worfklow.md#L7).
+  [expected-workflow.md](../../internal/expected-workflow.md#L7).
   Prior handover design (MDR §09) is A→B→A linear. External
   switcher tools already do pool round-robin across 3+ seats;
   Juggler's lineage model has no pool view (see §3). `[verified]`
@@ -41,13 +41,13 @@
   yet external pain (429 tier mismatch, per-family quotas) is
   structurally identical to Claude/Codex. Deferring it leaves
   the "multiple tools" promise in
-  [expected-worfklow.md](../../expected-worfklow.md#L3)
+  [expected-workflow.md](../../internal/expected-workflow.md#L3)
   unproven for a third of the named workflow. `[inferred]`
 
 ## 1. Terminology: maintainer language vs. repo domain
 
 Maintainer language is normative per
-[expected-worfklow.md](../../expected-worfklow.md#L11):
+[expected-workflow.md](../../internal/expected-workflow.md#L11):
 "we should call them providers, accounts, and instances of
 the tool". The repo does not yet speak this language.
 
@@ -73,7 +73,7 @@ Findings:
   [SPEC.md](../../SPEC.md#L101)
   has no counterpart in the maintainer workflow, which speaks
   only of switching accounts on a project
-  ([expected-worfklow.md](../../expected-worfklow.md#L5)).
+  ([expected-workflow.md](../../internal/expected-workflow.md#L5)).
   CUX F2.2 already flags Instances ≠ Sessions conflation;
   Profile adds a third noun. Recommendation: demote Profile
   to an advanced/settings concept; default UX speaks
@@ -381,7 +381,7 @@ masks it — a failure class absent from prior reports:
 **Feature implication.** This is the strongest argument for
 the maintainer's "icons and labels — which provider,
 account, models currently running" demand in
-[expected-worfklow.md](../../expected-worfklow.md#L13).
+[expected-workflow.md](../../internal/expected-workflow.md#L13).
 Every Instance header and every spawned child must carry a
 verified Account badge derived from the *effective*
 credential (keychain namespace / `CODEX_HOME`), not from
@@ -396,7 +396,7 @@ wrong-account alert before first model call. `[inferred]`
 this explicitly: subprocesses "end up being zombie
 processes" needing "automatic and manual clean ups, all
 with verifications" in
-[expected-worfklow.md](../../expected-worfklow.md#L17).
+[expected-workflow.md](../../internal/expected-workflow.md#L17).
 SPEC §5.1 covers re-adoption on restart in
 [SPEC.md](../../SPEC.md#L224).
 Prior reports do not evidence the *port* consequence.
@@ -531,7 +531,7 @@ Workaround: ccusage post-hoc reports, hard-cap scripts.
 est. USD where API-billed, %/min of window where
 subscription-billed) in the Instance panel header — the
 right-inspector demand in
-[expected-worfklow.md](../../expected-worfklow.md#L14)
+[expected-workflow.md](../../internal/expected-workflow.md#L14)
 — plus a passive runaway alert at 3× the Instance's median
 rate (extends SPEC §5.2 anomaly rule in
 [SPEC.md](../../SPEC.md#L243)

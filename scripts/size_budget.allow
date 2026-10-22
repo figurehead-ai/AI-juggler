@@ -7,7 +7,7 @@
 # the merge left them.
 # Two caps re-based 2026-10-22 at the merge of main (#126): main's #126 grew
 # usage_stats.rs and supervisor.rs, and main has no budget (the
-# coordinator). AJ-E1539 splits LiveStatsCollector out once fix batch 4
+# coordinator). AJ-E1544 splits LiveStatsCollector out once fix batch 4
 # (#130) is in release/0.1, and supervisor.rs's cap comes back down.
 crates/juggler-app/src/commands.rs 4245
 crates/juggler-app/src/link.rs 2382

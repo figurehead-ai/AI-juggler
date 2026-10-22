@@ -6,7 +6,7 @@
 > redaction user choice. Source: `docs/review/decision-log.md:31-56,105-150`,
 > `docs/review/pass2/02-unlimited-bidirectional-switching-engine.md` (all),
 > `docs/review/deep/09-handover-and-quota-engine-design.md` (Part H),
-> `docs/expected-worfklow.md:5-7`, `docs/SPEC.md:261-306`,
+> `docs/internal/expected-workflow.md:5-7`, `docs/SPEC.md:261-306`,
 > `docs/plan/EPICS.md:99-109` (M4-1..M4-7).
 > Reading order for implementers: decision-log D-03/D-04/D-05/D-11/D-14
 > first, then pass2/02 §2-§10, then deep/09 §H1-H9. Code truth wins
@@ -332,7 +332,7 @@ so a failed switch never costs me the work itself.
    edge; silent partial state SHALL be impossible by construction.
 6. Zombie children of a frozen Instance SHALL be listed at freeze;
    cleanup SHALL be a separate confirmed action, never a silent
-   side-effect of switching (`expected-worfklow.md:17-18`).
+   side-effect of switching (`expected-workflow.md:17-18`).
 7. Same-branch + both-live SHALL warn and offer a worktree for the
    target; uncommitted diff SHALL be snapshotted into `diffs/` at
    freeze but SHALL NOT be auto-applied to another worktree.

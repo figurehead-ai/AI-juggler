@@ -1,125 +1,240 @@
-# 🤹 AI Juggler
+# AI Juggler
 
-**Start anywhere. Switch when you hit the wall. Never lose the thread — or leave a zombie behind.**
+**See every Claude Code and Codex session and account on your Mac, with honest usage and limits.**
 
-*One console for every Provider, Account, and session you juggle.*
+Free and open source (MIT), local-first, for macOS. AI Juggler works with the
+coding tools you already use. It never proxies their traffic, never signs in
+for you, and never stores your credentials.
 
 [![CI](https://github.com/figurehead-ai/AI-juggler/actions/workflows/ci.yml/badge.svg)](https://github.com/figurehead-ai/AI-juggler/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/figurehead-ai/AI-juggler?include_prereleases&label=release)](https://github.com/figurehead-ai/AI-juggler/releases)
+[![macOS 14+](https://img.shields.io/badge/macOS-14%2B-informational)](#download)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
-AI Juggler is a free, open-source desktop app (Rust + Tauri 2, macOS
-first) for developers who run several AI coding subscriptions —
-**Claude Code** and **Codex** today, with more tools planned — and are tired of
-juggling them by hand. It supervises the command-line tools you already
-have installed. It never proxies their traffic, never automates a vendor
-sign-in, and never stores vendor credentials.
+[Download](#download) · [Quick start](#quick-start) · [User guide](./docs/guide/) · [Privacy](#what-ai-juggler-reads-writes-and-sends) · [Discussions](https://github.com/figurehead-ai/AI-juggler/discussions)
 
-> **Status: public beta builds for macOS** (Beta and Nightly channels,
-> signed and notarized; see [Releases](https://github.com/figurehead-ai/AI-juggler/releases)).
-> The engine, the Claude Code and Codex adapters, the session-centric UI
-> with its right-hand Inspector, smart onboarding (setups used where
-> they are, or as copies), switching (labelled beta fidelity), process
-> ownership and cleanup, the two-clock usage model, This Mac, Fleet
-> (multi-machine) and the derived daily workflows are built and
-> continuously tested. See [the task board](./docs/tasks/) for exactly
-> what is done, and what is next.
+<!-- Screenshots (Home, Accounts, a session, This Mac; light and dark) are captured from the test setup for the 0.1 release. -->
 
----
+## Why
 
-## The problem
+If you pay for more than one AI coding subscription, say two Claude accounts
+and Codex, you end up juggling by hand: config folders, shell aliases,
+terminal tabs, and guessing which account still has room. AI Juggler puts all
+of it in one window:
 
-Modern AI-assisted development means running several coding agents at once:
+- **Every session in one list**, grouped by project, including the ones you
+  started in a terminal or in the Claude app.
+- **Usage and limits you can trust.** A number is shown only when it was
+  measured. Anything else says "Not measured yet", never a made-up 100%.
+- **Your Mac at a glance.** How much memory and CPU your AI tools use, which
+  window is heavy, and leftover processes you can clean up.
+- **Accounts managed for you.** Use each setup where it already is, or as a
+  separate copy, and start a session on the account you choose.
 
-- Several subscriptions of the same tool (say, two Claude Max accounts) that don't run side by side out of the box
-- Different tools for different strengths, each with its own logins, config folders and conventions
-- A quota that runs out mid-task, with no smooth way to let another account or tool continue the work
-- Sessions scattered across terminals — hard to track, hand over, or notice when one is stuck
+## Download
 
-Most of us solve this with shell aliases, terminal tabs and config-folder
-hacks. AI Juggler replaces that pile with one app.
+| App | Channel | Get it |
+| --- | --- | --- |
+| **AI Juggler** | Stable or Beta (you choose in Settings) | [Latest release](https://github.com/figurehead-ai/AI-juggler/releases) — `AI-Juggler-<version>-universal.dmg` |
+| **AI Juggler Nightly** | Nightly (a separate app with its own data) | [Releases](https://github.com/figurehead-ai/AI-juggler/releases) — `AI-Juggler-Nightly-<version>-universal.dmg` |
 
-## What it does
+**Requirements:** macOS 14 Sonoma or later, on Apple silicon or Intel (one
+universal app). At least one of [Claude Code](https://www.npmjs.com/package/@anthropic-ai/claude-code)
+or [Codex](https://github.com/openai/codex) installed and signed in.
 
-| Pillar | What you get |
+Every build is signed and notarized by Apple. The first time you open it,
+macOS asks whether you're sure; choose **Open**.
+
+AI Juggler checks for updates at launch and offers them; it never installs
+one without you. Settings › About & updates shows your version, lets you
+switch between Stable and Beta, and can go back to an earlier version.
+
+## Quick start
+
+1. Open AI Juggler and choose **Find my accounts**. It looks for your Claude
+   Code and Codex setups (for example `~/.claude` and `~/.codex`).
+2. For each setup, choose **Use it where it is** (nothing is copied) or
+   **Make a separate copy** (AI Juggler keeps its own copy, and your original
+   is never touched).
+3. If a tool needs you to sign in, it opens that tool's own sign-in.
+   AI Juggler never sees your password.
+4. Your sessions show up in the list on the left, under their projects,
+   wherever you started them. Start a new one with **New session**.
+
+The [user guide](./docs/guide/) covers each step in more detail.
+
+## What works today
+
+| | Status |
 | --- | --- |
-| 🔀 **Switch** | Move the work (conversation, context, project state) between Accounts and Providers. One click when the pair is proven; an itemised wizard when something would be lost; switch-back resumes the original. Cross-Provider switching is labelled beta with a fidelity badge — never marketed as lossless. |
-| 👁️ **See** | A right-hand Inspector for any Provider, Account, session, conversation or Project: usage, history, quality signals, owned processes and actions. A field shows only when it can actually be measured. |
-| 🧹 **Clean** | Every process AI Juggler spawns is owned until it exits. Leftovers are verified before anything is stopped; automatic cleanup is opt-in per Account and every stop is audited. |
-| 🎭 **Parallelism** | Many Accounts per Provider, each in its own isolated folder; one-click launches from a project or folder. |
-| 🚀 **Smart onboarding** | Scans your machine (including other manager tools' profiles), proposes a set of Accounts, imports read-only copies, and guides each Provider's own sign-in. |
-| 📊 **Two clocks** | Usage windows (5-hour/weekly) that trigger a switch suggestion, plus optional renewal dates you enter yourself. |
-| 🌐 **Fleet** | Your own machines, paired by code, in one console (in progress). |
+| Every session and project, including ones started outside AI Juggler | Works |
+| History of finished sessions, searchable | Works |
+| Usage and costs per session, account and project, from the tools' own records | Works |
+| Codex limits, read from what Codex records | Works |
+| Claude limits | Works for sessions started in AI Juggler; for other sessions, turn it on per account (see [Privacy](#what-ai-juggler-reads-writes-and-sends)) |
+| This Mac: memory and CPU of your AI tools, including the Claude app | Works |
+| Cleaning up leftover processes (automatic cleanup is off unless you turn it on) | Works |
+| Rename, remove and choose a default account | Works |
+| Backups, and going back to an earlier version | Works |
+| Switching a conversation to another account or tool | Beta: it shows what carries over, and no pair is verified yet |
+| Fleet: your other Macs in the same window | Beta: not yet verified across two Macs |
+| More tools (OpenCode, ZCode, Kimi and others) | Planned |
+| Windows and Linux | Not before 1.0 |
 
-## Principles
+## Supported tools
 
-- **Works with your tools, never replaces them.** AI Juggler orchestrates
-  the vendor CLIs you install; it is not another agent.
-- **Compliant by design.** It manages only accounts you own, never
-  automates sign-in, never shares credentials, and respects each vendor's
-  per-account limits and terms. See the [proposal](./docs/PROPOSAL.md).
-- **Local-first and private.** Works fully offline with no account. An
-  optional Figurehead account adds cloud features you choose to turn on
-  — each one says what it sends, and content is end-to-end encrypted.
-  Usage statistics are off unless you turn them on; see
-  [docs/usage-stats.md](./docs/usage-stats.md).
-- **Honest UI.** Unknown values say "unknown"; estimates say "estimate";
-  nothing is dressed up as measured.
-
-## Supported Providers
-
-| Provider | Status |
+| Tool | Support |
 | --- | --- |
-| Claude Code | ✅ Adapter built (the `claude` CLI) |
-| Codex | ✅ Adapter built (the `codex` CLI; beta) |
-| ZCode | 🔬 Researched; adapter planned (E15) |
-| Others (Gemini CLI and successors, …) | 🔌 Via the adapter system |
+| **Claude Code** (the `claude` command) | Sessions, usage, limits, starting sessions, switching (beta) |
+| **Codex** (the `codex` command) | Sessions, usage, limits, starting sessions, switching (beta) |
+| **Claude app** (desktop) | Its Claude Code sessions are listed; This Mac measures its memory and CPU |
+
+AI Juggler finds each tool through your shell's `PATH`, the way your terminal
+does, even when you open the app from Finder.
+
+## What AI Juggler reads, writes and sends
+
+**Reads, on your Mac only:**
+
+- Your tool setups: Claude Code's `~/.claude` (and other Claude folders you
+  use) and Codex's `~/.codex`, to list conversations and count usage from
+  their transcripts.
+- Account names and emails from those setups, so you can tell accounts
+  apart.
+- The list of running processes, to show live sessions and This Mac.
+
+It checks only whether a sign-in exists. It never reads your passwords,
+tokens or API keys, and never opens the tools' Keychain items.
+
+**Writes:**
+
+- Its own data folder, `~/Library/Application Support/AI Juggler`
+  (`AI Juggler Nightly` for Nightly). Copies of setups, backups and settings
+  live there.
+- Nothing in your own setups, with two exceptions you choose:
+  - **Measuring Claude limits for sessions started elsewhere** (off by
+    default, per account). It shows the exact one-line change to that
+    account's `settings.json` before making it, keeps your own status line
+    working, and turning it off restores the file exactly.
+  - **Switching a conversation** into an account adds the new conversation's
+    file to that account. Existing files are never changed.
+
+**Sends:**
+
+- An update check to GitHub at launch.
+- Nothing else unless you turn it on: usage statistics (off by default, see
+  [docs/usage-stats.md](./docs/usage-stats.md)), Fleet (your own Macs talk
+  directly to each other on your network, with no relay), and the optional
+  Figurehead account.
+- Crash reports stay on your Mac. Nothing is ever sent automatically.
+
+AI Juggler makes no requests to Anthropic, OpenAI or any other AI provider.
+
+## Permissions
+
+All optional. AI Juggler works without any of them.
+
+| Permission | What it's for | Without it |
+| --- | --- | --- |
+| Accessibility and Automation | Jumping to a session's own window | The app opens, but not the exact window |
+| Local Network | Fleet, finding your other Macs | Fleet stays off |
+
+## Staying within your tools' terms
+
+- Only accounts you own. AI Juggler never shares or pools accounts.
+- No automatic rotation to get around limits. Switching is something you
+  choose, one conversation at a time.
+- The real, unmodified tools, run the way you'd run them yourself.
+
+The [proposal](./docs/PROPOSAL.md) explains the reasoning.
+
+## FAQ
+
+**Do I need an API key?** No. AI Juggler uses the tools you've already signed
+in to.
+
+**Why does a limit say "Not measured yet"?** The tool hasn't reported that
+limit to AI Juggler yet. AI Juggler shows a percentage only when one was
+measured, never a guess.
+
+**Does it change my `~/.claude` or `~/.codex`?** Not unless you turn on one of
+the two options above, and each shows you what it will change first.
+
+**Can I run Stable and Nightly side by side?** Yes. AI Juggler Nightly is a
+separate app with its own data.
+
+**Is switching lossless?** No. Switching is beta. It shows exactly what
+carries over before you confirm, and you can switch back.
+
+**Windows or Linux?** Not before 1.0. The core is written to make that port
+possible.
+
+## Troubleshooting
+
+- **A tool isn't found when AI Juggler is opened from Finder.** AI Juggler
+  reads your login shell's `PATH`. Check that `claude` or `codex` runs in a
+  new terminal window, then reopen AI Juggler.
+- **"Another AI Juggler is open."** AI Juggler waits a few seconds for an
+  earlier copy to finish quitting. If it says this, choose **Try again**, or
+  quit the other copy.
+- **An update failed, or you want the previous version.** Settings › About &
+  updates › **Go back to an earlier version**.
+- **Something else?** Ask in [Discussions](https://github.com/figurehead-ai/AI-juggler/discussions)
+  or [open an issue](https://github.com/figurehead-ai/AI-juggler/issues/new/choose).
+
+## Uninstall
+
+1. In AI Juggler, open Settings › Data › **Before you uninstall** and choose
+   **Prepare to uninstall**. It puts back the one setting AI Juggler may have
+   added to a Claude account (measuring limits for sessions started
+   elsewhere), and lists what's left for you to remove.
+2. Quit AI Juggler and move it to the Trash.
+3. Delete `~/Library/Application Support/AI Juggler` (and
+   `AI Juggler Nightly`) to remove its data, copies and backups.
+
+Your own `~/.claude` and `~/.codex` folders are left as they are.
+
+## Roadmap
+
+- More tools: OpenCode, ZCode, Kimi and others.
+- Rules and MCP servers kept in sync across your tools.
+- Notifications when a session needs you.
+- Groups of accounts, and agents that can message each other.
+
+Ideas and votes are welcome in
+[Discussions](https://github.com/figurehead-ai/AI-juggler/discussions).
 
 ## Build from source
 
-You need stable Rust (pinned by `rust-toolchain.toml`), Node ≥ 22 with
-pnpm 10, and [`just`](https://github.com/casey/just). On macOS, install
-the Xcode Command Line Tools.
+You need Rust (the version is pinned by `rust-toolchain.toml`), Node 22 or
+later with pnpm 10, [`just`](https://github.com/casey/just), the Tauri CLI
+(`cargo install tauri-cli --version "^2" --locked`) and the Xcode Command Line
+Tools.
 
 ```bash
 git clone https://github.com/figurehead-ai/AI-juggler.git
 cd AI-juggler
 pnpm --dir ui install
-just dev        # the desktop app (as AI Juggler Dev: its own data) with UI hot-reload
-just verify     # every gate CI runs: fmt, clippy, tests, docs, evidence, terminology
+just dev        # runs "AI Juggler Dev", with its own data, and reloads the UI as you edit
+just verify     # every check CI runs
 ```
 
-[CONTRIBUTING.md](./CONTRIBUTING.md) has the full developer guide.
+[CONTRIBUTING.md](./CONTRIBUTING.md) is the developer guide. The
+[technical specification](./docs/SPEC.md) and the
+[architecture decisions](./docs/adr/) explain how it's built.
 
-## Documentation
+## Community
 
-- [User guide](./docs/guide/) — short how-tos (for example, what to do when a Provider is down)
-- [Product proposal](./docs/PROPOSAL.md) — the problem, users, landscape, risks, compliance
-- [Technical specification](./docs/SPEC.md) — architecture, adapters, data model
-- [Decision log](./docs/review/decision-log.md) — settled product decisions (D-01 …)
-- [ADRs](./docs/adr/) — architecture decision records
-- [Task board](./docs/tasks/) — every epic and task with its status and evidence
-- [Quality standards](./docs/plan/QUALITY.md) — engineering standards and the Definition of Done
-- [Research notes](./docs/research/) — Claude Code, Codex, ZCode, Gemini, billing sources
-- [Visual states gallery](./docs/qa/evidence/_gallery/) — every UI state in both themes
-
-## Install
-
-Nothing to install yet. The first release will be a signed and notarized
-macOS app with built-in updates; early builds ship as `v0.1.0-beta.*`.
-Watch [releases](https://github.com/figurehead-ai/AI-juggler/releases).
-
-## Contributing and community
-
-Contributions are welcome — read [CONTRIBUTING.md](./CONTRIBUTING.md)
-first. Please follow the [Code of Conduct](./CODE_OF_CONDUCT.md). Report
-security problems privately as described in [SECURITY.md](./SECURITY.md).
-For questions, see [SUPPORT.md](./SUPPORT.md).
+- [Contributing](./CONTRIBUTING.md)
+- [Code of Conduct](./CODE_OF_CONDUCT.md)
+- [Security policy](./SECURITY.md): report vulnerabilities privately
+- [Support](./SUPPORT.md)
 
 ## License and trademarks
 
 The code is [MIT](./LICENSE) © Faruk Brbovic and AI Juggler contributors.
 
-The names **AI Juggler** and **Figurehead**, the logos and the app icon
-are trademarks of Vuxtra LLC. The MIT License doesn't cover them. You can use the
-code for anything and refer to the project by name. A modified build you
+The names **AI Juggler** and **Figurehead**, the logos and the app icon are
+trademarks of Vuxtra LLC and aren't covered by the MIT License. You can use
+the code for anything and refer to the project by name; a modified build you
 distribute needs its own name and icon. See [TRADEMARKS.md](./TRADEMARKS.md).
