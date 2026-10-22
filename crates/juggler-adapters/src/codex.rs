@@ -618,10 +618,16 @@ impl HarnessAdapter for CodexAdapter {
         mode: &LaunchMode,
     ) -> Result<LaunchSpec, AdapterError> {
         let bin = self.require_bin()?;
-        let effective_cwd = profile
-            .default_cwd
-            .clone()
-            .unwrap_or_else(|| cwd.to_path_buf());
+        // AJ-E1540: a resumed or primed session continues work that lives
+        // in `cwd` (its conversation, its files): it runs there. The
+        // launch settings' folder is only where a fresh session starts.
+        let effective_cwd = match mode {
+            LaunchMode::Resume { .. } | LaunchMode::Primed { .. } => cwd.to_path_buf(),
+            _ => profile
+                .default_cwd
+                .clone()
+                .unwrap_or_else(|| cwd.to_path_buf()),
+        };
         // Launch-settings overrides first, isolation LAST (AJ-E309).
         let mut env: EnvMap = profile.settings_overlay.env.clone();
         env.extend(home_env(&account.state_dir, self.user_home().as_deref()));

@@ -473,10 +473,16 @@ impl HarnessAdapter for ClaudeCodeAdapter {
                 "claude binary not found; run discovery for details".into(),
             ));
         };
-        let effective_cwd = profile
-            .default_cwd
-            .clone()
-            .unwrap_or_else(|| cwd.to_path_buf());
+        // AJ-E1540: a resumed or primed session continues work that lives
+        // in `cwd` (its conversation, its files): it runs there. The
+        // launch settings' folder is only where a fresh session starts.
+        let effective_cwd = match mode {
+            LaunchMode::Resume { .. } | LaunchMode::Primed { .. } => cwd.to_path_buf(),
+            _ => profile
+                .default_cwd
+                .clone()
+                .unwrap_or_else(|| cwd.to_path_buf()),
+        };
         // Launch-settings overrides first, isolation LAST: an
         // override can never repoint the config dir (AJ-E309 — the
         // env editor refuses these keys too; this is the backstop).
