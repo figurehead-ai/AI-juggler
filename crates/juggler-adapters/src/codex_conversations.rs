@@ -48,14 +48,28 @@ pub fn conversation_files(home: &Path) -> Vec<PathBuf> {
 #[must_use]
 pub fn read_conversation(path: &Path) -> Option<ConversationSummary> {
     let bytes = std::fs::read(path).ok()?;
+    summary_of(&bytes, &path.file_name()?.to_string_lossy())
+}
+
+/// QA batch 10: a large rollout's quick read, from its start and end
+/// (`file_ends`): all but its tokens, which need the whole file.
+#[must_use]
+pub fn read_conversation_quick(path: &Path) -> Option<ConversationSummary> {
+    let ends = juggler_adapter::conversation::file_ends(path)?;
+    let mut summary = summary_of(&ends, &path.file_name()?.to_string_lossy())?;
+    summary.tokens = juggler_core::model::TokenCounts::default();
+    Some(summary)
+}
+
+/// What a rollout's bytes (whole, or its two ends) say.
+fn summary_of(bytes: &[u8], name: &str) -> Option<ConversationSummary> {
     if bytes.iter().all(u8::is_ascii_whitespace) {
         return None;
     }
-    let name = path.file_name()?.to_string_lossy().into_owned();
-    let parsed = parse_rollout(&bytes);
+    let parsed = parse_rollout(bytes);
     let mut summary = ConversationSummary {
-        id: rollout_thread_id(&bytes, &name)?,
-        cwd: rollout_cwd(&bytes).map(PathBuf::from),
+        id: rollout_thread_id(bytes, name)?,
+        cwd: rollout_cwd(bytes).map(PathBuf::from),
         tokens: parsed.usage,
         title: parsed
             .messages
@@ -64,7 +78,7 @@ pub fn read_conversation(path: &Path) -> Option<ConversationSummary> {
             .and_then(|message| title_from(&message.text, TITLE_MAX)),
         ..ConversationSummary::default()
     };
-    for line in String::from_utf8_lossy(&bytes).lines() {
+    for line in String::from_utf8_lossy(bytes).lines() {
         let Ok(value) = serde_json::from_str::<serde_json::Value>(line) else {
             continue;
         };
@@ -215,5 +229,53 @@ mod tests {
         assert_eq!(summary.last_ms.unwrap() - summary.started_ms.unwrap(), 9500);
         assert_eq!((summary.tokens.input, summary.tokens.output), (100, 20));
         assert_eq!(conversation_files(dir.path()), vec![path]);
+        // Small: no quick read, the whole file is as quick.
+        assert!(read_conversation_quick(&summary_path(&dir)).is_none());
+    }
+
+    fn summary_path(dir: &tempfile::TempDir) -> std::path::PathBuf {
+        dir.path()
+            .join("sessions/2026/10/21/rollout-2026-10-21T10-00-00-0199a2b3-c4d5-7e6f-8a9b-0c1d2e3f4a5b.jsonl")
+    }
+
+    /// QA batch 10: a large rollout's quick read takes its thread, folder,
+    /// branch, ask and first time from its start and its last activity
+    /// from its end, and leaves its tokens to the whole read.
+    #[test]
+    fn a_large_rollouts_quick_read_takes_its_ends() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir
+            .path()
+            .join("rollout-2026-10-21T10-00-00-0199a2b3-c4d5-7e6f-8a9b-0c1d2e3f4a5b.jsonl");
+        let mut text = [
+            r#"{"timestamp":"2026-10-21T10:00:00.000Z","type":"session_meta","payload":{"id":"0199a2b3-c4d5-7e6f-8a9b-0c1d2e3f4a5b","cwd":"/w/api","git":{"branch":"main"}}}"#,
+            r#"{"timestamp":"2026-10-21T10:00:02.000Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Speed up the import job"}]}}"#,
+        ]
+        .join("\n");
+        text.push('\n');
+        for n in 0..3_000 {
+            text.push_str(&format!(
+                r#"{{"timestamp":"2026-10-21T11:00:00.000Z","type":"token_usage_record","payload":{{"thread_id":"t","turn_id":"{n}","response_id":"r{n}","usage":{{"input_tokens":10,"output_tokens":1}}}},"pad":"{}"}}"#,
+                "x".repeat(200)
+            ));
+            text.push('\n');
+        }
+        text.push_str(r#"{"timestamp":"2026-10-21T17:30:00.000Z","type":"event_msg","payload":{"type":"agent_message","message":"done"}}"#);
+        text.push('\n');
+        std::fs::write(&path, &text).unwrap();
+        let quick = read_conversation_quick(&path).unwrap();
+        let whole = read_conversation(&path).unwrap();
+        assert_eq!(quick.id, whole.id);
+        assert_eq!(
+            (quick.cwd.clone(), quick.git_branch.clone()),
+            (whole.cwd.clone(), whole.git_branch.clone())
+        );
+        assert_eq!(quick.title.as_deref(), Some("Speed up the import job"));
+        assert_eq!(
+            (quick.started_ms, quick.last_ms),
+            (whole.started_ms, whole.last_ms)
+        );
+        assert_eq!(quick.tokens, juggler_core::model::TokenCounts::default());
+        assert_eq!((whole.tokens.input, whole.tokens.output), (30_000, 3_000));
     }
 }

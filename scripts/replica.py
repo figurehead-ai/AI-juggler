@@ -305,6 +305,27 @@ def codex_rollout(folder: Path, cwd: str, start: dt.datetime, rng: random.Random
     return thread, at, tokens, topic
 
 
+def pad_newest_rollout(home: Path, truth: dict, mb: int) -> None:
+    """QA batch 10: one Mac's rollouts were 6.6 GB, the newest the biggest,
+    and the first index pass read each whole before anything showed. This
+    makes the newest Codex rollout about `mb` MB with reasoning items
+    (no tokens, no new ask), so the truth is unchanged and a walk sees the
+    first pass on a large file."""
+    newest = max((c for c in truth["conversations"] if c["tool"] == "codex"), key=lambda c: c["last"])
+    path = next(home.glob(f".codex*/sessions/*/*/*/rollout-*{newest['id']}.jsonl"))
+    stamp = path.stat().st_mtime
+    lines = path.read_text().splitlines()
+    first_at = json.loads(lines[0])["timestamp"]
+    chunk = json.dumps({"timestamp": first_at, "type": "response_item", "payload": {
+        "type": "reasoning", "summary": [], "content": [{"type": "reasoning_text", "text": "x" * 65_000}]}})
+    with path.open("w") as out:
+        out.write(lines[0] + "\n")
+        for _ in range(mb * 1024 * 1024 // len(chunk)):
+            out.write(chunk + "\n")
+        out.write("\n".join(lines[1:]) + "\n")
+    os.utime(path, (stamp, stamp))
+
+
 def build(args: argparse.Namespace) -> None:
     home = Path(args.home).expanduser()
     refuse_real(home)
@@ -369,6 +390,9 @@ def build(args: argparse.Namespace) -> None:
                                            "id": thread, "title": topic, "last": iso(last), "tokens": tokens})
             account["conversations"] += 1
             truth["projects"][project]["conversations"] += 1
+
+    if args.large_rollout_mb:
+        pad_newest_rollout(home, truth, args.large_rollout_mb)
 
     (home / ".zshrc").write_text("".join(
         f"alias claude-{s}='CLAUDE_CONFIG_DIR=~/.claude-{s} claude'\n" for s, _, _ in CLAUDE_HOMES if s)
@@ -574,6 +598,8 @@ def main() -> None:
     b.add_argument("--seed", type=int, default=1531)
     b.add_argument("--days", type=float, default=120)
     b.add_argument("--now")
+    b.add_argument("--large-rollout-mb", type=int, default=0,
+                   help="make the newest Codex rollout about this many MB (a first pass on a large file)")
     l = sub.add_parser("live")
     l.add_argument("--home", required=True)
     l.add_argument("--harness", required=True, help="the fake-harness binary")

@@ -49,6 +49,94 @@ struct Entry {
     len: u64,
     modified: Option<SystemTime>,
     conversation: Option<Conversation>,
+    /// Read whole (its tokens counted), not only its quick read.
+    complete: bool,
+}
+
+/// Calls a pass's `progress` every `every` that read something.
+struct Reporter<'a> {
+    every: std::time::Duration,
+    progress: &'a dyn Fn(),
+    reported: std::time::Instant,
+    unreported: bool,
+}
+
+impl<'a> Reporter<'a> {
+    fn new(every: std::time::Duration, progress: &'a dyn Fn()) -> Self {
+        Self {
+            every,
+            progress,
+            reported: std::time::Instant::now(),
+            unreported: false,
+        }
+    }
+
+    /// A file was read.
+    fn read(&mut self) {
+        self.unreported = true;
+    }
+
+    /// Reports what's read so far, now.
+    fn flush(&mut self) {
+        if self.unreported {
+            (self.progress)();
+            self.reported = std::time::Instant::now();
+            self.unreported = false;
+        }
+    }
+
+    /// Reports what's read so far, when it's time.
+    fn maybe(&mut self) {
+        if self.unreported && self.reported.elapsed() >= self.every {
+            (self.progress)();
+            self.reported = std::time::Instant::now();
+            self.unreported = false;
+        }
+    }
+}
+
+/// Puts one file's read into the index. A conversation that records no
+/// time was last written when its file was.
+fn store(
+    state: &Arc<AppState>,
+    account: &juggler_core::model::Account,
+    path: &std::path::Path,
+    len: u64,
+    modified: Option<SystemTime>,
+    summary: Option<ConversationSummary>,
+    complete: bool,
+) -> AppResult<()> {
+    let written = modified
+        .and_then(|at| at.duration_since(std::time::UNIX_EPOCH).ok())
+        .and_then(|since| i64::try_from(since.as_millis()).ok());
+    let conversation = summary.map(|mut summary| {
+        summary.last_ms = summary.last_ms.or(written);
+        Conversation {
+            folder: summary
+                .cwd
+                .as_ref()
+                .map(|cwd| std::fs::canonicalize(cwd).unwrap_or_else(|_| cwd.clone())),
+            summary,
+            account_id: account.id.to_string(),
+            tool: account.harness.to_string(),
+            path: path.to_path_buf(),
+        }
+    });
+    state
+        .conversations
+        .files
+        .lock()
+        .map_err(|_| AppError::StatePoisoned)?
+        .insert(
+            path.to_path_buf(),
+            Entry {
+                len,
+                modified,
+                conversation,
+                complete,
+            },
+        );
+    Ok(())
 }
 
 /// The in-memory index (one per app).
@@ -278,62 +366,57 @@ fn refresh_with(
         }
     }
     found.sort_by_key(|entry| std::cmp::Reverse(entry.4));
-    let mut reported = std::time::Instant::now();
-    let mut unreported = false;
-    for (account, adapter, path, len, modified) in found {
-        if unreported && reported.elapsed() >= every {
-            progress();
-            reported = std::time::Instant::now();
-            unreported = false;
-        }
+    let mut report = Reporter::new(every, progress);
+    // Two rounds, newest first (QA batch 10: one Mac's Codex rollouts were
+    // 6.6 GB, and reading each whole kept everything from showing for over
+    // a minute). First every new or changed file's quick read (its start
+    // and end) where its tool has one, so the list and what's live come
+    // within seconds; then the whole of each file read quickly, for its
+    // tokens. A file read whole in the first round is complete.
+    let mut later = Vec::new();
+    for (account, adapter, path, len, modified) in &found {
+        report.maybe();
         seen.push(path.clone());
-        let fresh = state
+        let entry = state
             .conversations
             .files
             .lock()
             .map_err(|_| AppError::StatePoisoned)?
-            .get(&path)
-            .is_some_and(|entry| entry.len == len && entry.modified == modified);
-        if fresh {
-            continue;
+            .get(path)
+            .map(|entry| {
+                (
+                    entry.len == *len && entry.modified == *modified,
+                    entry.complete,
+                )
+            });
+        match entry {
+            Some((true, true)) => continue,
+            Some((true, false)) => {
+                later.push((account, adapter, path, len, modified));
+                continue;
+            }
+            _ => {}
         }
         // Read outside the lock: a big transcript never holds up a reader.
-        // A conversation that records no time was last written when
-        // its file was.
-        let written = modified
-            .and_then(|at| at.duration_since(std::time::UNIX_EPOCH).ok())
-            .and_then(|since| i64::try_from(since.as_millis()).ok());
-        let conversation = adapter
-            .read_conversation(&path)
-            .map(|mut summary| {
-                summary.last_ms = summary.last_ms.or(written);
-                summary
-            })
-            .map(|summary| Conversation {
-                folder: summary
-                    .cwd
-                    .as_ref()
-                    .map(|cwd| std::fs::canonicalize(cwd).unwrap_or_else(|_| cwd.clone())),
-                summary,
-                account_id: account.id.to_string(),
-                tool: account.harness.to_string(),
-                path: path.clone(),
-            });
-        state
-            .conversations
-            .files
-            .lock()
-            .map_err(|_| AppError::StatePoisoned)?
-            .insert(
-                path,
-                Entry {
-                    len,
-                    modified,
-                    conversation,
-                },
-            );
+        let (summary, complete) = match adapter.read_conversation_quick(path) {
+            Some(summary) => {
+                later.push((account, adapter, path, len, modified));
+                (Some(summary), false)
+            }
+            None => (adapter.read_conversation(path), true),
+        };
+        store(state, account, path, *len, *modified, summary, complete)?;
         changed = true;
-        unreported = true;
+        report.read();
+    }
+    // What's listed and live, at once, before the long round.
+    report.flush();
+    for (account, adapter, path, len, modified) in later {
+        report.maybe();
+        let summary = adapter.read_conversation(path);
+        store(state, account, path, *len, *modified, summary, true)?;
+        changed = true;
+        report.read();
     }
     let mut files = state
         .conversations

@@ -830,6 +830,13 @@ impl HarnessAdapter for CodexAdapter {
         crate::codex_conversations::read_conversation(path)
     }
 
+    fn read_conversation_quick(
+        &self,
+        path: &Path,
+    ) -> Option<juggler_adapter::conversation::ConversationSummary> {
+        crate::codex_conversations::read_conversation_quick(path)
+    }
+
     fn session_process(
         &self,
         exe: Option<&Path>,

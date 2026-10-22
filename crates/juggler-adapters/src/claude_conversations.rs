@@ -55,13 +55,29 @@ fn user_text(message: &serde_json::Value) -> Option<&str> {
 #[must_use]
 pub fn read_conversation(path: &Path) -> Option<ConversationSummary> {
     let file = std::fs::File::open(path).ok()?;
+    summary_of(BufReader::new(file).lines().map_while(Result::ok), path)
+}
+
+/// QA batch 10: a large transcript's quick read, from its start and end
+/// (`file_ends`): all but its tokens, which need the whole file.
+#[must_use]
+pub fn read_conversation_quick(path: &Path) -> Option<ConversationSummary> {
+    let ends = juggler_adapter::conversation::file_ends(path)?;
+    let text = String::from_utf8_lossy(&ends);
+    let mut summary = summary_of(text.lines().map(str::to_owned), path)?;
+    summary.tokens = TokenCounts::default();
+    Some(summary)
+}
+
+/// What a transcript's lines (all, or its two ends) say.
+fn summary_of(lines_in: impl Iterator<Item = String>, path: &Path) -> Option<ConversationSummary> {
     let mut summary = ConversationSummary::default();
     let mut tool_title: Option<String> = None;
     let mut first_ask: Option<String> = None;
     let mut usage: HashMap<String, TokenCounts> = HashMap::new();
     let mut unnamed = 0_u64;
     let mut lines = 0_u64;
-    for line in BufReader::new(file).lines().map_while(Result::ok) {
+    for line in lines_in {
         let Ok(value) = serde_json::from_str::<serde_json::Value>(&line) else {
             continue; // a damaged or half-written line
         };

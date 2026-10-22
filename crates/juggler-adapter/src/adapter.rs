@@ -152,6 +152,22 @@ pub trait HarnessAdapter: Send + Sync {
         None
     }
 
+    /// QA batch 10: a quick read of a large conversation file, from its
+    /// start and end only (`conversation::file_ends`): its id, folder,
+    /// branch, first and last activity and, when the start has it, its
+    /// title, with no tokens (they need the whole file). The index reads
+    /// this first, so a running session shows within seconds, and
+    /// [`HarnessAdapter::read_conversation`] afterwards. `None`: no quick
+    /// read (a small file, or a tool without one), read it whole.
+    #[must_use]
+    fn read_conversation_quick(
+        &self,
+        path: &Path,
+    ) -> Option<crate::conversation::ConversationSummary> {
+        let _ = path;
+        None
+    }
+
     /// AJ-E1529: whether a running process (its executable and its
     /// arguments, the first being the program) is one of this tool's
     /// sessions, and which conversation it resumes. Helpers and a desktop

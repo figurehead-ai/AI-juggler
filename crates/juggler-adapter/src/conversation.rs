@@ -29,6 +29,43 @@ pub struct ConversationSummary {
     pub tokens: TokenCounts,
 }
 
+/// Bytes read from the start of a large conversation file for a quick
+/// read (QA batch 10: rollouts of hundreds of MB, 6.6 GB on one Mac).
+pub const QUICK_HEAD: u64 = 256 * 1024;
+/// Bytes read from its end.
+pub const QUICK_TAIL: u64 = 64 * 1024;
+
+/// A large file's start and end, whole lines only, joined by a newline;
+/// `None` when the file is small enough to read whole just as quickly
+/// (or can't be read).
+#[must_use]
+pub fn file_ends(path: &std::path::Path) -> Option<Vec<u8>> {
+    use std::io::{Read, Seek, SeekFrom};
+    let mut file = std::fs::File::open(path).ok()?;
+    let len = file.metadata().ok()?.len();
+    if len <= QUICK_HEAD + QUICK_TAIL {
+        return None;
+    }
+    let mut head = vec![0_u8; usize::try_from(QUICK_HEAD).ok()?];
+    file.read_exact(&mut head).ok()?;
+    // Up to its last whole line.
+    head.truncate(
+        head.iter()
+            .rposition(|b| *b == b'\n')
+            .map_or(0, |end| end + 1),
+    );
+    file.seek(SeekFrom::Start(len - QUICK_TAIL)).ok()?;
+    let mut tail = Vec::new();
+    file.read_to_end(&mut tail).ok()?;
+    // From its first whole line.
+    let start = tail
+        .iter()
+        .position(|b| *b == b'\n')
+        .map_or(tail.len(), |at| at + 1);
+    head.extend_from_slice(&tail[start..]);
+    Some(head)
+}
+
 /// A title from free text: its first non-empty line, at most `max` chars.
 #[must_use]
 pub fn title_from(text: &str, max: usize) -> Option<String> {

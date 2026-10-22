@@ -67,6 +67,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - At a start, the conversation list and the projects no longer wait on
   the usage history being written: it's written in small steps, and the
   first read of your conversations runs once, not three times at once.
+  Large conversation files are listed from their start and end first,
+  so your conversations and running sessions show within seconds even
+  with gigabytes of history; their token counts follow.
 - Home never says "All clear" while an account has run out; it says so.
 - A finished session's row no longer shows its account's "% left";
   only a running one does, once the account runs low.

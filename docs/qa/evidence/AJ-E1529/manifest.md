@@ -231,6 +231,42 @@ Tests:
   untouched, and the launch ends within 20 s.
 - vitest `home`: "never 'all clear' while an account has run out".
 
+## QA batch 10 (the re-check of batch 9)
+
+QA re-checked `8293c0f3` on the real setup:
+- **Holds:** the relaunch after a forced quit (it started in about 2 s,
+  with no alert), Home's "Account G has run out", and
+  `conversations_list` answering at once.
+- **Still slow:** nothing was read for 72–75 s.
+- **Cause, from a thread sample:** the first pass read every Codex
+  rollout whole (6.6 GB in 265 files on that Mac), the newest (the live
+  ones, the biggest) first.
+
+The fix reads each large file's two ends first:
+- **A quick read.** Each adapter now has one
+  (`HarnessAdapter::read_conversation_quick`, from
+  `conversation::file_ends`: the first 256 KB and the last 64 KB, whole
+  lines). It gives the id, folder, branch, title (the first ask), first
+  activity, and last activity (from the end). It leaves out tokens.
+  Claude and Codex both have one; a small file has none and is read
+  whole.
+- **The first pass is two rounds, newest first.**
+  - Round one reads each new or changed file quickly. The list and
+    what's live go to the UI as soon as that round ends.
+  - Round two reads the quickly-read files whole, for their tokens.
+  - Until then a conversation shows no tokens (never 0).
+- **Measured on the replica's 40 MB rollout (release build):** the quick
+  read takes 0.5 ms and the whole read 51 ms, with the same id, title
+  and last activity. On QA's Dev build the whole read is slower still.
+- **The replica can reproduce it:** `replica.py build
+  --large-rollout-mb N` makes the newest Codex rollout about N MB with
+  reasoning items. The truth is unchanged (no tokens, no new ask).
+
+Tests:
+- `codex_conversations` `a_large_rollouts_quick_read_takes_its_ends`;
+- `conversations` `a_large_file_is_listed_from_its_ends_first_and_counted_after`;
+- the reporting test, now with its report after round one.
+
 ## Walked on the replica: the three questions
 
 The replica has 9 accounts (7 Claude, 2 Codex), 16 projects, 346

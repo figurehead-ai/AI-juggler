@@ -158,9 +158,10 @@ fn a_long_pass_reads_the_newest_files_first_and_reports_as_it_goes() {
         seen,
         vec![
             vec!["c-new".to_owned()],
-            vec!["c-mid".to_owned(), "c-new".to_owned()]
+            vec!["c-mid".to_owned(), "c-new".to_owned()],
+            vec!["c-mid".to_owned(), "c-new".to_owned(), "c-old".to_owned()]
         ],
-        "reported after each file, the newest read first"
+        "reported after each file, the newest read first, and once all are listed"
     );
     assert_eq!(state.conversations.all().unwrap().len(), 3);
 }
@@ -237,5 +238,75 @@ fn the_list_answers_at_once_while_a_pass_is_reading() {
         list_impl(&state).unwrap().len(),
         3,
         "all, once the pass is done"
+    );
+}
+
+/// QA batch 10: one Mac's rollouts were 6.6 GB, and reading each whole
+/// kept anything from showing for over a minute. A large file is listed
+/// first from its start and end (its id, folder, title and last activity,
+/// with no tokens yet), and read whole afterwards for its tokens.
+#[test]
+fn a_large_file_is_listed_from_its_ends_first_and_counted_after() {
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().canonicalize().unwrap();
+    let repo = root.join("Dev/app");
+    std::fs::create_dir_all(repo.join(".git")).unwrap();
+    let config = root.join("setup");
+    std::fs::create_dir_all(&config).unwrap();
+    std::fs::write(config.join("settings.json"), "{}").unwrap();
+    let mut registry = AdapterRegistry::new();
+    registry.register(Arc::new(ClaudeCodeAdapter::with_bin("/bin/true")));
+    let state = Arc::new(AppState::init_with_registry(root.join("app-data"), registry).unwrap());
+    commands::account_import_mode_impl(
+        &state,
+        CLAUDE_CODE_ID,
+        config.to_str().unwrap(),
+        "Work",
+        commands::ImportRequest {
+            in_place: true,
+            ..commands::ImportRequest::default()
+        },
+    )
+    .unwrap();
+    // A long session: the ask, then a megabyte of answers, each with its
+    // usage, the last one later in the day.
+    transcript(&config, &repo, "big", "Port the parser");
+    let file = config
+        .join("projects")
+        .join(repo.to_string_lossy().replace(['/', '.'], "-"))
+        .join("big.jsonl");
+    let mut text = std::fs::read_to_string(&file).unwrap();
+    for n in 0..4_000 {
+        text.push_str(&format!(
+            "{{\"type\":\"assistant\",\"sessionId\":\"big\",\"timestamp\":\"2026-10-21T{:02}:00:00.000Z\",\"message\":{{\"id\":\"m-{n}\",\"role\":\"assistant\",\"content\":\"{}\",\"usage\":{{\"input_tokens\":10,\"output_tokens\":5}}}}}}\n",
+            if n == 3_999 { 18 } else { 11 },
+            "x".repeat(200)
+        ));
+    }
+    std::fs::write(&file, text).unwrap();
+    assert!(std::fs::metadata(&file).unwrap().len() > 512 * 1024);
+
+    let first = std::sync::Mutex::new(None);
+    conversations::tick_with(&state, std::time::Duration::MAX, &|| {
+        let mut first = first.lock().unwrap();
+        if first.is_none() {
+            *first = list_impl(&state).unwrap().into_iter().next();
+        }
+    })
+    .unwrap();
+    let quick = first
+        .into_inner()
+        .unwrap()
+        .expect("listed after the quick round");
+    assert_eq!(quick.title.as_deref(), Some("Port the parser"));
+    assert!(quick.tokens.is_none(), "no tokens until it's read whole");
+    let whole = list_impl(&state).unwrap().into_iter().next().unwrap();
+    assert_eq!(
+        whole.tokens.as_ref().map(|t| (t.input, t.output)),
+        Some((40_000, 20_000))
+    );
+    assert_eq!(
+        quick.last_activity_ms, whole.last_activity_ms,
+        "the last activity, from its end"
     );
 }
