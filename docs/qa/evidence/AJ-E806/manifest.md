@@ -394,6 +394,13 @@
      re-pointed with the user's chained line kept. Regression:
      `quota_ingest :: the_status_line_runs_from_a_folder_with_spaces`
      (fails on the old code) and `an_unquoted_install_is_repaired_and_keeps_the_chain`.
+- **Flake record, 2026-10-22 (local only, again).** `processes ::
+  processes_command_reports_tree_orphans_and_stops` ("never saw the child")
+  failed once in `just verify` for #130 at load average 14–17 with other
+  sessions building; it passed 6/6 alone at once. The test has the fake
+  harness's lifetime (3 turns of 300 ms) to see its child before the
+  child is orphaned, and a loaded machine can spend that before the first
+  ticks. Pre-existing (the record below); no budget or assertion changed.
 - **Flake record, 2026-10-20 (local only, load average 33–45 while three
   sessions ran full suites).** `processes :: processes_command_reports_tree_orphans_and_stops`
   ("never saw the child") and `reconciler :: helper_exiting_inside_grace_never_surfaces`
