@@ -394,6 +394,15 @@
      re-pointed with the user's chained line kept. Regression:
      `quota_ingest :: the_status_line_runs_from_a_folder_with_spaces`
      (fails on the old code) and `an_unquoted_install_is_repaired_and_keeps_the_chain`.
+- **Flake record, 2026-10-22 (fixed).** `switch_back_path ::
+  a_to_b_to_a_resumes_original_with_one_delta_and_no_copy_back` failed once
+  in `just verify` for #130 ("exactly one delta turn": 0): its `claude` stub
+  wrote `last-args` in place with `printf >`, and the test's poll could
+  read it half-written, the race parked_reset's stub had (2026-10-19).
+  The stub now writes a temporary file and moves it into place; so do the
+  seven other tests whose stubs wrote the same way (golden_path,
+  switch_door, validation_gate, switch_graph_targets, identity_guard,
+  fleet_switch, redaction_policy). Assertions unchanged.
 - **Flake record, 2026-10-22 (local only, again).** `processes ::
   processes_command_reports_tree_orphans_and_stops` ("never saw the child")
   failed once in `just verify` for #130 at load average 14–17 with other

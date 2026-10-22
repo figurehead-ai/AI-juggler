@@ -31,7 +31,9 @@ fn claude_stub(dir: &Path) -> std::path::PathBuf {
     let path = dir.join("claude-stub");
     stand_in::write(
         &path,
-        "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$CLAUDE_CONFIG_DIR/last-args\"\n",
+        // Written whole, then moved into place: a reader never sees it
+        // half-written (the same fix as parked_reset's stub).
+        "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$CLAUDE_CONFIG_DIR/last-args.tmp\" && mv \"$CLAUDE_CONFIG_DIR/last-args.tmp\" \"$CLAUDE_CONFIG_DIR/last-args\"\n",
     );
     path
 }
