@@ -8,7 +8,9 @@
  * typing in a field or the terminal, plain keys and Ctrl-combos belong to
  * what is typed into (Ctrl+K kills a line in the shell, Ctrl+D ends
  * input), so no shortcut takes them. ⌘ shortcuts still work there,
- * except the ones a field has its own use for (⌘Z).
+ * except the ones a field has its own use for (⌘Z); so do Ctrl+Shift
+ * ones on Windows and Linux, as ⌘⇧ does on a Mac, except Ctrl+Shift+C
+ * and V (a terminal's copy and paste there).
  */
 import { isTypingTarget } from "./density";
 
@@ -163,8 +165,13 @@ export function matches(id: ShortcutId, event: KeyLike, inApp = false): boolean 
   const entry = BY_ID.get(id);
   if (!entry?.match || !entry.match(event, inApp)) return false;
   if (!isTypingTarget(event.target ?? null)) return true;
-  if (!event.metaKey) return false;
-  return !entry.fieldOwnsIt;
+  if (entry.fieldOwnsIt) return false;
+  if (event.metaKey) return true;
+  // Windows and Linux: Ctrl+Shift+letter is the app's while typing, as
+  // ⌘⇧ is on a Mac (a terminal reads Ctrl+Shift+H as Ctrl+H, so nothing
+  // it needs is lost), except Ctrl+Shift+C and V, a terminal's copy and
+  // paste there. Linux CI: ⌘⇧H from the session's terminal never fired.
+  return !!event.ctrlKey && !!event.shiftKey && !["c", "v"].includes(event.key.toLowerCase());
 }
 
 /** ⌘./Ctrl+. — Stop the selected live Instance (deep 02 SP-04). */

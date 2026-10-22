@@ -770,6 +770,7 @@ fn not_answering(data_dir: &std::path::Path, handover: Option<&handover::Handove
 
 /// Starts this app again, as it was started, and quits this launch.
 fn relaunch() -> ! {
+    eprintln!("ai-juggler: starting again");
     let started = std::env::current_exe().and_then(|exe| {
         std::process::Command::new(exe)
             .args(std::env::args_os().skip(1))

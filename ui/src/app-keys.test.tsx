@@ -82,7 +82,7 @@ describe("AJ-E1504 the typing rule", () => {
   terminal.append(inTerminal);
   const body = document.body;
 
-  it("holds for every shortcut: plain keys and Ctrl never while typing; ⌘ unless the field owns it", () => {
+  it("holds for every shortcut: plain keys and Ctrl never while typing (Ctrl+Shift as ⌘⇧); ⌘ unless the field owns it", () => {
     const samples: Record<string, Partial<KeyLike>> = {
       help: { key: "?", shiftKey: true },
       palette: { key: "k" },
@@ -119,8 +119,11 @@ describe("AJ-E1504 the typing rule", () => {
       expect(matches(id, key({ ...withMeta, target: body }), true), `${id} outside`).toBe(true);
       expect(matches(id, key({ ...withCtrl, target: body }), true), `${id} with Ctrl outside`).toBe(true);
       for (const target of [input, inTerminal]) {
-        expect(matches(id, key({ ...withCtrl, target }), true), `${id} with Ctrl while typing`).toBe(false);
         const metaAllowed = !plainKeys.has(id) && !("fieldOwnsIt" in entry && entry.fieldOwnsIt);
+        // Ctrl+Shift+letter (Windows, Linux) is the app's while typing, as
+        // ⌘⇧ is; never Ctrl+Shift+C or V, a terminal's copy and paste.
+        const ctrlShiftAllowed = metaAllowed && !!sample!.shiftKey && !["c", "v"].includes(sample!.key!.toLowerCase());
+        expect(matches(id, key({ ...withCtrl, target }), true), `${id} with Ctrl while typing`).toBe(ctrlShiftAllowed);
         expect(matches(id, key({ ...withMeta, target }), true), `${id} with ⌘ while typing`).toBe(metaAllowed);
       }
     }
