@@ -25,21 +25,10 @@ use juggler_app::state::AppState;
 use juggler_core::model::SessionId;
 use juggler_supervisor::tree::{LedgerStore as _, SpawnContext};
 
-// The shared reaper (this suite needs nothing else from the kit).
+// The shared reaper and bounded server (nothing else from the kit).
 #[allow(dead_code)]
 #[path = "../../juggler-supervisor/tests/fixtures/mod.rs"]
 mod fixtures;
-
-/// `python3 -m http.server` on `127.0.0.1:<port>`, ending itself after the
-/// fixtures' lifetime: a test killed outright can't leave it listening.
-fn bounded_server(port: u16) -> String {
-    format!(
-        "python3 -c 'import http.server as h, os, threading; \
-         threading.Timer({}, os._exit, [0]).start(); \
-         h.ThreadingHTTPServer((\"127.0.0.1\", {port}), h.SimpleHTTPRequestHandler).serve_forever()'",
-        fixtures::FIXTURE_LIFETIME_SECS
-    )
-}
 
 fn ctx(state: &Arc<AppState>) -> SpawnContext {
     SpawnContext {
@@ -124,7 +113,7 @@ fn port_inventory_classifies_orphan_and_unmanaged_listeners() {
         .spawn(
             &session,
             &sh_spec(
-                &format!("{} & wait", bounded_server(helper_port)),
+                &format!("{} & wait", fixtures::http_server(helper_port)),
                 dir.path(),
             ),
             &ctx(&state),
@@ -135,7 +124,10 @@ fn port_inventory_classifies_orphan_and_unmanaged_listeners() {
 
     // The UNSUPERVISED stranger holds its port (the user's own process).
     let mut stranger = std::process::Command::new("/bin/sh")
-        .args(["-c", &format!("exec {}", bounded_server(stranger_port))])
+        .args([
+            "-c",
+            &format!("exec {}", fixtures::http_server(stranger_port)),
+        ])
         .current_dir(dir.path())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())

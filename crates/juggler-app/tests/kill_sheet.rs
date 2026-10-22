@@ -28,6 +28,11 @@ use juggler_core::model::SessionId;
 use juggler_supervisor::LiveStatsCollector;
 use juggler_supervisor::tree::LedgerStore as _;
 
+// The shared reaper and bounded servers (nothing else from the kit).
+#[allow(dead_code)]
+#[path = "../../juggler-supervisor/tests/fixtures/mod.rs"]
+mod fixtures;
+
 fn now_ms() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -98,11 +103,20 @@ fn port_open(port: u16) -> bool {
 }
 
 /// Spawns the session and waits until the ledger row is live.
-fn spawn_root(state: &Arc<AppState>, session: &SessionId, script: &str, dir: &Path) -> u32 {
-    state
+/// Spawns a supervised root; its process group (helpers included) dies
+/// with `reaper`, a failed assertion's unwind included.
+fn spawn_root(
+    state: &Arc<AppState>,
+    session: &SessionId,
+    script: &str,
+    dir: &Path,
+    reaper: &mut fixtures::Reaper,
+) -> u32 {
+    let spawned = state
         .supervisor
         .spawn(session, &sh_spec(script, dir), &spawn_ctx(&state.clone()))
         .unwrap();
+    reaper.group(spawned.pid);
     let landed = wait_for(5_000, || {
         state
             .ledger
@@ -159,13 +173,14 @@ fn app_state(dir: &Path) -> Arc<AppState> {
 #[test]
 fn guardrail_no_audit_means_no_signal() {
     let dir = tempfile::tempdir().unwrap();
+    let mut reaper = fixtures::Reaper::default();
     let state = app_state(dir.path());
     let session = SessionId::new("sess-no-audit");
     let script = format!(
         "trap 'echo term >> {}/term.log' TERM; sleep 300 & wait",
         dir.path().display()
     );
-    let pid = spawn_root(&state, &session, &script, dir.path());
+    let pid = spawn_root(&state, &session, &script, dir.path(), &mut reaper);
 
     let refused = commands::kill_execute_audited(
         &state,
@@ -198,9 +213,10 @@ fn guardrail_no_audit_means_no_signal() {
 #[test]
 fn guardrail_stale_identity_refuses_with_zero_signals() {
     let dir = tempfile::tempdir().unwrap();
+    let mut reaper = fixtures::Reaper::default();
     let state = app_state(dir.path());
     let session = SessionId::new("sess-stale");
-    let pid = spawn_root(&state, &session, "sleep 300", dir.path());
+    let pid = spawn_root(&state, &session, "sleep 300", dir.path(), &mut reaper);
 
     // The PID reuse shape: the recorded process is gone by click time.
     kill9(pid);
@@ -240,14 +256,16 @@ fn guardrail_stale_identity_refuses_with_zero_signals() {
 #[test]
 fn vite_like_helper_frees_its_port_on_term() {
     let dir = tempfile::tempdir().unwrap();
+    let mut reaper = fixtures::Reaper::default();
     let state = app_state(dir.path());
     let session = SessionId::new("sess-vite");
     let port = free_port();
     let pid = spawn_root(
         &state,
         &session,
-        &format!("python3 -m http.server {port} --bind 127.0.0.1 & wait"),
+        &format!("{} & wait", fixtures::http_server(port)),
         dir.path(),
+        &mut reaper,
     );
     let _ = pid;
 
@@ -337,14 +355,19 @@ fn vite_like_helper_frees_its_port_on_term() {
 #[test]
 fn term_ignoring_helper_is_killed_after_grace() {
     let dir = tempfile::tempdir().unwrap();
+    let mut reaper = fixtures::Reaper::default();
     let state = app_state(dir.path());
     let session = SessionId::new("sess-ignorer");
     let term_log = dir.path().join("term.log");
     let script = format!(
-        "trap 'echo term >> {}' TERM; while :; do sleep 300 & wait; done",
-        term_log.display()
+        // TERM is logged and the wait restarted, until KILL, or the
+        // fixtures' lifetime is up.
+        "trap 'echo term >> {}' TERM; end=$(( $(date +%s) + {} )); \
+         while [ $(date +%s) -lt $end ]; do sleep $(( end - $(date +%s) )) & wait; done",
+        term_log.display(),
+        fixtures::FIXTURE_LIFETIME_SECS
     );
-    let pid = spawn_root(&state, &session, &script, dir.path());
+    let pid = spawn_root(&state, &session, &script, dir.path(), &mut reaper);
 
     let verify = commands::kill_verify_inner(&state, session.as_str(), pid).unwrap();
     assert!(verify.verified, "the trapped root must verify: {verify:?}");
@@ -393,16 +416,15 @@ fn term_ignoring_helper_is_killed_after_grace() {
 #[test]
 fn setsid_escapee_is_reported_still_holding_then_reoffered() {
     let dir = tempfile::tempdir().unwrap();
+    let mut reaper = fixtures::Reaper::default();
     let state = app_state(dir.path());
     let session = SessionId::new("sess-escapee");
     let port = free_port();
-    let escaper = format!(
-        "python3 -c 'import os; os.setsid(); import http.server; \
-         s = http.server.HTTPServer((\"127.0.0.1\", {port}), \
-         http.server.BaseHTTPRequestHandler); s.serve_forever()'"
-    );
+    // It leaves the root's group before its pid is known, so its own
+    // lifetime cap is what bounds it if the test fails early.
+    let escaper = fixtures::escaping_http_server(port);
     let script = format!("{escaper} & sleep 300");
-    let root_pid = spawn_root(&state, &session, &script, dir.path());
+    let root_pid = spawn_root(&state, &session, &script, dir.path(), &mut reaper);
 
     // The reconciler records the escapee helper (its live PGID left
     // the root's group — the E502 escaped flag).
@@ -431,6 +453,7 @@ fn setsid_escapee_is_reported_still_holding_then_reoffered() {
         .find(|row| row.role == "helper" && row.exe_path.to_ascii_lowercase().contains("python"))
         .and_then(|row| row.pid)
         .unwrap();
+    reaper.pid(escapee_pid);
 
     // Kill the ROOT PID-only: it dies on TERM, the port does NOT.
     let outcome = commands::kill_execute_audited(

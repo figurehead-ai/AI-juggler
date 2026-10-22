@@ -138,6 +138,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Turning Fleet Link off stops this Mac hearing from your other machines
+  at once, and ends a pairing still in progress. Before, a connection that
+  was open when you turned it off kept receiving their sessions and saving
+  them until it broke, and a pairing could still finish afterwards.
 - Codex: a conversation that opens by summarising another one no longer
   counts that conversation's last model call again (on the maintainer's
   Mac, about 367,000 tokens across three conversations). Usage already

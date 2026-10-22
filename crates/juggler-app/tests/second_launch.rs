@@ -26,6 +26,11 @@
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
+// The shared reaper (nothing else from the kit).
+#[allow(dead_code)]
+#[path = "../../juggler-supervisor/tests/fixtures/mod.rs"]
+mod fixtures;
+
 /// Where a debug build (AI Juggler Dev) keeps its data under `home`.
 fn dev_data_dir(home: &std::path::Path) -> PathBuf {
     if cfg!(target_os = "macos") {
@@ -82,6 +87,9 @@ fn a_second_launch_never_opens_the_data() {
         .stderr(std::process::Stdio::piped())
         .spawn()
         .unwrap();
+    // A second app left running by a failed assertion dies with the test.
+    let mut reaper = fixtures::Reaper::default();
+    reaper.pid(second.id());
     let deadline = Instant::now() + Duration::from_secs(60);
     let status = loop {
         if let Some(status) = second.try_wait().unwrap() {
