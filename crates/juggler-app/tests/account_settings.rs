@@ -346,3 +346,138 @@ fn the_offers_before_the_account_exists_are_the_ones_it_gets() {
     };
     assert_eq!(ids(&before), ids(&after));
 }
+
+/// Replaces Work's settings.json with `text`.
+fn work_settings(dir: &Path, text: &str) {
+    std::fs::write(dir.join("settings.json"), text).unwrap();
+}
+
+#[test]
+fn a_setting_with_a_secret_written_in_it_is_never_copied_or_recorded() {
+    // Review of AJ-E1508 (H1): a token in the status line's command, and a
+    // bearer token in a permission rule.
+    let lab = lab();
+    let (work, work_dir) = claude_work(&lab);
+    work_settings(
+        &work_dir,
+        r#"{"permissions": {"allow": ["Bash(curl -H 'Authorization: Bearer sk-ant-hidden-1234')"]},
+            "statusLine": {"type": "command", "command": "GITHUB_TOKEN=ghp_hidden5678 ~/bin/line"}}"#,
+    );
+    let (new, new_dir) = fresh(&lab, CLAUDE_CODE_ID, "Side project");
+    let check = check_impl(&lab.state, Some(&new), &work).unwrap();
+    for kind in ["permissions", "status-line"] {
+        let offer = check.offers.iter().find(|o| o.kind == kind).unwrap();
+        assert_eq!(offer.verdict, "impossible", "{offer:?}");
+        assert!(!offer.suggested);
+        assert!(
+            offer.note.as_deref().unwrap_or_default().contains("secret"),
+            "{offer:?}"
+        );
+    }
+    // Picked anyway, by id: nothing of them is written.
+    let ids: Vec<String> = check.offers.iter().map(|o| o.id.clone()).collect();
+    apply_impl(&lab.state, &new, &work, &ids).unwrap();
+    let records =
+        std::fs::read_to_string(lab.state.data_dir.join("switch-setups.json")).unwrap_or_default();
+    for secret in ["sk-ant-hidden-1234", "ghp_hidden5678"] {
+        assert!(!records.contains(secret), "{secret} in the records");
+        for file in files(&new_dir) {
+            let text = std::fs::read_to_string(new_dir.join(&file)).unwrap_or_default();
+            assert!(!text.contains(secret), "{secret} reached {file}");
+        }
+    }
+}
+
+#[test]
+fn ai_jugglers_fail_safe_status_line_is_never_copied_nor_a_stale_backup() {
+    // Review of AJ-E1508 (M1): under the opt-in capture's fail-safe line,
+    // the user's own isn't known here; a backup left beside it is stale.
+    let lab = lab();
+    let (work, work_dir) = claude_work(&lab);
+    work_settings(
+        &work_dir,
+        r#"{"statusLine": {"type": "command", "command": "sh -c 'exec \"$1\"' aij-statusline /x/w 'old'"}}"#,
+    );
+    let (new, _) = fresh(&lab, CLAUDE_CODE_ID, "Side project");
+    let check = check_impl(&lab.state, Some(&new), &work).unwrap();
+    let line = check
+        .offers
+        .iter()
+        .find(|o| o.kind == "status-line")
+        .unwrap();
+    assert_eq!(line.verdict, "impossible");
+    assert!(
+        line.note
+            .as_deref()
+            .unwrap_or_default()
+            .contains("usage capture"),
+        "{line:?}"
+    );
+}
+
+#[test]
+fn permissions_say_what_they_hold_and_a_bypass_is_never_ticked() {
+    // Review of AJ-E1508 (M5).
+    let lab = lab();
+    let (work, work_dir) = claude_work(&lab);
+    let (new, _) = fresh(&lab, CLAUDE_CODE_ID, "Side project");
+    let check = check_impl(&lab.state, Some(&new), &work).unwrap();
+    let permissions = check
+        .offers
+        .iter()
+        .find(|o| o.kind == "permissions")
+        .unwrap();
+    assert_eq!(permissions.about.as_deref(), Some("1 allowed, 1 denied"));
+    assert!(permissions.suggested);
+
+    work_settings(
+        &work_dir,
+        r#"{"permissions": {"allow": [], "defaultMode": "bypassPermissions"}}"#,
+    );
+    let check = check_impl(&lab.state, Some(&new), &work).unwrap();
+    let permissions = check
+        .offers
+        .iter()
+        .find(|o| o.kind == "permissions")
+        .unwrap();
+    assert_eq!(permissions.verdict, "needs-you");
+    assert!(!permissions.suggested, "never ticked for the user");
+    assert_eq!(permissions.about.as_deref(), Some("mode bypassPermissions"));
+    // Ticked by the user, it's set up.
+    let applied = apply_impl(&lab.state, &new, &work, &[permissions.id.clone()]).unwrap();
+    assert!(applied[0].record.is_some(), "{applied:?}");
+}
+
+#[test]
+fn settings_name_a_setting_once_and_records_hold_no_values() {
+    let lab = lab();
+    let (work, _) = claude_work(&lab);
+    let (new, _) = fresh(&lab, CLAUDE_CODE_ID, "Side project");
+    let check = check_impl(&lab.state, Some(&new), &work).unwrap();
+    let ids: Vec<String> = check
+        .offers
+        .iter()
+        .filter(|o| o.suggested)
+        .map(|o| o.id.clone())
+        .collect();
+    let applied = apply_impl(&lab.state, &new, &work, &ids).unwrap();
+    assert!(
+        applied
+            .iter()
+            .any(|a| a.message == "Set up the permissions"),
+        "{applied:?}"
+    );
+    let listed: Vec<String> = list_impl(&lab.state)
+        .unwrap()
+        .into_iter()
+        .map(|row| row.what)
+        .collect();
+    assert!(listed.contains(&"the permissions".to_owned()), "{listed:?}");
+    assert!(listed.contains(&"the status line".to_owned()), "{listed:?}");
+    // The undo keeps each value's fingerprint, never the value.
+    let records = std::fs::read_to_string(lab.state.data_dir.join("switch-setups.json")).unwrap();
+    assert!(
+        !records.contains("Bash(npm test)") && !records.contains("my-line"),
+        "{records}"
+    );
+}

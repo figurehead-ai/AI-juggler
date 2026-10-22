@@ -30,8 +30,8 @@ export async function accountSettingsApply(target: string, source: string, offer
     return offers.map((id) => {
       const offer = check?.offers.find((candidate) => candidate.id === id);
       return offer
-        ? { offer: id, record: `record-${id}`, message: `Set up the ${offer.name}` }
-        : { offer: id, record: null, message: "It isn't on that account any more" };
+        ? { offer: id, record: `record-${id}`, message: `Set up the ${offer.name}`, note: null }
+        : { offer: id, record: null, message: "It isn't on that account any more", note: null };
     });
   }
   return invoke<AppliedInfo[]>("account_settings_apply", { target, source, offers });

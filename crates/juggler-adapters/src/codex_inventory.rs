@@ -20,8 +20,8 @@ use std::path::Path;
 
 use juggler_adapter::error::AdapterError;
 use juggler_adapter::inventory::{
-    Applied, ConfigFormat, Detail, Item, ItemKind, McpServer, McpTransport, Scope, SetUp, Undo,
-    Value, secret_variable, value_of,
+    Applied, ConfigFormat, Detail, Item, ItemKind, McpServer, McpTransport, Scope, SetUp,
+    SettingCheck, Undo, Value, secret_variable, value_of,
 };
 
 use crate::codex::CODEX_ID;
@@ -92,7 +92,14 @@ pub fn inventory(home: &Path, user_home: Option<&Path>) -> Vec<Item> {
             break;
         }
     }
-    // AJ-E1508: the home's own settings, key by key.
+    items.extend(own_settings(home));
+    items
+}
+
+/// AJ-E1508: the home's own settings, key by key; never the text of one
+/// with a secret written in it (review of AJ-E1508, H1).
+fn own_settings(home: &Path) -> Vec<Item> {
+    let mut items = Vec::new();
     let config_file = home.join("config.toml");
     let setting = |keys: &[&str]| -> Option<Detail> {
         let entries: Vec<(String, String)> = keys
@@ -102,10 +109,63 @@ pub fn inventory(home: &Path, user_home: Option<&Path>) -> Vec<Item> {
                     .map(|value| ((*key).to_owned(), value))
             })
             .collect();
-        (!entries.is_empty()).then(|| Detail::Setting {
+        if entries.is_empty() {
+            return None;
+        }
+        let secret = entries.iter().any(|(_, value)| {
+            crate::config_edit::strings_of(ConfigFormat::Toml, value)
+                .iter()
+                .any(|text| juggler_adapter::inventory::holds_secret(text))
+        });
+        if secret {
+            return Some(Detail::Setting {
+                file: config_file.clone(),
+                format: ConfigFormat::Toml,
+                entries: Vec::new(),
+                about: None,
+                check: SettingCheck::Cannot(
+                    "a secret is written in it, and secrets are never copied: set it in the new \
+                     home yourself"
+                        .to_owned(),
+                ),
+            });
+        }
+        let value = |key: &str| {
+            entries
+                .iter()
+                .find(|(k, _)| k == key)
+                .map(|(_, v)| v.trim_matches('"').to_owned())
+        };
+        let about = entries
+            .iter()
+            .map(|(key, value)| {
+                format!(
+                    "{} {}",
+                    key.rsplit('.').next().unwrap_or(key),
+                    value.trim_matches('"')
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        // No approval and no sandbox: offered, never ticked for the user
+        // (review of AJ-E1508, M5).
+        let check = if value("approval_policy").as_deref() == Some("never")
+            && value("sandbox_mode").as_deref() == Some("danger-full-access")
+        {
+            SettingCheck::Caution(
+                "it runs everything without asking and without a sandbox: tick it only if you \
+                 mean that"
+                    .to_owned(),
+            )
+        } else {
+            SettingCheck::Fine
+        };
+        Some(Detail::Setting {
             file: config_file.clone(),
             format: ConfigFormat::Toml,
             entries,
+            about: Some(about),
+            check,
         })
     };
     if let Some(detail) = setting(&["approval_policy", "sandbox_mode"]) {
@@ -147,8 +207,16 @@ pub fn can_set_up(item: &Item) -> SetUp {
             "into ~/.agents/skills, which every Codex home on this Mac reads".to_owned(),
         ),
         (ItemKind::Skill, Detail::Files { .. }) => SetUp::Copy,
+        (ItemKind::Permissions | ItemKind::StatusLine, Detail::Setting { check, .. })
+            if from_codex =>
+        {
+            match check {
+                SettingCheck::Fine => SetUp::Copy,
+                SettingCheck::Caution(note) => SetUp::NeedsYou(note.clone()),
+                SettingCheck::Cannot(note) => SetUp::Impossible(note.clone()),
+            }
+        }
         (ItemKind::Command | ItemKind::Subagent | ItemKind::MainRules, Detail::Files { .. })
-        | (ItemKind::Permissions | ItemKind::StatusLine, Detail::Setting { .. })
             if from_codex =>
         {
             SetUp::Copy
@@ -227,15 +295,29 @@ pub fn set_up(home: &Path, user_home: Option<&Path>, item: &Item) -> Result<Appl
             crate::inventory_files::copy_file(path, &home.join("AGENTS.md"), str::to_owned)
         }
         (ItemKind::Permissions | ItemKind::StatusLine, Detail::Setting { entries, .. }, _) => {
+            if entries.is_empty() {
+                return Err(AdapterError::Unsupported(
+                    "there's nothing of it that can be copied".to_owned(),
+                ));
+            }
             let file = home.join("config.toml");
             crate::config_edit::set(&file, ConfigFormat::Toml, entries)
                 .map_err(AdapterError::Unsupported)?;
             Ok(Applied {
                 summary: format!("Set the {}", item.kind.words()),
+                // Each value's fingerprint, never the value itself.
                 undo: Undo::RemoveSetting {
                     file,
                     format: ConfigFormat::Toml,
-                    entries: entries.clone(),
+                    entries: entries
+                        .iter()
+                        .map(|(key, value)| {
+                            (
+                                key.clone(),
+                                crate::config_edit::fingerprint(ConfigFormat::Toml, value),
+                            )
+                        })
+                        .collect(),
                 },
                 note: None,
             })

@@ -11,8 +11,10 @@ import { accountSettingsCheck } from "../lib/ipc/accountSettings";
 import type { SetupCheckInfo } from "../lib/ipc/switchSetup";
 import { SwitchSetupList } from "./SwitchSetupList";
 
-/** What to copy, once the account is made; `null` for nothing. */
-export type SettingsChoice = { source: string; picked: string[] } | null;
+/** What to copy, once the account is made; `null` for nothing. While
+ * what the account offers is still being read, `pending`: the step waits
+ * (review of AJ-E1508, M3: a quick Create copied nothing). */
+export type SettingsChoice = { source: string; picked: string[]; pending: boolean } | null;
 
 const KINDS: Record<string, string> = {
   "mcp-server": "MCP servers",
@@ -24,9 +26,9 @@ const KINDS: Record<string, string> = {
 /** What comes with it, in a few words ("MCP servers, permissions and status line"). */
 function contents(check: SetupCheckInfo, picked: ReadonlySet<string>): string {
   const kinds = [...new Set(check.offers.filter((offer) => picked.has(offer.id)).map((offer) => KINDS[offer.kind] ?? offer.kind))];
-  if (kinds.length === 0) return "nothing ticked";
-  if (kinds.length === 1) return kinds[0]!;
-  return `${kinds.slice(0, -1).join(", ")} and ${kinds[kinds.length - 1]}`;
+  if (kinds.length === 0) return "Nothing ticked";
+  if (kinds.length === 1) return `Its ${kinds[0]!}`;
+  return `Its ${kinds.slice(0, -1).join(", ")} and ${kinds[kinds.length - 1]}`;
 }
 
 export function StartWithSettings({
@@ -38,7 +40,10 @@ export function StartWithSettings({
   onChange: (choice: SettingsChoice) => void;
 }): JSX.Element | null {
   const [on, setOn] = useState(true);
-  const [source, setSource] = useState<string | null>(sources[0]?.id ?? null);
+  // The account picked, else the first: the list may arrive after this
+  // first draws (review of AJ-E1508, M4).
+  const [chosen, setChosen] = useState<string | null>(null);
+  const source = chosen ?? sources[0]?.id ?? null;
   const [check, setCheck] = useState<SetupCheckInfo | null>(null);
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState(false);
@@ -48,7 +53,9 @@ export function StartWithSettings({
   useEffect(() => {
     if (!source) return;
     let alive = true;
+    // Another account's ticks never carry over to this one's.
     setCheck(null);
+    setPicked(new Set());
     setError(null);
     accountSettingsCheck(null, source).then(
       (next) => {
@@ -66,8 +73,10 @@ export function StartWithSettings({
   // Before anything can react to the list just shown (a quick Create
   // must copy what's ticked), the step knows the choice.
   useLayoutEffect(() => {
-    onChange(on && source && picked.size > 0 ? { source, picked: [...picked] } : null);
-  }, [on, source, picked, onChange]);
+    if (!on || !source) onChange(null);
+    else if (!check && !error) onChange({ source, picked: [], pending: true });
+    else onChange(picked.size > 0 ? { source, picked: [...picked], pending: false } : null);
+  }, [on, source, check, error, picked, onChange]);
 
   if (sources.length === 0 || !source) return null;
   // One account to copy from, with nothing to copy: no line at all.
@@ -84,13 +93,18 @@ export function StartWithSettings({
     <div className="flex max-w-xl flex-col gap-2 text-sm" data-testid="start-with-settings">
       <div className="flex flex-wrap items-center gap-2">
         <label className="flex items-center gap-2">
-          <input type="checkbox" checked={on} onChange={(event) => setOn(event.target.checked)} />
+          <input
+            type="checkbox"
+            checked={on}
+            onChange={(event) => setOn(event.target.checked)}
+            aria-label={`Start with the same settings as ${name}`}
+          />
           <span>Start with the same settings as</span>
         </label>
         {sources.length > 1 ? (
           <select
             value={source}
-            onChange={(event) => setSource(event.target.value)}
+            onChange={(event) => setChosen(event.target.value)}
             aria-label="Account to copy the settings from"
             className="rounded-lg border border-hairline bg-surface px-2 py-1 text-sm text-ink"
           >
@@ -116,7 +130,7 @@ export function StartWithSettings({
             onClick={() => setOpen(!open)}
             className="self-start text-xs text-muted hover:text-ink"
           >
-            Its {contents(check, picked)} {open ? "▾" : "▸"}
+            {contents(check, picked)} <span aria-hidden="true">{open ? "▾" : "▸"}</span>
           </button>
           {open && (
             <div id={listId}>

@@ -22,9 +22,9 @@ const OFFERS: SetupCheckInfo = {
   to: "the new account",
   already_there: 0,
   offers: [
-    { id: "o-docs", kind: "mcp-server", name: "docs", scope: "user", verdict: "copy", note: null, suggested: true },
-    { id: "o-perm", kind: "permissions", name: "permissions", scope: "user", verdict: "copy", note: null, suggested: true },
-    { id: "o-line", kind: "status-line", name: "status line", scope: "user", verdict: "copy", note: null, suggested: true },
+    { id: "o-docs", kind: "mcp-server", name: "docs", scope: "user", verdict: "copy", note: null, suggested: true, about: null },
+    { id: "o-perm", kind: "permissions", name: "permissions", scope: "user", verdict: "copy", note: null, suggested: true, about: null },
+    { id: "o-line", kind: "status-line", name: "status line", scope: "user", verdict: "copy", note: null, suggested: true, about: null },
     {
       id: "o-tidy",
       kind: "plugin",
@@ -33,6 +33,7 @@ const OFFERS: SetupCheckInfo = {
       verdict: "needs-you",
       note: "install it in this account with `claude plugin install tidy@market`",
       suggested: false,
+      about: null,
     },
   ],
 };
@@ -109,8 +110,8 @@ describe("a fresh account's usual settings", () => {
   it("says what couldn't be copied before moving on", async () => {
     vi.spyOn(bridge, "createAccount").mockResolvedValue(NEW);
     vi.spyOn(copy, "accountSettingsApply").mockResolvedValue([
-      { offer: "o-docs", record: "r1", message: "Set up the MCP server docs" },
-      { offer: "o-perm", record: null, message: "it has its own permissions already" },
+      { offer: "o-docs", record: "r1", message: "Set up the MCP server docs", note: null },
+      { offer: "o-perm", record: null, message: "it has its own permissions already", note: null },
     ]);
     const { view, onCreated } = step([WORK]);
     await view.findByRole("button", { name: /Its MCP servers/ });
@@ -120,5 +121,81 @@ describe("a fresh account's usual settings", () => {
     expect(onCreated).not.toHaveBeenCalled();
     fireEvent.click(view.getByRole("button", { name: "Continue" }));
     expect(onCreated).toHaveBeenCalled();
+  });
+
+  it("waits for what the account offers before Create", async () => {
+    // Review of AJ-E1508 (M3): a quick Create copied nothing.
+    let answer: (check: SetupCheckInfo) => void = () => undefined;
+    vi.spyOn(copy, "accountSettingsCheck").mockReturnValue(new Promise((resolve) => (answer = resolve)));
+    const { view } = step([WORK]);
+    const create = view.getByTestId("first-run-fresh-create") as HTMLButtonElement;
+    expect(create.disabled).toBe(true);
+    answer(structuredClone(OFFERS));
+    await waitFor(() => expect(create.disabled).toBe(false));
+  });
+
+  it("never carries one account's ticks over to another", async () => {
+    const PERSONAL = { id: "acc-personal", label: "Personal", provider: "claude-code" } as unknown as bridge.AccountInfo;
+    (window as never as Seams).__AIJ_ACCOUNT_SETTINGS__ = {
+      "acc-work": structuredClone(OFFERS),
+      "acc-personal": { ...structuredClone(OFFERS), from: "Personal", offers: [{ ...OFFERS.offers[1]!, suggested: false }] },
+    };
+    vi.spyOn(bridge, "createAccount").mockResolvedValue(NEW);
+    const apply = vi.spyOn(copy, "accountSettingsApply");
+    const view = render(
+      <FreshAccountStep
+        toolName="Claude Code"
+        provider="claude-code"
+        taken={["Work", "Personal"]}
+        accounts={[WORK, PERSONAL]}
+        canGoBack={false}
+        onBack={() => undefined}
+        onImportFolder={() => undefined}
+        onCreated={() => undefined}
+      />,
+    );
+    await view.findByRole("button", { name: /Its MCP servers/ });
+    fireEvent.change(view.getByRole("combobox", { name: "Account to copy the settings from" }), { target: { value: "acc-personal" } });
+    // Personal's permissions aren't ticked for the user: Work's ticks don't
+    // come with the change.
+    await view.findByRole("button", { name: /Nothing ticked/ });
+    fireEvent.click(view.getByTestId("first-run-fresh-create"));
+    await waitFor(() => expect(bridge.createAccount).toHaveBeenCalled());
+    expect(apply).not.toHaveBeenCalled();
+  });
+
+  it("shows the line when the accounts arrive after it first draws", async () => {
+    // Review of AJ-E1508 (M4).
+    (window as never as Seams).__AIJ_ACCOUNT_SETTINGS__ = { "acc-work": structuredClone(OFFERS) };
+    const props = {
+      toolName: "Claude Code",
+      provider: "claude-code",
+      taken: null,
+      canGoBack: false,
+      onBack: () => undefined,
+      onImportFolder: () => undefined,
+      onCreated: () => undefined,
+    };
+    const view = render(<FreshAccountStep {...props} accounts={[]} />);
+    expect(view.queryByTestId("start-with-settings")).toBeNull();
+    view.rerender(<FreshAccountStep {...props} taken={["Work"]} accounts={[WORK]} />);
+    expect(await view.findByTestId("start-with-settings")).toBeTruthy();
+  });
+
+  it("says what the user should know about what was copied", async () => {
+    vi.spyOn(bridge, "createAccount").mockResolvedValue(NEW);
+    vi.spyOn(copy, "accountSettingsApply").mockResolvedValue([
+      {
+        offer: "o-line",
+        record: "r1",
+        message: "Set up the status line (it runs a script from the other account's folder)",
+        note: "it runs a script from the other account's folder",
+      },
+    ]);
+    const { view, onCreated } = step([WORK]);
+    await view.findByRole("button", { name: /Its MCP servers/ });
+    fireEvent.click(view.getByTestId("first-run-fresh-create"));
+    expect(await view.findByText(/runs a script from the other account's folder/)).toBeTruthy();
+    expect(onCreated).not.toHaveBeenCalled();
   });
 });

@@ -64,9 +64,12 @@ export function FreshAccountStep({
         : { accountId: account.id, label: account.label, loginNote: null, colour: colourAt(taken?.length ?? 0), provider };
       if (settings) {
         const results = await accountSettingsApply(account.id, settings.source, settings.picked).catch((cause) => [
-          { offer: "", record: null, message: errorText(cause) },
+          { offer: "", record: null, message: errorText(cause), note: null },
         ]);
-        if (results.some((result) => result.record === null)) {
+        // What couldn't be copied, and what the user should know about
+        // what was (a status line that runs a script from the other
+        // account's folder), is said before moving on.
+        if (results.some((result) => result.record === null || result.note !== null)) {
           setUnfinished({ results, next, target: account.label });
           setBusy(false);
           return;
@@ -136,7 +139,7 @@ export function FreshAccountStep({
             Import from a folder instead…
           </button>
         </div>
-        <Button variant="primary" type="submit" disabled={busy || shown.trim().length === 0} data-testid="first-run-fresh-create">
+        <Button variant="primary" type="submit" disabled={busy || shown.trim().length === 0 || settings?.pending === true} data-testid="first-run-fresh-create">
           {busy ? "Setting it up…" : "Create and sign in"}
         </Button>
       </div>

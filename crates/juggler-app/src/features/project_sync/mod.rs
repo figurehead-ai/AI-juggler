@@ -556,6 +556,7 @@ pub fn apply_impl(
         offer: file.to_owned(),
         record: Some(record),
         message,
+        note: None,
     })
 }
 

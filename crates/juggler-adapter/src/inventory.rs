@@ -155,9 +155,27 @@ pub enum Detail {
         file: PathBuf,
         /// Its format.
         format: ConfigFormat,
-        /// Each key (a dotted path in TOML) and its value's text.
+        /// Each key (a dotted path in TOML) and its value's text; empty
+        /// when it can't be copied (a secret's text is never kept).
         entries: Vec<(String, String)>,
+        /// What it holds, in a few words ("2 allowed, 1 denied").
+        about: Option<String>,
+        /// Whether it can go as it is.
+        check: SettingCheck,
     },
+}
+
+/// Whether a setting can be copied as it is (AJ-E1508).
+#[derive(Clone, PartialEq, Eq, Hash, Debug, serde::Serialize)]
+#[serde(tag = "check", content = "note", rename_all = "kebab-case")]
+pub enum SettingCheck {
+    /// It can.
+    Fine,
+    /// It can, but the user should mean it (it turns checks off): offered,
+    /// never ticked for them.
+    Caution(String),
+    /// It can't (a secret is written in it, or its own isn't known).
+    Cannot(String),
 }
 
 /// A tool config file's format.
@@ -275,7 +293,8 @@ pub enum Undo {
         file: PathBuf,
         /// Its format.
         format: ConfigFormat,
-        /// Each key and the value that was set.
+        /// Each key and the fingerprint of the value that was set (its
+        /// formatting aside; the value itself is never recorded).
         entries: Vec<(String, String)>,
     },
 }
@@ -482,6 +501,26 @@ pub fn carries_secret(text: &str) -> bool {
             let name = name.trim_start_matches('-').to_ascii_lowercase();
             !value.trim().is_empty() && SECRET_NAME_WORDS.iter().any(|word| name.contains(word))
         })
+}
+
+/// Review of AJ-E1508 (H1): whether free text, a status line's command or
+/// a permission rule, holds a secret anywhere in it: a secret-named
+/// `name=value` or a password in a URL ([`carries_secret`]), a word
+/// shaped like a token, or a bearer token.
+#[must_use]
+pub fn holds_secret(text: &str) -> bool {
+    if carries_secret(text) {
+        return true;
+    }
+    let words: Vec<&str> = text
+        .split(|c: char| c.is_whitespace() || "'\"`()[]{},;=:".contains(c))
+        .filter(|word| !word.is_empty())
+        .collect();
+    // A bearer token, whatever its shape (`Authorization: Bearer abc`).
+    words.iter().any(|word| looks_token(word))
+        || words
+            .windows(2)
+            .any(|pair| pair[0].eq_ignore_ascii_case("bearer"))
 }
 
 impl McpServer {

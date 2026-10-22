@@ -22,7 +22,7 @@ use std::path::Path;
 use juggler_adapter::error::AdapterError;
 use juggler_adapter::inventory::{
     Applied, ConfigFormat, Detail, Item, ItemKind, JsonEntry, McpServer, McpTransport, Scope,
-    SetUp, Undo, Value, secret_variable, value_of,
+    SetUp, SettingCheck, Undo, Value, secret_variable, value_of,
 };
 use juggler_adapter::jsonc;
 
@@ -139,11 +139,6 @@ fn own_settings(dir: &Path) -> Vec<Item> {
     let mut items = Vec::new();
     let settings_file = dir.join("settings.json");
     let text = std::fs::read_to_string(&settings_file).unwrap_or_default();
-    let setting = |key: &str, value: String| Detail::Setting {
-        file: settings_file.clone(),
-        format: ConfigFormat::Json,
-        entries: vec![(key.to_owned(), value)],
-    };
     if let Some(permissions) = jsonc::value_text(&text, "permissions")
         .ok()
         .flatten()
@@ -153,21 +148,124 @@ fn own_settings(dir: &Path) -> Vec<Item> {
                 .any(|c| !matches!(c, '{' | '}' | ' ' | '\n' | '\r' | '\t'))
         })
     {
+        let (about, check) = permissions_words(&permissions);
         items.push(item(
             ItemKind::Permissions,
             "permissions",
-            setting("permissions", permissions),
+            setting(&settings_file, "permissions", permissions, about, check),
         ));
     }
     let status = jsonc::value_text(&text, "statusLine").ok().flatten();
-    if let Some(own) = crate::quota_ingest::users_own_statusline(dir, status.as_deref()) {
-        items.push(item(
+    match crate::quota_ingest::users_own_statusline(dir, status.as_deref()) {
+        crate::quota_ingest::OwnStatusLine::Own(own) => {
+            let about = serde_json::from_str::<serde_json::Value>(&own)
+                .ok()
+                .and_then(|value| {
+                    value
+                        .get("command")
+                        .and_then(|c| c.as_str())
+                        .map(str::to_owned)
+                })
+                .map(|command| format!("runs {command}"));
+            items.push(item(
+                ItemKind::StatusLine,
+                "status line",
+                setting(&settings_file, "statusLine", own, about, SettingCheck::Fine),
+            ));
+        }
+        crate::quota_ingest::OwnStatusLine::Unknown => items.push(item(
             ItemKind::StatusLine,
             "status line",
-            setting("statusLine", own),
-        ));
+            Detail::Setting {
+                file: settings_file.clone(),
+                format: ConfigFormat::Json,
+                entries: Vec::new(),
+                about: None,
+                check: SettingCheck::Cannot(
+                    "AI Juggler's usage capture holds this account's status line, so its own \
+                     can't be told here: set it in the new account yourself"
+                        .to_owned(),
+                ),
+            },
+        )),
+        crate::quota_ingest::OwnStatusLine::None => {}
     }
     items
+}
+
+/// One setting of `settings.json`: never its text when a secret is written
+/// in it (review of AJ-E1508, H1).
+fn setting(
+    file: &Path,
+    key: &str,
+    value: String,
+    about: Option<String>,
+    check: SettingCheck,
+) -> Detail {
+    let secret = crate::config_edit::strings_of(ConfigFormat::Json, &value)
+        .iter()
+        .any(|text| juggler_adapter::inventory::holds_secret(text));
+    if secret {
+        return Detail::Setting {
+            file: file.to_path_buf(),
+            format: ConfigFormat::Json,
+            entries: Vec::new(),
+            about: None,
+            check: SettingCheck::Cannot(
+                "a secret is written in it, and secrets are never copied: set it in the new \
+                 account yourself"
+                    .to_owned(),
+            ),
+        };
+    }
+    Detail::Setting {
+        file: file.to_path_buf(),
+        format: ConfigFormat::Json,
+        entries: vec![(key.to_owned(), value)],
+        about,
+        check,
+    }
+}
+
+/// What a `permissions` value holds, in words ("2 allowed, 1 denied"), and
+/// whether it turns permission checks off (review of AJ-E1508, M5): then
+/// it's offered, never ticked for the user.
+fn permissions_words(value: &str) -> (Option<String>, SettingCheck) {
+    let Ok(parsed) = serde_json::from_str::<serde_json::Value>(value.trim()) else {
+        return (None, SettingCheck::Fine);
+    };
+    let count = |key: &str| {
+        parsed
+            .get(key)
+            .and_then(|v| v.as_array())
+            .map_or(0, Vec::len)
+    };
+    let mut parts: Vec<String> = [
+        ("allow", "allowed"),
+        ("deny", "denied"),
+        ("ask", "asked first"),
+    ]
+    .iter()
+    .filter(|(key, _)| count(key) > 0)
+    .map(|(key, words)| format!("{} {words}", count(key)))
+    .collect();
+    let mode = parsed.get("defaultMode").and_then(|m| m.as_str());
+    if let Some(mode) = mode {
+        parts.push(format!("mode {mode}"));
+    }
+    let folders = count("additionalDirectories");
+    if folders > 0 {
+        parts.push(format!("{folders} more folders"));
+    }
+    let check = if mode == Some("bypassPermissions") {
+        SettingCheck::Caution(
+            "it turns permission checks off (bypassPermissions): tick it only if you mean that"
+                .to_owned(),
+        )
+    } else {
+        SettingCheck::Fine
+    };
+    ((!parts.is_empty()).then(|| parts.join(", ")), check)
 }
 
 /// Whether Claude Code can set up `item`.
@@ -179,8 +277,16 @@ pub fn can_set_up(item: &Item) -> SetUp {
             "it comes with the claude.ai account, so it can't be copied to another one".to_owned(),
         ),
         (ItemKind::McpServer, Detail::Mcp(server)) => mcp_verdict(&item.name, server),
+        (ItemKind::Permissions | ItemKind::StatusLine, Detail::Setting { check, .. })
+            if from_claude =>
+        {
+            match check {
+                SettingCheck::Fine => SetUp::Copy,
+                SettingCheck::Caution(note) => SetUp::NeedsYou(note.clone()),
+                SettingCheck::Cannot(note) => SetUp::Impossible(note.clone()),
+            }
+        }
         (ItemKind::Skill | ItemKind::Command | ItemKind::Subagent, Detail::Files { .. })
-        | (ItemKind::Permissions | ItemKind::StatusLine, Detail::Setting { .. })
             if from_claude =>
         {
             SetUp::Copy
@@ -239,6 +345,11 @@ pub fn set_up(
             },
             _,
         ) => {
+            if entries.is_empty() {
+                return Err(AdapterError::Unsupported(
+                    "there's nothing of it that can be copied".to_owned(),
+                ));
+            }
             let file = dir.join("settings.json");
             crate::config_edit::set(&file, ConfigFormat::Json, entries)
                 .map_err(AdapterError::Unsupported)?;
@@ -256,10 +367,19 @@ pub fn set_up(
                 .map(|_| "it runs a script from the other account's folder".to_owned());
             Ok(Applied {
                 summary: format!("Set the {}", item.kind.words()),
+                // Each value's fingerprint, never the value itself.
                 undo: Undo::RemoveSetting {
                     file,
                     format: ConfigFormat::Json,
-                    entries: entries.clone(),
+                    entries: entries
+                        .iter()
+                        .map(|(key, value)| {
+                            (
+                                key.clone(),
+                                crate::config_edit::fingerprint(ConfigFormat::Json, value),
+                            )
+                        })
+                        .collect(),
                 },
                 note,
             })

@@ -109,6 +109,7 @@ export function SwitchSetupList({
                       <span className="text-muted">· {KIND_WORDS[offer.kind] ?? offer.kind}</span>
                     </>
                   )}
+                  {offer.about && <span className="block text-muted">{offer.about}</span>}
                   <span className="block text-muted">{verdictWords(offer)}</span>
                 </label>
               </li>

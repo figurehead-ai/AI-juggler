@@ -96,23 +96,55 @@ fn not_ours(command: Option<String>) -> Option<String> {
     command.filter(|command| !command.contains(WRAPPER_NAME))
 }
 
+/// The word that marks AJ-E1530's fail-safe status line as AI Juggler's.
+const FAIL_SAFE_NAME: &str = "aij-statusline";
+
+/// What an account's status line is, for AJ-E1508's copy.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum OwnStatusLine {
+    /// The user's own (the `statusLine` value's JSON text).
+    Own(String),
+    /// AI Juggler's capture holds it, and the user's own can't be told
+    /// here.
+    Unknown,
+    /// There's none.
+    None,
+}
+
 /// AJ-E1508: the user's own status line in the account at `config_dir`,
 /// given `current` (the `statusLine` value's JSON text in its
-/// `settings.json`, if any): `current` itself, unless it's AI Juggler's
-/// capture (its wrapper or the opt-in fail-safe line), whose original is
-/// then read from the backup kept beside it. `None` when there's no status
-/// line of the user's own to tell.
-pub(crate) fn users_own_statusline(config_dir: &Path, current: Option<&str>) -> Option<String> {
-    let ours = |text: &str| text.contains(WRAPPER_NAME) || text.contains("aij-statusline");
-    let current = current?;
+/// `settings.json`, if any). AI Juggler's capture is never the user's:
+/// under the older wrapper the original is the backup kept beside it; under
+/// the opt-in fail-safe line (AJ-E1530) the original is kept by the app,
+/// not here, and a backup that may be left beside it is stale (review of
+/// AJ-E1508, M1), so it's unknown.
+pub(crate) fn users_own_statusline(config_dir: &Path, current: Option<&str>) -> OwnStatusLine {
+    let ours = |text: &str| text.contains(WRAPPER_NAME) || text.contains(FAIL_SAFE_NAME);
+    let Some(current) = current else {
+        return OwnStatusLine::None;
+    };
     if !ours(current) {
-        return Some(current.to_owned());
+        return OwnStatusLine::Own(current.to_owned());
     }
-    let backup: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(config_dir.join(BACKUP_NAME)).ok()?).ok()?;
-    let original = backup.get("statusLine").filter(|value| !value.is_null())?;
-    let text = serde_json::to_string(original).ok()?;
-    (!ours(&text)).then_some(text)
+    if current.contains(FAIL_SAFE_NAME) {
+        return OwnStatusLine::Unknown;
+    }
+    let original = std::fs::read(config_dir.join(BACKUP_NAME))
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
+        .and_then(|backup| {
+            backup
+                .get("statusLine")
+                .filter(|value| !value.is_null())
+                .cloned()
+        })
+        .and_then(|value| serde_json::to_string(&value).ok());
+    match original {
+        Some(text) if !ours(&text) => OwnStatusLine::Own(text),
+        // The wrapper with no original behind it: the user had none.
+        None => OwnStatusLine::None,
+        Some(_) => OwnStatusLine::Unknown,
+    }
 }
 
 /// Writes `bytes` only when the file differs, atomically — running
@@ -1265,7 +1297,7 @@ pub fn fail_safe_statusline_command(
 ) -> String {
     let theirs = not_ours(original.map(str::to_owned)).unwrap_or_default();
     format!(
-        "sh -c 'if [ -x \"$1\" ]; then exec \"$1\"; fi; if [ -n \"$2\" ]; then exec sh -c \"$2\"; fi' aij-statusline {} {}",
+        "sh -c 'if [ -x \"$1\" ]; then exec \"$1\"; fi; if [ -n \"$2\" ]; then exec sh -c \"$2\"; fi' {FAIL_SAFE_NAME} {} {}",
         overlay_wrapper_command(overlays_root, account_id),
         shell_word(&theirs)
     )
