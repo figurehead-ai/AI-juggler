@@ -143,12 +143,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   missed for up to 10 seconds, so the app's figure read far too low.
 - This Mac never drops a tool without a word: past the three heaviest, the
   rest are behind "and N more".
-- Codex's context compactions now count: the usage of the compaction call,
-  which Codex records outside its turns, was missed.
+- Codex's context compactions now count, once: the usage of the compaction
+  call, which Codex records outside its turns, was missed, and could count
+  twice when AI Juggler read the file just as the compaction was written.
 - A conversation resumed into a new session repeats the original's
-  history. Its cost now stays with the original session, whichever file AI
-  Juggler reads first. Counts already stored are read again once, so these
-  fixes reach them.
+  history. Its cost now stays with the session that wrote it, whatever order
+  AI Juggler reads the files in, including a copy of a copy and a fork that
+  both go on. Counts already stored are read again once, so these fixes
+  reach them.
+- The tools AI Juggler runs are found in fixed system places, never by
+  searching your `PATH` (git included).
 
 - An account's limits no longer read "100% left" when nothing has been
   measured yet: on Home, Accounts, Usage, a session's details and New

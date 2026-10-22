@@ -234,7 +234,9 @@ impl UsageSubject for CodexUsage {
     fn read(&self, account: &str, state_dir: &Path) -> Vec<UsageEvent> {
         jsonl_files(&state_dir.join("sessions"))
             .iter()
-            .flat_map(|path| juggler_adapters::tail_rollout(path, account, 0).events)
+            .flat_map(|path| {
+                juggler_adapters::tail_rollout(path, account, 0, &Default::default()).events
+            })
             .collect()
     }
 

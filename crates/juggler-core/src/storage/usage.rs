@@ -5,6 +5,8 @@
 //! engine's maths (§Q3) lives in [`crate::quota`] as pure functions;
 //! THIS module only persists and fetches.
 
+use std::collections::{BTreeSet, HashMap, HashSet};
+
 use rusqlite::{Connection, OptionalExtension, params};
 
 use crate::error::CoreError;
@@ -53,7 +55,7 @@ impl UsageRepo<'_> {
     /// transaction rolls back atomically.
     pub fn store_events(&self, events: &[UsageEvent]) -> Result<Vec<Stored>, CoreError> {
         let tx = self.conn.unchecked_transaction()?;
-        let stored = store_in(&tx, events)?;
+        let stored = store_in(&tx, events, Vec::new())?;
         tx.commit()?;
         Ok(stored)
     }
@@ -72,8 +74,8 @@ impl UsageRepo<'_> {
         events: &[UsageEvent],
     ) -> Result<Vec<Stored>, CoreError> {
         let tx = self.conn.unchecked_transaction()?;
-        delete_in(&tx, sessions)?;
-        let stored = store_in(&tx, events)?;
+        let (_, recheck) = delete_in(&tx, sessions)?;
+        let stored = store_in(&tx, events, recheck)?;
         tx.commit()?;
         Ok(stored)
     }
@@ -112,7 +114,8 @@ impl UsageRepo<'_> {
         sessions: &[(String, UsageSource, String)],
     ) -> Result<usize, CoreError> {
         let tx = self.conn.unchecked_transaction()?;
-        let deleted = delete_in(&tx, sessions)?;
+        let (deleted, recheck) = delete_in(&tx, sessions)?;
+        store_in(&tx, &[], recheck)?;
         tx.commit()?;
         Ok(deleted)
     }
@@ -443,84 +446,320 @@ fn from_sql(count: i64) -> u64 {
     u64::try_from(count).unwrap_or_default()
 }
 
-/// Who keeps a message two sessions share (a resumed copy repeats its
-/// original's history): the session whose first message came first. A copy
-/// keeps the original lines' times, so first messages tie; the copy then
-/// goes on past the original's end, so the earlier last message wins, then
-/// the smaller id. Each session's span counts the store and the whole
-/// incoming batch, so the order files arrive in never changes the answer.
-struct Shares<'c> {
-    span_stored: rusqlite::Statement<'c>,
-    move_to: rusqlite::Statement<'c>,
-    span_in_batch: std::collections::HashMap<(String, String), (i64, i64)>,
+/// Tables derived from the transcripts and rollouts, kept outside the
+/// numbered schema: reading the files again (the pipeline's re-read)
+/// rebuilds them, so they need no migration of their own.
+/// - `usage_holders`: every session that offered each keyed message,
+///   whichever one keeps it.
+/// - `usage_spans`: each session's standing under the shared-message rule
+///   ([`Span`]).
+pub(crate) const DERIVED: &str = "
+CREATE TABLE IF NOT EXISTS usage_holders (
+    account TEXT NOT NULL,
+    msg_uuid TEXT NOT NULL,
+    session TEXT NOT NULL,
+    ts INTEGER NOT NULL,
+    PRIMARY KEY (account, msg_uuid, session)
+) WITHOUT ROWID;
+CREATE INDEX IF NOT EXISTS idx_usage_holders_session ON usage_holders(account, session, ts);
+CREATE TABLE IF NOT EXISTS usage_spans (
+    account TEXT NOT NULL,
+    session TEXT NOT NULL,
+    first INTEGER NOT NULL,
+    last INTEGER NOT NULL,
+    own_start INTEGER,
+    PRIMARY KEY (account, session)
+) WITHOUT ROWID;
+";
+
+/// One session's standing for the messages it shares, from every message
+/// it offered (kept or not).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+struct Span {
+    /// Its first message.
+    first: i64,
+    /// Its last message.
+    last: i64,
+    /// Its first message no other session holds; `None` when it has none.
+    own_start: Option<i64>,
 }
 
-impl<'c> Shares<'c> {
-    fn new(conn: &'c Connection, events: &[UsageEvent]) -> Result<Self, CoreError> {
-        let mut span_in_batch: std::collections::HashMap<(String, String), (i64, i64)> =
-            std::collections::HashMap::new();
-        for event in events {
-            if let Some(session) = &event.session {
-                span_in_batch
-                    .entry((event.account.clone(), session.clone()))
-                    .and_modify(|(first, last)| {
-                        *first = (*first).min(event.ts);
-                        *last = (*last).max(event.ts);
-                    })
-                    .or_insert((event.ts, event.ts));
-            }
-        }
+impl Span {
+    /// Who keeps a message two sessions share (a resumed copy or a fork
+    /// repeats its original's history, with the original times): the
+    /// smallest of these.
+    /// 1. The earliest first message.
+    /// 2. The session whose own messages start latest, none counting as
+    ///    latest: a copy starts its own right after it was made, while the
+    ///    original has none then, or starts them later.
+    /// 3. Between sessions with none of their own, the earlier last
+    ///    message (in a chain of copies, the shorter one is older).
+    /// 4. The smaller id.
+    ///
+    /// None of these moves as a session grows past its own start, so a
+    /// message's keeper doesn't either.
+    fn rank<'s>(&self, session: &'s str) -> (i64, std::cmp::Reverse<i64>, i64, &'s str) {
+        (
+            self.first,
+            std::cmp::Reverse(self.own_start.unwrap_or(i64::MAX)),
+            if self.own_start.is_none() {
+                self.last
+            } else {
+                0
+            },
+            session,
+        )
+    }
+
+    /// Whether a change from `before` can change who keeps a message.
+    fn moved_from(&self, before: Option<Self>) -> bool {
+        before.is_none_or(|was| {
+            was.first != self.first
+                || was.own_start != self.own_start
+                || (self.own_start.is_none() && was.last != self.last)
+        })
+    }
+}
+
+type SessionKey = (String, String);
+
+/// Settles who keeps each shared message (see [`Span::rank`]). Every
+/// session that offers a message is recorded, kept or not; each pass
+/// updates the standing of the sessions it touched and settles every
+/// shared message whose keeper could have changed. The answer depends
+/// only on what has been offered, never on the order or the passes.
+struct Owners<'c> {
+    hold: rusqlite::Statement<'c>,
+    holders_of: rusqlite::Statement<'c>,
+    load_span: rusqlite::Statement<'c>,
+    save_span: rusqlite::Statement<'c>,
+    count_span: rusqlite::Statement<'c>,
+    shared_keys: rusqlite::Statement<'c>,
+    move_to: rusqlite::Statement<'c>,
+    /// Standing as stored when the pass first touched each session.
+    before: HashMap<SessionKey, Option<Span>>,
+    /// Standing now.
+    spans: HashMap<SessionKey, Span>,
+    /// Sessions whose own start must be counted again in full (one of
+    /// their own messages became shared, or a session they shared with
+    /// was removed).
+    recount: HashSet<SessionKey>,
+    /// Shared messages to settle: (account, key).
+    keys: BTreeSet<(String, String)>,
+}
+
+impl<'c> Owners<'c> {
+    fn new(conn: &'c Connection) -> Result<Self, CoreError> {
         Ok(Self {
-            span_stored: conn.prepare(
-                "SELECT MIN(ts), MAX(ts) FROM usage_events WHERE account = ?1 AND session = ?2",
+            hold: conn.prepare(
+                "INSERT OR IGNORE INTO usage_holders (account, msg_uuid, session, ts)
+                 VALUES (?1, ?2, ?3, ?4)",
+            )?,
+            holders_of: conn.prepare(
+                "SELECT session, ts FROM usage_holders WHERE account = ?1 AND msg_uuid = ?2",
+            )?,
+            load_span: conn.prepare(
+                "SELECT first, last, own_start FROM usage_spans WHERE account = ?1 AND session = ?2",
+            )?,
+            save_span: conn.prepare(
+                "INSERT OR REPLACE INTO usage_spans (account, session, first, last, own_start)
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+            )?,
+            count_span: conn.prepare(
+                "SELECT MIN(h.ts), MAX(h.ts), MIN(CASE WHEN NOT EXISTS (
+                     SELECT 1 FROM usage_holders o
+                     WHERE o.account = h.account AND o.msg_uuid = h.msg_uuid
+                       AND o.session <> h.session) THEN h.ts END)
+                 FROM usage_holders h WHERE h.account = ?1 AND h.session = ?2",
+            )?,
+            shared_keys: conn.prepare(
+                "SELECT h.msg_uuid FROM usage_holders h
+                 WHERE h.account = ?1 AND h.session = ?2 AND EXISTS (
+                     SELECT 1 FROM usage_holders o
+                     WHERE o.account = h.account AND o.msg_uuid = h.msg_uuid
+                       AND o.session <> h.session)",
             )?,
             move_to: conn.prepare(
-                "UPDATE usage_events SET session = ?3 WHERE account = ?1 AND msg_uuid = ?2",
+                "UPDATE usage_events SET session = ?3
+                 WHERE account = ?1 AND msg_uuid = ?2 AND session IS NOT ?3",
             )?,
-            span_in_batch,
+            before: HashMap::new(),
+            spans: HashMap::new(),
+            recount: HashSet::new(),
+            keys: BTreeSet::new(),
         })
     }
 
-    /// A session's first and last message, stored or arriving.
-    fn span(&mut self, account: &str, session: &str) -> Result<(i64, i64), CoreError> {
-        let (min, max): (Option<i64>, Option<i64>) = self
-            .span_stored
-            .query_row(params![account, session], |row| {
-                Ok((row.get(0)?, row.get(1)?))
-            })?;
-        let batch = self
-            .span_in_batch
-            .get(&(account.to_owned(), session.to_owned()))
-            .copied();
-        let first = min.into_iter().chain(batch.map(|span| span.0)).min();
-        let last = max.into_iter().chain(batch.map(|span| span.1)).max();
-        Ok((first.unwrap_or(i64::MAX), last.unwrap_or(i64::MAX)))
+    /// The stored standing, or one counted from the holders (a session
+    /// recorded before standings were kept).
+    fn stored(&mut self, who: &SessionKey) -> Result<Option<Span>, CoreError> {
+        if let Some(span) = self
+            .load_span
+            .query_row(params![who.0, who.1], |row| {
+                Ok(Span {
+                    first: row.get(0)?,
+                    last: row.get(1)?,
+                    own_start: row.get(2)?,
+                })
+            })
+            .optional()?
+        {
+            return Ok(Some(span));
+        }
+        self.counted(who)
     }
 
-    /// Moves the message to `offered` when it, not `held`, came first.
-    fn settle(
-        &mut self,
-        account: &str,
-        key: Option<&str>,
-        held: &str,
-        offered: &str,
-    ) -> Result<(), CoreError> {
-        let (offered_first, offered_last) = self.span(account, offered)?;
-        let (held_first, held_last) = self.span(account, held)?;
-        if (offered_first, offered_last, offered) < (held_first, held_last, held) {
-            self.move_to.execute(params![account, key, offered])?;
+    /// The standing counted in full from the holders.
+    fn counted(&mut self, who: &SessionKey) -> Result<Option<Span>, CoreError> {
+        let (first, last, own_start): (Option<i64>, Option<i64>, Option<i64>) =
+            self.count_span.query_row(params![who.0, who.1], |row| {
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+            })?;
+        Ok(first.zip(last).map(|(first, last)| Span {
+            first,
+            last,
+            own_start,
+        }))
+    }
+
+    /// The standing as this pass sees it (touching the session).
+    fn span(&mut self, who: &SessionKey) -> Result<Option<Span>, CoreError> {
+        if let Some(span) = self.spans.get(who) {
+            return Ok(Some(*span));
+        }
+        let stored = self.stored(who)?;
+        self.before.insert(who.clone(), stored);
+        if let Some(span) = stored {
+            self.spans.insert(who.clone(), span);
+        }
+        Ok(stored)
+    }
+
+    fn holders(&mut self, account: &str, key: &str) -> Result<Vec<(String, i64)>, CoreError> {
+        let rows = self
+            .holders_of
+            .query_map(params![account, key], |row| Ok((row.get(0)?, row.get(1)?)))?;
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(CoreError::Storage)
+    }
+
+    /// `session` offered the message `key` at `ts`.
+    fn offer(&mut self, account: &str, key: &str, session: &str, ts: i64) -> Result<(), CoreError> {
+        if self.hold.execute(params![account, key, session, ts])? == 0 {
+            return Ok(()); // it had offered it before
+        }
+        let who = (account.to_owned(), session.to_owned());
+        let holders = self.holders(account, key)?;
+        let own = holders.len() == 1;
+        let was = self.span(&who)?;
+        let span = was.map_or(
+            Span {
+                first: ts,
+                last: ts,
+                own_start: own.then_some(ts),
+            },
+            |was| Span {
+                first: was.first.min(ts),
+                last: was.last.max(ts),
+                own_start: if own {
+                    Some(was.own_start.map_or(ts, |start| start.min(ts)))
+                } else {
+                    was.own_start
+                },
+            },
+        );
+        self.spans.insert(who, span);
+        if own {
+            return Ok(());
+        }
+        // A message that was another session's own is now shared: its
+        // own start may have been this one.
+        if holders.len() == 2
+            && let Some((other, at)) = holders.iter().find(|(holder, _)| holder != session)
+        {
+            let other = (account.to_owned(), other.clone());
+            if self.span(&other)?.and_then(|span| span.own_start) == Some(*at) {
+                self.recount.insert(other);
+            }
+        }
+        self.keys.insert((account.to_owned(), key.to_owned()));
+        Ok(())
+    }
+
+    /// Settles every shared message whose keeper could have changed, and
+    /// stores the new standings.
+    fn finish(mut self) -> Result<(), CoreError> {
+        for who in std::mem::take(&mut self.recount) {
+            self.span(&who)?;
+            match self.counted(&who)? {
+                Some(span) => {
+                    self.spans.insert(who, span);
+                }
+                None => {
+                    self.spans.remove(&who);
+                }
+            }
+        }
+        let touched: Vec<(SessionKey, Span)> = self
+            .spans
+            .iter()
+            .map(|(who, span)| (who.clone(), *span))
+            .collect();
+        for (who, span) in touched {
+            let before = self.before.get(&who).copied().flatten();
+            if before != Some(span) {
+                self.save_span.execute(params![
+                    who.0,
+                    who.1,
+                    span.first,
+                    span.last,
+                    span.own_start
+                ])?;
+            }
+            if span.moved_from(before) {
+                let keys = self
+                    .shared_keys
+                    .query_map(params![who.0, who.1], |row| row.get::<_, String>(0))?
+                    .collect::<Result<Vec<_>, _>>()?;
+                self.keys
+                    .extend(keys.into_iter().map(|key| (who.0.clone(), key)));
+            }
+        }
+        for (account, key) in std::mem::take(&mut self.keys) {
+            let mut best: Option<(Span, String)> = None;
+            for (holder, _) in self.holders(&account, &key)? {
+                let Some(span) = self.span(&(account.clone(), holder.clone()))? else {
+                    continue;
+                };
+                if best
+                    .as_ref()
+                    .is_none_or(|(kept, by)| span.rank(&holder) < kept.rank(by))
+                {
+                    best = Some((span, holder));
+                }
+            }
+            if let Some((_, keeper)) = best {
+                self.move_to.execute(params![account, key, keeper])?;
+            }
         }
         Ok(())
     }
 }
 
-fn store_in(conn: &Connection, events: &[UsageEvent]) -> Result<Vec<Stored>, CoreError> {
+/// Stores `events`; `recheck` are sessions whose standing must be counted
+/// again in full (they shared messages with a session just removed).
+fn store_in(
+    conn: &Connection,
+    events: &[UsageEvent],
+    recheck: Vec<SessionKey>,
+) -> Result<Vec<Stored>, CoreError> {
     let mut stored = Vec::with_capacity(events.len());
     let mut find = conn.prepare(
-        "SELECT input, output, cache_r, cache_w, reasoning, session FROM usage_events
+        "SELECT input, output, cache_r, cache_w, reasoning FROM usage_events
          WHERE account = ?1 AND msg_uuid = ?2",
     )?;
-    let mut shares = Shares::new(conn, events)?;
+    let mut owners = Owners::new(conn)?;
+    owners.recount.extend(recheck);
     let mut insert = conn.prepare(
         "INSERT OR IGNORE INTO usage_events
              (account, session, ts, model, input, output, cache_r, cache_w,
@@ -537,21 +776,21 @@ fn store_in(conn: &Connection, events: &[UsageEvent]) -> Result<Vec<Stored>, Cor
         let known = match &event.msg_uuid {
             Some(key) => find
                 .query_row(params![event.account, key], |row| {
-                    Ok((
-                        TokenCounts {
-                            input: from_sql(row.get(0)?),
-                            output: from_sql(row.get(1)?),
-                            cache_read: from_sql(row.get(2)?),
-                            cache_write: from_sql(row.get(3)?),
-                            reasoning: from_sql(row.get(4)?),
-                        },
-                        row.get::<_, Option<String>>(5)?,
-                    ))
+                    Ok(TokenCounts {
+                        input: from_sql(row.get(0)?),
+                        output: from_sql(row.get(1)?),
+                        cache_read: from_sql(row.get(2)?),
+                        cache_write: from_sql(row.get(3)?),
+                        reasoning: from_sql(row.get(4)?),
+                    })
                 })
                 .optional()?,
             None => None,
         };
-        let Some((was, held_by)) = known else {
+        if let (Some(key), Some(session)) = (&event.msg_uuid, &event.session) {
+            owners.offer(&event.account, key, session, event.ts)?;
+        }
+        let Some(was) = known else {
             insert.execute(params![
                 event.account,
                 event.session,
@@ -581,11 +820,6 @@ fn store_in(conn: &Connection, events: &[UsageEvent]) -> Result<Vec<Stored>, Cor
             cache_write: was.cache_write.max(event.tokens.cache_write),
             reasoning: was.reasoning.max(event.tokens.reasoning),
         };
-        if let (Some(held), Some(offered)) = (&held_by, &event.session)
-            && held != offered
-        {
-            shares.settle(&event.account, event.msg_uuid.as_deref(), held, offered)?;
-        }
         if now != was {
             raise.execute(params![
                 event.account,
@@ -609,20 +843,43 @@ fn store_in(conn: &Connection, events: &[UsageEvent]) -> Result<Vec<Stored>, Cor
             },
         });
     }
+    owners.finish()?;
     Ok(stored)
 }
 
+/// Deletes the sessions' rows and what they offered; returns how many rows
+/// went, and the sessions that shared messages with them (whose standing
+/// must be counted again).
 fn delete_in(
     conn: &Connection,
     sessions: &[(String, UsageSource, String)],
-) -> Result<usize, CoreError> {
+) -> Result<(usize, Vec<SessionKey>), CoreError> {
     let mut stmt = conn
         .prepare("DELETE FROM usage_events WHERE account = ?1 AND source = ?2 AND session = ?3")?;
+    let mut sharers = conn.prepare(
+        "SELECT DISTINCT o.session FROM usage_holders h JOIN usage_holders o
+           ON o.account = h.account AND o.msg_uuid = h.msg_uuid AND o.session <> h.session
+         WHERE h.account = ?1 AND h.session = ?2",
+    )?;
+    let mut forget =
+        conn.prepare("DELETE FROM usage_holders WHERE account = ?1 AND session = ?2")?;
+    let mut forget_span =
+        conn.prepare("DELETE FROM usage_spans WHERE account = ?1 AND session = ?2")?;
     let mut deleted = 0;
+    let mut recheck = BTreeSet::new();
     for (account, source, session) in sessions {
+        let others = sharers
+            .query_map(params![account, session], |row| row.get::<_, String>(0))?
+            .collect::<Result<Vec<_>, _>>()?;
+        recheck.extend(others.into_iter().map(|other| (account.clone(), other)));
+        forget.execute(params![account, session])?;
+        forget_span.execute(params![account, session])?;
         deleted += stmt.execute(params![account, source.as_str(), session])?;
     }
-    Ok(deleted)
+    for (account, _, session) in sessions {
+        recheck.remove(&(account.clone(), session.clone()));
+    }
+    Ok((deleted, recheck.into_iter().collect()))
 }
 
 fn confidence_name(confidence: Confidence) -> &'static str {

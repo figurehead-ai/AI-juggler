@@ -777,6 +777,7 @@ impl Storage {
             migrated: false,
         };
         storage.migrated = storage.migrate(current)?;
+        storage.conn.execute_batch(usage::DERIVED)?;
         Ok(storage)
     }
 

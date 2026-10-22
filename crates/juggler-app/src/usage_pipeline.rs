@@ -39,8 +39,11 @@ pub const CREDITS_KEY_PREFIX: &str = "credits:";
 /// from the start, replacing its sessions' rows. 1 = 0.0.13 (Claude
 /// content blocks counted per line; Codex's nested token classes and
 /// missing model). 2 = Codex compactions' own usage (P17), and a message a
-/// resumed copy shares credited to the session that came first.
-const REREAD_VERSION: u32 = 2;
+/// resumed copy shares credited to the session that came first. 3 = every
+/// session that offered a message recorded, so a shared message's keeper
+/// no longer depends on the reading order (a copy of a copy, a fork); a
+/// compaction counted once wherever a pass ends.
+const REREAD_VERSION: u32 = 3;
 
 /// Quota samples gathered in one pass: (account, window, sample).
 type SampleBatch = Vec<(
@@ -55,10 +58,10 @@ struct AccountOffsets {
     spool: u64,
     #[serde(default)]
     files: BTreeMap<String, u64>,
-    /// Per Codex rollout: the model its last `turn_context` named, for
-    /// the usage lines of the next slice that come before their own.
+    /// Per Codex rollout: what its last slice left for the next one (the
+    /// model, the last total, compactions waiting for their thread).
     #[serde(default)]
-    models: BTreeMap<String, String>,
+    carries: BTreeMap<String, juggler_adapters::RolloutCarry>,
 }
 
 /// The whole persisted pipeline state.
@@ -106,7 +109,7 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
     if rereading {
         for offsets in ingest.offsets.values_mut() {
             offsets.files.values_mut().for_each(|offset| *offset = 0);
-            offsets.models.clear();
+            offsets.carries.clear();
         }
     }
     let mut store_batch: Vec<juggler_core::quota::UsageEvent> = Vec::new();
@@ -252,7 +255,7 @@ fn ingest_claude(
         account,
         "transcript",
         files,
-        juggler_adapters::tail_transcript,
+        |path, account, offset, _| juggler_adapters::tail_transcript(path, account, offset),
         ingest,
         store,
     );
@@ -324,12 +327,15 @@ fn ingest_zcode(
     }
 }
 
+/// Reads one file's next slice: its path, account, offset and carry.
+type Tail = fn(&Path, &str, u64, &juggler_adapters::RolloutCarry) -> juggler_adapters::TailOutcome;
+
 /// Tails a set of JSONL files with per-file offsets.
 fn ingest_files(
     account: &str,
     source: &str,
     files: Vec<PathBuf>,
-    tail: fn(&Path, &str, u64) -> juggler_adapters::TailOutcome,
+    tail: Tail,
     ingest: &mut IngestState,
     store: &mut Vec<juggler_core::quota::UsageEvent>,
 ) {
@@ -338,38 +344,26 @@ fn ingest_files(
     }
 }
 
-/// Tails one file from its stored offset: its events go to the store,
-/// the offset and health are recorded; the rest of the outcome (samples,
-/// credits) is returned for the caller.
+/// Tails one file from its stored offset and carry: its events go to the
+/// store, the offset, carry and health are recorded; the rest of the
+/// outcome (samples, credits) is returned for the caller.
 fn tail_one(
     account: &str,
     source: &str,
     path: &Path,
-    tail: fn(&Path, &str, u64) -> juggler_adapters::TailOutcome,
+    tail: Tail,
     ingest: &mut IngestState,
     store: &mut Vec<juggler_core::quota::UsageEvent>,
 ) -> juggler_adapters::TailOutcome {
     let key = path.to_string_lossy().to_string();
-    let offset = ingest
-        .offsets
-        .get(account)
-        .and_then(|offsets| offsets.files.get(&key).copied())
-        .unwrap_or(0);
-    let mut outcome = tail(path, account, offset);
     let offsets = ingest.offsets.entry(account.to_owned()).or_default();
-    // Codex: usage before the slice's first `turn_context` ran on the
-    // model the file's previous slice ended with.
-    if let Some(carried) = offsets.models.get(&key) {
-        for event in outcome
-            .events
-            .iter_mut()
-            .filter(|event| event.model.is_none())
-        {
-            event.model = Some(carried.clone());
-        }
-    }
-    if let Some(model) = outcome.model.clone() {
-        offsets.models.insert(key.clone(), model);
+    let offset = offsets.files.get(&key).copied().unwrap_or(0);
+    let carry = offsets.carries.get(&key).cloned().unwrap_or_default();
+    let mut outcome = tail(path, account, offset, &carry);
+    if outcome.carry == juggler_adapters::RolloutCarry::default() {
+        offsets.carries.remove(&key);
+    } else {
+        offsets.carries.insert(key.clone(), outcome.carry.clone());
     }
     offsets.files.insert(key, outcome.offset);
     let latest = outcome
