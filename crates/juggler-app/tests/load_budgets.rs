@@ -13,11 +13,15 @@
 )]
 #![cfg(unix)]
 
+use std::os::unix::process::CommandExt as _;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use base64::Engine as _;
+
+#[path = "../../juggler-supervisor/tests/fixtures/stand_in.rs"]
+mod stand_in;
 use juggler_adapter::{AdapterRegistry, EnvMap, LaunchSpec};
 use juggler_app::state::AppState;
 use juggler_app::{commands, terminal};
@@ -347,17 +351,15 @@ fn this_mac_at_fifty_instances() {
 /// emissions, with 5 live sessions. The budget is held by doing little, and
 /// that is asserted deterministically:
 /// - a full scan (every process on the Mac) at most every 5th tick;
-/// - a list-only read of every process (P16) at most every 2nd tick
-///   between them;
-/// - otherwise only the known processes are read, a handful per tick.
+/// - one listing of every process (parent, start time, CPU, memory: our
+///   trees' new processes and the other tools' trees) at most every 2nd
+///   tick;
+/// - otherwise only our sessions' processes are read, a handful per tick.
 ///
-/// CPU time is asserted too, but it measures the machine as well as us: a
-/// full scan's cost grows with every process on it, and the other tools'
-/// trees (the Claude app and what it runs, builds included) are read every
-/// tick. The budget itself, 1 %, is held where those are few (under 100
-/// processes a tick); on a CI runner (1.118 % once, AJ-E806) or beside a
-/// busy Claude app (1.36 % at 290 of its processes a tick, 0.79 % at 155)
-/// the bound is 2 %.
+/// CPU time is asserted too: under 1 % here, and beside a busy Claude app
+/// in [`monitoring_beside_a_busy_claude_app`]. On a shared CI runner, which
+/// measures the runner as much as us (1.118 % once, AJ-E806), the bound is
+/// 2 %.
 #[test]
 fn monitoring_costs_under_one_percent_of_a_core() {
     let _alone = alone();
@@ -447,15 +449,23 @@ fn monitoring_costs_under_one_percent_of_a_core() {
         "our sessions' processes, once each: {ours} over {between} ticks"
     );
     assert!(
-        listings > 0 && listings <= between.div_ceil(2),
-        "a listing at most every 2nd tick: {listings} over {between} ticks"
+        listings > 0 && listings <= ticks.div_ceil(2),
+        "a listing at most every 2nd tick: {listings} over {ticks} ticks"
     );
-    let bound = if std::env::var_os("CI").is_some() || observed >= between * 100 {
+    assert!(
+        share < bound(),
+        "{share:.3} % of a core (bound {} %)",
+        bound()
+    );
+}
+
+/// SPEC §1's 1 % of a core; 2 % on a shared CI runner (see above).
+fn bound() -> f64 {
+    if std::env::var_os("CI").is_some() {
         2.0
     } else {
         1.0
-    };
-    assert!(share < bound, "{share:.3} % of a core (bound {bound} %)");
+    }
 }
 
 /// P16 (QA): a tree's new processes counted at once. The collector read the
@@ -545,4 +555,120 @@ fn a_trees_new_processes_count_at_the_next_tick() {
             "child {child} in the tree at once: {rows:?}"
         );
     }
+}
+
+/// The `fake-desktop` binary (juggler-adapters), as `desktop.rs` finds it.
+fn fake_desktop_bin() -> PathBuf {
+    if let Some(path) = option_env!("CARGO_BIN_EXE_fake-desktop") {
+        return PathBuf::from(path);
+    }
+    let me = std::env::current_exe().unwrap();
+    let target = me.ancestors().nth(3).unwrap().to_path_buf();
+    for profile in ["debug", "release"] {
+        let candidate = target.join(profile).join("fake-desktop");
+        if candidate.exists() {
+            return candidate;
+        }
+    }
+    panic!("fake-desktop binary not found under {}", target.display())
+}
+
+/// A stand-in for a busy Claude app: `fake-desktop` copied to
+/// `…/Claude.app/Contents/MacOS/Claude` (so the running-tools scan sees the
+/// Claude app), running a shell with `children` processes under it, as when
+/// it runs a build. (A copy of a system binary won't do: macOS kills it.)
+/// Killed with its whole group when dropped.
+struct BusyClaudeApp {
+    app: std::process::Child,
+}
+
+impl BusyClaudeApp {
+    fn start(dir: &std::path::Path, children: u32) -> Self {
+        let app = dir.join("Claude.app/Contents/MacOS");
+        std::fs::create_dir_all(&app).unwrap();
+        let exe = app.join("Claude");
+        stand_in::write(&exe, std::fs::read(fake_desktop_bin()).unwrap());
+        let ready = dir.join("busy-ready");
+        let script = dir.join("busy.sh");
+        std::fs::write(
+            &script,
+            format!(
+                "i=0; while [ $i -lt {children} ]; do sleep 600 & i=$((i+1)); done; : > '{}'; wait\n",
+                ready.display()
+            ),
+        )
+        .unwrap();
+        let app = std::process::Command::new(&exe)
+            .args(["--spawn-child", "/bin/sh", "--child-args"])
+            .arg(&script)
+            .process_group(0)
+            .spawn()
+            .unwrap();
+        let started = Instant::now();
+        while !ready.exists() {
+            assert!(
+                started.elapsed() < Duration::from_secs(60),
+                "the stand-in app started"
+            );
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        Self { app }
+    }
+}
+
+impl Drop for BusyClaudeApp {
+    fn drop(&mut self) {
+        let _ = std::process::Command::new("/bin/kill")
+            .args(["-9", &format!("-{}", self.app.id())])
+            .status();
+        let _ = self.app.wait();
+    }
+}
+
+/// SPEC §1's budget beside a busy Claude app, the case that broke it (#126:
+/// about 290 of its processes read every tick put monitoring at 1.36–1.43 %
+/// of a core; this stand-in measured 1.10–1.16 % before the other tools'
+/// trees moved to the listing). The same simulated minute as
+/// `monitoring_costs_under_one_percent_of_a_core`, with a stand-in Claude
+/// app running 290 processes.
+#[test]
+fn monitoring_beside_a_busy_claude_app() {
+    let _alone = alone();
+    use cpu_time::ThreadTime;
+    let dir = tempfile::tempdir().unwrap();
+    seed(dir.path());
+    let state = open(dir.path());
+    let _app = BusyClaudeApp::start(dir.path(), 290);
+    // The running-tools scan finds the app; the warm-up's full scans read it.
+    juggler_app::machine_health::tick(&state, Timestamp::now().millis());
+    for _ in 0..4 {
+        commands::processes_tick(&state);
+    }
+    let before = state.resources.lock().unwrap().work();
+    let started = ThreadTime::now();
+    for tick in 0..30 {
+        commands::processes_tick(&state);
+        if tick % 5 == 2 || tick % 5 == 4 {
+            juggler_app::machine_health::this_mac_impl(&state, Timestamp::now().millis()).unwrap();
+        }
+    }
+    let used = started.elapsed();
+    let after = state.resources.lock().unwrap().work();
+    let share = used.as_secs_f64() / 60.0 * 100.0;
+    let observed = after.targeted_observed - before.targeted_observed;
+    let ticks = after.ticks - before.ticks;
+    eprintln!(
+        "[perf] beside a busy Claude app: {ticks} ticks, {} full scans, {} listings, {observed} of its processes read; {used:?} CPU per simulated minute = {share:.3} % of one core",
+        after.full_scans - before.full_scans,
+        after.listings - before.listings,
+    );
+    assert!(
+        observed >= 290,
+        "the app's processes were watched: {observed}"
+    );
+    assert!(
+        share < bound(),
+        "{share:.3} % of a core (bound {} %)",
+        bound()
+    );
 }
