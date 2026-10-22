@@ -115,6 +115,9 @@ pub fn delta_turn_text(input: &DeltaInput) -> String {
         last.into_iter()
             .map(|turn| (input.away_account.as_str(), turn)),
     );
+    // A tool call or its result has no text of its own here: an empty line
+    // tells the returning session nothing (found by the live lab).
+    all.retain(|(_, turn)| !turn.text.trim().is_empty());
     let mut text = String::new();
     if input.earlier_hops.is_empty() {
         let original_only_note = if input.conversation.original_only_uuids > 0 {
@@ -418,6 +421,26 @@ mod tests {
         assert!(text.contains("…60 earlier turns, not shown."));
         let rendered = text.lines().filter(|line| line.starts_with("- [")).count();
         assert_eq!(rendered, MAX_RENDERED_TURNS);
+    }
+
+    #[test]
+    fn turns_without_text_are_left_out() {
+        let mut input = delta_fixture();
+        input.away_turns = vec![
+            turn(Some("b1"), IrRole::Assistant, ""),
+            turn(Some("b2"), IrRole::User, "  "),
+            turn(Some("b3"), IrRole::Assistant, "tests pass"),
+        ];
+        input.away_only_uuids = ["b1", "b2", "b3"]
+            .iter()
+            .map(|id| (*id).to_owned())
+            .collect();
+        let text = delta_turn_text(&input);
+        assert!(text.contains("1 new turns"), "{text}");
+        assert_eq!(
+            text.lines().filter(|line| line.starts_with("- [")).count(),
+            1
+        );
     }
 
     #[test]
