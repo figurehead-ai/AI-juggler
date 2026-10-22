@@ -1463,6 +1463,8 @@ fn stop(state: &Arc<AppState>) {
     }
     let deadline = std::time::Instant::now() + Duration::from_secs(1);
     while outbound.iter().any(|task| !task.is_finished()) && std::time::Instant::now() < deadline {
+        // poll: ended commands this console sent finishing after their
+        // abort (an AbortHandle can't be awaited); 1 s at most.
         std::thread::sleep(Duration::from_millis(5));
     }
     if let Ok(cancels) = manager.handover_cancel.lock() {
