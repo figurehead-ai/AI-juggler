@@ -119,8 +119,8 @@ pub enum Detail {
 /// One thing an account has set up.
 #[derive(Clone, PartialEq, Eq, Hash, Debug, serde::Serialize)]
 pub struct Item {
-    /// The tool it belongs to (`claude-code`, `codex`): whether another
-    /// tool can set it up depends on where it came from.
+    /// The tool it belongs to (its id, as the registry names it): whether
+    /// another tool can set it up depends on where it came from.
     pub tool: String,
     /// Its kind.
     pub kind: ItemKind,
