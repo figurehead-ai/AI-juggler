@@ -1411,6 +1411,28 @@ sample at 10 s. Snapshot clean: only the live Codex changed.
   commit, the conversation pass is in its second round (whole reads), and the usage
   pipeline is writing. The earlier This Mac waits don't show.
 
+## Batch 17 — #126's review fixes (`65174b7f`)
+
+- **The run**: one, read only, on a fresh scratch data folder. 41 OK, 9 MISMATCH, 1 INFO.
+- **Snapshot**: no path added or removed. Account B's `.claude.json` at 05:50:00 is
+  Claude Code's own save (that account has a live session, with backups at 01:40, 02:04,
+  03:47 and 04:28).
+- **Counting**: holds. Cost rows per session are 295 of 295 within 5% (×1.00–1.03).
+  Window tokens: 7 d ×1.00, 5 h ×0.92–1.01 on accounts with live writers.
+- **The compare now pairs each This Mac row with its own root's `ps` tree**
+  (`root_pid`): 10 of 10 rows match.
+- **New: five "terminal" tools that are search helpers.**
+  - This Mac lists 10 trees against 5 Claude app instances. The 5 extras are "terminal ·
+    Account B", about 1 MB each.
+  - Each is a `ugrep` process, 3–4 h old, under a shell whose parent is `launchd`.
+  - Its executable is that account's Claude app copy of `claude`, started as `ugrep`.
+    Claude Code's search runs its multi-call binary under another name.
+  - The classifier goes by the executable path, so each counts as a Claude tool.
+  - The same rule (`session_process`, by file name) could take them for live sessions in
+    AJ-E1529. It didn't on `0811c21b` (16 = 16), but that's luck of folder and timing.
+  - **Expected**: require `argv[0]` to be `claude`, or treat `ugrep`/`rg` as helpers.
+    Medium.
+
 ## Not walked (blocked by W0, before the bridge)
 
 These need the window:
