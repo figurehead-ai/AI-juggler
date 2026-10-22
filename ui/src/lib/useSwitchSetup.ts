@@ -19,7 +19,11 @@ export function useSwitchSetup(sessionId: string, targetProfileId: string) {
 
   useEffect(() => {
     let alive = true;
+    // A new target starts clean: nothing picked or set up for the last one
+    // carries over, even when this check fails (review of #132).
     setSetup(null);
+    setPicked(new Set());
+    setResults([]);
     switchSetupCheck(sessionId, targetProfileId)
       .then((check) => {
         if (!alive) return;

@@ -91,7 +91,11 @@ pub fn inventory(dir: &Path, state_file: &Path, project: Option<&Path>) -> Vec<I
     }
     if dir.join("CLAUDE.md").is_file() {
         let path = dir.join("CLAUDE.md");
-        items.push(item(ItemKind::Rules, "CLAUDE.md", Detail::Files { path }));
+        items.push(item(
+            ItemKind::MainRules,
+            "CLAUDE.md",
+            Detail::Files { path },
+        ));
     }
     for (name, path) in children(&dir.join("rules"), false) {
         if Path::new(&name)
@@ -141,8 +145,8 @@ pub fn can_set_up(item: &Item) -> SetUp {
         (ItemKind::Command, Detail::Files { .. }) => {
             SetUp::Translate("as a Claude command; its $1, $2… arguments become $0, $1…".to_owned())
         }
-        (ItemKind::Rules, Detail::Files { .. }) if from_claude => SetUp::Copy,
-        (ItemKind::Rules, Detail::Files { .. }) => {
+        (ItemKind::Rules | ItemKind::MainRules, Detail::Files { .. }) if from_claude => SetUp::Copy,
+        (ItemKind::MainRules, Detail::Files { .. }) => {
             SetUp::Translate("as this account's CLAUDE.md".to_owned())
         }
         (ItemKind::Plugin, Detail::Plugin { id }) if from_claude => SetUp::NeedsYou(format!(
@@ -202,12 +206,10 @@ pub fn set_up(
             )
         }
         (ItemKind::Rules, Detail::Files { path }, _) => {
-            let target = if item.tool == CLAUDE_CODE_ID {
-                dir.join(&item.name)
-            } else {
-                dir.join("CLAUDE.md")
-            };
-            crate::inventory_files::copy_file(path, &target, str::to_owned)
+            crate::inventory_files::copy_file(path, &dir.join(&item.name), str::to_owned)
+        }
+        (ItemKind::MainRules, Detail::Files { path }, _) => {
+            crate::inventory_files::copy_file(path, &dir.join("CLAUDE.md"), str::to_owned)
         }
         _ => Err(AdapterError::Unsupported(format!(
             "{} needs you to set it up",
@@ -340,6 +342,11 @@ fn add_mcp(
                 name.into(),
             ],
             env,
+            unset: if config_env.is_empty() {
+                vec!["CLAUDE_CONFIG_DIR".to_owned()]
+            } else {
+                Vec::new()
+            },
             cwd: folder.map(Path::to_path_buf),
             unless_changed,
         },
@@ -538,7 +545,7 @@ mod tests {
         assert!(names.contains(&(ItemKind::Skill, "release-notes")));
         assert!(names.contains(&(ItemKind::Skill, "team-style")));
         assert!(names.contains(&(ItemKind::Command, "review")));
-        assert!(names.contains(&(ItemKind::Rules, "CLAUDE.md")));
+        assert!(names.contains(&(ItemKind::MainRules, "CLAUDE.md")));
         assert!(names.contains(&(ItemKind::Plugin, "tidy@market")));
         let everything = format!("{items:?}");
         assert!(

@@ -212,6 +212,9 @@ export function SwitchFlow({
   // opened the switch. (A completed switch hands focus to the undo
   // toast instead.)
   const invokerRef = useRef<Element | null>(null);
+  // One switch per confirm: a second ⏎ before the phase re-renders would
+  // read the stale "confirm" and start another (review of #132).
+  const started = useRef(false);
   if (invokerRef.current === null) invokerRef.current = document.activeElement;
   const cancel = () => {
     const invoker = invokerRef.current;
@@ -322,7 +325,8 @@ export function SwitchFlow({
   };
 
   const execute = async () => {
-    if (phase.kind !== "confirm") return;
+    if (phase.kind !== "confirm" || started.current) return;
+    started.current = true;
     const oneClick = phase.preflight.door === "one-click";
     setPhase({ kind: "executing", startedAt: Date.now() });
     try {

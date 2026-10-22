@@ -82,7 +82,11 @@ pub fn inventory(home: &Path, user_home: Option<&Path>) -> Vec<Item> {
     for rules in ["AGENTS.override.md", "AGENTS.md"] {
         let path = home.join(rules);
         if path.is_file() {
-            items.push(item(ItemKind::Rules, "AGENTS.md", Detail::Files { path }));
+            items.push(item(
+                ItemKind::MainRules,
+                "AGENTS.md",
+                Detail::Files { path },
+            ));
             break;
         }
     }
@@ -99,7 +103,7 @@ pub fn can_set_up(item: &Item) -> SetUp {
         ),
         (ItemKind::McpServer, Detail::Mcp(server)) => mcp_verdict(&item.name, server),
         (ItemKind::Skill, Detail::Files { .. }) => SetUp::Copy,
-        (ItemKind::Command | ItemKind::Subagent | ItemKind::Rules, Detail::Files { .. })
+        (ItemKind::Command | ItemKind::Subagent | ItemKind::MainRules, Detail::Files { .. })
             if from_codex =>
         {
             SetUp::Copy
@@ -107,9 +111,16 @@ pub fn can_set_up(item: &Item) -> SetUp {
         (ItemKind::Command, Detail::Files { .. }) => SetUp::Translate(
             "as a Codex skill you call with $name; its arguments need a look".to_owned(),
         ),
-        (ItemKind::Rules, Detail::Files { .. }) => {
+        (ItemKind::MainRules, Detail::Files { .. }) => {
             SetUp::Translate("as this home's AGENTS.md (Codex doesn't read @-imports)".to_owned())
         }
+        // Codex reads one rules file: a further one can only be added to it
+        // (review of #132: each became its own AGENTS.md offer, and all but
+        // the first failed).
+        (ItemKind::Rules, Detail::Files { .. }) => SetUp::NeedsYou(
+            "Codex reads one rules file, AGENTS.md: add what this one says to it yourself"
+                .to_owned(),
+        ),
         (ItemKind::Plugin, Detail::Plugin { id }) if from_codex => {
             SetUp::NeedsYou(format!("install it here with `codex plugin add {id}`"))
         }
@@ -162,7 +173,7 @@ pub fn set_up(home: &Path, user_home: Option<&Path>, item: &Item) -> Result<Appl
             &home.join("agents").join(format!("{}.toml", item.name)),
             str::to_owned,
         ),
-        (ItemKind::Rules, Detail::Files { path }, _) => {
+        (ItemKind::MainRules, Detail::Files { path }, _) => {
             crate::inventory_files::copy_file(path, &home.join("AGENTS.md"), str::to_owned)
         }
         _ => Err(AdapterError::Unsupported(format!(
@@ -461,7 +472,7 @@ enabled = false
                 (ItemKind::McpServer, "docs"),
                 (ItemKind::McpServer, "github"),
                 (ItemKind::Skill, "ship-it"),
-                (ItemKind::Rules, "AGENTS.md"),
+                (ItemKind::MainRules, "AGENTS.md"),
             ]
         );
     }
@@ -523,5 +534,25 @@ enabled = false
         let skill = as_skill("review", "# Review the diff\nLook at $ARGUMENTS");
         assert!(skill.starts_with("---\nname: review\ndescription: \"Review the diff\"\n---\n"));
         assert!(skill.contains("Look at $ARGUMENTS"));
+    }
+
+    #[test]
+    fn only_claudes_main_rules_file_becomes_agents_md() {
+        // Review of #132: every `rules/*.md` was its own AGENTS.md offer.
+        let rules = |kind: ItemKind, name: &str| Item {
+            tool: "claude-code".into(),
+            kind,
+            name: name.into(),
+            scope: Scope::User,
+            detail: Detail::Files { path: "/x".into() },
+        };
+        assert!(matches!(
+            can_set_up(&rules(ItemKind::MainRules, "CLAUDE.md")),
+            SetUp::Translate(_)
+        ));
+        assert!(matches!(
+            can_set_up(&rules(ItemKind::Rules, "rules/style.md")),
+            SetUp::NeedsYou(_)
+        ));
     }
 }

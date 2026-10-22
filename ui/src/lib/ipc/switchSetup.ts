@@ -61,6 +61,7 @@ const KIND_WORDS: Record<string, string> = {
   command: "command",
   subagent: "subagent",
   rules: "rules file",
+  "main-rules": "main rules file",
   plugin: "plugin",
 };
 

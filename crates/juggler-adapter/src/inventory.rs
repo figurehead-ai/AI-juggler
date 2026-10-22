@@ -26,9 +26,13 @@ pub enum ItemKind {
     Command,
     /// A subagent definition.
     Subagent,
-    /// Instructions the tool reads for every project (`CLAUDE.md`,
-    /// `AGENTS.md`, `rules/`).
+    /// A further rules file the tool reads for every project (Claude's
+    /// `rules/*.md`).
     Rules,
+    /// The account's main rules file (Claude's `CLAUDE.md`, Codex's
+    /// `AGENTS.md`): one per account, whatever each tool calls it, so the
+    /// two match across tools.
+    MainRules,
     /// An installed plugin.
     Plugin,
 }
@@ -43,6 +47,7 @@ impl ItemKind {
             Self::Command => "command",
             Self::Subagent => "subagent",
             Self::Rules => "rules file",
+            Self::MainRules => "main rules file",
             Self::Plugin => "plugin",
         }
     }
@@ -206,6 +211,10 @@ pub enum Undo {
         argv: Vec<String>,
         /// Environment for it (the account's folder).
         env: Vec<(String, String)>,
+        /// Variables to clear for it (so the tool uses its default folder);
+        /// empty in records made before it was kept.
+        #[serde(default)]
+        unset: Vec<String>,
         /// The folder it runs in (a project's own server is removed from
         /// that project); `None` in records made before it was kept.
         #[serde(default)]

@@ -142,13 +142,11 @@ fn inventories(state: &Arc<AppState>, sides: &Sides) -> AppResult<(Vec<Item>, Ve
     ))
 }
 
-/// How items match across accounts and tools: by kind and name, with an
-/// account's main rules file one item under either tool's name.
+/// How items match across accounts and tools: by kind and name; an
+/// account has one main rules file, whatever its tool calls it.
 fn key(item: &Item) -> (ItemKind, String) {
-    let name = if item.kind == ItemKind::Rules
-        && matches!(item.name.as_str(), "CLAUDE.md" | "AGENTS.md")
-    {
-        "main rules".to_owned()
+    let name = if item.kind == ItemKind::MainRules {
+        String::new()
     } else {
         item.name.clone()
     };
@@ -425,6 +423,7 @@ fn undo(how: &Undo) -> AppResult<()> {
         Undo::Command {
             argv,
             env,
+            unset,
             cwd,
             unless_changed,
         } => {
@@ -444,8 +443,8 @@ fn undo(how: &Undo) -> AppResult<()> {
             if let Some(cwd) = cwd {
                 command.current_dir(cwd);
             }
-            if env.is_empty() {
-                command.env_remove("CLAUDE_CONFIG_DIR");
+            for name in unset {
+                command.env_remove(name);
             }
             for (key, value) in env {
                 command.env(key, value);
