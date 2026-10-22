@@ -51,6 +51,7 @@ function mk(id: string, overrides: Partial<InstanceInfo> = {}): InstanceInfo {
 }
 
 const tree = (overrides: Partial<ToolTreeInfo>): ToolTreeInfo => ({
+  root_pid: null,
   session_id: null,
   place: "desktop",
   account_label: "Personal",
@@ -76,6 +77,7 @@ function info(level: "plenty" | "tight" | "pressure", trees: ToolTreeInfo[], lef
     theirs: total(trees.filter((t) => !t.session_id)),
     by_tool: [],
     top: trees.slice(0, 3),
+    others: trees.slice(3),
     heavy: trees.filter((t) => t.heavy_note),
     leftover_processes: leftovers[0],
     leftover_ports: leftovers[1],
@@ -377,6 +379,34 @@ describe("overload alerts and recommendations (AJ-E1408, AJ-E1409)", () => {
       </ThisMacContext.Provider>,
     );
     expect(screen.queryByTestId("machine-alert")).toBeNull();
+  });
+
+  it("never drops a row: six Claude app windows show three, then 'and 3 more' opens the rest (P6)", () => {
+    const windows = [7.4e9, 5.2e9, 3.5e9, 2.0e9, 1.1e9, 0.6e9].map((rss, i) =>
+      tree({ account_label: `Window ${i + 1}`, rss_bytes: rss }),
+    );
+    render(<ThisMacPanel info={info("plenty", windows)} nameOf={() => "x"} onOpenSession={vi.fn()} />);
+    const list = screen.getByTestId("this-mac-top");
+    expect(within(list).getAllByRole("listitem")).toHaveLength(3);
+    const more = screen.getByTestId("this-mac-more");
+    expect(more.textContent).toBe("and 3 more");
+    expect(more.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(more);
+    expect(within(screen.getByTestId("this-mac-top")).getAllByRole("listitem")).toHaveLength(6);
+    expect(screen.getByTestId("this-mac-more").textContent).toBe("Show fewer");
+    // Three or fewer: no button at all.
+    cleanup();
+    render(<ThisMacPanel info={info("plenty", windows.slice(0, 3))} nameOf={() => "x"} onOpenSession={vi.fn()} />);
+    expect(screen.queryByTestId("this-mac-more")).toBeNull();
+  });
+
+  it("two app windows that look alike are two rows, each keyed by its process (#126 review, L6)", () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    const twins = [501, 502].map((pid) => tree({ root_pid: pid, account_label: "Personal", rss_bytes: 2e9 }));
+    render(<ThisMacPanel info={info("plenty", twins)} nameOf={() => "x"} onOpenSession={vi.fn()} />);
+    expect(within(screen.getByTestId("this-mac-top")).getAllByRole("listitem")).toHaveLength(2);
+    expect(errors.mock.calls.flat().join(" ")).not.toContain("same key");
+    errors.mockRestore();
   });
 
   it("shows advice from history only when there is some", () => {

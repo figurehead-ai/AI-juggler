@@ -24,7 +24,8 @@ const ACCOUNTS = [{ id: "work", provider: "claude-code", label: "Work Max", plan
 
 // Three Claude app windows AI Juggler didn't start: the alert names them
 // as one tool, with their total.
-const appWindow = (rss: number): ToolTreeInfo => ({
+const appWindow = (rss: number, pid: number): ToolTreeInfo => ({
+  root_pid: pid,
   session_id: null,
   place: "desktop",
   account_label: "Personal",
@@ -34,7 +35,7 @@ const appWindow = (rss: number): ToolTreeInfo => ({
   heavy_note: null,
   memory_estimate: true,
 });
-const OBSERVED = [appWindow(7_400_000_000), appWindow(5_200_000_000), appWindow(3_500_000_000)];
+const OBSERVED = [appWindow(7_400_000_000, 501), appWindow(5_200_000_000, 502), appWindow(3_500_000_000, 503)];
 
 const PRESSURE_ALERT: OverloadAlertInfo = {
   key: "memory_pressure",

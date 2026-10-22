@@ -80,6 +80,18 @@
   each cell took 10–18 s instead of about 3 s. Re-run in the same pinned
   container, all eight History cells passed 3/3 (24/24) with no pixel
   difference. Timeouts and thresholds are unchanged; CI is the arbiter.
+- **Flake record, 2026-10-22 (fixed; a product bug).** `juggler-app --test
+  parked_reset :: not_now_snoozes_once_then_stays_parked_quietly` failed in
+  #126's CI (run 39764249611): "database is locked" (SQLITE_BUSY) storing
+  usage events. Cause: usage writes opened a deferred transaction, which
+  begins as a read, and #126's store reads before it writes. When another
+  connection on the same file (here the process ledger, writing at launch)
+  committed meanwhile, SQLite answered busy at once instead of waiting.
+  Fix: usage writes take the write lock first (`BEGIN IMMEDIATE`), so they
+  wait under the busy timeout. `juggler-core --test busy_timeout ::
+  a_usage_write_waits_for_another_connection_that_changes_the_database`
+  reproduces the exact error without the fix and passes with it;
+  `parked_reset` passed 5/5 after.
 - **Flake record, 2026-10-19 (fixed).** `juggler-app --test parked_reset
   :: a_parked_instance_is_offered_back_once_at_the_reset_and_resumes_the_original`
   failed once in `just verify` on the AJ-E1012 branch: the resume's
@@ -466,3 +478,25 @@
   the rest is the per-session collector, which it didn't change. To be
   made load-aware (CPU time and a load gate) in the next batch, with the
   guardrails flakes.
+- **Flake records, 2026-10-22 (fixed, fix/maintainer-reports-3).**
+  - `guardrails :: term_ignorer_gets_term_then_kill_only_after_grace`
+    (CI on #121: "exited on TERM") and
+    `manual_pgid_scope_is_warned_and_confined_to_the_group` (CI on #101).
+    `tick_until_helpers` took the first ledger row whose command line held
+    a fixture's flag. A background job's first recorded command line is
+    the root shell's, which holds every fixture's flags, so the row could
+    be another fixture (the cooperative vite answered the TERM). Each
+    fixture now writes its own pid (`<ready>.pid`) before it is ready, and
+    the tests signal exactly those pids once the ledger lists them. 10 of
+    10 guardrails passed locally; the supervisor's collateral and orphan
+    suites still pass.
+  - `machine_lock :: a_slow_disk_tick_never_holds_the_machine_lock`
+    sampled `try_lock` in a loop and could catch the tick's own short
+    lock. It now waits for the tick's count to move (its locked part is
+    over), then checks a blocking `lock()` returns while storage is still
+    held. That can't happen if the tick held the lock across the wait.
+  - `load_budgets :: monitoring_costs_under_one_percent_of_a_core`
+    asserted CPU %, which measured the CI runner (1.118 %). It now asserts
+    the work that holds the budget: a full scan at most every 5th tick,
+    and between them only our sessions' processes
+    (`LiveStatsCollector::work`). CPU is still printed.

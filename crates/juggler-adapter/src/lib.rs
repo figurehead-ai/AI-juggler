@@ -18,10 +18,12 @@ pub mod capabilities;
 pub mod discovery;
 pub mod environment;
 pub mod error;
+pub mod file_trust;
 pub mod handover;
 pub mod identity;
 pub mod launch;
 pub mod registry;
+pub mod system_tools;
 pub mod user_path;
 pub mod watcher;
 

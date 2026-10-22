@@ -37,6 +37,11 @@ by_tool: Array<ToolGroupInfo>,
  */
 top: Array<ToolTreeInfo>, 
 /**
+ * Every other tree, heaviest first: shown behind "and N more", never
+ * dropped (QA, P6: 3 of 6 Claude app windows, and no word of the rest).
+ */
+others: Array<ToolTreeInfo>, 
+/**
  * Every heavy tree (the rail's notes, Home's Needs you).
  */
 heavy: Array<ToolTreeInfo>, 

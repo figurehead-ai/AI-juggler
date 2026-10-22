@@ -280,6 +280,16 @@ pub struct MachineWatch {
     advice_inputs: Option<AdviceInputs>,
 }
 
+impl MachineWatch {
+    /// How many 2 s ticks have started (read-only: lets a test know a tick
+    /// is past its locked part without timing guesses).
+    #[doc(hidden)]
+    #[must_use]
+    pub fn ticks(&self) -> u32 {
+        self.ticks
+    }
+}
+
 /// The storage half of the recommendations, cached between 5 s reads.
 #[derive(Debug, Clone)]
 struct AdviceInputs {
@@ -832,6 +842,9 @@ const HEAVY_EXIT_MS: i64 = 45_000;
 #[derive(Clone, PartialEq, Debug, serde::Serialize, ts_rs::TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct ToolTreeInfo {
+    /// The tree's root process: what identifies the row while it lives.
+    /// `null` for a group of trees.
+    pub root_pid: Option<u32>,
     /// The session id for a session AI Juggler started; `null` for a tool
     /// it did not start.
     pub session_id: Option<String>,
@@ -892,6 +905,9 @@ pub struct ThisMacInfo {
     pub by_tool: Vec<ToolGroupInfo>,
     /// The heaviest trees by memory, at most three.
     pub top: Vec<ToolTreeInfo>,
+    /// Every other tree, heaviest first: shown behind "and N more", never
+    /// dropped (QA, P6: 3 of 6 Claude app windows, and no word of the rest).
+    pub others: Vec<ToolTreeInfo>,
     /// Every heavy tree (the rail's notes, Home's Needs you).
     pub heavy: Vec<ToolTreeInfo>,
     /// Processes left running after their session closed.
@@ -928,6 +944,8 @@ pub struct ToolGroupInfo {
 /// One tree, as the pure assembly sees it.
 #[derive(Clone, Debug, Default)]
 pub struct TreeInput {
+    /// The tree's root process, when known.
+    pub root_pid: Option<u32>,
     /// Session id (ours) or `None` (observed).
     pub session_id: Option<String>,
     /// `desktop` | `terminal` for observed trees.
@@ -1027,6 +1045,7 @@ pub fn heavy_note(tree: &TreeInput) -> Option<String> {
 
 fn tree_info(tree: &TreeInput) -> ToolTreeInfo {
     ToolTreeInfo {
+        root_pid: tree.root_pid,
         session_id: tree.session_id.clone(),
         place: tree.place.map(str::to_string),
         account_label: tree.account_label.clone(),
@@ -1131,6 +1150,11 @@ pub fn assemble(
             .take(3)
             .map(|tree| tree_info(tree))
             .collect(),
+        others: by_memory
+            .iter()
+            .skip(3)
+            .map(|tree| tree_info(tree))
+            .collect(),
         heavy: by_memory
             .iter()
             .map(|tree| tree_info(tree))
@@ -1163,6 +1187,77 @@ fn account_for(
         .map(|account| account.label.clone())
 }
 
+/// Every tree This Mac shows: our live sessions' and the observed tools'.
+fn tree_inputs(
+    state: &Arc<AppState>,
+    now_ms: i64,
+    tools: &[RunningTool],
+    accounts: &[juggler_core::model::Account],
+    live: &std::collections::HashSet<String>,
+    labels: &std::collections::HashMap<String, String>,
+) -> AppResult<Vec<TreeInput>> {
+    let mut hogs: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
+    for hog in crate::commands::hog_facts(state, now_ms) {
+        hogs.entry(hog.session).or_default().push(hog.rule);
+    }
+    let contexts: std::collections::HashMap<String, juggler_supervisor::tree::SpawnContext> = state
+        .supervisor
+        .spawn_contexts_snapshot()
+        .into_iter()
+        .map(|(session, ctx)| (session.as_str().to_string(), ctx))
+        .collect();
+    let home = dirs::home_dir().unwrap_or_default();
+    let roots: std::collections::HashMap<String, u32> = state
+        .supervisor
+        .live_roots()
+        .into_iter()
+        .map(|(session, pid, _)| (session.as_str().to_string(), pid))
+        .collect();
+    let mut trees = Vec::new();
+    {
+        let collector = state
+            .resources
+            .lock()
+            .map_err(|_| AppError::StatePoisoned)?;
+        for (session, stats) in collector.stats_snapshot() {
+            let id = session.as_str().to_string();
+            if !live.contains(&id) {
+                continue;
+            }
+            trees.push(TreeInput {
+                root_pid: roots.get(&id).copied(),
+                account_label: contexts
+                    .get(&id)
+                    .and_then(|ctx| ctx.account_id.as_ref())
+                    .and_then(|account| labels.get(account).cloned()),
+                provider: contexts.get(&id).map(|ctx| ctx.provider.clone()),
+                ring: collector.ring(&session),
+                hog_rules: hogs.remove(&id).unwrap_or_default(),
+                session_id: Some(id),
+                place: None,
+                stats,
+            });
+        }
+        let observed = collector.observed_snapshot();
+        for tool in tools {
+            let Some(tree) = observed.get(&tool.pid) else {
+                continue; // not measured yet, or it is one of ours
+            };
+            trees.push(TreeInput {
+                root_pid: Some(tool.pid),
+                session_id: None,
+                place: Some(tool.place),
+                provider: None,
+                account_label: account_for(tool, accounts, &home),
+                stats: tree.stats,
+                ring: tree.ring.iter().copied().collect(),
+                hog_rules: Vec::new(),
+            });
+        }
+    }
+    Ok(trees)
+}
+
 /// This Mac now (AJ-E1403).
 ///
 /// # Errors
@@ -1192,57 +1287,7 @@ pub fn this_mac_impl(state: &Arc<AppState>, now_ms: i64) -> AppResult<ThisMacInf
             .collect();
         (accounts, live, labels)
     };
-    let mut hogs: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
-    for hog in crate::commands::hog_facts(state, now_ms) {
-        hogs.entry(hog.session).or_default().push(hog.rule);
-    }
-    let contexts: std::collections::HashMap<String, juggler_supervisor::tree::SpawnContext> = state
-        .supervisor
-        .spawn_contexts_snapshot()
-        .into_iter()
-        .map(|(session, ctx)| (session.as_str().to_string(), ctx))
-        .collect();
-    let home = dirs::home_dir().unwrap_or_default();
-    let mut trees = Vec::new();
-    {
-        let collector = state
-            .resources
-            .lock()
-            .map_err(|_| AppError::StatePoisoned)?;
-        for (session, stats) in collector.stats_snapshot() {
-            let id = session.as_str().to_string();
-            if !live.contains(&id) {
-                continue;
-            }
-            trees.push(TreeInput {
-                account_label: contexts
-                    .get(&id)
-                    .and_then(|ctx| ctx.account_id.as_ref())
-                    .and_then(|account| labels.get(account).cloned()),
-                provider: contexts.get(&id).map(|ctx| ctx.provider.clone()),
-                ring: collector.ring(&session),
-                hog_rules: hogs.remove(&id).unwrap_or_default(),
-                session_id: Some(id),
-                place: None,
-                stats,
-            });
-        }
-        let observed = collector.observed_snapshot();
-        for tool in &tools {
-            let Some(tree) = observed.get(&tool.pid) else {
-                continue; // not measured yet, or it is one of ours
-            };
-            trees.push(TreeInput {
-                session_id: None,
-                place: Some(tool.place),
-                provider: None,
-                account_label: account_for(tool, &accounts, &home),
-                stats: tree.stats,
-                ring: tree.ring.iter().copied().collect(),
-                hog_rules: Vec::new(),
-            });
-        }
-    }
+    let trees = tree_inputs(state, now_ms, &tools, &accounts, &live, &labels)?;
     let rows = crate::commands::local_ledger_rows(state);
     let orphaned: Vec<_> = rows
         .iter()
@@ -1847,6 +1892,7 @@ mod tests {
 
     fn tree(session: Option<&str>, cpu: f64, rss: u64, seconds: i64) -> TreeInput {
         TreeInput {
+            root_pid: None,
             session_id: session.map(str::to_string),
             place: session.is_none().then_some("desktop"),
             provider: session.map(|_| "claude-code".to_string()),
@@ -2045,6 +2091,28 @@ mod tests {
             "nothing running uses nothing"
         );
         assert!(empty.top.is_empty());
+    }
+
+    /// P6 (QA): This Mac showed 3 of 6 Claude app windows and said nothing
+    /// of the rest. The top three, then every other tree, heaviest first.
+    #[test]
+    fn no_tree_is_dropped_past_the_top_three() {
+        let machine = health_of(
+            &MachineSnapshot {
+                cores: 8,
+                ..MachineSnapshot::default()
+            },
+            &RoomThresholds::default(),
+        );
+        let trees: Vec<TreeInput> = [5, 1, 4, 2, 3]
+            .into_iter()
+            .map(|gigs| tree(None, 0.0, gigs * G, 0))
+            .collect();
+        let info = assemble(machine, &trees, (0, 0));
+        let sizes =
+            |list: &[ToolTreeInfo]| list.iter().map(|t| t.rss_bytes / G).collect::<Vec<_>>();
+        assert_eq!(sizes(&info.top), [5, 4, 3]);
+        assert_eq!(sizes(&info.others), [2, 1]);
     }
 }
 

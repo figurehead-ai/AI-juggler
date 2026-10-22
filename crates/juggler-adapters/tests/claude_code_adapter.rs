@@ -16,6 +16,9 @@ use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter, LoginState};
 use juggler_core::model::{AccountId, HarnessId, Profile, ProfileId, SettingsOverlay};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
+#[cfg(unix)]
+#[path = "../../juggler-supervisor/tests/fixtures/stand_in.rs"]
+mod stand_in;
 
 fn account(state_dir: &Path) -> juggler_core::model::Account {
     juggler_core::model::Account {
@@ -37,8 +40,11 @@ fn account(state_dir: &Path) -> juggler_core::model::Account {
 /// A stub `claude` that answers `--version` with a chosen version string.
 fn version_stub(dir: &Path, name: &str, output: &str) -> PathBuf {
     let path = dir.join(name);
-    std::fs::write(&path, format!("#!/bin/sh\necho {output:?}\n")).unwrap();
-    make_executable(&path);
+    let body = format!("#!/bin/sh\necho {output:?}\n");
+    #[cfg(unix)]
+    stand_in::write(&path, body);
+    #[cfg(not(unix))]
+    std::fs::write(&path, body).unwrap();
     path
 }
 
@@ -53,17 +59,6 @@ fn discover_with_retry(adapter: &ClaudeCodeAdapter) -> DiscoveryReport {
     }
     std::thread::sleep(std::time::Duration::from_millis(150));
     adapter.discover()
-}
-
-#[cfg(unix)]
-fn make_executable(path: &Path) {
-    use std::os::unix::fs::PermissionsExt;
-    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).unwrap();
-}
-
-#[cfg(not(unix))]
-fn make_executable(_path: &Path) {
-    // Windows discovery fixtures run through the real binary only.
 }
 
 #[test]
@@ -256,4 +251,45 @@ fn a_resume_id_that_looks_like_an_option_is_refused() {
                 .is_err()
         );
     }
+}
+
+/// The one rule for a `claude` session (QA on #126): Claude Code's own
+/// executable run as its search helper isn't one; `claude` run by name, by
+/// a path with spaces, or as the npm package is.
+#[test]
+fn a_claude_run_as_its_search_helper_is_not_a_session() {
+    use juggler_adapters::claude_code::is_cli_process;
+    let copy = Path::new(
+        "/Users/you/Library/Application Support/ClaudeProfiles/b/claude-code/2.1/abc/claude.app/Contents/MacOS/claude",
+    );
+    assert!(!is_cli_process(
+        "claude",
+        Some(copy),
+        "ugrep -r --json needle ."
+    ));
+    assert!(!is_cli_process("claude", Some(copy), "rg needle"));
+    assert!(is_cli_process(
+        "claude",
+        Some(copy),
+        &format!("{} --resume abc", copy.display())
+    ));
+    assert!(is_cli_process(
+        "claude",
+        Some(Path::new("/Users/you/.local/bin/claude")),
+        "claude"
+    ));
+    assert!(is_cli_process(
+        "node",
+        Some(Path::new("/usr/local/bin/node")),
+        "node /usr/local/lib/node_modules/@anthropic-ai/claude-code/cli.js"
+    ));
+    assert!(!is_cli_process(
+        "rg",
+        Some(Path::new("/opt/homebrew/bin/rg")),
+        "rg needle"
+    ));
+    assert!(
+        is_cli_process("claude", Some(copy), ""),
+        "an unreadable command line"
+    );
 }

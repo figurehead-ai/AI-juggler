@@ -38,8 +38,12 @@ pub const CREDITS_KEY_PREFIX: &str = "credits:";
 /// must be read again: the next pass re-reads every file still on disk
 /// from the start, replacing its sessions' rows. 1 = 0.0.13 (Claude
 /// content blocks counted per line; Codex's nested token classes and
-/// missing model).
-const REREAD_VERSION: u32 = 1;
+/// missing model). 2 = Codex compactions' own usage (P17), and a message a
+/// resumed copy shares credited to the session that came first. 3 = every
+/// session that offered a message recorded, so a shared message's keeper
+/// no longer depends on the reading order (a copy of a copy, a fork); a
+/// compaction counted once wherever a pass ends.
+const REREAD_VERSION: u32 = 3;
 
 /// Quota samples gathered in one pass: (account, window, sample).
 type SampleBatch = Vec<(
@@ -54,10 +58,10 @@ struct AccountOffsets {
     spool: u64,
     #[serde(default)]
     files: BTreeMap<String, u64>,
-    /// Per Codex rollout: the model its last `turn_context` named, for
-    /// the usage lines of the next slice that come before their own.
+    /// Per Codex rollout: what its last slice left for the next one (the
+    /// model, the last total, compactions waiting for their thread).
     #[serde(default)]
-    models: BTreeMap<String, String>,
+    carries: BTreeMap<String, juggler_adapters::RolloutCarry>,
 }
 
 /// The whole persisted pipeline state.
@@ -105,7 +109,7 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
     if rereading {
         for offsets in ingest.offsets.values_mut() {
             offsets.files.values_mut().for_each(|offset| *offset = 0);
-            offsets.models.clear();
+            offsets.carries.clear();
         }
     }
     let mut store_batch: Vec<juggler_core::quota::UsageEvent> = Vec::new();
@@ -152,24 +156,16 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
         }
     }
 
-    // Single writer: ONE storage lock for the whole batch.
+    // Single writer, in chunks (QA batch 9: a first pass on a heavy setup
+    // held storage for over a minute in one write, and every screen and
+    // the conversation index waited behind it). Offsets are saved only
+    // once every chunk is in: when a write fails, the next pass reads the
+    // same lines again (the store dedupes what an earlier chunk kept).
+    let Some(stored) = store_in_chunks(state, rereading, &store_batch) else {
+        return;
+    };
     if let Ok(storage) = state.storage.lock() {
         let usage = storage.usage();
-        // Events and their offsets go together: when the write fails,
-        // nothing of this pass is kept (offsets included), and the next
-        // pass reads the same lines again.
-        let stored = if rereading {
-            // Every file still on disk was read from its start: its
-            // sessions' old rows go and the rows just read replace them, in
-            // one transaction. A session whose files are gone keeps the
-            // rows it had.
-            usage.replace_session_events(&reread_sessions(&store_batch), &store_batch)
-        } else {
-            usage.store_events(&store_batch)
-        };
-        let Ok(stored) = stored else {
-            return;
-        };
         if rereading {
             ingest.reread = REREAD_VERSION;
         } else {
@@ -192,6 +188,78 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
             let _ = storage.app_settings().set(INGEST_STATE_KEY, &blob);
         }
     }
+}
+
+/// Events per storage write: one chunk holds the lock for a moment, and
+/// whatever waits on storage gets it between chunks.
+const STORE_CHUNK: usize = 2_000;
+
+/// Stores the pass's events a chunk at a time, each in its own lock and
+/// transaction; `None` when a write fails. A re-read replaces each
+/// session's rows in the chunk that holds all of them, so a session is
+/// never left half-replaced. The results come back in `batch`'s order
+/// (a re-read's order isn't used).
+fn store_in_chunks(
+    state: &Arc<AppState>,
+    rereading: bool,
+    batch: &[juggler_core::quota::UsageEvent],
+) -> Option<Vec<juggler_core::storage::Stored>> {
+    let chunks: Vec<Vec<juggler_core::quota::UsageEvent>> = if rereading {
+        session_chunks(batch, STORE_CHUNK)
+    } else {
+        batch.chunks(STORE_CHUNK).map(<[_]>::to_vec).collect()
+    };
+    let mut stored = Vec::with_capacity(batch.len());
+    for chunk in &chunks {
+        let storage = state.storage.lock().ok()?;
+        let usage = storage.usage();
+        // Every file still on disk was read from its start: its sessions'
+        // old rows go and the rows just read replace them. A session whose
+        // files are gone keeps the rows it had.
+        let done = if rereading {
+            usage.replace_session_events(&reread_sessions(chunk), chunk)
+        } else {
+            usage.store_events(chunk)
+        };
+        stored.extend(done.ok()?);
+        drop(storage);
+        std::thread::sleep(CHUNK_PAUSE);
+    }
+    Some(stored)
+}
+
+/// The pause between two chunks' writes, so a reader waiting on storage
+/// gets it in between. Storage is a `std::sync::Mutex`, which isn't fair:
+/// unlocked and locked again at once, it goes back to this loop before a
+/// woken waiter runs, and a screen could wait out the whole re-read (2.2 s on
+/// the replica at the maintainer's size; `yield_now` still left 1.1 s). A
+/// fair hand-off (`parking_lot`'s `unlock_fair`) would need every one of
+/// storage's lock sites changed; until then, this pause.
+const CHUNK_PAUSE: std::time::Duration = std::time::Duration::from_millis(1);
+
+/// The events grouped so that all of one session's are in the same chunk,
+/// chunks filled up to about `size` (a session bigger than that is a chunk
+/// of its own).
+fn session_chunks(
+    batch: &[juggler_core::quota::UsageEvent],
+    size: usize,
+) -> Vec<Vec<juggler_core::quota::UsageEvent>> {
+    let mut by_session: BTreeMap<(String, Option<String>), Vec<juggler_core::quota::UsageEvent>> =
+        BTreeMap::new();
+    for event in batch {
+        by_session
+            .entry((event.account.clone(), event.session.clone()))
+            .or_default()
+            .push(event.clone());
+    }
+    let mut chunks: Vec<Vec<juggler_core::quota::UsageEvent>> = Vec::new();
+    for events in by_session.into_values() {
+        match chunks.last_mut() {
+            Some(last) if last.len() + events.len() <= size => last.extend(events),
+            _ => chunks.push(events),
+        }
+    }
+    chunks
 }
 
 /// Claude: spool tail every pass; transcript scan every file-scan cadence.
@@ -251,7 +319,7 @@ fn ingest_claude(
         account,
         "transcript",
         files,
-        juggler_adapters::tail_transcript,
+        |path, account, offset, _| juggler_adapters::tail_transcript(path, account, offset),
         ingest,
         store,
     );
@@ -323,12 +391,15 @@ fn ingest_zcode(
     }
 }
 
+/// Reads one file's next slice: its path, account, offset and carry.
+type Tail = fn(&Path, &str, u64, &juggler_adapters::RolloutCarry) -> juggler_adapters::TailOutcome;
+
 /// Tails a set of JSONL files with per-file offsets.
 fn ingest_files(
     account: &str,
     source: &str,
     files: Vec<PathBuf>,
-    tail: fn(&Path, &str, u64) -> juggler_adapters::TailOutcome,
+    tail: Tail,
     ingest: &mut IngestState,
     store: &mut Vec<juggler_core::quota::UsageEvent>,
 ) {
@@ -337,38 +408,26 @@ fn ingest_files(
     }
 }
 
-/// Tails one file from its stored offset: its events go to the store,
-/// the offset and health are recorded; the rest of the outcome (samples,
-/// credits) is returned for the caller.
+/// Tails one file from its stored offset and carry: its events go to the
+/// store, the offset, carry and health are recorded; the rest of the
+/// outcome (samples, credits) is returned for the caller.
 fn tail_one(
     account: &str,
     source: &str,
     path: &Path,
-    tail: fn(&Path, &str, u64) -> juggler_adapters::TailOutcome,
+    tail: Tail,
     ingest: &mut IngestState,
     store: &mut Vec<juggler_core::quota::UsageEvent>,
 ) -> juggler_adapters::TailOutcome {
     let key = path.to_string_lossy().to_string();
-    let offset = ingest
-        .offsets
-        .get(account)
-        .and_then(|offsets| offsets.files.get(&key).copied())
-        .unwrap_or(0);
-    let mut outcome = tail(path, account, offset);
     let offsets = ingest.offsets.entry(account.to_owned()).or_default();
-    // Codex: usage before the slice's first `turn_context` ran on the
-    // model the file's previous slice ended with.
-    if let Some(carried) = offsets.models.get(&key) {
-        for event in outcome
-            .events
-            .iter_mut()
-            .filter(|event| event.model.is_none())
-        {
-            event.model = Some(carried.clone());
-        }
-    }
-    if let Some(model) = outcome.model.clone() {
-        offsets.models.insert(key.clone(), model);
+    let offset = offsets.files.get(&key).copied().unwrap_or(0);
+    let carry = offsets.carries.get(&key).cloned().unwrap_or_default();
+    let mut outcome = tail(path, account, offset, &carry);
+    if outcome.carry == juggler_adapters::RolloutCarry::default() {
+        offsets.carries.remove(&key);
+    } else {
+        offsets.carries.insert(key.clone(), outcome.carry.clone());
     }
     offsets.files.insert(key, outcome.offset);
     let latest = outcome
@@ -381,6 +440,17 @@ fn tail_one(
     store.append(&mut outcome.events);
     if latest.is_some() || errors > 0 {
         record_health(ingest, account, source, latest, errors, "");
+    }
+    if outcome.dropped > 0 {
+        // Damage, counted like a bad line: usage that won't be counted.
+        record_health(
+            ingest,
+            account,
+            source,
+            None,
+            outcome.dropped,
+            "compactions dropped before their thread was known",
+        );
     }
     outcome
 }
@@ -533,5 +603,112 @@ fn collect_jsonl_depth(root: &Path, out: &mut Vec<PathBuf>, depth: u32) {
         {
             out.push(path);
         }
+    }
+}
+
+#[cfg(test)]
+mod chunk_tests {
+    #![allow(clippy::unwrap_used)]
+    use super::session_chunks;
+    use juggler_core::quota::{UsageEvent, UsageSource};
+
+    fn event(session: &str, n: usize) -> UsageEvent {
+        UsageEvent {
+            account: "a".into(),
+            session: Some(session.into()),
+            ts: i64::try_from(n).unwrap(),
+            model: None,
+            tokens: juggler_core::model::TokenCounts::default(),
+            credits: None,
+            usd_est: None,
+            source: UsageSource::Transcript,
+            confidence: juggler_core::model::Confidence::Measured,
+            msg_uuid: Some(format!("{session}-{n}")),
+        }
+    }
+
+    /// #126: a screen waiting on storage gets it between two chunks, not
+    /// after the whole pass (the lock isn't fair; without the pause it went
+    /// straight back to the writer).
+    #[test]
+    fn a_reader_gets_storage_between_chunks() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = std::sync::Arc::new(
+            crate::state::AppState::init_with_registry(
+                dir.path().join("data"),
+                juggler_adapter::AdapterRegistry::new(),
+            )
+            .unwrap(),
+        );
+        let batch: Vec<UsageEvent> = (0..super::STORE_CHUNK * 20)
+            .map(|n| event("s", n))
+            .collect();
+        let reader = {
+            let state = std::sync::Arc::clone(&state);
+            std::thread::spawn(move || {
+                // Once the first chunk is in, wait for storage like a screen.
+                loop {
+                    let stored = state
+                        .storage
+                        .lock()
+                        .unwrap()
+                        .usage()
+                        .events_for_account("a", 0)
+                        .unwrap()
+                        .len();
+                    if stored > 0 {
+                        break;
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(1));
+                }
+                state
+                    .storage
+                    .lock()
+                    .unwrap()
+                    .usage()
+                    .events_for_account("a", 0)
+                    .unwrap()
+                    .len()
+            })
+        };
+        super::store_in_chunks(&state, false, &batch).unwrap();
+        let seen = reader.join().unwrap();
+        assert!(seen < batch.len(), "the reader waited for all {seen} rows");
+    }
+
+    /// QA batch 9: a re-read is written a chunk at a time, and a session's
+    /// rows are replaced in one chunk, never split across two.
+    #[test]
+    fn a_reread_is_chunked_without_splitting_a_session() {
+        let mut batch = Vec::new();
+        for (session, rows) in [("s1", 3), ("s2", 4), ("s3", 9), ("s4", 2)] {
+            batch.extend((0..rows).map(|n| event(session, n)));
+        }
+        let chunks = session_chunks(&batch, 5);
+        let sessions: Vec<Vec<&str>> = chunks
+            .iter()
+            .map(|chunk| {
+                let mut ids: Vec<&str> = chunk
+                    .iter()
+                    .map(|e| e.session.as_deref().unwrap())
+                    .collect();
+                ids.dedup();
+                ids
+            })
+            .collect();
+        assert_eq!(sessions, [vec!["s1"], vec!["s2"], vec!["s3"], vec!["s4"]]);
+        assert_eq!(chunks.iter().map(Vec::len).sum::<usize>(), batch.len());
+        // Small sessions share a chunk up to its size.
+        let small: Vec<UsageEvent> = ["x", "y", "z"]
+            .iter()
+            .flat_map(|s| (0..2).map(|n| event(s, n)))
+            .collect();
+        assert_eq!(
+            session_chunks(&small, 4)
+                .iter()
+                .map(Vec::len)
+                .collect::<Vec<_>>(),
+            [4, 2]
+        );
     }
 }

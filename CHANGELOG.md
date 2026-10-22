@@ -138,6 +138,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- This Mac counts what a session starts as soon as it starts (within about
+  4 seconds). A build fanning out under a Claude app session could be
+  missed for up to 10 seconds, so the app's figure read far too low.
+- This Mac never drops a tool without a word: past the three heaviest, the
+  rest are behind "and N more". Search helpers a finished Claude Code
+  session left running are no longer counted as Claude in a terminal.
+- Codex's context compactions now count, once: the usage of the compaction
+  call, which Codex records outside its turns, was missed, and could count
+  twice when AI Juggler read the file just as the compaction was written.
+- A conversation resumed into a new session repeats the original's
+  history. Its cost now stays with the original session, whatever order AI
+  Juggler reads the files in, including a copy of a copy and a fork that
+  both go on. In a few cases the copy is still credited with the shared
+  part: an original that writes first after a fork, a fork resumed again
+  before it wrote anything, and a resume that never wrote. An account's
+  total is right either way. Counts already stored are read again once, so
+  these fixes reach them.
+- The tools AI Juggler runs are found in fixed system places, never by
+  searching your `PATH` (git included).
+
 - An account's limits no longer read "100% left" when nothing has been
   measured yet: on Home, Accounts, Usage, a session's details and New
   session, a window with no reading says "Not measured yet". It also

@@ -1172,7 +1172,10 @@ pub mod enabled {
             system.refresh_processes_specifics(
                 ProcessesToUpdate::Some(&[pid]),
                 true,
-                ProcessRefreshKind::nothing().with_memory().with_cpu(),
+                ProcessRefreshKind::nothing()
+                    .without_tasks()
+                    .with_memory()
+                    .with_cpu(),
             );
             let Some(process) = system.process(pid) else {
                 return;

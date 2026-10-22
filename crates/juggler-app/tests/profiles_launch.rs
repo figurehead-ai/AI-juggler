@@ -23,21 +23,20 @@ use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
 use juggler_app::commands;
 use juggler_app::state::AppState;
+#[path = "../../juggler-supervisor/tests/fixtures/stand_in.rs"]
+mod stand_in;
 
 /// A `claude` stub: writes one transcript line under its isolated config
 /// dir, echoes the config dir to stdout (cross-talk probe), exits 0.
 fn claude_stub(dir: &Path) -> PathBuf {
-    use std::os::unix::fs::PermissionsExt;
     let path = dir.join("claude-stub");
-    std::fs::write(
+    stand_in::write(
         &path,
         "#!/bin/sh\n\
          mkdir -p \"$CLAUDE_CONFIG_DIR/projects/p\"\n\
          printf '%s' \"$CLAUDE_CONFIG_DIR\" > \"$CLAUDE_CONFIG_DIR/projects/p/s1.jsonl\"\n\
          echo \"config-dir: $CLAUDE_CONFIG_DIR\"\n",
-    )
-    .unwrap();
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    );
     path
 }
 
