@@ -125,19 +125,18 @@ fn spool_rotates_at_threshold() {
 
 #[test]
 fn transcript_events_skip_unkeyed_and_double_usage() {
-    let bytes = std::fs::read(fixture("claude-transcript.jsonl")).unwrap();
     let outcome = juggler_adapters::tail_transcript(&fixture("claude-transcript.jsonl"), "acc", 0);
     assert_eq!(outcome.parse_errors, 0);
     // a-1, a-2 kept; the no-uuid usage line skipped (cannot dedupe);
-    // the duplicate a-1 line emits the SAME uuid (store dedupes).
-    assert_eq!(outcome.events.len(), 3);
+    // the repeated a-1 line (no message id: keyed by its uuid) is one event.
+    assert_eq!(outcome.events.len(), 2);
     assert_eq!(
         outcome
             .events
             .iter()
             .filter(|e| e.msg_uuid.as_deref() == Some("a-1"))
             .count(),
-        2
+        1
     );
     let a2 = outcome
         .events
@@ -151,7 +150,101 @@ fn transcript_events_skip_unkeyed_and_double_usage() {
     assert_eq!(a2.confidence, Confidence::Measured);
     assert_eq!(a2.session.as_deref(), Some("sess-t"));
     assert_eq!(a2.model.as_deref(), Some("claude-opus-4"));
-    let _ = bytes;
+}
+
+/// P3 (0.0.12 QA walk: Claude tokens ×1.8–2.5 the transcripts'). Claude
+/// Code writes one line per content block — thinking, text, each tool
+/// call — each with its own `uuid` but the same `message.id`,
+/// `requestId` and `usage`. One API response is one event, whatever its
+/// blocks; a later block's larger figure (streamed output) wins.
+#[test]
+fn one_response_written_as_several_content_blocks_counts_once() {
+    let outcome = juggler_adapters::tail_transcript(
+        &fixture("claude-transcript-content-blocks.jsonl"),
+        "acc",
+        0,
+    );
+    assert_eq!(outcome.parse_errors, 0);
+    let keys: Vec<_> = outcome
+        .events
+        .iter()
+        .map(|event| event.msg_uuid.as_deref().unwrap())
+        .collect();
+    assert_eq!(keys, ["msg_A/req_A", "msg_B/req_B"]);
+    let sum = |class: fn(&juggler_core::model::TokenCounts) -> u64| {
+        outcome
+            .events
+            .iter()
+            .map(|event| class(&event.tokens))
+            .sum::<u64>()
+    };
+    assert_eq!(sum(|t| t.input), 4 + 6);
+    assert_eq!(sum(|t| t.output), 310 + 52);
+    assert_eq!(sum(|t| t.cache_read), 12_000 + 12_800);
+    assert_eq!(sum(|t| t.cache_write), 800 + 90);
+    // The response's first line gives its time.
+    assert_eq!(
+        outcome.events[1].ts,
+        iso_to_epoch_ms("2026-10-20T09:00:04.000Z").unwrap()
+    );
+}
+
+/// P3, across passes and files: a response read again (a re-tail, a
+/// resumed session's replayed history) is stored once.
+#[test]
+fn a_response_read_twice_is_stored_once() {
+    let storage = Storage::open_in_memory().unwrap();
+    let path = fixture("claude-transcript-content-blocks.jsonl");
+    for _ in 0..2 {
+        let outcome = juggler_adapters::tail_transcript(&path, "acc", 0);
+        storage.usage().insert_events(&outcome.events).unwrap();
+    }
+    let stored = storage.usage().events_for_account("acc", 0).unwrap();
+    assert_eq!(stored.len(), 2);
+    assert_eq!(
+        stored.iter().map(|event| event.tokens.output).sum::<u64>(),
+        362
+    );
+}
+
+/// P3, across two tail passes: a response's first block lands in one pass
+/// (output 40) and its last block in the next (output 52). The store keeps
+/// the larger figure, and the second write adds only the difference.
+#[test]
+fn a_response_split_across_two_passes_keeps_its_final_figure() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("t.jsonl");
+    let lines: Vec<String> =
+        std::fs::read_to_string(fixture("claude-transcript-content-blocks.jsonl"))
+            .unwrap()
+            .lines()
+            .map(|line| format!("{line}\n"))
+            .collect();
+    // The first pass ends after b-4 (msg_B's first block, output 40).
+    let split = lines
+        .iter()
+        .position(|line| line.contains("\"b-5\""))
+        .unwrap();
+    std::fs::write(&path, lines[..split].concat()).unwrap();
+    let storage = Storage::open_in_memory().unwrap();
+    let first = tail_transcript(&path, "acc", 0);
+    storage.usage().store_events(&first.events).unwrap();
+    std::fs::write(&path, lines.concat()).unwrap();
+    let second = tail_transcript(&path, "acc", first.offset);
+    let stored = storage.usage().store_events(&second.events).unwrap();
+    assert_eq!(stored.len(), 1);
+    assert!(!stored[0].new);
+    assert_eq!(stored[0].added.output, 12, "only the increase is new use");
+    let rows = storage.usage().events_for_account("acc", 0).unwrap();
+    let msg_b = rows
+        .iter()
+        .find(|row| row.msg_uuid.as_deref() == Some("msg_B/req_B"))
+        .unwrap();
+    assert_eq!(msg_b.tokens.output, 52);
+    assert_eq!(rows.iter().map(|row| row.tokens.output).sum::<u64>(), 362);
+    // The same lines again change nothing.
+    let again = storage.usage().store_events(&second.events).unwrap();
+    assert_eq!(again[0].added, juggler_core::model::TokenCounts::default());
 }
 
 #[test]
@@ -184,13 +277,204 @@ fn rollout_events_read_only_the_response_level_usage() {
         Some("th-1/tu-1/re-1"),
         "dedupe key survives re-tails and resumed rollouts"
     );
-    assert_eq!(first.tokens.input, 52_381);
+    // Disjoint classes: input without its cached part, output without
+    // its reasoning (Codex nests them).
+    assert_eq!(first.tokens.input, 52_381 - 5_888);
     assert_eq!(first.tokens.cache_read, 5_888); // cached_input_tokens
     assert_eq!(first.tokens.reasoning, 136); // reasoning_output_tokens
     assert_eq!(first.session.as_deref(), Some("th-1"));
     assert_eq!(first.source, UsageSource::Rollout);
     // One response-level read only — rollup fields never re-counted.
-    assert_eq!(first.tokens.output, 200);
+    assert_eq!(first.tokens.output, 200 - 136);
+}
+
+/// P14 (0.0.12 QA walk: Codex tokens exactly ×2). Codex's
+/// `input_tokens` includes `cached_input_tokens` and its `output_tokens`
+/// includes `reasoning_output_tokens`; storing all four counted each
+/// token twice. Every token once: the stored classes sum to Codex's own
+/// `total_tokens`.
+#[test]
+fn codex_tokens_are_counted_once() {
+    let outcome = rollout_events(
+        "acc",
+        &std::fs::read(fixture("codex-rollout.jsonl")).unwrap(),
+    );
+    // Every stored class, cache writes included (the second line has 50).
+    assert_eq!(outcome.events[1].tokens.cache_write, 50);
+    for (event, total) in outcome.events.iter().zip([52_581_u64, 1_280]) {
+        let t = &event.tokens;
+        assert_eq!(
+            t.input + t.cache_read + t.cache_write + t.output + t.reasoning,
+            total
+        );
+    }
+}
+
+/// P15(a): a rollout's usage lines carry no model; the turn's
+/// `turn_context` does. Usage before any `turn_context` in the slice has
+/// none here (the pipeline carries the previous slice's).
+#[test]
+fn codex_usage_takes_the_model_its_turn_context_names() {
+    let outcome = rollout_events(
+        "acc",
+        &std::fs::read(fixture("codex-rollout.jsonl")).unwrap(),
+    );
+    let models: Vec<_> = outcome
+        .events
+        .iter()
+        .map(|event| event.model.as_deref())
+        .collect();
+    assert_eq!(models, [None, Some("gpt-5-codex")]);
+    assert_eq!(outcome.model.as_deref(), Some("gpt-5-codex"));
+}
+
+/// The 0.0.12 report: Codex's rollouts carry its own limit readings on
+/// `event_msg` `token_count` lines (`rate_limits`: primary, secondary,
+/// credits). The fixture is shaped like the real line; every value is
+/// invented.
+#[test]
+fn rollout_token_counts_become_measured_samples_and_the_credits() {
+    let outcome = rollout_events(
+        "acc",
+        &std::fs::read(fixture("codex-rollout-rate-limits.jsonl")).unwrap(),
+    );
+    // A line of an unknown window width yields nothing, never guessed
+    // into a pool; it is an odd reading, not a broken line. A null
+    // rate_limits is just skipped.
+    assert_eq!(outcome.parse_errors, 0);
+    assert_eq!(
+        outcome.events.len(),
+        1,
+        "tokens still come from token_usage_record"
+    );
+    let first_ts = iso_to_epoch_ms("2026-10-21T10:01:00.000Z").unwrap();
+    let later_ts = iso_to_epoch_ms("2026-10-21T10:30:00.000Z").unwrap();
+    let samples: Vec<(WindowKind, f64, Option<i64>, i64)> = outcome
+        .samples
+        .iter()
+        .map(|(kind, sample)| (*kind, sample.used_pct, sample.resets_at, sample.ts))
+        .collect();
+    assert_eq!(
+        samples,
+        vec![
+            (
+                WindowKind::FiveHour,
+                12.5,
+                Some(1_792_580_400_000),
+                first_ts
+            ),
+            (
+                WindowKind::Weekly { anchor_ms: None },
+                40.0,
+                Some(1_792_990_000_000),
+                first_ts
+            ),
+            // resets_in_seconds (older builds) counts from the line.
+            (
+                WindowKind::FiveHour,
+                20.0,
+                Some(later_ts + 3_600_000),
+                later_ts
+            ),
+        ]
+    );
+    assert!(
+        outcome
+            .samples
+            .iter()
+            .all(|(_, sample)| sample.confidence == Confidence::Measured)
+    );
+    // The newest credits snapshot wins.
+    let credits = outcome.credits.expect("credits");
+    assert_eq!(credits.ts, later_ts);
+    assert!(credits.has_credits && !credits.unlimited);
+    assert_eq!(credits.balance.as_deref(), Some("16.25"));
+}
+
+#[test]
+fn codex_rate_limits_take_seconds_or_milliseconds_and_skip_odd_widths() {
+    let ts = 1_792_500_000_000;
+    let (samples, credits) = quota_ingest::codex_rate_limits(
+        ts,
+        &serde_json::json!({
+            "primary": {"used_percent": 150.0, "window_minutes": 300, "resets_at": 1_792_580_400_000_i64},
+            "secondary": {"used_percent": 1.0, "window_minutes": 1440},
+            "credits": {"has_credits": true, "unlimited": true, "balance": null}
+        }),
+    );
+    assert_eq!(
+        samples.len(),
+        1,
+        "a 1-day window isn't a pool AI Juggler knows"
+    );
+    assert_eq!(samples[0].1.used_pct, 100.0, "clamped");
+    assert_eq!(
+        samples[0].1.resets_at,
+        Some(1_792_580_400_000),
+        "ms passes through"
+    );
+    let credits = credits.unwrap();
+    assert!(credits.unlimited);
+    assert_eq!(credits.balance, None);
+}
+
+/// QA's 30 days of the real Codex account (2026-10-21): only `primary`,
+/// weekly (`window_minutes` 10080); `secondary` never appears; the plan
+/// can be null; odd readings carry `window_minutes` 0 or a null
+/// `primary`. Odd readings give no sample; a null plan is fine; the
+/// credits still count. Shapes from that analysis, values invented.
+#[test]
+fn codex_odd_readings_are_ignored_and_a_null_plan_is_fine() {
+    let line = |ts: &str, limits: &str| {
+        format!(
+            "{{\"timestamp\":\"{ts}\",\"type\":\"event_msg\",\"payload\":{{\"type\":\"token_count\",\"info\":null,\"rate_limits\":{limits}}}}}\n"
+        )
+    };
+    let credits = r#""credits":{"has_credits":true,"unlimited":false,"balance":"12.50"}"#;
+    let bytes = [
+        line(
+            "2026-10-21T10:00:00.000Z",
+            &format!(r#"{{"limit_id":"codex","plan_type":null,"primary":{{"used_percent":64,"window_minutes":10080,"resets_at":1793000000}},"secondary":null,{credits}}}"#),
+        ),
+        line(
+            "2026-10-21T10:00:14.000Z",
+            &format!(r#"{{"limit_id":"codex","plan_type":"pro","primary":{{"used_percent":0,"window_minutes":0,"resets_at":1793000000}},"secondary":null,{credits}}}"#),
+        ),
+        line(
+            "2026-10-21T10:00:28.000Z",
+            &format!(r#"{{"limit_id":"codex","plan_type":"pro","primary":null,"secondary":null,{credits}}}"#),
+        ),
+    ]
+    .concat();
+    let outcome = rollout_events("acc", bytes.as_bytes());
+    assert_eq!(
+        outcome.samples.len(),
+        1,
+        "one reading: the odd ones give none"
+    );
+    let (kind, sample) = &outcome.samples[0];
+    assert_eq!(*kind, WindowKind::Weekly { anchor_ms: None });
+    assert_eq!(sample.used_pct, 64.0);
+    assert_eq!(sample.resets_at, Some(1_793_000_000_000));
+    assert_eq!(
+        outcome.parse_errors, 0,
+        "an odd reading is not a broken line"
+    );
+    // Not even with no credits beside it; a window without its figure is.
+    let odd = line(
+        "2026-10-21T10:00:42.000Z",
+        r#"{"limit_id":"codex","primary":{"used_percent":0,"window_minutes":0},"secondary":null,"credits":null}"#,
+    );
+    assert_eq!(rollout_events("acc", odd.as_bytes()).parse_errors, 0);
+    let broken = line(
+        "2026-10-21T10:00:56.000Z",
+        r#"{"limit_id":"codex","primary":{"window_minutes":10080},"secondary":null,"credits":null}"#,
+    );
+    assert_eq!(rollout_events("acc", broken.as_bytes()).parse_errors, 1);
+    assert_eq!(
+        outcome.credits.as_ref().and_then(|c| c.balance.as_deref()),
+        Some("12.50")
+    );
 }
 
 // ---------------------------------------------------------------------------

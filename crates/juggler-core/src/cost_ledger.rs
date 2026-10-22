@@ -20,9 +20,10 @@
 use crate::model::{Confidence, TokenCounts};
 use crate::quota::UsageEvent;
 
-/// The bundled, versioned seed (`cost_ledger_seed.json`, v2 — adds
+/// The bundled, versioned seed (`cost_ledger_seed.json`; v2 added
 /// cache rates, `effective_from`, and per-row `source_url` over the
-/// AJ-E409 v1 table). Malformed ⇒ build-time bug the tests catch;
+/// AJ-E409 v1 table; v3 prices the current Claude and GPT models from
+/// the vendors' pages — `docs/research/model-pricing.md`). Malformed ⇒ build-time bug the tests catch;
 /// never a silent fallback.
 pub const PRICING_SEED: &str = include_str!("cost_ledger_seed.json");
 
@@ -145,12 +146,26 @@ pub fn day_of(ts_ms: i64) -> String {
     format!("{year:04}-{m:02}-{d:02}")
 }
 
+/// `claude-haiku-4-5-20251001` → `claude-haiku-4-5`: a model id without
+/// its trailing `-YYYYMMDD` snapshot date; `None` when it has none.
+fn undated(model: &str) -> Option<&str> {
+    let (alias, date) = model.rsplit_once('-')?;
+    (date.len() == 8 && date.bytes().all(|byte| byte.is_ascii_digit())).then_some(alias)
+}
+
 impl PricingCatalog {
     /// The rate row for `model` at `ts`: the latest row
     /// (`effective_from ≤ ts`) among overrides (preferred) and
-    /// bundled rows; `None` when unpriced at that instant.
+    /// bundled rows; `None` when unpriced at that instant. A dated
+    /// snapshot id (`claude-haiku-4-5-20251001`) falls back to its
+    /// dateless alias's row when it has none of its own.
     #[must_use]
     pub fn row_for(&self, model: &str, ts_ms: i64) -> Option<&LedgerPriceRow> {
+        self.row_exact(model, ts_ms)
+            .or_else(|| self.row_exact(undated(model)?, ts_ms))
+    }
+
+    fn row_exact(&self, model: &str, ts_ms: i64) -> Option<&LedgerPriceRow> {
         fn best<'a>(
             rows: &'a [LedgerPriceRow],
             model: &str,
@@ -174,15 +189,18 @@ impl PricingCatalog {
     }
 
     /// Prices one event's tokens at event-time rates. `None` when the
-    /// model is unpriced AT THAT INSTANT (the honest `—`). The u64→f64
-    /// casts lose cents only past 2^53 tokens — beyond any real bucket.
+    /// model is unpriced AT THAT INSTANT (the honest `—`). Reasoning
+    /// tokens are output the vendor bills at the output rate (stored
+    /// apart from `output`, never inside it). The u64→f64 casts lose
+    /// cents only past 2^53 tokens — beyond any real bucket.
     #[allow(clippy::cast_precision_loss)]
     #[must_use]
     pub fn price_tokens(&self, model: &str, ts_ms: i64, tokens: TokenCounts) -> Option<f64> {
         let row = self.row_for(model, ts_ms)?;
         Some(
             (tokens.input as f64 / 1000.0) * row.input_per_1k
-                + (tokens.output as f64 / 1000.0) * row.output_per_1k
+                + (tokens.output.saturating_add(tokens.reasoning) as f64 / 1000.0)
+                    * row.output_per_1k
                 + (tokens.cache_read as f64 / 1000.0) * row.cache_read_per_1k
                 + (tokens.cache_write as f64 / 1000.0) * row.cache_write_per_1k,
         )

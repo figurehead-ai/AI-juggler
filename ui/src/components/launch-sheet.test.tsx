@@ -121,16 +121,17 @@ describe("AJ-E306 flow (e) — the launch sheet", () => {
     const accounts = container.querySelector("[data-testid='launch-sheet-accounts']")!;
     expect(accounts.textContent).not.toMatch(/%/);
     // Customise ▸ exposes the full list — the unknown-headroom account
-    // says so in text with its Sign-in-first detour.
+    // says so in text (the one runway's words; no verdict chip beside
+    // it, QA P26b) with its Sign-in-first detour.
     fireEvent.click(
       Array.from(container.querySelectorAll("button")).find((b) => b.textContent === "Customise ▸")!,
     );
     await waitFor(() =>
       expect(container.querySelector("[data-testid='sign-in-first']")).not.toBeNull(),
     );
-    expect(container.querySelector("[data-testid='launch-sheet-accounts']")!.textContent).toContain(
-      "Room left unknown",
-    );
+    const list = container.querySelector("[data-testid='launch-sheet-accounts']")!.textContent;
+    expect(list).toContain("Not measured yet");
+    expect(list).not.toContain("Room left unknown");
   });
 
   it("logged-out rows: Sign in first detours WITHOUT closing the sheet, and never show a Launch button (Req.8)", async () => {

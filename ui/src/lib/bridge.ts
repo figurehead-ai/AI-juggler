@@ -1,13 +1,19 @@
 
 // AJ-E307: per top-level entry bytes (the copy receipt breakdown)
 // and the degraded flag; provenance echoes on AccountInfo.
-import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
-import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
+import {
+  invoke,
+  listen,
+  liveBackend,
+  openDialog,
+  readOnlyBackend,
+  saveDialog,
+} from "./ipc/transport";
 import type { AppInfo } from "../types/generated/AppInfo";
 import type { NotificationPrefsInfo } from "../types/generated/NotificationPrefsInfo";
 import type { OsAccessInfo } from "../types/generated/OsAccessInfo";
 import type { QuitPlanInfo } from "../types/generated/QuitPlanInfo";
+import type { ReopenBlockInfo } from "../types/generated/ReopenBlockInfo";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { AccountRemovedInfo } from "../types/generated/AccountRemovedInfo";
 import type { DiscoveredInfo } from "../types/generated/DiscoveredInfo";
@@ -192,8 +198,8 @@ export const EVENTS = {
   updateStatus: "update://status",
 } as const;
 
-const hasBackend =
-  typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+// The app, or the read-only test bridge in a dev page (lib/ipc).
+const hasBackend = liveBackend;
 
 export function hasLiveBackend(): boolean {
   return hasBackend;
@@ -1185,9 +1191,14 @@ export async function notificationPrefsSet(prefs: NotificationPrefsInfo): Promis
 
 /** D-25: what this OS must allow (one entry per thing it makes possible;
  * an empty list means the first-run access step is skipped). */
-export type { OsAccessInfo };
+export type { OsAccessInfo, ReopenBlockInfo };
 const osAccessSeams = () =>
-  window as unknown as { __AIJ_OS_ACCESS__?: OsAccessInfo[]; __AIJ_OS_ACCESS_CALLS__?: string[] };
+  window as unknown as {
+    __AIJ_OS_ACCESS__?: OsAccessInfo[];
+    __AIJ_OS_ACCESS_CALLS__?: string[];
+    /** Test seam: what a Reopen click is told (null = it relaunches). */
+    __AIJ_REOPEN_BLOCK__?: ReopenBlockInfo | null;
+  };
 const MOCK_OS_ACCESS: OsAccessInfo[] = [
   {
     id: "focus",
@@ -1237,6 +1248,20 @@ export async function osAccessOpenSettings(id: string): Promise<void> {
     return;
   }
   await invoke("os_access_open_settings", { id });
+}
+
+/** Reopens AI Juggler (`app_relaunch`; macOS shows a new Screen
+ * Recording answer only then). Resolves with why it has to be confirmed
+ * or wait; when nothing stands in the way (or `anyway` after live
+ * sessions) the app relaunches and this never resolves. */
+export async function appRelaunch(anyway: boolean): Promise<ReopenBlockInfo | null> {
+  if (!hasBackend) {
+    const seams = osAccessSeams();
+    seams.__AIJ_OS_ACCESS_CALLS__ = [...(seams.__AIJ_OS_ACCESS_CALLS__ ?? []), `reopen:${anyway ? "anyway" : "ask"}`];
+    const block = seams.__AIJ_REOPEN_BLOCK__ ?? null;
+    return anyway && block?.can_reopen_anyway ? null : block;
+  }
+  return invoke<ReopenBlockInfo | null>("app_relaunch", { anyway });
 }
 
 /** Whether new Accounts start with left-behind dev servers tidied (D-08:
@@ -1404,21 +1429,30 @@ export interface CleanupAlertsData {
  * idle nudges fire once per orphan). Purely passive — no alert
  * carries a signal path; the hog alert routes to the staged sheet. */
 /** AJ-E609: one cost rollup row (session × model × day). */
+/** Rust `Confidence` on the wire. */
+export type ConfidenceWire = "Measured" | "Computed" | "Estimated";
+
+// IPC convention (docs/engineering/ENGINEERING-GUIDE.md › IPC): a Rust
+// `Option<T>` arrives as `null`, never as a missing key, so it is typed
+// `T | null` and checked with `!= null` — never `?:` / `!== undefined`
+// (the 0.0.12 report: Usage went blank on `null.toFixed`).
+
+/** AJ-E609: one rollup row (`cost_ledger::CostRollup`). */
 export interface CostRollupRow {
   key: string;
-  model?: string;
-  day?: string;
+  model: string | null;
+  day: string | null;
   tokens: { input: number; output: number; cache_read: number; cache_write: number; reasoning: number };
-  usd: { usd?: number; label: string };
-  credits?: number;
-  confidence: "Measured" | "Computed" | "Estimate";
+  usd: { usd: number | null; label: ConfidenceWire };
+  credits: number | null;
+  confidence: ConfidenceWire;
 }
 
 /** AJ-E609: the dual subscription view ("≈$X at API prices · you pay flat"). */
 export interface SubscriptionViewData {
-  api_equivalent_usd?: number;
-  flat_fee_usd?: number;
-  value_ratio?: number;
+  api_equivalent_usd: number | null;
+  flat_fee_usd: number | null;
+  value_ratio: number | null;
 }
 
 /** AJ-E609: the cost matrix payload (the UI and the CSV read the same rows). */
@@ -1426,27 +1460,29 @@ export interface CostRollupsData {
   rows: CostRollupRow[];
   subscription: SubscriptionViewData;
   pricing_stale: boolean;
-  pricing_last_synced_ms?: number;
-  total_usd?: number;
+  pricing_last_synced_ms: number | null;
+  total_usd: number | null;
   scope: string;
 }
 
 /** AJ-E611: one ranked (or filtered) account row. */
 export interface RankedRowData {
   account: string;
-  score?: number;
-  filtered_reason?: string;
+  /** The account's name (rows never show the id). */
+  account_label: string;
+  score: number | null;
+  filtered_reason: string | null;
   top_factors: string[];
   factors: [string, number][];
   headroom_unknown: boolean;
   confidence: string;
-  tte_min?: number;
+  tte_min: number | null;
   suggested: boolean;
   /** AJ-E306 Req.7: the launch admission verdict (SPEC §5.2) —
    * `ok|tight|no`; undefined when headroom or burn is unknown
    * (renders "headroom unknown", never a fabricated number). Warns,
    * never blocks. */
-  admission?: "ok" | "tight" | "no";
+  admission: "ok" | "tight" | "no" | null;
 }
 
 /** AJ-E611: the explainable ranking — suggest-only, the user clicks. */
@@ -1516,14 +1552,23 @@ export async function resetQueueDismiss(id: string): Promise<void> {
 
 /** AJ-E610: one window clock's typed rendered state. */
 export interface WindowDisplay {
-  state: "unknown" | "learning" | "tracking" | "stale" | "exhausted";
-  percentage?: number;
-  badge?: string;
-  stale_note_ms?: number;
-  resets_at_ms?: number;
+  /** `unmeasured`: use seen, no percentage (no sample, no confirmed cap). */
+  /** `reset`: the window the last reading described has reset since;
+   * nothing is known about the new one. */
+  state: "unknown" | "learning" | "unmeasured" | "tracking" | "stale" | "exhausted" | "reset";
+  percentage: number | null;
+  badge: string | null;
+  stale_note_ms: number | null;
+  resets_at_ms: number | null;
+  /** Where `resets_at_ms` came from; null with it (a reset time is
+   * known or absent, never estimated). */
+  reset_basis: "measured" | "calendar" | null;
+  /** When the vendor's reading was taken: the "as of" beside a measured
+   * percentage. */
+  measured_at_ms: number | null;
   burned_tokens: number;
-  burned_credits?: number;
-  headroom_tokens?: number | null;
+  burned_credits: number | null;
+  headroom_tokens: number | null;
 }
 
 /** AJ-E610: the subscription clock's typed state (calendar line, D-12). */
@@ -1536,22 +1581,34 @@ export interface RenewalDisplay {
 /** AJ-E610: the forecast pill data. */
 export interface ForecastDisplay {
   state: "learning" | "wont-exhaust" | "exhausts" | "no-headroom";
-  tte_min?: number;
-  range_min?: number;
-  range_max?: number;
+  tte_min: number | null;
+  range_min: number | null;
+  range_max: number | null;
   badge: string;
 }
 
 /** AJ-E610: the two-clock display for one account. */
 export interface QuotaDisplayData {
   account: string;
-  five_hour?: WindowDisplay;
-  five_hour_omitted_reason?: string;
-  weekly?: WindowDisplay;
-  weekly_omitted_reason?: string;
+  five_hour: WindowDisplay | null;
+  five_hour_omitted_reason: string | null;
+  weekly: WindowDisplay | null;
+  weekly_omitted_reason: string | null;
   renewal: RenewalDisplay;
   forecast: ForecastDisplay;
-  unavailable_reason?: string;
+  unavailable_reason: string | null;
+  /** Codex's credits, from its own rollouts. */
+  credits: CreditsDisplay | null;
+}
+
+/** An account's credits, as its tool reports them. */
+export interface CreditsDisplay {
+  has_credits: boolean;
+  unlimited: boolean;
+  balance: string | null;
+  as_of_ms: number;
+  /** Who reported it: the tool's name ("Codex"). */
+  source: string;
 }
 
 /** AJ-E306: one window's token headroom (cap − burned) — present
@@ -1566,9 +1623,16 @@ export async function quotaDisplay(account: string): Promise<QuotaDisplayData> {
     const all = await quotaDisplayAll();
     return (
       all.find((entry) => entry.account === account) ?? {
+        // What serde sends for an account with nothing measured: nulls.
         account,
+        five_hour: null,
+        five_hour_omitted_reason: null,
+        weekly: null,
+        weekly_omitted_reason: null,
         renewal: { state: "none", label: "Renewal: unknown — add date", entered_by_user: false },
-        forecast: { state: "learning", badge: "estimated" },
+        forecast: { state: "learning", tte_min: null, range_min: null, range_max: null, badge: "estimated" },
+        unavailable_reason: null,
+        credits: null,
       }
     );
   }
@@ -1600,9 +1664,13 @@ export async function costRollups(account?: string): Promise<CostRollupsData> {
     return (
       (window as unknown as { __AIJ_COST_ROLLUPS__?: CostRollupsData })
         .__AIJ_COST_ROLLUPS__ ?? {
+        // Exactly what serde sends with nothing stored: nulls, not
+        // missing keys (a mismatch is now a type error).
         rows: [],
-        subscription: {},
+        subscription: { api_equivalent_usd: null, flat_fee_usd: null, value_ratio: null },
         pricing_stale: false,
+        pricing_last_synced_ms: null,
+        total_usd: null,
         scope: account ?? "ALL",
       }
     );
@@ -2404,7 +2472,8 @@ export async function pickDirectory(): Promise<string | null> {
 
 /** Folders dragged onto the window (Tauri drag-drop events). */
 export function onFolderDropped(handler: (path: string) => void): () => void {
-  if (!hasBackend) return () => {};
+  // No window to drop onto through the read-only test bridge.
+  if (!hasBackend || readOnlyBackend) return () => {};
   let disposed = false;
   let unlisten: (() => void) | null = null;
   import("@tauri-apps/api/webview")
@@ -2625,12 +2694,12 @@ export interface SwitchTargetData {
   cross_provider: boolean;
   /** The pair's Drop list (the badge's honest companion). */
   drops: string[];
-  score?: number;
-  filtered_reason?: string;
+  score: number | null;
+  filtered_reason: string | null;
   top_factors: string[];
   factors: [string, number][];
   confidence: string;
-  tte_min?: number;
+  tte_min: number | null;
   suggested: boolean;
 }
 
@@ -2650,6 +2719,7 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
     factors: [["80% headroom", 0.36], ["usual account for this repo", 0.2], ["fidelity 1 · Beta", 0.15], ["≈$0.12 replay", 0.07], ["quiet", 0.1]],
     confidence: "Computed",
     tte_min: 262,
+    filtered_reason: null,
     suggested: true,
   },
   {
@@ -2665,6 +2735,7 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
     factors: [["35% headroom", 0.16], ["quiet", 0.1], ["fidelity 1 · Beta", 0.15]],
     confidence: "Estimate",
     tte_min: 95,
+    filtered_reason: null,
     suggested: false,
   },
   {
@@ -2679,6 +2750,8 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
     top_factors: [],
     factors: [],
     confidence: "Measured",
+    score: null,
+    tte_min: null,
     suggested: false,
   },
 ];
@@ -3023,6 +3096,18 @@ function previewCrash(): CrashInfoData {
   const seams = window as unknown as { __AIJ_CRASH__?: CrashInfoData };
   seams.__AIJ_CRASH__ ??= { setting: "never", effective: "never", reason: null, asking: [], queued: 0, can_send: false };
   return seams.__AIJ_CRASH__;
+}
+
+/** A screen's error, from its error boundary: kept like a crash (scrubbed,
+ * only if the user's crash-report setting allows). Only the screen's id,
+ * the error's message and its stack are sent. */
+export async function crashUiError(screen: string, message: string, stack: string): Promise<boolean> {
+  if (!hasBackend) {
+    const seams = window as unknown as { __AIJ_UI_ERRORS__?: { screen: string; message: string }[] };
+    seams.__AIJ_UI_ERRORS__ = [...(seams.__AIJ_UI_ERRORS__ ?? []), { screen, message }];
+    return false;
+  }
+  return invoke<boolean>("crash_ui_error", { screen, message, stack });
 }
 
 /** AJ-E1107: the crash-report setting and the reports waiting. */
@@ -3919,7 +4004,8 @@ export interface ProviderCapabilityData {
 
 const DEFAULT_PROVIDER_CAPABILITIES: ProviderCapabilityData[] = [
   { provider: "claude-code", can_use_in_place: true, reports_limits: true },
-  { provider: "codex", can_use_in_place: true, reports_limits: false },
+  // Its rollouts carry its own limit readings (the 0.0.12 report).
+  { provider: "codex", can_use_in_place: true, reports_limits: true },
 ];
 
 /** ADR-0018: each registered Provider's static capabilities. */
@@ -4043,15 +4129,12 @@ export async function environmentScanFull(
     }
     return seam ?? DEFAULT_SCAN_REPORT;
   }
-  const { getCurrentWebview } = await import("@tauri-apps/api/webview");
-  const { listen } = await import("@tauri-apps/api/event");
   let stop: (() => void) | undefined;
   if (progress) {
     stop = await listen<{ done: number; total: number }>("scan-progress", (event) => {
       progress(event.payload.done, event.payload.total);
     }).then((unlisten) => unlisten);
   }
-  void getCurrentWebview;
   try {
     return await invoke<ScanReportData>("environment_scan_full");
   } finally {

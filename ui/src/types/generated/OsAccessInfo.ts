@@ -27,7 +27,9 @@ system_name: string,
 status: string, 
 /**
  * The next action: `prompt` (Allow raises the system dialog) |
- * `settings` (only the settings pane can change it now) | `none`.
+ * `settings` (only the settings pane can change it now) | `reopen`
+ * (allowed in the settings pane, macOS shows it only after AI
+ * Juggler reopens; the pane stays offered too) | `none`.
  */
 action: string, 
 /**

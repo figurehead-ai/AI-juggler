@@ -21,9 +21,17 @@ vi.hoisted(() => {
 import { ProfilesScreen } from "./Profiles";
 import { limitProviders, reportsLimits } from "../lib/providers";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  delete (window as unknown as Record<string, unknown>).__AIJ_PROVIDER_CAPABILITIES__;
+});
 
-it("Codex says once that it doesn't report its limits; Claude Code keeps its windows", async () => {
+it("a tool that doesn't report its limits says so once; Claude Code keeps its windows", async () => {
+  // Codex as the example of such a tool (it reports them since 0.0.13).
+  (window as unknown as Record<string, unknown>).__AIJ_PROVIDER_CAPABILITIES__ = [
+    { provider: "claude-code", can_use_in_place: true, reports_limits: true },
+    { provider: "codex", can_use_in_place: true, reports_limits: false },
+  ];
   const view = render(<ProfilesScreen onAddAccounts={() => {}} openTerminal={() => {}} />);
   const note = await view.findByTestId("account-no-limits");
   expect(note.textContent).toBe("Codex doesn't report its limits to AI Juggler yet.");
@@ -47,4 +55,10 @@ it("a failed capabilities call, or a tool it doesn't name, keeps the limit rows"
   expect(reportsLimits(known, "codex")).toBe(false);
   // A tool the list doesn't name keeps its rows: only a "no" hides them.
   expect(reportsLimits(known, "fake-desktop")).toBe(true);
+});
+
+it("Codex reports its limits now (rollout rate_limits): no 'doesn't report' line", async () => {
+  const view = render(<ProfilesScreen onAddAccounts={() => {}} openTerminal={() => {}} />);
+  await waitFor(() => expect(view.getAllByTestId("account-tool-mark")).toHaveLength(2));
+  expect(view.queryByTestId("account-no-limits")).toBeNull();
 });

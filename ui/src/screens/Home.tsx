@@ -24,19 +24,20 @@ import { Button } from "../components/primitives";
 import { hueOf } from "../components/indicator";
 import { MorningSummary } from "../components/MorningSummary";
 import { ThisMacPanel } from "../components/ThisMacPanel";
-import { alertSubject, reasonSentence, type ThisMacInfo } from "../lib/machine";
+import { ScreenBoundary } from "../components/ScreenBoundary";
+import { runwayOf } from "../components/AccountRunway";
+import { alertWords, reasonSentence, type ThisMacInfo } from "../lib/machine";
 import { LegendPopover } from "../components/LegendPopover";
 import { parkedWords } from "../lib/parked";
 import { sessionLabel } from "../lib/stop";
 import { matches, SHORTCUTS, type KeyLike } from "../lib/shortcuts";
-import { noLimitsWords, ownSignIn, reportsLimits } from "../lib/providers";
+import { ownSignIn } from "../lib/providers";
 import { RowPlaceholders } from "../components/Placeholder";
 import { Welcome } from "../components/Welcome";
 import { HomeOutsideRows } from "../components/OutsideConversations";
 import { liveOutside, useConversations } from "../lib/conversations";
 import { minutes } from "../lib/time-words";
 import { showToast } from "../components/Toast";
-import { useToolsWithoutLimits } from "../lib/useToolsWithoutLimits";
 import {
   accountLoginState,
   dashboardStats,
@@ -51,7 +52,6 @@ import {
   type InstanceInfo,
   type ProjectInfo,
   type QuotaDisplayData,
-  type WindowDisplay,
 } from "../lib/bridge";
 
 const NEEDS = ["waiting_user", "stuck", "quota_blocked", "failed"] as const;
@@ -110,56 +110,6 @@ export function placeOf(session: InstanceInfo, projects: ProjectInfo[]): { title
   return { title, detail };
 }
 
-/** Runway for one Account: % left of the tighter measured window. */
-export function runwayOf(
-  display: QuotaDisplayData | undefined,
-  sessions: InstanceInfo[] = [],
-): {
-  left: number | null;
-  words: string;
-  resets: string | null;
-} {
-  const fromAccount = accountRunway(display);
-  if (fromAccount.left !== null) return fromAccount;
-  // No account-level reading yet: a session's own quota line is still a
-  // real reading (the newest one wins), never a guess.
-  const reading = sessions
-    .filter((s) => s.quota !== null)
-    .sort((a, b) => (b.last_activity_ms ?? b.started_at_ms) - (a.last_activity_ms ?? a.started_at_ms))[0]?.quota;
-  if (!reading) return fromAccount;
-  const left = Math.max(0, Math.round(100 - reading.used_percentage));
-  return {
-    left,
-    words: `${left}% left, from its latest session`,
-    resets: reading.resets_at_ms
-      ? `Resets ${new Date(reading.resets_at_ms).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" })}`
-      : null,
-  };
-}
-
-function accountRunway(display: QuotaDisplayData | undefined): {
-  left: number | null;
-  words: string;
-  resets: string | null;
-} {
-  const windows: Array<[string, WindowDisplay | undefined]> = [
-    ["5-hour window", display?.five_hour],
-    ["week", display?.weekly],
-  ];
-  const measured = windows.filter(([, w]) => w && w.percentage !== undefined && w.state !== "unknown");
-  if (measured.length === 0) {
-    const learning = windows.some(([, w]) => w?.state === "learning");
-    return { left: null, words: learning ? "Measuring — shows after a little use" : "Not measured yet", resets: null };
-  }
-  const tightest = measured.reduce((a, b) => ((a[1]!.percentage ?? 0) >= (b[1]!.percentage ?? 0) ? a : b));
-  const left = Math.max(0, Math.round(100 - (tightest[1]!.percentage ?? 0)));
-  const resetsAt = tightest[1]!.resets_at_ms;
-  const resets = resetsAt
-    ? `${tightest[0] === "week" ? "Week" : "5-hour window"} resets ${new Date(resetsAt).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" })}`
-    : null;
-  return { left, words: `${left}% left ${tightest[0] === "week" ? "this week" : "in the 5-hour window"}`, resets };
-}
-
 function SectionTitle({ id, children }: { id: string; children: string }): JSX.Element {
   return (
     <h2 id={id} className="text-[11px] font-semibold uppercase tracking-wider text-muted">
@@ -216,7 +166,6 @@ export function HomeScreen({
 }): JSX.Element {
   const [quota, setQuota] = useState<QuotaDisplayData[]>([]);
   // 0.0.11 walk (Q3): a tool without a limits feed says so in its row.
-  const noLimits = useToolsWithoutLimits();
   useEffect(() => {
     let alive = true;
     const load = () => void quotaDisplayAll().then((rows) => alive && setQuota(rows), () => null);
@@ -372,10 +321,7 @@ export function HomeScreen({
     ? null
     : machineAlerts.length > 0
       ? {
-          title: machineAlerts[0]!.title,
-          detail: [reasonSentence(machineAlerts.map((alert) => alert.detail)), alertSubject(machineAlerts[0]!, nameOfSession)]
-            .filter(Boolean)
-            .join(". "),
+          ...alertWords(machineAlerts, nameOfSession)!,
           severe: thisMac.machine.summary.level === "pressure",
         }
       : thisMac.machine.summary.level === "pressure"
@@ -420,11 +366,12 @@ export function HomeScreen({
     );
   };
   const recent = showAll ? review : review.slice(0, RECENT_SHOWN);
-  const runway = accounts.map((account) =>
-    reportsLimits(noLimits, account.provider)
-      ? { account, ...runwayOf(quota.find((q) => q.account === account.id), sessions.filter((s) => s.account_id === account.id)) }
-      : { account, left: null, words: `${noLimitsWords(account.provider)}.`, resets: null },
-  );
+  // The one runway decides, a tool that doesn't report its limits
+  // included (the backend's unavailable reason, from the same capability).
+  const runway = accounts.map((account) => ({
+    account,
+    ...runwayOf(quota.find((q) => q.account === account.id), sessions.filter((s) => s.account_id === account.id)),
+  }));
   const best = runway.filter((r) => r.left !== null).sort((a, b) => (b.left ?? 0) - (a.left ?? 0))[0];
   const low = runway.find((r) => r.left !== null && r.left <= 25);
 
@@ -451,7 +398,8 @@ export function HomeScreen({
         ? "1 session needs you"
         : `${sessionNeeds} sessions need you`
       : macNeed
-        ? macNeed.title
+        ? // Said once, in Needs you below; the headline only points there.
+          "Your Mac needs a look"
       : signIns.length > 0
         ? signIns.length === 1
           ? `${signIns[0]!.label} needs its sign-in`
@@ -737,15 +685,17 @@ export function HomeScreen({
             )}
           </div>
         </section>
-        <ThisMacPanel
-          info={thisMac}
-          nameOf={(id) => {
-            const session = sessions.find((s) => s.id === id);
-            return session ? placeOf(session, projects).title : "A session";
-          }}
-          onOpenSession={onOpenSession}
-          onOpenCleanup={onOpenCleanup}
-        />
+        <ScreenBoundary screen="this-mac" label="This Mac">
+          <ThisMacPanel
+            info={thisMac}
+            nameOf={(id) => {
+              const session = sessions.find((s) => s.id === id);
+              return session ? placeOf(session, projects).title : "A session";
+            }}
+            onOpenSession={onOpenSession}
+            onOpenCleanup={onOpenCleanup}
+          />
+        </ScreenBoundary>
         </div>
       </div>
 

@@ -416,6 +416,14 @@ fn providers_capabilities_says_which_tools_report_their_limits() {
             "{}",
             row.provider
         );
+        // The quota display reads the same capability (one source): a
+        // tool the provider list says doesn't report is unavailable there.
+        assert_eq!(
+            commands::reports_limits(&row.provider),
+            row.reports_limits,
+            "{}",
+            row.provider
+        );
     }
     let of = |id: &str| {
         rows.iter()
@@ -423,5 +431,6 @@ fn providers_capabilities_says_which_tools_report_their_limits() {
             .map(|row| row.reports_limits)
     };
     assert_eq!(of("claude-code"), Some(true));
-    assert_eq!(of("codex"), Some(false));
+    // Codex's rollouts carry its limit readings (0.0.12 report).
+    assert_eq!(of("codex"), Some(true));
 }

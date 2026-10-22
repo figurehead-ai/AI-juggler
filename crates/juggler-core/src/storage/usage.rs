@@ -5,10 +5,10 @@
 //! engine's maths (§Q3) lives in [`crate::quota`] as pure functions;
 //! THIS module only persists and fetches.
 
-use rusqlite::{Connection, params};
+use rusqlite::{Connection, OptionalExtension, params};
 
 use crate::error::CoreError;
-use crate::model::Confidence;
+use crate::model::{Confidence, TokenCounts};
 use crate::quota::{QuotaSample, UsageEvent, UsageSource, WindowKind};
 
 /// Append-only usage store over an open connection (single writer,
@@ -23,10 +23,9 @@ impl UsageRepo<'_> {
         UsageRepo { conn }
     }
 
-    /// Appends events in ONE transaction; each row is
-    /// `INSERT OR IGNORE` against `UNIQUE(account, msg_uuid)` — a
-    /// re-ingested file dedupes to zero. Returns how many rows were
-    /// NEWLY inserted (the ingest counters' honest denominator).
+    /// Appends events in ONE transaction (see [`Self::store_events`]).
+    /// Returns how many rows were NEWLY inserted (the ingest counters'
+    /// honest denominator).
     ///
     /// # Errors
     ///
@@ -34,52 +33,88 @@ impl UsageRepo<'_> {
     /// transaction rolls back atomically.
     pub fn insert_events(&self, events: &[UsageEvent]) -> Result<usize, CoreError> {
         Ok(self
-            .insert_events_marking(events)?
+            .store_events(events)?
             .into_iter()
-            .filter(|new| *new)
+            .filter(|stored| stored.new)
             .count())
     }
 
-    /// As [`Self::insert_events`], saying for each event whether it was
-    /// new (not a duplicate already stored).
+    /// Stores events in ONE transaction, keyed `UNIQUE(account,
+    /// msg_uuid)`. A new key inserts. A key already stored keeps the larger
+    /// figure of each class: one response can reach the store over two tail
+    /// passes (its first lines in one, a later block with the final output
+    /// in the next), and the first figure must not stand. A re-read of the
+    /// same lines changes nothing. Says, per event, whether it was new and
+    /// what it added.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures; the
+    /// transaction rolls back atomically.
+    pub fn store_events(&self, events: &[UsageEvent]) -> Result<Vec<Stored>, CoreError> {
+        let tx = self.conn.unchecked_transaction()?;
+        let stored = store_in(&tx, events)?;
+        tx.commit()?;
+        Ok(stored)
+    }
+
+    /// [`Self::delete_session_events`] and then [`Self::store_events`],
+    /// in ONE transaction: the re-read replaces a session's rows, or
+    /// nothing changes.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures; nothing is
+    /// deleted or stored then.
+    pub fn replace_session_events(
+        &self,
+        sessions: &[(String, UsageSource, String)],
+        events: &[UsageEvent],
+    ) -> Result<Vec<Stored>, CoreError> {
+        let tx = self.conn.unchecked_transaction()?;
+        delete_in(&tx, sessions)?;
+        let stored = store_in(&tx, events)?;
+        tx.commit()?;
+        Ok(stored)
+    }
+
+    /// Appends quota samples in ONE transaction (`INSERT OR REPLACE` on
+    /// the sample key, as [`Self::insert_sample`]).
     ///
     /// # Errors
     ///
     /// Returns [`CoreError::Storage`] on SQLite failures.
-    pub fn insert_events_marking(&self, events: &[UsageEvent]) -> Result<Vec<bool>, CoreError> {
-        let mut inserted = Vec::with_capacity(events.len());
+    pub fn insert_samples(
+        &self,
+        samples: &[(String, WindowKind, QuotaSample)],
+    ) -> Result<(), CoreError> {
         let tx = self.conn.unchecked_transaction()?;
-        {
-            let mut stmt = tx.prepare(
-                "INSERT OR IGNORE INTO usage_events
-                     (account, session, ts, model, input, output, cache_r, cache_w,
-                      reasoning, credits, usd_est, source, confidence, msg_uuid)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
-            )?;
-            for event in events {
-                let source = event.source.as_str();
-                let confidence = confidence_name(event.confidence);
-                let changed = stmt.execute(params![
-                    event.account,
-                    event.session,
-                    event.ts,
-                    event.model,
-                    i64::try_from(event.tokens.input).unwrap_or(i64::MAX),
-                    i64::try_from(event.tokens.output).unwrap_or(i64::MAX),
-                    i64::try_from(event.tokens.cache_read).unwrap_or(i64::MAX),
-                    i64::try_from(event.tokens.cache_write).unwrap_or(i64::MAX),
-                    i64::try_from(event.tokens.reasoning).unwrap_or(i64::MAX),
-                    event.credits,
-                    event.usd_est,
-                    source,
-                    confidence,
-                    event.msg_uuid,
-                ])?;
-                inserted.push(changed > 0);
-            }
+        for (account, kind, sample) in samples {
+            UsageRepo { conn: &tx }.insert_sample(account, *kind, sample)?;
         }
         tx.commit()?;
-        Ok(inserted)
+        Ok(())
+    }
+
+    /// Deletes the stored events of these `(account, source, session)`
+    /// triples, in ONE transaction: the one-time re-read that replaces
+    /// rows counted wrongly before (0.0.13: Claude content blocks keyed
+    /// per line, Codex's nested token classes). Only the pipeline calls
+    /// it, for sessions whose files it is reading again in the same pass.
+    /// Returns how many rows went.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures; the
+    /// transaction rolls back atomically.
+    pub fn delete_session_events(
+        &self,
+        sessions: &[(String, UsageSource, String)],
+    ) -> Result<usize, CoreError> {
+        let tx = self.conn.unchecked_transaction()?;
+        let deleted = delete_in(&tx, sessions)?;
+        tx.commit()?;
+        Ok(deleted)
     }
 
     /// Every event for one account since `since_ms` (the window fold
@@ -389,6 +424,127 @@ impl UsageRepo<'_> {
 }
 
 /// Stable confidence names for storage.
+/// What one stored event did: whether its key was new, and the tokens it
+/// added (all of them when new; the increase when it raised a stored row;
+/// none for a repeat).
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub struct Stored {
+    /// The key was not stored before.
+    pub new: bool,
+    /// Tokens this write added to the store.
+    pub added: TokenCounts,
+}
+
+fn as_sql(count: u64) -> i64 {
+    i64::try_from(count).unwrap_or(i64::MAX)
+}
+
+fn from_sql(count: i64) -> u64 {
+    u64::try_from(count).unwrap_or_default()
+}
+
+fn store_in(conn: &Connection, events: &[UsageEvent]) -> Result<Vec<Stored>, CoreError> {
+    let mut stored = Vec::with_capacity(events.len());
+    let mut find = conn.prepare(
+        "SELECT input, output, cache_r, cache_w, reasoning FROM usage_events
+         WHERE account = ?1 AND msg_uuid = ?2",
+    )?;
+    let mut insert = conn.prepare(
+        "INSERT OR IGNORE INTO usage_events
+             (account, session, ts, model, input, output, cache_r, cache_w,
+              reasoning, credits, usd_est, source, confidence, msg_uuid)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+    )?;
+    let mut raise = conn.prepare(
+        "UPDATE usage_events
+         SET input = ?3, output = ?4, cache_r = ?5, cache_w = ?6, reasoning = ?7,
+             model = COALESCE(model, ?8)
+         WHERE account = ?1 AND msg_uuid = ?2",
+    )?;
+    for event in events {
+        let known = match &event.msg_uuid {
+            Some(key) => find
+                .query_row(params![event.account, key], |row| {
+                    Ok(TokenCounts {
+                        input: from_sql(row.get(0)?),
+                        output: from_sql(row.get(1)?),
+                        cache_read: from_sql(row.get(2)?),
+                        cache_write: from_sql(row.get(3)?),
+                        reasoning: from_sql(row.get(4)?),
+                    })
+                })
+                .optional()?,
+            None => None,
+        };
+        let Some(was) = known else {
+            insert.execute(params![
+                event.account,
+                event.session,
+                event.ts,
+                event.model,
+                as_sql(event.tokens.input),
+                as_sql(event.tokens.output),
+                as_sql(event.tokens.cache_read),
+                as_sql(event.tokens.cache_write),
+                as_sql(event.tokens.reasoning),
+                event.credits,
+                event.usd_est,
+                event.source.as_str(),
+                confidence_name(event.confidence),
+                event.msg_uuid,
+            ])?;
+            stored.push(Stored {
+                new: true,
+                added: event.tokens,
+            });
+            continue;
+        };
+        let now = TokenCounts {
+            input: was.input.max(event.tokens.input),
+            output: was.output.max(event.tokens.output),
+            cache_read: was.cache_read.max(event.tokens.cache_read),
+            cache_write: was.cache_write.max(event.tokens.cache_write),
+            reasoning: was.reasoning.max(event.tokens.reasoning),
+        };
+        if now != was {
+            raise.execute(params![
+                event.account,
+                event.msg_uuid,
+                as_sql(now.input),
+                as_sql(now.output),
+                as_sql(now.cache_read),
+                as_sql(now.cache_write),
+                as_sql(now.reasoning),
+                event.model,
+            ])?;
+        }
+        stored.push(Stored {
+            new: false,
+            added: TokenCounts {
+                input: now.input - was.input,
+                output: now.output - was.output,
+                cache_read: now.cache_read - was.cache_read,
+                cache_write: now.cache_write - was.cache_write,
+                reasoning: now.reasoning - was.reasoning,
+            },
+        });
+    }
+    Ok(stored)
+}
+
+fn delete_in(
+    conn: &Connection,
+    sessions: &[(String, UsageSource, String)],
+) -> Result<usize, CoreError> {
+    let mut stmt = conn
+        .prepare("DELETE FROM usage_events WHERE account = ?1 AND source = ?2 AND session = ?3")?;
+    let mut deleted = 0;
+    for (account, source, session) in sessions {
+        deleted += stmt.execute(params![account, source.as_str(), session])?;
+    }
+    Ok(deleted)
+}
+
 fn confidence_name(confidence: Confidence) -> &'static str {
     match confidence {
         Confidence::Measured => "measured",

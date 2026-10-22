@@ -283,7 +283,12 @@ pub fn pricing_catalog_info(
 /// the honest state, never 0%.
 #[derive(Clone, PartialEq, Debug, serde::Serialize)]
 pub struct WindowDisplay {
-    /// The §Q8 machine state (`unknown|learning|tracking|stale|exhausted`).
+    /// The §Q8 machine state (`unknown|learning|tracking|stale|exhausted`),
+    /// or `unmeasured`: use was seen but there is no percentage (no
+    /// Measured sample, no confirmed cap), or `reset`: the window the
+    /// vendor's last reading described has reset since (nothing is known
+    /// about the new one). A state that reads as known always carries its
+    /// percentage (the 0.0.12 report).
     pub state: String,
     /// Percent used, ONLY when the state carries one.
     pub percentage: Option<f64>,
@@ -291,8 +296,14 @@ pub struct WindowDisplay {
     pub badge: Option<String>,
     /// Staleness note ("last measured Nh ago") when Measured went quiet.
     pub stale_note_ms: Option<i64>,
-    /// Vendor reset instant, epoch ms, when known.
+    /// The reset instant, epoch ms, when there is one.
     pub resets_at_ms: Option<i64>,
+    /// Where `resets_at_ms` came from: `measured` (the vendor's) or
+    /// `calendar` (an anchored weekly phase).
+    pub reset_basis: Option<String>,
+    /// When the vendor's reading behind this window was taken, epoch ms:
+    /// the "as of" every surface shows beside a measured percentage.
+    pub measured_at_ms: Option<i64>,
     /// Absolute burn inside the window (the honest floor).
     pub burned_tokens: u64,
     /// Burn in vendor credits, when the provider bills credits.
@@ -301,6 +312,38 @@ pub struct WindowDisplay {
     /// known — the admission verdict's input (AJ-E306); unknown
     /// stays None, never a fabricated number.
     pub headroom_tokens: Option<f64>,
+}
+
+/// A window's state on the wire. Tracking or stale with no percentage
+/// (activity, but no Measured sample and no confirmed cap) is
+/// `unmeasured`: it never reads as a known state (the 0.0.12 report,
+/// where every such window showed "100% left").
+#[must_use]
+pub fn window_state_name(
+    state: juggler_core::quota::QuotaState,
+    percentage: Option<f64>,
+) -> &'static str {
+    use juggler_core::quota::QuotaState;
+    match (state, percentage) {
+        (QuotaState::Unknown, _) => "unknown",
+        (QuotaState::Learning, _) => "learning",
+        (QuotaState::Tracking | QuotaState::Stale, None) => "unmeasured",
+        (QuotaState::Tracking, Some(_)) => "tracking",
+        (QuotaState::Stale, Some(_)) => "stale",
+        (QuotaState::Exhausted, _) => "exhausted",
+        (QuotaState::ResetSinceReading, _) => "reset",
+    }
+}
+
+/// A Provider's name in words ("Claude Code", "Codex"), from its
+/// adapter's `ToolSpec` (ADR-0019; the registered adapters, read once).
+pub(crate) fn provider_name(provider: &str) -> String {
+    static REGISTRY: std::sync::OnceLock<juggler_adapter::AdapterRegistry> =
+        std::sync::OnceLock::new();
+    crate::features::tools::display_name(
+        REGISTRY.get_or_init(crate::state::default_registry),
+        provider,
+    )
 }
 
 /// AJ-E610: the subscription clock's rendered state — a calendar-style
@@ -352,6 +395,47 @@ pub struct QuotaDisplayInfo {
     pub forecast: ForecastDisplay,
     /// Provider-level unavailability (e.g. Gemini pre-verification).
     pub unavailable_reason: Option<String>,
+    /// Codex's credits, from its own rollouts (the 0.0.12 report).
+    pub credits: Option<CreditsDisplay>,
+}
+
+/// An account's credits, as its tool reports them.
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize)]
+pub struct CreditsDisplay {
+    /// The plan has credits at all.
+    pub has_credits: bool,
+    /// Credits are unlimited.
+    pub unlimited: bool,
+    /// The balance as the tool wrote it.
+    pub balance: Option<String>,
+    /// When the tool reported it, epoch ms.
+    pub as_of_ms: i64,
+    /// Who reported it: the tool's name ("Codex").
+    pub source: String,
+}
+
+/// The account's newest credits snapshot, when its tool reported one.
+fn credits_of(
+    storage: &juggler_core::storage::Storage,
+    account: &juggler_core::model::Account,
+) -> Option<CreditsDisplay> {
+    let id = account.id.as_str();
+    let raw = storage
+        .app_settings()
+        .get(&format!(
+            "{}{id}",
+            crate::usage_pipeline::CREDITS_KEY_PREFIX
+        ))
+        .ok()
+        .flatten()?;
+    let snapshot: juggler_adapters::CreditsSnapshot = serde_json::from_str(&raw).ok()?;
+    Some(CreditsDisplay {
+        has_credits: snapshot.has_credits,
+        unlimited: snapshot.unlimited,
+        balance: snapshot.balance,
+        as_of_ms: snapshot.ts,
+        source: provider_name(account.harness.as_str()),
+    })
 }
 
 /// Evaluates one account's two-clock display from the engine (E606
@@ -363,9 +447,7 @@ pub fn quota_display_inner(
     account: &juggler_core::model::Account,
     now_ms: i64,
 ) -> QuotaDisplayInfo {
-    use juggler_core::quota::{
-        self, AccountEvaluation, QuotaCap, QuotaState, SubscriptionClock, WindowKind,
-    };
+    use juggler_core::quota::{self, AccountEvaluation, QuotaCap, SubscriptionClock, WindowKind};
     use juggler_core::quota_forecast::{self, ForecastState, RateUnits};
 
     let account_id = account.id.as_str();
@@ -426,19 +508,21 @@ pub fn quota_display_inner(
         last_measured.filter(|ts| now_ms.saturating_sub(*ts) > quota::STALE_AFTER_MS);
 
     let window_display = |reading: &quota::WindowReading, cap: QuotaCap| WindowDisplay {
-        state: match reading.state {
-            QuotaState::Unknown => "unknown".to_owned(),
-            QuotaState::Learning => "learning".to_owned(),
-            QuotaState::Tracking => "tracking".to_owned(),
-            QuotaState::Stale => "stale".to_owned(),
-            QuotaState::Exhausted => "exhausted".to_owned(),
-        },
+        state: window_state_name(reading.state, reading.percentage).to_owned(),
         percentage: reading.percentage,
         badge: reading
             .percentage
             .map(|_| confidence_name(reading.confidence).to_owned()),
         stale_note_ms,
         resets_at_ms: reading.resets_at,
+        measured_at_ms: reading.measured_at,
+        reset_basis: reading.reset_basis.map(|basis| {
+            match basis {
+                quota::ResetBasis::Measured => "measured",
+                quota::ResetBasis::Calendar => "calendar",
+            }
+            .to_owned()
+        }),
         burned_tokens: reading
             .burn
             .tokens
@@ -540,27 +624,58 @@ pub fn quota_display_inner(
         }
     };
 
-    // Provider/plan window shapes (Req.5): Pro renders weekly; plans
-    // without a 5 h window omit that ring WITH reason, never empty.
+    // Window shapes (Req.5): a window that isn't there is omitted WITH
+    // its reason, never an empty ring.
     let provider = account.harness.as_str();
-    let plan = account.plan.as_ref().map(ToString::to_string);
     let mut unavailable_reason = None;
     let (five_hour, five_hour_reason, weekly, weekly_reason) = match provider {
         "gemini" | "antigravity" => {
             unavailable_reason = Some("No verified quota source for this tool yet".to_owned());
             (None, None, None, None)
         }
-        // Codex Pro has no 5 h limit (AJ-E603): omit that ring with
-        // its reason; every other shape renders both windows.
-        "codex" if plan.as_deref() == Some("pro") => (
-            None,
-            Some("Pro plans have no five-hour limit — weekly only".to_owned()),
-            Some(window_display(
-                &evaluation.weekly,
-                cap(WindowKind::Weekly { anchor_ms: anchor }),
-            )),
-            None,
-        ),
+        // A registered tool whose adapter declares no limits feed: the same
+        // capability Home and the provider list read, so every surface
+        // says the same thing (QA: Usage said "100% left" for a tool Home
+        // said doesn't report).
+        _ if !reports_limits(provider) => {
+            unavailable_reason = Some(format!(
+                "{} doesn't report its limits to AI Juggler yet",
+                provider_name(provider)
+            ));
+            (None, None, None, None)
+        }
+        // P13: a tool whose feed names its own windows shows the ones it
+        // reports, never ones assumed from the tool or plan.
+        _ if adapter_has(
+            provider,
+            juggler_adapter::Capabilities::LIMIT_WINDOWS_REPORTED,
+        ) =>
+        {
+            let (five_reported, weekly_reported) =
+                reported_windows(&samples_five_hour, &samples_weekly, now_ms);
+            let tool = provider_name(provider);
+            let reason = |kind: &str| {
+                if five_reported || weekly_reported {
+                    format!("{tool} reports no {kind} limit for this account")
+                } else {
+                    format!(
+                        "{tool} hasn't reported its limits yet — they show after you use {tool}"
+                    )
+                }
+            };
+            (
+                five_reported
+                    .then(|| window_display(&evaluation.five_hour, cap(WindowKind::FiveHour))),
+                (!five_reported).then(|| reason("five-hour")),
+                weekly_reported.then(|| {
+                    window_display(
+                        &evaluation.weekly,
+                        cap(WindowKind::Weekly { anchor_ms: anchor }),
+                    )
+                }),
+                (!weekly_reported).then(|| reason("weekly")),
+            )
+        }
         _ => (
             Some(window_display(
                 &evaluation.five_hour,
@@ -583,7 +698,60 @@ pub fn quota_display_inner(
         renewal,
         forecast,
         unavailable_reason,
+        credits: credits_of(storage, account),
     }
+}
+
+/// A built-in adapter's capabilities, by tool id (`None` for a tool with
+/// no adapter here), read once from the built-in registry: the quota
+/// display asks the adapters, never branches on a tool's id.
+fn adapter_capabilities(harness: &str) -> Option<juggler_adapter::Capabilities> {
+    static CAPS: std::sync::OnceLock<
+        std::collections::BTreeMap<String, juggler_adapter::Capabilities>,
+    > = std::sync::OnceLock::new();
+    CAPS.get_or_init(|| {
+        let registry = crate::state::default_registry();
+        registry
+            .ids()
+            .into_iter()
+            .filter_map(|id| Some((id.to_string(), registry.get(&id)?.capabilities())))
+            .collect()
+    })
+    .get(harness)
+    .copied()
+}
+
+/// True when `harness`'s adapter declares `capability`.
+fn adapter_has(harness: &str, capability: juggler_adapter::Capabilities) -> bool {
+    adapter_capabilities(harness).is_some_and(|caps| caps.contains(capability))
+}
+
+/// True unless `harness` is a registered tool whose adapter declares no
+/// limits feed (`USAGE_QUOTA_FEED`) — what `providers_capabilities`
+/// reports as `reports_limits`. A tool with no adapter here (`ZCode`'s
+/// computed credits) keeps its own rules.
+#[must_use]
+pub fn reports_limits(harness: &str) -> bool {
+    adapter_capabilities(harness)
+        .is_none_or(|caps| caps.contains(juggler_adapter::Capabilities::USAGE_QUOTA_FEED))
+}
+
+/// Which windows the tool reported in the last week (a Measured sample
+/// whose feed named the window, e.g. Codex's `window_minutes`). A window
+/// it never reports (`secondary: null`) is not there; one from a plan it
+/// left reads as stale until it ages out.
+fn reported_windows(
+    five_hour: &[juggler_core::quota::QuotaSample],
+    weekly: &[juggler_core::quota::QuotaSample],
+    now_ms: i64,
+) -> (bool, bool) {
+    let reported = |samples: &[juggler_core::quota::QuotaSample]| {
+        samples.iter().any(|sample| {
+            sample.confidence == juggler_core::model::Confidence::Measured
+                && now_ms.saturating_sub(sample.ts) <= juggler_core::quota::WEEK_MS
+        })
+    };
+    (reported(five_hour), reported(weekly))
 }
 
 /// AJ-E611: one ranked (or filtered) row on the wire — greyed rows
@@ -593,6 +761,8 @@ pub fn quota_display_inner(
 pub struct RankedRowInfo {
     /// Account id.
     pub account: String,
+    /// The account's name as the user gave it (rows never show the id).
+    pub account_label: String,
     /// The weighted score, when the account survived the hard filters.
     pub score: Option<f64>,
     /// The hard filter's reason (greyed row copy).
@@ -871,9 +1041,14 @@ fn rank_candidates_for(
         .enumerate()
         .map(|(index, row)| {
             let tte = tte_by_account.get(&row.account).copied().flatten();
+            let account_label = accounts
+                .iter()
+                .find(|account| account.id.as_str() == row.account)
+                .map_or_else(|| row.account.clone(), |account| account.label.clone());
             let admission = admission_by_account.get(&row.account).cloned().flatten();
             RankedRowInfo {
                 account: row.account,
+                account_label,
                 score: row.score,
                 filtered_reason: row.filtered_reason,
                 top_factors: row.top_factors,
@@ -4578,18 +4753,8 @@ fn scan_rollout_line(
                     .as_str()
                     .and_then(chrono_like_ms)
                     .unwrap_or(now),
-                tokens: juggler_core::model::TokenCounts {
-                    // Fresh prompt only (`input_tokens` includes the
-                    // cached history), as Claude's lines count it.
-                    input: usage["input_tokens"]
-                        .as_u64()
-                        .unwrap_or(0)
-                        .saturating_sub(usage["cached_input_tokens"].as_u64().unwrap_or(0)),
-                    output: usage["output_tokens"].as_u64().unwrap_or(0),
-                    cache_read: usage["cached_input_tokens"].as_u64().unwrap_or(0),
-                    cache_write: 0,
-                    reasoning: usage["reasoning_output_tokens"].as_u64().unwrap_or(0),
-                },
+                // Disjoint classes, split as the usage pipeline does.
+                tokens: juggler_adapters::quota_ingest::codex_token_counts(usage),
                 model: model.clone(),
             });
         }
@@ -4635,7 +4800,8 @@ mod rollout_scan_tests {
             "timestamp": "2026-10-20T08:00:00.000Z",
             "type": "token_usage_record",
             "payload": {"thread_id": "t", "turn_id": "1", "response_id": "r",
-                        "usage": {"input_tokens": 100, "cached_input_tokens": 40, "output_tokens": 10}}
+                        "usage": {"input_tokens": 100, "cached_input_tokens": 40, "output_tokens": 10,
+                                  "reasoning_output_tokens": 4, "total_tokens": 110}}
         });
         let mut model = None;
         for _ in 0..3 {
@@ -4647,6 +4813,35 @@ mod rollout_scan_tests {
         );
         assert_eq!(scan.events.len(), 1);
         assert_eq!(scan.events[0].tokens.input, 60);
+    }
+
+    /// P14 (0.0.12 QA): Codex's output includes its reasoning; the scan
+    /// counted the reasoning twice. Every token once: the classes sum to
+    /// Codex's own `total_tokens`.
+    #[test]
+    fn the_quality_scan_counts_each_codex_token_once() {
+        let mut scan = TranscriptScan {
+            events: Vec::new(),
+            errors: 0,
+            turns: 0,
+            context_used: None,
+            context_window: None,
+            rollout_seen: std::collections::BTreeSet::new(),
+        };
+        let row: serde_json::Value = serde_json::json!({
+            "timestamp": "2026-10-20T08:00:00.000Z",
+            "type": "token_usage_record",
+            "payload": {"thread_id": "t", "turn_id": "1", "response_id": "r",
+                        "usage": {"input_tokens": 100, "cached_input_tokens": 40, "output_tokens": 10,
+                                  "reasoning_output_tokens": 4, "total_tokens": 110}}
+        });
+        scan_rollout_line(&row, &row["payload"], &mut None, &mut scan, 0);
+        let tokens = &scan.events[0].tokens;
+        assert_eq!((tokens.output, tokens.reasoning), (6, 4));
+        assert_eq!(
+            tokens.input + tokens.cache_read + tokens.output + tokens.reasoning,
+            110
+        );
     }
 }
 

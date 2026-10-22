@@ -12,13 +12,8 @@ import { ToolMark } from "./ToolMark";
 import { useItemMenu } from "./ItemMenu";
 import type { JSX } from "react";
 import { Button } from "./primitives";
-import { bytesWords, reasonSentence, type ThisMacInfo, type ToolTreeInfo } from "../lib/machine";
+import { bytesWords, machineStatus, reasonSentence, type ThisMacInfo, type ToolTreeInfo } from "../lib/machine";
 
-const LEVEL: Record<string, { glyph: string; tone: string }> = {
-  plenty: { glyph: "●", tone: "text-faint" },
-  tight: { glyph: "▲", tone: "text-warning" },
-  pressure: { glyph: "■", tone: "text-danger" },
-};
 
 /** Why a tool AI Juggler didn't start shows "about": its helpers share
  * memory, and the sum counts that once per helper. */
@@ -114,10 +109,10 @@ export function ThisMacPanel({
   onOpenCleanup?: () => void;
 }): JSX.Element | null {
   // Nothing to say until the first sample lands.
-  if (!info || !info.machine.sampled) return null;
+  const level = machineStatus(info);
+  if (!info || !level) return null;
   const machine = info.machine;
-  const level = LEVEL[machine.summary.level] ?? LEVEL.plenty!;
-  const calm = machine.summary.level === "plenty";
+  const calm = level.calm;
   const total = machine.memory_total;
   const toolsShare = total > 0 ? Math.min(100, (info.tools.rss_bytes / total) * 100) : 0;
   // Memory in use only when it was read, on its stated basis — never a
@@ -144,7 +139,7 @@ export function ThisMacPanel({
         <div className="flex flex-col gap-0.5" role="status">
           <span className="flex items-center gap-2 text-sm font-medium text-ink">
             <span aria-hidden="true" className={`text-[11px] ${level.tone}`}>{level.glyph}</span>
-            {nothing && calm ? "Nothing running — your Mac has room" : machine.summary.words}
+            {nothing && calm ? "Nothing running — your Mac has room" : level.words}
           </span>
           {!calm && reasons.length > 0 && (
             <span className="text-xs text-muted" data-testid="this-mac-reasons">

@@ -60,8 +60,15 @@ pub struct SourceHealth {
 pub struct TailOutcome {
     /// Events ready for the store (already uuid-tagged for dedupe).
     pub events: Vec<UsageEvent>,
-    /// Quota samples ready for the store (statusline source only).
+    /// Quota samples ready for the store (Claude's statusline spool;
+    /// Codex's rollout `token_count` lines).
     pub samples: Vec<(WindowKind, QuotaSample)>,
+    /// The newest Codex credits snapshot seen this pass, when any.
+    pub credits: Option<CreditsSnapshot>,
+    /// The model the slice's last Codex `turn_context` named. A rollout's
+    /// usage lines carry no model: the next slice's lines before their
+    /// own `turn_context` ran on this one (the pipeline carries it).
+    pub model: Option<String>,
     /// Bytes consumed — the next pass starts here.
     pub offset: u64,
     /// Malformed lines seen this pass.
@@ -424,15 +431,21 @@ pub fn iso_to_epoch_ms(raw: &str) -> Option<i64> {
 
 /// Extracts Measured token events from Claude transcript JSONL bytes
 /// (an incremental slice is fine — lines are independent). One event
-/// per assistant line carrying `message.usage`, keyed by the message
-/// `uuid` (resumed files re-emit history; the store's
-/// `UNIQUE(account, msg_uuid)` absorbs it). Lines without a uuid are
-/// skipped: unkeyed usage cannot dedupe, and double-counting is the
-/// worse failure.
+/// per API response, keyed `message.id/requestId`: Claude Code writes
+/// one line per content block (thinking, text, each tool call), each
+/// with its own line `uuid` but the same message and the same `usage`,
+/// so keying on the line counted one response two or three times (the
+/// 0.0.12 QA walk: ×1.8–2.5). Lines of one response in this slice
+/// collapse to one event, each class its largest value; resumed files
+/// re-emit history and the store's `UNIQUE(account, msg_uuid)` absorbs
+/// it. A line with no message id falls back to its `uuid`; a line with
+/// neither is skipped: unkeyed usage cannot dedupe, and double-counting
+/// is the worse failure.
 #[must_use]
 pub fn transcript_events(account: &str, bytes: &[u8]) -> TailOutcome {
     let text = String::from_utf8_lossy(bytes);
     let mut outcome = TailOutcome::default();
+    let mut seen: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
     for line in text.lines() {
         if line.trim().is_empty() {
             continue;
@@ -447,7 +460,7 @@ pub fn transcript_events(account: &str, bytes: &[u8]) -> TailOutcome {
         else {
             continue;
         };
-        let Some(uuid) = value.get("uuid").and_then(serde_json::Value::as_str) else {
+        let Some(key) = response_key(&value) else {
             continue;
         };
         let ts = value
@@ -470,6 +483,15 @@ pub fn transcript_events(account: &str, bytes: &[u8]) -> TailOutcome {
         if tokens == TokenCounts::default() {
             continue; // an empty usage block is not an event
         }
+        if let Some(&at) = seen.get(&key) {
+            let kept = &mut outcome.events[at].tokens;
+            kept.input = kept.input.max(tokens.input);
+            kept.output = kept.output.max(tokens.output);
+            kept.cache_read = kept.cache_read.max(tokens.cache_read);
+            kept.cache_write = kept.cache_write.max(tokens.cache_write);
+            continue;
+        }
+        seen.insert(key.clone(), outcome.events.len());
         outcome.events.push(UsageEvent {
             account: account.to_owned(),
             session: value
@@ -487,10 +509,28 @@ pub fn transcript_events(account: &str, bytes: &[u8]) -> TailOutcome {
             usd_est: None,
             source: UsageSource::Transcript,
             confidence: Confidence::Measured,
-            msg_uuid: Some(uuid.to_owned()),
+            msg_uuid: Some(key),
         });
     }
     outcome
+}
+
+/// One Claude API response's key: `message.id/requestId` (either alone
+/// when the other is missing), else the line's `uuid`.
+fn response_key(value: &serde_json::Value) -> Option<String> {
+    let id = value
+        .get("message")
+        .and_then(|message| message.get("id"))
+        .and_then(serde_json::Value::as_str);
+    let request = value.get("requestId").and_then(serde_json::Value::as_str);
+    match (id, request) {
+        (Some(id), Some(request)) => Some(format!("{id}/{request}")),
+        (Some(only), None) | (None, Some(only)) => Some(only.to_owned()),
+        (None, None) => value
+            .get("uuid")
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_owned),
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -502,6 +542,14 @@ pub fn transcript_events(account: &str, bytes: &[u8]) -> TailOutcome {
 /// per-turn/per-thread rollups on the same line are aggregation views
 /// — reading only the response level keeps the sum exact). Dedupe key
 /// `thread/turn/response` survives re-tails and resumed rollouts.
+///
+/// Codex's classes nest: `input_tokens` includes `cached_input_tokens`
+/// and `output_tokens` includes `reasoning_output_tokens` (its own
+/// `non_cached_input()`; `total_tokens` = input + output). Stored as
+/// disjoint classes — input without the cached part, output without
+/// the reasoning — so a sum of classes counts each token once (the
+/// 0.0.12 QA walk: exactly ×2 before). The model is the one the
+/// latest `turn_context` named.
 #[must_use]
 pub fn rollout_events(account: &str, bytes: &[u8]) -> TailOutcome {
     let text = String::from_utf8_lossy(bytes);
@@ -514,6 +562,19 @@ pub fn rollout_events(account: &str, bytes: &[u8]) -> TailOutcome {
             outcome.parse_errors += 1;
             continue;
         };
+        if take_token_count(&value, &mut outcome) {
+            continue;
+        }
+        if value.get("type").and_then(serde_json::Value::as_str) == Some("turn_context") {
+            if let Some(model) = value
+                .get("payload")
+                .and_then(|payload| payload.get("model"))
+                .and_then(serde_json::Value::as_str)
+            {
+                outcome.model = Some(model.to_owned());
+            }
+            continue;
+        }
         if value.get("type").and_then(serde_json::Value::as_str) != Some("token_usage_record") {
             continue;
         }
@@ -537,19 +598,7 @@ pub fn rollout_events(account: &str, bytes: &[u8]) -> TailOutcome {
             outcome.parse_errors += 1;
             continue;
         };
-        let read = |field: &str| {
-            usage
-                .get(field)
-                .and_then(serde_json::Value::as_u64)
-                .unwrap_or_default()
-        };
-        let tokens = TokenCounts {
-            input: read("input_tokens"),
-            output: read("output_tokens"),
-            cache_read: read("cached_input_tokens"),
-            cache_write: read("cache_write_input_tokens"),
-            reasoning: read("reasoning_output_tokens"),
-        };
+        let tokens = codex_token_counts(usage);
         if tokens == TokenCounts::default() {
             continue;
         }
@@ -562,7 +611,7 @@ pub fn rollout_events(account: &str, bytes: &[u8]) -> TailOutcome {
             account: account.to_owned(),
             session: Some(thread.clone()),
             ts,
-            model: None, // rollouts carry the model on turn_context, not here
+            model: outcome.model.clone(),
             tokens,
             credits: None,
             usd_est: None,
@@ -572,6 +621,178 @@ pub fn rollout_events(account: &str, bytes: &[u8]) -> TailOutcome {
         });
     }
     outcome
+}
+
+/// One Codex `usage` object as disjoint classes, the one place this split
+/// is made (the usage pipeline and the inspector's quality scan both call
+/// it). Codex's classes nest: `input_tokens` includes the cached input and
+/// the cache writes, and `output_tokens` includes the reasoning; its
+/// `total_tokens` is input + output. Stored apart, they sum to that total,
+/// so each token counts once (P14).
+#[must_use]
+pub fn codex_token_counts(usage: &serde_json::Value) -> TokenCounts {
+    let read = |field: &str| {
+        usage
+            .get(field)
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or_default()
+    };
+    let cached = read("cached_input_tokens");
+    let written = read("cache_write_input_tokens");
+    let reasoning = read("reasoning_output_tokens");
+    TokenCounts {
+        input: read("input_tokens")
+            .saturating_sub(cached)
+            .saturating_sub(written),
+        output: read("output_tokens").saturating_sub(reasoning),
+        cache_read: cached,
+        cache_write: written,
+        reasoning,
+    }
+}
+
+/// A Codex `event_msg` `token_count` line: its `rate_limits` are the
+/// vendor's own limit readings (Measured samples; no tokens here). True
+/// when `value` was such a line, whatever it held.
+fn take_token_count(value: &serde_json::Value, outcome: &mut TailOutcome) -> bool {
+    let is_event = value.get("type").and_then(serde_json::Value::as_str) == Some("event_msg");
+    let Some(payload) = value.get("payload").filter(|payload| {
+        is_event && payload.get("type").and_then(serde_json::Value::as_str) == Some("token_count")
+    }) else {
+        return false;
+    };
+    let Some(limits) = payload
+        .get("rate_limits")
+        .filter(|limits| !limits.is_null())
+    else {
+        return true;
+    };
+    let Some(ts) = value
+        .get("timestamp")
+        .and_then(serde_json::Value::as_str)
+        .and_then(iso_to_epoch_ms)
+    else {
+        outcome.parse_errors += 1;
+        return true;
+    };
+    let (samples, credits) = codex_rate_limits(ts, limits);
+    // An odd reading (a window of width 0, a null primary) is skipped
+    // quietly; only a window without its figure is a broken line.
+    let broken = ["primary", "secondary"].iter().any(|key| {
+        limits.get(key).is_some_and(|window| {
+            !window.is_null()
+                && window
+                    .get("used_percent")
+                    .and_then(serde_json::Value::as_f64)
+                    .is_none()
+        })
+    });
+    if broken {
+        outcome.parse_errors += 1;
+    }
+    outcome.samples.extend(samples);
+    if let Some(credits) = credits
+        && outcome
+            .credits
+            .as_ref()
+            .is_none_or(|seen| seen.ts <= credits.ts)
+    {
+        outcome.credits = Some(credits);
+    }
+    true
+}
+
+/// Codex's credits, as its own rollout reports them (no value is read
+/// anywhere else; `auth.json` is never opened).
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct CreditsSnapshot {
+    /// When Codex wrote it, epoch ms.
+    pub ts: i64,
+    /// The plan has credits at all.
+    pub has_credits: bool,
+    /// Credits are unlimited.
+    pub unlimited: bool,
+    /// The balance as Codex wrote it (a string in its protocol).
+    pub balance: Option<String>,
+}
+
+/// The limit readings on one Codex `token_count` line: `rate_limits`
+/// `{limit_id, primary, secondary, credits}`, each window
+/// `{used_percent, window_minutes, resets_at}` (`resets_at` in Unix
+/// seconds; older builds wrote `resets_in_seconds`). The window comes
+/// from `window_minutes` (300 = the 5-hour pool, 10080 = the week); a
+/// window of any other width is skipped, never guessed. `secondary` may
+/// be null.
+#[must_use]
+pub fn codex_rate_limits(
+    ts: i64,
+    limits: &serde_json::Value,
+) -> (Vec<(WindowKind, QuotaSample)>, Option<CreditsSnapshot>) {
+    let mut samples = Vec::new();
+    for key in ["primary", "secondary"] {
+        let Some(window) = limits.get(key).filter(|window| !window.is_null()) else {
+            continue;
+        };
+        let Some(used) = window
+            .get("used_percent")
+            .and_then(serde_json::Value::as_f64)
+        else {
+            continue;
+        };
+        let kind = match window
+            .get("window_minutes")
+            .and_then(serde_json::Value::as_i64)
+        {
+            Some(300) => WindowKind::FiveHour,
+            Some(10_080) => WindowKind::Weekly { anchor_ms: None },
+            _ => continue,
+        };
+        let resets_at = window
+            .get("resets_at")
+            .and_then(serde_json::Value::as_i64)
+            // Seconds (Codex's protocol); a value already in ms passes.
+            .map(|at| {
+                if at < 100_000_000_000 {
+                    at.saturating_mul(1000)
+                } else {
+                    at
+                }
+            })
+            .or_else(|| {
+                window
+                    .get("resets_in_seconds")
+                    .and_then(serde_json::Value::as_i64)
+                    .map(|secs| ts.saturating_add(secs.saturating_mul(1000)))
+            });
+        samples.push((
+            kind,
+            QuotaSample {
+                ts,
+                used_pct: used.clamp(0.0, 100.0),
+                resets_at,
+                confidence: Confidence::Measured,
+            },
+        ));
+    }
+    let credits = limits
+        .get("credits")
+        .filter(|credits| !credits.is_null())
+        .and_then(|credits| {
+            Some(CreditsSnapshot {
+                ts,
+                has_credits: credits.get("has_credits")?.as_bool()?,
+                unlimited: credits
+                    .get("unlimited")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(false),
+                balance: credits.get("balance").and_then(|balance| match balance {
+                    serde_json::Value::String(text) => Some(text.clone()),
+                    serde_json::Value::Number(number) => Some(number.to_string()),
+                    _ => None,
+                }),
+            })
+        });
+    (samples, credits)
 }
 
 // ---------------------------------------------------------------------------

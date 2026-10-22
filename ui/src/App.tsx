@@ -75,10 +75,12 @@ import { IsolationOfferDialog } from "./components/IsolationOfferDialog";
 import { funnelEvent } from "./lib/funnel";
 import { SessionPanel } from "./screens/WorkPanels";
 import { NotificationRegion } from "./components/NotificationRegion";
+import { ScreenBoundary } from "./components/ScreenBoundary";
 import { SwitchFlow, showSwitchUndoToast } from "./components/SwitchFlow";
 import { SwitchBackFlow } from "./components/SwitchBackFlow";
 import { RightInspector } from "./components/RightInspector";
 import { ThisMacContext, useThisMac } from "./lib/machine";
+import { MachineStatusLine } from "./components/MachineStatusLine";
 import {
   accountsList,
   providersDiscover,
@@ -355,7 +357,7 @@ export default function App() {
   const [goToHotkey, setGoToHotkey] = useState("Alt+Space");
   // D-25: a fresh install opens on first run (what's here → sign in →
   // computer access); a fresh account and a folder import are its steps.
-  const [firstRun, setFirstRun] = useFirstRun();
+  const [firstRun, setFirstRun, firstRunAtAccess, setFirstRunAtAccess] = useFirstRun();
   // AJ-E305 flow (b): the New project sheet. Null = closed; a string
   // pre-selects that directory (the Summary's Start here).
   const [newProjectDir, setNewProjectDir] = useState<string | null>(null);
@@ -716,14 +718,11 @@ export default function App() {
         )}
         footer={(minimal) =>
           minimal ? (
-            <div className="flex justify-center py-2" title="this-mac · healthy">
-              <span className="dot-live size-1.5 rounded-full bg-success" />
-            </div>
+            <MachineStatusLine minimal />
           ) : (
             <div className="flex flex-col gap-1.5 px-3 py-2.5">
               <div className="flex min-w-0 items-center gap-2 overflow-hidden">
-                <span className="dot-live size-1.5 shrink-0 rounded-full bg-success" />
-                <span className="min-w-0 shrink truncate text-[11px]">this-mac · healthy</span>
+                <MachineStatusLine minimal={false} />
                 {/* The rail-footer `?` legend popover (AJ-E403 Req.6,
                     surface 1 of 3 — identical content everywhere). */}
                 <LegendPopover />
@@ -847,41 +846,53 @@ export default function App() {
         <main tabIndex={-1} className="min-h-0 flex-1 overflow-hidden p-5 outline-none">
           {global === "cleanup" ? (
             <div className="h-full">
-              <CleanupCentre />
+              <ScreenBoundary key="cleanup" screen="cleanup" label="Cleanup">
+                <CleanupCentre />
+              </ScreenBoundary>
             </div>
           ) : global === "accounts" ? (
             <div className="h-full overflow-y-auto">
-              <ProfilesScreen
-                key={accountsNonce}
-                sessions={sessions}
-                onAddAccounts={() => startAddAccount()}
-                onAccountsChanged={() => void refresh()}
-                openTerminal={openLoginTerminal}
-                onInspectAccount={(id) => {
-                  setGlobal(null);
-                  setSelection({ kind: "account", id });
-                }}
-              />
+              <ScreenBoundary key="accounts" screen="accounts" label="Accounts">
+                <ProfilesScreen
+                  key={accountsNonce}
+                  sessions={sessions}
+                  onAddAccounts={() => startAddAccount()}
+                  onAccountsChanged={() => void refresh()}
+                  openTerminal={openLoginTerminal}
+                  onInspectAccount={(id) => {
+                    setGlobal(null);
+                    setSelection({ kind: "account", id });
+                  }}
+                />
+              </ScreenBoundary>
             </div>
           ) : global === "history" ? (
             <div className="h-full overflow-y-auto">
-              <History sessions={sessions} projects={projects} onChanged={() => void refresh()} />
+              <ScreenBoundary key="history" screen="history" label="History">
+                <History sessions={sessions} projects={projects} onChanged={() => void refresh()} />
+              </ScreenBoundary>
             </div>
           ) : global === "usage" ? (
             <div className="h-full overflow-y-auto">
-              <UsageScreen accounts={accounts} sessions={sessions} onAddAccounts={() => setFirstRun(true)} onOpenHome={openHome} />
+              <ScreenBoundary key="usage" screen="usage" label="Usage">
+                <UsageScreen accounts={accounts} sessions={sessions} onAddAccounts={() => setFirstRun(true)} onOpenHome={openHome} />
+              </ScreenBoundary>
             </div>
           ) : global === "fleet" ? (
             <div className="h-full overflow-y-auto">
-              <FleetScreen
-                onOpenCloud={openCloudSettings}
-                onInspectRemote={inspectRemote}
-                onOpenHome={accounts.length === 0 && loaded ? openHome : undefined}
-              />
+              <ScreenBoundary key="fleet" screen="fleet" label="Fleet">
+                <FleetScreen
+                  onOpenCloud={openCloudSettings}
+                  onInspectRemote={inspectRemote}
+                  onOpenHome={accounts.length === 0 && loaded ? openHome : undefined}
+                />
+              </ScreenBoundary>
             </div>
           ) : global === "settings" ? (
             <div className="h-full overflow-y-auto">
-              <SettingsScreen key={settingsSection ?? "top"} focusCloud={settingsFocusCloud} focusSection={settingsSection} />
+              <ScreenBoundary key="settings" screen="settings" label="Settings">
+                <SettingsScreen key={settingsSection ?? "top"} focusCloud={settingsFocusCloud} focusSection={settingsSection} />
+              </ScreenBoundary>
             </div>
           ) : selectedLogin ? (
             <SessionPanel
@@ -912,80 +923,90 @@ export default function App() {
                 ? (machine.instances.find((row) => row.id === selection.instanceId) ?? null)
                 : null;
               return (
-                <RightInspector
-                  folded={inspectorFolded}
-                  onToggleFold={toggleInspector}
-                  selection={
-                    instance
-                      ? { kind: "instance", id: instance.id }
-                      : { kind: "machine", id: machine.machine_id }
-                  }
-                  data={{
-                    remote: {
-                      machine,
-                      instance,
-                      lastOutcome:
-                        remoteFocusOutcome &&
-                        remoteFocusOutcome.machineId === machine.machine_id &&
-                        remoteFocusOutcome.instanceId === instance?.id
-                          ? remoteFocusOutcome.outcome
-                          : null,
-                    },
-                  }}
-                  sessions={sessions}
-                  projects={projects}
-                  accounts={accounts}
-                  profiles={profiles}
-                  terminalTitle={null}
-                  freshness={freshness}
-                  now={remoteNow}
-                  onOpenProject={selectProject}
-                  onOpenSession={selectSession}
-                  onLaunch={() => {}}
-                  onStopped={() => void refresh()}
-                  onHandover={() => {}}
-                  onNew={() => setNewSession(true)}
-                  onRemoteBack={() => setGlobal("fleet")}
-                  onRemoteSelect={(instanceId) => inspectRemote(machine.machine_id, instanceId)}
-                  onRemoteActionDone={() => setRemoteNow(Date.now())}
-                />
+                <ScreenBoundary key="inspector" screen="inspector" label="This view">
+                  <RightInspector
+                    folded={inspectorFolded}
+                    onToggleFold={toggleInspector}
+                    selection={
+                      instance
+                        ? { kind: "instance", id: instance.id }
+                        : { kind: "machine", id: machine.machine_id }
+                    }
+                    data={{
+                      remote: {
+                        machine,
+                        instance,
+                        lastOutcome:
+                          remoteFocusOutcome &&
+                          remoteFocusOutcome.machineId === machine.machine_id &&
+                          remoteFocusOutcome.instanceId === instance?.id
+                            ? remoteFocusOutcome.outcome
+                            : null,
+                      },
+                    }}
+                    sessions={sessions}
+                    projects={projects}
+                    accounts={accounts}
+                    profiles={profiles}
+                    terminalTitle={null}
+                    freshness={freshness}
+                    now={remoteNow}
+                    onOpenProject={selectProject}
+                    onOpenSession={selectSession}
+                    onLaunch={() => {}}
+                    onStopped={() => void refresh()}
+                    onHandover={() => {}}
+                    onNew={() => setNewSession(true)}
+                    onRemoteBack={() => setGlobal("fleet")}
+                    onRemoteSelect={(instanceId) => inspectRemote(machine.machine_id, instanceId)}
+                    onRemoteActionDone={() => setRemoteNow(Date.now())}
+                  />
+                </ScreenBoundary>
               );
             })()
           ) : (
-            <>
+            // The region takes its own space above the screen and pushes
+            // it down — never over it, at any width (the 0.0.12 report).
+            <div className="flex h-full min-h-0 flex-col">
               {/* AJ-E611: the alert/notification region — polite
                   live-region, badge-carrying copy, reset-queue rows
                   with an explicit Resume click (the click opens the
                   picker; nothing ever launches by itself). */}
-              <NotificationRegion
-                onQueueResume={() => setNewSession(true)}
-                onOpenRemote={(machineId) => inspectRemote(machineId, null)}
-              />
+              <div className="shrink-0" data-testid="notification-band">
+                <NotificationRegion
+                  onQueueResume={() => setNewSession(true)}
+                  onOpenRemote={(machineId) => inspectRemote(machineId, null)}
+                  hideMachineAlerts={selection.kind === "none"}
+                />
+              </div>
               {selection.kind === "none" ? (
-                <div className="h-full overflow-y-auto">
-                  <HomeScreen
-                    loading={!loaded}
-                    sessions={sessions}
-                    accounts={accounts}
-                    projects={projects}
-                    now={now}
-                    onOpenSession={selectSession}
-                    onNewSession={() => setNewSession(true)}
-                    // No account yet: "Find my accounts" comes back to first
-                    // run (every tool at once), as its Not now promises.
-                    onAddAccounts={() => setFirstRun(true)}
-                    onFreshAccount={() => startAddAccount(true)}
-                    onLimit={setLimitFor}
-                    openLoginTerminal={openLoginTerminal}
-                    onAccountsChanged={() => void refresh()}
-                    onChanged={() => void refresh()}
-                    thisMac={thisMacInfo}
-                    onOpenCleanup={() => setGlobal("cleanup")}
-                  />
+                <div className="min-h-0 flex-1 overflow-y-auto" data-testid="home-scroll">
+                  <ScreenBoundary key="home" screen="home" label="Home">
+                    <HomeScreen
+                      loading={!loaded}
+                      sessions={sessions}
+                      accounts={accounts}
+                      projects={projects}
+                      now={now}
+                      onOpenSession={selectSession}
+                      onNewSession={() => setNewSession(true)}
+                      // No account yet: "Find my accounts" comes back to first
+                      // run (every tool at once), as its Not now promises.
+                      onAddAccounts={() => setFirstRun(true)}
+                      onFreshAccount={() => startAddAccount(true)}
+                      onLimit={setLimitFor}
+                      openLoginTerminal={openLoginTerminal}
+                      onAccountsChanged={() => void refresh()}
+                      onChanged={() => void refresh()}
+                      thisMac={thisMacInfo}
+                      onOpenCleanup={() => setGlobal("cleanup")}
+                    />
+                  </ScreenBoundary>
                 </div>
               ) : selection.kind === "conversation" ? (
                 <ConversationPage accountId={selection.accountId} id={selection.id} now={now} projects={projects} />
               ) : (
+              <div className="min-h-0 flex-1">
               <RightInspector
               folded={inspectorFolded}
               onToggleFold={toggleInspector}
@@ -1054,8 +1075,9 @@ export default function App() {
               }}
               onNew={() => setNewSession(true)}
             />
+              </div>
               )}
-            </>
+            </div>
           )}
         </main>
       </div>
@@ -1118,9 +1140,11 @@ export default function App() {
 
       {firstRun && (
         <FirstRun
+          resumeAtAccess={firstRunAtAccess}
           openLoginTerminal={openLoginTerminal}
           onDone={() => {
             localStorage.setItem("aij.onboarding.dismissed", "1");
+            setFirstRunAtAccess(false);
             setFirstRun(false);
             void refresh();
           }}

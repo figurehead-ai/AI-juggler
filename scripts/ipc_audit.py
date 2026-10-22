@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """AJ-E2011 / ENGINEERING-GUIDE A3, T1, I3, I4: the IPC audit.
 
-Reads the commands `juggler-app` registers (`generate_handler![...]` in
-`lib.rs`), their definitions (`#[tauri::command]` functions under
+Reads the commands `juggler-app` registers (the `app_commands!` registry
+in `lib.rs`, each line `Read|Write module::command,`; or a plain
+`generate_handler![...]`), their definitions (`#[tauri::command]` functions under
 `crates/juggler-app/src`) and every `invoke("…")` in the UI (non-test
 code), then checks:
 
@@ -35,9 +36,13 @@ COMMAND = re.compile(r"#\[tauri::command(?:\(([^)]*)\))?\][^\n]*\n((?:\s*(?://[^
 RENAME = re.compile(r'rename\s*=\s*"([a-z0-9_]+)"')
 INVOKE = re.compile(r"""\binvoke\s*(?:<[^>]*>)?\s*\(\s*["'`]([a-z0-9_]+)["'`]""")
 HANDLER = re.compile(r"generate_handler!\[(.*?)\]", re.S)
+# The registry (lib.rs `app_commands!`): one `Read|Write path::to::command,` a line.
+REGISTRY = re.compile(r"^\s*(?:Read|Write)\s+((?:\w+::)*\w+),", re.M)
 
 
 def registered(lib: str, renames: dict[str, str] | None = None) -> set[str]:
+    if "macro_rules! app_commands" in lib:
+        return {(renames or {}).get(path.split("::")[-1], path.split("::")[-1]) for path in REGISTRY.findall(lib)}
     match = HANDLER.search(lib)
     if not match:
         return set()
@@ -183,6 +188,11 @@ def selftest() -> int:
         allow.write_text("sync old_thing\nlong old_thing\n")
         if not any("tools_catalgo" in problem for problem in check(root, allow)):
             print("ipc-audit selftest FAILED: a typo'd invoke must fail")
+            bad += 1
+        # The registry form reads the same commands.
+        lib = "macro_rules! app_commands {\n    Read  features::tools::commands::tools_catalog,\n    Write commands::old_thing,\n    Read  commands::app_pure,\n}"
+        if registered(lib) != {"tools_catalog", "old_thing", "app_pure"}:
+            print("ipc-audit selftest FAILED: the app_commands! registry must read like generate_handler!")
             bad += 1
     if bad:
         return 1

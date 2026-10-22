@@ -411,6 +411,100 @@ pub fn crash_answer_impl(state: &Arc<AppState>, id: &str, answer: &str) -> AppRe
     Ok(crash_info_impl(state))
 }
 
+/// The screens a UI error can come from (anything else is "app").
+pub const UI_SCREENS: &[&str] = &[
+    "app",
+    "home",
+    "accounts",
+    "usage",
+    "history",
+    "settings",
+    "fleet",
+    "this-mac",
+    "inspector",
+    "cleanup",
+];
+/// The most of a UI error's message, and of its stack, that is kept.
+const UI_MESSAGE_MAX: usize = 500;
+const UI_STACK_MAX: usize = 8_000;
+
+/// The part of `text` worth keeping: control characters removed (a log
+/// line stays one line), at most `max` characters.
+fn ui_text(text: &str, max: usize) -> String {
+    text.chars()
+        .map(|c| if c.is_control() && c != '\n' { ' ' } else { c })
+        .take(max)
+        .collect()
+}
+
+/// Core: a screen of the UI hit an error its boundary caught (the 0.0.12
+/// report: Usage blanked the window). Kept like a panic: the same setting
+/// (nothing in `never`), the same daily limits, scrubbed. Only the
+/// screen's name, the error's message and its stack come in — never what
+/// was on the screen. Returns whether a report was kept.
+///
+/// # Errors
+///
+/// Returns the filesystem error writing the report.
+pub fn crash_ui_error_impl(
+    state: &Arc<AppState>,
+    screen: &str,
+    message: &str,
+    stack: &str,
+    now_ms: i64,
+) -> AppResult<bool> {
+    let screen = UI_SCREENS
+        .iter()
+        .find(|known| **known == screen)
+        .copied()
+        .unwrap_or("app");
+    eprintln!("ai-juggler: the {screen} screen hit a problem (shown its error panel)");
+    let setting = effective(state);
+    if setting == "never" {
+        return Ok(false);
+    }
+    let report = report_of(
+        &format!("ui: {}", ui_text(message, UI_MESSAGE_MAX)),
+        &format!("ui/{screen}"),
+        &ui_text(stack, UI_STACK_MAX),
+        now_ms,
+    );
+    keep(&dir(state), &report, &setting).map_err(|error| AppError::Io {
+        context: "keep a crash report",
+        message: error.to_string(),
+    })
+}
+
+/// A UI screen's error, from its error boundary. Off the UI's thread: it
+/// may write a report file.
+///
+/// # Errors
+///
+/// Per [`crash_ui_error_impl`].
+#[tauri::command]
+pub async fn crash_ui_error(
+    state: tauri::State<'_, Arc<AppState>>,
+    screen: String,
+    message: String,
+    stack: String,
+) -> AppResult<bool> {
+    let state = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        crash_ui_error_impl(
+            &state,
+            &screen,
+            &message,
+            &stack,
+            juggler_core::model::Timestamp::now().millis(),
+        )
+    })
+    .await
+    .map_err(|error| AppError::Io {
+        context: "keep a crash report",
+        message: error.to_string(),
+    })?
+}
+
 /// AJ-E1107: the crash-report setting and waiting reports.
 #[tauri::command]
 #[must_use]
@@ -532,5 +626,57 @@ mod tests {
     #[test]
     fn this_build_cannot_send() {
         assert!(service_address().is_none() || !cfg!(debug_assertions));
+    }
+    /// The 0.0.12 report: a screen's error is kept like a panic — never
+    /// in `never`, scrubbed, its screen from the list, one line of words.
+    #[test]
+    fn a_screen_error_is_kept_like_a_panic_and_only_when_allowed() {
+        let root = tempfile::tempdir().unwrap();
+        let state = Arc::new(AppState::init(root.path().join("data")).unwrap());
+        let now = 1_792_000_000_000;
+        let home = dirs::home_dir()
+            .map(|h| h.display().to_string())
+            .unwrap_or_default();
+        let stack = format!("TypeError: x\n    at CostMatrix ({home}/app/index.js:1:2)");
+        assert!(
+            !crash_ui_error_impl(
+                &state,
+                "usage",
+                "Cannot read properties of null",
+                &stack,
+                now
+            )
+            .unwrap()
+        );
+        assert!(
+            !dir(&state).join("asking").exists(),
+            "nothing kept in never"
+        );
+        crash_set_impl(&state, "ask").unwrap();
+        assert!(
+            crash_ui_error_impl(
+                &state,
+                "usage",
+                "Cannot read\u{1b} properties of null",
+                &stack,
+                now
+            )
+            .unwrap()
+        );
+        let kept = kept(&dir(&state), "asking");
+        assert_eq!(kept.len(), 1);
+        assert_eq!(kept[0].location, "ui/usage");
+        assert!(kept[0].message.starts_with("ui: Cannot read"));
+        assert!(!kept[0].message.contains('\u{1b}'));
+        assert!(!kept[0].frames.join("\n").contains(&home) || home.is_empty());
+        // A screen that isn't on the list is "app".
+        crash_ui_error_impl(&state, "../../etc", "boom", "", now + 1).unwrap();
+        assert!(kept_any(&dir(&state), "ui/app"));
+    }
+
+    fn kept_any(dir: &Path, location: &str) -> bool {
+        kept(dir, "asking")
+            .iter()
+            .any(|report| report.location == location)
     }
 }

@@ -42,6 +42,10 @@ pub struct OverloadAlertInfo {
     /// The contributor's CPU, percent of one core — only when CPU is
     /// what's high.
     pub subject_cpu: Option<f64>,
+    /// For a tool AI Juggler didn't start: how many windows (trees) the
+    /// figure sums — "the Claude app is using about 16 GB across 3
+    /// windows" (the 0.0.12 report: one window's figure read as the app's).
+    pub subject_windows: Option<u32>,
     /// When the condition started, epoch ms.
     #[ts(type = "number")]
     pub since_ms: i64,
@@ -122,24 +126,54 @@ fn by_memory(mac: &ThisMacInfo) -> Option<ToolTreeInfo> {
             bytes
         }
     };
-    mac.top
-        .iter()
-        .chain(mac.heavy.iter())
+    candidates(mac)
+        .into_iter()
         .max_by(|a, b| weight(a).total_cmp(&weight(b)))
-        .cloned()
 }
 
 fn by_cpu(mac: &ThisMacInfo) -> Option<ToolTreeInfo> {
-    mac.top
-        .iter()
-        .chain(mac.heavy.iter())
+    candidates(mac)
+        .into_iter()
         .filter(|tree| tree.cpu_pct.is_some())
         .max_by(|a, b| {
             a.cpu_pct
                 .unwrap_or_default()
                 .total_cmp(&b.cpu_pct.unwrap_or_default())
         })
+}
+
+/// Who an alert may name: each session of ours, and each tool AI Juggler
+/// didn't start as a whole ("The Claude app" is all its windows — the
+/// figure its This Mac line and menu-bar line show, never one window
+/// worded as the app).
+fn candidates(mac: &ThisMacInfo) -> Vec<ToolTreeInfo> {
+    let mut seen = std::collections::HashSet::new();
+    let mut out: Vec<ToolTreeInfo> = mac
+        .top
+        .iter()
+        .chain(mac.heavy.iter())
+        .filter(|tree| tree.session_id.is_some())
+        .filter(|tree| seen.insert(tree.session_id.clone()))
         .cloned()
+        .collect();
+    out.extend(
+        mac.by_tool
+            .iter()
+            .filter(|group| !group.ours)
+            .map(|group| ToolTreeInfo {
+                session_id: None,
+                place: Some(group.tool.clone()),
+                // The Claude tools AI Juggler didn't start (desktop | terminal).
+                tool: Some(crate::machine_health::OBSERVED_TOOL.to_string()),
+                account_label: None,
+                cpu_pct: group.cpu_one_core_pct,
+                rss_bytes: group.totals.rss_bytes,
+                memory_estimate: group.totals.memory_estimate,
+                helpers: 0,
+                heavy_note: None,
+            }),
+    );
+    out
 }
 
 /// Whole-Mac CPU above `limit` for every point of the last `window_ms`.
@@ -379,6 +413,17 @@ impl AlertEngine {
                     .as_ref()
                     .filter(|_| condition.tell_cpu)
                     .and_then(|s| s.cpu_pct),
+                subject_windows: condition
+                    .subject
+                    .as_ref()
+                    .filter(|s| s.session_id.is_none())
+                    .and_then(|s| s.place.as_deref())
+                    .and_then(|place| {
+                        mac.by_tool
+                            .iter()
+                            .find(|group| !group.ours && group.tool == place)
+                    })
+                    .map(|group| group.totals.count),
                 since_ms: since,
             };
             if !track.active {
@@ -427,9 +472,25 @@ mod tests {
 
     use super::*;
     use crate::machine_health::{
-        MachineHealthInfo, MachinePointInfo, RoomReasonInfo, RoomSummaryInfo, ToolTotalsInfo,
-        VolumeInfo,
+        MachineHealthInfo, MachinePointInfo, RoomReasonInfo, RoomSummaryInfo, ToolGroupInfo,
+        ToolTotalsInfo, VolumeInfo,
     };
+
+    /// The Claude app as a whole: its line in This Mac and the menu bar.
+    fn app(windows: u32, rss: u64, cpu: f64) -> ToolGroupInfo {
+        ToolGroupInfo {
+            tool: "desktop".into(),
+            label: "Claude app".into(),
+            ours: false,
+            totals: ToolTotalsInfo {
+                count: windows,
+                memory_estimate: true,
+                cpu_pct: Some(cpu / 10.0),
+                rss_bytes: rss,
+            },
+            cpu_one_core_pct: Some(cpu),
+        }
+    }
 
     const G: u64 = 1_000_000_000;
 
@@ -470,6 +531,7 @@ mod tests {
             tools: ToolTotalsInfo::default(),
             ours: ToolTotalsInfo::default(),
             theirs: ToolTotalsInfo::default(),
+            by_tool: vec![app(1, 2 * G, 140.0)],
             top: vec![
                 tree(Some("s-big"), None, 4 * G, 30.0, None),
                 tree(None, Some("desktop"), 2 * G, 140.0, None),
@@ -549,19 +611,65 @@ mod tests {
         mac.machine.pressure = Some("warning".into());
         // The Claude app's 6 GB is summed over helpers that share pages:
         // our measured 4 GB session is named, not the app.
-        mac.top = vec![
-            tree(None, Some("desktop"), 6 * G, 20.0, None),
-            tree(Some("s-big"), None, 4 * G, 30.0, None),
-        ];
+        mac.by_tool = vec![app(3, 6 * G, 20.0)];
         let told = run(&mut AlertEngine::default(), &mac, 0, 60);
         assert_eq!(told[0].session_id.as_deref(), Some("s-big"));
         // At 12 GB it's the largest even at half: named, as an estimate.
-        mac.top[0].rss_bytes = 12 * G;
+        mac.by_tool = vec![app(3, 12 * G, 20.0)];
         let told = run(&mut AlertEngine::default(), &mac, 0, 60);
         assert_eq!(told.len(), 1);
         assert_eq!(told[0].place.as_deref(), Some("desktop"));
         assert_eq!(told[0].subject_bytes, Some(12 * G));
         assert!(told[0].subject_estimate);
+    }
+
+    #[test]
+    fn the_claude_app_is_named_by_all_its_windows_never_one() {
+        // Six windows, the heaviest 4.9 GB: "The Claude app is using about
+        // 12 GB" — the figure its own line shows — never 4.9 GB.
+        let mut mac = calm();
+        mac.machine.pressure = Some("warning".into());
+        mac.top = vec![tree(None, Some("desktop"), 4_900_000_000, 3.0, None)];
+        mac.by_tool = vec![app(6, 12 * G, 14.0)];
+        let told = run(&mut AlertEngine::default(), &mac, 0, 60);
+        assert_eq!(told[0].place.as_deref(), Some("desktop"));
+        assert_eq!(told[0].subject_bytes, Some(12 * G));
+        // CPU as Home's rows count it (one core), the app's windows summed.
+        let mut busy = calm();
+        for point in &mut busy.machine.series {
+            point.cpu_pct = Some(97.0);
+        }
+        busy.top = vec![tree(None, Some("desktop"), 4_900_000_000, 3.0, None)];
+        busy.by_tool = vec![app(6, 12 * G, 140.0)];
+        let told = run(&mut AlertEngine::default(), &busy, 0, 0);
+        assert_eq!(told[0].subject_cpu, Some(140.0));
+    }
+
+    /// The 0.0.12 report: the banner said 4.2 GB, Needs you 8.1 GB, This
+    /// Mac three Claude app rows. The alert's subject is the app as a
+    /// whole, and it says how many windows its figure sums.
+    #[test]
+    fn the_alert_says_how_many_windows_its_figure_sums() {
+        let mut mac = calm();
+        mac.machine.pressure = Some("warning".into());
+        mac.top = vec![
+            tree(None, Some("desktop"), 8_100_000_000, 3.0, None),
+            tree(None, Some("desktop"), 4_200_000_000, 3.0, None),
+            tree(None, Some("desktop"), 3_800_000_000, 3.0, None),
+        ];
+        mac.by_tool = vec![app(3, 16_100_000_000, 9.0)];
+        let told = run(&mut AlertEngine::default(), &mac, 0, 60);
+        assert_eq!(told[0].place.as_deref(), Some("desktop"));
+        assert_eq!(told[0].subject_bytes, Some(16_100_000_000));
+        assert_eq!(told[0].subject_windows, Some(3));
+        // A session of ours is one tree: no window count.
+        let mut ours = calm();
+        ours.machine.pressure = Some("warning".into());
+        ours.top = vec![tree(Some("s-big"), None, 4 * G, 30.0, None)];
+        ours.by_tool = Vec::new();
+        let told = run(&mut AlertEngine::default(), &ours, 0, 60);
+        assert_eq!(told[0].session_id.as_deref(), Some("s-big"));
+        assert_eq!(told[0].subject_windows, None);
     }
 
     #[test]

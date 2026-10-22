@@ -443,3 +443,26 @@
   Settings at the top, with the update below the fold; (5) "Restart now"
   was offered during a switch or a bring-in. All fixed, each with a
   vitest or Playwright check.
+- **Flake record, 2026-10-21 (fixed).** CI's `verify` on PR #120 failed
+  twice in `juggler-adapter` `user_path :: a_login_shell_that_prints_its_path_is_read`
+  ("left: None"). The second time it failed even with a 30 s budget, and
+  the suite finished in 0.30 s, so this is not a timeout. The test writes
+  a stand-in shell and runs it while other tests in the binary spawn
+  processes. A child forked during that write holds the file open until it
+  execs, so running the script fails at once with ETXTBSY, and `login_shell`
+  reads that as no PATH. The fix is in the tests, where the race starts:
+  their `script()` helper writes each stand-in from a child `sh` that exits
+  before the test runs it, so this process never holds the file open for
+  writing and no fork can inherit it. `login_shell` itself is unchanged
+  (the app's shell is never a freshly written file). The two tests that
+  check what is read also allow 30 s instead of the app's 2 s. Not
+  reproduced locally; 3 of 3 local runs passed. The other 33 sites that
+  write stand-in executables in tests (mostly `juggler-app/tests`) haven't
+  flaked; moving them to the same pattern is in the next batch.
+- **Flake record, 2026-10-21 (known class; open, next batch).** The same
+  PR's CI `verify` (first attempt) failed `load_budgets ::
+  monitoring_costs_under_one_percent_of_a_core` at 1.118 % of a core
+  (budget 1 %). The E14 machine part, which PR #120 touched, was 0.055 %;
+  the rest is the per-session collector, which it didn't change. To be
+  made load-aware (CPU time and a load gate) in the next batch, with the
+  guardrails flakes.

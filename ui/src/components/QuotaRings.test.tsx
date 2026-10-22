@@ -10,24 +10,25 @@ import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { ForecastPill, QuotaChip, RenewalLine, TwoClocks, WindowRing } from "./QuotaRings";
 import type { QuotaDisplayData, WindowDisplay } from "../lib/bridge";
+import { forecastDisplay, quotaDisplay, windowDisplay } from "../lib/wire";
 
-const window = (over: Partial<WindowDisplay> = {}): WindowDisplay => ({
-  state: "tracking",
-  percentage: 82,
-  badge: "measured",
-  burned_tokens: 12_345,
-  resets_at_ms: 1_792_096_400_000,
-  ...over,
-});
+const window = (over: Partial<WindowDisplay> = {}): WindowDisplay =>
+  windowDisplay("tracking", {
+    percentage: 82,
+    badge: "measured",
+    burned_tokens: 12_345,
+    resets_at_ms: 1_792_096_400_000,
+    reset_basis: "measured",
+    ...over,
+  });
 
-const display = (over: Partial<QuotaDisplayData> = {}): QuotaDisplayData => ({
-  account: "a1",
-  five_hour: window(),
-  weekly: window({ percentage: 41, badge: "measured", resets_at_ms: 1_792_120_000_000 }),
-  renewal: { state: "none", label: "Renewal: unknown — add date", entered_by_user: false },
-  forecast: { state: "wont-exhaust", badge: "measured" },
-  ...over,
-});
+const display = (over: Partial<QuotaDisplayData> = {}): QuotaDisplayData =>
+  quotaDisplay("a1", {
+    five_hour: window(),
+    weekly: window({ percentage: 41, badge: "measured", resets_at_ms: 1_792_120_000_000 }),
+    forecast: forecastDisplay("wont-exhaust", { badge: "measured" }),
+    ...over,
+  });
 
 afterEach(cleanup);
 
@@ -139,11 +140,11 @@ describe("RenewalLine states (Req.3, D-12)", () => {
 
 describe("ForecastPill states (deep/10 §1)", () => {
   it("learning copy exact; Estimated exhausts shows the RANGE", () => {
-    const learning = render(<ForecastPill forecast={{ state: "learning", badge: "estimated" }} />);
+    const learning = render(<ForecastPill forecast={forecastDisplay("learning")} />);
     expect(learning.getByText("Not enough use yet to forecast")).toBeTruthy();
     learning.unmount();
     const estimated = render(
-      <ForecastPill forecast={{ state: "exhausts", tte_min: 55, range_min: 40, range_max: 70, badge: "estimated" }} />,
+      <ForecastPill forecast={forecastDisplay("exhausts", { tte_min: 55, range_min: 40, range_max: 70 })} />,
     );
     const text = estimated.getByTestId("forecast-pill").textContent ?? "";
     expect(text).toContain("≈55 min");
@@ -152,9 +153,9 @@ describe("ForecastPill states (deep/10 §1)", () => {
   });
 
   it("wont-exhaust and no-headroom states", () => {
-    const steady = render(<ForecastPill forecast={{ state: "wont-exhaust", badge: "measured" }} />);
+    const steady = render(<ForecastPill forecast={forecastDisplay("wont-exhaust", { badge: "measured" })} />);
     expect(steady.getByText(/won't run out this window/)).toBeTruthy();
-    const noCap = render(<ForecastPill forecast={{ state: "no-headroom", badge: "computed" }} />);
+    const noCap = render(<ForecastPill forecast={forecastDisplay("no-headroom", { badge: "computed" })} />);
     expect(noCap.getByText(/set your plan cap/)).toBeTruthy();
   });
 });
@@ -183,7 +184,9 @@ describe("AJ-E610 grep gates", () => {
     expect(raw).not.toContain("percent={0}");
     expect(raw).not.toContain('>0%<');
     const newSessionRaw = (await import("../screens/NewSession.tsx?raw")).default as string;
-    expect(newSessionRaw).toContain("QuotaChip");
+    // New session shows each account's room in the one runway's words
+    // (QA, P26b: a chip and a verdict made two claims in one row).
+    expect(newSessionRaw).toContain("runwayOf");
     expect(newSessionRaw).not.toContain("percent={0}");
   });
 

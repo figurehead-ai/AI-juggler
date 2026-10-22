@@ -16,6 +16,8 @@
 // Tauri command signatures take State/values by value (as in commands.rs).
 #![allow(clippy::needless_pass_by_value)]
 
+pub use crate::machine_tools::{ToolGroupInfo, ToolTotalsInfo};
+use crate::machine_tools::{by_tool, totals};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -829,7 +831,7 @@ const HEAVY_EXIT_MS: i64 = 45_000;
 
 /// The tool the observed trees are: `running_setups` finds the Claude app
 /// and `claude` outside it, nothing else yet.
-const OBSERVED_TOOL: &str = "claude-code";
+pub(crate) const OBSERVED_TOOL: &str = "claude-code";
 
 /// One process tree on This Mac: a session AI Juggler started, or an AI
 /// tool it did not (read-only; no actions).
@@ -863,22 +865,6 @@ pub struct ToolTreeInfo {
     pub memory_estimate: bool,
 }
 
-/// AI tools' share of the Mac.
-#[derive(Clone, PartialEq, Debug, Default, serde::Serialize, ts_rs::TS)]
-#[ts(export, export_to = "../../../ui/src/types/generated/")]
-pub struct ToolTotalsInfo {
-    /// How many trees.
-    pub count: u32,
-    /// The memory includes estimates (a tool AI Juggler didn't start).
-    pub memory_estimate: bool,
-    /// Share of the whole Mac's CPU (all cores), percent; `null` until
-    /// measured.
-    pub cpu_pct: Option<f64>,
-    /// Memory, bytes.
-    #[ts(type = "number")]
-    pub rss_bytes: u64,
-}
-
 /// Home's This Mac panel (AJ-E1403).
 #[derive(Clone, PartialEq, Debug, serde::Serialize, ts_rs::TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
@@ -892,6 +878,10 @@ pub struct ThisMacInfo {
     /// The AI tools it did not start (the Claude app, `claude` in a
     /// terminal).
     pub theirs: ToolTotalsInfo,
+    /// Each AI tool on its own (the menu bar's per-tool lines): our
+    /// sessions by Provider, heaviest first, then the Claude app, then
+    /// `claude` in a terminal. Only tools that are running.
+    pub by_tool: Vec<ToolGroupInfo>,
     /// The heaviest trees by memory, at most three.
     pub top: Vec<ToolTreeInfo>,
     /// Every heavy tree (the rail's notes, Home's Needs you).
@@ -1021,19 +1011,6 @@ fn tree_info(tree: &TreeInput) -> ToolTreeInfo {
     }
 }
 
-#[allow(clippy::cast_precision_loss)] // shares for display
-fn totals(trees: &[&TreeInput], cores: u32) -> ToolTotalsInfo {
-    let measured: Vec<f64> = trees.iter().filter_map(|tree| tree.stats.cpu_pct).collect();
-    ToolTotalsInfo {
-        count: u32::try_from(trees.len()).unwrap_or(u32::MAX),
-        memory_estimate: trees.iter().any(|tree| tree.place.is_some()),
-        cpu_pct: (!trees.is_empty() && measured.len() == trees.len())
-            .then(|| (measured.iter().sum::<f64>() / f64::from(cores.max(1))).min(100.0))
-            .or_else(|| trees.is_empty().then_some(0.0)),
-        rss_bytes: trees.iter().map(|tree| tree.stats.rss_bytes).sum(),
-    }
-}
-
 /// Pure: This Mac from its parts (AJ-E1403 Req.1–2).
 #[must_use]
 pub fn assemble(
@@ -1051,6 +1028,7 @@ pub fn assemble(
         tools: totals(&all, cores),
         ours: totals(&ours, cores),
         theirs: totals(&theirs, cores),
+        by_tool: by_tool(&ours, &theirs, cores),
         top: by_memory
             .iter()
             .take(3)
@@ -1101,7 +1079,7 @@ pub fn this_mac_impl(state: &Arc<AppState>, now_ms: i64) -> AppResult<ThisMacInf
             watch.tools.clone(),
         )
     };
-    let (accounts, live, labels, providers) = {
+    let (accounts, live, labels) = {
         let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
         let accounts = storage.accounts().list()?;
         let live: std::collections::HashSet<String> = storage
@@ -1115,21 +1093,17 @@ pub fn this_mac_impl(state: &Arc<AppState>, now_ms: i64) -> AppResult<ThisMacInf
             .iter()
             .map(|account| (account.id.to_string(), account.label.clone()))
             .collect();
-        let providers: std::collections::HashMap<String, String> = accounts
-            .iter()
-            .map(|account| (account.id.to_string(), account.harness.as_str().to_string()))
-            .collect();
-        (accounts, live, labels, providers)
+        (accounts, live, labels)
     };
     let mut hogs: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
     for hog in crate::commands::hog_facts(state, now_ms) {
         hogs.entry(hog.session).or_default().push(hog.rule);
     }
-    let contexts: std::collections::HashMap<String, Option<String>> = state
+    let contexts: std::collections::HashMap<String, juggler_supervisor::tree::SpawnContext> = state
         .supervisor
         .spawn_contexts_snapshot()
         .into_iter()
-        .map(|(session, ctx)| (session.as_str().to_string(), ctx.account_id))
+        .map(|(session, ctx)| (session.as_str().to_string(), ctx))
         .collect();
     let home = dirs::home_dir().unwrap_or_default();
     let mut trees = Vec::new();
@@ -1143,10 +1117,12 @@ pub fn this_mac_impl(state: &Arc<AppState>, now_ms: i64) -> AppResult<ThisMacInf
             if !live.contains(&id) {
                 continue;
             }
-            let account = contexts.get(&id).and_then(Option::as_ref);
             trees.push(TreeInput {
-                tool: account.and_then(|account| providers.get(account).cloned()),
-                account_label: account.and_then(|account| labels.get(account).cloned()),
+                tool: contexts.get(&id).map(|ctx| ctx.provider.clone()),
+                account_label: contexts
+                    .get(&id)
+                    .and_then(|ctx| ctx.account_id.as_ref())
+                    .and_then(|account| labels.get(account).cloned()),
                 ring: collector.ring(&session),
                 hog_rules: hogs.remove(&id).unwrap_or_default(),
                 session_id: Some(id),
@@ -1191,7 +1167,31 @@ pub fn this_mac_impl(state: &Arc<AppState>, now_ms: i64) -> AppResult<ThisMacInf
         watch.alerts.evaluate(&info, now_ms);
         info.alerts = watch.alerts.active();
     }
+    align_with_alerts(&mut info.machine.summary, &info.alerts);
     Ok(info)
+}
+
+/// The words This Mac uses while the memory-pressure alert is on.
+pub const UNDER_MEMORY_PRESSURE: &str = "Under memory pressure";
+
+/// One severity model (the 0.0.12 report: the alert said "under memory
+/// pressure" while This Mac said "Getting tight"): while the memory
+/// pressure alert is on, This Mac's state says the same. "Getting tight"
+/// stays for the calmer state before an alert.
+pub fn align_with_alerts(
+    summary: &mut RoomSummaryInfo,
+    alerts: &[crate::machine_alerts::OverloadAlertInfo],
+) {
+    if !alerts.iter().any(|alert| alert.kind == "memory_pressure") {
+        return;
+    }
+    summary.level = "pressure".to_string();
+    summary.words = UNDER_MEMORY_PRESSURE.to_string();
+    for reason in &mut summary.reasons {
+        if reason.kind == "pressure" {
+            reason.level = "pressure".to_string();
+        }
+    }
 }
 
 /// The alerts to tell since the last call (AJ-E1408; the notification
@@ -1752,7 +1752,7 @@ mod tests {
         TreeInput {
             session_id: session.map(str::to_string),
             place: session.is_none().then_some("desktop"),
-            tool: None,
+            tool: session.map(|_| OBSERVED_TOOL.to_string()),
             account_label: Some("Work Max".into()),
             stats: LiveProcessStats {
                 child_count: 3,
@@ -2033,5 +2033,46 @@ mod live {
                 juggler_supervisor::machine::bytes_words(rss)
             );
         }
+    }
+    /// The 0.0.12 report: one state, one set of words. The alert on means
+    /// This Mac says "Under memory pressure"; before it, "Getting tight".
+    #[test]
+    fn this_mac_says_what_the_pressure_alert_says() {
+        let tight = || crate::machine_health::RoomSummaryInfo {
+            level: "tight".into(),
+            words: "Getting tight".into(),
+            reasons: vec![crate::machine_health::RoomReasonInfo {
+                kind: "pressure".into(),
+                level: "tight".into(),
+                words: "macOS reports memory pressure".into(),
+            }],
+        };
+        let mut before = tight();
+        crate::machine_health::align_with_alerts(&mut before, &[]);
+        assert_eq!(before.words, "Getting tight", "calm before the alert");
+        let alert = crate::machine_alerts::OverloadAlertInfo {
+            key: "memory_pressure".into(),
+            kind: "memory_pressure".into(),
+            title: "Your Mac is under memory pressure".into(),
+            detail: "macOS reports memory pressure".into(),
+            session_id: None,
+            place: Some("desktop".into()),
+            subject_bytes: Some(16_000_000_000),
+            subject_estimate: true,
+            subject_cpu: None,
+            subject_windows: Some(3),
+            since_ms: 0,
+        };
+        let mut during = tight();
+        crate::machine_health::align_with_alerts(&mut during, std::slice::from_ref(&alert));
+        assert_eq!(during.level, "pressure");
+        assert_eq!(during.words, crate::machine_health::UNDER_MEMORY_PRESSURE);
+        assert!(
+            alert
+                .title
+                .to_lowercase()
+                .contains(&crate::machine_health::UNDER_MEMORY_PRESSURE.to_lowercase())
+        );
+        assert_eq!(during.reasons[0].level, "pressure");
     }
 }

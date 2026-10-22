@@ -3,7 +3,7 @@
 # never raise one. scripts/tool_literal_lint.py --print shows today's counts.
 # It reaches zero by 0.2 (ADR-0019 migration step 5).
 crates/juggler-adapter/src/adapter.rs 1
-crates/juggler-app/src/commands.rs 4
+crates/juggler-app/src/commands.rs 3
 crates/juggler-app/src/machine_health.rs 1
 crates/juggler-app/src/state.rs 1
 crates/juggler-app/src/usage_pipeline.rs 7

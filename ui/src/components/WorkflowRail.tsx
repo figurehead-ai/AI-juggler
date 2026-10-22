@@ -1,7 +1,7 @@
 import { identityWords } from "../lib/identity";
 import { parkedWords } from "../lib/parked";
 import { providerDisplayName } from "../lib/providers";
-import { ReactNode, useCallback, useEffect, useId, useRef, useState, type JSX } from "react";
+import { ReactNode, useCallback, useContext, useEffect, useId, useRef, useState, type JSX } from "react";
 import { IconProjects, IconTerminal } from "./icons";
 import { PinMark, ProjectRow, RailProjectHeader } from "./RailProjectRows";
 import { lastWorked } from "../lib/project-words";
@@ -17,7 +17,7 @@ function durationWords(ms: number): string {
   return minutes % 60 === 0 ? `${hours} h` : `${hours} h ${minutes % 60} min`;
 }
 import type { AccountInfo, InstanceInfo, ProjectInfo, RemoteInstanceInfo, RemoteMachineInfo } from "../lib/bridge";
-import { shortHeavy, useHeavyNote } from "../lib/machine";
+import { ThisMacContext, machineStatus, shortHeavy, useHeavyNote } from "../lib/machine";
 import type { Density } from "../lib/density";
 import { REFRESH_INTERVALS, staleCaption } from "../lib/density";
 import {
@@ -1439,6 +1439,19 @@ export function SessionRow({
  * state glyph + `!` badge per Instance. The full I-01..I-11 text rides
  * in the tooltip (CSS hover panel) and the `aria-label` (Req.3).
  */
+/** The collapsed rail's "All clear": nothing running, and only while the
+ * Mac itself is calm — the same state This Mac and the footer read
+ * (QA, P19: it said "All clear" under memory pressure). */
+export function RailCalm(): JSX.Element | null {
+  const status = machineStatus(useContext(ThisMacContext));
+  if (status && !status.calm) return null;
+  return (
+    <span className="px-1 py-2 text-center text-[9px] leading-relaxed text-faint" data-testid="rail-all-clear">
+      All clear
+    </span>
+  );
+}
+
 export function MinimalInstanceColumn({
   sessions,
   selectedId,
@@ -1521,11 +1534,7 @@ export function MinimalInstanceColumn({
           ! {needsYou}
         </span>
       )}
-      {active.length === 0 && (
-        <span className="px-1 py-2 text-center text-[9px] leading-relaxed text-faint">
-          All clear
-        </span>
-      )}
+      {active.length === 0 && <RailCalm />}
     </div>
   );
 }
