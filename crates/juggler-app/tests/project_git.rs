@@ -2,6 +2,13 @@
 //! project's own root, named by the project's id — its branch and what
 //! isn't committed — and a folder that isn't a git checkout has none.
 
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::pedantic
+)]
+
 use std::path::Path;
 use std::process::Command;
 use std::sync::Arc;

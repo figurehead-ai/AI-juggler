@@ -15,7 +15,7 @@ import { AccountDisc } from "./indicator";
 import { PageHeader, PageShell, type Crumb } from "../pages/PageShell";
 import { pageTabs } from "../pages/registry";
 import { conversationTitle, useConversations } from "../lib/conversations";
-import { ago } from "../lib/time-words";
+import { agoWords } from "../lib/time-words";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import type { ProjectInfo } from "../lib/bridge";
 
@@ -47,11 +47,11 @@ function ConversationView({ conversation, now, projects }: { conversation: Conve
   const crumbs: Crumb[] = project
     ? [{ label: project.name, onOpen: () => host.openProjectById?.(project.id), testId: "crumb-project" }]
     : [];
-  const last = conversation.last_activity_ms === null ? null : ago(conversation.last_activity_ms, now);
+  const last = conversation.last_activity_ms === null ? null : agoWords(conversation.last_activity_ms, now);
   const facts: [string, string][] = [
     ["Folder", conversation.cwd ?? "—"],
     ["Branch", conversation.git_branch ?? "—"],
-    ["Last activity", last === null ? "—" : last === "now" ? "just now" : `${last} ago`],
+    ["Last activity", last ?? "—"],
     ["Tokens", tokenWords(conversation.tokens)],
   ];
   return (
@@ -79,7 +79,7 @@ function ConversationView({ conversation, now, projects }: { conversation: Conve
               <span className="inline-flex items-center gap-1.5">
                 <AccountDisc accountId={conversation.account_id} label={conversation.account_label} size={16} />
                 {conversation.account_label}
-                {last !== null && <span>· {last === "now" ? "active just now" : `active ${last} ago`}</span>}
+                {last !== null && <span>· active {last}</span>}
               </span>
             }
             actions={

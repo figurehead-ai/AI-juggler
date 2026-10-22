@@ -356,7 +356,7 @@ walk alone isn't enough.
 **Quality gates**: vitest and Playwright navigation; a11y; baselines in both themes and densities; an oracle comparison of the process groups on the replica; a hand walk under memory pressure, read-only.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1528/manifest.md`.
 
-### AJ-E1533 One page model | Status: TODO | Priority P0 | Effort L | Depends: AJ-E1529
+### AJ-E1533 One page model | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E1529
 **Goal**: Every item opens the same kind of page, and a fact never disagrees with itself.
 **Requirements** (the coordinator's screen-by-screen review against wireframes 01–09, 2026-10-21):
 1. One shell for every item type, registered per type (ADR-0019). An identity header carries:
@@ -375,7 +375,7 @@ walk alone isn't enough.
    - project Processes counts 0 sessions while 1 runs.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1533/manifest.md`. It holds before and after screenshots of every page at 1280 and 1024 in both themes, walked on the replica, and checked against the wireframe.
 
-### AJ-E1534 Orientation | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1533
+### AJ-E1534 Orientation | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E1533
 1. The rail shows a clear selection for every row type (a filled row, an accent bar and `aria-current`), scrolled into view.
 2. The top-nav highlight comes from the current page. Today History showed Accounts, and a session page showed Home.
 3. Tab memory is per type, never carried from a session to a project. Today the bar showed Processes while the page showed Overview.

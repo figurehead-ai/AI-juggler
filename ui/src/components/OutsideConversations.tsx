@@ -13,7 +13,7 @@ import type { ConversationInfo } from "../lib/ipc/conversations";
 import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
 import { Card } from "./primitives";
 import type { ChipFilters, RowGroup } from "../lib/railview";
-import { ago } from "../lib/time-words";
+import { ago, agoWords } from "../lib/time-words";
 
 /** Recent outside conversations shown per project, besides the live ones. */
 export const RECENT_SHOWN = 3;
@@ -73,7 +73,7 @@ export function ConversationRow({
   const title = conversationTitle(conversation);
   const chip = stateChip(conversation.live ? "running" : "finished");
   const Icon = chip.Icon;
-  const when = conversation.last_activity_ms === null ? "" : conversation.live ? ago(conversation.last_activity_ms, now) : `${ago(conversation.last_activity_ms, now)} ago`;
+  const when = conversation.last_activity_ms === null ? "" : conversation.live ? ago(conversation.last_activity_ms, now) : agoWords(conversation.last_activity_ms, now);
   const state = conversation.live ? "Running" : "Ended";
   const menu = useItemMenu("conversation", conversation, title);
   return (
@@ -200,33 +200,6 @@ export function AccountRunningCard({
           conversation={conversation}
           selected={false}
           density="compact"
-          now={now}
-          onOpen={(c) => host.openConversation?.(c)}
-        />
-      ))}
-    </Card>
-  );
-}
-
-/** A project's conversations started outside AI Juggler, live first:
- * every one (the rail shows only the newest few). */
-export function ProjectConversationsCard({ projectId, now }: { projectId: string; now: number }): JSX.Element | null {
-  const { all } = useConversations();
-  const host = useActionHost();
-  const mine = outside(all).filter((conversation) => conversation.project_id === projectId);
-  if (mine.length === 0) return null;
-  const ordered = [...mine.filter((c) => c.live), ...mine.filter((c) => !c.live)];
-  return (
-    <Card className="flex flex-col gap-1 p-4" data-testid="project-outside">
-      <p className="text-[11px] uppercase tracking-wider text-muted">
-        Conversations outside AI Juggler ({mine.length})
-      </p>
-      {ordered.map((conversation) => (
-        <ConversationRow
-          key={`${conversation.account_id}/${conversation.id}`}
-          conversation={conversation}
-          selected={false}
-          density="comfortable"
           now={now}
           onOpen={(c) => host.openConversation?.(c)}
         />

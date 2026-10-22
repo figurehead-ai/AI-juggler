@@ -74,7 +74,7 @@ async function walk(page: Page, theme: string, label: string) {
   await shoot(page, `rail-${label}-${theme}`);
   // Inspector.
   await page.getByTestId("rail").getByRole("button", { name: /Work Max/ }).first().click();
-  await expect(page.getByRole("tab", { name: "Overview" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Terminal" })).toBeVisible();
   await noHorizontalScroll(page);
   expect(await runningAnimations(page)).toEqual([]);
   await shoot(page, `inspector-${label}-${theme}`);

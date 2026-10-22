@@ -76,6 +76,11 @@ test("a project's page lists its conversations started outside AI Juggler", asyn
   const project = FIXTURE.projects.find((p) => FIXTURE.conversations.some((c) => c.project_id === p.id && c.session_id === null))!;
   const count = FIXTURE.conversations.filter((c) => c.project_id === project.id && c.session_id === null).length;
   await page.getByTestId("rail").getByRole("button", { name: new RegExp(`^${project.name}`) }).first().click();
-  await expect(page.getByTestId("project-outside")).toContainText(`Conversations outside AI Juggler (${count})`);
-  await expect(page.getByTestId("project-outside").getByTestId("rail-outside")).toHaveCount(count);
+  // AJ-E1533: the project's body (its Sessions) lists them beside its own.
+  const body = page.getByTestId("page-panel-sessions");
+  await expect(body.getByTestId("page-sessions")).toBeVisible();
+  const all = body.getByTestId("page-sessions-all");
+  if (await all.count()) await all.click();
+  await expect(body.locator('[data-testid="page-session-row"][data-outside="true"]')).toHaveCount(count);
+  await expect(body.locator('[data-testid="page-session-row"][data-outside="true"]').first()).toContainText("outside AI Juggler");
 });

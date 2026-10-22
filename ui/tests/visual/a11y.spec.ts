@@ -1133,6 +1133,8 @@ for (const theme of ["dark", "light"] as const) {
     // The graph: scoped scan on the project panel.
     await openRailList(page); // D-25: a project row needs the list
     await page.getByRole("button", { name: /^ai-juggler/ }).first().click();
+    // AJ-E1533: the graph sits on the project's Overview tab.
+    await page.getByRole("tablist", { name: "Project tabs" }).getByRole("tab", { name: "Overview" }).click();
     await expect(page.getByTestId("switch-graph")).toBeVisible();
     const graphScan = await new AxeBuilder({ page })
       .include("[data-testid='project-switch-graph-card']")
@@ -1987,9 +1989,9 @@ for (const theme of ["dark", "light"] as const) {
     await expectRail(page); // D-25: the list, or its icon column when narrow
     await expect(page.getByTestId("rail-identity").first()).toHaveAttribute("aria-label", /verified|first seen|unverified|Not signed in/);
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
-    await page.getByRole("button", { name: /Work Max/ }).first().click();
-    await page.getByRole("tab", { name: "Actions" }).click();
-    await page.getByRole("button", { name: /Resume|Relaunch/ }).first().click();
+    // AJ-E1533: relaunch an ended Work Max session from its page header.
+    await page.locator('[data-instance-id="sess-6"]').first().click(); // finished
+    await page.getByTestId("header-relaunch").click();
     await expect(page.getByTestId("identity-mismatch")).toBeVisible();
     await expect(page.getByTestId("identity-switch")).toBeFocused();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
@@ -2043,8 +2045,9 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("worktree-remove-confirm")).toBeFocused();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
     await page.keyboard.press("Escape");
-    await page.getByRole("tab", { name: "Actions" }).click();
-    await page.getByRole("button", { name: /Resume|Relaunch/ }).first().click();
+    // AJ-E1533: relaunch an ended session from its page header.
+    await page.locator('[data-instance-id="sess-6"]').first().click(); // finished
+    await page.getByTestId("header-relaunch").click();
     await expect(page.getByTestId("isolation-worktree")).toBeFocused();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
   });

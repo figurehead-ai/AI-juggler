@@ -334,30 +334,42 @@ for (const vp of INSPECTOR_VIEWPORTS) {
     await page.screenshot({ path: resolve(GALLERY, `06-inspector/empty-${vp.name}.png`) });
   });
 
-  test(`inspector — Instance / Overview — ${vp.name}`, async ({ page }) => {
+  // AJ-E1533: a session's page opens on its body, the Terminal tab.
+  test(`inspector — Session / Terminal — ${vp.name}`, async ({ page }) => {
     await seedInspectorPage(page, vp);
     await expectRail(page); // D-25: the list, or its icon column when narrow
     await page.getByRole("button", { name: /Work Max/ }).first().click();
-    await expect(page.getByRole("tab", { name: "Quality / Performance" })).toBeVisible();
-    await page.screenshot({ path: resolve(GALLERY, `06-inspector/instance-overview-${vp.name}.png`) });
+    const tabs = page.getByRole("tablist", { name: "Session tabs" }).getByRole("tab");
+    await expect(tabs).toHaveText(["Terminal", "Usage", "Processes"]);
+    await expect(tabs.first()).toHaveAttribute("aria-selected", "true");
+    await page.screenshot({ path: resolve(GALLERY, `06-inspector/session-terminal-${vp.name}.png`) });
   });
 
-  test(`inspector — Account / Usage honest empty — ${vp.name}`, async ({ page }) => {
+  // AJ-E1533: an account's page has no Usage tab; its tabs are Overview
+  // and, once it has any, its Sessions.
+  test(`inspector — Account / Sessions — ${vp.name}`, async ({ page }) => {
     await seedInspectorPage(page, vp);
     await goTo(page, "Accounts");
     await page.getByRole("button", { name: "Inspect Claude Code" }).first().click();
-    await expect(page.getByRole("tab", { name: "Usage" })).toBeVisible();
-    await page.getByRole("tab", { name: "Usage" }).click();
-    await expect(page.getByText("No usage measured for this yet.", { exact: false })).toBeVisible();
-    await page.screenshot({ path: resolve(GALLERY, `06-inspector/account-usage-${vp.name}.png`) });
+    const tabs = page.getByRole("tablist", { name: "Account tabs" }).getByRole("tab");
+    await expect(tabs).toHaveText(["Overview", "Sessions"]);
+    await tabs.filter({ hasText: "Sessions" }).click();
+    await expect(page.getByTestId("page-panel-sessions").getByTestId("page-session-row").first()).toBeVisible();
+    await page.screenshot({ path: resolve(GALLERY, `06-inspector/account-sessions-${vp.name}.png`) });
   });
 
-  test(`inspector — Project / Processes — ${vp.name}`, async ({ page }) => {
+  // AJ-E1533: a project's page opens on its body, its sessions (no
+  // Processes tab: the project rollup went with it).
+  test(`inspector — Project / Sessions — ${vp.name}`, async ({ page }) => {
     await seedInspectorPage(page, vp);
     await openRailList(page); // D-25: a project row needs the list
     await page.getByRole("button", { name: /^ai-juggler/ }).first().click();
-    await expect(page.getByRole("tab", { name: "Processes" })).toBeVisible();
-    await page.screenshot({ path: resolve(GALLERY, `06-inspector/project-processes-${vp.name}.png`) });
+    const tabs = page.getByRole("tablist", { name: "Project tabs" }).getByRole("tab");
+    await expect(tabs.first()).toHaveText("Sessions");
+    await expect(tabs.first()).toHaveAttribute("aria-selected", "true");
+    await expect(tabs.filter({ hasText: "Processes" })).toHaveCount(0);
+    await expect(page.getByTestId("page-panel-sessions").getByTestId("page-session-row").first()).toBeVisible();
+    await page.screenshot({ path: resolve(GALLERY, `06-inspector/project-sessions-${vp.name}.png`) });
   });
 }
 
@@ -379,18 +391,22 @@ test("inspector — Instance Usage honest chart empties", async ({ page }) => {
   await page.screenshot({ path: resolve(GALLERY, "07-inspector-content/instance-usage.png") });
 });
 
-test("inspector — Instance Actions disabled-with-reason", async ({ page }) => {
+// AJ-E1533: a session's actions live in its header and its ⋯ menu. An
+// ended session offers Relaunch, not Stop; an action that can't run now
+// is disabled with its reason (AJ-E1025); unbuilt actions aren't shown.
+test("inspector — Session header actions, disabled-with-reason", async ({ page }) => {
   await seedInspectorPage(page, { width: 1440, height: 900 });
   await expectRail(page); // D-25: the list, or its icon column when narrow
-  await page.getByRole("button", { name: /Work Max/ }).first().click();
-  await page.getByRole("tab", { name: "Actions" }).click();
-  // AJ-E1025: an action that doesn't apply (Stop, once ended) is disabled
-  // with its reason; unbuilt actions aren't shown.
-  const panel = page.getByRole("tabpanel", { name: "Actions" });
-  await expect(panel.getByRole("button", { name: /^Stop/ })).toBeDisabled();
-  await expect(panel.getByText("not running")).toBeVisible();
-  await expect(page.getByTestId("action-export-pack")).toHaveCount(0);
-  await page.screenshot({ path: resolve(GALLERY, "07-inspector-content/instance-actions.png") });
+  await page.locator('[data-instance-id="sess-6"]').first().click(); // finished
+  await expect(page.getByTestId("header-relaunch")).toBeVisible();
+  await expect(page.getByTestId("inspector-stop")).toHaveCount(0);
+  await page.getByTestId("header-menu").click();
+  const menu = page.getByRole("menu");
+  await expect(menu.getByTestId("action-copy-resume")).toBeDisabled();
+  await expect(menu.getByText("It has no conversation to resume yet")).toBeVisible();
+  await expect(menu.getByTestId("action-stop")).toHaveCount(0);
+  await expect(menu.getByTestId("action-export-pack")).toHaveCount(0);
+  await page.screenshot({ path: resolve(GALLERY, "07-inspector-content/session-header-actions.png") });
 });
 
 test("inspector — Session Overview ended stamp", async ({ page }) => {
@@ -458,11 +474,14 @@ test("inspector — Account logged-out collapse", async ({ page }) => {
   await page.screenshot({ path: resolve(GALLERY, "08-inspector-aggregate/account-logged-out-1280x800.png") });
 });
 
-test("inspector — Project Overview On-it-now card", async ({ page }) => {
+test("inspector — Project Overview", async ({ page }) => {
   await seedInspectorPage(page, { width: 1440, height: 900 });
   await openRailList(page); // D-25: a project row needs the list
   await page.getByRole("button", { name: /^ai-juggler/ }).first().click();
-  await expect(page.getByTestId("project-on-it-now")).toBeVisible();
+  // AJ-E1533: the project's Overview tab (accounts, checkouts, the graph).
+  await page.getByRole("tablist", { name: "Project tabs" }).getByRole("tab", { name: "Overview" }).click();
+  await expect(page.getByTestId("project-summary")).toBeVisible();
+  await expect(page.getByTestId("project-accounts")).toBeVisible();
   await page.screenshot({ path: resolve(GALLERY, "08-inspector-aggregate/project-overview-1440x900.png") });
 });
 
@@ -471,7 +490,8 @@ test("inspector — Quality tab populated", async ({ page }) => {
   await seedInspectorPage(page, { width: 1440, height: 900 });
   await expectRail(page); // D-25: the list, or its icon column when narrow
   await page.getByRole("button", { name: /Work Max/ }).first().click();
-  await page.getByRole("tab", { name: "Quality / Performance" }).click();
+  // AJ-E1533: the quality signals sit on Usage, under the token breakdown.
+  await page.getByRole("tab", { name: "Usage" }).click();
   await expect(page.getByTestId("quality-tokens")).toBeVisible();
   await page.screenshot({ path: resolve(GALLERY, "09-quality/populated-1440x900.png") });
 });
@@ -480,7 +500,7 @@ test("inspector — Quality tab View as table", async ({ page }) => {
   await seedInspectorPage(page, { width: 1440, height: 900 });
   await expectRail(page); // D-25: the list, or its icon column when narrow
   await page.getByRole("button", { name: /Work Max/ }).first().click();
-  await page.getByRole("tab", { name: "Quality / Performance" }).click();
+  await page.getByRole("tab", { name: "Usage" }).click(); // AJ-E1533: quality lives on Usage
   await page.getByRole("button", { name: "View as table" }).click();
   await expect(page.getByTestId("quality-tokens").getByRole("table")).toBeVisible();
   await page.screenshot({ path: resolve(GALLERY, "09-quality/as-table-1440x900.png") });
@@ -1120,14 +1140,13 @@ for (const theme of THEMES) {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/");
-    // Trigger a launch through the Instance Actions' Resume row —
-    // the pre-check returns the fixture warning and the sheet renders
-    // instead of spawning (launch is never blocked; the sheet offers
-    // Launch anyway).
+    // Trigger a launch through an ended session's Relaunch (its page
+    // header, AJ-E1533) — the pre-check returns the fixture warning and
+    // the sheet renders instead of spawning (launch is never blocked;
+    // the sheet offers Launch anyway).
     await expectRail(page); // D-25: the list, or its icon column when narrow
-    await page.getByRole("button", { name: /Work Max/ }).first().click();
-    await page.getByRole("tab", { name: "Actions" }).click();
-    await page.getByRole("button", { name: /Resume|Relaunch/ }).first().click();
+    await page.locator('[data-instance-id="sess-6"]').first().click(); // finished
+    await page.getByTestId("header-relaunch").click();
     await expect(page.getByTestId("port-warning-sheet")).toBeVisible();
     await expect(page.getByTestId("port-warning-copy")).toContainText(
       ":5173 is already held by an orphan",
@@ -3013,6 +3032,10 @@ const BADGE_SET_TARGETS = [
   },
 ];
 
+/** AJ-E1533: a project's switch graph sits on its page's Overview tab. */
+const openProjectOverview = (page: import("@playwright/test").Page) =>
+  page.getByRole("tablist", { name: "Project tabs" }).getByRole("tab", { name: "Overview" }).click();
+
 const openGraphProject = async (
   page: import("@playwright/test").Page,
   graph: unknown[],
@@ -3071,6 +3094,7 @@ for (const theme of THEMES) {
       await page.goto("/");
       await openRailList(page); // D-25: a project row needs the list
       await page.getByRole("button", { name: /^ai-juggler/ }).first().click();
+      await openProjectOverview(page); // AJ-E1533: the graph is on Overview
       await expect(page.getByTestId("switch-graph")).toBeVisible();
       await expect(page.getByTestId("switch-graph-hop-note")).toContainText("3 switches");
       await expect(page.getByTestId("switch-graph-collapse")).toContainText("+2 switches");
@@ -3086,6 +3110,7 @@ for (const theme of THEMES) {
       await page.goto("/");
       await openRailList(page); // D-25: a project row needs the list
       await page.getByRole("button", { name: /^ai-juggler/ }).first().click();
+      await openProjectOverview(page); // AJ-E1533: the graph is on Overview
       await expect(page.getByTestId("switch-graph")).toBeVisible();
       await expect(page.getByTestId("node-fork-chip").first()).toBeVisible();
       await expect(page.getByTestId("node-merge-chip").first()).toBeVisible();
@@ -3101,6 +3126,7 @@ for (const theme of THEMES) {
       await page.goto("/");
       await openRailList(page); // D-25: a project row needs the list
       await page.getByRole("button", { name: /^ai-juggler/ }).first().click();
+      await openProjectOverview(page); // AJ-E1533: the graph is on Overview
       await expect(page.getByTestId("switch-graph-failed-edge")).toBeVisible();
       await page.getByTestId("switch-graph-failed-edge").click();
       await expect(page.getByTestId("switch-graph-failed-detail")).toContainText("S-F6");
@@ -3116,6 +3142,7 @@ for (const theme of THEMES) {
       await page.goto("/");
       await openRailList(page); // D-25: a project row needs the list
       await page.getByRole("button", { name: /^ai-juggler/ }).first().click();
+      await openProjectOverview(page); // AJ-E1533: the graph is on Overview
       await expect(page.getByTestId("switch-graph")).toBeVisible();
       await page.getByTestId("switch-graph-node").nth(1).click();
       await expect(page.getByTestId("switch-graph-node-menu")).toBeVisible();
@@ -3876,12 +3903,16 @@ for (const theme of THEMES) {
       await expect(chip).toHaveCount(0); // the view doesn't link to itself
       await expect(page.getByTestId("provider-install")).toHaveText(/^Version \S+/);
       await page.screenshot({ path: resolve(GALLERY, `72-tool-view/overview-${vp.name}-${theme}.png`), fullPage: true });
-      for (const tab of ["Overview", "Usage", "History", "Quality / Performance", "Processes", "Actions"]) {
-        await page.getByRole("tab", { name: tab }).click();
-        const text = (await page.getByRole("tabpanel").first().innerText()) ?? "";
-        expect(text, `tool view › ${tab}`).not.toMatch(/\bAJ-E\d+|\bE\d+\+|\(E\d+\)|\bD-\d{2}\b|lands with/);
-      }
-      await page.screenshot({ path: resolve(GALLERY, `72-tool-view/actions-${vp.name}-${theme}.png`), fullPage: true });
+      // AJ-E1533: a tool's page is its body alone (no tabs); its actions
+      // are the header's Add account… and its ⋯ menu.
+      const inspector = page.getByTestId("right-inspector");
+      await expect(inspector.getByRole("tablist")).toHaveCount(0);
+      const text = (await page.getByTestId("provider-overview").innerText()) ?? "";
+      expect(text, "tool view").not.toMatch(/\bAJ-E\d+|\bE\d+\+|\(E\d+\)|\bD-\d{2}\b|lands with/);
+      await expect(page.getByTestId("header-add-account")).toBeVisible();
+      await page.getByTestId("header-menu").click();
+      await expect(page.getByRole("menu")).toBeVisible();
+      await page.screenshot({ path: resolve(GALLERY, `72-tool-view/header-menu-${vp.name}-${theme}.png`), fullPage: true });
     });
   }
 }
@@ -4288,8 +4319,10 @@ for (const theme of THEMES) {
       await page.getByRole("tab", { name: "Processes" }).click();
       await expect(page.getByTestId("remote-processes")).toBeVisible();
       await page.screenshot({ path: resolve(GALLERY, `45-remote/instance-processes-${vp.name}-${theme}.png`) });
-      await page.getByRole("tab", { name: "Usage" }).click();
-      await expect(page.getByTestId("remote-unavailable").first()).toBeVisible();
+      // AJ-E1533: a remote session's tabs are its own (no Usage tab).
+      await expect(page.getByRole("tablist", { name: "Session tabs" }).getByRole("tab")).toHaveText(["Overview", "Quality", "Processes", "Actions"]);
+      await page.getByRole("tab", { name: "Quality" }).click();
+      await expect(page.getByTestId("remote-quality")).toBeVisible();
       await page.getByRole("tab", { name: "Overview" }).click();
     });
 
@@ -4747,8 +4780,9 @@ for (const theme of THEMES) {
       await page.getByRole("button", { name: /Work Max/ }).first().click();
       await expect(page.getByTestId("instance-identity")).toBeVisible();
       await page.screenshot({ path: resolve(GALLERY, `51-identity/rail-and-chip-${vp.name}-${theme}.png`) });
-      await page.getByRole("tab", { name: "Actions" }).click();
-      await page.getByRole("button", { name: /Resume|Relaunch/ }).first().click();
+      // AJ-E1533: relaunch an ended Work Max session from its page header.
+      await page.locator('[data-instance-id="sess-6"]').first().click(); // finished
+      await page.getByTestId("header-relaunch").click();
       await expect(page.getByTestId("identity-mismatch")).toBeVisible();
       await expect(page.getByTestId("identity-detected")).toHaveText("o…@home.example");
       await page.screenshot({ path: resolve(GALLERY, `51-identity/wrong-account-${vp.name}-${theme}.png`) });
@@ -4828,8 +4862,9 @@ for (const theme of THEMES) {
       await page.screenshot({ path: resolve(GALLERY, `52-worktree/dirty-removal-${vp.name}-${theme}.png`) });
       await page.keyboard.press("Escape");
       if (vp.name === "1280x800") {
-        await page.getByRole("tab", { name: "Actions" }).click();
-        await page.getByRole("button", { name: /Resume|Relaunch/ }).first().click();
+        // AJ-E1533: relaunch an ended session from its page header.
+        await page.locator('[data-instance-id="sess-6"]').first().click(); // finished
+        await page.getByTestId("header-relaunch").click();
         await expect(page.getByTestId("isolation-offer")).toBeVisible();
         await page.screenshot({ path: resolve(GALLERY, `52-worktree/offer-1280x800-${theme}.png`) });
       }
@@ -4941,7 +4976,7 @@ for (const theme of THEMES) {
       await expect(page.getByTestId("summary-headline")).toContainText("1 crashed · 3 needs you");
       await page.screenshot({ path: resolve(GALLERY, `54-summary/home-${vp.name}-${theme}.png`) });
       await page.getByTestId("summary-row").first().click();
-      await expect(page.getByRole("tab", { name: "Quality / Performance" })).toBeVisible();
+      await expect(page.getByTestId("page-header")).toBeVisible(); // AJ-E1533: the item's page
       await page.screenshot({ path: resolve(GALLERY, `54-summary/opened-${vp.name}-${theme}.png`) });
     });
   }

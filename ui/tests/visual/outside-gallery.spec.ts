@@ -66,7 +66,8 @@ for (const theme of ["dark", "light"] as const) {
   test(`a project's page, listing them — ${theme}`, async ({ page }) => {
     await seed(page, theme);
     await page.getByTestId("rail").getByTestId("rail-project").first().click();
-    await expect(page.getByTestId("project-outside")).toBeVisible();
+    // AJ-E1533: the project's body lists every session, outside ones too.
+    await expect(page.getByTestId("page-panel-sessions").locator('[data-testid="page-session-row"][data-outside="true"]').first()).toBeVisible();
     await shoot(page, "project-page", theme);
   });
 }

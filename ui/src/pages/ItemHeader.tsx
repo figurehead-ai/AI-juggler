@@ -200,7 +200,10 @@ export function InspectorHeader({
     kind === "instance" && instance ? (
       <>
         <span data-testid="session-subline">{sessionFacts(instance, now)}</span>
-        {isActiveStatus(instance.status) && <SessionResources session={instance} />}
+        {/* Once something's measured: never a line of dashes. */}
+        {isActiveStatus(instance.status) && (instance.cpu_pct !== null || instance.rss_bytes !== null || instance.child_count !== null) && (
+          <SessionResources session={instance} />
+        )}
       </>
     ) : kind === "project" && data.project ? (
       <ProjectFacts project={data.project} sessions={sessions} />
@@ -212,7 +215,8 @@ export function InspectorHeader({
   const actions = (
     <>
       {/* D-25: the session's one-step-away move, beside its Stop. */}
-      {kind === "instance" && instance && instance.kind !== "desktop" && (
+      {/* Only with a conversation to carry over: the menu's own rule. */}
+      {kind === "instance" && instance && instance.kind !== "desktop" && instance.conversation_id !== null && (
         <Button size="sm" variant="secondary" data-testid="header-switch" onClick={() => window.dispatchEvent(new Event("aij:focus-handover"))}>
           Switch account…
         </Button>

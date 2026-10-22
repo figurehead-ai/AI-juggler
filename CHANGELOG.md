@@ -243,6 +243,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   you and the tool. Two ways in, **Find my accounts** and **Add a fresh
   account**, and a short "How it works". Usage and Fleet point back to
   it while no account is in.
+- **One kind of page for everything** (AJ-E1533). A session, a project,
+  an account and a tool now open the same kind of page. It says what the
+  item is and what it belongs to, shows its tabs (only those with
+  something in them), and keeps its actions at the top.
+  - A project's page lists every session that worked there, yours from
+    your own terminal too, live first. It shows its branch and what
+    isn't committed, and what each account spent there.
+  - A session's numbers agree from its header to every tab.
+  - Open an account from its name on Accounts, and a tool from More ›
+    Tools.
+- **Always know where you are** (AJ-E1534). The open item is selected
+  in the list (and scrolled to), whatever it is, and the top bar follows
+  the page you're on. Each kind of item has its own mark. Folders show
+  as `~/…`, never the full path.
 - **Sessions started outside AI Juggler** (AJ-E1529). Every account's
   conversations now show, the ones you started in your own terminal or
   in the Claude app too: under their project in the list (live ones first, with a

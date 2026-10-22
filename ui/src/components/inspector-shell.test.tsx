@@ -54,7 +54,7 @@ const instance: InstanceInfo = {
   kind: "terminal",
   isolation_label: null,
   project_id: "proj-1",
-  conversation_id: null,
+  conversation_id: "conv-1",
 };
 
 const project: ProjectInfo = {

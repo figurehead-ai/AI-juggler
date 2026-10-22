@@ -153,7 +153,8 @@ for (const theme of THEMES) {
         await open(page, theme, density, vp);
         await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
         await page.getByRole("button", { name: /Work Max/ }).first().click();
-        await expect(page.getByRole("tab", { name: "Quality / Performance" })).toBeVisible();
+        // AJ-E1533: a session's page opens on its body, the Terminal tab.
+        await expect(page.getByRole("tab", { name: "Terminal" })).toHaveAttribute("aria-selected", "true");
         await expect(page).toHaveScreenshot(`inspector-instance-${cell}.png`, SCREEN);
       });
 
@@ -183,7 +184,8 @@ for (const theme of THEMES) {
         await open(page, theme, density, vp);
         await expect(page.getByTestId("instance-board")).toBeVisible();
         await page.getByTestId("rail").getByRole("button", { name: /^ai-juggler/ }).first().click();
-        await expect(page.getByTestId("project-on-it-now")).toBeVisible();
+        // AJ-E1533: a project's page opens on its body, its sessions.
+        await expect(page.getByTestId("page-panel-sessions").getByTestId("page-session-row").first()).toBeVisible();
         await page.mouse.move(0, 0);
         await expect(page).toHaveScreenshot(`inspector-project-${cell}.png`, SCREEN);
       });

@@ -346,8 +346,8 @@ function InspectorPanel(props: PanelProps & { tab: PageTabId }) {
 
 /** An account's sessions, on every project. */
 function AccountSessions(props: PanelProps) {
-  const rows = useSessionRows(props.sessions, { accountId: props.data.account?.id ?? "" }, props.onOpenSession);
-  return <SessionsList rows={rows} now={props.now} empty="No sessions on this account yet." />;
+  const rows = useSessionRows(props.sessions, { accountId: props.data.account?.id ?? "" }, props.onOpenSession, props.now);
+  return <SessionsList rows={rows} empty="No sessions on this account yet." />;
 }
 
 /// The Processes-tab data/action seam (AJ-E410): production resolves the

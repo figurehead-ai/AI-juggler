@@ -10,7 +10,7 @@ import { ToolMark } from "../components/ToolMark";
 import { sessionTitle } from "../components/ManageWork";
 import { conversationTitle, outside, useConversations } from "../lib/conversations";
 import { useActionHost } from "../components/ItemMenu";
-import { ago, minutes } from "../lib/time-words";
+import { ago, agoWords, sessionWhen } from "../lib/time-words";
 import type { InstanceInfo } from "../lib/bridge";
 
 /** How many rows show before "Show all". */
@@ -20,7 +20,8 @@ type Row = {
   key: string;
   live: boolean;
   last: number;
-  started: number;
+  /** When, in the rail's words. */
+  when: string;
   title: string;
   detail: string | null;
   state: string;
@@ -36,6 +37,7 @@ export function useSessionRows(
   sessions: InstanceInfo[],
   scope: { projectId?: string; accountId?: string },
   onOpenSession: (id: string) => void,
+  now: number,
 ): Row[] {
   const { all } = useConversations();
   const host = useActionHost();
@@ -48,7 +50,7 @@ export function useSessionRows(
       key: `s/${session.id}`,
       live: isActiveStatus(session.status),
       last: session.last_activity_ms ?? session.started_at_ms,
-      started: session.started_at_ms,
+      when: sessionWhen(session, now),
       title: sessionTitle(session),
       detail: null,
       state: STATE_WORDS[session.status] ?? session.status,
@@ -64,7 +66,8 @@ export function useSessionRows(
       key: `c/${conversation.account_id}/${conversation.id}`,
       live: conversation.live,
       last: conversation.last_activity_ms ?? conversation.started_ms ?? 0,
-      started: conversation.started_ms ?? conversation.last_activity_ms ?? 0,
+      // As the rail says it for an outside one (OutsideConversations).
+      when: conversation.last_activity_ms === null ? "" : conversation.live ? ago(conversation.last_activity_ms, now) : agoWords(conversation.last_activity_ms, now),
       title: conversationTitle(conversation),
       detail: conversation.git_branch,
       state: conversation.live ? "Running" : "Ended",
@@ -77,7 +80,7 @@ export function useSessionRows(
   return [...mine, ...theirs].sort((a, b) => Number(b.live) - Number(a.live) || b.last - a.last);
 }
 
-export function SessionsList({ rows, now, empty }: { rows: Row[]; now: number; empty: string }): JSX.Element {
+export function SessionsList({ rows, empty }: { rows: Row[]; empty: string }): JSX.Element {
   const [all, setAll] = useState(false);
   if (rows.length === 0) {
     return (
@@ -124,9 +127,7 @@ export function SessionsList({ rows, now, empty }: { rows: Row[]; now: number; e
                 <span aria-hidden="true" className="hidden sm:inline">{row.accountLabel}</span>
                 <span className="sr-only">on {row.accountLabel}</span>
               </span>
-              <span className="w-16 shrink-0 text-right font-mono text-xs text-faint" title={row.live ? "Running for" : "Last activity"}>
-                {row.live ? minutes(row.started, now) : ago(row.last, now)}
-              </span>
+              <span className="w-16 shrink-0 text-right font-mono text-xs text-faint">{row.when}</span>
             </button>
           </li>
         ))}

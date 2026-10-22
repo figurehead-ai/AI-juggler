@@ -138,9 +138,10 @@ test("a pasted pairing link fills the code and is sent whole", async ({ page }) 
   expect(await calls(page)).toContain("pair-join:100.64.0.2");
 });
 
-// AJ-E705: a remote selection uses the same six tabs; an offline peer
-// shows its stale state without a spinner deadlock; ⌘[ goes back.
-test("a remote Instance fills the same six-tab inspector and offline never deadlocks", async ({ page }) => {
+// AJ-E705 / AJ-E1533: a remote session opens the one page model (its
+// tabs: Overview, Quality, Processes, Actions); an offline peer shows its
+// stale state without a spinner deadlock; ⌘[ goes back.
+test("a remote session opens its page with its own tabs and offline never deadlocks", async ({ page }) => {
   const now = Date.now();
   const machine = {
     machine_id: "machine-mini", label: "Mac mini", connection: "connected", freshness: "live",
@@ -161,10 +162,13 @@ test("a remote Instance fills the same six-tab inspector and offline never deadl
     __AIJ_FLEET_REMOTE__: [machine],
   });
   await page.getByTestId("fleet-remote-instance").click();
-  const tabs = page.getByRole("tablist", { name: /inspector tabs/ }).getByRole("tab");
-  await expect(tabs).toHaveText(["Overview", "Usage", "History", "Quality / Performance", "Processes", "Actions"]);
-  for (const name of ["Overview", "Usage", "History", "Quality / Performance", "Processes", "Actions"]) {
-    await page.getByRole("tab", { name }).click();
+  await expect(page.getByTestId("page-type")).toHaveText("Session");
+  await expect(page.getByTestId("page-crumbs")).toContainText("Fleet");
+  await expect(page.getByTestId("page-crumbs")).toContainText("Mac mini");
+  const tabs = page.getByRole("tablist", { name: "Session tabs" }).getByRole("tab");
+  await expect(tabs).toHaveText(["Overview", "Quality", "Processes", "Actions"]);
+  for (const name of await tabs.allInnerTexts()) {
+    await tabs.filter({ hasText: name }).click();
     await expect(page.getByRole("tabpanel", { name })).toBeVisible();
   }
   await expect(page.getByTestId("remote-stop")).toBeDisabled();

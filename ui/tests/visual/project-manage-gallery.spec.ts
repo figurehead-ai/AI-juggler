@@ -127,6 +127,8 @@ for (const theme of ["dark", "light"] as const) {
   test(`a moved folder: Relocate… on the banner — ${theme}`, async ({ page }) => {
     await seed(page, theme);
     await page.getByTestId("rail-history-project").filter({ hasText: "billing" }).click();
+    // AJ-E1533: the missing-folder banner sits on the project's Overview.
+    await page.getByRole("tablist", { name: "Project tabs" }).getByRole("tab", { name: "Overview" }).click();
     const banner = page.getByTestId("project-missing-banner");
     await expect(banner.getByRole("button", { name: "Relocate…" })).toBeEnabled();
     await page.mouse.move(0, 0);

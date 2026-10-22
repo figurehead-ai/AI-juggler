@@ -46,7 +46,7 @@ import { ActionHostProvider, useItemMenu } from "./ItemMenu";
 import { OutsideRows, outsideScope, railSlice, withOutsideGroups } from "./OutsideConversations";
 import { FilterChip, Select } from "./RailControls";
 import { liveOutside, useConversations } from "../lib/conversations";
-import { ago } from "../lib/time-words";
+import { sessionWhen } from "../lib/time-words";
 import type { ActionHost } from "../lib/actions";
 import {
   AccountDisc,
@@ -948,12 +948,11 @@ export function RailRow({
   // AJ-E1502: the user's name for it shows over its own title.
   const title = session.label ?? session.git_branch ?? folder;
   const ended = ["finished", "stopped", "handed_over"].includes(session.status);
-  const since = ended ? (session.last_activity_ms ?? session.started_at_ms) : (session.attention?.since_ms ?? session.started_at_ms);
   const parked = parkedWords(session, now);
   const state = parked ? parked.chip : (RAIL_STATE[session.status] ?? chip.label);
   const left = session.quota ? Math.round(100 - session.quota.used_percentage) : null;
   const low = left !== null && left <= 25 ? `${Math.max(0, left)}% left` : null;
-  const when = ended ? `${ago(since, now)} ago` : ago(since, now);
+  const when = sessionWhen(session, now);
   // D-25: the row stays calm — these markers appear only when they are
   // the exception worth a glance (a sign-in to check, uncommitted work,
   // a value that stopped updating); the session view has the rest.

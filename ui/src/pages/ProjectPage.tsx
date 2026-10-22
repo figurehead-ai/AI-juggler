@@ -12,7 +12,7 @@ import { useActionHost } from "../components/ItemMenu";
 import { useProjectManage } from "../components/ManageWork";
 import { ProjectDefaultAccount } from "../components/ProjectDefaultAccount";
 import { SwitchGraph } from "../components/SwitchGraph";
-import { homeRelative, projectStats } from "../lib/project-words";
+import { homeRelative, lastWorked, projectStats } from "../lib/project-words";
 import { AccountDisc, isActiveStatus } from "../components/indicator";
 import { IconTerminal } from "../components/icons";
 import { Button, Card } from "../components/primitives";
@@ -76,9 +76,18 @@ export function ProjectFacts({ project, sessions }: { project: ProjectInfo; sess
 export function ProjectSessions(props: ProjectPanelProps) {
   const project = props.project;
   const host = useActionHost();
-  const rows = useSessionRows(props.sessions, { projectId: project?.id ?? "" }, props.onOpenSession);
-  if (rows.length > 0) return <SessionsList rows={rows} now={props.now} empty="" />;
+  const rows = useSessionRows(props.sessions, { projectId: project?.id ?? "" }, props.onOpenSession, props.now);
   const start = () => (host.newSessionIn ? host.newSessionIn(project) : window.dispatchEvent(new Event("aij:new-session")));
+  return (
+    <div className="flex flex-col gap-3">
+      <MissingBanner project={project} onStopped={props.onStopped} />
+      {rows.length > 0 ? <SessionsList rows={rows} empty="" /> : <EmptyProject project={project} now={props.now} onStart={start} />}
+    </div>
+  );
+}
+
+/** A project with no session yet: what was done there, and a start. */
+function EmptyProject({ project, now, onStart }: { project: ProjectInfo; now: number; onStart: () => void }) {
   return (
     <Card className="flex flex-col items-center gap-3 p-6 text-center" data-testid="project-empty">
       {/* 0.0.11 walk, Q2: a project known from the setups' history says
@@ -87,13 +96,13 @@ export function ProjectSessions(props: ProjectPanelProps) {
         <div className="flex flex-col items-center gap-1">
           <p className="text-[12px] font-medium text-ink">Nothing started from AI Juggler here yet</p>
           <p className="text-[11.5px] text-muted" data-testid="project-history-line">
-            {projectStats(project, props.now).join(" · ")}
+            {projectStats(project, now).join(" · ")}
           </p>
         </div>
       ) : (
         <p className="text-[12px] font-medium text-ink">No sessions in this project yet</p>
       )}
-      <Button size="sm" variant="primary" onClick={start}>
+      <Button size="sm" variant="primary" onClick={onStart}>
         <IconTerminal width={13} height={13} />
         Start first session
       </Button>
@@ -108,7 +117,6 @@ export function ProjectSessions(props: ProjectPanelProps) {
  * travelled. */
 export function ProjectOverview(props: ProjectPanelProps) {
   const project = props.project;
-  const manage = useProjectManage(props.onStopped);
   const { all: conversations } = useConversations();
   const rows = props.sessions.filter((s) => s.project_id === project.id);
   const theirs = outside(conversations).filter((c) => c.project_id === project.id);
@@ -140,17 +148,7 @@ export function ProjectOverview(props: ProjectPanelProps) {
     });
   return (
     <div className="flex flex-col gap-3" data-testid="project-overview">
-      {project.missing ? (
-        <div className="flex items-center gap-3 rounded-xl border border-danger/40 bg-danger-soft px-4 py-3" data-testid="project-missing-banner" role="alert">
-          <span className="text-[12px] font-medium text-danger">Project directory is missing</span>
-          <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted">{project.root}</span>
-          {/* AJ-E1502: point it at where the folder moved. */}
-          <Button size="sm" variant="secondary" onClick={() => void manage.actions.relocate(project)}>
-            Relocate…
-          </Button>
-        </div>
-      ) : null}
-      {manage.element}
+      <MissingBanner project={project} onStopped={props.onStopped} />
       <Card className="flex flex-col gap-2 p-4" data-testid="project-summary">
         <p className="text-[11px] uppercase tracking-wider text-muted">At a glance</p>
         <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1.5 text-[12px]">
@@ -158,8 +156,13 @@ export function ProjectOverview(props: ProjectPanelProps) {
           <dd className="text-ink" data-testid="project-sessions-ever">
             {rows.length + theirs.length}
             {theirs.length > 0 && <span className="text-muted"> ({theirs.length} outside AI Juggler)</span>}
-            {project.history_sessions > 0 && <span className="text-muted"> · {projectStats(project, props.now).join(" · ")}</span>}
           </dd>
+          {lastWorked(project) > 0 && (
+            <>
+              <dt className="text-muted">Last worked</dt>
+              <dd className="text-ink">{projectStats(project, props.now)[0]}</dd>
+            </>
+          )}
           <dt className="text-muted">Accounts</dt>
           <dd className="text-ink">{accountsUsed.join(", ") || "None yet"}</dd>
         </dl>
@@ -220,5 +223,24 @@ export function ProjectOverview(props: ProjectPanelProps) {
         <SwitchGraph projectId={project.id} onOpenSession={props.onOpenSession} />
       </Card>
     </div>
+  );
+}
+
+/** A project whose folder moved, said first on whichever tab is open,
+ * with Relocate… to point it at where it went (AJ-E1502). */
+function MissingBanner({ project, onStopped }: { project: ProjectInfo; onStopped: () => void }) {
+  const manage = useProjectManage(onStopped);
+  if (!project.missing) return null;
+  return (
+    <>
+      <div className="flex items-center gap-3 rounded-xl border border-danger/40 bg-danger-soft px-4 py-3" data-testid="project-missing-banner" role="alert">
+        <span className="text-[12px] font-medium text-danger">Project directory is missing</span>
+        <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted">{homeRelative(project.root)}</span>
+        <Button size="sm" variant="secondary" onClick={() => void manage.actions.relocate(project)}>
+          Relocate…
+        </Button>
+      </div>
+      {manage.element}
+    </>
   );
 }

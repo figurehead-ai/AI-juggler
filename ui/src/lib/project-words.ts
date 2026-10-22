@@ -3,7 +3,7 @@
  * conversations, and who — the rail row's second line, and the project
  * page's history line.
  */
-import { ago } from "./time-words";
+import { agoWords } from "./time-words";
 import type { ProjectInfo } from "./bridge";
 
 /** When a project was last worked in: here or, before that, elsewhere. */
@@ -16,7 +16,7 @@ export function projectStats(project: ProjectInfo, now: number): string[] {
   // When first (a narrow rail cuts from the end), then how much, then who.
   const parts: string[] = [];
   const at = lastWorked(project);
-  if (at > 0) parts.push(ago(at, now) === "now" ? "just now" : `${ago(at, now)} ago`);
+  if (at > 0) parts.push(agoWords(at, now));
   const conversations = project.history_sessions + project.instance_count;
   if (conversations > 0) parts.push(conversations === 1 ? "1 conversation" : `${conversations} conversations`);
   const accounts = project.accounts_used.length;

@@ -74,8 +74,10 @@
 | AJ-E1524 | PASS12 | 2026-10-21 | [manifest](AJ-E1524/manifest.md) |
 | AJ-E1525 | PASS12 | 2026-10-21 | [manifest](AJ-E1525/manifest.md) |
 | AJ-E1526 | PASS7 | 2026-10-21 | [manifest](AJ-E1526/manifest.md) |
-| AJ-E1529 | PASS11 | — | [manifest](AJ-E1529/manifest.md) |
+| AJ-E1529 | PASS13 | — | [manifest](AJ-E1529/manifest.md) |
 | AJ-E1531 | PASS5 | 2026-10-21 | [manifest](AJ-E1531/manifest.md) |
+| AJ-E1533 | PASS8 | — | [manifest](AJ-E1533/manifest.md) |
+| AJ-E1534 | PASS5 | — | [manifest](AJ-E1534/manifest.md) |
 | AJ-E1537 | PASS6 | 2026-10-21 | [manifest](AJ-E1537/manifest.md) |
 | AJ-E201 | PASS8 | 2026-10-16 | [manifest](AJ-E201/manifest.md) |
 | AJ-E2011 | PASS4 | 2026-10-21 | [manifest](AJ-E2011/manifest.md) |

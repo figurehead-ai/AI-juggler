@@ -26,3 +26,22 @@ export function since(ms: number, now: number): string {
   if (secs < 48 * 3600) return `${Math.floor(secs / 3600)}h`;
   return `${Math.floor(secs / 86_400)}d`;
 }
+
+/** A session row's "when", the same everywhere (the rail, a project's or
+ * an account's list): an ended one since its last activity ("3 h ago"); a
+ * live one since what it's doing now began (waiting, stuck), else since
+ * it started ("40 min"). */
+export function sessionWhen(
+  session: { status: string; started_at_ms: number; last_activity_ms: number | null; attention?: { since_ms: number } | null },
+  now: number,
+): string {
+  const ended = ["finished", "stopped", "handed_over"].includes(session.status);
+  const since = ended ? (session.last_activity_ms ?? session.started_at_ms) : (session.attention?.since_ms ?? session.started_at_ms);
+  return ended ? agoWords(since, now) : ago(since, now);
+}
+
+/** How long ago, in words: "just now", else "3 h ago" (never "now ago"). */
+export function agoWords(ms: number, now: number): string {
+  const short = ago(ms, now);
+  return short === "now" ? "just now" : `${short} ago`;
+}
