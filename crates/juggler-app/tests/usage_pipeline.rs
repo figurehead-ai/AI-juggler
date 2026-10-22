@@ -695,3 +695,76 @@ fn a_compressed_codex_history_is_read() {
         "the compressed rollout's usage is counted"
     );
 }
+
+/// #131 review: credits never go back in time. A plain rollout reports a
+/// balance today; an old compressed rollout read afterwards reports the
+/// balance of weeks ago. The card keeps today's.
+#[test]
+fn an_old_compressed_rollout_never_moves_the_credits_back() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    let home = dir.path().join("codex-home");
+    let credits_line = |ts: &str, balance: &str| {
+        format!(
+            "{{\"timestamp\":\"{ts}\",\"type\":\"event_msg\",\"payload\":{{\"type\":\"token_count\",\"info\":null,\"rate_limits\":{{\"limit_id\":\"l\",\"primary\":null,\"secondary\":null,\"credits\":{{\"has_credits\":true,\"unlimited\":false,\"balance\":\"{balance}\"}}}}}}}}\n"
+        )
+    };
+    let today = home.join("sessions/2026/10/21");
+    std::fs::create_dir_all(&today).unwrap();
+    std::fs::write(
+        today.join("rollout-2026-10-21T10-00-00-th-new.jsonl"),
+        credits_line("2026-10-21T10:00:00.000Z", "16.25"),
+    )
+    .unwrap();
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .accounts()
+        .insert(&Account {
+            id: AccountId::new("acc-codex"),
+            harness: HarnessId::new("codex"),
+            label: "codex".into(),
+            plan: None,
+            state_dir: home.clone(),
+            cleanup_opt_in: false,
+            renewal_date: None,
+            preview_opt_in: false,
+            import_source_path: None,
+            import_origin: None,
+            imported_at: None,
+            in_place: false,
+        })
+        .unwrap();
+    let balance = || {
+        let blob = state
+            .storage
+            .lock()
+            .unwrap()
+            .app_settings()
+            .get(&format!("{}acc-codex", usage_pipeline::CREDITS_KEY_PREFIX))
+            .unwrap()
+            .unwrap();
+        serde_json::from_str::<serde_json::Value>(&blob).unwrap()["balance"]
+            .as_str()
+            .unwrap()
+            .to_owned()
+    };
+    usage_pipeline::ingest_pass(&state, 4);
+    assert_eq!(balance(), "16.25");
+    // Codex compressed an old one; it is read now, whole.
+    let old = home.join("sessions/2026/09/01");
+    std::fs::create_dir_all(&old).unwrap();
+    let zst = old.join("rollout-2026-09-01T10-00-00-th-old.jsonl.zst");
+    std::fs::write(
+        &zst,
+        zstd::encode_all(
+            credits_line("2026-09-01T10:00:00.000Z", "40.00").as_bytes(),
+            3,
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    usage_pipeline::ingest_pass(&state, 8);
+    assert_eq!(balance(), "16.25", "the newest balance stays");
+}

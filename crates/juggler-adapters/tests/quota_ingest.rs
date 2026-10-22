@@ -1443,15 +1443,75 @@ fn a_compressed_rollout_reads_like_the_plain_one_once() {
     assert_eq!(again.offset, got.offset);
 }
 
-/// A compressed rollout that isn't valid zstd (damaged, or still being
-/// written) is one bad line, never a crash or a half read.
+/// Back-dates a file, as one written a while ago.
+fn written_a_minute_ago(path: &Path) {
+    std::fs::File::options()
+        .write(true)
+        .open(path)
+        .unwrap()
+        .set_modified(std::time::SystemTime::now() - std::time::Duration::from_secs(60))
+        .unwrap();
+}
+
+/// A compressed rollout that won't decode, written a while ago, is one bad
+/// line and isn't read again until its size changes; then it is, and once
+/// whole it reads like any other.
 #[test]
-fn a_damaged_compressed_rollout_is_a_bad_line() {
+fn a_damaged_compressed_rollout_is_one_bad_line_until_it_changes() {
     let dir = tempfile::tempdir().unwrap();
     let zst = dir.path().join("rollout-x.jsonl.zst");
     std::fs::write(&zst, b"not zstd at all").unwrap();
+    written_a_minute_ago(&zst);
+    let first = tail_rollout(&zst, "acc", 0, &RolloutCarry::default());
+    assert!(first.events.is_empty());
+    assert_eq!(first.parse_errors, 1);
+    assert_eq!(first.offset, 15);
+    let again = tail_rollout(&zst, "acc", first.offset, &RolloutCarry::default());
+    assert_eq!(again.parse_errors, 0, "counted once");
+    // Rewritten whole: its size changed, so it is read again.
+    let plain = std::fs::read(fixture("codex-rollout-rate-limits.jsonl")).unwrap();
+    std::fs::write(&zst, zstd::encode_all(&plain[..], 3).unwrap()).unwrap();
+    written_a_minute_ago(&zst);
+    let whole = tail_rollout(&zst, "acc", again.offset, &RolloutCarry::default());
+    assert_eq!(whole.parse_errors, 0);
+    assert_eq!(whole.offset, std::fs::metadata(&zst).unwrap().len());
+    assert!(!whole.samples.is_empty() || !whole.events.is_empty());
+}
+
+/// One that won't decode and changed in the last few seconds may still be
+/// being written: not ready, nothing counted, read again next pass.
+#[test]
+fn a_compressed_rollout_still_being_written_is_not_ready() {
+    let dir = tempfile::tempdir().unwrap();
+    let zst = dir.path().join("rollout-x.jsonl.zst");
+    let plain = std::fs::read(fixture("codex-rollout-rate-limits.jsonl")).unwrap();
+    let full = zstd::encode_all(&plain[..], 3).unwrap();
+    std::fs::write(&zst, &full[..full.len() / 2]).unwrap();
     let outcome = tail_rollout(&zst, "acc", 0, &RolloutCarry::default());
-    assert!(outcome.events.is_empty());
-    assert_eq!(outcome.parse_errors, 1);
-    assert_eq!(outcome.offset, 15);
+    assert_eq!(outcome.parse_errors, 0, "not counted against its health");
+    assert_eq!(outcome.offset, 0, "read again next pass");
+}
+
+/// A compressed rollout that grew (rewritten with more) is read again; its
+/// events are keyed, so only the new ones add anything once stored.
+#[test]
+fn a_compressed_rollout_that_grows_is_read_again() {
+    let dir = tempfile::tempdir().unwrap();
+    let zst = dir
+        .path()
+        .join("rollout-2026-10-21T10-00-00-th-sub.jsonl.zst");
+    let first = [started("00:00"), record("00:01", "t1", 100)].concat();
+    std::fs::write(&zst, zstd::encode_all(first.as_bytes(), 3).unwrap()).unwrap();
+    written_a_minute_ago(&zst);
+    let storage = Storage::open_in_memory().unwrap();
+    let pass1 = tail_rollout(&zst, "acc", 0, &RolloutCarry::default());
+    storage.usage().store_events(&pass1.events).unwrap();
+    let grown = [first, started("00:02"), record("00:03", "t2", 50)].concat();
+    std::fs::write(&zst, zstd::encode_all(grown.as_bytes(), 3).unwrap()).unwrap();
+    written_a_minute_ago(&zst);
+    let pass2 = tail_rollout(&zst, "acc", pass1.offset, &RolloutCarry::default());
+    assert_ne!(pass2.offset, pass1.offset);
+    storage.usage().store_events(&pass2.events).unwrap();
+    let rows = storage.usage().events_for_account("acc", 0).unwrap();
+    assert_eq!(rows.iter().map(|row| row.tokens.input).sum::<u64>(), 150);
 }

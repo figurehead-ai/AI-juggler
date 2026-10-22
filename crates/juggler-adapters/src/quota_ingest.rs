@@ -75,6 +75,9 @@ pub struct TailOutcome {
     /// Codex: compactions dropped this pass, past the waiting cap, before
     /// a record named their thread (their usage isn't counted).
     pub dropped: u64,
+    /// A file that wasn't read, and why (a compressed rollout too large to
+    /// trust): counted in the source's health with this note.
+    pub unread: Option<&'static str>,
 }
 
 // ---------------------------------------------------------------------------
@@ -1185,13 +1188,30 @@ pub fn tail_rollout(path: &Path, account: &str, offset: u64, carry: &RolloutCarr
     })
 }
 
+/// How much a compressed rollout may decompress to before AI Juggler stops
+/// and leaves it unread (a damaged or hostile file must not run on): far
+/// above any real rollout.
+const COMPRESSED_ROLLOUT_MAX: u64 = 4 << 30;
+
+/// Decompressed bytes taken at a time: what's in memory at once, besides
+/// the events read so far.
+const COMPRESSED_SLICE: usize = 8 << 20;
+
+/// A compressed rollout changed this recently may still be being written.
+const COMPRESSED_SETTLE: std::time::Duration = std::time::Duration::from_secs(10);
+
 /// A compressed rollout: complete, and Codex never writes to it again. It
-/// is read whole once (decompressed, bounded by
-/// [`crate::transcript::SESSION_FILE_MAX`]), from a fresh carry. Its offset
-/// is the compressed file's size, so a later pass with the same size reads
-/// nothing. A read that fails (a file still being written, a damaged one)
-/// counts as a bad line and records the size too: a file that is still
-/// being written changes size, and is read again once it's whole.
+/// is decompressed as a stream, a slice at a time, each slice parsed from
+/// the carry the one before left, so a large one never sits in memory
+/// whole. Its offset is the compressed file's size: a later pass with the
+/// same size reads nothing, and one that grew is read again (its events
+/// are keyed). A file that won't decode:
+/// - changed in the last few seconds: not ready, read again next pass, and
+///   nothing counted against its health;
+/// - otherwise: one bad line, not read again until its size changes.
+///
+/// One that decompresses past [`COMPRESSED_ROLLOUT_MAX`] is left unread
+/// with its own health note.
 fn read_compressed_rollout(path: &Path, account: &str, offset: u64) -> TailOutcome {
     let Ok(meta) = std::fs::metadata(path) else {
         return TailOutcome {
@@ -1206,21 +1226,82 @@ fn read_compressed_rollout(path: &Path, account: &str, offset: u64) -> TailOutco
             ..TailOutcome::default()
         };
     }
-    let mut outcome = match crate::transcript::read_session_file(path) {
-        Ok(bytes) => {
-            let whole = bytes
-                .iter()
-                .rposition(|byte| *byte == b'\n')
-                .map_or(0, |index| index + 1);
-            rollout_events_after(account, &bytes[..whole], RolloutCarry::default())
+    let settling = meta
+        .modified()
+        .ok()
+        .and_then(|at| at.elapsed().ok())
+        .is_some_and(|age| age < COMPRESSED_SETTLE);
+    match stream_compressed_rollout(path, account) {
+        Ok(mut outcome) => {
+            outcome.offset = size;
+            outcome
         }
-        Err(_) => TailOutcome {
+        Err(Unreadable::TooLarge) => TailOutcome {
+            offset: size,
+            unread: Some("a compressed rollout too large to read"),
+            ..TailOutcome::default()
+        },
+        Err(Unreadable::Damaged) if settling => TailOutcome {
+            offset,
+            ..TailOutcome::default()
+        },
+        Err(Unreadable::Damaged) => TailOutcome {
+            offset: size,
             parse_errors: 1,
             ..TailOutcome::default()
         },
-    };
-    outcome.offset = size;
-    outcome
+    }
+}
+
+/// Why a compressed rollout wasn't read.
+enum Unreadable {
+    TooLarge,
+    Damaged,
+}
+
+fn stream_compressed_rollout(path: &Path, account: &str) -> Result<TailOutcome, Unreadable> {
+    let file = std::fs::File::open(path).map_err(|_| Unreadable::Damaged)?;
+    let mut decoder = zstd::stream::Decoder::new(file).map_err(|_| Unreadable::Damaged)?;
+    let mut whole = TailOutcome::default();
+    let mut carry = RolloutCarry::default();
+    let mut pending: Vec<u8> = Vec::new();
+    let mut slice = vec![0u8; COMPRESSED_SLICE];
+    let mut total = 0u64;
+    loop {
+        let read = decoder.read(&mut slice).map_err(|_| Unreadable::Damaged)?;
+        if read == 0 {
+            break;
+        }
+        total += read as u64;
+        if total > COMPRESSED_ROLLOUT_MAX {
+            return Err(Unreadable::TooLarge);
+        }
+        pending.extend_from_slice(&slice[..read]);
+        let Some(last) = pending.iter().rposition(|byte| *byte == b'\n') else {
+            continue; // one long line, still coming
+        };
+        let part = rollout_events_after(account, &pending[..=last], carry);
+        carry = part.carry.clone();
+        merge_outcome(&mut whole, part);
+        pending.drain(..=last);
+    }
+    // A complete rollout ends with a newline; anything after the last one
+    // is a line that was never finished.
+    whole.carry = carry;
+    Ok(whole)
+}
+
+/// Adds one slice's outcome to the file's.
+fn merge_outcome(whole: &mut TailOutcome, part: TailOutcome) {
+    whole.events.extend(part.events);
+    whole.samples.extend(part.samples);
+    if let Some(seen) = part.credits
+        && whole.credits.as_ref().is_none_or(|kept| kept.ts <= seen.ts)
+    {
+        whole.credits = Some(seen);
+    }
+    whole.parse_errors += part.parse_errors;
+    whole.dropped += part.dropped;
 }
 
 /// The spool path for an account config dir (managed-dir-only law).
