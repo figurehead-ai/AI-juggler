@@ -90,7 +90,14 @@ fn port_inventory_classifies_orphan_and_unmanaged_listeners() {
 
     // Two ports nothing else holds (fixed ones collided with a developer's
     // own `vite` on 5173): the helper's and the stranger's.
-    let (helper_port, stranger_port) = (free_port(), free_port());
+    // Both held until both numbers are read (released one at a time, the
+    // OS could hand out the same one twice), then let go just before the
+    // listeners that take them start.
+    let held = (free_port(), free_port());
+    let port = |listener: &std::net::TcpListener| listener.local_addr().unwrap().port();
+    let (helper_port, stranger_port) = (port(&held.0), port(&held.1));
+    assert_ne!(helper_port, stranger_port);
+    drop(held);
     // The vite-like helper holds its port inside a supervised Instance.
     let session = SessionId::new("sess-e505");
     let spawned = state
@@ -230,11 +237,8 @@ fn port_inventory_classifies_orphan_and_unmanaged_listeners() {
     let _ = stranger.wait();
 }
 
-/// A port no process holds right now (the OS picks it; released at once).
-fn free_port() -> u16 {
-    std::net::TcpListener::bind("127.0.0.1:0")
-        .unwrap()
-        .local_addr()
-        .unwrap()
-        .port()
+/// A port no process holds (the OS picks it), held by the returned
+/// listener until it is dropped.
+fn free_port() -> std::net::TcpListener {
+    std::net::TcpListener::bind("127.0.0.1:0").unwrap()
 }
