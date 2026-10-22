@@ -1680,6 +1680,33 @@ parents. The backend keys them by their own id, which is right. The oracle now:
 - adds a "Codex all time" line to the compare: backend against oracle over every Codex
   session not written during the run.
 
+## Batch 23 — PR #131's new head (`c7a6d4c0`): P20 fixed
+
+The same method as batch 22: the harness on the head, Finder-like, into a fresh scratch
+folder.
+
+| | #131 `2b55db16` (batch 22) | #131 `c7a6d4c0` |
+|---|---|---|
+| Codex all time, backend / oracle | ×0.47 | **×1.02**: 19.60 B against 19.30 B, 2,204 sessions each |
+| Sessions with tokens and no cost row | 2 | **0** |
+| Cost rows only the backend has | 0 | 0 |
+| Rollout parse errors | — | 0 (the 2.28 GB and 1.58 GB threads read whole) |
+| Rows outside 5% | 12 of 2,255 | 12 of 2,255: the same six switch copies (P19) and six small Codex sessions at ×1.05–1.06 |
+| Rows priced | 698 of 2,521 | 729 of 2,552; every unpriced row is `codex-auto-review` (1,823) |
+| Account G weekly, 7 d | — | 1% used (the window moved at 13:09) = the rollouts; 7 d ×1.01 |
+
+- The ×1.02 is the repeat rows the fix session noted but didn't change here (×1.015 over
+  compressed sessions, median ×1.000).
+- The harness's peak memory was 4.9 GB over its whole run, about what the app itself uses
+  at startup on this setup (batch 21).
+- **Snapshots**: no path added or removed, and no `settings.json` or `config.toml`
+  changed. Two profiles' `.claude.json` changed size during the run (+232 and +42
+  bytes). The product only reads that file (account id, email, organisation:
+  `claude_code.rs`). Both files are written on their own clocks, as every snapshot
+  since 2026-10-21 15:18 shows: the first at :34:38–:34:39 every 6 hours (19:34, 01:40, 07:34, now
+  13:34:39), the second many times between runs (23:20:42, 05:20:42, 11:20:42). Neither
+  changed in the 10 minutes watched afterwards. They're the vendor's periodic writes.
+
 ## Not walked (blocked by W0, before the bridge)
 
 These need the window:
