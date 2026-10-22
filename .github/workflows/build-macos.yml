@@ -25,15 +25,17 @@
 #
 # No build cache is restored: a signed build starts from a clean runner so
 # nothing another workflow wrote can end up inside it.
+#
+# The commit to build comes from the run itself, never from an input: the
+# pull request's head in a rehearsal on a pull request, otherwise the
+# commit the caller was started on (nightly.yml runs only from main). So
+# no caller can hand this workflow a branch nobody reviewed while it runs
+# with the default branch's cache scope (CodeQL: cache poisoning).
 name: Build (macOS)
 
 on:
   workflow_call:
     inputs:
-      ref:
-        description: "Commit to build"
-        type: string
-        required: true
       version:
         description: "X.Y.Z (release_version.py next)"
         type: string
@@ -51,6 +53,10 @@ on:
 
 # Each job asks for what it needs, nothing more.
 permissions: {}
+
+env:
+  # The commit being released (see above).
+  REF: ${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
   preflight:
@@ -126,7 +132,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          ref: ${{ inputs.ref }}
+          ref: ${{ env.REF }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -140,7 +146,6 @@ jobs:
       - name: Version and notes
         env:
           PREVIOUS: ${{ inputs.previous }}
-          REF: ${{ inputs.ref }}
         run: |
           # The version is stamped into this checkout only (never committed).
           python3 scripts/release_version.py stamp "$VERSION"
@@ -259,7 +264,7 @@ jobs:
       # The signing scripts only, from the commit being released.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          ref: ${{ inputs.ref }}
+          ref: ${{ env.REF }}
           persist-credentials: false
           sparse-checkout: |
             scripts/sign_macos.sh
@@ -326,7 +331,7 @@ jobs:
       # The signing scripts only, from the commit being released.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          ref: ${{ inputs.ref }}
+          ref: ${{ env.REF }}
           persist-credentials: false
           sparse-checkout: |
             scripts/sign_macos.sh

@@ -35,7 +35,6 @@ jobs:
       contents: read
     outputs:
       version: ${{ steps.plan.outputs.version }}
-      ref: ${{ steps.plan.outputs.ref }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -45,12 +44,8 @@ jobs:
         id: plan
         env:
           RUN: ${{ github.run_number }}
-          REF: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
-          {
-            echo "version=$(python3 scripts/release_version.py next "$RUN")"
-            echo "ref=$REF"
-          } >> "$GITHUB_OUTPUT"
+          echo "version=$(python3 scripts/release_version.py next "$RUN")" >> "$GITHUB_OUTPUT"
 
   rehearse:
     needs: plan
@@ -58,6 +53,5 @@ jobs:
       contents: read
     uses: ./.github/workflows/build-macos.yml
     with:
-      ref: ${{ needs.plan.outputs.ref }}
       version: ${{ needs.plan.outputs.version }}
       dry_run: true

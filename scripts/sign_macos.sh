@@ -31,6 +31,21 @@ tarball="$1"
 out="$2"
 here="$(cd "$(dirname "$0")" && pwd)"
 retry=(python3 "$here/apple_retry.py" --)
+# hdiutil again while the image is busy (exit 16, EBUSY): macOS's disk
+# image helper or Spotlight can still hold an image just made or
+# detached, as on the 2026-10-21 rehearsal's Nightly edition. Any other
+# failure stops at once.
+hdi() {
+  local attempt status
+  for attempt in 1 2 3 4 5; do
+    status=0
+    hdiutil "$@" || status=$?
+    [ "$status" -eq 16 ] || return "$status"
+    echo "hdiutil $1: the image is busy (try $attempt of 5)" >&2
+    sleep $((attempt * 3))
+  done
+  return 16
+}
 rehearsal="${REHEARSAL:-}"
 : "${VERSION:?}" "${PREFIX:?}"
 
@@ -154,19 +169,19 @@ stage="$work/dmg"
 mkdir -p "$stage"
 ditto "$app" "$stage/$product.app"
 ln -s /Applications "$stage/Applications"
-hdiutil create -quiet -volname "$product" -srcfolder "$stage" -fs HFS+ -format UDRW -ov "$work/rw.dmg"
+hdi create -quiet -volname "$product" -srcfolder "$stage" -fs HFS+ -format UDRW -ov "$work/rw.dmg"
 icon="$(find "$app/Contents/Resources" -name '*.icns' | head -1)"
 if [ -n "$icon" ] && [ -x /usr/bin/SetFile ]; then
   mount="$work/mount"
   mkdir -p "$mount"
-  hdiutil attach -quiet -nobrowse -mountpoint "$mount" "$work/rw.dmg"
+  hdi attach -quiet -nobrowse -mountpoint "$mount" "$work/rw.dmg"
   cp "$icon" "$mount/.VolumeIcon.icns"
   chmod 644 "$mount/.VolumeIcon.icns"
   /usr/bin/SetFile -a C "$mount"
-  hdiutil detach -quiet "$mount"
+  hdi detach -quiet "$mount"
 fi
 dmg="$out/${PREFIX}-${VERSION}-universal.dmg"
-hdiutil convert -quiet "$work/rw.dmg" -format UDZO -o "$dmg" -ov
+hdi convert -quiet "$work/rw.dmg" -format UDZO -o "$dmg" -ov
 sign "$dmg"
 notarize "$dmg"
 staple "$dmg"

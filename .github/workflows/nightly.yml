@@ -36,9 +36,19 @@ jobs:
       ref: ${{ steps.plan.outputs.ref }}
       previous: ${{ steps.plan.outputs.previous }}
     steps:
+      - name: From main only
+        # build-macos.yml builds the commit this run started on, so a run
+        # started on any other branch would publish that branch.
+        env:
+          RUN_REF: ${{ github.ref }}
+        run: |
+          if [ "$RUN_REF" != "refs/heads/main" ]; then
+            echo "::error::The nightly is built from main only (this run is on $RUN_REF)."
+            exit 1
+          fi
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          ref: main
+          ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
       - name: What to build
@@ -78,7 +88,6 @@ jobs:
       contents: read
     uses: ./.github/workflows/build-macos.yml
     with:
-      ref: ${{ needs.plan.outputs.ref }}
       version: ${{ needs.plan.outputs.version }}
       previous: ${{ needs.plan.outputs.previous }}
     # The signing secrets live in the `release` environment, which only
