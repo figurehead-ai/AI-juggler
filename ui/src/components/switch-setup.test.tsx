@@ -90,8 +90,9 @@ describe("what the target lacks", () => {
     fireEvent.click(view.getByTestId("switch-confirm"));
     await waitFor(() => expect(view.getByTestId("switch-setup-results")).toBeTruthy());
     const results = view.getByTestId("switch-setup-results").textContent ?? "";
-    expect(results).toContain("Set up release-notes");
-    expect(results).toContain("Set up github");
+    expect(results).toContain("Set up on Personal");
+    expect(results).toContain("Set up the skill release-notes");
+    expect(results).toContain("Set up the MCP server github");
     expect(results).not.toContain("team-style");
   });
 
@@ -100,13 +101,13 @@ describe("what the target lacks", () => {
     await waitFor(() => expect(view.getByTestId("switch-setup")).toBeTruthy());
     fireEvent.click(view.getByTestId("switch-confirm"));
     await waitFor(() => expect(view.getByTestId("switch-setup-results")).toBeTruthy());
-    fireEvent.click(view.getByRole("button", { name: "Undo" }));
+    fireEvent.click(view.getByRole("button", { name: "Undo: Set up the skill release-notes" }));
     await waitFor(() =>
       expect(view.getByTestId("switch-setup-results").textContent).toContain(
-        "Undid record-skill-release-notes",
+        "Removed the skill release-notes",
       ),
     );
-    expect(view.queryByRole("button", { name: "Undo" })).toBeNull();
+    expect(view.queryByRole("button", { name: /^Undo/ })).toBeNull();
   });
 
   it("says so when the target already has everything", () => {

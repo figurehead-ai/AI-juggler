@@ -53,6 +53,19 @@ export const EXAMPLE_SETUP: SetupCheckInfo = {
   ],
 };
 
+/** Kinds in words, as the app writes them ("the skill release-notes"). */
+const KIND_WORDS: Record<string, string> = {
+  "mcp-server": "MCP server",
+  skill: "skill",
+  command: "command",
+  subagent: "subagent",
+  rules: "rules file",
+  plugin: "plugin",
+};
+
+/** What each preview set-up was, for its undo message. */
+const previewSetUps = new Map<string, string>();
+
 /** The preview's default: the target already has everything. */
 const MOCK: SetupCheckInfo = { from: "Work Max", to: "Personal", already_there: 3, offers: [] };
 
@@ -75,11 +88,12 @@ export async function switchSetupApply(
     const all = (seam() ?? MOCK).offers;
     return offers.map((id) => {
       const offer = all.find((candidate) => candidate.id === id);
-      return {
-        offer: id,
-        record: offer ? `record-${id}` : null,
-        message: offer ? `Set up ${offer.name}` : "It isn't on the source account any more",
-      };
+      if (!offer) {
+        return { offer: id, record: null, message: "It isn't on the source account any more" };
+      }
+      const what = `${KIND_WORDS[offer.kind] ?? offer.kind} ${offer.name}`;
+      previewSetUps.set(`record-${id}`, what);
+      return { offer: id, record: `record-${id}`, message: `Set up the ${what}` };
     });
   }
   return invoke<AppliedInfo[]>("switch_setup_apply", { sessionId, targetProfileId, offers });
@@ -87,6 +101,6 @@ export async function switchSetupApply(
 
 /** Undoes one set-up. */
 export async function switchSetupUndo(record: string): Promise<string> {
-  if (!hasLiveBackend()) return `Undid ${record}`;
+  if (!hasLiveBackend()) return `Removed the ${previewSetUps.get(record) ?? record}`;
   return invoke<string>("switch_setup_undo", { record });
 }

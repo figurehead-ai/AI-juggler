@@ -150,7 +150,7 @@ pub fn can_set_up(item: &Item) -> SetUp {
         )),
         _ => SetUp::Impossible(format!(
             "a {} from {} has no Claude Code equivalent",
-            kind_word(item.kind),
+            item.kind.words(),
             item.tool
         )),
     }
@@ -442,17 +442,6 @@ fn renumber_arguments(text: &str) -> String {
         out.push(c);
     }
     out
-}
-
-pub(crate) fn kind_word(kind: ItemKind) -> &'static str {
-    match kind {
-        ItemKind::McpServer => "MCP server",
-        ItemKind::Skill => "skill",
-        ItemKind::Command => "command",
-        ItemKind::Subagent => "subagent",
-        ItemKind::Rules => "rules file",
-        ItemKind::Plugin => "plugin",
-    }
 }
 
 #[cfg(test)]

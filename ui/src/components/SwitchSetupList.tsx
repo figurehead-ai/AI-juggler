@@ -113,24 +113,28 @@ export function SwitchSetupResults({
     }
   };
   return (
-    <ul className="flex flex-col gap-1" data-testid="switch-setup-results" aria-label={`Set up on ${target}`}>
-      {results.map((result) => {
-        const record = result.record;
-        return (
-          <li key={result.offer} className={"flex items-center gap-2 text-[11px] " + (record ? "text-muted" : "text-warning")}>
-            <span>{record && undone[record] ? undone[record] : result.message}</span>
-            {record && !undone[record] && (
-              <button
-                type="button"
-                onClick={() => void undo(record)}
-                className="rounded border border-hairline px-1.5 py-0.5 text-[10px] hover:bg-surface-2"
-              >
-                Undo
-              </button>
-            )}
-          </li>
-        );
-      })}
-    </ul>
+    <section className="flex flex-col gap-1" data-testid="switch-setup-results">
+      <h4 className="text-[11px] uppercase tracking-wider text-muted">Set up on {target}</h4>
+      <ul className="flex flex-col gap-1">
+        {results.map((result) => {
+          const record = result.record;
+          return (
+            <li key={result.offer} className={"flex items-center gap-2 text-[11px] " + (record ? "text-muted" : "text-warning")}>
+              <span>{record && undone[record] ? undone[record] : result.message}</span>
+              {record && !undone[record] && (
+                <button
+                  type="button"
+                  onClick={() => void undo(record)}
+                  aria-label={`Undo: ${result.message}`}
+                  className="rounded border border-hairline px-1.5 py-0.5 text-[10px] hover:bg-surface-2"
+                >
+                  Undo
+                </button>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }

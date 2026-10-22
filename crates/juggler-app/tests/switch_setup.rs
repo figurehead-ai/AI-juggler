@@ -234,7 +234,16 @@ fn codex_is_offered_the_claude_setup_in_its_own_form() {
         .record
         .clone()
         .unwrap();
-    undo_impl(&lab.state, &server).unwrap();
+    assert!(
+        applied
+            .iter()
+            .any(|a| a.message == "Set up the MCP server github"),
+        "{applied:?}"
+    );
+    assert_eq!(
+        undo_impl(&lab.state, &server).unwrap(),
+        "Removed the MCP server github"
+    );
     assert_eq!(
         std::fs::read_to_string(x.join("config.toml")).unwrap(),
         "model = \"gpt-6\"\n"

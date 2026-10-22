@@ -33,6 +33,21 @@ pub enum ItemKind {
     Plugin,
 }
 
+impl ItemKind {
+    /// The kind in words, for a sentence ("the skill release-notes").
+    #[must_use]
+    pub const fn words(self) -> &'static str {
+        match self {
+            Self::McpServer => "MCP server",
+            Self::Skill => "skill",
+            Self::Command => "command",
+            Self::Subagent => "subagent",
+            Self::Rules => "rules file",
+            Self::Plugin => "plugin",
+        }
+    }
+}
+
 /// Where an item applies.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, serde::Serialize)]
 #[serde(rename_all = "kebab-case")]

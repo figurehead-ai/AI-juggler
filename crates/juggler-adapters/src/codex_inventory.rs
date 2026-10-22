@@ -22,7 +22,7 @@ use juggler_adapter::inventory::{
     secret_variable, value_of,
 };
 
-use crate::claude_inventory::{children, kind_word, secret_names};
+use crate::claude_inventory::{children, secret_names};
 use crate::codex::CODEX_ID;
 
 /// Everything the Codex home `home` has set up. `user_home` is the user's
@@ -118,7 +118,7 @@ pub fn can_set_up(item: &Item) -> SetUp {
         }
         _ => SetUp::Impossible(format!(
             "a {} from {} has no Codex equivalent yet",
-            kind_word(item.kind),
+            item.kind.words(),
             item.tool
         )),
     }

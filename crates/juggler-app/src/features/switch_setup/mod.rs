@@ -76,6 +76,10 @@ struct Record {
     account: String,
     at_ms: i64,
     applied: Applied,
+    /// What it is, in words ("skill release-notes"); empty in records
+    /// made before it was kept.
+    #[serde(default)]
+    what: String,
 }
 
 /// The two sides of a switch, for the setup check.
@@ -250,17 +254,19 @@ pub fn apply_impl(
         }
         match target_adapter.set_up(&sides.target.state_dir, sides.project.as_deref(), item) {
             Ok(applied) => {
+                let what = format!("{} {}", item.kind.words(), item.name);
                 let record = Record {
                     id: format!("setup-{}", crate::commands::unique_suffix()),
                     account: sides.target.id.to_string(),
                     at_ms: juggler_core::model::Timestamp::now().millis(),
-                    applied: applied.clone(),
+                    applied,
+                    what: what.clone(),
                 };
                 save(state, &record)?;
                 out.push(AppliedInfo {
                     offer: id.clone(),
                     record: Some(record.id),
-                    message: applied.summary,
+                    message: format!("Set up the {what}"),
                 });
             }
             Err(error) => out.push(AppliedInfo {
@@ -302,7 +308,11 @@ pub fn undo_impl(state: &Arc<AppState>, record_id: &str) -> AppResult<String> {
             let _ = std::fs::remove_file(backup);
         }
     }
-    Ok(format!("Undid: {}", record.applied.summary))
+    Ok(if record.what.is_empty() {
+        format!("Undid: {}", record.applied.summary)
+    } else {
+        format!("Removed the {}", record.what)
+    })
 }
 
 fn undo(how: &Undo) -> AppResult<()> {
