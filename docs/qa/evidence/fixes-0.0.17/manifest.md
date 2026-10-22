@@ -20,6 +20,6 @@ Not a task's evidence. This covers batch 6's item 2: Codex read ×1.015 over com
 
 | Gate | Head | Result |
 |---|---|---|
-| `just verify` (`CARGO_INCREMENTAL=0`) | 0c57ced3 | 150 test binaries, 1,204 passed, 0 failed; every step after the tests OK; nothing left running |
-| `cargo deny check` | 0c57ced3 | advisories, bans, licenses, sources ok |
+| `just verify` (`CARGO_INCREMENTAL=0`) | 3d781516 (with the review) | 150 test binaries, 1,207 passed, 0 failed; every step after the tests OK; nothing left running |
+| `cargo deny check` | 3d781516 | advisories, bans, licenses, sources ok |
 | `vitest`, visual, a11y | — | nothing under `ui/` changed |
