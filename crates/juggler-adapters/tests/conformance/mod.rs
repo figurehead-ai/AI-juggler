@@ -38,6 +38,9 @@ use juggler_core::model::{
     Account, AccountId, Confidence, Profile, ProfileId, SettingsOverlay, TokenCounts,
 };
 use juggler_core::quota::{UsageEvent, UsageSource};
+#[cfg(unix)]
+#[path = "../../../juggler-supervisor/tests/fixtures/stand_in.rs"]
+mod stand_in;
 
 /// What an override tries to repoint a pinned variable at.
 pub const HOSTILE: &str = "/hostile/elsewhere";
@@ -123,12 +126,11 @@ impl Sandbox {
     /// A stand-in executable named `name` that prints `version`.
     pub fn stub(&self, name: &str, version: &str) -> PathBuf {
         let path = self.bin.join(name);
-        std::fs::write(&path, format!("#!/bin/sh\necho {version:?}\n")).unwrap();
+        let body = format!("#!/bin/sh\necho {version:?}\n");
         #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
-        }
+        stand_in::write(&path, body);
+        #[cfg(not(unix))]
+        std::fs::write(&path, body).unwrap();
         path
     }
 
