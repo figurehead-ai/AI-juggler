@@ -197,13 +197,28 @@ pub fn check_impl(
     session_id: &str,
     target_profile_id: &str,
 ) -> AppResult<SetupCheckInfo> {
-    check_sides(state, &sides(state, session_id, target_profile_id)?)
+    check_sides(
+        state,
+        &sides(state, session_id, target_profile_id)?,
+        &for_a_switch,
+    )
 }
 
-/// What `sides.target` lacks of `sides.source`'s items, each with the
-/// target tool's verdict. Read-only.
-pub(crate) fn check_sides(state: &Arc<AppState>, sides: &Sides) -> AppResult<SetupCheckInfo> {
+/// What a switch offers: everything but the account's own settings, which
+/// the target keeps (AJ-E1508 offers those when an account is added).
+fn for_a_switch(kind: ItemKind) -> bool {
+    !kind.is_account_setting()
+}
+
+/// What `sides.target` lacks of `sides.source`'s items of the kinds
+/// `wanted` takes, each with the target tool's verdict. Read-only.
+pub(crate) fn check_sides(
+    state: &Arc<AppState>,
+    sides: &Sides,
+    wanted: &dyn Fn(ItemKind) -> bool,
+) -> AppResult<SetupCheckInfo> {
     let (from, to) = inventories(state, sides)?;
+    let from: Vec<Item> = from.into_iter().filter(|item| wanted(item.kind)).collect();
     let target_adapter = state
         .registry
         .get(&sides.target.harness)
@@ -281,24 +296,21 @@ pub fn apply_impl(
         state,
         &sides(state, session_id, target_profile_id)?,
         picked,
-        None,
+        &for_a_switch,
     )
 }
 
-/// Sets up the picked offers of `sides.source` on `sides.target` (of
-/// `only` that kind, when given: the project sync copies servers and
-/// nothing else), each recorded so it can be undone; see [`apply_impl`].
+/// Sets up the picked offers of `sides.source` on `sides.target`, of the
+/// kinds `wanted` takes only (the project sync copies servers and nothing
+/// else), each recorded so it can be undone; see [`apply_impl`].
 pub(crate) fn apply_sides(
     state: &Arc<AppState>,
     sides: &Sides,
     picked: &[String],
-    only: Option<ItemKind>,
+    wanted: &dyn Fn(ItemKind) -> bool,
 ) -> AppResult<Vec<AppliedInfo>> {
     let (from, to) = inventories(state, sides)?;
-    let from: Vec<Item> = from
-        .into_iter()
-        .filter(|item| only.is_none_or(|kind| item.kind == kind))
-        .collect();
+    let from: Vec<Item> = from.into_iter().filter(|item| wanted(item.kind)).collect();
     let target_adapter = state
         .registry
         .get(&sides.target.harness)
@@ -547,6 +559,18 @@ fn undo(how: &Undo) -> AppResult<()> {
             backup,
             sha256,
         } => restore(file, backup, sha256),
+        Undo::RemoveSetting {
+            file,
+            format,
+            entries,
+        } => juggler_adapters::config_edit::remove(file, *format, entries)
+            .map(|_| ())
+            .map_err(|why| {
+                AppError::Refused(format!(
+                    "{}: {why}, so it was left as it is",
+                    file.display()
+                ))
+            }),
     }
 }
 

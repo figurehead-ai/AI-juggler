@@ -24,6 +24,7 @@ pub mod codex_environment;
 pub mod codex_handover;
 pub mod codex_inventory;
 pub mod codex_transcript;
+pub mod config_edit;
 pub mod fake;
 pub mod inference;
 pub mod inventory_files;

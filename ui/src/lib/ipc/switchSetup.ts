@@ -63,6 +63,8 @@ const KIND_WORDS: Record<string, string> = {
   rules: "rules file",
   "main-rules": "main rules file",
   plugin: "plugin",
+  permissions: "permissions",
+  "status-line": "status line",
 };
 
 /** What each preview set-up was, for its undo message. */

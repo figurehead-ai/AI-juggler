@@ -38,11 +38,11 @@ import { firstRunToolIds, primaryToolId, toolSpec } from "../lib/tools";
 import { InstallHow } from "../components/InstallHow";
 import { AccessStep } from "../components/AccessStep";
 import { Check } from "../components/StepCheck";
+import { colourAt, FreshAccountStep, freeLabel } from "./FreshAccountStep";
 import { funnelEvent, funnelStep, reasonCode } from "../lib/funnel";
 import {
   accountImport,
   accountsList,
-  createAccount,
   pickDirectory,
   sourceInspect,
   statsEvent,
@@ -55,6 +55,7 @@ import {
   providersDiscover,
   signedIn,
   terminalSpawnLogin,
+  type AccountInfo,
   type DiscoveredInfo,
   type OsAccessInfo,
   type SourceInspectInfo,
@@ -85,19 +86,6 @@ export function groupsFor(tools: string[]): Group[] {
  * version couldn't be read (0.0.11) — that, never "not installed". */
 function cliWords(name: string, row: ProviderInstallData): string {
   return versionUnchecked(row) ? `${name} found; couldn't check its version` : `${name} ${row.version ?? ""} installed`;
-}
-/** A name for a new account that no account has yet ("Claude Code 2"). */
-export function freeLabel(base: string, taken: string[]): string {
-  const used = new Set(taken.map((label) => label.trim().toLowerCase()));
-  if (!used.has(base.toLowerCase())) return base;
-  for (let n = 2; ; n += 1) if (!used.has(`${base} ${n}`.toLowerCase())) return `${base} ${n}`;
-}
-
-function humanBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
-  return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
 }
 
 /** Grouped by kind of setup, as the tool's spec defines them: the first
@@ -151,10 +139,6 @@ export function preselected(found: DiscoveredInfo, nowSecs: number): boolean {
 
 const nowSecs = () => Math.floor(Date.now() / 1000);
 
-/** Distinct, equally light colours by position (a hash of similar paths
- * gives near-identical hues). */
-const PALETTE = ["#A98BFF", "#3DD6E0", "#F59E6B", "#5BD18B", "#FF8FB8", "#6FB3FF", "#E8C547", "#C9A7FF"];
-export const colourAt = (index: number) => PALETTE[index % PALETTE.length]!;
 
 function StepMarks({ step, skipAccess }: { step: Step; skipAccess: boolean }): JSX.Element {
   // The fresh-account and folder steps are the first step's other doors.
@@ -690,7 +674,16 @@ function FoundStep({
   );
 }
 
-type Signin = { accountId: string; label: string; loginNote: string | null; colour: string; provider: string };
+export { colourAt, freeLabel };
+
+function humanBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
+  return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
+}
+
+export type Signin = { accountId: string; label: string; loginNote: string | null; colour: string; provider: string };
 
 /** AJ-E1103 `onboarding.login`: how a first-run sign-in ended (the
  * backend maps the tool to the schema's provider names, "other" for any
@@ -915,93 +908,6 @@ function importProblem(cause: unknown): { kind: "duplicate" | "moved" | "other";
   return { kind: "other", text };
 }
 
-function FreshStep({
-  toolName,
-  provider,
-  taken,
-  canGoBack,
-  onBack,
-  onImportFolder,
-  onCreated,
-}: {
-  toolName: string;
-  provider: string;
-  taken: string[] | null;
-  canGoBack: boolean;
-  onBack: () => void;
-  onImportFolder: () => void;
-  onCreated: (signin: Signin | null) => void;
-}): JSX.Element {
-  const [label, setLabel] = useState<string | null>(null);
-  const shown = label ?? (taken === null ? "" : freeLabel(toolName, taken));
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const create = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      const account = await createAccount(provider, shown.trim(), null);
-      onCreated(
-        signedIn(account.login_state)
-          ? null
-          : { accountId: account.id, label: account.label, loginNote: null, colour: colourAt(taken?.length ?? 0), provider },
-      );
-    } catch (cause) {
-      setError(errorText(cause));
-      setBusy(false);
-    }
-  };
-  return (
-    <form
-      className="flex flex-col gap-6"
-      data-testid="first-run-fresh"
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (shown.trim().length > 0 && !busy) void create();
-      }}
-    >
-      <div className="flex flex-col gap-2">
-        <h1 className="text-[28px] font-semibold leading-tight tracking-tight">Add a fresh account.</h1>
-        <p className="max-w-2xl text-[15px] leading-relaxed text-muted">
-          AI Juggler sets it up in its own folder, apart from anything you already use. Next you sign in with{" "}
-          {ownSignIn(provider)}; AI Juggler never sees your password.
-        </p>
-      </div>
-      <label className="flex max-w-md flex-col gap-1.5 text-sm font-medium text-ink">
-        Name
-        <input
-          autoFocus
-          value={shown}
-          onChange={(event) => setLabel(event.target.value)}
-          placeholder="e.g. Work, Personal"
-          className="rounded-lg border border-hairline bg-surface px-3 py-2.5 text-[15px] font-normal text-ink outline-none placeholder:text-faint focus:border-accent/60"
-          data-testid="first-run-fresh-name"
-        />
-        <span className="text-xs font-normal text-faint">What it's for — you can rename it and set its plan later in Accounts.</span>
-      </label>
-      {error && (
-        <p className="text-xs text-danger" role="alert" data-testid="first-run-fresh-error">
-          {error}
-        </p>
-      )}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-5 text-sm">
-          {canGoBack && (
-            <button type="button" className="text-muted hover:text-ink hover:underline" onClick={onBack}>
-              Back
-            </button>
-          )}
-          <button type="button" className="text-muted hover:text-ink hover:underline" onClick={onImportFolder}>
-            Import from a folder instead…
-          </button>
-        </div>
-        <Button variant="primary" type="submit" disabled={busy || shown.trim().length === 0} data-testid="first-run-fresh-create">
-          {busy ? "Setting it up…" : "Create and sign in"}
-        </Button>
-      </div>
-    </form>
-  );
-}
 
 function FolderStep({
   path,
@@ -1220,6 +1126,7 @@ export function FirstRun({
   const [step, setStep] = useState<Step>(resumeAtAccess ? "access" : startAt);
   const [folder, setFolder] = useState<string | null>(null);
   const [taken, setTaken] = useState<string[] | null>(null);
+  const [accounts, setAccounts] = useState<AccountInfo[]>([]);
   // AJ-E1301: adding names its tool; first run on a fresh install brings
   // in every supported tool's setups (a fresh account or a folder import
   // there is Claude Code's, as before).
@@ -1272,7 +1179,10 @@ export function FirstRun({
       () => setInPlace("unknown"),
     );
     void accountsList().then(
-      (rows) => setTaken(rows.map((row) => row.label)),
+      (rows) => {
+        setTaken(rows.map((row) => row.label));
+        setAccounts(rows);
+      },
       () => setTaken([]),
     );
     void osAccessList().then(setAccess, () => setAccess([]));
@@ -1401,10 +1311,11 @@ export function FirstRun({
             />
           )}
           {step === "fresh" && (
-            <FreshStep
+            <FreshAccountStep
               toolName={toolName}
               provider={primary}
               taken={taken}
+              accounts={accounts}
               canGoBack={!nothingNew || mode === "first-run"}
               onBack={() => setStep("found")}
               onImportFolder={() => void pickFolder()}

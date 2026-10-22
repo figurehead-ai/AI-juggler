@@ -21,6 +21,8 @@ const KIND_WORDS: Record<string, string> = {
   rules: "Rules",
   "main-rules": "Main rules",
   plugin: "Plugin",
+  permissions: "Permissions",
+  "status-line": "Status line",
 };
 
 function verdictWords(offer: OfferInfo): string {
@@ -50,21 +52,34 @@ export function SwitchSetupList({
   check,
   picked,
   onToggle,
+  bare = false,
 }: {
   check: SetupCheckInfo;
   picked: ReadonlySet<string>;
   onToggle: (id: string) => void;
+  /** The rows only, under a line that already says what they are
+   * (AJ-E1508's "Start with the same settings as …"). */
+  bare?: boolean;
 }): JSX.Element | null {
   // Nothing missing, nothing to show: the switch screen stays short.
   if (check.offers.length === 0) return null;
   return (
-    <section className="flex flex-col gap-2" data-testid="switch-setup" aria-labelledby="switch-setup-title">
-      <h4 id="switch-setup-title" className="text-xs font-semibold">
-        Set up on {check.to}
-      </h4>
-      <p className="text-xs text-muted" data-testid="switch-setup-summary">
-        {setupSummary(check, picked)}
-      </p>
+    <section
+      className="flex flex-col gap-2"
+      data-testid="switch-setup"
+      aria-labelledby={bare ? undefined : "switch-setup-title"}
+      aria-label={bare ? `What comes from ${check.from}` : undefined}
+    >
+      {!bare && (
+        <>
+          <h4 id="switch-setup-title" className="text-xs font-semibold">
+            Set up on {check.to}
+          </h4>
+          <p className="text-xs text-muted" data-testid="switch-setup-summary">
+            {setupSummary(check, picked)}
+          </p>
+        </>
+      )}
       {check.offers.length > 0 && (
         <ul className="flex flex-col gap-1.5">
           {check.offers.map((offer) => {
@@ -84,8 +99,16 @@ export function SwitchSetupList({
                   <span aria-hidden="true" className="mt-0.5 inline-block w-[13px]" />
                 )}
                 <label htmlFor={settable ? id : undefined} className={settable ? "" : "text-muted"}>
-                  <span className="font-medium">{offer.name}</span>{" "}
-                  <span className="text-muted">· {KIND_WORDS[offer.kind] ?? offer.kind}</span>
+                  {/* One of a kind (an account's permissions, its status
+                      line): its kind is its name, said once. */}
+                  {(KIND_WORDS[offer.kind] ?? "").toLowerCase() === offer.name.toLowerCase() ? (
+                    <span className="font-medium">{KIND_WORDS[offer.kind]}</span>
+                  ) : (
+                    <>
+                      <span className="font-medium">{offer.name}</span>{" "}
+                      <span className="text-muted">· {KIND_WORDS[offer.kind] ?? offer.kind}</span>
+                    </>
+                  )}
                   <span className="block text-muted">{verdictWords(offer)}</span>
                 </label>
               </li>

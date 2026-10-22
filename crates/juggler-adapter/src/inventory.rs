@@ -35,6 +35,11 @@ pub enum ItemKind {
     MainRules,
     /// An installed plugin.
     Plugin,
+    /// What the tool may do without asking: its permission rules (AJ-E1508).
+    /// One per account, whatever the tool calls it.
+    Permissions,
+    /// The status line under the tool's input (AJ-E1508). One per account.
+    StatusLine,
 }
 
 impl ItemKind {
@@ -49,7 +54,16 @@ impl ItemKind {
             Self::Rules => "rules file",
             Self::MainRules => "main rules file",
             Self::Plugin => "plugin",
+            Self::Permissions => "permissions",
+            Self::StatusLine => "status line",
         }
+    }
+
+    /// One of an account's own settings (AJ-E1508): offered when an account
+    /// is added, not before a switch, where the target keeps its own.
+    #[must_use]
+    pub const fn is_account_setting(self) -> bool {
+        matches!(self, Self::Permissions | Self::StatusLine)
     }
 }
 
@@ -134,6 +148,26 @@ pub enum Detail {
     /// Something the tool's account syncs itself (claude.ai skills and
     /// connectors): it can't be set up by copying.
     FromTheAccount,
+    /// Settings in one of the tool's config files (AJ-E1508): each key and
+    /// its value, as the file writes it.
+    Setting {
+        /// The config file.
+        file: PathBuf,
+        /// Its format.
+        format: ConfigFormat,
+        /// Each key (a dotted path in TOML) and its value's text.
+        entries: Vec<(String, String)>,
+    },
+}
+
+/// A tool config file's format.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ConfigFormat {
+    /// JSON (comments and trailing commas allowed, as tools read it).
+    Json,
+    /// TOML.
+    Toml,
 }
 
 /// One thing an account has set up.
@@ -233,6 +267,16 @@ pub enum Undo {
         backup: PathBuf,
         /// The hash of what was written.
         sha256: String,
+    },
+    /// Take settings out of a config file again, each only while it still
+    /// holds the value that was set (AJ-E1508).
+    RemoveSetting {
+        /// The config file.
+        file: PathBuf,
+        /// Its format.
+        format: ConfigFormat,
+        /// Each key and the value that was set.
+        entries: Vec<(String, String)>,
     },
 }
 

@@ -7,7 +7,9 @@
 //! - skills (`skills/<name>/SKILL.md`; `skills/synced/` comes from the
 //!   claude.ai account), commands (`commands/*.md`), subagents
 //!   (`agents/*.md`), user rules (`CLAUDE.md`, `rules/*.md`);
-//! - plugins (`settings.json` `enabledPlugins`).
+//! - plugins (`settings.json` `enabledPlugins`);
+//! - the account's own settings (AJ-E1508): `settings.json` `permissions`
+//!   and the user's own `statusLine` (never AI Juggler's capture).
 //!
 //! Only the keys named here are parsed out of those files; everything else
 //! in them (the account, a key) is never kept. Setting up an MCP server
@@ -19,9 +21,10 @@ use std::path::Path;
 
 use juggler_adapter::error::AdapterError;
 use juggler_adapter::inventory::{
-    Applied, Detail, Item, ItemKind, JsonEntry, McpServer, McpTransport, Scope, SetUp, Undo, Value,
-    secret_variable, value_of,
+    Applied, ConfigFormat, Detail, Item, ItemKind, JsonEntry, McpServer, McpTransport, Scope,
+    SetUp, Undo, Value, secret_variable, value_of,
 };
+use juggler_adapter::jsonc;
 
 use crate::claude_code::CLAUDE_CODE_ID;
 use crate::inventory_files::{children, secret_names};
@@ -125,6 +128,45 @@ pub fn inventory(dir: &Path, state_file: &Path, project: Option<&Path>) -> Vec<I
         };
         items.push(item(ItemKind::Plugin, id, detail));
     }
+    items.extend(own_settings(dir));
+    items
+}
+
+/// AJ-E1508: the account's own settings, read key by key, so nothing else
+/// in `settings.json` is kept: its permissions, and the user's own status
+/// line (never AI Juggler's capture).
+fn own_settings(dir: &Path) -> Vec<Item> {
+    let mut items = Vec::new();
+    let settings_file = dir.join("settings.json");
+    let text = std::fs::read_to_string(&settings_file).unwrap_or_default();
+    let setting = |key: &str, value: String| Detail::Setting {
+        file: settings_file.clone(),
+        format: ConfigFormat::Json,
+        entries: vec![(key.to_owned(), value)],
+    };
+    if let Some(permissions) = jsonc::value_text(&text, "permissions")
+        .ok()
+        .flatten()
+        .filter(|value| {
+            value
+                .chars()
+                .any(|c| !matches!(c, '{' | '}' | ' ' | '\n' | '\r' | '\t'))
+        })
+    {
+        items.push(item(
+            ItemKind::Permissions,
+            "permissions",
+            setting("permissions", permissions),
+        ));
+    }
+    let status = jsonc::value_text(&text, "statusLine").ok().flatten();
+    if let Some(own) = crate::quota_ingest::users_own_statusline(dir, status.as_deref()) {
+        items.push(item(
+            ItemKind::StatusLine,
+            "status line",
+            setting("statusLine", own),
+        ));
+    }
     items
 }
 
@@ -138,6 +180,7 @@ pub fn can_set_up(item: &Item) -> SetUp {
         ),
         (ItemKind::McpServer, Detail::Mcp(server)) => mcp_verdict(&item.name, server),
         (ItemKind::Skill | ItemKind::Command | ItemKind::Subagent, Detail::Files { .. })
+        | (ItemKind::Permissions | ItemKind::StatusLine, Detail::Setting { .. })
             if from_claude =>
         {
             SetUp::Copy
@@ -152,6 +195,11 @@ pub fn can_set_up(item: &Item) -> SetUp {
         }
         (ItemKind::Plugin, Detail::Plugin { id }) if from_claude => SetUp::NeedsYou(format!(
             "install it in this account with `claude plugin install {id}`"
+        )),
+        (ItemKind::Permissions | ItemKind::StatusLine, _) => SetUp::Impossible(format!(
+            "the {} of {} work differently from Claude Code's: set them in Claude Code",
+            item.kind.words(),
+            item.tool
         )),
         _ => SetUp::Impossible(format!(
             "a {} from {} has no Claude Code equivalent",
@@ -182,6 +230,40 @@ pub fn set_up(
         (ItemKind::McpServer, Detail::Mcp(server), _) => add_mcp(
             claude, config_env, state_file, project, &item.name, item.scope, server,
         ),
+        (
+            ItemKind::Permissions | ItemKind::StatusLine,
+            Detail::Setting {
+                file: from,
+                entries,
+                ..
+            },
+            _,
+        ) => {
+            let file = dir.join("settings.json");
+            crate::config_edit::set(&file, ConfigFormat::Json, entries)
+                .map_err(AdapterError::Unsupported)?;
+            // A status line that runs a script in the other account's folder
+            // keeps running it from there.
+            let note = from
+                .parent()
+                .map(|folder| folder.to_string_lossy().into_owned())
+                .filter(|folder| {
+                    !folder.is_empty()
+                        && entries
+                            .iter()
+                            .any(|(_, value)| value.contains(folder.as_str()))
+                })
+                .map(|_| "it runs a script from the other account's folder".to_owned());
+            Ok(Applied {
+                summary: format!("Set the {}", item.kind.words()),
+                undo: Undo::RemoveSetting {
+                    file,
+                    format: ConfigFormat::Json,
+                    entries: entries.clone(),
+                },
+                note,
+            })
+        }
         (ItemKind::Skill, Detail::Files { path }, _) => {
             crate::inventory_files::copy_tree(path, &dir.join("skills").join(&item.name), |text| {
                 text.to_owned()

@@ -5,7 +5,9 @@
 //! - skills (`~/.agents/skills/<name>/SKILL.md`, shared by every Codex
 //!   home, and the home's own `skills/`, `.system` left out), prompts
 //!   (`prompts/*.md`), subagents (`agents/*.toml`), rules (`AGENTS.md`);
-//! - plugins (`[plugins."name@marketplace"]`).
+//! - plugins (`[plugins."name@marketplace"]`);
+//! - the home's own settings (AJ-E1508): its permissions (`approval_policy`
+//!   and `sandbox_mode`) and its status line (`tui.status_line`).
 //!
 //! Setting up an MCP server appends one new `[mcp_servers.<name>]` table to
 //! `config.toml` (the file from before the first set-up is kept as a
@@ -18,8 +20,8 @@ use std::path::Path;
 
 use juggler_adapter::error::AdapterError;
 use juggler_adapter::inventory::{
-    Applied, Detail, Item, ItemKind, McpServer, McpTransport, Scope, SetUp, Undo, Value,
-    secret_variable, value_of,
+    Applied, ConfigFormat, Detail, Item, ItemKind, McpServer, McpTransport, Scope, SetUp, Undo,
+    Value, secret_variable, value_of,
 };
 
 use crate::codex::CODEX_ID;
@@ -90,6 +92,28 @@ pub fn inventory(home: &Path, user_home: Option<&Path>) -> Vec<Item> {
             break;
         }
     }
+    // AJ-E1508: the home's own settings, key by key.
+    let config_file = home.join("config.toml");
+    let setting = |keys: &[&str]| -> Option<Detail> {
+        let entries: Vec<(String, String)> = keys
+            .iter()
+            .filter_map(|key| {
+                crate::config_edit::read(&config_file, ConfigFormat::Toml, key)
+                    .map(|value| ((*key).to_owned(), value))
+            })
+            .collect();
+        (!entries.is_empty()).then(|| Detail::Setting {
+            file: config_file.clone(),
+            format: ConfigFormat::Toml,
+            entries,
+        })
+    };
+    if let Some(detail) = setting(&["approval_policy", "sandbox_mode"]) {
+        items.push(item(ItemKind::Permissions, "permissions", detail));
+    }
+    if let Some(detail) = setting(&["tui.status_line"]) {
+        items.push(item(ItemKind::StatusLine, "status line", detail));
+    }
     items
 }
 
@@ -124,6 +148,7 @@ pub fn can_set_up(item: &Item) -> SetUp {
         ),
         (ItemKind::Skill, Detail::Files { .. }) => SetUp::Copy,
         (ItemKind::Command | ItemKind::Subagent | ItemKind::MainRules, Detail::Files { .. })
+        | (ItemKind::Permissions | ItemKind::StatusLine, Detail::Setting { .. })
             if from_codex =>
         {
             SetUp::Copy
@@ -147,6 +172,11 @@ pub fn can_set_up(item: &Item) -> SetUp {
         (ItemKind::Plugin, _) => {
             SetUp::Impossible("Claude Code plugins don't run in Codex".to_owned())
         }
+        (ItemKind::Permissions | ItemKind::StatusLine, _) => SetUp::Impossible(format!(
+            "the {} of {} work differently from Codex's: set them in Codex",
+            item.kind.words(),
+            item.tool
+        )),
         _ => SetUp::Impossible(format!(
             "a {} from {} has no Codex equivalent yet",
             item.kind.words(),
@@ -195,6 +225,20 @@ pub fn set_up(home: &Path, user_home: Option<&Path>, item: &Item) -> Result<Appl
         ),
         (ItemKind::MainRules, Detail::Files { path }, _) => {
             crate::inventory_files::copy_file(path, &home.join("AGENTS.md"), str::to_owned)
+        }
+        (ItemKind::Permissions | ItemKind::StatusLine, Detail::Setting { entries, .. }, _) => {
+            let file = home.join("config.toml");
+            crate::config_edit::set(&file, ConfigFormat::Toml, entries)
+                .map_err(AdapterError::Unsupported)?;
+            Ok(Applied {
+                summary: format!("Set the {}", item.kind.words()),
+                undo: Undo::RemoveSetting {
+                    file,
+                    format: ConfigFormat::Toml,
+                    entries: entries.clone(),
+                },
+                note: None,
+            })
         }
         _ => Err(AdapterError::Unsupported(format!(
             "{} needs you to set it up",

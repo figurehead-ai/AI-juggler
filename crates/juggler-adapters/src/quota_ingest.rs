@@ -96,6 +96,25 @@ fn not_ours(command: Option<String>) -> Option<String> {
     command.filter(|command| !command.contains(WRAPPER_NAME))
 }
 
+/// AJ-E1508: the user's own status line in the account at `config_dir`,
+/// given `current` (the `statusLine` value's JSON text in its
+/// `settings.json`, if any): `current` itself, unless it's AI Juggler's
+/// capture (its wrapper or the opt-in fail-safe line), whose original is
+/// then read from the backup kept beside it. `None` when there's no status
+/// line of the user's own to tell.
+pub(crate) fn users_own_statusline(config_dir: &Path, current: Option<&str>) -> Option<String> {
+    let ours = |text: &str| text.contains(WRAPPER_NAME) || text.contains("aij-statusline");
+    let current = current?;
+    if !ours(current) {
+        return Some(current.to_owned());
+    }
+    let backup: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(config_dir.join(BACKUP_NAME)).ok()?).ok()?;
+    let original = backup.get("statusLine").filter(|value| !value.is_null())?;
+    let text = serde_json::to_string(original).ok()?;
+    (!ours(&text)).then_some(text)
+}
+
 /// Writes `bytes` only when the file differs, atomically — running
 /// sessions read the wrapper every few hundred milliseconds.
 fn write_if_changed(path: &Path, bytes: &[u8]) -> std::io::Result<()> {

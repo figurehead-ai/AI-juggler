@@ -703,12 +703,9 @@ pub fn servers_apply_impl(
         target: account(to)?,
         project: Some(project.root),
     };
-    switch_setup::apply_sides(
-        state,
-        &sides,
-        &[offer.to_owned()],
-        Some(ItemKind::McpServer),
-    )?
+    switch_setup::apply_sides(state, &sides, &[offer.to_owned()], &|kind| {
+        kind == ItemKind::McpServer
+    })?
     .into_iter()
     .next()
     .ok_or_else(|| AppError::Refused("nothing was copied".to_owned()))
