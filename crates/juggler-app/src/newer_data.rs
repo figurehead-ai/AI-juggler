@@ -551,11 +551,11 @@ pub fn at_launch(data_dir: &Path, found: i64, supported: i64) -> AppState {
 fn show_folder(dir: &Path) {
     // By absolute path (C2): never a stand-in earlier on PATH.
     let opener = if cfg!(target_os = "macos") {
-        juggler_adapter::system_tools::OPEN
+        PathBuf::from(juggler_adapter::system_tools::OPEN)
     } else if cfg!(windows) {
-        "explorer"
+        juggler_adapter::system_tools::explorer()
     } else {
-        juggler_adapter::system_tools::XDG_OPEN
+        PathBuf::from(juggler_adapter::system_tools::XDG_OPEN)
     };
     let _ = std::process::Command::new(opener).arg(dir).status();
 }
