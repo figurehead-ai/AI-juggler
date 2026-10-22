@@ -401,11 +401,16 @@ test("inspector — Session header actions, disabled-with-reason", async ({ page
   await expect(page.getByTestId("header-relaunch")).toBeVisible();
   await expect(page.getByTestId("inspector-stop")).toHaveCount(0);
   await page.getByTestId("header-menu").click();
+  await expect(page.getByRole("menu").getByTestId("action-stop")).toHaveCount(0);
+  await expect(page.getByRole("menu").getByTestId("action-export-pack")).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  // A session still starting has no conversation yet: resuming it is
+  // disabled, with its reason beside it.
+  await page.locator('[data-instance-id="sess-1"]').first().click();
+  await page.getByTestId("header-menu").click();
   const menu = page.getByRole("menu");
   await expect(menu.getByTestId("action-copy-resume")).toBeDisabled();
   await expect(menu.getByText("It has no conversation to resume yet")).toBeVisible();
-  await expect(menu.getByTestId("action-stop")).toHaveCount(0);
-  await expect(menu.getByTestId("action-export-pack")).toHaveCount(0);
   await page.screenshot({ path: resolve(GALLERY, "07-inspector-content/session-header-actions.png") });
 });
 
@@ -2578,7 +2583,7 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await expectRail(page); // D-25: the list, or its icon column when narrow
-      await page.getByRole("button", { name: /Work Max/ }).first().click();
+      await page.getByRole("button", { name: /^(?!.*Starting).*Work Max/ }).first().click();
       await openSwitch(page);
       await page.getByTestId("handover-section")
         // AJ-E209: the ranked, badged row is the switch entry point.
@@ -2817,7 +2822,7 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await expectRail(page); // D-25: the list, or its icon column when narrow
-      await page.getByRole("button", { name: /Work Max/ }).first().click();
+      await page.getByRole("button", { name: /^(?!.*Starting).*Work Max/ }).first().click();
       await openSwitch(page);
       await page.getByTestId("handover-section")
         // AJ-E209: the ranked, badged row is the switch entry point.
@@ -3074,7 +3079,7 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await expectRail(page); // D-25: the list, or its icon column when narrow
-      await page.getByRole("button", { name: /Work Max/ }).first().click();
+      await page.getByRole("button", { name: /^(?!.*Starting).*Work Max/ }).first().click();
       await openSwitch(page);
       await expect(page.getByTestId("switch-target-rows")).toBeVisible();
       await page.screenshot({
@@ -3305,7 +3310,7 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await expectRail(page); // D-25: the list, or its icon column when narrow
-      await page.getByRole("button", { name: /Work Max/ }).first().click();
+      await page.getByRole("button", { name: /^(?!.*Starting).*Work Max/ }).first().click();
       await openSwitch(page);
       await page.getByTestId("handover-section")
         .locator("button[data-row]:not(:disabled)")
@@ -4658,7 +4663,7 @@ const openCross = async (
   await page.setViewportSize(CROSS_VP);
   await page.goto("/");
   await expectRail(page); // D-25: the list, or its icon column when narrow
-  await page.getByRole("button", { name: /Work Max/ }).first().click();
+  await page.getByRole("button", { name: /^(?!.*Starting).*Work Max/ }).first().click();
   await expect(page.getByTestId("handover-section")).toBeVisible();
   await openSwitch(page);
 };
