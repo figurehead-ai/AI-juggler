@@ -145,9 +145,18 @@ pub fn import_line(file: &RulesFile, master: &str, specs: &[ToolSpec]) -> Option
         .then_some(first)
 }
 
-/// Text as compared: `\r\n` as `\n`, without blank lines at the end.
+/// Text as compared: `\r\n` as `\n`, without blank lines at the end, and
+/// ending in one newline, so a file's last line equals the same line
+/// anywhere in the other file (QA walk 26, P22: it read as removed and
+/// added).
 fn normalized(text: &str) -> String {
-    text.replace("\r\n", "\n").trim_end().to_owned()
+    let text = text.replace("\r\n", "\n");
+    let trimmed = text.trim_end();
+    if trimmed.is_empty() {
+        String::new()
+    } else {
+        format!("{trimmed}\n")
+    }
 }
 
 /// The longest a diff may search before settling for a coarser one.
@@ -373,6 +382,33 @@ mod tests {
                 .any(|line| line.change == LineChange::Removed && line.text == "line 18")
         );
         assert!(diff(&old, &old).is_empty());
+    }
+
+    #[test]
+    fn a_last_line_matches_the_same_line_inside_the_other_file() {
+        // QA walk 26 (P22): "b" ended one file and sat inside the other.
+        let groups = diff("a\nb", "a\nb\nc\n");
+        let changed: Vec<_> = groups
+            .iter()
+            .flatten()
+            .filter(|line| line.change != LineChange::Kept)
+            .map(|line| (line.change, line.text.as_str()))
+            .collect();
+        assert_eq!(changed, vec![(LineChange::Added, "c")]);
+        let file = |name: &str, text: &str| RulesFile {
+            name: name.into(),
+            tools: vec!["plain".into()],
+            text: Some(text.into()),
+            modified_ms: Some(1),
+            link_to: None,
+        };
+        assert_eq!(
+            standing(&file("A.md", "a\nb"), &file("B.md", "a\nb\nc\n"), &specs()),
+            Standing::Differs {
+                added: 1,
+                removed: 0
+            }
+        );
     }
 
     #[test]
