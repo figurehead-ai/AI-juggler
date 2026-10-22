@@ -746,17 +746,31 @@ def compare(truth: dict, harness: dict) -> str:
             elif resets is not None and resets < now_ms:
                 verdict(False, f"{name} {window}: reset time already passed ({round((now_ms - resets) / 60000)} min ago)")
             truth_tokens = (acc["tokens"].get(window) or {}).get("total")
+            band = None
             if "ingested_ms" in harness and acc.get("points") is not None:
                 # Only what was on disk when the backend read it, in the window
                 # as it stood then: live writers after that aren't a miss.
                 cut = harness["ingested_ms"] / 1000
                 span = dict(WINDOWS)[window]
                 truth_tokens = sum(n for ts, n in acc["points"] if cut - span <= ts <= cut)
+                done = harness.get("ingest_done_ms")
+                if done is not None:
+                    # Live writers during the passes: anything between the
+                    # files as they were at the start and at the end is right.
+                    end = done / 1000
+                    upper = sum(n for ts, n in acc["points"] if end - span <= ts <= end)
+                    burned_now = w.get("burned_tokens")
+                    if upper != truth_tokens:
+                        band = (truth_tokens, upper)
+                    if burned_now is not None and truth_tokens <= burned_now <= upper:
+                        truth_tokens = burned_now
             burned = w.get("burned_tokens")
             if truth_tokens is not None and burned is not None:
                 ratio = burned / truth_tokens if truth_tokens else (0 if burned == 0 else float("inf"))
+                said = (f"oracle {band[0]:,} at the ingest's start to {band[1]:,} at its end (live writers)"
+                        if band else f"oracle {truth_tokens:,}")
                 verdict(0.9 <= ratio <= 1.1 or (truth_tokens == 0 and burned == 0),
-                        f"{name} {window} tokens: backend {burned:,}, oracle {truth_tokens:,} (×{ratio:.2f})")
+                        f"{name} {window} tokens: backend {burned:,}, {said} (×{ratio:.2f})")
 
     # Usage screen payload: nulls the UI's `!== undefined` guards let through.
     cost = harness["cost_rollups"]

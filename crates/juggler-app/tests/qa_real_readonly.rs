@@ -145,6 +145,12 @@ fn real_setup_read_models() {
     for tick in 0..4 {
         juggler_app::usage_pipeline::ingest_pass(&state, tick);
     }
+    // The passes read for a while: what live writers add meanwhile may or
+    // may not be in. The compare accepts anything between the two moments.
+    report.insert(
+        "ingest_done_ms".into(),
+        juggler_core::model::Timestamp::now().millis().into(),
+    );
     report.insert(
         "usage_sources".into(),
         serde_json::to_value(juggler_app::usage_pipeline::source_health(&state)).unwrap(),

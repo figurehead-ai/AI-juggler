@@ -1446,6 +1446,28 @@ sample at 10 s. Snapshot clean: only the live Codex changed.
 - **Left, not #126's**: projects and sessions (AJ-E1529, done on `release/0.1`), and one
   unpriced model (`codex-auto-review`).
 
+## Batch 19 — PR #130 (`c5b845ae`) against main `e7b633ba`
+
+Two runs, read only, each on a fresh scratch data folder. Both snapshots: no config file
+changed, no path added or removed.
+
+| | main `e7b633ba` | #130 `c5b845ae` |
+|---|---|---|
+| Overall | 44 OK, 7 MISMATCH | 43 OK, 8 MISMATCH |
+| This Mac (tools, memory, every tree, rows by root) | all OK | all OK: 6 trees = 6, 17.9 GB = 17.9 GB, 6 of 6 roots |
+| Sign-in as brought in | 7 of 7 signed in | 7 of 7 signed in (no `.credentials.json` opened) |
+| Cost rows per session | all within 5% | 299 of 299 within 5% |
+| Window tokens | all OK | all OK but Account F 5 h, ×1.12 |
+
+- **Account F's ×1.12 is timing.** F started a busy session during the run: 115 messages
+  in the 3 minutes after the ingest stamp, against 19 on main's run. The backend's 289 M
+  lies between the oracle at ingest + 60 s (277 M) and + 180 s (312 M). The passes went on
+  reading for about 90 s.
+- The harness now records `ingest_done_ms` too, and the compare accepts a window figure
+  between the files at the ingest's start and at its end (it prints both bounds).
+- **Left, not #130's**: projects and sessions (AJ-E1529, on `release/0.1`), and
+  `codex-auto-review` unpriced.
+
 ## Not walked (blocked by W0, before the bridge)
 
 These need the window:
