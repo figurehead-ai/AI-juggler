@@ -70,7 +70,7 @@
 | AJ-E1503 | PASS17 | 2026-10-21 | [manifest](AJ-E1503/manifest.md) |
 | AJ-E1504 | PASS12 | 2026-10-21 | [manifest](AJ-E1504/manifest.md) |
 | AJ-E1505 | PASS12 | 2026-10-21 | [manifest](AJ-E1505/manifest.md) |
-| AJ-E1507 | PASS8 | 2026-10-22 | [manifest](AJ-E1507/manifest.md) |
+| AJ-E1507 | PASS8 | 2026-10-21 | [manifest](AJ-E1507/manifest.md) |
 | AJ-E1521 | PASS9 | 2026-10-21 | [manifest](AJ-E1521/manifest.md) |
 | AJ-E1524 | PASS12 | 2026-10-21 | [manifest](AJ-E1524/manifest.md) |
 | AJ-E1525 | PASS12 | 2026-10-21 | [manifest](AJ-E1525/manifest.md) |

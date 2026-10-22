@@ -1,6 +1,6 @@
 # Evidence manifest — AJ-E1507
 
-Task: `docs/tasks/E15-spec-gaps.md` AJ-E1507 (rules and MCP sync across tools, with a diff preview). Status: **IN-PROGRESS**. 2026-10-22, claude-opus.
+Task: `docs/tasks/E15-spec-gaps.md` AJ-E1507 (rules and MCP sync across tools, with a diff preview). Status: **DONE-EVIDENCED**. 2026-10-22, claude-opus.
 
 ## What changed
 
@@ -79,12 +79,7 @@ walk batch 26 in `docs/qa/evidence/walks/2026-10-21-real-readonly.md` on
 
 ## Left
 
-- **P22: the diff shows an unchanged last line as removed and added.**
-  - `sync::normalized` trims each text's end, its final newline included, so a file's last line
-    no longer equals the same line in the middle of the other file.
-  - Example: AGENTS.md ending "Keep functions short." applied to a CLAUDE.md that has it in the
-    middle reads "2 lines added, 3 removed"; the true diff is 1 and 2.
-  - Fix: keep one final newline after the trim.
-- **A gap not seen on the real setup:** Claude Code also loads a project's own `.mcp.json`
-  (project scope), which `claude_inventory` doesn't read. No real project here has one.
-- Focus after Apply is left to the gallery's `82-project-sync` "after applying and copying".
+- **P22 is fixed** (`38ab10f0`, `sync` `a_last_line_matches_the_same_line_inside_the_other_file`). Each side of the comparison now ends in one newline, so a file's last line equals the same line anywhere in the other.
+- **Follow-up:** a project's own `.mcp.json` (Claude Code's project scope) is shared by every Claude account in the project, and the servers list doesn't show it yet. No real project here has one.
+- **Follow-ups from the reviews:** a preview of the config a server copy will write, and typed standings in place of strings.
+- Focus after Apply is checked by the gallery's `82-project-sync` "after applying and copying".
