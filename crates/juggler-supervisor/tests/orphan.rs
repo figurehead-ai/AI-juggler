@@ -358,7 +358,7 @@ fn collector_targeted_tick_overhead_under_budget() {
         for _ in 0..30 {
             step += 1;
             let collector_tick = step + 1;
-            let full = collector_tick <= 3 || collector_tick % 5 == 0;
+            let full = collector_tick <= 3 || collector_tick.is_multiple_of(5);
             let started = ThreadTime::now();
             collector.tick(&supervisor, now_ms() + i64::from(step) * 2_000);
             if !full {
@@ -373,7 +373,7 @@ fn collector_targeted_tick_overhead_under_budget() {
     let ours = after.targeted_ours - before.targeted_ours;
     let per_tick = ours / u64::from(targeted);
     assert!(
-        ours == per_tick * u64::from(targeted) && per_tick >= 20 && per_tick <= 20 * 3,
+        ours == per_tick * u64::from(targeted) && (20..=60).contains(&per_tick),
         "our processes read once each per targeted tick: {ours} over {targeted}"
     );
     let ticks = after.ticks - before.ticks;
