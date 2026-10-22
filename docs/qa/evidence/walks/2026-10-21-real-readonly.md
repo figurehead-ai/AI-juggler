@@ -1468,6 +1468,48 @@ changed, no path added or removed.
 - **Left, not #130's**: projects and sessions (AJ-E1529, on `release/0.1`), and
   `codex-auto-review` unpriced.
 
+## Batch 20 — Codex's compressed rollouts (oracle blind spot)
+
+Codex compresses a thread's rollout into `rollout-*.jsonl.zst` once it goes quiet. On this
+Mac 2,043 of 2,314 rollouts under `sessions/` are compressed. The oracle read only
+`rollout-*.jsonl`, and so does the product, so the two agreed while both missed most of
+Account G's history. The oracle now reads both kinds: Python 3.14's `compression.zstd`,
+else `zstd -dc`, and it stops with an error rather than skip one it can't read. A thread
+caught mid-compression, with both files, is read once. `--plain-rollouts-only` shows what a
+reader that skips them sees. Both runs were read only, and the snapshots changed only
+where live CLIs and the Codex app write (policy and remote settings, Codex's state file and
+WALs, one profile's live session).
+
+| Account G (Codex) | Plain only (as the product reads) | Plain and compressed |
+|---|---|---|
+| Rollout files | 271 | 2,314 (271 plain, 2,043 compressed) |
+| Conversations (threads) | 271 | 2,271 |
+| Projects (all accounts) | 14 | 17 |
+| Projects with Codex threads | 6 | 11 |
+| Turns, all time | 76,497 | 206,838 |
+| Tokens, all time | 15.43 B | 33.58 B (×2.18) |
+| September / October tokens | 0.09 B / 15.34 B | 8.40 B / 25.18 B |
+| 5 h, 7 d windows, limits | unchanged | unchanged |
+
+- **The windows don't move.** The newest compressed file was last written 5 hours
+  before the 7-day window starts. A compressed file keeps the plain file's mtime, which
+  equals its last line.
+- **Costs**: cost rollups are all time, one row per session, so the compressed files
+  add 2,000 session rows. The tokens they add, per model (input includes cached input,
+  output includes reasoning):
+
+  | Model | Turns | Input | Cached input | Output | Reasoning |
+  |---|---|---|---|---|---|
+  | `gpt-6.1-sol` | +71,665 | +10.86 B | +10.54 B | +37.0 M | +11.0 M |
+  | `gpt-6-sol` (only in compressed files) | +37,357 | +5.42 B | +5.35 B | +11.0 M | +4.4 M |
+  | `codex-auto-review` (unpriced) | +16,748 | +1.19 B | +1.04 B | +1.9 M | +0.9 M |
+  | `gpt-6-astra` | +4,568 | +0.63 B | +0.61 B | +1.9 M | +0.5 M |
+
+  The price catalog must know `gpt-6-sol`, or those 37,357 turns' rows will show `—`.
+- **Not read by either**: `archived_sessions/` (1 compressed rollout here).
+- With Homebrew's Python (3.15) a run takes about a minute; with the system 3.9 the
+  `zstd -dc` fallback takes about four.
+
 ## Not walked (blocked by W0, before the bridge)
 
 These need the window:

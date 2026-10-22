@@ -5,14 +5,17 @@ Read only. It opens nothing but:
 
 - each Claude config folder's `projects/**/*.jsonl` (the default
   `~/.claude` and every `~/Library/Application Support/ClaudeCodeProfiles/*`);
-- each Codex home's `sessions/**/rollout-*.jsonl` (`~/.codex`);
+- each Codex home's `sessions/**/rollout-*.jsonl` (`~/.codex`), and the
+  `rollout-*.jsonl.zst` Codex compresses once a thread goes quiet (read
+  with Python 3.14's `compression.zstd`, else `zstd -dc`; never skipped);
 - the `.git` file of a worktree folder that still exists (to find its repo);
 - `ps` and `lsof -d cwd` for the running `claude` / `codex` processes.
 
 From the transcripts it keeps only names, mtimes and these fields: `cwd`,
 `gitBranch`, `sessionId`, `timestamp`, `type`, `uuid`, `message.id`,
 `requestId`, `message.usage`, and Codex's `session_meta` (id, cwd,
-timestamp) and `token_count` (`info.total_token_usage`, `rate_limits`). No
+timestamp), `turn_context.model` and `token_count` (`info.total_token_usage`,
+`info.last_token_usage`, `rate_limits`). No
 message text, no credential files, no Keychain, no environment of other
 processes.
 
@@ -28,6 +31,7 @@ mapping to a private file, never commit it):
 
 Usage: scripts/qa/real_truth.py [--json] [--key FILE] [--live-minutes N]
                                 [--claude-dir DIR]... [--codex-dir DIR]...
+                                [--plain-rollouts-only]   (what a reader that skips .jsonl.zst sees)
        scripts/qa/real_truth.py --codex-history   (rate_limits cadence and conflicts)
        scripts/qa/real_truth.py --compare OUT.json   (after the backend
            harness crates/juggler-app/tests/qa_real_readonly.rs wrote OUT.json)
@@ -41,6 +45,7 @@ import json
 import os
 import pwd
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -50,6 +55,9 @@ from pathlib import Path
 HOME = Path.home()
 PROFILES = HOME / "Library/Application Support/ClaudeCodeProfiles"
 WINDOWS = (("5h", 5 * 3600), ("7d", 7 * 86400))
+ZSTD_COMMANDS = ("zstd", "/opt/homebrew/bin/zstd", "/usr/local/bin/zstd")
+CODEX_CLASSES = (("input", "input_tokens"), ("cached_input", "cached_input_tokens"),
+                 ("output", "output_tokens"), ("reasoning", "reasoning_output_tokens"))
 WORKTREE = re.compile(r"^(?P<repo>.+?)/\.(?:claude|codex)/worktrees/[^/]+(?:/.*)?$")
 
 
@@ -165,40 +173,87 @@ def usage_tokens(usage: dict) -> dict:
             "cache_write": num("cache_creation_input_tokens"), "cache_read": num("cache_read_input_tokens")}
 
 
+def rollout_files(sessions: Path, plain_only: bool = False) -> list[Path]:
+    """A Codex home's rollouts: `rollout-*.jsonl` and, unless `plain_only`, the
+    `rollout-*.jsonl.zst` Codex compresses quiet threads into (a compressed
+    file keeps the plain one's mtime). A thread caught mid-compression, with
+    both files, is read once, from the plain one."""
+    plain = set(sessions.rglob("rollout-*.jsonl"))
+    packed = set() if plain_only else {p for p in sessions.rglob("rollout-*.jsonl.zst") if p.with_suffix("") not in plain}
+    return sorted(plain | packed)
+
+
+def current_rollout(path: Path) -> Path:
+    """`path`, or its `.zst` if Codex compressed it since it was listed."""
+    packed = path.with_name(path.name + ".zst")
+    return packed if path.suffix != ".zst" and not path.exists() and packed.exists() else path
+
+
+def rollout_lines(path: Path):
+    """A rollout's raw lines; a `.zst` one decompressed with `compression.zstd`
+    (Python 3.14+), else the `zstd` command. One that can't be read stops the
+    run: skipping it quietly is the blind spot this reader exists to close."""
+    if path.suffix != ".zst":
+        with path.open("rb") as fh:
+            yield from fh
+        return
+    try:
+        from compression import zstd  # Python 3.14+
+    except ImportError:
+        zstd = None
+    if zstd is not None:
+        with zstd.open(path, "rb") as fh:
+            yield from fh
+        return
+    cli = next((found for found in map(shutil.which, ZSTD_COMMANDS) if found), None)
+    if cli is None:
+        raise SystemExit(f"{path.name} is compressed, and there is neither Python 3.14+ (compression.zstd) "
+                         "nor a zstd command: run with Homebrew's python3, or pass --plain-rollouts-only")
+    done = subprocess.run([cli, "-dc", "--", str(path)], capture_output=True, check=False)
+    if done.returncode != 0:
+        raise SystemExit(f"{path.name}: zstd -dc failed with {done.returncode}")
+    yield from done.stdout.splitlines(keepends=True)
+
+
 def read_codex_rollout(path: Path) -> dict:
-    roll = {"session": None, "mtime": path.stat().st_mtime, "cwd": None, "first": None,
-            "totals": [], "turns": [], "rate_limits": None, "rate_ts": None}
-    with path.open("rb") as fh:
-        for raw in fh:
-            if b'"session_meta"' not in raw and b'"token_count"' not in raw:
-                continue
-            try:
-                line = json.loads(raw)
-            except ValueError:
-                continue
-            payload = line.get("payload") if isinstance(line, dict) else None
-            if not isinstance(payload, dict):
-                continue
-            ts = iso_to_epoch(line.get("timestamp"))
-            if line.get("type") == "session_meta":
-                roll["session"] = payload.get("id") or roll["session"]
-                roll["cwd"] = payload.get("cwd") if isinstance(payload.get("cwd"), str) else roll["cwd"]
-                roll["first"] = iso_to_epoch(payload.get("timestamp")) or ts
-            elif payload.get("type") == "token_count" and ts is not None:
-                info = payload.get("info") or {}
-                total = info.get("total_token_usage") or {}
-                last = info.get("last_token_usage") or {}
-                if isinstance(total.get("total_tokens"), int):
-                    # A repeat (running total unchanged) is not a new turn. A
-                    # thread's first total can carry tokens from before it
-                    # (a subagent or compacted thread), so a thread's own use
-                    # is its turns' `last_token_usage`, not its final total.
-                    moved = not roll["totals"] or roll["totals"][-1][1]["total_tokens"] != total["total_tokens"]
-                    roll["totals"].append((ts, total))
-                    if moved and isinstance(last.get("total_tokens"), int):
-                        roll["turns"].append((ts, last["total_tokens"], total["total_tokens"]))
-                if isinstance(payload.get("rate_limits"), dict):
-                    roll["rate_limits"], roll["rate_ts"] = payload["rate_limits"], ts
+    path = current_rollout(path)
+    roll = {"session": None, "mtime": path.stat().st_mtime, "cwd": None, "first": None, "model": None,
+            "compressed": path.suffix == ".zst", "totals": [], "turns": [], "turn_detail": [],
+            "rate_limits": None, "rate_ts": None}
+    for raw in rollout_lines(path):
+        if b'"session_meta"' not in raw and b'"token_count"' not in raw and b'"turn_context"' not in raw:
+            continue
+        try:
+            line = json.loads(raw)
+        except ValueError:
+            continue
+        payload = line.get("payload") if isinstance(line, dict) else None
+        if not isinstance(payload, dict):
+            continue
+        ts = iso_to_epoch(line.get("timestamp"))
+        if line.get("type") == "session_meta":
+            roll["session"] = payload.get("id") or roll["session"]
+            roll["cwd"] = payload.get("cwd") if isinstance(payload.get("cwd"), str) else roll["cwd"]
+            roll["first"] = iso_to_epoch(payload.get("timestamp")) or ts
+        elif line.get("type") == "turn_context":
+            roll["model"] = payload.get("model") if isinstance(payload.get("model"), str) else roll["model"]
+        elif payload.get("type") == "token_count" and ts is not None:
+            info = payload.get("info") or {}
+            total = info.get("total_token_usage") or {}
+            last = info.get("last_token_usage") or {}
+            if isinstance(total.get("total_tokens"), int):
+                # A repeat (running total unchanged) is not a new turn. A
+                # thread's first total can carry tokens from before it
+                # (a subagent or compacted thread), so a thread's own use
+                # is its turns' `last_token_usage`, not its final total.
+                moved = not roll["totals"] or roll["totals"][-1][1]["total_tokens"] != total["total_tokens"]
+                roll["totals"].append((ts, total))
+                if moved and isinstance(last.get("total_tokens"), int):
+                    roll["turns"].append((ts, last["total_tokens"], total["total_tokens"]))
+                    roll["turn_detail"].append((roll["model"], {name: last.get(key) if isinstance(last.get(key), int) else 0
+                                                                for name, key in CODEX_CLASSES}))
+            if isinstance(payload.get("rate_limits"), dict):
+                roll["rate_limits"], roll["rate_ts"] = payload["rate_limits"], ts
     return roll
 
 
@@ -360,8 +415,12 @@ def build(args) -> dict:
             window_tokens = {name: 0 for name, _ in WINDOWS}
             threads = set()  # a resumed thread is a rollout per resume: one conversation
             seen_turns = set()  # (thread, timestamp, running total): a resume that repeats its parent's rows counts them once
-            for path in (folder / "sessions").rglob("rollout-*.jsonl"):
+            acc["files"] = {"plain": 0, "compressed": 0}
+            all_time = acc["codex_all_time"] = {"turns": 0, "total": 0, **{name: 0 for name, _ in CODEX_CLASSES},
+                                                "by_model": {}}
+            for path in rollout_files(folder / "sessions", args.plain_rollouts_only):
                 roll = read_codex_rollout(path)
+                acc["files"]["compressed" if roll["compressed"] else "plain"] += 1
                 age = now - roll["mtime"]
                 acc["active_threads"] = acc.get("active_threads", 0) + (age < args.live_minutes * 60)
                 acc["changed"]["1h"] += age < 3600
@@ -369,8 +428,22 @@ def build(args) -> dict:
                 if roll["session"] and roll["cwd"]:
                     newest_in_folder[(idx, os.path.realpath(roll["cwd"]))].append((roll["mtime"], roll["session"]))
                 thread = roll["session"] or str(path)
-                own = [(ts, n) for ts, n, running in roll["turns"] if (thread, ts, running) not in seen_turns]
+                own, own_detail = [], []
+                for (ts, n, running), detail in zip(roll["turns"], roll["turn_detail"]):
+                    if (thread, ts, running) not in seen_turns:
+                        own.append((ts, n))
+                        own_detail.append(detail)
                 seen_turns.update((thread, ts, running) for ts, _, running in roll["turns"])
+                for (_, n), (model, classes) in zip(own, own_detail):
+                    all_time["turns"] += 1
+                    all_time["total"] += n
+                    per_model = all_time["by_model"].setdefault(
+                        model or "unknown", {"turns": 0, "total": 0, **{name: 0 for name, _ in CODEX_CLASSES}})
+                    per_model["turns"] += 1
+                    per_model["total"] += n
+                    for name, _ in CODEX_CLASSES:
+                        all_time[name] += classes[name]
+                        per_model[name] += classes[name]
                 if roll["session"]:
                     transcripts_by_session[roll["session"]] = (idx, roll)
                     session_mtime[roll["session"]] = max(session_mtime.get(roll["session"], 0), roll["mtime"])
@@ -473,7 +546,7 @@ def codex_limits(rl: dict, at: float, now: float) -> dict:
                 "resets_at": time.strftime("%a %Y-%m-%d %H:%M", time.localtime(resets)) if isinstance(resets, (int, float)) else None,
                 "reset_passed": isinstance(resets, (int, float)) and resets < now}
     credits = rl.get("credits") if isinstance(rl.get("credits"), dict) else None
-    return {"read_at": time.strftime("%Y-%m-%d %H:%M", time.localtime(at)), "age_minutes": round((now - at) / 60),
+    return {"read_at": time.strftime("%Y-%m-%d %H:%M", time.localtime(at)), "age_minutes": max(0, round((now - at) / 60)),
             "primary": window(rl.get("primary")), "secondary": window(rl.get("secondary")),
             "plan_type": rl.get("plan_type"),
             "credits": None if credits is None else {"has_credits": credits.get("has_credits"),
@@ -527,6 +600,12 @@ def report(truth: dict, key_file: str | None, as_json: bool, live_minutes: int =
                            f"  (summed per line instead: out {per_line['output']:,})")
             else:
                 out.append(f"    {w}: {t.get('total', 0):,} tokens (its turns' last_token_usage)")
+        if a["tool"] == "codex":
+            files, every = a.get("files", {}), a.get("codex_all_time", {})
+            out.append(f"    rollouts: {files.get('plain', 0)} plain, {files.get('compressed', 0)} compressed (.jsonl.zst); "
+                       f"all time {every.get('turns', 0):,} turns, {every.get('total', 0):,} tokens "
+                       f"(in {every.get('input', 0):,} of which cached {every.get('cached_input', 0):,} · "
+                       f"out {every.get('output', 0):,} of which reasoning {every.get('reasoning', 0):,})")
         lim = a.get("codex_limits")
         if lim:
             p = lim["primary"]
@@ -561,25 +640,24 @@ def codex_history(dirs: list[Path], now: float) -> str:
     out = []
     for n, home in enumerate(dirs):
         ev = []  # (ts, thread, used %, resets_at, window minutes, plan)
-        for t, path in enumerate(sorted((home / "sessions").rglob("rollout-*.jsonl"))):
-            with path.open("rb") as fh:
-                for raw in fh:
-                    if b'"rate_limits"' not in raw:
-                        continue
-                    try:
-                        line = json.loads(raw)
-                    except ValueError:
-                        continue
-                    payload = line.get("payload") if isinstance(line, dict) else None
-                    if not isinstance(payload, dict) or payload.get("type") != "token_count":
-                        continue
-                    rl = payload.get("rate_limits")
-                    ts = iso_to_epoch(line.get("timestamp"))
-                    if not isinstance(rl, dict) or ts is None:
-                        continue
-                    pr = rl.get("primary") if isinstance(rl.get("primary"), dict) else {}
-                    ev.append((ts, t, pr.get("used_percent"), pr.get("resets_at"), pr.get("window_minutes"),
-                               rl.get("plan_type"), rl.get("secondary") is not None))
+        for t, path in enumerate(rollout_files(home / "sessions")):
+            for raw in rollout_lines(current_rollout(path)):
+                if b'"rate_limits"' not in raw:
+                    continue
+                try:
+                    line = json.loads(raw)
+                except ValueError:
+                    continue
+                payload = line.get("payload") if isinstance(line, dict) else None
+                if not isinstance(payload, dict) or payload.get("type") != "token_count":
+                    continue
+                rl = payload.get("rate_limits")
+                ts = iso_to_epoch(line.get("timestamp"))
+                if not isinstance(rl, dict) or ts is None:
+                    continue
+                pr = rl.get("primary") if isinstance(rl.get("primary"), dict) else {}
+                ev.append((ts, t, pr.get("used_percent"), pr.get("resets_at"), pr.get("window_minutes"),
+                           rl.get("plan_type"), rl.get("secondary") is not None))
         if not ev:
             continue
         ev.sort(key=lambda e: e[0])
@@ -930,7 +1008,48 @@ def selftest() -> None:
     assert not is_temp(str(HOME / "bin/claude"))
     assert not is_host(None) and not is_host(str(HOME / "Dev/app"))
     assert dict(WINDOWS)["5h"] == 5 * 3600 and dict(WINDOWS)["7d"] == 7 * 86400
+    selftest_rollouts()
     print("real_truth selftest: OK")
+
+
+def selftest_rollouts() -> None:
+    """A compressed rollout reads like its plain twin; both forms of one thread read once."""
+    import tempfile
+    rows = [{"timestamp": "2026-01-01T00:00:00Z", "type": "session_meta",
+             "payload": {"id": "t1", "cwd": "/r", "timestamp": "2026-01-01T00:00:00Z"}},
+            {"timestamp": "2026-01-01T00:00:01Z", "type": "turn_context", "payload": {"model": "m1"}},
+            {"timestamp": "2026-01-01T00:00:02Z", "type": "event_msg", "payload": {"type": "token_count", "info": {
+                "total_token_usage": {"total_tokens": 30},
+                "last_token_usage": {"total_tokens": 30, "input_tokens": 20, "cached_input_tokens": 5,
+                                     "output_tokens": 10, "reasoning_output_tokens": 4}}}}]
+    data = "".join(json.dumps(r) + "\n" for r in rows).encode()
+    with tempfile.TemporaryDirectory() as tmp:
+        day = Path(tmp) / "sessions/2026/01/01"
+        day.mkdir(parents=True)
+        (day / "rollout-a.jsonl").write_bytes(data)
+        (day / "rollout-b.jsonl").write_bytes(data)
+        try:
+            from compression import zstd
+            packed = zstd.compress(data)
+        except ImportError:
+            cli = next((found for found in map(shutil.which, ZSTD_COMMANDS) if found), None)
+            if cli is None:
+                print("real_truth selftest: no zstd here; compressed rollouts not exercised")
+                return
+            packed = subprocess.run([cli, "-c"], input=data, capture_output=True, check=True).stdout
+        (day / "rollout-b.jsonl.zst").write_bytes(packed)  # mid-compression: read once, plain
+        (day / "rollout-c.jsonl.zst").write_bytes(packed)
+        names = [f.name for f in rollout_files(Path(tmp) / "sessions")]
+        assert names == ["rollout-a.jsonl", "rollout-b.jsonl", "rollout-c.jsonl.zst"], names
+        assert [f.name for f in rollout_files(Path(tmp) / "sessions", plain_only=True)] == names[:2]
+        plain, comp = read_codex_rollout(day / "rollout-a.jsonl"), read_codex_rollout(day / "rollout-c.jsonl.zst")
+        assert comp["compressed"] and not plain["compressed"]
+        for key in ("session", "cwd", "first", "model", "turns", "turn_detail"):
+            assert plain[key] == comp[key], key
+        assert comp["turn_detail"] == [("m1", {"input": 20, "cached_input": 5, "output": 10, "reasoning": 4})]
+        (day / "rollout-a.jsonl").rename(day / "rollout-a.jsonl.zst")  # compressed after listing
+        (day / "rollout-a.jsonl.zst").write_bytes(packed)
+        assert read_codex_rollout(day / "rollout-a.jsonl")["compressed"]
 
 
 def main() -> int:
@@ -943,6 +1062,8 @@ def main() -> int:
     ap.add_argument("--codex-dir", action="append", default=[])
     ap.add_argument("--compare", help="the JSON the qa_real_readonly test wrote: print OK / MISMATCH lines")
     ap.add_argument("--codex-history", action="store_true", help="Codex rate_limits over time: cadence and conflicts")
+    ap.add_argument("--plain-rollouts-only", action="store_true",
+                    help="leave Codex's compressed rollouts (.jsonl.zst) out: what a reader that skips them shows")
     args = ap.parse_args()
     if args.selftest:
         selftest()
