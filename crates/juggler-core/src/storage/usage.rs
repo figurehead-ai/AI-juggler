@@ -443,32 +443,84 @@ fn from_sql(count: i64) -> u64 {
     u64::try_from(count).unwrap_or_default()
 }
 
+/// Who keeps a message two sessions share (a resumed copy repeats its
+/// original's history): the session whose first message came first. A copy
+/// keeps the original lines' times, so first messages tie; the copy then
+/// goes on past the original's end, so the earlier last message wins, then
+/// the smaller id. Each session's span counts the store and the whole
+/// incoming batch, so the order files arrive in never changes the answer.
+struct Shares<'c> {
+    span_stored: rusqlite::Statement<'c>,
+    move_to: rusqlite::Statement<'c>,
+    span_in_batch: std::collections::HashMap<(String, String), (i64, i64)>,
+}
+
+impl<'c> Shares<'c> {
+    fn new(conn: &'c Connection, events: &[UsageEvent]) -> Result<Self, CoreError> {
+        let mut span_in_batch: std::collections::HashMap<(String, String), (i64, i64)> =
+            std::collections::HashMap::new();
+        for event in events {
+            if let Some(session) = &event.session {
+                span_in_batch
+                    .entry((event.account.clone(), session.clone()))
+                    .and_modify(|(first, last)| {
+                        *first = (*first).min(event.ts);
+                        *last = (*last).max(event.ts);
+                    })
+                    .or_insert((event.ts, event.ts));
+            }
+        }
+        Ok(Self {
+            span_stored: conn.prepare(
+                "SELECT MIN(ts), MAX(ts) FROM usage_events WHERE account = ?1 AND session = ?2",
+            )?,
+            move_to: conn.prepare(
+                "UPDATE usage_events SET session = ?3 WHERE account = ?1 AND msg_uuid = ?2",
+            )?,
+            span_in_batch,
+        })
+    }
+
+    /// A session's first and last message, stored or arriving.
+    fn span(&mut self, account: &str, session: &str) -> Result<(i64, i64), CoreError> {
+        let (min, max): (Option<i64>, Option<i64>) = self
+            .span_stored
+            .query_row(params![account, session], |row| {
+                Ok((row.get(0)?, row.get(1)?))
+            })?;
+        let batch = self
+            .span_in_batch
+            .get(&(account.to_owned(), session.to_owned()))
+            .copied();
+        let first = min.into_iter().chain(batch.map(|span| span.0)).min();
+        let last = max.into_iter().chain(batch.map(|span| span.1)).max();
+        Ok((first.unwrap_or(i64::MAX), last.unwrap_or(i64::MAX)))
+    }
+
+    /// Moves the message to `offered` when it, not `held`, came first.
+    fn settle(
+        &mut self,
+        account: &str,
+        key: Option<&str>,
+        held: &str,
+        offered: &str,
+    ) -> Result<(), CoreError> {
+        let (offered_first, offered_last) = self.span(account, offered)?;
+        let (held_first, held_last) = self.span(account, held)?;
+        if (offered_first, offered_last, offered) < (held_first, held_last, held) {
+            self.move_to.execute(params![account, key, offered])?;
+        }
+        Ok(())
+    }
+}
+
 fn store_in(conn: &Connection, events: &[UsageEvent]) -> Result<Vec<Stored>, CoreError> {
     let mut stored = Vec::with_capacity(events.len());
     let mut find = conn.prepare(
         "SELECT input, output, cache_r, cache_w, reasoning, session FROM usage_events
          WHERE account = ?1 AND msg_uuid = ?2",
     )?;
-    let mut span_stored = conn
-        .prepare("SELECT MIN(ts), MAX(ts) FROM usage_events WHERE account = ?1 AND session = ?2")?;
-    let mut move_to =
-        conn.prepare("UPDATE usage_events SET session = ?3 WHERE account = ?1 AND msg_uuid = ?2")?;
-    // Each session's first and last message in this batch: with the
-    // store's, they decide who keeps a message two sessions share, whatever
-    // order the files arrive in.
-    let mut span_in_batch: std::collections::HashMap<(&str, &str), (i64, i64)> =
-        std::collections::HashMap::new();
-    for event in events {
-        if let Some(session) = &event.session {
-            span_in_batch
-                .entry((event.account.as_str(), session.as_str()))
-                .and_modify(|(first, last)| {
-                    *first = (*first).min(event.ts);
-                    *last = (*last).max(event.ts);
-                })
-                .or_insert((event.ts, event.ts));
-        }
-    }
+    let mut shares = Shares::new(conn, events)?;
     let mut insert = conn.prepare(
         "INSERT OR IGNORE INTO usage_events
              (account, session, ts, model, input, output, cache_r, cache_w,
@@ -529,32 +581,10 @@ fn store_in(conn: &Connection, events: &[UsageEvent]) -> Result<Vec<Stored>, Cor
             cache_write: was.cache_write.max(event.tokens.cache_write),
             reasoning: was.reasoning.max(event.tokens.reasoning),
         };
-        // Two sessions share this message (a resumed copy repeats its
-        // original's history): it belongs to the session whose first
-        // message came first. A copy keeps the original lines' times, so
-        // their first messages tie; the copy then goes on past the
-        // original's end, so the earlier last message wins, then the
-        // smaller id. The same answer in either reading order.
         if let (Some(held), Some(offered)) = (&held_by, &event.session)
             && held != offered
         {
-            let mut span = |session: &str| -> Result<(i64, i64), CoreError> {
-                let (min, max): (Option<i64>, Option<i64>) = span_stored
-                    .query_row(params![event.account, session], |row| {
-                        Ok((row.get(0)?, row.get(1)?))
-                    })?;
-                let batch = span_in_batch.get(&(event.account.as_str(), session));
-                let first = min.into_iter().chain(batch.map(|span| span.0)).min();
-                let last = max.into_iter().chain(batch.map(|span| span.1)).max();
-                Ok((first.unwrap_or(i64::MAX), last.unwrap_or(i64::MAX)))
-            };
-            let (offered_first, offered_last) = span(offered)?;
-            let (held_first, held_last) = span(held)?;
-            if (offered_first, offered_last, offered.as_str())
-                < (held_first, held_last, held.as_str())
-            {
-                move_to.execute(params![event.account, event.msg_uuid, offered])?;
-            }
+            shares.settle(&event.account, event.msg_uuid.as_deref(), held, offered)?;
         }
         if now != was {
             raise.execute(params![
