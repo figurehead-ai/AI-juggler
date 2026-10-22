@@ -167,6 +167,7 @@ pub fn running_processes() -> Vec<ProcFacts> {
         ProcessesToUpdate::All,
         true,
         ProcessRefreshKind::nothing()
+            .without_tasks()
             .with_exe(UpdateKind::Always)
             .with_cmd(UpdateKind::Always)
             .with_environ(UpdateKind::Always),
@@ -238,7 +239,9 @@ fn config_dirs_of(pids: &[u32]) -> HashMap<u32, String> {
     system.refresh_processes_specifics(
         ProcessesToUpdate::Some(&targets),
         false,
-        ProcessRefreshKind::nothing().with_environ(UpdateKind::Always),
+        ProcessRefreshKind::nothing()
+            .without_tasks()
+            .with_environ(UpdateKind::Always),
     );
     system
         .processes()

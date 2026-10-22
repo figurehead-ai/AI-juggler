@@ -903,6 +903,7 @@ impl LiveStatsCollector {
             ProcessesToUpdate::All,
             true,
             ProcessRefreshKind::nothing()
+                .without_tasks()
                 .with_cpu()
                 .with_memory()
                 .with_exe(sysinfo::UpdateKind::Always)
@@ -925,7 +926,10 @@ impl LiveStatsCollector {
         self.system.refresh_processes_specifics(
             ProcessesToUpdate::Some(&targets),
             true,
-            ProcessRefreshKind::nothing().with_cpu().with_memory(),
+            ProcessRefreshKind::nothing()
+                .without_tasks()
+                .with_cpu()
+                .with_memory(),
         );
     }
 
@@ -947,6 +951,7 @@ impl LiveStatsCollector {
             ProcessesToUpdate::Some(&targets),
             true,
             ProcessRefreshKind::nothing()
+                .without_tasks()
                 .with_cpu()
                 .with_memory()
                 .with_exe(sysinfo::UpdateKind::Always)
@@ -2782,7 +2787,11 @@ fn descendants_of(root: u32) -> Vec<u32> {
     use sysinfo::{ProcessRefreshKind, ProcessesToUpdate};
 
     let mut system = crate::new_system();
-    system.refresh_processes_specifics(ProcessesToUpdate::All, true, ProcessRefreshKind::nothing());
+    system.refresh_processes_specifics(
+        ProcessesToUpdate::All,
+        true,
+        ProcessRefreshKind::nothing().without_tasks(),
+    );
     let mut parents: HashMap<u32, Vec<u32>> = HashMap::new();
     for (pid, process) in system.processes() {
         if let Some(parent) = process.parent() {
