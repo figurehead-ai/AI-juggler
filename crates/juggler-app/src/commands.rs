@@ -5038,16 +5038,29 @@ fn resolve_source(
         });
         (source, account_a, taken, ambiguous)
     };
-    if ambiguous {
-        return Ok((source, account_a));
-    }
-    let Some(found) = state.registry.get(&account_a.harness).and_then(|adapter| {
-        adapter.locate_transcript(
-            &account_a.state_dir,
-            &source.cwd,
-            source.started_at.millis(),
+    // AJ-E1540: a session that knows its conversation (picked up with
+    // "Continue in AI Juggler") is found by that id, not by when its file
+    // appeared: its file is older than the session record.
+    let by_id = source.conversation.as_ref().and_then(|conversation| {
+        crate::features::conversations::transcript_of(
+            state,
+            &account_a,
+            conversation.as_str(),
             &taken,
         )
+    });
+    if by_id.is_none() && ambiguous {
+        return Ok((source, account_a));
+    }
+    let Some(found) = by_id.or_else(|| {
+        state.registry.get(&account_a.harness).and_then(|adapter| {
+            adapter.locate_transcript(
+                &account_a.state_dir,
+                &source.cwd,
+                source.started_at.millis(),
+                &taken,
+            )
+        })
     }) else {
         return Ok((source, account_a));
     };

@@ -466,6 +466,52 @@ fn find(state: &Arc<AppState>, account_id: &str, id: &str) -> AppResult<Conversa
         .ok_or_else(|| AppError::Refused("that conversation isn't there any more".to_owned()))
 }
 
+/// AJ-E1540: the file that holds `account`'s conversation `id`, for a
+/// session that knows which conversation it is (one picked up with
+/// "Continue in AI Juggler", or recorded from outside) but has no
+/// transcript link yet. The index first; then the tool's own files, those
+/// whose name carries the id checked first, each confirmed by reading its
+/// id (never by its name alone). Files in `taken` belong to other sessions
+/// and are skipped. Read-only.
+pub(crate) fn transcript_of(
+    state: &Arc<AppState>,
+    account: &juggler_adapter::model::Account,
+    id: &str,
+    taken: &[PathBuf],
+) -> Option<juggler_core::model::TranscriptRef> {
+    let reference = |path: PathBuf| juggler_core::model::TranscriptRef {
+        path,
+        native_id: Some(id.to_owned()),
+    };
+    if let Ok(all) = state.conversations.all() {
+        if let Some(found) = all.into_iter().find(|conversation| {
+            conversation.account_id == account.id.as_str()
+                && conversation.summary.id == id
+                && !taken.contains(&conversation.path)
+        }) {
+            return Some(reference(found.path));
+        }
+    }
+    let adapter = state.registry.get(&account.harness)?;
+    let mut files: Vec<PathBuf> = adapter
+        .conversation_files(&account.state_dir)
+        .into_iter()
+        .filter(|path| !taken.contains(path))
+        .collect();
+    // The files named for it first: both tools put the id in the name.
+    files.sort_by_key(|path| {
+        !path
+            .file_name()
+            .is_some_and(|name| name.to_string_lossy().contains(id))
+    });
+    files.into_iter().find_map(|path| {
+        let summary = adapter
+            .read_conversation_quick(&path)
+            .or_else(|| adapter.read_conversation(&path))?;
+        (summary.id == id).then(|| reference(path))
+    })
+}
+
 /// The copyable line that resumes a conversation started outside AI
 /// Juggler: its tool's adapter builds it, on its account's folder, from
 /// its own folder.
