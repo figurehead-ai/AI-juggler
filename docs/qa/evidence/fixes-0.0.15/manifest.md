@@ -12,3 +12,12 @@ Not a task's evidence. This covers the coordinator's P0 for 0.1: Codex's compres
 | Dead settings writer removed | `write_settings_overlay` (claude_code.rs) had no caller; it would have wiped a settings.json to `{"model": …}`. `install_statusline` / `uninstall_statusline` stay (the pipeline calls install on main) | — | removed | PASS | a62f5013 | 2026-10-22 | claude-opus |
 | Not here: Codex conversations in the rail, History and projects | `codex_conversations` exists only on release/0.1 (AJ-E1529); the coordinator lists `.jsonl.zst` there | — | out of this branch | INFO | — | 2026-10-22 | claude-opus |
 | Load-sensitive tests (the coordinator's list) | `orphan :: collector_targeted_tick_overhead_under_budget`: work asserted exactly, this thread's CPU against 1 % (20 ms release / 30 ms debug / 40 ms CI), re-measured only on a busy machine; `updates_plugin :: a_package_that_fails_its_signature_never_installs`: progress only rises, in at least 20 steps; and `ports :: port_inventory_classifies_orphan_and_unmanaged_listeners` (failed in this batch's verify beside a developer's `vite` on 5173): two free ports from the OS | pass on a loaded machine | targeted tick 6.0–6.3 ms CPU (debug); updates and ports pass with the `vite` still on 5173 | PASS | 3c51b4b6, ae9674f7 | 2026-10-22 | claude-opus |
+
+## Gates
+
+| Gate | Head | Result |
+|---|---|---|
+| `just verify`, tests (`CARGO_INCREMENTAL=0`) | 7d8d33f5 | 149 test binaries, 1,192 passed, 0 failed |
+| `just verify`, the steps after the tests (fmt, dev-bridge tests, leaked fixtures, `cargo doc -D warnings`, evidence, terminology, task counts, stats doc and events, polling audit, release self-test, dev-bridge check) | the head (a doc-comment fix after 7d8d33f5) | all OK |
+| `cargo deny check` | the head | advisories, bans, licenses, sources ok |
+| `vitest`, visual, a11y | — | nothing under `ui/` changed since main |
