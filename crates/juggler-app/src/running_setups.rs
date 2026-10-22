@@ -52,31 +52,14 @@ fn inside_desktop_app(process: &ProcFacts) -> bool {
         .is_some_and(|exe| exe.contains("/Claude.app/"))
 }
 
+/// The adapter's rule for a `claude` session (its helpers, run under
+/// their own names, aren't one).
 fn is_cli(process: &ProcFacts) -> bool {
-    process.cmd.contains("@anthropic-ai/claude-code")
-        || ((process.name == "claude"
-            || process
-                .exe
-                .as_deref()
-                .is_some_and(|exe| exe.ends_with("/claude")))
-            && runs_as_claude(process))
-}
-
-/// Claude Code runs its search helpers as its own executable under their
-/// names (`ugrep`, `rg` as the first command word): the same binary, but a
-/// helper, never a `claude` of its own (QA on #126: five left behind by a
-/// finished session read as five tools). A `claude` is run as `claude`, or
-/// by a path to it (which may hold spaces). An unreadable command line
-/// leaves it to the name and the executable.
-fn runs_as_claude(process: &ProcFacts) -> bool {
-    let cmd = process.cmd.trim_start();
-    let Some(first) = cmd.split_whitespace().next() else {
-        return true;
-    };
-    Path::new(first)
-        .file_name()
-        .is_some_and(|name| name == "claude")
-        || (cmd.starts_with('/') && (cmd.ends_with("/claude") || cmd.contains("/claude ")))
+    juggler_adapters::claude_code::is_cli_process(
+        &process.name,
+        process.exe.as_deref().map(Path::new),
+        &process.cmd,
+    )
 }
 
 fn normalized(path: &str, home: &Path) -> PathBuf {

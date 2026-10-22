@@ -252,3 +252,44 @@ fn a_resume_id_that_looks_like_an_option_is_refused() {
         );
     }
 }
+
+/// The one rule for a `claude` session (QA on #126): Claude Code's own
+/// executable run as its search helper isn't one; `claude` run by name, by
+/// a path with spaces, or as the npm package is.
+#[test]
+fn a_claude_run_as_its_search_helper_is_not_a_session() {
+    use juggler_adapters::claude_code::is_cli_process;
+    let copy = Path::new(
+        "/Users/you/Library/Application Support/ClaudeProfiles/b/claude-code/2.1/abc/claude.app/Contents/MacOS/claude",
+    );
+    assert!(!is_cli_process(
+        "claude",
+        Some(copy),
+        "ugrep -r --json needle ."
+    ));
+    assert!(!is_cli_process("claude", Some(copy), "rg needle"));
+    assert!(is_cli_process(
+        "claude",
+        Some(copy),
+        &format!("{} --resume abc", copy.display())
+    ));
+    assert!(is_cli_process(
+        "claude",
+        Some(Path::new("/Users/you/.local/bin/claude")),
+        "claude"
+    ));
+    assert!(is_cli_process(
+        "node",
+        Some(Path::new("/usr/local/bin/node")),
+        "node /usr/local/lib/node_modules/@anthropic-ai/claude-code/cli.js"
+    ));
+    assert!(!is_cli_process(
+        "rg",
+        Some(Path::new("/opt/homebrew/bin/rg")),
+        "rg needle"
+    ));
+    assert!(
+        is_cli_process("claude", Some(copy), ""),
+        "an unreadable command line"
+    );
+}
