@@ -5223,12 +5223,15 @@ pub struct CarryListInfo {
 /// Returns the typed [`AppError`] when resolution fails or a hard
 /// gate stops the switch.
 #[tauri::command]
-pub fn switch_preflight(
+pub async fn switch_preflight(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
     target_profile_id: String,
 ) -> AppResult<PreflightInfo> {
-    switch_preflight_impl(state.inner(), &session_id, &target_profile_id)
+    crate::ipc::blocking(state.inner(), "check the switch", move |state| {
+        switch_preflight_impl(state, &session_id, &target_profile_id)
+    })
+    .await
 }
 
 /// Core implementation shared with integration tests.
@@ -5588,7 +5591,7 @@ pub struct SwitchExecutedInfo {
 /// Returns the typed [`AppError`] message on any failure; the source
 /// is exactly resumable in all of them (S-F contract).
 #[tauri::command]
-pub fn switch_execute(
+pub async fn switch_execute(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
     target_profile_id: String,
@@ -5604,15 +5607,20 @@ pub fn switch_execute(
         Some("suggestion") => "suggestion",
         _ => "manual",
     };
-    switch_execute_core(
-        state.inner(),
-        &session_id,
-        &target_profile_id,
-        &freeze_choice,
-        redaction_choice.as_deref(),
-        &redaction_unredact.unwrap_or_default(),
-        trigger,
-    )
+    // Off the main thread (T1): "Finish this turn" can wait minutes for
+    // the source to go quiet, and the screen must keep drawing.
+    crate::ipc::blocking(state.inner(), "switch", move |state| {
+        switch_execute_core(
+            state,
+            &session_id,
+            &target_profile_id,
+            &freeze_choice,
+            redaction_choice.as_deref(),
+            &redaction_unredact.unwrap_or_default(),
+            trigger,
+        )
+    })
+    .await
 }
 
 /// Core implementation shared with integration tests.
@@ -11661,12 +11669,15 @@ fn back_facts(
 ///
 /// Returns the typed [`AppError`] when the lineage walk fails.
 #[tauri::command]
-pub fn switch_back_plan(
+pub async fn switch_back_plan(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
     to_epoch: Option<String>,
 ) -> AppResult<SwitchBackPlanInfo> {
-    switch_back_plan_to_impl(state.inner(), &session_id, to_epoch.as_deref())
+    crate::ipc::blocking(state.inner(), "plan the switch back", move |state| {
+        switch_back_plan_to_impl(state, &session_id, to_epoch.as_deref())
+    })
+    .await
 }
 
 /// Core implementation shared with integration tests.
@@ -11776,20 +11787,23 @@ pub fn switch_back_plan_to_impl(
 /// the work stays forked, both sides resumable), spawn failure, or
 /// graph write failure.
 #[tauri::command]
-pub fn switch_back_execute(
+pub async fn switch_back_execute(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
     choices: Vec<SwitchBackChoiceIn>,
     keep_away_running: bool,
     to_epoch: Option<String>,
 ) -> AppResult<LaunchResult> {
-    switch_back_execute_to_impl(
-        state.inner(),
-        &session_id,
-        &choices,
-        keep_away_running,
-        to_epoch.as_deref(),
-    )
+    crate::ipc::blocking(state.inner(), "switch back", move |state| {
+        switch_back_execute_to_impl(
+            state,
+            &session_id,
+            &choices,
+            keep_away_running,
+            to_epoch.as_deref(),
+        )
+    })
+    .await
 }
 
 /// Core implementation shared with integration tests.

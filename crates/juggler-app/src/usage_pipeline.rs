@@ -207,6 +207,10 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
     }
 }
 
+/// How long a staged switch's copy is recognised by the source's id,
+/// before its launch is recorded with the copy's own (P19).
+const CARRY_STAGED_MS: i64 = 10 * 60 * 1000;
+
 /// Removes from `batch` the lines a same-tool switch carried into an
 /// account: in the target's copy of a switched conversation, every line
 /// older than the switch. Returns the sessions it emptied, so a re-read
@@ -221,7 +225,10 @@ fn drop_carried(
         };
         storage
             .switch_graph()
-            .carried_into()
+            .carried_into(
+                juggler_core::model::Timestamp::now().millis(),
+                CARRY_STAGED_MS,
+            )
             .unwrap_or_default()
             .into_iter()
             .map(|(account, session, at)| ((account, session), at))

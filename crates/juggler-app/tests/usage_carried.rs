@@ -20,8 +20,8 @@ use std::sync::Arc;
 use juggler_app::state::AppState;
 use juggler_app::usage_pipeline;
 use juggler_core::model::{
-    Account, AccountId, Confidence, EdgeActor, EdgeState, Epoch, EpochId, HarnessId, SwitchEdge,
-    SwitchEdgeId, SwitchMechanism, Timestamp, TokenCounts,
+    Account, AccountId, Confidence, EdgeActor, EdgeState, Epoch, EpochId, FailureStage, HarnessId,
+    SwitchEdge, SwitchEdgeId, SwitchMechanism, Timestamp, TokenCounts,
 };
 use juggler_core::quota::{UsageEvent, UsageSource};
 
@@ -63,8 +63,20 @@ fn account(state: &Arc<AppState>, id: &str, dir: &Path) {
         .unwrap();
 }
 
+/// How far a switch got.
+#[derive(Clone, Copy)]
+enum Outcome<'a> {
+    /// Launched, its copy installed under this id (the source's, or a new
+    /// one beside a copy the target already had).
+    Launched(&'a str),
+    /// Staged only: the launch isn't recorded yet.
+    Staged,
+    /// Failed: nothing was carried.
+    Failed,
+}
+
 /// A transplant of conversation `native` from `from` to `to` at `at`.
-fn switched(state: &Arc<AppState>, native: &str, from: &str, to: &str, at: i64) {
+fn switched(state: &Arc<AppState>, native: &str, from: &str, to: &str, at: i64, outcome: Outcome) {
     let storage = state.storage.lock().unwrap();
     let project = storage
         .projects()
@@ -73,7 +85,7 @@ fn switched(state: &Arc<AppState>, native: &str, from: &str, to: &str, at: i64) 
         .id;
     let graph = storage.switch_graph();
     let work = graph.create_work(&project, native).unwrap();
-    let epoch = |id: String, account: &str| Epoch {
+    let epoch = |id: &str, account: &str, native: &str| Epoch {
         id: EpochId::new(id),
         work: work.id.clone(),
         session_ref: None,
@@ -83,14 +95,15 @@ fn switched(state: &Arc<AppState>, native: &str, from: &str, to: &str, at: i64) 
         resumed_from_epoch: None,
         machine: None,
     };
+    let (from_epoch, edge) = (format!("{native}-{at}-from"), format!("{native}-{at}-edge"));
     graph
-        .insert_epoch(&epoch(format!("{native}-from"), from))
+        .insert_epoch(&epoch(&from_epoch, from, native))
         .unwrap();
     graph
         .append_edge(&SwitchEdge {
-            id: SwitchEdgeId::new(format!("{native}-edge")),
+            id: SwitchEdgeId::new(edge.as_str()),
             work: work.id.clone(),
-            from_epoch: EpochId::new(format!("{native}-from")),
+            from_epoch: EpochId::new(from_epoch.as_str()),
             to_epoch: None,
             from_account: AccountId::new(from),
             to_account: AccountId::new(to),
@@ -100,9 +113,13 @@ fn switched(state: &Arc<AppState>, native: &str, from: &str, to: &str, at: i64) 
             pack_id: None,
             fidelity_shown: None,
             manifest_sha256: None,
-            // Staged: a usage pass can read the copy before the launch is
-            // recorded, and must already leave its history out.
-            state: EdgeState::Staged,
+            state: match outcome {
+                Outcome::Failed => EdgeState::Failed {
+                    stage: FailureStage::Preflight,
+                    reason: "no".into(),
+                },
+                _ => EdgeState::Staged,
+            },
             actor: EdgeActor::User,
             parent_edge_a: None,
             parent_edge_b: None,
@@ -110,6 +127,15 @@ fn switched(state: &Arc<AppState>, native: &str, from: &str, to: &str, at: i64) 
             to_machine: None,
         })
         .unwrap();
+    if let Outcome::Launched(installed) = outcome {
+        let to_epoch = format!("{native}-{at}-to");
+        graph
+            .insert_epoch(&epoch(&to_epoch, to, installed))
+            .unwrap();
+        graph
+            .mark_launched(&SwitchEdgeId::new(edge.as_str()), &EpochId::new(to_epoch.as_str()))
+            .unwrap();
+    }
 }
 
 fn outputs(state: &Arc<AppState>, account: &str) -> Vec<(Option<String>, u64)> {
@@ -155,8 +181,23 @@ fn a_switched_conversations_history_counts_only_where_it_was_spent() {
     let quiet = [line("q", "quiet", 0, 50)];
     write(b.join("projects/lab/quiet.jsonl"), &quiet);
     write(c.join("projects/lab/quiet.jsonl"), &quiet);
-    switched(&state, "conv", "acc-b", "acc-c", T0 + SWITCH_MIN * 60_000);
-    switched(&state, "quiet", "acc-b", "acc-c", T0 + SWITCH_MIN * 60_000);
+    let at = T0 + SWITCH_MIN * 60_000;
+    switched(
+        &state,
+        "conv",
+        "acc-b",
+        "acc-c",
+        at,
+        Outcome::Launched("conv"),
+    );
+    switched(
+        &state,
+        "quiet",
+        "acc-b",
+        "acc-c",
+        at,
+        Outcome::Launched("quiet"),
+    );
 
     // What an earlier version stored for C: the carried history too.
     let stored = |id: &str, session: &str, output: u64| UsageEvent {
@@ -215,4 +256,144 @@ fn a_switched_conversations_history_counts_only_where_it_was_spent() {
         vec![(Some("m-3/r-3".into()), 300), (Some("m-4/r-4".into()), 400)]
     );
     assert_eq!(outputs(&state, "acc-b").len(), 3);
+}
+
+fn state_with(dir: &Path, accounts: &[&str]) -> Arc<AppState> {
+    let state = Arc::new(
+        AppState::init_with_registry(
+            dir.join("app-data"),
+            juggler_adapter::AdapterRegistry::new(),
+        )
+        .unwrap(),
+    );
+    for id in accounts {
+        account(&state, id, &dir.join(id));
+    }
+    state
+}
+
+#[test]
+fn a_copy_installed_beside_the_targets_own_keeps_the_targets_usage() {
+    // Review of #132 (H2): A → B, back to A, then A → B again. B already
+    // has "conv", so the copy is installed as "conv-fork". B's own "conv"
+    // is B's real work and keeps all of it; only the new copy's history
+    // is A's.
+    let dir = tempfile::tempdir().unwrap();
+    let state = state_with(dir.path(), &["acc-a", "acc-b"]);
+    let b = dir.path().join("acc-b");
+    write(
+        b.join("projects/lab/conv.jsonl"),
+        &[line("1", "conv", 0, 100), line("2", "conv", 1, 200)],
+    );
+    write(
+        b.join("projects/lab/conv-fork.jsonl"),
+        &[
+            line("f1", "conv-fork", 2, 50),
+            line("f2", "conv-fork", SWITCH_MIN + 1, 70),
+        ],
+    );
+    let at = T0 + SWITCH_MIN * 60_000;
+    switched(
+        &state,
+        "conv",
+        "acc-a",
+        "acc-b",
+        at,
+        Outcome::Launched("conv-fork"),
+    );
+
+    usage_pipeline::ingest_pass(&state, 0);
+
+    assert_eq!(
+        outputs(&state, "acc-b"),
+        vec![
+            (Some("m-1/r-1".into()), 100),
+            (Some("m-2/r-2".into()), 200),
+            (Some("m-f2/r-f2".into()), 70),
+        ],
+        "B's own conversation keeps its usage; the new copy's history is A's"
+    );
+}
+
+#[test]
+fn a_failed_or_long_staged_switch_carried_nothing() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = state_with(dir.path(), &["acc-a", "acc-b"]);
+    let b = dir.path().join("acc-b");
+    write(
+        b.join("projects/lab/failed.jsonl"),
+        &[line("x", "failed", 0, 10)],
+    );
+    write(
+        b.join("projects/lab/stale.jsonl"),
+        &[line("y", "stale", 0, 20)],
+    );
+    let at = T0 + SWITCH_MIN * 60_000;
+    switched(&state, "failed", "acc-a", "acc-b", at, Outcome::Failed);
+    // Staged on 2026-10-22 and never launched: long past the window in
+    // which a usage pass can read a copy before its launch is recorded.
+    switched(&state, "stale", "acc-a", "acc-b", at, Outcome::Staged);
+
+    usage_pipeline::ingest_pass(&state, 0);
+
+    assert_eq!(
+        outputs(&state, "acc-b"),
+        vec![(Some("m-x/r-x".into()), 10), (Some("m-y/r-y".into()), 20)]
+    );
+}
+
+#[test]
+fn a_copy_read_before_its_launch_is_recorded_is_still_left_out() {
+    // The few seconds between the install and the launch record: the
+    // source's id stands in for a switch staged just now.
+    let dir = tempfile::tempdir().unwrap();
+    let state = state_with(dir.path(), &["acc-a", "acc-b"]);
+    let now = Timestamp::now().millis();
+    let iso = |ms: i64| {
+        let secs = ms / 1000;
+        let (days, rem) = (secs.div_euclid(86_400), secs.rem_euclid(86_400));
+        // Civil date from days since 1970-01-01 (Howard Hinnant's algorithm).
+        let z = days + 719_468;
+        let era = z.div_euclid(146_097);
+        let doe = z - era * 146_097;
+        let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+        let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+        let mp = (5 * doy + 2) / 153;
+        let d = doy - (153 * mp + 2) / 5 + 1;
+        let m = if mp < 10 { mp + 3 } else { mp - 9 };
+        let y = yoe + era * 400 + i64::from(m <= 2);
+        format!(
+            "{y:04}-{m:02}-{d:02}T{:02}:{:02}:{:02}.000Z",
+            rem / 3600,
+            rem % 3600 / 60,
+            rem % 60
+        )
+    };
+    let usage = |id: &str, ms: i64, output: u64| {
+        format!(
+            "{{\"type\":\"assistant\",\"uuid\":\"u-{id}\",\"sessionId\":\"live\",\"requestId\":\"r-{id}\",\
+             \"timestamp\":\"{}\",\"message\":{{\"id\":\"m-{id}\",\"role\":\"assistant\",\"model\":\"claude-opus-4\",\
+             \"usage\":{{\"input_tokens\":10,\"output_tokens\":{output}}}}}}}\n",
+            iso(ms)
+        )
+    };
+    write(
+        dir.path().join("acc-b/projects/lab/live.jsonl"),
+        &[usage("old", now - 120_000, 5)],
+    );
+    switched(
+        &state,
+        "live",
+        "acc-a",
+        "acc-b",
+        now - 60_000,
+        Outcome::Staged,
+    );
+
+    usage_pipeline::ingest_pass(&state, 0);
+
+    assert!(
+        outputs(&state, "acc-b").is_empty(),
+        "the copy's history is A's"
+    );
 }
