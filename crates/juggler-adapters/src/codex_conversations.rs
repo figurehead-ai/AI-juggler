@@ -32,10 +32,12 @@ pub fn conversation_files(home: &Path) -> Vec<PathBuf> {
             continue;
         };
         out.extend(entries.flatten().map(|entry| entry.path()).filter(|path| {
-            path.extension().is_some_and(|ext| ext == "jsonl")
-                && path
-                    .file_name()
-                    .is_some_and(|name| name.to_string_lossy().starts_with("rollout-"))
+            path.file_name().is_some_and(|name| {
+                let name = name.to_string_lossy();
+                // AJ-E1540: Codex compresses older rollouts (`.jsonl.zst`).
+                name.starts_with("rollout-")
+                    && (name.ends_with(".jsonl") || name.ends_with(".jsonl.zst"))
+            })
         }));
     }
     out
@@ -46,7 +48,7 @@ pub fn conversation_files(home: &Path) -> Vec<PathBuf> {
 /// activity, and tokens (each response counted once).
 #[must_use]
 pub fn read_conversation(path: &Path) -> Option<ConversationSummary> {
-    let bytes = std::fs::read(path).ok()?;
+    let bytes = crate::transcript::read_session_file(path).ok()?;
     summary_of(&bytes, &path.file_name()?.to_string_lossy())
 }
 
@@ -54,8 +56,34 @@ pub fn read_conversation(path: &Path) -> Option<ConversationSummary> {
 /// (`file_ends`): all but its tokens, which need the whole file.
 #[must_use]
 pub fn read_conversation_quick(path: &Path) -> Option<ConversationSummary> {
+    if crate::transcript::is_compressed(path) {
+        return compressed_head(path);
+    }
     let ends = juggler_adapter::conversation::file_ends(path)?;
     let mut summary = summary_of(&ends, &path.file_name()?.to_string_lossy())?;
+    summary.tokens = juggler_core::model::TokenCounts::default();
+    Some(summary)
+}
+
+/// AJ-E1540: a compressed rollout's quick read: only its head is
+/// decompressed (a compressed rollout is a finished one; reading all of
+/// them whole would slow the first listing). Its last activity is its
+/// start until the whole read fills it in.
+fn compressed_head(path: &Path) -> Option<ConversationSummary> {
+    use std::io::Read as _;
+    let file = std::fs::File::open(path).ok()?;
+    let mut head = Vec::new();
+    zstd::stream::Decoder::new(file)
+        .ok()?
+        .take(juggler_adapter::conversation::QUICK_HEAD)
+        .read_to_end(&mut head)
+        .ok()?;
+    head.truncate(
+        head.iter()
+            .rposition(|b| *b == b'\n')
+            .map_or(0, |end| end + 1),
+    );
+    let mut summary = summary_of(&head, &path.file_name()?.to_string_lossy())?;
     summary.tokens = juggler_core::model::TokenCounts::default();
     Some(summary)
 }
@@ -140,6 +168,38 @@ pub fn session_process(exe: Option<&Path>, args: &[String]) -> Option<SessionPro
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_compressed_rollout_is_a_conversation_too() {
+        let home = tempfile::tempdir().unwrap();
+        let day = home.path().join("sessions/2026/10/15");
+        std::fs::create_dir_all(&day).unwrap();
+        let id = "01a13e20-8ff6-7091-9ab8-75d6f59b8894";
+        let rollout = [
+            format!(r#"{{"timestamp":"2026-10-15T01:54:43.000Z","type":"session_meta","payload":{{"id":"{id}","cwd":"/Users/you/Dev/shop","git":{{"branch":"main"}}}}}}"#),
+            r#"{"timestamp":"2026-10-15T01:55:00.000Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Fix the cart total"}]}}"#.to_owned(),
+            r#"{"timestamp":"2026-10-15T02:10:00.000Z","type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Fixed."}]}}"#.to_owned(),
+        ]
+        .join("\n")
+            + "\n";
+        let path = day.join(format!("rollout-2026-10-15T01-54-43-{id}.jsonl.zst"));
+        std::fs::write(
+            &path,
+            zstd::stream::encode_all(rollout.as_bytes(), 3).unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(conversation_files(home.path()), vec![path.clone()]);
+        let whole = read_conversation(&path).expect("a compressed rollout reads");
+        assert_eq!(whole.id, id);
+        assert_eq!(whole.title.as_deref(), Some("Fix the cart total"));
+        assert_eq!(whole.git_branch.as_deref(), Some("main"));
+        let quick = read_conversation_quick(&path).expect("and reads quickly from its head");
+        assert_eq!(
+            (quick.id.as_str(), quick.title.as_deref()),
+            (id, Some("Fix the cart total"))
+        );
+    }
 
     #[test]
     fn a_cli_session_is_told_from_the_apps_helpers() {
