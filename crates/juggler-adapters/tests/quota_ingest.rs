@@ -68,6 +68,46 @@ fn spool_parses_with_zero_dropped_valid_lines() {
 }
 
 #[test]
+fn a_status_line_reset_reads_as_epoch_seconds_ms_or_an_rfc3339_string() {
+    // 2026-10-14T01:00:00Z, written three ways (AJ-E1530): the capture's
+    // ISO string with its offset, epoch seconds, epoch milliseconds.
+    let at_ms = 1_791_939_600_000_i64;
+    for resets_at in [
+        serde_json::json!("2026-10-13T18:00:00-07:00"),
+        serde_json::json!(at_ms / 1000),
+        serde_json::json!(at_ms),
+    ] {
+        let payload = serde_json::json!({"rate_limits": {"five_hour": {"used_percentage": 12.0, "resets_at": resets_at.clone()}}});
+        let samples = statusline_samples(1, &payload);
+        assert_eq!(samples[0].1.resets_at, Some(at_ms), "{resets_at}");
+    }
+    // Not a time: no reset, never a guessed one.
+    let payload = serde_json::json!({"rate_limits": {"five_hour": {"used_percentage": 12.0, "resets_at": "soon"}}});
+    assert_eq!(statusline_samples(1, &payload)[0].1.resets_at, None);
+}
+
+#[test]
+fn iso_times_read_offsets_and_short_fractions() {
+    assert_eq!(
+        iso_to_epoch_ms("2026-10-14T01:00:00Z"),
+        Some(1_791_939_600_000)
+    );
+    assert_eq!(
+        iso_to_epoch_ms("2026-10-14T06:30:00+05:30"),
+        Some(1_791_939_600_000)
+    );
+    assert_eq!(
+        iso_to_epoch_ms("2026-10-14T01:00:00.5Z"),
+        Some(1_791_939_600_500)
+    );
+    assert_eq!(
+        iso_to_epoch_ms("2026-10-14T01:00:00.391Z"),
+        Some(1_791_939_600_391)
+    );
+    assert_eq!(iso_to_epoch_ms("2026-10-14T01:00:00.Z"), None);
+}
+
+#[test]
 fn spool_tail_is_offset_incremental_and_truncation_aware() {
     let dir = tempfile::tempdir().unwrap();
     let spool = dir.path().join("s.jsonl");
@@ -872,5 +912,37 @@ fn our_own_wrapper_is_never_chained() {
     assert!(
         !script.contains("CHAIN="),
         "no chain to ourselves: {script}"
+    );
+}
+
+#[test]
+fn a_copy_wired_by_an_earlier_version_chains_its_users_own_line_and_stays_as_it_is() {
+    // AJ-E1530 (ADR-0018 §3): an older copy's settings point at the
+    // copy's own wrapper, its backup holds the user's line. The launch
+    // overlay chains the user's line, never the wrapper, and the copy's
+    // files are left byte for byte.
+    let work = tempfile::tempdir().unwrap();
+    let copy = work.path().join("copy");
+    std::fs::create_dir_all(&copy).unwrap();
+    let settings = "{\n  \"statusLine\": {\"type\": \"command\", \"command\": \"/copy/juggler-statusline.sh\"},\n  \"model\": \"opus\"\n}\n";
+    let backup =
+        "{\"statusLine\": {\"type\": \"command\", \"command\": \"~/.config/statusline.sh\"}}";
+    std::fs::write(copy.join("settings.json"), settings).unwrap();
+    std::fs::write(copy.join("juggler-statusline-backup.json"), backup).unwrap();
+    let overlays = work.path().join("overlays");
+    let path = quota_ingest::ensure_launch_overlay(&overlays, "acc-old", &copy).unwrap();
+    let wrapper = std::fs::read_to_string(path.with_file_name("juggler-statusline.sh")).unwrap();
+    assert!(wrapper.contains("~/.config/statusline.sh"), "{wrapper}");
+    assert!(
+        !wrapper.contains("/copy/juggler-statusline.sh"),
+        "{wrapper}"
+    );
+    assert_eq!(
+        std::fs::read_to_string(copy.join("settings.json")).unwrap(),
+        settings
+    );
+    assert_eq!(
+        std::fs::read_to_string(copy.join("juggler-statusline-backup.json")).unwrap(),
+        backup
     );
 }

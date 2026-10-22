@@ -280,7 +280,7 @@ def codex_rollout(folder: Path, cwd: str, start: dt.datetime, rng: random.Random
     lines = [{"timestamp": iso(at), "type": "session_meta", "payload": {
         "id": thread, "cwd": cwd, "cli_version": "0.160.0", "originator": "codex_cli_rs",
         "history_mode": "paginated"}}]
-    for _ in range(rng.randint(2, 12)):
+    for turn in range(rng.randint(2, 12)):
         at += dt.timedelta(seconds=rng.randint(10, 600))
         lines.append({"timestamp": iso(at), "type": "turn_context",
                       "payload": {"cwd": cwd, "model": rng.choice(MODELS_CODEX)}})
@@ -290,7 +290,9 @@ def codex_rollout(folder: Path, cwd: str, start: dt.datetime, rng: random.Random
         tokens += inp + out
         usage = {"input_tokens": inp, "cached_input_tokens": inp // 3, "output_tokens": out,
                  "reasoning_output_tokens": out // 4, "total_tokens": inp + out}
-        lines.append({"timestamp": iso(at), "type": "token_usage_record", "payload": {"usage": usage}})
+        # As Codex writes it: each response's usage once, keyed by its ids.
+        lines.append({"timestamp": iso(at), "type": "token_usage_record", "payload": {
+            "thread_id": thread, "turn_id": str(turn), "response_id": f"resp_{thread[:8]}_{turn}", "usage": usage}})
         resets = int((at + dt.timedelta(hours=rng.randint(1, 5))).timestamp())
         lines.append({"timestamp": iso(at), "type": "event_msg", "payload": {
             "type": "token_count", "info": {"total_token_usage": usage, "last_token_usage": usage},

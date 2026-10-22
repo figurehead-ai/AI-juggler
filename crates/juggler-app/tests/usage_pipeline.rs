@@ -131,7 +131,7 @@ fn one_pass_ingests_all_sources_and_repeats_insert_nothing() {
     let state = app_state(dir.path());
     seed_claude_account(&state, dir.path());
 
-    // Pass 1 (tick 4 = file-scan tick): spool + transcript + install.
+    // Pass 1 (tick 4 = file-scan tick): spool + transcript.
     usage_pipeline::ingest_pass(&state, 4);
     let events = {
         let storage = state.storage.lock().unwrap();
@@ -149,9 +149,12 @@ fn one_pass_ingests_all_sources_and_repeats_insert_nothing() {
     assert_eq!(samples.len(), 1);
     assert!((samples[0].used_pct - 33.0).abs() < 1e-9);
 
-    // The managed wrapper is installed and CHAINS nothing (no prior).
+    // ADR-0018 §3: nothing is installed into a copy (its capture comes
+    // in with each launch, from AI Juggler's own folder); a spool an
+    // earlier version left there is still read (the 33% above).
     let managed = dir.path().join("managed-claude");
-    assert!(managed.join("juggler-statusline.sh").exists());
+    assert!(!managed.join("juggler-statusline.sh").exists());
+    assert!(!managed.join("juggler-statusline-backup.json").exists());
 
     // Pass 2 (tick 8): no file changes ⇒ zero new rows.
     usage_pipeline::ingest_pass(&state, 8);

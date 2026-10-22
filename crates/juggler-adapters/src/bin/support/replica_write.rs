@@ -38,6 +38,9 @@ struct WriteOptions {
     ask: Option<String>,
     /// Running, writing nothing.
     idle: bool,
+    /// When this run started (epoch s): a resumed thread's new responses
+    /// get ids of their own.
+    started: u64,
 }
 
 fn parse(args: &[String]) -> Result<WriteOptions, String> {
@@ -50,6 +53,7 @@ fn parse(args: &[String]) -> Result<WriteOptions, String> {
         used: (0.0, 0.0),
         ask: None,
         idle: false,
+        started: now_secs(),
     };
     let mut i = 0;
     while i < args.len() {
@@ -179,7 +183,10 @@ fn codex_lines(opts: &WriteOptions, turn: u64) -> Vec<serde_json::Value> {
             "type": "message", "role": "user", "content": [{"type": "input_text", "text": ask}]}}),
         );
     }
-    out.push(serde_json::json!({"timestamp": at, "type": "token_usage_record", "payload": {"usage": usage}}));
+    // As Codex writes it: each response's usage once, keyed by its ids.
+    out.push(serde_json::json!({"timestamp": at, "type": "token_usage_record", "payload": {
+        "thread_id": opts.session_id, "turn_id": turn.to_string(),
+        "response_id": format!("resp_{}_{}_{turn}", opts.session_id, opts.started), "usage": usage}}));
     out.push(serde_json::json!({"timestamp": at, "type": "event_msg", "payload": {
         "type": "token_count", "info": {"total_token_usage": usage, "last_token_usage": usage},
         "rate_limits": {

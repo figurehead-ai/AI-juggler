@@ -230,10 +230,9 @@ fn a_copy_keeps_its_settings_file_when_a_profile_sets_a_model() {
     launch_and_wait(&state, &result.account.id, Some("opus"));
     let lines = std::fs::read_to_string(&log).unwrap();
     assert!(lines.contains("arg=--model\narg=opus\n"), "{lines}");
-    assert!(
-        !lines.contains("arg=--settings"),
-        "copies keep their own status line install"
-    );
+    // ADR-0018 §3: a copy's status line capture comes in with the
+    // launch, as an in-place account's does; its own files aren't edited.
+    assert!(lines.contains("arg=--settings"), "{lines}");
     assert_eq!(
         std::fs::read_to_string(copy.join("settings.json")).unwrap(),
         settings,

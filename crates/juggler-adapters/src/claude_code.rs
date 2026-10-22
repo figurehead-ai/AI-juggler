@@ -484,14 +484,13 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         };
         // Per-launch settings go in as flags, never as edits to the
         // folder's settings.json (ADR-0018 §3): the profile's model, and
-        // for an in-place account the status line capture in AI Juggler's
-        // own folder.
+        // the status line capture in AI Juggler's own folder — for a copy
+        // as for an in-place account.
         let mut leading = Vec::new();
         if let Some(model) = &profile.settings_overlay.model {
             leading.extend(["--model".to_owned(), model.clone()]);
         }
-        if account.in_place
-            && let Some(root) = &self.overlays_root
+        if let Some(root) = &self.overlays_root
             && let Ok(settings) = crate::quota_ingest::ensure_launch_overlay(
                 root,
                 account.id.as_str(),

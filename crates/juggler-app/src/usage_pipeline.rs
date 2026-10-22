@@ -52,6 +52,10 @@ type SampleBatch = Vec<(
 #[derive(Default, serde::Serialize, serde::Deserialize)]
 struct AccountOffsets {
     spool: u64,
+    /// A copy an earlier version wired to a spool of its own (left as it
+    /// is): read too, while it's there.
+    #[serde(default)]
+    legacy_spool: u64,
     #[serde(default)]
     files: BTreeMap<String, u64>,
     /// Per Codex rollout: the model its last `turn_context` named, for
@@ -121,15 +125,15 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
         }
         match harness.as_str() {
             "claude-code" => {
-                // ADR-0018: an in-place account's capture lives in AI
-                // Juggler's own folder; its folder is never written.
-                let spool = account.in_place.then(|| {
-                    juggler_adapters::overlay_spool_path(&state.overlays_dir(), &account_id)
-                });
+                // ADR-0018: an account's capture lives in AI Juggler's own
+                // folder, a copy's as an in-place one's; its folder is
+                // never written.
+                let spool =
+                    juggler_adapters::overlay_spool_path(&state.overlays_dir(), &account_id);
                 ingest_claude(
                     &account_id,
                     &dir,
-                    spool,
+                    &spool,
                     &mut ingest,
                     &mut store_batch,
                     &mut sample_batch,
@@ -198,37 +202,27 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
 fn ingest_claude(
     account: &str,
     dir: &Path,
-    in_place_spool: Option<PathBuf>,
+    spool: &Path,
     ingest: &mut IngestState,
     store: &mut Vec<juggler_core::quota::UsageEvent>,
     samples: &mut SampleBatch,
 ) {
-    // Req.1: the managed wrapper is ensured idempotently — a missing
-    // or drifted install self-heals; a user who uninstalled sees it
-    // return only because the account remains managed by Juggler.
-    let spool = if let Some(spool) = in_place_spool {
-        spool
-    } else if !juggler_adapters::claude_code::is_managed_dir(dir) {
-        // Only ever into AI Juggler's own marked copies — never a folder
-        // that isn't ours, whatever the account row says.
-        juggler_adapters::spool_path(dir)
-    } else {
-        if let Err(error) = juggler_adapters::install_statusline(dir) {
-            record_health(
-                ingest,
-                account,
-                "statusline",
-                None,
-                0,
-                &format!("install: {error}"),
-            );
-        }
-        juggler_adapters::spool_path(dir)
-    };
-    juggler_adapters::rotate_spool_if_needed(&spool);
+    // The status line spool in AI Juggler's own folder: AI Juggler's
+    // launches pass it with `--settings` (ADR-0018 §3); nothing is
+    // installed into the account's folder, a copy's included.
+    juggler_adapters::rotate_spool_if_needed(spool);
     let offsets = ingest.offsets.entry(account.to_owned()).or_default();
-    let outcome = juggler_adapters::tail_spool(&spool, offsets.spool);
+    let mut outcome = juggler_adapters::tail_spool(spool, offsets.spool);
     offsets.spool = outcome.offset;
+    // A copy an earlier version wired to its own spool keeps it (its
+    // files are left as they are): read it too while it's there.
+    let legacy = juggler_adapters::spool_path(dir);
+    if juggler_adapters::claude_code::is_managed_dir(dir) && legacy.exists() {
+        let older = juggler_adapters::tail_spool(&legacy, offsets.legacy_spool);
+        offsets.legacy_spool = older.offset;
+        outcome.samples.extend(older.samples);
+        outcome.parse_errors += older.parse_errors;
+    }
     for (kind, sample) in outcome.samples {
         samples.push((account.to_owned(), kind, sample));
         record_health(ingest, account, "statusline", Some(sample.ts), 0, "");

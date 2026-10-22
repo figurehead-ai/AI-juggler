@@ -377,7 +377,7 @@ pub fn statusline_samples(ts: i64, payload: &serde_json::Value) -> Vec<(WindowKi
         let used = entry
             .get("used_percentage")
             .and_then(serde_json::Value::as_f64)?;
-        let resets_at = entry.get("resets_at").and_then(serde_json::Value::as_i64);
+        let resets_at = entry.get("resets_at").and_then(reset_ms);
         out.push((
             kind,
             QuotaSample {
@@ -398,17 +398,39 @@ pub fn statusline_samples(ts: i64, payload: &serde_json::Value) -> Vec<(WindowKi
 // ISO-timestamp → epoch-ms (line-level, no chrono dependency)
 // ---------------------------------------------------------------------------
 
-/// Parses `YYYY-MM-DDTHH:MM:SS(.fff)?Z` into epoch milliseconds.
-/// Returns `None` for anything else — an unparseable timestamp is
-/// honest damage (counted), never a fabricated one.
+/// Parses `YYYY-MM-DDTHH:MM:SS(.fff)?` with `Z` or a `±HH:MM` offset
+/// (Claude's status line writes `2026-10-13T18:00:00-07:00`) into epoch
+/// milliseconds. Returns `None` for anything else — an unparseable
+/// timestamp is honest damage (counted), never a fabricated one.
 #[must_use]
 pub fn iso_to_epoch_ms(raw: &str) -> Option<i64> {
     let date_end = raw.find('T')?;
     let date = CalendarDate::parse(&raw[..date_end])?;
     let time = &raw[date_end + 1..];
-    let time = time.strip_suffix('Z').unwrap_or(time);
+    // The offset, east of UTC in minutes: the local time minus it is UTC.
+    let (time, offset_minutes) = if let Some(utc) = time.strip_suffix('Z') {
+        (utc, 0)
+    } else if time.len() > 6
+        && matches!(time.as_bytes()[time.len() - 6], b'+' | b'-')
+        && time.as_bytes()[time.len() - 3] == b':'
+    {
+        let (clock, zone) = time.split_at(time.len() - 6);
+        let hours: i64 = zone[1..3].parse().ok()?;
+        let minutes: i64 = zone[4..6].parse().ok()?;
+        let sign = if zone.starts_with('-') { -1 } else { 1 };
+        (clock, sign * (hours * 60 + minutes))
+    } else {
+        (time, 0)
+    };
     let (hms, millis) = match time.split_once('.') {
-        Some((hms, frac)) => (hms, frac.parse::<i64>().ok()?),
+        // A fraction is of a second: ".5" is 500 ms, ".391" 391 ms.
+        Some((hms, frac)) if !frac.is_empty() && frac.bytes().all(|b| b.is_ascii_digit()) => (
+            hms,
+            format!("{:0<3}", &frac[..frac.len().min(3)])
+                .parse::<i64>()
+                .ok()?,
+        ),
+        Some(_) => return None,
         None => (time, 0),
     };
     let mut parts = hms.split(':');
@@ -422,7 +444,26 @@ pub fn iso_to_epoch_ms(raw: &str) -> Option<i64> {
     {
         return None;
     }
-    Some(date.civil_days() * 86_400_000 + (hours * 3_600 + minutes * 60 + seconds) * 1000 + millis)
+    Some(
+        date.civil_days() * 86_400_000 + (hours * 3_600 + minutes * 60 + seconds) * 1000 + millis
+            - offset_minutes * 60_000,
+    )
+}
+
+/// A status line's `resets_at` as epoch ms: epoch seconds (×1000), epoch
+/// milliseconds, or an RFC 3339 string. Anything else is no reset time
+/// (never a guessed one).
+fn reset_ms(value: &serde_json::Value) -> Option<i64> {
+    // Epoch seconds stay below 10^11 until the year 5138; ms are above.
+    const SECONDS_BELOW: i64 = 100_000_000_000;
+    if let Some(number) = value.as_i64() {
+        return Some(if number < SECONDS_BELOW {
+            number * 1000
+        } else {
+            number
+        });
+    }
+    value.as_str().and_then(iso_to_epoch_ms)
 }
 
 // ---------------------------------------------------------------------------
@@ -1054,16 +1095,25 @@ pub fn ensure_launch_overlay(
     let dir = overlay_dir(overlays_root, account_id);
     let spool_dir = dir.join(SPOOL_DIR_NAME);
     std::fs::create_dir_all(&spool_dir).map_err(|error| format!("overlay dir: {error}"))?;
-    let chain = std::fs::read(config_dir.join("settings.json"))
-        .ok()
-        .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
-        .and_then(|settings| {
-            settings
-                .get("statusLine")
-                .and_then(|line| line.get("command"))
-                .and_then(serde_json::Value::as_str)
-                .map(str::to_owned)
-        });
+    let read = |name: &str| {
+        std::fs::read(config_dir.join(name))
+            .ok()
+            .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
+    };
+    let command = |settings: serde_json::Value| {
+        settings
+            .get("statusLine")
+            .and_then(|line| line.get("command"))
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_owned)
+    };
+    let chain = match read("settings.json").and_then(command) {
+        // A copy an earlier version wired to its own wrapper (left as it
+        // is): chain what that wrapper chained, the user's own line, kept
+        // in its backup — never the wrapper itself.
+        Some(ours) if ours.contains(WRAPPER_NAME) => read(BACKUP_NAME).and_then(command),
+        other => other,
+    };
     let chain = not_ours(chain);
     let wrapper = dir.join(WRAPPER_NAME);
     write_if_changed(
