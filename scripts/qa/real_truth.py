@@ -218,10 +218,11 @@ def rollout_lines(path: Path):
 def read_codex_rollout(path: Path) -> dict:
     path = current_rollout(path)
     roll = {"session": None, "parent": None, "mtime": path.stat().st_mtime, "cwd": None, "first": None, "model": None,
-            "compressed": path.suffix == ".zst", "totals": [], "turns": [], "turn_detail": [],
+            "compressed": path.suffix == ".zst", "totals": [], "turns": [], "turn_detail": [], "records": [],
             "rate_limits": None, "rate_ts": None}
     for raw in rollout_lines(path):
-        if b'"session_meta"' not in raw and b'"token_count"' not in raw and b'"turn_context"' not in raw:
+        if (b'"session_meta"' not in raw and b'"token_count"' not in raw and b'"turn_context"' not in raw
+                and b'"token_usage_record"' not in raw):
             continue
         try:
             line = json.loads(raw)
@@ -241,6 +242,15 @@ def read_codex_rollout(path: Path) -> dict:
                 spawn = ((payload.get("source") or {}).get("subagent") or {}).get("thread_spawn") \
                     if isinstance(payload.get("source"), dict) else None
                 roll["parent"] = payload.get("forked_from_id") or (spawn or {}).get("parent_thread_id")
+        elif line.get("type") == "token_usage_record":
+            # Each model response's own usage, keyed. A context compaction
+            # is a response too: its record is the only place it is counted,
+            # since `token_count`'s running total leaves it out.
+            usage = payload.get("usage") or {}
+            if ts is not None and isinstance(usage.get("total_tokens"), int):
+                key = (payload.get("thread_id"), payload.get("turn_id"), payload.get("response_id"))
+                roll["records"].append((ts, key, usage["total_tokens"], (roll["model"], {
+                    name: usage.get(field) if isinstance(usage.get(field), int) else 0 for name, field in CODEX_CLASSES})))
         elif line.get("type") == "turn_context":
             roll["model"] = payload.get("model") if isinstance(payload.get("model"), str) else roll["model"]
         elif payload.get("type") == "token_count" and ts is not None:
@@ -432,9 +442,12 @@ def build(args) -> dict:
             newest = None
             window_tokens = {name: 0 for name, _ in WINDOWS}
             threads = set()  # a resumed thread is a rollout per resume: one conversation
-            # (timestamp, running total): a resume, or a subagent forked
-            # from its parent's history, repeats the rows it carries; each
-            # turn counts once, on the thread that wrote it first.
+            # A thread's use is its `token_usage_record`s (one per model
+            # response, compactions included), or, in a rollout without
+            # them, its turns' `last_token_usage`. A record counts once by
+            # its key, a turn by (timestamp, running total): a resume, or a
+            # subagent forked from its parent's history, repeats what it
+            # carries, and each counts on the thread that wrote it first.
             seen_turns = set()
             acc["files"] = {"plain": 0, "compressed": 0}
             all_time = acc["codex_all_time"] = {"turns": 0, "total": 0, **{name: 0 for name, _ in CODEX_CLASSES},
@@ -449,12 +462,14 @@ def build(args) -> dict:
                 if roll["session"] and roll["cwd"]:
                     newest_in_folder[(idx, os.path.realpath(roll["cwd"]))].append((roll["mtime"], roll["session"]))
                 thread = roll["session"] or str(path)
+                units = roll["records"] or [(ts, ("turn", ts, running), n, detail)
+                                            for (ts, n, running), detail in zip(roll["turns"], roll["turn_detail"])]
                 own, own_detail = [], []
-                for (ts, n, running), detail in zip(roll["turns"], roll["turn_detail"]):
-                    if (ts, running) not in seen_turns:
+                for ts, key, n, detail in units:
+                    if key not in seen_turns:
+                        seen_turns.add(key)
                         own.append((ts, n))
                         own_detail.append(detail)
-                seen_turns.update((ts, running) for ts, _, running in roll["turns"])
                 for (_, n), (model, classes) in zip(own, own_detail):
                     all_time["turns"] += 1
                     all_time["total"] += n
@@ -1095,7 +1110,15 @@ def selftest_rollouts() -> None:
             {"timestamp": "2026-01-01T00:00:02Z", "type": "event_msg", "payload": {"type": "token_count", "info": {
                 "total_token_usage": {"total_tokens": 30},
                 "last_token_usage": {"total_tokens": 30, "input_tokens": 20, "cached_input_tokens": 5,
-                                     "output_tokens": 10, "reasoning_output_tokens": 4}}}}]
+                                     "output_tokens": 10, "reasoning_output_tokens": 4}}}},
+            {"timestamp": "2026-01-01T00:00:02Z", "type": "token_usage_record", "payload": {
+                "thread_id": "t1", "turn_id": "u1", "response_id": "r1",
+                "usage": {"total_tokens": 30, "input_tokens": 20, "cached_input_tokens": 5,
+                          "output_tokens": 10, "reasoning_output_tokens": 4}}},
+            # A compaction's own response: a record no token_count reports.
+            {"timestamp": "2026-01-01T00:00:03Z", "type": "token_usage_record", "payload": {
+                "thread_id": "t1", "turn_id": "u1", "response_id": "r2", "usage": {"total_tokens": 7}}},
+            {"timestamp": "2026-01-01T00:00:03Z", "type": "compacted", "payload": {}}]
     data = "".join(json.dumps(r) + "\n" for r in rows).encode()
     with tempfile.TemporaryDirectory() as tmp:
         day = Path(tmp) / "sessions/2026/01/01"
@@ -1118,9 +1141,10 @@ def selftest_rollouts() -> None:
         assert [f.name for f in rollout_files(Path(tmp) / "sessions", plain_only=True)] == names[:2]
         plain, comp = read_codex_rollout(day / "rollout-a.jsonl"), read_codex_rollout(day / "rollout-c.jsonl.zst")
         assert comp["compressed"] and not plain["compressed"]
-        for key in ("session", "cwd", "first", "model", "turns", "turn_detail"):
+        for key in ("session", "cwd", "first", "model", "turns", "turn_detail", "records"):
             assert plain[key] == comp[key], key
         assert comp["turn_detail"] == [("m1", {"input": 20, "cached_input": 5, "output": 10, "reasoning": 4})]
+        assert [(key[2], n) for _, key, n, _ in comp["records"]] == [("r1", 30), ("r2", 7)]
         (day / "rollout-a.jsonl").rename(day / "rollout-a.jsonl.zst")  # compressed after listing
         (day / "rollout-a.jsonl.zst").write_bytes(packed)
         assert read_codex_rollout(day / "rollout-a.jsonl")["compressed"]

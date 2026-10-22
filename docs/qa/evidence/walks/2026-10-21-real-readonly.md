@@ -1707,6 +1707,58 @@ folder.
   13:34:39), the second many times between runs (23:20:42, 05:20:42, 11:20:42). Neither
   changed in the 10 minutes watched afterwards. They're the vendor's periodic writes.
 
+## Batch 24 — main `001c6ea4` (#131 merged): the ×1.015, row by row
+
+The harness ran on main into a fresh scratch folder. Its store was kept so that each Codex
+row (`usage_events`, by `msg_uuid`) could be matched with the rollout lines. Snapshots: no
+path added or removed, and no config file changed. (A first run was stopped partway;
+between its snapshots only Claude Code's own `telemetry` folders and the Codex app's
+`config.toml`, which it rewrites all day, changed.)
+
+### The ×1.015 was the oracle's units
+
+- **Rows**: in every Codex session the backend's rows are the file's `token_usage_record`
+  lines, keyed `thread/turn/response`, and nothing else.
+- **Sessions**: 111 sessions read high (108 compressed, 107 of them subagents). In every
+  one, backend minus oracle equals exactly the usage of that session's compactions,
+  295,165,085 tokens.
+- **What a compaction looks like**: the `token_usage_record` just before each `compacted`
+  line is the compaction's own model call. The `compacted` line's
+  `latest_token_usage_record` repeats its key. `token_count` never reports it: the next
+  `total_token_usage` repeats the total from before the compaction, and later totals
+  build on that, so only the record's `thread_token_usage` includes the call. The
+  oracle counted `token_count` deltas, so it missed every compaction. It now counts
+  `token_usage_record` lines, once each by key, and falls back to `token_count` deltas
+  only in a rollout without records.
+
+| | Oracle by `token_count` | Oracle by records |
+|---|---|---|
+| Codex all time | ×1.0153 | **×1.00002** (367,324 tokens of 19.6 B) |
+| Account G 7 d (×1.01 in every batch so far) | ×1.01 | **×1.00** |
+
+### P21 — a thread that opens from another thread's compaction counts that call twice
+
+Three top-level threads start with a `compacted` line whose `latest_token_usage_record`
+is another thread's record, already in that thread's rollout and stored. The backend still
+stores a `thread/compacted/<ts>/1` row from the `token_count` that follows. That's 3 rows
+of 136,658, 133,795 and 96,871 tokens, 367,324 in all: exactly the rest of the gap above.
+Two of them are the small sessions that read ×1.19 and ×1.08. Keying a compaction's
+usage by its `latest_token_usage_record` (`thread/turn/response`) would let the store's
+`UNIQUE(account, msg_uuid)` count it once.
+
+### Shapes, for a real-shaped fixture
+
+- **Forked subagents**: 400 subagent threads, 43 of them with a second `session_meta` (the
+  parent's) within the first 3 lines. 36 of those copy a compacted summary of the parent
+  before their first `task_started`: one `compacted` line, a few `message`,
+  `turn_context`, `world_state`, `thread_settings_applied` and `task_complete` lines. No
+  copy carries the parent's whole prefix, and none copies a `token_usage_record` or a
+  `token_count`. Every one of their 24,208 records has the child's own `thread_id` (with
+  the parent's `session_id`) under a key found in no other file. The backend stores no
+  row for a copied compaction, which is right.
+- **Resumed threads**: none on this Mac has more than one rollout file.
+- **Rows outside 5% now**: 8 of 2,261. Six are the switch copies (P19); two are P21.
+
 ## Not walked (blocked by W0, before the bridge)
 
 These need the window:
