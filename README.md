@@ -232,6 +232,9 @@ just verify     # every check CI runs
 
 ## License and trademarks
 
+AI Juggler is made by [Figurehead](https://figurehead.ai), which builds AI
+tools for developers.
+
 The code is [MIT](./LICENSE) © Faruk Brbovic and AI Juggler contributors.
 
 The names **AI Juggler** and **Figurehead**, the logos and the app icon are

@@ -2,8 +2,6 @@
 # The switch pipeline's error copy still carries the spec's failure codes
 # ("S-F1: …") and one "transplant-capable"; rewording that taxonomy (and
 # its tests) is a follow-up.
-crates/juggler-handover/src/pipeline.rs failure-code 9
-crates/juggler-handover/src/pipeline.rs transplant 1
 # The maintainer's fidelity register (docs/qa/evidence/AJ-E808/register.md),
 # rendered for the release gate, never shown in the app.
 crates/juggler-handover/src/register.rs ci-row 1
