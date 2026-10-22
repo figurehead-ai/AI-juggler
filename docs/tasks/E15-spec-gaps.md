@@ -449,7 +449,7 @@ The maintainer (2026-10-22): "One of the main features that must work in 0.1.* i
 
 What the code does today (mapped 2026-10-22 on release/0.1): a same-tool switch copies the transcript and resumes it, but the source keeps running (the freeze choice is dropped, `pipeline.rs` `let _ = freeze`), and Claude's `<session>/subagents/` folder makes the copy fail. A cross-tool switch passes only user and assistant text as one command-line argument (96 KiB), dropping tool calls, results, tasks and older turns, and a switch back from it probably carries nothing. Nothing detects MCP servers, skills, commands, subagents, rules or settings. No pair has ever run live: every fidelity-register cell is UNVALIDATED and nothing can fill one. Research: `docs/research/switching-capabilities.md`.
 
-### AJ-E1539 A live switching lab | Status: TODO | Priority P0 | Effort M | Depends: AJ-E808
+### AJ-E1539 A live switching lab | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E808
 **Goal**: The real tools prove each switch, and the proof fills the fidelity register.
 **Requirements**:
 1. An ignored, env-gated test (`crates/juggler-app/tests/switch_lab_live.rs`, `just switch-lab`) runs in AI Juggler Dev's data model over a throwaway data folder, in a new throwaway project (a git repo under the user's Dev folder or a temp folder), with real Claude Code and Codex on accounts the person running it names. The maintainer allowed their own accounts on 2026-10-22, in a lab project only.
