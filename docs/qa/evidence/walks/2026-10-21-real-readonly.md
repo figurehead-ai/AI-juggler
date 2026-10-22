@@ -1156,6 +1156,27 @@ MISMATCH  cost rows per session: 291 sessions in both; 1 within 5% of the transc
   - Fix proposed: accept `--flag=value` too, plus a replica case.
 - **The rail walk**: still waiting for #122 on `release/0.1`.
 
+## Batch 11 — P16 re-read: part of it was the harness itself
+
+- **The cause**:
+  - The app leaves its own process tree out of This Mac, which is right.
+  - The harness is the app here, and it runs inside a Claude app session (this QA
+    session's), so its own memory sat in that tree on the `ps` side only.
+  - On main `5675de90` that was the "missing" 2.2 GB: a 2.5 GB process three levels
+    under `claude`, through a shell, gone after the run.
+- **The fix**: the harness now records its own pid (`qa_pid`), plus each process's
+  elapsed time and command name in the `ps` sample (scratch only). The compare leaves
+  the harness's subtree out, and takes the desktop apps' main processes from the run's
+  own snapshot.
+- **Re-run** (the clean branch, 21:1x): This Mac tools memory 17.6 against 17.6 GB
+  (×1.00); top rows [9.3, 4.7, 1.9] against [9.3, 4.7, 1.9].
+- **Still unexplained**: #120's run (751fddde), where a 17.2 GB tree of 178 processes,
+  without the QA session in it, was counted at about 2 GB. The new names and start
+  times make a repeat identifiable.
+- **Snapshot**: one profile's `.claude.json` (same size) and a backup. That's this QA
+  session's own profile (Account E, 10 live sessions), whose backups run every few
+  minutes (21:01, 21:11, 21:17) and whose transcripts were written within seconds.
+
 ## Not walked (blocked by W0, before the bridge)
 
 These need the window:

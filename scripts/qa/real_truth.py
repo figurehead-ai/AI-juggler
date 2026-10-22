@@ -773,11 +773,21 @@ def compare(truth: dict, harness: dict) -> str:
     if ps_rows:
         children = defaultdict(list)
         rss = {}
-        for pid, ppid, kb, _cpu in ps_rows:
+        for row in ps_rows:
+            pid, ppid, kb = row[0], row[1], row[2]
             if pid is None:
                 continue
             children[ppid].append(pid)
             rss[pid] = (kb or 0) * 1024
+        # The app leaves its own process tree out (here, the test that ran
+        # it, often inside a Claude app session): so does the ps side.
+        own = harness.get("qa_pid")
+        if own in rss:
+            todo = [own]
+            while todo:
+                p = todo.pop()
+                if rss.pop(p, None) is not None:
+                    todo += children.get(p, [])
 
         def tree(pid):
             todo, seen = [pid], set()
@@ -789,7 +799,15 @@ def compare(truth: dict, harness: dict) -> str:
                 todo += children.get(p, [])
             return sum(rss[p] for p in seen)
 
-        roots = [r for r in truth["desktop_roots"] if r["pid"] in rss]
+        # The desktop apps' main processes as they were during the run, when
+        # the snapshot names them; else as they are now.
+        named = {row[0]: row[5] for row in ps_rows if len(row) >= 6 and row[0] is not None}
+        parent = {row[0]: row[1] for row in ps_rows if row[0] is not None}
+        if named:
+            roots = [{"pid": pid, "app": name} for pid, name in named.items()
+                     if name in ("Claude", "ChatGPT") and named.get(parent.get(pid)) != name and pid in rss]
+        else:
+            roots = [r for r in truth["desktop_roots"] if r["pid"] in rss]
         claude = sorted((tree(r["pid"]) for r in roots if r["app"] == "Claude"), reverse=True)
         chatgpt = [tree(r["pid"]) for r in roots if r["app"] == "ChatGPT"]
         tools = panel.get("tools") or {}
