@@ -142,7 +142,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   4 seconds). A build fanning out under a Claude app session could be
   missed for up to 10 seconds, so the app's figure read far too low.
 - This Mac never drops a tool without a word: past the three heaviest, the
-  rest are behind "and N more".
+  rest are behind "and N more". Search helpers a finished Claude Code
+  session left running are no longer counted as Claude in a terminal.
 - Codex's context compactions now count, once: the usage of the compaction
   call, which Codex records outside its turns, was missed, and could count
   twice when AI Juggler read the file just as the compaction was written.
