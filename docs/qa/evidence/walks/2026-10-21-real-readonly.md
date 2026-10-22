@@ -1785,6 +1785,49 @@ the page structure (DOM) and from macOS.
 - The density was changed with Ctrl+D (stored in the browser's `localStorage`, not in the
   app's data) and set back to Comfortable.
 
+## Batch 26 — AJ-E1507 rules and servers sync (#136, `de40d664`), in throwaway labs
+
+A Dev build of `feat/e1507-sync`, whose bridge now serves the three sync reads; Apply and
+the server copy stay off it.
+
+- **Labs**: `~/Dev/aij-sync-lab-1` (a CLAUDE.md and an AGENTS.md that differ) and
+  `~/Dev/aij-sync-lab-2` (no rules files), made for this walk and now in the Trash.
+- **Setup**: the 7 setups were brought in where they are, with redacted labels. The labs
+  were added as projects in AI Juggler Dev's own data (`tests/qa_sync_lab.rs`
+  `sync_lab_register`, with Claude Code as having worked there). No real session ran.
+- **Writes**: done by `sync_lab_writes` on a scratch copy of lab 1, with fixture accounts
+  and a stub tool, never a real account.
+
+| Step | Seen | |
+|---|---|---|
+| Header line | "~/Dev/aij-sync-lab-1 · 1 rules file differs" | OK |
+| The sheet, from the line and from the project menu ("Compare rules and servers…") | both open "Rules and MCP servers"; AGENTS.md picked as the master (the newest), CLAUDE.md "Differs from AGENTS.md" | OK |
+| Escape | closes the sheet; focus goes back to the line that opened it | OK |
+| Tab order | Hide changes, the master (a radio group), Copy the rules, Read AGENTS.md instead, Apply, the six "Copy node_repl to Account …", Close, then round again inside the sheet | OK |
+| CLAUDE.md = `@AGENTS.md` | "Reads AGENTS.md"; "Rules in sync"; nothing to apply | OK |
+| `ln -s AGENTS.md CLAUDE.md` | "A link to AGENTS.md"; "Rules in sync"; nothing to apply | OK |
+| `ln -s CLAUDE.md AGENTS.md` (the reverse) | CLAUDE.md the master, AGENTS.md "A link to CLAUDE.md"; nothing to apply | OK |
+| A project with no rules files | no line in its header | OK |
+| Servers against each account's own files (read-only; names and transports only) | Accounts A–F (Claude Code): "None", and their state files hold no servers (two have an empty `mcpServers`), no lab-local ones, no enabled plugins. Account G (Codex): `config.toml` has 2 servers and the sheet shows 1: the other is `enabled = false`, which the Codex inventory skips on purpose. Each Claude account is offered the Codex server, translated | OK |
+| Writes (`sync_lab_writes`) | "1 rules file differs" at the start. Apply CLAUDE.md → AGENTS.md: "AGENTS.md now has the rules from CLAUDE.md", the files equal, "Rules in sync". The sheet's Undo puts AGENTS.md back byte for byte ("1 rules file differs" again). Apply again, then Settings lists "aij-sync-lab-1 · the rules in AGENTS.md", and its Undo puts the bytes back. No rows and no backups left | OK |
+
+- **P22 — the diff shows an unchanged last line as removed and added.** `sync::normalized`
+  trims the end of each text, its final newline included, so a file's last line no
+  longer equals the same line elsewhere in the other file. Lab 1's AGENTS.md ends with
+  "Keep functions short.", a middle line of CLAUDE.md. Applying AGENTS.md to CLAUDE.md
+  shows "2 lines added, 3 removed", that line among them; the true diff is 1 added and
+  2 removed. Keeping one final newline after the trim would fix it.
+- **Gap, not seen here**: Claude Code also loads a project's own `.mcp.json` (project
+  scope), and `claude_inventory` doesn't read it. None of the 20 real projects has one.
+- **The 2-letter mark** of `aij-sync-lab-1` is still "AS" (the trailing-number fix isn't
+  on this branch yet).
+- **Snapshots**: the real setup had no path added or removed. Its configs changed only
+  where the vendors write on their own: `remote-settings.json` (3, the same size), the
+  Codex app's `config.toml` (the same size), and live sessions' policy files, databases
+  and shell snapshots. AI Juggler Dev made no `sync-backups`, so nothing was applied
+  through it. The labs changed only by my own edits. The Dev folder is now
+  `AI Juggler Dev (qa-e1507 walk 2026-10-22)`.
+
 ## Not walked (blocked by W0, before the bridge)
 
 These need the window:
