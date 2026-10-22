@@ -293,3 +293,27 @@ fn a_claude_run_as_its_search_helper_is_not_a_session() {
         "an unreadable command line"
     );
 }
+
+/// The docs fact-check (fix batch 4): AI Juggler never opens Claude's
+/// `.credentials.json`. A file whose contents claim it expired long ago
+/// still reads as signed in: only its presence and size count. An API key
+/// in settings.json is still seen (its field filled), never its value.
+#[test]
+fn the_credentials_file_is_never_opened_only_seen() {
+    use juggler_adapters::claude_code::{ClaudeCodeAdapter, LoginState};
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(
+        dir.path().join(".credentials.json"),
+        r#"{"claudeAiOauth":{"accessToken":"sk-secret","expiresAt":1},"expires_at":1,"expiry":1}"#,
+    )
+    .unwrap();
+    let adapter = ClaudeCodeAdapter::new();
+    assert_eq!(adapter.login_state(dir.path()), LoginState::SignedIn);
+    let keyed = tempfile::tempdir().unwrap();
+    std::fs::write(
+        keyed.path().join("settings.json"),
+        r#"{"apiKey":"sk-secret"}"#,
+    )
+    .unwrap();
+    assert_eq!(adapter.login_state(keyed.path()), LoginState::ApiKey);
+}

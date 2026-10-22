@@ -22,6 +22,7 @@ pub mod codex_handover;
 pub mod codex_transcript;
 pub mod fake;
 pub mod inference;
+mod presence;
 pub mod quota_ingest;
 pub mod scan_signals;
 pub mod transcript;

@@ -104,7 +104,10 @@ fn block_end(text: &str, open: usize) -> usize {
             b'/' if bytes.get(at + 1) == Some(&b'/') => {
                 at = text[at..].find('\n').map_or(bytes.len(), |end| at + end);
             }
-            b'r' if matches!(bytes.get(at + 1), Some(b'"' | b'#')) && !ident(bytes, at) => {
+            b'r' if matches!(bytes.get(at + 1), Some(b'"' | b'#'))
+                && !ident(bytes, at)
+                && raw_string_at(bytes, at) =>
+            {
                 let hashes = bytes[at + 1..].iter().take_while(|b| **b == b'#').count();
                 let close = format!("\"{}", "#".repeat(hashes));
                 let body = at + 2 + hashes;
@@ -130,6 +133,13 @@ fn block_end(text: &str, open: usize) -> usize {
         at += 1;
     }
     bytes.len()
+}
+
+/// Whether `r` at `at` opens a raw string (`r"…"`, `r#"…"#`), not a raw
+/// identifier (`r#override`).
+fn raw_string_at(bytes: &[u8], at: usize) -> bool {
+    let hashes = bytes[at + 1..].iter().take_while(|b| **b == b'#').count();
+    bytes.get(at + 1 + hashes) == Some(&b'"')
 }
 
 /// Whether the byte before `at` continues an identifier (`for` in
@@ -246,6 +256,152 @@ fn every_process_refresh_leaves_out_threads() {
     assert!(
         found.is_empty(),
         "add .without_tasks():\n{}",
+        found.join("\n")
+    );
+}
+
+/// The files a tool keeps its sign-in secrets in (ADR-0003, SECURITY).
+const SECRET_FILES: &[&str] = &[
+    "\".credentials.json\"",
+    "\"auth.json\"",
+    "credentials_file_of(",
+];
+
+/// What opens a file for its contents (a copy reads it too).
+const READS: &[&str] = &[
+    "read_to_string(",
+    "fs::read(",
+    "File::open(",
+    "OpenOptions",
+    "from_reader(",
+    "fs::copy(",
+];
+
+/// The functions allowed to open one: each streams it into a shape that
+/// keeps only which fields are filled (`presence::Present`), plus
+/// `auth_mode` and `tokens.account_id`, which aren't secrets.
+const SHAPE_READS: &[(&str, &str)] = &[
+    ("juggler-adapters/src/codex.rs", "codex_login_state"),
+    ("juggler-adapters/src/codex.rs", "probe_codex_identity"),
+];
+
+/// A file's functions: name and body (bodiless declarations skipped).
+fn functions(code: &str) -> Vec<(String, &str)> {
+    let mut out = Vec::new();
+    let mut rest = code;
+    while let Some(at) = rest.find("fn ") {
+        let after = &rest[at + 3..];
+        if at > 0 && ident(rest.as_bytes(), at) {
+            rest = after;
+            continue; // part of a longer word
+        }
+        let function: String = after
+            .chars()
+            .take_while(|c| c.is_alphanumeric() || *c == '_')
+            .collect();
+        // The signature ends at its body's `{`, or at `;` when it has none
+        // (a trait's declaration).
+        let Some(open) = after.find(['{', ';']) else {
+            break;
+        };
+        if after.as_bytes()[open] == b';' {
+            rest = &after[open + 1..];
+            continue;
+        }
+        let end = block_end(after, open);
+        if !function.is_empty() {
+            out.push((function, &after[..end]));
+        }
+        rest = &after[open + 1..];
+    }
+    out
+}
+
+/// The functions a body hands a sign-in file's path to: `let x = ….join(
+/// "<secret>")` and then `f(&x` / `f(x`.
+fn handed_the_path(body: &str) -> Vec<String> {
+    let mut callees = Vec::new();
+    for line in body.lines() {
+        let line = line.trim();
+        let Some(binding) = line.strip_prefix("let ") else {
+            continue;
+        };
+        if !SECRET_FILES.iter().any(|secret| line.contains(secret)) {
+            continue;
+        }
+        let name: String = binding
+            .chars()
+            .take_while(|c| c.is_alphanumeric() || *c == '_')
+            .collect();
+        for pattern in [
+            format!("(&{name}"),
+            format!("({name})"),
+            format!("({name},"),
+        ] {
+            let mut rest = body;
+            while let Some(at) = rest.find(&pattern) {
+                let callee: String = rest[..at]
+                    .chars()
+                    .rev()
+                    .take_while(|c| c.is_alphanumeric() || *c == '_')
+                    .collect::<Vec<_>>()
+                    .into_iter()
+                    .rev()
+                    .collect();
+                if !callee.is_empty() {
+                    callees.push(callee);
+                }
+                rest = &rest[at + pattern.len()..];
+            }
+        }
+    }
+    callees
+}
+
+/// The docs fact-check (fix batch 4): AI Juggler never opens a sign-in
+/// file for its contents (Claude's `.credentials.json` was read for an
+/// expiry). A product function that names one and also reads a file fails
+/// here, unless it is one of the shape-only reads above.
+#[test]
+fn no_sign_in_file_is_read() {
+    let crates = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+    let mut files = Vec::new();
+    for krate in std::fs::read_dir(&crates).unwrap().flatten() {
+        let src = krate.path().join("src");
+        if src.is_dir() {
+            sources(&src, &mut files);
+        }
+    }
+    let mut found = Vec::new();
+    for file in files {
+        let name = file.to_string_lossy().replace('\\', "/");
+        let code = product(&std::fs::read_to_string(&file).unwrap());
+        let all = functions(&code);
+        let reads = |body: &str| READS.iter().any(|read| body.contains(read));
+        let allowed = |function: &str| {
+            SHAPE_READS
+                .iter()
+                .any(|(f, func)| name.ends_with(f) && *func == function)
+        };
+        for (function, body) in &all {
+            let names_secret = SECRET_FILES.iter().any(|secret| body.contains(secret));
+            if names_secret && reads(body) && !allowed(function) {
+                found.push(format!("{name}: fn {function}"));
+            }
+            // A function handed the path reads it just the same.
+            for callee in handed_the_path(body) {
+                if let Some((_, callee_body)) = all.iter().find(|(f, _)| *f == callee)
+                    && reads(callee_body)
+                    && !allowed(&callee)
+                {
+                    found.push(format!("{name}: fn {callee} (handed it by {function})"));
+                }
+            }
+        }
+    }
+    assert!(
+        found.is_empty(),
+        "these read a sign-in file's contents (presence and size only, ADR-0003):\n{}",
         found.join("\n")
     );
 }
