@@ -258,7 +258,9 @@ export function SwitchBackFlow({
               <p className="text-[11px] text-muted" data-testid="switch-back-unresolved">
                 {unresolved > 0
                   ? `Choose for ${unresolved} conflict${unresolved === 1 ? "" : "s"} to continue — the work stays forked until you do.`
-                  : "One click returns the work — the original conversation resumes."}
+                  : plan.original_alive
+                    ? "One click returns the work — the original conversation resumes."
+                    : `One click carries the work back to ${plan.original_account} in a new session.`}
               </p>
             </div>
             <div className="flex justify-end gap-2">

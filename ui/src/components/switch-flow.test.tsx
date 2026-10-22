@@ -172,7 +172,7 @@ describe("AJ-E206 undo window", () => {
   });
 
   it("keeps the failure honest when undo fails (source stays resumable)", async () => {
-    (window as never as Seams).__AIJ_SWITCH_UNDO_FAIL__ = "S-F7: the source session is gone";
+    (window as never as Seams).__AIJ_SWITCH_UNDO_FAIL__ = "the original conversation is gone";
     const view = render(<ToastHost />);
     act(() => void showSwitchUndoToast({ edgeId: "edge-42", targetLabel: "Personal", onUndone: () => {} }));
     await waitFor(() => expect(view.getByTestId("switch-undo-toast")).toBeTruthy());

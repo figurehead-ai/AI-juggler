@@ -157,39 +157,49 @@ pub enum CopySituation {
 pub enum SwitchFailure {
     /// S-F1 (Resolve): transcript could not be resolved — never
     /// newest-mtime. Nothing moved; the user picks the file.
-    #[error("S-F1: couldn't tell which file is this session — pick it")]
+    #[error("couldn't tell which file holds this session's conversation — pick it")]
     UnresolvedSource,
     /// S-F2 (Freeze): torn tail / still writing. The two-choice
     /// freeze is the protocol; parse-verify refuses torn bytes.
-    #[error("S-F2: source is still writing — stop it first")]
+    #[error("the session is still writing its conversation — stop it first")]
     TornTail,
     /// S-F3 (Stage): id collision on target — forked (the
     /// rollback-safe path; the original target file is untouched).
-    #[error("S-F3: collision on target — opened as a fork ({0})")]
+    #[error(
+        "the other account already has this conversation, so it opened as a separate copy ({0})"
+    )]
     CollisionForked(String),
     /// S-F4 (Stage): crash mid-copy — the staged temp is removed;
     /// the source is untouched by construction.
-    #[error("S-F4: staging failed mid-copy — cleaned up, source untouched ({0})")]
+    #[error(
+        "copying stopped partway — what was copied is cleaned up, and the original is untouched ({0})"
+    )]
     StagingAborted(String),
     /// S-F5 (Launch): target launch failed — staged artifacts are
     /// RETAINED for retry; resume the source meanwhile.
-    #[error("S-F5: target launch failed — staged for retry ({0})")]
+    #[error(
+        "the session on the other account didn't start — the switch is ready to try again ({0})"
+    )]
     LaunchFailed(String),
     /// S-F6 (Launch): target quota died during replay prime — prime
     /// aborted; tokens burned are recorded, never hidden.
-    #[error("S-F6: target quota died during prime — aborted, {0} tokens burned")]
+    #[error(
+        "the other account ran out of usage while picking up the work — stopped, {0} tokens used"
+    )]
     PrimeQuotaDeath(u64),
     /// S-F7 (Return): switch-back target session deleted/expired —
     /// never fabricate a resume (engine surface lands with E207).
-    #[error("S-F7: the original session is gone — nearest epoch or pack-primed fresh start")]
+    #[error("the original conversation is gone")]
     OriginalSessionGone,
     /// S-F8 (Return): merge conflict unresolved — the work item
     /// stays forked, both epochs resumable (E207).
-    #[error("S-F8: merge conflict unresolved — work stays forked, both sides resumable")]
+    #[error(
+        "files changed on both sides and need your choice — the work stays split, and both sides can still be resumed"
+    )]
     MergeConflictOpen,
     /// S-F9 (loop): n-hop loop with growing replay cost — allowed,
     /// cost honesty turns amber; informs, never blocks.
-    #[error("S-F9: {0} switches so far ≈{1} tokens — transplant-capable targets cost less")]
+    #[error("{0} switches so far, about {1} tokens — a switch within the same tool costs less")]
     HopCost(u32, u64),
     /// A preflight gate stopped the switch before any byte moved.
     #[error("preflight stopped: {0}")]
@@ -200,6 +210,24 @@ pub enum SwitchFailure {
 }
 
 impl SwitchFailure {
+    /// The §9 taxonomy code (`S-F1`..`S-F9`), for logs and the evidence:
+    /// the user's words never carry it (AJ-E1543, plain words).
+    #[must_use]
+    pub fn code(&self) -> Option<&'static str> {
+        Some(match self {
+            Self::UnresolvedSource => "S-F1",
+            Self::TornTail => "S-F2",
+            Self::CollisionForked(_) => "S-F3",
+            Self::StagingAborted(_) => "S-F4",
+            Self::LaunchFailed(_) => "S-F5",
+            Self::PrimeQuotaDeath(_) => "S-F6",
+            Self::OriginalSessionGone => "S-F7",
+            Self::MergeConflictOpen => "S-F8",
+            Self::HopCost(_, _) => "S-F9",
+            Self::Preflight(_) | Self::Adapter(_) => return None,
+        })
+    }
+
     /// The pipeline stage this failure belongs to (the edge's
     /// `Failed{stage, reason}`).
     #[must_use]

@@ -11769,9 +11769,10 @@ pub fn switch_back_plan_to_impl(
                 }
                 Sf7Fallback::FreshPackF0 => "fresh-f0".to_owned(),
             },
+            // Plain words (AJ-E1543): the screen adds what happens instead.
             format!(
-                "{}",
-                juggler_handover::pipeline::SwitchFailure::OriginalSessionGone
+                "The original conversation on {} is gone, so it can't be resumed",
+                original_account.label
             ),
         ),
     };

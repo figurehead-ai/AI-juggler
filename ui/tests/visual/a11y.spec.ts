@@ -787,7 +787,7 @@ for (const theme of ["dark", "light"] as const) {
         t0: T0,
         theme,
         preflight: DOOR_WIZARD_FIXTURE,
-        fail: "S-F5: target launch failed — staged for retry (terminal spawn failed).",
+        fail: "the session on the other account didn't start — the switch is ready to try again (terminal spawn failed).",
       },
     );
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
@@ -1102,7 +1102,7 @@ for (const theme of ["dark", "light"] as const) {
                 from: "ep-b",
                 to: null,
                 label: "failed · target launch failed",
-                failed_reason: "S-F6: target window closed mid-launch",
+                failed_reason: "the session on the other account closed while it started",
                 switch_back: false,
               },
             ],
@@ -1160,7 +1160,7 @@ for (const theme of ["dark", "light"] as const) {
     const failedEdge = page.getByTestId("switch-graph-failed-edge");
     await failedEdge.focus();
     await failedEdge.press("Enter");
-    await expect(page.getByTestId("switch-graph-failed-detail")).toContainText("S-F6");
+    await expect(page.getByTestId("switch-graph-failed-detail")).toContainText("closed while it started");
     const nodes = page.getByTestId("switch-graph-node");
     await nodes.first().focus();
     await nodes.first().press("ArrowDown");

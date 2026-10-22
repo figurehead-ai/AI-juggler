@@ -2498,7 +2498,7 @@ for (const theme of THEMES) {
           w.__AIJ_FIXTURE__ = fixture;
           w.__AIJ_SWITCH_PREFLIGHT__ = fixture.doorFixture;
           w.__AIJ_SWITCH_EXECUTE_FAIL__ =
-            "S-F5: target launch failed — staged for retry (terminal spawn failed).";
+            "the session on the other account didn't start — the switch is ready to try again (terminal spawn failed).";
           localStorage.setItem("aij.theme", themeName);
           localStorage.setItem("aij.onboarding.dismissed", "1");
           sessionStorage.setItem("aij.ready.skipped", "1");
@@ -2753,20 +2753,22 @@ for (const theme of THEMES) {
           original_alive: false,
           sf7_fallback: "fresh-f0",
           sf7_copy:
-            "S-F7: the original session is gone — nearest epoch or pack-primed fresh start",
+            "The original conversation on Work Max is gone, so it can't be resumed",
           away_live: false,
           both_live_copy: "",
           divergence: "Both sides moved since the switch. 2 new turns and 0 file conflicts need your choice — nothing is merged silently.",
           delta_preview:
-            "While you were away on Personal — 2 new turns (4 shared before the switch).\n\nFull detail: the attached switch pack (not replayed).",
+            "While you were away on Personal — 2 new turns (4 shared before the switch).\n\n- [user] fix the login bug\n- [assistant] Fixed it; the suite passes.\n\nThe project's files are as they were left on Personal. Pick up from here.",
           away_only_turns: 2,
           original_only_turns: 0,
           base_turns: 4,
           conflicts: [],
+          returns: [{ epoch_id: "epoch-a", account: "Work Max", start: true }],
+          return_to: "epoch-a",
         },
       });
       await page.getByTestId("switch-back-card").click();
-      await expect(page.getByTestId("switch-back-sf7")).toContainText("S-F7");
+      await expect(page.getByTestId("switch-back-sf7")).toContainText("is gone");
       await expect(page.getByTestId("switch-back-sf7")).toContainText("fresh session");
       await page.screenshot({
         path: resolve(GALLERY, `30-switchback/sf7-${vp.name}-${theme}.png`),
@@ -2776,7 +2778,7 @@ for (const theme of THEMES) {
     test(`switch-back — S-F8 forked (refused merge) — ${vp.name} — ${theme}`, async ({ page }) => {
       await openInspector(page, {
         __AIJ_SWITCH_BACK_EXECUTE_FAIL__:
-          "S-F8: merge conflict unresolved — work stays forked, both sides resumable",
+          "files changed on both sides and need your choice — the work stays split, and both sides can still be resumed",
       });
       await page.getByTestId("switch-back-card").click();
       await expect(page.getByTestId("switch-back-review")).toBeVisible();
@@ -2984,7 +2986,7 @@ const GRAPH_FAILED = [
         from: "ep-src",
         to: null,
         label: "failed · target launch failed",
-        failed_reason: "S-F6: target window closed mid-launch",
+        failed_reason: "the session on the other account closed while it started",
         switch_back: false,
       },
       { from: "ep-src", to: "ep-dst", label: "Same conversation, new account", switch_back: false },
@@ -3138,7 +3140,7 @@ for (const theme of THEMES) {
       await openProjectOverview(page); // AJ-E1533: the graph is on Overview
       await expect(page.getByTestId("switch-graph-failed-edge")).toBeVisible();
       await page.getByTestId("switch-graph-failed-edge").click();
-      await expect(page.getByTestId("switch-graph-failed-detail")).toContainText("S-F6");
+      await expect(page.getByTestId("switch-graph-failed-detail")).toContainText("closed while it started");
       await page.screenshot({
         path: resolve(GALLERY, `32-graph/failed-${vp.name}-${theme}.png`),
       });

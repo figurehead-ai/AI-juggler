@@ -106,7 +106,7 @@ describe("AJ-E207 switch-back flow", () => {
 
   it("renders the S-F8 forked copy when the return is refused", async () => {
     (window as never as Seams).__AIJ_SWITCH_BACK_EXECUTE_FAIL__ =
-      "S-F8: merge conflict unresolved — work stays forked, both sides resumable";
+      "files changed on both sides and need your choice — the work stays split, and both sides can still be resumed";
     const view = mount();
     await waitFor(() => expect(view.getByTestId("switch-back-review")).toBeTruthy());
     fireEvent.click(view.getByLabelText("Keep original"));
@@ -123,14 +123,14 @@ describe("AJ-E207 switch-back flow", () => {
       original_alive: false,
       original_native_id: "",
       sf7_fallback: "fresh-f0",
-      sf7_copy: "S-F7: the original session is gone — nearest epoch or pack-primed fresh start",
+      sf7_copy: "The original conversation on Work Max is gone, so it can't be resumed",
       conflicts: [],
     };
     const view = render(
       <SwitchBackFlow sessionId="sess-away-1" onClose={() => {}} onSwitched={() => {}} />,
     );
     await waitFor(() => expect(view.getByTestId("switch-back-review")).toBeTruthy());
-    expect(view.getByTestId("switch-back-sf7").textContent).toContain("S-F7");
+    expect(view.getByTestId("switch-back-sf7").textContent).toContain("is gone");
     expect(view.getByTestId("switch-back-sf7").textContent).toContain("fresh session");
   });
 
