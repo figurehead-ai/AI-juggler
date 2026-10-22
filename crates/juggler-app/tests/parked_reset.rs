@@ -23,18 +23,16 @@ use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
 use juggler_app::state::AppState;
 use juggler_app::{commands, parked};
 use juggler_core::model::{SessionId, SessionStatus, Timestamp};
+#[path = "../../juggler-supervisor/tests/fixtures/stand_in.rs"]
+mod stand_in;
 
 fn claude_stub(dir: &Path) -> PathBuf {
-    use std::os::unix::fs::PermissionsExt;
     let path = dir.join("claude-stub");
-    std::fs::write(
-        &path,
-        // Written whole, then renamed into place: the test polls for the
+    stand_in::write(
+        &path, // Written whole, then renamed into place: the test polls for the
         // file and must never read it half-written.
         "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$CLAUDE_CONFIG_DIR/last-args.tmp\" && mv \"$CLAUDE_CONFIG_DIR/last-args.tmp\" \"$CLAUDE_CONFIG_DIR/last-args\"\n",
-    )
-    .unwrap();
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    );
     path
 }
 

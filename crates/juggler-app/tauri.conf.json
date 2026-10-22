@@ -27,7 +27,10 @@
     }
   },
   "bundle": {
-    "active": false
+    "active": false,
+    "macOS": {
+      "entitlements": "entitlements.plist"
+    }
   },
   "plugins": {
     "updater": {

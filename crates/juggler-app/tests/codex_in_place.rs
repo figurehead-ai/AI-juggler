@@ -20,24 +20,23 @@ use juggler_adapters::CodexAdapter;
 use juggler_app::commands;
 use juggler_app::error::AppResult;
 use juggler_app::state::AppState;
+#[path = "../../juggler-supervisor/tests/fixtures/stand_in.rs"]
+mod stand_in;
 
 const CODEX: &str = "codex";
 
 /// A `codex` stub that records its arguments and the variables that
 /// matter in a log OUTSIDE the home, so the home stays as it was.
 fn codex_stub(dir: &Path) -> (PathBuf, PathBuf) {
-    use std::os::unix::fs::PermissionsExt;
     let log = dir.join("stub.log");
     let path = dir.join("codex-stub");
-    std::fs::write(
+    stand_in::write(
         &path,
         format!(
             "#!/bin/sh\n{{\nprintf 'home=%s\\n' \"${{CODEX_HOME-UNSET}}\"\nprintf 'sqlite=%s\\n' \"${{CODEX_SQLITE_HOME-UNSET}}\"\nprintf 'key=%s\\n' \"${{OPENAI_API_KEY+SET}}\"\nfor a in \"$@\"; do printf 'arg=%s\\n' \"$a\"; done\n}} >> '{log}'\n",
             log = log.display()
         ),
-    )
-    .unwrap();
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    );
     (path, log)
 }
 
@@ -416,6 +415,14 @@ fn providers_capabilities_says_which_tools_report_their_limits() {
             "{}",
             row.provider
         );
+        // The quota display reads the same capability (one source): a
+        // tool the provider list says doesn't report is unavailable there.
+        assert_eq!(
+            commands::reports_limits(&row.provider),
+            row.reports_limits,
+            "{}",
+            row.provider
+        );
     }
     let of = |id: &str| {
         rows.iter()
@@ -423,5 +430,6 @@ fn providers_capabilities_says_which_tools_report_their_limits() {
             .map(|row| row.reports_limits)
     };
     assert_eq!(of("claude-code"), Some(true));
-    assert_eq!(of("codex"), Some(false));
+    // Codex's rollouts carry its limit readings (0.0.12 report).
+    assert_eq!(of("codex"), Some(true));
 }

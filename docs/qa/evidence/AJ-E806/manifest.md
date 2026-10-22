@@ -80,6 +80,18 @@
   each cell took 10–18 s instead of about 3 s. Re-run in the same pinned
   container, all eight History cells passed 3/3 (24/24) with no pixel
   difference. Timeouts and thresholds are unchanged; CI is the arbiter.
+- **Flake record, 2026-10-22 (fixed; a product bug).** `juggler-app --test
+  parked_reset :: not_now_snoozes_once_then_stays_parked_quietly` failed in
+  #126's CI (run 39764249611): "database is locked" (SQLITE_BUSY) storing
+  usage events. Cause: usage writes opened a deferred transaction, which
+  begins as a read, and #126's store reads before it writes. When another
+  connection on the same file (here the process ledger, writing at launch)
+  committed meanwhile, SQLite answered busy at once instead of waiting.
+  Fix: usage writes take the write lock first (`BEGIN IMMEDIATE`), so they
+  wait under the busy timeout. `juggler-core --test busy_timeout ::
+  a_usage_write_waits_for_another_connection_that_changes_the_database`
+  reproduces the exact error without the fix and passes with it;
+  `parked_reset` passed 5/5 after.
 - **Flake record, 2026-10-19 (fixed).** `juggler-app --test parked_reset
   :: a_parked_instance_is_offered_back_once_at_the_reset_and_resumes_the_original`
   failed once in `just verify` on the AJ-E1012 branch: the resume's
@@ -382,6 +394,37 @@
      re-pointed with the user's chained line kept. Regression:
      `quota_ingest :: the_status_line_runs_from_a_folder_with_spaces`
      (fails on the old code) and `an_unquoted_install_is_repaired_and_keeps_the_chain`.
+- **Flake records, 2026-10-22 (fixed in fix batch 5).** Three tests that
+  measured the machine rather than the product:
+  - `ports :: port_inventory_classifies_orphan_and_unmanaged_listeners`
+    bound fixed ports 5173 and 8000, and a developer's own `vite` on 5173
+    made it read "not-managed". It now takes two free ports from the OS.
+  - `orphan :: collector_targeted_tick_overhead_under_budget` timed the
+    wall clock (32 ms against 20 ms at load 17–24). It now asserts the work
+    exactly (each of our processes once a targeted tick, a listing at most
+    every 2nd) and this thread's CPU time against the 1 % budget: 20 ms
+    release, 30 ms debug, 40 ms on CI, measured again only on a busy
+    machine (6 ms here).
+  - `updates_plugin :: a_package_that_fails_its_signature_never_installs`
+    required progress steps of at most 5 %; how big a step is depends on
+    how the bytes arrive, and a loaded machine read several 32 KB pieces at
+    once. It now requires progress that only rises, in at least 20 steps.
+- **Flake record, 2026-10-22 (fixed).** `switch_back_path ::
+  a_to_b_to_a_resumes_original_with_one_delta_and_no_copy_back` failed once
+  in `just verify` for #130 ("exactly one delta turn": 0): its `claude` stub
+  wrote `last-args` in place with `printf >`, and the test's poll could
+  read it half-written, the race parked_reset's stub had (2026-10-19).
+  The stub now writes a temporary file and moves it into place; so do the
+  seven other tests whose stubs wrote the same way (golden_path,
+  switch_door, validation_gate, switch_graph_targets, identity_guard,
+  fleet_switch, redaction_policy). Assertions unchanged.
+- **Flake record, 2026-10-22 (local only, again).** `processes ::
+  processes_command_reports_tree_orphans_and_stops` ("never saw the child")
+  failed once in `just verify` for #130 at load average 14–17 with other
+  sessions building; it passed 6/6 alone at once. The test has the fake
+  harness's lifetime (3 turns of 300 ms) to see its child before the
+  child is orphaned, and a loaded machine can spend that before the first
+  ticks. Pre-existing (the record below); no budget or assertion changed.
 - **Flake record, 2026-10-20 (local only, load average 33–45 while three
   sessions ran full suites).** `processes :: processes_command_reports_tree_orphans_and_stops`
   ("never saw the child") and `reconciler :: helper_exiting_inside_grace_never_surfaces`
@@ -443,3 +486,117 @@
   Settings at the top, with the update below the fold; (5) "Restart now"
   was offered during a switch or a bring-in. All fixed, each with a
   vitest or Playwright check.
+- **Flake record, 2026-10-21 (fixed).** CI's `verify` on PR #120 failed
+  twice in `juggler-adapter` `user_path :: a_login_shell_that_prints_its_path_is_read`
+  ("left: None"). The second time it failed even with a 30 s budget, and
+  the suite finished in 0.30 s, so this is not a timeout. The test writes
+  a stand-in shell and runs it while other tests in the binary spawn
+  processes. A child forked during that write holds the file open until it
+  execs, so running the script fails at once with ETXTBSY, and `login_shell`
+  reads that as no PATH. The fix is in the tests, where the race starts:
+  their `script()` helper writes each stand-in from a child `sh` that exits
+  before the test runs it, so this process never holds the file open for
+  writing and no fork can inherit it. `login_shell` itself is unchanged
+  (the app's shell is never a freshly written file). The two tests that
+  check what is read also allow 30 s instead of the app's 2 s. Not
+  reproduced locally; 3 of 3 local runs passed. The other 33 sites that
+  write stand-in executables in tests (mostly `juggler-app/tests`) haven't
+  flaked; moving them to the same pattern is in the next batch.
+- **Flake record, 2026-10-21 (known class; open, next batch).** The same
+  PR's CI `verify` (first attempt) failed `load_budgets ::
+  monitoring_costs_under_one_percent_of_a_core` at 1.118 % of a core
+  (budget 1 %). The E14 machine part, which PR #120 touched, was 0.055 %;
+  the rest is the per-session collector, which it didn't change. To be
+  made load-aware (CPU time and a load gate) in the next batch, with the
+  guardrails flakes.
+- **Flake records, 2026-10-22 (fixed, fix/maintainer-reports-3).**
+  - `guardrails :: term_ignorer_gets_term_then_kill_only_after_grace`
+    (CI on #121: "exited on TERM") and
+    `manual_pgid_scope_is_warned_and_confined_to_the_group` (CI on #101).
+    `tick_until_helpers` took the first ledger row whose command line held
+    a fixture's flag. A background job's first recorded command line is
+    the root shell's, which holds every fixture's flags, so the row could
+    be another fixture (the cooperative vite answered the TERM). Each
+    fixture now writes its own pid (`<ready>.pid`) before it is ready, and
+    the tests signal exactly those pids once the ledger lists them. 10 of
+    10 guardrails passed locally; the supervisor's collateral and orphan
+    suites still pass.
+  - `machine_lock :: a_slow_disk_tick_never_holds_the_machine_lock`
+    sampled `try_lock` in a loop and could catch the tick's own short
+    lock. It now waits for the tick's count to move (its locked part is
+    over), then checks a blocking `lock()` returns while storage is still
+    held. That can't happen if the tick held the lock across the wait.
+  - `load_budgets :: monitoring_costs_under_one_percent_of_a_core`
+    asserted CPU %, which measured the CI runner (1.118 %). It now asserts
+    the work that holds the budget: a full scan at most every 5th tick,
+    and between them only our sessions' processes
+    (`LiveStatsCollector::work`). CPU is still printed.
+- **Flake record, 2026-10-22 (observed; open, a follow-up).** In the
+  batch 5 verify of 7bcd862b (fix/maintainer-reports-5), with other
+  sessions' builds running,
+  `fleet_sync :: an_offline_console_catches_up_with_only_what_it_missed_and_keeps_last_known_rows`
+  took 9.45 s and failed: the catch-up log was `[(0, 10), (31, 5)]`. The
+  first sync's full catch-up landed in the log after the test had taken
+  `catch_ups_before`, so it read that one as the resume, and the real
+  resume (31, 5: only the missing changes) came second. Alone it passed 3
+  of 3 times (3.2 s). The batch doesn't touch fleet code. The fix belongs
+  in the test: wait for the first catch-up before counting. Nothing
+  changed here.
+- **Flake record, 2026-10-22 (fixed, fix/maintainer-reports-5).** CI on
+  PR #132 (run 39821992531) failed
+  `guardrails :: idle_nudge_fires_exactly_once_per_orphan`, "the idle
+  nudge fired", after 112 s; locally it passes, even with 60 busy
+  processes on 30 cores. The fixed 1,200 ms sleep never gated anything:
+  the nudge's age counts from the helper's process start, already more
+  than 3 s back. What can hold it is the CPU condition (under 1 %). The
+  read used the collector's last sample, and on Linux CPU time comes in
+  10 ms clock ticks, so a helper that wakes every 0.2 s can catch one in
+  a short window and read 1 % or more. The test now ticks the collector
+  until the product's own conditions hold (orphaned, aged past the
+  threshold, CPU under 1 %), within 30 s. Past that, it fails naming the
+  state, age and CPU it last saw. Then one read must fire and the next
+  must not. No assertion changed; the cause isn't reproduced here, so a
+  repeat names the condition.
+- **Hang record, 2026-10-22 (fixed, fix/maintainer-reports-5).** In
+  Linux CI, `load_budgets :: monitoring_beside_a_busy_claude_app` (from
+  #130) sat for an hour while the other three budgets waited their turn
+  behind it. On main's own run after #130 merged (39814972300), the file
+  "finished in 3605.30s". #131's first run (39830985754) was cancelled
+  after 36 minutes. The stand-in Claude app (`fake-desktop`) exits on its
+  own after 3,600 s. Its guard sent `/bin/kill -9 -<pgid>` and then
+  waited for it. Linux's `kill` doesn't read that form as a process
+  group, so the wait lasted the app's full hour; macOS reads it, which is
+  why it never showed here. The guard now sends
+  `kill -s KILL -- -<pgid>`, a form both systems read as a group, then
+  kills the app itself through `Child::kill`, so the wait can't outlast
+  it. On macOS the test passes in 1.9 s with no `sleep 600` left over.
+  The Linux side is shown by CI. No product code changed:
+  `juggler-supervisor/Cargo.toml` in #131 adds only a dev-dependency
+  (`cpu-time`), and `sysinfo`'s features are as on main.
+- **Leak record, 2026-10-22 (fixed, fix/maintainer-reports-5).** The
+  coordinator found and stopped 29 orphaned test fixtures on the
+  developer Mac, their temp folders already gone: 24
+  `python3 -m http.server` from `juggler-app` tests/ports.rs and 5
+  `shell` fixtures (`shell.traps`, up to 4 days old) from
+  `juggler-supervisor` tests/collateral.rs. Their cleanup ran only on the
+  success path, so a failed assertion, or a run killed outright, left
+  them running. The `shell` fixture loops forever and ignores TERM by
+  design. The fix is in the tests only:
+  - a shared `fixtures::Reaper`, which on drop (a panic's unwind
+    included) sends `kill -s KILL -- -<pgid>` to each process group
+    registered with it and SIGKILL to each pid. ports.rs registers the
+    supervised root's group (its helper stays in that group after the
+    root dies) and the stranger; collateral.rs registers both trees and
+    the unmanaged server, the moment each is spawned;
+  - a lifetime cap, for a run killed outright where no `Drop` runs:
+    `FIXTURE_LIFETIME_SECS` (300 s, the same as `trap_helper.py`'s
+    existing cap). The `shell` fixture now beats 300 times instead of
+    forever, ports.rs's servers end themselves through a timer, and the
+    busy-app stand-in in load_budgets ends after 300 s instead of an hour
+    (its children sleep 300 s, not 600 s);
+  - `juggler-supervisor` tests/reaper.rs: a test that panics with a
+    group (a shell and two children) and a lone process registered
+    checks that both were ended by SIGKILL and that the group is empty.
+
+  The collateral, ports, load_budgets (6) and guardrails (10) suites
+  pass, with no fixture left behind.

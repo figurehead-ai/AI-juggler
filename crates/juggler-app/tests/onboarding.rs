@@ -18,20 +18,19 @@ use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
 use juggler_app::commands;
 use juggler_app::state::AppState;
+#[path = "../../juggler-supervisor/tests/fixtures/stand_in.rs"]
+mod stand_in;
 
 /// A `claude` stub good enough for login state + launch assertions: writes
 /// a transcript under its isolated config dir and exits.
 fn claude_stub(dir: &Path) -> std::path::PathBuf {
-    use std::os::unix::fs::PermissionsExt;
     let path = dir.join("claude-stub");
-    std::fs::write(
+    stand_in::write(
         &path,
         "#!/bin/sh\n\
          mkdir -p \"$CLAUDE_CONFIG_DIR/projects/p\"\n\
          printf '%s' \"$CLAUDE_CONFIG_DIR\" > \"$CLAUDE_CONFIG_DIR/projects/p/s1.jsonl\"\n",
-    )
-    .unwrap();
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    );
     path
 }
 
@@ -78,13 +77,19 @@ fn import_makes_an_existing_setup_launchable_without_touching_it() {
     )
     .unwrap();
 
-    // The account exists, is logged in, and the settings/history carried.
-    assert_eq!(result.login, "logged_in");
-    assert_eq!(
-        result.login_note.as_deref(),
-        Some("Login carried over with the import.")
+    // The account exists and the settings/history carried; the sign-in
+    // stayed with the original (AJ-E1521: never copied), so the new
+    // account signs in once.
+    assert_eq!(result.login, "logged_out");
+    assert!(
+        result
+            .login_note
+            .as_deref()
+            .is_some_and(|note| note.contains("Sign in once")),
+        "{:?}",
+        result.login_note
     );
-    assert!(result.files_copied >= 3, "{}", result.files_copied);
+    assert!(result.files_copied >= 2, "{}", result.files_copied);
     assert!(result.skipped.iter().any(|s| s.contains("shell-snapshots")));
     let account = result.account;
     assert_eq!(account.label, "Existing account");
@@ -209,14 +214,11 @@ fn snapshot(root: &Path) -> Vec<(String, u64)> {
 /// A stub that answers `--version` (the discover probe) like a real
 /// CLI would.
 fn version_stub(dir: &Path) -> std::path::PathBuf {
-    use std::os::unix::fs::PermissionsExt;
     let path = dir.join("version-stub");
-    std::fs::write(
+    stand_in::write(
         &path,
         "#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then echo '2.1.296'; exit 0; fi\nexit 0\n",
-    )
-    .unwrap();
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    );
     path
 }
 

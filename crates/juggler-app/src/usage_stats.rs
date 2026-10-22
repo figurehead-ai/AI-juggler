@@ -244,14 +244,14 @@ pub(crate) fn instance_state_entered(
 pub(crate) fn tokens_ingested(
     accounts: &[juggler_core::model::Account],
     events: &[juggler_core::quota::UsageEvent],
-    new: &[bool],
+    stored: &[juggler_core::storage::Stored],
 ) {
     if !recording() {
         return;
     }
     let mut totals: std::collections::BTreeMap<(&'static str, &'static str), u64> =
         std::collections::BTreeMap::new();
-    for (event, _) in events.iter().zip(new).filter(|(_, new)| **new) {
+    for (event, stored) in events.iter().zip(stored) {
         if event.confidence != juggler_core::model::Confidence::Measured {
             continue;
         }
@@ -261,7 +261,7 @@ pub(crate) fn tokens_ingested(
             .map(|a| a.harness.as_str())
             .unwrap_or_default();
         let provider = provider(harness);
-        let tokens = &event.tokens;
+        let tokens = &stored.added;
         for (direction, n) in [
             ("input", tokens.input),
             ("output", tokens.output.saturating_add(tokens.reasoning)),
@@ -660,7 +660,8 @@ pub fn error_class(error: &crate::error::AppError) -> Option<(&'static str, &'st
         AppError::Validation { .. }
         | AppError::NotFound { .. }
         | AppError::IdentityMismatch { .. }
-        | AppError::AlreadyImported { .. } => return None,
+        | AppError::AlreadyImported { .. }
+        | AppError::Refused(_) => return None,
     })
 }
 
@@ -1171,7 +1172,10 @@ pub mod enabled {
             system.refresh_processes_specifics(
                 ProcessesToUpdate::Some(&[pid]),
                 true,
-                ProcessRefreshKind::nothing().with_memory().with_cpu(),
+                ProcessRefreshKind::nothing()
+                    .without_tasks()
+                    .with_memory()
+                    .with_cpu(),
             );
             let Some(process) = system.process(pid) else {
                 return;

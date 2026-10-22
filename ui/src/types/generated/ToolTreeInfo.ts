@@ -6,6 +6,11 @@
  */
 export type ToolTreeInfo = { 
 /**
+ * The tree's root process: what identifies the row while it lives.
+ * `null` for a group of trees.
+ */
+root_pid: number | null, 
+/**
  * The session id for a session AI Juggler started; `null` for a tool
  * it did not start.
  */

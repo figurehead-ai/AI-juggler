@@ -221,14 +221,23 @@ pub struct TreeState {
 
 /// Ring capacity: 150 samples × 2 s = the 5-minute retention budget.
 const RING_CAPACITY: usize = 150;
+/// What a ring keeps, whatever its cadence (our trees are sampled every
+/// 2 s, the other tools' every 4 s).
+const RING_SPAN_MS: i64 = 5 * 60 * 1_000;
 
-/// Appends one sample, dropping the OLDEST past capacity. (`truncate`
-/// would drop the newest: the ring stopped advancing after 5 minutes,
-/// freezing the sparkline and the hog window on stale samples.)
+/// Appends one sample, dropping the OLDEST past capacity or past five
+/// minutes. (`truncate` would drop the newest: the ring stopped advancing
+/// after 5 minutes, freezing the sparkline and the hog window on stale
+/// samples.)
 #[doc(hidden)]
 pub fn push_ring_sample(ring: &mut std::collections::VecDeque<TreeSample>, sample: TreeSample) {
+    let newest = sample.at_ms;
     ring.push_back(sample);
-    while ring.len() > RING_CAPACITY {
+    while ring.len() > RING_CAPACITY
+        || ring
+            .front()
+            .is_some_and(|oldest| newest - oldest.at_ms > RING_SPAN_MS)
+    {
         ring.pop_front();
     }
 }
@@ -240,6 +249,13 @@ pub fn push_ring_sample(ring: &mut std::collections::VecDeque<TreeSample>, sampl
 const FULL_SCAN_EVERY: u32 = 5;
 /// Warmup full-scan ticks after collector creation.
 const WARMUP_FULL_TICKS: u32 = 3;
+/// Every this many ticks, one read of every process with its parent, start
+/// time, CPU and memory (the listing): it finds the new processes of our
+/// sessions' trees (P16) and is where the other tools' trees (the Claude
+/// app, `claude` in a terminal) are measured. Reading those every tick put
+/// monitoring over its budget beside a busy Claude app (290 of its
+/// processes: 1.1 % of a core).
+const LIST_EVERY: u32 = 2;
 
 /// Owns the persistent process table so per-process CPU% deltas survive
 /// between ticks (sysinfo computes usage between refreshes). One
@@ -293,6 +309,37 @@ pub struct LiveStatsCollector {
     observed_roots: Vec<ObservedRoot>,
     /// The observed trees' latest stats and rings, by root pid.
     observed: HashMap<u32, ObservedTree>,
+    /// What the ticks have done so far (the monitoring budget's measure).
+    work: CollectorWork,
+    /// The listing (see [`LIST_EVERY`]): every process's parent, start time,
+    /// CPU and memory, read every 2nd tick. Kept apart from `system`: each
+    /// table's CPU deltas are over its own refresh interval.
+    listing: sysinfo::System,
+    /// The listing has been read twice: its CPU deltas are real.
+    listing_sampled: bool,
+}
+
+/// What the collector's ticks have done: the monitoring budget (AJ-E1410)
+/// is held by doing little, measured here as work rather than as CPU on a
+/// machine shared with other loads.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct CollectorWork {
+    /// Ticks run.
+    pub ticks: u64,
+    /// Of them, full scans (every process on the Mac read).
+    pub full_scans: u64,
+    /// Processes of AI Juggler's own sessions read by the ticks between
+    /// full scans (their trees and roots only), each pid once a tick.
+    pub targeted_ours: u64,
+    /// Processes of the observed tools' trees (the Claude app, `claude` in
+    /// a terminal) measured, at each listing: as many as those tools run.
+    pub targeted_observed: u64,
+    /// Listings: reads of every process (parent, start time, CPU, memory),
+    /// every 2nd tick.
+    pub listings: u64,
+    /// New descendants those listings found: processes a tree started
+    /// since the last full scan, counted at once.
+    pub discovered: u64,
 }
 
 /// One process as the running-tools scan needs it (no environment).
@@ -361,6 +408,9 @@ impl Default for LiveStatsCollector {
             last_port_probe_tick: 0,
             observed_roots: Vec::new(),
             observed: HashMap::new(),
+            work: CollectorWork::default(),
+            listing: sysinfo::System::new(),
+            listing_sampled: false,
         }
     }
 }
@@ -388,33 +438,53 @@ impl LiveStatsCollector {
         self.ticks = self.ticks.saturating_add(1);
         let full = self.ticks <= WARMUP_FULL_TICKS || self.ticks.is_multiple_of(FULL_SCAN_EVERY);
         let roots = supervisor.live_roots();
+        self.work.ticks += 1;
         if full {
+            self.work.full_scans += 1;
             self.refresh_all();
         } else {
-            let known: Vec<u32> = self
+            // A tree's rows include its root: each pid is read once.
+            let mut known: Vec<u32> = self
                 .trees
                 .values()
                 .flat_map(|tree| tree.rows.iter().map(|row| row.pid))
                 .chain(roots.iter().map(|(_, pid, _)| *pid))
                 .collect();
+            known.sort_unstable();
+            known.dedup();
             self.refresh_pids(&known);
-            // Observed trees need CPU and memory only (never the exe or
-            // command line, which feed the ledger): ~130 helpers of the
-            // Claude app cost a few milliseconds this way.
-            let observed: Vec<u32> = self
-                .observed_pids()
-                .into_iter()
-                .filter(|pid| !known.contains(pid))
-                .collect();
-            self.refresh_pids_usage(&observed);
-            // Targeted refresh keeps parent edges of known pids fresh;
-            // brand-new children appear at the next full scan.
+            self.work.targeted_ours += known.len() as u64;
+        }
+        // Every 2nd tick, the listing: our trees' new processes (P16: a
+        // build fanning out under `claude` counts within 4 s, not up to 10 s
+        // later) and the other tools' trees, from one read. Not on a full
+        // scan's tick (it already read everything), except while warming
+        // up, so they show from the start: the other tools are read every
+        // 4 s, 8 s across a full scan.
+        let listed =
+            self.ticks.is_multiple_of(LIST_EVERY) && (!full || self.ticks <= WARMUP_FULL_TICKS);
+        if listed {
+            self.refresh_listing();
+            if !full {
+                let ours_now: Vec<u32> = roots
+                    .iter()
+                    .filter(|(_, _, finished)| !finished)
+                    .map(|(_, pid, _)| *pid)
+                    .collect();
+                let fresh = self.new_descendants(&ours_now);
+                if !fresh.is_empty() {
+                    self.work.discovered += fresh.len() as u64;
+                    self.refresh_pids(&fresh);
+                }
+            }
         }
         // ONE table per tick (Req.1): parents + identity facts from
         // the single shared refresh — every downstream reader uses it.
         let table = std::sync::Arc::new(process_table(&self.system));
         self.rebuild_trees(&roots, &table.parents, now_ms);
-        self.rebuild_observed(&table.parents, now_ms);
+        if listed {
+            self.rebuild_observed(now_ms);
+        }
         supervisor.publish_table(std::sync::Arc::clone(&table));
         self.ledger_upserts(supervisor, now_ms);
         // ONE candidates read per tick feeds BOTH the reconciler and
@@ -903,6 +973,7 @@ impl LiveStatsCollector {
             ProcessesToUpdate::All,
             true,
             ProcessRefreshKind::nothing()
+                .without_tasks()
                 .with_cpu()
                 .with_memory()
                 .with_exe(sysinfo::UpdateKind::Always)
@@ -910,23 +981,48 @@ impl LiveStatsCollector {
         );
     }
 
-    /// Targeted refresh of CPU and memory only (observed trees).
-    fn refresh_pids_usage(&mut self, pids: &[u32]) {
+    /// Reads the listing: every process with its parent, start time, CPU
+    /// and memory (never the exe or command line, which feed the ledger).
+    fn refresh_listing(&mut self) {
         use sysinfo::{ProcessRefreshKind, ProcessesToUpdate};
-        if pids.is_empty() {
-            return;
-        }
-        let mut targets: Vec<sysinfo::Pid> = pids
-            .iter()
-            .map(|pid| sysinfo::Pid::from_u32(*pid))
-            .collect();
-        targets.sort_unstable();
-        targets.dedup();
-        self.system.refresh_processes_specifics(
-            ProcessesToUpdate::Some(&targets),
+        self.work.listings += 1;
+        self.listing.refresh_processes_specifics(
+            ProcessesToUpdate::All,
             true,
-            ProcessRefreshKind::nothing().with_cpu().with_memory(),
+            ProcessRefreshKind::nothing()
+                .without_tasks()
+                .with_cpu()
+                .with_memory(),
         );
+    }
+
+    /// Every descendant of `roots` that the main table doesn't hold yet,
+    /// from the listing. A pid the table holds for a process that has since
+    /// ended and been reused (another start time) is new too.
+    fn new_descendants(&self, roots: &[u32]) -> Vec<u32> {
+        if roots.is_empty() {
+            return Vec::new();
+        }
+        let children = parents_map(&self.listing);
+        let mut fresh = Vec::new();
+        let mut seen: std::collections::HashSet<u32> = std::collections::HashSet::new();
+        let mut queue: Vec<u32> = roots.to_vec();
+        while let Some(pid) = queue.pop() {
+            if !seen.insert(pid) {
+                continue;
+            }
+            let Some(listed) = self.listing.process(sysinfo::Pid::from_u32(pid)) else {
+                continue; // gone since: nothing to read, no children
+            };
+            let held = self.system.process(sysinfo::Pid::from_u32(pid));
+            if held.is_none_or(|held| held.start_time() != listed.start_time()) {
+                fresh.push(pid);
+            }
+            if let Some(kids) = children.get(&pid) {
+                queue.extend(kids);
+            }
+        }
+        fresh
     }
 
     /// Targeted refresh of specific pids (orphan liveness probes).
@@ -947,6 +1043,7 @@ impl LiveStatsCollector {
             ProcessesToUpdate::Some(&targets),
             true,
             ProcessRefreshKind::nothing()
+                .without_tasks()
                 .with_cpu()
                 .with_memory()
                 .with_exe(sysinfo::UpdateKind::Always)
@@ -1012,6 +1109,12 @@ impl LiveStatsCollector {
         self.observed_roots = roots;
     }
 
+    /// What the ticks have done so far.
+    #[must_use]
+    pub fn work(&self) -> CollectorWork {
+        self.work
+    }
+
     /// The observed trees as of the last tick, by root pid.
     #[must_use]
     pub fn observed_snapshot(&self) -> HashMap<u32, ObservedTree> {
@@ -1021,7 +1124,8 @@ impl LiveStatsCollector {
     /// Every process from the collector's table — pid, parent, name,
     /// executable, command line; never the environment (AJ-E1402: the
     /// running-tools scan classifies from this instead of a second full
-    /// refresh). New processes appear after the next full scan (≤ 10 s).
+    /// refresh). A watched tree's new processes appear within two ticks
+    /// (P16); any other new process at the next full scan (≤ 10 s).
     #[must_use]
     pub fn process_briefs(&self) -> Vec<ProcessBrief> {
         self.system
@@ -1043,21 +1147,9 @@ impl LiveStatsCollector {
             .collect()
     }
 
-    fn observed_pids(&self) -> Vec<u32> {
-        // Every pid of every observed tree is refreshed on the hot path,
-        // so per-process CPU deltas stay real between full scans.
-        self.observed_roots
-            .iter()
-            .map(|root| root.pid)
-            .chain(
-                self.observed
-                    .values()
-                    .flat_map(|tree| tree.pids.iter().copied()),
-            )
-            .collect()
-    }
-
-    fn rebuild_observed(&mut self, parents: &HashMap<u32, Vec<u32>>, now_ms: i64) {
+    /// The other tools' trees, measured from the listing.
+    fn rebuild_observed(&mut self, now_ms: i64) {
+        let parents = parents_map(&self.listing);
         // Excluded: every supervised pid and AI Juggler itself (a dev
         // build may run under a terminal `claude`; its sessions are ours).
         let supervised: std::collections::HashSet<u32> = self
@@ -1067,11 +1159,12 @@ impl LiveStatsCollector {
             .chain(std::iter::once(std::process::id()))
             .collect();
         let roots = self.observed_roots.clone();
-        let sampled = self.sampled;
+        let sampled = self.listing_sampled;
+        self.listing_sampled = true;
         let mut reused = Vec::new();
         for pinned in roots {
             let root = pinned.pid;
-            let process = self.system.process(sysinfo::Pid::from_u32(root));
+            let process = self.listing.process(sysinfo::Pid::from_u32(root));
             let alive =
                 process.is_some_and(|process| process.status() != sysinfo::ProcessStatus::Zombie);
             // The pid now names another process: never measure it as the
@@ -1088,7 +1181,8 @@ impl LiveStatsCollector {
                 self.observed.remove(&root);
                 continue;
             }
-            let (rows, _) = tree_rows(&self.system, parents, root);
+            let (rows, _) = tree_rows(&self.listing, &parents, root);
+            self.work.targeted_observed += rows.len() as u64;
             // A supervised subtree never also counts as observed.
             let mut stats = observed_sums(&rows, &supervised);
             if !sampled {
@@ -1710,6 +1804,7 @@ impl Supervisor {
         }
 
         let mut command = Command::new(&launch.program);
+        command.env("PATH", launch_path(&launch.program));
         apply_env(&mut command, &launch.env);
         command
             .args(&launch.args)
@@ -1797,6 +1892,7 @@ impl Supervisor {
         use std::process::{Command, Stdio};
 
         let mut command = Command::new(&spec.program);
+        command.env("PATH", launch_path(&spec.program));
         apply_env(&mut command, &spec.env);
         command
             .args(&spec.args)
@@ -1925,6 +2021,7 @@ impl Supervisor {
         for (key, value) in std::env::vars_os() {
             builder.env(key, value);
         }
+        builder.env("PATH", launch_path(&spec.program));
         apply_pty_env(&mut builder, &spec.env);
         let mut child = pair
             .slave
@@ -2779,7 +2876,11 @@ fn descendants_of(root: u32) -> Vec<u32> {
     use sysinfo::{ProcessRefreshKind, ProcessesToUpdate};
 
     let mut system = crate::new_system();
-    system.refresh_processes_specifics(ProcessesToUpdate::All, true, ProcessRefreshKind::nothing());
+    system.refresh_processes_specifics(
+        ProcessesToUpdate::All,
+        true,
+        ProcessRefreshKind::nothing().without_tasks(),
+    );
     let mut parents: HashMap<u32, Vec<u32>> = HashMap::new();
     for (pid, process) in system.processes() {
         if let Some(parent) = process.parent() {
@@ -2836,6 +2937,14 @@ fn tree_stats(
 #[must_use]
 pub fn default_journal_path(state_dir: &Path) -> PathBuf {
     state_dir.join("supervision.jsonl")
+}
+
+/// The `PATH` every launch runs with: the user's (an app opened from
+/// Finder inherits `/usr/bin:/bin:/usr/sbin:/sbin`, where an
+/// npm-installed CLI can't find `node`), the program's own folder first.
+/// Set before the overlay, so a `PATH` from Launch settings still wins.
+fn launch_path(program: &Path) -> std::ffi::OsString {
+    juggler_adapter::user_path::path_for(program)
 }
 
 /// The launch env overlay onto a command: set each value, or remove the

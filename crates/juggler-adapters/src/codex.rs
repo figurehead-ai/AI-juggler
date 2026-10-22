@@ -229,121 +229,47 @@ pub fn parse_version(stdout: &str) -> Option<String> {
         .then(|| token.to_owned())
 }
 
+/// A Codex rollout: `rollout-*.jsonl`, or one Codex compressed once it was
+/// done with it (`rollout-*.jsonl.zst`: most of them, on a Mac used for a
+/// while). A thread caught mid-compression has both; its usage is keyed, so
+/// reading both counts it once.
+#[must_use]
+pub fn is_rollout_file(path: &Path) -> bool {
+    path.file_name()
+        .map(|name| name.to_string_lossy())
+        .is_some_and(|name| {
+            name.starts_with("rollout-")
+                && (name.ends_with(".jsonl") || name.ends_with(".jsonl.zst"))
+        })
+}
+
 /// See [`CodexAdapter::login_state`].
 #[must_use]
 pub fn codex_login_state(state_dir: &Path) -> LoginState {
     if std::fs::read_dir(state_dir).is_err() {
         return LoginState::Unknown; // probe failure ≠ logged out (AJ-E308)
     }
-    let path = state_dir.join("auth.json");
-    let Ok(meta) = std::fs::metadata(&path) else {
+    match crate::sign_in::codex_auth(state_dir) {
         // Keychain storage (`cli_auth_credentials_store = "keyring"`)
         // leaves no file: the entry's existence is the answer.
-        #[cfg(target_os = "macos")]
-        if keychain_entry_exists(state_dir) {
-            return LoginState::SignedIn;
+        crate::sign_in::CodexAuth::Missing => {
+            #[cfg(target_os = "macos")]
+            if keychain_entry_exists(state_dir) {
+                return LoginState::SignedIn;
+            }
+            LoginState::LoggedOut
         }
-        return LoginState::LoggedOut;
-    };
-    if meta.len() == 0 {
-        return LoginState::Partial; // a sign-in abandoned mid-write
+        crate::sign_in::CodexAuth::Empty => LoginState::Partial, // a sign-in abandoned mid-write
+        crate::sign_in::CodexAuth::Shape(shape) => classify_auth(&shape),
+        crate::sign_in::CodexAuth::Unreadable => LoginState::Unknown,
     }
-    // ADR-0003: the file is streamed into `AuthShape`, which keeps only
-    // whether each field is there — every value (tokens, keys) is skipped
-    // while parsing and never stored, logged or returned.
-    let Ok(file) = std::fs::File::open(&path) else {
-        return LoginState::Unknown;
-    };
-    match serde_json::from_reader::<_, AuthShape>(std::io::BufReader::new(file)) {
-        Ok(shape) => classify_auth(&shape),
-        Err(_) => LoginState::Unknown,
-    }
-}
-
-/// Whether a field holds something — never what. A string counts when
-/// non-empty, an object when it has entries; the value is consumed by
-/// the parser and dropped on the spot (ADR-0003).
-#[derive(Debug, Default, Clone, Copy)]
-struct Present(bool);
-
-impl<'de> serde::Deserialize<'de> for Present {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        struct Shape;
-        impl<'de> serde::de::Visitor<'de> for Shape {
-            type Value = Present;
-            fn expecting(&self, out: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                out.write_str("any JSON value")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Present, E> {
-                Ok(Present(!value.is_empty()))
-            }
-            fn visit_map<A: serde::de::MapAccess<'de>>(
-                self,
-                mut map: A,
-            ) -> Result<Present, A::Error> {
-                let mut any = false;
-                while map
-                    .next_entry::<serde::de::IgnoredAny, serde::de::IgnoredAny>()?
-                    .is_some()
-                {
-                    any = true;
-                }
-                Ok(Present(any))
-            }
-            fn visit_seq<A: serde::de::SeqAccess<'de>>(
-                self,
-                mut seq: A,
-            ) -> Result<Present, A::Error> {
-                while seq.next_element::<serde::de::IgnoredAny>()?.is_some() {}
-                Ok(Present(false))
-            }
-            fn visit_unit<E>(self) -> Result<Present, E> {
-                Ok(Present(false))
-            }
-            fn visit_bool<E>(self, _: bool) -> Result<Present, E> {
-                Ok(Present(false))
-            }
-            fn visit_i64<E>(self, _: i64) -> Result<Present, E> {
-                Ok(Present(false))
-            }
-            fn visit_u64<E>(self, _: u64) -> Result<Present, E> {
-                Ok(Present(false))
-            }
-            fn visit_f64<E>(self, _: f64) -> Result<Present, E> {
-                Ok(Present(false))
-            }
-        }
-        deserializer.deserialize_any(Shape)
-    }
-}
-
-/// The shape of `auth.json` the probe needs — field names and presence;
-/// `auth_mode` is a mode name, not a secret.
-#[derive(Debug, Default, serde::Deserialize)]
-#[serde(default)]
-struct AuthShape {
-    auth_mode: Option<String>,
-    #[serde(rename = "OPENAI_API_KEY")]
-    api_key: Present,
-    tokens: Option<TokenShape>,
-    personal_access_token: Present,
-    bedrock_api_key: Present,
-    bedrock_access_keys: Present,
-}
-
-/// The `tokens` object's shape (presence only).
-#[derive(Debug, Default, serde::Deserialize)]
-#[serde(default)]
-struct TokenShape {
-    access_token: Present,
-    refresh_token: Present,
 }
 
 /// Classifies an `auth.json` shape by field names and presence only.
 /// `auth_mode` decides when present — a `ChatGPT` sign-in may ALSO carry an
 /// exchanged API key, so `OPENAI_API_KEY` alone never means an API-key
 /// account (codex-rs `login/src/auth/manager.rs` `resolved_mode`).
-fn classify_auth(shape: &AuthShape) -> LoginState {
+fn classify_auth(shape: &crate::sign_in::AuthShape) -> LoginState {
     let has_tokens = shape
         .tokens
         .as_ref()
@@ -382,7 +308,7 @@ fn keychain_entry_exists(state_dir: &Path) -> bool {
     let Some(account) = keychain_account(state_dir) else {
         return false;
     };
-    std::process::Command::new("security")
+    std::process::Command::new(juggler_adapter::system_tools::SECURITY)
         .args(["find-generic-password", "-s", "Codex Auth", "-a", &account])
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
@@ -438,11 +364,7 @@ pub fn probe_codex_identity(state_dir: &Path) -> juggler_adapter::IdentityProbe 
     }
     // Streamed into a shape that keeps ONLY `tokens.account_id` (an id,
     // not a credential); every token value is skipped (ADR-0003).
-    let account_id = std::fs::File::open(state_dir.join("auth.json"))
-        .ok()
-        .and_then(|file| serde_json::from_reader::<_, IdShape>(std::io::BufReader::new(file)).ok())
-        .and_then(|shape| shape.tokens?.account_id)
-        .filter(|id| !id.is_empty());
+    let account_id = crate::sign_in::codex_account_id(state_dir);
     match account_id {
         Some(subject) => {
             let tail: String = subject
@@ -463,20 +385,6 @@ pub fn probe_codex_identity(state_dir: &Path) -> juggler_adapter::IdentityProbe 
             reason: "this Codex sign-in records no account id Juggler can read".into(),
         },
     }
-}
-
-/// The part of `auth.json` the identity probe keeps: the account id.
-#[derive(Default, serde::Deserialize)]
-#[serde(default)]
-struct IdShape {
-    tokens: Option<IdTokens>,
-}
-
-/// `tokens.account_id` only — the token values are skipped.
-#[derive(Default, serde::Deserialize)]
-#[serde(default)]
-struct IdTokens {
-    account_id: Option<String>,
 }
 
 /// The scan-side sign-in axis stays binary (the inference vocabulary);
@@ -536,6 +444,13 @@ impl HarnessAdapter for CodexAdapter {
             | Capabilities::FORK
             | Capabilities::TRANSCRIPT_WATCH
             | Capabilities::USAGE_TOKENS
+            // Its rollouts carry the vendor's own limit readings
+            // (`token_count` `rate_limits`; the 0.0.12 report), each
+            // window named by its `window_minutes`.
+            | Capabilities::USAGE_QUOTA_FEED
+            | Capabilities::LIMIT_WINDOWS_REPORTED
+            // Its usage keys start with the thread they belong to.
+            | Capabilities::USAGE_KEYS_PER_SESSION
     }
 
     fn verified_against(&self) -> &'static [&'static str] {
@@ -555,7 +470,11 @@ impl HarnessAdapter for CodexAdapter {
                 bin.display()
             ));
         }
-        match std::process::Command::new(&bin).arg("--version").output() {
+        // With the user's PATH: an npm-installed CLI runs on `node`.
+        match juggler_adapter::user_path::command(&bin)
+            .arg("--version")
+            .output()
+        {
             Ok(output) if output.status.success() => {
                 let stdout = String::from_utf8_lossy(&output.stdout);
                 let Some(version) = parse_version(&stdout) else {
@@ -804,5 +723,9 @@ impl HarnessAdapter for CodexAdapter {
     /// not one Juggler tracks — the daemon reasoning applies to launches.
     fn shell_command(&self) -> Option<&'static str> {
         Some("codex")
+    }
+
+    fn resolved_binary(&self) -> Option<PathBuf> {
+        self.resolve_bin()
     }
 }

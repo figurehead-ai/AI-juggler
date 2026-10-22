@@ -30,6 +30,30 @@ const FILE_SCAN_EVERY: u32 = 4;
 const ZCODE_EVERY: u32 = 15;
 /// The persisted offsets+health blob's settings key.
 const INGEST_STATE_KEY: &str = "usage_ingest_state";
+/// Per account: the newest credits snapshot (JSON) its tool reported (Codex,
+/// from its own rollouts) — what the account's card shows as its balance.
+/// Keyed by account, whatever the tool.
+pub const CREDITS_KEY_PREFIX: &str = "credits:";
+/// Raised when stored transcript/rollout rows were counted wrongly and
+/// must be read again: the next pass re-reads every file still on disk
+/// from the start, replacing its sessions' rows. 1 = 0.0.13 (Claude
+/// content blocks counted per line; Codex's nested token classes and
+/// missing model). 2 = Codex compactions' own usage (P17), and a message a
+/// resumed copy shares credited to the session that came first. 3 = every
+/// session that offered a message recorded, so a shared message's keeper
+/// no longer depends on the reading order (a copy of a copy, a fork); a
+/// compaction counted once wherever a pass ends. 4 = Codex's compressed
+/// rollouts read (`.jsonl.zst`): their history comes in as a re-read, not
+/// as new use. A cross-branch number, like a migration's: release/0.1 also
+/// takes 4 (P19); where the two meet it becomes 5.
+const REREAD_VERSION: u32 = 4;
+
+/// Quota samples gathered in one pass: (account, window, sample).
+type SampleBatch = Vec<(
+    String,
+    juggler_core::quota::WindowKind,
+    juggler_core::quota::QuotaSample,
+)>;
 
 /// Per-account persisted tail state (offsets by file path).
 #[derive(Default, serde::Serialize, serde::Deserialize)]
@@ -37,6 +61,10 @@ struct AccountOffsets {
     spool: u64,
     #[serde(default)]
     files: BTreeMap<String, u64>,
+    /// Per Codex rollout: what its last slice left for the next one (the
+    /// model, the last total, compactions waiting for their thread).
+    #[serde(default)]
+    carries: BTreeMap<String, juggler_adapters::RolloutCarry>,
 }
 
 /// The whole persisted pipeline state.
@@ -46,6 +74,9 @@ struct IngestState {
     offsets: BTreeMap<String, AccountOffsets>,
     #[serde(default)]
     health: BTreeMap<String, juggler_adapters::SourceHealth>,
+    /// The [`REREAD_VERSION`] the stored rows were last read under.
+    #[serde(default)]
+    reread: u32,
 }
 
 /// Spawns the pipeline thread (called once from app setup).
@@ -67,22 +98,42 @@ pub fn spawn(state: Arc<AppState>) {
 
 /// One ingest pass (public for tests): accounts → sources → store.
 pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
-    let accounts = {
+    let (accounts, dirty) = {
         let Ok(storage) = state.storage.lock() else {
             return;
         };
         let Ok(list) = storage.accounts().list() else {
             return;
         };
-        list
+        // A build without the holders wrote usage rows here (gone back to,
+        // then forward again): read everything again so they're whole.
+        let dirty = storage.usage().derived_dirty().unwrap_or(false);
+        // Accounts whose tool's usage keys name their own session: the
+        // store keeps no holders for them.
+        let unshared: std::collections::BTreeSet<String> = list
+            .iter()
+            .filter(|account| {
+                crate::commands::adapter_has(
+                    account.harness.as_str(),
+                    juggler_adapter::Capabilities::USAGE_KEYS_PER_SESSION,
+                )
+            })
+            .map(|account| account.id.as_str().to_owned())
+            .collect();
+        let _ = storage.usage().set_unshared_accounts(&unshared);
+        (list, dirty)
     };
     let mut ingest = load_state(state);
+    let rereading = ingest.reread < REREAD_VERSION || dirty;
+    if rereading {
+        for offsets in ingest.offsets.values_mut() {
+            offsets.files.values_mut().for_each(|offset| *offset = 0);
+            offsets.carries.clear();
+        }
+    }
     let mut store_batch: Vec<juggler_core::quota::UsageEvent> = Vec::new();
-    let mut sample_batch: Vec<(
-        String,
-        juggler_core::quota::WindowKind,
-        juggler_core::quota::QuotaSample,
-    )> = Vec::new();
+    let mut sample_batch: SampleBatch = Vec::new();
+    let mut credits_batch: Vec<(String, juggler_adapters::CreditsSnapshot)> = Vec::new();
 
     for account in &accounts {
         let account_id = account.id.as_str().to_owned();
@@ -107,8 +158,15 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
                     &mut sample_batch,
                 );
             }
-            "codex" if tick.is_multiple_of(FILE_SCAN_EVERY) => {
-                ingest_codex(&account_id, &dir, &mut ingest, &mut store_batch);
+            "codex" if rereading || tick.is_multiple_of(FILE_SCAN_EVERY) => {
+                ingest_codex(
+                    &account_id,
+                    &dir,
+                    &mut ingest,
+                    &mut store_batch,
+                    &mut sample_batch,
+                    &mut credits_batch,
+                );
             }
             "zcode" if tick.is_multiple_of(ZCODE_EVERY) => {
                 ingest_zcode(&account_id, &dir, &mut ingest, &mut store_batch);
@@ -117,22 +175,131 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
         }
     }
 
-    // Single writer: ONE storage lock for the whole batch.
+    // Single writer, in chunks (QA batch 9: a first pass on a heavy setup
+    // held storage for over a minute in one write, and every screen and
+    // the conversation index waited behind it). Offsets are saved only
+    // once every chunk is in: when a write fails, the next pass reads the
+    // same lines again (the store dedupes what an earlier chunk kept).
+    let Some(stored) = store_in_chunks(state, rereading, &store_batch) else {
+        return;
+    };
     if let Ok(storage) = state.storage.lock() {
         let usage = storage.usage();
-        if !store_batch.is_empty()
-            && let Ok(new) = usage.insert_events_marking(&store_batch)
-        {
-            // AJ-E1103: Measured tokens of new rows only (D-06).
-            crate::usage_stats::tokens_ingested(&accounts, &store_batch, &new);
+        if rereading {
+            ingest.reread = REREAD_VERSION;
+            if usage.clear_derived_dirty().is_err() {
+                return;
+            }
+        } else {
+            // AJ-E1103: Measured tokens this pass added (D-06): a new
+            // response, or the rest of one an earlier pass began. A re-read
+            // is not new use.
+            crate::usage_stats::tokens_ingested(&accounts, &store_batch, &stored);
         }
-        for (account, kind, sample) in &sample_batch {
-            let _ = usage.insert_sample(account, *kind, sample);
+        if usage.insert_samples(&sample_batch).is_err() {
+            return;
         }
+        save_credits(&storage, &credits_batch);
         if let Ok(blob) = serde_json::to_string(&ingest) {
             let _ = storage.app_settings().set(INGEST_STATE_KEY, &blob);
         }
     }
+}
+
+/// Stores each account's newest credits snapshot, only ever forward: a
+/// compressed old rollout, read whole, can carry a snapshot weeks older
+/// than the one already stored.
+fn save_credits(
+    storage: &juggler_core::storage::Storage,
+    batch: &[(String, juggler_adapters::CreditsSnapshot)],
+) {
+    for (account, credits) in batch {
+        let key = format!("{CREDITS_KEY_PREFIX}{account}");
+        let stored = storage
+            .app_settings()
+            .get(&key)
+            .ok()
+            .flatten()
+            .and_then(|blob| serde_json::from_str::<juggler_adapters::CreditsSnapshot>(&blob).ok());
+        if stored.is_some_and(|stored| stored.ts >= credits.ts) {
+            continue;
+        }
+        if let Ok(blob) = serde_json::to_string(credits) {
+            let _ = storage.app_settings().set(&key, &blob);
+        }
+    }
+}
+
+/// Events per storage write: one chunk holds the lock for a moment, and
+/// whatever waits on storage gets it between chunks.
+const STORE_CHUNK: usize = 2_000;
+
+/// Stores the pass's events a chunk at a time, each in its own lock and
+/// transaction; `None` when a write fails. A re-read replaces each
+/// session's rows in the chunk that holds all of them, so a session is
+/// never left half-replaced. The results come back in `batch`'s order
+/// (a re-read's order isn't used).
+fn store_in_chunks(
+    state: &Arc<AppState>,
+    rereading: bool,
+    batch: &[juggler_core::quota::UsageEvent],
+) -> Option<Vec<juggler_core::storage::Stored>> {
+    let chunks: Vec<Vec<juggler_core::quota::UsageEvent>> = if rereading {
+        session_chunks(batch, STORE_CHUNK)
+    } else {
+        batch.chunks(STORE_CHUNK).map(<[_]>::to_vec).collect()
+    };
+    let mut stored = Vec::with_capacity(batch.len());
+    for chunk in &chunks {
+        let storage = state.storage.lock().ok()?;
+        let usage = storage.usage();
+        // Every file still on disk was read from its start: its sessions'
+        // old rows go and the rows just read replace them. A session whose
+        // files are gone keeps the rows it had.
+        let done = if rereading {
+            usage.replace_session_events(&reread_sessions(chunk), chunk)
+        } else {
+            usage.store_events(chunk)
+        };
+        stored.extend(done.ok()?);
+        drop(storage);
+        std::thread::sleep(CHUNK_PAUSE);
+    }
+    Some(stored)
+}
+
+/// The pause between two chunks' writes, so a reader waiting on storage
+/// gets it in between. Storage is a `std::sync::Mutex`, which isn't fair:
+/// unlocked and locked again at once, it goes back to this loop before a
+/// woken waiter runs, and a screen could wait out the whole re-read (2.2 s on
+/// the replica at the maintainer's size; `yield_now` still left 1.1 s). A
+/// fair hand-off (`parking_lot`'s `unlock_fair`) would need every one of
+/// storage's lock sites changed; until then, this pause.
+const CHUNK_PAUSE: std::time::Duration = std::time::Duration::from_millis(1);
+
+/// The events grouped so that all of one session's are in the same chunk,
+/// chunks filled up to about `size` (a session bigger than that is a chunk
+/// of its own).
+fn session_chunks(
+    batch: &[juggler_core::quota::UsageEvent],
+    size: usize,
+) -> Vec<Vec<juggler_core::quota::UsageEvent>> {
+    let mut by_session: BTreeMap<(String, Option<String>), Vec<juggler_core::quota::UsageEvent>> =
+        BTreeMap::new();
+    for event in batch {
+        by_session
+            .entry((event.account.clone(), event.session.clone()))
+            .or_default()
+            .push(event.clone());
+    }
+    let mut chunks: Vec<Vec<juggler_core::quota::UsageEvent>> = Vec::new();
+    for events in by_session.into_values() {
+        match chunks.last_mut() {
+            Some(last) if last.len() + events.len() <= size => last.extend(events),
+            _ => chunks.push(events),
+        }
+    }
+    chunks
 }
 
 /// Claude: spool tail every pass; transcript scan every file-scan cadence.
@@ -142,11 +309,7 @@ fn ingest_claude(
     in_place_spool: Option<PathBuf>,
     ingest: &mut IngestState,
     store: &mut Vec<juggler_core::quota::UsageEvent>,
-    samples: &mut Vec<(
-        String,
-        juggler_core::quota::WindowKind,
-        juggler_core::quota::QuotaSample,
-    )>,
+    samples: &mut SampleBatch,
 ) {
     // Req.1: the managed wrapper is ensured idempotently — a missing
     // or drifted install self-heals; a user who uninstalled sees it
@@ -191,35 +354,59 @@ fn ingest_claude(
     // Transcripts: <dir>/projects/**/*.jsonl, offset-tracked.
     let projects = dir.join("projects");
     let mut files = Vec::new();
-    collect_jsonl(&projects, &mut files);
+    collect_files(&projects, &mut files, is_jsonl);
+    forget_missing(ingest, account, &projects, &files);
     ingest_files(
         account,
         "transcript",
         files,
-        juggler_adapters::tail_transcript,
+        |path, account, offset, _| juggler_adapters::tail_transcript(path, account, offset),
         ingest,
         store,
     );
 }
 
-/// Codex: rollout files under <dir>/sessions/**, offset-tracked.
+/// Codex: rollout files under <dir>/sessions/**, offset-tracked. Their
+/// `token_count` lines also carry Codex's own limit readings: Measured
+/// samples, and the latest credits snapshot.
 fn ingest_codex(
     account: &str,
     dir: &Path,
     ingest: &mut IngestState,
     store: &mut Vec<juggler_core::quota::UsageEvent>,
+    samples: &mut SampleBatch,
+    credits: &mut Vec<(String, juggler_adapters::CreditsSnapshot)>,
 ) {
     let sessions = dir.join("sessions");
     let mut files = Vec::new();
-    collect_jsonl(&sessions, &mut files);
-    ingest_files(
-        account,
-        "rollout",
-        files,
-        juggler_adapters::tail_rollout,
-        ingest,
-        store,
+    collect_files(
+        &sessions,
+        &mut files,
+        juggler_adapters::codex::is_rollout_file,
     );
+    forget_missing(ingest, account, &sessions, &files);
+    let mut latest: Option<juggler_adapters::CreditsSnapshot> = None;
+    for path in files {
+        let outcome = tail_one(
+            account,
+            "rollout",
+            &path,
+            juggler_adapters::tail_rollout,
+            ingest,
+            store,
+        );
+        for (kind, sample) in outcome.samples {
+            samples.push((account.to_owned(), kind, sample));
+        }
+        if let Some(seen) = outcome.credits
+            && latest.as_ref().is_none_or(|kept| kept.ts <= seen.ts)
+        {
+            latest = Some(seen);
+        }
+    }
+    if let Some(latest) = latest {
+        credits.push((account.to_owned(), latest));
+    }
 }
 
 /// `ZCode`: the whole `model_usage` table, read-only; the store's
@@ -250,36 +437,117 @@ fn ingest_zcode(
     }
 }
 
+/// Reads one file's next slice: its path, account, offset and carry.
+type Tail = fn(&Path, &str, u64, &juggler_adapters::RolloutCarry) -> juggler_adapters::TailOutcome;
+
+/// Forgets the offsets and carries of an account's files that are no longer
+/// on disk (deleted, or moved away), so the state doesn't grow with every
+/// file there ever was. Only when `root` could be listed: a folder that is
+/// gone or unreadable for a moment forgets nothing (else the next pass
+/// would read every file again from its start).
+fn forget_missing(ingest: &mut IngestState, account: &str, root: &Path, files: &[PathBuf]) {
+    if std::fs::read_dir(root).is_err() {
+        return;
+    }
+    let Some(offsets) = ingest.offsets.get_mut(account) else {
+        return;
+    };
+    let present: std::collections::BTreeSet<String> = files
+        .iter()
+        .map(|path| path.to_string_lossy().to_string())
+        .collect();
+    offsets.files.retain(|path, _| present.contains(path));
+    offsets.carries.retain(|path, _| present.contains(path));
+}
+
 /// Tails a set of JSONL files with per-file offsets.
 fn ingest_files(
     account: &str,
     source: &str,
     files: Vec<PathBuf>,
-    tail: fn(&Path, &str, u64) -> juggler_adapters::TailOutcome,
+    tail: Tail,
     ingest: &mut IngestState,
     store: &mut Vec<juggler_core::quota::UsageEvent>,
 ) {
     for path in files {
-        let key = path.to_string_lossy().to_string();
-        let offset = ingest
-            .offsets
-            .get(account)
-            .and_then(|offsets| offsets.files.get(&key).copied())
-            .unwrap_or(0);
-        let outcome = tail(&path, account, offset);
-        ingest
-            .offsets
-            .entry(account.to_owned())
-            .or_default()
-            .files
-            .insert(key, outcome.offset);
-        let latest = outcome.events.iter().map(|event| event.ts).max();
-        let errors = outcome.parse_errors;
-        store.extend(outcome.events);
-        if latest.is_some() || errors > 0 {
-            record_health(ingest, account, source, latest, errors, "");
+        let _ = tail_one(account, source, &path, tail, ingest, store);
+    }
+}
+
+/// Tails one file from its stored offset and carry: its events go to the
+/// store, the offset, carry and health are recorded; the rest of the
+/// outcome (samples, credits) is returned for the caller.
+fn tail_one(
+    account: &str,
+    source: &str,
+    path: &Path,
+    tail: Tail,
+    ingest: &mut IngestState,
+    store: &mut Vec<juggler_core::quota::UsageEvent>,
+) -> juggler_adapters::TailOutcome {
+    let key = path.to_string_lossy().to_string();
+    let offsets = ingest.offsets.entry(account.to_owned()).or_default();
+    let offset = offsets.files.get(&key).copied().unwrap_or(0);
+    let carry = offsets.carries.get(&key).cloned().unwrap_or_default();
+    let mut outcome = tail(path, account, offset, &carry);
+    if outcome.carry == juggler_adapters::RolloutCarry::default() {
+        offsets.carries.remove(&key);
+    } else {
+        offsets.carries.insert(key.clone(), outcome.carry.clone());
+    }
+    offsets.files.insert(key, outcome.offset);
+    let latest = outcome
+        .events
+        .iter()
+        .map(|event| event.ts)
+        .chain(outcome.samples.iter().map(|(_, sample)| sample.ts))
+        .max();
+    let errors = outcome.parse_errors;
+    store.append(&mut outcome.events);
+    if latest.is_some() || errors > 0 {
+        record_health(ingest, account, source, latest, errors, "");
+    }
+    if let Some(reason) = outcome.unread {
+        record_health(ingest, account, source, None, 1, reason);
+    }
+    if outcome.dropped > 0 {
+        // Damage, counted like a bad line: usage that won't be counted.
+        record_health(
+            ingest,
+            account,
+            source,
+            None,
+            outcome.dropped,
+            "compactions dropped before their thread was known",
+        );
+    }
+    outcome
+}
+
+/// The sessions a re-read pass read again: every transcript/rollout
+/// session in its batch, once.
+fn reread_sessions(
+    batch: &[juggler_core::quota::UsageEvent],
+) -> Vec<(String, juggler_core::quota::UsageSource, String)> {
+    use juggler_core::quota::UsageSource;
+    let mut sessions = BTreeMap::new();
+    for event in batch {
+        if matches!(event.source, UsageSource::Transcript | UsageSource::Rollout)
+            && let Some(session) = &event.session
+        {
+            sessions
+                .entry((
+                    event.account.clone(),
+                    event.source.as_str(),
+                    session.clone(),
+                ))
+                .or_insert(event.source);
         }
     }
+    sessions
+        .into_iter()
+        .map(|((account, _, session), source)| (account, source, session))
+        .collect()
 }
 
 /// Merges one observation into the health map.
@@ -379,15 +647,14 @@ fn load_state(state: &Arc<AppState>) -> IngestState {
         .unwrap_or_default()
 }
 
-/// Collects `*.jsonl` files under `root` (depth-capped — vendor trees
-/// are shallow; a runaway walk is not part of the budget).
-fn collect_jsonl(root: &Path, out: &mut Vec<PathBuf>) {
-    collect_jsonl_depth(root, out, 0);
+/// The files under `root` (at most [`MAX_WALK_DEPTH`] folders down) that
+/// `keep` accepts: the one walk for every source the pipeline tails. What a
+/// source's files look like is its adapter's to say.
+fn collect_files(root: &Path, out: &mut Vec<PathBuf>, keep: fn(&Path) -> bool) {
+    walk(root, out, keep, 0);
 }
 
-const MAX_WALK_DEPTH: u32 = 5;
-
-fn collect_jsonl_depth(root: &Path, out: &mut Vec<PathBuf>, depth: u32) {
+fn walk(root: &Path, out: &mut Vec<PathBuf>, keep: fn(&Path) -> bool, depth: u32) {
     if depth > MAX_WALK_DEPTH {
         return;
     }
@@ -397,12 +664,124 @@ fn collect_jsonl_depth(root: &Path, out: &mut Vec<PathBuf>, depth: u32) {
     for entry in entries.flatten() {
         let path = entry.path();
         if path.is_dir() {
-            collect_jsonl_depth(&path, out, depth + 1);
-        } else if path
-            .extension()
-            .is_some_and(|extension| extension == "jsonl")
-        {
+            walk(&path, out, keep, depth + 1);
+        } else if keep(&path) {
             out.push(path);
         }
+    }
+}
+
+/// A Claude transcript (`.jsonl`).
+fn is_jsonl(path: &Path) -> bool {
+    path.extension()
+        .is_some_and(|extension| extension == "jsonl")
+}
+
+const MAX_WALK_DEPTH: u32 = 5;
+
+#[cfg(test)]
+mod chunk_tests {
+    #![allow(clippy::unwrap_used)]
+    use super::session_chunks;
+    use juggler_core::quota::{UsageEvent, UsageSource};
+
+    fn event(session: &str, n: usize) -> UsageEvent {
+        UsageEvent {
+            account: "a".into(),
+            session: Some(session.into()),
+            ts: i64::try_from(n).unwrap(),
+            model: None,
+            tokens: juggler_core::model::TokenCounts::default(),
+            credits: None,
+            usd_est: None,
+            source: UsageSource::Transcript,
+            confidence: juggler_core::model::Confidence::Measured,
+            msg_uuid: Some(format!("{session}-{n}")),
+        }
+    }
+
+    /// #126: a screen waiting on storage gets it between two chunks, not
+    /// after the whole pass (the lock isn't fair; without the pause it went
+    /// straight back to the writer).
+    #[test]
+    fn a_reader_gets_storage_between_chunks() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = std::sync::Arc::new(
+            crate::state::AppState::init_with_registry(
+                dir.path().join("data"),
+                juggler_adapter::AdapterRegistry::new(),
+            )
+            .unwrap(),
+        );
+        let batch: Vec<UsageEvent> = (0..super::STORE_CHUNK * 20)
+            .map(|n| event("s", n))
+            .collect();
+        let reader = {
+            let state = std::sync::Arc::clone(&state);
+            std::thread::spawn(move || {
+                // Once the first chunk is in, wait for storage like a screen.
+                loop {
+                    let stored = state
+                        .storage
+                        .lock()
+                        .unwrap()
+                        .usage()
+                        .events_for_account("a", 0)
+                        .unwrap()
+                        .len();
+                    if stored > 0 {
+                        break;
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(1));
+                }
+                state
+                    .storage
+                    .lock()
+                    .unwrap()
+                    .usage()
+                    .events_for_account("a", 0)
+                    .unwrap()
+                    .len()
+            })
+        };
+        super::store_in_chunks(&state, false, &batch).unwrap();
+        let seen = reader.join().unwrap();
+        assert!(seen < batch.len(), "the reader waited for all {seen} rows");
+    }
+
+    /// QA batch 9: a re-read is written a chunk at a time, and a session's
+    /// rows are replaced in one chunk, never split across two.
+    #[test]
+    fn a_reread_is_chunked_without_splitting_a_session() {
+        let mut batch = Vec::new();
+        for (session, rows) in [("s1", 3), ("s2", 4), ("s3", 9), ("s4", 2)] {
+            batch.extend((0..rows).map(|n| event(session, n)));
+        }
+        let chunks = session_chunks(&batch, 5);
+        let sessions: Vec<Vec<&str>> = chunks
+            .iter()
+            .map(|chunk| {
+                let mut ids: Vec<&str> = chunk
+                    .iter()
+                    .map(|e| e.session.as_deref().unwrap())
+                    .collect();
+                ids.dedup();
+                ids
+            })
+            .collect();
+        assert_eq!(sessions, [vec!["s1"], vec!["s2"], vec!["s3"], vec!["s4"]]);
+        assert_eq!(chunks.iter().map(Vec::len).sum::<usize>(), batch.len());
+        // Small sessions share a chunk up to its size.
+        let small: Vec<UsageEvent> = ["x", "y", "z"]
+            .iter()
+            .flat_map(|s| (0..2).map(|n| event(s, n)))
+            .collect();
+        assert_eq!(
+            session_chunks(&small, 4)
+                .iter()
+                .map(Vec::len)
+                .collect::<Vec<_>>(),
+            [4, 2]
+        );
     }
 }

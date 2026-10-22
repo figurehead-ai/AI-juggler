@@ -159,7 +159,11 @@ impl HarnessAdapter for ClaudeCodeAdapter {
                 )],
             };
         }
-        match std::process::Command::new(&bin).arg("--version").output() {
+        // With the user's PATH: an npm-installed CLI runs on `node`.
+        match juggler_adapter::user_path::command(&bin)
+            .arg("--version")
+            .output()
+        {
             Ok(output) if output.status.success() => {
                 let stdout = String::from_utf8_lossy(&output.stdout);
                 let version = stdout
@@ -392,6 +396,10 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         Some("claude")
     }
 
+    fn resolved_binary(&self) -> Option<PathBuf> {
+        self.resolve_bin()
+    }
+
     fn launch_spec(
         &self,
         account: &Account,
@@ -533,14 +541,6 @@ impl HarnessAdapter for ClaudeCodeAdapter {
 /// AJ-E1301 (re-exported here so existing paths keep working).
 pub use juggler_adapter::environment::LoginState;
 
-/// Current epoch seconds (std-only).
-fn epoch_secs() -> i64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|since| i64::try_from(since.as_secs()).unwrap_or(i64::MAX))
-        .unwrap_or_default()
-}
-
 impl ClaudeCodeAdapter {
     /// Probes whether the account in `state_dir` is logged in.
     ///
@@ -560,13 +560,13 @@ impl ClaudeCodeAdapter {
         if state_dir.join("claude-sso-session.json").exists() {
             return LoginState::SsoPending;
         }
-        let credentials = state_dir.join(".credentials.json");
-        if let Ok(meta) = std::fs::metadata(&credentials) {
+        // Presence and size only: the file holds the OAuth tokens, and AI
+        // Juggler never opens it (ADR-0003). Whether a sign-in has expired
+        // can't be told without its contents; Claude says so itself when
+        // it's used.
+        if let Some(meta) = crate::sign_in::metadata(CLAUDE_CODE_ID, state_dir) {
             if meta.len() == 0 {
                 return LoginState::Partial;
-            }
-            if Self::credential_expiry_passed(&credentials) {
-                return LoginState::Expired;
             }
             return LoginState::SignedIn;
         }
@@ -586,37 +586,25 @@ impl ClaudeCodeAdapter {
         LoginState::LoggedOut
     }
 
-    /// True when the credentials file's expiry claim is in the past
-    /// (the documented field only; the token is never read or logged).
-    fn credential_expiry_passed(path: &Path) -> bool {
-        let Ok(raw) = std::fs::read_to_string(path) else {
-            return false;
-        };
-        let Ok(value) = serde_json::from_str::<serde_json::Value>(&raw) else {
-            return false;
-        };
-        value
-            .get("expires_at")
-            .or_else(|| value.get("expiry"))
-            .and_then(serde_json::Value::as_i64)
-            .is_some_and(|at| at < epoch_secs())
-    }
-
-    /// True when settings.json carries a non-empty API-key FIELD
-    /// (existence only — the value is never read, ADR-0003).
+    /// True when settings.json carries a non-empty API-key FIELD. The file
+    /// is streamed into a shape that keeps only whether each key field is
+    /// filled; the key itself is skipped while parsing and never stored
+    /// (ADR-0003).
     fn settings_name_an_api_key(path: &Path) -> bool {
-        let Ok(raw) = std::fs::read_to_string(path) else {
+        #[derive(Default, serde::Deserialize)]
+        #[serde(default)]
+        struct KeyShape {
+            #[serde(rename = "primaryApiKey")]
+            primary: crate::presence::Present,
+            #[serde(rename = "apiKey")]
+            camel: crate::presence::Present,
+            api_key: crate::presence::Present,
+        }
+        let Ok(file) = std::fs::File::open(path) else {
             return false;
         };
-        let Ok(value) = serde_json::from_str::<serde_json::Value>(&raw) else {
-            return false;
-        };
-        value
-            .get("primaryApiKey")
-            .or_else(|| value.get("apiKey"))
-            .or_else(|| value.get("api_key"))
-            .and_then(|key| key.as_str())
-            .is_some_and(|text| !text.is_empty())
+        serde_json::from_reader::<_, KeyShape>(std::io::BufReader::new(file))
+            .is_ok_and(|shape| shape.primary.0 || shape.camel.0 || shape.api_key.0)
     }
 
     /// Builds the launch spec for the vendor's own interactive login flow —
@@ -896,16 +884,15 @@ pub(crate) fn file_stem(path: &Path) -> String {
 
 // ---- helpers -------------------------------------------------------------
 
+/// The first `program` on the user's `PATH` (the login shell's, not the
+/// one an app opened from Finder inherits — see `user_path`).
 pub(crate) fn find_on_path(program: &str) -> Option<PathBuf> {
-    let path_var = std::env::var_os("PATH")?;
     let exe = if cfg!(windows) {
         format!("{program}.exe")
     } else {
         program.to_string()
     };
-    std::env::split_paths(&path_var)
-        .map(|dir| dir.join(&exe))
-        .find(|candidate| candidate.is_file())
+    juggler_adapter::user_path::find(&exe)
 }
 
 /// The user's home dir (`HOME` / `USERPROFILE`).
@@ -1054,39 +1041,12 @@ fn namespaced_service(state_dir: &Path) -> String {
 /// **without** extracting any secret (`-w` deliberately absent).
 #[cfg(target_os = "macos")]
 fn keychain_entry_exists(service: &str) -> bool {
-    std::process::Command::new("security")
+    std::process::Command::new(juggler_adapter::system_tools::SECURITY)
         .args(["find-generic-password", "-s", service])
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .status()
         .is_ok_and(|status| status.success())
-}
-
-/// Writes the managed `settings.json` for a config dir from a profile's
-/// settings overlay (model preference). Atomic, and confined to the managed
-/// dir by construction.
-///
-/// # Errors
-///
-/// Returns [`AdapterError::AccountDir`] when the file cannot be written.
-pub fn write_settings_overlay(
-    state_dir: &Path,
-    overlay: &juggler_core::model::SettingsOverlay,
-) -> Result<(), AdapterError> {
-    let Some(model) = &overlay.model else {
-        return Ok(()); // nothing to overlay — no file written
-    };
-    let settings = serde_json::json!({ "model": model });
-    let bytes = serde_json::to_vec_pretty(&settings).map_err(|error| AdapterError::AccountDir {
-        path: state_dir.to_path_buf(),
-        message: error.to_string(),
-    })?;
-    juggler_core::fs::atomic_write(&state_dir.join("settings.json"), &bytes).map_err(|error| {
-        AdapterError::AccountDir {
-            path: state_dir.to_path_buf(),
-            message: error.to_string(),
-        }
-    })
 }
 
 /// AJ-E1001: Claude Code's sign-in metadata for a config dir (see
@@ -1124,4 +1084,33 @@ pub fn probe_claude_identity(state_dir: &Path) -> juggler_adapter::IdentityProbe
         label = format!("{label} · {org}");
     }
     IdentityProbe::SignedIn { subject, label }
+}
+
+/// Whether a process is a `claude` CLI session: the one rule for it,
+/// shared by everything that looks at running processes (This Mac's
+/// tools, live conversations). The binary is `claude`, wherever it is
+/// installed (the desktop app runs its Code sessions from
+/// `…/claude-code/<version>/…/claude.app/Contents/MacOS/claude`), or the
+/// npm package run by node. Claude Code also runs its search helpers as its
+/// own executable under their names (`ugrep`, `rg` as the first command
+/// word): the same binary, but never a session (QA on #126: five left
+/// behind by a finished session read as five tools). So the binary has to
+/// run as `claude`: its first command word, or a path to it (which may
+/// hold spaces). An unreadable command line leaves it to the name and the
+/// executable.
+#[must_use]
+pub fn is_cli_process(name: &str, exe: Option<&Path>, command_line: &str) -> bool {
+    if command_line.contains("@anthropic-ai/claude-code") {
+        return true;
+    }
+    let binary = name == "claude"
+        || exe.is_some_and(|exe| exe.file_name().is_some_and(|file| file == "claude"));
+    let cmd = command_line.trim_start();
+    let runs_as_claude = cmd.split_whitespace().next().is_none_or(|first| {
+        Path::new(first)
+            .file_name()
+            .is_some_and(|file| file == "claude")
+            || (cmd.starts_with('/') && (cmd.ends_with("/claude") || cmd.contains("/claude ")))
+    });
+    binary && runs_as_claude
 }

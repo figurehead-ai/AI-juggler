@@ -19,12 +19,12 @@ use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CODEX_ID, ClaudeCodeAdapter, CodexAdapter};
 use juggler_app::commands;
 use juggler_app::state::AppState;
+#[path = "../../juggler-supervisor/tests/fixtures/stand_in.rs"]
+mod stand_in;
 
 fn stub(dir: &Path, name: &str) -> std::path::PathBuf {
-    use std::os::unix::fs::PermissionsExt;
     let path = dir.join(name);
-    std::fs::write(&path, "#!/bin/sh\necho 'codex-cli 0.163.0'\n").unwrap();
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    stand_in::write(&path, "#!/bin/sh\necho 'codex-cli 0.163.0'\n");
     path
 }
 

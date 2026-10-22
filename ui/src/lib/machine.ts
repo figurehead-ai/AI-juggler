@@ -6,8 +6,7 @@
  * deterministic fixture; `window.__AIJ_MACHINE__` picks the state
  * ("plenty" | "tight" | "pressure" | "unsampled", or a full payload).
  */
-import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { invoke, listen } from "./ipc/transport";
 import { createContext, useContext, useEffect, useState } from "react";
 import { hasLiveBackend, instancesList, type InstanceInfo } from "./bridge";
 import type { MachineAdviceInfo } from "../types/generated/MachineAdviceInfo";
@@ -18,6 +17,8 @@ import type { ThisMacInfo } from "../types/generated/ThisMacInfo";
 import type { OverloadAlertInfo } from "../types/generated/OverloadAlertInfo";
 import type { ToolTreeInfo } from "../types/generated/ToolTreeInfo";
 import type { ToolTotalsInfo } from "../types/generated/ToolTotalsInfo";
+import type { ToolGroupInfo } from "../types/generated/ToolGroupInfo";
+import { providerDisplayName } from "./providers";
 
 export type { MachineHealthInfo, MachinePointInfo, RoomReasonInfo };
 
@@ -132,19 +133,26 @@ function previewAlerts(sessionId: string | null): OverloadAlertInfo[] {
   const kind = previewParam("aij_alert");
   if (kind === "memory")
     return [
-      { key: "memory_pressure", kind: "memory_pressure", title: "Your Mac is under memory pressure", detail: "macOS reports memory pressure", session_id: sessionId, place: null, subject_bytes: 3_200_000_000, subject_estimate: false, subject_cpu: null, since_ms: Date.now() - 45_000 },
+      { key: "memory_pressure", kind: "memory_pressure", title: "Your Mac is under memory pressure", detail: "macOS reports memory pressure", session_id: sessionId, place: null, subject_bytes: 3_200_000_000, subject_estimate: false, subject_cpu: null, subject_windows: null, since_ms: Date.now() - 45_000 },
     ];
   if (kind === "cpu")
     return [
-      { key: "cpu", kind: "cpu", title: "The processor has been flat out for minutes", detail: "97% busy for over two minutes", session_id: null, place: "desktop", subject_bytes: null, subject_estimate: false, subject_cpu: 140, since_ms: Date.now() - 150_000 },
+      { key: "cpu", kind: "cpu", title: "The processor has been flat out for minutes", detail: "97% busy for over two minutes", session_id: null, place: "desktop", subject_bytes: null, subject_estimate: false, subject_cpu: 140, subject_windows: null, since_ms: Date.now() - 150_000 },
     ];
   return [];
+}
+
+const FIXTURES: readonly MachineFixture[] = ["plenty", "tight", "pressure", "unsampled"];
+
+/** A preview URL's fixture name, only when it is one we know. */
+function asFixture(value: string | undefined): MachineFixture | undefined {
+  return FIXTURES.find((fixture) => fixture === value);
 }
 
 /** How the Mac is doing now. */
 export async function machineHealth(): Promise<MachineHealthInfo> {
   if (!hasLiveBackend()) {
-    const seeded = machineSeams().__AIJ_MACHINE__ ?? previewParam("aij_machine") ?? "plenty";
+    const seeded = machineSeams().__AIJ_MACHINE__ ?? asFixture(previewParam("aij_machine")) ?? "plenty";
     return typeof seeded === "string" ? mockMachineHealth(seeded) : structuredClone(seeded);
   }
   return invoke<MachineHealthInfo>("machine_health");
@@ -194,6 +202,12 @@ export function mockHeavyNote(cpu: number | null, rss: number): string | null {
   return parts.length ? parts.join(" · ") : null;
 }
 
+/** CPU summed as Home's rows count it (100% is one core); null while any
+ * tree is unmeasured. */
+function oneCore(trees: ToolTreeInfo[]): number | null {
+  return trees.every((tree) => tree.cpu_pct !== null) ? trees.reduce((sum, tree) => sum + (tree.cpu_pct ?? 0), 0) : null;
+}
+
 function totals(trees: ToolTreeInfo[], cores: number): ToolTotalsInfo {
   const measured = trees.every((tree) => tree.cpu_pct !== null);
   return {
@@ -205,7 +219,7 @@ function totals(trees: ToolTreeInfo[], cores: number): ToolTotalsInfo {
 }
 
 const MOCK_OBSERVED: ToolTreeInfo[] = [
-  { session_id: null, place: "desktop", account_label: "Personal", cpu_pct: 14, rss_bytes: 1_600_000_000, helpers: 21, heavy_note: null, memory_estimate: true },
+  { root_pid: 501, session_id: null, place: "desktop", account_label: "Personal", cpu_pct: 14, rss_bytes: 1_600_000_000, helpers: 21, heavy_note: null, memory_estimate: true },
 ];
 
 /** The preview's This Mac, derived from the sessions on screen. */
@@ -220,7 +234,8 @@ export function mockThisMac(
   const live = sessions.filter((session) => !["finished", "stopped", "handed_over", "failed"].includes(session.status));
   const ours: ToolTreeInfo[] = live
     .filter((session) => session.rss_bytes !== null)
-    .map((session) => ({
+    .map((session, at) => ({
+      root_pid: 1000 + at,
       session_id: session.id,
       place: null,
       account_label: session.account_label,
@@ -231,12 +246,42 @@ export function mockThisMac(
       memory_estimate: false,
     }));
   const all = [...ours, ...observed].sort((a, b) => b.rss_bytes - a.rss_bytes);
+  // As the backend: our sessions by Provider (heaviest first), then the
+  // Claude app, then claude in a terminal.
+  const providers = new Map<string, ToolTreeInfo[]>();
+  for (const tree of ours) {
+    const provider = live.find((session) => session.id === tree.session_id)?.provider ?? "claude-code";
+    providers.set(provider, [...(providers.get(provider) ?? []), tree]);
+  }
+  const byTool: ToolGroupInfo[] = [...providers.entries()]
+    .map(([provider, trees]) => ({
+      tool: provider,
+      label: providerDisplayName(provider),
+      ours: true,
+      totals: totals(trees, machine.cores),
+      cpu_one_core_pct: oneCore(trees),
+    }))
+    .sort((a, b) => b.totals.rss_bytes - a.totals.rss_bytes);
+  for (const [place, label] of [
+    ["desktop", "Claude app"],
+    ["terminal", "claude in a terminal"],
+  ] as const) {
+    const trees = observed.filter((tree) => tree.place === place);
+    if (trees.length > 0) byTool.push({ tool: place, label, ours: false, totals: totals(trees, machine.cores), cpu_one_core_pct: oneCore(trees) });
+  }
+  // As the backend's align_with_alerts: while the memory-pressure alert is
+  // on, the Mac's state says the same words.
+  const aligned: MachineHealthInfo = alerts.some((alert) => alert.kind === "memory_pressure")
+    ? { ...machine, summary: { ...machine.summary, level: "pressure", words: "Under memory pressure" } }
+    : machine;
   return {
-    machine,
+    machine: aligned,
     tools: totals(all, machine.cores),
     ours: totals(ours, machine.cores),
     theirs: totals(observed, machine.cores),
+    by_tool: byTool,
     top: all.slice(0, 3),
+    others: all.slice(3),
     heavy: all.filter((tree) => tree.heavy_note !== null),
     leftover_processes: leftovers[0],
     leftover_ports: leftovers[1],
@@ -260,7 +305,15 @@ export async function thisMac(): Promise<ThisMacInfo> {
     const top = sessions.find((session) => session.status === "running");
     const alerts = seams.__AIJ_ALERTS__ ?? previewAlerts(top?.id ?? null);
     const advice = seams.__AIJ_RECOMMENDATIONS__ ?? (previewParam("aij_history") ? PREVIEW_HISTORY : []);
-    return mockThisMac(sessions, await machineHealth(), seams.__AIJ_OBSERVED__, leftovers, alerts, advice);
+    // `?aij_windows=N`: N Claude app windows, heaviest first (the "and N
+    // more" state).
+    const windows = Number(previewParam("aij_windows") ?? 0);
+    const observed =
+      seams.__AIJ_OBSERVED__ ??
+      (windows > 0
+        ? Array.from({ length: windows }, (_, at) => ({ ...MOCK_OBSERVED[0]!, root_pid: 600 + at, account_label: `Window ${at + 1}`, rss_bytes: Math.round(7_400_000_000 / (at + 1)) }))
+        : undefined);
+    return mockThisMac(sessions, await machineHealth(), observed, leftovers, alerts, advice);
   }
   return invoke<ThisMacInfo>("this_mac");
 }
@@ -311,6 +364,28 @@ export function resourceLine(cpu: number | null, rss: number | null, helpers: nu
 /** This Mac for components deep in the tree (the rail rows): the app
  * provides its one subscription here. */
 export const ThisMacContext = createContext<ThisMacInfo | null>(null);
+
+/** How each level of the Mac's state looks: This Mac's glyph and tone,
+ * the rail footer's dot. */
+export const MACHINE_LEVEL: Record<string, { glyph: string; tone: string; dot: string }> = {
+  plenty: { glyph: "●", tone: "text-faint", dot: "bg-success" },
+  tight: { glyph: "▲", tone: "text-warning", dot: "bg-warning" },
+  pressure: { glyph: "■", tone: "text-danger", dot: "bg-danger" },
+};
+
+/** The Mac's state, from one place: This Mac's summary (which the backend
+ * aligns with its alerts). This Mac, the rail footer and the collapsed
+ * rail all read it, so they never disagree (QA, P19: "under memory
+ * pressure", "Getting tight", "healthy" and "All clear" at once). `null`
+ * before the first sample. */
+export function machineStatus(
+  info: ThisMacInfo | null,
+): { level: string; words: string; glyph: string; tone: string; dot: string; calm: boolean } | null {
+  if (!info || !info.machine.sampled) return null;
+  const level = info.machine.summary.level;
+  const look = MACHINE_LEVEL[level] ?? MACHINE_LEVEL.plenty!;
+  return { level, words: info.machine.summary.words, calm: level === "plenty", ...look };
+}
 
 /** A session's heavy note ("CPU 95%", "3.2 GB"), only while it's heavy. */
 export function useHeavyNote(sessionId: string): string | null {
@@ -435,6 +510,23 @@ export function alertSubject(alert: OverloadAlertInfo, nameOf: (sessionId: strin
   ].filter((figure): figure is string => figure !== null);
   if (figures.length === 0) return null;
   const what = figures.join(" and ");
+  // A tool AI Juggler didn't start is named as a whole: its windows'
+  // figure, and how many it sums (the 0.0.12 report).
+  const windows = (alert.subject_windows ?? 0) > 1 ? ` across ${alert.subject_windows} windows` : "";
   // A session's name keeps its own case ("feat/read-model").
-  return `${who} is using ${what}`;
+  return `${who} is using ${what}${windows}`;
+}
+
+/** The one source of a machine alert's words — the banner on other
+ * screens and Home's Needs you say exactly this (the 0.0.12 report). */
+export function alertWords(
+  alerts: OverloadAlertInfo[],
+  nameOf: (sessionId: string) => string | null,
+): { title: string; detail: string } | null {
+  const first = alerts[0];
+  if (!first) return null;
+  return {
+    title: first.title,
+    detail: [reasonSentence(alerts.map((alert) => alert.detail)), alertSubject(first, nameOf)].filter(Boolean).join(". "),
+  };
 }

@@ -44,6 +44,12 @@ subject_estimate: boolean,
  */
 subject_cpu: number | null, 
 /**
+ * For a tool AI Juggler didn't start: how many windows (trees) the
+ * figure sums — "the Claude app is using about 16 GB across 3
+ * windows" (the 0.0.12 report: one window's figure read as the app's).
+ */
+subject_windows: number | null, 
+/**
  * When the condition started, epoch ms.
  */
 since_ms: number, };

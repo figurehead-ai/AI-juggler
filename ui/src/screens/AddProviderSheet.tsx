@@ -3,6 +3,7 @@ import { Button, Card, Chip } from "../components/primitives";
 import { IconJuggler } from "../components/icons";
 import { funnelStep } from "../lib/funnel";
 import { providersDiscover, type ProviderInstallData } from "../lib/bridge";
+import { FOUND_UNCHECKED, toolFound, versionUnchecked } from "../lib/providers";
 
 /**
  * AJ-E306 flow (c), folded into Add account (D-25 stage 4, AJ-E1023):
@@ -66,8 +67,8 @@ export function AddProviderSheet({
     void providersDiscover().then(setInstalls);
   }, []);
 
-  const selectable = (row: ProviderInstallData): boolean =>
-    row.status === "installed" || row.status === "unverified";
+  // Found counts, even when its version couldn't be read (0.0.11).
+  const selectable = (row: ProviderInstallData): boolean => toolFound(row);
 
   const sorted = [...(installs ?? [])].sort(
     (a, b) => Number(selectable(b)) - Number(selectable(a)),
@@ -116,7 +117,8 @@ export function AddProviderSheet({
                       <span className="text-[10px] text-muted" data-testid="provider-state">
                         {(row.status === "installed" || row.status === "unverified") && "Installed"}
                         {row.status === "not_installed" && "Not installed"}
-                        {row.status === "probe_failed" && "Couldn't check"}
+                        {versionUnchecked(row) && FOUND_UNCHECKED}
+                        {row.status === "probe_failed" && !row.binary && "Couldn't check"}
                       </span>
                     </div>
                     {desktop && row.single_instance_note && (

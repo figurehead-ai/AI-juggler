@@ -24,6 +24,9 @@ const target = (recipe: string, suggested: boolean): SwitchTargetData => ({
   top_factors: [],
   factors: [],
   confidence: "Computed",
+  score: null,
+  filtered_reason: null,
+  tte_min: null,
   suggested,
 });
 

@@ -60,12 +60,24 @@ pub struct SourceHealth {
 pub struct TailOutcome {
     /// Events ready for the store (already uuid-tagged for dedupe).
     pub events: Vec<UsageEvent>,
-    /// Quota samples ready for the store (statusline source only).
+    /// Quota samples ready for the store (Claude's statusline spool;
+    /// Codex's rollout `token_count` lines).
     pub samples: Vec<(WindowKind, QuotaSample)>,
+    /// The newest Codex credits snapshot seen this pass, when any.
+    pub credits: Option<CreditsSnapshot>,
+    /// Codex: what this slice leaves for the file's next one (its model,
+    /// last total and unsettled compactions). Passed back in next pass.
+    pub carry: RolloutCarry,
     /// Bytes consumed — the next pass starts here.
     pub offset: u64,
     /// Malformed lines seen this pass.
     pub parse_errors: u64,
+    /// Codex: compactions dropped this pass, past the waiting cap, before
+    /// a record named their thread (their usage isn't counted).
+    pub dropped: u64,
+    /// A file that wasn't read, and why (a compressed rollout too large to
+    /// trust): counted in the source's health with this note.
+    pub unread: Option<&'static str>,
 }
 
 // ---------------------------------------------------------------------------
@@ -216,9 +228,13 @@ pub fn install_statusline(config_dir: &Path) -> Result<bool, String> {
         "statusLine".into(),
         serde_json::json!({ "type": "command", "command": wrapper_command }),
     );
-    std::fs::write(
+    // The whole file is rewritten with only `statusLine` changed. Its other
+    // values (an API key can be among them) pass through this function's
+    // memory and nothing else: never stored, logged or returned. Written
+    // atomically, so an interrupted write can't leave it half there.
+    juggler_core::fs::atomic_write(
         &settings_path,
-        serde_json::to_vec_pretty(&settings).map_err(|error| error.to_string())?,
+        &serde_json::to_vec_pretty(&settings).map_err(|error| error.to_string())?,
     )
     .map_err(|error| format!("settings write: {error}"))?;
     Ok(true)
@@ -264,9 +280,13 @@ pub fn uninstall_statusline(config_dir: &Path) -> Result<bool, String> {
             object.remove("statusLine");
         }
     }
-    std::fs::write(
+    // The whole file is rewritten with only `statusLine` changed. Its other
+    // values (an API key can be among them) pass through this function's
+    // memory and nothing else: never stored, logged or returned. Written
+    // atomically, so an interrupted write can't leave it half there.
+    juggler_core::fs::atomic_write(
         &settings_path,
-        serde_json::to_vec_pretty(&settings).map_err(|error| error.to_string())?,
+        &serde_json::to_vec_pretty(&settings).map_err(|error| error.to_string())?,
     )
     .map_err(|error| format!("settings write: {error}"))?;
     let _ = std::fs::remove_file(&wrapper);
@@ -424,15 +444,21 @@ pub fn iso_to_epoch_ms(raw: &str) -> Option<i64> {
 
 /// Extracts Measured token events from Claude transcript JSONL bytes
 /// (an incremental slice is fine — lines are independent). One event
-/// per assistant line carrying `message.usage`, keyed by the message
-/// `uuid` (resumed files re-emit history; the store's
-/// `UNIQUE(account, msg_uuid)` absorbs it). Lines without a uuid are
-/// skipped: unkeyed usage cannot dedupe, and double-counting is the
-/// worse failure.
+/// per API response, keyed `message.id/requestId`: Claude Code writes
+/// one line per content block (thinking, text, each tool call), each
+/// with its own line `uuid` but the same message and the same `usage`,
+/// so keying on the line counted one response two or three times (the
+/// 0.0.12 QA walk: ×1.8–2.5). Lines of one response in this slice
+/// collapse to one event, each class its largest value; resumed files
+/// re-emit history and the store's `UNIQUE(account, msg_uuid)` absorbs
+/// it. A line with no message id falls back to its `uuid`; a line with
+/// neither is skipped: unkeyed usage cannot dedupe, and double-counting
+/// is the worse failure.
 #[must_use]
 pub fn transcript_events(account: &str, bytes: &[u8]) -> TailOutcome {
     let text = String::from_utf8_lossy(bytes);
     let mut outcome = TailOutcome::default();
+    let mut seen: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
     for line in text.lines() {
         if line.trim().is_empty() {
             continue;
@@ -447,7 +473,7 @@ pub fn transcript_events(account: &str, bytes: &[u8]) -> TailOutcome {
         else {
             continue;
         };
-        let Some(uuid) = value.get("uuid").and_then(serde_json::Value::as_str) else {
+        let Some(key) = response_key(&value) else {
             continue;
         };
         let ts = value
@@ -470,6 +496,15 @@ pub fn transcript_events(account: &str, bytes: &[u8]) -> TailOutcome {
         if tokens == TokenCounts::default() {
             continue; // an empty usage block is not an event
         }
+        if let Some(&at) = seen.get(&key) {
+            let kept = &mut outcome.events[at].tokens;
+            kept.input = kept.input.max(tokens.input);
+            kept.output = kept.output.max(tokens.output);
+            kept.cache_read = kept.cache_read.max(tokens.cache_read);
+            kept.cache_write = kept.cache_write.max(tokens.cache_write);
+            continue;
+        }
+        seen.insert(key.clone(), outcome.events.len());
         outcome.events.push(UsageEvent {
             account: account.to_owned(),
             session: value
@@ -487,10 +522,28 @@ pub fn transcript_events(account: &str, bytes: &[u8]) -> TailOutcome {
             usd_est: None,
             source: UsageSource::Transcript,
             confidence: Confidence::Measured,
-            msg_uuid: Some(uuid.to_owned()),
+            msg_uuid: Some(key),
         });
     }
     outcome
+}
+
+/// One Claude API response's key: `message.id/requestId` (either alone
+/// when the other is missing), else the line's `uuid`.
+fn response_key(value: &serde_json::Value) -> Option<String> {
+    let id = value
+        .get("message")
+        .and_then(|message| message.get("id"))
+        .and_then(serde_json::Value::as_str);
+    let request = value.get("requestId").and_then(serde_json::Value::as_str);
+    match (id, request) {
+        (Some(id), Some(request)) => Some(format!("{id}/{request}")),
+        (Some(only), None) | (None, Some(only)) => Some(only.to_owned()),
+        (None, None) => value
+            .get("uuid")
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_owned),
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -502,10 +555,26 @@ pub fn transcript_events(account: &str, bytes: &[u8]) -> TailOutcome {
 /// per-turn/per-thread rollups on the same line are aggregation views
 /// — reading only the response level keeps the sum exact). Dedupe key
 /// `thread/turn/response` survives re-tails and resumed rollouts.
+///
+/// Codex's classes nest: `input_tokens` includes `cached_input_tokens`
+/// and `output_tokens` includes `reasoning_output_tokens` (its own
+/// `non_cached_input()`; `total_tokens` = input + output). Stored as
+/// disjoint classes — input without the cached part, output without
+/// the reasoning — so a sum of classes counts each token once (the
+/// 0.0.12 QA walk: exactly ×2 before). The model is the one the
+/// latest `turn_context` named.
 #[must_use]
 pub fn rollout_events(account: &str, bytes: &[u8]) -> TailOutcome {
+    rollout_events_after(account, bytes, RolloutCarry::default())
+}
+
+/// [`rollout_events`] for a slice that follows another: `carry` is what
+/// the previous slice left ([`TailOutcome::carry`]).
+#[must_use]
+pub fn rollout_events_after(account: &str, bytes: &[u8], carry: RolloutCarry) -> TailOutcome {
     let text = String::from_utf8_lossy(bytes);
     let mut outcome = TailOutcome::default();
+    let mut carry = carry;
     for line in text.lines() {
         if line.trim().is_empty() {
             continue;
@@ -514,6 +583,20 @@ pub fn rollout_events(account: &str, bytes: &[u8]) -> TailOutcome {
             outcome.parse_errors += 1;
             continue;
         };
+        carry.see(&value, account, &mut outcome);
+        if take_token_count(&value, &mut outcome) {
+            continue;
+        }
+        if value.get("type").and_then(serde_json::Value::as_str) == Some("turn_context") {
+            if let Some(model) = value
+                .get("payload")
+                .and_then(|payload| payload.get("model"))
+                .and_then(serde_json::Value::as_str)
+            {
+                carry.model = Some(model.to_owned());
+            }
+            continue;
+        }
         if value.get("type").and_then(serde_json::Value::as_str) != Some("token_usage_record") {
             continue;
         }
@@ -537,19 +620,7 @@ pub fn rollout_events(account: &str, bytes: &[u8]) -> TailOutcome {
             outcome.parse_errors += 1;
             continue;
         };
-        let read = |field: &str| {
-            usage
-                .get(field)
-                .and_then(serde_json::Value::as_u64)
-                .unwrap_or_default()
-        };
-        let tokens = TokenCounts {
-            input: read("input_tokens"),
-            output: read("output_tokens"),
-            cache_read: read("cached_input_tokens"),
-            cache_write: read("cache_write_input_tokens"),
-            reasoning: read("reasoning_output_tokens"),
-        };
+        let tokens = codex_token_counts(usage);
         if tokens == TokenCounts::default() {
             continue;
         }
@@ -562,7 +633,7 @@ pub fn rollout_events(account: &str, bytes: &[u8]) -> TailOutcome {
             account: account.to_owned(),
             session: Some(thread.clone()),
             ts,
-            model: None, // rollouts carry the model on turn_context, not here
+            model: carry.model.clone(),
             tokens,
             credits: None,
             usd_est: None,
@@ -571,7 +642,318 @@ pub fn rollout_events(account: &str, bytes: &[u8]) -> TailOutcome {
             msg_uuid: Some(format!("{thread}/{turn}/{response}")),
         });
     }
+    outcome.carry = carry;
     outcome
+}
+
+/// What one slice of a Codex rollout leaves for the next. A file is read
+/// in passes, and these facts span them; the pipeline keeps one per file
+/// beside its offset, and a re-read starts from the default. Nothing is
+/// read twice to recover them.
+#[derive(Clone, PartialEq, Eq, Debug, Default, serde::Serialize, serde::Deserialize)]
+pub struct RolloutCarry {
+    /// The model the last `turn_context` named. Usage lines carry no
+    /// model: lines before the slice's own `turn_context` ran on this one.
+    #[serde(default)]
+    pub model: Option<String>,
+    /// The running total the last `token_count` showed.
+    #[serde(default)]
+    pub last_total: Option<u64>,
+    /// A `compacted` line whose pre-turn `token_count` hasn't come yet.
+    #[serde(default)]
+    pub compacted: Option<OpenCompaction>,
+    /// Compactions' own usage waiting for a record to name their thread,
+    /// oldest first.
+    #[serde(default)]
+    pub pending: Vec<PendingUsage>,
+    /// Compactions seen in the file so far: each one's number in its key,
+    /// so two at the same millisecond (or with no time) never share one.
+    #[serde(default)]
+    pub compactions: u64,
+}
+
+/// A compaction seen, its usage not yet (see [`RolloutCarry`]).
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
+pub struct OpenCompaction {
+    /// The running total before it, when the file showed one.
+    pub before: Option<u64>,
+}
+
+/// A compaction's own usage and its time (see [`RolloutCarry`]).
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
+pub struct PendingUsage {
+    /// The compaction's own usage (its `last_token_usage`).
+    pub tokens: TokenCounts,
+    /// When its `token_count` was written (epoch ms).
+    pub ts: i64,
+    /// Its number in the file (see [`RolloutCarry::compactions`]).
+    #[serde(default)]
+    pub seq: u64,
+}
+
+/// Compactions held for a record at most; older ones are dropped (counted
+/// in [`TailOutcome::dropped`]), so a file that never writes another record
+/// can't grow the carry.
+const PENDING_CAP: usize = 16;
+
+/// P17: the usage of a context compaction. After a `compacted` line, Codex
+/// writes one `token_count` before the next turn begins, and no
+/// `token_usage_record` covers it. Its own `last_token_usage` is counted
+/// (never its running total, which for a subagent starts with its
+/// parent's), keyed by the thread the next record names. A `token_count`
+/// that only repeats the total before the compaction adds nothing. Every
+/// fact it needs is carried across passes, so where a pass ends never
+/// changes the count, and the read position is never held back.
+impl RolloutCarry {
+    fn see(&mut self, value: &serde_json::Value, account: &str, outcome: &mut TailOutcome) {
+        let kind = value.get("type").and_then(serde_json::Value::as_str);
+        let payload = value.get("payload");
+        let inner = payload
+            .and_then(|payload| payload.get("type"))
+            .and_then(serde_json::Value::as_str);
+        match (kind, inner) {
+            (Some("compacted"), _) => {
+                self.compactions += 1;
+                self.compacted = Some(OpenCompaction {
+                    before: self.last_total,
+                });
+            }
+            (Some("event_msg"), Some("token_count")) => {
+                let Some(info) = payload
+                    .and_then(|payload| payload.get("info"))
+                    .filter(|info| !info.is_null())
+                else {
+                    return;
+                };
+                let total = info
+                    .get("total_token_usage")
+                    .and_then(|total| total.get("total_tokens"))
+                    .and_then(serde_json::Value::as_u64)
+                    .unwrap_or_default();
+                if let Some(open) = self.compacted.take() {
+                    let tokens = info
+                        .get("last_token_usage")
+                        .map(codex_token_counts)
+                        .unwrap_or_default();
+                    let ts = value
+                        .get("timestamp")
+                        .and_then(serde_json::Value::as_str)
+                        .and_then(iso_to_epoch_ms)
+                        .unwrap_or_default();
+                    if open.before != Some(total) && tokens != TokenCounts::default() {
+                        self.pending.push(PendingUsage {
+                            tokens,
+                            ts,
+                            seq: self.compactions,
+                        });
+                        let over = self.pending.len().saturating_sub(PENDING_CAP);
+                        self.pending.drain(..over);
+                        outcome.dropped += over as u64;
+                    }
+                }
+                self.last_total = Some(total);
+            }
+            // A turn began, or a record came, before any pre-turn count:
+            // that compaction has no usage of its own.
+            (Some("event_msg"), Some("task_started")) => self.compacted = None,
+            (Some("token_usage_record"), _) => {
+                self.compacted = None;
+                let Some(thread) = payload
+                    .and_then(|payload| payload.get("thread_id"))
+                    .and_then(serde_json::Value::as_str)
+                else {
+                    return;
+                };
+                for PendingUsage { tokens, ts, seq } in self.pending.drain(..) {
+                    outcome.events.push(UsageEvent {
+                        account: account.to_owned(),
+                        session: Some(thread.to_owned()),
+                        ts,
+                        model: self.model.clone(),
+                        tokens,
+                        credits: None,
+                        usd_est: None,
+                        source: UsageSource::Rollout,
+                        confidence: Confidence::Measured,
+                        msg_uuid: Some(format!("{thread}/compacted/{ts}/{seq}")),
+                    });
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+/// One Codex `usage` object as disjoint classes, the one place this split
+/// is made (the usage pipeline and the inspector's quality scan both call
+/// it). Codex's classes nest: `input_tokens` includes the cached input and
+/// the cache writes, and `output_tokens` includes the reasoning; its
+/// `total_tokens` is input + output. Stored apart, they sum to that total,
+/// so each token counts once (P14).
+#[must_use]
+pub fn codex_token_counts(usage: &serde_json::Value) -> TokenCounts {
+    let read = |field: &str| {
+        usage
+            .get(field)
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or_default()
+    };
+    let cached = read("cached_input_tokens");
+    let written = read("cache_write_input_tokens");
+    let reasoning = read("reasoning_output_tokens");
+    TokenCounts {
+        input: read("input_tokens")
+            .saturating_sub(cached)
+            .saturating_sub(written),
+        output: read("output_tokens").saturating_sub(reasoning),
+        cache_read: cached,
+        cache_write: written,
+        reasoning,
+    }
+}
+
+/// A Codex `event_msg` `token_count` line: its `rate_limits` are the
+/// vendor's own limit readings (Measured samples; no tokens here). True
+/// when `value` was such a line, whatever it held.
+fn take_token_count(value: &serde_json::Value, outcome: &mut TailOutcome) -> bool {
+    let is_event = value.get("type").and_then(serde_json::Value::as_str) == Some("event_msg");
+    let Some(payload) = value.get("payload").filter(|payload| {
+        is_event && payload.get("type").and_then(serde_json::Value::as_str) == Some("token_count")
+    }) else {
+        return false;
+    };
+    let Some(limits) = payload
+        .get("rate_limits")
+        .filter(|limits| !limits.is_null())
+    else {
+        return true;
+    };
+    let Some(ts) = value
+        .get("timestamp")
+        .and_then(serde_json::Value::as_str)
+        .and_then(iso_to_epoch_ms)
+    else {
+        outcome.parse_errors += 1;
+        return true;
+    };
+    let (samples, credits) = codex_rate_limits(ts, limits);
+    // An odd reading (a window of width 0, a null primary) is skipped
+    // quietly; only a window without its figure is a broken line.
+    let broken = ["primary", "secondary"].iter().any(|key| {
+        limits.get(key).is_some_and(|window| {
+            !window.is_null()
+                && window
+                    .get("used_percent")
+                    .and_then(serde_json::Value::as_f64)
+                    .is_none()
+        })
+    });
+    if broken {
+        outcome.parse_errors += 1;
+    }
+    outcome.samples.extend(samples);
+    if let Some(credits) = credits
+        && outcome
+            .credits
+            .as_ref()
+            .is_none_or(|seen| seen.ts <= credits.ts)
+    {
+        outcome.credits = Some(credits);
+    }
+    true
+}
+
+/// Codex's credits, as its own rollout reports them (no value is read
+/// anywhere else; `auth.json` is never opened).
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct CreditsSnapshot {
+    /// When Codex wrote it, epoch ms.
+    pub ts: i64,
+    /// The plan has credits at all.
+    pub has_credits: bool,
+    /// Credits are unlimited.
+    pub unlimited: bool,
+    /// The balance as Codex wrote it (a string in its protocol).
+    pub balance: Option<String>,
+}
+
+/// The limit readings on one Codex `token_count` line: `rate_limits`
+/// `{limit_id, primary, secondary, credits}`, each window
+/// `{used_percent, window_minutes, resets_at}` (`resets_at` in Unix
+/// seconds; older builds wrote `resets_in_seconds`). The window comes
+/// from `window_minutes` (300 = the 5-hour pool, 10080 = the week); a
+/// window of any other width is skipped, never guessed. `secondary` may
+/// be null.
+#[must_use]
+pub fn codex_rate_limits(
+    ts: i64,
+    limits: &serde_json::Value,
+) -> (Vec<(WindowKind, QuotaSample)>, Option<CreditsSnapshot>) {
+    let mut samples = Vec::new();
+    for key in ["primary", "secondary"] {
+        let Some(window) = limits.get(key).filter(|window| !window.is_null()) else {
+            continue;
+        };
+        let Some(used) = window
+            .get("used_percent")
+            .and_then(serde_json::Value::as_f64)
+        else {
+            continue;
+        };
+        let kind = match window
+            .get("window_minutes")
+            .and_then(serde_json::Value::as_i64)
+        {
+            Some(300) => WindowKind::FiveHour,
+            Some(10_080) => WindowKind::Weekly { anchor_ms: None },
+            _ => continue,
+        };
+        let resets_at = window
+            .get("resets_at")
+            .and_then(serde_json::Value::as_i64)
+            // Seconds (Codex's protocol); a value already in ms passes.
+            .map(|at| {
+                if at < 100_000_000_000 {
+                    at.saturating_mul(1000)
+                } else {
+                    at
+                }
+            })
+            .or_else(|| {
+                window
+                    .get("resets_in_seconds")
+                    .and_then(serde_json::Value::as_i64)
+                    .map(|secs| ts.saturating_add(secs.saturating_mul(1000)))
+            });
+        samples.push((
+            kind,
+            QuotaSample {
+                ts,
+                used_pct: used.clamp(0.0, 100.0),
+                resets_at,
+                confidence: Confidence::Measured,
+            },
+        ));
+    }
+    let credits = limits
+        .get("credits")
+        .filter(|credits| !credits.is_null())
+        .and_then(|credits| {
+            Some(CreditsSnapshot {
+                ts,
+                has_credits: credits.get("has_credits")?.as_bool()?,
+                unlimited: credits
+                    .get("unlimited")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(false),
+                balance: credits.get("balance").and_then(|balance| match balance {
+                    serde_json::Value::String(text) => Some(text.clone()),
+                    serde_json::Value::Number(number) => Some(number.to_string()),
+                    _ => None,
+                }),
+            })
+        });
+    (samples, credits)
 }
 
 // ---------------------------------------------------------------------------
@@ -736,30 +1118,34 @@ pub fn gemini_events() -> Vec<UsageEvent> {
 
 /// Tails a JSONL source file from `offset`, returning the new bytes'
 /// parse outcome. Truncation (size < offset) resets to 0 — a full
-/// reparse whose duplicate events the store dedupes by uuid.
+/// reparse whose duplicate events the store dedupes by uuid. `carry` is
+/// what the file's previous slice left; it comes back unchanged when
+/// there is nothing new to read, and starts over with the file when it was
+/// truncated or replaced (its facts were about the old content).
 #[must_use]
 pub fn tail_jsonl(
     path: &Path,
-    account: &str,
     offset: u64,
-    parse: fn(&str, &[u8]) -> TailOutcome,
+    carry: &RolloutCarry,
+    parse: impl FnOnce(&[u8], RolloutCarry) -> TailOutcome,
 ) -> TailOutcome {
+    let unchanged = |offset, carry: &RolloutCarry| TailOutcome {
+        offset,
+        carry: carry.clone(),
+        ..TailOutcome::default()
+    };
     let Ok(mut file) = std::fs::File::open(path) else {
-        return TailOutcome {
-            offset,
-            ..TailOutcome::default()
-        };
+        return unchanged(offset, carry);
     };
     let len = file.metadata().map_or(offset, |meta| meta.len());
     let mut start = offset;
+    let mut carry = carry.clone();
     if len < start {
         start = 0;
+        carry = RolloutCarry::default();
     }
     if start >= len {
-        return TailOutcome {
-            offset: start,
-            ..TailOutcome::default()
-        };
+        return unchanged(start, &carry);
     }
     if let Ok(seeked) = std::io::Seek::seek(&mut file, std::io::SeekFrom::Start(start)) {
         start = seeked;
@@ -772,7 +1158,10 @@ pub fn tail_jsonl(
         .iter()
         .rposition(|byte| *byte == b'\n')
         .map_or(0, |index| index + 1);
-    let mut outcome = parse(account, &bytes[..consumed]);
+    if consumed == 0 {
+        return unchanged(start, &carry);
+    }
+    let mut outcome = parse(&bytes[..consumed], carry);
     outcome.offset = start + consumed as u64;
     outcome
 }
@@ -780,13 +1169,200 @@ pub fn tail_jsonl(
 /// Convenience: [`tail_jsonl`] with the Claude transcript parser.
 #[must_use]
 pub fn tail_transcript(path: &Path, account: &str, offset: u64) -> TailOutcome {
-    tail_jsonl(path, account, offset, transcript_events)
+    tail_jsonl(path, offset, &RolloutCarry::default(), |bytes, _| {
+        transcript_events(account, bytes)
+    })
 }
 
-/// Convenience: [`tail_jsonl`] with the Codex rollout parser.
+/// Convenience: [`tail_jsonl`] with the Codex rollout parser; `carry` is
+/// the previous pass's [`TailOutcome::carry`] for this file. A compressed
+/// rollout (`rollout-*.jsonl.zst`: Codex compresses older ones) is read
+/// once instead, as a stream (see `read_compressed_rollout`).
 #[must_use]
-pub fn tail_rollout(path: &Path, account: &str, offset: u64) -> TailOutcome {
-    tail_jsonl(path, account, offset, rollout_events)
+pub fn tail_rollout(path: &Path, account: &str, offset: u64, carry: &RolloutCarry) -> TailOutcome {
+    if crate::transcript::is_compressed(path) {
+        return read_compressed_rollout(path, account, offset);
+    }
+    tail_jsonl(path, offset, carry, |bytes, carry| {
+        rollout_events_after(account, bytes, carry)
+    })
+}
+
+/// How much a compressed rollout may decompress to before AI Juggler stops
+/// and leaves it unread, so a damaged or hostile file can't keep a pass
+/// busy: far above any real rollout (the largest seen, a 50,000-turn
+/// thread, is 2.3 GB). Memory is bounded by the slice and the line cap,
+/// not by this.
+const COMPRESSED_ROLLOUT_MAX: u64 = 16 << 30;
+
+/// Decompressed bytes taken at a time.
+const COMPRESSED_SLICE: usize = 8 << 20;
+
+/// The longest line held while it is still coming. A longer one is dropped
+/// (one bad line) and reading picks up after its end, so one line without a
+/// newline never fills memory.
+const COMPRESSED_LINE_MAX: usize = 64 << 20;
+
+/// A compressed rollout changed this recently may still be being written.
+const COMPRESSED_SETTLE: std::time::Duration = std::time::Duration::from_secs(10);
+
+/// A compressed rollout: complete, and Codex never writes to it again. It
+/// is decompressed as a stream, a slice at a time, each slice parsed from
+/// the carry the one before left, so a large one never sits in memory
+/// whole. Its offset is the compressed file's size: a later pass with the
+/// same size reads nothing, and one that grew is read again (its events
+/// are keyed). A file that won't decode:
+/// - changed in the last few seconds: not ready, read again next pass, and
+///   nothing counted against its health;
+/// - otherwise: one bad line, not read again until its size changes.
+///
+/// One that decompresses past [`COMPRESSED_ROLLOUT_MAX`] is left unread
+/// with its own health note.
+fn read_compressed_rollout(path: &Path, account: &str, offset: u64) -> TailOutcome {
+    let Ok(meta) = std::fs::metadata(path) else {
+        return TailOutcome {
+            offset,
+            ..TailOutcome::default()
+        };
+    };
+    let size = meta.len();
+    if offset == size {
+        return TailOutcome {
+            offset,
+            ..TailOutcome::default()
+        };
+    }
+    let settling = meta
+        .modified()
+        .ok()
+        .and_then(|at| at.elapsed().ok())
+        .is_some_and(|age| age < COMPRESSED_SETTLE);
+    match stream_compressed_rollout(path, account) {
+        Ok(mut outcome) => {
+            outcome.offset = size;
+            outcome
+        }
+        Err(Unreadable::TooLarge) => TailOutcome {
+            offset: size,
+            unread: Some("a compressed rollout too large to read"),
+            ..TailOutcome::default()
+        },
+        Err(Unreadable::Damaged) if settling => TailOutcome {
+            offset,
+            ..TailOutcome::default()
+        },
+        Err(Unreadable::Damaged) => TailOutcome {
+            offset: size,
+            parse_errors: 1,
+            ..TailOutcome::default()
+        },
+    }
+}
+
+/// Why a compressed rollout wasn't read.
+enum Unreadable {
+    TooLarge,
+    Damaged,
+}
+
+fn stream_compressed_rollout(path: &Path, account: &str) -> Result<TailOutcome, Unreadable> {
+    let file = std::fs::File::open(path).map_err(|_| Unreadable::Damaged)?;
+    let decoder = zstd::stream::Decoder::new(file).map_err(|_| Unreadable::Damaged)?;
+    let mut whole = TailOutcome::default();
+    let mut carry = RolloutCarry::default();
+    let limits = LineLimits {
+        slice: COMPRESSED_SLICE,
+        line: COMPRESSED_LINE_MAX,
+        total: COMPRESSED_ROLLOUT_MAX,
+    };
+    let read = for_each_lines(decoder, limits, |lines| {
+        let part = rollout_events_after(account, lines, carry.clone());
+        carry = part.carry.clone();
+        merge_outcome(&mut whole, part);
+    })?;
+    whole.parse_errors += read.overlong;
+    whole.carry = carry;
+    Ok(whole)
+}
+
+/// How [`for_each_lines`] reads: a slice at a time, a line held up to
+/// `line` bytes, and no more than `total` in all.
+#[derive(Clone, Copy)]
+struct LineLimits {
+    slice: usize,
+    line: usize,
+    total: u64,
+}
+
+/// What [`for_each_lines`] saw besides the lines it handed on.
+#[derive(Debug, Default, PartialEq, Eq)]
+struct LinesRead {
+    /// Lines dropped for being longer than the cap.
+    overlong: u64,
+    /// The most bytes held at once, besides the slice being read.
+    held_peak: usize,
+}
+
+/// Reads `reader` a slice at a time and hands `each` the complete lines
+/// (through their newlines) as they come. A line still unfinished past
+/// `limits.line` is dropped up to its newline. Whatever follows the last
+/// newline is a line never finished, and is left out.
+fn for_each_lines(
+    mut reader: impl Read,
+    limits: LineLimits,
+    mut each: impl FnMut(&[u8]),
+) -> Result<LinesRead, Unreadable> {
+    let mut seen = LinesRead::default();
+    let mut pending: Vec<u8> = Vec::new();
+    let mut skipping = false;
+    let mut slice = vec![0u8; limits.slice];
+    let mut total = 0u64;
+    loop {
+        let read = reader.read(&mut slice).map_err(|_| Unreadable::Damaged)?;
+        if read == 0 {
+            return Ok(seen);
+        }
+        total += read as u64;
+        if total > limits.total {
+            return Err(Unreadable::TooLarge);
+        }
+        let mut fresh = &slice[..read];
+        if skipping {
+            // The rest of a dropped line: resume after its newline.
+            let Some(end) = fresh.iter().position(|byte| *byte == b'\n') else {
+                continue;
+            };
+            fresh = &fresh[end + 1..];
+            skipping = false;
+        }
+        pending.extend_from_slice(fresh);
+        seen.held_peak = seen.held_peak.max(pending.len());
+        match pending.iter().rposition(|byte| *byte == b'\n') {
+            Some(last) => {
+                each(&pending[..=last]);
+                pending.drain(..=last);
+            }
+            None if pending.len() > limits.line => {
+                seen.overlong += 1;
+                pending.clear();
+                skipping = true;
+            }
+            None => {}
+        }
+    }
+}
+
+/// Adds one slice's outcome to the file's.
+fn merge_outcome(whole: &mut TailOutcome, part: TailOutcome) {
+    whole.events.extend(part.events);
+    whole.samples.extend(part.samples);
+    if let Some(seen) = part.credits
+        && whole.credits.as_ref().is_none_or(|kept| kept.ts <= seen.ts)
+    {
+        whole.credits = Some(seen);
+    }
+    whole.parse_errors += part.parse_errors;
+    whole.dropped += part.dropped;
 }
 
 /// The spool path for an account config dir (managed-dir-only law).
@@ -798,6 +1374,23 @@ pub fn spool_path(config_dir: &Path) -> PathBuf {
 // ---------------------------------------------------------------------------
 // ADR-0018: in-place accounts — the capture lives in AI Juggler's data
 // ---------------------------------------------------------------------------
+
+/// The one part of a Claude `settings.json` the launch overlay keeps: its
+/// `statusLine.command`. The file is streamed into this shape, and every
+/// other value (an API key can be among them) is skipped while parsing.
+#[derive(Default, serde::Deserialize)]
+#[serde(default)]
+struct StatusLineShape {
+    #[serde(rename = "statusLine")]
+    status_line: Option<StatusLineCommand>,
+}
+
+/// `statusLine.command` (see [`StatusLineShape`]).
+#[derive(Default, serde::Deserialize)]
+#[serde(default)]
+struct StatusLineCommand {
+    command: Option<String>,
+}
 
 /// The settings file AI Juggler passes with `claude --settings` for an
 /// in-place account.
@@ -833,16 +1426,13 @@ pub fn ensure_launch_overlay(
     let dir = overlay_dir(overlays_root, account_id);
     let spool_dir = dir.join(SPOOL_DIR_NAME);
     std::fs::create_dir_all(&spool_dir).map_err(|error| format!("overlay dir: {error}"))?;
-    let chain = std::fs::read(config_dir.join("settings.json"))
+    // Only `statusLine.command` is kept (see [`StatusLineShape`]).
+    let chain = std::fs::File::open(config_dir.join("settings.json"))
         .ok()
-        .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
-        .and_then(|settings| {
-            settings
-                .get("statusLine")
-                .and_then(|line| line.get("command"))
-                .and_then(serde_json::Value::as_str)
-                .map(str::to_owned)
-        });
+        .and_then(|file| {
+            serde_json::from_reader::<_, StatusLineShape>(std::io::BufReader::new(file)).ok()
+        })
+        .and_then(|settings| settings.status_line?.command);
     let chain = not_ours(chain);
     let wrapper = dir.join(WRAPPER_NAME);
     write_if_changed(
@@ -865,4 +1455,53 @@ pub fn ensure_launch_overlay(
     )
     .map_err(|error| format!("settings write: {error}"))?;
     Ok(path)
+}
+
+#[cfg(test)]
+mod line_tests {
+    use super::{LineLimits, LinesRead, Unreadable, for_each_lines};
+
+    const SMALL: LineLimits = LineLimits {
+        slice: 16,
+        line: 64,
+        total: 10_000,
+    };
+
+    fn lines_of(bytes: &[u8], limits: LineLimits) -> (Vec<u8>, Result<LinesRead, Unreadable>) {
+        let mut handed = Vec::new();
+        let read = for_each_lines(bytes, limits, |lines| handed.extend_from_slice(lines));
+        (handed, read)
+    }
+
+    /// Lines split across slices come out whole; a last line never finished
+    /// is left out.
+    #[test]
+    fn lines_cross_slices_whole() {
+        let text = b"{\"a\":1}\n{\"b\":\"a longer value here\"}\nunfinished";
+        let (handed, read) = lines_of(text, SMALL);
+        assert_eq!(handed, b"{\"a\":1}\n{\"b\":\"a longer value here\"}\n");
+        assert_eq!(read.ok().map(|read| read.overlong), Some(0));
+    }
+
+    /// QA P20: one line without a newline never fills memory. It is dropped
+    /// once past the cap, and reading resumes after its end.
+    #[test]
+    fn an_endless_line_is_dropped_not_held() {
+        let mut text = vec![b'x'; 5_000];
+        text.extend_from_slice(b"\n{\"after\":1}\n");
+        let (handed, read) = lines_of(&text, SMALL);
+        let read = read.ok();
+        assert_eq!(handed, b"{\"after\":1}\n");
+        assert_eq!(read.as_ref().map(|read| read.overlong), Some(1));
+        let held = read.map_or(usize::MAX, |read| read.held_peak);
+        assert!(held <= SMALL.line + SMALL.slice, "held {held} bytes");
+    }
+
+    /// Past the total it stops: too large, not damaged.
+    #[test]
+    fn past_the_total_is_too_large() {
+        let text = b"{}\n".repeat(4_000);
+        let (_, read) = lines_of(&text, SMALL);
+        assert!(matches!(read, Err(Unreadable::TooLarge)));
+    }
 }

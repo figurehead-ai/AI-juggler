@@ -53,4 +53,12 @@ impl DiscoveryReport {
     pub fn is_installed(&self) -> bool {
         matches!(self.install, InstallStatus::Installed { .. })
     }
+
+    /// True when the binary was found, even if its version couldn't be
+    /// read (a failed `--version` is "found; couldn't check its
+    /// version", never "not installed" — the 0.0.11 report).
+    #[must_use]
+    pub fn is_found(&self) -> bool {
+        self.binary.is_some() && !matches!(self.install, InstallStatus::NotFound)
+    }
 }

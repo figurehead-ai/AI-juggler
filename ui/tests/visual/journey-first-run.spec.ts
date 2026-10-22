@@ -160,3 +160,59 @@ for (const theme of ["dark", "light"] as const) {
   });
 }
 
+
+// The 0.0.12 report: Screen Recording allowed in System Settings, the
+// card never turned to Allowed (macOS answers once per process). After
+// asking, the card offers Reopen AI Juggler; live sessions are said first.
+// Started as a relaunch is: the resume marker opens first run at access.
+for (const theme of ["dark", "light"] as const) {
+  test(`first run — Screen Recording needs a reopen — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ scan, theme }) => {
+        const w = window as unknown as Record<string, unknown>;
+        w.__AIJ_FIXTURE__ = { accounts: [], profiles: [], sessions: [], projects: [] };
+        w.__AIJ_SCAN_REPORT__ = scan;
+        w.__AIJ_OS_ACCESS__ = [
+          {
+            id: "focus",
+            title: "Jump to a session's own window",
+            why: "Brings the right terminal window to the front when you open a session.",
+            system_name: "Accessibility and Automation",
+            status: "allowed",
+            action: "none",
+            note: null,
+          },
+          {
+            id: "preview",
+            title: "See a live preview of each session",
+            why: "Shows a session's window inside AI Juggler, on this Mac only; nothing is recorded or sent.",
+            system_name: "Screen Recording",
+            status: "not_allowed",
+            action: "reopen",
+            note: "Allowed it in System Settings? macOS needs AI Juggler to reopen to see it.",
+          },
+        ];
+        w.__AIJ_REOPEN_BLOCK__ = {
+          reason: "2 sessions are running. Reopening AI Juggler ends the ones in its terminal; sessions in their own app keep running.",
+          can_reopen_anyway: true,
+        };
+        localStorage.setItem("aij.theme", theme);
+        localStorage.setItem("aij.firstRun.resumeAccess", "1");
+      },
+      { scan: SCAN, theme },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    const card = page.getByTestId("first-run-access-preview");
+    await expect(card).toContainText("macOS needs AI Juggler to reopen to see it");
+    await expect(card.getByRole("button", { name: "Reopen AI Juggler" })).toBeVisible();
+    await expect(card.getByRole("status")).toHaveCount(0);
+    await page.screenshot({ path: `${OUT}/access-reopen-1280x800-${theme}.png`, fullPage: true });
+    await axeClean(page, `access, reopen offered (${theme})`);
+    await card.getByRole("button", { name: "Reopen AI Juggler" }).click();
+    await expect(page.getByTestId("first-run-access-reopen-block")).toContainText("2 sessions are running.");
+    await page.screenshot({ path: `${OUT}/access-reopen-live-sessions-1280x800-${theme}.png`, fullPage: true });
+    await axeClean(page, `access, live sessions said first (${theme})`);
+  });
+}

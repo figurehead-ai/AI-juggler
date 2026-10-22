@@ -52,6 +52,16 @@
 - **[V/U] Programmatic quota: no public CLI/API for 5h/weekly limits.** Issue #15281 "Expose full usage/limits data in CLI" (open) — commenters note scripts can't read limits, making orchestration "horrible to plan"; third-party `aistat` reads an undocumented `account/rateLimits/read` endpoint (stability **[U]**).
 - **[V] Local usage data:** rollout `token_usage_record` lines + `codex exec --json` `turn.completed` usage objects — these are model tokens, not plan credits; correlation is fuzzy **[I]**.
 - **[V/U] Exhaustion behavior:** no documented quota-specific exit code for `codex exec`; detect via `turn.failed`/`error` events in `--json` + stderr text **[I]**.
+- **[L] Rollout limit readings (local observation, AJ-E601; 2026-10-21, the 0.0.12 report):** Codex writes its own limit readings into its rollout files, on `event_msg` lines with `payload.type = "token_count"`: `payload.rate_limits = {limit_id, primary, secondary, credits}`.
+  - **Windows:** `primary` and `secondary` are each `{used_percent, window_minutes, resets_at}`; `secondary` may be null. `resets_at` is Unix seconds; older builds wrote `resets_in_seconds`.
+  - **Credits:** `credits = {has_credits, unlimited, balance}`, with `balance` a string.
+  - **How it was seen:** the shape was observed on the maintainer's own rollouts by key names only; no value was read, and `auth.json` was not opened.
+  - **Why this isn't the prohibited feed (§9):** it is the same local file AI Juggler already reads for tokens, written by Codex on this Mac. It is not the `/statusline` widgets' undocumented `rateLimits` feed, and nothing is fetched from OpenAI.
+  - **How AI Juggler uses it** (`quota_ingest::codex_rate_limits`):
+    - each window is a **Measured** sample, its pool taken from `window_minutes` (300 = the 5-hour window, 10080 = the week; any other width is skipped, never guessed);
+    - the newest `credits` snapshot is shown as the account's balance.
+  - **Consequences:** the Codex adapter declares `USAGE_QUOTA_FEED`, and its windows read as Measured once a session has written a `token_count` line. This supersedes §9's "Codex quota always renders Estimate" for the windows only; renewal stays unknown.
+  - **Grade:** [L] = local-observable, per AJ-E601. It is not vendor-documented, so a Codex update may rename these keys; the parser then counts a degraded read, never a made-up number.
 - **[V] Notify hook:** `notify = ["prog", …]` fires on `agent-turn-complete` with JSON `{type, thread-id, turn-id, cwd, input-messages, last-assistant-message}` — a "turn finished / possibly blocked" signal; carries no quota fields.
 
 ## 6. Extensibility surface

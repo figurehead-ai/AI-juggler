@@ -138,6 +138,109 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Codex's older conversations count: Codex compresses older session files
+  (`.jsonl.zst`), and AI Juggler read none of them, so their tokens and
+  costs were missing (on a Mac used for a while, most of them).
+- AI Juggler no longer opens Claude Code's `.credentials.json`: it read the
+  file to check an expiry date. Whether you're signed in is told from the
+  file being there, as the docs promised; Claude says itself when a sign-in
+  has expired.
+- Fleet can find your other Macs on macOS 15 and later: AI Juggler now
+  says why it needs the local network, so macOS asks instead of silently
+  blocking it.
+- Jumping to a session's window works in signed builds: AI Juggler now
+  carries the Apple Events permission macOS asks about, instead of being
+  refused without a prompt.
+- Watching your Mac's processes stays under 1 % of one core beside a busy
+  Claude app: the other tools' processes are now measured every 4 seconds
+  (8 at most), in the same read that finds new ones, instead of every 2
+  seconds on top of it.
+- Going back to an earlier version and forward again no longer leaves
+  some cost credited to the wrong session: AI Juggler notices what the
+  earlier version wrote and reads the conversations again once.
+- This Mac counts what a session starts as soon as it starts (within about
+  4 seconds). A build fanning out under a Claude app session could be
+  missed for up to 10 seconds, so the app's figure read far too low.
+- This Mac never drops a tool without a word: past the three heaviest, the
+  rest are behind "and N more". Search helpers a finished Claude Code
+  session left running are no longer counted as Claude in a terminal.
+- Codex's context compactions now count, once: the usage of the compaction
+  call, which Codex records outside its turns, was missed, and could count
+  twice when AI Juggler read the file just as the compaction was written.
+- A conversation resumed into a new session repeats the original's
+  history. Its cost now stays with the original session, whatever order AI
+  Juggler reads the files in, including a copy of a copy and a fork that
+  both go on. In a few cases the copy is still credited with the shared
+  part: an original that writes first after a fork, a fork resumed again
+  before it wrote anything, and a resume that never wrote. An account's
+  total is right either way. Counts already stored are read again once, so
+  these fixes reach them.
+- The tools AI Juggler runs are found in fixed system places, never by
+  searching your `PATH` (git included).
+
+- An account's limits no longer read "100% left" when nothing has been
+  measured yet: on Home, Accounts, Usage, a session's details and New
+  session, a window with no reading says "Not measured yet". It also
+  shows the tokens used in that window, and an empty bar instead of a full
+  one. A reset time shows only when the tool itself reported it; before,
+  one was worked out from your own use, and under steady use it read
+  "now".
+- **Codex**: AI Juggler now shows Codex's limits and its credit balance,
+  as measured. Codex records them in its own session files, so "Codex
+  doesn't report its limits" is gone. It shows the windows Codex reports
+  (on many plans only the weekly one), never a 5-hour window Codex
+  doesn't have.
+- A measured limit says when it was read ("as of 12 min ago", then a
+  time, then a date). It no longer jumps back when a session resumed
+  days later reports its old week, or when two sessions report a point
+  apart. Once a window resets with no newer reading, it says "Not
+  measured since the reset" instead of 0% or the old figure. Credits say
+  who reported them and when.
+- Usage no longer turns the whole window blank. A cost with no value
+  yet (no fee set, a model with no price, Codex's credits) crashed it;
+  each now reads as missing, and a model with no price says "No price
+  for <model> yet", never $0.
+- A screen that hits a problem shows "This screen hit a problem" with
+  **Try again** and **Copy details**, while the sidebar and the header
+  keep working. Before, one screen's error blanked the whole window. The
+  error goes to the crash report only if crash reports are on.
+- Token counts are right. Claude's were counted two or three times: one
+  reply is written as several lines, one per part, and each line was
+  counted. Codex's were counted twice, because its input includes its
+  cached input and its output its reasoning. Counts already stored are
+  read again once from your history files, so the totals correct
+  themselves.
+- Usage puts a price on the models you use. It knows the current Claude
+  models and the GPT-5 models Codex runs on, from Anthropic's and
+  OpenAI's own price pages. Codex rows now carry their model too.
+- Home under memory pressure: the warning banner no longer covers Home's
+  headline, and Home shows the warning once, under Needs you. The figure
+  is the same everywhere: the whole Claude app across its windows ("about
+  16 GB across 3 windows"), not one window. While the warning is on,
+  This Mac says "Under memory pressure" too, and so does the sidebar's
+  footer, which used to say "healthy" whatever the Mac's state. The
+  collapsed sidebar says "All clear" only while the Mac has room.
+- A tool that doesn't report its limits says so on every screen. Before,
+  Usage could show it at "100% left" while Home said it doesn't report.
+- Suggested accounts and switch targets show the account's name, not
+  its internal id, and say "Not enough use to forecast" instead of
+  "exhausts ≈0 min". New session's account list says one thing per
+  account, in the same words as Home.
+- A screen's "Copy details" says "Copied", or shows the details to
+  select when the copy fails.
+- First run's "See a live preview of each session" (Screen Recording) no
+  longer stays stuck after you allow it in System Settings. macOS only
+  shows the new answer once AI Juggler reopens, so the card now says so
+  and offers **Reopen AI Juggler**, telling you first if sessions are
+  running. After the reopen, first run comes back to the same step. The
+  page also checks again as soon as you return from System Settings, and
+  it says "Allowed" only once macOS does.
+- Opened from Finder, AI Juggler now finds tools installed with npm (like
+  Codex) and can start them: it uses the same PATH as your Terminal, so
+  `node` is found. Before, Add account only offered Claude, and a Codex
+  session or sign-in couldn't start. A tool it finds but whose version it
+  can't read is still offered, marked "Found; couldn't check its
+  version" — never "not installed".
 - A switch that replays a conversation always carries at least its
   newest turn (cut to fit when it alone is too long) and refuses — before
   starting anything — when there is no conversation to carry; each

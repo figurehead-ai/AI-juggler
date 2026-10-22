@@ -112,6 +112,18 @@ impl FixtureSet {
         Self { helper, fixtures }
     }
 
+    /// The pid of one fixture, as it wrote it (`<ready>.pid`, before its
+    /// ready file): the process a test should signal. A ledger row found
+    /// by a command-line needle can name another fixture — its command
+    /// line may still be the root shell's, from before the exec.
+    // Shared test support: juggler-app's guardrails use it; the
+    // supervisor's own suites don't.
+    #[allow(dead_code)]
+    pub fn pid(&self, kind: &str) -> Option<u32> {
+        let path = PathBuf::from(format!("{}.pid", self.get(kind).ready.to_string_lossy()));
+        std::fs::read_to_string(path).ok()?.trim().parse().ok()
+    }
+
     /// The port the vite fixture actually bound (ready-file
     /// handshake; call after [`FixtureSet::wait_ready`]). Port 0 in
     /// the script = OS-assigned, killing the probe-then-bind race.
@@ -156,8 +168,8 @@ impl FixtureSet {
                 "shell" => format!(
                     "bash -c 'exec 9>>{trap}; \
                      trap \"echo TERM >&9\" TERM; trap \"echo HUP >&9\" HUP; \
-                     trap \"echo INT >&9\" INT; touch {ready}; \
-                     while :; do sleep 1; done' &"
+                     trap \"echo INT >&9\" INT; echo $$ > {ready}.pid; touch {ready}; \
+                     i=0; while [ $i -lt {FIXTURE_LIFETIME_SECS} ]; do sleep 1; i=$((i+1)); done' &"
                 ),
                 _ => unreachable!("fixture kind"),
             };
@@ -269,6 +281,52 @@ pub fn unmanaged_port(dir: &Path) -> u16 {
 /// The unmanaged fixture's paths (for zero-signal assertions).
 pub fn unmanaged_fixture(dir: &Path) -> Fixture {
     fixture(dir, "unmanaged")
+}
+
+/// How long a fixture lives at most, in seconds (`trap_helper.py`'s cap is
+/// the same): a test killed outright, where no `Drop` runs, can't leave
+/// one behind for longer.
+pub const FIXTURE_LIFETIME_SECS: u32 = 300;
+
+/// Kills what a test started when the test ends, a panic's unwind
+/// included: each process group (`kill -s KILL -- -<pgid>`, the form
+/// both macOS's and Linux's `kill` read as a group) and each lone pid.
+/// Register a process the moment it is spawned. It lives no longer than
+/// its test, so a pid it holds isn't one the system has handed out again.
+#[derive(Default)]
+pub struct Reaper {
+    groups: Vec<u32>,
+    pids: Vec<u32>,
+}
+
+// Shared test support: each suite uses the parts it needs.
+#[allow(dead_code)]
+impl Reaper {
+    /// Kills this process group at the end.
+    pub fn group(&mut self, pgid: u32) {
+        self.groups.push(pgid);
+    }
+
+    /// Kills this process at the end.
+    pub fn pid(&mut self, pid: u32) {
+        self.pids.push(pid);
+    }
+}
+
+impl Drop for Reaper {
+    fn drop(&mut self) {
+        let targets = self
+            .groups
+            .iter()
+            .map(|pgid| format!("-{pgid}"))
+            .chain(self.pids.iter().map(u32::to_string));
+        for target in targets {
+            let _ = std::process::Command::new("/bin/kill")
+                .args(["-s", "KILL", "--", &target])
+                .stderr(std::process::Stdio::null())
+                .status();
+        }
+    }
 }
 
 /// Is the pid alive? (`kill -0`)

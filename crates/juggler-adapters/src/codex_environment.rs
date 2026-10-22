@@ -56,12 +56,12 @@ pub(crate) const CODEX_LAYOUT: Layout = Layout {
     top_level_skips_only: true,
     estimate_depth: 6,
     kept_back: &[(
-        "auth.json",
+        crate::sign_in::CODEX_AUTH,
         "your sign-in — it stays with the original; this account signs in once",
     )],
     config_evidence: &[
         "config.toml",
-        "auth.json",
+        crate::sign_in::CODEX_AUTH,
         "sessions",
         "history.jsonl",
         "version.json",
@@ -72,7 +72,7 @@ pub(crate) const CODEX_LAYOUT: Layout = Layout {
         "history.jsonl",
         "session_index.jsonl",
     ],
-    private_files: &["auth.json"],
+    private_files: &[crate::sign_in::CODEX_AUTH],
     not_a_config: "this folder does not look like a Codex home (no config.toml, auth.json or sessions found)",
     login_stays_note: "Your Codex sign-in stays with the original folder: a copied sign-in would sign one of the two out the next time either renews it. Sign in once inside the imported account.",
     login_moves_note: "Sign-in found in the copy.",

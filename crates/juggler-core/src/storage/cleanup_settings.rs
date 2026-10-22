@@ -58,8 +58,7 @@ impl CleanupSettingsRepo {
     }
 
     fn init(conn: Connection) -> Result<Self, CoreError> {
-        conn.pragma_update(None, "journal_mode", "WAL")
-            .map_err(CoreError::Storage)?;
+        super::wait_for_locks(&conn)?;
         conn.execute(
             "CREATE TABLE IF NOT EXISTS cleanup_settings (
                 account_id TEXT PRIMARY KEY,

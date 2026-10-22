@@ -52,4 +52,9 @@ repo: string | null,
  * True when the root directory no longer exists on disk (AJ-E408
  * Overview danger banner + `Relocate…`).
  */
-missing: boolean, };
+missing: boolean, 
+/**
+ * AJ-E1501: the account this project's new sessions start with,
+ * when the user picked one.
+ */
+default_account_id?: string | null, };

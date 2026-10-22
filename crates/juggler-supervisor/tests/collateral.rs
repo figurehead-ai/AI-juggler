@@ -69,31 +69,37 @@ fn stop_signals_only_the_own_group_and_kills_survivors_after_grace() {
     ));
     let supervisor = Supervisor::new().with_ledger(Arc::clone(&ledger));
     let mut collector = LiveStatsCollector::new();
+    // Both trees and the unmanaged server die with the test, a failed
+    // assertion's unwind included (the kit reaps its own fixtures).
+    let mut reaper = fixtures::Reaper::default();
 
     // Session A: every in-tree fixture under one root.
     let a = SessionId::new("sess-a");
-    supervisor
+    let spawned_a = supervisor
         .spawn(
             &a,
             &sh_spec(&format!("{}\nwait", kit.root_script()), dir.path()),
             &ctx(),
         )
         .unwrap();
+    reaper.group(spawned_a.pid);
     // Session B: one mcp fixture — a NEIGHBOUR tree that must never
     // hear session A's stop.
     let b = SessionId::new("sess-b");
     let b_dir = dir.path().join("b");
     std::fs::create_dir_all(&b_dir).unwrap();
     let kit_b = FixtureSet::new(&b_dir);
-    let _spawned_b = supervisor
+    let spawned_b = supervisor
         .spawn(
             &b,
             &sh_spec(&format!("{}\nwait", kit_b.root_script()), &b_dir),
             &ctx(),
         )
         .unwrap();
+    reaper.group(spawned_b.pid);
     // The unmanaged user server: ours to observe, never ours to signal.
     let unmanaged_pid = spawn_unmanaged(dir.path());
+    reaper.pid(unmanaged_pid);
 
     // Discover the fixture pids through the ledger (ticks land the
     // helper rows).
@@ -187,12 +193,12 @@ fn stop_signals_only_the_own_group_and_kills_survivors_after_grace() {
         "the vite fixture's port is free after TERM"
     );
 
-    // Cleanup: B's tree, the escapee, the unmanaged server.
+    // Cleanup: B's tree, the escapee; the reaper takes the unmanaged
+    // server.
     supervisor.stop(&b, Duration::from_secs(2)).unwrap();
     if let Some(escapee) = helper_pid_by(&ledger, &a, "--setsid") {
         fixtures::kill9(escapee);
     }
-    fixtures::kill9(unmanaged_pid);
 }
 
 fn now_ms() -> i64 {

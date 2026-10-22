@@ -5,7 +5,7 @@
  * or under pressure, and a tool AI Juggler didn't start offers nothing to
  * click (D-08).
  */
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ThisMacPanel } from "./ThisMacPanel";
 import { RailRow } from "./WorkflowRail";
@@ -51,6 +51,7 @@ function mk(id: string, overrides: Partial<InstanceInfo> = {}): InstanceInfo {
 }
 
 const tree = (overrides: Partial<ToolTreeInfo>): ToolTreeInfo => ({
+  root_pid: null,
   session_id: null,
   place: "desktop",
   account_label: "Personal",
@@ -74,7 +75,9 @@ function info(level: "plenty" | "tight" | "pressure", trees: ToolTreeInfo[], lef
     tools: total(trees),
     ours: total(trees.filter((t) => t.session_id)),
     theirs: total(trees.filter((t) => !t.session_id)),
+    by_tool: [],
     top: trees.slice(0, 3),
+    others: trees.slice(3),
     heavy: trees.filter((t) => t.heavy_note),
     leftover_processes: leftovers[0],
     leftover_ports: leftovers[1],
@@ -205,8 +208,10 @@ describe("Home's Needs you (AJ-E1404 Req.3)", () => {
         thisMac={info("pressure", [tree({ session_id: "one", place: null })])}
       />,
     );
-    expect((screen.getByRole("heading", { level: 1 }))!.textContent).toContain("Your Mac is under pressure");
+    // Said once, in Needs you; the headline only points there (0.0.12).
+    expect((screen.getByRole("heading", { level: 1 }))!.textContent).toBe("Your Mac needs a look");
     const item = screen.getByTestId("home-mac-pressure");
+    expect(item.textContent).toContain("Your Mac is under pressure");
     expect(item.textContent).toContain("macOS reports critical memory pressure; swap is growing — 620 MB a minute");
     const panel = document.getElementById("this-mac")!;
     panel.scrollIntoView = vi.fn();
@@ -262,6 +267,7 @@ describe("overload alerts and recommendations (AJ-E1408, AJ-E1409)", () => {
     subject_bytes: 3_200_000_000,
     subject_estimate: false,
     subject_cpu: null,
+    subject_windows: null,
     since_ms: NOW,
     ...overrides,
   });
@@ -281,8 +287,10 @@ describe("overload alerts and recommendations (AJ-E1408, AJ-E1409)", () => {
         thisMac={mac}
       />,
     );
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Your Mac is under memory pressure");
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Your Mac needs a look");
     const item = screen.getByTestId("home-mac-pressure");
+    expect(item.textContent).toContain("Your Mac is under memory pressure");
+    expect(screen.getAllByText("Your Mac is under memory pressure")).toHaveLength(1);
     expect(item.textContent).toContain("macOS reports memory pressure. busy-one is using 3.2 GB");
     // A tight Mac with a sustained alert is amber, not red.
     expect(item.textContent).toContain("▲");
@@ -292,6 +300,10 @@ describe("overload alerts and recommendations (AJ-E1408, AJ-E1409)", () => {
     const { alertSubject } = await import("../lib/machine");
     const theirs = alert({ session_id: null, place: "desktop", subject_bytes: 2_000_000_000, subject_estimate: true });
     expect(alertSubject(theirs, () => null)).toBe("The Claude app is using about 2.0 GB");
+    // The app as a whole: its windows' total, and how many (0.0.12).
+    expect(alertSubject({ ...theirs, subject_bytes: 16_100_000_000, subject_windows: 3 }, () => null)).toBe(
+      "The Claude app is using about 16 GB across 3 windows",
+    );
     expect(alertSubject(alert({}), (id) => id)).toBe("busy-one is using 3.2 GB");
   });
 
@@ -306,6 +318,19 @@ describe("overload alerts and recommendations (AJ-E1408, AJ-E1409)", () => {
     fireEvent.click(within(notice).getByRole("button", { name: "dismiss" }));
     expect(screen.queryByTestId("machine-alert")).toBeNull();
     delete (window as unknown as Record<string, unknown>).__AIJ_ALERTS_FRESH__;
+  });
+
+  it("on Home the banner leaves the Mac's alert to Needs you; other screens keep it (0.0.12)", async () => {
+    const { NotificationRegion } = await import("./NotificationRegion");
+    (window as unknown as Record<string, unknown>).__AIJ_ALERTS_FRESH__ = [alert({})];
+    const view = render(<NotificationRegion hideMachineAlerts />);
+    // The fresh alert is taken (and kept) but not shown here.
+    await waitFor(() => expect((window as unknown as Record<string, unknown>).__AIJ_ALERTS_FRESH__).toEqual([]));
+    expect(screen.queryByTestId("machine-alert")).toBeNull();
+    // The same notice shows once Home is left.
+    view.rerender(<NotificationRegion />);
+    expect((await screen.findByTestId("machine-alert")).textContent).toContain("Your Mac is under memory pressure");
+    fireEvent.click(within(screen.getByTestId("machine-alert")).getByRole("button", { name: "dismiss" }));
   });
 
   it("tells a CPU-heavy session by its CPU, not its memory", async () => {
@@ -354,6 +379,34 @@ describe("overload alerts and recommendations (AJ-E1408, AJ-E1409)", () => {
       </ThisMacContext.Provider>,
     );
     expect(screen.queryByTestId("machine-alert")).toBeNull();
+  });
+
+  it("never drops a row: six Claude app windows show three, then 'and 3 more' opens the rest (P6)", () => {
+    const windows = [7.4e9, 5.2e9, 3.5e9, 2.0e9, 1.1e9, 0.6e9].map((rss, i) =>
+      tree({ account_label: `Window ${i + 1}`, rss_bytes: rss }),
+    );
+    render(<ThisMacPanel info={info("plenty", windows)} nameOf={() => "x"} onOpenSession={vi.fn()} />);
+    const list = screen.getByTestId("this-mac-top");
+    expect(within(list).getAllByRole("listitem")).toHaveLength(3);
+    const more = screen.getByTestId("this-mac-more");
+    expect(more.textContent).toBe("and 3 more");
+    expect(more.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(more);
+    expect(within(screen.getByTestId("this-mac-top")).getAllByRole("listitem")).toHaveLength(6);
+    expect(screen.getByTestId("this-mac-more").textContent).toBe("Show fewer");
+    // Three or fewer: no button at all.
+    cleanup();
+    render(<ThisMacPanel info={info("plenty", windows.slice(0, 3))} nameOf={() => "x"} onOpenSession={vi.fn()} />);
+    expect(screen.queryByTestId("this-mac-more")).toBeNull();
+  });
+
+  it("two app windows that look alike are two rows, each keyed by its process (#126 review, L6)", () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    const twins = [501, 502].map((pid) => tree({ root_pid: pid, account_label: "Personal", rss_bytes: 2e9 }));
+    render(<ThisMacPanel info={info("plenty", twins)} nameOf={() => "x"} onOpenSession={vi.fn()} />);
+    expect(within(screen.getByTestId("this-mac-top")).getAllByRole("listitem")).toHaveLength(2);
+    expect(errors.mock.calls.flat().join(" ")).not.toContain("same key");
+    errors.mockRestore();
   });
 
   it("shows advice from history only when there is some", () => {

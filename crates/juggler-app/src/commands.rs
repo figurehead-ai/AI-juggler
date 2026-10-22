@@ -283,7 +283,12 @@ pub fn pricing_catalog_info(
 /// the honest state, never 0%.
 #[derive(Clone, PartialEq, Debug, serde::Serialize)]
 pub struct WindowDisplay {
-    /// The §Q8 machine state (`unknown|learning|tracking|stale|exhausted`).
+    /// The §Q8 machine state (`unknown|learning|tracking|stale|exhausted`),
+    /// or `unmeasured`: use was seen but there is no percentage (no
+    /// Measured sample, no confirmed cap), or `reset`: the window the
+    /// vendor's last reading described has reset since (nothing is known
+    /// about the new one). A state that reads as known always carries its
+    /// percentage (the 0.0.12 report).
     pub state: String,
     /// Percent used, ONLY when the state carries one.
     pub percentage: Option<f64>,
@@ -291,8 +296,14 @@ pub struct WindowDisplay {
     pub badge: Option<String>,
     /// Staleness note ("last measured Nh ago") when Measured went quiet.
     pub stale_note_ms: Option<i64>,
-    /// Vendor reset instant, epoch ms, when known.
+    /// The reset instant, epoch ms, when there is one.
     pub resets_at_ms: Option<i64>,
+    /// Where `resets_at_ms` came from: `measured` (the vendor's) or
+    /// `calendar` (an anchored weekly phase).
+    pub reset_basis: Option<String>,
+    /// When the vendor's reading behind this window was taken, epoch ms:
+    /// the "as of" every surface shows beside a measured percentage.
+    pub measured_at_ms: Option<i64>,
     /// Absolute burn inside the window (the honest floor).
     pub burned_tokens: u64,
     /// Burn in vendor credits, when the provider bills credits.
@@ -301,6 +312,32 @@ pub struct WindowDisplay {
     /// known — the admission verdict's input (AJ-E306); unknown
     /// stays None, never a fabricated number.
     pub headroom_tokens: Option<f64>,
+}
+
+/// A window's state on the wire. Tracking or stale with no percentage
+/// (activity, but no Measured sample and no confirmed cap) is
+/// `unmeasured`: it never reads as a known state (the 0.0.12 report,
+/// where every such window showed "100% left").
+#[must_use]
+pub fn window_state_name(
+    state: juggler_core::quota::QuotaState,
+    percentage: Option<f64>,
+) -> &'static str {
+    use juggler_core::quota::QuotaState;
+    match (state, percentage) {
+        (QuotaState::Unknown, _) => "unknown",
+        (QuotaState::Learning, _) => "learning",
+        (QuotaState::Tracking | QuotaState::Stale, None) => "unmeasured",
+        (QuotaState::Tracking, Some(_)) => "tracking",
+        (QuotaState::Stale, Some(_)) => "stale",
+        (QuotaState::Exhausted, _) => "exhausted",
+        (QuotaState::ResetSinceReading, _) => "reset",
+    }
+}
+
+/// A Provider's name in words ("Claude Code", "Codex").
+pub(crate) fn provider_name(provider: &str) -> String {
+    provider_display(provider).0
 }
 
 /// AJ-E610: the subscription clock's rendered state — a calendar-style
@@ -352,6 +389,47 @@ pub struct QuotaDisplayInfo {
     pub forecast: ForecastDisplay,
     /// Provider-level unavailability (e.g. Gemini pre-verification).
     pub unavailable_reason: Option<String>,
+    /// Codex's credits, from its own rollouts (the 0.0.12 report).
+    pub credits: Option<CreditsDisplay>,
+}
+
+/// An account's credits, as its tool reports them.
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize)]
+pub struct CreditsDisplay {
+    /// The plan has credits at all.
+    pub has_credits: bool,
+    /// Credits are unlimited.
+    pub unlimited: bool,
+    /// The balance as the tool wrote it.
+    pub balance: Option<String>,
+    /// When the tool reported it, epoch ms.
+    pub as_of_ms: i64,
+    /// Who reported it: the tool's name ("Codex").
+    pub source: String,
+}
+
+/// The account's newest credits snapshot, when its tool reported one.
+fn credits_of(
+    storage: &juggler_core::storage::Storage,
+    account: &juggler_core::model::Account,
+) -> Option<CreditsDisplay> {
+    let id = account.id.as_str();
+    let raw = storage
+        .app_settings()
+        .get(&format!(
+            "{}{id}",
+            crate::usage_pipeline::CREDITS_KEY_PREFIX
+        ))
+        .ok()
+        .flatten()?;
+    let snapshot: juggler_adapters::CreditsSnapshot = serde_json::from_str(&raw).ok()?;
+    Some(CreditsDisplay {
+        has_credits: snapshot.has_credits,
+        unlimited: snapshot.unlimited,
+        balance: snapshot.balance,
+        as_of_ms: snapshot.ts,
+        source: provider_name(account.harness.as_str()),
+    })
 }
 
 /// Evaluates one account's two-clock display from the engine (E606
@@ -363,9 +441,7 @@ pub fn quota_display_inner(
     account: &juggler_core::model::Account,
     now_ms: i64,
 ) -> QuotaDisplayInfo {
-    use juggler_core::quota::{
-        self, AccountEvaluation, QuotaCap, QuotaState, SubscriptionClock, WindowKind,
-    };
+    use juggler_core::quota::{self, AccountEvaluation, QuotaCap, SubscriptionClock, WindowKind};
     use juggler_core::quota_forecast::{self, ForecastState, RateUnits};
 
     let account_id = account.id.as_str();
@@ -426,19 +502,21 @@ pub fn quota_display_inner(
         last_measured.filter(|ts| now_ms.saturating_sub(*ts) > quota::STALE_AFTER_MS);
 
     let window_display = |reading: &quota::WindowReading, cap: QuotaCap| WindowDisplay {
-        state: match reading.state {
-            QuotaState::Unknown => "unknown".to_owned(),
-            QuotaState::Learning => "learning".to_owned(),
-            QuotaState::Tracking => "tracking".to_owned(),
-            QuotaState::Stale => "stale".to_owned(),
-            QuotaState::Exhausted => "exhausted".to_owned(),
-        },
+        state: window_state_name(reading.state, reading.percentage).to_owned(),
         percentage: reading.percentage,
         badge: reading
             .percentage
             .map(|_| confidence_name(reading.confidence).to_owned()),
         stale_note_ms,
         resets_at_ms: reading.resets_at,
+        measured_at_ms: reading.measured_at,
+        reset_basis: reading.reset_basis.map(|basis| {
+            match basis {
+                quota::ResetBasis::Measured => "measured",
+                quota::ResetBasis::Calendar => "calendar",
+            }
+            .to_owned()
+        }),
         burned_tokens: reading
             .burn
             .tokens
@@ -540,27 +618,58 @@ pub fn quota_display_inner(
         }
     };
 
-    // Provider/plan window shapes (Req.5): Pro renders weekly; plans
-    // without a 5 h window omit that ring WITH reason, never empty.
+    // Window shapes (Req.5): a window that isn't there is omitted WITH
+    // its reason, never an empty ring.
     let provider = account.harness.as_str();
-    let plan = account.plan.as_ref().map(ToString::to_string);
     let mut unavailable_reason = None;
     let (five_hour, five_hour_reason, weekly, weekly_reason) = match provider {
         "gemini" | "antigravity" => {
             unavailable_reason = Some("No verified quota source for this tool yet".to_owned());
             (None, None, None, None)
         }
-        // Codex Pro has no 5 h limit (AJ-E603): omit that ring with
-        // its reason; every other shape renders both windows.
-        "codex" if plan.as_deref() == Some("pro") => (
-            None,
-            Some("Pro plans have no five-hour limit — weekly only".to_owned()),
-            Some(window_display(
-                &evaluation.weekly,
-                cap(WindowKind::Weekly { anchor_ms: anchor }),
-            )),
-            None,
-        ),
+        // A registered tool whose adapter declares no limits feed: the same
+        // capability Home and the provider list read, so every surface
+        // says the same thing (QA: Usage said "100% left" for a tool Home
+        // said doesn't report).
+        _ if !reports_limits(provider) => {
+            unavailable_reason = Some(format!(
+                "{} doesn't report its limits to AI Juggler yet",
+                provider_name(provider)
+            ));
+            (None, None, None, None)
+        }
+        // P13: a tool whose feed names its own windows shows the ones it
+        // reports, never ones assumed from the tool or plan.
+        _ if adapter_has(
+            provider,
+            juggler_adapter::Capabilities::LIMIT_WINDOWS_REPORTED,
+        ) =>
+        {
+            let (five_reported, weekly_reported) =
+                reported_windows(&samples_five_hour, &samples_weekly, now_ms);
+            let tool = provider_name(provider);
+            let reason = |kind: &str| {
+                if five_reported || weekly_reported {
+                    format!("{tool} reports no {kind} limit for this account")
+                } else {
+                    format!(
+                        "{tool} hasn't reported its limits yet — they show after you use {tool}"
+                    )
+                }
+            };
+            (
+                five_reported
+                    .then(|| window_display(&evaluation.five_hour, cap(WindowKind::FiveHour))),
+                (!five_reported).then(|| reason("five-hour")),
+                weekly_reported.then(|| {
+                    window_display(
+                        &evaluation.weekly,
+                        cap(WindowKind::Weekly { anchor_ms: anchor }),
+                    )
+                }),
+                (!weekly_reported).then(|| reason("weekly")),
+            )
+        }
         _ => (
             Some(window_display(
                 &evaluation.five_hour,
@@ -583,7 +692,60 @@ pub fn quota_display_inner(
         renewal,
         forecast,
         unavailable_reason,
+        credits: credits_of(storage, account),
     }
+}
+
+/// A built-in adapter's capabilities, by tool id (`None` for a tool with
+/// no adapter here), read once from the built-in registry: the quota
+/// display asks the adapters, never branches on a tool's id.
+fn adapter_capabilities(harness: &str) -> Option<juggler_adapter::Capabilities> {
+    static CAPS: std::sync::OnceLock<
+        std::collections::BTreeMap<String, juggler_adapter::Capabilities>,
+    > = std::sync::OnceLock::new();
+    CAPS.get_or_init(|| {
+        let registry = crate::state::default_registry();
+        registry
+            .ids()
+            .into_iter()
+            .filter_map(|id| Some((id.to_string(), registry.get(&id)?.capabilities())))
+            .collect()
+    })
+    .get(harness)
+    .copied()
+}
+
+/// True when `harness`'s adapter declares `capability`.
+pub(crate) fn adapter_has(harness: &str, capability: juggler_adapter::Capabilities) -> bool {
+    adapter_capabilities(harness).is_some_and(|caps| caps.contains(capability))
+}
+
+/// True unless `harness` is a registered tool whose adapter declares no
+/// limits feed (`USAGE_QUOTA_FEED`) — what `providers_capabilities`
+/// reports as `reports_limits`. A tool with no adapter here (`ZCode`'s
+/// computed credits) keeps its own rules.
+#[must_use]
+pub fn reports_limits(harness: &str) -> bool {
+    adapter_capabilities(harness)
+        .is_none_or(|caps| caps.contains(juggler_adapter::Capabilities::USAGE_QUOTA_FEED))
+}
+
+/// Which windows the tool reported in the last week (a Measured sample
+/// whose feed named the window, e.g. Codex's `window_minutes`). A window
+/// it never reports (`secondary: null`) is not there; one from a plan it
+/// left reads as stale until it ages out.
+fn reported_windows(
+    five_hour: &[juggler_core::quota::QuotaSample],
+    weekly: &[juggler_core::quota::QuotaSample],
+    now_ms: i64,
+) -> (bool, bool) {
+    let reported = |samples: &[juggler_core::quota::QuotaSample]| {
+        samples.iter().any(|sample| {
+            sample.confidence == juggler_core::model::Confidence::Measured
+                && now_ms.saturating_sub(sample.ts) <= juggler_core::quota::WEEK_MS
+        })
+    };
+    (reported(five_hour), reported(weekly))
 }
 
 /// AJ-E611: one ranked (or filtered) row on the wire — greyed rows
@@ -593,6 +755,8 @@ pub fn quota_display_inner(
 pub struct RankedRowInfo {
     /// Account id.
     pub account: String,
+    /// The account's name as the user gave it (rows never show the id).
+    pub account_label: String,
     /// The weighted score, when the account survived the hard filters.
     pub score: Option<f64>,
     /// The hard filter's reason (greyed row copy).
@@ -871,9 +1035,14 @@ fn rank_candidates_for(
         .enumerate()
         .map(|(index, row)| {
             let tte = tte_by_account.get(&row.account).copied().flatten();
+            let account_label = accounts
+                .iter()
+                .find(|account| account.id.as_str() == row.account)
+                .map_or_else(|| row.account.clone(), |account| account.label.clone());
             let admission = admission_by_account.get(&row.account).cloned().flatten();
             RankedRowInfo {
                 account: row.account,
+                account_label,
                 score: row.score,
                 filtered_reason: row.filtered_reason,
                 top_factors: row.top_factors,
@@ -1433,6 +1602,10 @@ pub struct AccountInfo {
     pub imported_at: Option<i64>,
     /// ADR-0018: the account uses the user's own folder where it is.
     pub in_place: bool,
+    /// AJ-E1501: new sessions start with this account unless a project
+    /// names its own (set by the accounts list; `null` elsewhere).
+    #[ts(optional = nullable)]
+    pub is_default: Option<bool>,
 }
 
 /// A Launch settings row for the UI (AJ-E107).
@@ -1762,6 +1935,10 @@ pub struct ProjectInfo {
     /// True when the root directory no longer exists on disk (AJ-E408
     /// Overview danger banner + `Relocate…`).
     pub missing: bool,
+    /// AJ-E1501: the account this project's new sessions start with,
+    /// when the user picked one.
+    #[ts(optional = nullable)]
+    pub default_account_id: Option<String>,
 }
 
 /// Dashboard counts.
@@ -1923,10 +2100,25 @@ pub fn harnesses_list() -> Vec<ProviderInfo> {
 ///
 /// Returns the typed [`AppError`] message on failure.
 pub fn accounts_list(state: tauri::State<'_, Arc<AppState>>) -> AppResult<Vec<AccountInfo>> {
-    let storage = lock_storage(&state)?;
+    accounts_info(state.inner())
+}
+
+/// The accounts in use, each marked whether it is the default
+/// (AJ-E1501).
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] message on storage failures.
+pub fn accounts_info(state: &Arc<AppState>) -> AppResult<Vec<AccountInfo>> {
+    let storage = lock_storage_arc(state)?;
+    let default = storage
+        .app_settings()
+        .get(crate::manage::DEFAULT_ACCOUNT_KEY)?;
     let mut out = Vec::new();
     for account in storage.accounts().list()? {
-        out.push(account_info_of(&state.registry, &account));
+        let mut info = account_info_of(&state.registry, &account);
+        info.is_default = Some(default.as_deref() == Some(account.id.as_str()));
+        out.push(info);
     }
     Ok(out)
 }
@@ -2667,27 +2859,7 @@ pub fn isolation_check_impl(
     // (`CLAUDE_CONFIG_DIR`; `CODEX_HOME` and `CODEX_SQLITE_HOME`) —
     // AJ-E309.
     let pinned = adapter.pinned_env_keys();
-    let env_ok = !pinned.is_empty()
-        && adapter
-            .launch_spec(
-                &account,
-                &Profile {
-                    id: ProfileId::new("check"),
-                    name: "check".into(),
-                    account: account.id.clone(),
-                    settings_overlay: SettingsOverlay::default(),
-                    default_cwd: None,
-                },
-                std::path::Path::new("/"),
-                &juggler_adapter::LaunchMode::Interactive,
-            )
-            .is_ok_and(|spec| {
-                pinned.iter().all(|key| {
-                    spec.env
-                        .get(*key)
-                        .is_some_and(|value| std::path::Path::new(value) == dir)
-                })
-            });
+    let env_ok = launch_env_pinned(adapter.as_ref(), &account);
     rows.push(IsolationRowInfo {
         id: "launch_env_managed_only",
         label: "Launch environment points only at this account's folder".into(),
@@ -2746,6 +2918,42 @@ pub fn isolation_check_impl(
     Ok(rows)
 }
 
+/// Whether an Interactive launch of `account` sets every pinned
+/// variable to what the adapter pins for its folder — the path exactly,
+/// or unset for the vendor's own folder (AJ-E1521: launches, the shell
+/// line and this check read the one `pinned_env` list).
+fn launch_env_pinned(
+    adapter: &juggler_adapter::adapter::ProviderAdapter,
+    account: &Account,
+) -> bool {
+    let pinned = adapter.pinned_env(&account.state_dir);
+    !pinned.is_empty()
+        && adapter
+            .launch_spec(
+                account,
+                &Profile {
+                    id: ProfileId::new("check"),
+                    name: "check".into(),
+                    account: account.id.clone(),
+                    settings_overlay: SettingsOverlay::default(),
+                    default_cwd: None,
+                },
+                std::path::Path::new("/"),
+                &juggler_adapter::LaunchMode::Interactive,
+            )
+            .is_ok_and(|spec| {
+                pinned
+                    .iter()
+                    .all(|(key, expected)| match (spec.env.get(*key), expected) {
+                        (Some(value), None) => value == juggler_adapter::launch::ENV_UNSET,
+                        (Some(value), Some(path)) => {
+                            std::path::Path::new(value) == std::path::Path::new(path)
+                        }
+                        (None, _) => false,
+                    })
+            })
+}
+
 /// ADR-0018: the checklist for an account that uses the user's folder
 /// where it is. "Owner-only" and "marker present" are promises about AI
 /// Juggler's own copies; here the promises are that AI Juggler put
@@ -2781,31 +2989,11 @@ fn in_place_isolation_rows(
     // Every pinned variable is the folder exactly, or — for the vendor's
     // own default folder — unset, as the vendor runs it.
     let pinned = adapter.pinned_env_keys();
-    let expected = adapter.isolation_env_value(&dir);
-    let default_folder = expected.is_none();
-    let env_ok = !pinned.is_empty()
-        && adapter
-            .launch_spec(
-                account,
-                &Profile {
-                    id: ProfileId::new("check"),
-                    name: "check".into(),
-                    account: account.id.clone(),
-                    settings_overlay: SettingsOverlay::default(),
-                    default_cwd: None,
-                },
-                std::path::Path::new("/"),
-                &juggler_adapter::LaunchMode::Interactive,
-            )
-            .is_ok_and(|spec| {
-                pinned
-                    .iter()
-                    .all(|key| match (spec.env.get(*key), &expected) {
-                        (Some(value), None) => value == juggler_adapter::launch::ENV_UNSET,
-                        (Some(value), Some(_)) => std::path::Path::new(value) == dir,
-                        (None, _) => false,
-                    })
-            });
+    let default_folder = adapter
+        .pinned_env(&dir)
+        .iter()
+        .all(|(_, value)| value.is_none());
+    let env_ok = launch_env_pinned(adapter.as_ref(), account);
     let keys = pinned.join(" and ");
     rows.push(IsolationRowInfo {
         id: "launch_env_managed_only",
@@ -2868,9 +3056,8 @@ pub fn source_inspect_impl(
     // Keychain-bound: signed in with NO credentials file (the login
     // cannot move — E303's caveat, surfaced at Confirm-source).
     let keychain_bound = inspect.login == juggler_adapter::environment::LoginProbe::LoggedIn
-        && !std::path::Path::new(source_path)
-            .join(credentials_file_of(harness))
-            .exists();
+        && juggler_adapters::sign_in::metadata(harness, std::path::Path::new(source_path))
+            .is_none();
     Ok(SourceInspectInfo {
         total_bytes: inspect.total_bytes,
         file_count: inspect.file_count,
@@ -3544,6 +3731,17 @@ pub fn launch_profile(
     use juggler_adapter::LaunchMode;
 
     let (profile, account) = find_profile_with_account_arc(state, profile_id)?;
+    // AJ-E1501: a removed account starts nothing (its folder may be in
+    // the Trash, or no longer the user's choice).
+    if lock_storage_arc(state)?
+        .accounts()
+        .is_removed(&account.id)?
+    {
+        return Err(AppError::Refused(format!(
+            "«{}» was removed — add it again to start a session on it",
+            account.label
+        )));
+    }
     // The profile's model goes in as `claude --model` (the adapter's
     // launch spec); settings.json is never rewritten (ADR-0018 §3).
     let adapter = state
@@ -4571,18 +4769,8 @@ fn scan_rollout_line(
                     .as_str()
                     .and_then(chrono_like_ms)
                     .unwrap_or(now),
-                tokens: juggler_core::model::TokenCounts {
-                    // Fresh prompt only (`input_tokens` includes the
-                    // cached history), as Claude's lines count it.
-                    input: usage["input_tokens"]
-                        .as_u64()
-                        .unwrap_or(0)
-                        .saturating_sub(usage["cached_input_tokens"].as_u64().unwrap_or(0)),
-                    output: usage["output_tokens"].as_u64().unwrap_or(0),
-                    cache_read: usage["cached_input_tokens"].as_u64().unwrap_or(0),
-                    cache_write: 0,
-                    reasoning: usage["reasoning_output_tokens"].as_u64().unwrap_or(0),
-                },
+                // Disjoint classes, split as the usage pipeline does.
+                tokens: juggler_adapters::quota_ingest::codex_token_counts(usage),
                 model: model.clone(),
             });
         }
@@ -4628,7 +4816,8 @@ mod rollout_scan_tests {
             "timestamp": "2026-10-20T08:00:00.000Z",
             "type": "token_usage_record",
             "payload": {"thread_id": "t", "turn_id": "1", "response_id": "r",
-                        "usage": {"input_tokens": 100, "cached_input_tokens": 40, "output_tokens": 10}}
+                        "usage": {"input_tokens": 100, "cached_input_tokens": 40, "output_tokens": 10,
+                                  "reasoning_output_tokens": 4, "total_tokens": 110}}
         });
         let mut model = None;
         for _ in 0..3 {
@@ -4640,6 +4829,35 @@ mod rollout_scan_tests {
         );
         assert_eq!(scan.events.len(), 1);
         assert_eq!(scan.events[0].tokens.input, 60);
+    }
+
+    /// P14 (0.0.12 QA): Codex's output includes its reasoning; the scan
+    /// counted the reasoning twice. Every token once: the classes sum to
+    /// Codex's own `total_tokens`.
+    #[test]
+    fn the_quality_scan_counts_each_codex_token_once() {
+        let mut scan = TranscriptScan {
+            events: Vec::new(),
+            errors: 0,
+            turns: 0,
+            context_used: None,
+            context_window: None,
+            rollout_seen: std::collections::BTreeSet::new(),
+        };
+        let row: serde_json::Value = serde_json::json!({
+            "timestamp": "2026-10-20T08:00:00.000Z",
+            "type": "token_usage_record",
+            "payload": {"thread_id": "t", "turn_id": "1", "response_id": "r",
+                        "usage": {"input_tokens": 100, "cached_input_tokens": 40, "output_tokens": 10,
+                                  "reasoning_output_tokens": 4, "total_tokens": 110}}
+        });
+        scan_rollout_line(&row, &row["payload"], &mut None, &mut scan, 0);
+        let tokens = &scan.events[0].tokens;
+        assert_eq!((tokens.output, tokens.reasoning), (6, 4));
+        assert_eq!(
+            tokens.input + tokens.cache_read + tokens.output + tokens.reasoning,
+            110
+        );
     }
 }
 
@@ -4961,6 +5179,7 @@ fn account_info_of(registry: &juggler_adapter::AdapterRegistry, account: &Accoun
         import_origin: account.import_origin.clone(),
         imported_at: account.imported_at,
         in_place: account.in_place,
+        is_default: None,
     }
 }
 
@@ -5188,15 +5407,19 @@ type RecipeIndex = std::collections::BTreeMap<String, (String, String, Option<St
 ///
 /// Returns the typed [`AppError`] message on storage failures.
 fn session_join_indexes(storage: &Storage) -> AppResult<(AccountIndex, RecipeIndex)> {
+    // AJ-E1501: a removed account's sessions keep its name, marked.
+    let removed = storage.accounts().removed_ids()?;
     let account_index: AccountIndex = storage
         .accounts()
-        .list()?
+        .list_all()?
         .into_iter()
         .map(|account| {
-            (
-                account.id.to_string(),
-                (account.label, account.harness.to_string()),
-            )
+            let label = if removed.contains(account.id.as_str()) {
+                format!("{} (removed account)", account.label)
+            } else {
+                account.label
+            };
+            (account.id.to_string(), (label, account.harness.to_string()))
         })
         .collect();
     let mut recipe_index: RecipeIndex = std::collections::BTreeMap::new();
@@ -7297,6 +7520,7 @@ pub fn projects_list_impl(state: &Arc<AppState>) -> AppResult<Vec<ProjectInfo>> 
                 history_last_used_ms: project.history.last_used_ms,
                 repo: None,
                 missing: !project.root.exists(),
+                default_account_id: project.default_account.map(|id| id.to_string()),
             }
         })
         .collect();
@@ -13995,7 +14219,7 @@ type ScanWalk = (
     Vec<juggler_adapter::environment::DiscoveredInstall>,
     Vec<juggler_adapter::environment::AliasHint>,
     Vec<juggler_adapter::environment::ManagerHint>,
-    Vec<(String, bool)>,
+    Vec<(String, &'static str)>,
 );
 
 fn scan_walk(state: &Arc<AppState>) -> ScanWalk {
@@ -14019,8 +14243,15 @@ fn scan_walk(state: &Arc<AppState>) -> ScanWalk {
                         installs = adapter.scan_environment();
                         aliases = adapter.scan_shell_aliases();
                         manager_hints = adapter.scan_managers();
-                        discovery =
-                            Some((adapter.id().to_string(), adapter.discover().is_installed()));
+                        let report = adapter.discover();
+                        let words = if report.is_installed() {
+                            "installed"
+                        } else if report.is_found() {
+                            "found; couldn't check its version"
+                        } else {
+                            "missing"
+                        };
+                        discovery = Some((adapter.id().to_string(), words));
                     }
                     (installs, aliases, manager_hints, discovery)
                 })
@@ -14042,10 +14273,8 @@ fn scan_walk(state: &Arc<AppState>) -> ScanWalk {
 
 /// The wire form of one discovered install.
 fn discovered_info_of(found: juggler_adapter::environment::DiscoveredInstall) -> DiscoveredInfo {
-    let credentials_len =
-        std::fs::metadata(found.path.join(credentials_file_of(found.harness.as_str())))
-            .ok()
-            .map(|meta| meta.len());
+    let credentials_len = juggler_adapters::sign_in::metadata(found.harness.as_str(), &found.path)
+        .map(|meta| meta.len());
     let now_secs = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|span| span.as_secs())
@@ -14109,16 +14338,6 @@ fn inference_info_of(
     }
 }
 
-/// The file a Provider keeps its sign-in in when it is file-based (its
-/// absence while signed in means the sign-in lives in the Keychain and
-/// cannot move with a copy). Size metadata only — never read.
-fn credentials_file_of(provider: &str) -> &'static str {
-    match provider {
-        juggler_adapters::CODEX_ID => "auth.json",
-        _ => ".credentials.json",
-    }
-}
-
 /// The Provider whose state dir a shell variable points at (S5).
 fn provider_of_variable(variable: &str) -> &'static str {
     match variable {
@@ -14158,9 +14377,8 @@ pub fn alias_installs_of(
             continue;
         }
         let harness = provider_of_variable(&hint.variable);
-        let credentials_len = std::fs::metadata(hint.path.join(credentials_file_of(harness)))
-            .ok()
-            .map(|meta| meta.len());
+        let credentials_len =
+            juggler_adapters::sign_in::metadata(harness, &hint.path).map(|meta| meta.len());
         out.push(DiscoveredInfo {
             inference: inference_info_of(&hint.path, None, false, credentials_len, None, false),
             signals: vec!["shell-alias".to_owned()],
@@ -14196,7 +14414,7 @@ fn scan_probe_rows(
     dangling: u32,
     managers: &[juggler_adapter::environment::ManagerHint],
     cc_health: juggler_adapter::environment::ScanHealth,
-    discoveries: &[(String, bool)],
+    discoveries: &[(String, &'static str)],
     seeds: &[String],
     desktop_apps: &[String],
     cancelled: bool,
@@ -14252,9 +14470,7 @@ fn scan_probe_rows(
             juggler_adapter::environment::ScanHealth::Ok,
             discoveries
                 .iter()
-                .map(|(id, installed)| {
-                    format!("{id}: {}", if *installed { "installed" } else { "missing" })
-                })
+                .map(|(id, words)| format!("{id}: {words}"))
                 .collect::<Vec<_>>()
                 .join(", "),
         ),

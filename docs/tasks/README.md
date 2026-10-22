@@ -15,7 +15,7 @@
    decisions D-01..D-25. Do not re-litigate them; supersede only via a
    new recorded decision.
 3. [TASK-CATALOG.md](TASK-CATALOG.md) — every task ID, epic, priority.
-4. The epic file for the task you claim (E1-E15 below).
+4. The epic file for the task you claim (E1-E20 below).
 5. Source research cited inside that task (pass2/deep reports, SPEC,
    code at the cited lines) — read before editing anything.
 
@@ -38,6 +38,11 @@
 | [E13-codex-adapter.md](E13-codex-adapter.md) | Codex, the second Provider | AJ-E1301-E1306 |
 | [E14-machine-health.md](E14-machine-health.md) | Machine health and resource monitoring | AJ-E1401-E1410 |
 | [E15-spec-gaps.md](E15-spec-gaps.md) | Spec gaps: what the specs promised and no task covered | AJ-E1501-E1523 |
+| [E16-more-tools.md](E16-more-tools.md) | More tools: OpenCode, Kimi, Grok, ZCode, Kiro, Hermes, Muse, Cursor, desktop apps | AJ-E1601-E1613 |
+| [E17-agent-pools.md](E17-agent-pools.md) | Agent pools and the agent bridge | AJ-E1701-E1704 |
+| [E18-agent-messaging.md](E18-agent-messaging.md) | Messaging between agents | AJ-E1801-E1805 |
+| [E19-agent-tasks.md](E19-agent-tasks.md) | Task management shared by pools | AJ-E1901-E1906 |
+| [E20-engineering-and-security.md](E20-engineering-and-security.md) | Engineering and security foundations | AJ-E2001-E2019 |
 | [CRITIC-CHECKS.md](CRITIC-CHECKS.md) | Cross-epic audit of this system | — |
 
 ## Task format (every task, no exceptions)

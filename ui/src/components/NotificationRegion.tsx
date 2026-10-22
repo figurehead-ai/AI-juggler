@@ -26,7 +26,7 @@ import {
   type UpdateStatusInfo,
 } from "../lib/bridge";
 import { ChannelChip, updateErrorText } from "./UpdatesCard";
-import { alertSubject, keptNotices, machineAlertsTake, ThisMacContext, type MachineNotice } from "../lib/machine";
+import { alertWords, keptNotices, machineAlertsTake, ThisMacContext, type MachineNotice } from "../lib/machine";
 
 /** AJ-E1103: an alert kind as the schema names it. */
 function alertKind(kind: string): string {
@@ -49,10 +49,14 @@ function publishMachineNotices(next: MachineNotice[]): void {
 export function NotificationRegion({
   onQueueResume,
   onOpenRemote,
+  hideMachineAlerts = false,
 }: {
   onQueueResume?: (row: ResetQueueRow) => void;
   /** AJ-E709: open the machine a Fleet alert came from. */
   onOpenRemote?: (machineId: string) => void;
+  /** Home shows the Mac's alerts once, in Needs you: the banner keeps
+   * them for the other screens (the 0.0.12 report). */
+  hideMachineAlerts?: boolean;
 }): JSX.Element {
   const [events, setEvents] = useState<AlertEventData[]>([]);
   const [queue, setQueue] = useState<ResetQueueRow[]>([]);
@@ -184,7 +188,7 @@ export function NotificationRegion({
                   key: `${alert.key}-${alert.since_ms}`,
                   alertKey: alert.key,
                   kind: alert.kind,
-                  text: [`${alert.title} — ${alert.detail}`, alertSubject(alert, nameOf)].filter(Boolean).join(". "),
+                  text: (({ title, detail }) => `${title} — ${detail}`)(alertWords([alert], nameOf)!),
                   toldAt,
                 })),
                 ...machineNotices,
@@ -236,7 +240,7 @@ export function NotificationRegion({
           {event.text}
         </p>
       ))}
-      {machineAlerts.map((alert) => (
+      {!hideMachineAlerts && machineAlerts.map((alert) => (
         <p
           key={alert.key}
           data-testid="machine-alert"

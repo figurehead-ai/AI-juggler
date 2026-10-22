@@ -32,7 +32,8 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { Button } from "../components/primitives";
-import { inPlaceProviders, ownSignIn, providerDisplayName, sameAsWords, supportsInPlace, type InPlaceSupport } from "../lib/providers";
+import { inPlaceProviders, ownSignIn, providerDisplayName, sameAsWords, supportsInPlace, toolFound, versionUnchecked, type InPlaceSupport } from "../lib/providers";
+import { accessCard, reopenApp, watchAccess, type AccessAction } from "../lib/osAccess";
 import { funnelEvent, funnelStep, reasonCode } from "../lib/funnel";
 import {
   accountImport,
@@ -54,6 +55,7 @@ import {
   terminalSpawnLogin,
   type DiscoveredInfo,
   type OsAccessInfo,
+  type ReopenBlockInfo,
   type SourceInspectInfo,
   type ProviderInstallData,
   type ScanReportData,
@@ -79,6 +81,12 @@ const GROUPS: { id: Group; title: string }[] = [
   { id: "other", title: "Other Claude setups" },
   { id: "codex", title: "Codex" },
 ];
+
+/** A group's tool, in its header: its version, or — found but its
+ * version couldn't be read (0.0.11) — that, never "not installed". */
+function cliWords(name: string, row: ProviderInstallData): string {
+  return versionUnchecked(row) ? `${name} found; couldn't check its version` : `${name} ${row.version ?? ""} installed`;
+}
 
 /** The tools first run on a fresh install brings in (AJ-E1301). */
 const FIRST_RUN_TOOLS = ["claude-code", "codex"];
@@ -492,11 +500,11 @@ function FoundStep({
                   <span className="font-semibold text-ink">
                     {groupTitle(group.id, toolName, provider)} <span className="font-normal text-faint">· {rows.length}</span>
                   </span>
-                  {group.id === "default" && cli && cli.status !== "not_installed" && (
-                    <span className="text-faint">{toolName} {cli.version ?? ""} installed</span>
+                  {group.id === "default" && cli && toolFound(cli) && (
+                    <span className="text-faint" data-testid="first-run-cli-default">{cliWords(toolName, cli)}</span>
                   )}
-                  {group.id === "codex" && codexRow && codexRow.status !== "not_installed" && (
-                    <span className="text-faint">Codex {codexRow.version ?? ""} installed</span>
+                  {group.id === "codex" && codexRow && toolFound(codexRow) && (
+                    <span className="text-faint" data-testid="first-run-cli-codex">{cliWords("Codex", codexRow)}</span>
                   )}
                 </div>
                 {rows.map((found) => {
@@ -927,6 +935,8 @@ function SigninStep({
   );
 }
 
+/** First run's Computer access step: wiring for `lib/osAccess` (the
+ * cards' logic, the re-check when the window is back, Reopen). */
 function AccessStep({
   entries,
   setEntries,
@@ -937,17 +947,16 @@ function AccessStep({
   onDone: () => void;
 }): JSX.Element {
   const [error, setError] = useState<string | null>(null);
-  // Polled while open: an entry flips the moment the system dialog says yes.
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      void osAccessList().then(setEntries, () => null);
-    }, 1500);
-    return () => window.clearInterval(timer);
-  }, [setEntries]);
-  const allow = (entry: OsAccessInfo) => {
+  // Why a Reopen has to be confirmed or wait, under the card that asked.
+  const [reopenBlock, setReopenBlock] = useState<ReopenBlockInfo | null>(null);
+  useEffect(() => watchAccess(() => void osAccessList().then(setEntries, () => null)), [setEntries]);
+  const act = (entry: OsAccessInfo, action: AccessAction, anyway = false) => {
     setError(null);
-    const step =
-      entry.action === "settings" ? osAccessOpenSettings(entry.id).then(() => osAccessList()) : osAccessRequest(entry.id);
+    if (action === "reopen") {
+      void reopenApp(anyway).then(setReopenBlock, (cause) => setError(errorText(cause)));
+      return;
+    }
+    const step = action === "settings" ? osAccessOpenSettings(entry.id).then(() => osAccessList()) : osAccessRequest(entry.id);
     void step.then(setEntries, (cause) => setError(errorText(cause)));
   };
   const allAllowed = entries.every((entry) => entry.status === "allowed");
@@ -966,35 +975,69 @@ function AccessStep({
         </p>
       </div>
       <ul className="flex flex-col gap-3">
-        {entries.map((entry) => (
-          <li
-            key={entry.id}
-            className={
-              "flex flex-wrap items-center gap-4 rounded-2xl border bg-surface p-5 " +
-              (entry.status === "allowed" ? "border-success/40" : "border-hairline")
-            }
-            data-testid={`first-run-access-${entry.id}`}
-          >
-            <div className="flex min-w-0 flex-1 flex-col gap-1">
-              <span className="text-[15px] font-semibold text-ink">{entry.title}</span>
-              <span className="text-sm leading-relaxed text-muted">
-                {entry.why} <span className="text-faint">The system calls this {entry.system_name}.</span>
-              </span>
-              {entry.note && entry.status !== "allowed" && <span className="text-xs text-faint">{entry.note}</span>}
-            </div>
-            {entry.status === "allowed" ? (
-              <span className="flex items-center gap-1.5 text-sm font-medium text-success" role="status">
-                <Check />
-                Allowed
-              </span>
-            ) : (
-              <Button variant={entry.action === "settings" ? "secondary" : "primary"} onClick={() => allow(entry)}>
-                {entry.action === "settings" ? "Open System Settings" : "Allow"}{" "}
-                <span className="sr-only">{entry.title}</span>
-              </Button>
-            )}
-          </li>
-        ))}
+        {entries.map((entry) => {
+          const card = accessCard(entry);
+          return (
+            <li
+              key={entry.id}
+              className={
+                "flex flex-wrap items-center gap-4 rounded-2xl border bg-surface p-5 " +
+                (card.state === "allowed" ? "border-success/40" : "border-hairline")
+              }
+              data-testid={`first-run-access-${entry.id}`}
+            >
+              <div className="flex min-w-0 flex-1 flex-col gap-1">
+                <span className="text-[15px] font-semibold text-ink">{entry.title}</span>
+                <span className="text-sm leading-relaxed text-muted">
+                  {entry.why} <span className="text-faint">The system calls this {entry.system_name}.</span>
+                </span>
+                {card.note && <span className={card.noteLeads ? "text-sm text-ink" : "text-xs text-faint"}>{card.note}</span>}
+                {card.state === "reopen" && reopenBlock && (
+                  <div className="mt-2 flex flex-wrap items-center gap-3 text-sm" role="alert" data-testid="first-run-access-reopen-block">
+                    <span className="text-ink">{reopenBlock.reason}</span>
+                    {reopenBlock.can_reopen_anyway && (
+                      <Button size="sm" variant="secondary" onClick={() => act(entry, "reopen", true)}>
+                        Reopen anyway
+                      </Button>
+                    )}
+                    <button type="button" className="text-sm text-muted hover:text-ink hover:underline" onClick={() => setReopenBlock(null)}>
+                      Not now
+                    </button>
+                  </div>
+                )}
+              </div>
+              {card.state === "allowed" ? (
+                <span className="flex items-center gap-1.5 text-sm font-medium text-success" role="status">
+                  <Check />
+                  Allowed
+                </span>
+              ) : (
+                <div className="flex flex-wrap items-center gap-2">
+                  {card.secondary && (
+                    <Button variant="secondary" onClick={() => act(entry, card.secondary!.action)}>
+                      {card.secondary.label} <span className="sr-only">{entry.title}</span>
+                    </Button>
+                  )}
+                  {card.primary && (
+                    <Button
+                      variant={card.primary.action === "settings" ? "secondary" : "primary"}
+                      onClick={() => act(entry, card.primary!.action)}
+                      data-testid={card.primary.action === "reopen" ? "first-run-access-reopen" : undefined}
+                    >
+                      {card.primary.label}
+                      {card.primary.action !== "reopen" && (
+                        <>
+                          {" "}
+                          <span className="sr-only">{entry.title}</span>
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
+              )}
+            </li>
+          );
+        })}
       </ul>
       {error && (
         <p className="text-xs text-danger" role="alert">
@@ -1311,6 +1354,7 @@ export function FirstRun({
   onAccountsChanged,
   mode = "first-run",
   provider,
+  resumeAtAccess = false,
 }: {
   /** First run is over: Home. */
   onDone: () => void;
@@ -1324,8 +1368,10 @@ export function FirstRun({
   /** An account was created or brought in (the caller refreshes). */
   onAccountsChanged?: () => void;
   openLoginTerminal: (id: string, title: string) => void;
+  /** Back after Reopen AI Juggler: start at the access step. */
+  resumeAtAccess?: boolean;
 }): JSX.Element {
-  const [step, setStep] = useState<Step>("found");
+  const [step, setStep] = useState<Step>(resumeAtAccess ? "access" : "found");
   const [folder, setFolder] = useState<string | null>(null);
   const [taken, setTaken] = useState<string[] | null>(null);
   // AJ-E1301: adding names its tool; first run on a fresh install brings

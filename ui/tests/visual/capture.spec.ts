@@ -3481,6 +3481,38 @@ for (const theme of THEMES) {
       });
     });
 
+    // The 0.0.11 report: Codex found, its version check failed (opened
+    // from Finder, its `node` wasn't on the app's PATH) — still a choice.
+    test(`flow c — provider cards, a found tool whose version check failed — ${vp.name} — ${theme}`, async ({ page }) => {
+      const installs = E306_INSTALLS.map((row) =>
+        row.provider === "codex" ? { ...row, status: "probe_failed", version: null } : row,
+      );
+      await page.addInitScript(
+        ({ fixture, installs: rows, theme: t }) => {
+          const w = window as unknown as Record<string, unknown>;
+          w.__AIJ_FIXTURE__ = fixture;
+          w.__AIJ_PROVIDER_INSTALLS__ = rows;
+          localStorage.setItem("aij.theme", t);
+          localStorage.setItem("aij.onboarding.dismissed", "1");
+          sessionStorage.setItem("aij.ready.skipped", "1");
+        },
+        { fixture: honestEmpty, installs, theme },
+      );
+      await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme as "dark" | "light" });
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      await page.goto("/");
+      await goTo(page, "Accounts");
+      await page.getByTestId("add-account").click();
+      const cards = page.getByTestId("provider-cards");
+      const codex = cards.getByTestId("provider-card").filter({ hasText: "Codex" });
+      await expect(codex.getByTestId("provider-state")).toHaveText("Found; couldn't check its version");
+      await expect(codex.getByTestId("provider-choose")).toBeVisible();
+      await page.screenshot({
+        path: resolve(GALLERY, `38-flows-cde/c-provider-cards-unchecked-${vp.name}-${theme}.png`),
+        fullPage: true,
+      });
+    });
+
     test(`flow e — launch sheet: verdicts + logged-out + unknown — ${vp.name} — ${theme}`, async ({
       page,
     }) => {
@@ -3547,9 +3579,10 @@ for (const theme of THEMES) {
         .getByRole("button", { name: "Customise ▸" })
         .click();
       await expect(page.getByTestId("sign-in-first")).toBeVisible();
-      await expect(page.getByTestId("launch-sheet-accounts")).toContainText(
-        "Room left unknown",
-      );
+      // Unknown room reads in the one runway's words; no verdict chip
+      // beside it (QA P26b: one claim per row).
+      await expect(page.getByTestId("launch-sheet-accounts")).toContainText("Not measured yet");
+      await expect(page.getByTestId("launch-sheet-accounts")).not.toContainText("Room left unknown");
       await page.screenshot({
         path: resolve(GALLERY, `38-flows-cde/e-launch-expanded-${vp.name}-${theme}.png`),
         fullPage: true,

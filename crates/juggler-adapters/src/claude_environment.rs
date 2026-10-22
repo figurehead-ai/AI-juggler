@@ -28,7 +28,7 @@ const SKIP_ON_IMPORT: &[&str] = &[
 /// Top-level names that make a directory look like a real Claude config —
 /// a bare `.claude-something` dir with none of these is noise, not a setup.
 const CONFIG_EVIDENCE: &[&str] = &[
-    ".credentials.json",
+    crate::sign_in::CLAUDE_CREDENTIALS,
     "settings.json",
     "settings.local.json",
     ".claude.json",
@@ -110,12 +110,17 @@ pub(crate) const CLAUDE_LAYOUT: Layout = Layout {
     skip_suffixes: &[],
     top_level_skips_only: false,
     estimate_depth: 2,
-    kept_back: &[],
+    // AJ-E1521: a sign-in is never copied. Two folders holding one
+    // OAuth refresh token sign each other out when either renews it.
+    kept_back: &[(
+        crate::sign_in::CLAUDE_CREDENTIALS,
+        "your sign-in — it stays with the original; this account signs in once",
+    )],
     config_evidence: CONFIG_EVIDENCE,
     history: HISTORY_DIRS,
-    private_files: &[".credentials.json"],
+    private_files: &[crate::sign_in::CLAUDE_CREDENTIALS],
     not_a_config: "this folder does not look like a Claude Code configuration (no settings, credentials, or session history found)",
-    login_stays_note: "Your Claude login lives in the macOS Keychain, locked to the original folder — it can't (and shouldn't) be moved. Sign in once inside the imported account; it takes a few seconds.",
+    login_stays_note: "Your Claude sign-in stays with the original folder: the macOS Keychain locks it to that folder, and a copied sign-in file would sign one of the two out. Sign in once inside the imported account; it takes a few seconds.",
     login_moves_note: "Login carried over with the import.",
 };
 
