@@ -2,19 +2,22 @@
 import type { ToolTotalsInfo } from "./ToolTotalsInfo";
 
 /**
- * One AI tool's share of This Mac (the menu bar, AJ-E1411).
+ * One AI tool's share of This Mac.
  */
 export type ToolGroupInfo = { 
 /**
- * `claude-code`, `codex`, … for sessions AI Juggler started;
- * `desktop` | `terminal` for the Claude tools it didn't.
+ * The Provider's id for sessions AI Juggler started; the place
+ * (`desktop` | `terminal`) for the tools it didn't.
  */
 tool: string, 
 /**
- * The tool in words ("Claude Code", "Claude app", "claude in a
- * terminal").
+ * The tool in words ("Claude Code", "Claude app").
  */
 label: string, 
+/**
+ * How many, in words ("2 sessions", "3 windows").
+ */
+count_words: string, 
 /**
  * Whether these are sessions AI Juggler started.
  */

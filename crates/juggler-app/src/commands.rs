@@ -13447,14 +13447,9 @@ pub fn validation_dogfood_record_impl(
 // from the adapters' own `discover()`, probed in PARALLEL off the UI
 // thread; a missing binary is caught before any account is created.
 
-/// A Provider's name in words ("Claude Code", "Codex").
-pub(crate) fn provider_name(provider: &str) -> String {
-    provider_display(provider).0
-}
-
 /// Vendor display metadata for one Provider (names + install pages;
 /// no binary knowledge — that is `discover()`'s job).
-fn provider_display(provider: &str) -> (String, &'static str) {
+pub(crate) fn provider_display(provider: &str) -> (String, &'static str) {
     let name = match provider {
         "claude-code" => "Claude Code".to_owned(),
         "codex" => "Codex".to_owned(),

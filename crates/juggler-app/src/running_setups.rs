@@ -83,6 +83,41 @@ pub struct RunningTool {
     pub start_time: Option<i64>,
 }
 
+/// How a running tool's place is said: its name ("Claude app"), how an
+/// alert names it as a whole ("The Claude app"), and its count ("2
+/// windows"). The one place these words live; This Mac, its alerts and
+/// the menu bar read them from the read model, never spell them.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PlaceWords {
+    /// The tool's name ("Claude app", "claude in a terminal").
+    pub name: &'static str,
+    /// The tool as a whole, at the start of a sentence ("The Claude app").
+    pub subject: &'static str,
+    /// One of it ("window").
+    pub one: &'static str,
+    /// Several ("windows").
+    pub many: &'static str,
+}
+
+/// Pure: the words for a place (`desktop` | `terminal`).
+#[must_use]
+pub fn place_words(place: &str) -> PlaceWords {
+    match place {
+        "desktop" => PlaceWords {
+            name: "Claude app",
+            subject: "The Claude app",
+            one: "window",
+            many: "windows",
+        },
+        _ => PlaceWords {
+            name: "claude in a terminal",
+            subject: "claude in a terminal",
+            one: "running",
+            many: "running",
+        },
+    }
+}
+
 /// Pure: the running Claude tools, one per tree. A `claude` started by
 /// another `claude` (or inside the desktop app) is part of that tree,
 /// never a second root.

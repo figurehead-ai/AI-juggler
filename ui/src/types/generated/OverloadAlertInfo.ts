@@ -30,6 +30,11 @@ session_id: string | null,
  */
 place: string | null, 
 /**
+ * That tool as a whole, in words ("The Claude app"); `None` for a
+ * session (the UI names it as the rail does).
+ */
+subject_name: string | null, 
+/**
  * The contributor's memory, bytes — only when memory is what's high.
  */
 subject_bytes: number | null, 

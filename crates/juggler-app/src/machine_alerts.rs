@@ -33,6 +33,9 @@ pub struct OverloadAlertInfo {
     pub session_id: Option<String>,
     /// … or a tool AI Juggler didn't start (`desktop` | `terminal`).
     pub place: Option<String>,
+    /// That tool as a whole, in words ("The Claude app"); `None` for a
+    /// session (the UI names it as the rail does).
+    pub subject_name: Option<String>,
     /// The contributor's memory, bytes — only when memory is what's high.
     #[ts(type = "number | null")]
     pub subject_bytes: Option<u64>,
@@ -393,6 +396,16 @@ impl AlertEngine {
                     .as_ref()
                     .and_then(|s| s.session_id.clone()),
                 place: condition.subject.as_ref().and_then(|s| s.place.clone()),
+                subject_name: condition
+                    .subject
+                    .as_ref()
+                    .filter(|s| s.session_id.is_none())
+                    .and_then(|s| s.place.as_deref())
+                    .map(|place| {
+                        crate::running_setups::place_words(place)
+                            .subject
+                            .to_string()
+                    }),
                 subject_bytes: condition
                     .subject
                     .as_ref()
@@ -454,9 +467,10 @@ mod tests {
     #![allow(clippy::unwrap_used)]
 
     use super::*;
+    use crate::machine_groups::ToolGroupInfo;
     use crate::machine_health::{
-        MachineHealthInfo, MachinePointInfo, RoomReasonInfo, RoomSummaryInfo, ToolGroupInfo,
-        ToolTotalsInfo, VolumeInfo,
+        MachineHealthInfo, MachinePointInfo, RoomReasonInfo, RoomSummaryInfo, ToolTotalsInfo,
+        VolumeInfo,
     };
 
     /// The Claude app as a whole: its line in This Mac and the menu bar.
@@ -464,6 +478,7 @@ mod tests {
         ToolGroupInfo {
             tool: "desktop".into(),
             label: "Claude app".into(),
+            count_words: format!("{windows} windows"),
             ours: false,
             totals: ToolTotalsInfo {
                 count: windows,
@@ -601,6 +616,7 @@ mod tests {
         let told = run(&mut AlertEngine::default(), &mac, 0, 60);
         assert_eq!(told.len(), 1);
         assert_eq!(told[0].place.as_deref(), Some("desktop"));
+        assert_eq!(told[0].subject_name.as_deref(), Some("The Claude app"));
         assert_eq!(told[0].subject_bytes, Some(12 * G));
         assert!(told[0].subject_estimate);
     }

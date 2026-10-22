@@ -889,7 +889,7 @@ pub struct ThisMacInfo {
     /// Each AI tool on its own (the menu bar's per-tool lines): our
     /// sessions by Provider, heaviest first, then the Claude app, then
     /// `claude` in a terminal. Only tools that are running.
-    pub by_tool: Vec<ToolGroupInfo>,
+    pub by_tool: Vec<crate::machine_groups::ToolGroupInfo>,
     /// The heaviest trees by memory, at most three.
     pub top: Vec<ToolTreeInfo>,
     /// Every heavy tree (the rail's notes, Home's Needs you).
@@ -903,26 +903,6 @@ pub struct ThisMacInfo {
     /// Advice from this Mac's own history (AJ-E1409); empty until there
     /// is enough of it.
     pub recommendations: Vec<String>,
-}
-
-/// One AI tool's share of This Mac (the menu bar, AJ-E1411).
-#[derive(Clone, PartialEq, Debug, serde::Serialize, ts_rs::TS)]
-#[ts(export, export_to = "../../../ui/src/types/generated/")]
-pub struct ToolGroupInfo {
-    /// `claude-code`, `codex`, … for sessions AI Juggler started;
-    /// `desktop` | `terminal` for the Claude tools it didn't.
-    pub tool: String,
-    /// The tool in words ("Claude Code", "Claude app", "claude in a
-    /// terminal").
-    pub label: String,
-    /// Whether these are sessions AI Juggler started.
-    pub ours: bool,
-    /// The tool's figures, as [`ToolTotalsInfo`].
-    pub totals: ToolTotalsInfo,
-    /// CPU as Home's rows count it: the tool's trees summed, 100% is one
-    /// core busy (Activity Monitor's measure). `None` until every tree
-    /// is measured.
-    pub cpu_one_core_pct: Option<f64>,
 }
 
 /// One tree, as the pure assembly sees it.
@@ -1039,7 +1019,7 @@ fn tree_info(tree: &TreeInput) -> ToolTreeInfo {
 }
 
 #[allow(clippy::cast_precision_loss)] // shares for display
-fn totals(trees: &[&TreeInput], cores: u32) -> ToolTotalsInfo {
+pub(crate) fn totals(trees: &[&TreeInput], cores: u32) -> ToolTotalsInfo {
     let measured: Vec<f64> = trees.iter().filter_map(|tree| tree.stats.cpu_pct).collect();
     ToolTotalsInfo {
         count: u32::try_from(trees.len()).unwrap_or(u32::MAX),
@@ -1049,63 +1029,6 @@ fn totals(trees: &[&TreeInput], cores: u32) -> ToolTotalsInfo {
             .or_else(|| trees.is_empty().then_some(0.0)),
         rss_bytes: trees.iter().map(|tree| tree.stats.rss_bytes).sum(),
     }
-}
-
-/// CPU summed over trees as Home's rows count it (100% is one core);
-/// `None` while any tree is unmeasured.
-fn one_core(trees: &[&TreeInput]) -> Option<f64> {
-    trees
-        .iter()
-        .map(|tree| tree.stats.cpu_pct)
-        .sum::<Option<f64>>()
-}
-
-/// Each AI tool on its own: our sessions grouped by Provider (heaviest
-/// first), then the Claude app, then `claude` in a terminal.
-fn by_tool(ours: &[&TreeInput], theirs: &[&TreeInput], cores: u32) -> Vec<ToolGroupInfo> {
-    let mut providers: std::collections::BTreeMap<String, Vec<&TreeInput>> =
-        std::collections::BTreeMap::new();
-    for tree in ours {
-        providers
-            .entry(
-                tree.provider
-                    .clone()
-                    .unwrap_or_else(|| "claude-code".to_string()),
-            )
-            .or_default()
-            .push(tree);
-    }
-    let mut groups: Vec<ToolGroupInfo> = providers
-        .into_iter()
-        .map(|(provider, trees)| ToolGroupInfo {
-            label: crate::commands::provider_name(&provider),
-            tool: provider,
-            ours: true,
-            totals: totals(&trees, cores),
-            cpu_one_core_pct: one_core(&trees),
-        })
-        .collect();
-    groups.sort_by_key(|group| std::cmp::Reverse(group.totals.rss_bytes));
-    for (place, label) in [
-        ("desktop", "Claude app"),
-        ("terminal", "claude in a terminal"),
-    ] {
-        let trees: Vec<&TreeInput> = theirs
-            .iter()
-            .copied()
-            .filter(|tree| tree.place == Some(place))
-            .collect();
-        if !trees.is_empty() {
-            groups.push(ToolGroupInfo {
-                tool: place.to_string(),
-                label: label.to_string(),
-                ours: false,
-                totals: totals(&trees, cores),
-                cpu_one_core_pct: one_core(&trees),
-            });
-        }
-    }
-    groups
 }
 
 /// Pure: This Mac from its parts (AJ-E1403 Req.1–2).
@@ -1125,7 +1048,7 @@ pub fn assemble(
         tools: totals(&all, cores),
         ours: totals(&ours, cores),
         theirs: totals(&theirs, cores),
-        by_tool: by_tool(&ours, &theirs, cores),
+        by_tool: crate::machine_groups::by_tool(&ours, &theirs, cores),
         top: by_memory
             .iter()
             .take(3)

@@ -12,6 +12,7 @@
         "subject_bytes": 12000000000,
         "subject_cpu": null,
         "subject_estimate": true,
+        "subject_name": "The Claude app",
         "title": "Your Mac is under memory pressure"
       },
       {
@@ -24,11 +25,13 @@
         "subject_bytes": null,
         "subject_cpu": 96.0,
         "subject_estimate": false,
+        "subject_name": null,
         "title": "A session is working your Mac hard"
       }
     ],
     "by_tool": [
       {
+        "count_words": "1 session",
         "cpu_one_core_pct": 96.0,
         "label": "Claude Code",
         "ours": true,
@@ -41,6 +44,7 @@
         }
       },
       {
+        "count_words": "2 windows",
         "cpu_one_core_pct": 14.0,
         "label": "Claude app",
         "ours": false,
@@ -53,6 +57,7 @@
         }
       },
       {
+        "count_words": "1 running",
         "cpu_one_core_pct": null,
         "label": "claude in a terminal",
         "ours": false,

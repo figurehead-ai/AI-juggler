@@ -27,6 +27,7 @@ pub mod identity;
 pub mod lifecycle;
 pub mod link;
 pub mod machine_alerts;
+pub mod machine_groups;
 pub mod machine_health;
 pub mod newer_data;
 pub mod os_access;
@@ -61,6 +62,9 @@ pub const EVENT_SESSIONS_UPDATED: &str = "session://updated";
 pub const EVENT_SESSIONS_RESOURCES: &str = "session://resources";
 /// This Mac (AJ-E1403) on the 5 s resource cadence.
 pub const EVENT_THIS_MAC: &str = "machine://this-mac";
+/// AJ-E1411: a click in the menu bar asks the window to open This Mac
+/// or a session (`{ target, session_id? }`).
+pub const EVENT_TRAY_OPEN: &str = "tray://open";
 
 /// Name of the 30 s quota tick (I-05 deltas, AJ-E401): one coalesced
 /// payload per tick; per-Instance `quota` stays `null` until a feed
@@ -373,8 +377,8 @@ pub fn run() {
             commands::app_setting_get,
             commands::app_setting_set,
             machine_health::machine_health,
-            tray::menu_bar_get,
-            tray::menu_bar_set,
+            tray::tray_get_shown,
+            tray::tray_set_shown,
             machine_health::this_mac,
             machine_health::machine_advice,
             machine_health::machine_alerts_take,
