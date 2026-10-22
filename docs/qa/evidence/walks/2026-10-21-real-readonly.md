@@ -1392,6 +1392,25 @@ The 1-second poller ran against the oracle's 16 live sessions.
   date the threads, and work out liveness from that. The full text (titles) can come
   later, newest first, or on demand.
 
+## Batch 16 — the first pass, re-checked (`release/0.1` `0811c21b`)
+
+One launch of the Dev build with the bridge, Finder-like, on a copy of batch 15's data.
+The 1-second poller ran against the oracle's 16 live sessions, with a 3-second thread
+sample at 10 s. Snapshot clean: only the live Codex changed.
+
+| | Before (`8293c0f3`) | After (`0811c21b`) |
+|---|---|---|
+| Nothing read until | 72–75 s | 1.4 s (16 conversations already listed) |
+| First live | 72.8–78.1 s | 3.4 s |
+| All 16 live | 95.0–97.3 s | 3.4 s |
+| Conversations listed | 216 at 99 s | 309 at 3.4 s |
+
+- **Fixed.** Large files are listed from their ends first (a quick read of the head and
+  tail), so the list and liveness come at once. Tokens fill in after.
+- **The sample at 10 s**: no thread waits on a mutex. The process tick is in a SQLite
+  commit, the conversation pass is in its second round (whole reads), and the usage
+  pipeline is writing. The earlier This Mac waits don't show.
+
 ## Not walked (blocked by W0, before the bridge)
 
 These need the window:
