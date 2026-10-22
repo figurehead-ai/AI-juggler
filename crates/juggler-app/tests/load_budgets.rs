@@ -427,3 +427,91 @@ fn monitoring_costs_under_one_percent_of_a_core() {
         "our sessions' processes only: {ours} over {between} ticks"
     );
 }
+
+/// P16 (QA): a tree's new processes counted at once. The collector read the
+/// whole process list only every 5th tick, so a build that fanned out under
+/// a session between those scans was missing from its tree for up to 10 s
+/// (one 17.2 GB tree read about 2 GB). The session's shell starts two
+/// children after the warm-up's full scans; the next tick, a targeted one,
+/// already counts them.
+#[test]
+fn a_trees_new_processes_count_at_the_next_tick() {
+    let dir = tempfile::tempdir().unwrap();
+    seed(dir.path());
+    let state = open(dir.path());
+    let session = SessionId::new("s-0");
+    {
+        let storage = state.storage.lock().unwrap();
+        let mut record = storage.sessions().get(&session).unwrap();
+        record.status = SessionStatus::Running;
+        storage.sessions().update(&record).unwrap();
+    }
+    let go = dir.path().join("go");
+    let kids = dir.path().join("kids");
+    let script = format!(
+        "while [ ! -e '{go}' ]; do sleep 0.05; done; \
+         sleep 120 & echo $! >> '{kids}'; sleep 120 & echo $! >> '{kids}'; wait",
+        go = go.display(),
+        kids = kids.display()
+    );
+    state
+        .supervisor
+        .spawn(
+            &session,
+            &LaunchSpec {
+                program: PathBuf::from("/bin/sh"),
+                args: vec!["-c".into(), script],
+                env: EnvMap::new(),
+                cwd: dir.path().to_path_buf(),
+                needs_pty: false,
+            },
+            &juggler_supervisor::tree::SpawnContext {
+                provider: "claude-code".into(),
+                account_id: Some("acc-0".into()),
+                project_id: None,
+                machine: commands::local_machine_id(&state),
+                role: "root",
+            },
+        )
+        .unwrap();
+    // The warm-up's full scans (ticks 1–3) see only the waiting shell.
+    for _ in 0..3 {
+        commands::processes_tick(&state);
+    }
+    std::fs::write(&go, "").unwrap();
+    let started = std::time::Instant::now();
+    let children: Vec<u32> = loop {
+        let text = std::fs::read_to_string(&kids).unwrap_or_default();
+        let pids: Vec<u32> = text
+            .lines()
+            .filter_map(|line| line.trim().parse().ok())
+            .collect();
+        if pids.len() == 2 {
+            break pids;
+        }
+        assert!(
+            started.elapsed() < Duration::from_secs(30),
+            "the children never started"
+        );
+        std::thread::sleep(Duration::from_millis(20));
+    };
+    // Tick 4 is a targeted tick (no full scan until tick 5), and one that
+    // lists the processes (every 2nd tick).
+    commands::processes_tick(&state);
+    let collector = state.resources.lock().unwrap();
+    assert_eq!(collector.work().full_scans, 3, "tick 4 did no full scan");
+    let rows: Vec<u32> = collector
+        .rows(&session)
+        .unwrap()
+        .iter()
+        .map(|row| row.pid)
+        .collect();
+    drop(collector);
+    let _ = state.supervisor.stop(&session, Duration::from_secs(2));
+    for child in &children {
+        assert!(
+            rows.contains(child),
+            "child {child} in the tree at once: {rows:?}"
+        );
+    }
+}
