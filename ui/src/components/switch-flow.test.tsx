@@ -96,6 +96,18 @@ function mount(
 }
 
 describe("AJ-E206 door", () => {
+  it("counts the door it shows once, from the preflight's own answer", async () => {
+    (window as never as { __AIJ_DOOR_COUNTS__?: unknown[] }).__AIJ_DOOR_COUNTS__ = [];
+    const view = mount(WIZARD, vi.fn());
+    await waitFor(() => expect(view.getByTestId("switch-wizard")).toBeTruthy());
+    fireEvent.click(view.getByTestId("switch-continue"));
+    await waitFor(() => expect(view.getByTestId("switch-steps").textContent).toContain("Step 2 of 3"));
+    // Moving through the steps counts nothing more.
+    expect((window as never as { __AIJ_DOOR_COUNTS__: unknown[] }).__AIJ_DOOR_COUNTS__).toEqual([
+      { door: "wizard", steps: ["Target", "What's carried", "Confirm"] },
+    ]);
+  });
+
   it("executes nothing until the user clicks (1-click popover)", async () => {
     (window as never as Seams).__AIJ_SWITCH_EXECUTE_HANG__ = true;
     const onSwitched = vi.fn();
