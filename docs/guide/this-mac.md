@@ -37,9 +37,10 @@ it will do before you confirm. A process AI Juggler can't be sure of has no
 button.
 
 Automatic cleanup is off by default: AI Juggler stops nothing by itself.
-To let it tidy left-behind dev servers, turn on **Tidy left-behind dev
-servers** for an account in Settings › Cleanup. **Pause automatic
-cleanup** stops it for every account until you resume it.
+To let it tidy left-behind dev servers, turn on **Automatically tidy
+left-behind dev servers** on that account's page. Settings › Cleanup sets
+what new accounts start with, and **Pause automatic cleanup** stops it for
+every account until you resume it.
 
 ## Kept awake
 

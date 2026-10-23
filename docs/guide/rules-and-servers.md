@@ -18,7 +18,7 @@ project you only open with Claude Code doesn't need an `AGENTS.md`.
 
 One file is **the master copy**. The others are compared with it. By
 default, the master is the newest file with rules of its own. To pick
-another, choose **Use CLAUDE.md as the master** (or whichever file).
+another, choose the round button beside that file.
 
 Each other file says how it stands:
 
@@ -50,15 +50,17 @@ created is removed by its undo.
 ## MCP servers
 
 Below the rules, the sheet compares the MCP servers of your accounts. Each
-server an account lacks is offered once: **Copy github to Work** (with the
-server and account names).
+server an account lacks is offered once, as a line such as "github for
+Work · from Personal", with a **Copy** button.
 
 - Between accounts of the same tool, the server is copied as it is.
 - Between Claude Code and Codex, it's written in the other tool's form.
   Some can't go across, such as a server whose kind Codex doesn't support,
   and the line says why.
-- A secret never moves. A server that needs one is set up to read it from
-  a named variable, and the line names what stays behind.
+- A secret never moves. A server with a secret in its environment or
+  headers is set up to read it from a named variable, and the line names
+  what stays behind. A server with a secret in its address or arguments
+  can't be copied.
 - Each copy has its own **Undo**, in the sheet and later in Settings ›
   Context packs & secrets.
 

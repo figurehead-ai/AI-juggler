@@ -25,6 +25,21 @@ body:
         What happened: …
     validations:
       required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where in AI Juggler?
+      options:
+        - Finding accounts, or the first run
+        - Sessions, projects or History
+        - Usage and limits
+        - Switching to another account or tool
+        - Rules and MCP servers
+        - Accounts, or copying settings
+        - This Mac, or cleaning up
+        - Keeping work going (restarts, staying awake, opening at login)
+        - Installing or updating
+        - Somewhere else
   - type: input
     id: version
     attributes:

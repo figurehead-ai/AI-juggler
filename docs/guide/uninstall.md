@@ -2,9 +2,9 @@
 
 1. **In AI Juggler, open Settings › Data › Before you uninstall** and choose
    **Prepare to uninstall**. It turns off measuring Claude limits for
-   sessions started elsewhere on every account where it's on, which puts
-   each account's `settings.json` back exactly as it was, and lists what's
-   left for you to remove.
+   sessions started elsewhere on every account where it's on, which takes
+   AI Juggler's line out of each account's `settings.json` (any edits you
+   made since stay), and lists what's left for you to remove.
 2. **Optional: undo what you set up through AI Juggler.** MCP servers,
    skills and settings it copied into an account, and rules files it
    changed, were your choice and stay where they are. To take any out, use

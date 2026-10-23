@@ -6,8 +6,8 @@ These settings live in Settings › Sessions › **Keep work going**.
 ## Restart sessions that crash
 
 Off by default. When it's on, a session that crashes is started again on
-the same launch settings, in the same folder, with its conversation
-resumed.
+the same launch settings, in the same folder, with its conversation resumed
+when AI Juggler knows which one it was (otherwise it starts fresh).
 
 - At most 3 times in 10 minutes. After that, the session stays ended and
   says why.
@@ -50,6 +50,6 @@ Juggler itself.
 
 ## Open AI Juggler at login
 
-Off by default. Turn on **Open AI Juggler at login**, here or in the
+Off by default, and new in 0.1. Turn on **Open AI Juggler at login**, here or in the
 welcome's **Make it smoother** card. macOS may ask you to approve it in
 System Settings › General › Login Items, and lists it there.

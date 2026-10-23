@@ -22,16 +22,17 @@ tool, **Start with the same settings as …** is ticked and names it. Open it
 to see what comes with it, and pick another account to copy from if you
 like:
 
-- **MCP servers**, copied as they are.
-- **Permissions:** the commands and tools the account may use without
-  asking.
+- **MCP servers**, copied as they are. One that needs a secret or a
+  sign-in starts unticked, and says what you need to do.
+- **Permissions:** for Claude Code, the commands and tools the account may
+  use without asking; for Codex, its approval policy and sandbox mode.
 - **The status line**, if you set one up yourself.
 - **Plugins**, listed with the command that installs them, since a plugin
   comes from its marketplace. Run that command in the new account.
 
-Each item that can be copied starts ticked. A permissions mode that turns
-the tool's checks off (such as Claude Code's `bypassPermissions`) is
-offered, but never ticked for you.
+Each item that can be copied starts ticked. Permissions that turn the
+tool's checks off (such as Claude Code's `bypassPermissions`, or Codex's
+`danger-full-access`) are offered, but never ticked for you.
 
 The account's sign-in, history and caches are never copied. A setting with
 a secret written in it, such as a token in a permission rule, stays behind,
