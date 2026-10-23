@@ -24,10 +24,11 @@
         },
         {
           "id": "native-crash-reports",
-          "text": "With crash reports on, after AI Juggler crashes it reads the report macOS wrote about that crash, and keeps only what failed and where.",
+          "text": "With crash reports on, it looks through macOS's new crash reports for AI Juggler's own, and keeps only what failed and where.",
           "tests": [
             "crates/juggler-app/src/crash_native.rs::an_ips_crash_keeps_its_kind_and_frames_and_nothing_else",
-            "crates/juggler-app/src/crash_native.rs::only_crashes_after_the_first_look_are_kept_and_never_reads_nothing"
+            "crates/juggler-app/src/crash_native.rs::only_crashes_after_the_first_look_are_kept_and_never_reads_nothing",
+            "crates/juggler-app/src/crash_native.rs::links_and_oversized_files_are_not_read"
           ]
         }
       ]

@@ -541,12 +541,19 @@ pub fn run() {
         let state = Arc::clone(&app_state);
         let bundle_id = context.config().identifier.clone();
         std::thread::spawn(move || {
-            if let Some(reports) = crash_native::system_reports() {
+            let Some(reports) = crash_native::system_reports() else {
+                return;
+            };
+            // Again a minute on: after a crash, the watchdog can reopen the
+            // app before macOS has written its report.
+            for wait in [0, 60] {
+                std::thread::sleep(std::time::Duration::from_secs(wait));
                 let _ = crash_native::collect(
                     &reports,
                     &crash::reports_dir(&state),
                     &bundle_id,
                     &crash::effective(&state),
+                    juggler_core::model::Timestamp::now().millis(),
                 );
             }
         });

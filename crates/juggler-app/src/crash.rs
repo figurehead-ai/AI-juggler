@@ -36,13 +36,15 @@ pub const MAX_PER_DAY: usize = 5;
 pub const MAX_FRAMES: usize = 50;
 
 /// The reporting service's address: compiled into release builds only,
-/// and only when the release pipeline sets it.
+/// and only when the release pipeline sets it. The same build flag
+/// (`crash_sender`, from `build.rs`) builds the sender, so "can send" and
+/// the sender never disagree.
 #[must_use]
 pub fn service_address() -> Option<&'static str> {
-    if cfg!(debug_assertions) {
-        None
-    } else {
+    if cfg!(crash_sender) {
         option_env!("AI_JUGGLER_CRASH_ENDPOINT")
+    } else {
+        None
     }
 }
 
@@ -385,11 +387,20 @@ pub fn crash_set_impl(state: &Arc<AppState>, setting: &str) -> AppResult<CrashIn
             message: format!("unknown setting {setting:?}"),
         });
     }
+    let was = effective(state);
     {
         let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
         storage.app_settings().set(SETTING_KEY, setting)?;
     }
     apply(state);
+    // AJ-E1516: turned on now, a crash outside Rust from this moment on is
+    // picked up at the next launch (not only from that launch on).
+    if was == "never" && setting != "never" {
+        crate::crash_native::start_from(
+            &dir(state),
+            juggler_core::model::Timestamp::now().millis(),
+        );
+    }
     if setting == "never" {
         match std::fs::remove_dir_all(dir(state)) {
             Err(e) if e.kind() != std::io::ErrorKind::NotFound => {

@@ -10,8 +10,8 @@ The same list is in the app: More › **Privacy**, and Settings › Privacy link
   <sub>Checked by [`no_sign_in_file_is_read`](../../crates/juggler-app/tests/no_bare_tools.rs), [`login_state_is_metadata_only`](../../crates/juggler-adapters/tests/claude_code_adapter.rs), [`scan_code_never_reads_credential_contents`](../../crates/juggler-adapters/tests/scan.rs), [`the_environment_scan_runs_no_vendor_cli`](../../crates/juggler-app/tests/environment_scan_no_cli.rs).</sub>
 - From Claude Code's settings.json it reads only the settings it needs, each one named in its code and checked.
   <sub>Checked by [`no_sign_in_file_is_read`](../../crates/juggler-app/tests/no_bare_tools.rs).</sub>
-- With crash reports on, after AI Juggler crashes it reads the report macOS wrote about that crash, and keeps only what failed and where.
-  <sub>Checked by [`an_ips_crash_keeps_its_kind_and_frames_and_nothing_else`](../../crates/juggler-app/src/crash_native.rs), [`only_crashes_after_the_first_look_are_kept_and_never_reads_nothing`](../../crates/juggler-app/src/crash_native.rs).</sub>
+- With crash reports on, it looks through macOS's new crash reports for AI Juggler's own, and keeps only what failed and where.
+  <sub>Checked by [`an_ips_crash_keeps_its_kind_and_frames_and_nothing_else`](../../crates/juggler-app/src/crash_native.rs), [`only_crashes_after_the_first_look_are_kept_and_never_reads_nothing`](../../crates/juggler-app/src/crash_native.rs), [`links_and_oversized_files_are_not_read`](../../crates/juggler-app/src/crash_native.rs).</sub>
 
 ## What it changes
 

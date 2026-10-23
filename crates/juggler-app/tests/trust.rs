@@ -563,13 +563,14 @@ fn the_crash_sender_is_built_only_with_an_address() {
     assert!(build.contains(r#"profile == "release""#));
     assert!(build.contains(r#"if release && address.starts_with("https://")"#));
     assert_eq!(build.matches("rustc-cfg=crash_sender").count(), 1);
-    // Nothing else in the app names the sender.
+    // Nothing else in the app reaches the sender (`cfg!(crash_sender)`,
+    // the build's flag, is no use of it).
     for (path, text) in shipped("juggler-app") {
         if path.ends_with("lib.rs") || path.ends_with("crash_send.rs") {
             continue;
         }
         assert!(
-            !code_only(&text).contains("crash_send"),
+            !code_only(&text).contains("crash_send::"),
             "{} reaches the crash sender",
             path.display()
         );

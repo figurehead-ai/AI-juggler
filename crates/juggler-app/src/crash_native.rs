@@ -27,6 +27,11 @@ const SEEN: &str = "native.seen";
 const CRASH_BUG_TYPE: &str = "309";
 /// A report bigger than this isn't read (they're tens of KB).
 const MAX_REPORT_BYTES: u64 = 4 * 1024 * 1024;
+/// The most of a header line read to tell whose report it is.
+const MAX_HEADER_BYTES: u64 = 64 * 1024;
+/// macOS can still be writing a report this young: one that doesn't
+/// parse yet is looked at again next time.
+const STILL_WRITING_MS: i64 = 60_000;
 
 /// Where macOS keeps this user's crash reports.
 #[must_use]
@@ -38,26 +43,39 @@ pub fn system_reports() -> Option<PathBuf> {
     }
 }
 
+/// From now on: crash reports from `at_ms` on are picked up (the user
+/// turned reports on). Writes the mark in the crash reports' folder.
+pub fn start_from(crashes: &Path, at_ms: i64) {
+    if std::fs::create_dir_all(crashes).is_ok() {
+        let _ = std::fs::write(crashes.join(SEEN), format!("{at_ms}\n"));
+    }
+}
+
 /// Turns this app's new crash reports in `reports` into kept reports in
 /// `crashes` (`setting` is the effective `never` | `ask` | `always`).
-/// Returns how many were kept.
+/// Another app's report is told apart by its first line alone. Returns
+/// how many were kept.
 #[must_use]
-pub fn collect(reports: &Path, crashes: &Path, bundle_id: &str, setting: &str) -> usize {
+pub fn collect(
+    reports: &Path,
+    crashes: &Path,
+    bundle_id: &str,
+    setting: &str,
+    now_ms: i64,
+) -> usize {
     if setting == "never" {
         return 0;
     }
-    let seen_path = crashes.join(SEEN);
-    let seen: Option<i64> = std::fs::read_to_string(&seen_path)
+    let seen: Option<i64> = std::fs::read_to_string(crashes.join(SEEN))
         .ok()
         .and_then(|text| text.trim().parse().ok());
-    let mut newest = seen.unwrap_or(0);
-    let mut kept = 0;
     let mut entries: Vec<(i64, PathBuf)> = std::fs::read_dir(reports)
         .into_iter()
         .flatten()
         .flatten()
         .filter(|entry| entry.path().extension().is_some_and(|ext| ext == "ips"))
         .filter_map(|entry| {
+            // Not followed: a link isn't a report macOS wrote.
             let metadata = entry.metadata().ok()?;
             let at = metadata.modified().ok()?.duration_since(UNIX_EPOCH).ok()?;
             let at = i64::try_from(at.as_millis()).ok()?;
@@ -65,29 +83,77 @@ pub fn collect(reports: &Path, crashes: &Path, bundle_id: &str, setting: &str) -
         })
         .collect();
     entries.sort();
-    for (at, path) in entries {
-        newest = newest.max(at);
-        // The first look only marks where to start.
-        if seen.is_none_or(|seen| at <= seen) {
-            continue;
+    let Some(seen) = seen else {
+        // The first look only marks where to start: the newest report there
+        // now (or now, when there's none).
+        let mark = entries.last().map_or(now_ms, |(at, _)| *at);
+        start_from(crashes, mark);
+        return 0;
+    };
+    let mut mark = seen;
+    let mut kept = 0;
+    for (at, path) in entries.into_iter().filter(|(at, _)| *at > seen) {
+        match read_ours(&path, bundle_id) {
+            Read::Ours(text) => match native_report(&text, bundle_id, at) {
+                Some(report) => {
+                    if keep(crashes, &report, setting).unwrap_or(false) {
+                        kept += 1;
+                    }
+                }
+                // Still being written: next time.
+                None if now_ms - at < STILL_WRITING_MS => break,
+                None => {}
+            },
+            Read::Unreadable if now_ms - at < STILL_WRITING_MS => break,
+            Read::NotOurs | Read::Unreadable => {}
         }
-        let Some(report) = std::fs::read_to_string(&path)
-            .ok()
-            .and_then(|text| native_report(&text, bundle_id, at))
-        else {
-            continue;
-        };
-        if keep(crashes, &report, setting).unwrap_or(false) {
-            kept += 1;
-        }
+        mark = at;
     }
-    if seen.is_none() {
-        newest = newest.max(juggler_core::model::Timestamp::now().millis());
-    }
-    if std::fs::create_dir_all(crashes).is_ok() {
-        let _ = std::fs::write(&seen_path, format!("{newest}\n"));
+    if mark != seen {
+        start_from(crashes, mark);
     }
     kept
+}
+
+enum Read {
+    /// This app's report, whole.
+    Ours(String),
+    /// Another app's (only its first line was read).
+    NotOurs,
+    /// Couldn't be read or its first line isn't a header.
+    Unreadable,
+}
+
+/// Reads a report's first line; the rest only when it's `bundle_id`'s.
+fn read_ours(path: &Path, bundle_id: &str) -> Read {
+    use std::io::{BufRead as _, Read as _};
+    let Ok(file) = std::fs::File::open(path) else {
+        return Read::Unreadable;
+    };
+    let mut reader = std::io::BufReader::new(file);
+    let mut header = String::new();
+    if (&mut reader)
+        .take(MAX_HEADER_BYTES)
+        .read_line(&mut header)
+        .is_err()
+    {
+        return Read::Unreadable;
+    }
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(&header) else {
+        return Read::Unreadable;
+    };
+    if value.get("bundleID").and_then(serde_json::Value::as_str) != Some(bundle_id) {
+        return Read::NotOurs;
+    }
+    let mut rest = String::new();
+    if reader
+        .take(MAX_REPORT_BYTES)
+        .read_to_string(&mut rest)
+        .is_err()
+    {
+        return Read::Unreadable;
+    }
+    Read::Ours(header + &rest)
 }
 
 /// A crash report of `bundle_id`'s, as a scrubbed report; `None` for
@@ -163,7 +229,13 @@ pub fn native_report(text: &str, bundle_id: &str, at_ms: i64) -> Option<CrashRep
         })
         .unwrap_or_default();
     let location = frames.first().cloned().unwrap_or_default();
-    Some(report_of(&message, &location, &frames.join("\n"), at_ms))
+    let mut report = report_of(&message, &location, &frames.join("\n"), at_ms);
+    // The version that crashed (an update since doesn't change it).
+    let version = field(&header, "app_version");
+    if !version.is_empty() {
+        report.app_version = version;
+    }
+    Some(report)
 }
 
 #[cfg(test)]
@@ -253,50 +325,125 @@ mod tests {
         assert!(native_report("not json\n{}", OURS, 1).is_none());
     }
 
+    /// Writes `body` to `reports/<name>` with the given modification time.
+    fn report_at(reports: &std::path::Path, name: &str, body: &str, at_ms: i64) {
+        let path = reports.join(name);
+        std::fs::write(&path, body).unwrap();
+        std::fs::File::options()
+            .write(true)
+            .open(&path)
+            .unwrap()
+            .set_modified(std::time::UNIX_EPOCH + std::time::Duration::from_millis(at_ms as u64))
+            .unwrap();
+    }
+
+    const T0: i64 = 1_800_000_000_000;
+
     #[test]
     fn only_crashes_after_the_first_look_are_kept_and_never_reads_nothing() {
         let dir = tempfile::tempdir().unwrap();
         let reports = dir.path().join("DiagnosticReports");
         let crashes = dir.path().join("crashes");
         std::fs::create_dir_all(&reports).unwrap();
-        std::fs::write(reports.join("AI Juggler-old.ips"), ips(OURS, "309")).unwrap();
+        report_at(&reports, "AI Juggler-old.ips", &ips(OURS, "309"), T0);
 
         // Never: nothing read, nothing noted.
-        assert_eq!(collect(&reports, &crashes, OURS, "never"), 0);
+        assert_eq!(collect(&reports, &crashes, OURS, "never", T0 + 1_000), 0);
         assert!(!crashes.exists());
 
         // The first look marks where to start: the old crash isn't kept.
-        assert_eq!(collect(&reports, &crashes, OURS, "ask"), 0);
+        assert_eq!(collect(&reports, &crashes, OURS, "ask", T0 + 1_000), 0);
         assert!(crashes.join("native.seen").exists());
 
         // A crash after it is kept, waiting for the user's answer; another
         // app's is not.
-        std::thread::sleep(std::time::Duration::from_millis(20));
-        let seen: i64 = std::fs::read_to_string(crashes.join("native.seen"))
-            .unwrap()
-            .trim()
-            .parse()
-            .unwrap();
-        let later = std::time::UNIX_EPOCH + std::time::Duration::from_millis((seen + 5_000) as u64);
-        for (name, bundle) in [
-            ("AI Juggler-new.ips", OURS),
-            ("Other-new.ips", "com.example.other"),
-        ] {
-            let path = reports.join(name);
-            std::fs::write(&path, ips(bundle, "309")).unwrap();
-            std::fs::File::options()
-                .write(true)
-                .open(&path)
-                .unwrap()
-                .set_modified(later)
-                .unwrap();
-        }
-        assert_eq!(collect(&reports, &crashes, OURS, "ask"), 1);
+        report_at(
+            &reports,
+            "AI Juggler-new.ips",
+            &ips(OURS, "309"),
+            T0 + 5_000,
+        );
+        report_at(
+            &reports,
+            "Other-new.ips",
+            &ips("com.example.other", "309"),
+            T0 + 5_000,
+        );
+        assert_eq!(collect(&reports, &crashes, OURS, "ask", T0 + 300_000), 1);
         assert_eq!(
             std::fs::read_dir(crashes.join("asking")).unwrap().count(),
             1
         );
         // Looked at once: not kept again.
-        assert_eq!(collect(&reports, &crashes, OURS, "ask"), 0);
+        assert_eq!(collect(&reports, &crashes, OURS, "ask", T0 + 400_000), 0);
+    }
+
+    #[test]
+    fn under_always_a_native_crash_is_queued_with_the_version_that_crashed() {
+        let dir = tempfile::tempdir().unwrap();
+        let reports = dir.path().join("r");
+        let crashes = dir.path().join("crashes");
+        std::fs::create_dir_all(&reports).unwrap();
+        super::start_from(&crashes, T0);
+        report_at(&reports, "AI Juggler-1.ips", &ips(OURS, "309"), T0 + 1_000);
+        assert_eq!(collect(&reports, &crashes, OURS, "always", T0 + 300_000), 1);
+        let queued: Vec<_> = std::fs::read_dir(crashes.join("queued"))
+            .unwrap()
+            .flatten()
+            .collect();
+        assert_eq!(queued.len(), 1);
+        let report: crate::crash::CrashReport =
+            serde_json::from_slice(&std::fs::read(queued[0].path()).unwrap()).unwrap();
+        assert_eq!(
+            report.app_version, "0.0.6",
+            "the header's version, not this build's"
+        );
+    }
+
+    /// Turned on in this session (`crash_set` moves the mark): a crash
+    /// later in the same session is picked up at the next launch.
+    #[test]
+    fn a_crash_after_turning_reports_on_is_picked_up() {
+        let dir = tempfile::tempdir().unwrap();
+        let reports = dir.path().join("r");
+        let crashes = dir.path().join("crashes");
+        std::fs::create_dir_all(&reports).unwrap();
+        super::start_from(&crashes, T0);
+        report_at(&reports, "AI Juggler-1.ips", &ips(OURS, "309"), T0 + 10);
+        assert_eq!(collect(&reports, &crashes, OURS, "ask", T0 + 300_000), 1);
+    }
+
+    /// The watchdog can relaunch before macOS has finished writing: a young
+    /// report that doesn't parse yet is looked at again next time.
+    #[test]
+    fn a_report_still_being_written_waits_for_the_next_look() {
+        let dir = tempfile::tempdir().unwrap();
+        let reports = dir.path().join("r");
+        let crashes = dir.path().join("crashes");
+        std::fs::create_dir_all(&reports).unwrap();
+        super::start_from(&crashes, T0);
+        let whole = ips(OURS, "309");
+        let half = &whole[..whole.len() / 2];
+        report_at(&reports, "AI Juggler-1.ips", half, T0 + 1_000);
+        assert_eq!(collect(&reports, &crashes, OURS, "ask", T0 + 2_000), 0);
+        report_at(&reports, "AI Juggler-1.ips", &whole, T0 + 1_000);
+        assert_eq!(collect(&reports, &crashes, OURS, "ask", T0 + 70_000), 1);
+    }
+
+    #[test]
+    fn links_and_oversized_files_are_not_read() {
+        let dir = tempfile::tempdir().unwrap();
+        let reports = dir.path().join("r");
+        let crashes = dir.path().join("crashes");
+        std::fs::create_dir_all(&reports).unwrap();
+        super::start_from(&crashes, T0);
+        let elsewhere = dir.path().join("elsewhere.ips");
+        report_at(dir.path(), "elsewhere.ips", &ips(OURS, "309"), T0 + 1_000);
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(&elsewhere, reports.join("AI Juggler-link.ips")).unwrap();
+        let mut big = ips(OURS, "309");
+        big.push_str(&" ".repeat(5 * 1024 * 1024));
+        report_at(&reports, "AI Juggler-big.ips", &big, T0 + 1_000);
+        assert_eq!(collect(&reports, &crashes, OURS, "ask", T0 + 300_000), 0);
     }
 }

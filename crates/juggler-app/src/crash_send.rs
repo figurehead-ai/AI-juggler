@@ -24,7 +24,9 @@ pub const MAX_SENT_PER_DAY: usize = 5;
 const SENT_LOG: &str = "sent.log";
 
 /// Sends what's queued in `dir` to `endpoint`; returns how many went.
-/// `effective` is the setting that applies (`never` sends nothing).
+/// `effective` is the setting that applies (`never` sends nothing). Each
+/// report is read just before it's sent: one removed meanwhile (the user
+/// chose Never) doesn't go.
 pub fn drain(
     dir: &Path,
     effective: &str,
@@ -32,7 +34,7 @@ pub fn drain(
     endpoint: &str,
     now_ms: i64,
 ) -> usize {
-    if effective == "never" || !allowed_endpoint(endpoint) {
+    if effective == "never" || !endpoint.starts_with("https://") {
         return 0;
     }
     let today = now_ms.div_euclid(86_400_000);
@@ -43,22 +45,27 @@ pub fn drain(
         .filter_map(|line| line.trim().parse().ok())
         .filter(|day| today - day < 7)
         .collect();
-    let mut queued: Vec<(i64, std::path::PathBuf, Vec<u8>)> = std::fs::read_dir(dir.join("queued"))
+    let pruned = days.len() != log.lines().count();
+    // Oldest first, by when the report was made.
+    let mut queued: Vec<(i64, std::path::PathBuf)> = std::fs::read_dir(dir.join("queued"))
         .into_iter()
         .flatten()
         .flatten()
         .filter_map(|entry| {
-            let bytes = std::fs::read(entry.path()).ok()?;
-            let report: crate::crash::CrashReport = serde_json::from_slice(&bytes).ok()?;
-            Some((report.at_ms, entry.path(), bytes))
+            let report: crate::crash::CrashReport =
+                serde_json::from_slice(&std::fs::read(entry.path()).ok()?).ok()?;
+            Some((report.at_ms, entry.path()))
         })
         .collect();
-    queued.sort_by_key(|(at, _, _)| *at);
+    queued.sort();
     let mut sent = 0;
-    for (_, path, body) in queued {
+    for (_, path) in queued {
         if days.iter().filter(|day| **day == today).count() >= MAX_SENT_PER_DAY {
             break;
         }
+        let Ok(body) = std::fs::read(&path) else {
+            continue;
+        };
         let request = HttpRequest {
             method: "POST",
             url: endpoint.to_owned(),
@@ -74,11 +81,19 @@ pub fn drain(
                 days.push(today);
                 sent += 1;
             }
-            // Not taken (or not reached): kept for the next try.
+            // Refused for good (malformed, too large): it won't be taken
+            // later either, and must not hold up the others.
+            Ok(response)
+                if (400..500).contains(&response.status)
+                    && !matches!(response.status, 408 | 429) =>
+            {
+                let _ = std::fs::remove_file(&path);
+            }
+            // Busy, down or not reached: kept for the next try.
             _ => break,
         }
     }
-    if sent > 0 {
+    if sent > 0 || pruned {
         let text = days.iter().fold(String::new(), |mut text, day| {
             use std::fmt::Write as _;
             let _ = writeln!(text, "{day}");
@@ -89,29 +104,28 @@ pub fn drain(
     sent
 }
 
-/// HTTPS only.
-fn allowed_endpoint(endpoint: &str) -> bool {
-    endpoint.starts_with("https://")
+/// The sending loop: at once, then every 30 minutes, what the user chose
+/// to send goes to `address`.
+pub fn run(state: &crate::state::AppState, transport: &dyn Transport, address: &str) -> ! {
+    loop {
+        let _ = drain(
+            &crate::crash::reports_dir(state),
+            &crate::crash::effective(state),
+            transport,
+            address,
+            juggler_core::model::Timestamp::now().millis(),
+        );
+        std::thread::sleep(std::time::Duration::from_mins(30));
+    }
 }
 
-/// The sending loop of a build with an address: at launch, then every 30
-/// minutes, what the user chose to send goes.
+/// Starts the loop with the address this build was given.
 #[cfg(crash_sender)]
 pub fn start(state: &std::sync::Arc<crate::state::AppState>) {
-    const ADDRESS: &str = env!("AI_JUGGLER_CRASH_ENDPOINT");
     let state = std::sync::Arc::clone(state);
     std::thread::spawn(move || {
         let transport = juggler_account::UreqTransport::new(env!("CARGO_PKG_VERSION"));
-        loop {
-            let _ = drain(
-                &crate::crash::reports_dir(&state),
-                &crate::crash::effective(&state),
-                &transport,
-                ADDRESS,
-                juggler_core::model::Timestamp::now().millis(),
-            );
-            std::thread::sleep(std::time::Duration::from_mins(30));
-        }
+        run(&state, &transport, env!("AI_JUGGLER_CRASH_ENDPOINT"))
     });
 }
 
@@ -232,5 +246,53 @@ mod tests {
         );
         assert_eq!(transport.count(), 0);
         assert_eq!(left(dir.path()), 1);
+    }
+
+    /// Consent: a report kept under Ask that the user hasn't answered
+    /// (`asking/`) is never sent.
+    #[test]
+    fn a_report_waiting_for_the_users_answer_is_never_sent() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("asking")).unwrap();
+        let waiting = crate::crash::report_of("boom", "src/y.rs:2", "", 5);
+        std::fs::write(
+            dir.path()
+                .join("asking")
+                .join(format!("{}.json", waiting.id)),
+            serde_json::to_vec(&waiting).unwrap(),
+        )
+        .unwrap();
+        let transport = RecordingTransport::default();
+        assert_eq!(drain(dir.path(), "ask", &transport, URL, DAY), 0);
+        assert_eq!(drain(dir.path(), "always", &transport, URL, DAY), 0);
+        assert_eq!(transport.count(), 0);
+    }
+
+    #[test]
+    fn a_report_refused_for_good_is_dropped_and_the_rest_go() {
+        let dir = tempfile::tempdir().unwrap();
+        queue(dir.path(), 2);
+        let transport = RecordingTransport::default();
+        transport.respond(413, "");
+        transport.respond(202, "");
+        assert_eq!(drain(dir.path(), "always", &transport, URL, DAY), 1);
+        assert_eq!(left(dir.path()), 0);
+        // Too many requests: kept for later.
+        queue(dir.path(), 1);
+        transport.respond(429, "");
+        assert_eq!(drain(dir.path(), "always", &transport, URL, DAY), 0);
+        assert_eq!(left(dir.path()), 1);
+    }
+
+    #[test]
+    fn the_sent_log_keeps_a_week() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("sent.log"), "1\n2\n9\n").unwrap();
+        let transport = RecordingTransport::default();
+        assert_eq!(drain(dir.path(), "always", &transport, URL, 10 * DAY), 0);
+        assert_eq!(
+            std::fs::read_to_string(dir.path().join("sent.log")).unwrap(),
+            "9\n"
+        );
     }
 }
