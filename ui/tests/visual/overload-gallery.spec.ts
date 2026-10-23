@@ -4,7 +4,8 @@
  * dark, each scanned with axe (0 critical/serious).
  */
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
+import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { allStatuses, openRailList } from "./fixtures";
@@ -91,7 +92,7 @@ async function axeClean(page: Page) {
 }
 
 for (const theme of ["dark", "light"] as const) {
-  test(`overload — memory pressure — ${theme}`, async ({ page }) => {
+  test(`overload — memory pressure — ${theme}`, gate("74-overload"), async ({ page }) => {
     await seed(page, "tight", [MEMORY], theme);
     const item = page.getByTestId("home-mac-pressure");
     await expect(item).toContainText("Your Mac is under memory pressure");

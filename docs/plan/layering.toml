@@ -12,9 +12,11 @@ juggler-stats = []
 juggler-scap-init = []
 # D-26: the audited SMAppService shim (open at login); depends on nothing of ours.
 juggler-login-item = []
+# D-27: the audited host_statistics64 shim (the compressor's pages); depends on nothing of ours.
+juggler-vm-stats = []
 juggler-adapter = ["juggler-core"]
 juggler-adapters = ["juggler-adapter", "juggler-core"]
-juggler-supervisor = ["juggler-adapter", "juggler-core"]
+juggler-supervisor = ["juggler-adapter", "juggler-core", "juggler-vm-stats"]
 juggler-handover = ["juggler-adapter", "juggler-core"]
 juggler-link = ["juggler-core"]
 juggler-app = [

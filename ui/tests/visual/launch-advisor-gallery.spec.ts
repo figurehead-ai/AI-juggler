@@ -4,7 +4,8 @@
  * room) and Not now — light and dark, each scanned with axe.
  */
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
+import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { allStatuses } from "./fixtures";
@@ -61,7 +62,7 @@ async function open(page: Page, machine: string, unmeasured: boolean, theme: "da
 
 for (const theme of ["dark", "light"] as const) {
   for (const state of STATES) {
-    test(`launch advisor — ${state.name} — ${theme}`, async ({ page }) => {
+    test(`launch advisor — ${state.name} — ${theme}`, gate("73-launch-advisor"), async ({ page }) => {
       await open(page, state.machine, "advice" in state, theme);
       const line = page.getByTestId("machine-advice");
       await expect(line).toHaveAttribute("data-verdict", state.verdict);

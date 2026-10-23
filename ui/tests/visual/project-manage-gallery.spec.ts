@@ -7,7 +7,8 @@
  * axe 0 critical/serious on each.
  */
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
+import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { allStatuses, goTo } from "./fixtures";
@@ -58,7 +59,7 @@ async function axeClean(page: Page, what: string) {
 }
 
 for (const theme of ["dark", "light"] as const) {
-  test(`the rail with pins and a label — ${theme}`, async ({ page }) => {
+  test(`the rail with pins and a label — ${theme}`, gate("76-project-manage"), async ({ page }) => {
     await seed(page, theme);
     const rail = page.getByTestId("rail");
     // The pinned project's group leads; the pinned session leads its group.

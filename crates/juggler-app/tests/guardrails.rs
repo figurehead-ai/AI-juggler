@@ -1047,8 +1047,8 @@ fn hog_is_never_auto_signalled_and_alerts_with_exact_copy() {
 }
 
 /// Ticks the collector until `pid` meets the idle nudge's conditions: its
-/// ledger row orphaned, started at least `min_age_ms` ago, and the latest
-/// sample under 1 % CPU (or none yet). Past the bound it fails with what it
+/// ledger row orphaned, started at least `min_age_ms` ago, and its CPU now
+/// known and under 1 %. Past the bound it fails with what it
 /// last saw, so a nudge held back says why.
 fn wait_idle_eligible(state: &Arc<AppState>, session: &SessionId, pid: u32, min_age_ms: i64) {
     let deadline = std::time::Instant::now() + Duration::from_secs(30);
@@ -1065,9 +1065,7 @@ fn wait_idle_eligible(state: &Arc<AppState>, session: &SessionId, pid: u32, min_
             .resources
             .lock()
             .ok()
-            .and_then(|collector| collector.rows(session))
-            .and_then(|rows| rows.into_iter().find(|live| live.pid == pid))
-            .and_then(|live| live.cpu_pct);
+            .and_then(|collector| collector.cpu_now(pid));
         let state_now = row.as_ref().map(|row| row.state.clone());
         let age = row
             .as_ref()
@@ -1075,7 +1073,7 @@ fn wait_idle_eligible(state: &Arc<AppState>, session: &SessionId, pid: u32, min_
             .map(|started| now_ms() - started * 1000);
         let eligible = state_now.as_deref() == Some("orphaned")
             && age.is_none_or(|age| age >= min_age_ms)
-            && cpu.is_none_or(|cpu| cpu < 1.0);
+            && cpu.is_some_and(|cpu| cpu < 1.0);
         if eligible {
             return;
         }
@@ -1152,6 +1150,76 @@ fn idle_nudge_fires_exactly_once_per_orphan() {
     for pid in pids {
         kill9(pid);
     }
+}
+
+/// AJ-E512 Req.3 (regression — CI flake on #167, 2026-10-23,
+/// `idle_nudge_fires_exactly_once_per_orphan`: "cpu 5.43 %" for a helper
+/// that had been asleep for half a minute): the nudge reads an orphan's CPU
+/// now, not its session's rows, which froze at the last tick before the
+/// root exited. Here the helper is busy at that tick and idle after it.
+/// Read from the frozen rows, it stayed busy and the nudge never came.
+#[test]
+fn idle_nudge_reads_an_orphans_cpu_now_not_at_its_roots_exit() {
+    let _serial = serialize();
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    seed_account(&state, dir.path(), "acc-guard", true, false);
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .app_settings()
+        .set("idle_nudge_min_age_ms", "1000")
+        .unwrap();
+    let kit = FixtureSet::new(dir.path());
+    let vite = kit.get("vite");
+    let settle = dir.path().join("settle");
+    let leave = dir.path().join("leave");
+    let a = seed_instance(&state, dir.path(), "sess-busy", "acc-guard");
+    let script = format!(
+        "python3 {helper} --trap-log {trap} --ready {ready} --port 0 --busy-until {settle} &\n\
+         while [ ! -e {leave} ]; do sleep 0.1; done; exit 0",
+        helper = kit.helper.display(),
+        trap = vite.trap_log.display(),
+        ready = vite.ready.display(),
+        settle = settle.display(),
+        leave = leave.display(),
+    );
+    state
+        .supervisor
+        .spawn(&a, &sh_spec(&script, dir.path()), &ctx(&state))
+        .unwrap();
+    let vite_pid = tick_until_helpers(&state, &a, &kit, &["--port"])[0];
+    let idle_alert = |state: &Arc<AppState>| {
+        commands::cleanup_alerts_inner(state)
+            .alerts
+            .iter()
+            .any(|alert| alert.kind == "idle" && alert.pid == vite_pid)
+    };
+
+    // The root's last tick sees the helper busy: the frozen rows hold that.
+    let busy = fixtures::wait_for(20_000, || {
+        let mut collector = state.resources.lock().unwrap();
+        collector.tick(&state.supervisor, now_ms());
+        collector.cpu_now(vite_pid).is_some_and(|cpu| cpu >= 10.0)
+    });
+    assert!(busy, "the helper never read busy");
+    std::fs::write(&leave, "").unwrap();
+    let _ = wait_orphans(&state, &a);
+    assert!(!idle_alert(&state), "a busy orphan was nudged as idle");
+
+    // Idle now: the nudge comes once its CPU says so.
+    std::fs::write(&settle, "").unwrap();
+    let nudged = fixtures::wait_for(30_000, || {
+        if let Ok(mut collector) = state.resources.lock() {
+            collector.tick(&state.supervisor, now_ms());
+        }
+        idle_alert(&state)
+    });
+    assert!(nudged, "the idle orphan was never nudged");
+
+    let _ = state.supervisor.stop(&a, Duration::from_secs(3));
+    kill9(vite_pid);
 }
 
 /// AJ-E508 exec-settle window (regression — CI flake PR #83,

@@ -12,6 +12,7 @@
 )]
 
 pub mod awake;
+pub mod cpu_since;
 pub mod error;
 pub mod group;
 pub mod heuristics;

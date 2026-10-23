@@ -54,6 +54,40 @@ fn every_route_calls_a_command_the_registry_classes_read() {
 }
 
 #[test]
+fn every_read_command_is_served_or_says_why_not() {
+    let served: Vec<String> = READ_ROUTES
+        .iter()
+        .map(|route| normalized(route.path))
+        .collect();
+    let skipped: Vec<String> = super::routes::NOT_SERVED
+        .iter()
+        .map(|(path, _)| normalized(path))
+        .collect();
+    for (path, access) in COMMANDS {
+        if *access != CommandAccess::Read {
+            continue;
+        }
+        let path = normalized(path);
+        assert!(
+            served.contains(&path) || skipped.contains(&path),
+            "{path} is a Read command the bridge neither serves nor lists in NOT_SERVED"
+        );
+        assert!(
+            !(served.contains(&path) && skipped.contains(&path)),
+            "{path} is both served and listed as not served"
+        );
+    }
+    for (path, why) in super::routes::NOT_SERVED {
+        assert_eq!(
+            access_of(path),
+            Some(CommandAccess::Read),
+            "{path} in NOT_SERVED isn't a Read command"
+        );
+        assert!(!why.is_empty(), "{path} in NOT_SERVED says no why");
+    }
+}
+
+#[test]
 fn no_write_command_is_on_the_allowlist() {
     let writes: Vec<String> = COMMANDS
         .iter()

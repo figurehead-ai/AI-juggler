@@ -4,7 +4,8 @@
  * the pick. Both themes; axe 0 critical/serious on each.
  */
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
+import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { allStatuses } from "./fixtures";
@@ -42,7 +43,7 @@ async function open(page: Page, theme: "dark" | "light") {
 }
 
 for (const theme of ["dark", "light"] as const) {
-  test(`the limit dialog says the prepared switch is ready — ${theme}`, async ({ page }) => {
+  test(`the limit dialog says the prepared switch is ready — ${theme}`, gate("89-limit-ready"), async ({ page }) => {
     await open(page, theme);
     await page.getByTestId("home-needs").getByRole("button", { name: /^Continue elsewhere/ }).first().click();
     const dialog = page.getByTestId("limit-dialog");

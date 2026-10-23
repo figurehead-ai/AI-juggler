@@ -366,6 +366,10 @@ jobs:
           sysctl hw.pagesize vm.page_pageable_internal_count vm.page_purgeable_count vm.page_wired_count vm.compressor_bytes_used || true
           cargo test -p juggler-supervisor --lib machine -- --nocapture
           cargo test -p juggler-supervisor --test machine
+      - name: A process's CPU on macOS
+        # sysinfo here keeps an idle process's last busy figure; Linux can't
+        # show it, so only this job proves the idle helper reads 0 %.
+        run: cargo test -p juggler-supervisor --lib cpu_since
 
   build-linux:
     name: build-linux

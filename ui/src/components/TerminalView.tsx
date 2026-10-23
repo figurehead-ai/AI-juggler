@@ -226,11 +226,13 @@ export function TerminalView({
       }
     });
     containerObserver.observe(host);
-    // Initial fit once the host is laid out.
+    // Initial fit once the host is laid out; focus, unless the user has
+    // moved on within this page (the terminal's code can arrive a moment
+    // after the page opened).
     requestAnimationFrame(() => {
       try {
         fitRef.current?.fit();
-        termRef.current?.focus();
+        if (mayTakeFocus(host)) termRef.current?.focus();
       } catch {
         /* panel mid-animation */
       }
@@ -374,4 +376,14 @@ export function TerminalView({
       </div>
     </div>
   );
+}
+
+/** Whether a terminal arriving now may take focus: yes from the rail, the
+ * window or nothing; not from something the user has since focused in the
+ * terminal's own page (Tab, a shortcut), which a late arrival would steal. */
+export function mayTakeFocus(host: HTMLElement): boolean {
+  const active = document.activeElement;
+  if (!active || active === document.body) return true;
+  const page = host.closest("main");
+  return !page || active === page || !page.contains(active) || host.contains(active);
 }

@@ -56,7 +56,7 @@
 **Research basis**: `docs/SPEC.md:442` (Playwright on webview); deep/11 §8 state matrix (lines 299-320), §12 testing hooks; `crates/juggler-app/tauri.conf.json` (1360x860 default, 1024x680 min); pass2/04 §7 wireframes.
 **Handover note**: The repo has no Playwright dependency today (`ui/package.json`: vite/tsc only) — adding it is this task's scope, pinned and lockfile-committed. Trap: never capture against a live Tauri backend for the gallery; mocked-bridge determinism is the point. Live captures belong to dogfood (AJ-E809).
 
-### AJ-E803 Visual regression thresholds and review workflow | Status: IN-PROGRESS | Priority P0 | Effort M | Depends: AJ-E802
+### AJ-E803 Visual regression thresholds and review workflow | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E802
 **Goal**: Turn screenshots into a pass/fail gate with human review for intentional change.
 **User story**: As a reviewer, I want any visual diff over threshold flagged with before/after/diff images so regressions cannot slip in as "looks fine".
 **Requirements**:

@@ -9,7 +9,7 @@
  *
  * Run: pnpm --dir ui visual:capture   (writes docs/qa/evidence/_gallery/)
  */
-import { test, expect } from "./axe-gallery";
+import { test, expect, gate } from "./axe-gallery";
 import { mkdirSync, writeFileSync, existsSync, appendFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -54,7 +54,7 @@ test.beforeAll(() => {
 
 for (const theme of THEMES) {
   for (const vp of VIEWPORTS) {
-    test(`rail — all statuses — ${vp.name} — ${theme}`, async ({ page }) => {
+    test(`rail — all statuses — ${vp.name} — ${theme}`, gate("01-rail"), async ({ page }) => {
       await page.addInitScript(
         ({ fixture, t0, theme }) => {
           (window as never as { __AIJ_FIXTURE__: unknown }).__AIJ_FIXTURE__ = fixture;
@@ -84,7 +84,7 @@ for (const theme of THEMES) {
       });
     });
 
-    test(`session panel — populated — ${vp.name} — ${theme}`, async ({ page }) => {
+    test(`session panel — populated — ${vp.name} — ${theme}`, gate("05-session-panel"), async ({ page }) => {
       await page.addInitScript(
         ({ fixture, t0, theme }) => {
           (window as never as { __AIJ_FIXTURE__: unknown }).__AIJ_FIXTURE__ = fixture;
@@ -195,7 +195,7 @@ for (const density of DENSITIES) {
   }
 }
 
-test("rail minimal — hover tooltip open", async ({ page }) => {
+test("rail minimal — hover tooltip open", gate("01-rail-density"), async ({ page }) => {
   await page.addInitScript(
     ({ fixture, t0 }) => {
       (window as never as { __AIJ_FIXTURE__: unknown }).__AIJ_FIXTURE__ = fixture;
@@ -242,7 +242,7 @@ test("rail — stale row renders stale - Nm", async ({ page }) => {
 });
 
 // AJ-E404 captures: the sorted/filtered rail states (1440x900).
-test("rail — needs-me sort default", async ({ page }) => {
+test("rail — needs-me sort default", gate("01-rail-sort"), async ({ page }) => {
   await seedRail(page, {});
   await expect(page.getByText("Handed over").first()).toBeVisible();
   await page.screenshot({ path: resolve(GALLERY, "01-rail-sort/needs-me-1440x900.png") });
@@ -330,7 +330,7 @@ async function seedInspectorPage(page: import("@playwright/test").Page, vp: { wi
 }
 
 for (const vp of INSPECTOR_VIEWPORTS) {
-  test(`inspector — fleet-at-a-glance (empty) — ${vp.name}`, async ({ page }) => {
+  test(`inspector — fleet-at-a-glance (empty) — ${vp.name}`, gate("06-inspector"), async ({ page }) => {
     await seedInspectorPage(page, vp);
     await expect(page.getByTestId("home")).toBeVisible(); // D-25: Home replaces "fleet at a glance"
     await page.screenshot({ path: resolve(GALLERY, `06-inspector/empty-${vp.name}.png`) });
@@ -376,7 +376,7 @@ for (const vp of INSPECTOR_VIEWPORTS) {
 }
 
 // AJ-E407 inspector-content captures (Instance + Session tabs).
-test("inspector — Instance Overview fields (populated)", async ({ page }) => {
+test("inspector — Instance Overview fields (populated)", gate("07-inspector-content"), async ({ page }) => {
   await seedInspectorPage(page, { width: 1440, height: 900 });
   await expectRail(page); // D-25: the list, or its icon column when narrow
   await page.getByRole("button", { name: /Work Max/ }).first().click();
@@ -426,7 +426,7 @@ test("inspector — Session Overview ended stamp", async ({ page }) => {
 });
 
 // AJ-E408 aggregate-content captures.
-test("inspector — Account Overview rings + forecast", async ({ page }) => {
+test("inspector — Account Overview rings + forecast", gate("08-inspector-aggregate"), async ({ page }) => {
   // AJ-E610: the rings are engine-driven now — seed the display seam
   // (badge-adjacent % + reset, the honest typed states).
   await page.addInitScript(
@@ -493,7 +493,7 @@ test("inspector — Project Overview", async ({ page }) => {
 });
 
 // AJ-E409 quality-tab captures.
-test("inspector — Quality tab populated", async ({ page }) => {
+test("inspector — Quality tab populated", gate("09-quality"), async ({ page }) => {
   await seedInspectorPage(page, { width: 1440, height: 900 });
   await expectRail(page); // D-25: the list, or its icon column when narrow
   await page.getByRole("button", { name: /Work Max/ }).first().click();
@@ -516,7 +516,7 @@ test("inspector — Quality tab View as table", async ({ page }) => {
 // AJ-E410 processes-tab captures: live tree (3 levels), orphan section
 // with the PID-named confirm, the `gone` verification state, and the
 // good empty state.
-test("inspector — Processes tab live tree + orphans", async ({ page }) => {
+test("inspector — Processes tab live tree + orphans", gate("10-processes"), async ({ page }) => {
   await seedInspectorPage(page, { width: 1440, height: 900 });
   await expectRail(page); // D-25: the list, or its icon column when narrow
   await page.getByRole("button", { name: /Work Max/ }).first().click();
@@ -613,7 +613,7 @@ for (const [name, days] of [
   });
 }
 
-test("renewal — editor with helper text (1440x900 + 1280x800)", async ({ page }) => {
+test("renewal — editor with helper text (1440x900 + 1280x800)", gate("11-renewal"), async ({ page }) => {
   await seedRenewalPage(page, { width: 1440, height: 900 }, 6);
   await openAccountOverview(page);
   await expect(page.getByTestId("renewal-editor")).toBeVisible();
@@ -638,7 +638,7 @@ test("renewal — Accounts row chip at <= 7 days (and none for unknown)", async 
 // AJ-E412 running-model captures: I-03 plain vs drift (sess-8 carries
 // the drift fixture: launched opus, observed sonnet-5), the Overview
 // dual-model line, and the not-reported inspector state.
-test("model — I-03 drift marker on the rail row", async ({ page }) => {
+test("model — I-03 drift marker on the rail row", gate("12-model"), async ({ page }) => {
   await seedInspectorPage(page, { width: 1440, height: 900 });
   await expectRail(page); // D-25: the list, or its icon column when narrow
   const marker = page.getByTestId("model-drift").first();
@@ -681,7 +681,7 @@ test("model — not reported by Provider inspector state", async ({ page }) => {
 // AJ-E413 desktop captures: the panel surface (no terminal card), the
 // rail `app` chip, and the state matrix (running, exited, crashed,
 // single-account warning) at the two required viewports.
-test("desktop — Instance panel (running app, isolation label, no terminal)", async ({ page }) => {
+test("desktop — Instance panel (running app, isolation label, no terminal)", gate("13-desktop"), async ({ page }) => {
   await seedInspectorPage(page, { width: 1280, height: 800 });
   await expectRail(page); // D-25: the list, or its icon column when narrow
   await page
@@ -798,7 +798,7 @@ async function seedFocusPage(
   await page.goto("/");
 }
 
-test("focus — panel outcome after focus (Focused window, dark)", async ({ page }) => {
+test("focus — panel outcome after focus (Focused window, dark)", gate("14-focus"), async ({ page }) => {
   await seedFocusPage(page, {
     outcome: "Focused window",
     permission_missing: false,
@@ -919,7 +919,7 @@ async function openRunningDesktopPanel(page: import("@playwright/test").Page) {
     .click();
 }
 
-test("preview — live mirror with indicator, frame age, click-to-focus (dark)", async ({ page }) => {
+test("preview — live mirror with indicator, frame age, click-to-focus (dark)", gate("15-preview"), async ({ page }) => {
   await seedPreviewPage(page, { width: 1280, height: 800 }, "dark", null);
   await openRunningDesktopPanel(page);
   const preview = page.getByTestId("desktop-preview");
@@ -985,7 +985,7 @@ test("preview — exited instance renders no preview (status only)", async ({ pa
 // AJ-E501: the ledger-degraded banner — copy exact, both themes, on Home
 // (it moved there from Overview, AJ-E1021).
 for (const theme of ["dark", "light"] as const) {
-  test(`ledger — degraded banner (${theme} 1440x900)`, async ({ page }) => {
+  test(`ledger — degraded banner (${theme} 1440x900)`, gate("17-ledger"), async ({ page }) => {
     await page.addInitScript(
       ({ fixture, t0, themeName }) => {
         const seeded = { ...fixture };
@@ -1094,7 +1094,7 @@ for (const theme of THEMES) {
     { name: "1440x900", width: 1440, height: 900 },
     { name: "1024x700", width: 1024, height: 700 },
   ]) {
-    test(`ports — inventory, four classifications — ${vp.name} — ${theme}`, async ({ page }) => {
+    test(`ports — inventory, four classifications — ${vp.name} — ${theme}`, gate("18-ports"), async ({ page }) => {
       await page.addInitScript(
         ({ fixture, t0, ports, theme }) => {
           (window as never as { __AIJ_FIXTURE__: unknown }).__AIJ_FIXTURE__ = fixture;
@@ -1173,7 +1173,7 @@ for (const state of ["needs-attention", "all-managed", "re-adopted", "unverifiab
       { name: "1440x900", width: 1440, height: 900 },
       { name: "1024x700", width: 1024, height: 700 },
     ]) {
-      test(`cleanup — ${state} — ${vp.name} — ${theme}`, async ({ page }) => {
+      test(`cleanup — ${state} — ${vp.name} — ${theme}`, gate("19-cleanup"), async ({ page }) => {
         await page.addInitScript(
           ({ fixture, t0, cleanup, theme }) => {
             (window as never as { __AIJ_FIXTURE__: unknown }).__AIJ_FIXTURE__ = fixture;
@@ -1410,7 +1410,7 @@ for (const state of [
       { name: "1440x900", width: 1440, height: 900 },
       { name: "1024x700", width: 1024, height: 700 },
     ]) {
-      test(`kill-sheet — ${state} — ${vp.name} — ${theme}`, async ({ page }) => {
+      test(`kill-sheet — ${state} — ${vp.name} — ${theme}`, gate("20-kill"), async ({ page }) => {
         const seams = killSeams(state);
         await page.addInitScript(
           ({ fixture, t0, cleanup, theme, seams }) => {
@@ -1527,7 +1527,7 @@ async function seedTiersPage(
 
 for (const theme of THEMES) {
   for (const vp of [{ name: "1440x900", width: 1440, height: 900 }]) {
-    test(`tiers — account toggles off — ${vp.name} — ${theme}`, async ({ page }) => {
+    test(`tiers — account toggles off — ${vp.name} — ${theme}`, gate("21-tiers"), async ({ page }) => {
       await seedTiersPage(page, vp, theme, {
         __AIJ_CLEANUP_TIERS__: { tier1_opt_in: false, tier2_opt_in: false },
       });
@@ -1734,7 +1734,7 @@ async function seedRecoveryPage(
 }
 
 for (const theme of THEMES) {
-  test(`recovery — one-time summary dialog — 1440x900 — ${theme}`, async ({ page }) => {
+  test(`recovery — one-time summary dialog — 1440x900 — ${theme}`, gate("22-recovery"), async ({ page }) => {
     await seedRecoveryPage(page, theme, { __AIJ_RECOVERY__: RECOVERY_SUMMARY });
     const dialog = page.getByTestId("recovery-summary");
     await expect(dialog).toBeVisible();
@@ -1908,7 +1908,7 @@ for (const theme of THEMES) {
 // Centre → Tab to the hog alert's stage button → Enter opens the
 // verified sheet → Esc closes it → focus RETURNS to the stage button
 // (2.4.3). No pointer input anywhere in the pass.
-test("alerts — keyboard-only pass: review hog, stage sheet, Esc returns focus", async ({ page }) => {
+test("alerts — keyboard-only pass: review hog, stage sheet, Esc returns focus", gate("23-alerts"), async ({ page }) => {
   await seedRecoveryPage(page, "dark", {
     __AIJ_CLEANUP__: cleanupFixture("needs-attention"),
     __AIJ_CLEANUP_ALERTS__: { alerts: [HOG_ALERT] },
@@ -2019,7 +2019,7 @@ for (const theme of THEMES) {
     { name: "1440x900", width: 1440, height: 900 },
     { name: "1024x700", width: 1024, height: 700 },
   ]) {
-    test(`fleet — machine column + filter + foreign display-only — ${vp.name} — ${theme}`, async ({ page }) => {
+    test(`fleet — machine column + filter + foreign display-only — ${vp.name} — ${theme}`, gate("24-fleet"), async ({ page }) => {
       // D-25: the machine filter shows once another Mac is paired.
       await seedRecoveryPage(page, theme, { __AIJ_CLEANUP__: FLEET_CLEANUP, __AIJ_FLEET_PEERS__: [STUDIO_PEER] });
       await goTo(page, "Cleanup");
@@ -2086,7 +2086,7 @@ const costStates: Record<string, Record<string, unknown>> = {
 for (const theme of THEMES) {
   for (const vp of VIEWPORTS) {
     for (const [state, fixture] of Object.entries(costStates)) {
-      test(`cost matrix — ${state} — ${vp.name} — ${theme}`, async ({ page }) => {
+      test(`cost matrix — ${state} — ${vp.name} — ${theme}`, gate("25-costs"), async ({ page }) => {
         await page.addInitScript(
           ({ rollups, t0, theme: themeName }) => {
             (window as never as { __AIJ_COST_ROLLUPS__: unknown }).__AIJ_COST_ROLLUPS__ = rollups;
@@ -2151,7 +2151,7 @@ const RAIL_QUOTA_VP = [
 for (const theme of THEMES) {
   for (const vp of RAIL_QUOTA_VP) {
     for (const [state, displays] of Object.entries(quotaDisplays)) {
-      test(`two-clocks — ${state} — ${vp.name} — ${theme}`, async ({ page }) => {
+      test(`two-clocks — ${state} — ${vp.name} — ${theme}`, gate("26-quota"), async ({ page }) => {
         await page.addInitScript(
           ({ fixture, t0, theme: themeName, display }) => {
             (window as never as { __AIJ_FIXTURE__: unknown }).__AIJ_FIXTURE__ = fixture;
@@ -2241,7 +2241,7 @@ const queueRows: Record<string, unknown>[] = [
 
 for (const theme of THEMES) {
   for (const vp of RAIL_QUOTA_VP) {
-    test(`ranking — NewSession ranked list — ${vp.name} — ${theme}`, async ({ page }) => {
+    test(`ranking — NewSession ranked list — ${vp.name} — ${theme}`, gate("27-ranking"), async ({ page }) => {
       await page.addInitScript(
         ({ fixture, t0, theme: themeName, ranked }) => {
           const w = window as unknown as Record<string, unknown>;
@@ -2420,7 +2420,7 @@ for (const theme of THEMES) {
       await expect(page.getByTestId("switch-step-confirm")).toBeVisible();
     };
 
-    test(`switch — freeze on the wizard Confirm step (finish-turn default) — ${vp.name} — ${theme}`, async ({ page }) => {
+    test(`switch — freeze on the wizard Confirm step (finish-turn default) — ${vp.name} — ${theme}`, gate("28-switch"), async ({ page }) => {
       await page.addInitScript(
         ({ fixture, t0, theme: themeName }) => {
           const w = window as unknown as Record<string, unknown>;
@@ -2599,7 +2599,7 @@ for (const theme of THEMES) {
       await expect(page.getByTestId("switch-flow")).toBeVisible();
     };
 
-    test(`door — 1-click popover (proven pair) — ${vp.name} — ${theme}`, async ({ page }) => {
+    test(`door — 1-click popover (proven pair) — ${vp.name} — ${theme}`, gate("29-door"), async ({ page }) => {
       await openDoor(page, SWITCH_ONECLICK_FIXTURE);
       await expect(page.getByTestId("switch-oneclick")).toBeVisible();
       await expect(page.getByTestId("switch-oneclick-carry")).toContainText("nothing dropped");
@@ -2707,7 +2707,7 @@ for (const theme of THEMES) {
       await page.getByRole("button", { name: /Work Max/ }).first().click();
     };
 
-    test(`switch-back — suggestion card (verbatim, suggest-only) — ${vp.name} — ${theme}`, async ({ page }) => {
+    test(`switch-back — suggestion card (verbatim, suggest-only) — ${vp.name} — ${theme}`, gate("30-switchback"), async ({ page }) => {
       await openInspector(page, {});
       await expect(page.getByTestId("switch-back-card")).toBeVisible();
       await expect(page.getByTestId("switch-back-card-copy")).toContainText(
@@ -2840,7 +2840,7 @@ for (const theme of THEMES) {
       await expect(page.getByTestId("switch-flow")).toBeVisible();
     };
 
-    test(`redaction — first-run chooser (no default) — ${vp.name} — ${theme}`, async ({ page }) => {
+    test(`redaction — first-run chooser (no default) — ${vp.name} — ${theme}`, gate("31-redaction"), async ({ page }) => {
       await openRedactionDoor(page, {
         ...SWITCH_ONECLICK_FIXTURE,
         redaction: { global: null, override: null, effective: null, source: "unset", line: "" },
@@ -3070,7 +3070,7 @@ const openGraphProject = async (
 
 for (const theme of THEMES) {
   for (const vp of SWITCH_VP) {
-    test(`graph — ranked targets with explanations — ${vp.name} — ${theme}`, async ({ page }) => {
+    test(`graph — ranked targets with explanations — ${vp.name} — ${theme}`, gate("32-graph"), async ({ page }) => {
       await page.addInitScript(
         ({ fixture, targets, t0 }) => {
           const w = window as unknown as Record<string, unknown>;
@@ -3267,7 +3267,7 @@ for (const theme of THEMES) {
       await expect(page.getByTestId("beta-matrix")).toBeVisible();
     };
 
-    test(`beta — matrix, all pairs open debt — ${vp.name} — ${theme}`, async ({ page }) => {
+    test(`beta — matrix, all pairs open debt — ${vp.name} — ${theme}`, gate("33-beta"), async ({ page }) => {
       await openProfiles(page);
       await expect(page.getByTestId("beta-matrix-summary")).toContainText(
         "None of the 4 switches is proven yet",
@@ -3348,7 +3348,7 @@ const FLOW_VP = [
 
 for (const theme of THEMES) {
   for (const vp of FLOW_VP) {
-    test(`flow b — both steps — ${vp.name} — ${theme}`, async ({ page }) => {
+    test(`flow b — both steps — ${vp.name} — ${theme}`, gate("37-flows"), async ({ page }) => {
       await page.addInitScript(
         ({ fixture, theme: themeName }) => {
           const w = window as unknown as Record<string, unknown>;
@@ -3490,7 +3490,7 @@ const E306_INSTALLS = [
 
 for (const theme of THEMES) {
   for (const vp of CDE_VP) {
-    test(`flow c — provider cards, 4 states — ${vp.name} — ${theme}`, async ({ page }) => {
+    test(`flow c — provider cards, 4 states — ${vp.name} — ${theme}`, gate("38-flows-cde"), async ({ page }) => {
       await page.addInitScript(
         ({ fixture, installs, theme: t }) => {
           const w = window as unknown as Record<string, unknown>;
@@ -3734,7 +3734,7 @@ const openConfirmSource = async (
 
 for (const theme of THEMES) {
   for (const vp of CDE_VP) {
-    test(`flow f — confirm-source normal — ${vp.name} — ${theme}`, async ({ page }) => {
+    test(`flow f — confirm-source normal — ${vp.name} — ${theme}`, gate("39-import"), async ({ page }) => {
       await openConfirmSource(page, theme, vp, NORMAL_INSPECT);
       const panel = page.getByTestId("first-run-folder-check");
       await expect(panel).toContainText("128 files");
@@ -3823,7 +3823,7 @@ for (const theme of THEMES) {
 for (const theme of THEMES) {
   for (const vp of CDE_VP) {
     for (const state of ["logged_out", "partial", "expired", "sso_pending", "api_key", "signed_in"] as const) {
-      test(`login card — ${state} — ${vp.name} — ${theme}`, async ({ page }) => {
+      test(`login card — ${state} — ${vp.name} — ${theme}`, gate("40-login"), async ({ page }) => {
         await page.addInitScript(
           ({ fixture, state: loginState, theme: t }) => {
             const w = window as unknown as Record<string, unknown>;
@@ -3859,7 +3859,7 @@ for (const theme of THEMES) {
 // 1280×800 + 390×844 × light+dark.
 for (const theme of THEMES) {
   for (const vp of CDE_VP) {
-    test(`71 add account — fresh, then its sign-in — ${vp.name} — ${theme}`, async ({ page }) => {
+    test(`71 add account — fresh, then its sign-in — ${vp.name} — ${theme}`, gate("71-add-account"), async ({ page }) => {
       await page.addInitScript(
         ({ fixture, t }) => {
           const w = window as unknown as Record<string, unknown>;
@@ -3896,7 +3896,7 @@ const TOOL_VIEW_VP = [
 ] as const;
 for (const theme of THEMES) {
   for (const vp of TOOL_VIEW_VP) {
-    test(`72 tool view — from a session's tool chip — ${vp.name} — ${theme}`, async ({ page }) => {
+    test(`72 tool view — from a session's tool chip — ${vp.name} — ${theme}`, gate("72-tool-view"), async ({ page }) => {
       await page.addInitScript(
         ({ fixture, t, t0 }) => {
           const w = window as unknown as Record<string, unknown>;
@@ -3948,7 +3948,7 @@ const ACCOUNTS_VP = [
 
 for (const theme of THEMES) {
   for (const vp of ACCOUNTS_VP) {
-    test(`41 policy — Accounts → Pack secrets + env overrides — ${vp.name} — ${theme}`, async ({ page }) => {
+    test(`41 policy — Accounts → Pack secrets + env overrides — ${vp.name} — ${theme}`, gate("41-policy"), async ({ page }) => {
       await page.addInitScript(
         ({ fixture, t }) => {
           const w = window as unknown as Record<string, unknown>;
@@ -4026,7 +4026,7 @@ const openFleet = async (
 
 for (const theme of THEMES) {
   for (const vp of ACCOUNTS_VP) {
-    test(`42 fleet — this Mac, no peers — ${vp.name} — ${theme}`, async ({ page }) => {
+    test(`42 fleet — this Mac, no peers — ${vp.name} — ${theme}`, gate("42-fleet"), async ({ page }) => {
       await openFleet(page, theme, vp, { __AIJ_FLEET_PEERS__: [] });
       await expect(page.getByTestId("fleet-fingerprint")).toHaveAttribute("aria-label", "Machine fingerprint");
       await expect(page.getByTestId("fleet-peers-empty")).toBeVisible();
@@ -4165,7 +4165,7 @@ for (const theme of THEMES) {
       await shot43(page, "fail-cancelled", vp, theme);
     });
 
-    test(`43 pairing — paused and turned off — ${vp.name} — ${theme}`, async ({ page }) => {
+    test(`43 pairing — paused and turned off — ${vp.name} — ${theme}`, gate("43-pairing"), async ({ page }) => {
       await openFleet(page, theme, vp, { __AIJ_FLEET_PEERS__: [], __AIJ_LINK__: LINK_ON, __AIJ_PAIR_LOCK__: "locked_out" });
       await page.getByTestId("fleet-add").click();
       await expect(page.getByTestId("pairing-failure")).toHaveAttribute("data-reason", "locked_out");
@@ -4235,7 +4235,7 @@ const shot44 = (page: import("@playwright/test").Page, name: string, vp: { name:
 
 for (const theme of THEMES) {
   for (const vp of ACCOUNTS_VP) {
-    test(`44 settings — signed out, code, linking — ${vp.name} — ${theme}`, async ({ page }) => {
+    test(`44 settings — signed out, code, linking — ${vp.name} — ${theme}`, gate("44-settings"), async ({ page }) => {
       await openSettings(page, theme, vp, {});
       await expect(page.getByTestId("cloud-signed-out")).toBeVisible();
       await shot44(page, "signed-out", vp, theme);
@@ -4340,7 +4340,7 @@ const openRemote = async (
 
 for (const theme of THEMES) {
   for (const vp of REMOTE_VP) {
-    test(`45 remote — live instance, all tabs — ${vp.name} — ${theme}`, async ({ page }) => {
+    test(`45 remote — live instance, all tabs — ${vp.name} — ${theme}`, gate("45-remote"), async ({ page }) => {
       await openRemote(page, theme, vp, remoteMachine());
       await page.getByTestId("fleet-remote-instance").first().click();
       await expect(page.getByTestId("remote-freshness")).toHaveAttribute("data-freshness", "live");
@@ -4388,7 +4388,7 @@ for (const theme of THEMES) {
 
 for (const theme of THEMES) {
   for (const vp of REMOTE_VP) {
-    test(`46 fleet board — all machines, one machine, alert — ${vp.name} — ${theme}`, async ({ page }) => {
+    test(`46 fleet board — all machines, one machine, alert — ${vp.name} — ${theme}`, gate("46-fleet-board"), async ({ page }) => {
       await openRemote(page, theme, vp, {
         ...remoteMachine(),
         alerts: [{ kind: "exhausted", account: "Work Max", text: "Work Max hit its 5-hour limit — resets at 14:00.", at_ms: T0 - 30_000 }],
@@ -4446,7 +4446,7 @@ const desktopMachine = (over: Record<string, unknown> = {}) =>
   });
 
 for (const theme of THEMES) {
-  test(`47 remote focus — the four outcomes — ${theme}`, async ({ page }) => {
+  test(`47 remote focus — the four outcomes — ${theme}`, gate("47-remote-focus"), async ({ page }) => {
     await openRemote(page, theme, { width: 1280, height: 800 }, desktopMachine());
     await page.getByTestId("fleet-remote-instance").first().click();
     await page.getByRole("tab", { name: "Actions" }).click();
@@ -4506,7 +4506,7 @@ const cleanupMachine = (over: Record<string, unknown> = {}) =>
 
 for (const theme of THEMES) {
   for (const vp of REMOTE_VP) {
-    test(`48 remote cleanup — grouped, confirm, outcome — ${vp.name} — ${theme}`, async ({ page }) => {
+    test(`48 remote cleanup — grouped, confirm, outcome — ${vp.name} — ${theme}`, gate("48-remote-cleanup"), async ({ page }) => {
       await openRemote(page, theme, vp, cleanupMachine());
       await goTo(page, "Cleanup");
       await page.getByLabel("Machine filter").selectOption("all");
@@ -4555,7 +4555,7 @@ const awayMachine = () =>
   });
 
 for (const theme of THEMES) {
-  test(`49 fleet sync — synced, queued, last known, skew — ${theme}`, async ({ page }) => {
+  test(`49 fleet sync — synced, queued, last known, skew — ${theme}`, gate("49-fleet-sync"), async ({ page }) => {
     await openFleet(page, theme, SYNC_VP, {
       __AIJ_FLEET_PEERS__: [{ ...remotePeer, queued_changes: 0 }],
       __AIJ_LINK__: { enabled: true, port: 47821, error: null },
@@ -4692,7 +4692,7 @@ const openCross = async (
 };
 
 for (const theme of THEMES) {
-  test(`50 cross switch — targets, wizard, mapping, progress — ${theme}`, async ({ page }) => {
+  test(`50 cross switch — targets, wizard, mapping, progress — ${theme}`, gate("50-cross-switch"), async ({ page }) => {
     await openCross(page, theme, { __AIJ_FLEET_SWITCH_TARGETS__: CROSS_TARGETS });
     await expect(page.getByTestId("remote-switch-target")).toHaveCount(3);
     await page.getByTestId("remote-switch-targets").scrollIntoViewIfNeeded();
@@ -4782,7 +4782,7 @@ const identityFixture = {
 
 for (const theme of THEMES) {
   for (const vp of IDENTITY_VP) {
-    test(`51 identity — rail marker, inspector chip, wrong-account pause — ${vp.name} — ${theme}`, async ({ page }) => {
+    test(`51 identity — rail marker, inspector chip, wrong-account pause — ${vp.name} — ${theme}`, gate("51-identity"), async ({ page }) => {
       await page.addInitScript(
         ({ fixture, t, t0 }) => {
           const w = window as unknown as Record<string, unknown>;
@@ -4854,7 +4854,7 @@ for (const theme of THEMES) {
     { name: "1280x800", width: 1280, height: 800 },
     { name: "1024x680", width: 1024, height: 680 },
   ] as const) {
-    test(`52 worktree — chips, offer, dirty removal — ${vp.name} — ${theme}`, async ({ page }) => {
+    test(`52 worktree — chips, offer, dirty removal — ${vp.name} — ${theme}`, gate("52-worktree"), async ({ page }) => {
       await page.addInitScript(
         ({ fixture, t, t0, git }) => {
           const w = window as unknown as Record<string, unknown>;
@@ -4917,7 +4917,7 @@ const parkedFixture = {
 };
 
 for (const theme of THEMES) {
-  test(`53 parked — row, card and the reset offer — ${theme}`, async ({ page }) => {
+  test(`53 parked — row, card and the reset offer — ${theme}`, gate("53-parked"), async ({ page }) => {
     await page.addInitScript(
       ({ fixture, t, t0 }) => {
         const w = window as unknown as Record<string, unknown>;
@@ -4986,7 +4986,7 @@ for (const theme of THEMES) {
     { name: "1440x900", width: 1440, height: 900 },
     { name: "1024x680", width: 1024, height: 680 },
   ] as const) {
-    test(`54 summary — home view and a row into its Instance — ${vp.name} — ${theme}`, async ({ page }) => {
+    test(`54 summary — home view and a row into its Instance — ${vp.name} — ${theme}`, gate("54-summary"), async ({ page }) => {
       await page.addInitScript(
         ({ fixture, t, t0, summary }) => {
           const w = window as unknown as Record<string, unknown>;
@@ -5023,7 +5023,7 @@ for (const theme of THEMES) {
     { name: "1024x680", width: 1024, height: 680 },
   ] as const) {
     for (const density of ["comfortable", "compact"] as const) {
-      test(`55 triage — populated — ${vp.name} — ${density} — ${theme}`, async ({ page }) => {
+      test(`55 triage — populated — ${vp.name} — ${density} — ${theme}`, gate("55-triage"), async ({ page }) => {
         await page.addInitScript(
           ({ fixture, t, t0, d }) => {
             const w = window as unknown as Record<string, unknown>;
@@ -5126,7 +5126,7 @@ for (const theme of THEMES) {
     { name: "1280x800", width: 1280, height: 800 },
     { name: "1024x680", width: 1024, height: 680 },
   ] as const) {
-    test(`56 history — search, archived, replay, delete, retention — ${vp.name} — ${theme}`, async ({ page }) => {
+    test(`56 history — search, archived, replay, delete, retention — ${vp.name} — ${theme}`, gate("56-history"), async ({ page }) => {
       await page.addInitScript(
         ({ fixture, t, t0, seeds }) => {
           const w = window as unknown as Record<string, unknown>;
@@ -5193,7 +5193,7 @@ const backupManifest = {
 
 for (const theme of THEMES) {
   for (const state of ["progress", "done", "plan", "refused"] as const) {
-    test(`57 backup — ${state} — ${theme}`, async ({ page }) => {
+    test(`57 backup — ${state} — ${theme}`, gate("57-backup"), async ({ page }) => {
       await page.addInitScript(
         ({ fixture, t, t0, kind, manifest }) => {
           const w = window as unknown as Record<string, unknown>;
@@ -5318,7 +5318,7 @@ const updateHomeStates: Record<string, Record<string, unknown>> = {
 
 for (const theme of THEMES) {
   for (const [name, status] of Object.entries({ ...updateStates, ...updateHomeStates })) {
-    test(`58 updates — ${name} — ${theme}`, async ({ page }) => {
+    test(`58 updates — ${name} — ${theme}`, gate("58-updates"), async ({ page }) => {
       await page.addInitScript(
         ({ fixture, t, t0, seeded, info, goingBack }) => {
           const w = window as unknown as Record<string, unknown>;
@@ -5369,7 +5369,7 @@ for (const theme of THEMES) {
 // ---------------------------------------------------------------------
 
 for (const theme of THEMES) {
-  test(`59 vault — recovery code sheet and waiting row — ${theme}`, async ({ page }) => {
+  test(`59 vault — recovery code sheet and waiting row — ${theme}`, gate("59-vault"), async ({ page }) => {
     await openSettings(page, theme, { width: 1280, height: 800 }, {
       __AIJ_FIGUREHEAD__: FH_LINKED,
       __AIJ_VAULT_STATUS__: { has_key: false, code_saved: false },
@@ -5414,7 +5414,7 @@ const cloudPlan = {
 };
 
 for (const theme of THEMES) {
-  test(`60 cloud backup — panel, uploading, list, restore preview — ${theme}`, async ({ page }) => {
+  test(`60 cloud backup — panel, uploading, list, restore preview — ${theme}`, gate("60-cloud-backup"), async ({ page }) => {
     await openSettings(page, theme, { width: 1280, height: 800 }, {
       __AIJ_FIGUREHEAD__: FH_LINKED,
       __AIJ_CLOUD_BACKUP__: {
@@ -5472,7 +5472,7 @@ const ACCOUNT_MACS = {
 const FH_DISCOVERY = { ...FH_LINKED, features: FH_LINKED.features.map((f) => (f.key === "fleetDiscovery" ? { ...f, on: true } : f)) };
 
 for (const theme of THEMES) {
-  test(`61 account macs — list, compare, account-paired peer — ${theme}`, async ({ page }) => {
+  test(`61 account macs — list, compare, account-paired peer — ${theme}`, gate("61-account-macs"), async ({ page }) => {
     await openFleet(page, theme, { name: "1280x800", width: 1280, height: 800 }, {
       __AIJ_FIGUREHEAD__: FH_DISCOVERY,
       __AIJ_ACCOUNT_MACS__: ACCOUNT_MACS,
@@ -5622,7 +5622,7 @@ const PRIVACY_STATES: { name: string; seams: Record<string, unknown> }[] = [
 for (const theme of THEMES) {
   for (const vp of STATS_VP) {
     for (const state of PRIVACY_STATES) {
-      test(`62 privacy — ${state.name} — ${vp.name} — ${theme}`, async ({ page }) => {
+      test(`62 privacy — ${state.name} — ${vp.name} — ${theme}`, gate("62-privacy"), async ({ page }) => {
         await openSettings(page, theme, vp, state.seams);
         await expect(page.getByTestId("privacy-state")).toBeVisible();
         await page.getByTestId("settings-privacy").evaluate((card) => card.scrollIntoView({ block: "start" }));
@@ -5643,7 +5643,7 @@ for (const theme of THEMES) {
       await page.screenshot({ path: resolve(GALLERY, `62-privacy/report-json-${vp.name}-${theme}.png`) });
     });
 
-    test(`63 consent — asked again after a consent change — ${vp.name} — ${theme}`, async ({ page }) => {
+    test(`63 consent — asked again after a consent change — ${vp.name} — ${theme}`, gate("63-consent"), async ({ page }) => {
       // The dialog opens over the home screen at launch.
       await page.addInitScript(
         ({ fixture, t, stats, t0 }) => {
@@ -5703,7 +5703,7 @@ const CRASH_REPORT = {
 };
 
 for (const theme of THEMES) {
-  test(`64 crash — the setting (ask, nothing sendable yet) — ${theme}`, async ({ page }) => {
+  test(`64 crash — the setting (ask, nothing sendable yet) — ${theme}`, gate("64-crash"), async ({ page }) => {
     await openSettings(page, theme, { width: 1280, height: 800 }, {
       __AIJ_USAGE_STATS__: SHARE,
       __AIJ_CRASH__: { setting: "ask", effective: "ask", reason: null, asking: [], queued: 1, can_send: false },
@@ -5771,7 +5771,7 @@ const SETTINGS_SECTIONS: Array<[string, string]> = [
 
 for (const theme of THEMES) {
   for (const [name, title] of SETTINGS_SECTIONS) {
-    test(`65 settings sections — ${name} — ${theme}`, async ({ page }) => {
+    test(`65 settings sections — ${name} — ${theme}`, gate("65-settings-sections"), async ({ page }) => {
       await openSettings(page, theme, { width: 1280, height: 800 }, { __AIJ_FLEET_PEERS__: [SETTINGS_PEER] });
       await page.getByRole("navigation", { name: "Settings sections" }).getByRole("button", { name: title }).click();
       await expect(page.locator(`#settings-${name}-title`)).toBeFocused();
@@ -5819,7 +5819,7 @@ async function openFeedback(
 }
 
 for (const theme of THEMES) {
-  test(`75 feedback — a held stop, with Undo — ${theme}`, async ({ page }) => {
+  test(`75 feedback — a held stop, with Undo — ${theme}`, gate("75-feedback"), async ({ page }) => {
     await openFeedback(page, theme);
     await page.locator('[data-instance-id="sess-2"]').first().click();
     await page.getByTestId("inspector-stop").click();
@@ -5869,7 +5869,7 @@ for (const theme of THEMES) {
 
 for (const theme of THEMES) {
   for (const vp of [{ name: "1280x800", width: 1280, height: 800 }, { name: "1024x680", width: 1024, height: 680 }]) {
-    test(`76 keys — the ? sheet — ${vp.name} — ${theme}`, async ({ page }) => {
+    test(`76 keys — the ? sheet — ${vp.name} — ${theme}`, gate("76-keys"), async ({ page }) => {
       await openFeedback(page, theme);
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await expect(page.getByTestId("home")).toBeVisible();

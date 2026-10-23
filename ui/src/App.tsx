@@ -1,7 +1,6 @@
 import { ToolChip } from "./components/ToolMark";
 import { AppActions } from "./components/AppActions";
 import { useAppKeys } from "./lib/app-keys";
-import { ConversationPage } from "./components/ConversationPage";
 import { ConversationsProvider } from "./lib/conversations";
 import { onConversationsChanged } from "./lib/ipc/conversations";
 import { withMarks, withPalette } from "./lib/palette";
@@ -9,18 +8,17 @@ import { useFirstRun } from "./lib/first-run";
 import { useLiveDeltas } from "./lib/live-deltas";
 import { MainNav } from "./components/MainNav";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { prefetchLazy } from "./lib/lazy";
+import {
+  ConversationPage, PortWarningSheet, CleanupCentre, ThisMacScreen, PrivacyScreen, ShortcutSheet, History,
+  AddProviderSheet, FirstRun, UsageScreen, LimitDialog, NewSessionModal, NewProjectSheet, FleetScreen,
+  SettingsScreen, SessionPanel, SwitchFlow, SwitchBackFlow,
+} from "./lazyParts";
 import { Button, Card } from "./components/primitives";
 import { WorkflowRail, type Freshness } from "./components/WorkflowRail";
 import { GoToPalette } from "./components/GoToPalette";
-import { PortWarningSheet } from "./components/PortMap";
-import { RecoverySummaryDialog } from "./components/RecoverySummaryDialog";
-import { UsageStatsReconsent } from "./components/UsageStatsReconsent";
-import { CrashReportPrompt } from "./components/CrashReports";
-import { CleanupCentre, focusCleanupFilter } from "./screens/CleanupCentre";
 import { useOutsideRequests } from "./lib/outside";
 import { GLOBAL_NAV, MORE_NAV, PRIMARY_NAV, globalId, type GlobalId } from "./lib/nav";
-import { ThisMacScreen } from "./screens/ThisMacScreen";
-import { PrivacyScreen } from "./screens/PrivacyScreen";
 import { IconJuggler, IconTerminal } from "./components/icons";
 import { AttentionAnnouncer, RenewalAnnouncer } from "./components/indicator";
 import { LegendPopover } from "./components/LegendPopover";
@@ -41,10 +39,8 @@ import { providerDisplayName, toolFound } from "./lib/providers";
 import { primaryToolId } from "./lib/tools";
 import { NARROW_RAIL_PX, useNarrowWindow } from "./lib/window";
 import { readInspectorFolded, storeInspectorFolded } from "./lib/shortcuts";
-import { ShortcutSheet } from "./components/ShortcutSheet";
 import { holdStop, sessionLabel } from "./lib/stop";
 import { ToastHost } from "./components/Toast";
-import { QuitSheet } from "./components/QuitSheet";
 import { cleanupAlerts, fleetPeers, launchPortWarning, statsEvent, statsGauge, type PortWarningInfo } from "./lib/bridge";
 
 /** AJ-E1103: the schema's screen names (History isn't counted; Home and
@@ -59,27 +55,20 @@ const STAT_SCREENS: Partial<Record<string, string>> = {
 
 /** AJ-E1103: the board became interactive once, after launch. */
 let boardInteractiveCounted = false;
-import { ProfilesScreen } from "./screens/Profiles";
-import { History } from "./screens/History";
-import { AddProviderSheet } from "./screens/AddProviderSheet";
-import { FirstRun } from "./screens/FirstRun";
 import { HomeScreen, placeOf } from "./screens/Home";
-import { UsageScreen } from "./screens/Usage";
-import { LimitDialog } from "./components/LimitDialog";
-import { NewSessionModal } from "./screens/NewSession";
-import { NewProjectSheet } from "./screens/NewProjectSheet";
-import { FleetScreen } from "./screens/FleetScreen";
-import { SettingsScreen } from "./screens/Settings";
+import { funnelEvent } from "./lib/funnel";
+import { NotificationRegion } from "./components/NotificationRegion";
+import { ScreenBoundary, ScrollingScreen } from "./components/ScreenBoundary";
+import { RightInspector } from "./components/RightInspector";
+// Mounted from the start (they listen for their moment), or opened at once: loaded eagerly.
+import { QuitSheet } from "./components/QuitSheet";
+import { CrashReportPrompt } from "./components/CrashReports";
 import { FleetPromptDialog } from "./components/FleetPromptDialog";
 import { IdentityMismatchDialog } from "./components/IdentityMismatchDialog";
 import { IsolationOfferDialog } from "./components/IsolationOfferDialog";
-import { funnelEvent } from "./lib/funnel";
-import { SessionPanel } from "./screens/WorkPanels";
-import { NotificationRegion } from "./components/NotificationRegion";
-import { ScreenBoundary, ScrollingScreen } from "./components/ScreenBoundary";
-import { SwitchFlow, showSwitchUndoToast } from "./components/SwitchFlow";
-import { SwitchBackFlow } from "./components/SwitchBackFlow";
-import { RightInspector } from "./components/RightInspector";
+import { UsageStatsReconsent } from "./components/UsageStatsReconsent";
+import { RecoverySummaryDialog } from "./components/RecoverySummaryDialog";
+import { ProfilesScreen } from "./screens/Profiles";
 import { ThisMacContext, useThisMac } from "./lib/machine";
 import { MachineStatusLine } from "./components/MachineStatusLine";
 import {
@@ -107,6 +96,7 @@ import {
   type InstanceInfo,
 } from "./lib/bridge";
 
+
 /**
  * App shell (ADR-0007, design iteration 5): a workflow navigator rail
  * (Projects / Instances / Sessions — the list lives in the rail) plus the
@@ -126,6 +116,8 @@ type Selection =
   | { kind: "remote"; machineId: string; instanceId: string | null };
 
 export default function App() {
+  // The rest of the app, fetched once the first window has painted.
+  useEffect(() => prefetchLazy(), []);
   // Density (AJ-E403): persisted in `aij.density`; the legacy
   // `aij.rail.collapsed` boolean migrates into `minimal` on first read.
   const [density, setDensity] = useState<Density>(() => readDensity());
@@ -565,7 +557,7 @@ export default function App() {
     goTo: setGlobal,
     openSettings: () => { setSettingsFocusCloud(false); setSettingsSection(undefined); setGlobal("settings"); },
     onCleanup: () => global === "cleanup",
-    focusCleanupFilter,
+    focusCleanupFilter: () => void import("./screens/CleanupCentre").then((module) => module.focusCleanupFilter()),
     stopSelected: () => stopSelectedRef.current(),
   });
 
@@ -1139,14 +1131,17 @@ export default function App() {
             // AJ-E206: a completed 1-click switch leaves the 10s undo
             // window open (the graph keeps the edge as the handle).
             if (undo) {
-              showSwitchUndoToast({
-                edgeId: undo.edgeId,
-                targetLabel: switchFlow.targetLabel,
-                onUndone: (undoneId) => {
-                  void refresh();
-                  selectSession(undoneId);
-                },
-              });
+              const targetLabel = switchFlow.targetLabel;
+              void import("./components/SwitchFlow").then((module) =>
+                module.showSwitchUndoToast({
+                  edgeId: undo.edgeId,
+                  targetLabel,
+                  onUndone: (undoneId) => {
+                    void refresh();
+                    selectSession(undoneId);
+                  },
+                }),
+              );
             }
           }}
         />

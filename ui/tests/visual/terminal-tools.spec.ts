@@ -7,7 +7,8 @@
  * axe 0 critical/serious on each.
  */
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
+import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -18,6 +19,8 @@ const MOD = process.platform === "darwin" ? "Meta" : "Control+Shift";
 async function open(page: Page, theme: "dark" | "light" = "dark") {
   await page.addInitScript((theme) => {
     localStorage.setItem("aij.theme", theme);
+    // AJ-E1522: a pinned clock, so the capture is the same every run.
+    Date.now = () => 1_728_800_000_000;
     localStorage.setItem("aij.onboarding.dismissed", "1");
     localStorage.setItem("aij.smoother.dismissed", JSON.stringify(["all"]));
     sessionStorage.setItem("aij.ready.skipped", "1");
@@ -130,7 +133,7 @@ test("copy, text size and jump to the bottom", async ({ page, context }) => {
 });
 
 for (const theme of ["dark", "light"] as const) {
-  test(`maximize, find and its own window — ${theme}`, async ({ page }) => {
+  test(`maximize, find and its own window — ${theme}`, gate("82-terminal-tools"), async ({ page }) => {
     await open(page, theme);
     await page.getByTestId("terminal-find").click();
     await page.getByTestId("terminal-search-input").fill("Ask");

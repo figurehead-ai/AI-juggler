@@ -64,6 +64,13 @@ impl juggler_adapter::handover::HandoverSupport for ClaudeCodeAdapter {
         }
         let mut files = Vec::new();
         for (name, sibling) in entries {
+            // A copy travels in memory: never one too large to hold.
+            if std::fs::metadata(&sibling)?.len() > crate::transcript::SESSION_FILE_MAX {
+                return Err(AdapterError::Unsupported(
+                    "this session's files are too large to carry; start fresh with a summary instead"
+                        .into(),
+                ));
+            }
             let bytes = std::fs::read(&sibling)?;
             if name == main_name && !tail_parses(&bytes) {
                 // F-H-02: the source is still writing (or corrupt) —

@@ -1171,55 +1171,11 @@ pub fn gemini_events() -> Vec<UsageEvent> {
 // Generic file tail (transcripts/rollouts): offset-tracked, truncation-aware
 // ---------------------------------------------------------------------------
 
-/// Tails a JSONL source file from `offset`, returning the new bytes'
-/// parse outcome. Truncation (size < offset) resets to 0 — a full
-/// reparse whose duplicate events the store dedupes by uuid. `carry` is
-/// what the file's previous slice left; it comes back unchanged when
-/// there is nothing new to read, and starts over with the file when it was
-/// truncated or replaced (its facts were about the old content).
-#[must_use]
-pub fn tail_jsonl(
-    path: &Path,
-    offset: u64,
-    carry: &RolloutCarry,
-    parse: impl FnOnce(&[u8], RolloutCarry) -> TailOutcome,
-) -> TailOutcome {
-    let unchanged = |offset, carry: &RolloutCarry| TailOutcome {
-        offset,
-        carry: carry.clone(),
-        ..TailOutcome::default()
-    };
-    let Ok(mut file) = std::fs::File::open(path) else {
-        return unchanged(offset, carry);
-    };
-    let len = file.metadata().map_or(offset, |meta| meta.len());
-    let mut start = offset;
-    let mut carry = carry.clone();
-    if len < start {
-        start = 0;
-        carry = RolloutCarry::default();
-    }
-    if start >= len {
-        return unchanged(start, &carry);
-    }
-    if let Ok(seeked) = std::io::Seek::seek(&mut file, std::io::SeekFrom::Start(start)) {
-        start = seeked;
-    }
-    let mut bytes = Vec::new();
-    let _ = file.read_to_end(&mut bytes);
-    // Consume only through the last newline (a partial trailing line
-    // stays for the next pass).
-    let consumed = bytes
-        .iter()
-        .rposition(|byte| *byte == b'\n')
-        .map_or(0, |index| index + 1);
-    if consumed == 0 {
-        return unchanged(start, &carry);
-    }
-    let mut outcome = parse(&bytes[..consumed], carry);
-    outcome.offset = start + consumed as u64;
-    outcome
-}
+/// The generic tail, chunked (split from this file: the size budget).
+mod tail;
+pub use tail::tail_jsonl;
+#[cfg(test)]
+pub(crate) use tail::tail_jsonl_by;
 
 /// Convenience: [`tail_jsonl`] with the Claude transcript parser.
 #[must_use]

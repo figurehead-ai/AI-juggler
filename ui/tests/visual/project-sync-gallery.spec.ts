@@ -5,7 +5,8 @@
  * the project menu's way in. Both themes, axe 0 critical/serious on each.
  */
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
+import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { allStatuses } from "./fixtures";
@@ -47,7 +48,7 @@ async function openProject(page: Page) {
 }
 
 for (const theme of ["dark", "light"] as const) {
-  test(`the project's rules line — ${theme}`, async ({ page }) => {
+  test(`the project's rules line — ${theme}`, gate("82-project-sync"), async ({ page }) => {
     await seed(page, theme);
     await openProject(page);
     await page.getByTestId("project-root").locator("..").screenshot({ path: resolve(OUT, `header-line-${theme}.png`) });

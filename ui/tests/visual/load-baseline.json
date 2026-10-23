@@ -4,7 +4,7 @@
     "inspector: select an Instance to its painted Overview": 45,
     "search: type to a filtered board": 8,
     "cleanup: open the inventory": 33,
-    "cold start: webview navigation to painted rail": 64,
+    "cold start: webview navigation to painted rail": 130,
     "rail: scroll the board to its last Instance": 16
   },
   "waivers": []

@@ -10,6 +10,7 @@ import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FirstRun, freeLabel, groupOf, groupsFor, labelOf, outcomeWords, plainImportError, preselected, usedWords } from "./FirstRun";
 import type { DiscoveredInfo } from "../lib/bridge";
+import { foundWords } from "./firstRunScan";
 
 const w = () => window as unknown as Record<string, unknown>;
 const NOW = Math.floor(Date.now() / 1000);
@@ -439,6 +440,25 @@ describe("D-25 first run — the flow", () => {
     expect((await findByTestId("first-run-found")).textContent).toContain("No Claude Code setups found yet.");
     fireEvent.click(getByRole("button", { name: "Add an account" }));
     expect(await findByTestId("first-run-fresh")).toBeTruthy();
+  });
+
+  it("a scan that fails says so, never \"none found\", and can be run again", async () => {
+    w().__AIJ_SCAN_FAILS__ = "The scan timed out.";
+    const { findByTestId, getByTestId } = renderIt();
+    const step = await findByTestId("first-run-found");
+    expect(step.textContent).toContain("AI Juggler couldn't look for your setups.");
+    expect(step.textContent).toContain("The scan timed out. Try again, or add an account or import a folder yourself.");
+    expect(step.textContent).not.toContain("No Claude Code setups found yet.");
+    delete w().__AIJ_SCAN_FAILS__;
+    fireEvent.click(getByTestId("first-run-scan-again"));
+    await waitFor(() => expect(getByTestId("first-run-found").textContent).toContain("on this Mac."));
+    expect(getByTestId("first-run-found").textContent).not.toContain("couldn't look");
+  });
+
+  it("a failure without a full stop still reads as a sentence", () => {
+    expect(foundWords("Read-only test bridge — not available", 0, "Claude Code", "Claude Code", false, "claude-code").lead).toBe(
+      "Read-only test bridge — not available. Try again, or add an account or import a folder yourself.",
+    );
   });
 });
 

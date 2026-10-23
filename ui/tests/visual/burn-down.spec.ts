@@ -5,7 +5,8 @@
  * and both densities; axe 0 critical/serious on each.
  */
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
+import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { goTo } from "./fixtures";
@@ -72,7 +73,7 @@ async function axe(page: Page, what: string) {
 
 for (const theme of ["dark", "light"] as const) {
   for (const density of ["comfortable", "compact"] as const) {
-    test(`Usage shows sessions left and the burn-down — ${theme}, ${density}`, async ({ page }) => {
+    test(`Usage shows sessions left and the burn-down — ${theme}, ${density}`, gate("87-burn-down"), async ({ page }) => {
       await open(page, theme, density);
       await goTo(page, "Usage");
       const runways = page.getByTestId("burn-downs");

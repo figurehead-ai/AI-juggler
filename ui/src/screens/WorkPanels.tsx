@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { providerDisplayName } from "../lib/providers";
 import { Button, Card, Chip, type ChipTone } from "../components/primitives";
-import { TerminalView } from "../components/TerminalView";
+import { lazyNamed } from "../lib/lazy";
+
+// xterm loads with the first terminal shown, not at start.
+const TerminalView = lazyNamed(() => import("../components/TerminalView"), "TerminalView", true);
 import { IconProjects, IconTerminal } from "../components/icons";
 import { launchSettingsName, launchTitle } from "../lib/account-words";
 import {

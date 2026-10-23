@@ -463,25 +463,28 @@ pub trait OsReadings: Send {
 
 /// The sysctls behind [`memory_parts`], in its order (all required).
 #[cfg(target_os = "macos")]
-const MEMORY_SYSCTLS: [&str; 5] = [
+const MEMORY_SYSCTLS: [&str; 4] = [
     "hw.pagesize",
     "vm.page_pageable_internal_count",
     "vm.page_purgeable_count",
     "vm.page_wired_count",
-    "vm.compressor_bytes_used",
 ];
 
-/// macOS: app memory, wired and compressed, read through sysctl. `None` if
-/// any part can't be read (never a partial sum).
+/// macOS: app memory, wired and compressed, as Activity Monitor and
+/// `vm_stat` count them: app and wired through sysctl, compressed as the
+/// pages the compressor occupies (D-27's `host_statistics64`; the
+/// compressed data inside them, `vm.compressor_bytes_used`, read 3 % of
+/// physical memory low). `None` if any part can't be read (never a
+/// partial sum).
 #[cfg(target_os = "macos")]
 #[must_use]
 pub fn memory_parts() -> Option<MemoryParts> {
-    let [page, internal, purgeable, wired, compressed] = MEMORY_SYSCTLS.map(sysctl_u64);
+    let [page, internal, purgeable, wired] = MEMORY_SYSCTLS.map(sysctl_u64);
     let page = page?;
     Some(MemoryParts {
         app: internal?.saturating_sub(purgeable?).saturating_mul(page),
         wired: wired?.saturating_mul(page),
-        compressed: compressed?,
+        compressed: juggler_vm_stats::compressor_pages()?.saturating_mul(page),
     })
 }
 

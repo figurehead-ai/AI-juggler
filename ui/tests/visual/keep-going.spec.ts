@@ -5,7 +5,8 @@
  * Juggler itself, and a launch setting's own restart choice. Both themes; axe 0 critical/serious on each.
  */
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
+import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { goTo } from "./fixtures";
@@ -16,6 +17,8 @@ test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
 async function open(page: Page, theme: "dark" | "light") {
   await page.addInitScript((theme) => {
     localStorage.setItem("aij.theme", theme);
+    // AJ-E1522: a pinned clock, so the capture is the same every run.
+    Date.now = () => 1_728_800_000_000;
     localStorage.setItem("aij.onboarding.dismissed", "1");
     localStorage.setItem("aij.smoother.dismissed", JSON.stringify(["all"]));
     sessionStorage.setItem("aij.ready.skipped", "1");
@@ -33,7 +36,7 @@ async function axe(page: Page, what: string) {
 }
 
 for (const theme of ["dark", "light"] as const) {
-  test(`This Mac says what keeps it awake, one click from its setting — ${theme}`, async ({ page }) => {
+  test(`This Mac says what keeps it awake, one click from its setting — ${theme}`, gate("83-keep-going"), async ({ page }) => {
     await open(page, theme);
     await goTo(page, "This Mac");
     const line = page.getByTestId("this-mac-page").getByTestId("this-mac-awake");

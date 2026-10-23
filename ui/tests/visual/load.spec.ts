@@ -165,12 +165,25 @@ test("the Cleanup inventory opens in under 300 ms", async ({ page }) => {
   await open(page);
   const n = await boardRows(page);
   const runs: number[] = [];
+  // Cleanup sits under More until it's needed (AJ-E1533, after this
+  // baseline): the menu opens before the clock starts, so the timing is
+  // still the click on Cleanup to its painted inventory.
+  const main = page.getByRole("navigation", { name: "Main" });
+  const cleanup = async () => {
+    if ((await main.getByRole("button", { name: "Cleanup", exact: true }).count()) > 0) {
+      return main.getByRole("button", { name: "Cleanup", exact: true }).first();
+    }
+    await main.getByRole("button", { name: "More", exact: true }).click();
+    return page.locator("#nav-more").getByRole("button", { name: /^Cleanup\b/ });
+  };
   for (let i = 0; i < 5; i++) {
     await goTo(page, "Home");
+    const item = await cleanup();
+    await item.waitFor();
     runs.push(
       await timed(
         page,
-        () => goTo(page, "Cleanup"),
+        () => item.click(),
         () => expect(page.getByTestId("cleanup-centre").or(page.getByRole("heading", { name: /Cleanup/ })).first()).toBeVisible(),
       ),
     );

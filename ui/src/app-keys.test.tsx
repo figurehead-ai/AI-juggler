@@ -172,7 +172,7 @@ describe("AJ-E1504 keys in the app", () => {
     press({ key: "?", shiftKey: true }, search);
     expect(view.queryByTestId("shortcut-sheet")).toBeNull();
     press({ key: "?", shiftKey: true });
-    expect(view.getByRole("dialog", { name: "Keyboard shortcuts" })).toBeTruthy();
+    expect(await view.findByRole("dialog", { name: "Keyboard shortcuts" })).toBeTruthy();
     fireEvent.keyDown(view.getByRole("dialog", { name: "Keyboard shortcuts" }), { key: "Escape" });
     expect(view.queryByTestId("shortcut-sheet")).toBeNull();
   });
