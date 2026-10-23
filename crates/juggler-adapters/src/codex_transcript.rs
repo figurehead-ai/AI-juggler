@@ -231,6 +231,100 @@ pub fn rollout_cwd(bytes: &[u8]) -> Option<String> {
     })
 }
 
+/// AJ-E1520: a rollout line's part in the session's subagents
+/// (codex-rs `core/src/tools/handlers/multi_agents/`). `spawn_agent` starts
+/// one, and its output names it (`{"agent_id", "nickname"}`); a
+/// `wait`/`wait_agent` output says how each named agent stands
+/// (`{"status": {id: status}}`), a `close_agent` output that the agent it
+/// targeted is shut down, and a `sub_agent_activity` event that one
+/// completed. The `collab_*` events never reach a rollout (`rollout/src/
+/// policy.rs` keeps them out).
+pub(crate) fn subtask_line(log: &mut crate::subtasks::SubtaskLog, value: &serde_json::Value) {
+    use crate::subtasks::SubtaskState;
+    let null = serde_json::Value::Null;
+    let payload = value.get("payload").unwrap_or(&null);
+    let item = text(payload, "type");
+    match (text(value, "type").as_deref(), item.as_deref()) {
+        (Some("response_item"), Some("function_call")) => {
+            let (Some(name), Some(call)) = (text(payload, "name"), text(payload, "call_id")) else {
+                return;
+            };
+            if !matches!(
+                name.as_str(),
+                "spawn_agent" | "close_agent" | "wait" | "wait_agent"
+            ) {
+                return;
+            }
+            let arguments: serde_json::Value = text(payload, "arguments")
+                .and_then(|arguments| serde_json::from_str(&arguments).ok())
+                .unwrap_or_default();
+            match name.as_str() {
+                "spawn_agent" => {
+                    let task = text(&arguments, "message")
+                        .unwrap_or_else(|| message_text(arguments.get("items")));
+                    log.started(&call, &task, text(&arguments, "agent_type").as_deref());
+                }
+                "close_agent" => {
+                    if let Some(target) =
+                        text(&arguments, "target").or_else(|| text(&arguments, "id"))
+                    {
+                        log.awaits(&call, &target);
+                    }
+                }
+                _ => log.polls(&call),
+            }
+        }
+        (Some("response_item"), Some("function_call_output")) => {
+            // Other calls' outputs (a shell's, often large) aren't read.
+            let Some(call) = text(payload, "call_id").filter(|call| log.wants(call)) else {
+                return;
+            };
+            let output: serde_json::Value =
+                serde_json::from_str(&message_text(payload.get("output"))).unwrap_or_default();
+            if let Some(agent) = text(&output, "agent_id") {
+                log.named(&call, &agent);
+            } else if let Some(previous) = output.get("previous_status") {
+                // Closed: as it last stood when it had ended, else done.
+                log.answered(&call, agent_state(previous).unwrap_or(SubtaskState::Done));
+            } else if let Some(serde_json::Value::Object(statuses)) = output.get("status") {
+                log.heard(&call);
+                for (agent, status) in statuses {
+                    if let Some(state) = agent_state(status) {
+                        log.ended(agent, state);
+                    }
+                }
+            } else {
+                // Nothing usable: a spawn that named no agent never started.
+                log.not_started(&call);
+            }
+        }
+        (Some("event_msg"), Some("sub_agent_activity"))
+            if text(payload, "kind").as_deref() == Some("completed") =>
+        {
+            if let Some(agent) = text(payload, "agent_thread_id") {
+                log.ended(&agent, SubtaskState::Done);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// An agent's status (`"running"`, `{"completed": …}`, `{"errored": …}`,
+/// `"shutdown"`, `"not_found"`) as an ending, or `None` while it runs.
+fn agent_state(status: &serde_json::Value) -> Option<crate::subtasks::SubtaskState> {
+    use crate::subtasks::SubtaskState;
+    let name = match status {
+        serde_json::Value::String(name) => name.as_str(),
+        serde_json::Value::Object(map) => map.keys().next()?.as_str(),
+        _ => return None,
+    };
+    match name {
+        "completed" | "shutdown" | "not_found" => Some(SubtaskState::Done),
+        "errored" => Some(SubtaskState::Failed),
+        _ => None,
+    }
+}
+
 fn text(value: &serde_json::Value, key: &str) -> Option<String> {
     value
         .get(key)

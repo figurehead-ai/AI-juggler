@@ -30,6 +30,8 @@
   while you're in another app.
 - [Keep work going](keep-work-going.md): restarting crashed sessions,
   keeping the Mac awake, reopening after a crash, opening at login.
+- [Your other Macs](fleet.md) (beta): pairing your Macs, what each one sees,
+  starting a session on another Mac, and usage by machine.
 
 - [What AI Juggler touches](trust.md): what it reads, changes and sends,
   and what it never does, each line checked by tests.

@@ -1,5 +1,4 @@
 import { ToolChip } from "./ToolMark";
-import { ParkCard } from "./ParkCard";
 import { matches } from "../lib/shortcuts";
 import { PageShell } from "../pages/PageShell";
 import { InspectorHeader, statusTone, toolRunning } from "../pages/ItemHeader";
@@ -10,7 +9,7 @@ import { ProjectOverview, ProjectSessions } from "../pages/ProjectPage";
 import { AccountOverview, AccountSessions } from "../pages/AccountPage";
 import { outside, useConversations } from "../lib/conversations";
 import type { ConversationInfo } from "../lib/ipc/conversations";
-import { WorktreeGit } from "./WorktreeGit";
+import { SessionNotes } from "./SessionNotes";
 import { identityWords } from "../lib/identity";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button, Card, Chip } from "./primitives";
@@ -531,10 +530,7 @@ function InstanceOverview(props: PanelProps) {
             }
             return null;
           })()}
-          <div className="flex flex-col gap-1 text-[11px] text-muted">
-            <WorktreeGit sessionId={session.id} live={live} />
-            <ParkCard session={session} now={props.now} />
-          </div>
+          <SessionNotes session={session} live={live} now={props.now} />
           <details className="group text-[11px]" data-testid="instance-details">
             <summary className="w-fit cursor-pointer select-none rounded text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
               Details

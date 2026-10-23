@@ -165,6 +165,76 @@ fn extract_text(content: Option<&serde_json::Value>) -> String {
     }
 }
 
+/// AJ-E1520: a line's part in the session's subagents. The Task tool
+/// (named Agent in later versions) starts one; the call's `tool_result`
+/// ends it, failed when it's an error. A subagent started in the
+/// background is answered at once (`toolUseResult.status`
+/// `async_launched`): this transcript doesn't say when it ends, so it's
+/// marked as in the background, not counted as running.
+pub(crate) fn subtask_line(log: &mut crate::subtasks::SubtaskLog, value: &serde_json::Value) {
+    use crate::subtasks::SubtaskState;
+    let content = value.get("message").and_then(|m| m.get("content"));
+    let Some(serde_json::Value::Array(parts)) = content else {
+        return;
+    };
+    match value.get("type").and_then(serde_json::Value::as_str) {
+        Some("assistant") => {
+            for part in parts {
+                let is_agent = part.get("type").and_then(serde_json::Value::as_str)
+                    == Some("tool_use")
+                    && matches!(
+                        part.get("name").and_then(serde_json::Value::as_str),
+                        Some("Task" | "Agent")
+                    );
+                let (true, Some(id)) = (is_agent, string_field(part, "id")) else {
+                    continue;
+                };
+                let input = part.get("input").unwrap_or(&serde_json::Value::Null);
+                let task = string_field(input, "description")
+                    .or_else(|| string_field(input, "prompt"))
+                    .unwrap_or_default();
+                log.started(&id, &task, string_field(input, "subagent_type").as_deref());
+            }
+        }
+        Some("user") => {
+            let results: Vec<&serde_json::Value> = parts
+                .iter()
+                .filter(|part| {
+                    part.get("type").and_then(serde_json::Value::as_str) == Some("tool_result")
+                })
+                .collect();
+            // `toolUseResult` describes the line's one result.
+            let outcome = (results.len() == 1)
+                .then(|| value.get("toolUseResult"))
+                .flatten();
+            for result in results {
+                let Some(id) = string_field(result, "tool_use_id") else {
+                    continue;
+                };
+                if let Some(agent) = outcome.and_then(|outcome| string_field(outcome, "agentId")) {
+                    log.named(&id, &agent);
+                }
+                let failed = result
+                    .get("is_error")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(false);
+                let background = outcome
+                    .and_then(|outcome| string_field(outcome, "status"))
+                    .is_some_and(|status| status == "async_launched");
+                let state = if failed {
+                    SubtaskState::Failed
+                } else if background {
+                    SubtaskState::Background
+                } else {
+                    SubtaskState::Done
+                };
+                log.answered(&id, state);
+            }
+        }
+        _ => {}
+    }
+}
+
 /// The `tool_use` parts of a message's content: (tool name, its input).
 fn tool_uses(content: Option<&serde_json::Value>) -> Vec<(&str, &serde_json::Value)> {
     let Some(serde_json::Value::Array(parts)) = content else {

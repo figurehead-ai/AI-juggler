@@ -56,7 +56,7 @@ pub use sessions::{SessionMarks, SessionsRepo};
 pub use settings::AppSettingsRepo;
 pub use switch_graph::{SwitchGraphRepo, WorkGraph};
 pub use transcript_index::{
-    IndexState, IndexedLine, TranscriptIndexRepo, fts_expression, line_text,
+    IndexState, IndexedLine, SearchIndexFile, TranscriptIndexRepo, fts_expression, line_text,
 };
 pub use usage::{Stored, UsageRepo, anchor_settings_key, cap_settings_key};
 

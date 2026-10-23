@@ -14,6 +14,7 @@ import { useCallback, useEffect, useState, type JSX } from "react";
 import { Card } from "./primitives";
 import { UsageStatsChooser } from "./UsageStatsChooser";
 import { CrashReportsSetting } from "./CrashReports";
+import { OutsideSearchSetting } from "./OutsideSearchSetting";
 import {
   errorText,
   usageStatsDeleteLocal,
@@ -338,6 +339,7 @@ export function PrivacyCard(): JSX.Element {
         for 35 days, then only totals.
       </p>
       <CrashReportsSetting />
+      <OutsideSearchSetting />
     </Card>
   );
 }

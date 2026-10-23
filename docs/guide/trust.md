@@ -10,11 +10,17 @@ The same list is in the app: More › **Privacy**, and Settings › Privacy link
   <sub>Checked by [`no_sign_in_file_is_read`](../../crates/juggler-app/tests/no_bare_tools.rs), [`login_state_is_metadata_only`](../../crates/juggler-adapters/tests/claude_code_adapter.rs), [`scan_code_never_reads_credential_contents`](../../crates/juggler-adapters/tests/scan.rs), [`the_environment_scan_runs_no_vendor_cli`](../../crates/juggler-app/tests/environment_scan_no_cli.rs).</sub>
 - From Claude Code's settings.json it reads only the settings it needs, each one named in its code and checked.
   <sub>Checked by [`no_sign_in_file_is_read`](../../crates/juggler-app/tests/no_bare_tools.rs).</sub>
+- With crash reports on, it looks through macOS's new crash reports for AI Juggler's own, and keeps only what failed and where.
+  <sub>Checked by [`an_ips_crash_keeps_its_kind_and_frames_and_nothing_else`](../../crates/juggler-app/src/crash_native.rs), [`only_crashes_after_the_first_look_are_kept_and_never_reads_nothing`](../../crates/juggler-app/src/crash_native.rs), [`links_and_oversized_files_are_not_read`](../../crates/juggler-app/src/crash_native.rs).</sub>
+- If you use Claude Squad or Vibe Kanban, it reads their own lists for which repository each of their worktrees belongs to and which config folders their profiles use, and nothing else they keep. It never opens their sign-in or key files.
+  <sub>Checked by [`claude_squad_worktrees_come_with_their_repositories`](../../crates/juggler-adapters/tests/other_managers.rs), [`vibe_kanban_profiles_offer_the_folders_they_point_at`](../../crates/juggler-adapters/tests/other_managers.rs), [`the_importers_never_name_a_sign_in_or_key_file`](../../crates/juggler-adapters/tests/other_managers.rs).</sub>
 
 ## What it changes
 
 - What it keeps lives in its own folder, ~/Library/Application Support/AI Juggler (AI Juggler Nightly for Nightly), and in its own Keychain items.
   <sub>Checked by [`ai_juggler_keeps_its_existing_folder_keychain_items_and_port`](../../crates/juggler-app/src/edition.rs).</sub>
+- With Search the words of every session on, its index holds the words to search, not the conversations, in its own folder; turning it off deletes the index.
+  <sub>Checked by [`turning_it_off_leaves_no_index_behind`](../../crates/juggler-app/tests/outside_search.rs), [`a_search_index_file_is_the_same_index_and_removes_whole`](../../crates/juggler-core/src/storage/transcript_index.rs).</sub>
 - It never writes to a setup you use where it is, unless you turn on a change that says so first.
   <sub>Checked by [`a_setup_used_where_it_is_is_never_written_by_ai_juggler`](../../crates/juggler-app/tests/in_place_accounts.rs), [`a_codex_home_used_where_it_is_is_never_written_by_ai_juggler`](../../crates/juggler-app/tests/codex_in_place.rs).</sub>
 - It changes your setups and projects only when you apply a change, shows it first, and can undo it.
@@ -35,7 +41,7 @@ The same list is in the app: More › **Privacy**, and Settings › Privacy link
 - Usage statistics are off until you choose. When on, they go to stats.figurehead.ai as counts only: never your words, files, paths or names.
   <sub>Checked by [`without_a_choice_nothing_is_created_and_nothing_is_sent`](../../crates/juggler-app/tests/stats_guardrails.rs), [`nothing_the_user_owns_reaches_the_stats_store_or_a_report`](../../crates/juggler-app/tests/stats_guardrails.rs), [`off_creates_no_folder_and_records_nothing`](../../crates/juggler-stats/src/tests.rs), [`the_app_reaches_only_its_own_addresses`](../../crates/juggler-app/tests/trust.rs).</sub>
 - Crash reports are kept on your Mac, with names and paths taken out. This version has nowhere to send them.
-  <sub>Checked by [`a_seeded_crash_is_scrubbed_before_it_is_kept`](../../crates/juggler-app/src/crash.rs), [`crash_reports_have_nowhere_to_go`](../../crates/juggler-app/tests/trust.rs).</sub>
+  <sub>Checked by [`a_seeded_crash_is_scrubbed_before_it_is_kept`](../../crates/juggler-app/src/crash.rs), [`crash_reports_have_nowhere_to_go`](../../crates/juggler-app/tests/trust.rs), [`the_crash_sender_is_built_only_with_an_address`](../../crates/juggler-app/tests/trust.rs).</sub>
 - The Figurehead account is optional. Signed out, nothing goes to it; signed in, a feature you've turned off sends nothing.
   <sub>Checked by [`g1_signed_out_is_silent`](../../crates/juggler-app/tests/cloud_guardrails.rs), [`g2_a_feature_that_is_off_never_calls_its_endpoint`](../../crates/juggler-app/tests/cloud_guardrails.rs).</sub>
 - Fleet connects only Macs you paired, directly and encrypted, each checking the other's key, and no server carries the traffic. To be found, a Mac announces itself on your local network, and in your Figurehead account if you turn that on.

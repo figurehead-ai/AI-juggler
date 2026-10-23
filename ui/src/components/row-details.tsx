@@ -18,6 +18,7 @@ import {
   tokenSummary,
 } from "./indicator";
 import { quotaTierTag } from "./primitives";
+import { subagentsRunning } from "../lib/subagents";
 
 /** Full field text for `aria-label`: every number reachable as text. */
 export function ariaSummary(session: InstanceInfo, nowMs: number = Date.now()): string {
@@ -38,7 +39,7 @@ export function ariaSummary(session: InstanceInfo, nowMs: number = Date.now()): 
     parts.push(`cpu ${Math.round(session.cpu_pct)}%, ram ${formatBytes(session.rss_bytes)}`);
   }
   if (session.child_count) parts.push(`${session.child_count} children`);
-  if (session.subtask_count) parts.push(`${session.subtask_count} subtasks`);
+  if (session.subtask_count) parts.push(subagentsRunning(session.subtask_count));
   if (session.git_branch) parts.push(gitWords(session));
   parts.push(ageSummary(session.started_at_ms, session.last_activity_ms, nowMs));
   const suffix = attentionSuffix(session, nowMs);
@@ -71,7 +72,7 @@ export function ariaDetails(session: InstanceInfo, nowMs: number = Date.now()): 
     parts.push(`cpu ${Math.round(session.cpu_pct)}%, ram ${formatBytes(session.rss_bytes)}`);
   }
   if (session.child_count) parts.push(`${session.child_count} children`);
-  if (session.subtask_count) parts.push(`${session.subtask_count} subtasks`);
+  if (session.subtask_count) parts.push(subagentsRunning(session.subtask_count));
   parts.push(ageSummary(session.started_at_ms, session.last_activity_ms, nowMs));
   const reason = attentionTooltip(session);
   if (reason) parts.push(reason);

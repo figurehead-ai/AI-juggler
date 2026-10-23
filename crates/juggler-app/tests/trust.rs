@@ -545,6 +545,42 @@ fn crash_reports_have_nowhere_to_go() {
     }
 }
 
+/// AJ-E1516: the sender is its own module, built only into a release
+/// build given the address (`build.rs`), never into one without; and it
+/// sends only what the user chose to send (`queued/`).
+#[test]
+fn the_crash_sender_is_built_only_with_an_address() {
+    let lib = read("crates/juggler-app/src/lib.rs");
+    assert!(
+        lib.contains("#[cfg(any(crash_sender, test))]\npub mod crash_send;"),
+        "the sender's module is declared without the build's gate"
+    );
+    let starts: Vec<&str> = lib.matches("crash_send::").collect();
+    assert_eq!(starts.len(), 1, "lib.rs reaches the sender once");
+    assert!(lib.contains("#[cfg(crash_sender)]\n    crash_send::start(&app_state);"));
+    let build = without_comments(&read("crates/juggler-app/build.rs"));
+    assert!(build.contains(r#"std::env::var("AI_JUGGLER_CRASH_ENDPOINT")"#));
+    assert!(build.contains(r#"profile == "release""#));
+    assert!(build.contains(r#"if release && address.starts_with("https://")"#));
+    assert_eq!(build.matches("rustc-cfg=crash_sender").count(), 1);
+    // Nothing else in the app reaches the sender (`cfg!(crash_sender)`,
+    // the build's flag, is no use of it).
+    for (path, text) in shipped("juggler-app") {
+        if path.ends_with("lib.rs") || path.ends_with("crash_send.rs") {
+            continue;
+        }
+        assert!(
+            !code_only(&text).contains("crash_send::"),
+            "{} reaches the crash sender",
+            path.display()
+        );
+    }
+    // It sends from the queue the user's answers fill, and never under Never.
+    let sender = product(&read("crates/juggler-app/src/crash_send.rs"));
+    assert!(without_comments(&sender).contains(r#"dir.join("queued")"#));
+    assert!(without_comments(&sender).contains(r#"if effective == "never""#));
+}
+
 #[test]
 fn the_window_can_reach_nothing_but_the_app() {
     let conf: serde_json::Value =

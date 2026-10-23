@@ -16,7 +16,11 @@ pub mod backup;
 pub mod cloud_backup;
 pub mod commands;
 pub mod crash;
+pub mod crash_native;
+#[cfg(any(crash_sender, test))]
+pub mod crash_send;
 pub mod crossmachine;
+pub mod ids;
 // The read-only test bridge (docs/qa/DEV-BRIDGE.md): debug builds with
 // the `dev-bridge` feature only.
 #[cfg(all(debug_assertions, feature = "dev-bridge"))]
@@ -53,6 +57,7 @@ pub mod running_setups;
 pub mod settings_policy;
 pub mod state;
 pub mod terminal;
+pub mod transcript_text;
 pub mod updates;
 pub mod usage_pipeline;
 pub mod usage_stats;
@@ -310,6 +315,9 @@ macro_rules! app_commands {
             Write features::budgets::commands::budgets_save,
             Write features::budgets::commands::budgets_remove,
             Write features::budgets::commands::budgets_seen,
+            Read  features::outside_search::commands::outside_search_status,
+            Read  features::outside_search::commands::outside_search_estimate,
+            Write features::outside_search::commands::outside_search_set,
             Write commands::switch_execute,
             Write commands::switch_undo,
             Read  commands::switch_back_plan,
@@ -343,6 +351,7 @@ macro_rules! app_commands {
             Read  features::terminal::commands::terminal_windows,
             Read  commands::instance_quality,
             Read  commands::instance_processes,
+            Read  features::subtasks::commands::subtasks_list,
             Read  commands::cleanup_inventory,
             Read  commands::cleanup_audit_export,
             Read  commands::port_inventory,
@@ -535,6 +544,32 @@ pub fn run() {
     let _ = updates::channel_of(&app_state);
     // AJ-E1107: keep a scrubbed crash report if the user allows it.
     crash::install(&app_state);
+    // AJ-E1516: a crash outside Rust last time, from macOS's own report;
+    // and, in a build given the service's address, sending what the user
+    // chose to send.
+    {
+        let state = Arc::clone(&app_state);
+        let bundle_id = context.config().identifier.clone();
+        std::thread::spawn(move || {
+            let Some(reports) = crash_native::system_reports() else {
+                return;
+            };
+            // Again a minute on: after a crash, the watchdog can reopen the
+            // app before macOS has written its report.
+            for wait in [0, 60] {
+                std::thread::sleep(std::time::Duration::from_secs(wait));
+                let _ = crash_native::collect(
+                    &reports,
+                    &crash::reports_dir(&state),
+                    &bundle_id,
+                    &crash::effective(&state),
+                    juggler_core::model::Timestamp::now().millis(),
+                );
+            }
+        });
+    }
+    #[cfg(crash_sender)]
+    crash_send::start(&app_state);
     spawn_lifecycle_forwarder(Arc::clone(&app_state));
     // AJ-E1509: the watchdog that reopens the app after a crash (when on),
     // and the sessions the last crash ended, resumed where that's on.
@@ -981,6 +1016,9 @@ fn spawn_read_model_ticks(
             std::thread::sleep(std::time::Duration::from_secs(2));
             commands::processes_tick(&processes_state);
             commands::detect_running_models(&processes_app, &processes_state, None);
+            if features::subtasks::tick(&processes_state) {
+                let _ = commands::emit_sessions(&processes_app, &processes_state);
+            }
         }
     });
     std::thread::spawn(move || {
@@ -1014,6 +1052,8 @@ fn spawn_read_model_ticks(
             }
         });
     }
+    // AJ-E1538: the opt-in index of outside sessions' words (idle while off).
+    features::outside_search::spawn(index_state.clone());
     // AJ-E1007: the transcript search index, kept up to date in the
     // background (incremental: unchanged transcripts cost one metadata
     // read), so a search never waits for a first build.

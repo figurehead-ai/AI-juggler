@@ -235,7 +235,7 @@ export function IconFork(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-/** I-08: subtasks (stacked layers). */
+/** I-08: subagents (stacked layers). */
 export function IconSubtasks(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...base(props)}>

@@ -423,7 +423,7 @@ walk alone isn't enough.
 **Quality gates**: the same items for every trigger; keyboard access; a11y (`role=menu`, focus return); a snapshot of each type's menu; a disabled item's handler never runs. Right-click checked by hand on the replica's rows.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1537/manifest.md`.
 
-### AJ-E1538 Search the words of sessions started outside AI Juggler (opt-in) | Status: TODO | Priority P2 | Effort M | Depends: AJ-E1536
+### AJ-E1538 Search the words of sessions started outside AI Juggler (opt-in) | Status: DONE-EVIDENCED | Priority P2 | Effort M | Depends: AJ-E1536
 **Goal**: History's search finds words said in any session, including the ones started outside AI Juggler, for people who choose to index them.
 **Context** (P20, the coordinator's option (c), 2026-10-22): today History finds sessions started outside AI Juggler by their title, project, account, tool, branch and date. Only AI Juggler's own sessions have their words indexed. History says so in its description and when nothing matches.
 **Requirements**:
@@ -566,7 +566,7 @@ What the code does today (mapped 2026-10-22 on release/0.1): a same-tool switch 
 **Research basis**: EPICS M7-2 and M7-4; PROPOSAL §6.6.
 **Handover note**: The two-Mac proof stays the maintainer's (AJ-E710).
 
-### AJ-E1516 Crash report sender and native crash dumps | Status: TODO | Priority P2 | Effort M | Depends: AJ-E1107
+### AJ-E1516 Crash report sender and native crash dumps | Status: DONE-EVIDENCED | Priority P2 | Effort M | Depends: AJ-E1107
 **Goal**: Crash reports the user agreed to actually reach us.
 **User story**: As a user who chose "Ask", I review a report after a crash and send it.
 **Requirements**:
@@ -579,7 +579,7 @@ What the code does today (mapped 2026-10-22 on release/0.1): a same-tool switch 
 **Visual testing**: unchanged screens.
 **Files to touch**: `crates/juggler-app/src/crash.rs`.
 **Research basis**: AJ-E1107.
-**Handover note**: The service and its address are the maintainer's step; the code waits behind it.
+**Handover note**: The service and its address are the maintainer's step; the code waits behind it. Built: `crash_send.rs` (sends `queued/` over HTTPS, 5 a day, as stored), compiled only when `build.rs` sees a release build with `AI_JUGGLER_CRASH_ENDPOINT` (`cfg(crash_sender)`), started from `lib.rs`; `crash_native.rs` turns macOS's `.ips` report of this app's own crash into a kept report at the next launch. Setting the address: add it to the release workflow, then update the Privacy line and `crash_reports_have_nowhere_to_go` together.
 
 ### AJ-E1517 Export diagnostics | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: —
 **Goal**: A bug report comes with what we need, and nothing it shouldn't have.
@@ -628,7 +628,7 @@ What the code does today (mapped 2026-10-22 on release/0.1): a same-tool switch 
 
 ## Wave 3 — robustness and quality
 
-### AJ-E1520 Subtask count and the agent subtask tree | Status: TODO | Priority P2 | Effort M | Depends: AJ-E401
+### AJ-E1520 Subtask count and the agent subtask tree | Status: DONE-EVIDENCED | Priority P2 | Effort M | Depends: AJ-E401
 **Goal**: The status row's subtask field (I-08) means something.
 **User story**: As a user, I see that a session spawned four subagents and what each is doing.
 **Requirements**:
@@ -640,8 +640,8 @@ What the code does today (mapped 2026-10-22 on release/0.1): a same-tool switch 
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1520/manifest.md`.
 **Visual testing**: the row and the tree.
 **Files to touch**: the transcript parsers, `commands.rs` (I-08), `RightInspector.tsx`.
-**Research basis**: SPEC I-08.
-**Handover note**: —
+**Research basis**: SPEC I-08; Codex's multi-agent handlers and rollout policy (read 2026-10-23, in the manifest).
+**Handover note**: Built: `juggler_adapters::subtasks` (the record and the tail reader), each tool's lines in its parser (`claude_transcript::subtask_line`, `codex_transcript::subtask_line`), `features::subtasks` (the tick, the row's count, `subtasks_list`), `SubagentsSection.tsx` and the rail row's note. The count is the subagents still running; the list shows them all. A new tool adds its `subtask_line` and nothing else. Left: when a Claude subagent started in the background ends (check live), and Codex's depth-2 subagents.
 
 ### AJ-E1521 Robustness: a database busy timeout and an adapter conformance kit | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: —
 **Goal**: No read fails during a long write, and every adapter keeps the same rules.

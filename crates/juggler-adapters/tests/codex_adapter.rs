@@ -593,3 +593,97 @@ fn the_sign_in_probe_never_needs_a_value() {
         LoginState::LoggedOut
     );
 }
+
+/// AJ-E1522: the adapter's own words and the calls it hands to its
+/// modules, through the trait the app uses (conversations, resume, the
+/// set-up verdict). `inventory`/`set_up` read the user's shared skills
+/// folder, so they're covered on temp folders in `codex_inventory.rs`.
+#[test]
+fn the_adapter_describes_codex_and_hands_its_calls_on() {
+    use juggler_adapter::inventory::{Detail, Item, ItemKind, Scope, SetUp};
+    let dir = tempfile::tempdir().unwrap();
+    let stub = version_stub(dir.path(), "codex-cli 0.163.0");
+    let adapter = CodexAdapter::with_bin(&stub).with_home(dir.path());
+
+    let spec = adapter.spec();
+    assert_eq!(spec.id, CODEX_ID);
+    assert_eq!(spec.vendor, "OpenAI");
+    assert_eq!(spec.rules_files, vec!["AGENTS.md".to_owned()]);
+    assert!(spec.terms.unwrap().url.starts_with("https://openai.com/"));
+    assert_eq!(adapter.shell_command(), Some("codex"));
+    assert!(adapter.can_use_in_place());
+    assert_eq!(adapter.resolved_binary().as_deref(), Some(stub.as_path()));
+
+    // Resume takes a thread id, never something read as an option.
+    assert_eq!(
+        adapter.resume_args("019a1b2c-0000-7000-8000-00000000c0de"),
+        Some(vec![
+            "resume".to_owned(),
+            "019a1b2c-0000-7000-8000-00000000c0de".to_owned()
+        ])
+    );
+    assert_eq!(adapter.resume_args("--dangerously-bypass"), None);
+
+    // A home's conversations, read from its rollouts.
+    let home = dir.path().join("codex-home");
+    let day = home.join("sessions/2026/10/20");
+    std::fs::create_dir_all(&day).unwrap();
+    let rollout =
+        day.join("rollout-2026-10-20T08-00-00-019a1b2c-0000-7000-8000-00000000c0de.jsonl");
+    std::fs::copy(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/codex/rollout-paginated.jsonl"),
+        &rollout,
+    )
+    .unwrap();
+    let files = adapter.conversation_files(&home);
+    assert_eq!(files, vec![rollout.clone()]);
+    let full = adapter.read_conversation(&rollout).unwrap();
+    assert_eq!(full.id, "019a1b2c-0000-7000-8000-00000000c0de");
+    // A small rollout is read whole: no quick read for it.
+    assert!(adapter.read_conversation_quick(&rollout).is_none());
+    // A large one is read from its two ends, without its tokens.
+    let mut big = std::fs::read_to_string(&rollout).unwrap();
+    let filler = "{\"timestamp\":\"2026-10-20T08:00:01.000Z\",\"type\":\"event_msg\",\"payload\":{\"type\":\"token_count\"}}\n";
+    let past =
+        juggler_adapter::conversation::QUICK_HEAD + juggler_adapter::conversation::QUICK_TAIL;
+    while (big.len() as u64) <= past {
+        big.push_str(filler);
+    }
+    std::fs::write(&rollout, &big).unwrap();
+    let quick = adapter.read_conversation_quick(&rollout).unwrap();
+    assert_eq!(quick.id, full.id);
+    assert_eq!(quick.tokens, juggler_core::model::TokenCounts::default());
+
+    // Which processes are Codex sessions (and which they resume).
+    let codex = Path::new("/usr/local/bin/codex");
+    let resuming = adapter
+        .session_process(
+            Some(codex),
+            &["codex".to_owned(), "resume".to_owned(), "019a".to_owned()],
+        )
+        .unwrap();
+    assert_eq!(resuming.resumes.as_deref(), Some("019a"));
+    assert!(
+        adapter
+            .session_process(Some(codex), &["codex".to_owned(), "app-server".to_owned()])
+            .is_none(),
+        "a helper"
+    );
+    assert!(
+        adapter
+            .session_process(Some(Path::new("/bin/zsh")), &["zsh".to_owned()])
+            .is_none()
+    );
+
+    // The set-up verdict comes from the inventory module.
+    let item = Item {
+        tool: CODEX_ID.into(),
+        kind: ItemKind::Command,
+        name: "fix".into(),
+        scope: Scope::User,
+        detail: Detail::Files {
+            path: dir.path().join("prompts/fix.md"),
+        },
+    };
+    assert_eq!(adapter.can_set_up(&item), SetUp::Copy);
+}
