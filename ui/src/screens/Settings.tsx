@@ -6,11 +6,8 @@ import { RecoveryCodeSheet } from "../components/RecoveryCodeSheet";
 import { CloudBackupPanel } from "../components/CloudBackupPanel";
 import { useCallback, useEffect, useRef, useState, type JSX, type ReactNode } from "react";
 import { PackSecretsCard } from "../components/PackSecretsCard";
-import {
-  CleanupSettingsCard,
-  FleetPermissionsCard,
-  RenewalSettingsCard,
-} from "../components/SettingsSections";
+import { CleanupSettingsCard, FleetPermissionsCard, RenewalSettingsCard } from "../components/SettingsSections";
+import { DiagnosticsCard } from "../components/DiagnosticsCard";
 import { NotificationSettingsCard } from "../components/NotificationSettings";
 import { SessionsSettingsCard } from "../components/SessionsSettings";
 import { Button, Card, Chip } from "../components/primitives";
@@ -163,6 +160,7 @@ export function SettingsScreen({
           <AppearanceCard />
           <EditorCard />
           <UpdatesCard focus={focusSection === "updates"} />
+          <DiagnosticsCard />
           <PrivacyCard />
         </SettingsSection>
         <SettingsSection id="account">

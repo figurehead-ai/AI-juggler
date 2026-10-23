@@ -3,6 +3,7 @@
 
 pub mod awake;
 pub mod crash;
+pub mod diagnostics;
 pub mod login_item;
 pub mod own;
 pub mod uninstall;
