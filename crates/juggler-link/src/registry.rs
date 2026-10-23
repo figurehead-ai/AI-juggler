@@ -640,13 +640,16 @@ mod tests {
         }
         let size = std::fs::metadata(fleet.join(REGISTRY_FILE)).unwrap().len();
         assert!(size / 50 < 5 * 1024, "< 5 KB per peer ({size} bytes total)");
-        let started = std::time::Instant::now();
+        // This thread's CPU time: other programs' turns on a busy machine
+        // don't count against the load (wall time is printed beside it).
+        let wall = std::time::Instant::now();
+        let cpu = cpu_time::ThreadTime::now();
         let loaded = PeerRegistry::load(&fleet, &identity, None);
+        let (cpu, wall) = (cpu.elapsed(), wall.elapsed());
         assert_eq!(loaded.peers().len(), 50);
         assert!(
-            started.elapsed() < std::time::Duration::from_millis(50),
-            "{:?}",
-            started.elapsed()
+            cpu < std::time::Duration::from_millis(50),
+            "{cpu:?} CPU (wall {wall:?})"
         );
     }
 }
