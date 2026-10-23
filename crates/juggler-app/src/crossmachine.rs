@@ -897,7 +897,7 @@ pub(crate) async fn push(
         let Some(_open) = crate::link::link_open(state, crate::link::link_run(state)) else {
             return Err(AppError::Io {
                 context: "hand over",
-                message: "Link is off on this Mac — nothing was sent.".to_owned(),
+                message: crate::link::NOTHING_SENT.to_owned(),
             });
         };
         if let Ok(mut map) = state.link.handover_cancel.lock() {
