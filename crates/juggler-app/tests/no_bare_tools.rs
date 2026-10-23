@@ -290,6 +290,9 @@ const SETTINGS_READS: &[(&str, &str)] = &[
     // Narrow shape: `enabledPlugins` only (the switch's set-up check,
     // AJ-E1542).
     ("juggler-adapters/src/claude_inventory.rs", "inventory"),
+    // Key by key (`jsonc::value_text`): `permissions` and `statusLine`
+    // only, a value with a secret written in it never kept (AJ-E1508).
+    ("juggler-adapters/src/claude_inventory.rs", "own_settings"),
     ("juggler-adapters/src/quota_ingest.rs", "install_statusline"),
     (
         "juggler-adapters/src/quota_ingest.rs",
