@@ -318,7 +318,7 @@ pub const NOT_SERVED: &[(&str, &str)] = &[
     ),
     (
         "crossmachine::switch_back::fleet_divergences",
-        "switch-back conflicts between paired Macs",
+        "conflicts left after switching back between paired Macs",
     ),
     ("commands::funnel_export", "an export the user saves"),
     ("commands::cleanup_audit_export", "an export the user saves"),

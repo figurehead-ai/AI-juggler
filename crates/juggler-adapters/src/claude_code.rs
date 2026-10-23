@@ -842,6 +842,9 @@ pub(crate) struct ClaudeTranscriptWatcher {
     /// (size, mtime) at the last read: an unchanged file is not read
     /// again (Codex keeps every past rollout under `sessions/`).
     stamps: BTreeMap<PathBuf, (u64, Option<std::time::SystemTime>)>,
+    /// How far each file's lines are counted (bytes, lines): a file that
+    /// grew is counted from there, never read whole again.
+    counted: BTreeMap<PathBuf, (u64, usize)>,
     pending: std::collections::VecDeque<SessionEvent>,
 }
 
@@ -868,6 +871,7 @@ impl ClaudeTranscriptWatcher {
             events,
             seen: BTreeMap::new(),
             stamps: BTreeMap::new(),
+            counted: BTreeMap::new(),
             pending: std::collections::VecDeque::new(),
         })
     }
@@ -899,7 +903,18 @@ impl ClaudeTranscriptWatcher {
                 continue;
             }
             self.stamps.insert(path.clone(), stamp);
-            let lines = std::fs::read(&path).map_or(0, |bytes| count_lines(&bytes));
+            // Only what was appended since the last count; a file that
+            // shrank (rewritten) is counted again from its start.
+            let (before, base) = self
+                .counted
+                .get(&path)
+                .copied()
+                .filter(|(at, _)| *at <= stamp.0)
+                .unwrap_or((0, 0));
+            let lines = newlines_from(&path, before).map_or(0, |(end, more)| {
+                self.counted.insert(path.clone(), (end, base + more));
+                base + more
+            });
             let known = self.seen.entry(path.clone()).or_insert(0);
             if *known == 0 && lines > 0 {
                 self.pending.push_back(SessionEvent::Discovered {
@@ -994,8 +1009,23 @@ pub(crate) fn same_folder(recorded: &str, cwd: &Path) -> bool {
     }
 }
 
-pub(crate) fn count_lines(bytes: &[u8]) -> usize {
-    bytes.split(|b| *b == b'\n').count().saturating_sub(1)
+/// The newlines in `path` from byte `from` on, read through a fixed
+/// buffer, and the offset read up to.
+pub(crate) fn newlines_from(path: &Path, from: u64) -> std::io::Result<(u64, usize)> {
+    use std::io::{Read as _, Seek as _};
+    let mut file = std::fs::File::open(path)?;
+    file.seek(std::io::SeekFrom::Start(from))?;
+    let mut buf = vec![0_u8; 1 << 20];
+    let (mut at, mut lines) = (from, 0);
+    loop {
+        let got = file.read(&mut buf)?;
+        if got == 0 {
+            return Ok((at, lines));
+        }
+        // The pieces between newlines, less one: the newlines.
+        lines += buf[..got].split(|byte| *byte == b'\n').count() - 1;
+        at += got as u64;
+    }
 }
 
 pub(crate) fn file_stem(path: &Path) -> String {
@@ -1295,4 +1325,22 @@ pub fn is_cli_process(name: &str, exe: Option<&Path>, command_line: &str) -> boo
             || (cmd.starts_with('/') && (cmd.ends_with("/claude") || cmd.contains("/claude ")))
     });
     binary && runs_as_claude
+}
+
+#[cfg(test)]
+mod watcher_count_tests {
+    use super::newlines_from;
+
+    /// 0.1 QA: a growing transcript's lines are counted from where the last
+    /// count stopped, never by reading the whole file again.
+    #[test]
+    fn newlines_are_counted_from_where_the_last_count_stopped() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("s.jsonl");
+        std::fs::write(&path, "a\nb\n").unwrap();
+        assert_eq!(newlines_from(&path, 0).unwrap(), (4, 2));
+        std::fs::write(&path, "a\nb\nc\nd").unwrap();
+        assert_eq!(newlines_from(&path, 4).unwrap(), (7, 1));
+        assert_eq!(newlines_from(&path, 0).unwrap(), (7, 3));
+    }
 }

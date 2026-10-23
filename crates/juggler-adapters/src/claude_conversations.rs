@@ -4,7 +4,6 @@
 //! parent, so they're not listed). Read-only.
 
 use std::collections::HashMap;
-use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
 use juggler_adapter::conversation::{ConversationSummary, SessionProcess, title_from, value_after};
@@ -53,8 +52,13 @@ fn user_text(message: &serde_json::Value) -> Option<&str> {
 /// message id: the CLI writes a message's lines more than once).
 #[must_use]
 pub fn read_conversation(path: &Path) -> Option<ConversationSummary> {
-    let file = std::fs::File::open(path).ok()?;
-    summary_of(BufReader::new(file).lines().map_while(Result::ok), path)
+    // Line by line, each bounded: a transcript of any size reads in
+    // bounded memory.
+    let lines = crate::transcript::session_lines(path).ok()?;
+    summary_of(
+        lines.map(|(_, line)| String::from_utf8_lossy(&line).into_owned()),
+        path,
+    )
 }
 
 /// QA batch 10: a large transcript's quick read, from its start and end

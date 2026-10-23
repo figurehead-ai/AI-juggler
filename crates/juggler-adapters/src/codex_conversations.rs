@@ -7,8 +7,7 @@ use std::path::{Path, PathBuf};
 use juggler_adapter::conversation::{ConversationSummary, SessionProcess, title_from, value_after};
 use juggler_core::time::timestamp_ms;
 
-use crate::claude_transcript::MessageRole;
-use crate::codex_transcript::{parse_rollout, rollout_cwd, rollout_thread_id};
+use crate::codex_transcript::{RolloutParser, thread_id_from_name};
 
 /// The longest title kept.
 const TITLE_MAX: usize = 80;
@@ -48,8 +47,14 @@ pub fn conversation_files(home: &Path) -> Vec<PathBuf> {
 /// activity, and tokens (each response counted once).
 #[must_use]
 pub fn read_conversation(path: &Path) -> Option<ConversationSummary> {
-    let bytes = crate::transcript::read_session_file(path).ok()?;
-    summary_of(&bytes, &path.file_name()?.to_string_lossy())
+    let name = path.file_name()?.to_string_lossy().into_owned();
+    let mut summary = Summary::default();
+    crate::transcript::for_each_line(path, |index, line| {
+        summary.line(index, line);
+        true
+    })
+    .ok()?;
+    summary.finish(&name)
 }
 
 /// QA batch 10: a large rollout's quick read, from its start and end
@@ -90,55 +95,96 @@ fn compressed_head(path: &Path) -> Option<ConversationSummary> {
 
 /// What a rollout's bytes (whole, or its two ends) say.
 fn summary_of(bytes: &[u8], name: &str) -> Option<ConversationSummary> {
-    if bytes.iter().all(u8::is_ascii_whitespace) || is_subagent(bytes) {
-        return None;
+    let mut summary = Summary::default();
+    for (index, line) in bytes.split(|byte| *byte == b'\n').enumerate() {
+        summary.line(index, line);
     }
-    let parsed = parse_rollout(bytes);
-    let mut summary = ConversationSummary {
-        id: rollout_thread_id(bytes, name)?,
-        cwd: rollout_cwd(bytes).map(PathBuf::from),
-        tokens: parsed.usage,
-        title: parsed
-            .messages
-            .iter()
-            .find(|message| message.role == MessageRole::User)
-            .and_then(|message| title_from(&message.text, TITLE_MAX)),
-        ..ConversationSummary::default()
-    };
-    for line in String::from_utf8_lossy(bytes).lines() {
-        let Ok(value) = serde_json::from_str::<serde_json::Value>(line) else {
-            continue;
+    summary.finish(name)
+}
+
+/// A rollout's summary, built a line at a time: what a conversation's row
+/// needs and nothing more, so a rollout of any size reads in bounded
+/// memory.
+#[derive(Default)]
+struct Summary {
+    parser: Option<RolloutParser>,
+    /// A line with anything on it.
+    any: bool,
+    /// The first `session_meta` seen (a subagent's says so there).
+    meta_seen: bool,
+    subagent: bool,
+    /// From a `session_meta` in the first five lines.
+    id: Option<String>,
+    cwd: Option<String>,
+    started_ms: Option<i64>,
+    last_ms: Option<i64>,
+    git_branch: Option<String>,
+}
+
+impl Summary {
+    fn line(&mut self, index: usize, line: &[u8]) {
+        if line.iter().all(u8::is_ascii_whitespace) {
+            return;
+        }
+        self.any = true;
+        let parser = self.parser.get_or_insert_with(|| RolloutParser::new(false));
+        let Ok(value) = serde_json::from_slice::<serde_json::Value>(line) else {
+            parser.line(index, line); // counted as damage
+            return;
         };
         if let Some(at) = value
             .get("timestamp")
             .and_then(serde_json::Value::as_str)
             .and_then(timestamp_ms)
         {
-            summary.started_ms = Some(summary.started_ms.map_or(at, |first| first.min(at)));
-            summary.last_ms = Some(summary.last_ms.map_or(at, |last| last.max(at)));
+            self.started_ms = Some(self.started_ms.map_or(at, |first| first.min(at)));
+            self.last_ms = Some(self.last_ms.map_or(at, |last| last.max(at)));
         }
-        // `session_meta.payload.git.branch`, when Codex recorded the repo.
-        if value.get("type").and_then(serde_json::Value::as_str) == Some("session_meta")
-            && let Some(branch) = value
-                .pointer("/payload/git/branch")
-                .and_then(serde_json::Value::as_str)
-                .filter(|branch| !branch.is_empty())
-        {
-            summary.git_branch = Some(branch.to_owned());
+        if value.get("type").and_then(serde_json::Value::as_str) == Some("session_meta") {
+            let field = |pointer: &str| {
+                value
+                    .pointer(pointer)
+                    .and_then(serde_json::Value::as_str)
+                    .filter(|text| !text.is_empty())
+                    .map(str::to_owned)
+            };
+            if index < 5 {
+                self.id = self.id.take().or_else(|| field("/payload/id"));
+                self.cwd = self.cwd.take().or_else(|| field("/payload/cwd"));
+            }
+            if !self.meta_seen {
+                self.meta_seen = true;
+                self.subagent = value.pointer("/payload/source/subagent").is_some();
+            }
+            // `session_meta.payload.git.branch`, when Codex recorded the repo.
+            if let Some(branch) = field("/payload/git/branch") {
+                self.git_branch = Some(branch);
+            }
         }
+        parser.value(index, &value);
     }
-    Some(summary)
-}
 
-/// A subagent's rollout (its `session_meta` names `source.subagent`): part
-/// of the conversation that started it, as Claude Code's subagents are,
-/// not one of its own. Its usage is still the account's (0.1 QA 3.1).
-fn is_subagent(bytes: &[u8]) -> bool {
-    String::from_utf8_lossy(bytes)
-        .lines()
-        .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
-        .find(|value| value.get("type").and_then(serde_json::Value::as_str) == Some("session_meta"))
-        .is_some_and(|meta| meta.pointer("/payload/source/subagent").is_some())
+    /// The summary; `None` for an empty file, or a subagent's rollout,
+    /// which is part of the conversation that started it (as Claude Code's
+    /// subagents are), not one of its own. Its usage is still the
+    /// account's (0.1 QA 3.1).
+    fn finish(self, name: &str) -> Option<ConversationSummary> {
+        if !self.any || self.subagent {
+            return None;
+        }
+        let parser = self.parser?;
+        Some(ConversationSummary {
+            id: self.id.or_else(|| thread_id_from_name(name))?,
+            cwd: self.cwd.map(PathBuf::from),
+            tokens: parser.usage(),
+            title: parser
+                .first_ask()
+                .and_then(|text| title_from(text, TITLE_MAX)),
+            started_ms: self.started_ms,
+            last_ms: self.last_ms,
+            git_branch: self.git_branch,
+        })
+    }
 }
 
 /// Codex subcommands that aren't a session: the desktop app's servers

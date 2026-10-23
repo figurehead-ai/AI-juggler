@@ -4137,16 +4137,18 @@ fn scan_transcript(record: &SessionRecord, now: i64) -> TranscriptScan {
         context_window: None,
         rollout_seen: std::collections::BTreeSet::new(),
     };
-    let bytes = record
+    // A line at a time: the session page asks often, and a transcript can
+    // be gigabytes.
+    let lines = record
         .transcript_ref
         .as_ref()
-        .and_then(|transcript| std::fs::read(&transcript.path).ok());
-    let Some(bytes) = bytes else {
+        .and_then(|transcript| juggler_adapters::session_lines(&transcript.path).ok());
+    let Some(lines) = lines else {
         return scan;
     };
     let mut rollout_model = None;
-    for line in String::from_utf8_lossy(&bytes).lines() {
-        let Ok(value) = serde_json::from_str::<serde_json::Value>(line) else {
+    for (_, line) in lines {
+        let Ok(value) = serde_json::from_slice::<serde_json::Value>(&line) else {
             continue;
         };
         if let Some(payload) = value.get("payload") {
@@ -5326,10 +5328,8 @@ pub(crate) fn preflight_with(
     })?;
 
     // Compaction scan from the source transcript (the F2 signal).
-    let compacted = compacted.unwrap_or_else(|| {
-        std::fs::read(&reference.path)
-            .is_ok_and(|bytes| juggler_adapters::parse_any(&bytes).has_compact_boundary())
-    });
+    let compacted =
+        compacted.unwrap_or_else(|| juggler_adapters::records_compaction(&reference.path));
 
     // Target quota gate + the usual-account test (one storage pass).
     let now = Timestamp::now().millis();
@@ -6018,8 +6018,7 @@ fn freeze_source(
                 Timestamp::now().millis().saturating_sub(at)
                     >= i64::try_from(TURN_QUIET.as_millis()).unwrap_or(i64::MAX)
             });
-            let whole = std::fs::read(&reference.path)
-                .is_ok_and(|bytes| juggler_adapter::handover::tail_parses(&bytes));
+            let whole = juggler_adapters::last_line_parses(&reference.path);
             if (file_quiet && output_quiet && whole) || state.supervisor.is_finished(id) {
                 break;
             }
@@ -6180,8 +6179,8 @@ fn switch_replay(
     let launched = launch_with_handover(state, sides, &edge, &brief, &project);
     // Copy-never-move, checked after the launch as the pipeline does.
     let checked = launched.and_then(|started| {
-        juggler_adapters::read_session_file(&sides.reference.path)
-            .is_ok_and(|now| juggler_adapter::handover::sha256_hex(&now) == source_sha)
+        juggler_adapters::session_file_sha256(&sides.reference.path)
+            .is_ok_and(|(now, _)| now == source_sha)
             .then_some(started)
             .ok_or_else(|| {
                 SwitchFailure::StagingAborted("the source changed during the switch".into())
@@ -6375,9 +6374,9 @@ fn replay_prompt(
         context: "hand over",
         message,
     };
-    let bytes = juggler_adapters::read_session_file(&sides.reference.path)
+    let (sha, len) = juggler_adapters::session_file_sha256(&sides.reference.path)
         .map_err(|_| refused(SwitchFailure::UnresolvedSource.copy(&sides.account_a.label)))?;
-    if !juggler_adapter::handover::tail_parses(&bytes) {
+    if !juggler_adapters::last_line_parses(&sides.reference.path) {
         return Err(refused(
             SwitchFailure::TornTail.copy(&sides.account_a.label),
         ));
@@ -6400,17 +6399,17 @@ fn replay_prompt(
     // AJ-E1541: where the work stands, after the conversation: the task
     // list as last set, and what changed in the project and isn't
     // committed, so the other tool continues the work, not just the chat.
-    let prompt = match work_state_note(
-        juggler_adapters::parse_any(&bytes).tasks.as_deref(),
-        &sides.source.cwd,
-    ) {
+    let tasks = juggler_adapters::read_session_file(&sides.reference.path)
+        .ok()
+        .and_then(|bytes| juggler_adapters::parse_any(&bytes).tasks);
+    let prompt = match work_state_note(tasks.as_deref(), &sides.source.cwd) {
         Some(note) => format!("{prompt}\n\n{note}"),
         None => prompt,
     };
     Ok(ReplayBrief {
         text: prompt,
-        sha: juggler_adapter::handover::sha256_hex(&bytes),
-        bytes: u64::try_from(bytes.len()).unwrap_or(u64::MAX),
+        sha,
+        bytes: len,
         included,
         left_out,
     })
@@ -10595,6 +10594,9 @@ pub fn detect_running_models_core(state: &Arc<AppState>, only: Option<&[SessionI
     changed
 }
 
+/// The most of a transcript's end the model scan reads at once.
+const MODEL_TAIL_BYTES: u64 = 8 * 1024 * 1024;
+
 /// Tail-scans one Instance's transcript for the newest observed model;
 /// true when the stored observation changed. Incremental by byte offset
 /// (truncation resets to zero — re-parse, never assume).
@@ -10627,7 +10629,12 @@ fn scan_one_transcript(
     }
     // Read only the NEW bytes (plus a carry for the half-parsed line):
     // seek past the consumed prefix, never re-parse the head.
-    let read_from = offset.saturating_sub(1);
+    // Only the newest model counts, so at most the file's last
+    // MODEL_TAIL_BYTES: a first scan of a huge transcript never reads it
+    // whole (a line cut at the start fails to parse and is skipped).
+    let read_from = offset
+        .saturating_sub(1)
+        .max(len.saturating_sub(MODEL_TAIL_BYTES));
     let Ok(mut file) = std::fs::File::open(path) else {
         return false;
     };
@@ -13053,10 +13060,8 @@ fn switch_rank_context_of(
         }
     }
     let source_replay_tokens = source.transcript_ref.as_ref().and_then(|reference| {
-        std::fs::read(&reference.path).ok().map(|bytes| {
-            let parsed = juggler_adapters::parse_any(&bytes);
-            parsed.usage.input.saturating_add(parsed.usage.output)
-        })
+        juggler_adapters::transcript_tokens(&reference.path)
+            .map(|tokens| tokens.input.saturating_add(tokens.output))
     });
     Ok(SwitchRankContext {
         source_provider: source_account.harness.to_string(),

@@ -1182,8 +1182,9 @@ pub fn tail_jsonl(
     path: &Path,
     offset: u64,
     carry: &RolloutCarry,
-    parse: impl FnOnce(&[u8], RolloutCarry) -> TailOutcome,
+    mut parse: impl FnMut(&[u8], RolloutCarry) -> TailOutcome,
 ) -> TailOutcome {
+    use std::io::Seek as _;
     let unchanged = |offset, carry: &RolloutCarry| TailOutcome {
         offset,
         carry: carry.clone(),
@@ -1202,23 +1203,87 @@ pub fn tail_jsonl(
     if start >= len {
         return unchanged(start, &carry);
     }
-    if let Ok(seeked) = std::io::Seek::seek(&mut file, std::io::SeekFrom::Start(start)) {
+    if let Ok(seeked) = file.seek(std::io::SeekFrom::Start(start)) {
         start = seeked;
     }
+    // A chunk of whole lines at a time, each slice's carry passed to the
+    // next: the same outcome as one read of everything new, in a chunk's
+    // memory (0.1 QA: a 5 GB rollout was read whole on its first pass).
+    let mut total = unchanged(start, &carry);
+    let mut at = start;
     let mut bytes = Vec::new();
-    let _ = file.read_to_end(&mut bytes);
-    // Consume only through the last newline (a partial trailing line
-    // stays for the next pass).
-    let consumed = bytes
-        .iter()
-        .rposition(|byte| *byte == b'\n')
-        .map_or(0, |index| index + 1);
-    if consumed == 0 {
-        return unchanged(start, &carry);
+    while at < len {
+        bytes.clear();
+        let _ = (&mut file).take(TAIL_CHUNK).read_to_end(&mut bytes);
+        if bytes.is_empty() {
+            break;
+        }
+        // Consume only through the last newline (a partial trailing line
+        // stays for the next pass).
+        let consumed = bytes
+            .iter()
+            .rposition(|byte| *byte == b'\n')
+            .map_or(0, |index| index + 1);
+        if consumed == 0 {
+            if (bytes.len() as u64) < TAIL_CHUNK {
+                break; // the last line, still being written
+            }
+            // One line longer than a chunk: no usage line is; skipped
+            // whole, never held.
+            match skip_line(&mut file) {
+                Some(skipped) => {
+                    at += TAIL_CHUNK + skipped;
+                    total.parse_errors += 1;
+                    continue;
+                }
+                None => break,
+            }
+        }
+        let slice = parse(&bytes[..consumed], total.carry.clone());
+        merge(&mut total, slice);
+        at += consumed as u64;
+        if file.seek(std::io::SeekFrom::Start(at)).is_err() {
+            break;
+        }
     }
-    let mut outcome = parse(&bytes[..consumed], carry);
-    outcome.offset = start + consumed as u64;
-    outcome
+    total.offset = at;
+    total
+}
+
+/// The most of a file read into memory at once while tailing it.
+const TAIL_CHUNK: u64 = 64 * 1024 * 1024;
+
+/// Reads on to the end of the current line; the bytes read, newline
+/// included, or `None` when the file ends first (the line is unfinished).
+fn skip_line(file: &mut std::fs::File) -> Option<u64> {
+    let mut buf = vec![0_u8; 1 << 20];
+    let mut read = 0_u64;
+    loop {
+        let got = file.read(&mut buf).ok()?;
+        if got == 0 {
+            return None;
+        }
+        if let Some(at) = buf[..got].iter().position(|byte| *byte == b'\n') {
+            let used = at as u64 + 1;
+            let back = i64::try_from(got as u64 - used).ok()?;
+            std::io::Seek::seek(file, std::io::SeekFrom::Current(-back)).ok()?;
+            return Some(read + used);
+        }
+        read += got as u64;
+    }
+}
+
+/// One slice's outcome added to the pass's.
+fn merge(total: &mut TailOutcome, slice: TailOutcome) {
+    total.events.extend(slice.events);
+    total.samples.extend(slice.samples);
+    if slice.credits.is_some() {
+        total.credits = slice.credits;
+    }
+    total.carry = slice.carry;
+    total.parse_errors += slice.parse_errors;
+    total.dropped += slice.dropped;
+    total.unread = total.unread.or(slice.unread);
 }
 
 /// Convenience: [`tail_jsonl`] with the Claude transcript parser.

@@ -51,6 +51,10 @@ pub use quota_ingest::{
     zcode_multiplier,
 };
 pub use subtasks::{Subtask, SubtaskLog, SubtaskState, SubtaskTail, subtasks_of};
-pub use transcript::{is_compressed, parse_any, read_session_file};
+pub use transcript::{
+    BoundedLines, LINE_MAX, LinesRead, file_sha256, for_each_line, is_compressed, last_line_parses,
+    parse_any, read_bounded, read_session_file, records_compaction, session_file_sha256,
+    session_lines, transcript_tokens,
+};
 pub mod fake_desktop;
 pub use fake_desktop::{FAKE_DESKTOP_ID, FakeDesktopAdapter, SINGLE_ACCOUNT_LABEL};

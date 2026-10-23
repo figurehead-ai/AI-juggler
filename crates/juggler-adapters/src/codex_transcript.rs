@@ -30,51 +30,90 @@ const INJECTED_PREFIXES: &[&str] = &[
 /// Parses rollout bytes. Never fails; damage is counted.
 #[must_use]
 pub fn parse_rollout(bytes: &[u8]) -> ParsedTranscript {
-    let mut parsed = ParsedTranscript::default();
-    let mut session_id: Option<String> = None;
-    let mut model: Option<String> = None;
+    let mut parser = RolloutParser::new(true);
+    for (index, line) in bytes.split(|b| *b == b'\n').enumerate() {
+        parser.line(index, line);
+    }
+    parser.finish()
+}
+
+/// A rollout parsed a line at a time, so a rollout of any size needs only
+/// its current line in memory ([`crate::transcript::for_each_line`]).
+/// [`parse_rollout`] is this over a whole file's bytes.
+#[derive(Debug, Default)]
+pub struct RolloutParser {
+    parsed: ParsedTranscript,
+    session_id: Option<String>,
+    model: Option<String>,
     // One usage row per response: a forked or resumed rollout repeats
     // its parent's rows (the usage pipeline's dedupe key).
-    let mut counted: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    counted: std::collections::BTreeSet<String>,
     // AJ-E1541: tool calls wait for what Codex says next, so a call and
     // the reply after it are one turn ("ran tests; added the test").
-    let mut pending_tools: Vec<String> = Vec::new();
-    for (index, line) in bytes.split(|b| *b == b'\n').enumerate() {
-        if line.iter().all(u8::is_ascii_whitespace) {
-            continue;
+    pending_tools: Vec<String>,
+    /// Keep the messages, or only the first thing the user asked (a
+    /// conversation's summary needs no more).
+    keep_messages: bool,
+    first_ask: Option<String>,
+}
+
+impl RolloutParser {
+    /// A parser; with `keep_messages` false it keeps only the first thing
+    /// the user asked ([`Self::first_ask`]), not every message.
+    #[must_use]
+    pub fn new(keep_messages: bool) -> Self {
+        Self {
+            keep_messages,
+            ..Self::default()
         }
+    }
+
+    /// One line of the rollout, by its index in the file.
+    pub fn line(&mut self, index: usize, line: &[u8]) {
+        if line.iter().all(u8::is_ascii_whitespace) {
+            return;
+        }
+        if let Ok(value) = serde_json::from_slice::<serde_json::Value>(line) {
+            self.value(index, &value);
+        } else {
+            self.parsed.lines_total += 1;
+            self.parsed.lines_malformed += 1;
+        }
+    }
+
+    /// One line already parsed (a caller that reads the line for itself
+    /// too parses it once).
+    pub fn value(&mut self, index: usize, value: &serde_json::Value) {
+        let parsed = &mut self.parsed;
         parsed.lines_total += 1;
-        let Ok(value) = serde_json::from_slice::<serde_json::Value>(line) else {
-            parsed.lines_malformed += 1;
-            continue;
-        };
-        let kind = text(&value, "type").unwrap_or_else(|| "unknown".to_owned());
+        let kind = text(value, "type").unwrap_or_else(|| "unknown".to_owned());
         *parsed.kinds.entry(kind.clone()).or_default() += 1;
-        let payload = value.get("payload").cloned().unwrap_or_default();
-        if let Some(subtype) = text(&payload, "type") {
+        let null = serde_json::Value::Null;
+        let payload = value.get("payload").unwrap_or(&null);
+        if let Some(subtype) = text(payload, "type") {
             *parsed
                 .subtypes
                 .entry(format!("{kind}/{subtype}"))
                 .or_default() += 1;
         }
         match kind.as_str() {
-            "session_meta" => session_id = text(&payload, "id").or(session_id),
-            "turn_context" => model = text(&payload, "model").or(model),
+            "session_meta" => self.session_id = text(payload, "id").or(self.session_id.take()),
+            "turn_context" => self.model = text(payload, "model").or(self.model.take()),
             "token_usage_record" => {
                 let key = ["thread_id", "turn_id", "response_id"]
-                    .map(|field| text(&payload, field).unwrap_or_default())
+                    .map(|field| text(payload, field).unwrap_or_default())
                     .join("/");
                 if let Some(usage) = payload.get("usage")
-                    && counted.insert(key)
+                    && self.counted.insert(key)
                 {
                     accumulate(&mut parsed.usage, usage);
                 }
             }
-            "response_item" if text(&payload, "type").as_deref() == Some("message") => {
-                let role = match text(&payload, "role").as_deref() {
+            "response_item" if text(payload, "type").as_deref() == Some("message") => {
+                let role = match text(payload, "role").as_deref() {
                     Some("user") => MessageRole::User,
                     Some("assistant") => MessageRole::Assistant,
-                    _ => continue, // developer/system instructions
+                    _ => return, // developer/system instructions
                 };
                 let body = message_text(payload.get("content"));
                 if body.trim().is_empty()
@@ -83,13 +122,19 @@ pub fn parse_rollout(bytes: &[u8]) -> ParsedTranscript {
                             .iter()
                             .any(|prefix| body.trim_start().starts_with(prefix)))
                 {
-                    continue;
+                    return;
                 }
-                if role == MessageRole::User && !pending_tools.is_empty() {
+                if role == MessageRole::User && self.first_ask.is_none() {
+                    self.first_ask = Some(body.clone());
+                }
+                if !self.keep_messages {
+                    return;
+                }
+                if role == MessageRole::User && !self.pending_tools.is_empty() {
                     flush_tools(
-                        &mut parsed,
-                        &mut pending_tools,
-                        session_id.as_deref(),
+                        parsed,
+                        &mut self.pending_tools,
+                        self.session_id.as_deref(),
                         index,
                     );
                 }
@@ -98,24 +143,24 @@ pub fn parse_rollout(bytes: &[u8]) -> ParsedTranscript {
                     // stable identity when the item carries no id.
                     // Scoped by thread: line numbers repeat across
                     // rollouts, ids from two files must never collide.
-                    uuid: text(&payload, "id").or_else(|| {
+                    uuid: text(payload, "id").or_else(|| {
                         Some(format!(
                             "{}:line:{index}",
-                            session_id.as_deref().unwrap_or("rollout")
+                            self.session_id.as_deref().unwrap_or("rollout")
                         ))
                     }),
                     parent_uuid: None,
-                    session_id: session_id.clone(),
+                    session_id: self.session_id.clone(),
                     role,
                     text: body,
                     tools: if role == MessageRole::Assistant {
-                        std::mem::take(&mut pending_tools)
+                        std::mem::take(&mut self.pending_tools)
                     } else {
                         Vec::new()
                     },
                     usage: None,
                     model: (role == MessageRole::Assistant)
-                        .then(|| model.clone())
+                        .then(|| self.model.clone())
                         .flatten(),
                     sidechain: false,
                 });
@@ -123,23 +168,41 @@ pub fn parse_rollout(bytes: &[u8]) -> ParsedTranscript {
             // AJ-E1541: a tool call is its own item in a rollout: one line
             // saying what it did, and the plan it set.
             "response_item"
-                if matches!(
-                    text(&payload, "type").as_deref(),
-                    Some("function_call" | "custom_tool_call")
-                ) =>
+                if self.keep_messages
+                    && matches!(
+                        text(payload, "type").as_deref(),
+                        Some("function_call" | "custom_tool_call")
+                    ) =>
             {
-                tool_call(&mut parsed, &mut pending_tools, &payload);
+                tool_call(parsed, &mut self.pending_tools, payload);
             }
             _ => {}
         }
     }
-    flush_tools(
-        &mut parsed,
-        &mut pending_tools,
-        session_id.as_deref(),
-        usize::MAX,
-    );
-    parsed
+
+    /// The first thing the user asked (not the context Codex injects).
+    #[must_use]
+    pub fn first_ask(&self) -> Option<&str> {
+        self.first_ask.as_deref()
+    }
+
+    /// The usage so far (each response once).
+    #[must_use]
+    pub fn usage(&self) -> TokenCounts {
+        self.parsed.usage
+    }
+
+    /// The parse, once every line is in.
+    #[must_use]
+    pub fn finish(mut self) -> ParsedTranscript {
+        flush_tools(
+            &mut self.parsed,
+            &mut self.pending_tools,
+            self.session_id.as_deref(),
+            usize::MAX,
+        );
+        self.parsed
+    }
 }
 
 /// AJ-E1541: a rollout's tool call (`function_call`, or a custom call
