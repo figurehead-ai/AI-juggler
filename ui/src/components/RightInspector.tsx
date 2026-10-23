@@ -738,7 +738,7 @@ function InstanceOverview(props: PanelProps) {
           </Card>
         ) : (
           <Card className="min-h-[280px] flex-1 overflow-hidden bg-[#05070b] p-0">
-            <TerminalView id={terminalId} title={terminalTitle ?? session.account_label} />
+            <TerminalView id={terminalId} title={terminalTitle ?? session.account_label} status={session.status} />
           </Card>
         )}
         {!live && !isDesktop && (

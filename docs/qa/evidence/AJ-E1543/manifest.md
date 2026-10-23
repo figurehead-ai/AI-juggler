@@ -27,6 +27,24 @@ The three questions:
 
 The walk also found the preview's samples claiming every switch drops the task list and subagents; they now match the fidelity tables.
 
+## The list and the screen agree (2026-10-22)
+
+The coordinator's guide fact-check found the switch list saying "Full
+story, fresh start" (F1) for Claude Code→Claude Code and Codex→Codex,
+while the switch screen for the same pair said "Same conversation, new
+account": the matrix's same-tool rows were still at the first release's
+F1. A same-tool transplant resumes the same conversation on the new
+account (AJ-E1540), so their researched ceiling is now F3 ("Same
+conversation, new account · Beta · Not proven yet"; F2 on the screen when
+the session was compacted; a failed live cell lowers it to F2). Z Code→Z
+Code stays F1 on purpose: its transplant is off, and the row never
+promises a move that can't run. The ranking's fidelity input for
+same-tool pairs is 0.75 (was 0.25). Tests: `validation.rs` (the badges,
+the failing cell's one-level drop, `advertised_ceiling_number`),
+`validation_matrix.rs`, the app's `validation_gate.rs`; the AJ-E808
+register's "Switch rows show" column regenerated; the preview's matrix
+and default preflight follow.
+
 ## Left
 
 - **Req.4 once on the real lab.** The switch screen still has to be walked in the real Dev app during a live switch. The lab drives the same commands without the screen.

@@ -6,7 +6,7 @@
  */
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { ClockSkewNote, SyncChip } from "../screens/FleetScreen";
+import { ClockSkewNote, SyncChip } from "./FleetChips";
 import type { FleetPeerInfo } from "../lib/bridge";
 
 afterEach(cleanup);
@@ -25,6 +25,7 @@ const peer = (over: Partial<FleetPeerInfo> = {}): FleetPeerInfo => ({
   protocol: "v1.0",
   connection_detail: null,
   queued_changes: 0,
+  pairing_unfinished: false,
   ...over,
 });
 

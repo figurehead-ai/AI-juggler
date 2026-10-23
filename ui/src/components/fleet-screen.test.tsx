@@ -123,6 +123,35 @@ describe("AJ-E702 Fleet screen", () => {
   });
 });
 
+describe("a pairing that may not have finished", () => {
+  it("says so on the machine's row, with Pair again opening the pairing", async () => {
+    w().__AIJ_LINK__ = { enabled: true, port: 47821, error: null };
+    w().__AIJ_FLEET_PEERS__ = [{ ...PEER, pairing_unfinished: true }];
+    const { container } = render(<FleetScreen />);
+    const line = await waitFor(() => {
+      const found = container.querySelector("[data-testid='fleet-pairing-unfinished']");
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    expect(line.textContent).toBe("Pairing may not have finished on Mac mini. Pair again to be sure.");
+    expect(line.getAttribute("role")).toBe("status");
+    expect(container.textContent).not.toMatch(/Not seen yet/);
+    const again = container.querySelector<HTMLButtonElement>("[data-testid='fleet-pair-again']")!;
+    expect(again.textContent).toBe("Pair again with Mac mini");
+    fireEvent.click(again);
+    await waitFor(() => expect(container.querySelector("[data-testid='pairing-wizard']")).not.toBeNull());
+    delete w().__AIJ_LINK__;
+  });
+
+  it("never shows on a pairing that finished", async () => {
+    w().__AIJ_FLEET_PEERS__ = [{ ...PEER, pairing_unfinished: false }];
+    const { container } = render(<FleetScreen />);
+    await waitFor(() => expect(container.querySelector("[data-testid='fleet-peer']")).not.toBeNull());
+    expect(container.querySelector("[data-testid='fleet-pairing-unfinished']")).toBeNull();
+    expect(container.querySelector("[data-testid='fleet-pair-again']")).toBeNull();
+  });
+});
+
 describe("AJ-E703 connection states", () => {
   it("each state reads as words and a shape, never colour alone", async () => {
     w().__AIJ_FLEET_PEERS__ = [

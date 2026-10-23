@@ -893,8 +893,18 @@ pub(crate) async fn push(
     let sequence = crate::remote::next_command_sequence(state, machine_id)?;
     let own = crate::commands::local_machine_id(state).to_string();
     let (cancel, watch) = tokio::sync::watch::channel(false);
-    if let Ok(mut map) = state.link.handover_cancel.lock() {
-        map.insert(machine_id.to_owned(), cancel);
+    // Recorded only while Link is on, so `stop` (which closes the gate
+    // before it cancels these) cancels it, or it never starts.
+    {
+        let Some(_open) = crate::link::link_open(state, crate::link::link_run(state)) else {
+            return Err(AppError::Io {
+                context: "hand over",
+                message: crate::link::NOTHING_SENT.to_owned(),
+            });
+        };
+        if let Ok(mut map) = state.link.handover_cancel.lock() {
+            map.insert(machine_id.to_owned(), cancel);
+        }
     }
     let pushed = juggler_link::client::push_handover(
         &peer,

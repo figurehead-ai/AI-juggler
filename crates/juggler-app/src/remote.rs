@@ -736,6 +736,24 @@ pub async fn send_action_for_test(
     send_action(state, machine_id, action, "view").await
 }
 
+/// The command's answer, or what the user hears when Link off kept it
+/// from finishing: it never went out, or it went out and the answer never
+/// came.
+fn finished_or_link_off<T>(sent: crate::link::Outbound<T>) -> Result<T, RemoteCommandOutcomeInfo> {
+    let message = match sent {
+        crate::link::Outbound::Done(result) => return Ok(result),
+        crate::link::Outbound::NotSent => crate::link::NOTHING_SENT,
+        crate::link::Outbound::Ended => {
+            "Link went off before that machine answered — it may still have run there."
+        }
+    };
+    Err(RemoteCommandOutcomeInfo {
+        accepted: false,
+        reason_code: Some("link_off".to_owned()),
+        message: message.to_owned(),
+    })
+}
+
 async fn send_action(
     state: Arc<AppState>,
     machine_id: String,
@@ -774,19 +792,19 @@ async fn send_action(
     }
     let console = crate::commands::local_machine_id(&state).to_string();
     let sequence = next_command_sequence(&state, &machine_id)?;
-    let runtime = state.link.runtime()?;
     // The node may wait for its user ("Ask each time"), up to 20 s.
-    let task = runtime.spawn(async move {
+    let sent = crate::link::run_outbound(&state, async move {
         tokio::time::timeout(
             COMMAND_TIMEOUT,
             juggler_link::client::send_command(&peer, &console, sequence, action),
         )
         .await
-    });
-    let result = task.await.map_err(|e| AppError::Io {
-        context: "remote action",
-        message: e.to_string(),
-    })?;
+    })
+    .await?;
+    let result = match finished_or_link_off(sent) {
+        Ok(result) => result,
+        Err(link_off) => return Ok(link_off),
+    };
     let outcome = match result {
         Err(_) => RemoteCommandOutcomeInfo {
             accepted: false,
@@ -976,5 +994,28 @@ mod tests {
             "a relayed / spoofed origin"
         );
         assert!(!from_connected_origin(&delta(""), "mac-a"));
+    }
+}
+
+#[cfg(test)]
+mod link_off_tests {
+    use super::finished_or_link_off;
+    use crate::link::Outbound;
+
+    /// A command Link off kept from going out says nothing was sent; one
+    /// it cut off after sending says it may still have run there; one that
+    /// finished gives its answer.
+    #[test]
+    fn link_off_says_whether_anything_was_sent() {
+        let never = finished_or_link_off(Outbound::<u8>::NotSent).unwrap_err();
+        assert_eq!(never.message, "Link is off on this Mac — nothing was sent.");
+        let cut = finished_or_link_off(Outbound::<u8>::Ended).unwrap_err();
+        assert_eq!(
+            cut.message,
+            "Link went off before that machine answered — it may still have run there."
+        );
+        assert_eq!(never.reason_code.as_deref(), Some("link_off"));
+        assert!(!never.accepted && !cut.accepted);
+        assert_eq!(finished_or_link_off(Outbound::Done(7_u8)).ok(), Some(7));
     }
 }

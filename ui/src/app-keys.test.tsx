@@ -106,6 +106,12 @@ describe("AJ-E1504 the typing rule", () => {
       "home-next": { key: "j" },
       "home-prev": { key: "k" },
       "home-action": { key: "a" },
+      // AJ-E1506: the terminal's tools, ⌘ or Ctrl+Shift, by the key's place.
+      "terminal-find": { key: "F", code: "KeyF", shiftKey: true },
+      "terminal-larger": { key: "+", code: "Equal", shiftKey: true },
+      "terminal-smaller": { key: "_", code: "Minus", shiftKey: true },
+      "terminal-reset": { key: ")", code: "Digit0", shiftKey: true },
+      "terminal-maximize": { key: "Enter", shiftKey: true },
     };
     const plainKeys = new Set(["help", "home-next", "home-prev", "home-action"]);
     for (const entry of SHORTCUTS) {

@@ -127,7 +127,6 @@ sync pairing_host_open
 sync pairing_host_state
 sync pairing_join_decide
 sync pairing_join_reset
-sync pairing_join_start
 sync pairing_join_state
 sync pairing_re_enable
 sync parked_check_now

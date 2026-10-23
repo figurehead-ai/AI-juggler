@@ -10,4 +10,5 @@ pub mod projects;
 pub mod quota;
 pub mod sessions;
 pub mod switch_setup;
+pub mod terminal;
 pub mod tools;

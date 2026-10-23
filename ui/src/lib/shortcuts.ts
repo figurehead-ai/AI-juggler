@@ -61,6 +61,15 @@ function plain(...keys: string[]) {
   return (event: KeyLike) => !event.metaKey && !event.ctrlKey && !event.altKey && keys.includes(event.key);
 }
 
+/** AJ-E1506: a terminal tool's key — ⌘ on a Mac, Ctrl+Shift elsewhere
+ * (plain Ctrl+F and Ctrl+- are the shell's), by the key's place. */
+function terminalTool(on: (event: KeyLike) => boolean) {
+  return (event: KeyLike) => {
+    const mod = event.metaKey ? !event.ctrlKey && !event.altKey : event.ctrlKey && event.shiftKey && !event.altKey;
+    return mod && on(event);
+  };
+}
+
 /** ⌘ + a digit, by the key's place (⌥ changes what `key` reads). */
 function cmdDigit(digits: number[], opts: { alt?: boolean } = {}) {
   return (event: KeyLike) => {
@@ -121,6 +130,13 @@ export const SHORTCUTS = [
   },
   { id: "remote-back", owner: "inspector", area: "Session", keys: ["⌘["], label: "Back to Fleet (another Mac's session)", match: cmd("[") },
   { id: "leave-terminal", owner: "terminal", area: "Session", keys: ["⌃Tab", "⌃⇧Tab"], label: "Leave the terminal" },
+  // AJ-E1506: the terminal's own tools, read while typing in it (Ctrl+Shift
+  // on Windows and Linux, where plain Ctrl is the shell's).
+  { id: "terminal-find", owner: "terminal", area: "Session", keys: ["⌘F"], label: "Find in the terminal", match: terminalTool((e) => e.code === "KeyF") },
+  { id: "terminal-larger", owner: "terminal", area: "Session", keys: ["⌘+"], label: "Larger terminal text", match: terminalTool((e) => e.code === "Equal" || e.code === "NumpadAdd") },
+  { id: "terminal-smaller", owner: "terminal", area: "Session", keys: ["⌘−"], label: "Smaller terminal text", match: terminalTool((e) => e.code === "Minus" || e.code === "NumpadSubtract") },
+  { id: "terminal-reset", owner: "terminal", area: "Session", keys: ["⌘0"], label: "Terminal text as set", match: terminalTool((e) => e.code === "Digit0" || e.code === "Numpad0") },
+  { id: "terminal-maximize", owner: "terminal", area: "Session", keys: ["⌘↩"], label: "Fill the window with the terminal, or put it back", match: terminalTool((e) => e.key === "Enter") },
   // Home
   {
     id: "home-next",

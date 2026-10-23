@@ -10,7 +10,7 @@
 # coordinator). AJ-E1544 splits LiveStatsCollector out once fix batch 4
 # (#130) is in release/0.1, and supervisor.rs's cap comes back down.
 crates/juggler-app/src/commands.rs 4245
-crates/juggler-app/src/link.rs 2250
+crates/juggler-app/src/link.rs 2202
 crates/juggler-app/src/usage_stats.rs 2088
 crates/juggler-supervisor/src/supervisor.rs 2962
 ui/src/App.tsx 1232
@@ -29,7 +29,7 @@ ui/src/lib/bridge.ts 4952
 ui/src/lib/machine.ts 426
 ui/src/screens/CleanupCentre.tsx 809
 ui/src/screens/FirstRun.tsx 1343
-ui/src/screens/FleetScreen.tsx 838
+ui/src/screens/FleetScreen.tsx 779
 ui/src/screens/Home.tsx 776
 ui/src/screens/NewProjectSheet.tsx 423
 ui/src/screens/NewSession.tsx 524
