@@ -413,6 +413,9 @@ macro_rules! app_commands {
             Write features::app::diagnostics::app_diagnostics_preview,
             Write features::app::diagnostics::app_diagnostics_export,
             Write features::app::diagnostics::app_report_bug_open,
+            // AJ-E1511: reads a folder the user picked; starts a session.
+            Write features::packs::packs_open_preview,
+            Write features::packs::packs_open_start,
             Read  features::notifications::prefs::notifications_get,
             Write features::notifications::prefs::notifications_set,
             // Reads `git status` (the 2 s cache, like a session's).

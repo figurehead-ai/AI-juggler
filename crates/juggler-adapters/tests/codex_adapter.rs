@@ -268,6 +268,7 @@ fn launch_specs_per_mode() {
 
     let primed = spec(LaunchMode::Primed {
         prompt: "continue".into(),
+        read_dirs: Vec::new(),
     });
     assert_eq!(primed.args, vec!["--no-daemon", "--", "continue"]);
 
@@ -298,6 +299,7 @@ fn launch_specs_per_mode() {
     // User text that looks like an option stays text (after `--`).
     let bullet = spec(LaunchMode::Primed {
         prompt: "- fix X".into(),
+        read_dirs: Vec::new(),
     });
     assert_eq!(bullet.args, vec!["--no-daemon", "--", "- fix X"]);
     // A session id that looks like an option is refused, never passed.
@@ -336,6 +338,7 @@ fn model_override_rides_the_command_line() {
             dir.path(),
             &LaunchMode::Primed {
                 prompt: "go".into(),
+                read_dirs: Vec::new(),
             },
         )
         .unwrap();

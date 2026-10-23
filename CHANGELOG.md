@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Switching to another tool (Claude Code ↔ Codex) hands over through a
+  file: AI Juggler writes the handover (the conversation, redacted; what
+  each tool call did; where the work stands) in its own folder, readable
+  by you only, and the new session starts by reading it. The conversation
+  no longer travels on the command line, so more of it fits (96 KB on
+  every system, up from 24 KB on Windows); older turns that still don't
+  fit are listed by what was asked in them, and the project's rules files
+  are named so the other tool follows them too.
 - Opening AI Juggler while it is already open brings the open one
   forward without touching its data first (it used to open the data,
   run its upgrades and recovery, and only then hand over).
@@ -418,6 +426,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Start from a context pack** (AJ-E1511). New session › **Start from a
+  context pack…** opens a pack you saved: it's checked whole first (every
+  file as the pack recorded it, nothing outside it, no keys), then shown
+  as a switch is: where it came from, what it continues as, what carries
+  and what doesn't, and what was withheld when it was made. Pick the
+  account (any tool) and the folder, and the new session starts with the
+  pack as its handover; the switch history records where it came from.
 - **Report a problem** (AJ-E1517). Settings › General has **Report a
   bug** (the GitHub form) and **Export diagnostics…**: one zip with
   AI Juggler's version, the database's schema, your settings and its own

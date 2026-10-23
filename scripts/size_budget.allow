@@ -31,7 +31,7 @@ ui/src/screens/FirstRun.tsx 1343
 ui/src/screens/FleetScreen.tsx 779
 ui/src/screens/Home.tsx 776
 ui/src/screens/NewProjectSheet.tsx 423
-ui/src/screens/NewSession.tsx 524
+ui/src/screens/NewSession.tsx 523
 ui/src/screens/PairingWizard.tsx 816
 ui/src/screens/Profiles.tsx 713
 ui/src/screens/Settings.tsx 778

@@ -24,5 +24,5 @@ Live: the register's claude→claude transcript-resume, todos and mcp-references
 
 ## Left
 
-- **Codex → Codex live (Req.4, the gate).** The lab needs a second signed-in Codex home, and this Mac has one. Whoever runs it next adds a Codex→Codex hop to the journey.
-- **The other claude→claude cells.** Rules, subagents, file history, the folder and worktree edges, and switch-back are still UNVALIDATED. The journey needs a rules file, a subagent call, a worktree and a direct B → A return, so a live run can decide them.
+- **Codex → Codex live (Req.4, the gate).** The lab needs a second signed-in Codex home; this Mac has only `~/.codex`, and signing in another is the maintainer's to do. Then a Codex→Codex hop goes into the journey.
+- **The other claude→claude cells: decided live (labs 9 and 10, 2026-10-23).** Rules, subagents, the folder and worktree edges and switch-back are PASS: B quoted the rule only `CLAUDE.md` states, the session's `subagents/` folder travelled, B continued inside a git worktree (its change landed there, not in the root), and switching straight back gave A what B had only said (`docs/qa/evidence/AJ-E1539/manifest.md`). File history stays UNVALIDATED live: the lab's first turn is headless and leaves none to carry (it travels whole in the adapter's test).

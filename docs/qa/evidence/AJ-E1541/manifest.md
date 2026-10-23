@@ -1,6 +1,6 @@
 # Evidence manifest — AJ-E1541
 
-Task: `docs/tasks/E15-spec-gaps.md` AJ-E1541 (cross-tool continuity). Status: **IN-PROGRESS**. 2026-10-22, claude-opus.
+Task: `docs/tasks/E15-spec-gaps.md` AJ-E1541 (cross-tool continuity). Status: **DONE-EVIDENCED** (IN-REVIEW until the release PR). 2026-10-23, claude-opus.
 
 ## Done
 
@@ -22,8 +22,20 @@ Live cells PASS: claude→codex transcript-resume, todos, mcp-references and swi
 - **Every hop is named.** A hop whose session record or account is missing is named in the update, not skipped.
 - **A capped lookup.** Finding a replay's conversation reads at most the 200 newest files changed since the switch.
 
+## The handover file (2026-10-23, claude-opus)
+
+| Requirement | Proof | Result |
+|---|---|---|
+| Req.1 a handover file, and a short prompt that points at it | The switch writes `switches/<edge>/HANDOVER.md` and `state.json` in AI Juggler's data folder (folder 0700, files 0600: this user only). The target starts with the replay's opening sentence (how its conversation is found again) and the file's path on a line of its own; Claude gets `--add-dir` for that folder (after the prompt: it takes several folders), Codex reads it as is. The conversation is no longer on the command line, where `ps` showed it to every local user, and no longer capped by the argument limit (24 KiB on Windows before): 96 KiB everywhere. `features::handover` tests (written for this user only; the pointer's first line); `codex_switch` `claude_to_codex_replays_the_redacted_conversation` (the conversation is not in argv), `codex_to_claude_replays_too` (`--add-dir switches/<edge>`), `an_oversized_newest_turn_still_travels_cut_to_fit` (the command line under 2 KiB, the brief within budget). Linking still works: `switching_back_finds_the_replays_conversation_beside_another_one` passes with the pointer as the conversation's first message. | PASS |
+| Req.2 the rules files in play | The handover names the rules files in the folder that either tool reads ("CLAUDE.md (read by Claude Code)"), and asks the target to read the ones it doesn't load itself; `state.json` lists them. `claude_to_codex_carries_tool_calls_the_task_list_and_the_changes` | PASS |
+| Req.2 older turns by topic | Turns that don't fit are counted and named by what was asked in each (its first line, up to 40), oldest first. `older_turns_that_dont_fit_are_named_by_what_was_asked`; unit `earlier_turns_are_counted_and_named_by_what_was_asked` | PASS |
+
+## Live (labs 9 and 10, 2026-10-23)
+
+The lab's journey now runs through the handover file: Codex starts from the pointer prompt and reads `switches/<edge>/HANDOVER.md`. Claude→Codex: Codex answered with the codename, the multiply function's name, the open task and the rule only `CLAUDE.md` states. A forward Codex→Claude hop (a task begun on Codex, `--add-dir` given): Claude B answered with the Codex task's codename, its open plan item and the rule only `AGENTS.md` states. Switching back from B to the Codex task gave Codex a release name B had only said ("Silver Finch"). Register cells PASS: claude→codex rules-carry; codex→claude transcript-resume, todos, rules-carry and switch-back; with labs 5–8's claude→codex transcript, todos, MCP and switch-back (`docs/qa/evidence/AJ-E1539/manifest.md`, `docs/qa/evidence/AJ-E808/register.md`).
+
 ## Left
 
-- **Req.1 a handover file.** The replay still goes to the target as one prompt, which the budget keeps under the argument limit. The task asks for `switches/<edge>/HANDOVER.md` and `state.json` in AI Juggler's data, with a short prompt pointing at them.
-- **Req.2 the rules files in play, and older turns by topic.** The replay doesn't name the rules files yet. Older turns that don't fit are counted, not summarised by topic.
+- **A Mac-to-Mac replay** (`crossmachine`) still sends its brief as one prompt; it's AJ-E1515's path.
+- **Subagents and file history across tools** don't carry by design; the switch screen says so before the user confirms (Req.5). Their register cells wait for drop notes.
 - **The gate's codex→claude cells.** The journey returns to A by switching back, not by a forward Codex → Claude switch. A forward hop is needed to decide them.

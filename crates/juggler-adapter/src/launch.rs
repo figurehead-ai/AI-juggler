@@ -34,6 +34,10 @@ pub enum LaunchMode {
     Primed {
         /// The prime prompt.
         prompt: String,
+        /// AJ-E1541: folders outside the session's own that it may read
+        /// without asking (the switch's handover file). A tool that reads
+        /// anywhere already ignores it.
+        read_dirs: Vec<std::path::PathBuf>,
     },
 }
 

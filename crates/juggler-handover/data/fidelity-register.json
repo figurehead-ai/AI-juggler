@@ -18,7 +18,13 @@
         },
         {
           "area": "rules-carry",
-          "verdict": "UNVALIDATED"
+          "verdict": "PASS",
+          "run": "live",
+          "source_version": "2.1.302",
+          "target_version": "2.1.302",
+          "date": "2026-10-23",
+          "fixture": "switch-lab labs 9 and 10",
+          "evidence": "docs/qa/evidence/AJ-E1539/manifest.md"
         },
         {
           "area": "todos",
@@ -32,7 +38,13 @@
         },
         {
           "area": "subagents",
-          "verdict": "UNVALIDATED"
+          "verdict": "PASS",
+          "run": "live",
+          "source_version": "2.1.302",
+          "target_version": "2.1.302",
+          "date": "2026-10-23",
+          "fixture": "switch-lab labs 9 and 10",
+          "evidence": "docs/qa/evidence/AJ-E1539/manifest.md"
         },
         {
           "area": "file-history",
@@ -50,11 +62,23 @@
         },
         {
           "area": "cwd-worktree-edges",
-          "verdict": "UNVALIDATED"
+          "verdict": "PASS",
+          "run": "live",
+          "source_version": "2.1.302",
+          "target_version": "2.1.302",
+          "date": "2026-10-23",
+          "fixture": "switch-lab labs 9 and 10",
+          "evidence": "docs/qa/evidence/AJ-E1539/manifest.md"
         },
         {
           "area": "switch-back",
-          "verdict": "UNVALIDATED"
+          "verdict": "PASS",
+          "run": "live",
+          "source_version": "2.1.302",
+          "target_version": "2.1.302",
+          "date": "2026-10-23",
+          "fixture": "switch-lab labs 9 and 10",
+          "evidence": "docs/qa/evidence/AJ-E1539/manifest.md"
         }
       ]
     },
@@ -150,7 +174,13 @@
         },
         {
           "area": "rules-carry",
-          "verdict": "UNVALIDATED"
+          "verdict": "PASS",
+          "run": "live",
+          "source_version": "2.1.302",
+          "target_version": "0.163.0",
+          "date": "2026-10-23",
+          "fixture": "switch-lab labs 9 and 10",
+          "evidence": "docs/qa/evidence/AJ-E1539/manifest.md"
         },
         {
           "area": "todos",
@@ -202,15 +232,33 @@
       "cells": [
         {
           "area": "transcript-resume",
-          "verdict": "UNVALIDATED"
+          "verdict": "PASS",
+          "run": "live",
+          "source_version": "0.163.0",
+          "target_version": "2.1.302",
+          "date": "2026-10-23",
+          "fixture": "switch-lab labs 9 and 10",
+          "evidence": "docs/qa/evidence/AJ-E1539/manifest.md"
         },
         {
           "area": "rules-carry",
-          "verdict": "UNVALIDATED"
+          "verdict": "PASS",
+          "run": "live",
+          "source_version": "0.163.0",
+          "target_version": "2.1.302",
+          "date": "2026-10-23",
+          "fixture": "switch-lab labs 9 and 10",
+          "evidence": "docs/qa/evidence/AJ-E1539/manifest.md"
         },
         {
           "area": "todos",
-          "verdict": "UNVALIDATED"
+          "verdict": "PASS",
+          "run": "live",
+          "source_version": "0.163.0",
+          "target_version": "2.1.302",
+          "date": "2026-10-23",
+          "fixture": "switch-lab labs 9 and 10",
+          "evidence": "docs/qa/evidence/AJ-E1539/manifest.md"
         },
         {
           "area": "subagents",
@@ -230,7 +278,13 @@
         },
         {
           "area": "switch-back",
-          "verdict": "UNVALIDATED"
+          "verdict": "PASS",
+          "run": "live",
+          "source_version": "0.163.0",
+          "target_version": "2.1.302",
+          "date": "2026-10-23",
+          "fixture": "switch-lab lab 10",
+          "evidence": "docs/qa/evidence/AJ-E1539/manifest.md"
         }
       ]
     },

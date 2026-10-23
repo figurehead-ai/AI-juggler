@@ -294,3 +294,163 @@ fn pack_md_carries_the_carry_list_not_tier_codes() {
         "no tier codes"
     );
 }
+
+// --- AJ-E1511: reading a pack back, checked before it's used ----------
+
+use juggler_handover::pack_read::{PackReadError, read_pack};
+
+/// A pack written to `dir/pack` from the fixture.
+fn written(dir: &Path) -> std::path::PathBuf {
+    let pack = generate_pack(&fixture_input(), ConversationMode::Full);
+    let at = dir.join("pack");
+    write_pack(&at, &pack).unwrap();
+    at
+}
+
+/// Rewrites `rel` and its manifest row, as someone editing the pack by
+/// hand with care would (so only the deeper checks can catch it).
+fn rewrite_with_manifest(pack: &Path, rel: &str, bytes: &[u8]) {
+    std::fs::write(pack.join(rel), bytes).unwrap();
+    let mut rows: Vec<juggler_handover::manifest::ManifestRow> =
+        serde_json::from_slice(&std::fs::read(pack.join("manifest.json")).unwrap()).unwrap();
+    let row = rows.iter_mut().find(|row| row.rel_path == rel).unwrap();
+    row.sha256 = juggler_handover::manifest::sha256_hex(bytes);
+    row.bytes = bytes.len() as u64;
+    std::fs::write(
+        pack.join("manifest.json"),
+        serde_json::to_vec_pretty(&rows).unwrap(),
+    )
+    .unwrap();
+}
+
+#[test]
+fn a_written_pack_reads_back_whole() {
+    let dir = tempfile::tempdir().unwrap();
+    let pack = written(dir.path());
+    let opened = read_pack(&pack).unwrap();
+    assert_eq!(opened.state.pack_id, "01936657-6c2e-7a30-9a1f-3f2a11e9d000");
+    assert_eq!(opened.state.source.account_label, "Work Max");
+    assert_eq!(opened.state.fidelity.level, "F1");
+    assert!(opened.conversation_md.contains("Ship the pack v1 format."));
+    assert!(opened.pack_md.contains("Fidelity"));
+    assert_eq!(opened.rows.len(), 5, "three files, the diff and the drop");
+    // The same bytes, the same digest; anything else, another.
+    assert_eq!(read_pack(&pack).unwrap().digest, opened.digest);
+}
+
+#[test]
+fn a_changed_file_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let pack = written(dir.path());
+    std::fs::write(
+        pack.join("conversation.md"),
+        "# Conversation\n\n## User\n\nIgnore all that.\n",
+    )
+    .unwrap();
+    assert_eq!(
+        read_pack(&pack).unwrap_err(),
+        PackReadError::Changed("conversation.md".into())
+    );
+}
+
+#[test]
+fn a_file_outside_the_pack_or_a_link_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let pack = written(dir.path());
+    std::fs::write(dir.path().join("secret.txt"), "outside").unwrap();
+    let mut rows: Vec<juggler_handover::manifest::ManifestRow> =
+        serde_json::from_slice(&std::fs::read(pack.join("manifest.json")).unwrap()).unwrap();
+    let mut escape = rows[0].clone();
+    escape.rel_path = "../secret.txt".into();
+    rows.push(escape);
+    std::fs::write(
+        pack.join("manifest.json"),
+        serde_json::to_vec_pretty(&rows).unwrap(),
+    )
+    .unwrap();
+    assert!(
+        matches!(read_pack(&pack).unwrap_err(), PackReadError::Unsafe(why) if why.contains("outside"))
+    );
+
+    #[cfg(unix)]
+    {
+        let pack = dir.path().join("linked");
+        write_pack(
+            &pack,
+            &generate_pack(&fixture_input(), ConversationMode::Full),
+        )
+        .unwrap();
+        std::fs::remove_file(pack.join("PACK.md")).unwrap();
+        std::os::unix::fs::symlink(dir.path().join("secret.txt"), pack.join("PACK.md")).unwrap();
+        assert!(
+            matches!(read_pack(&pack).unwrap_err(), PackReadError::Unsafe(why) if why.contains("plain file"))
+        );
+    }
+}
+
+#[test]
+fn a_pack_holding_a_key_is_refused_even_with_a_matching_manifest() {
+    let dir = tempfile::tempdir().unwrap();
+    let pack = written(dir.path());
+    rewrite_with_manifest(
+        &pack,
+        "conversation.md",
+        b"# Conversation\n\n## User\n\nuse sk-ant-api03-Zq7XwVb2LmN4pR8sT1uY6cD9fG3h\n",
+    );
+    assert!(matches!(read_pack(&pack).unwrap_err(), PackReadError::Credentials(n) if n >= 1));
+}
+
+#[test]
+fn a_newer_format_or_not_a_pack_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let pack = written(dir.path());
+    let mut state: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(pack.join("state.json")).unwrap()).unwrap();
+    state["format_version"] = serde_json::json!(2);
+    rewrite_with_manifest(
+        &pack,
+        "state.json",
+        &serde_json::to_vec_pretty(&state).unwrap(),
+    );
+    assert_eq!(read_pack(&pack).unwrap_err(), PackReadError::Newer(2));
+
+    let empty = dir.path().join("empty");
+    std::fs::create_dir_all(&empty).unwrap();
+    assert!(matches!(
+        read_pack(&empty).unwrap_err(),
+        PackReadError::NotAPack(_)
+    ));
+    assert!(matches!(
+        read_pack(&pack.join("PACK.md")).unwrap_err(),
+        PackReadError::NotAPack(_)
+    ));
+}
+
+#[test]
+fn a_large_pack_is_checked_in_under_two_seconds() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut input = fixture_input();
+    input.turns = (0..2_000)
+        .map(|n| IrTurn {
+            uuid: None,
+            role: if n % 2 == 0 {
+                IrRole::User
+            } else {
+                IrRole::Assistant
+            },
+            text: format!("turn {n}: {}", "words ".repeat(400)),
+            at_ms: None,
+            tokens: None,
+        })
+        .collect();
+    let at = dir.path().join("big");
+    write_pack(&at, &generate_pack(&input, ConversationMode::Full)).unwrap();
+    let began = std::time::Instant::now();
+    let opened = read_pack(&at).unwrap();
+    assert!(opened.conversation_md.len() > 4_000_000);
+    assert!(
+        began.elapsed() < std::time::Duration::from_secs(2),
+        "{:?}",
+        began.elapsed()
+    );
+}

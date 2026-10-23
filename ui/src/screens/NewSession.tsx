@@ -15,17 +15,14 @@ import {
   terminalSpawnLogin,
   quotaDisplayAll,
   rankingRows,
-  type RankedRowData,
-  type QuotaDisplayData,
-  type AccountInfo,
-  type LaunchRecipeInfo,
-  type InstanceInfo,
-  type ProjectInfo, errorText,
+  type RankedRowData, type QuotaDisplayData, type AccountInfo, type LaunchRecipeInfo, type InstanceInfo, type ProjectInfo,
+  errorText,
   signedIn,
 } from "../lib/bridge";
 import { launchSettingsName, launchTitle } from "../lib/account-words";
 import { sessionTitle } from "../components/ManageWork";
 import { useTwinToggle } from "../lib/use-twin-toggle";
+import { PackPicker, usePack } from "../components/OpenPack";
 
 /**
  * New session — zero typing: recent projects (real history), a native
@@ -60,6 +57,7 @@ export function NewSessionModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
+  const pack = usePack(setDirectory); // AJ-E1511: started from a context pack
   // AJ-E306 flow (e): Launch settings collapsed under Customise ▸ —
   // the recommended "Main" rides preselected; ⌘↩ launches it.
   const customise = useTwinToggle();
@@ -214,7 +212,7 @@ export function NewSessionModal({
     setBusy(true);
     setError(null);
     try {
-      const result = await launchSession(recipe.id, directory);
+      const result = pack.opened ? await pack.start(recipe.id, directory) : await launchSession(recipe.id, directory);
       if (!result) {
         setError("Preview mode — no backend connected.");
         setBusy(false);
@@ -269,6 +267,7 @@ export function NewSessionModal({
             // paths and opens this modal pre-filled.
           }}
         >
+          <PackPicker pack={pack} />
           {/* Step 1 — where */}
           <p className="text-[11px] uppercase tracking-wider text-muted">
             Where do you want to work?

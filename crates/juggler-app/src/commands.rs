@@ -5967,16 +5967,15 @@ fn switch_sides(
     })
 }
 
-/// The most a replay brief may weigh, in BYTES: it reaches the target as
-/// ONE command-line argument, and Linux caps one argument at 128 KiB
-/// (`MAX_ARG_STRLEN`) while Windows caps a whole command line at 32,767
-/// characters — over that the launch fails (E2BIG) and the session could
-/// never switch. Newest turns are kept, the newest always.
-const REPLAY_PROMPT_BYTES: usize = if cfg!(windows) { 24 * 1024 } else { 96 * 1024 };
+/// The most a replay brief may weigh, in BYTES: what the target reads
+/// from its handover file (AJ-E1541) — about 24k tokens, which a tool
+/// reads in a part or two. Newest turns are kept, the newest always;
+/// older ones are named by what was asked.
+const REPLAY_PROMPT_BYTES: usize = 96 * 1024;
 
-/// What the brief's own words (the Provider's header, the "earlier turns
-/// are not included" line) may take on top of the turns.
-const REPLAY_HEADER_BYTES: usize = 2 * 1024;
+/// What the brief's own words (the Provider's header, the earlier turns'
+/// topics) may take on top of the turns.
+const REPLAY_HEADER_BYTES: usize = 8 * 1024;
 
 /// AJ-E1304: a cross-Provider switch (T3 replay, beta — D-04/D-11). The
 /// source conversation is read in ITS format, redacted under the user's
@@ -6003,8 +6002,8 @@ fn switch_replay(
     replayable_turns(&sides.reference.path)?;
     // AJ-E1540: the source stops first, so the replay holds its last turn.
     freeze_source(state, &sides.source, &sides.reference, freeze)?;
-    let (prompt, source_sha, source_bytes) =
-        replay_prompt(state, sides, strip, redaction_unredact)?;
+    let brief = replay_prompt(state, sides, strip, redaction_unredact)?;
+    let (source_sha, source_bytes) = (brief.sha.clone(), brief.bytes);
     let (work, from_epoch, edge) = record_edge_staged(
         state,
         &sides.source,
@@ -6030,16 +6029,7 @@ fn switch_replay(
         project.root.clone_from(&sides.source.cwd);
         project
     };
-    let launched = crate::crossmachine::launch_here(
-        state,
-        &sides.profile_b,
-        &sides.account_b,
-        &project,
-        &LaunchMode::Primed { prompt },
-        None,
-        "switch",
-    )
-    .map_err(|error| SwitchFailure::LaunchFailed(error.to_string()));
+    let launched = launch_with_handover(state, sides, &edge, &brief, &project);
     // Copy-never-move, checked after the launch as the pipeline does.
     let checked = launched.and_then(|started| {
         juggler_adapters::read_session_file(&sides.reference.path)
@@ -6139,12 +6129,97 @@ fn replayable_turns(path: &std::path::Path) -> AppResult<Vec<juggler_handover::p
     Ok(turns)
 }
 
+/// AJ-E1541: the brief goes in a handover file; the target starts with a
+/// short prompt that points at it (and may read its folder).
+fn launch_with_handover(
+    state: &Arc<AppState>,
+    sides: &SwitchSides,
+    edge: &juggler_core::model::SwitchEdgeId,
+    brief: &ReplayBrief,
+    project: &juggler_core::model::ProjectRecord,
+) -> Result<(SessionId, u32), juggler_handover::pipeline::SwitchFailure> {
+    use juggler_handover::pipeline::SwitchFailure;
+    let file = write_handover(state, sides, edge, brief)
+        .map_err(|error| SwitchFailure::StagingAborted(error.to_string()))?;
+    let mode = LaunchMode::Primed {
+        prompt: crate::features::handover::pointer(
+            &replay_header(state, &sides.account_b.harness),
+            &file,
+        ),
+        read_dirs: file
+            .parent()
+            .map(std::path::Path::to_path_buf)
+            .into_iter()
+            .collect(),
+    };
+    crate::crossmachine::launch_here(
+        state,
+        &sides.profile_b,
+        &sides.account_b,
+        project,
+        &mode,
+        None,
+        "switch",
+    )
+    .map_err(|error| SwitchFailure::LaunchFailed(error.to_string()))
+}
+
+/// A replay's brief: its text, the source's hash and size, and how many
+/// turns it holds and leaves out.
+struct ReplayBrief {
+    text: String,
+    sha: String,
+    bytes: u64,
+    included: usize,
+    left_out: usize,
+}
+
+/// AJ-E1541: writes the brief, with the rules files in play, as the
+/// switch's handover file; returns its path.
+fn write_handover(
+    state: &Arc<AppState>,
+    sides: &SwitchSides,
+    edge: &juggler_core::model::SwitchEdgeId,
+    brief: &ReplayBrief,
+) -> std::io::Result<PathBuf> {
+    use crate::features::handover;
+    let specs: Vec<_> = [&sides.account_a.harness, &sides.account_b.harness]
+        .into_iter()
+        .filter_map(|harness| state.registry.get(harness).map(|adapter| adapter.spec()))
+        .collect();
+    let rules = handover::rules_in_play(&sides.source.cwd, &specs);
+    let text = match handover::rules_section(&rules) {
+        Some(section) => format!("{}\n\n{section}\n", brief.text.trim_end()),
+        None => brief.text.clone(),
+    };
+    let side = |account: &Account| handover::Side {
+        tool: account.harness.to_string(),
+        account: account.label.clone(),
+    };
+    handover::write(
+        &state.data_dir,
+        &text,
+        &handover::HandoverState {
+            format: "ai-juggler-handover",
+            version: 1,
+            edge: edge.to_string(),
+            from: side(&sides.account_a),
+            to: side(&sides.account_b),
+            folder: sides.source.cwd.display().to_string(),
+            written_ms: now_millis(),
+            turns_included: brief.included,
+            turns_left_out: brief.left_out,
+            rules_files: rules,
+        },
+    )
+}
+
 fn replay_prompt(
     state: &Arc<AppState>,
     sides: &SwitchSides,
     strip: bool,
     redaction_unredact: &[u32],
-) -> AppResult<(String, String, u64)> {
+) -> AppResult<ReplayBrief> {
     use juggler_handover::pipeline::SwitchFailure;
     use juggler_handover::redaction::strip_segments;
 
@@ -6167,7 +6242,8 @@ fn replay_prompt(
         .filter_map(|index| usize::try_from(*index).ok())
         .collect();
     let (texts, _counts) = strip_segments(&segments, strip, &keep);
-    let prime_turns = replay_turns(&turns, texts);
+    let (prime_turns, left_out) = replay_turns(&turns, texts);
+    let included = prime_turns.len() - usize::from(left_out > 0);
     let prompt = state
         .registry
         .handover(&sides.account_b.harness)
@@ -6183,11 +6259,13 @@ fn replay_prompt(
         Some(note) => format!("{prompt}\n\n{note}"),
         None => prompt,
     };
-    Ok((
-        prompt,
-        juggler_adapter::handover::sha256_hex(&bytes),
-        u64::try_from(bytes.len()).unwrap_or(u64::MAX),
-    ))
+    Ok(ReplayBrief {
+        text: prompt,
+        sha: juggler_adapter::handover::sha256_hex(&bytes),
+        bytes: u64::try_from(bytes.len()).unwrap_or(u64::MAX),
+        included,
+        left_out,
+    })
 }
 
 /// AJ-E1541: "where the work stands" for a handover: the task list as the
@@ -6282,12 +6360,13 @@ fn record_replay_succeeded(
 
 /// The replay's turns: user and assistant text after redaction, the
 /// newest kept within [`REPLAY_PROMPT_BYTES`] as they will be rendered
-/// (quoted); when older turns are left
-/// out the first line says how many (never a silent cut).
+/// (quoted); when older turns are left out the first turn says how many
+/// and what was asked in them (never a silent cut). Also returns how
+/// many were left out.
 fn replay_turns(
     turns: &[juggler_handover::pack::IrTurn],
     texts: Vec<String>,
-) -> Vec<juggler_adapter::handover::TurnText> {
+) -> (Vec<juggler_adapter::handover::TurnText>, usize) {
     use juggler_adapter::handover::TurnText;
     let mut out: Vec<TurnText> = turns
         .iter()
@@ -6340,23 +6419,39 @@ fn replay_turns(
         keep_from = out.len() - 1;
     }
     if keep_from > 0 {
-        out.drain(..keep_from);
+        let left_out: Vec<TurnText> = out.drain(..keep_from).collect();
         out.insert(
             0,
             TurnText {
                 uuid: None,
                 role: "user",
-                text: format!("({keep_from} earlier turns are not included.)"),
+                text: crate::features::handover::earlier_turns(&left_out),
             },
         );
     }
-    out
+    (out, keep_from)
 }
 
 /// The replay brief when the target Provider has no prime of its own.
 /// The first line every replay into `harness` opens with (its tool's
 /// prime, else the plain one): how a replay's conversation is told apart.
-fn replay_header(state: &Arc<AppState>, harness: &juggler_core::model::HarnessId) -> String {
+/// The words a replay into `harness` opens with (its tool's prime with no
+/// turns, else the plain one): the handover's preface.
+pub(crate) fn replay_preface(
+    state: &Arc<AppState>,
+    harness: &juggler_core::model::HarnessId,
+) -> String {
+    state
+        .registry
+        .handover(harness)
+        .and_then(|support| support.prime_prompt(&[]).ok())
+        .unwrap_or_else(|| plain_prime(&[]))
+}
+
+pub(crate) fn replay_header(
+    state: &Arc<AppState>,
+    harness: &juggler_core::model::HarnessId,
+) -> String {
     let prime = state
         .registry
         .handover(harness)

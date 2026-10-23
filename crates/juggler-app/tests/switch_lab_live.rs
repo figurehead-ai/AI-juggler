@@ -70,6 +70,20 @@ const SKILL_WORD: &str = "PEREGRINE";
 /// A release name chosen on Codex and only said, never written to a
 /// file: switching back can know it only from the conversation.
 const RELEASE: &str = "Copper Kettle";
+/// Each tool's own rules file holds a rule only it states: the other tool
+/// can know it only from the handover (AJ-E1541 Req.2).
+const CLAUDE_RULE: &str =
+    "Rule for this project: every Python function's docstring starts with `LAB:`.";
+const AGENTS_RULE: &str =
+    "Rule for this project: every unittest test method name ends with `_lab`.";
+/// The codename a Codex-started task chooses (the forward Codex → Claude hop).
+const CODENAME_X: &str = "OSPREY";
+/// The worktree leg's codename, and the helper name decided on B.
+const CODENAME_WT: &str = "EGRET";
+const HELPER: &str = "flip";
+/// A name decided on Claude B after the forward hop, only said: switching
+/// back to Codex can know it only from the conversation.
+const RELEASE_X: &str = "Silver Finch";
 
 struct Lab {
     project: PathBuf,
@@ -158,8 +172,21 @@ fn claude_turn(
     resume: Option<&str>,
     prompt: &str,
 ) -> Value {
+    claude_turn_in(lab, config, &lab.project, session, resume, &[], prompt)
+}
+
+/// [`claude_turn`] in `cwd`, with extra flags (`--add-dir` for a handover).
+fn claude_turn_in(
+    _lab: &Lab,
+    config: &Path,
+    cwd: &Path,
+    session: Option<&str>,
+    resume: Option<&str>,
+    extra: &[String],
+    prompt: &str,
+) -> Value {
     let mut cmd = Command::new("claude");
-    cmd.current_dir(&lab.project)
+    cmd.current_dir(cwd)
         .env("CLAUDE_CONFIG_DIR", config)
         .arg("-p")
         .arg(prompt)
@@ -171,9 +198,10 @@ fn claude_turn(
         ])
         .args([
             "--allowedTools",
-            "Read,Edit,Write,Bash(python3 -m unittest*),Skill,mcp__aij-lab-probe__probe_word",
+            "Read,Edit,Write,Bash(python3 -m unittest*),Skill,Task,Agent,mcp__aij-lab-probe__probe_word",
         ])
-        .args(["--max-turns", "12"]);
+        .args(["--max-turns", "12"])
+        .args(extra);
     if let Some(id) = session {
         cmd.args(["--session-id", id]);
     }
@@ -402,6 +430,9 @@ fn switch_lab_live() {
         "# Switch lab\n\nA throwaway project.\n",
     )
     .unwrap();
+    std::fs::write(project.join("CLAUDE.md"), format!("{CLAUDE_RULE}\n")).unwrap();
+    std::fs::write(project.join("AGENTS.md"), format!("{AGENTS_RULE}\n")).unwrap();
+    std::fs::write(project.join(".gitignore"), ".wt/\n").unwrap();
     git(&["add", "-A"]);
     git(&[
         "-c",
@@ -452,7 +483,8 @@ fn switch_lab_live() {
         &format!(
             "This project's codename is {CODENAME}; remember it. Create calc.py with add(a, b), \
              and test_calc.py with a unittest for it, then run `python3 -m unittest`. Keep a task \
-             list for this work with three items: add, sub, mul. Mark add done."
+             list for this work with three items: add, sub, mul. Mark add done. Also use a \
+             subagent (the Task tool) to count the lines of README.md, and tell me the count."
         ),
     );
     let step1_ok = first["is_error"] == false && tests_pass(&lab.project);
@@ -485,6 +517,11 @@ fn switch_lab_live() {
             let answer = probe["result"].as_str().unwrap_or_default().to_owned();
             let carried = mentions(&answer, CODENAME);
             let tasks_carried = mentions(&answer, "sub") && mentions(&answer, "mul");
+            // What travels beside the transcript (AJ-E1540 Req.2).
+            let subagents = json!({"on_a": has_session_dir(&lab.claude_a, &native, "subagents"),
+                                   "on_b": has_session_dir(&lab.claude_b, &resume_id, "subagents")});
+            let file_history = json!({"on_a": lab.claude_a.join("file-history").join(&native).is_dir(),
+                                      "on_b": lab.claude_b.join("file-history").join(&resume_id).is_dir()});
             let cont = claude_turn(
                 &lab,
                 &lab.claude_b.clone(),
@@ -502,12 +539,25 @@ fn switch_lab_live() {
                 let turn = claude_turn(&lab, &lab.claude_b.clone(), None, None, PROBE_ASK);
                 probe_answer(turn["result"].as_str().unwrap_or_default())
             });
-            lab.steps.push(
-                json!({"step": "2b set-up on B", "ok": setup_ok(&setup_b, uses.as_ref()),
-                                  "setup": setup_b, "uses": uses}),
+            // Only when the set-up step is checked (lab 9 ran without it).
+            if lab.probe.is_some() {
+                lab.steps.push(
+                    json!({"step": "2b set-up on B", "ok": setup_ok(&setup_b, uses.as_ref()),
+                                      "setup": setup_b, "uses": uses}),
+                );
+            }
+            let rules_probe = claude_turn(
+                &lab,
+                &lab.claude_b.clone(),
+                None,
+                Some(&resume_id),
+                "Without changing any file: what do this project's rules say about docstrings? One short line.",
             );
+            let rules = mentions(rules_probe["result"].as_str().unwrap_or_default(), "LAB:");
             json!({"step": "2 switch A→B", "ok": carried && tests_pass(&lab.project),
-                   "transcript_resume": carried, "tasks": tasks_carried,
+                   "transcript_resume": carried, "tasks": tasks_carried, "rules": rules,
+                   "rules_probe": rules_probe["result"], "subagents": subagents,
+                   "file_history": file_history,
                    "probe": answer, "continued": cont["result"], "launch": argv,
                    "link": link.map(|r| r.path.display().to_string()), "session": done.session_id,
                    "preflight": preflight_b.as_ref().map(|p| serde_json::to_value(p).unwrap()).ok()})
@@ -528,23 +578,27 @@ fn switch_lab_live() {
         let step3 = match &to_x {
             Ok(done) => {
                 let argv = take_launch(&state, &done.session_id, done.pid);
-                // What the interactive start was primed with: the replay.
+                // What the interactive start was primed with: a pointer at
+                // the switch's handover file (AJ-E1541).
                 let brief = argv
                     .iter()
                     .position(|a| a == "--")
                     .and_then(|at| argv.get(at + 1))
                     .cloned()
                     .unwrap_or_default();
+                let handover = handover_of(&brief);
                 let (thread, answer, ok) = codex_turn(
                     &lab,
                     None,
                     &format!(
                         "{brief}\n\n---\nWithout changing any file: what is this project's \
-                         codename, what name was chosen for the multiply function, and which \
-                         tasks are still open? Answer in one short line."
+                         codename, what name was chosen for the multiply function, which \
+                         tasks are still open, and what do this project's rules say about \
+                         docstrings? Answer in one short line."
                     ),
                 );
                 let carried = mentions(&answer, CODENAME) && mentions(&answer, MUL_NAME);
+                let rules = mentions(&answer, "LAB:");
                 let (_, cont, _) = match &thread {
                     Some(id) => codex_turn(
                         &lab,
@@ -565,13 +619,16 @@ fn switch_lab_live() {
                 let uses = lab.probe.as_ref().map(|_| {
                     probe_answer(&codex_turn_with(&lab, None, &["--approve-for-me"], PROBE_ASK).1)
                 });
-                lab.steps.push(json!({"step": "3b set-up on Codex",
-                                      "ok": setup_ok(&setup_x, uses.as_ref()),
-                                      "setup": setup_x, "uses": uses}));
+                if lab.probe.is_some() {
+                    lab.steps.push(json!({"step": "3b set-up on Codex",
+                                          "ok": setup_ok(&setup_x, uses.as_ref()),
+                                          "setup": setup_x, "uses": uses}));
+                }
                 on_codex = Some((done.session_id.clone(), thread.clone()));
                 json!({"step": "3 switch B→Codex", "ok": ok && carried && tests_pass(&lab.project),
-                       "transcript_resume": carried, "probe": answer, "continued": cont,
-                       "brief_bytes": brief.len(), "thread": thread, "session": done.session_id,
+                       "transcript_resume": carried, "rules": rules, "probe": answer, "continued": cont,
+                       "pointer_bytes": brief.len(), "handover": handover, "thread": thread,
+                       "session": done.session_id,
                        "mul_written": std::fs::read_to_string(lab.project.join("calc.py"))
                            .map(|s| s.contains(&format!("def {MUL_NAME}("))).unwrap_or(false),
                        "preflight": preflight_x.as_ref().map(|p| serde_json::to_value(p).unwrap()).ok()})
@@ -638,6 +695,9 @@ fn switch_lab_live() {
         };
         lab.steps.push(step4);
     }
+
+    forward_codex_to_claude(&state, &mut lab, &profile_x, &profile_b);
+    worktree_leg(&state, &mut lab, &profile_a, &profile_b);
 
     if lab.probe.is_some() {
         let undone: Vec<Value> = lab
@@ -759,4 +819,274 @@ fn getrandom(buf: &mut [u8]) {
         .unwrap()
         .read_exact(buf)
         .unwrap();
+}
+
+/// Whether `config` holds `<native>/<sub>` for a session (in any project
+/// folder Claude Code keeps it under).
+fn has_session_dir(config: &Path, native: &str, sub: &str) -> bool {
+    std::fs::read_dir(config.join("projects")).is_ok_and(|dirs| {
+        dirs.flatten()
+            .any(|dir| dir.path().join(native).join(sub).is_dir())
+    })
+}
+
+/// The handover a pointer prompt names: its path and size (never its
+/// contents in the report).
+fn handover_of(pointer: &str) -> Value {
+    match pointer.lines().find(|line| line.ends_with("HANDOVER.md")) {
+        Some(path) => json!({"path": path,
+                             "bytes": std::fs::metadata(path).map(|m| m.len()).ok(),
+                             "names_rules": std::fs::read_to_string(path)
+                                 .map(|text| text.contains("CLAUDE.md") && text.contains("AGENTS.md"))
+                                 .unwrap_or(false)}),
+        None => Value::Null,
+    }
+}
+
+/// Step 6, the forward Codex → Claude hop: a task started on Codex, switched
+/// forward to Claude account B (a replay through the handover file), and
+/// asked what only the Codex conversation and its rules know.
+fn forward_codex_to_claude(state: &Arc<AppState>, lab: &mut Lab, profile_x: &str, profile_b: &str) {
+    let (thread, first, ok) = codex_turn(
+        lab,
+        None,
+        &format!(
+            "This project's second codename is {CODENAME_X}; remember it. Add div(a, b) to calc.py \
+             with a test, run `python3 -m unittest`. Keep a plan with two items: div and mod; mark \
+             div done."
+        ),
+    );
+    let Some(thread) = thread.filter(|_| ok) else {
+        lab.steps
+            .push(json!({"step": "6 Codex task", "ok": false, "result": first}));
+        return;
+    };
+    let source = adopt(state, profile_x, &thread, &lab.project);
+    let to_b =
+        commands::switch_execute_impl(state, &source, profile_b, "stop-now", Some("strip"), &[]);
+    let step = match &to_b {
+        Ok(done) => {
+            let argv = take_launch(state, &done.session_id, done.pid);
+            let pointer = argv
+                .iter()
+                .find(|arg| arg.contains("HANDOVER.md"))
+                .cloned()
+                .unwrap_or_default();
+            let extra: Vec<String> = argv
+                .iter()
+                .position(|arg| arg == "--add-dir")
+                .and_then(|at| argv.get(at + 1))
+                .map(|dir| vec!["--add-dir".to_owned(), dir.clone()])
+                .unwrap_or_default();
+            let probe = claude_turn_in(
+                lab,
+                &lab.claude_b.clone(),
+                &lab.project.clone(),
+                None,
+                None,
+                &extra,
+                &format!(
+                    "{pointer}\n\n---\nWithout changing any file: what is the second codename, \
+                     which plan items are still open, and what do this project's rules say about \
+                     test method names? Answer in one short line."
+                ),
+            );
+            let answer = probe["result"].as_str().unwrap_or_default().to_owned();
+            let carried = mentions(&answer, CODENAME_X);
+            json!({"step": "6 switch Codex→B (forward)", "ok": carried && tests_pass(&lab.project),
+                   "transcript_resume": carried, "todos": mentions(&answer, "mod"),
+                   "rules": mentions(&answer, "_lab"), "probe": answer, "launch": argv,
+                   "add_dir": !extra.is_empty(), "handover": handover_of(&pointer),
+                   "probe_session": probe["session_id"],
+                   "codex_first": first})
+        }
+        Err(error) => {
+            json!({"step": "6 switch Codex→B (forward)", "ok": false, "error": format!("{error:?}")})
+        }
+    };
+    // The conversation B's probe started (found again by its opening).
+    let on_b = step["probe_session"].as_str().map(str::to_owned);
+    lab.steps.push(step);
+    if let (Ok(done), Some(conversation)) = (&to_b, on_b) {
+        switch_back_to_codex(state, lab, &done.session_id, &conversation, &thread);
+    }
+}
+
+/// Step 6b: B decides something only said, then switches straight back to
+/// the Codex task, which must know it.
+fn switch_back_to_codex(
+    state: &Arc<AppState>,
+    lab: &mut Lab,
+    away: &str,
+    conversation: &str,
+    thread: &str,
+) {
+    let said = claude_turn_in(
+        lab,
+        &lab.claude_b.clone(),
+        &lab.project.clone(),
+        None,
+        Some(conversation),
+        &[],
+        &format!(
+            "Decide that this version's release name is \"{RELEASE_X}\". Say it only in your reply, \
+             in no file."
+        ),
+    );
+    let plan = commands::switch_back_plan_impl(state, away);
+    let start = plan.as_ref().ok().and_then(|plan| {
+        plan.returns
+            .iter()
+            .find(|r| r.start)
+            .map(|r| r.epoch_id.clone())
+    });
+    let back = commands::switch_back_execute_to_impl(state, away, &[], false, start.as_deref());
+    let step = match &back {
+        Ok(back) => {
+            let argv = take_launch(state, &back.session_id, back.pid);
+            let delta = argv.last().cloned().unwrap_or_default();
+            let (_, answer, ok) = codex_turn(
+                lab,
+                Some(thread),
+                &format!(
+                    "{delta}\n\n---\nWithout changing or reading any file: what release name was \
+                     picked while you were away? One short line."
+                ),
+            );
+            json!({"step": "6b switch back B→Codex", "ok": ok && mentions(&answer, RELEASE_X),
+                   "switch_back": mentions(&answer, RELEASE_X), "probe": answer, "said": said["result"],
+                   "launch": argv,
+                   "plan": plan.as_ref().map(|p| serde_json::to_value(p).unwrap()).ok()})
+        }
+        Err(error) => {
+            json!({"step": "6b switch back B→Codex", "ok": false, "error": format!("{error:?}"),
+                             "said": said["result"],
+                             "plan": plan.as_ref().map(|p| serde_json::to_value(p).unwrap()).ok()})
+        }
+    };
+    lab.steps.push(step);
+}
+
+/// Step 7, a switch inside a git worktree, then a direct return: A works in a
+/// worktree of the project, switches to B (which must continue in the
+/// worktree, not the project's root), B decides something only said, and
+/// switching back resumes A there with what B decided.
+fn worktree_leg(state: &Arc<AppState>, lab: &mut Lab, profile_a: &str, profile_b: &str) {
+    let wt = lab.project.join(".wt").join("egret");
+    let added = Command::new("git")
+        .args(["worktree", "add", "-q"])
+        .arg(&wt)
+        .args(["-b", "lab-egret"])
+        .current_dir(&lab.project)
+        .output()
+        .is_ok_and(|out| out.status.success());
+    let wt = wt.canonicalize().unwrap_or(wt);
+    if !added {
+        lab.steps
+            .push(json!({"step": "7 worktree", "ok": false, "error": "git worktree add failed"}));
+        return;
+    }
+    let native = uuid_v4();
+    let first = claude_turn_in(
+        lab,
+        &lab.claude_a.clone(),
+        &wt,
+        Some(&native),
+        None,
+        &[],
+        &format!(
+            "This worktree's codename is {CODENAME_WT}; remember it. Add neg(a) to calc.py with a \
+             test, and run `python3 -m unittest`."
+        ),
+    );
+    let source = adopt(state, profile_a, &native, &wt);
+    let to_b = commands::switch_execute_impl(state, &source, profile_b, "stop-now", None, &[]);
+    let Ok(done) = to_b else {
+        lab.steps.push(
+            json!({"step": "7 worktree A→B", "ok": false, "first": first["result"],
+                              "error": format!("{:?}", to_b.err())}),
+        );
+        return;
+    };
+    let argv = take_launch(state, &done.session_id, done.pid);
+    let cwd = state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .get(&juggler_core::model::SessionId::new(
+            done.session_id.as_str(),
+        ))
+        .map(|record| record.cwd)
+        .ok();
+    let in_worktree = cwd.as_deref() == Some(wt.as_path());
+    let resume_id = transcript_of(state, &done.session_id)
+        .and_then(|r| r.native_id)
+        .unwrap_or_else(|| native.clone());
+    let probe = claude_turn_in(
+        lab,
+        &lab.claude_b.clone(),
+        &wt,
+        None,
+        Some(&resume_id),
+        &[],
+        &format!(
+            "Without changing any file: what is this worktree's codename? Then decide that the \
+             next helper will be named `{HELPER}`; remember that, but don't write it. One short line."
+        ),
+    );
+    let answer = probe["result"].as_str().unwrap_or_default().to_owned();
+    let carried = mentions(&answer, CODENAME_WT);
+    let neg_in_wt =
+        std::fs::read_to_string(wt.join("calc.py")).is_ok_and(|s| s.contains("def neg("));
+    let neg_in_root =
+        std::fs::read_to_string(lab.project.join("calc.py")).is_ok_and(|s| s.contains("def neg("));
+    lab.steps.push(json!({"step": "7 worktree A→B", "ok": carried && in_worktree && neg_in_wt && !neg_in_root,
+                          "cwd_worktree": in_worktree, "transcript_resume": carried, "probe": answer,
+                          "neg_in_worktree": neg_in_wt, "neg_in_root": neg_in_root, "launch": argv}));
+
+    // Straight back to A (the direct return, same tool).
+    let plan = commands::switch_back_plan_impl(state, &done.session_id);
+    let start = plan.as_ref().ok().and_then(|plan| {
+        plan.returns
+            .iter()
+            .find(|r| r.start)
+            .map(|r| r.epoch_id.clone())
+    });
+    let back = commands::switch_back_execute_to_impl(
+        state,
+        &done.session_id,
+        &[],
+        false,
+        start.as_deref(),
+    );
+    let step = match &back {
+        Ok(back) => {
+            let argv = take_launch(state, &back.session_id, back.pid);
+            let delta = argv.last().cloned().unwrap_or_default();
+            let probe = claude_turn_in(
+                lab,
+                &lab.claude_a.clone(),
+                &wt,
+                None,
+                Some(&native),
+                &[],
+                &format!(
+                    "{delta}\n\n---\nWithout changing or reading any file: what helper name was \
+                     decided while you were away? One short line."
+                ),
+            );
+            let answer = probe["result"].as_str().unwrap_or_default().to_owned();
+            json!({"step": "7b switch back B→A in the worktree", "ok": mentions(&answer, HELPER),
+                   "switch_back": mentions(&answer, HELPER), "probe": answer, "delta": delta})
+        }
+        Err(error) => json!({"step": "7b switch back B→A in the worktree", "ok": false,
+                             "error": format!("{error:?}")}),
+    };
+    lab.steps.push(step);
+    let _ = Command::new("git")
+        .args(["worktree", "remove", "--force"])
+        .arg(&wt)
+        .current_dir(&lab.project)
+        .output();
 }

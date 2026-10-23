@@ -197,7 +197,7 @@
 **Research basis**: Max-Depth report §8 (OS notifications).
 **Handover note**: Tests never grant the macOS permission themselves.
 
-### AJ-E1511 Open a context pack in any tool | Status: TODO | Priority P1 | Effort M | Depends: AJ-E202, AJ-E208
+### AJ-E1511 Open a context pack in any tool | Status: DONE-EVIDENCED | Priority P1 | Effort M | Depends: AJ-E202, AJ-E208
 **Goal**: A saved pack can start a new session in any tool and account.
 **User story**: As a user who exported a pack last week, I open it and continue the work in Codex.
 **Requirements**:
@@ -473,7 +473,7 @@ What the code does today (mapped 2026-10-22 on release/0.1): a same-tool switch 
 **Quality gates**: the register's claude→claude and codex→codex cells PASS from the lab; a test with a real-shaped subagents folder.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1540/manifest.md`.
 
-### AJ-E1541 Cross-tool continuity | Status: IN-PROGRESS (claude-opus, 2026-10-22) | Priority P0 | Effort L | Depends: AJ-E1539
+### AJ-E1541 Cross-tool continuity | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E1539
 **Goal**: Moving to Codex, or back to Claude, continues the work, not just the chat.
 **Requirements**:
 1. A handover file replaces the single command-line argument: written in AI Juggler's data folder for the switch (`switches/<edge>/HANDOVER.md` plus `state.json`), and the target is started with a short prompt that points at it.

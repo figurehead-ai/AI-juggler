@@ -1159,6 +1159,7 @@ fn take_work(
         "replay" => (
             LaunchMode::Primed {
                 prompt: prime_prompt(state, &account.harness, bundle),
+                read_dirs: Vec::new(),
             },
             None,
             None,
