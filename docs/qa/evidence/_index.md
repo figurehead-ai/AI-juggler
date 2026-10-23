@@ -103,7 +103,7 @@
 | AJ-E1540 | PASS7 | 2026-10-23 | [manifest](AJ-E1540/manifest.md) |
 | AJ-E1541 | PASS9 | 2026-10-23 | [manifest](AJ-E1541/manifest.md) |
 | AJ-E1542 | PASS8 | 2026-10-22 | [manifest](AJ-E1542/manifest.md) |
-| AJ-E1543 | PASS4 | 2026-10-22 | [manifest](AJ-E1543/manifest.md) |
+| AJ-E1543 | PASS4 | 2026-10-21 | [manifest](AJ-E1543/manifest.md) |
 | AJ-E1544 | PASS2 | 2026-10-23 | [manifest](AJ-E1544/manifest.md) |
 | AJ-E201 | PASS8 | 2026-10-16 | [manifest](AJ-E201/manifest.md) |
 | AJ-E2011 | PASS4 | 2026-10-21 | [manifest](AJ-E2011/manifest.md) |
