@@ -108,6 +108,7 @@ The [user guide](./docs/guide/) covers each step in more detail.
 | Every session and project, including ones started outside AI Juggler | Works |
 | History of finished sessions, searchable | Works |
 | The terminal: Find, clickable links and paths, text size, Maximize, its own window | Works |
+| Starting a session from a saved context pack, in either tool | Works |
 | Usage and costs per session, account and project, from the tools' own records | Works |
 | Codex limits, read from what Codex records | Works |
 | Claude limits | Works for sessions started in AI Juggler; for other sessions, turn it on per account (see [Privacy](#what-ai-juggler-reads-writes-and-sends)) |
@@ -120,7 +121,7 @@ The [user guide](./docs/guide/) covers each step in more detail.
 | Opening AI Juggler at login | Beta: new in 0.1, not yet checked on an installed build |
 | macOS notifications when a session needs you (each kind off until you choose) | Beta: new in 0.1, not yet checked on an installed build |
 | Backups, and going back to an earlier version | Works |
-| Switching a conversation to another account or tool | Beta: Claude Code → Claude Code → Codex → back has been checked live; every pair still says "Not proven yet" |
+| Switching a conversation to another account or tool | Beta: checked live between Claude Code accounts and between Claude Code and Codex, both ways; every pair still says "Not proven yet" |
 | Fleet: your other Macs in the same window | Beta: not yet verified across two Macs |
 | More tools (OpenCode, ZCode, Kimi and others) | Planned |
 | Windows and Linux | Not before 1.0 |
