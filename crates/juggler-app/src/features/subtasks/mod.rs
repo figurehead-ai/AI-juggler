@@ -66,12 +66,12 @@ pub fn tick(state: &Arc<AppState>) -> bool {
         let Ok(storage) = state.storage.lock() else {
             return false;
         };
+        // Only the sessions that haven't ended: never the whole history.
         storage
             .sessions()
-            .list(None)
+            .live()
             .unwrap_or_default()
             .into_iter()
-            .filter(|record| !is_terminal(record.status))
             .filter_map(|record| Some((record.id, record.transcript_ref?.path)))
             .collect()
     };

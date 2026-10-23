@@ -28,6 +28,10 @@ The review found no blockers. Fixed from its list:
   - shell outputs aren't parsed;
   - doc comments and the "none running" wording.
 
+## After the coordinator's review
+
+The tick listed every session ever recorded each 2 s, and kept the live ones afterwards. It now asks storage for only the sessions that haven't ended (`SessionsRepo::live`), one query that shares its list of ended statuses with `active_cwds`. Covered by `juggler-core` `storage_roundtrip` `live_lists_only_sessions_that_havent_ended` (every status).
+
 ## Decisions
 
 - **The count is the subagents still running**, not every one ever started: a long session that started forty would otherwise carry "40" for good. The inspector lists them all, with how each ended.
