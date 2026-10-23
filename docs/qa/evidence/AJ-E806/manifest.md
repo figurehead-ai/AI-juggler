@@ -699,7 +699,9 @@
   - **Fix:** on both the piped and the terminal path, `Exited` waits
     until the readers have finished, at most `EXIT_OUTPUT_DRAIN` (1 s).
     That bound only runs out when a helper keeps the output open. The
-    terminal path's force-kill no longer signals a pid it has reaped.
+    exit is still recorded when it happens (eviction timer, journal,
+    ledger), so the cleanup grace isn't shifted. The terminal path's
+    force-kill no longer signals a pid it has reaped.
   - **Tests:** a test-only hook holds the reader back. Without the wait,
     the piped, terminal and quota tests fail every time ("printed ''"),
     and the quota exit is not classified as the limit.
