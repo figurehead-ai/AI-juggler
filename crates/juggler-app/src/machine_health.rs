@@ -905,6 +905,8 @@ pub struct ThisMacInfo {
     pub recommendations: Vec<String>,
     /// AJ-E1509: what keeps the Mac awake for the sessions, and why.
     pub awake: crate::features::app::awake::AwakeInfo,
+    /// AJ-E1509: AI Juggler itself (with its watchdog; opens at login).
+    pub own: crate::features::app::own::OwnInfo,
 }
 
 /// One tree, as the pure assembly sees it.
@@ -1076,6 +1078,7 @@ pub fn assemble(
         alerts: Vec::new(),
         recommendations: Vec::new(),
         awake: crate::features::app::awake::AwakeInfo::default(),
+        own: crate::features::app::own::OwnInfo::default(),
         machine,
     }
 }
@@ -1219,6 +1222,7 @@ pub fn this_mac_impl(state: &Arc<AppState>, now_ms: i64) -> AppResult<ThisMacInf
     info.recommendations =
         crate::machine_recommendations::recommendations_for(state, &info, now_ms);
     info.awake = crate::features::app::awake::current(&state.awake);
+    info.own = crate::features::app::own::measure(state);
     if let Ok(mut watch) = state.machine.lock() {
         watch.alerts.evaluate(&info, now_ms);
         info.alerts = watch.alerts.active();

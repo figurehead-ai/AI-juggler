@@ -1306,5 +1306,7 @@ pub fn update_restart(
             message: reason,
         });
     }
+    // AJ-E1509: restart() skips the exit event: clean, watchdog ended.
+    crate::features::app::crash::before_exit(state.inner());
     app.restart()
 }

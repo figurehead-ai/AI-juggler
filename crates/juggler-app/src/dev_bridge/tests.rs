@@ -168,9 +168,9 @@ fn every_write_and_unknown_command_is_refused_with_403() {
         .map(String::from),
     );
     for name in names {
-        // A limiter per request: this is the read-only refusal, whatever
-        // the number of write commands (the limit has its own test,
-        // `the_rate_limit_runs_out_and_refills`).
+        // Its own limiter each: the refusal is what's tested here, and
+        // the commands outnumber one limiter's burst (the limit has its
+        // own test).
         let rate = RateLimit::new();
         let headers = headers(&config, &[]);
         let admitted = admit(&Method::POST, &invoke_path(&name), &headers, &config, &rate);
