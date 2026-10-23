@@ -13,7 +13,12 @@ for you, and never stores your credentials.
 
 [Download](#download) · [Quick start](#quick-start) · [User guide](./docs/guide/) · [Privacy](#what-ai-juggler-reads-writes-and-sends) · [Discussions](https://github.com/figurehead-ai/AI-juggler/discussions)
 
-<!-- Screenshots (Home, Accounts, a session, This Mac; light and dark) are captured from the test setup for the 0.1 release. -->
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme/home-dark.png">
+  <img alt="AI Juggler's Home: every running session, wherever it was started, and how much room each account has left" src="./docs/assets/readme/home-light.png">
+</picture>
+
+<sub>Screenshots from a test setup with made-up accounts and projects.</sub>
 
 ## Why
 
@@ -29,7 +34,12 @@ of it in one window:
 - **Your Mac at a glance.** How much memory and CPU your AI tools use, which
   window is heavy, and leftover processes you can clean up.
 - **Accounts managed for you.** Use each setup where it already is, or as a
-  separate copy, and start a session on the account you choose.
+  separate copy, and start a session on the account you choose. A new
+  account can start with your usual MCP servers and permissions.
+- **Carry a conversation to another account or tool** when one runs out of
+  room, and switch back later.
+- **Your rules and MCP servers, the same everywhere.** See where
+  `CLAUDE.md` and `AGENTS.md` differ, and bring them in line when you choose.
 
 ## Download
 
@@ -59,9 +69,37 @@ switch between Stable and Beta, and can go back to an earlier version.
 3. If a tool needs you to sign in, it opens that tool's own sign-in.
    AI Juggler never sees your password.
 4. Your sessions show up in the list on the left, under their projects,
-   wherever you started them. Start a new one with **New session**.
+   wherever you started them. Start a new one with **New session**, and
+   pick the account it runs on.
+5. When an account runs low, open the session and choose **Switch
+   account…** to carry the conversation to another account or tool.
 
 The [user guide](./docs/guide/) covers each step in more detail.
+
+<table>
+<tr>
+<td width="50%">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme/project-dark.png">
+  <img alt="A project's page: its sessions from every account and tool" src="./docs/assets/readme/project-light.png">
+</picture>
+
+**A project:** its sessions from every account and tool.
+
+</td>
+<td width="50%">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme/accounts-dark.png">
+  <img alt="The Accounts page: each Claude Code and Codex account with its limits" src="./docs/assets/readme/accounts-light.png">
+</picture>
+
+**Accounts:** each one with its limits.
+
+</td>
+</tr>
+</table>
 
 ## What works today
 
@@ -69,14 +107,19 @@ The [user guide](./docs/guide/) covers each step in more detail.
 | --- | --- |
 | Every session and project, including ones started outside AI Juggler | Works |
 | History of finished sessions, searchable | Works |
+| The terminal: Find, clickable links and paths, text size, Maximize, its own window | Works |
 | Usage and costs per session, account and project, from the tools' own records | Works |
 | Codex limits, read from what Codex records | Works |
 | Claude limits | Works for sessions started in AI Juggler; for other sessions, turn it on per account (see [Privacy](#what-ai-juggler-reads-writes-and-sends)) |
 | This Mac: memory and CPU of your AI tools, including the Claude app | Works |
 | Cleaning up leftover processes (automatic cleanup is off unless you turn it on) | Works |
 | Rename, remove and choose a default account | Works |
+| A new account starting with your usual MCP servers, permissions and status line | Works |
+| Rules files and MCP servers compared across your tools, brought in line when you apply | Works |
+| Restarting crashed sessions, keeping the Mac awake while they work, reopening after a crash | Works (each one is a setting) |
+| Opening AI Juggler at login | Beta: new in 0.1, not yet checked on an installed build |
 | Backups, and going back to an earlier version | Works |
-| Switching a conversation to another account or tool | Beta: it shows what carries over, and no pair is verified yet |
+| Switching a conversation to another account or tool | Beta: Claude Code → Claude Code → Codex → back has been checked live; every pair still says "Not proven yet" |
 | Fleet: your other Macs in the same window | Beta: not yet verified across two Macs |
 | More tools (OpenCode, ZCode, Kimi and others) | Planned |
 | Windows and Linux | Not before 1.0 |
@@ -111,13 +154,28 @@ tokens or API keys, and never opens the tools' Keychain items.
 - Its own data folder, `~/Library/Application Support/AI Juggler`
   (`AI Juggler Nightly` for Nightly). Copies of setups, backups and settings
   live there.
-- Nothing in your own setups, with two exceptions you choose:
+- In your own setups and projects, only what you choose, each shown before
+  it's made:
   - **Measuring Claude limits for sessions started elsewhere** (off by
     default, per account). It shows the exact one-line change to that
     account's `settings.json` before making it, keeps your own status line
     working, and turning it off restores the file exactly.
-  - **Switching a conversation** into an account adds the new conversation's
-    file to that account. Existing files are never changed.
+  - **Switching a conversation** into an account adds the conversation's
+    files to that account, beside its own and never over them. The MCP
+    servers, skills and the like you tick on the switch screen are set up
+    there too.
+  - **Copying settings** into an account: the MCP servers, permissions and
+    status line you tick. Never a sign-in, history or caches.
+  - **Bringing a rules file in line** writes that one file in your
+    project, and keeps the old one for Undo.
+  - **Copying an MCP server** to another account.
+
+  A secret is never copied: a server that needs one reads it from a named
+  variable instead, or isn't copied at all. Every set-up, settings copy and
+  rules change is listed in Settings › Context packs & secrets, with an
+  Undo that takes out only what was added, and only while it's unchanged.
+  A switched conversation's files stay in the other account, where you can
+  switch back from.
 
 **Sends:**
 
@@ -157,14 +215,19 @@ in to.
 limit to AI Juggler yet. AI Juggler shows a percentage only when one was
 measured, never a guess.
 
-**Does it change my `~/.claude` or `~/.codex`?** Not unless you turn on one of
-the two options above, and each shows you what it will change first.
+**Does it change my `~/.claude` or `~/.codex`?** Only when you choose one of
+the changes [listed above](#what-ai-juggler-reads-writes-and-sends). Each
+shows you what it will change first, and the set-ups and copies can be
+undone.
 
 **Can I run Stable and Nightly side by side?** Yes. AI Juggler Nightly is a
 separate app with its own data.
 
-**Is switching lossless?** No. Switching is beta. It shows exactly what
-carries over before you confirm, and you can switch back.
+**Is switching lossless?** No, and AI Juggler never says it is. Between two
+accounts of the same tool, the conversation's files move and it resumes.
+Between Claude Code and Codex, the other tool is told the story so far. The
+switch screen shows exactly what carries over before you confirm, and you
+can switch back. See [Continue on another account](./docs/guide/switching.md).
 
 **Windows or Linux?** Not before 1.0. The core is written to make that port
 possible.
@@ -185,19 +248,20 @@ possible.
 ## Uninstall
 
 1. In AI Juggler, open Settings › Data › **Before you uninstall** and choose
-   **Prepare to uninstall**. It puts back the one setting AI Juggler may have
+   **Prepare to uninstall**. It puts back the setting AI Juggler may have
    added to a Claude account (measuring limits for sessions started
-   elsewhere), and lists what's left for you to remove.
+   elsewhere), and lists what's left for you to remove. Anything else you
+   set up through AI Juggler stays unless you undo it; the
+   [uninstall guide](./docs/guide/uninstall.md) has the steps.
 2. Quit AI Juggler and move it to the Trash.
 3. Delete `~/Library/Application Support/AI Juggler` (and
    `AI Juggler Nightly`) to remove its data, copies and backups.
 
-Your own `~/.claude` and `~/.codex` folders are left as they are.
+Your own `~/.claude` and `~/.codex` folders are otherwise left as they are.
 
 ## Roadmap
 
 - More tools: OpenCode, ZCode, Kimi and others.
-- Rules and MCP servers kept in sync across your tools.
 - Notifications when a session needs you.
 - Groups of accounts, and agents that can message each other.
 
