@@ -54,6 +54,51 @@ Each capture is in both themes, with axe showing 0 critical or serious issues.
    - To make room, `StepMarks` moved out of FirstRun.tsx; its cap went from 1343 to 1308.
    - App.tsx's six scrolling screens now share `ScrollingScreen`. Its cap went from 1232 to 1228, with the Privacy route in.
 
+## After the independent review
+
+The review found claims that said more than their tests proved, and
+scanners that could be fooled. Everything was fixed, each with a test. The
+new guards were proven able to fail by planting a violation.
+
+- **Wording now matches what's proven.**
+  - **Figurehead:** "Signed out, nothing goes to it". Stats go to `stats.figurehead.ai` whether or not you're signed in, and the stats line names that host.
+  - **Sign-in:** it reads which account (email, organisation), and "never reads the secret the tool saves".
+  - **Updates:** "when it starts, if that's on, or when you choose Check now".
+  - **Its folder:** "What it keeps", plus its own Keychain items. Temporary files aren't kept.
+  - **Settings:** the settings-file claim names Claude Code's `settings.json`, the file its test covers.
+  - **Fleet:** says how a Mac is found (the local network, and the Figurehead account if turned on).
+  - **Switching:** "a click, on this Mac or on a Mac you paired".
+  - **The untested footer** ("never shares, pools or rotates") is gone.
+  - **The terms lines** say which plans, and which page said what (the register has both, word for word).
+- **The network guard reads the real dependency graph.**
+  - It uses `cargo metadata` for each workspace crate's shipped dependencies: the first network crate on every path, transitively.
+  - It finds no socket (`TcpStream`, `TcpListener`, `UdpSocket`, `tokio::net`) in any other crate's code.
+  - The test bridge's `hyper` is in no default build.
+  - Every `http(s)://` host in the network crates (and in the app's files that hand them requests) is one of ours.
+  - *Planted:* updater in juggler-core; a `TcpStream` in juggler-core; `api.anthropic.com` in juggler-account. Each fails.
+- **Crash reports:** `crash_reports_have_nowhere_to_go` replaces the check that couldn't fail.
+  - No build setting (including `.cargo/`) sets the address.
+  - `crash.rs` reads it only for `can_send` and holds no sender.
+  - *Planted:* a `Transport` in crash.rs fails it.
+- **The proxy scan** covers every file under each crate's `src/`, not only `.rs`. It also checks Bedrock/Vertex switches, `apiKeyHelper` and Codex's `openai_base_url`, `chatgpt_base_url` and `model_providers`.
+- **The switch guard can't be fooled by comments, strings or the receiving side.**
+  - It scans code with comments and strings blanked (`code_only`), and gets functions by brace matching.
+  - It covers the receiving side (`take_handover_here`, `switch_back_here`, run only from Fleet's node handler).
+  - A UI test (`only the switch screens start a switch`) finds the window's switch calls only in the four switch screens, with comments stripped.
+  - *Planted:* a call hidden behind a `// fn take_handover(` comment fails it. The unit test `the_switch_scan_sees_through_comments_and_strings` keeps it so.
+- **A named test must run:** a test attribute directly above it, not `#[ignore]` (`a_claim_needs_a_running_test`). The docs page must cite each test.
+- **Links out go through the app.** `trust_open(kind, id)` (`features/trust`) opens only:
+  - a tool's terms, from its adapter;
+  - a file the claims cite;
+  - the private report.
+
+  The page never hands the app an address. No window has an `opener:` permission (asserted).
+- **Shared scanners:** the source helpers moved to `tests/common/source.rs`, used by `no_bare_tools` and `trust`.
+- **Smaller fixes:**
+  - `aij:open-screen` only opens a known screen (`globalId`).
+  - WebKit's disclosure marker is hidden.
+  - The fresh-account and folder steps show only their own tool's terms.
+
 ## Corrections the work made to earlier wording
 
 - **Crash reports** are not "never sent": the setting's default is off. This version can't send them at all, because no build carries the address. The page says that, and a test fails if a build ever does.
@@ -86,4 +131,6 @@ The walk found two things, both fixed:
 ## Follow-ups
 
 - **The terms register is stale after 90 days** (`scripts/research_staleness.sh`). Re-check it at each release candidate.
-- **`docs/guide/trust.md` repeats the list by hand.** The test keeps it word for word with the app's list, so the two can't drift.
+- **`docs/guide/trust.md` is written from the claims list.** The test keeps it word for word with the app's list, so the two can't drift.
+- **Real-app check:** in an installed build, confirm the Privacy page's and Add account's links open in the browser through `trust_open`. The preview and tests record the ask instead.
+- **The source links point at `main`,** where `trust.rs` lands with the 0.1 release.
