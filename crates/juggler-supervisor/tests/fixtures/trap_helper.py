@@ -8,7 +8,7 @@ a line behind.
 
 Usage:
   trap_helper.py --ready READY --trap-log LOG [--port N] [--setsid]
-                 [--ignore-term] [decorative words...]
+                 [--ignore-term] [--busy-until FILE] [decorative words...]
 
 Modes:
   default        sleep; TERM/HUP/INT are logged then honoured (TERM
@@ -20,6 +20,8 @@ Modes:
   --setsid       os.setsid() before anything else (the escapee —
                  leaves the root's process group; the ppid chain
                  stays intact so the tree walk still finds it).
+  --busy-until F once ready, spin on the CPU until FILE exists (90 s
+                 at most), then sleep like the rest (busy, then idle).
 Decorative words ride the argv for role needles (e.g. `mcp-server`).
 """
 import argparse
@@ -35,6 +37,7 @@ parser.add_argument("--trap-log", required=True)
 parser.add_argument("--port", type=int, default=None)
 parser.add_argument("--setsid", action="store_true")
 parser.add_argument("--ignore-term", action="store_true")
+parser.add_argument("--busy-until", default=None)
 args, _ = parser.parse_known_args()
 
 if args.setsid:
@@ -80,6 +83,13 @@ with open(args.ready + ".pid", "w") as handle:
     handle.write(f"{os.getpid()}\n")
 with open(args.ready, "w") as handle:
     handle.write(f"{bound_port}\n")
+
+# Busy, then idle: a spin the test ends with a file, bounded so a test
+# that fails first never leaves a load generator behind.
+if args.busy_until is not None:
+    busy_until = time.monotonic() + 90
+    while not os.path.exists(args.busy_until) and time.monotonic() < busy_until:
+        pass
 
 # 5-minute cap (FIXTURE_LIFETIME_SECS in mod.rs): fixtures outlive every
 # suite, and a tree leaked by a failing test self-cleans instead of

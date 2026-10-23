@@ -9,6 +9,7 @@ use std::sync::atomic::Ordering;
 
 use juggler_core::model::SessionId;
 
+use crate::cpu_since::CpuSince;
 use crate::lifecycle::LifecycleEvent;
 use crate::stats::LiveProcessStats;
 use crate::supervisor::{OUTPUT_RETENTION_AFTER_EXIT_MS, Supervisor};
@@ -20,7 +21,8 @@ use crate::supervisor::{OUTPUT_RETENTION_AFTER_EXIT_MS, Supervisor};
 const PORT_PROBE_EVERY: u32 = 5;
 
 /// One live process in a supervised tree (the Processes tab row,
-/// AJ-E410). `cpu_pct` stays `None` until the second table sample.
+/// AJ-E410). `cpu_pct` stays `None` until the process has been read over
+/// a window of at least a second ([`CpuSince`]).
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ProcessRow {
     /// OS process id.
@@ -202,6 +204,8 @@ const LIST_EVERY: u32 = 2;
 #[derive(Debug)]
 pub struct LiveStatsCollector {
     system: sysinfo::System,
+    /// What `system`'s refreshes saw of each process's CPU time.
+    cpu: CpuSince,
     sampled: bool,
     ticks: u32,
     trees: HashMap<SessionId, TreeState>,
@@ -247,6 +251,8 @@ pub struct LiveStatsCollector {
     /// CPU and memory, read every 2nd tick. Kept apart from `system`: each
     /// table's CPU deltas are over its own refresh interval.
     listing: sysinfo::System,
+    /// What the listing's refreshes saw of each process's CPU time.
+    listing_cpu: CpuSince,
     /// The listing has been read twice: its CPU deltas are real.
     listing_sampled: bool,
 }
@@ -327,6 +333,7 @@ impl Default for LiveStatsCollector {
         // construction — the tick itself adds zero more.
         Self {
             system: crate::new_system(),
+            cpu: CpuSince::default(),
             sampled: false,
             ticks: 0,
             trees: HashMap::new(),
@@ -342,6 +349,7 @@ impl Default for LiveStatsCollector {
             observed: HashMap::new(),
             work: CollectorWork::default(),
             listing: sysinfo::System::new(),
+            listing_cpu: CpuSince::default(),
             listing_sampled: false,
         }
     }
@@ -901,6 +909,7 @@ impl LiveStatsCollector {
 
     fn refresh_all(&mut self) {
         use sysinfo::{ProcessRefreshKind, ProcessesToUpdate};
+        let at = std::time::Instant::now();
         self.system.refresh_processes_specifics(
             ProcessesToUpdate::All,
             true,
@@ -911,6 +920,7 @@ impl LiveStatsCollector {
                 .with_exe(sysinfo::UpdateKind::Always)
                 .with_cmd(sysinfo::UpdateKind::Always),
         );
+        self.cpu.note_all(&self.system, at);
     }
 
     /// Reads the listing: every process with its parent, start time, CPU
@@ -918,6 +928,7 @@ impl LiveStatsCollector {
     fn refresh_listing(&mut self) {
         use sysinfo::{ProcessRefreshKind, ProcessesToUpdate};
         self.work.listings += 1;
+        let at = std::time::Instant::now();
         self.listing.refresh_processes_specifics(
             ProcessesToUpdate::All,
             true,
@@ -926,6 +937,7 @@ impl LiveStatsCollector {
                 .with_cpu()
                 .with_memory(),
         );
+        self.listing_cpu.note_all(&self.listing, at);
     }
 
     /// Every descendant of `roots` that the main table doesn't hold yet,
@@ -971,6 +983,7 @@ impl LiveStatsCollector {
             .collect();
         targets.sort_unstable();
         targets.dedup();
+        let at = std::time::Instant::now();
         self.system.refresh_processes_specifics(
             ProcessesToUpdate::Some(&targets),
             true,
@@ -981,6 +994,7 @@ impl LiveStatsCollector {
                 .with_exe(sysinfo::UpdateKind::Always)
                 .with_cmd(sysinfo::UpdateKind::Always),
         );
+        self.cpu.note(&self.system, &targets, at);
     }
 
     /// Recomputes every tree's rows/stats/ring from the current table.
@@ -1018,7 +1032,7 @@ impl LiveStatsCollector {
                     .insert((*session).clone(), LiveProcessStats::dead());
                 continue;
             }
-            let (rows, stats) = tree_rows(&self.system, parents, *root);
+            let (rows, stats) = tree_rows(&self.system, &self.cpu, parents, *root);
             tree.rows = rows;
             push_ring_sample(
                 &mut tree.ring,
@@ -1113,7 +1127,7 @@ impl LiveStatsCollector {
                 self.observed.remove(&root);
                 continue;
             }
-            let (rows, _) = tree_rows(&self.listing, &parents, root);
+            let (rows, _) = tree_rows(&self.listing, &self.listing_cpu, &parents, root);
             self.work.targeted_observed += rows.len() as u64;
             // A supervised subtree never also counts as observed.
             let mut stats = observed_sums(&rows, &supervised);
@@ -1173,18 +1187,33 @@ impl LiveStatsCollector {
     /// or `None` when the pid is gone/zombie.
     #[must_use]
     pub fn lookup(&self, pid: u32) -> Option<(String, u64)> {
+        self.live_process(pid).map(|process| {
+            (
+                process.name().to_string_lossy().into_owned(),
+                process.memory(),
+            )
+        })
+    }
+
+    /// One process's CPU now (AJ-E512 Req.3, the idle nudge), over the
+    /// last second or more ([`CpuSince`]). Never from a finished session's
+    /// rows: those stay frozen at the last tick before its root exited, so
+    /// a helper busy at that moment and idle ever since read busy for good.
+    /// `None` until a window exists (never a fake idle) and when the pid is
+    /// gone or a zombie.
+    #[must_use]
+    pub fn cpu_now(&self, pid: u32) -> Option<f64> {
+        self.live_process(pid)
+            .and_then(|process| self.cpu.pct(process))
+    }
+
+    fn live_process(&self, pid: u32) -> Option<&sysinfo::Process> {
         self.system
             .process(sysinfo::Pid::from_u32(pid))
             .filter(|process| {
                 !matches!(
                     process.status(),
                     sysinfo::ProcessStatus::Zombie | sysinfo::ProcessStatus::Dead
-                )
-            })
-            .map(|process| {
-                (
-                    process.name().to_string_lossy().into_owned(),
-                    process.memory(),
                 )
             })
     }
@@ -1249,6 +1278,7 @@ pub fn observed_sums<S: std::hash::BuildHasher>(
 /// the tree aggregate, read from a table the caller already refreshed.
 fn tree_rows(
     system: &sysinfo::System,
+    cpu_since: &CpuSince,
     parents: &HashMap<u32, Vec<u32>>,
     root: u32,
 ) -> (Vec<ProcessRow>, LiveProcessStats) {
@@ -1273,7 +1303,7 @@ fn tree_rows(
             pid,
             parent_pid: process.parent().map(sysinfo::Pid::as_u32),
             name: process.name().to_string_lossy().into_owned(),
-            cpu_pct: Some(f64::from(process.cpu_usage())),
+            cpu_pct: cpu_since.pct(process),
             rss_bytes: process.memory(),
             age_ms,
             child_count: u32::try_from(children.len()).unwrap_or(u32::MAX),
@@ -1289,7 +1319,7 @@ fn tree_rows(
                     .join(" ")
             }),
         });
-        cpu += f64::from(process.cpu_usage());
+        cpu += cpu_since.pct(process).unwrap_or(0.0);
         rss += process.memory();
         if pid != root {
             child_count += 1;
