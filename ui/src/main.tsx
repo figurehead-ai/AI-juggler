@@ -9,7 +9,10 @@ import "./styles.css";
 
 import { loadTools } from "./lib/tools";
 import { ownTerminalWindow } from "./lib/ipc/terminal";
-import { TerminalWindow } from "./screens/TerminalWindow";
+import { lazyNamed } from "./lib/lazy";
+
+// A terminal window loads its own code; the main window never does.
+const TerminalWindow = lazyNamed(() => import("./screens/TerminalWindow"), "TerminalWindow");
 
 // AJ-E1525: the tools catalog first, so no screen shows a tool's id for
 // a moment (it answers from the registry, without probing anything).

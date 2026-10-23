@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render } from "@testing-library/react";
+import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RightInspector } from "./RightInspector";
 import type {
@@ -233,7 +233,7 @@ describe("AJ-E413 desktop Instance surface (Req.3)", () => {
     expect(focus.calls).toEqual(["sess-desktop-1"]);
   });
 
-  it("terminal Instances keep the terminal card and hand-over (regression guard)", () => {
+  it("terminal Instances keep the terminal card and hand-over (regression guard)", async () => {
     const { container } = shell(
       mk({
         id: "sess-2",
@@ -244,7 +244,8 @@ describe("AJ-E413 desktop Instance surface (Req.3)", () => {
         model_source: "launch",
       }),
     );
-    expect(container.querySelector('[data-testid="instance-terminal"]')).not.toBeNull();
+    // The terminal's code loads on first use (lib/lazy).
+    await waitFor(() => expect(container.querySelector('[data-testid="instance-terminal"]')).not.toBeNull());
     expect(container.querySelector('[data-testid="desktop-surface"]')).toBeNull();
     expect(container.querySelector('[data-testid="handover-section"]')).not.toBeNull();
   });
