@@ -165,10 +165,16 @@ fn refusal(error: AppError) -> String {
     }
 }
 
+/// Runs `action` and checks its own work stays inside [`BUDGET`]: this
+/// thread's CPU time, which other programs' turns don't add to (wall time,
+/// printed beside it, read 419 ms on a loaded machine).
 fn timed<T>(action: impl FnOnce() -> T) -> T {
-    let started = Instant::now();
+    let wall = Instant::now();
+    let cpu = cpu_time::ThreadTime::now();
     let out = action();
-    assert!(started.elapsed() < BUDGET, "{:?}", started.elapsed());
+    let (cpu, wall) = (cpu.elapsed(), wall.elapsed());
+    eprintln!("[budget] {cpu:?} CPU, {wall:?} wall");
+    assert!(cpu < BUDGET, "{cpu:?} CPU (wall {wall:?})");
     out
 }
 
