@@ -83,15 +83,24 @@ fn sessions(state: &Arc<AppState>) -> Vec<juggler_core::model::InstanceRecord> {
     all
 }
 
-/// Waits until there are `count` sessions; returns the newest.
-fn wait_for_sessions(state: &Arc<AppState>, count: usize) -> String {
+/// The ids of every session now.
+fn ids(state: &Arc<AppState>) -> Vec<String> {
+    sessions(state)
+        .iter()
+        .map(|record| record.id.to_string())
+        .collect()
+}
+
+/// Waits for a session that isn't one of `seen`, and returns it. Never by
+/// position: a restart can start in the same millisecond as the session
+/// it replaced, and then their order isn't fixed (#136's Linux run).
+fn wait_for_new_session(state: &Arc<AppState>, seen: &[String]) -> String {
     let deadline = Instant::now() + Duration::from_secs(15);
     loop {
-        let all = sessions(state);
-        if all.len() >= count {
-            return all.last().unwrap().id.to_string();
+        if let Some(new) = ids(state).into_iter().find(|id| !seen.contains(id)) {
+            return new;
         }
-        assert!(Instant::now() < deadline, "only {} sessions", all.len());
+        assert!(Instant::now() < deadline, "no new session after {seen:?}");
         std::thread::sleep(Duration::from_millis(100));
     }
 }
@@ -142,8 +151,9 @@ fn on_it_restarts_three_times_in_ten_minutes_then_says_why() {
         .unwrap()
         .session_id;
     for attempt in 1..=3 {
+        let seen = ids(&state);
         crashed(&state, &current);
-        let next = wait_for_sessions(&state, attempt + 1);
+        let next = wait_for_new_session(&state, &seen);
         assert_ne!(next, current);
         let said = history(&state, &current);
         assert!(
@@ -209,8 +219,9 @@ fn a_launch_settings_own_choice_overrides_settings() {
     }
     // Settings › Sessions stays off.
     let first = commands::launch_profile(&state, &profile, None).unwrap();
+    let seen = ids(&state);
     crashed(&state, &first.session_id);
-    let next = wait_for_sessions(&state, 2);
+    let next = wait_for_new_session(&state, &seen);
     // Stop the replacement so the test ends with nothing running.
     let _ = state
         .supervisor
@@ -296,10 +307,10 @@ fn after_a_crash_its_sessions_say_so_and_resume_after_a_quit_they_stop() {
         assert_eq!(record.status, SessionStatus::Failed);
         let reason = record.attention.expect("it says why");
         assert_eq!(reason.rule, "app_quit_unexpectedly");
-        let before = sessions(&state).len();
+        let before = ids(&state);
         // Up again: restarting is on, so it resumes.
         juggler_app::features::app::crash::resume_after_crash(&state);
-        let next = wait_for_sessions(&state, before + 1);
+        let next = wait_for_new_session(&state, &before);
         assert!(
             history(&state, &crashed)
                 .iter()
@@ -310,7 +321,7 @@ fn after_a_crash_its_sessions_say_so_and_resume_after_a_quit_they_stop() {
         let _ = state
             .supervisor
             .stop(&SessionId::new(next), Duration::from_secs(2));
-        before
+        before.len()
     };
     assert!(before >= 2);
 }
