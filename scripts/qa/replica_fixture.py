@@ -33,10 +33,14 @@ def main() -> int:
         # The replica has no session AI Juggler started; an empty list, not
         # the preview's own mocks.
         "sessions": [],
-        "profiles": [],
+        # The "Main" launch settings each import makes.
+        "profiles": harness.get("launch_recipes", []),
         "generated_ms": harness["generated_ms"],
         # AJ-E1532: the projects' own icons, as the backend served them.
         "project_icons": harness.get("project_icons", {}),
+        # Each account's limits as the runway reads them: Codex's come from
+        # the replica's rollouts; Claude's stay unmeasured, as they would.
+        "quota": harness.get("quota_display_all", []),
     }
     with open(sys.argv[2], "w") as out:
         json.dump(fixture, out, indent=1, sort_keys=True)

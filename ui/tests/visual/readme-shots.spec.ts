@@ -12,6 +12,19 @@ import { goTo } from "./fixtures";
 
 const OUT = resolve(process.cwd(), "../docs/assets/readme");
 const FIXTURE = JSON.parse(readFileSync(resolve(process.cwd(), "tests/visual/fixtures/replica.json"), "utf8"));
+// The released version the shots show (`just readme-shots` passes the
+// newest release tag); the source tree's own version is a placeholder.
+const VERSION: string =
+  process.env.AIJ_README_VERSION ||
+  JSON.parse(readFileSync(resolve(process.cwd(), "../crates/juggler-app/tauri.conf.json"), "utf8")).version;
+
+/** The replica lives in a temporary folder; a reader's Mac has a home.
+ * Only the shown paths move (after the check below has seen the real
+ * ones), from the replica's HOME to `/Users/you`. */
+function asAtHome(fixture: unknown): unknown {
+  const text = JSON.stringify(fixture);
+  return JSON.parse(text.replace(/(\/private)?\/tmp\/aij-replica[\w-]*/g, "/Users/you"));
+}
 
 test.skip(process.env.AIJ_README_SHOTS !== "1", "README shots run only through `just readme-shots`");
 test.beforeAll(() => {
@@ -24,15 +37,20 @@ test.beforeAll(() => {
 
 async function open(page: Page, theme: "dark" | "light") {
   await page.addInitScript(
-    ({ fixture, theme, t0 }) => {
+    ({ fixture, theme, t0, version }) => {
       const w = window as unknown as Record<string, unknown>;
       w.__AIJ_FIXTURE__ = fixture;
+      w.__AIJ_QUOTA_DISPLAY__ = (fixture as { quota?: unknown }).quota ?? [];
+      w.__AIJ_RECIPES__ = (fixture as { profiles?: unknown }).profiles ?? [];
+      w.__AIJ_APP_INFO__ = { version, name: "AI Juggler", edition: "main" };
       localStorage.setItem("aij.theme", theme);
       localStorage.setItem("aij.onboarding.dismissed", "1");
+      // A reader who's past the optional permissions: no reminder card.
+      localStorage.setItem("aij.smoother.dismissed", JSON.stringify(["all"]));
       sessionStorage.setItem("aij.ready.skipped", "1");
       Date.now = () => t0;
     },
-    { fixture: FIXTURE, theme, t0: FIXTURE.generated_ms },
+    { fixture: asAtHome(FIXTURE), theme, t0: FIXTURE.generated_ms, version: VERSION },
   );
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
   await page.setViewportSize({ width: 1440, height: 900 });
