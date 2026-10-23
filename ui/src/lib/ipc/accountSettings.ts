@@ -29,8 +29,10 @@ export async function accountSettingsApply(target: string, source: string, offer
     const check = seam()?.[source];
     return offers.map((id) => {
       const offer = check?.offers.find((candidate) => candidate.id === id);
+      // As the app says it: "the MCP server docs", "the permissions".
+      const kind = { "mcp-server": "MCP server ", plugin: "plugin " }[offer?.kind ?? ""] ?? "";
       return offer
-        ? { offer: id, record: `record-${id}`, message: `Set up the ${offer.name}`, note: null }
+        ? { offer: id, record: `record-${id}`, message: `Set up the ${kind}${offer.name}`, note: null }
         : { offer: id, record: null, message: "It isn't on that account any more", note: null };
     });
   }

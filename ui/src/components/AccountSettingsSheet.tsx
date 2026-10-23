@@ -111,7 +111,10 @@ export function AccountSettingsSheet({
                 {account.label} already has everything {name} has to copy: its MCP servers, permissions and status line.
               </p>
             )}
-            {check && check.offers.length > 0 && <SwitchSetupList check={check} picked={picked} onToggle={toggle} />}
+            {/* Named by this account, whatever the check calls it. */}
+            {check && check.offers.length > 0 && (
+              <SwitchSetupList check={{ ...check, to: account.label }} picked={picked} onToggle={toggle} />
+            )}
             <p className="text-[11px] text-faint">Never its sign-in, history or caches, and nothing {account.label} has of its own is replaced.</p>
           </>
         )}

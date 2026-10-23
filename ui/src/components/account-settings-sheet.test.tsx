@@ -35,7 +35,8 @@ describe("copy settings into an account", () => {
     expect(view.getByRole("button", { name: "Copy 2 settings" })).toBe(button);
     fireEvent.click(button);
     await waitFor(() => expect(apply).toHaveBeenCalledWith("claude-personal", "claude-work", ["o-docs", "o-perm"]));
-    expect(await view.findByText(/Set up the docs/)).toBeTruthy();
+    expect(await view.findByText(/Set up the MCP server docs/)).toBeTruthy();
+    expect(view.getByText("Set up on Personal")).toBeTruthy();
     fireEvent.click(view.getByRole("button", { name: "Done" }));
     expect(onClose).toHaveBeenCalledWith(2);
   });
