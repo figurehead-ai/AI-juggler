@@ -200,7 +200,7 @@ pub fn status_impl(state: &Arc<AppState>) -> AppResult<OutsideSearchInfo> {
 
 /// What turning it on would take: the index's likely size, measured by
 /// indexing a spread of the sessions' files in memory (all of them, when
-/// they come to less than [`SAMPLE_BYTES`]) and scaling by their bytes,
+/// they come to less than 32 MB) and scaling by their bytes,
 /// compressed and plain files apart.
 ///
 /// # Errors
