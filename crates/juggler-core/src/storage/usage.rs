@@ -190,6 +190,60 @@ impl UsageRepo<'_> {
         Ok(deleted)
     }
 
+    /// P21's leftovers: a Codex compaction row (`…/compacted/…`) that an
+    /// older build stored for another thread's model call, in a session
+    /// whose rollout is gone (so no re-read replaces it). One goes only
+    /// when its tokens equal, class by class, a stored record's
+    /// (`thread/turn/response`): that record is the call, counted where it
+    /// was written. A gone file's other rows stay, as they always do, and
+    /// a session in `present` is never touched. Returns how many went.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures; nothing is
+    /// deleted then.
+    pub fn forget_duplicated_compactions(
+        &self,
+        account: &str,
+        present: &BTreeSet<String>,
+    ) -> Result<usize, CoreError> {
+        let tx = write_transaction(self.conn)?;
+        let candidates = {
+            let mut find = tx.prepare(
+                "SELECT e.id, e.session, e.msg_uuid FROM usage_events e
+                 WHERE e.account = ?1 AND e.session IS NOT NULL
+                   AND e.msg_uuid LIKE '%/compacted/%'
+                   AND EXISTS (SELECT 1 FROM usage_events r
+                       WHERE r.account = e.account AND r.msg_uuid IS NOT NULL
+                         AND r.msg_uuid NOT LIKE '%/compacted/%'
+                         AND r.input = e.input AND r.output = e.output
+                         AND r.cache_r = e.cache_r AND r.cache_w = e.cache_w
+                         AND r.reasoning = e.reasoning)",
+            )?;
+            find.query_map(params![account], |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                ))
+            })?
+            .collect::<Result<Vec<_>, _>>()?
+        };
+        let mut gone = 0;
+        for (id, session, key) in candidates {
+            if present.contains(&session) {
+                continue;
+            }
+            gone += tx.execute("DELETE FROM usage_events WHERE id = ?1", params![id])?;
+            tx.execute(
+                "DELETE FROM usage_holders WHERE account = ?1 AND msg_uuid = ?2 AND session = ?3",
+                params![account, key, session],
+            )?;
+        }
+        tx.commit()?;
+        Ok(gone)
+    }
+
     /// Every event for one account since `since_ms` (the window fold
     /// fetches a 7 d tail; older rows are audit, never maths).
     ///
