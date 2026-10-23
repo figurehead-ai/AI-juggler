@@ -1877,6 +1877,7 @@ impl Supervisor {
                     journal.as_ref(),
                     ledger.as_ref(),
                     &events,
+                    None,
                 );
             } else {
                 done.store(true, Ordering::Release);
@@ -1983,7 +1984,6 @@ impl Supervisor {
         let done = Arc::clone(&finished);
         std::thread::spawn(move || {
             let status = child.lock().ok().and_then(|mut c| c.wait().ok());
-            wait_for_output(&drained);
             if let Some(status) = status {
                 emit_exit(
                     &session_for_thread,
@@ -1994,8 +1994,10 @@ impl Supervisor {
                     journal.as_ref(),
                     ledger.as_ref(),
                     &events,
+                    Some(&drained),
                 );
             } else {
+                wait_for_output(&drained);
                 done.store(true, Ordering::Release);
             }
         });
@@ -2083,7 +2085,6 @@ impl Supervisor {
         std::thread::spawn(move || {
             let status = child.wait().ok();
             reaped.store(true, Ordering::Release);
-            wait_for_output(&drained);
             if let Some(status) = status {
                 // portable-pty reports a single exit code; a signal death surfaces
                 // as a non-zero code here (skeleton-level approximation).
@@ -2097,8 +2098,10 @@ impl Supervisor {
                     journal.as_ref(),
                     ledger.as_ref(),
                     &events,
+                    Some(&drained),
                 );
             } else {
+                wait_for_output(&drained);
                 done.store(true, Ordering::Release);
             }
         });
@@ -2865,6 +2868,9 @@ fn child_lock(
         .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
+/// Records an exit when it happens (the eviction timer, the journal, the
+/// ledger), then, once the output readers have finished (`drained`, see
+/// [`wait_for_output`]), marks the session finished and sends `Exited`.
 #[allow(clippy::too_many_arguments)] // one flat exit fan-out, grouping would churn 3 callers
 fn emit_exit(
     session: &SessionId,
@@ -2875,8 +2881,8 @@ fn emit_exit(
     journal: Option<&Journal>,
     ledger: Option<&crate::tree::SharedLedger>,
     events: &std::sync::mpsc::Sender<LifecycleEvent>,
+    drained: Option<&std::sync::mpsc::Receiver<()>>,
 ) {
-    done.store(true, Ordering::Release);
     // The eviction timer starts HERE (AJ-E504 Req.4): the retention
     // window is measured from the observed exit, not the stop call.
     let now = std::time::SystemTime::now()
@@ -2907,6 +2913,10 @@ fn emit_exit(
             eprintln!("ai-juggler: process ledger degraded at exit patch (pid {pid})");
         }
     }
+    if let Some(drained) = drained {
+        wait_for_output(drained);
+    }
+    done.store(true, Ordering::Release);
     let _ = events.send(LifecycleEvent::Exited {
         session: session.clone(),
         pid,
