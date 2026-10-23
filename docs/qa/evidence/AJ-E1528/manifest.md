@@ -81,3 +81,15 @@ line, each opened the page; More is lit while it's open.
 The hand walk on the real setup under memory pressure (read-only,
 through the Dev bridge) goes to QA's next walk: running the bridge here
 would bind port 5173, which other sessions' verify uses.
+
+## QA's walk on the real setup (walk batch 25)
+
+QA walked the page at release/0.1 3c6e97ff, read-only, through the Dev
+bridge (7 of 7 accounts in, nothing added, removed or changed): every way
+in opens it; "Now" matched macOS in the same second (pressure level, swap,
+total memory); the Claude app group showed 6 folded windows with no
+controls, matching `ps`; `real_truth.py`'s page checks were OK; and 100
+Tabs past Home's last button moved only Home's own scroll area. Not seen:
+the reasons and Home's pressure row under real memory pressure (the Mac
+stayed normal, and QA doesn't create pressure on the real setup).
+

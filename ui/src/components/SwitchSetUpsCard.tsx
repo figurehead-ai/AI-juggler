@@ -5,6 +5,8 @@
  * to be undone from. Shown in Settings beside the switch's secrets
  * choice; nothing shows when there's nothing to undo. A set-up whose
  * Undo was refused (it changed since) can be forgotten instead.
+ * AJ-E1507 and AJ-E1508 share the record and the undo (a rules apply, a
+ * settings copy), so the card names AI Juggler, not switches.
  */
 import { useCallback, useEffect, useState, type JSX } from "react";
 import { Card } from "./primitives";
@@ -48,10 +50,11 @@ export function SwitchSetUpsCard(): JSX.Element | null {
   return (
     <Card className="flex flex-col gap-3 p-5" data-testid="switch-set-ups">
       <div>
-        <h3 className="text-sm font-semibold">Set up by switches</h3>
+        <h3 className="text-sm font-semibold">Set up by AI Juggler</h3>
         <p className="mt-0.5 text-xs leading-relaxed text-muted">
-          What a switch added to an account because it was missing there. Undo removes it, if
-          it's still as it was made.
+          What you had AI Juggler add or change: set-ups for a switch, settings copied into an
+          account, and rules files brought in line. Undo puts each back, if it's still as it was
+          made.
         </p>
       </div>
       {setUps.length > 0 && (
@@ -59,14 +62,14 @@ export function SwitchSetUpsCard(): JSX.Element | null {
           {setUps.map((setUp) => (
             <li key={setUp.record} className="flex items-center justify-between gap-2 text-xs">
               <span>
-                {setUp.what} <span className="text-muted">· {setUp.account}</span>
+                {setUp.what} <span className="text-muted">· {setUp.place}</span>
               </span>
               <span className="flex shrink-0 gap-1">
                 {refused === setUp.record && (
                   <button
                     type="button"
                     onClick={() => void run(setUp, switchSetupForget)}
-                    aria-label={`Forget: ${setUp.what} on ${setUp.account}`}
+                    aria-label={`Forget: ${setUp.what} on ${setUp.place}`}
                     title="Stop listing it here and leave it as it is"
                     className="rounded border border-hairline px-1.5 py-0.5 text-[10px] hover:bg-surface-2"
                   >
@@ -76,7 +79,7 @@ export function SwitchSetUpsCard(): JSX.Element | null {
                 <button
                   type="button"
                   onClick={() => void run(setUp, switchSetupUndo)}
-                  aria-label={`Undo: ${setUp.what} on ${setUp.account}`}
+                  aria-label={`Undo: ${setUp.what} on ${setUp.place}`}
                   className="rounded border border-hairline px-1.5 py-0.5 text-[10px] hover:bg-surface-2"
                 >
                   Undo

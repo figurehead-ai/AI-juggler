@@ -187,3 +187,20 @@ export function AwakeLine({ info }: { info: ThisMacInfo }): JSX.Element | null {
     </p>
   );
 }
+
+/** AJ-E1509: AI Juggler itself — its own memory with its crash
+ * watchdog's (a process of AI Juggler, never a stray one), and whether it
+ * opens at login. */
+export function OwnLine({ info }: { info: ThisMacInfo }): JSX.Element {
+  const { rss_bytes: bytes, watchdog, opens_at_login: atLogin } = info.own;
+  const parts = [
+    `AI Juggler itself: ${bytesWords(bytes)}`,
+    watchdog ? "with its crash watchdog" : null,
+    atLogin ? "opens at login" : null,
+  ].filter(Boolean);
+  return (
+    <p className="text-[11px] text-muted" data-testid="this-mac-own">
+      {parts.join(" · ")}
+    </p>
+  );
+}

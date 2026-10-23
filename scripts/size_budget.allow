@@ -28,7 +28,7 @@ ui/src/components/indicator.tsx 490
 ui/src/lib/bridge.ts 4952
 ui/src/lib/machine.ts 426
 ui/src/screens/CleanupCentre.tsx 809
-ui/src/screens/FirstRun.tsx 1432
+ui/src/screens/FirstRun.tsx 1343
 ui/src/screens/FleetScreen.tsx 838
 ui/src/screens/Home.tsx 776
 ui/src/screens/NewProjectSheet.tsx 423

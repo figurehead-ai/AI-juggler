@@ -302,6 +302,8 @@ macro_rules! app_commands {
             Write features::switch_setup::switch_setup_apply,
             Write features::switch_setup::switch_setup_undo,
             Write features::switch_setup::switch_setup_forget,
+            Read  features::account_settings::commands::account_settings_check,
+            Write features::account_settings::commands::account_settings_apply,
             Write commands::switch_execute,
             Write commands::switch_undo,
             Read  commands::switch_back_plan,
@@ -401,10 +403,17 @@ macro_rules! app_commands {
             Write features::conversations::commands::conversations_continue,
             Read  features::sessions::commands::sessions_resume_command,
             Write features::sessions::commands::sessions_restart_choice_set,
+            Read  features::app::login_item::app_login_item_get,
+            Write features::app::login_item::app_login_item_set,
             // Reads `git status` (the 2 s cache, like a session's).
             Read  features::projects::git::projects_git_status,
             Read  features::projects::icon::projects_icon_read,
             Write features::projects::mark::projects_mark_set,
+            Read  features::project_sync::commands::project_sync_rules,
+            Read  features::project_sync::commands::project_sync_diff,
+            Write features::project_sync::commands::project_sync_apply,
+            Read  features::project_sync::commands::project_sync_servers,
+            Write features::project_sync::commands::project_sync_servers_apply,
         }
     };
 }
@@ -638,10 +647,15 @@ pub fn run() {
             eprintln!("ai-juggler: fatal: {error}");
             std::process::exit(1);
         })
-        .run(move |_app, event| {
+        .run(move |app, event| {
             if let tauri::RunEvent::Exit = event {
-                // AJ-E1509: quit as asked — the watchdog lets it be.
-                features::app::crash::end_run(&data_dir);
+                // AJ-E1509: quit as asked — the run is clean and the
+                // watchdog ends with the app.
+                use tauri::Manager;
+                match app.try_state::<Arc<state::AppState>>() {
+                    Some(state) => features::app::crash::before_exit(&state),
+                    None => features::app::crash::end_run(&data_dir),
+                }
                 if let Some(handover) = &handover {
                     handover.stop();
                 }

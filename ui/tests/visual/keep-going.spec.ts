@@ -1,8 +1,8 @@
 /**
  * AJ-E1509 gallery: keeping work going — Settings › Sessions' "Keep work
- * going" switches, This Mac's line on what keeps the Mac awake (reached
- * from it to Settings in one click), and a launch setting's own restart
- * choice. Both themes; axe 0 critical/serious on each.
+ * going" switches (opening at login among them), This Mac's lines on what
+ * keeps the Mac awake (reached from it to Settings in one click) and on AI
+ * Juggler itself, and a launch setting's own restart choice. Both themes; axe 0 critical/serious on each.
  */
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
@@ -38,6 +38,7 @@ for (const theme of ["dark", "light"] as const) {
     await goTo(page, "This Mac");
     const line = page.getByTestId("this-mac-page").getByTestId("this-mac-awake");
     await expect(line).toContainText("Kept awake while 1 AI Juggler session works");
+    await expect(page.getByTestId("this-mac-own")).toContainText("with its crash watchdog");
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(OUT, `this-mac-awake-1280x800-${theme}.png`) });
     await axe(page, `This Mac awake ${theme}`);
@@ -47,6 +48,7 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByLabel("Restart sessions that crash")).not.toBeChecked();
     await expect(page.getByLabel("Keep the Mac awake while sessions work")).toBeChecked();
     await expect(page.getByLabel("Reopen AI Juggler if it quits unexpectedly")).toBeChecked();
+    await expect(page.getByLabel("Open AI Juggler at login")).not.toBeChecked();
     await page.getByLabel("Restart sessions that crash").check();
     await expect(page.getByTestId("settings-sessions").getByRole("status")).toHaveText("Sessions that crash are started again.");
     await keep.scrollIntoViewIfNeeded();

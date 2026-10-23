@@ -130,7 +130,7 @@
 **Research basis**: wireframe 05; Max-Depth report §8 (terminal).
 **Handover note**: Pin each addon's version, matching xterm 6.
 
-### AJ-E1507 Rules and MCP sync across tools, with a diff preview | Status: TODO | Priority P0 | Effort L | Depends: AJ-E202
+### AJ-E1507 Rules and MCP sync across tools, with a diff preview | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E202
 **Goal**: A project's rules and MCP servers can be made the same across tools and accounts in one reviewed click.
 **User story**: As a user running Claude Code and Codex on one repo, I see that `CLAUDE.md` and `AGENTS.md` have drifted, pick the master, review the diff and apply it.
 **Requirements**:
@@ -148,7 +148,7 @@
 **Research basis**: SPEC §7.5; EPICS M4-6; expected-workflow ("rules and guidelines need to work").
 **Handover note**: The MCP formats: Claude `.mcp.json` / `settings.json`, Codex `config.toml` `[mcp_servers]`. E16 adds more.
 
-### AJ-E1508 Copy shared settings into a new account | Status: TODO | Priority P1 | Effort M | Depends: AJ-E1507, AJ-E1022
+### AJ-E1508 Copy shared settings into a new account | Status: DONE-EVIDENCED | Priority P1 | Effort M | Depends: AJ-E1507, AJ-E1022
 **Goal**: A new account starts with the user's usual MCP servers, permissions, plugins and status line.
 **User story**: As a user adding a third Claude account, I tick "same as Work" and get my servers and permissions without copying files by hand.
 **Requirements**:
@@ -163,7 +163,7 @@
 **Research basis**: Max-Depth report (profile clone, settings sync).
 **Handover note**: —
 
-### AJ-E1509 Always on: keep working sessions going | Status: IN-PROGRESS | Priority P1 | Effort L | Depends: AJ-E505, AJ-E1503, AJ-E1505, AJ-E1527
+### AJ-E1509 Always on: keep working sessions going | Status: DONE-EVIDENCED | Priority P1 | Effort L | Depends: AJ-E505, AJ-E1503, AJ-E1505, AJ-E1527
 **Goal**: What should stay on stays on, and comes back if it stops or crashes: a crashed session (when the user asked), the Mac while work runs, AI Juggler itself.
 **User story**: As a user running an overnight job, I leave the Mac plugged in and walk away: it doesn't fall asleep mid-run, a crashed session resumes instead of ending the night, and if AI Juggler itself crashes it comes back with my sessions shown as they really are.
 **Requirements**:
@@ -179,7 +179,7 @@
 **Visual testing**: the settings, the welcome's login-item row, the This Mac row (awake and not), and a session's history with a restart.
 **Files to touch**: `crates/juggler-supervisor/src/lifecycle.rs`, launch settings, Settings › Sessions, a macOS power module, the login item, `SmootherCard.tsx`, This Mac.
 **Research basis**: SPEC §1 and §5.4; EPICS M2-7; the maintainer's "always on" request (2026-10-22); Apple: IOKit power assertions, `NSProcessInfo` activities, `SMAppService`.
-**Handover note**: Widened from "Auto-restart a crashed session (opt-in)" (2026-10-22); the ID is kept so the counts don't change. Built (2026-10-22): Req.1–3, Req.4's crash relaunch (a watchdog of the app's own binary rather than launchd's KeepAlive, which covers only processes launchd started) and Req.5; see the evidence manifest. Open: Req.4's login item, which needs an audited `unsafe` crate for `SMAppService` (or a LaunchAgent plist): a decision for the maintainer.
+**Handover note**: Widened from "Auto-restart a crashed session (opt-in)" (2026-10-22); the ID is kept so the counts don't change. Built (2026-10-22): Req.1–3, Req.4's crash relaunch (a watchdog of the app's own binary rather than launchd's KeepAlive, which covers only processes launchd started) and Req.5; see the evidence manifest. Req.4's login item: the audited `juggler-login-item` crate (D-26, approved by the maintainer 2026-10-22); its live registration needs an installed build.
 
 ### AJ-E1510 System notifications | Status: TODO | Priority P1 | Effort M | Depends: AJ-E611, AJ-E1408
 **Goal**: What needs the user reaches them outside the window, when they want it to.

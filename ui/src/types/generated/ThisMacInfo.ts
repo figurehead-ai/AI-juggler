@@ -2,6 +2,7 @@
 import type { AwakeInfo } from "./AwakeInfo";
 import type { MachineHealthInfo } from "./MachineHealthInfo";
 import type { OverloadAlertInfo } from "./OverloadAlertInfo";
+import type { OwnInfo } from "./OwnInfo";
 import type { ToolGroupInfo } from "./ToolGroupInfo";
 import type { ToolTotalsInfo } from "./ToolTotalsInfo";
 import type { ToolTreeInfo } from "./ToolTreeInfo";
@@ -66,4 +67,8 @@ recommendations: Array<string>,
 /**
  * AJ-E1509: what keeps the Mac awake for the sessions, and why.
  */
-awake: AwakeInfo, };
+awake: AwakeInfo, 
+/**
+ * AJ-E1509: AI Juggler itself (with its watchdog; opens at login).
+ */
+own: OwnInfo, };

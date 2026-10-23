@@ -115,6 +115,13 @@ export function mockThisMac(
       const onBattery = machine.power?.on_battery ?? false;
       return { working, kept_awake: working > 0 && !onBattery, on_battery: onBattery };
     })(),
+    // As a release build: its crash watchdog runs; it opens at login when
+    // the preview's switch says so.
+    own: {
+      rss_bytes: 214_000_000,
+      watchdog: true,
+      opens_at_login: (window as unknown as { __AIJ_LOGIN_ITEM__?: string }).__AIJ_LOGIN_ITEM__ === "on",
+    },
     alerts,
     recommendations,
   };

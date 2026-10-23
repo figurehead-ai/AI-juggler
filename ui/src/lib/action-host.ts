@@ -39,6 +39,8 @@ export interface ActionHost {
   relocateProject?: (project: ProjectInfo) => void | Promise<void>;
   forgetProject?: (project: ProjectInfo) => void;
   setProjectAccount?: (project: ProjectInfo) => void;
+  /** AJ-E1507: the project's rules files and MCP servers, compared. */
+  syncProject?: (project: ProjectInfo) => void;
   // Accounts
   openAccount?: (account: AccountInfo) => void;
   startSessionOn?: (account: AccountInfo) => void;
@@ -47,6 +49,8 @@ export interface ActionHost {
   signIn?: (account: AccountInfo) => void;
   editLaunchSettings?: (account: AccountInfo) => void;
   renameAccount?: (account: AccountInfo) => void;
+  /** AJ-E1508: another account's usual settings, copied into this one. */
+  copyAccountSettings?: (account: AccountInfo) => void;
   toggleDefaultAccount?: (account: AccountInfo) => void;
   removeAccount?: (account: AccountInfo) => void;
   // Tools

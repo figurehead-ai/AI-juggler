@@ -35,6 +35,11 @@ pub enum ItemKind {
     MainRules,
     /// An installed plugin.
     Plugin,
+    /// What the tool may do without asking: its permission rules (AJ-E1508).
+    /// One per account, whatever the tool calls it.
+    Permissions,
+    /// The status line under the tool's input (AJ-E1508). One per account.
+    StatusLine,
 }
 
 impl ItemKind {
@@ -49,7 +54,16 @@ impl ItemKind {
             Self::Rules => "rules file",
             Self::MainRules => "main rules file",
             Self::Plugin => "plugin",
+            Self::Permissions => "permissions",
+            Self::StatusLine => "status line",
         }
+    }
+
+    /// One of an account's own settings (AJ-E1508): offered when an account
+    /// is added, not before a switch, where the target keeps its own.
+    #[must_use]
+    pub const fn is_account_setting(self) -> bool {
+        matches!(self, Self::Permissions | Self::StatusLine)
     }
 }
 
@@ -134,6 +148,44 @@ pub enum Detail {
     /// Something the tool's account syncs itself (claude.ai skills and
     /// connectors): it can't be set up by copying.
     FromTheAccount,
+    /// Settings in one of the tool's config files (AJ-E1508): each key and
+    /// its value, as the file writes it.
+    Setting {
+        /// The config file.
+        file: PathBuf,
+        /// Its format.
+        format: ConfigFormat,
+        /// Each key (a dotted path in TOML) and its value's text; empty
+        /// when it can't be copied (a secret's text is never kept).
+        entries: Vec<(String, String)>,
+        /// What it holds, in a few words ("2 allowed, 1 denied").
+        about: Option<String>,
+        /// Whether it can go as it is.
+        check: SettingCheck,
+    },
+}
+
+/// Whether a setting can be copied as it is (AJ-E1508).
+#[derive(Clone, PartialEq, Eq, Hash, Debug, serde::Serialize)]
+#[serde(tag = "check", content = "note", rename_all = "kebab-case")]
+pub enum SettingCheck {
+    /// It can.
+    Fine,
+    /// It can, but the user should mean it (it turns checks off): offered,
+    /// never ticked for them.
+    Caution(String),
+    /// It can't (a secret is written in it, or its own isn't known).
+    Cannot(String),
+}
+
+/// A tool config file's format.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ConfigFormat {
+    /// JSON (comments and trailing commas allowed, as tools read it).
+    Json,
+    /// TOML.
+    Toml,
 }
 
 /// One thing an account has set up.
@@ -224,6 +276,48 @@ pub enum Undo {
         #[serde(default)]
         unless_changed: Option<JsonEntry>,
     },
+    /// Put back a file that was replaced, from the copy kept before (only
+    /// while the file is still exactly what was written). AJ-E1507.
+    Restore {
+        /// The file that was replaced.
+        file: PathBuf,
+        /// The copy of it from before, in AI Juggler's data folder.
+        backup: PathBuf,
+        /// The hash of what was written.
+        sha256: String,
+    },
+    /// Take settings out of a config file again, each only while it still
+    /// holds the value that was set (AJ-E1508).
+    RemoveSetting {
+        /// The config file.
+        file: PathBuf,
+        /// Its format.
+        format: ConfigFormat,
+        /// Each key and the fingerprint of the value that was set (its
+        /// formatting aside; the value itself is never recorded).
+        entries: Vec<(String, String)>,
+    },
+}
+
+/// Which file `path` is, following links: its device and inode, or its
+/// canonical path (without case) where there are none. `None` when there's
+/// nothing there. Two names of one file (a link, a hard link, a
+/// case-insensitive disk) give the same identity.
+#[must_use]
+pub fn file_identity(path: &std::path::Path) -> Option<String> {
+    let meta = std::fs::metadata(path).ok()?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt as _;
+        Some(format!("{}:{}", meta.dev(), meta.ino()))
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = meta;
+        std::fs::canonicalize(path)
+            .ok()
+            .map(|at| at.to_string_lossy().to_lowercase())
+    }
 }
 
 /// Whether a configuration value looks like a secret, by its key or its
@@ -407,6 +501,165 @@ pub fn carries_secret(text: &str) -> bool {
             let name = name.trim_start_matches('-').to_ascii_lowercase();
             !value.trim().is_empty() && SECRET_NAME_WORDS.iter().any(|word| name.contains(word))
         })
+}
+
+/// Review of AJ-E1508 (H1, and its re-review): whether free text, a status
+/// line's command or a permission rule, holds a secret anywhere in it,
+/// read word by word:
+/// - a word shaped like a token, or like a base64 secret (`/` and `+` in
+///   it), on its own or as the value of `name=value` or `name:value`;
+/// - a URL with a password or a token in its path ([`carries_secret`]);
+/// - `Bearer x` and `Basic x`;
+/// - a header whose name names a secret, and its value (`x-api-key: …`);
+/// - a flag whose name names a secret, and its value (`--api-key abc`,
+///   `--password=abc`), and `-u user:password`.
+///
+/// A `$VARIABLE` is a reference, not a secret. Names match by their parts,
+/// so `--author` isn't `auth`.
+#[must_use]
+pub fn holds_secret(text: &str) -> bool {
+    let words: Vec<&str> = text
+        .split(|c: char| c.is_whitespace() || "'\"`()[]{},;".contains(c))
+        .filter(|word| !word.is_empty())
+        .collect();
+    let value = |word: &str| !word.is_empty() && !word.starts_with('$');
+    let shaped = |word: &str| looks_token(word) || looks_base64_secret(word);
+    for (at, word) in words.iter().enumerate() {
+        let next = words.get(at + 1).copied().filter(|next| value(next));
+        if word.contains("://") && carries_secret(word) {
+            return true;
+        }
+        if word
+            .split(['=', ':'])
+            .any(|part| value(part) && shaped(part))
+        {
+            return true;
+        }
+        if (word.eq_ignore_ascii_case("bearer") || word.eq_ignore_ascii_case("basic"))
+            && next.is_some()
+        {
+            return true;
+        }
+        // A header name ends in `:`; a flag starts with `-`.
+        // Its value, past a scheme (`Authorization: Bearer $TOKEN` holds a
+        // reference, not a secret).
+        if let Some(name) = word.strip_suffix(':')
+            && secret_name(name)
+        {
+            let scheme = next.is_some_and(|next| {
+                next.eq_ignore_ascii_case("bearer") || next.eq_ignore_ascii_case("basic")
+            });
+            let held = if scheme {
+                words.get(at + 2).copied().filter(|after| value(after))
+            } else {
+                next
+            };
+            if held.is_some() {
+                return true;
+            }
+        }
+        if let Some(flag) = word.strip_prefix('-') {
+            let flag = flag.trim_start_matches('-');
+            match flag.split_once('=') {
+                Some((name, rest)) if secret_name(name) && value(rest) => return true,
+                None if secret_name(flag) && next.is_some_and(|next| !next.starts_with('-')) => {
+                    return true;
+                }
+                _ => {}
+            }
+            if matches!(flag, "u" | "user")
+                && next
+                    .and_then(|next| next.split_once(':'))
+                    .is_some_and(|(user, password)| !user.is_empty() && value(password))
+            {
+                return true;
+            }
+        }
+        // `name=value` outside a flag: an environment variable's.
+        if let Some((name, rest)) = word.split_once('=')
+            && !name.starts_with('-')
+            && secret_name(name)
+            && value(rest)
+        {
+            return true;
+        }
+    }
+    false
+}
+
+/// Whether a name (a flag's, a header's, a variable's) names a secret: one
+/// of its parts, split at `-`, `_` and `.`, is a word for one.
+fn secret_name(name: &str) -> bool {
+    const PARTS: [&str; 13] = [
+        "key",
+        "apikey",
+        "token",
+        "secret",
+        "password",
+        "passwd",
+        "pwd",
+        "auth",
+        "authorization",
+        "credential",
+        "credentials",
+        "bearer",
+        "pat",
+    ];
+    name.to_ascii_lowercase()
+        .split(['-', '_', '.'])
+        .any(|part| PARTS.contains(&part))
+}
+
+/// Whether one word reads as a base64 secret (an AWS secret key holds `/`
+/// and `+`, which [`looks_token`] doesn't take): long, of base64's letters
+/// only, mixed case and digits, and not a path.
+fn looks_base64_secret(word: &str) -> bool {
+    word.len() >= 32
+        && !word.starts_with('/')
+        && word
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '+' | '/' | '='))
+        && word.chars().any(|c| c.is_ascii_uppercase())
+        && word.chars().any(|c| c.is_ascii_lowercase())
+        && word.chars().any(|c| c.is_ascii_digit())
+}
+
+#[cfg(test)]
+mod holds_secret_tests {
+    use super::holds_secret;
+
+    #[test]
+    fn secrets_in_commands_and_rules_are_found() {
+        for text in [
+            "GITHUB_TOKEN=ghp_abcdef123456 ~/bin/line",
+            "Bash(curl -H 'Authorization: Bearer abc')",
+            "Bash(curl -H 'Authorization: Basic dXNlcjpwYXNz')",
+            "Bash(curl -H 'x-api-key: 0d5c1a6e-1f7b-4c1e-9a0a-1b2c3d4e5f60')",
+            "mytool --api-key abc123 --fast",
+            "mytool --password=hunter2",
+            "curl -u alice:hunter2 https://example.com",
+            "aws s3 cp --secret wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY x",
+            "export AWS_SECRET=wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY",
+            "psql postgres://me:hunter2@db/app",
+        ] {
+            assert!(holds_secret(text), "{text}");
+        }
+    }
+
+    #[test]
+    fn ordinary_rules_and_references_are_not_secrets() {
+        for text in [
+            "Bash(npm test)",
+            "Bash(git commit --author=me@example.com:*)",
+            "Bash(curl -H \"Authorization: Bearer $TOKEN\" https://api.example.com)",
+            "Read(/Users/you/Dev/project/node_modules/some-package/lib/index.js)",
+            "mytool --api-key $API_KEY",
+            "~/bin/statusline --theme dark",
+            "Bash(git log --oneline -5)",
+        ] {
+            assert!(!holds_secret(text), "{text}");
+        }
+    }
 }
 
 impl McpServer {

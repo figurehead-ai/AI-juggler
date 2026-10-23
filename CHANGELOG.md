@@ -403,6 +403,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A new account starts with your usual settings** (AJ-E1508). Add
+  account's fresh account offers **Start with the same settings as …**
+  an account of the same tool: its MCP servers, its permissions and its
+  status line, each ticked, and its plugins with the command that
+  installs them. Any account can do the same later from its menu
+  (**Copy settings from…**), an account brought in as a copy among them.
+  Its sign-in, history and caches never come with it, a setting with a
+  secret written in it stays behind (a permission rule with one stays
+  behind on its own), AI Juggler's own usage capture is never mistaken
+  for your status line, and each setting can be undone in Settings.
+
+- **Rules and MCP servers the same across tools** (AJ-E1507), in one
+  reviewed click. The project's header says **Rules in sync** or
+  **1 rules file differs** (a missing file counts only for a tool that
+  works there), and opens one sheet, also in every project's menu
+  (**Compare rules and servers…**). Pick the master copy, see the diff
+  applying it would make, and apply it to one file; a tool that can read
+  another file (Claude Code's `@AGENTS.md`) can read the master instead
+  of a copy. A link, or a file that changed since you looked, is never
+  written. Each account's MCP servers are listed too, and one can be
+  copied to another account in that tool's own form; secrets stay
+  behind, named. Every change can be undone there or in Settings.
+
 - **Keep work going** (AJ-E1509). Settings › Sessions has four new
   switches. "Restart sessions that crash" (off by default) starts a
   crashed session again on the same launch settings with its conversation
@@ -414,8 +437,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   still sleeps the Mac. Monitoring isn't throttled by App Nap while
   sessions run. "Reopen AI Juggler if it quits unexpectedly" (on) brings
   it back after a crash, and the sessions it was running show "ended when
-  AI Juggler quit unexpectedly" and resume where restarting is on. This
-  Mac says what's keeping the Mac awake, with the setting a click away.
+  AI Juggler quit unexpectedly" and resume where restarting is on.
+  "Open AI Juggler at login" (off by default, also offered on the
+  welcome) uses macOS's own login items. This Mac says what's keeping the
+  Mac awake, with the setting a click away, and how much AI Juggler itself
+  uses.
 - **A This Mac page** (AJ-E1528). "See what's using it", the This Mac
   panel's "See all", More › This Mac and the rail's "This Mac" line open
   it. It shows the Mac's state in words and meters, then what's using it:

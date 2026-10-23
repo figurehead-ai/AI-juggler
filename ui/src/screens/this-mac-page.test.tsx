@@ -54,6 +54,7 @@ function info(trees: ToolTreeInfo[], extra: Partial<ThisMacInfo> = {}): ThisMacI
     alerts: [],
     recommendations: [],
     awake: { working: 0, kept_awake: false, on_battery: false },
+    own: { rss_bytes: 214_000_000, watchdog: true, opens_at_login: false },
     ...extra,
   };
 }

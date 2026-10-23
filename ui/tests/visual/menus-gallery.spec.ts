@@ -103,7 +103,7 @@ for (const theme of ["dark", "light"] as const) {
     await goTo(page, "Accounts");
     await page.getByRole("button", { name: "Account actions for personal-max", exact: true }).click();
     const items = await labels(page);
-    expect(items.slice(-3)).toEqual(["Rename…", "Make the default", "Remove…"]);
+    expect(items.slice(-4)).toEqual(["Rename…", "Copy settings from…", "Make the default", "Remove…"]);
     await shoot(page, "account-menu", theme);
   });
 

@@ -192,6 +192,14 @@ const PROJECT: ActionSpec<"project">[] = [
     run: (p, h) => h.pinProject!(p),
   },
   {
+    id: "sync",
+    label: "Compare rules and servers…",
+    group: "main",
+    applies: (_, h) => has(h.syncProject),
+    blocked: (p) => (p.missing ? "Its folder isn't there any more" : null),
+    run: (p, h) => h.syncProject!(p),
+  },
+  {
     id: "default-account",
     label: "Set its account…",
     group: "main",
@@ -227,6 +235,13 @@ const ACCOUNT: ActionSpec<"account">[] = [
     run: (a, h) => h.editLaunchSettings!(a),
   },
   { id: "rename", label: "Rename…", group: "main", applies: (_, h) => has(h.renameAccount), run: (a, h) => h.renameAccount!(a) },
+  {
+    id: "copy-settings",
+    label: "Copy settings from…",
+    group: "main",
+    applies: (_, h) => has(h.copyAccountSettings),
+    run: (a, h) => h.copyAccountSettings!(a),
+  },
   {
     id: "default",
     label: (a) => (a.is_default ? "Stop being the default" : "Make the default"),

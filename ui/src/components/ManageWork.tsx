@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "./primitives";
 import { Field, Input, Modal } from "./form";
+import { ProjectSyncSheet } from "./ProjectSyncSheet";
 import { MarkSheet } from "./MarkSheet";
 import type { ActionHost } from "../lib/actions";
 import {
@@ -142,7 +143,7 @@ function ProblemSheet({ title, message, onClose }: { title: string; message: str
  * relocate, forget. `host` gives them to the action registry. */
 export function useProjectManage(onChanged: () => void) {
   const editor = useEditorName();
-  const [sheet, setSheet] = useState<{ kind: "rename" | "mark" | "forget"; project: ProjectInfo } | null>(null);
+  const [sheet, setSheet] = useState<{ kind: "rename" | "mark" | "forget" | "sync"; project: ProjectInfo } | null>(null);
   const [problem, setProblem] = useState<{ title: string; message: string } | null>(null);
   const run = async (title: string, action: () => Promise<boolean | void>) => {
     try {
@@ -160,6 +161,7 @@ export function useProjectManage(onChanged: () => void) {
     relocate: (project: ProjectInfo) =>
       run(`Couldn't relocate ${project.name}`, () => projectRelocate(project.id)),
     forget: (project: ProjectInfo) => setSheet({ kind: "forget", project }),
+    sync: (project: ProjectInfo) => setSheet({ kind: "sync", project }),
     copyPath: (project: ProjectInfo) => run(`Couldn't copy the path`, () => navigator.clipboard.writeText(project.root)),
   };
   const host: ActionHost = {
@@ -171,6 +173,7 @@ export function useProjectManage(onChanged: () => void) {
     copyProjectPath: actions.copyPath,
     relocateProject: actions.relocate,
     forgetProject: actions.forget,
+    syncProject: actions.sync,
   };
   // Sheets go on the page itself (a blurred rail would clip them).
   const element: ReactNode = createPortal(
@@ -205,6 +208,15 @@ export function useProjectManage(onChanged: () => void) {
           project={sheet.project}
           onClose={() => setSheet(null)}
           onDone={() => {
+            setSheet(null);
+            onChanged();
+          }}
+        />
+      )}
+      {sheet?.kind === "sync" && (
+        <ProjectSyncSheet
+          project={sheet.project}
+          onClose={() => {
             setSheet(null);
             onChanged();
           }}
