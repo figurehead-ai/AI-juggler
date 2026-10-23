@@ -217,18 +217,24 @@ pub fn validation_matrix() -> Vec<PairCell> {
         dogfood: None, // live cells are RECORDED, never asserted here
         notes,
     };
+    // A same-tool transplant resumes the same conversation on the new
+    // account (AJ-E1540): F3, "Same conversation, new account", as the
+    // switch screen says (F2 there when the session was compacted). The
+    // beta words carry how sure that is (AJ-E1543).
     rows.push(same(
         "claude-code",
         "claude-code",
-        FidelityLabel::F1,
+        FidelityLabel::F3,
         vec![],
     ));
     rows.push(same(
         "codex",
         "codex",
-        FidelityLabel::F1,
+        FidelityLabel::F3,
         vec!["Tested on sample Codex 0.163.0 sessions only; resuming a copied long session is unproven until it's tried by hand".to_owned()],
     ));
+    // Z Code's transplant is off (below): the row never promises a move
+    // that can't run, so it stays at the replay's F1.
     rows.push(same(
         "zcode",
         "zcode",
@@ -430,7 +436,7 @@ mod tests {
         // AJ-E808: a passing live cell alone no longer promotes — every
         // area must PASS in the register, and today none is validated.
         assert!(!claude.validated());
-        assert_eq!(claude.badge(), "Full story, fresh start · Beta");
+        assert_eq!(claude.badge(), "Same conversation, new account · Beta");
         assert!(
             claude
                 .status_words()
@@ -474,7 +480,7 @@ mod tests {
             !codex.validated(),
             "no pair validates while its register cells are unvalidated"
         );
-        assert_eq!(codex.badge(), "Full story, fresh start · Beta");
+        assert_eq!(codex.badge(), "Same conversation, new account · Beta");
         assert!(
             codex.status_words().contains("stays in beta"),
             "{}",
@@ -489,9 +495,12 @@ mod tests {
             reason: "S-F4: rules ring lost in translation".to_owned(),
         };
         let row = with_dogfood(pair_cell("claude-code", "claude-code").unwrap(), failed);
-        assert_eq!(row.advertised_ceiling(), L::F0, "F1 lowered one level");
+        assert_eq!(row.advertised_ceiling(), L::F2, "F3 lowered one level");
         assert!(!row.validated());
-        assert_eq!(row.badge(), "Briefing pack · Beta");
+        assert_eq!(
+            row.badge(),
+            "Same conversation, new account (compacted) · Beta"
+        );
         assert!(row.status_words().contains("promises one level less"));
     }
 
@@ -521,22 +530,22 @@ mod tests {
         );
         assert_eq!(
             researched_badge("claude-code", "claude-code"),
-            "Full story, fresh start · Beta"
+            "Same conversation, new account · Beta"
         );
     }
 
     #[test]
     fn advertised_ceiling_number_never_exceeds_the_researched_score() {
-        // claude→claude researches F1 (0.25); the number matches and
-        // a failed cell drops it a level.
+        // claude→claude researches F3 (0.75, AJ-E1543); the number
+        // matches and a failed cell drops it a level.
         let n = advertised_ceiling_number("claude-code", "claude-code", None);
-        assert!((n - 0.25).abs() < 1e-9);
+        assert!((n - 0.75).abs() < 1e-9);
         let mut failed = passing_cell();
         failed.verdict = DogfoodVerdict::Fail {
             reason: "S-F6".to_owned(),
         };
         let lowered = advertised_ceiling_number("claude-code", "claude-code", Some(&failed));
-        assert!((lowered - 0.0).abs() < 1e-9, "F1 → F0 floor");
+        assert!((lowered - 0.5).abs() < 1e-9, "F3 → F2");
         assert_eq!(
             advertised_ceiling_number("claude-code", "unknown-cli", None),
             0.0

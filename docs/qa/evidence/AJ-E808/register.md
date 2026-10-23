@@ -13,8 +13,8 @@ app compares each cell's recorded versions with the installed ones. A pair shows
 
 | Pair | Switch rows show | Settings › Beta shows | transcript-resume | rules-carry | todos | subagents | file-history | mcp-references | cwd-worktree-edges | switch-back |
 |---|---|---|---|---|---|---|---|---|---|---|
-| claude-code→claude-code | Full story, fresh start · Beta · Not proven yet | Beta — not proven yet | PASS | UNVALIDATED | PASS | UNVALIDATED | UNVALIDATED | PASS | UNVALIDATED | UNVALIDATED |
-| codex→codex | Full story, fresh start · Beta · Not proven yet | Beta — not proven yet | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED |
+| claude-code→claude-code | Same conversation, new account · Beta · Not proven yet | Beta — not proven yet | PASS | UNVALIDATED | PASS | UNVALIDATED | UNVALIDATED | PASS | UNVALIDATED | UNVALIDATED |
+| codex→codex | Same conversation, new account · Beta · Not proven yet | Beta — not proven yet | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED |
 | zcode→zcode | Full story, fresh start · Beta · Not proven yet | Beta — not proven yet | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED |
 | claude-code→codex | Full story, fresh start · Beta · Not proven yet | Beta — not proven yet | PASS | UNVALIDATED | PASS | UNVALIDATED | UNVALIDATED | PASS | UNVALIDATED | PASS |
 | codex→claude-code | Full story, fresh start · Beta · Not proven yet | Beta — not proven yet | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED |

@@ -2224,8 +2224,8 @@ export interface SwitchExecutedData {
  * AJ-E206 door facts + AJ-E208 redaction policy). */
 const DEFAULT_PREFLIGHT: PreflightInfoData = {
   mechanism: "transplant",
-  fidelity: "F1",
-  fidelity_words: "Full story, fresh start",
+  fidelity: "F3",
+  fidelity_words: "Same conversation, new account",
   score: 0.85,
   warnings: [],
   zombies: [],
@@ -2693,8 +2693,8 @@ export interface ValidationCellData {
 /** The no-backend matrix default (mirrors the researched table:
  * one pair with real-tool tests, every pair honestly in beta). */
 const DEFAULT_VALIDATION_MATRIX: ValidationCellData[] = [
-  ["claude-code", "claude-code", "transplant", "F1", true],
-  ["codex", "codex", "transplant", "F1", false],
+  ["claude-code", "claude-code", "transplant", "F3", true],
+  ["codex", "codex", "transplant", "F3", false],
   ["zcode", "zcode", "transplant", "F1", false],
   ["claude-code", "codex", "replay", "F1", false],
   ["codex", "claude-code", "replay", "F1", false],
@@ -2710,7 +2710,7 @@ const DEFAULT_VALIDATION_MATRIX: ValidationCellData[] = [
   mechanism: mechanism as string,
   researched_ceiling: ceiling as string,
   advertised: ceiling as string,
-  badge: `${ceiling === "F1" ? "Full story, fresh start" : "Briefing pack"} · Beta`,
+  badge: `${ceiling === "F3" ? "Same conversation, new account" : ceiling === "F1" ? "Full story, fresh start" : "Briefing pack"} · Beta`,
   validated: false,
   mechanism_green: true,
   ci_green: ciGreen as boolean,

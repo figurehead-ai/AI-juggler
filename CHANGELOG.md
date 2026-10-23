@@ -194,6 +194,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A switch to another account of the same tool says the same thing in the
+  list and on the switch screen: "Same conversation, new account" (the
+  list said "Full story, fresh start", though the switch resumes the same
+  conversation).
 - The whole window no longer slides up when a button low on Home takes
   focus: screen-reader words hung below the window, so the app itself
   could scroll.
