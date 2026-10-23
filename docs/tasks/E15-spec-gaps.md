@@ -463,7 +463,7 @@ What the code does today (mapped 2026-10-22 on release/0.1): a same-tool switch 
 **Quality gates**: the harness fails a step it can't verify (never "pass by default"); the snapshot diff is part of the evidence.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1539/manifest.md`, plus the cells in `docs/qa/evidence/AJ-E808/cells/`.
 
-### AJ-E1540 Same-tool switches done right | Status: IN-PROGRESS (claude-opus, 2026-10-22) | Priority P0 | Effort M | Depends: AJ-E1539
+### AJ-E1540 Same-tool switches done right | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E1539
 **Goal**: Claude→Claude and Codex→Codex continue exactly where the conversation was, and the source stops cleanly.
 **Requirements**:
 1. Freeze is real on a local switch: "Finish this turn" waits for the source to go idle, then stops it; "Stop now" stops it at once. Only then is the transcript copied. A source started outside AI Juggler is never stopped; the switch says the original keeps running and the copy is a separate continuation.
