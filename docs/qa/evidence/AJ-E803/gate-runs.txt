@@ -70,3 +70,9 @@
 ## gallery self-test on all 91
   85 failed
   6 passed (6.8m)   # the same six dialog states
+## CI on #169: 12 Settings/Privacy states differed. CI compares the PR merged with
+## release/0.1, which had gained a Privacy option (Search the words of every session).
+## Merged release/0.1, --update-snapshots=changed: 18 baselines re-rendered
+  91 passed (3.7m)
+## both projects, compare only
+  300 passed (9.1m emulated; CI ran both in 3.0m)
