@@ -728,3 +728,11 @@
     `settings-screen`.
   - The Playwright load gate (`load.spec.ts`), which has its own
     baseline rule.
+- **Flake record, 2026-10-23 (open).** In #145's gates after merging
+  main (129ec800), at a 1-minute load of about 20 on 30 cores,
+  `reconciler :: fifty_instance_soak_and_construction_regression`
+  failed its tick budget: p95 1,621 ms against 100 ms. Its quarantine
+  only applies above one load per core, so the wall-time gate was on.
+  Alone it passed 3 of 3, with p95 36, 61 and 37 ms (the third run was
+  quarantined at load 69). This PR doesn't touch the supervisor; the
+  budget is the next one to move off wall time.
