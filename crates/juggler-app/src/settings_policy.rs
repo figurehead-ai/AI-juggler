@@ -54,7 +54,9 @@ pub fn quiet_hours(storage: &Storage) -> QuietHours {
         .unwrap_or_default()
 }
 
-fn muted_accounts(storage: &Storage) -> Vec<String> {
+/// Accounts left out of the digest (and of system notifications).
+#[must_use]
+pub fn muted_accounts(storage: &Storage) -> Vec<String> {
     storage
         .app_settings()
         .get(crate::commands::ALERT_MUTES_KEY)

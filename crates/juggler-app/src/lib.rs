@@ -410,6 +410,8 @@ macro_rules! app_commands {
             Write features::sessions::commands::sessions_restart_choice_set,
             Read  features::app::login_item::app_login_item_get,
             Write features::app::login_item::app_login_item_set,
+            Read  features::notifications::prefs::notifications_get,
+            Write features::notifications::prefs::notifications_set,
             // Reads `git status` (the 2 s cache, like a session's).
             Read  features::projects::git::projects_git_status,
             Read  features::projects::icon::projects_icon_read,
@@ -554,6 +556,9 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        // AJ-E1510: system notifications; the webview gets no permission
+        // for them (the backend shows them, and only when asked).
+        .plugin(tauri_plugin_notification::init())
         // AJ-E1010: registering the updater makes no request. The feed is
         // only built in release builds that carry the signing key, and
         // the webview gets no updater permission.
@@ -587,6 +592,15 @@ pub fn run() {
             {
                 api.prevent_close();
             }
+            // AJ-E1510: no system notification while AI Juggler is in front.
+            if let tauri::WindowEvent::Focused(focused) = event
+                && window.label() == "main"
+            {
+                window
+                    .state::<Arc<state::AppState>>()
+                    .notifier
+                    .set_in_front(*focused);
+            }
         })
         .invoke_handler(app_commands!(tauri_handler))
         .setup(move |app| {
@@ -616,6 +630,10 @@ pub fn run() {
                 eprintln!("ai-juggler: no hand-over socket: {error}");
             }
             register_go_to_hotkey(app.handle());
+            features::notifications::connect(
+                app.handle(),
+                &tauri::Manager::state::<Arc<state::AppState>>(app),
+            );
             spawn_read_model_ticks(
                 app.handle().clone(),
                 resource_tick_state,
@@ -1044,17 +1062,27 @@ fn spawn_lifecycle_forwarder(state: Arc<state::AppState>) {
                 }
                 _ => None,
             };
+            let mut now = None;
             if let Ok(storage) = state.storage.lock() {
-                drop(commands::apply_lifecycle_event(
+                now = commands::apply_lifecycle_event(
                     &storage,
                     event,
                     stopped_by_user,
                     quota_blocked.as_ref().map(|transition| &transition.reason),
-                ));
+                );
                 // A quota exit ends the process — forget debounce.
                 if quota_blocked.is_some() {
                     state.heuristics.forget(&quota_session);
                 }
+            }
+            // AJ-E1510: finished or at its limit, as a notification when
+            // asked for.
+            if let Some(record) = now {
+                features::notifications::session_status(
+                    &state,
+                    record.id.as_str(),
+                    record.status.as_str(),
+                );
             }
             if let Some(ending) = ending {
                 features::sessions::restart::after_exit(&state, &quota_session, ending);

@@ -9,9 +9,9 @@ import { PackSecretsCard } from "../components/PackSecretsCard";
 import {
   CleanupSettingsCard,
   FleetPermissionsCard,
-  NotificationSettingsCard,
   RenewalSettingsCard,
 } from "../components/SettingsSections";
+import { NotificationSettingsCard } from "../components/NotificationSettings";
 import { SessionsSettingsCard } from "../components/SessionsSettings";
 import { Button, Card, Chip } from "../components/primitives";
 import {

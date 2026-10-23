@@ -115,6 +115,8 @@ pub struct AppState {
     pub ended_by_crash: std::sync::Mutex<Vec<SessionId>>,
     /// AJ-E1509: the watchdog that reopens AI Juggler after a crash.
     pub watchdog: std::sync::Mutex<Option<std::process::Child>>,
+    /// AJ-E1510: system notifications — what is due, and where a click goes.
+    pub notifier: crate::features::notifications::Notifier,
 }
 
 impl Drop for AppState {
@@ -303,6 +305,7 @@ impl AppState {
             awake: std::sync::Mutex::default(),
             ended_by_crash: std::sync::Mutex::new(ended_by_crash),
             watchdog: std::sync::Mutex::default(),
+            notifier: crate::features::notifications::Notifier::default(),
             preview: Mutex::new(None),
             launch_facts,
             data_dir,

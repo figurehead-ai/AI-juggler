@@ -17,8 +17,7 @@ import { RecoverySummaryDialog } from "./components/RecoverySummaryDialog";
 import { UsageStatsReconsent } from "./components/UsageStatsReconsent";
 import { CrashReportPrompt } from "./components/CrashReports";
 import { CleanupCentre, focusCleanupFilter } from "./screens/CleanupCentre";
-import { toolFound } from "./lib/providers";
-import { launchPortWarning, type PortWarningInfo,} from "./lib/bridge";
+import { useOutsideRequests } from "./lib/outside";
 import { GLOBAL_NAV, MORE_NAV, PRIMARY_NAV, globalId, type GlobalId } from "./lib/nav";
 import { ThisMacScreen } from "./screens/ThisMacScreen";
 import { PrivacyScreen } from "./screens/PrivacyScreen";
@@ -38,7 +37,7 @@ import {
   type RemoteCommandOutcomeInfo,
   type RemoteMachineInfo,
 } from "./lib/bridge";
-import { providerDisplayName } from "./lib/providers";
+import { providerDisplayName, toolFound } from "./lib/providers";
 import { primaryToolId } from "./lib/tools";
 import { NARROW_RAIL_PX, useNarrowWindow } from "./lib/window";
 import { readInspectorFolded, storeInspectorFolded } from "./lib/shortcuts";
@@ -46,7 +45,7 @@ import { ShortcutSheet } from "./components/ShortcutSheet";
 import { holdStop, sessionLabel } from "./lib/stop";
 import { ToastHost } from "./components/Toast";
 import { QuitSheet } from "./components/QuitSheet";
-import { cleanupAlerts, fleetPeers, statsEvent, statsGauge } from "./lib/bridge";
+import { cleanupAlerts, fleetPeers, launchPortWarning, statsEvent, statsGauge, type PortWarningInfo } from "./lib/bridge";
 
 /** AJ-E1103: the schema's screen names (History isn't counted; Home and
  * the retired Overview aren't either — the schema keeps the name). */
@@ -57,7 +56,6 @@ const STAT_SCREENS: Partial<Record<string, string>> = {
   cleanup: "cleanup",
   settings: "settings",
 };
-
 
 /** AJ-E1103: the board became interactive once, after launch. */
 let boardInteractiveCounted = false;
@@ -98,10 +96,8 @@ import {
   switchBackSuggestions,
   onFolderDropped,
   launchSession,
-  appSettingGet,
   desktopFocus,
   goToHotkeySet,
-  onGoToHotkey,
   type LaunchRecipeInfo,
   fetchAppInfo,
   onAppReady,
@@ -573,12 +569,8 @@ export default function App() {
     stopSelected: () => stopSelectedRef.current(),
   });
 
-  useEffect(() => {
-    void appSettingGet("go_to_hotkey").then((stored) => {
-      if (stored !== null) setGoToHotkey(stored);
-    });
-    return onGoToHotkey(() => setGoToOpen(true));
-  }, []);
+  // AJ-E414, AJ-E1510: the go-to hotkey, and a clicked notification.
+  useOutsideRequests({ hotkey: setGoToHotkey, goTo: () => setGoToOpen(true), open: (open) => (open.session_id ? selectSession(open.session_id) : setGlobal("thismac")) });
 
   // The Provider of what's selected — never a fixed label.
   const remoteInstanceProvider =

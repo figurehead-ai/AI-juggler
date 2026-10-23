@@ -1331,6 +1331,8 @@ pub fn should_emit(last: &mut Option<(String, u32)>, level: &str, tools: u32) ->
 pub fn emit_this_mac(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResult<()> {
     use tauri::Emitter;
     let payload = this_mac_impl(state, crate::commands::now_millis())?;
+    // AJ-E1510: This Mac getting tight, as a notification when asked for.
+    crate::features::notifications::this_mac_room(state, &payload.machine.summary);
     let emit = LAST_EMITTED.lock().map_or(true, |mut last| {
         should_emit(
             &mut last,
