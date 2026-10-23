@@ -86,7 +86,7 @@ impl SubtaskLog {
             let format = *self.format.get_or_insert_with(|| line_format(&value));
             match format {
                 TranscriptFormat::ClaudeCode => {
-                    crate::claude_transcript::subtask_line(self, &value)
+                    crate::claude_transcript::subtask_line(self, &value);
                 }
                 TranscriptFormat::CodexRollout => {
                     crate::codex_transcript::subtask_line(self, &value);
@@ -223,7 +223,7 @@ impl SubtaskTail {
     pub fn read(&mut self, path: &Path) -> std::io::Result<bool> {
         let mut file = std::fs::File::open(path)?;
         let metadata = file.metadata()?;
-        let identity = file_identity(&metadata);
+        let identity = Some(file_identity(&metadata));
         if metadata.len() < self.offset || (self.file.is_some() && self.file != identity) {
             *self = Self::default();
         }
@@ -265,16 +265,17 @@ impl SubtaskTail {
     }
 }
 
-/// A file's identity, to tell it from another at the same path.
+/// A file's identity (its inode), to tell it from another at the same
+/// path. Elsewhere 0: only a shorter file is told apart there.
 #[cfg(unix)]
-fn file_identity(metadata: &std::fs::Metadata) -> Option<u64> {
+fn file_identity(metadata: &std::fs::Metadata) -> u64 {
     use std::os::unix::fs::MetadataExt as _;
-    Some(metadata.ino())
+    metadata.ino()
 }
 
 #[cfg(not(unix))]
-fn file_identity(_metadata: &std::fs::Metadata) -> Option<u64> {
-    None
+fn file_identity(_metadata: &std::fs::Metadata) -> u64 {
+    0
 }
 
 /// The first line of a task, cut to [`LABEL_CHARS`].

@@ -117,8 +117,7 @@ impl Subtasks {
     fn published(&self, session: &SessionId) -> bool {
         self.view
             .lock()
-            .map(|view| view.contains_key(session))
-            .unwrap_or(false)
+            .is_ok_and(|view| view.contains_key(session))
     }
 }
 
