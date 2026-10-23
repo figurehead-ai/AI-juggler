@@ -73,6 +73,9 @@ pub trait PeerDirectory: Send + Sync + 'static {
     fn bind_account_peer(&self, _key: &[u8; 32], _machine_id: &str) -> Option<PeerAccess> {
         None
     }
+    /// A pinned peer's Hello was accepted: it is paired on its side too
+    /// (it only connects to machines it pinned). The default notes nothing.
+    fn hello_accepted(&self, _key: &[u8; 32], _machine_id: &str) {}
 }
 
 /// Why the node's handler refused a command.
@@ -257,8 +260,10 @@ pub trait PairingHost: Send + Sync + 'static {
         &self,
         candidate: PairCandidate,
     ) -> tokio::sync::oneshot::Receiver<Option<Permission>>;
-    /// Both users confirmed: pin `candidate` with `permission`.
-    fn succeeded(&self, candidate: &PairCandidate, permission: Permission);
+    /// Both users confirmed: pin `candidate` with `permission`. `false`
+    /// when it wasn't pinned (Link went off): the joiner is told, and
+    /// pins nothing either.
+    fn succeeded(&self, candidate: &PairCandidate, permission: Permission) -> bool;
 }
 
 /// The server-side TLS stream, carrying its connection info.
@@ -384,6 +389,19 @@ struct LinkService<H, D, R, P> {
     nonces: Arc<Mutex<NonceCache>>,
     /// Consoles with a Handover in flight (one at a time each).
     handovers: Arc<Mutex<std::collections::HashSet<String>>>,
+    /// The tasks serving peers' calls, which [`LinkNode::stop`] ends.
+    tasks: Tasks,
+}
+
+/// Tasks a node started for its peers' calls.
+type Tasks = Arc<Mutex<Vec<tokio::task::JoinHandle<()>>>>;
+
+/// Keeps `task` with the node's others (the finished ones go).
+fn track(tasks: &Tasks, task: tokio::task::JoinHandle<()>) {
+    if let Ok(mut tasks) = tasks.lock() {
+        tasks.retain(|task| !task.is_finished());
+        tasks.push(task);
+    }
 }
 
 impl<H, D, R, P> Clone for LinkService<H, D, R, P> {
@@ -397,6 +415,7 @@ impl<H, D, R, P> Clone for LinkService<H, D, R, P> {
             buckets: self.buckets.clone(),
             nonces: self.nonces.clone(),
             handovers: self.handovers.clone(),
+            tasks: self.tasks.clone(),
         }
     }
 }
@@ -958,6 +977,8 @@ impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore, P: PairingHost> proto::li
                 },
             );
         }
+        self.directory
+            .hello_accepted(&conn.peer_key, &access.machine_id);
         Ok(Response::new(proto::HelloResponse {
             version: Some(proto::ProtocolVersion {
                 major: PROTOCOL_MAJOR,
@@ -1062,7 +1083,7 @@ impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore, P: PairingHost> proto::li
         let mut inbound = request.into_inner();
         let (sender, receiver) = tokio::sync::mpsc::channel(16);
         let service = self.clone();
-        tokio::spawn(async move {
+        let task = tokio::spawn(async move {
             while let Some(next) = inbound.next().await {
                 let command = match next {
                     Ok(command) => command,
@@ -1080,6 +1101,7 @@ impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore, P: PairingHost> proto::li
                 }
             }
         });
+        track(&self.tasks, task);
         Ok(Response::new(Box::pin(
             tokio_stream::wrappers::ReceiverStream::new(receiver),
         )))
@@ -1096,9 +1118,10 @@ impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore, P: PairingHost> proto::li
         let inbound = request.into_inner();
         let (sender, receiver) = tokio::sync::mpsc::channel(16);
         let service = self.clone();
-        tokio::spawn(async move {
+        let task = tokio::spawn(async move {
             service.serve_handover(conn, inbound, sender).await;
         });
+        track(&self.tasks, task);
         Ok(Response::new(Box::pin(
             tokio_stream::wrappers::ReceiverStream::new(receiver),
         )))
@@ -1113,12 +1136,13 @@ impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore, P: PairingHost> proto::li
         // The one call an unpinned key may make: it grants nothing until
         // both codes match AND both users confirm.
         let conn = Self::conn(&request)?;
-        let receiver = crate::pairing_rpc::serve(
+        let (receiver, task) = crate::pairing_rpc::serve(
             conn,
             request.into_inner(),
             self.pairing.clone(),
             self.handler.clone(),
         );
+        track(&self.tasks, task);
         Ok(Response::new(Box::pin(
             tokio_stream::wrappers::ReceiverStream::new(receiver),
         )))
@@ -1131,6 +1155,10 @@ pub struct LinkNode {
     shutdown: Option<tokio::sync::oneshot::Sender<()>>,
     closing: tokio::sync::watch::Sender<bool>,
     task: tokio::task::JoinHandle<()>,
+    /// Holds the listener: ended by `stop` whatever the server did, so
+    /// the port is free once it returns.
+    accept_loop: tokio::task::JoinHandle<()>,
+    tasks: Tasks,
 }
 
 impl LinkNode {
@@ -1156,6 +1184,20 @@ impl LinkNode {
         {
             self.task.abort();
             let _ = (&mut self.task).await;
+        }
+        self.accept_loop.abort();
+        let _ = (&mut self.accept_loop).await;
+        // Every peer call it was still serving ends too.
+        let tasks: Vec<_> = self
+            .tasks
+            .lock()
+            .map(|mut tasks| tasks.drain(..).collect())
+            .unwrap_or_default();
+        for task in &tasks {
+            task.abort();
+        }
+        for task in tasks {
+            let _ = task.await;
         }
     }
 
@@ -1197,7 +1239,9 @@ impl LinkNode {
             buckets: Arc::default(),
             nonces: Arc::default(),
             handovers: Arc::default(),
+            tasks: Tasks::default(),
         };
+        let tasks = service.tasks.clone();
         let (shutdown, on_shutdown) = tokio::sync::oneshot::channel::<()>();
         let (incoming_tx, incoming_rx) =
             tokio::sync::mpsc::channel::<Result<LinkStream, std::io::Error>>(8);
@@ -1224,15 +1268,18 @@ impl LinkNode {
                     let _ = on_shutdown.await;
                 },
             );
+        let ends_accepting = accept_loop.abort_handle();
         let task = tokio::spawn(async move {
             let _ = server.await;
-            accept_loop.abort();
+            ends_accepting.abort();
         });
         Ok(Self {
             addr,
             shutdown: Some(shutdown),
             closing,
             task,
+            accept_loop,
+            tasks,
         })
     }
 }

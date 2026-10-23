@@ -58,4 +58,9 @@ connection_detail: string | null,
  * Durable changes on THIS Mac waiting for that machine (AJ-E708) —
  * what it receives when it reconnects.
  */
-queued_changes: number | null, };
+queued_changes: number | null, 
+/**
+ * This Mac finished pairing with it, but it may not have (it never
+ * said Hello here since): "Pair again to be sure."
+ */
+pairing_unfinished: boolean, };

@@ -4041,6 +4041,18 @@ for (const theme of THEMES) {
       await page.screenshot({ path: resolve(GALLERY, `42-fleet/paired-${vp.name}-${theme}.png`), fullPage: true });
     });
 
+    test(`42 fleet — pairing may not have finished — ${vp.name} — ${theme}`, async ({ page }) => {
+      await openFleet(page, theme, vp, {
+        __AIJ_LINK__: { enabled: true, port: 47821, error: null },
+        __AIJ_FLEET_PEERS__: [FLEET_PEER, { ...FLEET_PEER, machine_id: "m2", label: "Office iMac", connection: "offline", protocol: null, pairing_unfinished: true }],
+      });
+      await expect(page.getByTestId("fleet-pairing-unfinished")).toHaveText("Pairing may not have finished on Office iMac. Pair again to be sure.");
+      await expect(page.getByTestId("fleet-pair-again")).toBeEnabled();
+      // The list sits below the identity card: the row, in view.
+      await page.getByTestId("fleet-pair-again").scrollIntoViewIfNeeded();
+      await page.screenshot({ path: resolve(GALLERY, `42-fleet/unfinished-${vp.name}-${theme}.png`), fullPage: true });
+    });
+
     test(`42 fleet — unpair confirmation — ${vp.name} — ${theme}`, async ({ page }) => {
       await openFleet(page, theme, vp, { __AIJ_FLEET_PEERS__: [FLEET_PEER] });
       await page.getByTestId("fleet-unpair").click();

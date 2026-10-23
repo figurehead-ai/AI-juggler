@@ -160,7 +160,9 @@ impl PairingHost for NoPairing {
     ) -> tokio::sync::oneshot::Receiver<Option<Permission>> {
         tokio::sync::oneshot::channel().1
     }
-    fn succeeded(&self, _candidate: &PairCandidate, _permission: Permission) {}
+    fn succeeded(&self, _candidate: &PairCandidate, _permission: Permission) -> bool {
+        true
+    }
 }
 
 struct Fixture {
@@ -671,6 +673,27 @@ async fn stopping_a_node_never_waits_on_an_open_telemetry_stream() {
     })
     .await;
     assert!(ended.is_ok(), "the stream ends when the node stops");
+}
+
+/// Once `stop` returns, the node's port is free: the next start can bind
+/// it at once (a peer paired by address finds it there), whatever the
+/// server was still doing.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_stopped_nodes_port_is_free_at_once() {
+    let f = fixture(Permission::View).await;
+    let addr = f.node.addr();
+    let peer = f.connect().await;
+    let mut client = peer.client.clone();
+    let _stream = client
+        .telemetry(proto::TelemetryRequest { since_sequence: 0 })
+        .await
+        .unwrap()
+        .into_inner();
+    f.node.stop().await;
+    assert!(
+        std::net::TcpListener::bind(addr).is_ok(),
+        "{addr} is still held after stop"
+    );
 }
 
 // ---------------------------------------------------------------- AJ-E706

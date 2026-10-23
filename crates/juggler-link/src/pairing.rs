@@ -57,6 +57,9 @@ pub enum PairingError {
     /// The random source failed.
     #[error("Couldn't generate a pairing code.")]
     Random,
+    /// Link went off on the host before it pinned this Mac.
+    #[error("Link went off on that Mac before the pairing finished — nothing was paired.")]
+    LinkOff,
 }
 
 impl PairingError {
@@ -72,6 +75,7 @@ impl PairingError {
             Self::Mismatch => "mismatch",
             Self::Malformed => "malformed",
             Self::Random => "internal",
+            Self::LinkOff => "link_off",
         }
     }
 }
