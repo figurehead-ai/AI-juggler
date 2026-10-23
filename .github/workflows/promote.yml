@@ -72,6 +72,12 @@ jobs:
           [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::$VERSION is not X.Y.Z"; exit 1; }
           ref="$(gh release view "v$VERSION" --repo "$REPO" --json targetCommitish --jq .targetCommitish)" \
             || { echo "::error::no build v$VERSION — nightly.yml makes builds"; exit 1; }
+          # Only a commit on main is promoted: the jobs below run its scripts.
+          sha="$(git rev-parse --verify "$ref^{commit}")" \
+            || { echo "::error::v$VERSION's commit $ref isn't in this repository"; exit 1; }
+          git merge-base --is-ancestor "$sha" origin/main \
+            || { echo "::error::v$VERSION's commit $sha isn't on main"; exit 1; }
+          ref="$sha"
           # Users on the channel come from the version it serves now: a
           # database change since then needs a downgrade note.
           serving="$(git tag -l "$CHANNEL/v*" | sed "s|^$CHANNEL/||" | sort -V | tail -1)"

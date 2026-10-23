@@ -13,6 +13,13 @@ env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: short
 
+
+# The token reads only (CodeQL actions/missing-workflow-permissions): the
+# visual job reads the PR's body; a job needing more says so itself.
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
   # The full quality gate (docs/plan/QUALITY.md). Mirrors `just verify` plus
   # cargo-deny and coverage; its name is a required status check on main.
