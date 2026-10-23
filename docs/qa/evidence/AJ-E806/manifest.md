@@ -736,3 +736,13 @@
   Alone it passed 3 of 3, with p95 36, 61 and 37 ms (the third run was
   quarantined at load 69). This PR doesn't touch the supervisor; the
   budget is the next one to move off wall time.
+- **Fixed, 2026-10-23 (fix/soak-tick-cpu).** The reconciler soak flake
+  above. The tick runs on the test thread: `sysinfo` without its thread
+  pool (rayon isn't in the build), `netstat2` and SQLite in-process. Its
+  100 ms p95 budget is now this thread's CPU time (user plus system), with
+  wall time printed beside it. The load quarantine is gone, so the gate
+  holds on a busy machine too.
+  - Alone: CPU p95 32–40 ms, wall p95 36–54 ms.
+  - Beside 45 `yes` on 30 cores (load 30–44): CPU p95 48–54 ms, while
+    wall p95 read 297, 132 and 100 ms, which would have failed the
+    old gate.
