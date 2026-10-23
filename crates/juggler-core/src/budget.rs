@@ -182,10 +182,11 @@ mod tests {
     #[test]
     fn a_cap_only_warns() {
         let source = include_str!("budget.rs");
-        let code: String = source
+        // The code above this test module: this list isn't the code.
+        let before_tests = source.split("#[cfg(test)]").next().unwrap_or_default();
+        let code: String = before_tests
             .lines()
             .filter(|line| !line.trim_start().starts_with("//"))
-            .filter(|line| !line.contains("\"stop") && !line.contains("forbidden"))
             .collect::<Vec<_>>()
             .join("\n");
         let forbidden = [

@@ -180,24 +180,21 @@ pub fn list_impl(state: &Arc<AppState>, month_start_ms: i64) -> AppResult<Vec<Bu
 /// for a cap, account or project that isn't there; storage errors.
 pub fn save_impl(state: &Arc<AppState>, input: BudgetInput) -> AppResult<String> {
     let storage = lock_storage_arc(state)?;
-    let scope = match input.account_id.filter(|id| !id.is_empty()) {
-        Some(account_id) => {
+    let scope = if let Some(account_id) = input.account_id.filter(|id| !id.is_empty()) {
+        storage
+            .accounts()
+            .get(&juggler_core::model::AccountId::new(account_id.as_str()))?;
+        BudgetScope::Account { account_id }
+    } else {
+        let mut project_ids = input.project_ids;
+        project_ids.sort();
+        project_ids.dedup();
+        for id in &project_ids {
             storage
-                .accounts()
-                .get(&juggler_core::model::AccountId::new(account_id.as_str()))?;
-            BudgetScope::Account { account_id }
+                .projects()
+                .get(&juggler_core::model::ProjectId::new(id.as_str()))?;
         }
-        None => {
-            let mut project_ids = input.project_ids;
-            project_ids.sort();
-            project_ids.dedup();
-            for id in &project_ids {
-                storage
-                    .projects()
-                    .get(&juggler_core::model::ProjectId::new(id.as_str()))?;
-            }
-            BudgetScope::Projects { project_ids }
-        }
+        BudgetScope::Projects { project_ids }
     };
     let mut saved = caps(&storage)?;
     let id = input

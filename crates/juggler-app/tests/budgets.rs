@@ -317,10 +317,12 @@ fn a_cap_never_stops_anything() {
         include_str!("../../juggler-core/src/budget.rs"),
     ];
     for source in files {
-        let code: String = source
+        // Each file's code above its test module (core's holds this
+        // test's twin, whose list isn't the code).
+        let before_tests = source.split("#[cfg(test)]").next().unwrap_or_default();
+        let code: String = before_tests
             .lines()
             .filter(|line| !line.trim_start().starts_with("//"))
-            .filter(|line| !line.contains("let forbidden") && !line.contains("for word in"))
             .collect::<Vec<_>>()
             .join("\n");
         for word in [
