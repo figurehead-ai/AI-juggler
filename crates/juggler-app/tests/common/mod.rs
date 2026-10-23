@@ -2,4 +2,5 @@
 //! some of them.
 #![allow(dead_code)]
 
+pub mod fake_harness;
 pub mod source;

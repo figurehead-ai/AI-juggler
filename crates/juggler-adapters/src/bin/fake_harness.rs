@@ -15,6 +15,10 @@
 //!               --session-id ID [--every-ms MS] [--used FIVE WEEK]
 //! ```
 //!
+//! `FAKE_HARNESS_DELAY_MS` in the environment is the default `--delay-ms`
+//! (launch settings can carry it where the arguments are the adapter's:
+//! the AJ-E306 test keeps two launched sessions running at once with it).
+//!
 //! Sessions are JSONL files under `--dir`: a `session_meta` line, turn pairs
 //! of `user`/`assistant` lines (assistant lines carry token usage), and a
 //! terminal `ended` line. `--stall-secs` sleeps silently, `--burn-cpus`
@@ -124,7 +128,10 @@ fn parse_options(args: &[String]) -> Result<RunOptions, String> {
         session_id: None,
         resume: None,
         turns: 2,
-        delay_ms: 0,
+        delay_ms: env::var("FAKE_HARNESS_DELAY_MS")
+            .ok()
+            .and_then(|ms| ms.trim().parse().ok())
+            .unwrap_or(0),
         stall_secs: 0,
         burn_cpus_secs: 0,
         exit_code: 0,

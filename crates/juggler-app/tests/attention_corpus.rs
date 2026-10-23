@@ -10,6 +10,8 @@
 // Test crates are pragmatic by policy (QUALITY.md §2).
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::pedantic)]
 
+mod common;
+
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -23,21 +25,7 @@ use juggler_supervisor::{
 const RUNS_PER_CLASS: usize = 3;
 
 fn fake_harness_bin() -> PathBuf {
-    if let Some(path) = option_env!("CARGO_BIN_EXE_fake-harness") {
-        return PathBuf::from(path);
-    }
-    let target = std::env::var("CARGO_TARGET_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../target"));
-    let debug = target.join("debug/fake-harness");
-    let release = target.join("release/fake-harness");
-    if debug.exists() {
-        debug
-    } else if release.exists() {
-        release
-    } else {
-        unreachable!("fake-harness binary not found under {}", target.display());
-    }
+    common::fake_harness::bin()
 }
 
 fn spec(args: &[&str], cwd: &std::path::Path) -> LaunchSpec {
