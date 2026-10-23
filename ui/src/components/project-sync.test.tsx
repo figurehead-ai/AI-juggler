@@ -72,7 +72,9 @@ describe("the rules and servers sheet", () => {
     expect(view.getByText(/2 lines added, 1 removed/)).toBeTruthy();
     fireEvent.click(view.getByRole("button", { name: "Apply to AGENTS.md" }));
     await waitFor(() => expect(view.getByRole("status").textContent).toContain("AGENTS.md now has the rules from CLAUDE.md"));
-    expect(document.activeElement).toBe(view.getByRole("status"));
+    // The done line takes focus in its first effect, which can run after
+    // the line is on screen (CI #154): wait for the focus itself.
+    await waitFor(() => expect(document.activeElement).toBe(view.getByRole("status")));
     expect(view.getByRole("button", { name: "Undo" })).toBeTruthy();
     await waitFor(() => expect(view.getByTestId("project-sync-summary").textContent).toBe("Rules in sync"));
   });
