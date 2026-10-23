@@ -438,6 +438,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   you only. When the limit is hit, the dialog says "Ready to continue on
   Work · prepared 4 min ago". Nothing switches by itself; the copy is
   deleted when the session ends or the window resets.
+- **Monthly caps** (AJ-E1514). Set an amount a month for an account or a
+  group of projects (Usage › Set a monthly cap), and Needs you tells you at
+  80 % and 100 % of this month's estimated cost. Nothing is ever stopped.
+  The amounts are the same estimates as Usage, at published prices.
+- **The Privacy page says what a paired Mac sees**: which sessions run
+  where, with their project and account names, states and usage totals,
+  never your sign-ins, files or prompts.
 - **Start a session on another Mac** (AJ-E1515). With paired Macs, New
   session asks where it runs: pick a paired Mac and choose from its own
   projects and accounts; it starts there over the link (that Mac checks

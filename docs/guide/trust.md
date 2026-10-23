@@ -42,6 +42,8 @@ The same list is in the app: More › **Privacy**, and Settings › Privacy link
   <sub>Checked by [`g1_signed_out_is_silent`](../../crates/juggler-app/tests/cloud_guardrails.rs), [`g2_a_feature_that_is_off_never_calls_its_endpoint`](../../crates/juggler-app/tests/cloud_guardrails.rs).</sub>
 - Fleet connects only Macs you paired, directly and encrypted, each checking the other's key, and no server carries the traffic. To be found, a Mac announces itself on your local network, and in your Figurehead account if you turn that on.
   <sub>Checked by [`mutual_tls_with_pinned_keys_connects_and_serves`](../../crates/juggler-link/tests/transport.rs), [`a_node_presenting_an_unpinned_key_is_refused_at_tls`](../../crates/juggler-link/tests/transport.rs), [`only_the_listed_crates_can_reach_the_network`](../../crates/juggler-app/tests/trust.rs).</sub>
+- A paired Mac sees which sessions run where, with their project and account names, states and usage totals. It never gets your sign-ins, files or prompts, and gets a conversation only when you switch one to that Mac.
+  <sub>Checked by [`no_field_can_carry_a_secret_or_a_transcript`](../../crates/juggler-link/tests/proto_contract.rs), [`what_starting_there_and_usage_by_machine_send_is_numbers_and_an_id`](../../crates/juggler-link/tests/proto_contract.rs), [`a_view_peers_launch_is_refused_at_the_node_and_nothing_starts`](../../crates/juggler-link/tests/transport.rs), [`each_mac_reports_what_it_used_in_the_last_day`](../../crates/juggler-app/tests/fleet_switch.rs).</sub>
 
 ## What it never does
 

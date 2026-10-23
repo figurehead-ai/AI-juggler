@@ -496,7 +496,7 @@ What the code does today (mapped 2026-10-22 on release/0.1): a same-tool switch 
 **Quality gates**: a no-write guardrail test without an approval; translation fixtures per pair; the secret filter test; the lab's journey runs with one MCP server and one skill on A only, and checks they're offered and set up on B and Codex.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1542/manifest.md`.
 
-### AJ-E1543 One switch screen | Status: IN-PROGRESS (claude-opus, 2026-10-22) | Priority P0 | Effort M | Depends: AJ-E1540, AJ-E1541, AJ-E1542
+### AJ-E1543 One switch screen | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E1540, AJ-E1541, AJ-E1542
 **Goal**: The least work for the user, with everything in view.
 **Requirements**:
 1. One screen per switch: where it goes, what carries over and what doesn't (in plain words), the capability checklist from AJ-E1542, the freeze choice, and a single confirm.
@@ -536,7 +536,7 @@ What the code does today (mapped 2026-10-22 on release/0.1): a same-tool switch 
 **Research basis**: SPEC §7.
 **Handover note**: —
 
-### AJ-E1514 Budget caps | Status: TODO | Priority P2 | Effort M | Depends: AJ-E609
+### AJ-E1514 Budget caps | Status: DONE-EVIDENCED | Priority P2 | Effort M | Depends: AJ-E609
 **Goal**: A user who pays per client sees spending against a cap.
 **User story**: As a consultant, I set $300 a month for a client's projects and hear about it at 80%.
 **Requirements**:

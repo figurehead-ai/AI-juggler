@@ -13,6 +13,7 @@
 )]
 
 pub mod alerts;
+pub mod budget;
 pub mod cost_ledger;
 pub mod error;
 pub mod fs;

@@ -10,18 +10,22 @@ import { useEffect, useState, type JSX } from "react";
 import { AccountRunway } from "../components/AccountRunway";
 import { BurnDowns } from "../components/BurnDown";
 import { MachineUsageCard } from "../components/MachineUsage";
+import { BudgetCaps } from "../components/BudgetCaps";
 import { CostMatrix } from "../components/CostMatrix";
 import { Button, Card } from "../components/primitives";
-import { quotaDisplayAll, type AccountInfo, type InstanceInfo, type QuotaDisplayData } from "../lib/bridge";
+import { quotaDisplayAll, type AccountInfo, type InstanceInfo, type ProjectInfo, type QuotaDisplayData } from "../lib/bridge";
 
 export function UsageScreen({
   accounts,
   sessions,
+  projects = [],
   onAddAccounts,
   onOpenHome,
 }: {
   accounts: AccountInfo[];
   sessions: InstanceInfo[];
+  /** AJ-E1514: a cap can count a group of projects. */
+  projects?: ProjectInfo[];
   onAddAccounts: () => void;
   /** AJ-E1524: back to the welcome while no account is in. */
   onOpenHome?: () => void;
@@ -84,6 +88,8 @@ export function UsageScreen({
       )}
 
       <MachineUsageCard />
+
+      {accounts.length > 0 && <BudgetCaps accounts={accounts} projects={projects} />}
 
       <section aria-labelledby="usage-costs" className="flex flex-col gap-2.5">
         <h3 id="usage-costs" className="text-[11px] font-semibold uppercase tracking-wider text-muted">
