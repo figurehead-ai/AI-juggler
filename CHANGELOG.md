@@ -414,8 +414,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   still sleeps the Mac. Monitoring isn't throttled by App Nap while
   sessions run. "Reopen AI Juggler if it quits unexpectedly" (on) brings
   it back after a crash, and the sessions it was running show "ended when
-  AI Juggler quit unexpectedly" and resume where restarting is on. This
-  Mac says what's keeping the Mac awake, with the setting a click away.
+  AI Juggler quit unexpectedly" and resume where restarting is on.
+  "Open AI Juggler at login" (off by default, also offered on the
+  welcome) uses macOS's own login items. This Mac says what's keeping the
+  Mac awake, with the setting a click away, and how much AI Juggler itself
+  uses.
 - **A This Mac page** (AJ-E1528). "See what's using it", the This Mac
   panel's "See all", More › This Mac and the rail's "This Mac" line open
   it. It shows the Mac's state in words and meters, then what's using it:

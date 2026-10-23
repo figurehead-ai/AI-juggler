@@ -1,6 +1,6 @@
 /**
  * AJ-E1527 — "Make it smoother": the optional permissions, early and never
- * required. On the welcome, every one still missing, in the shared rows
+ * required; and (AJ-E1509) opening AI Juggler at login. On the welcome, every one still missing, in the shared rows
  * (`OsAccessRows`); on Home afterwards, a small reminder for the first one
  * still missing. The welcome's "Not now" hides both for good, the
  * reminder's hides it for that permission; AI Juggler then asks only when
@@ -9,7 +9,9 @@
 import { useEffect, useState, type JSX } from "react";
 import { SectionTitle } from "./SectionTitle";
 import { OsAccessRows } from "./OsAccessRows";
-import { osAccessList, type OsAccessInfo } from "../lib/bridge";
+import { errorText, osAccessList, type OsAccessInfo } from "../lib/bridge";
+import { appLoginItemGet, appLoginItemSet, type LoginItemInfo } from "../lib/ipc/app";
+import { Button } from "./primitives";
 
 const DISMISSED_KEY = "aij.smoother.dismissed";
 
@@ -33,15 +35,52 @@ function dismiss(id: string): string[] {
   return next;
 }
 
+/** AJ-E1509: "Open AI Juggler at login" on the welcome, in the
+ * permission rows' look, while it's available and off. */
+function LoginItemRow({ state, setState }: { state: LoginItemInfo["state"]; setState: (next: LoginItemInfo["state"]) => void }): JSX.Element | null {
+  const [error, setError] = useState<string | null>(null);
+  if (state !== "off") return null;
+  return (
+    <div className="flex flex-wrap items-center gap-4 rounded-xl border border-hairline bg-surface-2 px-4 py-3" data-testid="smoother-login-item">
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <span className="text-sm font-semibold text-ink">Open AI Juggler at login</span>
+        <span className="text-[13px] leading-relaxed text-muted">
+          So it's watching your sessions as soon as you log in. <span className="text-faint">You can turn it off in Settings › Sessions.</span>
+        </span>
+        {error && (
+          <span className="text-xs text-danger" role="alert">
+            {error}
+          </span>
+        )}
+      </div>
+      <Button
+        size="sm"
+        variant="secondary"
+        onClick={() => {
+          setError(null);
+          void appLoginItemSet(true).then(
+            (info) => setState(info.state),
+            (cause) => setError(errorText(cause)),
+          );
+        }}
+      >
+        Turn on <span className="sr-only">opening at login</span>
+      </Button>
+    </div>
+  );
+}
+
 export function SmootherCard({ variant }: { variant: "welcome" | "reminder" }): JSX.Element | null {
   const [entries, setEntries] = useState<OsAccessInfo[]>([]);
   const [dismissed, setDismissed] = useState<string[]>(readDismissed);
+  const [loginItem, setLoginItem] = useState<LoginItemInfo["state"]>("unavailable");
   useEffect(() => {
     void osAccessList().then(setEntries, () => setEntries([]));
-  }, []);
+    if (variant === "welcome") void appLoginItemGet().then((info) => setLoginItem(info.state), () => null);
+  }, [variant]);
   const missing = entries.filter((entry) => entry.status !== "allowed");
   if (variant === "welcome") {
-    if (missing.length === 0 || dismissed.includes("all")) return null;
+    if ((missing.length === 0 && loginItem !== "off") || dismissed.includes("all")) return null;
     return (
       <section aria-labelledby="smoother-title" className="flex flex-col gap-3" data-testid="smoother">
         <div className="flex items-baseline justify-between gap-3">
@@ -51,7 +90,8 @@ export function SmootherCard({ variant }: { variant: "welcome" | "reminder" }): 
           </button>
         </div>
         <p className="text-[13px] leading-relaxed text-muted">Optional: AI Juggler works without them. Allow opens the system's own prompt.</p>
-        <OsAccessRows entries={entries} setEntries={setEntries} size="compact" testIdPrefix="smoother" />
+        {missing.length > 0 && <OsAccessRows entries={entries} setEntries={setEntries} size="compact" testIdPrefix="smoother" />}
+        <LoginItemRow state={loginItem} setState={setLoginItem} />
       </section>
     );
   }

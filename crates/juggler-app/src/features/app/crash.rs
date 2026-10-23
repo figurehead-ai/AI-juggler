@@ -66,7 +66,13 @@ pub fn spawn_watchdog(data_dir: &Path) -> Option<std::process::Child> {
     if !watchdog_allowed() {
         return None;
     }
-    let exe = std::env::current_exe().ok()?;
+    spawn_watchdog_with(&std::env::current_exe().ok()?, data_dir)
+}
+
+/// The watchdog, from `exe` (this app's binary; the tests pass the one
+/// they built).
+#[must_use]
+pub fn spawn_watchdog_with(exe: &Path, data_dir: &Path) -> Option<std::process::Child> {
     std::process::Command::new(exe)
         .arg(WATCH_ARG)
         .arg(std::process::id().to_string())
@@ -168,13 +174,27 @@ pub fn follow_setting(state: &std::sync::Arc<crate::state::AppState>, on: bool) 
     };
     match (watchdog.is_some(), on) {
         (false, true) => *watchdog = spawn_watchdog(&state.data_dir),
-        (true, false) => {
-            if let Some(mut child) = watchdog.take() {
-                let _ = child.kill();
-                let _ = child.wait();
-            }
-        }
+        (true, false) => end_watchdog(&mut watchdog),
         _ => {}
+    }
+}
+
+fn end_watchdog(watchdog: &mut Option<std::process::Child>) {
+    if let Some(mut child) = watchdog.take() {
+        let _ = child.kill();
+        let _ = child.wait();
+    }
+}
+
+/// AI Juggler is quitting or restarting as asked (a quit, an update's
+/// restart, a reopen): the run is marked clean and the watchdog ends
+/// first, so it never outlives the app or takes a restart for a crash.
+/// Tauri's `restart()` on the main thread relaunches without the exit
+/// event, so its callers come here before it, as the exit path does.
+pub fn before_exit(state: &crate::state::AppState) {
+    end_run(&state.data_dir);
+    if let Ok(mut watchdog) = state.watchdog.lock() {
+        end_watchdog(&mut watchdog);
     }
 }
 

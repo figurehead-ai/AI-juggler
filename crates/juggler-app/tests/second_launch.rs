@@ -869,3 +869,82 @@ fn kill_pid(pid: u32) {
         .args(["-s", "KILL", &pid.to_string()])
         .status();
 }
+
+/// AJ-E1509: after a quit as asked (the run marked clean), the watchdog
+/// sees the app gone and ends by itself — it starts nothing.
+#[test]
+fn the_watchdog_ends_with_a_clean_quit_and_starts_nothing() {
+    if !binary_is_this_builds() {
+        return;
+    }
+    let data = tempfile::tempdir().unwrap();
+    std::fs::write(data.path().join("last-run"), "clean\n").unwrap();
+    // The "app": a process the watchdog watches.
+    let mut app = Reaped(Command::new("sleep").arg("30").spawn().unwrap());
+    let (mut watchdog, _tap) = launch(
+        Command::new(app_binary())
+            .arg("--aij-watch")
+            .arg(app.0.id().to_string())
+            .arg(data.path()),
+        |_| {},
+    );
+    std::thread::sleep(Duration::from_millis(800));
+    assert!(
+        watchdog.0.try_wait().unwrap().is_none(),
+        "it watches while the app runs"
+    );
+    kill_pid(app.0.id());
+    let _ = app.0.wait();
+    wait_for("the watchdog to end", Duration::from_secs(10), || {
+        watchdog.0.try_wait().unwrap().is_some()
+    });
+    assert!(
+        group_members(watchdog.0.id()).is_empty(),
+        "nothing was started"
+    );
+    assert!(!data.path().join("crash-relaunches").exists());
+}
+
+/// AJ-E1509: an update's restart (or a reopen) goes through
+/// `before_exit`, as a quit does: the watchdog is ended and the run marked
+/// clean first, so the restart is never taken for a crash.
+#[test]
+fn before_a_restart_the_watchdog_ends_and_the_run_is_clean() {
+    if !binary_is_this_builds() {
+        return;
+    }
+    let work = tempfile::tempdir().unwrap();
+    let data = work.path().join("app-data");
+    let state = juggler_app::state::AppState::init(data.clone()).unwrap();
+    assert_eq!(
+        std::fs::read_to_string(data.join("last-run"))
+            .unwrap()
+            .trim(),
+        "running"
+    );
+    let child = juggler_app::features::app::crash::spawn_watchdog_with(app_binary(), &data)
+        .expect("a watchdog");
+    let pid = child.id();
+    *state.watchdog.lock().unwrap() = Some(child);
+    std::thread::sleep(Duration::from_millis(500));
+    assert!(alive(pid), "it watches");
+    juggler_app::features::app::crash::before_exit(&state);
+    assert!(!alive(pid), "the watchdog ended before the restart");
+    assert_eq!(
+        std::fs::read_to_string(data.join("last-run"))
+            .unwrap()
+            .trim(),
+        "clean"
+    );
+    assert!(state.watchdog.lock().unwrap().is_none());
+}
+
+/// Whether `pid` still runs (a reaped zombie doesn't).
+fn alive(pid: u32) -> bool {
+    let out = Command::new("ps")
+        .args(["-o", "stat=", "-p", &pid.to_string()])
+        .output()
+        .unwrap();
+    let stat = String::from_utf8_lossy(&out.stdout);
+    !stat.trim().is_empty() && !stat.trim().starts_with('Z')
+}

@@ -8,7 +8,8 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SessionsSettingsCard } from "./SessionsSettings";
-import { AwakeLine } from "./this-mac-parts";
+import { AwakeLine, OwnLine } from "./this-mac-parts";
+import { SmootherCard } from "./SmootherCard";
 import { RecipeOptions } from "./RecipeOptions";
 import type { SessionPrefsInfo } from "../lib/ipc/session-prefs";
 import { mockMachineHealth, type ThisMacInfo } from "../lib/machine";
@@ -17,10 +18,12 @@ import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
 const restartChoice = vi.hoisted(() => vi.fn(async () => undefined));
 vi.mock("../lib/ipc/sessions", () => ({ sessionsRestartChoiceSet: restartChoice }));
 
-type Seams = { __AIJ_SESSION_PREFS__?: SessionPrefsInfo };
+type Seams = { __AIJ_SESSION_PREFS__?: SessionPrefsInfo; __AIJ_LOGIN_ITEM__?: string };
 afterEach(() => {
   cleanup();
   delete (window as unknown as Seams).__AIJ_SESSION_PREFS__;
+  delete (window as unknown as Seams).__AIJ_LOGIN_ITEM__;
+  localStorage.clear();
   restartChoice.mockClear();
 });
 const stored = () => (window as unknown as Seams).__AIJ_SESSION_PREFS__;
@@ -110,5 +113,48 @@ describe("a launch setting's own restart choice", () => {
       fireEvent.change(select, { target: { value: "settings" } });
     });
     expect(restartChoice).toHaveBeenLastCalledWith("p-1", null);
+  });
+});
+
+describe("opening AI Juggler at login", () => {
+  const seams = () => window as unknown as Seams;
+
+  it("is off until turned on, and saying so", async () => {
+    render(<SessionsSettingsCard />);
+    const login = (await screen.findByLabelText("Open AI Juggler at login")) as HTMLInputElement;
+    expect(login.checked).toBe(false);
+    await act(async () => {
+      fireEvent.click(login);
+    });
+    await waitFor(() => expect(seams().__AIJ_LOGIN_ITEM__).toBe("on"));
+    expect(screen.getByTestId("pref-open_at_login").textContent).toContain("AI Juggler opens at login.");
+  });
+
+  it("can't be turned on in a build that isn't the installed app, and says why", async () => {
+    seams().__AIJ_LOGIN_ITEM__ = "unavailable";
+    render(<SessionsSettingsCard />);
+    const login = (await screen.findByLabelText("Open AI Juggler at login")) as HTMLInputElement;
+    expect(login.disabled).toBe(true);
+    expect(document.getElementById(login.getAttribute("aria-describedby")!)!.textContent).toBe("Only the installed AI Juggler can open at login.");
+  });
+
+  it("is offered on the welcome while it's off, and goes once on", async () => {
+    render(<SmootherCard variant="welcome" />);
+    const row = await screen.findByTestId("smoother-login-item");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Turn on opening at login" }));
+    });
+    await waitFor(() => expect(screen.queryByTestId("smoother-login-item")).toBeNull());
+    expect(row.isConnected).toBe(false);
+    expect(seams().__AIJ_LOGIN_ITEM__).toBe("on");
+  });
+
+  it("This Mac says AI Juggler itself, its watchdog and opening at login", () => {
+    const own = (watchdog: boolean, atLogin: boolean) =>
+      ({ ...info({ working: 0, kept_awake: false, on_battery: false }), own: { rss_bytes: 214_000_000, watchdog, opens_at_login: atLogin } }) as ThisMacInfo;
+    const { rerender } = render(<OwnLine info={own(true, true)} />);
+    expect(screen.getByTestId("this-mac-own").textContent).toBe("AI Juggler itself: 214 MB · with its crash watchdog · opens at login");
+    rerender(<OwnLine info={own(false, false)} />);
+    expect(screen.getByTestId("this-mac-own").textContent).toBe("AI Juggler itself: 214 MB");
   });
 });
