@@ -208,7 +208,7 @@ replica-fixture:
 # (`just replica-fixture` makes it, refusing any HOME but the replica's):
 # docs/assets/readme/. Never real data.
 readme-shots:
-    cd ui && AIJ_README_SHOTS=1 AIJ_PW_PORT=${AIJ_PW_PORT:-4595} pnpm exec playwright test readme-shots
+    cd ui && AIJ_README_VERSION="${AIJ_README_VERSION:-$(git describe --tags --abbrev=0 --match 'v[0-9]*' | sed 's/^v//')}" AIJ_README_SHOTS=1 AIJ_PW_PORT=${AIJ_PW_PORT:-4595} pnpm exec playwright test readme-shots
 
 # Cargo, rustup and corepack keep their own homes while HOME is the replica.
 # Run AI Juggler Dev on the replica HOME.

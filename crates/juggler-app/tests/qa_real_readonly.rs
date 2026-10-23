@@ -160,6 +160,14 @@ fn real_setup_read_models() {
         "sessions".into(),
         serde_json::to_value(commands::sessions_list(managed.clone()).unwrap()).unwrap(),
     );
+    // The launch settings each import made ("Main"), as the UI lists them.
+    report.insert(
+        "launch_recipes".into(),
+        serde_json::to_value(
+            tauri::async_runtime::block_on(commands::profiles_list(managed.clone())).unwrap(),
+        )
+        .unwrap(),
+    );
 
     // Usage: the pipeline's passes (spool, transcripts, rollouts), then
     // the read models the Home runway, Accounts and Usage screens use.
