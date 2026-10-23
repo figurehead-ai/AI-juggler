@@ -30,8 +30,8 @@ afterEach(() => {
 describe("set up by switches", () => {
   it("lists each set-up with its own Undo, and undoes it", async () => {
     (window as never as Seams).__AIJ_SWITCH_SET_UPS__ = [
-      { record: "r-1", account: "Personal", what: "the skill release-notes", at_ms: 2 },
-      { record: "r-2", account: "Codex", what: "the MCP server github", at_ms: 1 },
+      { record: "r-1", place: "Personal", what: "the skill release-notes", at_ms: 2 },
+      { record: "r-2", place: "Codex", what: "the MCP server github", at_ms: 1 },
     ];
     const view = render(<SwitchSetUpsCard />);
     await waitFor(() => expect(view.getByTestId("switch-set-ups")).toBeTruthy());
@@ -46,8 +46,8 @@ describe("set up by switches", () => {
 
   it("offers Forget only for a set-up whose Undo was refused, and forgets it", async () => {
     (window as never as Seams).__AIJ_SWITCH_SET_UPS__ = [
-      { record: "r-stale", account: "Codex", what: "the MCP server github", at_ms: 2 },
-      { record: "r-ok", account: "Personal", what: "the skill release-notes", at_ms: 1 },
+      { record: "r-stale", place: "Codex", what: "the MCP server github", at_ms: 2 },
+      { record: "r-ok", place: "Personal", what: "the skill release-notes", at_ms: 1 },
     ];
     const view = render(<SwitchSetUpsCard />);
     await waitFor(() => expect(view.getByTestId("switch-set-ups")).toBeTruthy());

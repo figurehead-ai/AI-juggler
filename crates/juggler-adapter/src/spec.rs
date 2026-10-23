@@ -83,6 +83,10 @@ pub struct ToolSpec {
     pub kinds: Vec<ToolKind>,
     /// The project rules files it reads.
     pub rules_files: Vec<String>,
+    /// How one of its rules files reads another file instead of repeating
+    /// it, as a line with `{file}` for that file's name; `None` when the
+    /// tool can't (AJ-E1507: a rules file that reads the master is in sync).
+    pub rules_import: Option<String>,
     /// First run's words while it looks for this tool's setups.
     pub scan_hint: String,
     /// First run's groups for this tool's setups, in order.
@@ -118,6 +122,7 @@ impl ToolSpec {
             desktop_app: None,
             kinds: vec![ToolKind::Cli],
             rules_files: Vec::new(),
+            rules_import: None,
             scan_hint:
                 "Your default setup and anything else that looks like one. Nothing is changed."
                     .to_owned(),
@@ -132,5 +137,42 @@ impl ToolSpec {
             flags: ToolFlags::default(),
             terms_notes: Vec::new(),
         }
+    }
+
+    /// The line that makes one of this tool's rules files read `file`, if
+    /// the tool has one.
+    #[must_use]
+    pub fn rules_import_line(&self, file: &str) -> Option<String> {
+        self.rules_import
+            .as_ref()
+            .map(|template| template.replace("{file}", file))
+    }
+
+    /// Whether rules text of this tool reads `file` through its import
+    /// line (a line of its own, spaces around it aside).
+    #[must_use]
+    pub fn rules_reads(&self, text: &str, file: &str) -> bool {
+        self.rules_import_line(file)
+            .is_some_and(|line| text.lines().any(|l| l.trim() == line))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ToolSpec;
+
+    #[test]
+    fn a_rules_file_reads_another_only_through_a_line_of_its_own() {
+        let mut spec = ToolSpec::generic("tool");
+        assert_eq!(spec.rules_import_line("OTHER.md"), None);
+        assert!(!spec.rules_reads("@OTHER.md", "OTHER.md"));
+        spec.rules_import = Some("@{file}".to_owned());
+        assert_eq!(
+            spec.rules_import_line("OTHER.md").as_deref(),
+            Some("@OTHER.md")
+        );
+        assert!(spec.rules_reads("# Rules\n\n  @OTHER.md  \n", "OTHER.md"));
+        assert!(!spec.rules_reads("See @OTHER.md for more.", "OTHER.md"));
+        assert!(!spec.rules_reads("@OTHER.md.bak", "OTHER.md"));
     }
 }

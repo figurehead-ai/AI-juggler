@@ -411,6 +411,11 @@ macro_rules! app_commands {
             Read  features::projects::git::projects_git_status,
             Read  features::projects::icon::projects_icon_read,
             Write features::projects::mark::projects_mark_set,
+            Read  features::project_sync::commands::project_sync_rules,
+            Read  features::project_sync::commands::project_sync_diff,
+            Write features::project_sync::commands::project_sync_apply,
+            Read  features::project_sync::commands::project_sync_servers,
+            Write features::project_sync::commands::project_sync_servers_apply,
         }
     };
 }

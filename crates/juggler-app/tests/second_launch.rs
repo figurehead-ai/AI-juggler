@@ -773,6 +773,7 @@ fn handed_to_another(stderr: &str) -> bool {
 #[cfg(target_os = "macos")]
 /// This launch's process group: (pid, command line) of each member that
 /// still runs (a zombie waiting to be reaped isn't one).
+#[cfg(target_os = "macos")]
 fn group_members(pgid: u32) -> Vec<(u32, String)> {
     let out = Command::new("ps")
         .args(["-axo", "pid=,pgid=,stat=,command="])
@@ -867,6 +868,7 @@ fn killed_outright_ai_juggler_comes_back_by_itself() {
 
 #[cfg(target_os = "macos")]
 /// Kills one process, not its group.
+#[cfg(target_os = "macos")]
 fn kill_pid(pid: u32) {
     let _ = Command::new("kill")
         .args(["-s", "KILL", &pid.to_string()])

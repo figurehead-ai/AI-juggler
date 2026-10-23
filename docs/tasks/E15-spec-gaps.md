@@ -130,7 +130,7 @@
 **Research basis**: wireframe 05; Max-Depth report §8 (terminal).
 **Handover note**: Pin each addon's version, matching xterm 6.
 
-### AJ-E1507 Rules and MCP sync across tools, with a diff preview | Status: TODO | Priority P0 | Effort L | Depends: AJ-E202
+### AJ-E1507 Rules and MCP sync across tools, with a diff preview | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E202
 **Goal**: A project's rules and MCP servers can be made the same across tools and accounts in one reviewed click.
 **User story**: As a user running Claude Code and Codex on one repo, I see that `CLAUDE.md` and `AGENTS.md` have drifted, pick the master, review the diff and apply it.
 **Requirements**:

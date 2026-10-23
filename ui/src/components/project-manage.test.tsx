@@ -170,6 +170,7 @@ describe("AJ-E1502 the project row's menu", () => {
         "Rename…",
         "Change its mark…",
         "Pin to top",
+        "Compare rules and servers…",
         "Forget…",
       ]),
     );
@@ -199,7 +200,8 @@ describe("AJ-E1502 the project row's menu", () => {
     fireEvent.click(getByRole("button", { name: "Project actions for beta" }));
     const menu = getByRole("menu");
     expect((within(menu).getByText("Open in Finder").closest("button") as HTMLButtonElement).disabled).toBe(true);
-    expect(within(menu).getByText("Its folder isn't there any more")).toBeTruthy();
+    expect((within(menu).getByText("Compare rules and servers…").closest("button") as HTMLButtonElement).disabled).toBe(true);
+    expect(within(menu).getAllByText("Its folder isn't there any more").length).toBe(2);
     fireEvent.click(within(menu).getByText("Relocate…"));
     await waitFor(() => expect(relocate).toHaveBeenCalledWith("p2"));
   });

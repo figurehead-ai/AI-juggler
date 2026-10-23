@@ -4,6 +4,7 @@
 
 pub mod app;
 pub mod conversations;
+pub mod project_sync;
 pub mod projects;
 pub mod quota;
 pub mod sessions;

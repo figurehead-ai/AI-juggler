@@ -10,9 +10,10 @@ export type SetUpInfo = {
  */
 record: string, 
 /**
- * The account it was set up on (its name).
+ * Where it was set up: the account's name, or the project's for a
+ * change to a project's own files (AJ-E1507).
  */
-account: string, 
+place: string, 
 /**
  * What it is ("the skill release-notes"), or what was done, for a
  * record made before that was kept.
