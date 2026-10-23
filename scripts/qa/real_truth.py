@@ -239,9 +239,14 @@ def read_codex_rollout(path: Path) -> dict:
                 roll["session"] = payload.get("id")
                 roll["cwd"] = payload.get("cwd") if isinstance(payload.get("cwd"), str) else None
                 roll["first"] = iso_to_epoch(payload.get("timestamp")) or ts
-                spawn = ((payload.get("source") or {}).get("subagent") or {}).get("thread_spawn") \
-                    if isinstance(payload.get("source"), dict) else None
-                roll["parent"] = payload.get("forked_from_id") or (spawn or {}).get("parent_thread_id")
+                # Any `source.subagent` (a spawned thread, or `other`:
+                # an auto-review run) is a subagent's rollout: its tokens
+                # count, but it isn't a conversation of its own.
+                source = payload.get("source") if isinstance(payload.get("source"), dict) else {}
+                subagent = source.get("subagent")
+                spawn = (subagent or {}).get("thread_spawn") if isinstance(subagent, dict) else None
+                roll["parent"] = (payload.get("forked_from_id") or (spawn or {}).get("parent_thread_id")
+                                  or ("subagent" if subagent is not None else None))
         elif line.get("type") == "token_usage_record":
             # Each model response's own usage, keyed. A context compaction
             # is a response too: its record is the only place it is counted,
@@ -533,7 +538,8 @@ def build(args) -> dict:
         for name, span in WINDOWS:
             acc["tokens"][name] = sum_tokens((ts, t) for ts, t in records.values() if now - ts < span)
             acc["tokens_per_line"][name] = sum_tokens((ts, t) for ts, t in claude_lines[idx] if now - ts < span)
-    carried_sessions = sum(1 for held in copies.values() if len(held) > 1)
+    carried_ids = sorted(sid for sid, held in copies.items() if len(held) > 1)
+    carried_sessions = len(carried_ids)
 
     live = []
     for proc in processes():
@@ -580,7 +586,7 @@ def build(args) -> dict:
         if records:
             session_totals[session] = sum_tokens(records.values())["total"]
     return {"generated": now, "accounts": accounts, "per_account": per_account, "projects": projects,
-            "carried": {"sessions": carried_sessions, "tokens": carried},
+            "carried": {"sessions": carried_sessions, "tokens": carried, "ids": carried_ids},
             "codex_sessions": sorted(s for s, (i, _) in transcripts_by_session.items() if accounts[i][1] == "codex"),
             "live": live, "session_totals": session_totals, "session_mtime": session_mtime, "desktop_roots": desktop_roots()}
 
@@ -776,6 +782,37 @@ def codex_history(dirs: list[Path], now: float) -> str:
 # ---------------------------------------------------------------------------
 
 
+
+def vm_stat_memory(text: str):
+    """(used, page size) from `vm_stat`: app memory (anonymous less
+    purgeable) + wired + compressed, as Activity Monitor counts "Memory Used"."""
+    import re as _re
+    page = int((_re.search(r"page size of (\d+) bytes", text) or [0, 16384])[1])
+    def pages(name):
+        m = _re.search(rf"^{_re.escape(name)}:\s+(\d+)\.", text, _re.M)
+        return int(m.group(1)) if m else 0
+    app = pages("Anonymous pages") - pages("Pages purgeable")
+    return (app + pages("Pages wired down") + pages("Pages occupied by compressor")) * page, page
+
+
+def verdict_vm(verdict, machine: dict, vm: dict) -> None:
+    """3.4: This Mac's memory, total and pressure against macOS's own figures."""
+    used, _ = vm_stat_memory(vm.get("vm_stat") or "")
+    total = int(vm.get("memsize") or 0)
+    if not used or not total:
+        verdict(None, "This Mac vs vm_stat: macOS figures not readable")
+        return
+    mine = machine.get("memory_used") or 0
+    verdict(abs(mine - used) <= 0.03 * total,
+            f"This Mac memory vs vm_stat: backend {mine / 1e9:.1f} GB used, vm_stat app+wired+compressed {used / 1e9:.1f} GB "
+            f"(off by {abs(mine - used) / total * 100:.1f}% of {total / 1e9:.0f} GB)")
+    verdict(machine.get("memory_total") == total,
+            f"This Mac total memory: backend {machine.get('memory_total', 0) / 1e9:.1f} GB, hw.memsize {total / 1e9:.1f} GB")
+    level = {"1": "normal", "2": "warn", "4": "critical"}.get(str(vm.get("pressure_level")).strip(), "?")
+    seen = str(machine.get("pressure") or "").lower()
+    verdict(seen.startswith(level[:4]) or (level == "warn" and seen.startswith("warning")),
+            f"This Mac pressure: backend {machine.get('pressure')}, kern.memorystatus_vm_pressure_level {vm.get('pressure_level')} ({level})")
+
 def compare(truth: dict, harness: dict) -> str:
     """Redacted OK / MISMATCH lines: the oracle against the backend's read models."""
     accounts = truth["accounts"]
@@ -950,7 +987,14 @@ def compare(truth: dict, harness: dict) -> str:
     oracle_sessions = {k: v for k, v in truth["session_totals"].items()
                        if truth["session_mtime"].get(k, 0) < ingested_s}
     skipped = len(truth["session_totals"]) - len(oracle_sessions)
-    both = [k for k in backend_sessions if k in oracle_sessions and oracle_sessions[k]]
+    # A switch copy's earlier lines are left out by the app through its own
+    # switch records, which a fresh data folder doesn't have: not checkable.
+    carried_ids = set((truth.get("carried") or {}).get("ids") or [])
+    both = [k for k in backend_sessions if k in oracle_sessions and oracle_sessions[k] and k not in carried_ids]
+    copies_seen = [k for k in backend_sessions if k in oracle_sessions and k in carried_ids]
+    if copies_seen:
+        verdict(None, f"cost rows of {len(copies_seen)} switch copies: not checkable without the switch records "
+                      "(a fresh data folder has none), left out of the check below")
     ratios = sorted(backend_sessions[k] / oracle_sessions[k] for k in both)
     close = sum(1 for r in ratios if 0.95 <= r <= 1.05)
     only_backend = len([k for k in backend_sessions if k not in truth["session_totals"]])
@@ -981,6 +1025,9 @@ def compare(truth: dict, harness: dict) -> str:
         verdict(True, f"This Mac machine: CPU {round(m['machine'].get('cpu_pct') or -1)}%, memory {m['machine']['memory_used'] / 1e9:.1f} of "
                       f"{m['machine']['memory_total'] / 1e9:.0f} GB ({m['machine']['memory_basis']}), pressure {m['machine']['pressure']}; "
                       f"tools {m['tools']['count']}")
+        vm = m.get("qa_vm")
+        if vm:
+            verdict_vm(verdict, m["machine"], vm)
     # This Mac counts the whole Mac. On a replica (a HOME that isn't this
     # user's own) the host's apps are in it too, so these lines are facts
     # there, not checks.
@@ -1115,6 +1162,10 @@ def selftest() -> None:
     assert not is_temp(str(HOME / "bin/claude"))
     assert not is_host(None) and not is_host(str(HOME / "Dev/app"))
     assert dict(WINDOWS)["5h"] == 5 * 3600 and dict(WINDOWS)["7d"] == 7 * 86400
+    vm = ("Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free: 10.\n"
+          "Anonymous pages: 1000.\nPages purgeable: 100.\nPages wired down: 200.\n"
+          "Pages occupied by compressor: 300.\n")
+    assert vm_stat_memory(vm) == ((1000 - 100 + 200 + 300) * 16384, 16384)
     selftest_rollouts()
     print("real_truth selftest: OK")
 
@@ -1166,6 +1217,11 @@ def selftest_rollouts() -> None:
         (day / "rollout-a.jsonl").rename(day / "rollout-a.jsonl.zst")  # compressed after listing
         (day / "rollout-a.jsonl.zst").write_bytes(packed)
         assert read_codex_rollout(day / "rollout-a.jsonl")["compressed"]
+        assert plain["parent"] is None
+        review = [{"timestamp": "2026-01-01T00:00:00Z", "type": "session_meta",
+                   "payload": {"id": "t2", "cwd": "/r", "source": {"subagent": "other"}}}]
+        (day / "rollout-d.jsonl").write_text("".join(json.dumps(r) + "\n" for r in review))
+        assert read_codex_rollout(day / "rollout-d.jsonl")["parent"] == "subagent"
 
 
 def main() -> int:

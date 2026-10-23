@@ -18,7 +18,8 @@
 //! given. Then it calls the commands the UI calls: projects (after the
 //! history backfill), the session list, quota displays, cost rollups after
 //! usage ingest passes, and This Mac over about a minute of the app's
-//! process ticks (with `ps` pid/ppid/rss/cpu at each read). It never
+//! process ticks (with `ps` pid/ppid/rss/cpu/elapsed/name, and `vm_stat` with
+//! the pressure level, swap and physical memory, at each read). It never
 //! launches, signs in or writes into a setup. The output holds real paths
 //! and labels: keep it out of the repository; the compare step redacts.
 
@@ -53,6 +54,9 @@ fn real_setup_read_models() {
     );
     let state = Arc::new(AppState::init(data).unwrap());
     let mut report = serde_json::Map::new();
+    // This test's own pid: the app leaves its own process tree out of This
+    // Mac, so the compare leaves it out of the ps side too.
+    report.insert("qa_pid".into(), std::process::id().into());
 
     // First run: the scan, then "Bring in N accounts" where they are.
     let scan = commands::environment_scan_full_impl(&state, None).unwrap();
@@ -178,6 +182,12 @@ fn real_setup_read_models() {
     for tick in 0..4 {
         juggler_app::usage_pipeline::ingest_pass(&state, tick);
     }
+    // The passes read for a while: what live writers add meanwhile may or
+    // may not be in. The compare accepts anything between the two moments.
+    report.insert(
+        "ingest_done_ms".into(),
+        juggler_core::model::Timestamp::now().millis().into(),
+    );
     report.insert(
         "usage_sources".into(),
         serde_json::to_value(juggler_app::usage_pipeline::source_health(&state)).unwrap(),
@@ -195,8 +205,9 @@ fn real_setup_read_models() {
     // machine tick) for about a minute, read as the UI polls it, with
     // every alert the notifications would have shown. A fresh store has
     // no ledger rows, so the tick's cleanup sweep has nothing to act on.
-    // `ps` (pid, ppid, rss, cpu; no arguments) is taken right after each
-    // read, for the compare step.
+    // `ps` (pid, ppid, rss, cpu, elapsed, the command's file name; no
+    // arguments) and `vm_stat` (with the pressure level, swap and physical
+    // memory) are taken right after each read, for the compare step.
     let mut alerts = Vec::new();
     let mut panels = Vec::new();
     for n in 0..36 {
@@ -205,7 +216,7 @@ fn real_setup_read_models() {
             let now = juggler_core::model::Timestamp::now().millis();
             let panel = juggler_app::machine_health::this_mac_impl(&state, now).unwrap();
             let ps = std::process::Command::new("ps")
-                .args(["-axo", "pid=,ppid=,rss=,pcpu="])
+                .args(["-axo", "pid=,ppid=,rss=,pcpu=,etime=,comm="])
                 .output()
                 .map(|out| String::from_utf8_lossy(&out.stdout).into_owned())
                 .unwrap_or_default();
@@ -213,18 +224,38 @@ fn real_setup_read_models() {
             panel["qa_ps"] = ps
                 .lines()
                 .filter_map(|line| {
+                    // pid, ppid, rss (KB), cpu, elapsed, and the command's
+                    // file name only (never its folder or arguments).
                     let f: Vec<&str> = line.split_whitespace().collect();
-                    (f.len() == 4).then(|| {
+                    (f.len() >= 6).then(|| {
+                        let command = f[5..].join(" ");
+                        let name = command.rsplit('/').next().unwrap_or("").to_string();
                         serde_json::json!([
                             f[0].parse::<u32>().ok(),
                             f[1].parse::<u32>().ok(),
                             f[2].parse::<u64>().ok(),
-                            f[3].parse::<f64>().ok()
+                            f[3].parse::<f64>().ok(),
+                            f[4],
+                            name
                         ])
                     })
                 })
                 .collect::<Vec<_>>()
                 .into();
+            // macOS's own memory figures, as numbers only.
+            let run = |cmd: &str, args: &[&str]| {
+                std::process::Command::new(cmd)
+                    .args(args)
+                    .output()
+                    .map(|out| String::from_utf8_lossy(&out.stdout).trim().to_string())
+                    .unwrap_or_default()
+            };
+            panel["qa_vm"] = serde_json::json!({
+                "vm_stat": run("vm_stat", &[]),
+                "pressure_level": run("sysctl", &["-n", "kern.memorystatus_vm_pressure_level"]),
+                "swapusage": run("sysctl", &["-n", "vm.swapusage"]),
+                "memsize": run("sysctl", &["-n", "hw.memsize"]),
+            });
             panels.push(panel);
         }
         alerts.extend(

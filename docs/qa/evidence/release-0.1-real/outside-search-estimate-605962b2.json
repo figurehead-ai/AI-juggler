@@ -1,0 +1,20 @@
+{
+  "conversations_listed": 106,
+  "estimate": {
+    "sessions": 106,
+    "size_bytes": 476355160,
+    "took_s": 2.768258
+  },
+  "index_after_off": {
+    "enabled": false,
+    "size_bytes": null
+  },
+  "measured": {
+    "indexed": 103,
+    "passes": 5,
+    "sessions": 106,
+    "size_bytes": 483778560,
+    "took_s": 128.7442395
+  },
+  "ratio_estimate_to_measured": 0.9846553762117941
+}

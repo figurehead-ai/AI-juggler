@@ -1,0 +1,5 @@
+entries before 199, after 199
+added: []
+removed: []
+config files changed: [('~/Library/Application Support/ClaudeCodeProfiles/<profile>/.claude.json', 'size changed'), ('~/Library/Application Support/ClaudeCodeProfiles/<profile>/remote-settings.json', 'size same')]
+other entries with a new mtime or size: 24
