@@ -1902,6 +1902,32 @@ brought in where they are, with redacted labels (7 of 7 signed in).
 - **Snapshots:** no path added or removed. One `remote-settings.json` has a new mtime at the same
   size (Claude Code's own sync). The Dev folder is now `AI Juggler Dev (qa-e1543 walk 2026-10-23)`.
 
+## Batch 29 — the switch screen re-walked after the P23/P24 fix (`release/0.1` `beda0d7d`, #160)
+
+Same method as batch 28: a Dev build with the bridge, the setups brought in with redacted
+labels, and one finished session record for Account A's newest quiet conversation. The record
+was added to AI Juggler Dev's own data and removed afterwards (269 rows), with no process and
+nothing launched. Switch stayed disabled, as no secrets choice was saved, and was never
+pressed. The raw `switch_targets`, `switch_preflight` and `switch_setup_check` replies were
+checked for all six targets, and the screen was walked for Account B and Account G.
+
+| Check | Account B (Claude Code; C–F the same) | Account G (Codex) | |
+|---|---|---|---|
+| The list | "Same conversation, new account · Beta · Not proven yet"; "keeps the conversation · quiet · headroom unknown" | "Full story, fresh start · Beta · Not proven yet", Suggested; "Doesn't carry: skills & commands, subagent state"; "67% headroom · Measured" | OK |
+| Target | "Same conversation, new account · Beta · Not proven yet"; "This move hasn't been proven on a real setup yet." | "Full story, fresh start · Beta · Not proven yet"; replays; "This move hasn't been proven on a real setup yet."; "This switch leaves behind: skills & commands, subagent state." | OK |
+| What's carried | nothing dropped; todo list rebuilt | "Doesn't carry: skills & commands, subagent state" | OK |
+| Confirm | "Same conversation, new account"; Beta: "the whole session moves, with its subagents and file history. Account A stays resumable." (`mechanism: transplant`) | "Full story, fresh start"; Beta: "a fresh start on Codex, which reads the conversation, what each tool did, the task list and the project's changes. Tool state and subagents don't carry. Account A stays resumable." (`mechanism: replay`) | OK |
+| "F1", "fidelity N" | none, in the list, the dialog or the raw replies | none | OK |
+| `validated`, list against preflight | false and false | false and false | OK |
+| Set-up list | 1 row (Account A's own skill, "Set up as it is"); 9 already there | "doesn't have 10 things"; 10 rows, 10 names, no duplicate ids: 1 translated into `~/.agents/skills`, 9 "Can't be set up: it comes with the claude.ai account" | OK |
+| Secrets | 2 `sk-key` items, previews "•••"; the choice required | the same | OK |
+
+- **Left, minor:** Target's reason "This switch leaves behind: skills & commands, subagent
+  state." says in other words what the list and What's carried now call "Doesn't carry".
+- **Snapshots:** no path added or removed. Mtime-only, at the same size: the Codex app's
+  `config.toml` and one `remote-settings.json`. The Dev folder is now
+  `AI Juggler Dev (qa-e1543b walk 2026-10-23)`.
+
 ## Not walked (blocked by W0, before the bridge)
 
 These need the window:
