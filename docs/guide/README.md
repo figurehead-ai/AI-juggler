@@ -9,6 +9,9 @@
 
 **Everyday use**
 
+- [Sessions and the terminal](sessions-and-the-terminal.md): your
+  sessions, starting one, and the terminal's tools: Find, links, text size,
+  Maximize and its own window.
 - [Accounts](accounts.md): adding one, starting it with your usual
   settings, copying settings later, the default account and launch
   settings.

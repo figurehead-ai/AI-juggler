@@ -107,6 +107,7 @@ The [user guide](./docs/guide/) covers each step in more detail.
 | --- | --- |
 | Every session and project, including ones started outside AI Juggler | Works |
 | History of finished sessions, searchable | Works |
+| The terminal: Find, clickable links and paths, text size, Maximize, its own window | Works |
 | Usage and costs per session, account and project, from the tools' own records | Works |
 | Codex limits, read from what Codex records | Works |
 | Claude limits | Works for sessions started in AI Juggler; for other sessions, turn it on per account (see [Privacy](#what-ai-juggler-reads-writes-and-sends)) |
