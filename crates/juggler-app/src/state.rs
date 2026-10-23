@@ -57,6 +57,8 @@ pub struct AppState {
     /// detection (AJ-E412): how many bytes each tail-scan has consumed,
     /// so the 2 s tick only ever parses NEW lines.
     pub model_offsets: Mutex<std::collections::HashMap<SessionId, u64>>,
+    /// AJ-E1520: each live session's subagents, read on the same tick.
+    pub subtasks: crate::features::subtasks::Subtasks,
     /// Stuck/waiting/quota heuristics (AJ-E405); thresholds user-tunable
     /// via `heuristics.json`.
     pub heuristics: HeuristicEngine,
@@ -285,6 +287,7 @@ impl AppState {
             machine: Mutex::new(crate::machine_health::MachineWatch::default()),
             orphans: OrphanTracker::new(),
             model_offsets: Mutex::new(std::collections::HashMap::new()),
+            subtasks: crate::features::subtasks::Subtasks::default(),
             heuristics,
             provider_stuck_secs: load_provider_thresholds(&data_dir),
             updates: crate::updates::UpdateManager::default(),
