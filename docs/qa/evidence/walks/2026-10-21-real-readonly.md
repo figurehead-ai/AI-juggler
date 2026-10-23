@@ -1828,6 +1828,33 @@ the server copy stay off it.
   through it. The labs changed only by my own edits. The Dev folder is now
   `AI Juggler Dev (qa-e1507 walk 2026-10-22)`.
 
+## Batch 27 — AJ-E1508 a new account's usual settings (`feat/e1508-settings` `3ecae165`)
+
+A Dev build with the bridge, which serves `account_settings_check` (reads only). The setups
+were brought in where they are, with redacted labels (7 of 7 signed in). Nothing was
+copied and no account was made.
+
+`account_settings_check` was called through the bridge for every account against a new
+one (target = None) and against every other account of its tool. The offers were compared
+with each account's own files, read independently: counts and kinds only.
+
+| | Its own files | Offers | |
+|---|---|---|---|
+| Accounts A–F (Claude Code), each against a new account and each other (36 checks) | no `permissions`, `statusLine`, `enabledPlugins` or MCP servers. Two `settings.json` hold one unrelated key, one is empty (`{}`), and three are absent | 0 each; nothing invented. The empty `settings.json` gives no permissions offer | OK |
+| Account G (Codex), against a new account (its only home) | `config.toml`: 1 enabled MCP server (a second is `enabled = false`), 12 plugins | 13: the server as "copy", ticked (the disabled one isn't offered); the 12 plugins "needs-you", unticked, each "install it here with `codex plugin add …`" | OK |
+| Guardrail: every offer's name, note, about and id | — | no secret-shaped text, nothing found in the source's rules, and no credential, history, session or cache path | OK |
+| The offered server's `env`, by shape | 15 values: paths and short settings, none secret-named or secret-shaped; 3 pass-through names | — | OK |
+
+- **Not exercised on the real setup**: no account has permissions or a status line. So the
+  per-rule secret check, the "N with a secret left out" count, the `bypassPermissions`
+  offer that's never ticked, and the status-line cases (the user's own; AI Juggler's
+  wrapper or fail-safe as "can't be copied … usage capture") rest on the unit and
+  integration tests (`holds_secret`, `account_settings`).
+- **Snapshots**: no path added or removed, and no `settings.json` changed. Mtime-only, at
+  the same size: one profile's `.claude.json` (its periodic write) and two
+  `remote-settings.json` files (Claude Code's own sync). The Dev folder is now
+  `AI Juggler Dev (qa-e1508 walk 2026-10-22)`, with no set-up records in it.
+
 ## Not walked (blocked by W0, before the bridge)
 
 These need the window:
