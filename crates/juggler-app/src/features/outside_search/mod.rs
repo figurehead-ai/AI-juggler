@@ -235,34 +235,36 @@ pub fn estimate_with(
     let empty = SearchIndexFile::in_memory()?.size_bytes()?;
     let mut size_bytes = empty;
     for compressed in [false, true] {
-        let group: Vec<&Source> = sources
+        let mut group: Vec<&Source> = sources
             .iter()
-            .filter(|source| source.compressed == compressed)
+            .filter(|source| source.compressed == compressed && source.size > 0)
             .collect();
         let total: u64 = group.iter().map(|source| source.size).sum();
         if total == 0 {
             continue;
         }
-        // Every n-th file by size, so the sample spans small and big
-        // ones the same way on every run.
-        let mut group = group;
-        group.sort_by(|a, b| (a.size, a.key.as_str()).cmp(&(b.size, b.key.as_str())));
-        let step = usize::try_from(total / sample_bytes.max(1))
-            .unwrap_or(usize::MAX)
-            .max(1);
+        // Points spread evenly over the group's bytes, so a big file is
+        // sampled as often as its share of the bytes (sampling by file
+        // count only ever saw the small ones, which index densest). The
+        // same points on every run.
+        group.sort_by(|a, b| a.key.as_str().cmp(b.key.as_str()));
         let sample = SearchIndexFile::in_memory()?;
-        let mut sampled = 0_u64;
-        for source in group.iter().step_by(step) {
-            if sampled >= sample_bytes {
-                break;
-            }
-            if index_whole(&sample, source).is_ok() {
-                sampled += source.size;
-            }
-        }
-        sample.optimize()?;
-        let built = sample.size_bytes()?.saturating_sub(empty);
-        size_bytes += scaled(built, sampled, total);
+        size_bytes += if total <= sample_bytes {
+            // Small enough to index all of it: the size itself.
+            let covered: u64 = group
+                .iter()
+                .filter(|source| index_whole(&sample, source).is_ok())
+                .map(|source| source.size)
+                .sum();
+            sample.optimize()?;
+            scaled(sample.size_bytes()?.saturating_sub(empty), covered, total)
+        } else if compressed {
+            let covered = sample_whole(&sample, &group, total, sample_bytes);
+            sample.optimize()?;
+            scaled(sample.size_bytes()?.saturating_sub(empty), covered, total)
+        } else {
+            windows_estimate(&sample, &group, total, sample_bytes, empty)?
+        };
     }
     let estimate = OutsideSearchEstimateInfo {
         size_bytes,
@@ -274,6 +276,113 @@ pub fn estimate_with(
         *cached = Some((signature, estimate.clone()));
     }
     Ok(estimate)
+}
+
+/// How many points the estimate reads a group at: enough that one odd
+/// file doesn't sway it.
+const POINTS: u64 = 64;
+
+/// The bytes of whole lines read at each point: the sample shared by the
+/// points (512 KB each on a real setup, never under 4 KB).
+fn window_bytes(sample_bytes: u64) -> u64 {
+    (sample_bytes / POINTS).clamp(4 * 1024, 512 * 1024)
+}
+
+/// The files at `points` evenly spaced points over `group`'s `total`
+/// bytes, and each point's offset in its file.
+fn at_points<'a>(group: &[&'a Source], total: u64, points: u64) -> Vec<(&'a Source, u64)> {
+    let mut picked = Vec::new();
+    let mut files = group.iter().peekable();
+    let mut before = 0_u64;
+    for point in 0..points {
+        // The middle of each of `points` equal stretches of the bytes.
+        let at = u64::try_from(
+            (u128::from(total) * (2 * u128::from(point) + 1)) / (2 * u128::from(points)),
+        )
+        .unwrap_or(u64::MAX);
+        while let Some(file) = files.peek() {
+            if at < before + file.size {
+                picked.push((**file, at - before));
+                break;
+            }
+            before += file.size;
+            files.next();
+        }
+    }
+    picked
+}
+
+/// The index a group of plain files would take, from a window of whole
+/// lines at each of its points. Each point is an equal share of the bytes,
+/// however long the lines it lands in, so the group's words are its bytes
+/// times the words per byte averaged over the points (weighting by the
+/// bytes read let long lines count for more than their share); the index
+/// is those words at the sample's own index bytes per word.
+#[allow(
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss
+)]
+fn windows_estimate(
+    sample: &SearchIndexFile,
+    group: &[&Source],
+    total: u64,
+    sample_bytes: u64,
+    empty: u64,
+) -> AppResult<u64> {
+    let window = window_bytes(sample_bytes);
+    let points = (sample_bytes / window).max(1);
+    let mut per_byte = Vec::new();
+    let mut words = 0_u64;
+    for (n, (source, at)) in at_points(group, total, points).into_iter().enumerate() {
+        // Whole lines from the one the point falls in.
+        let Ok((lines, bytes)) = crate::transcript_text::window_lines(&source.path, at, window)
+        else {
+            continue;
+        };
+        if bytes == 0 {
+            continue;
+        }
+        let key = SessionId::new(format!("{}#{n}", source.key.as_str()));
+        let path = source.path.to_string_lossy().into_owned();
+        if sample.repo().append(&key, &path, &lines, bytes).is_ok() {
+            let here: u64 = lines.iter().map(|(_, _, text)| word_count(text)).sum();
+            words += here;
+            per_byte.push(here as f64 / bytes as f64);
+        }
+    }
+    if per_byte.is_empty() || words == 0 {
+        return Ok(0);
+    }
+    sample.optimize()?;
+    let per_word = sample.size_bytes()?.saturating_sub(empty) as f64 / words as f64;
+    let density = per_byte.iter().sum::<f64>() / per_byte.len() as f64;
+    Ok((total as f64 * density * per_word) as u64)
+}
+
+/// The words the index's tokenizer makes of `text`, near enough: runs of
+/// letters and digits.
+fn word_count(text: &str) -> u64 {
+    text.split(|c: char| !c.is_alphanumeric())
+        .filter(|word| !word.is_empty())
+        .count() as u64
+}
+
+/// Indexes the compressed files at evenly spaced points over their bytes,
+/// each whole (a compressed file is read whole), until about
+/// `sample_bytes` of them; the compressed bytes they hold.
+fn sample_whole(sample: &SearchIndexFile, group: &[&Source], total: u64, sample_bytes: u64) -> u64 {
+    let mut seen = HashSet::new();
+    let mut covered = 0_u64;
+    for (source, _) in at_points(group, total, POINTS) {
+        if covered >= sample_bytes / 8 {
+            break;
+        }
+        if seen.insert(source.key.as_str()) && index_whole(sample, source).is_ok() {
+            covered += source.size;
+        }
+    }
+    covered
 }
 
 /// The index for `total` bytes of files, from a sample of `sampled` bytes

@@ -38,6 +38,43 @@ pub(crate) fn read_lines(path: &Path, start: u64, size: u64) -> std::io::Result<
     Ok((lines_of(&buf[..end], start), start + end as u64 + 1))
 }
 
+/// The whole lines of `path` from the start of the line `offset` falls in,
+/// until they cover at least `len` bytes (a line is never cut, so its text
+/// is read as the index reads it; one line counts up to a chunk, as
+/// there): `(offset, len, text)` for lines with searchable text, and the
+/// bytes those lines cover. The estimate's windows (AJ-E1538).
+pub(crate) fn window_lines(path: &Path, offset: u64, len: u64) -> std::io::Result<LineBatch> {
+    let size = std::fs::metadata(path)?.len();
+    let start = line_start(path, offset.min(size))?;
+    let (mut lines, mut next) = read_lines(path, start, size.min(start + len))?;
+    if next == start {
+        // One line longer than the window: the whole line, as the index
+        // takes it.
+        (lines, next) = read_lines(path, start, size)?;
+    }
+    lines.retain(|(_, _, text)| !text.is_empty());
+    Ok((lines, next - start))
+}
+
+/// Where the line holding `offset` starts: the byte after the newline
+/// before it, looking back at most one chunk.
+fn line_start(path: &Path, offset: u64) -> std::io::Result<u64> {
+    const BLOCK: u64 = 64 * 1024;
+    let mut file = std::fs::File::open(path)?;
+    let mut end = offset;
+    while end > 0 && offset - end < INDEX_CHUNK_BYTES {
+        let from = end.saturating_sub(BLOCK);
+        file.seek(SeekFrom::Start(from))?;
+        let mut buf = Vec::new();
+        (&mut file).take(end - from).read_to_end(&mut buf)?;
+        if let Some(at) = buf.iter().rposition(|byte| *byte == b'\n') {
+            return Ok(from + at as u64 + 1);
+        }
+        end = from;
+    }
+    Ok(end)
+}
+
 /// Every searchable line of a compressed transcript, decompressed (its
 /// offsets are in the decompressed text).
 pub(crate) fn compressed_lines(path: &Path) -> std::io::Result<Vec<(u64, u64, String)>> {
