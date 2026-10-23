@@ -6,7 +6,10 @@
  * sha256 proves it is the stored file.
  */
 import { useEffect, useRef, useState, type JSX } from "react";
-import { ReplayTerminal } from "./ReplayTerminal";
+import { lazyNamed } from "../lib/lazy";
+
+// xterm loads with the first replay, not at start.
+const ReplayTerminal = lazyNamed(() => import("./ReplayTerminal"), "ReplayTerminal");
 import { errorText, instanceReplay, type ReplayInfo } from "../lib/bridge";
 
 function when(ms: number): string {

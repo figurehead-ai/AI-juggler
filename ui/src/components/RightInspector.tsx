@@ -13,7 +13,10 @@ import { SessionNotes } from "./SessionNotes";
 import { identityWords } from "../lib/identity";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button, Card, Chip } from "./primitives";
-import { TerminalView } from "./TerminalView";
+import { lazyNamed } from "../lib/lazy";
+
+// xterm loads with the first terminal shown, not at start.
+const TerminalView = lazyNamed(() => import("./TerminalView"), "TerminalView", true);
 import { DesktopPreview } from "./DesktopPreview";
 import { PortInventoryList } from "./PortMap";
 import { ProcessRow } from "./ProcessRow";

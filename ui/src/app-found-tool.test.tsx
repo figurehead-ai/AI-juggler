@@ -45,7 +45,7 @@ it("Add account offers a tool whose version check failed, in plain words", async
   await user.click(await view.findByRole("button", { name: "Accounts" }));
   await user.click(await view.findByTestId("add-account"));
   const chooser = await view.findByRole("dialog", { name: "Add an account: which tool?" });
-  const cards = within(chooser).getAllByTestId("provider-card");
+  const cards = await within(chooser).findAllByTestId("provider-card");
   const codex = cards.find((card) => card.textContent?.includes("Codex"))!;
   expect(within(codex).getByTestId("provider-state").textContent).toBe("Found; couldn't check its version");
   expect(codex.textContent).not.toContain("Not installed");

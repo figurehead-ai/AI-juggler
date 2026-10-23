@@ -5,7 +5,10 @@
  * so does closing the window. The session keeps running either way.
  */
 import type { JSX } from "react";
-import { TerminalView } from "../components/TerminalView";
+import { lazyNamed } from "../lib/lazy";
+
+// xterm loads with the first terminal, not with the window.
+const TerminalView = lazyNamed(() => import("../components/TerminalView"), "TerminalView");
 
 export function TerminalWindow({ id }: { id: string }): JSX.Element {
   return (
