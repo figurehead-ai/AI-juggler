@@ -674,3 +674,45 @@
   turn the card to Allowed. The wait can be generous (5 s) without
   weakening the proof. With the focus listener removed, the test fails;
   it passed 3 of 3, and the whole UI suite passes.
+- **Changed, 2026-10-22 (fix/timing-budgets-2).** A sweep for the rest
+  of the timing budgets that read wall time. None was seen failing; each
+  budget keeps its number.
+  - On this thread's CPU time, with wall time beside it (the work runs
+    on the test thread):
+    - `fleet_switch`: the cross-machine target list (500 ms).
+    - `session_lifecycle`: archive plus unarchive (1 s) and transcript
+      search over 1,000 sessions (500 ms).
+    - `triage_lifecycle`: mark reviewed (200 ms).
+    - `load_budgets`: This Mac at 50 Instances, the median of 5
+      (200 ms). It reads the collector's snapshots and storage on the
+      test thread; nothing is listed or spawned.
+    - `juggler-account` `vault`: 25 MB seal plus open.
+  - Wall time, best of 3 (the work spans processes):
+    - `identity_guard`: launch with the identity probe (1 s), the best
+      of the test's three launches, which already each run the probe.
+    - `load_budgets`: terminal echo, the median of 20 (50 ms), in up to
+      three rounds.
+  - UI:
+    - Sort plus filter of 200 rows (16 ms) and render 50 sessions
+      (300 ms) use `process.cpuUsage()` (user plus system) around the
+      synchronous work, through `ui/src/test/cpuTime.ts`.
+    - The privacy card render with its async loads (200 ms) is the
+      median of 5 renders.
+- **Checked and left, 2026-10-22.** These read wall time too. They stay
+  as they are until one flakes:
+  - `juggler-stats` `record()`: a median under 1 µs.
+  - `juggler-link` `registry`: unpair under 2 s.
+  - The preview (`preview.rs`, `preview_real.rs`) and `transport.rs`
+    handshake budgets.
+  - Budgets of 2 s or more:
+    - `desktop.rs`;
+    - transport reconnects;
+    - the `load_budgets` startup;
+    - `overnight_summary`;
+    - `parked_reset`;
+    - `fleet_switch` and `fleet_sync` end to end;
+    - guards of 5 s and over.
+  - UI `findBy` waits with short timeouts in `first-run` and
+    `settings-screen`.
+  - The Playwright load gate (`load.spec.ts`), which has its own
+    baseline rule.

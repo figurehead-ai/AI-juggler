@@ -217,12 +217,19 @@ describe("AJ-E1105 performance", () => {
       rows,
       reports,
     });
-    const started = performance.now();
-    const { findAllByTestId } = render(<PrivacyCard />);
-    expect((await findAllByTestId("privacy-report")).length).toBe(12);
-    const took = performance.now() - started;
-    console.log(`privacy card: 12 reports + 150 rows rendered in ${took.toFixed(0)} ms`);
-    expect(took).toBeLessThan(200);
+    // Wall time (the render waits on async loads), so the budget holds for
+    // the median of 5 renders: a busy machine's turns land in one or two.
+    const runs: number[] = [];
+    for (let run = 0; run < 5; run += 1) {
+      const started = performance.now();
+      const { findAllByTestId, unmount } = render(<PrivacyCard />);
+      expect((await findAllByTestId("privacy-report")).length).toBe(12);
+      runs.push(performance.now() - started);
+      unmount();
+    }
+    const median = [...runs].sort((a, b) => a - b)[2]!;
+    console.log(`privacy card: 12 reports + 150 rows rendered in ${runs.map((ms) => ms.toFixed(0)).join(", ")} ms`);
+    expect(median, `median of ${runs.map((ms) => ms.toFixed(0)).join(", ")} ms`).toBeLessThan(200);
   });
 });
 

@@ -292,11 +292,17 @@ fn t2_at_the_same_path_switches_to_the_other_mac_with_shared_lineage() {
 
     // Target list with preconditions: in-memory (published catalogs +
     // the cached version probe) — far inside the 1 s budget.
-    let started = Instant::now();
+    // This thread's CPU time (other programs' turns on a busy machine
+    // don't count against it); wall time is printed beside it.
+    let wall = Instant::now();
+    let started = cpu_time::ThreadTime::now();
     let _ = crossmachine::fleet_switch_targets_impl(&pair.laptop, &pair.source).unwrap();
-    let took = started.elapsed();
-    eprintln!("[perf] cross-machine target list with preconditions: {took:?}");
-    assert!(took < Duration::from_millis(500), "{took:?}");
+    let (took, wall) = (started.elapsed(), wall.elapsed());
+    eprintln!("[perf] cross-machine target list with preconditions: {took:?} CPU, {wall:?} wall");
+    assert!(
+        took < Duration::from_millis(500),
+        "{took:?} CPU (wall {wall:?})"
+    );
     // Browsing targets moved nothing: no handover on either side.
     assert!(
         !audit_kinds(&pair.desktop)

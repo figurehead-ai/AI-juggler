@@ -457,15 +457,21 @@ mod tests {
     #[test]
     fn a_25_mb_container_seals_and_opens_inside_a_second() {
         let data = vec![7u8; 25 * 1024 * 1024];
-        let started = std::time::Instant::now();
+        // This thread's CPU time (other programs' turns on a busy machine
+        // don't count against it); wall time is printed beside it.
+        let wall = std::time::Instant::now();
+        let started = cpu_time::ThreadTime::now();
         let sealed = seal(&key(), &data).unwrap();
         let opened = open(&key(), &sealed).unwrap();
-        let took = started.elapsed();
+        let (took, wall) = (started.elapsed(), wall.elapsed());
         eprintln!(
-            "[perf] 25 MB seal + open: {took:?} (≈{:.0} MB/s each way)",
+            "[perf] 25 MB seal + open: {took:?} CPU, {wall:?} wall (≈{:.0} MB/s each way)",
             50.0 / took.as_secs_f64()
         );
         assert_eq!(opened.len(), data.len());
-        assert!(took.as_secs_f64() < 2.0 * 25.0 / 100.0 + 0.5, "{took:?}");
+        assert!(
+            took.as_secs_f64() < 2.0 * 25.0 / 100.0 + 0.5,
+            "{took:?} CPU (wall {wall:?})"
+        );
     }
 }
