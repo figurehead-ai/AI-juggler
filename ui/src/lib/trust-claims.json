@@ -134,6 +134,16 @@
             "crates/juggler-link/tests/transport.rs::a_node_presenting_an_unpinned_key_is_refused_at_tls",
             "crates/juggler-app/tests/trust.rs::only_the_listed_crates_can_reach_the_network"
           ]
+        },
+        {
+          "id": "fleet-sees",
+          "text": "A paired Mac sees which sessions run where, with their project and account names, states and usage totals. It never gets your sign-ins, files or prompts, and gets a conversation only when you switch one to that Mac.",
+          "tests": [
+            "crates/juggler-link/tests/proto_contract.rs::no_field_can_carry_a_secret_or_a_transcript",
+            "crates/juggler-link/tests/proto_contract.rs::what_starting_there_and_usage_by_machine_send_is_numbers_and_an_id",
+            "crates/juggler-link/tests/transport.rs::a_view_peers_launch_is_refused_at_the_node_and_nothing_starts",
+            "crates/juggler-app/tests/fleet_switch.rs::each_mac_reports_what_it_used_in_the_last_day"
+          ]
         }
       ]
     },
