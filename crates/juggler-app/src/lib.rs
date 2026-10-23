@@ -417,6 +417,10 @@ macro_rules! app_commands {
             // AJ-E1511: reads a folder the user picked; starts a session.
             Write features::packs::packs_open_preview,
             Write features::packs::packs_open_start,
+            // AJ-E1515: what a paired Mac offers; starting there; usage by machine.
+            Read  features::fleet::fleet_launch_options,
+            Write features::fleet::fleet_launch_start,
+            Read  features::fleet::fleet_usage_by_machine,
             Read  features::notifications::prefs::notifications_get,
             Write features::notifications::prefs::notifications_set,
             // Reads `git status` (the 2 s cache, like a session's).

@@ -854,7 +854,7 @@ impl NodeHandler for AppNode {
         &self,
         peer: &PeerAccess,
         action: &proto::control_command::Action,
-    ) -> Result<String, CommandRejection> {
+    ) -> Result<juggler_link::node::CommandDone, CommandRejection> {
         let reject = |code: &str, message: &str| CommandRejection {
             reason_code: code.to_owned(),
             message: message.to_owned(),
@@ -899,7 +899,7 @@ impl NodeHandler for AppNode {
                         Duration::from_secs(5),
                     )
                     .map_err(|e| reject("stop_failed", &e.to_string()))?;
-                Ok("Stopping".to_owned())
+                Ok("Stopping".to_owned().into())
             }
             proto::control_command::Action::LaunchRecipe(launch) => {
                 // Only a Launch-settings id and a project this Mac
@@ -922,13 +922,18 @@ impl NodeHandler for AppNode {
                         }
                         other => reject("launch_failed", &other.wire().user_message),
                     })?;
-                Ok(format!("Started {}", launched.session_id))
+                // AJ-E1515: the console follows the new session by its id.
+                Ok(juggler_link::node::CommandDone {
+                    message: "Started a session".to_owned(),
+                    started_instance_id: Some(launched.session_id),
+                })
             }
             proto::control_command::Action::FocusInstance(focus) => {
-                here::focus_here(&state, &focus.instance_id)
+                here::focus_here(&state, &focus.instance_id).map(Into::into)
             }
             proto::control_command::Action::CleanProcess(clean) => {
                 here::clean_here(&state, &peer.machine_id, &clean.instance_id, clean.pid)
+                    .map(Into::into)
             }
             // The link only delivers these through Handover.
             proto::control_command::Action::TakeHandover(_)

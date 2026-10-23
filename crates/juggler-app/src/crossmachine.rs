@@ -140,6 +140,10 @@ pub(crate) fn catalog(state: &Arc<AppState>) -> proto::CatalogDelta {
             })
             .collect(),
         projects,
+        last_day: Some(crate::features::fleet::last_day(
+            &storage,
+            crate::commands::now_millis(),
+        )),
     }
 }
 

@@ -331,7 +331,8 @@ fn a_click_brings_ai_juggler_forward_on_that_session() {
         *opened.lock().unwrap(),
         vec![OpenRequest {
             session_id: Some(id),
-            page: None
+            page: None,
+            machine_id: None,
         }]
     );
 }

@@ -426,6 +426,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Start a session on another Mac** (AJ-E1515). With paired Macs, New
+  session asks where it runs: pick a paired Mac and choose from its own
+  projects and accounts; it starts there over the link (that Mac checks
+  everything, as for any remote action) and opens here. A Mac that can't
+  (not connected, view only) says why. Usage and Fleet show what each Mac
+  used in the last 24 hours.
 - **Sessions left and a burn-down** (AJ-E1512). Usage now says, per
   account and window, about how many of your usual sessions are left
   (worked out from the tool's own readings and your past sessions, with

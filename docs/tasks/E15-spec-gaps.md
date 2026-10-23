@@ -551,7 +551,7 @@ What the code does today (mapped 2026-10-22 on release/0.1): a same-tool switch 
 **Research basis**: Max-Depth report (Priya; inferred).
 **Handover note**: Pools (E17) may replace "group of projects".
 
-### AJ-E1515 Fleet: start a session on another Mac, and usage per machine | Status: TODO | Priority P1 | Effort M | Depends: AJ-E705
+### AJ-E1515 Fleet: start a session on another Mac, and usage per machine | Status: DONE-EVIDENCED | Priority P1 | Effort M | Depends: AJ-E705
 **Goal**: The paired Macs act like one place to work.
 **User story**: As a user with a Mac Studio and a laptop, I start a session on the Studio from the laptop, and see each machine's usage.
 **Requirements**:

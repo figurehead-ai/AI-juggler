@@ -75,7 +75,7 @@ pub struct CostRollupsInfo {
 
 /// The catalog as loaded: bundled seed + user overrides + staleness.
 #[must_use]
-fn pricing_catalog(
+pub(crate) fn pricing_catalog(
     storage: &juggler_core::storage::Storage,
 ) -> juggler_core::cost_ledger::PricingCatalog {
     use juggler_core::cost_ledger::PricingCatalog;

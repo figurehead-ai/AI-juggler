@@ -8,21 +8,13 @@ import { pickRecipe } from "./NewProjectSheet";
 import { ExpertSetup } from "../components/ExpertSetup";
 import { MachineAdviceLine, MachineChip } from "../components/MachineAdvice";
 import { machineAdvice, type MachineAdviceInfo } from "../lib/machine";
-import {
-  hasLiveBackend,
-  launchSession,
-  pickDirectory,
-  terminalSpawnLogin,
-  quotaDisplayAll,
-  rankingRows,
-  type RankedRowData, type QuotaDisplayData, type AccountInfo, type LaunchRecipeInfo, type InstanceInfo, type ProjectInfo,
-  errorText,
-  signedIn,
-} from "../lib/bridge";
+import { hasLiveBackend, launchSession, pickDirectory, terminalSpawnLogin, quotaDisplayAll, rankingRows, errorText, signedIn } from "../lib/bridge";
+import type { RankedRowData, QuotaDisplayData, AccountInfo, LaunchRecipeInfo, InstanceInfo, ProjectInfo } from "../lib/bridge";
 import { launchSettingsName, launchTitle } from "../lib/account-words";
 import { sessionTitle } from "../components/ManageWork";
 import { useTwinToggle } from "../lib/use-twin-toggle";
 import { PackPicker, usePack } from "../components/OpenPack";
+import { MachinePicker, RemoteSessionSheet, useWhere } from "../components/RemoteLaunch";
 
 /**
  * New session — zero typing: recent projects (real history), a native
@@ -58,6 +50,7 @@ export function NewSessionModal({
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const pack = usePack(setDirectory); // AJ-E1511: started from a context pack
+  const where = useWhere(); // AJ-E1515: or on a paired Mac
   // AJ-E306 flow (e): Launch settings collapsed under Customise ▸ —
   // the recommended "Main" rides preselected; ⌘↩ launches it.
   const customise = useTwinToggle();
@@ -225,6 +218,7 @@ export function NewSessionModal({
     }
   };
 
+  if (where.machine) return <RemoteSessionSheet where={where} onClose={onClose} />;
   return (
     <div
       ref={sheetRef}
@@ -267,6 +261,7 @@ export function NewSessionModal({
             // paths and opens this modal pre-filled.
           }}
         >
+          <MachinePicker where={where} />
           <PackPicker pack={pack} />
           {/* Step 1 — where */}
           <p className="text-[11px] uppercase tracking-wider text-muted">
