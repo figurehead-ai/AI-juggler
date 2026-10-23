@@ -44,6 +44,9 @@ pub struct OfferInfo {
     pub verdict: String,
     /// What the verdict means for this one, in a sentence.
     pub note: Option<String>,
+    /// What it holds, in a few words, for a setting ("2 allowed, 1
+    /// denied"; AJ-E1508).
+    pub about: Option<String>,
     /// Ticked to start with: set up as it is, or translated.
     pub suggested: bool,
 }
@@ -72,6 +75,8 @@ pub struct AppliedInfo {
     pub record: Option<String>,
     /// What was done, or why it wasn't.
     pub message: String,
+    /// What the user should know about what was done, when anything.
+    pub note: Option<String>,
 }
 
 /// One set-up still in place, for the list that outlives the switch
@@ -197,13 +202,28 @@ pub fn check_impl(
     session_id: &str,
     target_profile_id: &str,
 ) -> AppResult<SetupCheckInfo> {
-    check_sides(state, &sides(state, session_id, target_profile_id)?)
+    check_sides(
+        state,
+        &sides(state, session_id, target_profile_id)?,
+        &for_a_switch,
+    )
 }
 
-/// What `sides.target` lacks of `sides.source`'s items, each with the
-/// target tool's verdict. Read-only.
-pub(crate) fn check_sides(state: &Arc<AppState>, sides: &Sides) -> AppResult<SetupCheckInfo> {
+/// What a switch offers: everything but the account's own settings, which
+/// the target keeps (AJ-E1508 offers those when an account is added).
+fn for_a_switch(kind: ItemKind) -> bool {
+    !kind.is_account_setting()
+}
+
+/// What `sides.target` lacks of `sides.source`'s items of the kinds
+/// `wanted` takes, each with the target tool's verdict. Read-only.
+pub(crate) fn check_sides(
+    state: &Arc<AppState>,
+    sides: &Sides,
+    wanted: &dyn Fn(ItemKind) -> bool,
+) -> AppResult<SetupCheckInfo> {
     let (from, to) = inventories(state, sides)?;
+    let from: Vec<Item> = from.into_iter().filter(|item| wanted(item.kind)).collect();
     let target_adapter = state
         .registry
         .get(&sides.target.harness)
@@ -247,6 +267,10 @@ pub(crate) fn offers(
             scope: kebab(&item.scope),
             verdict: verdict.to_owned(),
             note,
+            about: match &item.detail {
+                juggler_adapter::inventory::Detail::Setting { about, .. } => about.clone(),
+                _ => None,
+            },
             // A project's own item that would apply to every project on
             // the target is offered, not pre-ticked (re-review of #132).
             suggested: matches!(verdict, "copy" | "translate")
@@ -281,24 +305,21 @@ pub fn apply_impl(
         state,
         &sides(state, session_id, target_profile_id)?,
         picked,
-        None,
+        &for_a_switch,
     )
 }
 
-/// Sets up the picked offers of `sides.source` on `sides.target` (of
-/// `only` that kind, when given: the project sync copies servers and
-/// nothing else), each recorded so it can be undone; see [`apply_impl`].
+/// Sets up the picked offers of `sides.source` on `sides.target`, of the
+/// kinds `wanted` takes only (the project sync copies servers and nothing
+/// else), each recorded so it can be undone; see [`apply_impl`].
 pub(crate) fn apply_sides(
     state: &Arc<AppState>,
     sides: &Sides,
     picked: &[String],
-    only: Option<ItemKind>,
+    wanted: &dyn Fn(ItemKind) -> bool,
 ) -> AppResult<Vec<AppliedInfo>> {
     let (from, to) = inventories(state, sides)?;
-    let from: Vec<Item> = from
-        .into_iter()
-        .filter(|item| only.is_none_or(|kind| item.kind == kind))
-        .collect();
+    let from: Vec<Item> = from.into_iter().filter(|item| wanted(item.kind)).collect();
     let target_adapter = state
         .registry
         .get(&sides.target.harness)
@@ -311,6 +332,7 @@ pub(crate) fn apply_sides(
                 offer: id.clone(),
                 record: None,
                 message: "It isn't on the source account any more".to_owned(),
+                note: None,
             });
             continue;
         };
@@ -319,12 +341,20 @@ pub(crate) fn apply_sides(
                 offer: id.clone(),
                 record: None,
                 message: format!("{} already has {}", sides.target.label, item.name),
+                note: None,
             });
             continue;
         }
         match target_adapter.set_up(&sides.target.state_dir, sides.project.as_deref(), item) {
             Ok(applied) => {
-                let what = format!("{} {}", item.kind.words(), item.name);
+                // One of a kind (an account's permissions) is named by its
+                // kind alone: "the permissions", not "the permissions
+                // permissions" (review of AJ-E1508).
+                let what = if item.name == item.kind.words() {
+                    item.name.clone()
+                } else {
+                    format!("{} {}", item.kind.words(), item.name)
+                };
                 let note = applied.note.clone();
                 let record = record(
                     state,
@@ -336,16 +366,18 @@ pub(crate) fn apply_sides(
                 out.push(AppliedInfo {
                     offer: id.clone(),
                     record: Some(record),
-                    message: match note {
+                    message: match &note {
                         Some(note) => format!("Set up the {what} ({note})"),
                         None => format!("Set up the {what}"),
                     },
+                    note,
                 });
             }
             Err(error) => out.push(AppliedInfo {
                 offer: id.clone(),
                 record: None,
                 message: error.to_string(),
+                note: None,
             }),
         }
     }
@@ -547,6 +579,18 @@ fn undo(how: &Undo) -> AppResult<()> {
             backup,
             sha256,
         } => restore(file, backup, sha256),
+        Undo::RemoveSetting {
+            file,
+            format,
+            entries,
+        } => juggler_adapters::config_edit::remove(file, *format, entries)
+            .map(|_| ())
+            .map_err(|why| {
+                AppError::Refused(format!(
+                    "{}: {why}, so it was left as it is",
+                    file.display()
+                ))
+            }),
     }
 }
 

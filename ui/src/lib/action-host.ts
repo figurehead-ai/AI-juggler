@@ -49,6 +49,8 @@ export interface ActionHost {
   signIn?: (account: AccountInfo) => void;
   editLaunchSettings?: (account: AccountInfo) => void;
   renameAccount?: (account: AccountInfo) => void;
+  /** AJ-E1508: another account's usual settings, copied into this one. */
+  copyAccountSettings?: (account: AccountInfo) => void;
   toggleDefaultAccount?: (account: AccountInfo) => void;
   removeAccount?: (account: AccountInfo) => void;
   // Tools

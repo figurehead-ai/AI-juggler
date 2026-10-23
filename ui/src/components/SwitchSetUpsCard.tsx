@@ -5,6 +5,8 @@
  * to be undone from. Shown in Settings beside the switch's secrets
  * choice; nothing shows when there's nothing to undo. A set-up whose
  * Undo was refused (it changed since) can be forgotten instead.
+ * AJ-E1507 and AJ-E1508 share the record and the undo (a rules apply, a
+ * settings copy), so the card names AI Juggler, not switches.
  */
 import { useCallback, useEffect, useState, type JSX } from "react";
 import { Card } from "./primitives";
@@ -48,10 +50,11 @@ export function SwitchSetUpsCard(): JSX.Element | null {
   return (
     <Card className="flex flex-col gap-3 p-5" data-testid="switch-set-ups">
       <div>
-        <h3 className="text-sm font-semibold">Set up by switches</h3>
+        <h3 className="text-sm font-semibold">Set up by AI Juggler</h3>
         <p className="mt-0.5 text-xs leading-relaxed text-muted">
-          What a switch added to an account because it was missing there. Undo removes it, if
-          it's still as it was made.
+          What you had AI Juggler add or change: set-ups for a switch, settings copied into an
+          account, and rules files brought in line. Undo puts each back, if it's still as it was
+          made.
         </p>
       </div>
       {setUps.length > 0 && (
