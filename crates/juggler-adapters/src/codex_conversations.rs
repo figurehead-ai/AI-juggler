@@ -90,7 +90,7 @@ fn compressed_head(path: &Path) -> Option<ConversationSummary> {
 
 /// What a rollout's bytes (whole, or its two ends) say.
 fn summary_of(bytes: &[u8], name: &str) -> Option<ConversationSummary> {
-    if bytes.iter().all(u8::is_ascii_whitespace) {
+    if bytes.iter().all(u8::is_ascii_whitespace) || is_subagent(bytes) {
         return None;
     }
     let parsed = parse_rollout(bytes);
@@ -128,6 +128,17 @@ fn summary_of(bytes: &[u8], name: &str) -> Option<ConversationSummary> {
         }
     }
     Some(summary)
+}
+
+/// A subagent's rollout (its `session_meta` names `source.subagent`): part
+/// of the conversation that started it, as Claude Code's subagents are,
+/// not one of its own. Its usage is still the account's (0.1 QA 3.1).
+fn is_subagent(bytes: &[u8]) -> bool {
+    String::from_utf8_lossy(bytes)
+        .lines()
+        .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
+        .find(|value| value.get("type").and_then(serde_json::Value::as_str) == Some("session_meta"))
+        .is_some_and(|meta| meta.pointer("/payload/source/subagent").is_some())
 }
 
 /// Codex subcommands that aren't a session: the desktop app's servers
@@ -290,6 +301,15 @@ mod tests {
         assert_eq!(conversation_files(dir.path()), vec![path]);
         // Small: no quick read, the whole file is as quick.
         assert!(read_conversation_quick(&summary_path(&dir)).is_none());
+    }
+
+    #[test]
+    fn a_subagents_rollout_is_not_a_conversation_of_its_own() {
+        let parent = r#"{"timestamp":"2026-10-21T10:00:00.000Z","type":"session_meta","payload":{"id":"0199a2b3-c4d5-7e6f-8a9b-0c1d2e3f4a5b","cwd":"/w/api","source":"cli"}}"#;
+        let child = r#"{"timestamp":"2026-10-21T10:01:00.000Z","type":"session_meta","payload":{"id":"0199a2b3-c4d5-7e6f-8a9b-0c1d2e3f4a5c","cwd":"/w/api","source":{"subagent":{"thread_spawn":{"parent_thread_id":"0199a2b3-c4d5-7e6f-8a9b-0c1d2e3f4a5b"}}}}}"#;
+        let ask = r#"{"timestamp":"2026-10-21T10:01:01.000Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"look into the flaky test"}]}}"#;
+        assert!(summary_of(format!("{parent}\n{ask}\n").as_bytes(), "rollout-a.jsonl").is_some());
+        assert!(summary_of(format!("{child}\n{ask}\n").as_bytes(), "rollout-b.jsonl").is_none());
     }
 
     fn summary_path(dir: &tempfile::TempDir) -> std::path::PathBuf {
