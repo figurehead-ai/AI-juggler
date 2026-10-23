@@ -736,6 +736,21 @@ pub async fn send_action_for_test(
     send_action(state, machine_id, action, "view").await
 }
 
+/// A command Link off kept from finishing: it never went out, or it went
+/// out and the answer never came.
+fn link_off_outcome(sent: bool) -> RemoteCommandOutcomeInfo {
+    RemoteCommandOutcomeInfo {
+        accepted: false,
+        reason_code: Some("link_off".to_owned()),
+        message: if sent {
+            "Link went off before that machine answered — it may still have run there."
+        } else {
+            "Link is off on this Mac — nothing was sent."
+        }
+        .to_owned(),
+    }
+}
+
 async fn send_action(
     state: Arc<AppState>,
     machine_id: String,
@@ -783,13 +798,10 @@ async fn send_action(
         .await
     })
     .await?;
-    let Some(result) = sent else {
-        return Ok(RemoteCommandOutcomeInfo {
-            accepted: false,
-            reason_code: Some("link_off".to_owned()),
-            message: "Link went off before that machine answered — it may still have run there."
-                .to_owned(),
-        });
+    let result = match sent {
+        crate::link::Outbound::Done(result) => result,
+        crate::link::Outbound::NotSent => return Ok(link_off_outcome(false)),
+        crate::link::Outbound::Ended => return Ok(link_off_outcome(true)),
     };
     let outcome = match result {
         Err(_) => RemoteCommandOutcomeInfo {
@@ -980,5 +992,22 @@ mod tests {
             "a relayed / spoofed origin"
         );
         assert!(!from_connected_origin(&delta(""), "mac-a"));
+    }
+}
+
+#[cfg(test)]
+mod link_off_tests {
+    use super::link_off_outcome;
+
+    /// A command Link off kept from going out says nothing was sent; one
+    /// it cut off after sending says it may still have run there.
+    #[test]
+    fn link_off_says_whether_anything_was_sent() {
+        let never = link_off_outcome(false);
+        assert_eq!(never.message, "Link is off on this Mac — nothing was sent.");
+        let cut = link_off_outcome(true);
+        assert!(cut.message.contains("may still have run there"));
+        assert_eq!(never.reason_code.as_deref(), Some("link_off"));
+        assert!(!never.accepted && !cut.accepted);
     }
 }
