@@ -41,8 +41,35 @@ Task: `docs/tasks/E15-spec-gaps.md` AJ-E1508 (copy shared settings into a new ac
 - **M5, what a setting holds:** each setting says what it holds ("4 allowed, 1 denied"). A mode that turns checks off is offered, never ticked.
 - **Tests:** `account_settings` (11), `config_edit` (8), `holds_secret` (2), vitest `fresh-account-settings` (10) and `account-settings-sheet` (3).
 
+## On the real setup (`3ecae165`, 2026-10-22)
+
+A Dev build of this branch, walked by QA through the read-only Dev bridge. The full record is
+walk batch 27 in `docs/qa/evidence/walks/2026-10-21-real-readonly.md` on
+`claude/qa-real-walk-clean` (`e5d08b2a`). The setups were brought in where they are, with
+redacted labels. Nothing was copied, and no account was made.
+
+- **Six Claude Code accounts**, each against a new account and against each of the other five
+  (36 checks): no offer at all. Their files hold nothing to copy, and nothing was invented:
+  - no `permissions`, `statusLine`, `enabledPlugins` or MCP servers;
+  - two `settings.json` hold one unrelated key, one is empty, and three are absent;
+  - the empty `settings.json` gives no permissions offer.
+- **The Codex account** (one home only), against a new account: 13 offers.
+  - Its one enabled MCP server is offered as "copy", ticked; its second, `enabled = false`, isn't
+    offered.
+  - Its 12 plugins are offered as "Needs you", unticked, each with
+    "install it here with `codex plugin add …`".
+- **The guardrail:**
+  - No offer's text carries a secret, or any text found in the source's rules.
+  - No offer names a credential, history, session or cache path.
+  - The offered server's `env` values are paths and short settings, none secret-shaped.
+- **Snapshots:** the real accounts had no path added or removed, and no settings file changed.
+  Only the vendors' own writes changed mtimes, at the same size.
+- **Not exercised here: the real setup has no permissions and no status lines.** The per-rule
+  secret check, the left-out count, the `bypassPermissions` offer that's never ticked, and the
+  status-line cases (the user's own; AI Juggler's wrapper or fail-safe as "can't be copied …
+  usage capture") rest on the unit and integration tests (`holds_secret`, `account_settings`).
+
 ## Left
 
-- **The offers measured against the real accounts.** QA reads `account_settings_check` through the Dev bridge, read-only, to see the secret check on real permission rules.
 - **Plugins** are listed with their install command ("Needs you"), not installed. Installing one fetches it from its marketplace, and copying the plugin folder would carry absolute paths that point into the other account.
 - **The regression baselines** for Add account and the account menu change, and are re-rendered in the pinned container.
