@@ -2048,7 +2048,8 @@ impl Supervisor {
                 message: "pty child had no process id".into(),
             });
         };
-        let killer = std::sync::Mutex::new(child.clone_killer());
+        let reaped = Arc::new(AtomicBool::new(false));
+        let force_kill = pty_force_kill(child.clone_killer(), Arc::clone(&reaped));
         let ring = Arc::new(Mutex::new(OutputRing::new(DEFAULT_RING_CAPACITY)));
         // Output tracking exists from chunk 1 without pre-registering the
         // handle: the atomic is independent of the children map.
@@ -2072,15 +2073,6 @@ impl Supervisor {
 
         let finished = Arc::new(AtomicBool::new(false));
         let exit_at = Arc::new(AtomicI64::new(0));
-        // The killer signals the pid itself: once the wait below has
-        // reaped it, the pid may be another process's, so it's never sent.
-        let reaped = Arc::new(AtomicBool::new(false));
-        let reaped_kill = Arc::clone(&reaped);
-        let force_kill: Arc<dyn Fn() + Send + Sync> = Arc::new(move || {
-            if !reaped_kill.load(Ordering::Acquire) {
-                let _ = killer.lock().map(|mut k| k.kill());
-            }
-        });
 
         let session_for_thread = session.clone();
         let journal = self.journal.clone();
@@ -2806,6 +2798,21 @@ fn spawn_reader(
     });
 }
 
+/// The terminal path's force-kill. Its killer signals the pid itself: once
+/// the wait has reaped the process (`reaped`), the pid may be another
+/// process's, so nothing is sent.
+fn pty_force_kill(
+    killer: Box<dyn portable_pty::ChildKiller + Send + Sync>,
+    reaped: Arc<AtomicBool>,
+) -> Arc<dyn Fn() + Send + Sync> {
+    let killer = Mutex::new(killer);
+    Arc::new(move || {
+        if !reaped.load(Ordering::Acquire) {
+            let _ = killer.lock().map(|mut k| k.kill());
+        }
+    })
+}
+
 /// Waits until every output reader of an ended process has finished (each
 /// holds a sender of `drained`), at most [`EXIT_OUTPUT_DRAIN`].
 fn wait_for_output(drained: &std::sync::mpsc::Receiver<()>) {
@@ -3062,6 +3069,8 @@ mod env_overlay_tests {
 /// the fix, `Exited` went out at once and the output was still unread.
 #[cfg(test)]
 mod exit_after_output_tests {
+    #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+
     use std::time::{Duration, Instant};
 
     use juggler_adapter::{EnvMap, LaunchSpec};
