@@ -135,3 +135,99 @@ launches with both unset, as a plain `codex` does (the counterpart of
 home — the model goes in as a flag. For Codex, in place is also the
 safer default: its refresh token is single-use, so a copied `auth.json`
 would sign one of the two out, and copies never carry it.
+
+## Amendment — measuring limits for sessions started elsewhere, opt-in (2026-10-22, AJ-E1530 Req.1)
+
+The maintainer's decision, 2026-10-22: **"Offer it, opt-in."**
+
+§2's rule, "in place, AI Juggler writes nothing of its own into your
+folder", had a cost. Claude reports its limits only through the status
+line. So the windows of an account whose sessions are all started in the
+Claude app or a terminal stay "Not measured yet", even while that is all
+the account does. The alternative this ADR first rejected (installing
+the capture into the user's `settings.json`) is now offered, and never
+done unasked.
+
+- **Off by default.** It is offered per account, for an account used
+  where it is, as "Measure limits for sessions started elsewhere". A
+  diff preview of the exact change comes first, and nothing is written
+  before the user confirms it.
+- **One value changes.** Only the top-level `statusLine` value in
+  `settings.json` is replaced, or added when there is none. It is
+  spliced into the text, so every other byte stays as it was: comments,
+  key order and line endings included.
+  - The write is atomic.
+  - A full copy of the file from before the change is kept in AI
+    Juggler's own data.
+- **Their own status line keeps working.** The user's command is
+  chained after the capture, and its output is shown unchanged.
+- **Our files stay ours.** The wrapper and the spool live in
+  `overlays/<account-id>/`. Nothing else is ever written to the user's
+  folder.
+- **Turning it off is in the same place.**
+  - It puts their original `statusLine` value back, byte for byte.
+  - If they edited the file since, only AI Juggler's value is spliced
+    out. The old backup is never restored over their edits.
+- **Unsafe states are refused in plain words.** That covers a
+  `settings.json` that is missing, unreadable as JSON, or changed
+  between the preview and the change. If their status line becomes
+  something else later, AI Juggler says so and leaves it alone.
+- **The isolation check** allows exactly that one key, while the user
+  has it on. Any other write still fails it.
+
+Trade-off: the user's own configuration now holds one value that points
+into AI Juggler's data. That is the price of measured limits for
+everything they run. It stays their choice: off unless they turn it on,
+visible as a diff before it happens, and undone exactly.
+
+## Amendment: setting up what a switch's target lacks, on approval (2026-10-22, AJ-E1542)
+
+The maintainer (2026-10-22), on switching: AI Juggler "should check MCP
+server and capabilities, and our system should recognize if there are any
+MCP servers missing or skills missing and offer to initialize to those other
+accounts. All this should be presented to user, and user has control if
+they choose to do it or not. Least amount of work for the user, but user
+oversees that and views it."
+
+So before a switch, AI Juggler compares what the source account has set up
+with the target's, and offers what's missing. A write into the target
+account (in place or a copy) happens only for an item the user picked:
+
+- **What is read.** Each tool's adapter reads its own files only, never
+  starting the tool or a server:
+  - MCP servers;
+  - skills, commands and subagents;
+  - the account's own rules;
+  - plugins.
+
+  Only the keys it needs are parsed. A value that looks like a secret is
+  dropped while it's read, so it can't be shown or copied.
+- **What is offered.** Everything the source has and the target doesn't,
+  with the target tool's verdict:
+  - set up as it is;
+  - translated (and how);
+  - needs you (a login, or a variable to provide), with what to do;
+  - can't be set up there, and why. This covers claude.ai-synced skills,
+    plugins across tools, and SSE servers on Codex.
+
+  A target that has its own rules is never given more.
+- **How it is written.**
+  - **A Claude MCP server:** through Claude's own `claude mcp add-json`, so
+    Claude writes its own file.
+  - **A Codex MCP server:** one new `[mcp_servers.<name>]` table appended
+    to `config.toml`, checked to still parse. Before the first set-up the
+    file is copied to `config.toml.before-ai-juggler`; the last undo that
+    needs that copy removes it, so nothing is left behind.
+  - **Skills, commands, subagents and rules:** copied as new files.
+  - **Secrets:** a secret becomes a reference to an environment variable
+    (`${NAME}`, `env_vars`, `bearer_token_env_var`), never its value.
+
+  Nothing the target has is ever replaced.
+- **Undone from the same place.** Each set-up is recorded with how to undo
+  it. Undo removes only files still exactly as they were made, takes out
+  exactly the text that was appended, or runs the tool's own removal. If
+  something changed since, it's left as it is and the user is told.
+
+Trade-off: the target account's own configuration gains what the user
+picked. That's the point of the feature. It stays their choice, item by
+item, shown before it happens and undoable.

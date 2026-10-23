@@ -1,13 +1,11 @@
+import { toolMarkIcon } from "./ToolMark";
+import { toolSpec } from "../lib/tools";
 import type { ReactNode } from "react";
 import type { AccountInfo, InstanceInfo } from "../lib/bridge";
 import { renewalLabel, renewalRowVisible } from "../lib/renewal";
 import {
   IconFork,
   IconGitBranch,
-  IconProviderClaude,
-  IconProviderCodex,
-  IconProviderGeneric,
-  IconProviderZCode,
   IconStateFailed,
   IconStateFinished,
   IconStateHandover,
@@ -32,18 +30,11 @@ import {
 
 // --- I-01 Provider marks ---------------------------------------------------
 
-export const PROVIDER_MARKS: Record<
-  string,
-  { abbrev: string; Icon: typeof IconProviderClaude }
-> = {
-  "claude-code": { abbrev: "Claude", Icon: IconProviderClaude },
-  codex: { abbrev: "Codex", Icon: IconProviderCodex },
-  zcode: { abbrev: "ZCode", Icon: IconProviderZCode },
-};
-
-/** Unknown Provider degrades to the generic `Tool` mark — never blank. */
+/** AJ-E1526: a tool's mark and short name, from its spec in the catalog
+ * (the letter mark until its owner allows the real one). An unknown tool
+ * gets the neutral spec: its id and its letters, never blank. */
 export function providerMark(provider: string) {
-  return PROVIDER_MARKS[provider] ?? { abbrev: "Tool", Icon: IconProviderGeneric };
+  return { abbrev: toolSpec(provider).short_name, Icon: toolMarkIcon(provider) };
 }
 
 // --- I-04 state chips (icon + text + colour, never colour-only) ------------
@@ -82,24 +73,9 @@ export function stateChip(status: string): {
 
 // --- I-02 account identity ---------------------------------------------------
 
-/** Initials for the account disc: first letters of the first two words. */
-export function initialsOf(label: string): string {
-  const words = label.trim().split(/\s+/).filter(Boolean);
-  if (words.length === 0) return "?";
-  if (words.length === 1) return words[0]!.slice(0, 2).toUpperCase();
-  return (words[0]![0]! + words[1]![0]!).toUpperCase();
-}
-
-/** Stable per-Account hue (0–359) from a hash of the account id. */
-export function hueOf(accountId: string | null): number {
-  const key = accountId ?? "unknown";
-  let hash = 0;
-  for (let i = 0; i < key.length; i += 1) {
-    hash = (hash * 31 + key.charCodeAt(i)) % 100_000;
-  }
-  return hash % 360;
-}
-
+/** Initials for the account disc: first letters of the first and last
+ * words, where "-", "_" and "." part words too — labels like
+ * "claude-work" and "claude-personal" differ in their last word (AJ-E1529). */
 // --- I-06 tokens (no pricing source exists: tokens only, never `$0.00`) ----
 
 export function formatTokens(n: number): string {
@@ -108,12 +84,12 @@ export function formatTokens(n: number): string {
   return String(n);
 }
 
-/** `18.2k tok` from input+output; `null` when usage was never observed. */
+/** `18.2k tokens` from input+output; `null` when usage was never observed. */
 export function tokenSummary(
   tokens: InstanceInfo["tokens"],
 ): string | null {
   if (!tokens) return null;
-  return `${formatTokens(tokens.input + tokens.output)} tok`;
+  return `${formatTokens(tokens.input + tokens.output)} tokens`;
 }
 
 /**
@@ -251,79 +227,6 @@ export function rememberResourceSample(
   return resourceHistory.get(id) ?? { cpu: [], ram: [] };
 }
 
-// --- Screen-reader summary ----------------------------------------------------
-
-/** Full field text for `aria-label`: every number reachable as text. */
-export function ariaSummary(session: InstanceInfo, nowMs: number = Date.now()): string {
-  const mark = providerMark(session.provider);
-  const chip = stateChip(session.status);
-  const badge = attentionBadge(session);
-  const parts: string[] = [
-    `${mark.abbrev} provider`,
-    session.account_label,
-    session.model ?? "default model",
-    badge ? badge.text : chip.label,
-  ];
-  if (session.quota) {
-    parts.push(
-      `quota ${Math.round(100 - session.quota.used_percentage)}% left, ${session.quota.confidence}`,
-    );
-  } else {
-    parts.push("Quota: not measured yet");
-  }
-  const tokens = tokenSummary(session.tokens);
-  if (tokens) parts.push(tokens);
-  if (session.cpu_pct !== null && session.rss_bytes !== null) {
-    parts.push(`cpu ${Math.round(session.cpu_pct)}%, ram ${formatBytes(session.rss_bytes)}`);
-  }
-  if (session.child_count) parts.push(`${session.child_count} children`);
-  if (session.subtask_count) parts.push(`${session.subtask_count} subtasks`);
-  if (session.git_branch) parts.push(gitWords(session));
-  parts.push(ageSummary(session.started_at_ms, session.last_activity_ms, nowMs));
-  const suffix = attentionSuffix(session, nowMs);
-  if (badge && suffix) parts.push(suffix);
-  const reason = attentionTooltip(session);
-  if (reason) parts.push(reason);
-  return parts.join(", ");
-}
-
-/**
- * The details a row doesn't show as text, for its `aria-describedby`
- * (WCAG 2.5.3 — the row's name is its visible content; everything else
- * a screen reader needs is here).
- */
-export function ariaDetails(session: InstanceInfo, nowMs: number = Date.now()): string {
-  const parts: string[] = [];
-  parts.push(
-    session.quota
-      ? `quota ${Math.round(100 - session.quota.used_percentage)}% left, ${session.quota.confidence}`
-      : "Quota: not measured yet",
-  );
-  const tokens = tokenSummary(session.tokens);
-  if (tokens) parts.push(tokens);
-  if (session.cpu_pct !== null && session.rss_bytes !== null) {
-    parts.push(`cpu ${Math.round(session.cpu_pct)}%, ram ${formatBytes(session.rss_bytes)}`);
-  }
-  if (session.child_count) parts.push(`${session.child_count} children`);
-  if (session.subtask_count) parts.push(`${session.subtask_count} subtasks`);
-  parts.push(ageSummary(session.started_at_ms, session.last_activity_ms, nowMs));
-  const reason = attentionTooltip(session);
-  if (reason) parts.push(reason);
-  return parts.join(", ");
-}
-
-/**
- * A row's described-by text: `hidden`, so it never joins the row's name
- * from content, but still read as its description.
- */
-export function RowDetails({ id, session }: { id: string; session: InstanceInfo }): ReactNode {
-  return (
-    <span id={id} hidden>
-      {ariaDetails(session)}
-    </span>
-  );
-}
-
 /** `1.1 GB` / `890 MB` byte formatting. */
 export function formatBytes(bytes: number): string {
   if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
@@ -335,33 +238,6 @@ export function formatBytes(bytes: number): string {
 // --- small shared renderers ---------------------------------------------------
 
 /** I-02 initials disc with the per-Account hue. */
-export function AccountDisc({
-  accountId,
-  label,
-  size = 18,
-}: {
-  accountId: string | null;
-  label: string;
-  size?: number;
-}) {
-  return (
-    <span
-      className="acct-disc inline-flex shrink-0 items-center justify-center rounded-full text-[9px] font-semibold"
-      style={
-        {
-          "--acct-hue": hueOf(accountId),
-          width: size,
-          height: size,
-        } as React.CSSProperties
-      }
-      title={label}
-      aria-hidden="true"
-    >
-      {initialsOf(label)}
-    </span>
-  );
-}
-
 /** I-08 children/subtask badges — hidden at 0/`null` (no `⑂ 0` noise). */
 export function ChildBadges({ session }: { session: InstanceInfo }): ReactNode {
   const children = session.child_count ?? 0;
@@ -530,6 +406,14 @@ export function isActiveStatus(status: string): boolean {
   return status === "starting" || status === "running" || status === "waiting_user" || status === "stuck" || status === "quota_blocked";
 }
 
+/** "18% left" once a live session's account runs low (25 % or less);
+ * a finished session says nothing about its account's quota (AJ-E1535). */
+export function lowLeftWords(session: InstanceInfo): string | null {
+  if (!session.quota || !isActiveStatus(session.status)) return null;
+  const left = Math.max(0, Math.round(100 - session.quota.used_percentage));
+  return left <= 25 ? `${left}% left` : null;
+}
+
 // --- WCAG 4.1.3: attention changes announced politely (AJ-E405) ---------
 
 import { useEffect, useRef, useState } from "react";
@@ -539,25 +423,8 @@ import { useEffect, useRef, useState } from "react";
  * changes are never conveyed by colour alone. The message is the badge
  * text plus the rule (`Needs you — waiting_prompt`).
  */
-/** D-25: an attention rule in plain words (never the rule's code). */
-export function attentionWords(rule: string | null | undefined): string {
-  switch (rule) {
-    case "waiting_prompt":
-    case "waiting_user":
-      return "waiting for your reply";
-    case "stuck_no_output":
-    case "stuck":
-      return "no output for a while";
-    case "quota_exit":
-    case "quota_blocked":
-    case "quota_wall":
-      return "hit its usage limit";
-    case "failed":
-      return "stopped with an error";
-    default:
-      return "needs attention";
-  }
-}
+import { attentionWords } from "../lib/attention";
+export { attentionWords };
 
 export function AttentionAnnouncer({ sessions }: { sessions: InstanceInfo[] }) {
   const [message, setMessage] = useState("");

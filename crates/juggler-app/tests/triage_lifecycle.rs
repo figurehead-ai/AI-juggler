@@ -131,3 +131,39 @@ fn reviewed_is_an_explicit_recorded_step_and_only_for_an_ended_instance() {
         .unwrap();
     assert_eq!(again.lifecycle.as_deref(), Some("reviewed"));
 }
+
+/// AJ-E1503: Undo on Mark reviewed puts the session back on the finished
+/// list, and both steps stay in its history.
+#[test]
+fn undoing_reviewed_puts_it_back_and_keeps_both_steps() {
+    let work = tempfile::tempdir().unwrap();
+    let state = app_state(work.path());
+    seed(&state, work.path(), &[("s-done", SessionStatus::Finished)]);
+    let lifecycle_of = |state: &Arc<AppState>| {
+        juggler_app::commands::instances_shared_snapshot(state)
+            .unwrap()
+            .into_iter()
+            .find(|row| row.id == "s-done")
+            .unwrap()
+            .lifecycle
+    };
+    let refused = lifecycle::instance_unmark_reviewed_impl(&state, "s-done").unwrap_err();
+    assert!(
+        refused.to_string().contains("isn't marked reviewed"),
+        "{refused}"
+    );
+
+    lifecycle::instance_mark_reviewed_impl(&state, "s-done").unwrap();
+    lifecycle::instance_unmark_reviewed_impl(&state, "s-done").unwrap();
+    assert_eq!(lifecycle_of(&state).as_deref(), Some("unreviewed"));
+    let history = state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .lifecycle_events(&SessionId::new("s-done"))
+        .unwrap();
+    let events: Vec<&str> = history.iter().map(|(event, _)| event.as_str()).collect();
+    assert_eq!(events, ["reviewed", "unreviewed"]);
+    assert!(lifecycle::instance_unmark_reviewed_impl(&state, "s-nope").is_err());
+}

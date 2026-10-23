@@ -151,16 +151,11 @@ fn preflight_opens_the_wizard_until_the_pair_is_proven() {
         !info.usual_account,
         "no history for B on this project ⇒ not the usual account"
     );
-    // §H2: todos default Drop until a fixture proves carriage — the
-    // carry-list names the drop, never "some context".
-    assert!(info.carry.dropped.contains(&"todo list".to_owned()));
-    assert!(
-        info.wizard_reasons
-            .iter()
-            .any(|reason| reason.contains("carry-list drops: todo list")),
-        "reasons name the drop: {:?}",
-        info.wizard_reasons
-    );
+    // AJ-E1541: the task list is rebuilt from the conversation (proven by
+    // the lab and the handover tests), and the carry-list says so, never
+    // "some context" and never a byte copy.
+    assert!(info.carry.regenerated.contains(&"todo list".to_owned()));
+    assert!(!info.carry.dropped.contains(&"todo list".to_owned()));
     assert!(
         info.wizard_reasons
             .iter()
@@ -168,7 +163,13 @@ fn preflight_opens_the_wizard_until_the_pair_is_proven() {
         "reasons explain the door: {:?}",
         info.wizard_reasons
     );
-    // §5 telemetry: the door choice counted locally (KV only).
+    // The preflight only reads: nothing is counted until the switch
+    // screen counts the door it shows (§5 telemetry, KV only).
+    assert!(
+        door_counters(&state).is_empty(),
+        "the preflight wrote a counter"
+    );
+    commands::switch_door_count_impl(&state, &info.door, &info.wizard_steps).unwrap();
     assert_eq!(
         door_counters(&state)
             .get("switch_wizard[Target,What's carried,Confirm]")
@@ -176,6 +177,19 @@ fn preflight_opens_the_wizard_until_the_pair_is_proven() {
         Some(1),
         "local door counter recorded"
     );
+    // Anything that isn't a door the preflight can choose is refused,
+    // and counts nothing.
+    for (door, steps) in [
+        ("wizard", vec!["Target".to_owned(), "Anything".to_owned()]),
+        ("one-click", vec!["Target".to_owned()]),
+        ("teleport", vec![]),
+    ] {
+        assert!(
+            commands::switch_door_count_impl(&state, door, &steps).is_err(),
+            "{door} {steps:?}"
+        );
+    }
+    assert_eq!(door_counters(&state).values().sum::<u64>(), 1);
 }
 
 #[test]

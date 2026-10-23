@@ -8,7 +8,7 @@
  */
 import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { FirstRun, freeLabel, groupOf, groupTitle, labelOf, outcomeWords, plainImportError, preselected, usedWords } from "./FirstRun";
+import { FirstRun, freeLabel, groupOf, groupsFor, labelOf, outcomeWords, plainImportError, preselected, usedWords } from "./FirstRun";
 import type { DiscoveredInfo } from "../lib/bridge";
 
 const w = () => window as unknown as Record<string, unknown>;
@@ -62,11 +62,11 @@ beforeEach(() => {
 
 describe("D-25 first run — the pure rules", () => {
   it("groups by kind of setup — profiles, the default, others — not by tool", () => {
-    expect(groupOf(SCAN.installs[0]!)).toBe("default");
-    expect(groupOf(SCAN.installs[1]!)).toBe("profiles");
-    expect(groupOf(found(`${PROFILES}/x`, "env-override"))).toBe("profiles");
-    expect(groupOf(found("/Users/you/.claude-work", "env-override"))).toBe("other");
-    expect(groupOf(SCAN.installs[3]!)).toBe("other");
+    expect(groupOf(SCAN.installs[0]!)).toBe("claude-code:default");
+    expect(groupOf(SCAN.installs[1]!)).toBe("claude-code:profiles");
+    expect(groupOf(found(`${PROFILES}/x`, "env-override"))).toBe("claude-code:profiles");
+    expect(groupOf(found("/Users/you/.claude-work", "env-override"))).toBe("claude-code:other");
+    expect(groupOf(SCAN.installs[3]!)).toBe("claude-code:other");
   });
 
   it("names: the default ~/.claude reads 'Default' (it isn't only the terminal's); others keep their folder name", () => {
@@ -96,10 +96,14 @@ describe("D-25 first run — the pure rules", () => {
     expect(plainImportError("Disk full — this one couldn't be copied.")).toBe("Disk full — this one couldn't be copied.");
   });
 
-  it("group titles name Claude only for Claude Code", () => {
-    expect(groupTitle("other", "Claude Code", "claude-code")).toBe("Other Claude setups");
-    expect(groupTitle("other", "Codex", "codex")).toBe("Other Codex setups");
-    expect(groupTitle("default", "Codex", "codex")).toBe("The default setup");
+  // AJ-E1525: the titles are each tool's own (its spec), so Claude's words
+  // never reach another tool's groups (review of #72), and a tool no spec
+  // describes gets one neutral group.
+  it("group titles come from each tool's spec, Claude's words only for Claude Code", () => {
+    const titles = (tool: string) => groupsFor([tool]).map((group) => group.title);
+    expect(titles("claude-code")).toEqual(["Your Claude profiles", "The default setup", "Other Claude setups"]);
+    expect(titles("codex")).toEqual(["Codex"]);
+    expect(titles("acme")).toEqual(["acme setups"]);
   });
 
   it("the result line says what came in, what didn't and what already was", () => {
@@ -179,12 +183,14 @@ describe("D-25 first run — the flow", () => {
       fireEvent.click(getByTestId("first-run-bring-in"));
     });
     const access = await findByTestId("first-run-access");
-    expect(access.textContent).toContain("2 optional permissions make it smoother.");
+    // Screen Recording isn't asked for while no tool can show a preview.
+    expect(access.textContent).toContain("One optional permission makes it smoother.");
+    expect(access.textContent).not.toContain("Screen Recording");
     await act(async () => {
-      fireEvent.click(within(getByTestId("first-run-access-preview")).getByRole("button", { name: /^Allow/ }));
+      fireEvent.click(within(getByTestId("first-run-access-focus")).getByRole("button", { name: /^Allow/ }));
     });
-    await waitFor(() => expect(getByTestId("first-run-access-preview").textContent).toContain("Allowed"));
-    expect(w().__AIJ_OS_ACCESS_CALLS__).toEqual(["request:preview"]);
+    await waitFor(() => expect(getByTestId("first-run-access-focus").textContent).toContain("Allowed"));
+    expect(w().__AIJ_OS_ACCESS_CALLS__).toEqual(["request:focus"]);
     fireEvent.click(getByTestId("first-run-start"));
     expect(onDone).toHaveBeenCalledOnce();
   });
@@ -640,7 +646,7 @@ describe("AJ-E1301 — Codex setups in first run", () => {
     found(path, origin, { harness: "codex", ...extra });
 
   it("groups Codex homes under their own heading and names the standard one", () => {
-    expect(groupOf(codex("/Users/you/.codex", "vendor-default"))).toBe("codex");
+    expect(groupOf(codex("/Users/you/.codex", "vendor-default"))).toBe("codex:codex");
     expect(labelOf(codex("/Users/you/.codex", "vendor-default"))).toBe("Codex");
     expect(labelOf(codex("/Users/you/.codex-work", "home-pattern"))).toBe("codex-work");
   });

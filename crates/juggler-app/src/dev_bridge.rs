@@ -49,6 +49,8 @@ pub const FORWARDED_EVENTS: &[&str] = &[
     crate::EVENT_SESSIONS_QUOTA,
     crate::EVENT_THIS_MAC,
     "update://status",
+    // AJ-E1529: the rail reads sessions started outside AI Juggler again.
+    crate::features::conversations::EVENT_CHANGED,
 ];
 
 /// The per-run bearer token: 32 random bytes, hex. Its `Debug` never

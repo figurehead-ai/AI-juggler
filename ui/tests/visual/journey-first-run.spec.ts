@@ -97,7 +97,9 @@ test("first run on a Mac with Claude Code already set up", async ({ page }) => {
   await expect(access).toBeVisible();
   await page.screenshot({ path: `${OUT}/access-1280x800-dark.png` });
   await axeClean(page, "computer access");
-  await page.getByRole("button", { name: /Allow See a live preview/ }).click();
+  // Screen Recording isn't asked for while no tool can show a preview.
+  await expect(access).not.toContainText("Screen Recording");
+  await access.getByRole("button", { name: /Allow Jump to a session/ }).click();
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/access-one-allowed-1280x800-dark.png` });
   await page.getByTestId("first-run-start").click();

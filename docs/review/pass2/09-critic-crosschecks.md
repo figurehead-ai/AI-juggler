@@ -1,7 +1,7 @@
 # Pass 2 — Critic Crosschecks (09)
 
 > Scope: critic only. No new design. Checks parts 01–08 against every
-> non-blank line of `docs/expected-worfklow.md`, against each other,
+> non-blank line of `docs/internal/expected-workflow.md`, against each other,
 > and against their own cited evidence. Line counts verified by
 > `wc -l docs/review/pass2/*.md` (01:502, 02:567, 03:529, 04:505,
 > 05:549, 06:600, 07:524, 08:505; expected file: 21 lines).
@@ -79,7 +79,7 @@ manual flow is implementable until the maintainer rules.
 
 Prior research proposed deleting the Instances tab (deep 01
 B-08, FCUR F2.2, cited in 01 Finding 1). The maintainer
-mandates Instances (`expected-worfklow.md:11`). 01, 04, 05,
+mandates Instances (`expected-workflow.md:11`). 01, 04, 05,
 08 all now build on Instance, but 04 §1 also flags
 Instance ≡ Session collapse (`SessionInfo.ts:3`,
 `WorkflowRail.tsx:295`). Parts agree with the maintainer;

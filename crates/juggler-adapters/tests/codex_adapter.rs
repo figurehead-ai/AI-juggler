@@ -268,6 +268,7 @@ fn launch_specs_per_mode() {
 
     let primed = spec(LaunchMode::Primed {
         prompt: "continue".into(),
+        read_dirs: Vec::new(),
     });
     assert_eq!(primed.args, vec!["--no-daemon", "--", "continue"]);
 
@@ -298,6 +299,7 @@ fn launch_specs_per_mode() {
     // User text that looks like an option stays text (after `--`).
     let bullet = spec(LaunchMode::Primed {
         prompt: "- fix X".into(),
+        read_dirs: Vec::new(),
     });
     assert_eq!(bullet.args, vec!["--no-daemon", "--", "- fix X"]);
     // A session id that looks like an option is refused, never passed.
@@ -336,6 +338,7 @@ fn model_override_rides_the_command_line() {
             dir.path(),
             &LaunchMode::Primed {
                 prompt: "go".into(),
+                read_dirs: Vec::new(),
             },
         )
         .unwrap();
@@ -382,6 +385,35 @@ fn isolation_keys_and_snippet() {
     assert_eq!(
         adapter.pinned_env_keys(),
         ["CODEX_HOME", "CODEX_SQLITE_HOME"]
+    );
+}
+
+/// AJ-E1537: Copy resume command — the sign-in line's environment and
+/// program, then `resume <id>`, run from the session's folder, every word
+/// quoted; an id that looks like an option is never passed.
+#[test]
+fn the_resume_line_runs_from_the_session_folder() {
+    let adapter = CodexAdapter::new();
+    let line = juggler_adapter::adapter::shell_resume_snippet(
+        &adapter,
+        Path::new("/tmp/acct one"),
+        "0199a2b3-c4d5",
+        Path::new("/w/it's here"),
+    )
+    .unwrap();
+    assert_eq!(
+        line,
+        "cd '/w/it'\\''s here' && env -u CODEX_API_KEY -u OPENAI_API_KEY CODEX_HOME='/tmp/acct one' CODEX_SQLITE_HOME='/tmp/acct one' codex 'resume' '0199a2b3-c4d5'"
+    );
+    assert!(adapter.resume_args("--yolo").is_none());
+    assert!(
+        juggler_adapter::adapter::shell_resume_snippet(
+            &adapter,
+            Path::new("/tmp/a"),
+            "-x",
+            Path::new("/w")
+        )
+        .is_none()
     );
 }
 

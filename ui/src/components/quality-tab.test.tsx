@@ -119,7 +119,7 @@ function qualityShell(row: InstanceInfo) {
       {...base}
     />,
   );
-  fireEvent.click(view.container.querySelector("#inspector-tab-quality")!);
+  fireEvent.click(view.container.querySelector("#page-tab-usage")!);
   return view;
 }
 

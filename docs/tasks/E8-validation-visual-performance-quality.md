@@ -207,5 +207,5 @@
 4. QUALITY.md SHALL say when to use which mode.
 **Quality gates**: Base = head reports 0 changed states (unstable ones listed apart); a deliberate small change in a scratch commit shows up as changed, locally and in CI. `just verify`, `pnpm --dir ui build` and the core visual suite green.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E811/` — the noise run, the scratch-change reports (local and CI) and their triptychs.
-**Files to touch**: `scripts/visual_sweep.sh`, `scripts/visual_sweep_diff.mjs`, `scripts/visual_gate.sh` (`--full-sweep` hand-off), `justfile`, `.github/workflows/visual-sweep.yml`, `docs/plan/QUALITY.md`, `docs/MAINTAINER-STEPS.md`, `CONTRIBUTING.md`.
+**Files to touch**: `scripts/visual_sweep.sh`, `scripts/visual_sweep_diff.mjs`, `scripts/visual_gate.sh` (`--full-sweep` hand-off), `justfile`, `.github/workflows/visual-sweep.yml`, `docs/plan/QUALITY.md`, `docs/internal/MAINTAINER-STEPS.md`, `CONTRIBUTING.md`.
 **Handover note**: The sweep reports, it does not block; an unexpected changed state is a regression to fix or a missing core baseline to add, never a reason to stop running the core check.

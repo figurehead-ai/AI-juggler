@@ -28,7 +28,6 @@ use std::path::{Path, PathBuf};
 use juggler_core::model::Confidence;
 use juggler_core::model::TokenCounts;
 use juggler_core::quota::{QuotaSample, UsageEvent, UsageSource, WindowKind};
-use juggler_core::renewal::CalendarDate;
 
 /// Spool rotation threshold (Req.6): 10 MB per spool file.
 pub const SPOOL_ROTATE_BYTES: u64 = 10 * 1024 * 1024;
@@ -98,6 +97,57 @@ pub fn shell_word(text: &str) -> String {
 /// itself on every refresh (a mixed-version backup can hold one).
 fn not_ours(command: Option<String>) -> Option<String> {
     command.filter(|command| !command.contains(WRAPPER_NAME))
+}
+
+/// The word that marks AJ-E1530's fail-safe status line as AI Juggler's.
+const FAIL_SAFE_NAME: &str = "aij-statusline";
+
+/// What an account's status line is, for AJ-E1508's copy.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum OwnStatusLine {
+    /// The user's own (the `statusLine` value's JSON text).
+    Own(String),
+    /// AI Juggler's capture holds it, and the user's own can't be told
+    /// here.
+    Unknown,
+    /// There's none.
+    None,
+}
+
+/// AJ-E1508: the user's own status line in the account at `config_dir`,
+/// given `current` (the `statusLine` value's JSON text in its
+/// `settings.json`, if any). AI Juggler's capture is never the user's:
+/// under the older wrapper the original is the backup kept beside it; under
+/// the opt-in fail-safe line (AJ-E1530) the original is kept by the app,
+/// not here, and a backup that may be left beside it is stale (review of
+/// AJ-E1508, M1), so it's unknown.
+pub(crate) fn users_own_statusline(config_dir: &Path, current: Option<&str>) -> OwnStatusLine {
+    let ours = |text: &str| text.contains(WRAPPER_NAME) || text.contains(FAIL_SAFE_NAME);
+    let Some(current) = current else {
+        return OwnStatusLine::None;
+    };
+    if !ours(current) {
+        return OwnStatusLine::Own(current.to_owned());
+    }
+    if current.contains(FAIL_SAFE_NAME) {
+        return OwnStatusLine::Unknown;
+    }
+    let original = std::fs::read(config_dir.join(BACKUP_NAME))
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
+        .and_then(|backup| {
+            backup
+                .get("statusLine")
+                .filter(|value| !value.is_null())
+                .cloned()
+        })
+        .and_then(|value| serde_json::to_string(&value).ok());
+    match original {
+        Some(text) if !ours(&text) => OwnStatusLine::Own(text),
+        // The wrapper with no original behind it: the user had none.
+        None => OwnStatusLine::None,
+        Some(_) => OwnStatusLine::Unknown,
+    }
 }
 
 /// Writes `bytes` only when the file differs, atomically — running
@@ -390,7 +440,7 @@ pub fn statusline_samples(ts: i64, payload: &serde_json::Value) -> Vec<(WindowKi
         let used = entry
             .get("used_percentage")
             .and_then(serde_json::Value::as_f64)?;
-        let resets_at = entry.get("resets_at").and_then(serde_json::Value::as_i64);
+        let resets_at = entry.get("resets_at").and_then(reset_ms);
         out.push((
             kind,
             QuotaSample {
@@ -411,31 +461,20 @@ pub fn statusline_samples(ts: i64, payload: &serde_json::Value) -> Vec<(WindowKi
 // ISO-timestamp → epoch-ms (line-level, no chrono dependency)
 // ---------------------------------------------------------------------------
 
-/// Parses `YYYY-MM-DDTHH:MM:SS(.fff)?Z` into epoch milliseconds.
-/// Returns `None` for anything else — an unparseable timestamp is
-/// honest damage (counted), never a fabricated one.
-#[must_use]
-pub fn iso_to_epoch_ms(raw: &str) -> Option<i64> {
-    let date_end = raw.find('T')?;
-    let date = CalendarDate::parse(&raw[..date_end])?;
-    let time = &raw[date_end + 1..];
-    let time = time.strip_suffix('Z').unwrap_or(time);
-    let (hms, millis) = match time.split_once('.') {
-        Some((hms, frac)) => (hms, frac.parse::<i64>().ok()?),
-        None => (time, 0),
-    };
-    let mut parts = hms.split(':');
-    let hours: i64 = parts.next()?.parse().ok()?;
-    let minutes: i64 = parts.next()?.parse().ok()?;
-    let seconds: i64 = parts.next()?.parse().ok()?;
-    if parts.next().is_some()
-        || !(0..24).contains(&hours)
-        || !(0..60).contains(&minutes)
-        || !(0..60).contains(&seconds)
-    {
-        return None;
+/// A status line's `resets_at` as epoch ms: epoch seconds (×1000), epoch
+/// milliseconds, or an RFC 3339 string. Anything else is no reset time
+/// (never a guessed one).
+fn reset_ms(value: &serde_json::Value) -> Option<i64> {
+    // Epoch seconds stay below 10^11 until the year 5138; ms are above.
+    const SECONDS_BELOW: i64 = 100_000_000_000;
+    if let Some(number) = value.as_i64() {
+        return Some(if number < SECONDS_BELOW {
+            number * 1000
+        } else {
+            number
+        });
     }
-    Some(date.civil_days() * 86_400_000 + (hours * 3_600 + minutes * 60 + seconds) * 1000 + millis)
+    value.as_str().and_then(juggler_core::time::timestamp_ms)
 }
 
 // ---------------------------------------------------------------------------
@@ -479,7 +518,7 @@ pub fn transcript_events(account: &str, bytes: &[u8]) -> TailOutcome {
         let ts = value
             .get("timestamp")
             .and_then(serde_json::Value::as_str)
-            .and_then(iso_to_epoch_ms);
+            .and_then(juggler_core::time::timestamp_ms);
         let read = |key: &str| {
             usage
                 .get(key)
@@ -627,7 +666,7 @@ pub fn rollout_events_after(account: &str, bytes: &[u8], carry: RolloutCarry) ->
         let ts = value
             .get("timestamp")
             .and_then(serde_json::Value::as_str)
-            .and_then(iso_to_epoch_ms)
+            .and_then(juggler_core::time::timestamp_ms)
             .unwrap_or_default();
         outcome.events.push(UsageEvent {
             account: account.to_owned(),
@@ -754,7 +793,7 @@ impl RolloutCarry {
                     let ts = value
                         .get("timestamp")
                         .and_then(serde_json::Value::as_str)
-                        .and_then(iso_to_epoch_ms)
+                        .and_then(juggler_core::time::timestamp_ms)
                         .unwrap_or_default();
                     if open.before != Some(total) && tokens != TokenCounts::default() {
                         self.pending.push(PendingUsage {
@@ -847,7 +886,7 @@ fn take_token_count(value: &serde_json::Value, outcome: &mut TailOutcome) -> boo
     let Some(ts) = value
         .get("timestamp")
         .and_then(serde_json::Value::as_str)
-        .and_then(iso_to_epoch_ms)
+        .and_then(juggler_core::time::timestamp_ms)
     else {
         outcome.parse_errors += 1;
         return true;
@@ -1190,6 +1229,10 @@ pub fn tail_transcript(path: &Path, account: &str, offset: u64) -> TailOutcome {
     })
 }
 
+/// Fix batch 5: Codex's compressed rollouts (`.jsonl.zst`), read as a
+/// stream (split from this file: the size budget).
+mod compressed;
+
 /// Convenience: [`tail_jsonl`] with the Codex rollout parser; `carry` is
 /// the previous pass's [`TailOutcome::carry`] for this file. A compressed
 /// rollout (`rollout-*.jsonl.zst`: Codex compresses older ones) is read
@@ -1197,188 +1240,11 @@ pub fn tail_transcript(path: &Path, account: &str, offset: u64) -> TailOutcome {
 #[must_use]
 pub fn tail_rollout(path: &Path, account: &str, offset: u64, carry: &RolloutCarry) -> TailOutcome {
     if crate::transcript::is_compressed(path) {
-        return read_compressed_rollout(path, account, offset);
+        return compressed::read_compressed_rollout(path, account, offset);
     }
     tail_jsonl(path, offset, carry, |bytes, carry| {
         rollout_events_after(account, bytes, carry)
     })
-}
-
-/// How much a compressed rollout may decompress to before AI Juggler stops
-/// and leaves it unread, so a damaged or hostile file can't keep a pass
-/// busy: far above any real rollout (the largest seen, a 50,000-turn
-/// thread, is 2.3 GB). Memory is bounded by the slice and the line cap,
-/// not by this.
-const COMPRESSED_ROLLOUT_MAX: u64 = 16 << 30;
-
-/// Decompressed bytes taken at a time.
-const COMPRESSED_SLICE: usize = 8 << 20;
-
-/// The longest line held while it is still coming. A longer one is dropped
-/// (one bad line) and reading picks up after its end, so one line without a
-/// newline never fills memory.
-const COMPRESSED_LINE_MAX: usize = 64 << 20;
-
-/// A compressed rollout changed this recently may still be being written.
-const COMPRESSED_SETTLE: std::time::Duration = std::time::Duration::from_secs(10);
-
-/// A compressed rollout: complete, and Codex never writes to it again. It
-/// is decompressed as a stream, a slice at a time, each slice parsed from
-/// the carry the one before left, so a large one never sits in memory
-/// whole. Its offset is the compressed file's size: a later pass with the
-/// same size reads nothing, and one that grew is read again (its events
-/// are keyed). A file that won't decode:
-/// - changed in the last few seconds: not ready, read again next pass, and
-///   nothing counted against its health;
-/// - otherwise: one bad line, not read again until its size changes.
-///
-/// One that decompresses past [`COMPRESSED_ROLLOUT_MAX`] is left unread
-/// with its own health note.
-fn read_compressed_rollout(path: &Path, account: &str, offset: u64) -> TailOutcome {
-    let Ok(meta) = std::fs::metadata(path) else {
-        return TailOutcome {
-            offset,
-            ..TailOutcome::default()
-        };
-    };
-    let size = meta.len();
-    if offset == size {
-        return TailOutcome {
-            offset,
-            ..TailOutcome::default()
-        };
-    }
-    let settling = meta
-        .modified()
-        .ok()
-        .and_then(|at| at.elapsed().ok())
-        .is_some_and(|age| age < COMPRESSED_SETTLE);
-    match stream_compressed_rollout(path, account) {
-        Ok(mut outcome) => {
-            outcome.offset = size;
-            outcome
-        }
-        Err(Unreadable::TooLarge) => TailOutcome {
-            offset: size,
-            unread: Some("a compressed rollout too large to read"),
-            ..TailOutcome::default()
-        },
-        Err(Unreadable::Damaged) if settling => TailOutcome {
-            offset,
-            ..TailOutcome::default()
-        },
-        Err(Unreadable::Damaged) => TailOutcome {
-            offset: size,
-            parse_errors: 1,
-            ..TailOutcome::default()
-        },
-    }
-}
-
-/// Why a compressed rollout wasn't read.
-enum Unreadable {
-    TooLarge,
-    Damaged,
-}
-
-fn stream_compressed_rollout(path: &Path, account: &str) -> Result<TailOutcome, Unreadable> {
-    let file = std::fs::File::open(path).map_err(|_| Unreadable::Damaged)?;
-    let decoder = zstd::stream::Decoder::new(file).map_err(|_| Unreadable::Damaged)?;
-    let mut whole = TailOutcome::default();
-    let mut carry = RolloutCarry::default();
-    let limits = LineLimits {
-        slice: COMPRESSED_SLICE,
-        line: COMPRESSED_LINE_MAX,
-        total: COMPRESSED_ROLLOUT_MAX,
-    };
-    let read = for_each_lines(decoder, limits, |lines| {
-        let part = rollout_events_after(account, lines, carry.clone());
-        carry = part.carry.clone();
-        merge_outcome(&mut whole, part);
-    })?;
-    whole.parse_errors += read.overlong;
-    whole.carry = carry;
-    Ok(whole)
-}
-
-/// How [`for_each_lines`] reads: a slice at a time, a line held up to
-/// `line` bytes, and no more than `total` in all.
-#[derive(Clone, Copy)]
-struct LineLimits {
-    slice: usize,
-    line: usize,
-    total: u64,
-}
-
-/// What [`for_each_lines`] saw besides the lines it handed on.
-#[derive(Debug, Default, PartialEq, Eq)]
-struct LinesRead {
-    /// Lines dropped for being longer than the cap.
-    overlong: u64,
-    /// The most bytes held at once, besides the slice being read.
-    held_peak: usize,
-}
-
-/// Reads `reader` a slice at a time and hands `each` the complete lines
-/// (through their newlines) as they come. A line still unfinished past
-/// `limits.line` is dropped up to its newline. Whatever follows the last
-/// newline is a line never finished, and is left out.
-fn for_each_lines(
-    mut reader: impl Read,
-    limits: LineLimits,
-    mut each: impl FnMut(&[u8]),
-) -> Result<LinesRead, Unreadable> {
-    let mut seen = LinesRead::default();
-    let mut pending: Vec<u8> = Vec::new();
-    let mut skipping = false;
-    let mut slice = vec![0u8; limits.slice];
-    let mut total = 0u64;
-    loop {
-        let read = reader.read(&mut slice).map_err(|_| Unreadable::Damaged)?;
-        if read == 0 {
-            return Ok(seen);
-        }
-        total += read as u64;
-        if total > limits.total {
-            return Err(Unreadable::TooLarge);
-        }
-        let mut fresh = &slice[..read];
-        if skipping {
-            // The rest of a dropped line: resume after its newline.
-            let Some(end) = fresh.iter().position(|byte| *byte == b'\n') else {
-                continue;
-            };
-            fresh = &fresh[end + 1..];
-            skipping = false;
-        }
-        pending.extend_from_slice(fresh);
-        seen.held_peak = seen.held_peak.max(pending.len());
-        match pending.iter().rposition(|byte| *byte == b'\n') {
-            Some(last) => {
-                each(&pending[..=last]);
-                pending.drain(..=last);
-            }
-            None if pending.len() > limits.line => {
-                seen.overlong += 1;
-                pending.clear();
-                skipping = true;
-            }
-            None => {}
-        }
-    }
-}
-
-/// Adds one slice's outcome to the file's.
-fn merge_outcome(whole: &mut TailOutcome, part: TailOutcome) {
-    whole.events.extend(part.events);
-    whole.samples.extend(part.samples);
-    if let Some(seen) = part.credits
-        && whole.credits.as_ref().is_none_or(|kept| kept.ts <= seen.ts)
-    {
-        whole.credits = Some(seen);
-    }
-    whole.parse_errors += part.parse_errors;
-    whole.dropped += part.dropped;
 }
 
 /// The spool path for an account config dir (managed-dir-only law).
@@ -1412,12 +1278,82 @@ struct StatusLineCommand {
 /// in-place account.
 const OVERLAY_SETTINGS_NAME: &str = "launch-settings.json";
 
+/// AJ-E1530 Req.1: the record of an opted-in capture, in the account's
+/// overlay folder (never the user's).
+pub const OUTSIDE_CAPTURE_RECORD: &str = "outside-capture.json";
+
+/// The full `settings.json` from just before the opted-in change, kept in
+/// the overlay folder (never the user's).
+pub const OUTSIDE_CAPTURE_BACKUP: &str = "settings-before-capture.json";
+
+/// What an opted-in capture changed (ADR-0018 amendment): the key's value
+/// before (its text as written; `None` when there was none), AI
+/// Juggler's value, and the whole file as written, by hash, so turning
+/// it off knows whether the user edited the file since.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct OutsideCaptureRecord {
+    /// The settings file it changed, as the account's folder names it.
+    pub file: String,
+    /// The top-level key.
+    pub key: String,
+    /// The key's value before, as written; `None` when it had none.
+    pub original: Option<String>,
+    /// AI Juggler's value, as written.
+    pub ours: String,
+    /// SHA-256 (hex) of the whole file as AI Juggler wrote it.
+    pub written_sha256: String,
+    /// When it was turned on, epoch ms.
+    pub at_ms: i64,
+}
+
+/// The opted-in capture's record for an account, when it's on.
+#[must_use]
+pub fn outside_capture_record(
+    overlays_root: &Path,
+    account_id: &str,
+) -> Option<OutsideCaptureRecord> {
+    let bytes =
+        std::fs::read(overlay_dir(overlays_root, account_id).join(OUTSIDE_CAPTURE_RECORD)).ok()?;
+    serde_json::from_slice(&bytes).ok()
+}
+
 /// Where AI Juggler keeps an in-place account's own files (wrapper,
 /// spool, launch settings): `<overlays root>/<account id>/`. Never the
 /// user's folder.
 #[must_use]
 pub fn overlay_dir(overlays_root: &Path, account_id: &str) -> PathBuf {
     overlays_root.join(account_id)
+}
+
+/// The capture wrapper of an account (see [`overlay_dir`]), as the one
+/// shell word a status line `command` takes.
+#[must_use]
+pub fn overlay_wrapper_command(overlays_root: &Path, account_id: &str) -> String {
+    shell_word(
+        &overlay_dir(overlays_root, account_id)
+            .join(WRAPPER_NAME)
+            .to_string_lossy(),
+    )
+}
+
+/// The status line command AI Juggler writes into a user's own settings
+/// when they turn on measuring for sessions started elsewhere (AJ-E1530):
+/// fail-safe, so deleting AI Juggler (or its data) can never break their
+/// status line. It runs the capture wrapper while that's there and
+/// runnable; otherwise their own command, kept in it as one quoted word,
+/// runs as before. Their command is never one of AI Juggler's wrappers.
+#[must_use]
+pub fn fail_safe_statusline_command(
+    overlays_root: &Path,
+    account_id: &str,
+    original: Option<&str>,
+) -> String {
+    let theirs = not_ours(original.map(str::to_owned)).unwrap_or_default();
+    format!(
+        "sh -c 'if [ -x \"$1\" ]; then exec \"$1\"; fi; if [ -n \"$2\" ]; then exec sh -c \"$2\"; fi' {FAIL_SAFE_NAME} {} {}",
+        overlay_wrapper_command(overlays_root, account_id),
+        shell_word(&theirs)
+    )
 }
 
 /// The spool of an in-place account (see [`overlay_dir`]).
@@ -1442,13 +1378,37 @@ pub fn ensure_launch_overlay(
     let dir = overlay_dir(overlays_root, account_id);
     let spool_dir = dir.join(SPOOL_DIR_NAME);
     std::fs::create_dir_all(&spool_dir).map_err(|error| format!("overlay dir: {error}"))?;
-    // Only `statusLine.command` is kept (see [`StatusLineShape`]).
-    let chain = std::fs::File::open(config_dir.join("settings.json"))
-        .ok()
-        .and_then(|file| {
-            serde_json::from_reader::<_, StatusLineShape>(std::io::BufReader::new(file)).ok()
-        })
-        .and_then(|settings| settings.status_line?.command);
+    // Only `statusLine.command` is kept (see [`StatusLineShape`]), from
+    // the settings and from a backup alike.
+    let command = |name: &str| {
+        std::fs::File::open(config_dir.join(name))
+            .ok()
+            .and_then(|file| {
+                serde_json::from_reader::<_, StatusLineShape>(std::io::BufReader::new(file)).ok()
+            })
+            .and_then(|settings| settings.status_line?.command)
+    };
+    let chain = match command("settings.json") {
+        // The user turned on the capture for sessions started elsewhere
+        // (AJ-E1530): chain their own line, as it was before, from the
+        // record in AI Juggler's folder.
+        Some(ours) if ours.contains(WRAPPER_NAME) && dir.join(OUTSIDE_CAPTURE_RECORD).exists() => {
+            outside_capture_record(overlays_root, account_id)
+                .and_then(|record| record.original)
+                .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
+                .and_then(|value| {
+                    value
+                        .get("command")
+                        .and_then(serde_json::Value::as_str)
+                        .map(str::to_owned)
+                })
+        }
+        // A copy an earlier version wired to its own wrapper (left as it
+        // is): chain what that wrapper chained, the user's own line, kept
+        // in its backup — never the wrapper itself.
+        Some(ours) if ours.contains(WRAPPER_NAME) => command(BACKUP_NAME),
+        other => other,
+    };
     let chain = not_ours(chain);
     let wrapper = dir.join(WRAPPER_NAME);
     write_if_changed(
@@ -1471,53 +1431,4 @@ pub fn ensure_launch_overlay(
     )
     .map_err(|error| format!("settings write: {error}"))?;
     Ok(path)
-}
-
-#[cfg(test)]
-mod line_tests {
-    use super::{LineLimits, LinesRead, Unreadable, for_each_lines};
-
-    const SMALL: LineLimits = LineLimits {
-        slice: 16,
-        line: 64,
-        total: 10_000,
-    };
-
-    fn lines_of(bytes: &[u8], limits: LineLimits) -> (Vec<u8>, Result<LinesRead, Unreadable>) {
-        let mut handed = Vec::new();
-        let read = for_each_lines(bytes, limits, |lines| handed.extend_from_slice(lines));
-        (handed, read)
-    }
-
-    /// Lines split across slices come out whole; a last line never finished
-    /// is left out.
-    #[test]
-    fn lines_cross_slices_whole() {
-        let text = b"{\"a\":1}\n{\"b\":\"a longer value here\"}\nunfinished";
-        let (handed, read) = lines_of(text, SMALL);
-        assert_eq!(handed, b"{\"a\":1}\n{\"b\":\"a longer value here\"}\n");
-        assert_eq!(read.ok().map(|read| read.overlong), Some(0));
-    }
-
-    /// QA P20: one line without a newline never fills memory. It is dropped
-    /// once past the cap, and reading resumes after its end.
-    #[test]
-    fn an_endless_line_is_dropped_not_held() {
-        let mut text = vec![b'x'; 5_000];
-        text.extend_from_slice(b"\n{\"after\":1}\n");
-        let (handed, read) = lines_of(&text, SMALL);
-        let read = read.ok();
-        assert_eq!(handed, b"{\"after\":1}\n");
-        assert_eq!(read.as_ref().map(|read| read.overlong), Some(1));
-        let held = read.map_or(usize::MAX, |read| read.held_peak);
-        assert!(held <= SMALL.line + SMALL.slice, "held {held} bytes");
-    }
-
-    /// Past the total it stops: too large, not damaged.
-    #[test]
-    fn past_the_total_is_too_large() {
-        let text = b"{}\n".repeat(4_000);
-        let (_, read) = lines_of(&text, SMALL);
-        assert!(matches!(read, Err(Unreadable::TooLarge)));
-    }
 }

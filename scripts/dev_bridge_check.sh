@@ -35,4 +35,11 @@ if [[ "${1:-}" != "--quick" ]]; then
     exit 1
   fi
 fi
+# The other test seams (the dialogs'): compiled into debug builds only;
+# the release build checks its own binary (build-macos.yml). Here, the
+# check can see them where they are.
+debug_bin="${CARGO_TARGET_DIR:-target}/debug/juggler-app"
+if [[ "${1:-}" != "--quick" && -x "$debug_bin" ]]; then
+  scripts/release_seams_check.sh --selftest "$debug_bin"
+fi
 echo "dev-bridge: off by default, in no release workflow, refused by release builds"

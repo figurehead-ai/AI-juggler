@@ -49,3 +49,41 @@ pub fn instance_mark_reviewed(
     crate::commands::emit_sessions(&app, state.inner())?;
     Ok(at)
 }
+
+/// Core (AJ-E1503): undoes Mark reviewed — an `unreviewed` event, so the
+/// session is back on the triage's finished list and both steps stay in
+/// its history. Returns when (epoch ms).
+///
+/// # Errors
+///
+/// Returns [`AppError::Validation`] when the session's latest step is not
+/// `reviewed`, or the typed storage error for an unknown one.
+pub fn instance_unmark_reviewed_impl(state: &Arc<AppState>, session_id: &str) -> AppResult<i64> {
+    let storage = crate::commands::lock_storage_arc(state)?;
+    let id = SessionId::new(session_id);
+    storage.sessions().get(&id)?;
+    let latest = storage.sessions().lifecycle_latest()?;
+    if latest.get(session_id).map(|(event, _)| event.as_str()) != Some("reviewed") {
+        return Err(AppError::Validation {
+            subject: "review",
+            message: "this session isn't marked reviewed".to_owned(),
+        });
+    }
+    Ok(storage.sessions().record_lifecycle(&id, "unreviewed")?)
+}
+
+/// AJ-E1503: undoes Mark reviewed (the toast's Undo).
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] per [`instance_unmark_reviewed_impl`].
+#[tauri::command]
+pub fn instance_unmark_reviewed(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Arc<AppState>>,
+    session_id: String,
+) -> AppResult<i64> {
+    let at = instance_unmark_reviewed_impl(state.inner(), &session_id)?;
+    crate::commands::emit_sessions(&app, state.inner())?;
+    Ok(at)
+}

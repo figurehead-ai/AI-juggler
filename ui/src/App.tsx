@@ -1,5 +1,15 @@
+import { ToolChip } from "./components/ToolMark";
+import { AppActions } from "./components/AppActions";
+import { useAppKeys } from "./lib/app-keys";
+import { ConversationPage } from "./components/ConversationPage";
+import { ConversationsProvider } from "./lib/conversations";
+import { onConversationsChanged } from "./lib/ipc/conversations";
+import { withMarks, withPalette } from "./lib/palette";
+import { useFirstRun } from "./lib/first-run";
+import { useLiveDeltas } from "./lib/live-deltas";
+import { MainNav } from "./components/MainNav";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Button, Card, Chip } from "./components/primitives";
+import { Button, Card } from "./components/primitives";
 import { WorkflowRail, type Freshness } from "./components/WorkflowRail";
 import { GoToPalette } from "./components/GoToPalette";
 import { PortWarningSheet } from "./components/PortMap";
@@ -7,29 +17,35 @@ import { RecoverySummaryDialog } from "./components/RecoverySummaryDialog";
 import { UsageStatsReconsent } from "./components/UsageStatsReconsent";
 import { CrashReportPrompt } from "./components/CrashReports";
 import { CleanupCentre, focusCleanupFilter } from "./screens/CleanupCentre";
-import { toolFound } from "./lib/providers";
-import { launchPortWarning, type PortWarningInfo,} from "./lib/bridge";
+import { useOutsideRequests } from "./lib/outside";
+import { GLOBAL_NAV, MORE_NAV, PRIMARY_NAV, globalId, type GlobalId } from "./lib/nav";
+import { ThisMacScreen } from "./screens/ThisMacScreen";
+import { PrivacyScreen } from "./screens/PrivacyScreen";
 import { IconJuggler, IconTerminal } from "./components/icons";
 import { AttentionAnnouncer, RenewalAnnouncer } from "./components/indicator";
 import { LegendPopover } from "./components/LegendPopover";
 import {
   DENSITY_EVENT,
-  isDensityShortcut as isDensityShortcutEvent,
-  isTypingTarget,
   nextDensity,
   readDensity,
   storeDensity,
   type Density,
 } from "./lib/density";
 import {
-  hasLiveBackend,
   fleetRemote,
   fleetRemoteFocus,
   type RemoteCommandOutcomeInfo,
   type RemoteMachineInfo,
 } from "./lib/bridge";
-import { isHandoverShortcut, isStopShortcut } from "./lib/shortcuts";
-import { cleanupAlerts, fleetPeers, statsEvent, statsGauge } from "./lib/bridge";
+import { providerDisplayName, toolFound } from "./lib/providers";
+import { primaryToolId } from "./lib/tools";
+import { NARROW_RAIL_PX, useNarrowWindow } from "./lib/window";
+import { readInspectorFolded, storeInspectorFolded } from "./lib/shortcuts";
+import { ShortcutSheet } from "./components/ShortcutSheet";
+import { holdStop, sessionLabel } from "./lib/stop";
+import { ToastHost } from "./components/Toast";
+import { QuitSheet } from "./components/QuitSheet";
+import { cleanupAlerts, fleetPeers, launchPortWarning, statsEvent, statsGauge, type PortWarningInfo } from "./lib/bridge";
 
 /** AJ-E1103: the schema's screen names (History isn't counted; Home and
  * the retired Overview aren't either — the schema keeps the name). */
@@ -41,19 +57,13 @@ const STAT_SCREENS: Partial<Record<string, string>> = {
   settings: "settings",
 };
 
-/** AJ-E1103: one keyboard shortcut used (the schema's names). */
-function shortcutUsed(shortcut: string): void {
-  statsEvent("ui.shortcut_used", { shortcut });
-}
-
 /** AJ-E1103: the board became interactive once, after launch. */
 let boardInteractiveCounted = false;
 import { ProfilesScreen } from "./screens/Profiles";
 import { History } from "./screens/History";
 import { AddProviderSheet } from "./screens/AddProviderSheet";
 import { FirstRun } from "./screens/FirstRun";
-import { takeResumeAccess } from "./lib/osAccess";
-import { HomeScreen } from "./screens/Home";
+import { HomeScreen, placeOf } from "./screens/Home";
 import { UsageScreen } from "./screens/Usage";
 import { LimitDialog } from "./components/LimitDialog";
 import { NewSessionModal } from "./screens/NewSession";
@@ -66,8 +76,8 @@ import { IsolationOfferDialog } from "./components/IsolationOfferDialog";
 import { funnelEvent } from "./lib/funnel";
 import { SessionPanel } from "./screens/WorkPanels";
 import { NotificationRegion } from "./components/NotificationRegion";
-import { ScreenBoundary } from "./components/ScreenBoundary";
-import { SwitchFlow, SwitchUndoToast } from "./components/SwitchFlow";
+import { ScreenBoundary, ScrollingScreen } from "./components/ScreenBoundary";
+import { SwitchFlow, showSwitchUndoToast } from "./components/SwitchFlow";
 import { SwitchBackFlow } from "./components/SwitchBackFlow";
 import { RightInspector } from "./components/RightInspector";
 import { ThisMacContext, useThisMac } from "./lib/machine";
@@ -77,8 +87,6 @@ import {
   providersDiscover,
   type SwitchBackSuggestionData,
   launchRecipesList,
-  onSessionsQuota,
-  onSessionsResources,
   onSessionsUpdated,
   onTerminalExit,
   projectsBackfill,
@@ -88,10 +96,8 @@ import {
   switchBackSuggestions,
   onFolderDropped,
   launchSession,
-  appSettingGet,
   desktopFocus,
   goToHotkeySet,
-  onGoToHotkey,
   type LaunchRecipeInfo,
   fetchAppInfo,
   onAppReady,
@@ -108,64 +114,6 @@ import {
  * Global oversight (Overview, Accounts, Usage, Fleet) sits top-right.
  */
 
-const GLOBAL_NAV = [
-  // D-25 amendment (AJ-E1021): Triage and Overview folded into Home.
-  // AJ-E1007: every ended Instance — search, archive, replay.
-  { id: "history", label: "History" },
-  { id: "accounts", label: "Accounts" },
-  { id: "usage", label: "Usage" },
-  { id: "fleet", label: "Fleet" },
-  // AJ-E506: the Cleanup Centre is a GLOBAL surface (ADR-0007) —
-  // never a rail peer of Projects/Instances/Sessions.
-  { id: "cleanup", label: "Cleanup" },
-  // AJ-E1203: Appearance + the optional Account & Cloud (⌘,).
-  { id: "settings", label: "Settings" },
-] as const;
-
-type GlobalId = (typeof GLOBAL_NAV)[number]["id"];
-
-/** D-25: the header's four destinations; the rest are one click away
- * under More (Fleet joins the header once a Mac is paired; Cleanup shows
- * as a pill while something is left behind). */
-const PRIMARY_NAV: Array<{ id: GlobalId | "home"; label: string }> = [
-  { id: "home", label: "Home" },
-  { id: "accounts", label: "Accounts" },
-  { id: "history", label: "History" },
-  { id: "settings", label: "Settings" },
-];
-const MORE_NAV: Array<{ id: GlobalId; label: string; hint: string }> = [
-  { id: "usage", label: "Usage", hint: "Limits and cost for each account" },
-  { id: "fleet", label: "Fleet", hint: "Your other Macs" },
-  { id: "cleanup", label: "Cleanup", hint: "Processes left behind, and the audit log" },
-];
-
-/** D-25: below this width the rail folds to icons by itself. */
-const NARROW_RAIL_PX = 900;
-
-/** True while the window is narrower than `px` (follows resizes). */
-function useNarrowWindow(px: number): boolean {
-  const query = `(max-width: ${px - 1}px)`;
-  const read = () => typeof window.matchMedia === "function" && window.matchMedia(query).matches;
-  const [narrow, setNarrow] = useState(read);
-  useEffect(() => {
-    if (typeof window.matchMedia !== "function") return;
-    const list = window.matchMedia(query);
-    const follow = () => setNarrow(list.matches);
-    follow();
-    list.addEventListener("change", follow);
-    return () => list.removeEventListener("change", follow);
-  }, [query]);
-  return narrow;
-}
-
-/** Display names for the header's Provider chip. */
-const PROVIDER_NAMES: Record<string, string> = {
-  "claude-code": "Claude Code",
-  codex: "Codex",
-  "gemini-cli": "Gemini CLI",
-  zcode: "ZCode",
-};
-
 type Selection =
   | { kind: "none" }
   | { kind: "project"; id: string }
@@ -173,6 +121,7 @@ type Selection =
   | { kind: "login"; id: string }
   | { kind: "account"; id: string }
   | { kind: "provider"; id: string }
+  | { kind: "conversation"; accountId: string; id: string; projectId: string | null } // AJ-E1529
   // AJ-E705: a paired machine (instanceId null) or an Instance on it.
   | { kind: "remote"; machineId: string; instanceId: string | null };
 
@@ -267,24 +216,6 @@ export default function App() {
   }, []);
   const [selection, setSelection] = useState<Selection>({ kind: "none" });
   const [global, setGlobal] = useState<GlobalId | null>(null);
-  const [moreOpen, setMoreOpen] = useState(false);
-  const moreRef = useRef<HTMLDivElement | null>(null);
-  // The More menu closes on a click elsewhere or Escape, like any menu.
-  useEffect(() => {
-    if (!moreOpen) return;
-    const onDown = (event: MouseEvent) => {
-      if (moreRef.current && !moreRef.current.contains(event.target as Node)) setMoreOpen(false);
-    };
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMoreOpen(false);
-    };
-    window.addEventListener("mousedown", onDown);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("mousedown", onDown);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [moreOpen]);
   // D-25: Cleanup and Fleet surface only when they're relevant.
   const [cleanupCount, setCleanupCount] = useState(0);
   const [pairedCount, setPairedCount] = useState(0);
@@ -311,6 +242,11 @@ export default function App() {
   const [settingsFocusCloud, setSettingsFocusCloud] = useState(false);
   // D-25: a link elsewhere (Accounts' pack-secrets line) opens one section.
   const [settingsSection, setSettingsSection] = useState<string | undefined>(undefined);
+  // AJ-E1524: Home (the welcome while no account is in).
+  const openHome = () => {
+    setGlobal(null);
+    setSelection({ kind: "none" });
+  };
   const openCloudSettings = () => {
     setSettingsFocusCloud(true);
     setGlobal("settings");
@@ -329,29 +265,45 @@ export default function App() {
   const [projects, setProjects] = useState<ProjectInfo[]>([]);
   const [sessions, setSessions] = useState<InstanceInfo[]>([]);
   // AJ-E1007: archived Instances leave the rail (History keeps them).
-  const railSessions = useMemo(() => sessions.filter((row) => row.lifecycle !== "archived"), [sessions]);
+  // AJ-E1502: a forgotten project, and its (ended) sessions, leave the
+  // rail and New session until it is used again; History keeps them.
+  const shownProjects = useMemo(() => projects.filter((project) => !project.forgotten), [projects]);
+  const railSessions = useMemo(() => {
+    const forgotten = new Set(projects.filter((project) => project.forgotten).map((project) => project.id));
+    return sessions.filter((row) => row.lifecycle !== "archived" && !(row.project_id !== null && forgotten.has(row.project_id)));
+  }, [sessions, projects]);
   const [accounts, setAccounts] = useState<AccountInfo[]>([]);
   const [profiles, setProfiles] = useState<LaunchRecipeInfo[]>([]);
+  // AJ-E1503 Req.4: until the first load answers, lists show row-shaped
+  // placeholders, never a false "nothing here".
+  const [loaded, setLoaded] = useState(false);
   const [newSessionDir, setNewSessionDir] = useState<string | null>(null);
   const [loginTerminals, setLoginTerminals] = useState<
     { id: string; title: string; ended: boolean }[]
   >([]);
   const [newSession, setNewSession] = useState(false);
+  const closeNewSession = () => {
+    setNewSession(false);
+    setNewSessionDir(null);
+  };
   // AJ-E205: the executing switch flow (freeze dialog → stages →
   // source-safe failure banner). Null = closed.
   // D-25: Accounts › Add account reuses first run's steps, for this tool
   // (AJ-E1023: chosen first only when more than one is installed).
   const [addAccounts, setAddAccounts] = useState<string | null>(null);
+  // AJ-E1524: the welcome's "Add a fresh account" opens on that step.
+  const [addFresh, setAddFresh] = useState(false);
   const [chooseTool, setChooseTool] = useState(false);
-  const startAddAccount = useCallback(() => {
+  const startAddAccount = useCallback((fresh = false) => {
+    setAddFresh(fresh);
     void providersDiscover().then(
       (rows) => {
         // Found counts, even when its version couldn't be read (0.0.11).
         const ready = rows.filter(toolFound);
         if (ready.length > 1) setChooseTool(true);
-        else setAddAccounts(ready[0]?.provider ?? "claude-code");
+        else setAddAccounts(ready[0]?.provider ?? primaryToolId() ?? "");
       },
-      () => setAddAccounts("claude-code"),
+      () => setAddAccounts(primaryToolId() ?? ""),
     );
   }, []);
   const [accountsNonce, setAccountsNonce] = useState(0);
@@ -360,9 +312,6 @@ export default function App() {
   // The tool chip leaves the header when its view opens: focus follows.
   const [inspectorFocus, setInspectorFocus] = useState(0);
   const [switchFlow, setSwitchFlow] = useState<{ sessionId: string; targetProfileId: string; targetLabel: string } | null>(null);
-  // AJ-E206: the 10-second undo window after a 1-click switch (the
-  // edge is the undo handle). Null = no window open.
-  const [undoWindow, setUndoWindow] = useState<{ edgeId: string; targetLabel: string } | null>(null);
   // AJ-E207: the suggested returns (reset-trigger cards) + the
   // switch-back review modal. Null = closed; suggest-only.
   const [switchBackCards, setSwitchBackCards] = useState<SwitchBackSuggestionData[]>([]);
@@ -379,8 +328,7 @@ export default function App() {
   const [goToHotkey, setGoToHotkey] = useState("Alt+Space");
   // D-25: a fresh install opens on first run (what's here → sign in →
   // computer access); a fresh account and a folder import are its steps.
-  const [firstRun, setFirstRun] = useState(false);
-  const [firstRunAtAccess, setFirstRunAtAccess] = useState(false);
+  const [firstRun, setFirstRun, firstRunAtAccess, setFirstRunAtAccess] = useFirstRun();
   // AJ-E305 flow (b): the New project sheet. Null = closed; a string
   // pre-selects that directory (the Summary's Start here).
   const [newProjectDir, setNewProjectDir] = useState<string | null>(null);
@@ -406,27 +354,15 @@ export default function App() {
   useEffect(() => {
     const openAccounts = () => setGlobal("accounts");
     const newSession = () => setNewSession(true);
+    const openScreen = (event: Event) => setGlobal((current) => globalId((event as CustomEvent<{ id?: unknown }>).detail?.id) ?? current);
     window.addEventListener("aij:open-accounts", openAccounts);
     window.addEventListener("aij:new-session", newSession);
+    window.addEventListener("aij:open-screen", openScreen);
     return () => {
       window.removeEventListener("aij:open-accounts", openAccounts);
       window.removeEventListener("aij:new-session", newSession);
+      window.removeEventListener("aij:open-screen", openScreen);
     };
-  }, []);
-
-  // First run: zero accounts → first run opens by itself (spec §12.1,
-  // D-25), once per dismissal. After Reopen AI Juggler (Screen Recording,
-  // the 0.0.12 report) it comes back at its access step, whatever else.
-  useEffect(() => {
-    if (takeResumeAccess()) {
-      setFirstRunAtAccess(true);
-      setFirstRun(true);
-      return;
-    }
-    if (localStorage.getItem("aij.onboarding.dismissed") === "1") return;
-    void accountsList().then((accounts) => {
-      if (accounts.length === 0) setFirstRun(true);
-    });
   }, []);
 
   const refresh = useCallback(async () => {
@@ -439,9 +375,9 @@ export default function App() {
           launchRecipesList(),
           switchBackSuggestions().catch(() => []),
         ]);
-      setProjects(projectRows);
+      setProjects(withMarks(projectRows)); // AJ-E1532: each project its mark
       setSessions(sessionRows);
-      setAccounts(accountRows);
+      setAccounts(withPalette(accountRows)); // AJ-E1532: each account its own colour
       setProfiles(profileRows);
       setSwitchBackCards(backSuggestions);
       if (!boardInteractiveCounted) {
@@ -459,13 +395,18 @@ export default function App() {
       });
     } catch {
       // preview mode may lack backend mocks for some calls — keep last data
+    } finally {
+      setLoaded(true);
     }
   }, [baselineFreshness]);
 
   // Golden path day one: surface the user's REAL project history from
-  // imported transcripts (idempotent backend scan).
+  // imported transcripts (idempotent backend scan). AJ-E1529: the backend
+  // backfills again when the files change (an import, a new folder) and
+  // says so; the lists are read again then.
   useEffect(() => {
     void projectsBackfill().then(() => void refresh());
+    return onConversationsChanged(() => void refresh());
   }, [refresh]);
 
   // Drop a folder anywhere → New session pre-filled with it.
@@ -481,55 +422,8 @@ export default function App() {
     return onSessionsUpdated(() => void refresh());
   }, [refresh]);
 
-  // AJ-E402/E401 read-model ticks: merge the coalesced 5 s resource and
-  // 30 s quota deltas into the rows by id (no full refetch per tick) —
-  // this is what drives the I-07 sparkline history and quota countdowns.
-  // Each delta also refreshes the sampled-at timestamp per id (stale rule).
-  useEffect(() => {
-    const stopResources = onSessionsResources((deltas) => {
-      const at = Date.now();
-      setSessions((current) =>
-        current.map((row) => {
-          const delta = deltas.find((d) => d.id === row.id);
-          return delta
-            ? {
-                ...row,
-                cpu_pct: delta.cpu_pct,
-                rss_bytes: delta.rss_bytes,
-                child_count: delta.child_count,
-              }
-            : row;
-        }),
-      );
-      setFreshness((current) => {
-        const next = { ...current };
-        for (const delta of deltas) {
-          if (next[delta.id]) next[delta.id] = { ...next[delta.id]!, resources: at };
-        }
-        return next;
-      });
-    });
-    const stopQuota = onSessionsQuota((deltas) => {
-      const at = Date.now();
-      setSessions((current) =>
-        current.map((row) => {
-          const delta = deltas.find((d) => d.id === row.id);
-          return delta ? { ...row, quota: delta.quota } : row;
-        }),
-      );
-      setFreshness((current) => {
-        const next = { ...current };
-        for (const delta of deltas) {
-          if (next[delta.id]) next[delta.id] = { ...next[delta.id]!, quota: at };
-        }
-        return next;
-      });
-    });
-    return () => {
-      stopResources();
-      stopQuota();
-    };
-  }, []);
+  // AJ-E402/E401: the 5 s resource and 30 s quota ticks, merged by id.
+  useLiveDeltas(setSessions, setFreshness);
 
   // Login terminals end → mark ended (kept for scrollback until closed).
   useEffect(() => {
@@ -631,117 +525,52 @@ export default function App() {
   const selectedProvider = useMemo(() => {
     if (selection.kind !== "provider") return null;
     const providerAccounts = accounts.filter((a) => a.provider === selection.id);
-    return { id: selection.id, name: PROVIDER_NAMES[selection.id] ?? selection.id, accounts: providerAccounts };
+    return { id: selection.id, name: providerDisplayName(selection.id), accounts: providerAccounts };
   }, [selection, accounts]);
 
 
-  // ⌘B legacy: toggles minimal↔comfortable (the old collapse, kept for
-  // muscle memory). ⌘N starts a New project (AJ-E305 flow (b)). Density
-  // cycle: Ctrl+D everywhere; Cmd+D only inside the Tauri app — the web
-  // preview must not swallow the browser bookmark shortcut (AJ-E403 Req.4).
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "b") {
-        event.preventDefault();
-        shortcutUsed("toggle_rail");
-        toggleRail();
-      }
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "n") {
-        event.preventDefault();
-        shortcutUsed("new_session");
-        setNewProjectDir((current) => current ?? "");
-      }
-      // ⌘. stops the selected live Instance (AJ-E407 Actions); ⌘⇧H
-      // focuses the hand-over section (RightInspector switches tabs).
-      if (isStopShortcut(event)) {
-        event.preventDefault();
-        shortcutUsed("other");
-        if (
-          selectedSession &&
-          (selectedSession.status === "running" || selectedSession.status === "starting")
-        ) {
-          void import("./lib/bridge").then(async ({ terminalKill }) => {
-            await terminalKill(selectedSession.id);
-            void refresh();
-          });
-        }
-      }
-      if (isHandoverShortcut(event)) {
-        event.preventDefault();
-        shortcutUsed("switch");
-        window.dispatchEvent(new Event("aij:focus-handover"));
-      }
-      // ⌘K/Ctrl+K focuses the rail search (AJ-E404 Req.4); Esc clears it
-      // inside the input and focus stays there.
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        window.dispatchEvent(new Event("aij:focus-search"));
-      }
-      // Ctrl+D typed in the terminal is end-of-input, not the rail.
-      if (isDensityShortcutEvent(event, hasLiveBackend()) && !isTypingTarget(event.target)) {
-        event.preventDefault();
-        shortcutUsed("other");
-        cycleDensity();
-      }
-      if (
-        (event.metaKey || event.ctrlKey) &&
-        event.shiftKey &&
-        event.key.toLowerCase() === "l"
-      ) {
-        event.preventDefault();
-        shortcutUsed("other");
-        void import("./theme").then((theme) => theme.cycleTheme());
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [cycleDensity, toggleRail]);
-
-  useEffect(() => {
-    void appSettingGet("go_to_hotkey").then((stored) => {
-      if (stored !== null) setGoToHotkey(stored);
+  // AJ-E1504: the `?` sheet, and the inspector folded to one line
+  // (⌘⇧I), remembered for this window across launches.
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [inspectorFolded, setInspectorFolded] = useState(() => readInspectorFolded());
+  const toggleInspector = useCallback(() => {
+    setInspectorFolded((folded) => {
+      storeInspectorFolded(!folded);
+      return !folded;
     });
-    return onGoToHotkey(() => setGoToOpen(true));
   }, []);
 
-  // ⌘K/Ctrl+K toggles the palette in-app (the global binding covers
-  // the over-any-app case; both land on the same list).
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        shortcutUsed("command_palette");
-        setGoToOpen((openNow) => !openNow);
-      }
-      // AJ-E704: ⌘⇧F opens Fleet from anywhere.
-      if ((event.metaKey || event.ctrlKey) && event.shiftKey && !event.altKey && event.key.toLowerCase() === "f") {
-        event.preventDefault();
-        shortcutUsed("other");
-        setGlobal("fleet");
-      }
-      // AJ-E1203: ⌘, opens Settings (the macOS convention).
-      if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && event.key === ",") {
-        event.preventDefault();
-        shortcutUsed("other");
-        setSettingsFocusCloud(false);
-        setSettingsSection(undefined);
-        setGlobal("settings");
-      }
-      // AJ-E506: ⌘⇧C opens the Cleanup Centre; ⌘F focuses its filter.
-      if ((event.metaKey || event.ctrlKey) && event.shiftKey && !event.altKey && event.key.toLowerCase() === "c") {
-        event.preventDefault();
-        shortcutUsed("other");
-        setGlobal("cleanup");
-      }
-      if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && event.key.toLowerCase() === "f" && global === "cleanup") {
-        event.preventDefault();
-        shortcutUsed("search");
-        focusCleanupFilter();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [global]);
+  // AJ-E1503 Req.2: Stop is held 5 s with Undo, then sent. The ref keeps
+  // ⌘. on the session selected now (the key listener is set up once).
+  const stopSession = useCallback(
+    (session: InstanceInfo) => holdStop({ id: session.id, label: sessionLabel(session, projects) }, () => void refresh()),
+    [projects, refresh],
+  );
+  const stopSelectedRef = useRef<() => void>(() => {});
+  stopSelectedRef.current = () => {
+    if (selectedSession && (selectedSession.status === "running" || selectedSession.status === "starting")) {
+      stopSession(selectedSession);
+    }
+  };
+
+  // AJ-E1504: App's shortcuts (lib/app-keys.ts, from the one registry).
+  useAppKeys({
+    openShortcuts: () => setShortcutsOpen(true),
+    togglePalette: () => setGoToOpen((openNow) => !openNow),
+    newProject: () => setNewProjectDir((current) => current ?? ""),
+    toggleRail,
+    toggleInspector,
+    cycleDensity,
+    goHome: () => { setGlobal(null); setSelection({ kind: "none" }); },
+    goTo: setGlobal,
+    openSettings: () => { setSettingsFocusCloud(false); setSettingsSection(undefined); setGlobal("settings"); },
+    onCleanup: () => global === "cleanup",
+    focusCleanupFilter,
+    stopSelected: () => stopSelectedRef.current(),
+  });
+
+  // AJ-E414, AJ-E1510: the go-to hotkey, and a clicked notification.
+  useOutsideRequests({ hotkey: setGoToHotkey, goTo: () => setGoToOpen(true), open: (open) => (open.machine_id ? inspectRemote(open.machine_id, open.session_id) : open.session_id ? selectSession(open.session_id) : setGlobal("thismac")) });
 
   // The Provider of what's selected — never a fixed label.
   const remoteInstanceProvider =
@@ -759,7 +588,7 @@ export default function App() {
         selectedAccount?.provider ??
         remoteInstanceProvider ??
         (selection.kind === "provider" ? selection.id : null));
-  const contextProvider = contextProviderId ? (PROVIDER_NAMES[contextProviderId] ?? contextProviderId) : null;
+  const contextProvider = contextProviderId ? providerDisplayName(contextProviderId) : null;
 
   const contextTitle =
     global !== null
@@ -777,18 +606,34 @@ export default function App() {
             (projects.find((p) => p.id === selectedSession.project_id)?.name ?? "Session")
           : selectedLogin
             ? selectedLogin.title
-            : "Home";
+            : selection.kind === "none"
+              ? "Home"
+              : // AJ-E1534: a session outside AI Juggler, like one of its own, by its project.
+                (projects.find((p) => selection.kind === "conversation" && p.id === selection.projectId)?.name ?? "Session");
 
   return (
     <ThisMacContext.Provider value={thisMacInfo}>
-    <div className="flex h-screen w-screen overflow-hidden">
+    <ConversationsProvider>
+    <AppActions
+      selectConversation={(conversation) => { setGlobal(null); setSelection({ kind: "conversation", accountId: conversation.account_id, id: conversation.id, projectId: conversation.project_id }); }}
+      selectSession={selectSession}
+      selectProject={selectProject}
+      selectAccount={(id) => { setGlobal(null); setSelection({ kind: "account", id }); }}
+      selectTool={(id) => { setGlobal(null); setSelection({ kind: "provider", id }); }}
+      openAccounts={() => setGlobal("accounts")}
+      stopSession={stopSession}
+      newSessionIn={(project) => { setNewSessionDir(project.root); setNewSession(true); }}
+      refresh={() => void refresh()}
+    >
+    <div className="relative flex h-screen w-screen overflow-hidden">
       <AttentionAnnouncer sessions={sessions} />
       <RenewalAnnouncer accounts={accounts} />
       <WorkflowRail
         density={railDensity}
         onCycleDensity={cycleDensity}
-        projects={projects}
+        projects={shownProjects}
         sessions={railSessions}
+        onChanged={() => void refresh()}
         accounts={accounts}
         loginTerminals={loginTerminals}
         selectedId={selection.kind === "none" || selection.kind === "remote" ? null : selection.id}
@@ -805,6 +650,7 @@ export default function App() {
           selection.kind === "remote" ? { machineId: selection.machineId, instanceId: selection.instanceId } : null
         }
         onSelectRemote={inspectRemote}
+        loading={!loaded}
         header={(minimal) => (
           <div
             className={
@@ -842,11 +688,11 @@ export default function App() {
         )}
         footer={(minimal) =>
           minimal ? (
-            <MachineStatusLine minimal />
+            <MachineStatusLine minimal onOpen={() => setGlobal("thismac")} />
           ) : (
             <div className="flex flex-col gap-1.5 px-3 py-2.5">
               <div className="flex min-w-0 items-center gap-2 overflow-hidden">
-                <MachineStatusLine minimal={false} />
+                <MachineStatusLine minimal={false} onOpen={() => setGlobal("thismac")} />
                 {/* The rail-footer `?` legend popover (AJ-E403 Req.6,
                     surface 1 of 3 — identical content everywhere). */}
                 <LegendPopover />
@@ -887,109 +733,32 @@ export default function App() {
                 className="rounded-full outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
                 data-testid="context-tool"
               >
-                <Chip tone="accent">{contextProvider}</Chip>
+                <ToolChip tool={contextProviderId} tone="accent" />
               </button>
             )}
           </div>
 
           <div className="ml-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-0.5 xl:gap-1.5" data-tauri-drag-region={false}>
-            <nav aria-label="Main" className="flex flex-wrap items-center gap-0.5 xl:gap-1">
-              {PRIMARY_NAV.map((item) => {
-                const current = item.id === "home" ? global === null && selection.kind === "none" : global === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    aria-current={current ? "page" : undefined}
-                    onClick={() => {
-                      setSettingsFocusCloud(false);
-                      setSettingsSection(undefined);
-                      setMoreOpen(false);
-                      if (item.id === "home") {
-                        setGlobal(null);
-                        setSelection({ kind: "none" });
-                      } else {
-                        setGlobal(item.id);
-                      }
-                    }}
-                    className={
-                      "rounded-md px-2 py-1.5 text-xs font-medium transition-colors xl:px-2.5 " +
-                      (current ? "bg-surface text-ink sheen" : "text-muted hover:bg-surface/60 hover:text-ink")
-                    }
-                  >
-                    {item.label}
-                  </button>
-                );
-              })}
-              {pairedCount > 0 && (
-                <button
-                  type="button"
-                  aria-current={global === "fleet" ? "page" : undefined}
-                  onClick={() => {
-                    setMoreOpen(false);
-                    setGlobal("fleet");
-                  }}
-                  className={
-                    "rounded-md px-2 py-1.5 text-xs font-medium transition-colors xl:px-2.5 " +
-                    (global === "fleet" ? "bg-surface text-ink sheen" : "text-muted hover:bg-surface/60 hover:text-ink")
-                  }
-                >
-                  Fleet
-                </button>
-              )}
-              {cleanupCount > 0 && global !== "cleanup" && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMoreOpen(false);
-                    setGlobal("cleanup");
-                  }}
-                  className="ml-1 rounded-full border border-warning/40 bg-warning-soft px-2.5 py-1 text-[11px] font-medium text-ink"
-                  data-testid="nav-cleanup-pill"
-                >
-                  {cleanupCount === 1 ? "1 thing to clean up" : `${cleanupCount} things to clean up`}
-                </button>
-              )}
-              <div className="relative" ref={moreRef}>
-                <button
-                  type="button"
-                  aria-expanded={moreOpen}
-                  aria-controls="nav-more"
-                  onClick={() => setMoreOpen((open) => !open)}
-                  className={
-                    "rounded-md px-2 py-1.5 text-xs font-medium transition-colors xl:px-2.5 " +
-                    (MORE_NAV.some((item) => item.id === global) ? "bg-surface text-ink sheen" : "text-muted hover:bg-surface/60 hover:text-ink")
-                  }
-                >
-                  More
-                </button>
-                {moreOpen && (
-                  <div
-                    id="nav-more"
-                    className="absolute right-0 top-full z-40 mt-1.5 flex w-72 flex-col rounded-xl border border-hairline bg-surface p-1.5 shadow-xl"
-                    onKeyDown={(event) => {
-                      if (event.key === "Escape") setMoreOpen(false);
-                    }}
-                  >
-                    {MORE_NAV.map((item) => (
-                      <button
-                        key={item.id}
-                        type="button"
-                        aria-current={global === item.id ? "page" : undefined}
-                        onClick={() => {
-                          setMoreOpen(false);
-                          setGlobal(item.id);
-                        }}
-                        className="flex flex-col items-start gap-0.5 rounded-lg px-3 py-2 text-left hover:bg-surface-2"
-                      >
-                        <span className="text-xs font-medium text-ink">{item.label}</span>
-                        <span className="text-[11px] text-muted">{item.hint}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </nav>
+            <MainNav
+              primary={PRIMARY_NAV}
+              more={MORE_NAV}
+              global={global}
+              page={selection.kind}
+              pairedCount={pairedCount}
+              cleanupCount={cleanupCount}
+              toolIds={[...new Set(accounts.map((account) => account.provider))]}
+              onPick={(id) => {
+                if (PRIMARY_NAV.some((item) => item.id === id)) {
+                  setSettingsFocusCloud(false);
+                  setSettingsSection(undefined);
+                }
+                if (id === "home") {
+                  setGlobal(null);
+                  setSelection({ kind: "none" });
+                } else setGlobal(id);
+              }}
+              onOpenTool={(id) => { setGlobal(null); setSelection({ kind: "provider", id }); }}
+            />
             <Button size="sm" variant="primary" onClick={() => setNewSession(true)}>
               <IconTerminal width={14} height={14} />
               New session
@@ -1008,45 +777,54 @@ export default function App() {
               </ScreenBoundary>
             </div>
           ) : global === "accounts" ? (
-            <div className="h-full overflow-y-auto">
-              <ScreenBoundary key="accounts" screen="accounts" label="Accounts">
-                <ProfilesScreen
-                  key={accountsNonce}
-                  sessions={sessions}
-                  onAddAccounts={startAddAccount}
-                  onAccountsChanged={() => void refresh()}
-                  openTerminal={openLoginTerminal}
-                  onInspectAccount={(id) => {
-                    setGlobal(null);
-                    setSelection({ kind: "account", id });
-                  }}
-                />
-              </ScreenBoundary>
-            </div>
+            <ScrollingScreen key="accounts" screen="accounts" label="Accounts">
+              <ProfilesScreen
+                key={accountsNonce}
+                sessions={sessions}
+                onAddAccounts={() => startAddAccount()}
+                onAccountsChanged={() => void refresh()}
+                openTerminal={openLoginTerminal}
+                onInspectAccount={(id) => {
+                  setGlobal(null);
+                  setSelection({ kind: "account", id });
+                }}
+              />
+            </ScrollingScreen>
           ) : global === "history" ? (
-            <div className="h-full overflow-y-auto">
-              <ScreenBoundary key="history" screen="history" label="History">
-                <History sessions={sessions} projects={projects} onChanged={() => void refresh()} />
-              </ScreenBoundary>
-            </div>
+            <ScrollingScreen key="history" screen="history" label="History">
+              <History sessions={sessions} projects={projects} onChanged={() => void refresh()} />
+            </ScrollingScreen>
           ) : global === "usage" ? (
-            <div className="h-full overflow-y-auto">
-              <ScreenBoundary key="usage" screen="usage" label="Usage">
-                <UsageScreen accounts={accounts} sessions={sessions} onAddAccounts={() => setFirstRun(true)} />
-              </ScreenBoundary>
-            </div>
+            <ScrollingScreen key="usage" screen="usage" label="Usage">
+              <UsageScreen accounts={accounts} sessions={sessions} onAddAccounts={() => setFirstRun(true)} onOpenHome={openHome} />
+            </ScrollingScreen>
           ) : global === "fleet" ? (
-            <div className="h-full overflow-y-auto">
-              <ScreenBoundary key="fleet" screen="fleet" label="Fleet">
-                <FleetScreen onOpenCloud={openCloudSettings} onInspectRemote={inspectRemote} />
-              </ScreenBoundary>
-            </div>
+            <ScrollingScreen key="fleet" screen="fleet" label="Fleet">
+              <FleetScreen
+                onOpenCloud={openCloudSettings}
+                onInspectRemote={inspectRemote}
+                onOpenHome={accounts.length === 0 && loaded ? openHome : undefined}
+              />
+            </ScrollingScreen>
+          ) : global === "thismac" ? (
+            <ScrollingScreen key="thismac" screen="this-mac-page" label="This Mac">
+              <ThisMacScreen
+                nameOf={(id) => {
+                  const session = sessions.find((s) => s.id === id);
+                  return session ? placeOf(session, projects).title : "A session";
+                }}
+                onOpenSession={selectSession}
+                onOpenCleanup={() => setGlobal("cleanup")}
+              />
+            </ScrollingScreen>
+          ) : global === "privacy" ? (
+            <ScrollingScreen key="privacy" screen="privacy" label="Privacy">
+              <PrivacyScreen />
+            </ScrollingScreen>
           ) : global === "settings" ? (
-            <div className="h-full overflow-y-auto">
-              <ScreenBoundary key="settings" screen="settings" label="Settings">
-                <SettingsScreen key={settingsSection ?? "top"} focusCloud={settingsFocusCloud} focusSection={settingsSection} />
-              </ScreenBoundary>
-            </div>
+            <ScrollingScreen key="settings" screen="settings" label="Settings">
+              <SettingsScreen key={settingsSection ?? "top"} focusCloud={settingsFocusCloud} focusSection={settingsSection} />
+            </ScrollingScreen>
           ) : selectedLogin ? (
             <SessionPanel
               session={null}
@@ -1078,6 +856,8 @@ export default function App() {
               return (
                 <ScreenBoundary key="inspector" screen="inspector" label="This view">
                   <RightInspector
+                    folded={inspectorFolded}
+                    onToggleFold={toggleInspector}
                     selection={
                       instance
                         ? { kind: "instance", id: instance.id }
@@ -1131,9 +911,10 @@ export default function App() {
                 />
               </div>
               {selection.kind === "none" ? (
-                <div className="min-h-0 flex-1 overflow-y-auto" data-testid="home-scroll">
+                <div className="relative min-h-0 flex-1 overflow-y-auto" data-testid="home-scroll">
                   <ScreenBoundary key="home" screen="home" label="Home">
                     <HomeScreen
+                      loading={!loaded}
                       sessions={sessions}
                       accounts={accounts}
                       projects={projects}
@@ -1143,18 +924,24 @@ export default function App() {
                       // No account yet: "Find my accounts" comes back to first
                       // run (every tool at once), as its Not now promises.
                       onAddAccounts={() => setFirstRun(true)}
+                      onFreshAccount={() => startAddAccount(true)}
                       onLimit={setLimitFor}
                       openLoginTerminal={openLoginTerminal}
                       onAccountsChanged={() => void refresh()}
                       onChanged={() => void refresh()}
                       thisMac={thisMacInfo}
                       onOpenCleanup={() => setGlobal("cleanup")}
+                      onOpenThisMac={() => setGlobal("thismac")}
                     />
                   </ScreenBoundary>
                 </div>
+              ) : selection.kind === "conversation" ? (
+                <ConversationPage accountId={selection.accountId} id={selection.id} now={now} projects={projects} />
               ) : (
               <div className="min-h-0 flex-1">
               <RightInspector
+              folded={inspectorFolded}
+              onToggleFold={toggleInspector}
               focusTabsRequest={inspectorFocus}
               selection={
                 selection.kind === "session"
@@ -1180,11 +967,8 @@ export default function App() {
                   <Button
                     size="sm"
                     variant="secondary"
-                    onClick={async () => {
-                      const { terminalKill } = await import("./lib/bridge");
-                      await terminalKill(selectedSession.id);
-                      void refresh();
-                    }}
+                    onClick={() => stopSession(selectedSession)}
+                    data-testid="inspector-stop"
                   >
                     Stop
                   </Button>
@@ -1314,6 +1098,7 @@ export default function App() {
         <FirstRun
           mode="add"
           provider={addAccounts}
+          startAt={addFresh ? "fresh" : "found"}
           openLoginTerminal={openLoginTerminal}
           onDone={() => {
             setAddAccounts(null);
@@ -1354,9 +1139,13 @@ export default function App() {
             // AJ-E206: a completed 1-click switch leaves the 10s undo
             // window open (the graph keeps the edge as the handle).
             if (undo) {
-              setUndoWindow({
+              showSwitchUndoToast({
                 edgeId: undo.edgeId,
                 targetLabel: switchFlow.targetLabel,
+                onUndone: (undoneId) => {
+                  void refresh();
+                  selectSession(undoneId);
+                },
               });
             }
           }}
@@ -1373,40 +1162,28 @@ export default function App() {
           }}
         />
       )}
-      {undoWindow && (
-        <SwitchUndoToast
-          edgeId={undoWindow.edgeId}
-          targetLabel={undoWindow.targetLabel}
-          onDismiss={() => setUndoWindow(null)}
-          onUndone={(sessionId) => {
-            setUndoWindow(null);
-            void refresh();
-            selectSession(sessionId);
-          }}
-        />
-      )}
+      {/* AJ-E1503: the one feedback system, and the quit warning. */}
+      <ToastHost />
+      {shortcutsOpen && <ShortcutSheet onClose={() => setShortcutsOpen(false)} />}
+      <QuitSheet />
       {newSession && (
         <NewSessionModal
-          projects={projects}
+          projects={shownProjects}
           accounts={accounts}
+          sessions={sessions}
           initialDirectory={newSessionDir}
           openLoginTerminal={openLoginTerminal}
-          onClose={() => {
-            setNewSession(false);
-            setNewSessionDir(null);
-          }}
+          onClose={closeNewSession}
           onLaunched={(sessionId) => {
             // AJ-E309 Req.6: once per install (the backend dedupes and
             // computes seconds_since_install itself).
             funnelEvent("first_launch");
-            setNewSession(false);
-            setNewSessionDir(null);
+            closeNewSession();
             void refresh();
             selectSession(sessionId);
           }}
           onManageLaunchSettings={() => {
-            setNewSession(false);
-            setNewSessionDir(null);
+            closeNewSession();
             setGlobal("accounts");
           }}
         />
@@ -1416,7 +1193,7 @@ export default function App() {
           typed paths; an empty preset means "no directory yet". */}
       {newProjectDir !== null && (
         <NewProjectSheet
-          projects={projects}
+          projects={shownProjects}
           accounts={accounts}
           initialDirectory={newProjectDir === "" ? null : newProjectDir}
           onClose={() => setNewProjectDir(null)}
@@ -1435,6 +1212,8 @@ export default function App() {
         />
       )}
     </div>
+    </AppActions>
+    </ConversationsProvider>
     </ThisMacContext.Provider>
   );
 }

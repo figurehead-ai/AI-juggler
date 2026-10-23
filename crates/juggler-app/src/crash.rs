@@ -149,6 +149,19 @@ pub fn scrub(text: &str, home: &str, user: &str) -> String {
             let trimmed = word.trim_end();
             if trimmed.contains("://") {
                 format!("[url]{}", &word[trimmed.len()..])
+            } else if let Some(name_end) = secret_assignment(trimmed) {
+                // `API_KEY=value` within a line (the redaction's `.env`
+                // rule only reads a line that starts with it).
+                let value_end = trimmed
+                    .trim_end_matches(['"', '\'', ',', ';', ')'])
+                    .len()
+                    .max(name_end + 1);
+                format!(
+                    "{}•••{}{}",
+                    &trimmed[..=name_end],
+                    &trimmed[value_end..],
+                    &word[trimmed.len()..]
+                )
             } else if let Some(at) = trimmed
                 .find('?')
                 .filter(|at| *at > 0 && trimmed[..*at].contains('/'))
@@ -167,7 +180,22 @@ pub fn scrub(text: &str, home: &str, user: &str) -> String {
     stripped.into_iter().next().unwrap_or_default()
 }
 
-fn hex(bytes: &[u8]) -> String {
+/// Where the `=` is in a `NAME=value` word whose NAME is credential-like
+/// and whose value is long enough to be one (8+ characters, not masked).
+#[must_use]
+pub fn secret_assignment(word: &str) -> Option<usize> {
+    let (name, value) = word.split_once('=')?;
+    let name = name.trim_start_matches(|c: char| !c.is_ascii_alphanumeric() && c != '_');
+    let value = value.trim_matches(['"', '\'', ',', ';', ')']);
+    (!name.is_empty()
+        && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+        && juggler_handover::redaction::credential_name(name)
+        && value.chars().count() >= 8
+        && !value.contains('•'))
+    .then(|| word.find('=').unwrap_or(0))
+}
+
+pub(crate) fn hex(bytes: &[u8]) -> String {
     use std::fmt::Write as _;
     bytes.iter().fold(String::new(), |mut out, b| {
         let _ = write!(out, "{b:02x}");
@@ -570,6 +598,20 @@ mod tests {
             assert!(!json.contains(absent), "{absent} in {json}");
         }
         assert!(report.frames.len() <= MAX_FRAMES);
+    }
+
+    #[test]
+    fn a_secret_assignment_within_a_line_is_masked_and_the_rest_kept() {
+        let text = "spawned with ANTHROPIC_API_KEY=q8Vt3LmZx9RwP2sN, \"auth_token\":x and MODE=fast-mode-on SHORT_KEY=abc";
+        let scrubbed = scrub(text, "/Users/nobody-z", "nobody-z");
+        assert!(!scrubbed.contains("q8Vt3LmZx9RwP2sN"), "{scrubbed}");
+        assert!(scrubbed.contains("ANTHROPIC_API_KEY=•••,"), "{scrubbed}");
+        // Not credential-like, or too short to be one: kept.
+        assert!(
+            scrubbed.contains("MODE=fast-mode-on") && scrubbed.contains("SHORT_KEY=abc"),
+            "{scrubbed}"
+        );
+        assert_eq!(secret_assignment("API_KEY=•••"), None);
     }
 
     #[test]

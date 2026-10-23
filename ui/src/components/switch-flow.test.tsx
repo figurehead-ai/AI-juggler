@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SwitchFlow, SwitchUndoToast } from "./SwitchFlow";
+import { SwitchFlow, showSwitchUndoToast } from "./SwitchFlow";
+import { resetToasts, ToastHost } from "./Toast";
 import type { PreflightInfoData } from "../lib/bridge";
 
 /**
@@ -17,13 +18,15 @@ import type { PreflightInfoData } from "../lib/bridge";
 const ONECLICK: PreflightInfoData = {
   mechanism: "transplant",
   fidelity: "F4",
+  fidelity_words: "Continues exactly",
   score: 1.0,
   warnings: [],
   zombies: [],
   diff_snapshotted: false,
   source_live: true,
+  source_keeps_running: false,
   experimental_copy:
-    "Experimental: only the main transcript moves. Subagent files and rewind history stay on the source. The source stays resumable.",
+    "Beta, not proven yet: the whole session moves, with its subagents and file history. The source stays resumable.",
   door: "one-click",
   wizard_steps: [],
   wizard_reasons: [],
@@ -38,7 +41,7 @@ const ONECLICK: PreflightInfoData = {
     override: null,
     effective: "strip",
     source: "global",
-    line: "Redaction for claude-code: Strip — replace keys with ••• (your global choice)",
+    line: "Redaction for Claude Code: Strip — replace keys with ••• (your global choice)",
   },
   redaction_items: [],
 };
@@ -46,6 +49,7 @@ const ONECLICK: PreflightInfoData = {
 const WIZARD: PreflightInfoData = {
   ...ONECLICK,
   fidelity: "F2",
+  fidelity_words: "Same conversation, new account (compacted)",
   door: "wizard",
   wizard_steps: ["Target", "What's carried", "Confirm"],
   wizard_reasons: ["This isn't the usual account for this project."],
@@ -70,7 +74,10 @@ beforeEach(() => {
   delete (window as never as Seams).__AIJ_SWITCH_UNDO_CALLS__;
   delete (window as never as Seams).__AIJ_SWITCH_UNDO_FAIL__;
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  resetToasts();
+});
 
 function mount(
   preflight: PreflightInfoData,
@@ -89,6 +96,18 @@ function mount(
 }
 
 describe("AJ-E206 door", () => {
+  it("counts the door it shows once, from the preflight's own answer", async () => {
+    (window as never as { __AIJ_DOOR_COUNTS__?: unknown[] }).__AIJ_DOOR_COUNTS__ = [];
+    const view = mount(WIZARD, vi.fn());
+    await waitFor(() => expect(view.getByTestId("switch-wizard")).toBeTruthy());
+    fireEvent.click(view.getByTestId("switch-continue"));
+    await waitFor(() => expect(view.getByTestId("switch-steps").textContent).toContain("Step 2 of 3"));
+    // Moving through the steps counts nothing more.
+    expect((window as never as { __AIJ_DOOR_COUNTS__: unknown[] }).__AIJ_DOOR_COUNTS__).toEqual([
+      { door: "wizard", steps: ["Target", "What's carried", "Confirm"] },
+    ]);
+  });
+
   it("executes nothing until the user clicks (1-click popover)", async () => {
     (window as never as Seams).__AIJ_SWITCH_EXECUTE_HANG__ = true;
     const onSwitched = vi.fn();
@@ -151,9 +170,8 @@ describe("AJ-E206 undo window", () => {
   it("undoes ONLY from the click (never on render), then hands back the resumed session", async () => {
     const onUndone = vi.fn();
     const onDismiss = vi.fn();
-    const view = render(
-      <SwitchUndoToast edgeId="edge-42" targetLabel="Personal" onDismiss={onDismiss} onUndone={onUndone} />,
-    );
+    const view = render(<ToastHost />);
+    act(() => void showSwitchUndoToast({ edgeId: "edge-42", targetLabel: "Personal", onClose: onDismiss, onUndone }));
     await waitFor(() => expect(view.getByTestId("switch-undo-toast")).toBeTruthy());
     // Rendered ≠ undone: the seam records calls and has none.
     expect((window as never as Seams).__AIJ_SWITCH_UNDO_CALLS__).toBeUndefined();
@@ -167,10 +185,9 @@ describe("AJ-E206 undo window", () => {
   });
 
   it("keeps the failure honest when undo fails (source stays resumable)", async () => {
-    (window as never as Seams).__AIJ_SWITCH_UNDO_FAIL__ = "S-F7: the source session is gone";
-    const view = render(
-      <SwitchUndoToast edgeId="edge-42" targetLabel="Personal" onDismiss={() => {}} onUndone={() => {}} />,
-    );
+    (window as never as Seams).__AIJ_SWITCH_UNDO_FAIL__ = "the original conversation is gone";
+    const view = render(<ToastHost />);
+    act(() => void showSwitchUndoToast({ edgeId: "edge-42", targetLabel: "Personal", onUndone: () => {} }));
     await waitFor(() => expect(view.getByTestId("switch-undo-toast")).toBeTruthy());
     fireEvent.click(view.getByTestId("switch-undo"));
     await waitFor(() => expect(view.getByText("Undo didn’t complete")).toBeTruthy());
@@ -180,9 +197,8 @@ describe("AJ-E206 undo window", () => {
     vi.useFakeTimers();
     try {
       const onDismiss = vi.fn();
-      const view = render(
-        <SwitchUndoToast edgeId="edge-42" targetLabel="Personal" onDismiss={onDismiss} onUndone={() => {}} />,
-      );
+      const view = render(<ToastHost />);
+      act(() => void showSwitchUndoToast({ edgeId: "edge-42", targetLabel: "Personal", onClose: onDismiss, onUndone: () => {} }));
       expect(view.getByTestId("switch-undo").textContent).toContain("Undo (10s)");
       // One second per act flush — the countdown re-arms via effect,
       // so each tick needs its own commit.
@@ -196,5 +212,23 @@ describe("AJ-E206 undo window", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("AJ-E1540 a source AI Juggler can't stop", () => {
+  it("says it keeps running and offers no stop choice", async () => {
+    const view = mount({ ...ONECLICK, source_keeps_running: true }, vi.fn());
+    await waitFor(() => expect(view.getByTestId("switch-oneclick")).toBeTruthy());
+    expect(view.getByTestId("switch-keeps-running").textContent).toContain(
+      "AI Juggler can't stop this session",
+    );
+    expect(view.queryByRole("radio", { name: /Stop now/ })).toBeNull();
+  });
+
+  it("offers the choice for a session it started", async () => {
+    const view = mount(ONECLICK, vi.fn());
+    await waitFor(() => expect(view.getByTestId("switch-oneclick")).toBeTruthy());
+    expect(view.queryByTestId("switch-keeps-running")).toBeNull();
+    expect(view.getByRole("radio", { name: /Stop now/ })).toBeTruthy();
   });
 });

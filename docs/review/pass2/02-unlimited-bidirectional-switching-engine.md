@@ -1,7 +1,7 @@
 # 02 — Unlimited Bidirectional Switching Engine (Pass 2)
 
 > Second pass. Canonical input: maintainer example workflow
-> (`docs/expected-worfklow.md:1-20`). Prior work cited, not restated:
+> (`docs/internal/expected-workflow.md:1-20`). Prior work cited, not restated:
 > Maximum-Depth Report (`docs/review/AI-Juggler-Maximum-Depth-Report-and-Proposal.md`,
 > esp. embedded deep `09-handover-and-quota-engine-design.md`, hereafter
 > `Prior-09 §H*`/`§Q*`), Full Competitive & UX Review
@@ -16,11 +16,11 @@
 
 The maintainer sentence that defines this product is not "hand over
 once" but: switch "as many times I want and switching back and forth
-as needed" (`docs/expected-worfklow.md:7`), with "all the chat
+as needed" (`docs/internal/expected-workflow.md:7`), with "all the chat
 history, context, rules and guidelines" working
-(`docs/expected-worfklow.md:6`), across "same tool, sometimes …
+(`docs/internal/expected-workflow.md:6`), across "same tool, sometimes …
 multiple subscriptions from same AI lab"
-(`docs/expected-worfklow.md:5`). Prior work models one directed hop
+(`docs/internal/expected-workflow.md:5`). Prior work models one directed hop
 plus a suggested return; the product needs an unbounded, cyclic,
 bidirectional switching engine. Six gaps follow.
 
@@ -46,7 +46,7 @@ Two prior claims are wrong, not merely thin, and are corrected here:
 - **"Running sessions are never switched underneath the user"**
   (`docs/SPEC.md:286`) is used to justify switch = *new* session only.
   The maintainer workflow switches the *work*, mid-task, when quota
-  dies mid-flight (`docs/expected-worfklow.md:5`;
+  dies mid-flight (`docs/internal/expected-workflow.md:5`;
   `docs/PROPOSAL.md:23`). The engine therefore needs a defined
   mid-task freeze protocol (§5.2); "start the next session elsewhere"
   does not satisfy the example workflow.
@@ -54,7 +54,7 @@ Two prior claims are wrong, not merely thin, and are corrected here:
 ## 1. Terminology — maintainer language mapped to the domain
 
 Maintainer: "we should call them providers, accounts, and instances
-of the tool" (`docs/expected-worfklow.md:11`). Adopt that language in
+of the tool" (`docs/internal/expected-workflow.md:11`). Adopt that language in
 all user-visible copy. Internal types keep their names; the mapping
 below is normative for UI strings, warnings, and this file.
 
@@ -175,7 +175,7 @@ the adapter is marketing, not engineering (Prior-09 §H1, H-1).
 ### 3.2 Same provider, different account (incl. same lab, multi-sub)
 
 The maintainer's most common case: "multiple subscriptions from
-same AI lab" (`docs/expected-worfklow.md:5`). Mechanism: transplant
+same AI lab" (`docs/internal/expected-workflow.md:5`). Mechanism: transplant
 (SPEC T2, `docs/SPEC.md:272`) — same binary both sides, so format
 compatibility is structural, not hoped-for (`docs/SPEC.md:281`).
 
@@ -300,7 +300,7 @@ moves; the failure taxonomy and copy live in §9.
 ### 5.2 Mid-task freeze protocol (new — the quota-wall moment)
 
 The defining switch happens while the source is mid-turn
-(`docs/expected-worfklow.md:5`; in-flight work killed by walls,
+(`docs/internal/expected-workflow.md:5`; in-flight work killed by walls,
 `docs/PROPOSAL.md:23`). Protocol: (1) stop accepting the fiction
 that a live, appending transcript can be copied — v0's raw
 `std::fs::copy` (`crates/juggler-app/src/commands.rs:1143-1146`) can
@@ -331,7 +331,7 @@ target opens the same tree; diverged worktrees → the switch carries
 a named patch, applied only from the diff preview (Prior-09 §H5.3;
 SPEC diff-preview rule, `docs/SPEC.md:289`). Zombie children of a
 frozen instance (expected-workflow pain,
-`docs/expected-worfklow.md:17-18`) are listed at freeze; cleanup is a
+`docs/internal/expected-workflow.md:17-18`) are listed at freeze; cleanup is a
 separate confirmed action, never a silent side-effect of switching.
 
 ## 6. Switch-back and divergence — return is a resume, not a copy
@@ -473,7 +473,7 @@ Surface: Project panel (the juggling anchor, ADR-0007
 SPEC Projects view `docs/SPEC.md:325-330`). Rendering rules:
 horizontal timeline per work item; epoch node = provider icon +
 account label + instance kind badge + state chip (indicators the
-maintainer demands, `docs/expected-worfklow.md:13-14`); edge =
+maintainer demands, `docs/internal/expected-workflow.md:13-14`); edge =
 labelled arrow (`transplant F3 · 12:04` / `replay F1 · ≈41k tok` /
 `switch-back ↺`); fork = branching lines; merge = converging lines
 with conflict-count badge; failed edge = dashed red, clickable to
@@ -559,7 +559,7 @@ survives the next format change — each is a §10 cell to prove, not
 a paragraph to write. What is *not* unresolved: the shape of the
 answer — graph, pack, resume-don't-copy, ranked-never-silent — which
 is what "as many times I want, back and forth"
-(`docs/expected-worfklow.md:7`) demands of the design.
+(`docs/internal/expected-workflow.md:7`) demands of the design.
 
 
 

@@ -188,6 +188,10 @@ staple "$dmg"
 
 # --- verify what users will get ----------------------------------------------
 codesign --verify --deep --strict --verbose=2 "$app"
+# No test seam ships (SECURITY-GUIDELINES C8): the variables that silence
+# or answer dialogs, or start the crash watchdog in a debug build, are
+# compiled into debug builds only.
+"$here/release_seams_check.sh" "$app"/Contents/MacOS/*
 if [ -z "$rehearsal" ]; then
   "${retry[@]}" spctl --assess --type execute --verbose=4 "$app"
   xcrun stapler validate "$app"

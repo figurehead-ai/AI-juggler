@@ -6,12 +6,10 @@ import { RecoveryCodeSheet } from "../components/RecoveryCodeSheet";
 import { CloudBackupPanel } from "../components/CloudBackupPanel";
 import { useCallback, useEffect, useRef, useState, type JSX, type ReactNode } from "react";
 import { PackSecretsCard } from "../components/PackSecretsCard";
-import {
-  CleanupSettingsCard,
-  FleetPermissionsCard,
-  NotificationSettingsCard,
-  RenewalSettingsCard,
-} from "../components/SettingsSections";
+import { CleanupSettingsCard, FleetPermissionsCard, RenewalSettingsCard } from "../components/SettingsSections";
+import { DiagnosticsCard } from "../components/DiagnosticsCard";
+import { NotificationSettingsCard } from "../components/NotificationSettings";
+import { SessionsSettingsCard } from "../components/SessionsSettings";
 import { Button, Card, Chip } from "../components/primitives";
 import {
   accountsList,
@@ -32,8 +30,9 @@ import {
   vaultStatus,
   type VaultStatusInfo,
 } from "../lib/bridge";
-import { THEME_EVENT, setTheme, storedTheme, type ThemeChoice } from "../theme";
-import { DENSITY_EVENT, readDensity, storeDensity, type Density } from "../lib/density";
+import { AppearanceCard } from "../components/AppearanceCard";
+import { UninstallCard } from "../components/UninstallCard";
+import { EditorCard } from "../components/EditorCard";
 
 /**
  * Settings (AJ-E1203; wireframe 26) — the policies the user owns, in
@@ -53,6 +52,7 @@ const SECTIONS = [
   { id: "general", title: "General" },
   { id: "account", title: "Account & Cloud" },
   { id: "packs", title: "Context packs & secrets" },
+  { id: "sessions", title: "Sessions" },
   { id: "cleanup", title: "Cleanup" },
   { id: "renewal", title: "Accounts & renewal dates" },
   { id: "notifications", title: "Notifications" },
@@ -158,7 +158,9 @@ export function SettingsScreen({
         </header>
         <SettingsSection id="general">
           <AppearanceCard />
+          <EditorCard />
           <UpdatesCard focus={focusSection === "updates"} />
+          <DiagnosticsCard />
           <PrivacyCard />
         </SettingsSection>
         <SettingsSection id="account">
@@ -166,6 +168,9 @@ export function SettingsScreen({
         </SettingsSection>
         <SettingsSection id="packs">
           <PackSecretsCard providers={providers} />
+        </SettingsSection>
+        <SettingsSection id="sessions">
+          <SessionsSettingsCard />
         </SettingsSection>
         <SettingsSection id="cleanup">
           <CleanupSettingsCard accounts={accounts} />
@@ -182,102 +187,10 @@ export function SettingsScreen({
         <SettingsSection id="data">
           <StorageRetentionCard />
           <BackupRestoreCard />
+          <UninstallCard />
         </SettingsSection>
       </div>
     </div>
-  );
-}
-
-function AppearanceCard(): JSX.Element {
-  const [choice, setChoice] = useState<ThemeChoice>(storedTheme());
-  useEffect(() => {
-    const sync = () => setChoice(storedTheme());
-    window.addEventListener(THEME_EVENT, sync);
-    return () => window.removeEventListener(THEME_EVENT, sync);
-  }, []);
-  const options: Array<{ id: ThemeChoice; label: string }> = [
-    { id: "system", label: "System" },
-    { id: "light", label: "Light" },
-    { id: "dark", label: "Dark" },
-  ];
-  return (
-    <Card className="flex flex-col gap-3 p-5" data-testid="settings-appearance">
-      <h3 className="text-sm font-semibold" id="appearance-title">
-        Appearance
-      </h3>
-      <div role="radiogroup" aria-labelledby="appearance-title" className="flex flex-wrap gap-2">
-        {options.map((option) => (
-          <label
-            key={option.id}
-            className={
-              "flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm " +
-              (choice === option.id ? "border-accent/60 bg-accent-soft" : "border-hairline")
-            }
-          >
-            <input
-              type="radio"
-              name="appearance"
-              checked={choice === option.id}
-              onChange={() => {
-                setTheme(option.id);
-                setChoice(option.id);
-              }}
-              data-testid={`appearance-${option.id}`}
-            />
-            {option.label}
-          </label>
-        ))}
-      </div>
-      <p className="text-[11px] text-muted">⌘⇧L switches between them from anywhere.</p>
-      <DensityChoice />
-    </Card>
-  );
-}
-
-/** D-25: the session list's density, moved here from the header. */
-function DensityChoice(): JSX.Element {
-  const [density, setDensityState] = useState<Density>(readDensity());
-  useEffect(() => {
-    const sync = () => setDensityState(readDensity());
-    window.addEventListener(DENSITY_EVENT, sync);
-    return () => window.removeEventListener(DENSITY_EVENT, sync);
-  }, []);
-  const options: Array<{ id: Density; label: string; what: string }> = [
-    { id: "comfortable", label: "Comfortable", what: "Two lines per session" },
-    { id: "compact", label: "Compact", what: "One line per session" },
-    { id: "minimal", label: "Minimal", what: "Icons only" },
-  ];
-  return (
-    <fieldset className="mt-2 flex flex-col gap-2" data-testid="settings-density">
-      <legend className="mb-1 text-xs font-medium text-ink">Session list</legend>
-      <div className="flex flex-wrap gap-2">
-        {options.map((option) => (
-          <label
-            key={option.id}
-            className={
-              "flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm " +
-              (density === option.id ? "border-accent/60 bg-accent-soft" : "border-hairline")
-            }
-          >
-            <input
-              type="radio"
-              name="density"
-              checked={density === option.id}
-              onChange={() => {
-                storeDensity(option.id);
-                setDensityState(option.id);
-                window.dispatchEvent(new Event(DENSITY_EVENT));
-              }}
-            />
-            <span className="flex flex-col">
-              <span>{option.label}</span>
-              <span className="text-[11px] text-muted">{option.what}</span>
-            </span>
-          </label>
-        ))}
-      </div>
-      <p className="text-[11px] text-muted">Ctrl+D cycles through them from anywhere.</p>
-    </fieldset>
   );
 }
 

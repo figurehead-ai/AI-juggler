@@ -49,6 +49,14 @@ impl HarnessAdapter for FakeHarnessAdapter {
         HarnessId::new(FAKE_HARNESS_ID)
     }
 
+    fn spec(&self) -> juggler_adapter::ToolSpec {
+        juggler_adapter::ToolSpec {
+            display_name: "Fake harness (test)".to_owned(),
+            short_name: "Fake".to_owned(),
+            ..juggler_adapter::ToolSpec::generic(FAKE_HARNESS_ID)
+        }
+    }
+
     fn capabilities(&self) -> Capabilities {
         // No USAGE_TOKENS: nothing reads the fake's token counts into
         // usage, and the conformance kit holds a claim to its reader.
@@ -178,7 +186,7 @@ impl HarnessAdapter for FakeHarnessAdapter {
                 args.push(prompt.clone());
                 juggler_adapter::launch::headless_spec(self.bin.clone(), args, env, effective_cwd)
             }
-            LaunchMode::Primed { prompt } => {
+            LaunchMode::Primed { prompt, .. } => {
                 args.push("--prompt".to_string());
                 args.push(prompt.clone());
                 juggler_adapter::launch::interactive_spec(

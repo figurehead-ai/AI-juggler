@@ -12,6 +12,7 @@ import {
 import type { AppInfo } from "../types/generated/AppInfo";
 import type { NotificationPrefsInfo } from "../types/generated/NotificationPrefsInfo";
 import type { OsAccessInfo } from "../types/generated/OsAccessInfo";
+import type { QuitPlanInfo } from "../types/generated/QuitPlanInfo";
 import type { ReopenBlockInfo } from "../types/generated/ReopenBlockInfo";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { AccountRemovedInfo } from "../types/generated/AccountRemovedInfo";
@@ -79,6 +80,7 @@ import type { PreviewFrameInfo } from "../types/generated/PreviewFrameInfo";
 import type { PreviewStateInfo } from "../types/generated/PreviewStateInfo";
 import type { FocusOutcomeInfo } from "../types/generated/FocusOutcomeInfo";
 import type { ProcessesInfo } from "../types/generated/ProcessesInfo";
+import { MOCK_PROCESSES } from "./preview-processes";
 import type { StopOutcomeInfo } from "../types/generated/StopOutcomeInfo";
 import type { LaunchResult } from "../types/generated/LaunchResult";
 import type { NeedsAttention } from "../types/generated/NeedsAttention";
@@ -237,9 +239,9 @@ const MOCK_ACCOUNTS: AccountInfo[] = [
 ];
 
 const MOCK_PROFILES: LaunchRecipeInfo[] = [
-  { id: "p-1", name: "Deep work", account_id: "claude-work", account_label: "Work Max", provider: "claude-code", model: Some("opus"), default_cwd: None() },
-  { id: "p-2", name: "Quick fixes", account_id: "claude-work", account_label: "Work Max", provider: "claude-code", model: Some("sonnet"), default_cwd: None() },
-  { id: "p-3", name: "Weekend build", account_id: "claude-personal", account_label: "Personal", provider: "claude-code", model: None(), default_cwd: None() },
+  { id: "p-1", name: "Deep work", account_id: "claude-work", account_label: "Work Max", provider: "claude-code", model: Some("opus"), default_cwd: None(), restart_on_crash: null },
+  { id: "p-2", name: "Quick fixes", account_id: "claude-work", account_label: "Work Max", provider: "claude-code", model: Some("sonnet"), default_cwd: None(), restart_on_crash: null },
+  { id: "p-3", name: "Weekend build", account_id: "claude-personal", account_label: "Personal", provider: "claude-code", model: None(), default_cwd: None(), restart_on_crash: null },
 ];
 
 const MOCK_QUALITY: Record<string, QualitySignalsInfo> = {
@@ -286,40 +288,6 @@ const MOCK_QUALITY: Record<string, QualitySignalsInfo> = {
   },
 };
 
-// AJ-E410 mock trees: a 3-level live tree (the §7.3 wireframe shape)
-// plus a 2-orphan section — one fresh, one already `gone`.
-const MOCK_PROCESSES: Record<string, ProcessesInfo> = {
-  "sess-8": {
-    rows: [
-      { pid: 41201, parent_pid: 40100, name: "claude", cpu_pct: 11.0, rss_bytes: 890_000_000, age_ms: 42 * 60_000, child_count: 2, depth: 0 },
-      { pid: 41233, parent_pid: 41201, name: "node (mcp)", cpu_pct: 1.0, rss_bytes: 96_000_000, age_ms: 40 * 60_000, child_count: 1, depth: 1 },
-      { pid: 41302, parent_pid: 41233, name: "rg (search)", cpu_pct: 4.0, rss_bytes: 120_000_000, age_ms: 12_000, child_count: 0, depth: 2 },
-    ],
-    spark: Array.from({ length: 24 }, (_, i) => ({
-      at_ms: Date.now() - (24 - i) * 2_000,
-      cpu_pct: 6 + ((i * 7) % 9),
-      rss_bytes: 980_000_000 + ((i * 13) % 5) * 20_000_000,
-    })),
-    orphans: [
-      { session_id: "sess-8", pid: 39871, name: "node dev-server", rss_bytes: 210_000_000, parent_label: "claude", age_since_parent_exit_ms: 18 * 60_000, stop_state: null },
-      { session_id: "sess-8", pid: 39890, name: "vite", rss_bytes: 88_000_000, parent_label: "claude", age_since_parent_exit_ms: 18 * 60_000, stop_state: "gone" },
-    ],
-    unavailable_reason: null,
-  },
-  "sess-2": {
-    rows: [
-      { pid: 51001, parent_pid: 50900, name: "claude", cpu_pct: 3.0, rss_bytes: 240_000_000, age_ms: 9 * 60_000, child_count: 0, depth: 0 },
-    ],
-    spark: Array.from({ length: 24 }, (_, i) => ({
-      at_ms: Date.now() - (24 - i) * 2_000,
-      cpu_pct: 2 + ((i * 3) % 4),
-      rss_bytes: 240_000_000,
-    })),
-    orphans: [],
-    unavailable_reason: null,
-  },
-};
-
 const MOCK_STATS: StatsInfo =
   seeded.stats ?? {
     accounts: 2,
@@ -331,7 +299,7 @@ const MOCK_STATS: StatsInfo =
 // Mock rows mirror the AJ-E401 read-model fixtures: one full row, one
 // quota-less row, one model-less/terminal row — nulls where the backend
 // reports absence, never zeros or guessed names.
-const MOCK_SESSIONS: InstanceInfo[] = seeded.sessions ?? [
+export const MOCK_SESSIONS: InstanceInfo[] = seeded.sessions ?? [
   {
     id: "sess-live-1",
     adopted: false,
@@ -351,7 +319,7 @@ const MOCK_SESSIONS: InstanceInfo[] = seeded.sessions ?? [
     }),
     tokens: Some({ input: 12_345, output: 6_789, cache_read: 100, cache_write: 200, reasoning: 42 }),
     cpu_pct: Some(3.5),
-    rss_bytes: Some(123_456),
+    rss_bytes: Some(640_000_000),
     child_count: Some(2),
     subtask_count: null,
     git_branch: Some("feat/read-model"),
@@ -431,7 +399,7 @@ const MOCK_SESSIONS: InstanceInfo[] = seeded.sessions ?? [
   },
 ];
 
-const MOCK_PROJECTS: ProjectInfo[] = seeded.projects ?? [
+export const MOCK_PROJECTS: ProjectInfo[] = seeded.projects ?? [
   {
     id: "proj-ai-juggler",
     root: "/Users/you/Dev/ai-juggler",
@@ -440,7 +408,7 @@ const MOCK_PROJECTS: ProjectInfo[] = seeded.projects ?? [
     active_instance: MOCK_SESSIONS[0],
     accounts_used: ["Work Max"],
     instance_count: 1,
-    history_sessions: 0, history_last_used_ms: null, repo: null,
+    history_sessions: 0, history_last_used_ms: null, repo: null, mark: { letters: "AJ", swatch: 0, shows: "letters" },
     missing: false,
   },
   {
@@ -451,7 +419,7 @@ const MOCK_PROJECTS: ProjectInfo[] = seeded.projects ?? [
     active_instance: null,
     accounts_used: ["Personal", "Work Max"],
     instance_count: 2,
-    history_sessions: 14, history_last_used_ms: null, repo: null, missing: false,
+    history_sessions: 14, history_last_used_ms: null, repo: null, missing: false, mark: { letters: "PA", swatch: 1, shows: "letters" },
   },
 ];
 
@@ -503,8 +471,14 @@ export async function accountUseOriginal(accountId: string): Promise<AccountInfo
   return invoke<AccountInfo>("account_use_original", { accountId });
 }
 
+/** AJ-E1503 seam: `__AIJ_LOAD_HANG__` keeps the first lists loading, so
+ * the captures can show the placeholders. */
+function loadHang(): Promise<never> | null {
+  return (window as unknown as { __AIJ_LOAD_HANG__?: boolean }).__AIJ_LOAD_HANG__ ? new Promise<never>(() => {}) : null;
+}
+
 /** Preview-mode refusal, worded like the backend's (code `refused`). */
-function refused(user_message: string): { code: string; retryable: boolean; user_message: string } {
+export function refused(user_message: string): { code: string; retryable: boolean; user_message: string } {
   return { code: "refused", retryable: false, user_message };
 }
 
@@ -577,6 +551,8 @@ export async function projectSetDefaultAccount(projectId: string, accountId: str
 
 export async function accountsList(): Promise<AccountInfo[]> {
   if (!hasBackend) {
+    const hang = loadHang();
+    if (hang) return hang;
     // A new array each time (the rows are shared): a change made in
     // preview mode re-renders like a real refresh does.
     return [...(seeded.accounts ?? MOCK_ACCOUNTS)];
@@ -1018,6 +994,8 @@ export async function projectsList(): Promise<ProjectInfo[]> {
 
 export async function instancesList(): Promise<InstanceInfo[]> {
   if (!hasBackend) {
+    const hang = loadHang();
+    if (hang) return hang;
     return [...MOCK_SESSIONS];
   }
   return invoke<InstanceInfo[]>("instances_list");
@@ -1231,16 +1209,10 @@ const MOCK_OS_ACCESS: OsAccessInfo[] = [
     action: "prompt",
     note: null,
   },
-  {
-    id: "preview",
-    title: "See a live preview of each session",
-    why: "Shows a session's window inside AI Juggler, on this Mac only; nothing is recorded or sent.",
-    system_name: "Screen Recording",
-    status: "not_asked",
-    action: "prompt",
-    note: "macOS may ask you to reopen AI Juggler after you allow it.",
-  },
 ];
+// No "preview" (Screen Recording): as the backend, it's offered only once
+// a tool can show a live preview, and none can yet. Tests of its reopen
+// flow seed it through `__AIJ_OS_ACCESS__`.
 
 /** What this OS needs, as it stands (never prompts — safe to poll). */
 export async function osAccessList(): Promise<OsAccessInfo[]> {
@@ -1572,103 +1544,8 @@ export async function resetQueueDismiss(id: string): Promise<void> {
   await invoke("reset_queue_dismiss", { id });
 }
 
-/** AJ-E610: one window clock's typed rendered state. */
-export interface WindowDisplay {
-  /** `unmeasured`: use seen, no percentage (no sample, no confirmed cap). */
-  /** `reset`: the window the last reading described has reset since;
-   * nothing is known about the new one. */
-  state: "unknown" | "learning" | "unmeasured" | "tracking" | "stale" | "exhausted" | "reset";
-  percentage: number | null;
-  badge: string | null;
-  stale_note_ms: number | null;
-  resets_at_ms: number | null;
-  /** Where `resets_at_ms` came from; null with it (a reset time is
-   * known or absent, never estimated). */
-  reset_basis: "measured" | "calendar" | null;
-  /** When the vendor's reading was taken: the "as of" beside a measured
-   * percentage. */
-  measured_at_ms: number | null;
-  burned_tokens: number;
-  burned_credits: number | null;
-  headroom_tokens: number | null;
-}
-
-/** AJ-E610: the subscription clock's typed state (calendar line, D-12). */
-export interface RenewalDisplay {
-  state: "none" | "set" | "approaching" | "overdue";
-  label: string;
-  entered_by_user: boolean;
-}
-
-/** AJ-E610: the forecast pill data. */
-export interface ForecastDisplay {
-  state: "learning" | "wont-exhaust" | "exhausts" | "no-headroom";
-  tte_min: number | null;
-  range_min: number | null;
-  range_max: number | null;
-  badge: string;
-}
-
-/** AJ-E610: the two-clock display for one account. */
-export interface QuotaDisplayData {
-  account: string;
-  five_hour: WindowDisplay | null;
-  five_hour_omitted_reason: string | null;
-  weekly: WindowDisplay | null;
-  weekly_omitted_reason: string | null;
-  renewal: RenewalDisplay;
-  forecast: ForecastDisplay;
-  unavailable_reason: string | null;
-  /** Codex's credits, from its own rollouts. */
-  credits: CreditsDisplay | null;
-}
-
-/** An account's credits, as its tool reports them. */
-export interface CreditsDisplay {
-  has_credits: boolean;
-  unlimited: boolean;
-  balance: string | null;
-  as_of_ms: number;
-  /** Who reported it: the tool's name ("Codex"). */
-  source: string;
-}
-
-/** AJ-E306: one window's token headroom (cap − burned) — present
- * ONLY when the cap is known; the admission verdict's input. */
-export interface WindowHeadroom {
-  headroom_tokens?: number | null;
-}
-
-/** AJ-E610: one account's two clocks (engine-evaluated). */
-export async function quotaDisplay(account: string): Promise<QuotaDisplayData> {
-  if (!hasBackend) {
-    const all = await quotaDisplayAll();
-    return (
-      all.find((entry) => entry.account === account) ?? {
-        // What serde sends for an account with nothing measured: nulls.
-        account,
-        five_hour: null,
-        five_hour_omitted_reason: null,
-        weekly: null,
-        weekly_omitted_reason: null,
-        renewal: { state: "none", label: "Renewal: unknown — add date", entered_by_user: false },
-        forecast: { state: "learning", tte_min: null, range_min: null, range_max: null, badge: "estimated" },
-        unavailable_reason: null,
-        credits: null,
-      }
-    );
-  }
-  return invoke<QuotaDisplayData>("quota_display", { account });
-}
-
-/** AJ-E610: every account's two clocks (rail/row source; one query). */
-export async function quotaDisplayAll(): Promise<QuotaDisplayData[]> {
-  if (!hasBackend) {
-    return (window as unknown as { __AIJ_QUOTA_DISPLAY__?: QuotaDisplayData[] })
-      .__AIJ_QUOTA_DISPLAY__ ?? [];
-  }
-  return invoke<QuotaDisplayData[]>("quota_display_all");
-}
+// AJ-E610/#120: the quota display's types and calls (lib/ipc/quota.ts).
+export * from "./ipc/quota";
 
 /** AJ-E610: set/clear the user-entered flat fee (dual view ratio). */
 export async function accountSetFee(account: string, feeUsd: number | null): Promise<void> {
@@ -2208,6 +2085,12 @@ export async function terminalResize(
 
 /** Stops a terminal's process (graceful ladder). */
 export async function terminalKill(id: string): Promise<void> {
+  if (!hasBackend) {
+    // AJ-E1503: the seam that proves a held stop is (or isn't) sent.
+    const w = window as unknown as { __AIJ_TERMINAL_KILL_CALLS__?: string[] };
+    w.__AIJ_TERMINAL_KILL_CALLS__ = [...(w.__AIJ_TERMINAL_KILL_CALLS__ ?? []), id];
+    return;
+  }
   return invoke<void>("terminal_kill", { id });
 }
 
@@ -2277,11 +2160,15 @@ export async function sessionHandover(
 export interface PreflightInfoData {
   mechanism: string;
   fidelity: string;
+  /** AJ-E1543: the label in plain words, what the screen shows. */
+  fidelity_words: string;
   score: number;
   warnings: string[];
   zombies: string[];
   diff_snapshotted: boolean;
   source_live: boolean;
+  /** AJ-E1540: live, but AI Juggler can't stop it (started outside it). */
+  source_keeps_running: boolean;
   experimental_copy: string;
   /** AJ-E206 §8 door verdict: "one-click" | "wizard". */
   door: "one-click" | "wizard";
@@ -2337,32 +2224,48 @@ export interface SwitchExecutedData {
  * AJ-E206 door facts + AJ-E208 redaction policy). */
 const DEFAULT_PREFLIGHT: PreflightInfoData = {
   mechanism: "transplant",
-  fidelity: "F1",
+  fidelity: "F3",
+  fidelity_words: "Same conversation, new account",
   score: 0.85,
   warnings: [],
   zombies: [],
   diff_snapshotted: false,
   source_live: true,
+  source_keeps_running: false,
   experimental_copy:
-    "Experimental: only the main transcript moves. Subagent files and rewind history stay on the source. The source stays resumable.",
+    "Beta, not proven yet: the whole session moves, with its subagents and file history. The source stays resumable.",
   door: "wizard",
   wizard_steps: ["Target", "What's carried", "Confirm"],
   wizard_reasons: ["This isn't the usual account for this project."],
   usual_account: false,
+  // A same-tool switch, as the fidelity table has it (AJ-E1540/E1541):
+  // the whole session moves, and the task list is rebuilt from it.
   carry: {
-    carried: ["chat transcript", "rules & guidelines", "uncommitted git diff"],
-    regenerated: [],
-    dropped: ["todo list", "subagent state"],
+    carried: ["chat transcript", "rules & guidelines", "uncommitted git diff", "subagent state"],
+    regenerated: ["todo list"],
+    dropped: [],
   },
   redaction: {
     global: "strip",
     override: null,
     effective: "strip",
     source: "global",
-    line: "Redaction for claude-code: Strip — replace keys with ••• (your global choice)",
+    line: "Redaction for Claude Code: Strip — replace keys with ••• (your global choice)",
   },
   redaction_items: [],
 };
+
+/** AJ-E206 §5: the switch screen counts the door it shows (local
+ * diagnostics); the preflight itself only reads. The preview records it
+ * in `__AIJ_DOOR_COUNTS__`. */
+export async function switchDoorCount(door: string, steps: string[]): Promise<void> {
+  if (!hasBackend) {
+    const w = window as unknown as { __AIJ_DOOR_COUNTS__?: Array<{ door: string; steps: string[] }> };
+    (w.__AIJ_DOOR_COUNTS__ ??= []).push({ door, steps });
+    return;
+  }
+  await invoke<void>("switch_door_count", { door, steps });
+}
 
 /** AJ-E205: preflight — ordered checks stop BEFORE any byte moves;
  * warnings render in the freeze dialog. */
@@ -2510,122 +2413,8 @@ export function onFolderDropped(handler: (path: string) => void): () => void {
   };
 }
 
-/** AJ-E207: one tracked-artifact conflict (three radio choices each). */
-export interface SwitchBackConflictData {
-  rel_path: string;
-  base_sha: string | null;
-  away_sha: string | null;
-  original_sha: string | null;
-}
-
-/** AJ-E207: the switch-back plan (suggest-only; the user clicks). */
-export interface SwitchBackPlanData {
-  suggestion: string;
-  original_account: string;
-  away_account: string;
-  original_native_id: string;
-  original_alive: boolean;
-  sf7_fallback: string;
-  sf7_copy: string;
-  away_live: boolean;
-  both_live_copy: string;
-  divergence: string;
-  delta_preview: string;
-  away_only_turns: number;
-  original_only_turns: number;
-  base_turns: number;
-  conflicts: SwitchBackConflictData[];
-}
-
-/** AJ-E207: one suggested return (the card the user clicks). */
-export interface SwitchBackSuggestionData {
-  session_id: string;
-  original_account: string;
-  away_account: string;
-  copy: string;
-}
-
-/** AJ-E207 Req.3: the suggested returns whose original account has
- * quota headroom again (the reset trigger) — suggest-only. */
-export async function switchBackSuggestions(): Promise<SwitchBackSuggestionData[]> {
-  if (!hasBackend) {
-    return (
-      (window as unknown as { __AIJ_SWITCH_BACK_SUGGESTIONS__?: SwitchBackSuggestionData[] })
-        .__AIJ_SWITCH_BACK_SUGGESTIONS__ ?? []
-    );
-  }
-  return invoke<SwitchBackSuggestionData[]>("switch_back_suggestions");
-}
-
-/** AJ-E207: the plan for one return — verbatim suggestion, S-F7
- * verdict, both-live warning, divergence counts, delta preview,
- * conflict list. Read-only. */
-export async function switchBackPlan(sessionId: string): Promise<SwitchBackPlanData> {
-  if (!hasBackend) {
-    return (
-      (window as unknown as { __AIJ_SWITCH_BACK_PLAN__?: SwitchBackPlanData })
-        .__AIJ_SWITCH_BACK_PLAN__ ?? {
-        suggestion:
-          "Work Max has reset. Resume the original conversation there? Work from Personal arrives as one 'while you were away' update.",
-        original_account: "Work Max",
-        away_account: "Personal",
-        original_native_id: "native-5",
-        original_alive: true,
-        sf7_fallback: "",
-        sf7_copy: "",
-        away_live: true,
-        both_live_copy:
-          "Both accounts are now live on this work item: Work Max (resumed) and Personal (still running). Check which one you type into.",
-        divergence:
-          "Both sides moved since the switch. 3 new turns and 1 file conflicts need your choice — nothing is merged silently.",
-        delta_preview:
-          "While you were away on Personal — 3 new turns (5 shared before the switch, 1 new here on Work Max).\n\n- [user] fixed the login bug\n- [assistant] suite green — 34 passing\n\nFull detail: the attached switch pack (not replayed).",
-        away_only_turns: 3,
-        original_only_turns: 1,
-        base_turns: 5,
-        conflicts: [
-          { rel_path: "todos.json", base_sha: "h0", away_sha: "h1", original_sha: "h2" },
-        ],
-      }
-    );
-  }
-  return invoke<SwitchBackPlanData>("switch_back_plan", { sessionId });
-}
-
-/** AJ-E207: executes the return with the user's choices — resumes
- * the ORIGINAL native session with one delta turn; never a
- * copy-back. */
-export async function switchBackExecute(
-  sessionId: string,
-  choices: { rel_path: string; choice: string }[],
-  keepAwayRunning: boolean,
-): Promise<LaunchResult> {
-  if (!hasBackend) {
-    const seams = window as unknown as {
-      __AIJ_SWITCH_BACK_EXECUTE_FAIL__?: string;
-      __AIJ_SWITCH_BACK_EXECUTE_HANG__?: boolean;
-      __AIJ_SWITCH_BACK_EXECUTE_CALLS__?: unknown[];
-    };
-    // The guardrail seam: executions are observable so tests can
-    // prove they fire ONLY from the click.
-    seams.__AIJ_SWITCH_BACK_EXECUTE_CALLS__ = [
-      ...(seams.__AIJ_SWITCH_BACK_EXECUTE_CALLS__ ?? []),
-      { sessionId, choices, keepAwayRunning },
-    ];
-    if (seams.__AIJ_SWITCH_BACK_EXECUTE_FAIL__ !== undefined) {
-      return Promise.reject(seams.__AIJ_SWITCH_BACK_EXECUTE_FAIL__);
-    }
-    if (seams.__AIJ_SWITCH_BACK_EXECUTE_HANG__) {
-      return new Promise<LaunchResult>(() => {});
-    }
-    return { session_id: `sess-return-${Date.now()}`, pid: 0 };
-  }
-  return invoke<LaunchResult>("switch_back_execute", {
-    sessionId,
-    choices,
-    keepAwayRunning,
-  });
-}
+// AJ-E207/AJ-E1541: switching back (lib/ipc/switchBack.ts).
+export * from "./ipc/switchBack";
 
 /** AJ-E208: the redaction policy for one Provider (settings + the
  * switch confirm line). */
@@ -2702,7 +2491,7 @@ export interface SwitchTargetData {
   provider?: string;
   account_id: string;
   account_label: string;
-  /** Ordered-pair badge wire name ("F1 · Beta" — never "lossless"
+  /** Ordered-pair badge wire name ("Full story, fresh start · Beta" — never "lossless"
    * below F4; cross-Provider always carries Beta, D-04/D-11). */
   badge: string;
   /** Validated state (false until E210's fixtures flip cells). */
@@ -2726,10 +2515,10 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
     recipe_id: "recipe-work-max",
     account_id: "acct-work",
     account_label: "Work Max",
-    badge: "F1 · Beta",
+    badge: "Full story, fresh start · Beta",
     validated: false,
     cross_provider: true,
-    drops: ["todo list", "subagent state"],
+    drops: ["subagent state"],
     score: 0.62,
     top_factors: ["80% headroom", "usual account for this repo"],
     factors: [["80% headroom", 0.36], ["usual account for this repo", 0.2], ["fidelity 1 · Beta", 0.15], ["≈$0.12 replay", 0.07], ["quiet", 0.1]],
@@ -2742,10 +2531,10 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
     recipe_id: "recipe-personal",
     account_id: "acct-personal",
     account_label: "Personal",
-    badge: "F1 · Beta",
+    badge: "Full story, fresh start · Beta",
     validated: false,
     cross_provider: true,
-    drops: ["todo list", "subagent state"],
+    drops: ["subagent state"],
     score: 0.41,
     top_factors: ["35% headroom", "quiet"],
     factors: [["35% headroom", 0.16], ["quiet", 0.1], ["fidelity 1 · Beta", 0.15]],
@@ -2758,10 +2547,10 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
     recipe_id: "recipe-lab",
     account_id: "acct-lab",
     account_label: "Lab",
-    badge: "F2 · Beta",
+    badge: "Same conversation, new account (compacted) · Beta",
     validated: false,
     cross_provider: true,
-    drops: ["rewind history", "subagent state"],
+    drops: [],
     filtered_reason: "exhausted — resets in 3h",
     top_factors: [],
     factors: [],
@@ -2800,7 +2589,7 @@ export interface EpochNodeData {
 export interface GraphEdgeData {
   from: string;
   to?: string | null;
-  /** "transplant F1 · 12:04" / "replay F1 · ≈41k tok" / "switch-back ↺". */
+  /** What carried, in plain words ("Full story, fresh start"; "Switched back · …"). */
   label: string;
   failed_reason?: string | null;
   switch_back: boolean;
@@ -2827,8 +2616,8 @@ const DEFAULT_SWITCH_GRAPH: WorkGraphData[] = [
       { id: "ep-3", provider: "claude-code", account_label: "Work Max", kind: "terminal", resumable: true, session_id: "sess-c" },
     ],
     edges: [
-      { from: "ep-1", to: "ep-2", label: "transplant F1 · 12:04", switch_back: false },
-      { from: "ep-2", to: "ep-3", label: "switch-back ↺ · F1", switch_back: true },
+      { from: "ep-1", to: "ep-2", label: "Full story, fresh start", switch_back: false },
+      { from: "ep-2", to: "ep-3", label: "Switched back · Full story, fresh start", switch_back: true },
     ],
     collapsed: 2,
     hop_note: "3 switches so far ≈41k tokens",
@@ -2914,10 +2703,10 @@ export interface ValidationCellData {
 }
 
 /** The no-backend matrix default (mirrors the researched table:
- * one real-CI row, everything honestly open beta debt). */
+ * one pair with real-tool tests, every pair honestly in beta). */
 const DEFAULT_VALIDATION_MATRIX: ValidationCellData[] = [
-  ["claude-code", "claude-code", "transplant", "F1", true],
-  ["codex", "codex", "transplant", "F1", false],
+  ["claude-code", "claude-code", "transplant", "F3", true],
+  ["codex", "codex", "transplant", "F3", false],
   ["zcode", "zcode", "transplant", "F1", false],
   ["claude-code", "codex", "replay", "F1", false],
   ["codex", "claude-code", "replay", "F1", false],
@@ -2933,14 +2722,14 @@ const DEFAULT_VALIDATION_MATRIX: ValidationCellData[] = [
   mechanism: mechanism as string,
   researched_ceiling: ceiling as string,
   advertised: ceiling as string,
-  badge: `${ceiling as string} · Beta`,
+  badge: `${ceiling === "F3" ? "Same conversation, new account" : ceiling === "F1" ? "Full story, fresh start" : "Briefing pack"} · Beta`,
   validated: false,
   mechanism_green: true,
   ci_green: ciGreen as boolean,
   dogfood: null,
   status: ciGreen
-    ? "CI fixtures green · live dogfood pending — open beta debt"
-    : "Real-adapter fixtures not landed · live dogfood pending — open beta debt",
+    ? "Automatic tests pass with the real tools; not tried by hand yet"
+    : "Automatic tests with the real tools aren't in place; not tried by hand yet",
   notes: [],
 }));
 
@@ -4395,6 +4184,78 @@ export async function instanceMarkReviewed(sessionId: string): Promise<number> {
     return at;
   }
   return invoke<number>("instance_mark_reviewed", { sessionId });
+}
+
+/** AJ-E1503: undoes Mark reviewed (back on the finished list; both
+ * steps stay in its history). */
+export async function instanceUnmarkReviewed(sessionId: string): Promise<number> {
+  if (!hasBackend) {
+    const w = window as unknown as { __AIJ_TRIAGE_CALLS__?: string[] };
+    w.__AIJ_TRIAGE_CALLS__ = [...(w.__AIJ_TRIAGE_CALLS__ ?? []), `unreviewed:${sessionId}`];
+    const row = MOCK_SESSIONS.find((session) => session.id === sessionId);
+    const at = Date.now();
+    if (row) {
+      row.lifecycle = "unreviewed";
+      row.lifecycle_at_ms = at;
+    }
+    return at;
+  }
+  return invoke<number>("instance_unmark_reviewed", { sessionId });
+}
+
+// --- AJ-E1503: quitting with live sessions ----------------------------------
+
+export type { QuitPlanInfo } from "../types/generated/QuitPlanInfo";
+
+/** What quitting now would do to the live sessions. */
+export async function appQuitPlan(): Promise<QuitPlanInfo> {
+  if (!hasBackend) {
+    const seam = (window as unknown as { __AIJ_QUIT_PLAN__?: QuitPlanInfo }).__AIJ_QUIT_PLAN__;
+    return seam ?? { live: 0, end_on_quit: 0, keep_running: 0 };
+  }
+  return invoke<QuitPlanInfo>("app_quit_plan");
+}
+
+/** Quits now; with `stopFirst` each live session is stopped cleanly first. */
+export async function appQuit(stopFirst: boolean): Promise<void> {
+  if (!hasBackend) {
+    const w = window as unknown as { __AIJ_QUIT_CALLS__?: string[] };
+    w.__AIJ_QUIT_CALLS__ = [...(w.__AIJ_QUIT_CALLS__ ?? []), stopFirst ? "stop-first" : "quit"];
+    return;
+  }
+  return invoke<void>("app_quit", { stopFirst });
+}
+
+/** The quit sheet is shown: the request is in a person's hands (without
+ * this within 3 s, the app quits as if Quit anyway was chosen). */
+export async function appQuitAck(): Promise<void> {
+  if (!hasBackend) {
+    const w = window as unknown as { __AIJ_QUIT_CALLS__?: string[] };
+    w.__AIJ_QUIT_CALLS__ = [...(w.__AIJ_QUIT_CALLS__ ?? []), "ack"];
+    return;
+  }
+  return invoke<void>("app_quit_ack");
+}
+
+/** Cancel on the quit sheet: the next ⌘Q asks again. */
+export async function appQuitCancel(): Promise<void> {
+  if (!hasBackend) {
+    const w = window as unknown as { __AIJ_QUIT_CALLS__?: string[] };
+    w.__AIJ_QUIT_CALLS__ = [...(w.__AIJ_QUIT_CALLS__ ?? []), "cancel"];
+    return;
+  }
+  return invoke<void>("app_quit_cancel");
+}
+
+/** ⌘Q or the close button while sessions are live: show the quit sheet. */
+export function onQuitRequested(handler: (plan: QuitPlanInfo) => void): () => void {
+  if (!hasBackend) {
+    // The preview's seam: `aij:quit-requested` with the plan as detail.
+    const follow = (event: Event) => handler((event as CustomEvent<QuitPlanInfo>).detail);
+    window.addEventListener("aij:quit-requested", follow);
+    return () => window.removeEventListener("aij:quit-requested", follow);
+  }
+  return listenScoped("app://quit-requested", handler);
 }
 
 // --- AJ-E1007: session lifecycle — search, archive, replay, retention ------

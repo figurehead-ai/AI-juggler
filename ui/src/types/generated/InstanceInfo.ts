@@ -126,7 +126,7 @@ cwd: string,
 kind: string, 
 /**
  * True when crash recovery re-adopted this Instance's verified
- * root (AJ-E510): `Running — re-adopted`, terminal detached
+ * root (AJ-E510): `Running — picked up after restart`, terminal detached
  * (output from before the crash is unavailable), stop via the
  * AJ-E507 sheet.
  */
@@ -188,4 +188,18 @@ lifecycle?: string,
 /**
  * When that step was taken, epoch ms.
  */
-lifecycle_at_ms?: number, };
+lifecycle_at_ms?: number, 
+/**
+ * AJ-E1502: the user's name for it, shown over its own title.
+ */
+label?: string, 
+/**
+ * AJ-E1536: its conversation's title (the tool's summary, else the
+ * first thing asked), from the conversation index; `null` until
+ * that's read. Shown when the user hasn't named it.
+ */
+title?: string, 
+/**
+ * AJ-E1502: pinned to the top of its group in the rail.
+ */
+pinned?: boolean, };

@@ -121,6 +121,10 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         HarnessId::new(CLAUDE_CODE_ID)
     }
 
+    fn spec(&self) -> juggler_adapter::ToolSpec {
+        claude_code_spec()
+    }
+
     fn capabilities(&self) -> Capabilities {
         Capabilities::HEADLESS
             | Capabilities::RESUME
@@ -396,6 +400,103 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         Some("claude")
     }
 
+    fn inventory(
+        &self,
+        state_dir: &Path,
+        project: Option<&Path>,
+    ) -> Vec<juggler_adapter::inventory::Item> {
+        crate::claude_inventory::inventory(state_dir, &claude_state_file(state_dir), project)
+    }
+
+    fn can_set_up(
+        &self,
+        item: &juggler_adapter::inventory::Item,
+    ) -> juggler_adapter::inventory::SetUp {
+        crate::claude_inventory::can_set_up(item)
+    }
+
+    fn set_up(
+        &self,
+        state_dir: &Path,
+        project: Option<&Path>,
+        item: &juggler_adapter::inventory::Item,
+    ) -> Result<juggler_adapter::inventory::Applied, AdapterError> {
+        let claude = self
+            .resolve_bin()
+            .ok_or_else(|| AdapterError::Unsupported("Claude Code isn't installed".to_owned()))?;
+        let env = config_dir_value(state_dir);
+        let env = if env == juggler_adapter::launch::ENV_UNSET {
+            String::new()
+        } else {
+            env
+        };
+        crate::claude_inventory::set_up(
+            state_dir,
+            &claude,
+            &env,
+            &claude_state_file(state_dir),
+            project,
+            item,
+        )
+    }
+
+    fn conversation_files(&self, state_dir: &Path) -> Vec<PathBuf> {
+        crate::claude_conversations::conversation_files(state_dir)
+    }
+
+    fn read_conversation(
+        &self,
+        path: &Path,
+    ) -> Option<juggler_adapter::conversation::ConversationSummary> {
+        crate::claude_conversations::read_conversation(path)
+    }
+
+    fn read_conversation_quick(
+        &self,
+        path: &Path,
+    ) -> Option<juggler_adapter::conversation::ConversationSummary> {
+        crate::claude_conversations::read_conversation_quick(path)
+    }
+
+    // AJ-E1530 Req.1: Claude reports its limits only to its status line,
+    // so the opt-in capture is the `statusLine` of the account's
+    // `settings.json` (ADR-0018 amendment).
+    fn limits_capture(&self) -> Option<juggler_adapter::LimitsCapture> {
+        Some(juggler_adapter::LimitsCapture {
+            file: "settings.json",
+            key: "statusLine",
+        })
+    }
+
+    fn limits_capture_value(
+        &self,
+        wrapper: &str,
+        original: Option<&serde_json::Value>,
+    ) -> Option<serde_json::Value> {
+        // The user's own status line object keeps its other keys (its
+        // padding, say); the wrapper runs their command after it captures.
+        let mut value = original
+            .and_then(serde_json::Value::as_object)
+            .cloned()
+            .unwrap_or_default();
+        value.insert("type".into(), "command".into());
+        value.insert("command".into(), wrapper.into());
+        Some(serde_json::Value::Object(value))
+    }
+
+    fn session_process(
+        &self,
+        exe: Option<&Path>,
+        args: &[String],
+    ) -> Option<juggler_adapter::conversation::SessionProcess> {
+        crate::claude_conversations::session_process(exe, args)
+    }
+
+    fn resume_args(&self, conversation_id: &str) -> Option<Vec<String>> {
+        crate::codex::refuse_option_like(conversation_id).ok()?;
+        Some(vec!["--resume".into(), conversation_id.to_owned()])
+    }
+
     fn resolved_binary(&self) -> Option<PathBuf> {
         self.resolve_bin()
     }
@@ -412,10 +513,16 @@ impl HarnessAdapter for ClaudeCodeAdapter {
                 "claude binary not found; run discovery for details".into(),
             ));
         };
-        let effective_cwd = profile
-            .default_cwd
-            .clone()
-            .unwrap_or_else(|| cwd.to_path_buf());
+        // AJ-E1540: a resumed or primed session continues work that lives
+        // in `cwd` (its conversation, its files): it runs there. The
+        // launch settings' folder is only where a fresh session starts.
+        let effective_cwd = match mode {
+            LaunchMode::Resume { .. } | LaunchMode::Primed { .. } => cwd.to_path_buf(),
+            _ => profile
+                .default_cwd
+                .clone()
+                .unwrap_or_else(|| cwd.to_path_buf()),
+        };
         // Launch-settings overrides first, isolation LAST: an
         // override can never repoint the config dir (AJ-E309 — the
         // env editor refuses these keys too; this is the backstop).
@@ -429,7 +536,21 @@ impl HarnessAdapter for ClaudeCodeAdapter {
             LaunchMode::Interactive => (Vec::new(), true),
             // `claude "<prompt>"` — an interactive session whose first
             // turn is the prompt (AJ-E706 T3 replay).
-            LaunchMode::Primed { prompt } => (vec![prompt.clone()], true),
+            // AJ-E1541: the handover's folder may be read without a
+            // prompt. `--add-dir` takes several folders, so it comes after
+            // the prompt (it would take the prompt for one).
+            LaunchMode::Primed { prompt, read_dirs } => {
+                let mut args = vec![prompt.clone()];
+                if !read_dirs.is_empty() {
+                    args.push("--add-dir".into());
+                    args.extend(
+                        read_dirs
+                            .iter()
+                            .map(|dir| dir.to_string_lossy().into_owned()),
+                    );
+                }
+                (args, true)
+            }
             LaunchMode::Headless { prompt } => (
                 vec![
                     "-p".into(),
@@ -456,14 +577,13 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         };
         // Per-launch settings go in as flags, never as edits to the
         // folder's settings.json (ADR-0018 §3): the profile's model, and
-        // for an in-place account the status line capture in AI Juggler's
-        // own folder.
+        // the status line capture in AI Juggler's own folder — for a copy
+        // as for an in-place account.
         let mut leading = Vec::new();
         if let Some(model) = &profile.settings_overlay.model {
             leading.extend(["--model".to_owned(), model.clone()]);
         }
-        if account.in_place
-            && let Some(root) = &self.overlays_root
+        if let Some(root) = &self.overlays_root
             && let Ok(settings) = crate::quota_ingest::ensure_launch_overlay(
                 root,
                 account.id.as_str(),
@@ -982,9 +1102,7 @@ pub fn claude_state_file_in(dir: &Path, home: &Path) -> PathBuf {
 }
 
 pub(crate) fn home_dir() -> Option<PathBuf> {
-    std::env::var_os("HOME")
-        .or_else(|| std::env::var_os("USERPROFILE"))
-        .map(PathBuf::from)
+    crate::inventory_files::user_home()
 }
 
 pub(crate) fn home_relative(relative: &str) -> Option<PathBuf> {
@@ -1084,6 +1202,68 @@ pub fn probe_claude_identity(state_dir: &Path) -> juggler_adapter::IdentityProbe
         label = format!("{label} · {org}");
     }
     IdentityProbe::SignedIn { subject, label }
+}
+
+/// ADR-0019: Claude Code, described as data (every screen and command
+/// reads this instead of the id).
+#[must_use]
+pub fn claude_code_spec() -> juggler_adapter::ToolSpec {
+    use juggler_adapter::{SetupGroup, SignInWords, ToolFlags, ToolKind, ToolSpec, ToolTerms};
+    let group = |id: &str,
+                 title: &str,
+                 path_contains: Option<&str>,
+                 origin: Option<&str>,
+                 shows_install| SetupGroup {
+        id: id.to_owned(),
+        title: title.to_owned(),
+        path_contains: path_contains.map(str::to_owned),
+        origin: origin.map(str::to_owned),
+        shows_install,
+    };
+    ToolSpec {
+        id: CLAUDE_CODE_ID.to_owned(),
+        display_name: "Claude Code".to_owned(),
+        short_name: "Claude".to_owned(),
+        vendor: "Anthropic".to_owned(),
+        mark: Some("claude".to_owned()),
+        vendor_mark: Some("anthropic".to_owned()),
+        install_url: Some("https://claude.com/download".to_owned()),
+        install_command: Some("npm install -g @anthropic-ai/claude-code".to_owned()),
+        sign_in: SignInWords {
+            own: "Claude Code's own sign-in".to_owned(),
+            short: "Claude Code's".to_owned(),
+        },
+        same_as: "as your Claude app".to_owned(),
+        desktop_app: Some("Claude".to_owned()),
+        kinds: vec![ToolKind::Cli, ToolKind::Desktop],
+        rules_files: vec!["CLAUDE.md".to_owned()],
+        // CLAUDE.md's import: a line `@path` reads that file in its place.
+        rules_import: Some("@{file}".to_owned()),
+        scan_hint: "Your default setup, your Claude profiles and anything else that looks like one. Nothing is changed."
+            .to_owned(),
+        // Grouped by kind of setup, not by app: the same folder serves the
+        // Claude desktop app and `claude` in a terminal (0.0.6 dogfood).
+        setup_groups: vec![
+            group("profiles", "Your Claude profiles", Some("/ClaudeCodeProfiles/"), None, false),
+            group("default", "The default setup", None, Some("vendor-default"), true),
+            group("other", "Other Claude setups", None, None, false),
+        ],
+        default_label: Some("Default".to_owned()),
+        flags: ToolFlags {
+            first_run: true,
+            primary: true,
+        },
+        // Checked against the terms on 2026-10-23 (AJ-E1518's register).
+        terms: Some(ToolTerms {
+            name: "Anthropic's Consumer Terms".to_owned(),
+            url: "https://www.anthropic.com/legal/consumer-terms".to_owned(),
+            accounts: "For Pro and Max, the Consumer Terms say not to share an account or make it \
+                       available to anyone else, and Anthropic says those plans' limits assume one \
+                       person's use."
+                .to_owned(),
+            checked: "2026-10-23".to_owned(),
+        }),
+    }
 }
 
 /// Whether a process is a `claude` CLI session: the one rule for it,

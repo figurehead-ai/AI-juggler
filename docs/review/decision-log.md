@@ -6,7 +6,7 @@
 > (documents) and the staged implementation that follows per D-15.
 > Source evidence: `docs/review/AI-Juggler-Maximum-Depth-Report-and-Proposal.md`,
 > `docs/review/AI-Juggler-Expected-Workflow-Second-Pass.md`, and
-> `docs/expected-worfklow.md`.
+> `docs/internal/expected-workflow.md`.
 
 ## Settled decisions
 
@@ -491,8 +491,30 @@
     tool view (what's installed, its accounts' quota) opens from the tool
     chip in a session's or an account's header.
 
+### D-26 Open at login — a second audited unsafe shim — SETTLED (2026-10-22)
+
+- Decision: juggler-login-item: SMAppService via objc2-service-management
+  0.3.2, approved by the maintainer 2026-10-22 (AJ-E1509 Req.4, "Open AI
+  Juggler at login", opt-in). macOS's own login items are `SMAppService`,
+  and every call to it is `unsafe` in its Rust bindings. As with D-17, the
+  carve-out is a NEW, isolated crate (`crates/juggler-login-item`) that
+  does NOT inherit the workspace lint baseline; the workspace law
+  `unsafe_code = "forbid"` stays absolute for every other crate. It holds
+  exactly four `unsafe` calls (the main app's service, its status,
+  register, unregister), each with a SAFETY note, under
+  `#![deny(unsafe_op_in_unsafe_fn)]`, behind a safe API (`status`, `set`).
+  Off macOS it is a safe stub that reads "unavailable".
+- Rejected: a `~/Library/LaunchAgents` plist (writes outside AI Juggler's
+  data folder, and macOS lists it under "Allow in the background", not as
+  a login item).
+- Consequences: off by default; Settings › Sessions and the welcome's Make
+  it smoother card offer it; the system keeps the choice (AI Juggler
+  reads it back). Registering works only in the installed, signed app; a
+  development build reads "unavailable", so the live check is an installed
+  build's.
+
 ## Unresolved (in discussion order)
 
 - None. D-01..D-15 were marked Final on maintainer instruction
   (2026-10-13); D-16 and D-17 were settled by maintainer instruction
-  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18 and D-20..D-25 on 2026-10-19; all follow the same law.
+  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19 and D-26 on 2026-10-22; all follow the same law.

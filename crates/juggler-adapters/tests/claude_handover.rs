@@ -585,3 +585,140 @@ fn an_install_never_replaces_a_file_the_target_has() {
             .any(|entry| entry.file_name().to_string_lossy().starts_with(".stage-"))
     );
 }
+
+/// AJ-E1540: current Claude Code keeps a session's subagent transcripts and
+/// large tool results in a `<session>/` folder beside it, and the files it
+/// changed in `file-history/<session>/`. The bundle read that folder as a
+/// file and failed, so such a session couldn't be switched; now the whole
+/// session travels, into the target's matching places.
+#[test]
+fn a_session_with_its_folder_and_file_history_travels_whole() {
+    let a = tempfile::tempdir().unwrap();
+    let b = tempfile::tempdir().unwrap();
+    let cwd = "/Users/you/Dev/shopfront";
+    let session = "1f0e3c9a-7b5d-4c2e-9f8a-0d1e2f3a4b5c";
+    let main = seed_sibling_tree(a.path(), cwd, session);
+    let dir = main.parent().unwrap();
+    std::fs::create_dir_all(dir.join(session).join("subagents")).unwrap();
+    std::fs::write(
+        dir.join(session).join("subagents").join("agent-a1.jsonl"),
+        format!("{}\n", line("x1", None, session, cwd)),
+    )
+    .unwrap();
+    std::fs::create_dir_all(dir.join(session).join("tool-results")).unwrap();
+    std::fs::write(
+        dir.join(session).join("tool-results").join("t1.txt"),
+        "long output",
+    )
+    .unwrap();
+    let history = a.path().join("file-history").join(session);
+    std::fs::create_dir_all(&history).unwrap();
+    std::fs::write(history.join("5b55dfdce9f09487@v2"), "before the edit").unwrap();
+
+    let reference = TranscriptRef {
+        path: main.clone(),
+        native_id: Some(session.to_owned()),
+    };
+    let bundle = adapter()
+        .bundle_session(&reference)
+        .expect("a session with a folder bundles");
+    let outcome = adapter()
+        .install_bundle(&bundle, &account(b.path(), "B"))
+        .unwrap();
+    let dir_b = outcome.reference.path.parent().unwrap().to_path_buf();
+    assert_eq!(
+        std::fs::read_to_string(dir_b.join(session).join("subagents").join("agent-a1.jsonl"))
+            .unwrap(),
+        std::fs::read_to_string(dir.join(session).join("subagents").join("agent-a1.jsonl"))
+            .unwrap()
+    );
+    assert_eq!(
+        std::fs::read_to_string(dir_b.join(session).join("tool-results").join("t1.txt")).unwrap(),
+        "long output"
+    );
+    assert_eq!(
+        std::fs::read_to_string(
+            b.path()
+                .join("file-history")
+                .join(session)
+                .join("5b55dfdce9f09487@v2")
+        )
+        .unwrap(),
+        "before the edit"
+    );
+    // Copied, never moved: the source is as it was.
+    assert!(
+        dir.join(session)
+            .join("subagents")
+            .join("agent-a1.jsonl")
+            .is_file()
+    );
+    assert!(history.join("5b55dfdce9f09487@v2").is_file());
+}
+
+/// A name from a paired Mac that would climb out of the account folder is
+/// refused before anything is written.
+#[test]
+fn a_bundle_name_that_climbs_out_is_refused() {
+    let a = tempfile::tempdir().unwrap();
+    let b = tempfile::tempdir().unwrap();
+    let cwd = "/Users/you/Dev/shopfront";
+    let session = "1f0e3c9a-7b5d-4c2e-9f8a-0d1e2f3a4b5d";
+    let main = seed_sibling_tree(a.path(), cwd, session);
+    let reference = TranscriptRef {
+        path: main,
+        native_id: Some(session.to_owned()),
+    };
+    let mut bundle = adapter().bundle_session(&reference).unwrap();
+    bundle.files.push(juggler_adapter::handover::BundleFile {
+        name: "~file-history/../../escape.txt".to_owned(),
+        bytes: b"x".to_vec(),
+    });
+    assert!(
+        adapter()
+            .install_bundle(&bundle, &account(b.path(), "B"))
+            .is_err()
+    );
+    assert!(!b.path().join("escape.txt").exists());
+    assert!(
+        !b.path().join("projects").exists()
+            || std::fs::read_dir(b.path().join("projects"))
+                .unwrap()
+                .all(|entry| {
+                    std::fs::read_dir(entry.unwrap().path())
+                        .unwrap()
+                        .all(|file| {
+                            !file
+                                .unwrap()
+                                .file_name()
+                                .to_string_lossy()
+                                .ends_with(".jsonl")
+                        })
+                })
+    );
+}
+
+#[test]
+fn a_bundle_cant_bring_in_another_conversation() {
+    // Review of #132: any plain file name beside the transcript was
+    // accepted, so a paired Mac's bundle could add `<other id>.jsonl`.
+    let a = tempfile::tempdir().unwrap();
+    let b = tempfile::tempdir().unwrap();
+    let cwd = "/Users/you/Dev/shopfront";
+    let session = "1f0e3c9a-7b5d-4c2e-9f8a-0d1e2f3a4b5d";
+    let main = seed_sibling_tree(a.path(), cwd, session);
+    let reference = TranscriptRef {
+        path: main,
+        native_id: Some(session.to_owned()),
+    };
+    let mut bundle = adapter().bundle_session(&reference).unwrap();
+    bundle.files.push(juggler_adapter::handover::BundleFile {
+        name: "9e9e9e9e-0000-4000-8000-000000000000.jsonl".to_owned(),
+        bytes: b"{}\n".to_vec(),
+    });
+    assert!(
+        adapter()
+            .install_bundle(&bundle, &account(b.path(), "B"))
+            .is_err()
+    );
+}

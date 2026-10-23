@@ -27,6 +27,7 @@ import {
 } from "../lib/bridge";
 import { ChannelChip, updateErrorText } from "./UpdatesCard";
 import { alertWords, keptNotices, machineAlertsTake, ThisMacContext, type MachineNotice } from "../lib/machine";
+import { machineNotices, publishMachineNotices, subscribeMachineNotices } from "../lib/machine-notices";
 
 /** AJ-E1103: an alert kind as the schema names it. */
 function alertKind(kind: string): string {
@@ -37,13 +38,6 @@ function alertKind(kind: string): string {
 
 function notification(kind: string, action: "shown" | "clicked" | "dismissed"): void {
   statsEvent("ui.notification", { kind, action });
-}
-
-let machineNotices: MachineNotice[] = [];
-const machineListeners = new Set<(notices: MachineNotice[]) => void>();
-function publishMachineNotices(next: MachineNotice[]): void {
-  machineNotices = next;
-  for (const listener of machineListeners) listener(next);
 }
 
 export function NotificationRegion({
@@ -65,21 +59,21 @@ export function NotificationRegion({
   const [offers, setOffers] = useState<ParkedOfferInfo[]>([]);
   // AJ-E1408: overload alerts — told once, dismissable, never an action
   // on anything (passive only).
-  const [machineAlerts, setMachineAlertsState] = useState<MachineNotice[]>(() => machineNotices);
+  const [machineAlerts, setMachineAlertsState] = useState<MachineNotice[]>(machineNotices);
   // A notice whose condition has ended goes (This Mac's alerts are the
   // ones still on, 45 s grace included).
   const thisMac = useContext(ThisMacContext);
   useEffect(() => {
-    if (!thisMac || machineNotices.length === 0) return;
+    const now = machineNotices();
+    if (!thisMac || now.length === 0) return;
     const active = new Set(thisMac.alerts.map((alert) => alert.key));
-    const kept = keptNotices(machineNotices, active, Date.now());
-    if (kept.length !== machineNotices.length) publishMachineNotices(kept);
+    const kept = keptNotices(now, active, Date.now());
+    if (kept.length !== now.length) publishMachineNotices(kept);
   }, [thisMac]);
   useEffect(() => {
-    machineListeners.add(setMachineAlertsState);
-    setMachineAlertsState(machineNotices);
+    const stop = subscribeMachineNotices(setMachineAlertsState);
     return () => {
-      machineListeners.delete(setMachineAlertsState);
+      stop();
     };
   }, []);
   // AJ-E1010: an update announced by the launch check — one notice per
@@ -191,7 +185,7 @@ export function NotificationRegion({
                   text: (({ title, detail }) => `${title} — ${detail}`)(alertWords([alert], nameOf)!),
                   toldAt,
                 })),
-                ...machineNotices,
+                ...machineNotices(),
               ],
               null,
               toldAt,
@@ -252,7 +246,7 @@ export function NotificationRegion({
             className="text-muted underline focus:outline-none focus:ring-2 focus:ring-accent"
             onClick={() => {
               notification("other", "dismissed");
-              publishMachineNotices(machineNotices.filter((entry) => entry.key !== alert.key));
+              publishMachineNotices(machineNotices().filter((entry) => entry.key !== alert.key));
             }}
           >
             dismiss

@@ -149,6 +149,22 @@ message CatalogDelta {
   repeated CatalogRecipe recipes = 1;
   repeated HarnessVersion harnesses = 2;
   repeated CatalogProject projects = 3;
+  // AJ-E1515: what this machine's sessions used in the last 24 hours
+  // (totals only — never a session's text, a path or a model's prompt).
+  optional UsageTotals last_day = 4;
+}
+
+// AJ-E1515: one machine's usage over a span, in totals.
+message UsageTotals {
+  // How much the models were used: every input, output, cache and
+  // reasoning unit (token) counted, summed — a count, never a value.
+  uint64 used_units = 1;
+  // The local USD estimate at list prices, when any usage was priced.
+  optional double usd_est = 2;
+  // Sessions that used anything in the span.
+  uint32 sessions = 3;
+  // The span's start, this machine's clock, epoch ms.
+  int64 since_ms = 4;
 }
 
 message CatalogRecipe {
@@ -392,4 +408,7 @@ message CommandResult {
   string reason_code = 3;
   // Plain words for the console UI.
   string message = 4;
+  // AJ-E1515: the session a LaunchRecipe started, so the console can
+  // follow it as its telemetry arrives.
+  optional string started_instance_id = 5;
 }

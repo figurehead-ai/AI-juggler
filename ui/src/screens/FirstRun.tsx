@@ -30,15 +30,20 @@
  * folder picker, then a check of what's in it (size, sign-in, a too-large
  * history offers settings only) before AI Juggler copies it.
  */
+import { ToolMark } from "../components/ToolMark";
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { Button } from "../components/primitives";
-import { inPlaceProviders, ownSignIn, providerDisplayName, sameAsWords, supportsInPlace, toolFound, versionUnchecked, type InPlaceSupport } from "../lib/providers";
-import { accessCard, reopenApp, watchAccess, type AccessAction } from "../lib/osAccess";
+import { inPlaceProviders, ownSignIn, providerDisplayName, sameAsWords, shortSignIn, supportsInPlace, toolFound, versionUnchecked, type InPlaceSupport } from "../lib/providers";
+import { firstRunToolIds, primaryToolId, toolSpec } from "../lib/tools";
+import { InstallHow } from "../components/InstallHow";
+import { AccessStep } from "../components/AccessStep";
+import { Check } from "../components/StepCheck";
+import { colourAt, FreshAccountStep, freeLabel } from "./FreshAccountStep";
+import { StepMarks, TermsLine, type Step } from "./FirstRunSteps";
 import { funnelEvent, funnelStep, reasonCode } from "../lib/funnel";
 import {
   accountImport,
   accountsList,
-  createAccount,
   pickDirectory,
   sourceInspect,
   statsEvent,
@@ -47,40 +52,35 @@ import {
   environmentScanFull,
   errorText,
   osAccessList,
-  osAccessOpenSettings,
-  osAccessRequest,
   providersCapabilities,
   providersDiscover,
   signedIn,
   terminalSpawnLogin,
+  type AccountInfo,
   type DiscoveredInfo,
   type OsAccessInfo,
-  type ReopenBlockInfo,
   type SourceInspectInfo,
   type ProviderInstallData,
   type ScanReportData,
 } from "../lib/bridge";
 
-type Step = "found" | "fresh" | "folder" | "signin" | "access";
-type Group = "profiles" | "default" | "other" | "codex";
+/** AJ-E1525: first run's groups come from each tool's spec (its
+ * `setup_groups`, in order), never from a table here. */
+type Group = { key: string; id: string; tool: string; title: string; showsInstall: boolean };
 
-/** A group's title for this tool: the profile and "other" words name
- * Claude only for Claude Code (review of #72: Codex said "Other Claude
- * setups"). */
-export function groupTitle(group: Group, toolName: string, provider: string): string {
-  // Codex homes are their own group in every list (AJ-E1301).
-  if (group === "codex") return "Codex";
-  if (group === "default") return "The default setup";
-  if (provider !== "claude-code") return group === "profiles" ? `Your ${toolName} profiles` : `Other ${toolName} setups`;
-  return group === "profiles" ? "Your Claude profiles" : "Other Claude setups";
+
+/** The groups for these tools, in the tools' order then each spec's. */
+export function groupsFor(tools: string[]): Group[] {
+  return tools.flatMap((tool) =>
+    toolSpec(tool).setup_groups.map((group) => ({
+      key: `${tool}:${group.id}`,
+      id: group.id,
+      tool,
+      title: group.title,
+      showsInstall: group.shows_install,
+    })),
+  );
 }
-
-const GROUPS: { id: Group; title: string }[] = [
-  { id: "profiles", title: "Your Claude profiles" },
-  { id: "default", title: "The default setup" },
-  { id: "other", title: "Other Claude setups" },
-  { id: "codex", title: "Codex" },
-];
 
 /** A group's tool, in its header: its version, or — found but its
  * version couldn't be read (0.0.11) — that, never "not installed". */
@@ -88,49 +88,36 @@ function cliWords(name: string, row: ProviderInstallData): string {
   return versionUnchecked(row) ? `${name} found; couldn't check its version` : `${name} ${row.version ?? ""} installed`;
 }
 
-/** The tools first run on a fresh install brings in (AJ-E1301). */
-const FIRST_RUN_TOOLS = ["claude-code", "codex"];
-/** A name for a new account that no account has yet ("Claude Code 2"). */
-export function freeLabel(base: string, taken: string[]): string {
-  const used = new Set(taken.map((label) => label.trim().toLowerCase()));
-  if (!used.has(base.toLowerCase())) return base;
-  for (let n = 2; ; n += 1) if (!used.has(`${base} ${n}`.toLowerCase())) return `${base} ${n}`;
-}
-
-function humanBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
-  return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
-}
-
-/** Grouped by kind of setup, not by tool: the same folder can be used by
- * the Claude desktop app and by `claude` in a terminal (0.0.6 dogfood —
- * the default ~/.claude was called "Terminal" while the desktop app had
- * it open). Codex homes are their own kind (AJ-E1301). */
-export function groupOf(found: DiscoveredInfo): Group {
-  if (found.harness === "codex") return "codex";
-  if (found.path.includes("/ClaudeCodeProfiles/")) return "profiles";
-  if (found.origin === "vendor-default") return "default";
-  return "other";
+/** Grouped by kind of setup, as the tool's spec defines them: the first
+ * of its groups that matches the setup's path or scan origin, else its
+ * catch-all (the 0.0.6 dogfood: by kind of setup, not by app). */
+export function groupOf(found: DiscoveredInfo): string {
+  const groups = toolSpec(found.harness).setup_groups;
+  const match =
+    groups.find((group) => group.path_contains !== null && found.path.includes(group.path_contains)) ??
+    groups.find((group) => group.origin !== null && found.origin === group.origin) ??
+    groups.find((group) => group.path_contains === null && group.origin === null) ??
+    groups[0];
+  return `${found.harness}:${match?.id ?? "setups"}`;
 }
 
 const folderOf = (path: string) => path.replace(/\/+$/, "").split("/").pop() ?? path;
 
 /** The name it's brought in as (changeable later in Accounts). */
 export function labelOf(found: DiscoveredInfo): string {
-  const folder = folderOf(found.path);
-  if (groupOf(found) === "codex") return folder === ".codex" ? "Codex" : folder.replace(/^\./, "");
-  if (groupOf(found) === "default") return "Default";
-  return folder.replace(/^\./, "");
+  const defaultLabel = toolSpec(found.harness).default_label;
+  if (found.origin === "vendor-default" && defaultLabel) return defaultLabel;
+  return folderOf(found.path).replace(/^\./, "");
 }
 
 /** "In use now" / "Used today" / "Used 3 days ago" / the scan's words. */
 export function usedWords(found: DiscoveredInfo, nowSecs: number): string {
   // Open right now, and where: read from the running processes.
   const open = found.in_use ?? [];
-  if (open.includes("desktop") && open.includes("terminal")) return "Open in the Claude app and a terminal";
-  if (open.includes("desktop")) return "Open in the Claude app";
+  const app = toolSpec(found.harness).desktop_app;
+  const inApp = app ? `the ${app} app` : "its desktop app";
+  if (open.includes("desktop") && open.includes("terminal")) return `Open in ${inApp} and a terminal`;
+  if (open.includes("desktop")) return `Open in ${inApp}`;
   if (open.includes("terminal")) return "Running in a terminal";
   const last = found.last_used_secs;
   if (last === null || last === undefined) return found.inference.activity_words || "Not used yet";
@@ -152,54 +139,6 @@ export function preselected(found: DiscoveredInfo, nowSecs: number): boolean {
 
 const nowSecs = () => Math.floor(Date.now() / 1000);
 
-/** Distinct, equally light colours by position (a hash of similar paths
- * gives near-identical hues). */
-const PALETTE = ["#A98BFF", "#3DD6E0", "#F59E6B", "#5BD18B", "#FF8FB8", "#6FB3FF", "#E8C547", "#C9A7FF"];
-export const colourAt = (index: number) => PALETTE[index % PALETTE.length]!;
-
-function StepMarks({ step, skipAccess }: { step: Step; skipAccess: boolean }): JSX.Element {
-  // The fresh-account and folder steps are the first step's other doors.
-  const first = step === "fresh" ? "Name the account" : step === "folder" ? "Check the folder" : "Bring in your accounts";
-  const steps: Array<{ id: Step; label: string }> = [
-    { id: step === "fresh" || step === "folder" ? step : "found", label: first },
-    { id: "signin", label: "Sign in where needed" },
-    ...(skipAccess ? [] : [{ id: "access" as Step, label: "Computer access" }]),
-  ];
-  const at = steps.findIndex((entry) => entry.id === step);
-  return (
-    <ol className="flex flex-wrap items-center gap-3 text-xs text-muted" aria-label="First-run steps">
-      {steps.map((entry, index) => (
-        <li key={entry.id} className="flex items-center gap-3" aria-current={index === at ? "step" : undefined}>
-          {index > 0 && <span aria-hidden="true" className="h-px w-6 bg-hairline" />}
-          <span className={"flex items-center gap-2 " + (index === at ? "font-semibold text-ink" : "")}>
-            <span
-              aria-hidden="true"
-              className={
-                "flex size-5 items-center justify-center rounded-full text-[11px] " +
-                (index < at
-                  ? "bg-success-soft text-success"
-                  : index === at
-                    ? "bg-accent text-canvas"
-                    : "border border-hairline")
-              }
-            >
-              {index < at ? "✓" : index + 1}
-            </span>
-            {entry.label}
-          </span>
-        </li>
-      ))}
-    </ol>
-  );
-}
-
-function Check({ className = "" }: { className?: string }): JSX.Element {
-  return (
-    <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={className}>
-      <path d="M5 12.5l4.5 4.5L19 7.5" />
-    </svg>
-  );
-}
 
 type ImportState = {
   state: "pending" | "working" | "done" | "already" | "failed";
@@ -266,7 +205,7 @@ function FoundStep({
   toolName,
   provider,
   tools,
-  codexCli,
+  installRows,
   onImported,
   onAddFresh,
   onImportFolder,
@@ -284,8 +223,8 @@ function FoundStep({
   /** The tools whose setups this list brings in: the chosen one when
    * adding, every supported one on first run (AJ-E1301). */
   tools: string[];
-  /** Codex's install row when Codex rides along beside another tool. */
-  codexCli: ProviderInstallData | null;
+  /** Each tool's install row (first run's other tools ride along). */
+  installRows: Record<string, ProviderInstallData>;
   onImported: (signins: Signin[]) => void;
   onAddFresh: () => void;
   onImportFolder: () => void;
@@ -299,23 +238,17 @@ function FoundStep({
     () => (report?.installs ?? []).filter((found) => tools.includes(found.harness)),
     [report, tools],
   );
-  // Named by Provider when they are all one kind; mixed, just "setups".
-  const codexCount = installs.filter((found) => found.harness === "codex").length;
   // Rows of the chosen tool itself (its "not installed" note covers these).
   const ownCount = installs.filter((found) => found.harness === provider).length;
-  // Codex's install row: the chosen tool's when adding Codex, else the
-  // one that rides along on first run.
-  const codexRow = provider === "codex" ? cli : codexCli;
   // One tool: its name. Every tool (first run): named when the setups are
-  // all one kind, else just "setups".
-  const kind =
-    tools.length === 1
-      ? toolName
-      : codexCount === 0
-        ? "Claude Code"
-        : codexCount === installs.length
-          ? "Codex"
-          : "";
+  // all one tool's, else just "setups".
+  const found = [...new Set(installs.map((row) => row.harness))];
+  const kind = tools.length === 1 ? toolName : found.length === 0 ? toolName : found.length === 1 ? providerDisplayName(found[0]!) : "";
+  // The other tools riding along whose setups are here but which aren't
+  // installed themselves.
+  const missingAlong = tools.filter(
+    (tool) => tool !== provider && installs.some((row) => row.harness === tool) && installRows[tool]?.status === "not_installed",
+  );
   // The defaults come straight from the scan (ready on first paint);
   // the user's ticks override them.
   const defaults = useMemo(
@@ -427,9 +360,7 @@ function FoundStep({
         <h1 className="text-[28px] font-semibold tracking-tight">
           {tools.length > 1 ? "Looking for your setups on this Mac…" : `Looking for ${toolName} on this Mac…`}
         </h1>
-        <p className="text-sm text-muted">{provider === "claude-code"
-            ? "Your default setup, your Claude profiles and anything else that looks like one. Nothing is changed."
-            : "Your default setup and anything else that looks like one. Nothing is changed."}</p>
+        <p className="text-sm text-muted">{toolSpec(provider).scan_hint}</p>
       </div>
     );
   }
@@ -457,12 +388,12 @@ function FoundStep({
         </p>
       </div>
 
-      {codexCount > 0 && codexCli && codexCli.status === "not_installed" && (
-        <p className="rounded-xl border border-warning/40 bg-warning-soft px-4 py-3 text-sm text-ink" data-testid="first-run-no-codex">
-          Codex itself isn't installed yet. You can bring these in now; to start sessions, install it first:{" "}
-          <span className="font-mono text-xs">npm install -g @openai/codex</span>
+      {missingAlong.map((tool) => (
+        <p key={tool} className="rounded-xl border border-warning/40 bg-warning-soft px-4 py-3 text-sm text-ink" data-testid={`first-run-no-${tool}`}>
+          {providerDisplayName(tool)} itself isn't installed yet. You can bring these in now; to start sessions, install it first
+          <InstallHow tool={tool} row={installRows[tool] ?? null} />
         </p>
-      )}
+      ))}
 
       {/* The chosen tool's own note — not over rows of another tool (a
           Codex-only first run has the Codex note above). */}
@@ -470,41 +401,26 @@ function FoundStep({
         <p className="rounded-xl border border-warning/40 bg-warning-soft px-4 py-3 text-sm text-ink" data-testid="first-run-no-cli">
           {toolName} itself isn't installed yet.{" "}
           {ownCount > 0 ? "You can bring these in now; to start sessions, install it first" : "To start sessions, install it first"}
-          {provider === "claude-code" ? (
-            <>
-              :{" "}<span className="font-mono text-xs">npm install -g @anthropic-ai/claude-code</span>
-            </>
-          ) : cli.install_url ? (
-            <>
-              {" "}from{" "}
-              <a className="underline" href={cli.install_url} target="_blank" rel="noreferrer">
-                its install page
-              </a>
-              .
-            </>
-          ) : (
-            "."
-          )}
+          <InstallHow tool={provider} row={cli} />
         </p>
       )}
 
       {installs.length > 0 && (
         <div className="overflow-hidden rounded-2xl border border-hairline bg-surface">
-          {GROUPS.map((group) => {
-            const rows = installs.filter((found) => groupOf(found) === group.id);
+          {groupsFor(tools).map((group) => {
+            const rows = installs.filter((found) => groupOf(found) === group.key);
             if (rows.length === 0) return null;
+            const install = installRows[group.tool];
             return (
-              <fieldset key={group.id} className="border-b border-hairline last:border-b-0" data-testid={`first-run-group-${group.id}`}>
-                <legend className="sr-only">{groupTitle(group.id, toolName, provider)}</legend>
+              <fieldset key={group.key} className="border-b border-hairline last:border-b-0" data-testid={`first-run-group-${group.id}`}>
+                <legend className="sr-only">{group.title}</legend>
                 <div aria-hidden="true" className="flex items-center justify-between gap-3 bg-surface-2 px-5 py-2.5 text-xs">
-                  <span className="font-semibold text-ink">
-                    {groupTitle(group.id, toolName, provider)} <span className="font-normal text-faint">· {rows.length}</span>
+                  <span className="flex items-center gap-1.5 font-semibold text-ink">
+                    <ToolMark tool={group.tool} size={12} className="text-muted" />
+                    <span>{group.title} <span className="font-normal text-faint">· {rows.length}</span></span>
                   </span>
-                  {group.id === "default" && cli && toolFound(cli) && (
-                    <span className="text-faint" data-testid="first-run-cli-default">{cliWords(toolName, cli)}</span>
-                  )}
-                  {group.id === "codex" && codexRow && toolFound(codexRow) && (
-                    <span className="text-faint" data-testid="first-run-cli-codex">{cliWords("Codex", codexRow)}</span>
+                  {group.showsInstall && install && toolFound(install) && (
+                    <span className="text-faint" data-testid={`first-run-cli-${group.id}`}>{cliWords(providerDisplayName(group.tool), install)}</span>
                   )}
                 </div>
                 {rows.map((found) => {
@@ -722,13 +638,22 @@ function FoundStep({
   );
 }
 
-type Signin = { accountId: string; label: string; loginNote: string | null; colour: string; provider: string };
+export { colourAt, freeLabel };
 
-/** AJ-E1103 `onboarding.login`: how a first-run sign-in ended (the schema's
- * provider names; anything else is "other"). */
+function humanBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
+  return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
+}
+
+export type Signin = { accountId: string; label: string; loginNote: string | null; colour: string; provider: string };
+
+/** AJ-E1103 `onboarding.login`: how a first-run sign-in ended (the
+ * backend maps the tool to the schema's provider names, "other" for any
+ * it doesn't list). */
 function countLogin(provider: string, outcome: "completed" | "skipped" | "expired"): void {
-  const known = ["claude-code", "codex", "zcode"].includes(provider) ? provider : "other";
-  statsEvent("onboarding.login", { provider: known, outcome });
+  statsEvent("onboarding.login", { provider, outcome });
 }
 
 /** One account's sign-in: status, Sign in, and the rest behind More. */
@@ -881,7 +806,7 @@ function SigninStep({
             // (AJ-E1301): each account opens its own tool's sign-in.
             const tools = [...new Set(queue.map((entry) => entry.provider || provider))];
             return tools.length > 1
-              ? `Each opens its own tool's sign-in — ${tools.map((tool) => (tool === "codex" ? "Codex's (OpenAI)" : `${providerDisplayName(tool)}'s`)).join(" or ")} — for that account's folder; AI Juggler never sees your password and notices when you're done.`
+              ? `Each opens its own tool's sign-in — ${tools.map(shortSignIn).join(" or ")} — for that account's folder; AI Juggler never sees your password and notices when you're done.`
               : `Each opens ${ownSignIn(tools[0] ?? provider)}, for that account's folder; AI Juggler never sees your password and notices when you're done.`;
           })()}
         </p>
@@ -935,131 +860,6 @@ function SigninStep({
   );
 }
 
-/** First run's Computer access step: wiring for `lib/osAccess` (the
- * cards' logic, the re-check when the window is back, Reopen). */
-function AccessStep({
-  entries,
-  setEntries,
-  onDone,
-}: {
-  entries: OsAccessInfo[];
-  setEntries: (next: OsAccessInfo[]) => void;
-  onDone: () => void;
-}): JSX.Element {
-  const [error, setError] = useState<string | null>(null);
-  // Why a Reopen has to be confirmed or wait, under the card that asked.
-  const [reopenBlock, setReopenBlock] = useState<ReopenBlockInfo | null>(null);
-  useEffect(() => watchAccess(() => void osAccessList().then(setEntries, () => null)), [setEntries]);
-  const act = (entry: OsAccessInfo, action: AccessAction, anyway = false) => {
-    setError(null);
-    if (action === "reopen") {
-      void reopenApp(anyway).then(setReopenBlock, (cause) => setError(errorText(cause)));
-      return;
-    }
-    const step = action === "settings" ? osAccessOpenSettings(entry.id).then(() => osAccessList()) : osAccessRequest(entry.id);
-    void step.then(setEntries, (cause) => setError(errorText(cause)));
-  };
-  const allAllowed = entries.every((entry) => entry.status === "allowed");
-  return (
-    <div className="flex flex-col gap-6" data-testid="first-run-access">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-[28px] font-semibold leading-tight tracking-tight">
-          {allAllowed
-            ? "All set."
-            : entries.length === 1
-              ? "One optional permission makes it smoother."
-              : `${entries.length} optional permissions make it smoother.`}
-        </h1>
-        <p className="max-w-2xl text-[15px] leading-relaxed text-muted">
-          Allow opens the system's own prompt, and this page updates as soon as you say yes. Skip any of them: AI Juggler asks again only when you first use what it's for.
-        </p>
-      </div>
-      <ul className="flex flex-col gap-3">
-        {entries.map((entry) => {
-          const card = accessCard(entry);
-          return (
-            <li
-              key={entry.id}
-              className={
-                "flex flex-wrap items-center gap-4 rounded-2xl border bg-surface p-5 " +
-                (card.state === "allowed" ? "border-success/40" : "border-hairline")
-              }
-              data-testid={`first-run-access-${entry.id}`}
-            >
-              <div className="flex min-w-0 flex-1 flex-col gap-1">
-                <span className="text-[15px] font-semibold text-ink">{entry.title}</span>
-                <span className="text-sm leading-relaxed text-muted">
-                  {entry.why} <span className="text-faint">The system calls this {entry.system_name}.</span>
-                </span>
-                {card.note && <span className={card.noteLeads ? "text-sm text-ink" : "text-xs text-faint"}>{card.note}</span>}
-                {card.state === "reopen" && reopenBlock && (
-                  <div className="mt-2 flex flex-wrap items-center gap-3 text-sm" role="alert" data-testid="first-run-access-reopen-block">
-                    <span className="text-ink">{reopenBlock.reason}</span>
-                    {reopenBlock.can_reopen_anyway && (
-                      <Button size="sm" variant="secondary" onClick={() => act(entry, "reopen", true)}>
-                        Reopen anyway
-                      </Button>
-                    )}
-                    <button type="button" className="text-sm text-muted hover:text-ink hover:underline" onClick={() => setReopenBlock(null)}>
-                      Not now
-                    </button>
-                  </div>
-                )}
-              </div>
-              {card.state === "allowed" ? (
-                <span className="flex items-center gap-1.5 text-sm font-medium text-success" role="status">
-                  <Check />
-                  Allowed
-                </span>
-              ) : (
-                <div className="flex flex-wrap items-center gap-2">
-                  {card.secondary && (
-                    <Button variant="secondary" onClick={() => act(entry, card.secondary!.action)}>
-                      {card.secondary.label} <span className="sr-only">{entry.title}</span>
-                    </Button>
-                  )}
-                  {card.primary && (
-                    <Button
-                      variant={card.primary.action === "settings" ? "secondary" : "primary"}
-                      onClick={() => act(entry, card.primary!.action)}
-                      data-testid={card.primary.action === "reopen" ? "first-run-access-reopen" : undefined}
-                    >
-                      {card.primary.label}
-                      {card.primary.action !== "reopen" && (
-                        <>
-                          {" "}
-                          <span className="sr-only">{entry.title}</span>
-                        </>
-                      )}
-                    </Button>
-                  )}
-                </div>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-      {error && (
-        <p className="text-xs text-danger" role="alert">
-          {error}
-        </p>
-      )}
-      <div className="flex items-center justify-between gap-4">
-        {!allAllowed ? (
-          <button type="button" className="text-sm text-muted hover:text-ink hover:underline" onClick={onDone}>
-            Skip for now
-          </button>
-        ) : (
-          <span />
-        )}
-        <Button variant="primary" onClick={onDone} data-testid="first-run-start">
-          Start working
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 /** The plain error for a failed import (duplicate, moved, or the rest). */
 function importProblem(cause: unknown): { kind: "duplicate" | "moved" | "other"; text: string } {
   const text = errorText(cause);
@@ -1072,93 +872,6 @@ function importProblem(cause: unknown): { kind: "duplicate" | "moved" | "other";
   return { kind: "other", text };
 }
 
-function FreshStep({
-  toolName,
-  provider,
-  taken,
-  canGoBack,
-  onBack,
-  onImportFolder,
-  onCreated,
-}: {
-  toolName: string;
-  provider: string;
-  taken: string[] | null;
-  canGoBack: boolean;
-  onBack: () => void;
-  onImportFolder: () => void;
-  onCreated: (signin: Signin | null) => void;
-}): JSX.Element {
-  const [label, setLabel] = useState<string | null>(null);
-  const shown = label ?? (taken === null ? "" : freeLabel(toolName, taken));
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const create = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      const account = await createAccount(provider, shown.trim(), null);
-      onCreated(
-        signedIn(account.login_state)
-          ? null
-          : { accountId: account.id, label: account.label, loginNote: null, colour: colourAt(taken?.length ?? 0), provider },
-      );
-    } catch (cause) {
-      setError(errorText(cause));
-      setBusy(false);
-    }
-  };
-  return (
-    <form
-      className="flex flex-col gap-6"
-      data-testid="first-run-fresh"
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (shown.trim().length > 0 && !busy) void create();
-      }}
-    >
-      <div className="flex flex-col gap-2">
-        <h1 className="text-[28px] font-semibold leading-tight tracking-tight">Add a fresh account.</h1>
-        <p className="max-w-2xl text-[15px] leading-relaxed text-muted">
-          AI Juggler sets it up in its own folder, apart from anything you already use. Next you sign in with{" "}
-          {ownSignIn(provider)}; AI Juggler never sees your password.
-        </p>
-      </div>
-      <label className="flex max-w-md flex-col gap-1.5 text-sm font-medium text-ink">
-        Name
-        <input
-          autoFocus
-          value={shown}
-          onChange={(event) => setLabel(event.target.value)}
-          placeholder="e.g. Work, Personal"
-          className="rounded-lg border border-hairline bg-surface px-3 py-2.5 text-[15px] font-normal text-ink outline-none placeholder:text-faint focus:border-accent/60"
-          data-testid="first-run-fresh-name"
-        />
-        <span className="text-xs font-normal text-faint">What it's for — you can rename it and set its plan later in Accounts.</span>
-      </label>
-      {error && (
-        <p className="text-xs text-danger" role="alert" data-testid="first-run-fresh-error">
-          {error}
-        </p>
-      )}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-5 text-sm">
-          {canGoBack && (
-            <button type="button" className="text-muted hover:text-ink hover:underline" onClick={onBack}>
-              Back
-            </button>
-          )}
-          <button type="button" className="text-muted hover:text-ink hover:underline" onClick={onImportFolder}>
-            Import from a folder instead…
-          </button>
-        </div>
-        <Button variant="primary" type="submit" disabled={busy || shown.trim().length === 0} data-testid="first-run-fresh-create">
-          {busy ? "Setting it up…" : "Create and sign in"}
-        </Button>
-      </div>
-    </form>
-  );
-}
 
 function FolderStep({
   path,
@@ -1354,6 +1067,7 @@ export function FirstRun({
   onAccountsChanged,
   mode = "first-run",
   provider,
+  startAt = "found",
   resumeAtAccess = false,
 }: {
   /** First run is over: Home. */
@@ -1365,24 +1079,27 @@ export function FirstRun({
    * than one is installed). Absent — first run on a fresh install — the
    * list brings in every supported tool's setups (AJ-E1301). */
   provider?: string;
+  /** AJ-E1524: the welcome's "Add a fresh account" opens on that step. */
+  startAt?: "found" | "fresh";
   /** An account was created or brought in (the caller refreshes). */
   onAccountsChanged?: () => void;
   openLoginTerminal: (id: string, title: string) => void;
   /** Back after Reopen AI Juggler: start at the access step. */
   resumeAtAccess?: boolean;
 }): JSX.Element {
-  const [step, setStep] = useState<Step>(resumeAtAccess ? "access" : "found");
+  const [step, setStep] = useState<Step>(resumeAtAccess ? "access" : startAt);
   const [folder, setFolder] = useState<string | null>(null);
   const [taken, setTaken] = useState<string[] | null>(null);
+  const [accounts, setAccounts] = useState<AccountInfo[]>([]);
   // AJ-E1301: adding names its tool; first run on a fresh install brings
   // in every supported tool's setups (a fresh account or a folder import
   // there is Claude Code's, as before).
-  const primary = provider ?? "claude-code";
-  const tools = useMemo(() => (provider ? [provider] : FIRST_RUN_TOOLS), [provider]);
+  const primary = provider ?? primaryToolId() ?? "";
+  const tools = useMemo(() => (provider ? [provider] : firstRunToolIds()), [provider]);
   const toolName = providerDisplayName(primary);
   const [report, setReport] = useState<ScanReportData | null>(null);
   const [cli, setCli] = useState<ProviderInstallData | null>(null);
-  const [codexCli, setCodexCli] = useState<ProviderInstallData | null>(null);
+  const [installRows, setInstallRows] = useState<Record<string, ProviderInstallData>>({});
   const [inPlace, setInPlace] = useState<InPlaceSupport | null>(null);
   const [queue, setQueue] = useState<Signin[]>([]);
   const [access, setAccess] = useState<OsAccessInfo[] | null>(null);
@@ -1413,12 +1130,8 @@ export function FirstRun({
     void providersDiscover().then(
       (rows) => {
         setCli(rows.find((row) => row.provider === primary) ?? null);
-        // First run with every tool: Codex's own row for its group.
-        setCodexCli(
-          tools.includes("codex") && primary !== "codex"
-            ? (rows.find((row) => row.provider === "codex") ?? null)
-            : null,
-        );
+        // Every tool's own row, for its group's heading and its note.
+        setInstallRows(Object.fromEntries(rows.map((row) => [row.provider, row])));
       },
       () => setCli(null),
     );
@@ -1430,7 +1143,10 @@ export function FirstRun({
       () => setInPlace("unknown"),
     );
     void accountsList().then(
-      (rows) => setTaken(rows.map((row) => row.label)),
+      (rows) => {
+        setTaken(rows.map((row) => row.label));
+        setAccounts(rows);
+      },
       () => setTaken([]),
     );
     void osAccessList().then(setAccess, () => setAccess([]));
@@ -1537,7 +1253,7 @@ export function FirstRun({
               toolName={toolName}
               provider={primary}
               tools={tools}
-              codexCli={codexCli}
+              installRows={installRows}
               onAddFresh={() => setStep("fresh")}
               onImportFolder={() => void pickFolder()}
               stopRef={stopRef}
@@ -1559,10 +1275,11 @@ export function FirstRun({
             />
           )}
           {step === "fresh" && (
-            <FreshStep
+            <FreshAccountStep
               toolName={toolName}
               provider={primary}
               taken={taken}
+              accounts={accounts}
               canGoBack={!nothingNew || mode === "first-run"}
               onBack={() => setStep("found")}
               onImportFolder={() => void pickFolder()}
@@ -1583,6 +1300,7 @@ export function FirstRun({
           )}
           {step === "signin" && <SigninStep queue={queue} provider={primary} openLoginTerminal={openLoginTerminal} onDone={toAccess} />}
           {step === "access" && access !== null && <AccessStep entries={access} setEntries={setAccess} onDone={finish} />}
+          {(step === "found" || step === "fresh" || step === "folder") && <TermsLine tools={step === "found" ? tools : [primary]} />}
         </div>
       </div>
     </div>

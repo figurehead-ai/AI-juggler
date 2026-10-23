@@ -255,11 +255,22 @@ fn providers_discover_renders_installed_and_missing_rows() {
     assert_eq!(missing.status, "not_installed", "the gate's dead-end state");
     assert!(missing.version.is_none());
 
-    // Every row carries display metadata — the wizard never guesses.
+    // Every row carries display metadata — the wizard never guesses. A
+    // tool whose spec has no install page says so with an empty link
+    // (AJ-E1525), never `about:blank`.
     for row in &rows {
         assert!(!row.display_name.is_empty());
-        assert!(!row.install_url.is_empty());
+        assert!(
+            row.install_url.is_empty() || row.install_url.starts_with("https://"),
+            "{}: {}",
+            row.provider,
+            row.install_url
+        );
     }
+    assert!(
+        missing.install_url.is_empty(),
+        "the fake tool has no install page"
+    );
 }
 
 /// AJ-E301 Req.4: command rejections serialize as the CODED wire —

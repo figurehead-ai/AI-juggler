@@ -13,26 +13,33 @@
 )]
 
 pub mod claude_code;
+pub mod claude_conversations;
 pub mod claude_environment;
 pub mod claude_handover;
+pub mod claude_inventory;
 pub mod claude_transcript;
 pub mod codex;
+pub mod codex_conversations;
 pub mod codex_environment;
 pub mod codex_handover;
+pub mod codex_inventory;
 pub mod codex_transcript;
+pub mod config_edit;
 pub mod fake;
 pub mod inference;
+pub mod inventory_files;
 mod presence;
 pub mod quota_ingest;
 pub mod scan_signals;
 pub mod sign_in;
+pub mod tool_summary;
 pub mod transcript;
 
-pub use claude_code::{CLAUDE_CODE_ID, ClaudeCodeAdapter, LoginState};
+pub use claude_code::{CLAUDE_CODE_ID, ClaudeCodeAdapter, LoginState, claude_code_spec};
 pub use claude_transcript::{
     MessageRole, ParsedMessage, ParsedTranscript, dedupe_messages, parse_transcript,
 };
-pub use codex::{CODEX_ID, CodexAdapter};
+pub use codex::{CODEX_ID, CodexAdapter, codex_spec};
 pub use fake::{FAKE_HARNESS_ID, FakeHarnessAdapter};
 pub use quota_ingest::{
     CreditsSnapshot, RolloutCarry, SourceHealth, TailOutcome, codex_rate_limits,

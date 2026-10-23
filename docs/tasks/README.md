@@ -4,15 +4,15 @@
 > researched, evidence-gated tasks that survive context compaction,
 > context loss and agent handover. A new agent with zero chat history
 > must be able to start from this directory alone.
-> Status of this system: all tasks are `TODO`. Nothing here is done
+> Each task carries its own status in its epic file. Nothing here is done
 > until its evidence exists (see "Definition of done" below).
 
 ## Start here (cold-agent reading order)
 
-1. [AGENT-HANDOVER.md](AGENT-HANDOVER.md) — state snapshot, invariants,
+1. [AGENT-HANDOVER.md](../internal/AGENT-HANDOVER.md) — state snapshot, invariants,
    claiming protocol, compaction-recovery steps.
 2. [../review/decision-log.md](../review/decision-log.md) — settled
-   decisions D-01..D-25. Do not re-litigate them; supersede only via a
+   decisions D-01..D-26. Do not re-litigate them; supersede only via a
    new recorded decision.
 3. [TASK-CATALOG.md](TASK-CATALOG.md) — every task ID, epic, priority.
 4. The epic file for the task you claim (E1-E20 below).
@@ -37,7 +37,7 @@
 | [E12-optional-account.md](E12-optional-account.md) | Optional Figurehead account (two paths) | AJ-E1201-E1207 |
 | [E13-codex-adapter.md](E13-codex-adapter.md) | Codex, the second Provider | AJ-E1301-E1306 |
 | [E14-machine-health.md](E14-machine-health.md) | Machine health and resource monitoring | AJ-E1401-E1410 |
-| [E15-spec-gaps.md](E15-spec-gaps.md) | Spec gaps: what the specs promised and no task covered | AJ-E1501-E1523 |
+| [E15-spec-gaps.md](E15-spec-gaps.md) | Spec gaps: what the specs promised and no task covered | AJ-E1501-E1544 |
 | [E16-more-tools.md](E16-more-tools.md) | More tools: OpenCode, Kimi, Grok, ZCode, Kiro, Hermes, Muse, Cursor, desktop apps | AJ-E1601-E1613 |
 | [E17-agent-pools.md](E17-agent-pools.md) | Agent pools and the agent bridge | AJ-E1701-E1704 |
 | [E18-agent-messaging.md](E18-agent-messaging.md) | Messaging between agents | AJ-E1801-E1805 |

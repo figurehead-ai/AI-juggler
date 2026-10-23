@@ -3,7 +3,7 @@
 > Scope: every interactive element in `ui/src` at audit time.
 > Method: full read of all 27 files under `ui/src` (see §1),
 > cross-checked against `docs/review/full-competitive-ux-review.md`
-> and `docs/review/agent-review-prompt.md`. No runtime/browser
+> and `docs/internal/agent-review-prompt.md`. No runtime/browser
 > test was run; a11y claims are code-read only.
 > Verdict key: **Keep** = ship as-is · **Fix** = keep, change spec
 > below · **Remove** = delete · **Add** = missing, create.

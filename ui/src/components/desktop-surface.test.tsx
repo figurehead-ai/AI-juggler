@@ -96,7 +96,7 @@ const account: AccountInfo = {
 };
 const recipe: LaunchRecipeInfo = {
   id: "p-3", name: "App", account_id: "fake-desk", account_label: "Fake Desk",
-  provider: "fake-desktop", model: null, default_cwd: null,
+  provider: "fake-desktop", model: null, default_cwd: null, restart_on_crash: null,
 };
 
 function shell(instance: InstanceInfo) {
@@ -127,9 +127,6 @@ function shell(instance: InstanceInfo) {
     />,
   );
 }
-
-const open = (container: HTMLElement, tab: string) =>
-  fireEvent.click(container.querySelector(`#inspector-tab-${tab}`)!);
 
 describe("AJ-E413 desktop Instance surface (Req.3)", () => {
   it("renders the surface with focus primary, honest resources, and NO terminal card", () => {
@@ -219,7 +216,8 @@ describe("AJ-E413 desktop Instance surface (Req.3)", () => {
 
   it("exited and crashed states read as app states, not terminal states", () => {
     const exited = shell(mk({ status: "finished" }));
-    expect(exited.container.textContent).toContain("app exited · relaunch from Actions");
+    expect(exited.container.textContent).toContain("app exited · Relaunch, above, starts it again");
+    expect(exited.getByTestId("header-relaunch").textContent).toBe("Relaunch");
     expect(exited.container.textContent).not.toContain("scrollback replayed");
     cleanup();
     const crashed = shell(mk({ status: "failed" }));
@@ -227,12 +225,11 @@ describe("AJ-E413 desktop Instance surface (Req.3)", () => {
     expect(crashed.container.textContent).not.toContain("scrollback replayed");
   });
 
-  it("Actions row for desktop opens the window (labelled honestly, not 'Focus terminal')", () => {
+  it("its page's body is the Window (labelled honestly, not 'Terminal'), and opens it", () => {
     const { container } = shell(mk());
-    open(container, "actions");
-    const row = container.querySelector('[data-testid="action-open-focus-window"] button')! as HTMLButtonElement;
-    expect(row.disabled).toBe(false);
-    fireEvent.click(row);
+    expect(container.querySelector("#page-tab-window")?.textContent).toBe("Window");
+    expect(container.querySelector("#page-tab-terminal")).toBeNull();
+    fireEvent.click(container.querySelector('[data-testid="desktop-focus"]')!);
     expect(focus.calls).toEqual(["sess-desktop-1"]);
   });
 

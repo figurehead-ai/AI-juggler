@@ -3,6 +3,7 @@ import { providerDisplayName } from "../lib/providers";
 import { Button, Card, Chip, type ChipTone } from "../components/primitives";
 import { TerminalView } from "../components/TerminalView";
 import { IconProjects, IconTerminal } from "../components/icons";
+import { launchSettingsName, launchTitle } from "../lib/account-words";
 import {
   launchSession,
   launchRecipesList,
@@ -117,7 +118,7 @@ export function SessionPanel({
       {/* The terminal IS the panel for terminal-kind occurrences */}
       <Card className="min-h-0 flex-1 overflow-hidden bg-[#05070b] p-0">
         {terminalId ? (
-          <TerminalView id={terminalId} title={title} />
+          <TerminalView id={terminalId} title={title} status={status ?? undefined} ended={!status && !live} />
         ) : (
           <div className="flex h-full items-center justify-center text-xs text-faint">
             Desktop harnesses open their own window — focus controls arrive
@@ -216,7 +217,7 @@ export function NewSessionModal({
         setBusy(false);
         return;
       }
-      onLaunched(result.session_id, `${recipe.account_label} · ${recipe.name}`);
+      onLaunched(result.session_id, launchTitle(recipe));
     } catch (cause) {
       setError(errorText(cause));
       setBusy(false);
@@ -257,7 +258,7 @@ export function NewSessionModal({
               <IconTerminal width={13} height={13} />
               <span className="font-medium">{recipe.account_label}</span>
               <span className="text-faint">·</span>
-              <span className="text-muted">{recipe.name}</span>
+              <span className="text-muted">{launchSettingsName(recipe.name)}</span>
               {recipe.model && (
                 <span className="ml-auto font-mono text-[10px] text-faint">{recipe.model}</span>
               )}

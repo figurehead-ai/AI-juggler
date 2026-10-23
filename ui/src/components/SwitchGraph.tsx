@@ -1,7 +1,7 @@
 /**
  * AJ-E209 — the per-Work Switch Graph timeline (the Project panel).
  * Nodes are epochs (Provider mark + Account label + kind + state),
- * edges are labelled arrows (`transplant F1 · 12:04` / `switch-back ↺`);
+ * edges are labelled arrows (what carried: `Full story, fresh start` / `Switched back · …`);
  * failed edges render dashed with their §9 reason and the
  * source-safe recovery. Epochs older than the last fork/merge
  * collapse to "+n switches" — the list is never unbounded. Clicking a

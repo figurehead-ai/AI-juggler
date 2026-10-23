@@ -1,7 +1,7 @@
 # E14 — Machine health and resource monitoring
 
 > Source: the maintainer's own words in
-> [expected-worfklow.md](../expected-worfklow.md) ("for each tool, session,
+> [expected-workflow.md](../internal/expected-workflow.md) ("for each tool, session,
 > we should show how much resources it is using, cpu, ram, did it spawn any
 > sub tasks, sub processes, and allow to track those", plus zombie/leftover
 > cleanup); [PROPOSAL.md](../PROPOSAL.md) G7 and §6.5 "Machine health &

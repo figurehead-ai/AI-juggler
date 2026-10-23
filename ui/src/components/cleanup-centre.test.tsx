@@ -227,7 +227,7 @@ describe("CleanupCentre (AJ-E506)", () => {
     const labels = within(group)
       .getAllByRole("radio")
       .map((radio) => radio.textContent);
-    expect(labels).toEqual(["Needs attention", "All managed", "Re-adopted", "History (7 days)"]);
+    expect(labels).toEqual(["Needs attention", "All managed", "Picked up after restart", "History (7 days)"]);
     expect(view.getByTestId("cleanup-filter-announcement").textContent ?? "").toContain(
       "Needs attention",
     );
@@ -270,7 +270,7 @@ describe("CleanupCentre (AJ-E506)", () => {
     view.unmount();
   });
 
-  it("AJ-E510: a re-adopted Instance row reads Running — re-adopted with the ↻ badge", async () => {
+  it("AJ-E510: a re-adopted Instance row reads Running — picked up after restart with the ↻ badge", async () => {
     const bridge: CleanupBridge = {
       load: () =>
         Promise.resolve(
@@ -287,7 +287,7 @@ describe("CleanupCentre (AJ-E506)", () => {
                   row({
                     pid: 8402,
                     state: "adopted",
-                    state_label: "Running — re-adopted",
+                    state_label: "Running — picked up after restart",
                   }),
                 ],
               },
@@ -298,7 +298,7 @@ describe("CleanupCentre (AJ-E506)", () => {
     const view = render(<CleanupCentre bridge={bridge} />);
     await waitFor(() => expect(view.getByTestId("cleanup-state-8402")).toBeTruthy());
     expect(view.getByTestId("cleanup-state-8402").textContent ?? "").toContain(
-      "Running — re-adopted",
+      "Running — picked up after restart",
     );
     expect(view.getByTestId("cleanup-state-8402").textContent ?? "").toMatch(/↻/);
     view.unmount();

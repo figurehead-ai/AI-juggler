@@ -1,27 +1,14 @@
+import { FleetPeersEmpty } from "../components/FleetPeersEmpty";
+import { ClockSkewNote, ConnectionChip, SyncChip } from "../components/FleetChips";
 import { AccountMacsCard } from "../components/AccountMacsCard";
 import { useCallback, useEffect, useRef, useState, type JSX } from "react";
 import { Button, Card, Chip } from "../components/primitives";
 import { IconFleet } from "../components/icons";
 import { PairingWizard, type PairingMode } from "./PairingWizard";
-import {
-  errorText,
-  fleetPeers,
-  fleetRemote,
-  fleetDivergences,
-  type DivergenceRecordInfo,
-  fleetSetPermission,
-  linkSetEnabled,
-  linkStatus,
-  type RemoteMachineInfo,
-  type LinkStatusInfo,
-  fleetResetIdentity,
-  fleetResetTrust,
-  fleetSelf,
-  fleetSetLabel,
-  fleetUnpair,
-  type FleetPeerInfo,
-  type FleetSelfInfo,
-} from "../lib/bridge";
+import { errorText, fleetPeers, fleetRemote, fleetDivergences, fleetSetPermission, linkSetEnabled, linkStatus } from "../lib/bridge";
+import { fleetResetIdentity, fleetResetTrust, fleetSelf, fleetSetLabel, fleetUnpair } from "../lib/bridge";
+import type { DivergenceRecordInfo, RemoteMachineInfo, LinkStatusInfo, FleetPeerInfo, FleetSelfInfo } from "../lib/bridge";
+import { MachineUsageCard } from "../components/MachineUsage";
 
 /**
  * Fleet (beta) — AJ-E702: this Mac's machine identity and the machines
@@ -37,8 +24,12 @@ import {
 export function FleetScreen({
   onOpenCloud,
   onInspectRemote,
+  onOpenHome,
 }: {
   onOpenCloud?: () => void;
+  /** AJ-E1524: set while no account is in — the empty list points back to
+   * the welcome on Home. */
+  onOpenHome?: () => void;
   /** AJ-E705: open a paired machine (or an Instance on it) in the inspector. */
   onInspectRemote?: (machineId: string, instanceId: string | null) => void;
 } = {}): JSX.Element {
@@ -247,21 +238,14 @@ export function FleetScreen({
         />
       )}
 
+      <MachineUsageCard />
       <Card className="flex flex-col gap-3 p-5" data-testid="fleet-peers">
         <div className="flex items-center gap-2">
           <IconFleet width={14} height={14} />
           <h3 className="text-sm font-semibold">Paired machines</h3>
         </div>
         {peers.length === 0 ? (
-          <div className="flex flex-col gap-1" data-testid="fleet-peers-empty">
-            <p className="text-xs text-muted">No paired machines yet.</p>
-            <p className="text-[11px] leading-relaxed text-muted">
-              Turn Link on here and on the other machine. Then choose Add a machine on one
-              and Join a machine on the other, enter the 6-digit code, and compare
-              fingerprints. Machines elsewhere? Connect them with Tailscale or WireGuard
-              first, then pair by address.
-            </p>
-          </div>
+          <FleetPeersEmpty onOpenHome={onOpenHome} />
         ) : (
           <>
           {peers
@@ -633,90 +617,6 @@ function ConfirmSheet({
         </div>
       </Card>
     </div>
-  );
-}
-
-/** AJ-E703: the link state as words + a shape (never colour alone):
- * `Connected · mTLS · v1.0`, `Degraded — …`, `Offline — last seen …`,
- * `Connecting…`, `Link off`. */
-function ConnectionChip({ peer }: { peer: FleetPeerInfo }): JSX.Element {
-  const label =
-    peer.connection === "connected"
-      ? `● Connected · mTLS · ${peer.protocol ?? "v1"}`
-      : peer.connection === "degraded"
-        ? `◐ Degraded · ${peer.protocol ?? "older version"}`
-        : peer.connection === "connecting"
-          ? "◌ Connecting…"
-          : peer.connection === "offline"
-            ? "○ Offline"
-            : "○ Link off";
-  const tone =
-    peer.connection === "connected"
-      ? "success"
-      : peer.connection === "degraded"
-        ? "warning"
-        : "neutral";
-  return (
-    <span data-testid="fleet-connection" data-state={peer.connection}>
-      <Chip tone={tone}>{label}</Chip>
-    </span>
-  );
-}
-
-
-/** AJ-E708: the sync state, in words + a shape (never colour alone):
- * `✓ Synced` while connected, or — while that machine is away — how many
- * changes on THIS Mac wait for it (`⇡ 12 changes queued`). */
-export function SyncChip({ peer, diverged = 0 }: { peer: FleetPeerInfo; diverged?: number }): JSX.Element | null {
-  if (diverged > 0) {
-    // AJ-E708: a divergence waits for the user — it outranks every
-    // other sync state (and blocks switch-back / clean until chosen).
-    return (
-      <span
-        data-testid="fleet-sync"
-        data-state="diverged"
-        title={`Work that moved between this Mac and ${peer.label} changed on both — open the session to choose what to keep.`}
-      >
-        <Chip tone="warning">{`⚠ Diverged — ${diverged} ${diverged === 1 ? "needs" : "need"} you`}</Chip>
-      </span>
-    );
-  }
-  if (peer.connection === "link_off" && peer.queued_changes === null) return null;
-  const live = peer.connection === "connected" || peer.connection === "degraded";
-  const queued = peer.queued_changes ?? 0;
-  const label = live
-    ? "✓ Synced"
-    : peer.connection === "connecting"
-      ? "◌ Syncing…"
-      : queued > 0
-        ? `⇡ ${queued} ${queued === 1 ? "change" : "changes"} queued`
-        : "✓ Nothing queued";
-  const title = live
-    ? `${peer.label} receives this Mac's changes as they happen.`
-    : queued > 0
-      ? `${queued} ${queued === 1 ? "change" : "changes"} on this Mac will reach ${peer.label} when it reconnects — only those, nothing it already has.`
-      : `${peer.label} already has every change from this Mac.`;
-  return (
-    <span data-testid="fleet-sync" data-state={live ? "synced" : queued > 0 ? "queued" : "idle"} title={title}>
-      <Chip tone={live ? "success" : queued > 0 ? "warning" : "neutral"}>{label}</Chip>
-    </span>
-  );
-}
-
-/** AJ-E708: a peer clock more than 5 minutes off is flagged, never
- * trusted for order — sync orders by that machine's sequence. */
-const SKEW_FLAG_MS = 5 * 60 * 1000;
-
-export function ClockSkewNote({ label, skewMs }: { label: string; skewMs: number | null }): JSX.Element | null {
-  if (skewMs === null || Math.abs(skewMs) <= SKEW_FLAG_MS) return null;
-  const minutes = Math.round(Math.abs(skewMs) / 60_000);
-  const direction = skewMs > 0 ? "ahead of" : "behind";
-  return (
-    <p className="w-full text-[11px] text-ink" role="note" data-testid="fleet-clock-skew">
-      <span aria-hidden="true">⚠ </span>
-      {label}'s clock is {minutes} min {direction} this Mac's — times it reports may look off. Order
-      always follows its own change sequence, never its clock.
-    </p>
   );
 }
 

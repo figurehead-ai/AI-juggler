@@ -72,7 +72,7 @@ describe("PortInventoryList (AJ-E505)", () => {
     expect((screen.getByTestId("port-row-5173")).textContent ?? "").toContain("Managed orphan");
     expect(screen.getByTestId("port-class-5173").textContent ?? "").toMatch(/⚑/);
     expect((screen.getByTestId("port-row-3000")).textContent ?? "").toContain("Managed running");
-    expect((screen.getByTestId("port-row-8080")).textContent ?? "").toContain("Re-adopted");
+    expect((screen.getByTestId("port-row-8080")).textContent ?? "").toContain("Picked up after restart");
     expect((screen.getByTestId("port-row-8000")).textContent ?? "").toContain("Not managed by Juggler");
     // Unmanaged rows say WHY they are muted — icon+text, not colour.
     expect((screen.getByTestId("port-row-8000")).textContent ?? "").toContain(

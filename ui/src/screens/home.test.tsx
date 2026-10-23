@@ -135,6 +135,16 @@ describe("D-25 Home — the screen", () => {
     expect(renderHome([]).getByTestId("home").textContent).toContain("Ready when you are");
   });
 
+  it("never 'all clear' while an account has run out (QA batch 9)", async () => {
+    w().__AIJ_QUOTA_DISPLAY__ = [
+      { account: "work", five_hour: { percentage: 100, state: "measured", resets_at_ms: null }, weekly: { percentage: 40, state: "measured", resets_at_ms: null } },
+    ];
+    const { getByTestId } = renderHome([mk("r")]);
+    await waitFor(() => expect(getByTestId("home").textContent).toMatch(/has run out/));
+    expect(getByTestId("home").textContent).not.toContain("All clear");
+    delete w().__AIJ_QUOTA_DISPLAY__;
+  });
+
   it("runway reads each account's measured window", async () => {
     w().__AIJ_QUOTA_DISPLAY__ = [
       { account: "work", five_hour: { percentage: 90, state: "measured", resets_at_ms: null }, weekly: { percentage: 20, state: "measured", resets_at_ms: null } },
@@ -202,13 +212,14 @@ describe("D-25 Home — the screen", () => {
     expect(item.textContent).not.toContain("Claude's own sign-in");
   });
 
-  it("no accounts: one plain next step", () => {
+  // AJ-E1524: no accounts is the welcome (welcome.test.tsx holds its own
+  // tests); Find my accounts still opens first run.
+  it("no accounts: the welcome, with Find my accounts first", () => {
     const onAddAccounts = vi.fn();
     const { getByTestId, getByRole } = renderHome([], [], { onAddAccounts });
-    expect(getByTestId("home-empty-accounts").textContent).toContain("Bring in your accounts to start.");
+    expect(getByRole("heading", { level: 1 }).textContent).toBe("All your AI coding accounts, in one calm place.");
     // In place is the default, and not only Claude Code (0.0.11 walk).
-    expect(getByTestId("home-empty-accounts").textContent).toContain("uses each one where it is");
-    expect(getByTestId("home-empty-accounts").textContent).not.toContain("Claude Code setups");
+    expect(getByTestId("home-empty-accounts").textContent).toContain("used where they are");
     fireEvent.click(getByRole("button", { name: "Find my accounts" }));
     expect(onAddAccounts).toHaveBeenCalledOnce();
   });
@@ -325,7 +336,7 @@ describe("AJ-E1021 Home as the morning triage (from AJ-E1005)", () => {
     await user.keyboard("k");
     await user.keyboard("{Enter}");
     expect(opened).toEqual(["w"]);
-    expect(container.querySelector("[data-testid='home-keys']")!.textContent).toContain("runs the row's action");
+    expect(container.querySelector("[data-testid='home-keys']")!.textContent).toContain("run the row's action");
   });
 
   it("A on a row's own Mark reviewed button acts on that row; J moves on from it", async () => {

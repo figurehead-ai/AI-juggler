@@ -21,6 +21,16 @@ session_id: string | null,
  */
 place: string | null, 
 /**
+ * The tool's id, for its mark (AJ-E1526); `null` when it isn't known.
+ */
+tool: string | null, 
+/**
+ * The `by_tool` group it is listed under (that group's `tool`, with
+ * `ours` as `session_id` says): the This Mac page lists each group's
+ * trees by it (AJ-E1528).
+ */
+group: string, 
+/**
  * The Account it uses, when one of yours matches.
  */
 account_label: string | null, 

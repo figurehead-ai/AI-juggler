@@ -1,0 +1,9 @@
+# AJ-E1535 plain-words lint: `path term count`. Only shrinks.
+# The switch pipeline's error copy still carries the spec's failure codes
+# ("S-F1: …") and one "transplant-capable"; rewording that taxonomy (and
+# its tests) is a follow-up.
+# The maintainer's fidelity register (docs/qa/evidence/AJ-E808/register.md),
+# rendered for the release gate, never shown in the app.
+crates/juggler-handover/src/register.rs ci-row 1
+crates/juggler-handover/src/register.rs fidelity-code 1
+crates/juggler-handover/src/register.rs live-cell 1

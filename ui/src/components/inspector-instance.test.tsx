@@ -87,7 +87,7 @@ const account: AccountInfo = {
 };
 const recipe: LaunchRecipeInfo = {
   id: "p-1", name: "Deep work", account_id: "claude-work", account_label: "Work Max",
-  provider: "claude-code", model: "opus", default_cwd: null,
+  provider: "claude-code", model: "opus", default_cwd: null, restart_on_crash: null,
 };
 
 function shell(instance: InstanceInfo | null, selection?: InspectorSelection) {
@@ -119,7 +119,7 @@ function shell(instance: InstanceInfo | null, selection?: InspectorSelection) {
 }
 
 const open = (container: HTMLElement, tab: string) =>
-  fireEvent.click(container.querySelector(`#inspector-tab-${tab}`)!);
+  fireEvent.click(container.querySelector(`#page-tab-${tab}`)!);
 
 describe("AJ-E407 Instance Overview (§5.1, Req.1)", () => {
   it("renders every populated field", () => {
@@ -173,54 +173,31 @@ describe("AJ-E407 Instance Usage (Req.2)", () => {
   it("names the tool, not its id, and the state in the rail's words", () => {
     const { container } = shell(mk({ status: "quota_blocked" }));
     expect(container.textContent).not.toContain("claude-code");
-    open(container, "history");
     expect(container.textContent).toContain("Hit its limit");
     expect(container.textContent).not.toContain("quota_blocked");
   });
 });
 
-describe("AJ-E407 Instance History (Req.3)", () => {
-  it("renders the honest history empty in plain words", () => {
+describe("AJ-E1533 a session's page: no empty tabs, actions in the header", () => {
+  it("has no History tab until a session records events", () => {
     const { container } = shell(mk());
-    open(container, "history");
-    expect(container.querySelector('[data-testid="instance-history"]')).not.toBeNull();
-    expect(container.textContent).toContain("No history recorded yet");
-    expect(container.textContent).toContain("Resumes, handovers and crashes will show here.");
-  });
-});
-
-describe("AJ-E407 Instance Actions (Req.4)", () => {
-  it("offers real actions; irrelevant ones disabled WITH reason (never hidden)", () => {
-    const { container } = shell(mk());
-    open(container, "actions");
-    for (const label of ["focus-terminal", "stop", "resume", "hand-over"]) {
-      expect(container.querySelector(`[data-testid="action-${label}"]`)).not.toBeNull();
-    }
-    // D-25 amendment of Req.4: actions not built yet aren't shown at all
-    // (Archive lives in History; parking is the limit decision on Home).
-    for (const label of ["queue-resume-at-reset", "export-pack", "archive", "delete"]) {
-      expect(container.querySelector(`[data-testid="action-${label}"]`)).toBeNull();
-    }
-    // Running: Stop enabled, Resume disabled-with-reason.
-    const stop = container.querySelector('[data-testid="action-stop"] button')! as HTMLButtonElement;
-    expect(stop.disabled).toBe(false);
-    const resume = container.querySelector('[data-testid="action-resume"]')!;
-    expect(resume.textContent).toContain("still running");
+    expect(container.querySelector("#page-tab-history")).toBeNull();
+    expect(container.querySelector("#page-tab-actions")).toBeNull();
   });
 
-  it("ended: Relaunch enabled; live-only actions disabled with reasons", () => {
-    const { container } = shell(mk({ status: "finished" }));
-    open(container, "actions");
-    const relaunch = container.querySelector('[data-testid="action-relaunch"] button')! as HTMLButtonElement;
-    expect(relaunch.disabled).toBe(false);
-    const stop = container.querySelector('[data-testid="action-stop"]')!;
-    expect(stop.textContent).toContain("not running");
+  it("a running session's header offers Switch account…; an ended one's, Relaunch", () => {
+    const running = shell(mk());
+    expect(running.queryByTestId("header-switch")).not.toBeNull();
+    expect(running.queryByTestId("header-relaunch")).toBeNull();
+    cleanup();
+    const ended = shell(mk({ status: "finished" }));
+    expect(ended.getByTestId("header-relaunch").textContent).toBe("Relaunch");
   });
 
   it("no tab of the session view shows a task or decision code (D-25)", () => {
     for (const status of ["running", "finished", "quota_blocked"]) {
       const { container } = shell(mk({ status }));
-      for (const tab of ["overview", "usage", "history", "quality", "processes", "actions"]) {
+      for (const tab of ["terminal", "usage", "processes"]) {
         open(container, tab);
         expect(container.textContent ?? "", `${status} › ${tab}`).not.toMatch(/\bAJ-E\d+|\bE\d+\+|\(E\d+\)|\bD-\d{2}\b/);
       }
@@ -246,7 +223,7 @@ describe("AJ-E407 shortcuts (real predicates, mocked bridge)", () => {
     expect(isStopShortcut({ key: ".", metaKey: false, ctrlKey: false, shiftKey: false, altKey: false })).toBe(false);
   });
 
-  it("⌘⇧H jumps to the Overview hand-over section", () => {
+  it("⌘⇧H jumps to the hand-over section on the session's body", () => {
     const { container } = shell(mk());
     open(container, "usage");
     expect(isHandoverShortcut({ key: "h", metaKey: true, ctrlKey: false, shiftKey: true, altKey: false })).toBe(true);
@@ -261,6 +238,6 @@ describe("AJ-E407 shortcuts (real predicates, mocked bridge)", () => {
     window.addEventListener("keydown", onKey);
     fireEvent.keyDown(window, { key: "h", metaKey: true, shiftKey: true });
     window.removeEventListener("keydown", onKey);
-    expect(container.querySelector("#inspector-tab-overview")!.getAttribute("aria-selected")).toBe("true");
+    expect(container.querySelector("#page-tab-terminal")!.getAttribute("aria-selected")).toBe("true");
   });
 });

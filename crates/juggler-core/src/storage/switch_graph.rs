@@ -368,6 +368,49 @@ impl SwitchGraphRepo<'_> {
         Ok(out)
     }
 
+    /// P19: what each same-tool switch carried into the account it went
+    /// to: `(account, conversation id, switch time ms)`, the latest switch
+    /// per pair. A transplant copies the conversation with its original
+    /// times, so in the target's copy every line older than the switch was
+    /// spent on an earlier account.
+    ///
+    /// The id is the copy's own, as installed (the target epoch's): a copy
+    /// installed beside one the target already had gets a new id, and the
+    /// target's own copy must keep its usage. A failed switch carried
+    /// nothing. Between the install and the launch being recorded (a few
+    /// seconds, while a usage pass may already read the copy) the target
+    /// epoch isn't written yet: for a switch staged in the last
+    /// `staged_within_ms` the source's id stands in.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn carried_into(
+        &self,
+        now_ms: i64,
+        staged_within_ms: i64,
+    ) -> Result<Vec<(String, String, i64)>, CoreError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT e.to_account, COALESCE(t.native_id, f.native_id), MAX(e.created_at)
+               FROM switch_edges e
+               JOIN epochs f ON f.id = e.from_epoch
+               LEFT JOIN epochs t ON t.id = e.to_epoch
+              WHERE e.mechanism = 'transplant' AND e.state <> 'failed'
+                AND (t.native_id IS NOT NULL
+                     OR (e.to_epoch IS NULL AND f.native_id IS NOT NULL
+                         AND e.created_at >= ?1 - ?2))
+              GROUP BY e.to_account, COALESCE(t.native_id, f.native_id)",
+        )?;
+        let rows = stmt.query_map(params![now_ms, staged_within_ms], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+        })?;
+        let mut out = Vec::new();
+        for row in rows {
+            out.push(row?);
+        }
+        Ok(out)
+    }
+
     /// AJ-E1007: every edge an Instance took part in, oldest first, with
     /// `true` when the work left from it (its epoch is the edge's source)
     /// and `false` when the work arrived at it.

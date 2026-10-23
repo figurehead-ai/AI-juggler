@@ -46,14 +46,14 @@ export function RecoverySummaryDialog({
       data-testid="recovery-summary"
     >
       <div className="sheen w-full max-w-md rounded-card border border-hairline bg-surface p-5 shadow-[0_24px_80px_-24px_rgba(0,0,0,0.8)]">
-        <h2 className="text-sm font-semibold text-ink">Juggler restarted — here is what survived</h2>
+        <h2 className="text-sm font-semibold text-ink">AI Juggler restarted — here is what kept running</h2>
         <p className="mt-2 text-[12px] text-ink" data-testid="recovery-summary-text">
           {summary.summary}
         </p>
         <p className="mt-2 text-[10.5px] text-muted">
-          Re-adopted sessions run on with a working verified stop (Terminate… in the Cleanup
-          Centre or their process tab). Automatic cleanup stays suspended for 24 hours —
-          re-confirm it in the Cleanup Centre when you are ready.
+          Sessions picked up again keep running, and Terminate… still stops them safely (in the
+          Cleanup Centre or their process tab). Automatic cleanup stays paused for 24 hours —
+          turn it back on in the Cleanup Centre when you are ready.
         </p>
         <div className="mt-4 flex justify-end gap-2">
           <Button onClick={onDismiss} data-testid="recovery-summary-dismiss">

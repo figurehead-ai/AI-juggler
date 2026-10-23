@@ -39,8 +39,15 @@ const DB_FILES: [&str; 3] = ["", "-wal", "-shm"];
 /// The last released version that reads each database schema (kept with
 /// `docs/RELEASING.md` § Database changes). A schema not listed is named
 /// by number.
-const SCHEMA_RELEASES: &[(i64, &str)] =
-    &[(27, "0.0.7"), (28, "0.0.8"), (29, "0.0.9"), (30, "0.0.13")];
+// 31: AJ-E1502 (session and project names, pins, forgotten projects);
+// "0.1.x" until 0.1 is cut, when the release fills in its number.
+const SCHEMA_RELEASES: &[(i64, &str)] = &[
+    (27, "0.0.7"),
+    (28, "0.0.8"),
+    (29, "0.0.9"),
+    (30, "0.0.13"),
+    (31, "0.1.x"),
+];
 
 /// The released version that reads `schema`, when it is known.
 #[must_use]
@@ -493,6 +500,44 @@ pub fn hold_instance_lock(data_dir: &Path) -> bool {
     }
 }
 
+/// How long a launch waits for an ending AI Juggler to let go of the
+/// lock before calling it open (QA batch 9: after a forced quit, the lock
+/// outlived the process for a moment, and the relaunch said "already open
+/// and isn't answering" with nothing open).
+pub const LOCK_GRACE: std::time::Duration = std::time::Duration::from_secs(5);
+
+/// Takes the instance lock, waiting up to `grace` for whoever holds it to
+/// let go; `true` once it's held.
+#[must_use]
+pub fn wait_for_instance_lock(data_dir: &Path, grace: std::time::Duration) -> bool {
+    let deadline = std::time::Instant::now() + grace;
+    loop {
+        if hold_instance_lock(data_dir) {
+            return true;
+        }
+        if std::time::Instant::now() >= deadline {
+            return false;
+        }
+        // poll: the lock has no release event; a launch only, until the
+        // deadline above (a few seconds) or the lock is ours.
+        std::thread::sleep(std::time::Duration::from_millis(200));
+    }
+}
+
+/// The "isn't answering" alert with **Try again** (QA batch 9: the open
+/// one may be ending, and quitting it may be all it takes); `true` for
+/// Try again.
+#[must_use]
+pub fn try_again_or_quit(reason: &str) -> bool {
+    let app_name = crate::edition::current().app_name();
+    crate::launch_alert::show(
+        crate::launch_alert::Level::Warning,
+        &format!("{app_name} can't start yet"),
+        reason,
+        &["Try again", "Quit"],
+    ) == 0
+}
+
 /// At launch: shows the alert and, if the user chooses to go back, goes
 /// back and returns the state to start with (after saying what is left to
 /// do). Quitting exits. Only reached with the instance lock held (a second
@@ -570,11 +615,7 @@ enum Choice {
 /// are written to stderr instead, and every question is answered Quit —
 /// for headless runs and the tests that start the real binary.
 fn no_dialogs(title: &str, text: &str) -> bool {
-    let quiet = std::env::var_os("AIJ_NO_DIALOGS").is_some();
-    if quiet {
-        eprintln!("ai-juggler: {title}\n{text}");
-    }
-    quiet
+    crate::launch_alert::quiet(title, text)
 }
 
 /// The launch alert (a native dialog on every desktop platform; it runs
@@ -621,13 +662,10 @@ fn tell(title: &str, text: &str) {
 /// Says that the app can't start, and why (before any window exists).
 pub fn cannot_start(reason: &str) {
     let app_name = crate::edition::current().app_name();
-    if no_dialogs(&format!("{app_name} can't start"), reason) {
-        return;
-    }
-    let _ = rfd::MessageDialog::new()
-        .set_level(rfd::MessageLevel::Error)
-        .set_title(format!("{app_name} can't start"))
-        .set_description(reason)
-        .set_buttons(rfd::MessageButtons::OkCustom("Quit".to_owned()))
-        .show();
+    let _ = crate::launch_alert::show(
+        crate::launch_alert::Level::Error,
+        &format!("{app_name} can't start"),
+        reason,
+        &["Quit"],
+    );
 }

@@ -73,15 +73,23 @@ pub fn reopen_decision(busy: Option<crate::updates::Busy>, anyway: bool) -> Reop
 ///
 /// Returns the typed storage error reading what runs now.
 #[tauri::command]
-pub fn app_relaunch(
+pub async fn app_relaunch(
     app: tauri::AppHandle,
     state: tauri::State<'_, Arc<AppState>>,
     anyway: bool,
 ) -> AppResult<Option<ReopenBlockInfo>> {
-    let now = juggler_core::model::Timestamp::now().millis();
-    match reopen_decision(crate::updates::busy_at(state.inner(), now)?, anyway) {
+    // What runs now is read off the IPC thread (ENGINEERING-GUIDE T1).
+    let busy = crate::ipc::blocking(state.inner(), "what runs now", |state| {
+        crate::updates::busy_at(state, juggler_core::model::Timestamp::now().millis())
+    })
+    .await?;
+    match reopen_decision(busy, anyway) {
         ReopenDecision::Hold(block) => Ok(Some(block)),
-        ReopenDecision::Relaunch => app.restart(),
+        ReopenDecision::Relaunch => {
+            // AJ-E1509: restart() skips the exit event: clean, watchdog ended.
+            crate::features::app::crash::before_exit(state.inner());
+            app.restart()
+        }
     }
 }
 

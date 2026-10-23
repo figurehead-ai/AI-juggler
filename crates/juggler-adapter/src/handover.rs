@@ -174,6 +174,80 @@ pub trait HandoverSupport: HarnessAdapter {
     fn prime_prompt(&self, turns: &[TurnText]) -> Result<String, AdapterError>;
 }
 
+/// AJ-E1540: the leading folder of a bundle file name that belongs in the
+/// account's own `file-history/` rather than beside the transcript (a
+/// name no tool gives a file: `~` never starts a session id).
+pub const FILE_HISTORY_AREA: &str = "~file-history";
+
+/// How deep a session's folder is walked (`<id>/subagents/…`).
+const SESSION_TREE_DEPTH: usize = 6;
+
+/// AJ-E1540: every file of one session in `dir`, as (bundle name, path):
+/// the flat `<stem>*` files beside it (the transcript, older-style
+/// subagent files) and everything under its `<stem>/` folder (current
+/// Claude Code keeps `subagents/` and `tool-results/` there), named by
+/// their path below `dir` with `/`. Links are skipped; sorted.
+#[must_use]
+pub fn session_files(dir: &Path, stem: &str) -> Vec<(String, PathBuf)> {
+    let mut out = Vec::new();
+    for path in sibling_paths(dir, stem) {
+        let Ok(meta) = std::fs::symlink_metadata(&path) else {
+            continue;
+        };
+        let name = path
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        if meta.is_file() {
+            out.push((name, path));
+        } else if meta.is_dir() && name == stem {
+            tree_files(&path, &name, SESSION_TREE_DEPTH, &mut out);
+        }
+    }
+    out.sort();
+    out
+}
+
+/// The files below `dir`, named `prefix/…`, at most `depth` folders down.
+pub fn tree_files(dir: &Path, prefix: &str, depth: usize, out: &mut Vec<(String, PathBuf)>) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let Ok(meta) = std::fs::symlink_metadata(&path) else {
+            continue;
+        };
+        let name = format!("{prefix}/{}", entry.file_name().to_string_lossy());
+        if meta.is_file() {
+            out.push((name, path));
+        } else if meta.is_dir() && depth > 0 {
+            tree_files(&path, &name, depth - 1, out);
+        }
+    }
+}
+
+/// AJ-E1540: whether a bundle file name is a safe path to install: `/`
+/// separated plain components (no `.`, `..`, hidden or empty ones, no `\`
+/// or NUL), at most eight deep, the reserved [`FILE_HISTORY_AREA`] only
+/// first. A bundle can come from a paired Mac, so its names are untrusted.
+#[must_use]
+pub fn is_safe_bundle_name(name: &str) -> bool {
+    let parts: Vec<&str> = name.split('/').collect();
+    !name.is_empty()
+        && name.len() <= 1024
+        && parts.len() <= 8
+        && parts.iter().enumerate().all(|(index, part)| {
+            (index == 0 && *part == FILE_HISTORY_AREA && parts.len() > 1)
+                || (!part.is_empty()
+                    && part.len() <= 255
+                    && !part.starts_with('.')
+                    && !part.starts_with('~')
+                    && !part.contains(['\\', '\0'])
+                    && Path::new(part).components().count() == 1)
+        })
+}
+
 /// Lists the `<stem>*` sibling set in `dir` (the main file plus
 /// subagent transcripts, spill, file-history inventory) — F-H-04's
 /// honest inventory. Sorted for determinism.
@@ -340,6 +414,63 @@ pub fn mangled_dir(cwd: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_session_is_its_files_and_its_folder() {
+        let dir = tempfile::tempdir().unwrap();
+        let id = "abc-123";
+        std::fs::write(dir.path().join(format!("{id}.jsonl")), "{}\n").unwrap();
+        std::fs::write(dir.path().join(format!("{id}-agent-1.jsonl")), "{}\n").unwrap();
+        std::fs::create_dir_all(dir.path().join(id).join("subagents")).unwrap();
+        std::fs::write(
+            dir.path().join(id).join("subagents").join("a.jsonl"),
+            "{}\n",
+        )
+        .unwrap();
+        std::fs::create_dir_all(dir.path().join(id).join("tool-results")).unwrap();
+        std::fs::write(
+            dir.path().join(id).join("tool-results").join("r.txt"),
+            "out",
+        )
+        .unwrap();
+        std::fs::write(dir.path().join("other.jsonl"), "{}\n").unwrap();
+        let names: Vec<String> = session_files(dir.path(), id)
+            .into_iter()
+            .map(|(n, _)| n)
+            .collect();
+        assert_eq!(
+            names,
+            vec![
+                format!("{id}-agent-1.jsonl"),
+                format!("{id}.jsonl"),
+                format!("{id}/subagents/a.jsonl"),
+                format!("{id}/tool-results/r.txt"),
+            ]
+        );
+    }
+
+    #[test]
+    fn bundle_names_never_climb_or_hide() {
+        assert!(is_safe_bundle_name("abc.jsonl"));
+        assert!(is_safe_bundle_name("abc/subagents/a.jsonl"));
+        assert!(is_safe_bundle_name("~file-history/abc/f1@v2"));
+        for bad in [
+            "",
+            "../x",
+            "abc/../x",
+            "/abs",
+            "abc//x",
+            ".hidden",
+            "abc/.git/config",
+            "~file-history",
+            "abc/~file-history/x",
+            "~other/x",
+            "a\\b",
+            "a/b/c/d/e/f/g/h/i",
+        ] {
+            assert!(!is_safe_bundle_name(bad), "{bad:?}");
+        }
+    }
 
     #[test]
     fn the_fallback_name_never_climbs_out() {

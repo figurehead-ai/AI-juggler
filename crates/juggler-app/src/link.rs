@@ -414,6 +414,10 @@ impl ReplayStore for SettingsReplayStore {
     }
 }
 
+/// What a paired machine asks this Mac to do (AJ-E707, AJ-E711): split
+/// from this file (the size budget).
+mod here;
+
 // ------------------------------------------------------- node handlers
 
 /// Looks a TLS key up in the signed peer registry.
@@ -831,7 +835,7 @@ impl NodeHandler for AppNode {
         backlog.push(delta(
             &origin,
             UNSEQUENCED,
-            proto::telemetry_delta::Payload::Cleanup(cleanup_delta(&state)),
+            proto::telemetry_delta::Payload::Cleanup(here::cleanup_delta(&state)),
         ));
         // AJ-E706: what this Mac can take work into.
         backlog.push(delta(
@@ -850,7 +854,7 @@ impl NodeHandler for AppNode {
         &self,
         peer: &PeerAccess,
         action: &proto::control_command::Action,
-    ) -> Result<String, CommandRejection> {
+    ) -> Result<juggler_link::node::CommandDone, CommandRejection> {
         let reject = |code: &str, message: &str| CommandRejection {
             reason_code: code.to_owned(),
             message: message.to_owned(),
@@ -863,7 +867,7 @@ impl NodeHandler for AppNode {
             // "Ask each time": this Mac's user decides, on this Mac.
             let label = crate::fleet::peer_label(&state, &peer.machine_id)
                 .unwrap_or_else(|| "A paired machine".to_owned());
-            let what = describe_action(&state, action);
+            let what = here::describe_action(&state, action);
             match self.prompts.ask(&label, &what) {
                 Answer::Allowed => {}
                 Answer::Denied => {
@@ -895,7 +899,7 @@ impl NodeHandler for AppNode {
                         Duration::from_secs(5),
                     )
                     .map_err(|e| reject("stop_failed", &e.to_string()))?;
-                Ok("Stopping".to_owned())
+                Ok("Stopping".to_owned().into())
             }
             proto::control_command::Action::LaunchRecipe(launch) => {
                 // Only a Launch-settings id and a project this Mac
@@ -918,13 +922,18 @@ impl NodeHandler for AppNode {
                         }
                         other => reject("launch_failed", &other.wire().user_message),
                     })?;
-                Ok(format!("Started {}", launched.session_id))
+                // AJ-E1515: the console follows the new session by its id.
+                Ok(juggler_link::node::CommandDone {
+                    message: "Started a session".to_owned(),
+                    started_instance_id: Some(launched.session_id),
+                })
             }
             proto::control_command::Action::FocusInstance(focus) => {
-                focus_here(&state, &focus.instance_id)
+                here::focus_here(&state, &focus.instance_id).map(Into::into)
             }
             proto::control_command::Action::CleanProcess(clean) => {
-                clean_here(&state, &peer.machine_id, &clean.instance_id, clean.pid)
+                here::clean_here(&state, &peer.machine_id, &clean.instance_id, clean.pid)
+                    .map(Into::into)
             }
             // The link only delivers these through Handover.
             proto::control_command::Action::TakeHandover(_)
@@ -953,7 +962,7 @@ impl NodeHandler for AppNode {
         if crate::fleet::peer_asks_each_time(&state, &peer.machine_id) {
             let label = crate::fleet::peer_label(&state, &peer.machine_id)
                 .unwrap_or_else(|| "A paired machine".to_owned());
-            let what = describe_action(&state, action);
+            let what = here::describe_action(&state, action);
             match self.prompts.ask(&label, &what) {
                 Answer::Allowed => {}
                 Answer::Denied => {
@@ -976,215 +985,6 @@ impl NodeHandler for AppNode {
             crate::fleet::append_audit(&state, &event);
         }
     }
-}
-
-/// AJ-E707: a console asked to clean one process. The node re-verifies
-/// ownership NOW (pid + start time + exe + boot — the same check as a
-/// local Clean), runs its own TERM → grace → KILL ladder, and audits it
-/// as `fleet:<console>`. An unverifiable process is never signalled.
-fn clean_here(
-    state: &Arc<AppState>,
-    console: &str,
-    instance_id: &str,
-    pid: u32,
-) -> Result<String, CommandRejection> {
-    let reject = |code: &str, message: String| CommandRejection {
-        reason_code: code.to_owned(),
-        message,
-    };
-    let actor = format!(
-        "fleet:{}",
-        crate::fleet::peer_label(state, console).unwrap_or_else(|| console.to_owned())
-    );
-    let cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
-    let result = tokio::task::block_in_place(|| {
-        crate::commands::kill_execute_as(
-            state,
-            state.audit.as_ref(),
-            &actor,
-            instance_id,
-            pid,
-            "pid",
-            &cancel,
-            None,
-        )
-    });
-    let info = result.map_err(|error| match error {
-        AppError::NotFound { .. } => reject(
-            "unknown_record",
-            "Not owned by that session on this Mac — never touched.".to_owned(),
-        ),
-        other => reject("clean_failed", other.wire().user_message),
-    })?;
-    if let Some(refusal) = info.refusal {
-        return Err(reject("refused", format!("Refused — {refusal}")));
-    }
-    Ok(info
-        .members
-        .iter()
-        .map(|member| format!("{} (pid {})", member_words(&member.outcome), member.pid))
-        .collect::<Vec<_>>()
-        .join(" · "))
-}
-
-/// The ladder's outcome in the console's words (AJ-E707 Req.7).
-fn member_words(outcome: &str) -> &str {
-    match outcome {
-        "exited on TERM" => "Exited",
-        "needed KILL" => "Needed SIGKILL",
-        "already gone" => "Already gone",
-        "refused" => "Refused — identity changed",
-        other => other,
-    }
-}
-
-/// This Mac's managed processes as a `CleanupDelta` (never a command
-/// line — the executable's file name only).
-fn cleanup_delta(state: &Arc<AppState>) -> proto::CleanupDelta {
-    let inventory = crate::commands::cleanup_inventory_inner(state, "all-managed", false);
-    let labels: HashMap<String, (String, String)> = state
-        .storage
-        .lock()
-        .ok()
-        .and_then(|storage| crate::commands::session_infos_snapshot(&storage).ok())
-        .map(|rows| {
-            rows.into_iter()
-                .map(|row| (row.id, (row.provider, row.account_label)))
-                .collect()
-        })
-        .unwrap_or_default();
-    let processes = inventory
-        .groups
-        .iter()
-        .flat_map(|group| {
-            let (provider, account_label) = labels
-                .get(&group.session)
-                .cloned()
-                .unwrap_or_else(|| (group.provider.clone(), String::new()));
-            group.rows.iter().map(move |row| proto::CleanupProcess {
-                instance_id: group.session.clone(),
-                pid: row.pid,
-                role: row.role.clone(),
-                state: row.state.clone(),
-                state_label: row.state_label.clone(),
-                verified: row.evidence.verification.verdict == "verified"
-                    && row.role != "root"
-                    && matches!(row.state.as_str(), "running" | "orphaned"),
-                name: std::path::Path::new(&row.exe_path)
-                    .file_name()
-                    .map(|name| name.to_string_lossy().into_owned())
-                    .unwrap_or_default(),
-                age_ms: row.age_ms,
-                rss_bytes: row.rss_bytes,
-                cpu_percent: row.cpu_pct,
-                ports: row.ports.clone().unwrap_or_default(),
-                provider: provider.clone(),
-                account_label: account_label.clone(),
-            })
-        })
-        .collect();
-    proto::CleanupDelta {
-        processes,
-        ledger_degraded: inventory.ledger_degraded,
-    }
-}
-
-/// Plain words for a command, as the prompt shows it.
-fn describe_action(state: &Arc<AppState>, action: &proto::control_command::Action) -> String {
-    match action {
-        proto::control_command::Action::StopInstance(stop) => {
-            let label = state
-                .storage
-                .lock()
-                .ok()
-                .and_then(|storage| crate::commands::session_infos_snapshot(&storage).ok())
-                .and_then(|rows| rows.into_iter().find(|row| row.id == stop.instance_id))
-                .map(|row| format!("{} ({})", row.account_label, row.provider));
-            format!("stop {}", label.unwrap_or_else(|| "a session".to_owned()))
-        }
-        proto::control_command::Action::LaunchRecipe(_) => {
-            "start a session from your Launch settings".to_owned()
-        }
-        proto::control_command::Action::CleanProcess(clean) => {
-            format!("clean up process {} of one of your sessions", clean.pid)
-        }
-        proto::control_command::Action::TakeHandover(take) => format!(
-            "take over work from {} — continue it here",
-            if take.from_account_label.is_empty() {
-                "another Account"
-            } else {
-                take.from_account_label.as_str()
-            }
-        ),
-        proto::control_command::Action::SwitchBack(_) => {
-            "bring work back to its original session here".to_owned()
-        }
-        proto::control_command::Action::FocusInstance(focus) => {
-            let label = state
-                .storage
-                .lock()
-                .ok()
-                .and_then(|storage| crate::commands::session_infos_snapshot(&storage).ok())
-                .and_then(|rows| rows.into_iter().find(|row| row.id == focus.instance_id))
-                .map(|row| format!("{} ({})", row.account_label, row.provider));
-            format!(
-                "bring {}'s window to the front",
-                label.unwrap_or_else(|| "a session".to_owned())
-            )
-        }
-    }
-}
-
-/// AJ-E711: runs the SAME tiered focus as a local click (AJ-E414), on
-/// this Mac, with this Mac's Accessibility permission — never on a
-/// locked screen, and never anything but the honest outcome words.
-fn focus_here(state: &Arc<AppState>, instance_id: &str) -> Result<String, CommandRejection> {
-    let reject = |code: &str, message: String| CommandRejection {
-        reason_code: code.to_owned(),
-        message,
-    };
-    let here = crate::fleet::fleet_self_impl(state)
-        .map_or_else(|_| "this Mac".to_owned(), |info| info.label);
-    let known = state
-        .storage
-        .lock()
-        .ok()
-        .and_then(|storage| crate::commands::session_infos_snapshot(&storage).ok())
-        .is_some_and(|rows| rows.iter().any(|row| row.id == instance_id));
-    if !known {
-        return Err(reject(
-            "unknown_record",
-            "No such session on this Mac.".to_owned(),
-        ));
-    }
-    match crate::focus::screen_locked() {
-        Ok(false) => {}
-        Ok(true) => {
-            return Err(reject(
-                "screen_locked",
-                format!("{here} is locked — nothing was focused."),
-            ));
-        }
-        Err(_) => {
-            return Err(reject(
-                "lock_unknown",
-                format!("Couldn't tell whether {here} is locked — nothing was focused."),
-            ));
-        }
-    }
-    let outcome =
-        crate::commands::desktop_focus_with(state, instance_id, crate::focus::link_runner())
-            .map_err(|error| match error {
-                AppError::Validation { .. } => reject(
-                    "not_desktop",
-                    "That session runs in a terminal — there's no window to focus.".to_owned(),
-                ),
-                other => reject("focus_failed", other.wire().user_message),
-            })?;
-    if outcome.permission_missing {
-        return Ok(format!("Permission needed on {here}"));
-    }
-    Ok(outcome.outcome)
 }
 
 /// The host side of pairing, driven by the UI.
@@ -1304,6 +1104,15 @@ impl PairingHost for AppPairing {
         true
     }
 }
+
+/// Pairing: this Mac hosting a pairing code, and joining another Mac's
+/// (split from this file: the size budget).
+pub mod pairing;
+pub use pairing::{
+    pairing_host_close_impl, pairing_host_decide_impl, pairing_host_open_impl,
+    pairing_host_state_impl, pairing_join_decide_impl, pairing_join_reset_impl,
+    pairing_join_start_impl, pairing_join_state_impl, pairing_re_enable_impl,
+};
 
 // ------------------------------------------------------------ commands
 
@@ -2052,7 +1861,7 @@ async fn resource_ticker(
         let (changed, live_numbers) = sync_instances(&app);
         save_delivered(&app);
         // Processes every ~6 s: orphans reach consoles within 10 s.
-        let cleanup = tick.is_multiple_of(3).then(|| cleanup_delta(&app));
+        let cleanup = tick.is_multiple_of(3).then(|| here::cleanup_delta(&app));
         // The catalog every ~30 s (Launch settings, versions, projects).
         let catalog = tick
             .is_multiple_of(15)
@@ -2122,402 +1931,6 @@ pub fn discovered_impl(state: &Arc<AppState>) -> Vec<DiscoveredMachineInfo> {
         .collect()
 }
 
-/// Core: opens the host pairing window ("Add a machine").
-///
-/// # Errors
-///
-/// Returns [`AppError::Validation`] when Link is off or pairing is locked.
-pub fn pairing_host_open_impl(state: &Arc<AppState>) -> AppResult<PairingStateInfo> {
-    if !link_status_impl(state).enabled {
-        return Err(AppError::Validation {
-            subject: "pairing",
-            message: "Turn Link on first.".to_owned(),
-        });
-    }
-    let manager = &state.link;
-    let opened = {
-        let mut guard = manager.guard.lock().map_err(|_| AppError::StatePoisoned)?;
-        guard
-            .get_or_insert_with(|| PairingGuard::new(SettingsGuardStore(Arc::downgrade(state))))
-            .open(now_ms())
-    };
-    if let Err(error) = opened {
-        crate::usage_stats::fleet_pairing(Some(error.code()));
-        *manager.host.lock().map_err(|_| AppError::StatePoisoned)? = HostPhase::Failed {
-            reason: error.code().to_owned(),
-            message: error.to_string(),
-        };
-        return pairing_host_state_impl(state);
-    }
-    if let Ok(mut message) = manager.host_message.lock() {
-        *message = None;
-    }
-    *manager.host.lock().map_err(|_| AppError::StatePoisoned)? = HostPhase::Waiting;
-    pairing_host_state_impl(state)
-}
-
-/// Core: the host's pairing state (the UI polls it).
-///
-/// # Errors
-///
-/// Returns the typed [`AppError`] when state is unavailable.
-pub fn pairing_host_state_impl(state: &Arc<AppState>) -> AppResult<PairingStateInfo> {
-    let manager = &state.link;
-    let message = manager
-        .host_message
-        .lock()
-        .ok()
-        .and_then(|message| message.clone());
-    let fingerprint = crate::fleet::fleet_self_impl(state)
-        .map(|info| info.fingerprint)
-        .unwrap_or_default();
-    let phase = manager.host.lock().map_err(|_| AppError::StatePoisoned)?;
-    let mut info = PairingStateInfo::idle();
-    if let Some((reason, message)) = message {
-        info.reason = Some(reason);
-        info.message = Some(message);
-    }
-    match &*phase {
-        HostPhase::Idle => {}
-        HostPhase::Failed { reason, message } => {
-            info.phase = String::from("failed");
-            info.reason = Some(reason.clone());
-            info.message = Some(message.clone());
-        }
-        HostPhase::Waiting => {
-            let (code, opened) = manager
-                .guard
-                .lock()
-                .ok()
-                .and_then(|guard| {
-                    guard
-                        .as_ref()
-                        .and_then(|g| g.current_code(now_ms()).map(|c| (c, g.opened_at_ms())))
-                })
-                .unzip();
-            if let Some(code) = code {
-                info.phase = String::from("waiting");
-                info.link = Some(PairingInput::link(&code, &fingerprint));
-                info.code = Some(code.display());
-                info.expires_at_ms = opened.flatten().map(|at| at + PAIRING_WINDOW_MS);
-            } else {
-                info.phase = String::from("failed");
-                info.reason = Some("expired".to_owned());
-                info.message = Some("The pairing window closed after 2 minutes.".to_owned());
-            }
-        }
-        HostPhase::Confirm { candidate, .. } => {
-            info.phase = String::from("confirm");
-            info.peer_label = Some(candidate.label.clone());
-            info.peer_fingerprint = Some(candidate.fingerprint.clone());
-        }
-        HostPhase::Paired { label } => {
-            info.phase = String::from("paired");
-            info.peer_label = Some(label.clone());
-        }
-    }
-    Ok(info)
-}
-
-/// Core: this Mac's user confirms (with the permission to grant) or
-/// cancels the machine shown.
-///
-/// # Errors
-///
-/// Returns [`AppError::Validation`] when nothing awaits a decision.
-pub fn pairing_host_decide_impl(
-    state: &Arc<AppState>,
-    commit: bool,
-    permission: Permission,
-) -> AppResult<PairingStateInfo> {
-    respond(&state.link.host, commit, permission, |phase| match phase {
-        HostPhase::Confirm { respond, .. } => respond.take(),
-        _ => None,
-    })?;
-    pairing_host_state_impl(state)
-}
-
-fn respond<T>(
-    phase: &Arc<Mutex<T>>,
-    commit: bool,
-    permission: Permission,
-    take: impl FnOnce(&mut T) -> Option<tokio::sync::oneshot::Sender<Option<Permission>>>,
-) -> AppResult<()> {
-    let sender =
-        take(&mut *phase.lock().map_err(|_| AppError::StatePoisoned)?).ok_or_else(|| {
-            AppError::Validation {
-                subject: "pairing",
-                message: "Nothing is waiting for a decision.".to_owned(),
-            }
-        })?;
-    let _ = sender.send(commit.then_some(permission));
-    Ok(())
-}
-
-/// Core: closes the host window (Cancel / leaving Fleet).
-pub fn pairing_host_close_impl(state: &Arc<AppState>) {
-    let manager = &state.link;
-    if let Ok(mut guard) = manager.guard.lock()
-        && let Some(guard) = guard.as_mut()
-    {
-        guard.close();
-    }
-    if let Ok(mut phase) = manager.host.lock() {
-        if let HostPhase::Confirm { respond, .. } = &mut *phase
-            && let Some(sender) = respond.take()
-        {
-            let _ = sender.send(None);
-        }
-        *phase = HostPhase::Idle;
-    }
-}
-
-/// Core: re-enables pairing after the daily disable (a user click).
-pub fn pairing_re_enable_impl(state: &Arc<AppState>) {
-    let mut guard = state.link.guard.lock().ok();
-    if let Some(guard) = guard.as_mut() {
-        guard
-            .get_or_insert_with(|| PairingGuard::new(SettingsGuardStore(Arc::downgrade(state))))
-            .re_enable();
-    }
-}
-
-/// Where to reach the host: the typed address, or the discovered node's.
-fn join_addresses(
-    state: &Arc<AppState>,
-    instance_id: Option<&str>,
-    address: Option<&str>,
-) -> AppResult<Vec<SocketAddr>> {
-    if let Some(address) = address {
-        let parsed = address
-            .trim()
-            .parse::<SocketAddr>()
-            .or_else(|_| format!("{}:{}", address.trim(), preferred_port()).parse())
-            .map_err(|_| AppError::Validation {
-                subject: "address",
-                message: "Use an IP address, optionally with :port (for example 100.64.0.2)."
-                    .to_owned(),
-            })?;
-        Ok(vec![parsed])
-    } else {
-        let running = state
-            .link
-            .running
-            .lock()
-            .map_err(|_| AppError::StatePoisoned)?;
-        let browser = running
-            .as_ref()
-            .and_then(|running| running.browser.as_ref())
-            .ok_or_else(|| AppError::Validation {
-                subject: "pairing",
-                message: "This Mac can't see the local network — pair by address instead."
-                    .to_owned(),
-            })?;
-        let wanted = instance_id.unwrap_or_default();
-        let node = browser
-            .nodes()
-            .into_iter()
-            .find(|node| node.instance_id == wanted)
-            .ok_or_else(|| AppError::Validation {
-                subject: "pairing",
-                message: "That machine is no longer on the network.".to_owned(),
-            })?;
-        Ok(ordered(&node))
-    }
-}
-
-/// Core: starts joining a host found on the LAN (by instance id) or at
-/// an address (`host:port`, e.g. over the user's VPN).
-///
-/// # Errors
-///
-/// Returns [`AppError::Validation`] for a bad code/address or Link off.
-pub fn pairing_join_start_impl(
-    state: &Arc<AppState>,
-    instance_id: Option<&str>,
-    address: Option<&str>,
-    typed: &str,
-) -> AppResult<PairingStateInfo> {
-    let input = PairingInput::parse(typed).map_err(|_| AppError::Validation {
-        subject: "pairing code",
-        message: "Enter the 6-digit code shown on the other Mac.".to_owned(),
-    })?;
-    let manager = &state.link;
-    // Held until the join is recorded, so Link can't go off in between
-    // (it would find no join to end).
-    let _lifecycle = manager
-        .lifecycle
-        .lock()
-        .map_err(|_| AppError::StatePoisoned)?;
-    let run = link_run(state);
-    let Some(own_port) = link_status_impl(state).port else {
-        return Err(AppError::Validation {
-            subject: "pairing",
-            message: "Turn Link on first.".to_owned(),
-        });
-    };
-    let addresses = join_addresses(state, instance_id, address)?;
-    let certificate = crate::fleet::node_certificate(state)?;
-    let key = crate::fleet::local_public_key(state)?;
-    let own = crate::commands::local_machine_id(state).to_string();
-    let label = crate::fleet::fleet_self_impl(state)?.label;
-    // A newer join replaces one still in flight, which ends first, so it
-    // can't write "failed" over this one's state.
-    let older = manager
-        .join_task
-        .lock()
-        .map_err(|_| AppError::StatePoisoned)?
-        .take();
-    if let Some(older) = older {
-        older.abort();
-        let _ = manager.runtime()?.block_on(older);
-    }
-    *manager.join.lock().map_err(|_| AppError::StatePoisoned)? = JoinPhase::Connecting;
-    let join = manager.join.clone();
-    let weak = Arc::downgrade(state);
-    let task = manager.runtime()?.spawn(async move {
-        let mut last = JoinError::Cancelled;
-        for address in addresses {
-            let phase = join.clone();
-            let result = pair_with(
-                address,
-                juggler_link::pairing_rpc::Joiner {
-                    certificate: &certificate,
-                    key,
-                    machine_id: &own,
-                    label: &label,
-                    port: own_port,
-                },
-                &input,
-                move |candidate| {
-                    let (tx, rx) = tokio::sync::oneshot::channel();
-                    if let Ok(mut phase) = phase.lock() {
-                        *phase = JoinPhase::Confirm {
-                            candidate,
-                            respond: Some(tx),
-                        };
-                    }
-                    async move { rx.await.ok().flatten() }
-                },
-            )
-            .await;
-            match result {
-                Ok(joined) => {
-                    let Some(app) = weak.upgrade() else {
-                        return;
-                    };
-                    // Only while this run's Link is on: the pin is the effect.
-                    let Some(open) = link_open(&app, run) else {
-                        return;
-                    };
-                    let _ = crate::fleet::pin_candidate(&app, &joined.candidate, joined.permission);
-                    SettingsReplayStore(weak.clone()).reset(&joined.candidate.machine_id);
-                    remember_address(&app, &joined.candidate.machine_id, address);
-                    mark_reconnect(&app, &joined.candidate.machine_id);
-                    drop(open);
-                    if let Ok(mut phase) = join.lock() {
-                        *phase = JoinPhase::Paired {
-                            label: joined.candidate.label,
-                        };
-                    }
-                    crate::usage_stats::fleet_pairing(None);
-                    return;
-                }
-                Err(JoinError::Connect(reason)) => last = JoinError::Connect(reason),
-                Err(other) => {
-                    last = other;
-                    break;
-                }
-            }
-        }
-        crate::usage_stats::fleet_pairing(Some(last.reason_code()));
-        if let Ok(mut phase) = join.lock() {
-            *phase = JoinPhase::Failed {
-                reason: last.reason_code().to_owned(),
-                message: last.to_string(),
-            };
-        }
-    });
-    *manager
-        .join_task
-        .lock()
-        .map_err(|_| AppError::StatePoisoned)? = Some(task);
-    pairing_join_state_impl(state)
-}
-
-/// Core: the joiner's pairing state (the UI polls it).
-///
-/// # Errors
-///
-/// Returns the typed [`AppError`] when state is unavailable.
-pub fn pairing_join_state_impl(state: &Arc<AppState>) -> AppResult<PairingStateInfo> {
-    let phase = state
-        .link
-        .join
-        .lock()
-        .map_err(|_| AppError::StatePoisoned)?;
-    let mut info = PairingStateInfo::idle();
-    match &*phase {
-        JoinPhase::Idle => {}
-        JoinPhase::Connecting => info.phase = String::from("connecting"),
-        JoinPhase::Confirm { candidate, .. } => {
-            info.phase = String::from("confirm");
-            info.peer_label = Some(candidate.label.clone());
-            info.peer_fingerprint = Some(candidate.fingerprint.clone());
-        }
-        JoinPhase::Paired { label } => {
-            info.phase = String::from("paired");
-            info.peer_label = Some(label.clone());
-        }
-        JoinPhase::Failed { reason, message } => {
-            info.phase = String::from("failed");
-            info.reason = Some(reason.clone());
-            info.message = Some(message.clone());
-        }
-    }
-    Ok(info)
-}
-
-/// Core: this Mac's user confirms or cancels the host shown.
-///
-/// # Errors
-///
-/// Returns [`AppError::Validation`] when nothing awaits a decision.
-pub fn pairing_join_decide_impl(
-    state: &Arc<AppState>,
-    commit: bool,
-    permission: Permission,
-) -> AppResult<PairingStateInfo> {
-    respond(&state.link.join, commit, permission, |phase| match phase {
-        JoinPhase::Confirm { respond, .. } => respond.take(),
-        _ => None,
-    })?;
-    pairing_join_state_impl(state)
-}
-
-/// Core: resets the joiner state (Done / Start over).
-pub fn pairing_join_reset_impl(state: &Arc<AppState>) {
-    if let Ok(mut phase) = state.link.join.lock() {
-        if let JoinPhase::Confirm { respond, .. } = &mut *phase
-            && let Some(sender) = respond.take()
-        {
-            let _ = sender.send(None);
-        }
-        *phase = JoinPhase::Idle;
-    }
-}
-
-fn parse_permission(wire: &str) -> AppResult<Permission> {
-    match wire {
-        "view" => Ok(Permission::View),
-        "control" => Ok(Permission::Control),
-        _ => Err(AppError::Validation {
-            subject: "permission",
-            message: "Choose View only or View + control.".to_owned(),
-        }),
-    }
-}
-
 /// AJ-E704: Link status.
 #[tauri::command]
 #[must_use]
@@ -2551,107 +1964,6 @@ pub async fn link_set_enabled(
 #[must_use]
 pub fn fleet_discovered(state: tauri::State<'_, Arc<AppState>>) -> Vec<DiscoveredMachineInfo> {
     discovered_impl(state.inner())
-}
-
-/// AJ-E704: opens "Add a machine".
-///
-/// # Errors
-///
-/// Returns the typed [`AppError`] per [`pairing_host_open_impl`].
-#[tauri::command]
-pub fn pairing_host_open(state: tauri::State<'_, Arc<AppState>>) -> AppResult<PairingStateInfo> {
-    pairing_host_open_impl(state.inner())
-}
-
-/// AJ-E704: the host's pairing state.
-///
-/// # Errors
-///
-/// Returns the typed [`AppError`] when state is unavailable.
-#[tauri::command]
-pub fn pairing_host_state(state: tauri::State<'_, Arc<AppState>>) -> AppResult<PairingStateInfo> {
-    pairing_host_state_impl(state.inner())
-}
-
-/// AJ-E704: the host user's decision.
-///
-/// # Errors
-///
-/// Returns the typed [`AppError`] per [`pairing_host_decide_impl`].
-#[tauri::command]
-pub fn pairing_host_decide(
-    state: tauri::State<'_, Arc<AppState>>,
-    commit: bool,
-    permission: String,
-) -> AppResult<PairingStateInfo> {
-    pairing_host_decide_impl(state.inner(), commit, parse_permission(&permission)?)
-}
-
-/// AJ-E704: closes "Add a machine".
-#[tauri::command]
-pub fn pairing_host_close(state: tauri::State<'_, Arc<AppState>>) {
-    pairing_host_close_impl(state.inner());
-}
-
-/// AJ-E704: re-enables pairing after the daily disable.
-#[tauri::command]
-pub fn pairing_re_enable(state: tauri::State<'_, Arc<AppState>>) {
-    pairing_re_enable_impl(state.inner());
-}
-
-/// AJ-E704: starts joining a host.
-///
-/// # Errors
-///
-/// Returns the typed [`AppError`] per [`pairing_join_start_impl`].
-#[tauri::command]
-pub async fn pairing_join_start(
-    state: tauri::State<'_, Arc<AppState>>,
-    instance_id: Option<String>,
-    address: Option<String>,
-    code: String,
-) -> AppResult<PairingStateInfo> {
-    // It waits its turn with Link on/off and for a join it replaces:
-    // never on the main thread or an async worker.
-    let state = Arc::clone(state.inner());
-    tauri::async_runtime::spawn_blocking(move || {
-        pairing_join_start_impl(&state, instance_id.as_deref(), address.as_deref(), &code)
-    })
-    .await
-    .map_err(|e| AppError::Io {
-        context: "pairing",
-        message: e.to_string(),
-    })?
-}
-
-/// AJ-E704: the joiner's pairing state.
-///
-/// # Errors
-///
-/// Returns the typed [`AppError`] when state is unavailable.
-#[tauri::command]
-pub fn pairing_join_state(state: tauri::State<'_, Arc<AppState>>) -> AppResult<PairingStateInfo> {
-    pairing_join_state_impl(state.inner())
-}
-
-/// AJ-E704: the joiner user's decision.
-///
-/// # Errors
-///
-/// Returns the typed [`AppError`] per [`pairing_join_decide_impl`].
-#[tauri::command]
-pub fn pairing_join_decide(
-    state: tauri::State<'_, Arc<AppState>>,
-    commit: bool,
-    permission: String,
-) -> AppResult<PairingStateInfo> {
-    pairing_join_decide_impl(state.inner(), commit, parse_permission(&permission)?)
-}
-
-/// AJ-E704: resets the joiner state.
-#[tauri::command]
-pub fn pairing_join_reset(state: tauri::State<'_, Arc<AppState>>) {
-    pairing_join_reset_impl(state.inner());
 }
 
 /// Test seam: run Link without mDNS (pairing by address only).

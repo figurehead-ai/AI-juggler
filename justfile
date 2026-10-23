@@ -21,6 +21,8 @@ verify:
     RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
     just evidence
     just terminology
+    just tool-literals
+    just structure
     just task-counts
     just stats-doc
     just stats-events
@@ -70,9 +72,28 @@ stats-events:
 evidence:
     ./scripts/evidence_check.sh
 
-# Terminology gate (AJ-E108): legacy user-facing nouns cannot creep back.
+# Terminology gate (AJ-E108): legacy user-facing nouns cannot creep back;
+# AJ-E1535: nor can developer words on screen (its allowlist only shrinks).
 terminology:
     ./scripts/terminology_lint.sh
+    python3 scripts/plain_words_lint.py --selftest
+    python3 scripts/plain_words_lint.py
+
+# AJ-E1525 (ADR-0019 §5): no tool-id literal outside the adapters; the
+# allowlist of today's sites only shrinks.
+tool-literals:
+    python3 scripts/tool_literal_lint.py --selftest
+    python3 scripts/tool_literal_lint.py
+
+# AJ-E2011 (ENGINEERING-GUIDE A1/A6, A3/T1/I3/I4, C.10): the crate graph,
+# the IPC rules and the size budget. Each allowlist only shrinks.
+structure:
+    python3 scripts/check_layering.py --selftest
+    python3 scripts/check_layering.py
+    python3 scripts/ipc_audit.py --selftest
+    python3 scripts/ipc_audit.py
+    python3 scripts/size_budget.py --selftest
+    python3 scripts/size_budget.py
 
 # The docs that quote task counts and ranges agree with the epic files.
 task-counts:
@@ -103,6 +124,21 @@ gate-packet:
 gate-signed:
     python3 scripts/gate_packet.py signed docs/qa/gate-beta.md
 
+# Real Claude Code and Codex on accounts whose owner agreed, in a new
+# throwaway project: it spends a little usage and adds the lab's sessions
+# to the accounts. Arguments: a new project folder, two Claude config
+# folders, a Codex home, and the report's path (keep it out of the
+# repository: it holds real paths). AIJ_LAB_PROBE=<name> also checks the
+# set-up step.
+# AJ-E1539: the live switching lab (read the test's header first).
+switch-lab project claude_a claude_b codex out:
+    cargo test -p juggler-app --test switch_lab_live --no-run
+    env -u CLAUDE_CONFIG_DIR -u CODEX_HOME \
+      AIJ_LAB_DATA="$(mktemp -d)/data" AIJ_LAB_PROJECT="{{project}}" \
+      AIJ_LAB_CLAUDE_A="{{claude_a}}" AIJ_LAB_CLAUDE_B="{{claude_b}}" \
+      AIJ_LAB_CODEX="{{codex}}" AIJ_LAB_OUT="{{out}}" \
+      cargo test -p juggler-app --test switch_lab_live -- --ignored --nocapture
+
 # AJ-E808: render the provider-pair fidelity register (a test fails on drift).
 fidelity-register:
     mkdir -p docs/qa/evidence/AJ-E808
@@ -126,6 +162,58 @@ doc:
 # Run the app as AI Juggler Dev (UI hot-reload + Rust rebuild on change).
 dev: dev-icon
     cargo tauri dev --config crates/juggler-app/tauri.dev.conf.json
+
+# AJ-E1531: the replica, a throwaway HOME shaped like a heavy real user's
+# Mac, for every walk and journey. It refuses a HOME that isn't a replica.
+replica_home := env_var_or_default("AIJ_REPLICA_HOME", "/tmp/aij-replica")
+target_dir := env_var_or_default("CARGO_TARGET_DIR", "target")
+
+# Build the replica HOME (AIJ_REPLICA_HOME, default /tmp/aij-replica).
+replica:
+    python3 -I scripts/replica.py build --home {{replica_home}}
+
+# Live sessions on the replica while a walk runs (Ctrl-C stops them all).
+replica-live minutes="60" *args="":
+    cargo build -q -p juggler-adapters --bins
+    python3 -I scripts/replica.py live --home {{replica_home}} --harness {{target_dir}}/debug/fake-harness --desktop {{target_dir}}/debug/fake-desktop --minutes {{minutes}} {{args}}
+
+# Compare the backend's read models with the oracle on the replica (AJ-E1529).
+replica-oracle:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cargo test -q -p juggler-app --test qa_real_readonly --no-run 2> /dev/null
+    bin=$(ls -t {{target_dir}}/debug/deps/qa_real_readonly-* | grep -v '\.d$' | sed -n 1p)
+    work=$(mktemp -d)
+    env -i HOME={{replica_home}} USER="$USER" TMPDIR="$TMPDIR" PATH=/usr/bin:/bin:/usr/sbin:/sbin \
+        AIJ_QA_REAL_DATA="$work/data" AIJ_QA_REAL_OUT="$work/harness.json" AIJ_QA_ICONS=1 "$bin" --ignored --nocapture > "$work/harness.log" 2>&1
+    dirs=()
+    for d in {{replica_home}}/.claude-*/; do dirs+=(--claude-dir "$d"); done
+    for d in {{replica_home}}/.codex-*/; do dirs+=(--codex-dir "$d"); done
+    HOME={{replica_home}} python3 -I scripts/qa/real_truth.py "${dirs[@]}" --compare "$work/harness.json"
+    rm -rf "$work"
+
+# The replica as the UI's Playwright fixture, made by the backend's readers.
+replica-fixture:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cargo test -q -p juggler-app --test qa_real_readonly --no-run 2> /dev/null
+    bin=$(ls -t {{target_dir}}/debug/deps/qa_real_readonly-* | grep -v '\.d$' | sed -n 1p)
+    work=$(mktemp -d)
+    env -i HOME={{replica_home}} USER="$USER" TMPDIR="$TMPDIR" PATH=/usr/bin:/bin:/usr/sbin:/sbin \
+        AIJ_QA_REAL_DATA="$work/data" AIJ_QA_REAL_OUT="$work/harness.json" AIJ_QA_ICONS=1 "$bin" --ignored --nocapture > "$work/harness.log" 2>&1
+    python3 -I scripts/qa/replica_fixture.py "$work/harness.json" ui/tests/visual/fixtures/replica.json
+    rm -rf "$work"
+
+# The README's screenshots, both themes, from the replica's fixture only
+# (`just replica-fixture` makes it, refusing any HOME but the replica's):
+# docs/assets/readme/. Never real data.
+readme-shots:
+    cd ui && AIJ_README_VERSION="${AIJ_README_VERSION:-$(git describe --tags --abbrev=0 --match 'v[0-9]*' | sed 's/^v//')}" AIJ_README_SHOTS=1 AIJ_PW_PORT=${AIJ_PW_PORT:-4595} pnpm exec playwright test readme-shots
+
+# Cargo, rustup and corepack keep their own homes while HOME is the replica.
+# Run AI Juggler Dev on the replica HOME.
+replica-walk: dev-icon
+    CARGO_HOME="${CARGO_HOME:-$HOME/.cargo}" RUSTUP_HOME="${RUSTUP_HOME:-$HOME/.rustup}" COREPACK_HOME="${COREPACK_HOME:-$HOME/.cache/node/corepack}" HOME={{replica_home}} cargo tauri dev --config crates/juggler-app/tauri.dev.conf.json
 
 # AI Juggler Dev with the read-only test bridge: the real UI in a browser
 # against this build's backend and data, for QA without Accessibility

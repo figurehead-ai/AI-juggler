@@ -1,13 +1,13 @@
 # Pass 2 — Expected Workflow vs Researched Proposal: Gap Audit
 
-> Second pass. Canonical input: `docs/expected-worfklow.md` (21 lines).
+> Second pass. Canonical input: `docs/internal/expected-workflow.md` (21 lines).
 > Prior research under audit: `docs/review/AI-Juggler-Maximum-Depth-Report-and-Proposal.md`
 > (6,739 lines, 13 deep parts) and `docs/review/full-competitive-ux-review.md`
 > (1,095 lines, cited as FCUR). Baseline docs: `docs/PROPOSAL.md:1`,
 > `docs/SPEC.md:1`, `docs/plan/EPICS.md:1`. This file cites the prior
 > reports by part/section, then extends. It does not restate them.
 > Terminology rule for this file: **Provider / Account / Instance**
-> per `docs/expected-worfklow.md:11`; legacy terms are quoted only
+> per `docs/internal/expected-workflow.md:11`; legacy terms are quoted only
 > when citing code or prior text.
 
 ## 0. Verdict in one paragraph
@@ -18,21 +18,21 @@ product (Maximum-Depth front matter, Executive decisions 1–6),
 while the maintainer's example workflow centres three things the
 prior reports under-weight or contradict: (a) unlimited,
 reversible switching as the daily motion, not a one-way handover
-(`docs/expected-worfklow.md:7`); (b) a single right-hand snapshot
+(`docs/internal/expected-workflow.md:7`); (b) a single right-hand snapshot
 surface for any selected session or provider
-(`docs/expected-worfklow.md:14`); and (c) lifecycle ownership of
+(`docs/internal/expected-workflow.md:14`); and (c) lifecycle ownership of
 everything an instance spawns, including post-close zombies and
-dev services (`docs/expected-worfklow.md:15`–`:18`). Most sharply,
+dev services (`docs/internal/expected-workflow.md:15`–`:18`). Most sharply,
 prior research proposes deleting the Instances tab
 (deep 01 §B-08; FCUR F2.2) — the exact noun the maintainer mandates
-at `docs/expected-worfklow.md:11`. Pass 2 therefore reframes, not
+at `docs/internal/expected-workflow.md:11`. Pass 2 therefore reframes, not
 repeats: switching is a loop, the detail panel is the product, and
 process ownership is a first-class workflow.
 
 ## 1. How to read the traceability matrix
 
 - **Requirement** quotes or tightly paraphrases one sentence of
-  `docs/expected-worfklow.md`, with its line number.
+  `docs/internal/expected-workflow.md`, with its line number.
 - **Prior coverage** names the Maximum-Depth part/section or FCUR
   finding that comes closest; absence is stated as absence.
 - **Code/SPEC coverage** gives `file:line` in the repo today.
@@ -52,7 +52,7 @@ are noted here once so the trace is sentence-complete.
 
 | Field | Evidence |
 |---|---|
-| Requirement | "This is just one of the expected workflow … there might be others derived from this, competition or other ways." (`docs/expected-worfklow.md:1`) |
+| Requirement | "This is just one of the expected workflow … there might be others derived from this, competition or other ways." (`docs/internal/expected-workflow.md:1`) |
 | Prior coverage | Maximum-Depth front matter frames itself as answering fixed part questions (`docs/review/AI-Juggler-Maximum-Depth-Report-and-Proposal.md:21`); deep 10 §28 validates only three pre-written journeys. No derived-workflow method is proposed. |
 | Code/SPEC coverage | `docs/SPEC.md:316` scopes UX to v0.1 screens; `docs/plan/EPICS.md:24` fixes milestones M0–M8 with no discovery track. |
 | Verdict | **Wrong-emphasis** — prior research treats the example as a checklist to audit against, not a seed to generate workflows from. |
@@ -62,7 +62,7 @@ are noted here once so the trace is sentence-complete.
 
 | Field | Evidence |
 |---|---|
-| Requirement | "I often use multiple tools, multiple subscriptions, each one has their own harnesses and models … tracking if one subscription quota is expiring" (`docs/expected-worfklow.md:3`). |
+| Requirement | "I often use multiple tools, multiple subscriptions, each one has their own harnesses and models … tracking if one subscription quota is expiring" (`docs/internal/expected-workflow.md:3`). |
 | Prior coverage | Strongest prior area: Maximum-Depth Executive decision 1 (quota-first) and deep 09 Part Q (Q1–Q9) design the quota engine; FCUR F6.1 reorders quota before adapters. |
 | Code/SPEC coverage | Domain: `crates/juggler-core/src/model.rs:145` (`Account`), `:173` (`Profile`), `:277` (`QuotaWindow`); quota feed specced at `docs/SPEC.md:191`; milestones still order quota at M3 in `docs/SPEC.md:453`. |
 | Verdict | **Partial** — covered in depth for Claude, but "expiring" is modelled as window reset, not subscription/plan expiry; multi-model identity per session is absent (see R10). |
@@ -72,7 +72,7 @@ are noted here once so the trace is sentence-complete.
 
 | Field | Evidence |
 |---|---|
-| Requirement | "Work on a project starting with one tool, and then if I ran out of credits … super easily switch to another tool with different subscription or even same tool, sometimes users have multiple subscriptions from same AI lab." (`docs/expected-worfklow.md:5`) |
+| Requirement | "Work on a project starting with one tool, and then if I ran out of credits … super easily switch to another tool with different subscription or even same tool, sometimes users have multiple subscriptions from same AI lab." (`docs/internal/expected-workflow.md:5`) |
 | Prior coverage | Deep 09 Part H designs T1–T4 tiers; FCUR §Q3 audits handover fidelity (F3.1–F3.5). Three distinct switch kinds in the sentence (cross-tool, cross-subscription, same-tool/multi-subscription) are collapsed into one "handover" verb. |
 | Code/SPEC coverage | Tiers defined `docs/SPEC.md:269`; flows `docs/SPEC.md:286`; shipped v0 is a single-file byte-copy (FCUR F3.3, `commands.rs` evidence cited there). |
 | Verdict | **Partial** — fidelity is well researched; switch-kind taxonomy and "super easily" (clicks, latency, pre-staging) are not measured anywhere in prior reports. |
@@ -82,7 +82,7 @@ are noted here once so the trace is sentence-complete.
 
 | Field | Evidence |
 |---|---|
-| Requirement | "All the chat history, context, rules and guidelines need to work. I don't want to spend time configuring it out all manually. This is really where the power comes." (`docs/expected-worfklow.md:6`) |
+| Requirement | "All the chat history, context, rules and guidelines need to work. I don't want to spend time configuring it out all manually. This is really where the power comes." (`docs/internal/expected-workflow.md:6`) |
 | Prior coverage | Deep 09 H2–H5 covers transcript fidelity and redaction; project rules sync appears as one click with diff preview (`docs/SPEC.md:289`, EPICS M4-6). MCP/settings sync is deferred to P2 (deep 10 §14; FCUR F1.9). |
 | Code/SPEC coverage | Pack format `docs/SPEC.md:296`; rules conversion `docs/SPEC.md:289`; parser drops `tool_use`/`tool_result` text (FCUR F3.4, `claude_transcript.rs` evidence). |
 | Verdict | **Wrong-emphasis** — prior research optimises for *inspectable* transfer (preview, diff, confirm); the maintainer optimises for *invisible* transfer ("need to work"). Every preview step prior adds is friction the expected workflow counts as failure. |
@@ -92,7 +92,7 @@ are noted here once so the trace is sentence-complete.
 
 | Field | Evidence |
 |---|---|
-| Requirement | "Also I want to be able to do this as many times I want and switching back and forth as needed." (`docs/expected-worfklow.md:7`) |
+| Requirement | "Also I want to be able to do this as many times I want and switching back and forth as needed." (`docs/internal/expected-workflow.md:7`) |
 | Prior coverage | Return-on-reset is covered as a single A→B→A hop: `docs/SPEC.md:288`, deep 09 H7 lineage, FCUR F1.5 reset queue. No prior section models N switches, switch cost accumulation, or lineage deeper than two hops as a daily pattern. |
 | Code/SPEC coverage | Lineage today is one status flip to `HandedOver` (`crates/juggler-core/src/model.rs:205`); deep 03 §6 notes "no pack, no A→B→A chain" in shipped code. |
 | Verdict | **Missing** — the defining adverb of the expected workflow ("as many times", "back and forth") has no design, metric, or test in prior research. |
@@ -102,7 +102,7 @@ are noted here once so the trace is sentence-complete.
 
 | Field | Evidence |
 |---|---|
-| Requirement | "Also these profiles, configurations to accomplish this manually are very complicated, this is why we need this tool to take care of it all." (`docs/expected-worfklow.md:9`) |
+| Requirement | "Also these profiles, configurations to accomplish this manually are very complicated, this is why we need this tool to take care of it all." (`docs/internal/expected-workflow.md:9`) |
 | Prior coverage | Prior reports expand configuration surface: deep 10 §31 inventories settings for every new knob; FCUR F1.9 adds profile clone/sync checkboxes. Complexity is managed by exposing more of it, carefully. |
 | Code/SPEC coverage | `Profile` = account + settings overlay (`crates/juggler-core/src/model.rs:173`); overlay today is model + env only (`crates/juggler-core/src/model.rs:161`). |
 | Verdict | **Wrong-emphasis** — prior research treats configuration as a surface to perfect; the maintainer treats it as a burden to remove. The word "profile" itself is part of the burden (see §4). |
@@ -112,7 +112,7 @@ are noted here once so the trace is sentence-complete.
 
 | Field | Evidence |
 |---|---|
-| Requirement | "add new provider and account (yes we should call them providers, accounts, and instances of the tool)" (`docs/expected-worfklow.md:11`). |
+| Requirement | "add new provider and account (yes we should call them providers, accounts, and instances of the tool)" (`docs/internal/expected-workflow.md:11`). |
 | Prior coverage | Prior research keeps `harness` / `profile` / `session` throughout and proposes *removing* the Instances tab (deep 01 §B-08; FCUR F2.2; deep 11 rail redesign). The maintainer's noun is treated as the problem. |
 | Code/SPEC coverage | Code has `HarnessId` (`crates/juggler-core/src/model.rs:49`), `Account` (`:145`), `Profile` (`:173`), `SessionRecord` (`:389`); `InstanceKind` exists only as Terminal/Desktop (`:325`). ADR-0007 (`docs/adr/0007-instance-centric-information-architecture.md:38`) already defines Instance as the running occurrence — code never grew the entity. |
 | Verdict | **Wrong-emphasis (direct conflict)** — §4 of this file gives the full rename map and migration cost. |
@@ -122,7 +122,7 @@ are noted here once so the trace is sentence-complete.
 
 | Field | Evidence |
 |---|---|
-| Requirement | "They need to have a fully smart and automated onboarding wizard. It can't have thousands of options, it needs to do most of the figuring out on its own, that means scanning directories, existing providers … and making recommendations. It needs to be smart." (`docs/expected-worfklow.md:11`) |
+| Requirement | "They need to have a fully smart and automated onboarding wizard. It can't have thousands of options, it needs to do most of the figuring out on its own, that means scanning directories, existing providers … and making recommendations. It needs to be smart." (`docs/internal/expected-workflow.md:11`) |
 | Prior coverage | FCUR F2.6 calls onboarding "genuinely the best-built surface" and recommends freezing it; deep 03 audits leaks (E1–E14) and adds guards. Neither extends it to cross-Provider recommendation or new-Provider onboarding mid-life. |
 | Code/SPEC coverage | Scan/import/login/summary flow specced `docs/SPEC.md:409`; ADR-0006 (`docs/adr/0006-smart-onboarding-scan-and-import.md:28`) covers Claude only; wizard auto-opens at zero accounts. |
 | Verdict | **Partial** — detection exists for one Provider; "making recommendations" (which Account/Provider to add, which to prefer per project, what to import vs create fresh) has no engine, no ranking, and no acceptance test in prior work. |
@@ -132,7 +132,7 @@ are noted here once so the trace is sentence-complete.
 
 | Field | Evidence |
 |---|---|
-| Requirement | "All the sessions should have icons and labels, which provider it is, account, models currently running. Amount of quota left …" (`docs/expected-worfklow.md:13`) |
+| Requirement | "All the sessions should have icons and labels, which provider it is, account, models currently running. Amount of quota left …" (`docs/internal/expected-workflow.md:13`) |
 | Prior coverage | Deep 01 §B-11 and deep 02 §7 redesign status chips; the header Provider chip is static text today (deep 01 §B-06). Quota glance is deferred to a rail footer concept (deep 01 §10 wireframe). No prior spec requires the four-tuple (Provider, Account, model, quota) on every row. |
 | Code/SPEC coverage | Session row identity lives in the rail (`WorkflowRail.tsx` per deep 01 §B-11); SPEC screen list `docs/SPEC.md:345` promises quota rings only on Overview, not per-row. Model is stored only as a profile overlay field (`crates/juggler-core/src/model.rs:164`), never as running-model telemetry. |
 | Verdict | **Partial** — status labelling is well audited; identity labelling (which Provider/Account/model, with quota) is thinner than the maintainer's "all … should have" bar, and running-model is unmodelled. |
@@ -142,7 +142,7 @@ are noted here once so the trace is sentence-complete.
 
 | Field | Evidence |
 |---|---|
-| Requirement | "When you select a specific session or provider, whole right section should come with all kinds of stats, actions to manage, switch … whole goal is to a snapshot of usage, history, quality, performance." (`docs/expected-worfklow.md:14`) |
+| Requirement | "When you select a specific session or provider, whole right section should come with all kinds of stats, actions to manage, switch … whole goal is to a snapshot of usage, history, quality, performance." (`docs/internal/expected-workflow.md:14`) |
 | Prior coverage | Prior IA splits this across three places: Overview (global dashboard, deep 11), SessionPanel (terminal-centric, deep 02 §5), and Accounts cards (deep 02 Profiles audit). Deep 11 §3 makes the needs-attention inbox the default landing instead. No Provider-detail right panel exists in any prior screen spec. |
 | Code/SPEC coverage | SPEC instance panel `docs/SPEC.md:347` lists status/account/resources/tokens/actions; SPEC has no Provider-detail screen at all (`docs/SPEC.md:343` screen list). "Quality" appears nowhere as a measured dimension in SPEC or prior quota design (deep 09 Part Q measures tokens/USD only). |
 | Verdict | **Missing** — this is the largest single gap. The maintainer describes one contextual snapshot surface; prior research describes a dashboard plus a terminal with chips. "Quality" and "performance" as per-Instance/Provider rollups are unresearched. |
@@ -152,7 +152,7 @@ are noted here once so the trace is sentence-complete.
 
 | Field | Evidence |
 |---|---|
-| Requirement | "For each tool, session, we should show how much resources it is using, cpu, ram, did it spawn any sub tasks, sub processes, and allow to track those." (`docs/expected-worfklow.md:15`) |
+| Requirement | "For each tool, session, we should show how much resources it is using, cpu, ram, did it spawn any sub tasks, sub processes, and allow to track those." (`docs/internal/expected-workflow.md:15`) |
 | Prior coverage | Deep 08 §5–§6 treats the process tree as a supervisor correctness problem (kill, adoption, scale); SPEC §5.2 (`docs/SPEC.md:227`) specs per-session RSS/CPU attribution. Subtasks (agent subagents/tasks inside the conversation) are mentioned only as a fidelity risk for handover (FCUR F3.4). |
 | Code/SPEC coverage | Descendant query exists (`crates/juggler-supervisor/src/supervisor.rs:347`); footprint learning `docs/SPEC.md:235`. No subtask entity exists; transcript parser drops tool outcomes (FCUR F3.4). |
 | Verdict | **Partial, split in two** — subprocess resources: specced, unbuilt, correctly prioritised as M2. Subtask tracking: **Missing** as a user-facing concept; prior research never asks "what is this session's agent doing right now" as a tree the user can inspect. |
@@ -162,7 +162,7 @@ are noted here once so the trace is sentence-complete.
 
 | Field | Evidence |
 |---|---|
-| Requirement | "Sometimes these tools crash, exit, and their subprocesses, cli commands, terminals and dev local services they started end up running long after the session closed, they end up being zombie processes." (`docs/expected-worfklow.md:17`) |
+| Requirement | "Sometimes these tools crash, exit, and their subprocesses, cli commands, terminals and dev local services they started end up running long after the session closed, they end up being zombie processes." (`docs/internal/expected-workflow.md:17`) |
 | Prior coverage | Deep 08 F-5 concludes "Our zombies: none … out of scope, document it"; F-9 notes force-kill kills only the direct child so subagents survive a stopped session. The maintainer's scenario — *unmanaged* leftovers (dev servers, terminals the tool opened, processes reparented after a crash) — is explicitly scoped out. |
 | Code/SPEC coverage | SPEC's only zombie sentence is re-adoption on app restart (`docs/SPEC.md:224`); supervisor stop ladder `crates/juggler-supervisor/src/supervisor.rs:296` (per deep 08 §5). No orphan inventory, no port/owner attribution, no leftover detection exists. |
 | Verdict | **Wrong-emphasis** — prior research answers "do *we* leak zombies?" (no) when the maintainer asks "help me *see and clean* the leftovers my tools leak" (unresearched). These are different products. |
@@ -172,7 +172,7 @@ are noted here once so the trace is sentence-complete.
 
 | Field | Evidence |
 |---|---|
-| Requirement | "Our tool should have super easy way to track that, offer automatic and manual clean ups, all with verifications …" (`docs/expected-worfklow.md:18`) |
+| Requirement | "Our tool should have super easy way to track that, offer automatic and manual clean ups, all with verifications …" (`docs/internal/expected-workflow.md:18`) |
 | Prior coverage | Deep 08 §8 target architecture adds "tree-kill" to the stop ladder; FCUR and Maximum-Depth guardrails forbid autonomous state-changing actions (automation policy, `docs/SPEC.md:26`). No cleanup workflow, verification step, or automatic-cleanup policy is designed anywhere in prior reports. |
 | Code/SPEC coverage | Automation invariant `docs/SPEC.md:26` permits only passive behaviour plus one opt-in same-profile auto-restart; cleanup of leftovers is neither permitted nor forbidden — it is unaddressed. |
 | Verdict | **Missing, with a policy collision** — "automatic clean ups" cannot be bolted on; it needs an explicit, narrow exception designed like the existing auto-restart exception (opt-in, per-Instance, same-owner only, verified post-kill), or the maintainer's "automatic" must be reframed as "one-click, pre-verified". Prior research never surfaces this decision. |
@@ -182,7 +182,7 @@ are noted here once so the trace is sentence-complete.
 
 | Field | Evidence |
 |---|---|
-| Requirement | "I need you really to research other ways and solve other problems for developers with similar cases. Think what kind of problems … research forums, github …" (`docs/expected-worfklow.md:20`) |
+| Requirement | "I need you really to research other ways and solve other problems for developers with similar cases. Think what kind of problems … research forums, github …" (`docs/internal/expected-workflow.md:20`) |
 | Prior coverage | Prior personas are explicitly composites, not field research (Maximum-Depth front matter: `[composite]`; deep 07 §11 validation pending). Competitor research is deep (deep 04–06) but product-shaped, not forum/issue-shaped; PROPOSAL pain claims cite tracker issues (`docs/PROPOSAL.md:22`) without a forum ethnography behind the *derived* problems. |
 | Code/SPEC coverage | Research notes live in `docs/research/` (four files); no forum/issue-mining method or derived-problem backlog exists in `docs/plan/EPICS.md:1`. |
 | Verdict | **Partial** — competitor-derived problems are well covered; community-derived problems (wrong-account billing, lost work on crash, quota anxiety rituals, cleanup toil) are asserted from composites. The maintainer asked for the primary sources. |
@@ -200,7 +200,7 @@ Part H), so the maintainer can rule without a third pass.
 **What the maintainer describes.** Selection-driven: click a
 session or a provider and "whole right section" becomes stats,
 manage/switch actions, and a snapshot of usage, history, quality,
-performance (`docs/expected-worfklow.md:14`). It is one surface
+performance (`docs/internal/expected-workflow.md:14`). It is one surface
 with a parameter, not four screens.
 
 **What prior research built instead.** Deep 11 makes the
@@ -248,9 +248,9 @@ pattern prior research condemns (FCUR F2.4).
 
 **What the maintainer describes.** Tools crash; their CLI
 children, terminals, and dev servers keep running
-(`docs/expected-worfklow.md:17`). The tool must track them and
+(`docs/internal/expected-workflow.md:17`). The tool must track them and
 offer automatic and manual cleanup "all with verifications"
-(`docs/expected-worfklow.md:18`).
+(`docs/internal/expected-workflow.md:18`).
 
 **What prior research concluded.** Deep 08 F-5: adopted orphans
 are correctly counted dead; piped grandchildren reparented to
@@ -300,7 +300,7 @@ failure modes; none asserts leftover UX).
 
 Prior research tracks processes (can it be killed?) but never
 tasks (what is it doing?). The maintainer asks both in one
-sentence (`docs/expected-worfklow.md:15`). Subtasks — subagents,
+sentence (`docs/internal/expected-workflow.md:15`). Subtasks — subagents,
 background tasks, tool calls with duration — live in transcripts
 the indexer already reads (`docs/SPEC.md:190`). Pass 2 proposes:
 parse subtask open/close events into a tree on the Instance
@@ -314,7 +314,7 @@ the missing half of "allow to track those".
 
 ## 4. Terminology proposal: Provider / Account / Instance
 
-Mandate: `docs/expected-worfklow.md:11`. Method: adopt the
+Mandate: `docs/internal/expected-workflow.md:11`. Method: adopt the
 maintainer's three nouns as the only user-facing and domain
 vocabulary; map every existing term exactly once; flag where a
 naive rename would break compliance language or stored data.
@@ -324,7 +324,7 @@ naive rename would break compliance language or stored data.
 | Maintainer term | Definition (proposed canonical) | Absorbs today |
 |---|---|---|
 | **Provider** | A tool/lab offering whose CLI or app Juggler supervises (Claude Code, Codex, ZCode, future). Owns auth model, quota shape, adapter. | `HarnessId` / "harness" (`crates/juggler-core/src/model.rs:49`); "vendor" in compliance prose (`docs/PROPOSAL.md:60`) |
-| **Account** | One subscription/login of one Provider, owned by one person, with an isolated state dir and a plan. Multiple Accounts per Provider is the founding case (`docs/expected-worfklow.md:5`). | `Account` (`crates/juggler-core/src/model.rs:145`) — already correct; keep |
+| **Account** | One subscription/login of one Provider, owned by one person, with an isolated state dir and a plan. Multiple Accounts per Provider is the founding case (`docs/internal/expected-workflow.md:5`). | `Account` (`crates/juggler-core/src/model.rs:145`) — already correct; keep |
 | **Instance** | One running or tracked occurrence of a Provider under one Account on one project: a tool instance. Has kind Terminal/Desktop, lifecycle, resources, leftovers. Conversations live inside it across switches. | Launched "session" (`crates/juggler-core/src/model.rs:389`); ADR-0007 Instance (`docs/adr/0007-instance-centric-information-architecture.md:38`) |
 
 Naming conflicts to flag, not smooth over:
@@ -350,7 +350,7 @@ Naming conflicts to flag, not smooth over:
    (`docs/adr/0007-instance-centric-information-architecture.md:40`),
    but code stores only `SessionRecord` and the UI renders
    Instances as filtered Sessions (FCUR F2.2). The maintainer's
-   "instances of the tool" (`docs/expected-worfklow.md:11`)
+   "instances of the tool" (`docs/internal/expected-workflow.md:11`)
    matches ADR-0007, not the code. Prior research sided with the
    code; pass 2 sides with the ADR and the maintainer.
 
@@ -389,14 +389,14 @@ Naming conflicts to flag, not smooth over:
 
 ## 5. Derived workflows implied but not stated
 
-Source line 1 invites derivation (`docs/expected-worfklow.md:1`);
-line 20 demands it (`docs/expected-worfklow.md:20`). Each workflow
+Source line 1 invites derivation (`docs/internal/expected-workflow.md:1`);
+line 20 demands it (`docs/internal/expected-workflow.md:20`). Each workflow
 below follows from the stated example by changing one variable.
 Prior coverage is cited so derivation never double-counts credit.
 
 ### D-W1 — Switch back (return to the original Account/Provider)
 
-Implied by "back and forth" (`docs/expected-worfklow.md:7`).
+Implied by "back and forth" (`docs/internal/expected-workflow.md:7`).
 Prior covers return-on-reset as a suggestion (`docs/SPEC.md:288`;
 FCUR F1.5). Missing: return as a *first-class repeated motion*
 with delta priming ("while you were away", `docs/PROPOSAL.md:92`)
@@ -408,7 +408,7 @@ fidelity records (extends deep 09 H7).
 ### D-W2 — Switch mid-subtask (not at a clean boundary)
 
 Implied by "ran out … I want to be able to super easily switch"
-(`docs/expected-worfklow.md:5`): exhaustion rarely waits for a
+(`docs/internal/expected-workflow.md:5`): exhaustion rarely waits for a
 subtask to finish. Prior handover assumes a freezable source
 (FCUR F3.3 recommends stop/freeze before copy). Missing: what
 carries when a subtask is mid-flight — partial tool state,
@@ -418,7 +418,7 @@ subtask marked interrupted in the target, never silently dropped.
 
 ### D-W3 — Multiple switches per day across one project
 
-Implied by "as many times I want" (`docs/expected-worfklow.md:7`)
+Implied by "as many times I want" (`docs/internal/expected-workflow.md:7`)
 at daily scale. Prior personas run 4–20 sessions/day (deep 07)
 but switches are events, not a rhythm. Missing: switch cost
 accounting (time, context loss, quota spent per hop), a same-day
@@ -430,7 +430,7 @@ round-trip (≥80% continuity).
 
 ### D-W4 — Parallel same-Provider Accounts on one project
 
-Stated at `docs/expected-worfklow.md:5` ("multiple subscriptions
+Stated at `docs/internal/expected-workflow.md:5` ("multiple subscriptions
 from same AI lab") but distinct from switching: two Accounts of
 one Provider working one repo simultaneously. Prior worktree
 research (deep 10 §4; FCUR F1.1) covers parallel isolation
@@ -443,7 +443,7 @@ to launch-time confirmation when project history disagrees.
 ### D-W5 — Add a Provider or Account mid-project (not at install)
 
 Implied by "add new provider and account" in the onboarding
-sentence (`docs/expected-worfklow.md:11`) read with daily use:
+sentence (`docs/internal/expected-workflow.md:11`) read with daily use:
 the second Provider usually arrives when the first hits a wall.
 Prior onboarding is install-time (FCUR F2.6; deep 03 E14 notes
 the wizard "has no memory of account #1"). Missing: mid-project
@@ -471,26 +471,26 @@ removal — all endorsed by this audit and excluded from the list).
 
 | # | Correction | Prior anchor | Expected-workflow basis |
 |---|---|---|---|
-| 1 | Keep and build the real **Instance** entity; reverse the Instances-tab deletion. | deep 01 §B-08; FCUR F2.2 | `docs/expected-worfklow.md:11` |
-| 2 | Adopt **Provider / Account / Instance** per §4 (ADR-0014 + v5 migration); Profile becomes internal LaunchRecipe. | Throughout prior (harness/profile/session) | `docs/expected-worfklow.md:11` |
-| 3 | Build the **Snapshot Panel** (§3.1) as the primary detail surface for Instance/Account/Provider selection. | deep 11 §3 (inbox as home); deep 02 §5 | `docs/expected-worfklow.md:14` |
-| 4 | Ship **Leftover Inventory + verified manual cleanup** (§3.2); re-open deep 08 F-5's out-of-scope ruling. | deep 08 F-5, F-9 | `docs/expected-worfklow.md:17`–`:18` |
-| 5 | Rule **D-C1**: automatic-cleanup scope as a narrow, opt-in exception (or explicitly reframe as one-click verified). | Automation policy `docs/SPEC.md:26` (unaddressed case) | `docs/expected-worfklow.md:18` |
-| 6 | Model switching as an **unlimited loop**: lineage chain entity, 5-hop acceptance fixture, switches/day metric. | deep 09 H7; `docs/SPEC.md:288` (single return) | `docs/expected-worfklow.md:7` |
-| 7 | Split switch into **Switch-Account / Switch-Provider / Switch-Instance** with a ≤2-click, pre-staged budget for "super easily". | deep 09 Part H (one handover verb) | `docs/expected-worfklow.md:5` |
-| 8 | Default handover to **zero-touch carry** (history+rules+guidelines+MCP); preview becomes optional audit, not a gate. | deep 09 H5; EPICS M4-6 diff-gate | `docs/expected-worfklow.md:6` |
-| 9 | Add **mid-subtask switch** semantics: interrupted subtasks marked and reconciled, never dropped (D-W2). | FCUR F3.3 (freeze assumption) | `docs/expected-worfklow.md:5` |
-| 10 | Turn onboarding into a **recommender** (scan all Providers, ranked recommendation, mid-project add ending in a switch, D-W5). | FCUR F2.6 (freeze); deep 03 E14 | `docs/expected-worfklow.md:11` |
-| 11 | Enforce the **row four-tuple**: Provider icon, Account, running model (or honest `unknown`), quota left (R9). | deep 01 §B-06/§B-11 (status-only chips) | `docs/expected-worfklow.md:13` |
-| 12 | Define **Quality** as operational reliability (finish/fail/blocked, handover/resume success) on the snapshot; ban model-graded scores. | Absent (deep 09 Q measures tokens/USD) | `docs/expected-worfklow.md:14` |
-| 13 | Ship the **subtask tree** (§3.3) beside the process tree; "track those" covers both. | FCUR F3.4 (fidelity footnote only) | `docs/expected-worfklow.md:15` |
-| 14 | Split **quota-window reset** from **subscription expiry** as two tracked clocks per Account. | deep 09 Part Q (single quota concept) | `docs/expected-worfklow.md:3` |
-| 15 | Apply the **anti-configuration budget**: zero user-named settings to launch; each deep 10 §31 knob must name the manual step it deletes. | deep 10 §31; FCUR F1.9 | `docs/expected-worfklow.md:9` |
-| 16 | Promote **wrong-Account guard** (affinity) to launch-time confirmation for same-Provider parallel work (D-W4). | FCUR F1.4 (warning) | `docs/expected-worfklow.md:5` |
-| 17 | Run the **forum/issue ethnography** and re-validate deep 07 composites before personas rank features (R14). | deep 07 (`[composite]`, §11 pending) | `docs/expected-worfklow.md:20` |
-| 18 | Add the **bad-day journey** D-W6 (crash → leftovers → switch → verified cleanup → resume/retire) to dogfood gates. | deep 07 §9; deep 10 §28 (no chained journey) | `docs/expected-worfklow.md:17`–`:18` + `:5` |
-| 19 | Re-sequence EPICS: Snapshot Panel + Leftover v1 join the Claude loop phase; they outrank second-Provider breadth. | deep 12 roadmap; `docs/plan/EPICS.md:26` | `docs/expected-worfklow.md:14`–`:18` |
-| 20 | Add **switch-cost accounting** (time/context/quota per hop + anti-thrash suggestion) to Usage (D-W3). | deep 09 Q6 (single recommendation score) | `docs/expected-worfklow.md:7` |
+| 1 | Keep and build the real **Instance** entity; reverse the Instances-tab deletion. | deep 01 §B-08; FCUR F2.2 | `docs/internal/expected-workflow.md:11` |
+| 2 | Adopt **Provider / Account / Instance** per §4 (ADR-0014 + v5 migration); Profile becomes internal LaunchRecipe. | Throughout prior (harness/profile/session) | `docs/internal/expected-workflow.md:11` |
+| 3 | Build the **Snapshot Panel** (§3.1) as the primary detail surface for Instance/Account/Provider selection. | deep 11 §3 (inbox as home); deep 02 §5 | `docs/internal/expected-workflow.md:14` |
+| 4 | Ship **Leftover Inventory + verified manual cleanup** (§3.2); re-open deep 08 F-5's out-of-scope ruling. | deep 08 F-5, F-9 | `docs/internal/expected-workflow.md:17`–`:18` |
+| 5 | Rule **D-C1**: automatic-cleanup scope as a narrow, opt-in exception (or explicitly reframe as one-click verified). | Automation policy `docs/SPEC.md:26` (unaddressed case) | `docs/internal/expected-workflow.md:18` |
+| 6 | Model switching as an **unlimited loop**: lineage chain entity, 5-hop acceptance fixture, switches/day metric. | deep 09 H7; `docs/SPEC.md:288` (single return) | `docs/internal/expected-workflow.md:7` |
+| 7 | Split switch into **Switch-Account / Switch-Provider / Switch-Instance** with a ≤2-click, pre-staged budget for "super easily". | deep 09 Part H (one handover verb) | `docs/internal/expected-workflow.md:5` |
+| 8 | Default handover to **zero-touch carry** (history+rules+guidelines+MCP); preview becomes optional audit, not a gate. | deep 09 H5; EPICS M4-6 diff-gate | `docs/internal/expected-workflow.md:6` |
+| 9 | Add **mid-subtask switch** semantics: interrupted subtasks marked and reconciled, never dropped (D-W2). | FCUR F3.3 (freeze assumption) | `docs/internal/expected-workflow.md:5` |
+| 10 | Turn onboarding into a **recommender** (scan all Providers, ranked recommendation, mid-project add ending in a switch, D-W5). | FCUR F2.6 (freeze); deep 03 E14 | `docs/internal/expected-workflow.md:11` |
+| 11 | Enforce the **row four-tuple**: Provider icon, Account, running model (or honest `unknown`), quota left (R9). | deep 01 §B-06/§B-11 (status-only chips) | `docs/internal/expected-workflow.md:13` |
+| 12 | Define **Quality** as operational reliability (finish/fail/blocked, handover/resume success) on the snapshot; ban model-graded scores. | Absent (deep 09 Q measures tokens/USD) | `docs/internal/expected-workflow.md:14` |
+| 13 | Ship the **subtask tree** (§3.3) beside the process tree; "track those" covers both. | FCUR F3.4 (fidelity footnote only) | `docs/internal/expected-workflow.md:15` |
+| 14 | Split **quota-window reset** from **subscription expiry** as two tracked clocks per Account. | deep 09 Part Q (single quota concept) | `docs/internal/expected-workflow.md:3` |
+| 15 | Apply the **anti-configuration budget**: zero user-named settings to launch; each deep 10 §31 knob must name the manual step it deletes. | deep 10 §31; FCUR F1.9 | `docs/internal/expected-workflow.md:9` |
+| 16 | Promote **wrong-Account guard** (affinity) to launch-time confirmation for same-Provider parallel work (D-W4). | FCUR F1.4 (warning) | `docs/internal/expected-workflow.md:5` |
+| 17 | Run the **forum/issue ethnography** and re-validate deep 07 composites before personas rank features (R14). | deep 07 (`[composite]`, §11 pending) | `docs/internal/expected-workflow.md:20` |
+| 18 | Add the **bad-day journey** D-W6 (crash → leftovers → switch → verified cleanup → resume/retire) to dogfood gates. | deep 07 §9; deep 10 §28 (no chained journey) | `docs/internal/expected-workflow.md:17`–`:18` + `:5` |
+| 19 | Re-sequence EPICS: Snapshot Panel + Leftover v1 join the Claude loop phase; they outrank second-Provider breadth. | deep 12 roadmap; `docs/plan/EPICS.md:26` | `docs/internal/expected-workflow.md:14`–`:18` |
+| 20 | Add **switch-cost accounting** (time/context/quota per hop + anti-thrash suggestion) to Usage (D-W3). | deep 09 Q6 (single recommendation score) | `docs/internal/expected-workflow.md:7` |
 
 **Maintainer decisions requested (blocking, in order):**
 D-C1 automatic-cleanup scope (#5); D-T1 terminology ADR-0014

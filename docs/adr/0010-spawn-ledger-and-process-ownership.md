@@ -12,7 +12,7 @@ transports, watchers and language servers running for days (ports +
 RAM held). The original product invariant said *all* automation is
 passive — but the maintainer's workflow explicitly asks for automatic
 and manual cleanups "all with verifications"
-(docs/expected-worfklow.md:18). D-08 is the narrow, written amendment.
+(docs/internal/expected-workflow.md:18). D-08 is the narrow, written amendment.
 
 ## Decision
 

@@ -42,15 +42,18 @@ pub const CREDITS_KEY_PREFIX: &str = "credits:";
 /// resumed copy shares credited to the session that came first. 3 = every
 /// session that offered a message recorded, so a shared message's keeper
 /// no longer depends on the reading order (a copy of a copy, a fork); a
-/// compaction counted once wherever a pass ends. 4 = Codex's compressed
-/// rollouts read (`.jsonl.zst`): their history comes in as a re-read, not
-/// as new use. 5 = a Codex compaction that names its own model call opens
-/// no row of its own (P21: one counted another thread's call again). A
-/// cross-branch number, like a migration's: release/0.1 is at 3, and #132
-/// takes it to 4 for P19. Where the two meet it must become 6, not stay
-/// at 5: the check is `stored < REREAD_VERSION`, so an install already at
-/// 5 would silently skip P19's re-read.
-const REREAD_VERSION: u32 = 5;
+/// compaction counted once wherever a pass ends. Then two branches each
+/// took 4, and met at 6 (a cross-branch number, like a migration's; the
+/// check is `stored < REREAD_VERSION`, so every install re-reads once with
+/// all three):
+/// - the history a same-tool switch carried into the target's copy,
+///   counted again on the target (P19, ×1.41–1.48 on the lab's
+///   conversations; release/0.1's 4);
+/// - Codex's compressed rollouts read (`.jsonl.zst`): their history comes
+///   in as a re-read, not as new use (main's 4);
+/// - a Codex compaction that names its own model call opens no row of its
+///   own (P21: one counted another thread's call again; main's 5).
+const REREAD_VERSION: u32 = 6;
 
 /// Quota samples gathered in one pass: (account, window, sample).
 type SampleBatch = Vec<(
@@ -63,6 +66,10 @@ type SampleBatch = Vec<(
 #[derive(Default, serde::Serialize, serde::Deserialize)]
 struct AccountOffsets {
     spool: u64,
+    /// A copy an earlier version wired to a spool of its own (left as it
+    /// is): read too, while it's there.
+    #[serde(default)]
+    legacy_spool: u64,
     #[serde(default)]
     files: BTreeMap<String, u64>,
     /// Per Codex rollout: what its last slice left for the next one (the
@@ -108,32 +115,48 @@ pub fn spawn(state: Arc<AppState>) {
     });
 }
 
+/// P19: while a switch runs, its copy may be installed before the launch
+/// records the copy's own id, and a pass then would key the copy by the
+/// source's id; offsets are saved, so that would be for good. The next
+/// pass after the switch reads it.
+fn switch_in_progress(state: &Arc<AppState>) -> bool {
+    state
+        .switching
+        .lock()
+        .is_ok_and(|running| !running.is_empty())
+}
+
+/// The accounts to read, and whether everything must be read again. Also
+/// records which accounts' usage keys name their own session.
+fn accounts_to_read(state: &Arc<AppState>) -> Option<(Vec<juggler_core::model::Account>, bool)> {
+    let storage = state.storage.lock().ok()?;
+    let list = storage.accounts().list().ok()?;
+    // A build without the holders wrote usage rows here (gone back to,
+    // then forward again): read everything again so they're whole.
+    let dirty = storage.usage().derived_dirty().unwrap_or(false);
+    // Accounts whose tool's usage keys name their own session: the
+    // store keeps no holders for them.
+    let unshared: std::collections::BTreeSet<String> = list
+        .iter()
+        .filter(|account| {
+            crate::features::quota::adapter_has(
+                account.harness.as_str(),
+                juggler_adapter::Capabilities::USAGE_KEYS_PER_SESSION,
+            )
+        })
+        .map(|account| account.id.as_str().to_owned())
+        .collect();
+    let _ = storage.usage().set_unshared_accounts(&unshared);
+    Some((list, dirty))
+}
+
 /// One ingest pass (public for tests): accounts → sources → store.
 pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
-    let (accounts, dirty) = {
-        let Ok(storage) = state.storage.lock() else {
-            return;
-        };
-        let Ok(list) = storage.accounts().list() else {
-            return;
-        };
-        // A build without the holders wrote usage rows here (gone back to,
-        // then forward again): read everything again so they're whole.
-        let dirty = storage.usage().derived_dirty().unwrap_or(false);
-        // Accounts whose tool's usage keys name their own session: the
-        // store keeps no holders for them.
-        let unshared: std::collections::BTreeSet<String> = list
-            .iter()
-            .filter(|account| {
-                crate::commands::adapter_has(
-                    account.harness.as_str(),
-                    juggler_adapter::Capabilities::USAGE_KEYS_PER_SESSION,
-                )
-            })
-            .map(|account| account.id.as_str().to_owned())
-            .collect();
-        let _ = storage.usage().set_unshared_accounts(&unshared);
-        (list, dirty)
+    if switch_in_progress(state) {
+        return;
+    }
+    let Some((accounts, dirty)) = accounts_to_read(state) else {
+        return;
     };
     let mut ingest = load_state(state);
     let rereading = ingest.reread < REREAD_VERSION || dirty;
@@ -157,15 +180,15 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
         }
         match harness.as_str() {
             "claude-code" => {
-                // ADR-0018: an in-place account's capture lives in AI
-                // Juggler's own folder; its folder is never written.
-                let spool = account.in_place.then(|| {
-                    juggler_adapters::overlay_spool_path(&state.overlays_dir(), &account_id)
-                });
+                // ADR-0018: an account's capture lives in AI Juggler's own
+                // folder, a copy's as an in-place one's; its folder is
+                // never written.
+                let spool =
+                    juggler_adapters::overlay_spool_path(&state.overlays_dir(), &account_id);
                 ingest_claude(
                     &account_id,
                     &dir,
-                    spool,
+                    &spool,
                     &mut ingest,
                     &mut store_batch,
                     &mut sample_batch,
@@ -186,6 +209,17 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
             }
             _ => {}
         }
+    }
+
+    // P19: the history a same-tool switch carried belongs to the account
+    // it was spent on, never to the one it was copied into.
+    let emptied = drop_carried(state, &mut store_batch);
+    if rereading
+        && !emptied.is_empty()
+        && let Ok(storage) = state.storage.lock()
+        && storage.usage().delete_session_events(&emptied).is_err()
+    {
+        return;
     }
 
     // Single writer, in chunks (QA batch 9: a first pass on a heavy setup
@@ -218,6 +252,67 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
             let _ = storage.app_settings().set(INGEST_STATE_KEY, &blob);
         }
     }
+}
+
+/// How long a staged switch's copy is recognised by the source's id,
+/// before its launch is recorded with the copy's own (P19).
+const CARRY_STAGED_MS: i64 = 10 * 60 * 1000;
+
+/// Removes from `batch` the lines a same-tool switch carried into an
+/// account: in the target's copy of a switched conversation, every line
+/// older than the switch. Returns the sessions it emptied, so a re-read
+/// can clear the rows they stored before.
+fn drop_carried(
+    state: &Arc<AppState>,
+    batch: &mut Vec<juggler_core::quota::UsageEvent>,
+) -> Vec<(String, juggler_core::quota::UsageSource, String)> {
+    let carried: std::collections::HashMap<(String, String), i64> = {
+        let Ok(storage) = state.storage.lock() else {
+            return Vec::new();
+        };
+        storage
+            .switch_graph()
+            .carried_into(
+                juggler_core::model::Timestamp::now().millis(),
+                CARRY_STAGED_MS,
+            )
+            .unwrap_or_default()
+            .into_iter()
+            .map(|(account, session, at)| ((account, session), at))
+            .collect()
+    };
+    if carried.is_empty() {
+        return Vec::new();
+    }
+    let cutoff = |event: &juggler_core::quota::UsageEvent| {
+        event
+            .session
+            .as_ref()
+            .and_then(|session| carried.get(&(event.account.clone(), session.clone())))
+            .copied()
+    };
+    let mut dropped = BTreeMap::new();
+    let mut kept = std::collections::BTreeSet::new();
+    batch.retain(|event| {
+        let key = event
+            .session
+            .clone()
+            .map(|session| (event.account.clone(), session));
+        if cutoff(event).is_some_and(|at| event.ts < at) {
+            if let Some(key) = key {
+                dropped.insert(key, event.source);
+            }
+            false
+        } else {
+            kept.extend(key);
+            true
+        }
+    });
+    dropped
+        .into_iter()
+        .filter(|(key, _)| !kept.contains(key))
+        .map(|((account, session), source)| (account, source, session))
+        .collect()
 }
 
 /// P21's leftovers, once per Codex account: an older build stored a
@@ -340,37 +435,27 @@ fn session_chunks(
 fn ingest_claude(
     account: &str,
     dir: &Path,
-    in_place_spool: Option<PathBuf>,
+    spool: &Path,
     ingest: &mut IngestState,
     store: &mut Vec<juggler_core::quota::UsageEvent>,
     samples: &mut SampleBatch,
 ) {
-    // Req.1: the managed wrapper is ensured idempotently — a missing
-    // or drifted install self-heals; a user who uninstalled sees it
-    // return only because the account remains managed by Juggler.
-    let spool = if let Some(spool) = in_place_spool {
-        spool
-    } else if !juggler_adapters::claude_code::is_managed_dir(dir) {
-        // Only ever into AI Juggler's own marked copies — never a folder
-        // that isn't ours, whatever the account row says.
-        juggler_adapters::spool_path(dir)
-    } else {
-        if let Err(error) = juggler_adapters::install_statusline(dir) {
-            record_health(
-                ingest,
-                account,
-                "statusline",
-                None,
-                0,
-                &format!("install: {error}"),
-            );
-        }
-        juggler_adapters::spool_path(dir)
-    };
-    juggler_adapters::rotate_spool_if_needed(&spool);
+    // The status line spool in AI Juggler's own folder: AI Juggler's
+    // launches pass it with `--settings` (ADR-0018 §3); nothing is
+    // installed into the account's folder, a copy's included.
+    juggler_adapters::rotate_spool_if_needed(spool);
     let offsets = ingest.offsets.entry(account.to_owned()).or_default();
-    let outcome = juggler_adapters::tail_spool(&spool, offsets.spool);
+    let mut outcome = juggler_adapters::tail_spool(spool, offsets.spool);
     offsets.spool = outcome.offset;
+    // A copy an earlier version wired to its own spool keeps it (its
+    // files are left as they are): read it too while it's there.
+    let legacy = juggler_adapters::spool_path(dir);
+    if juggler_adapters::claude_code::is_managed_dir(dir) && legacy.exists() {
+        let older = juggler_adapters::tail_spool(&legacy, offsets.legacy_spool);
+        offsets.legacy_spool = older.offset;
+        outcome.samples.extend(older.samples);
+        outcome.parse_errors += older.parse_errors;
+    }
     for (kind, sample) in outcome.samples {
         samples.push((account.to_owned(), kind, sample));
         record_health(ingest, account, "statusline", Some(sample.ts), 0, "");

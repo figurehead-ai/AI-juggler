@@ -186,8 +186,10 @@ describe("AJ-E610 grep gates", () => {
     const newSessionRaw = (await import("../screens/NewSession.tsx?raw")).default as string;
     // New session shows each account's room in the one runway's words
     // (QA, P26b: a chip and a verdict made two claims in one row).
-    expect(newSessionRaw).toContain("runwayOf");
+    expect(newSessionRaw).toContain("<RunwayWords");
     expect(newSessionRaw).not.toContain("percent={0}");
+    const runwayRaw = (await import("./AccountRunway.tsx?raw")).default as string;
+    expect(runwayRaw).toMatch(/export function RunwayWords[\s\S]*runwayOf\(display, sessions\)/);
   });
 
   it("D-12: no-date accounts carry unknown copy and no inferred dates", () => {

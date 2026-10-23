@@ -103,8 +103,8 @@ fn matrix_reads_honestly_and_cells_persist_across_restart() {
         .unwrap();
     assert!(claude.ci_green && claude.mechanism_green);
     assert!(!claude.validated);
-    assert_eq!(claude.badge, "F1 · Beta");
-    assert!(claude.status.contains("open beta debt"));
+    assert_eq!(claude.badge, "Same conversation, new account · Beta");
+    assert!(claude.status.contains("not tried by hand yet"));
     for row in &rows {
         assert!(!row.badge.to_lowercase().contains("lossless"));
         if !row.ci_green {
@@ -160,10 +160,13 @@ fn matrix_reads_honestly_and_cells_persist_across_restart() {
         .iter()
         .find(|row| row.from == "claude-code" && row.to == "claude-code")
         .unwrap();
-    assert_eq!(claude.advertised, "F0", "F1 lowered one level");
-    assert_eq!(claude.badge, "F0 · Beta");
+    assert_eq!(claude.advertised, "F2", "F3 lowered one level");
+    assert_eq!(
+        claude.badge,
+        "Same conversation, new account (compacted) · Beta"
+    );
     assert_eq!(claude.dogfood.as_ref().unwrap().verdict, "fail");
-    assert!(claude.status.contains("ceiling lowered"));
+    assert!(claude.status.contains("promises one level less"));
 
     // Persistence: the cell is restart-pinned (same data dir, fresh
     // process state).
@@ -180,7 +183,7 @@ fn matrix_reads_honestly_and_cells_persist_across_restart() {
         .iter()
         .find(|row| row.from == "claude-code" && row.to == "claude-code")
         .unwrap();
-    assert_eq!(claude.advertised, "F0", "the fail survives the restart");
+    assert_eq!(claude.advertised, "F2", "the fail survives the restart");
 }
 
 #[test]
@@ -206,7 +209,7 @@ fn switch_target_badges_derive_from_the_recorded_cells() {
         .iter()
         .find(|t| t.account_label == "Personal")
         .unwrap();
-    assert_eq!(target.badge, "F1 · Beta");
+    assert_eq!(target.badge, "Same conversation, new account · Beta");
     assert!(!target.validated);
 
     // A PASSING cell on the real-CI row no longer graduates the badge
@@ -230,7 +233,7 @@ fn switch_target_badges_derive_from_the_recorded_cells() {
         .iter()
         .find(|t| t.account_label == "Personal")
         .unwrap();
-    assert_eq!(target.badge, "F1 · Beta");
+    assert_eq!(target.badge, "Same conversation, new account · Beta");
     assert!(!target.validated, "one live cell is not the register");
 
     // A later FAIL replaces it: the ceiling lowers INTO the ranked
@@ -252,6 +255,10 @@ fn switch_target_badges_derive_from_the_recorded_cells() {
         .iter()
         .find(|t| t.account_label == "Personal")
         .unwrap();
-    assert_eq!(target.badge, "F0 · Beta");
+    // F3 lowered one level (AJ-E1543: a same-tool transplant is F3).
+    assert_eq!(
+        target.badge,
+        "Same conversation, new account (compacted) · Beta"
+    );
     assert!(!target.validated);
 }

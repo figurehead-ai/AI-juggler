@@ -1,0 +1,19 @@
+# AJ-E1525 (ADR-0019 §5): tool-id literals still in shared code, per file.
+# This list only shrinks: lower a count (or drop a line) when a site goes;
+# never raise one. scripts/tool_literal_lint.py --print shows today's counts.
+# It reaches zero by 0.2 (ADR-0019 migration step 5).
+crates/juggler-adapter/src/adapter.rs 1
+crates/juggler-app/src/commands.rs 1
+crates/juggler-app/src/features/quota/mod.rs 2
+crates/juggler-app/src/machine_health.rs 1
+crates/juggler-app/src/state.rs 1
+crates/juggler-app/src/usage_pipeline.rs 7
+crates/juggler-app/src/usage_stats.rs 6
+crates/juggler-core/src/model.rs 4
+crates/juggler-core/src/quality/pricing.rs 2
+crates/juggler-core/src/recommendation.rs 3
+crates/juggler-core/src/storage/footprints.rs 1
+crates/juggler-handover/src/fidelity.rs 49
+crates/juggler-handover/src/pack.rs 1
+crates/juggler-handover/src/validation.rs 25
+ui/src/lib/bridge.ts 44

@@ -505,3 +505,93 @@ fn restart_waits_for_a_bring_in_and_is_offered_once_safe() {
         "nothing restarted by itself"
     );
 }
+
+/// A feed that only answers whether the stable feed carries this version.
+struct StableKnows(Option<bool>);
+
+impl UpdateFeed for StableKnows {
+    fn check(&self) -> Result<Option<AnnouncedInfo>, FeedError> {
+        Ok(None)
+    }
+    fn download(&self, _: &mut dyn FnMut(u64, Option<u64>)) -> Result<Vec<u8>, FeedError> {
+        unreachable!()
+    }
+    fn install(&self, _: &[u8]) -> Result<(), FeedError> {
+        unreachable!()
+    }
+    fn carries_this_version(&self, channel: updates::Channel) -> Result<bool, FeedError> {
+        assert_eq!(channel, updates::Channel::Stable);
+        self.0
+            .ok_or_else(|| FeedError::new(FailureKind::Network, "offline"))
+    }
+}
+
+/// The docs fact-check: a main install follows the channel it was
+/// published to. Downloaded as a stable release, it follows stable;
+/// installed from a beta release, beta. An install that existed before
+/// keeps beta, an offline first check decides nothing yet, and the
+/// user's own choice always wins.
+#[test]
+fn a_fresh_install_follows_the_channel_it_was_published_to() {
+    let channel = |dir: &Path, feed: &StableKnows| {
+        let state = app_state(dir, true);
+        updates::update_check_impl(&state, feed).unwrap();
+        updates::update_status_impl(&state).channel
+    };
+    let stable = tempfile::tempdir().unwrap();
+    assert_eq!(
+        channel(stable.path(), &StableKnows(Some(true))),
+        "stable",
+        "downloaded from Latest"
+    );
+    assert_eq!(
+        channel(stable.path(), &StableKnows(Some(false))),
+        "stable",
+        "recorded once"
+    );
+
+    let beta = tempfile::tempdir().unwrap();
+    assert_eq!(
+        channel(beta.path(), &StableKnows(Some(false))),
+        "beta",
+        "a beta release"
+    );
+    assert_eq!(
+        channel(beta.path(), &StableKnows(Some(true))),
+        "beta",
+        "promoted later: still beta"
+    );
+
+    let offline = tempfile::tempdir().unwrap();
+    assert_eq!(
+        channel(offline.path(), &StableKnows(None)),
+        "beta",
+        "offline: beta for now"
+    );
+    assert_eq!(
+        channel(offline.path(), &StableKnows(Some(true))),
+        "stable",
+        "decided at the next check"
+    );
+
+    // An install already in use before this rule (its data has no
+    // default recorded) keeps beta.
+    let existing = tempfile::tempdir().unwrap();
+    let older = app_state(existing.path(), true);
+    older
+        .storage
+        .lock()
+        .unwrap()
+        .app_settings()
+        .set("update_channel_default", "")
+        .unwrap();
+    drop(older);
+    assert_eq!(channel(existing.path(), &StableKnows(Some(true))), "beta");
+
+    // The user's choice wins over what the feeds say.
+    let chosen = tempfile::tempdir().unwrap();
+    let state = app_state(chosen.path(), true);
+    updates::update_set_channel_impl(&state, "beta").unwrap();
+    updates::update_check_impl(&state, &StableKnows(Some(true))).unwrap();
+    assert_eq!(updates::update_status_impl(&state).channel, "beta");
+}

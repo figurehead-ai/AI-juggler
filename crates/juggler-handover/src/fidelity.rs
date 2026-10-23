@@ -169,6 +169,20 @@ impl FidelityLabel {
         }
     }
 
+    /// The level a wire name (`F0`..`F4`) names; `None` for anything
+    /// else.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        match wire {
+            "F0" => Some(Self::F0),
+            "F1" => Some(Self::F1),
+            "F2" => Some(Self::F2),
+            "F3" => Some(Self::F3),
+            "F4" => Some(Self::F4),
+            _ => None,
+        }
+    }
+
     /// One level lower (AJ-E210 Req.4: a failing validation cell
     /// lowers the pair's advertised ceiling until fixed). F0 stays
     /// F0 — the floor is honest, never negative.
@@ -431,8 +445,10 @@ pub fn base_dispositions(from: &str, to: &str) -> FidelityInput {
         }
         map
     };
-    // Todos default Drop until a fixture proves carriage (§H2).
-    let todos_drop = (ArtifactKind::Todos, Disposition::Drop);
+    // AJ-E1541: the task list is rebuilt from the conversation (its calls
+    // travel in the transcript); Claude's newer task folder isn't copied
+    // yet, so it isn't a byte copy.
+    let todos_drop = (ArtifactKind::Todos, Disposition::Regenerate);
 
     let dispositions = match (from, to) {
         ("claude-code", "claude-code") => copy_all(&[todos_drop]),
@@ -494,7 +510,8 @@ fn cross_provider(pair: &CrossPair) -> BTreeMap<ArtifactKind, Disposition> {
     map.insert(ArtifactKind::Mcp, tr());
     map.insert(ArtifactKind::GitDiff, Disposition::Copy);
     map.insert(ArtifactKind::EnvModel, tr());
-    map.insert(ArtifactKind::Todos, Disposition::Drop);
+    // AJ-E1541: the handover carries the task list as it stood.
+    map.insert(ArtifactKind::Todos, Disposition::Regenerate);
     map.insert(ArtifactKind::Subagents, Disposition::Drop);
     match pair {
         CrossPair::ClaudeCodex => {

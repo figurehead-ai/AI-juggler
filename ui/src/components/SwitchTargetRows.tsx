@@ -2,7 +2,7 @@
  * AJ-E209 — the badged, explainable switch destinations (the
  * handover section's ranked rows; the RankedRows pattern from E611
  * with the E2 badge layer on top). Every row carries its ordered-pair
- * badge ("F1 · Beta") plus validated/unvalidated TEXT (never
+ * badge ("Full story, fresh start · Beta") plus validated/unvalidated TEXT (never
  * colour-only, WCAG 2.2); cross-Provider rows always show the badge
  * AND the Drop list (D-11: "beta" is never mistaken for whole-file
  * fidelity). Top-2 factors in words + confidence + TTE; "Why this
@@ -39,7 +39,7 @@ function FidelityBadge({ badge, validated }: { badge: string; validated: boolean
       }
     >
       {badge}
-      {!validated && " · Not yet validated"}
+      {!validated && " · Not proven yet"}
     </span>
   );
 }
@@ -150,7 +150,7 @@ export function SwitchTargetRows({
         })}
       </ul>
       <p className="text-[10px] text-faint">
-        Badges are per pair of tools and beta-validated by real fixtures — never assumed.
+        What carries is checked for each pair of tools, never assumed.
       </p>
     </div>
   );

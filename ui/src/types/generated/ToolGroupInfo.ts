@@ -6,7 +6,7 @@ import type { ToolTotalsInfo } from "./ToolTotalsInfo";
  */
 export type ToolGroupInfo = { 
 /**
- * `claude-code`, `codex`, … for sessions AI Juggler started;
+ * The tool's id (its adapter's) for sessions AI Juggler started;
  * `desktop` | `terminal` for the Claude tools it didn't.
  */
 tool: string, 

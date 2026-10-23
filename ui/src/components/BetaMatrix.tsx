@@ -1,32 +1,40 @@
 /**
- * AJ-E210 — the Beta validation matrix (Settings → Beta, disclosure
- * only): the same ordered-pair table the switch badges derive from
- * (D-04 — one source, no drift). A REAL table (row headers, scoped
- * columns, status in TEXT) so a user can tell exactly which pairs
- * are proven: validated ✓ only when the real-adapter CI row is green
- * AND a live dogfood cell passed; everything else reads "Beta — not
- * yet validated" with its reason. Never "lossless" (D-11). No
- * interaction: cells are recorded by the maintainer from live runs,
- * never from this surface.
+ * AJ-E210 — which switches are proven (Accounts, disclosure only): the
+ * same ordered-pair table the switch badges derive from (D-04 — one
+ * source, no drift). A REAL table (row headers, scoped columns, status
+ * in TEXT) so a user can tell exactly which switches are proven:
+ * proven ✓ only when the automatic tests pass with the real tools AND
+ * it was tried by hand; everything else reads "Beta" with its reason.
+ * Never "lossless" (D-11). Plain words (AJ-E1535): no pair, CI row,
+ * dogfood cell or ceiling. No interaction: hand checks are recorded by
+ * the maintainer from live runs, never from this surface.
  */
 import { useEffect, useState, type JSX } from "react";
 import { Card } from "./primitives";
+import { providerDisplayName } from "../lib/providers";
+import { useTools } from "../lib/tools";
 import { validationMatrix, type ValidationCellData } from "../lib/bridge";
 
-function VerdictCell({ row }: { row: ValidationCellData }) {
+function HandCheckCell({ row }: { row: ValidationCellData }) {
   if (row.dogfood === null || row.dogfood === undefined) {
-    return <span className="text-muted">pending</span>;
+    return <span className="text-muted">Not yet</span>;
   }
   const pass = row.dogfood.verdict === "pass";
-  return (
-    <span className={pass ? "text-success" : "text-danger"}>
-      {pass ? "pass" : "FAIL"} · {row.dogfood.at} ({row.dogfood.project_shape})
-    </span>
-  );
+  return <span className={pass ? "text-success" : "text-danger"}>{pass ? "Passed" : "Failed"} {row.dogfood.at}</span>;
+}
+
+/** The automatic tests' state in words. */
+function testWords(row: ValidationCellData): string {
+  if (row.ci_green) return "Pass with the real tools";
+  return row.mechanism_green ? "Pass with stand-ins only" : "Not yet";
 }
 
 export function BetaMatrix(): JSX.Element {
-  const [rows, setRows] = useState<ValidationCellData[] | null>(null);
+  const [cells, setRows] = useState<ValidationCellData[] | null>(null);
+  // Only switches between tools AI Juggler has: a researched pair for a
+  // tool it can't run yet is nothing the user can do (AJ-E1535).
+  const known = new Set(useTools().map((tool) => tool.id));
+  const rows = cells?.filter((row) => known.has(row.from) && known.has(row.to)) ?? null;
   useEffect(() => {
     let alive = true;
     validationMatrix()
@@ -44,33 +52,31 @@ export function BetaMatrix(): JSX.Element {
   if (rows === null) {
     return (
       <Card className="p-4 text-xs text-muted" data-testid="beta-matrix-loading">
-        Loading the validation matrix…
+        Loading which switches are proven…
       </Card>
     );
   }
-  const validated = rows.filter((row) => row.validated).length;
-  const openDebt = rows.length - validated;
+  const proven = rows.filter((row) => row.validated).length;
   return (
     <Card className="flex flex-col gap-3 p-4" data-testid="beta-matrix">
       <div>
-        <p className="text-[11px] uppercase tracking-wider text-muted">Beta validation</p>
+        <p className="text-[11px] uppercase tracking-wider text-muted">Proven switches</p>
         <p className="mt-1 text-xs text-muted" data-testid="beta-matrix-summary">
-          {validated === 0
-            ? `All ${rows.length} tool pairs ship in beta — none validated yet. `
-            : `${validated} of ${rows.length} pairs validated · ${openDebt} still open beta debt. `}
-          Badges say what carried, never more: a pair graduates only when its CI row is green
-          AND one live dogfood cell passed on real binaries.
+          {proven === 0
+            ? `None of the ${rows.length} switches is proven yet; all are in beta. `
+            : `${proven} of ${rows.length} switches proven; ${rows.length - proven} still in beta. `}
+          Each says what carries, never more. A switch is proven once its automatic tests pass with the real
+          tools and it has been tried by hand.
         </p>
       </div>
       <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Proven switches">
         <table className="w-full text-left text-[11px]" data-testid="beta-matrix-table">
           <thead>
             <tr className="border-b border-hairline text-muted">
-              <th scope="col" className="py-1.5 pr-3 font-medium">Pair</th>
-              <th scope="col" className="py-1.5 pr-3 font-medium">Mechanism</th>
-              <th scope="col" className="py-1.5 pr-3 font-medium">Ceiling</th>
-              <th scope="col" className="py-1.5 pr-3 font-medium">CI fixtures</th>
-              <th scope="col" className="py-1.5 pr-3 font-medium">Live cell</th>
+              <th scope="col" className="py-1.5 pr-3 font-medium">Switch</th>
+              <th scope="col" className="py-1.5 pr-3 font-medium">What carries</th>
+              <th scope="col" className="py-1.5 pr-3 font-medium">Automatic tests</th>
+              <th scope="col" className="py-1.5 pr-3 font-medium">Tried by hand</th>
               <th scope="col" className="py-1.5 font-medium">Status</th>
             </tr>
           </thead>
@@ -82,31 +88,21 @@ export function BetaMatrix(): JSX.Element {
                 data-testid="beta-matrix-row"
                 data-validated={row.validated ? "true" : "false"}
               >
-                <th scope="row" className="py-1.5 pr-3 font-mono font-normal text-ink">
-                  {row.from} → {row.to}
+                <th scope="row" className="py-1.5 pr-3 font-normal text-ink">
+                  {providerDisplayName(row.from)} → {providerDisplayName(row.to)}
                 </th>
-                <td className="py-1.5 pr-3 text-muted">{row.mechanism}</td>
                 <td className="py-1.5 pr-3">
-                  <span className={row.validated ? "text-success" : "text-warning"}>
-                    {row.badge}
-                  </span>
+                  <span className={row.validated ? "text-success" : "text-warning"}>{row.badge}</span>
                   {row.advertised !== row.researched_ceiling && (
-                    <span className="block text-[10px] text-danger">
-                      lowered from {row.researched_ceiling} — a live cell failed
-                    </span>
+                    <span className="block text-[10px] text-danger">one level less — a hand check failed</span>
                   )}
                 </td>
-                <td className="py-1.5 pr-3 text-muted">
-                  {row.mechanism_green ? "shape green" : "—"}
-                  {row.ci_green ? " · real row green" : " · real row not landed"}
-                </td>
+                <td className="py-1.5 pr-3 text-muted">{testWords(row)}</td>
                 <td className="py-1.5 pr-3">
-                  <VerdictCell row={row} />
+                  <HandCheckCell row={row} />
                 </td>
                 <td className="py-1.5 text-muted">
-                  <span className="block">
-                    {row.validated ? "Validated ✓" : "Beta — not yet validated"}
-                  </span>
+                  <span className="block">{row.validated ? "Proven ✓" : "Beta — not proven yet"}</span>
                   <span className="block text-[10px] text-muted">{row.status}</span>
                   {row.notes.length > 0 && (
                     <span className="block text-[10px] text-muted">{row.notes.join(" · ")}</span>
@@ -118,8 +114,8 @@ export function BetaMatrix(): JSX.Element {
         </table>
       </div>
       <p className="text-[10px] text-muted">
-        Live cells are run by hand on real binaries and recorded with before/after
-        hashes; a failing cell lowers that pair's ceiling one level until fixed.
+        Hand checks use the real tools and record the files before and after. A failed one lowers what that
+        switch promises by one level until it's fixed.
       </p>
     </Card>
   );
