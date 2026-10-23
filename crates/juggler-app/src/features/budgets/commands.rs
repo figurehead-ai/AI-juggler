@@ -30,7 +30,7 @@ pub async fn budgets_list(
 ///
 /// As [`super::save_impl`].
 #[tauri::command]
-pub async fn budget_save(
+pub async fn budgets_save(
     state: tauri::State<'_, Arc<AppState>>,
     input: BudgetInput,
 ) -> AppResult<String> {
@@ -46,7 +46,7 @@ pub async fn budget_save(
 ///
 /// As [`super::remove_impl`].
 #[tauri::command]
-pub async fn budget_remove(state: tauri::State<'_, Arc<AppState>>, id: String) -> AppResult<()> {
+pub async fn budgets_remove(state: tauri::State<'_, Arc<AppState>>, id: String) -> AppResult<()> {
     crate::ipc::blocking(state.inner(), "the cap", move |state| {
         super::remove_impl(state, &id)
     })
@@ -59,7 +59,7 @@ pub async fn budget_remove(state: tauri::State<'_, Arc<AppState>>, id: String) -
 ///
 /// As [`super::seen_impl`].
 #[tauri::command]
-pub async fn budget_seen(
+pub async fn budgets_seen(
     state: tauri::State<'_, Arc<AppState>>,
     id: String,
     month_start_ms: i64,

@@ -796,7 +796,7 @@ export default function App() {
             </ScrollingScreen>
           ) : global === "usage" ? (
             <ScrollingScreen key="usage" screen="usage" label="Usage">
-              <UsageScreen accounts={accounts} sessions={sessions} onAddAccounts={() => setFirstRun(true)} onOpenHome={openHome} />
+              <UsageScreen accounts={accounts} sessions={sessions} projects={projects} onAddAccounts={() => setFirstRun(true)} onOpenHome={openHome} />
             </ScrollingScreen>
           ) : global === "fleet" ? (
             <ScrollingScreen key="fleet" screen="fleet" label="Fleet">
