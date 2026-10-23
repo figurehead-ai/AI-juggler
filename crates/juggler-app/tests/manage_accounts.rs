@@ -34,6 +34,20 @@ use juggler_core::model::{
 /// Each action's budget (the task's: < 200 ms, no rescan).
 const BUDGET: Duration = Duration::from_millis(200);
 
+/// Runs `action` and checks its own work stays inside [`BUDGET`]: this
+/// thread's CPU time, which other programs' turns don't add to. Wall time,
+/// printed beside it, counts them on a busy machine (a sibling test read
+/// 419 ms there for work that takes about 1 ms).
+fn within_budget<T>(what: &str, action: impl FnOnce() -> T) -> T {
+    let wall = Instant::now();
+    let cpu = cpu_time::ThreadTime::now();
+    let out = action();
+    let (cpu, wall) = (cpu.elapsed(), wall.elapsed());
+    eprintln!("[budget] {what}: {cpu:?} CPU, {wall:?} wall");
+    assert!(cpu < BUDGET, "{what}: {cpu:?} CPU (wall {wall:?})");
+    out
+}
+
 fn app_state(dir: &Path) -> Arc<AppState> {
     Arc::new(AppState::init_with_registry(dir.join("app-data"), AdapterRegistry::new()).unwrap())
 }
@@ -207,11 +221,10 @@ fn rename_changes_the_label_everywhere_and_refuses_a_duplicate() {
             .unwrap();
     }
 
-    let started = Instant::now();
-    let renamed =
+    let renamed = within_budget("rename", || {
         manage::account_rename_impl(&state, "acc-max", "  Max (personal) ", Some("max-20x"))
-            .unwrap();
-    assert!(started.elapsed() < BUDGET, "{:?}", started.elapsed());
+    })
+    .unwrap();
     assert_eq!(renamed.label, "Max (personal)");
     assert_eq!(renamed.plan.as_deref(), Some("max-20x"));
 
@@ -277,10 +290,10 @@ fn removing_an_account_used_where_it_is_never_touches_its_folder() {
     );
     assert!(words.contains("never moves it"), "{words}");
 
-    let started = Instant::now();
-    let removed =
-        manage::account_remove_impl(&state, "acc-own", CopyFolder::Keep, &never_trash).unwrap();
-    assert!(started.elapsed() < BUDGET, "{:?}", started.elapsed());
+    let removed = within_budget("remove", || {
+        manage::account_remove_impl(&state, "acc-own", CopyFolder::Keep, &never_trash)
+    })
+    .unwrap();
     assert_eq!(removed.folder, "untouched");
     assert_eq!(snapshot(&folder), before, "the folder is exactly as it was");
 
@@ -442,9 +455,10 @@ fn defaults_preselect_and_follow_a_removal() {
     // before).
     assert_eq!(defaults(&state), [("A".into(), false), ("B".into(), false)]);
 
-    let started = Instant::now();
-    let rows = manage::account_set_default_impl(&state, Some("acc-b")).unwrap();
-    assert!(started.elapsed() < BUDGET);
+    let rows = within_budget("set default", || {
+        manage::account_set_default_impl(&state, Some("acc-b"))
+    })
+    .unwrap();
     assert_eq!(
         rows.iter().filter(|r| r.is_default == Some(true)).count(),
         1

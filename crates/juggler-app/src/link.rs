@@ -233,8 +233,19 @@ fn counted(
     }
 }
 
+/// How work this console started on another machine ended.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum Outbound<T> {
+    /// It ran to the end.
+    Done(T),
+    /// Link was off: it never started, so nothing was sent.
+    NotSent,
+    /// Link went off while it ran: it may have reached the other machine.
+    Ended,
+}
+
 /// Runs `work` this console started on another machine on Link's runtime,
-/// where Link off (`stop`) ends it: `None` when it did.
+/// where Link off (`stop`) ends it.
 ///
 /// # Errors
 ///
@@ -243,12 +254,12 @@ fn counted(
 pub(crate) async fn run_outbound<T: Send + 'static>(
     state: &AppState,
     work: impl std::future::Future<Output = T> + Send + 'static,
-) -> AppResult<Option<T>> {
+) -> AppResult<Outbound<T>> {
     // Started and recorded only while Link is on, so `stop` (which closes
     // the gate before it ends these) finds it, or it never goes out.
     let task = {
         let Some(_open) = link_open(state, link_run(state)) else {
-            return Ok(None);
+            return Ok(Outbound::NotSent);
         };
         let task = state.link.runtime()?.spawn(work);
         if let Ok(mut outbound) = state.link.outbound.lock() {
@@ -258,8 +269,8 @@ pub(crate) async fn run_outbound<T: Send + 'static>(
         task
     };
     match task.await {
-        Ok(done) => Ok(Some(done)),
-        Err(error) if error.is_cancelled() => Ok(None),
+        Ok(done) => Ok(Outbound::Done(done)),
+        Err(error) if error.is_cancelled() => Ok(Outbound::Ended),
         Err(error) => Err(AppError::Io {
             context: "remote action",
             message: error.to_string(),
@@ -445,6 +456,24 @@ struct AppNode {
 /// inside the 30 s command expiry).
 pub const PROMPT_TIMEOUT: Duration = Duration::from_secs(20);
 
+/// What a peer hears when Link was off (or went off) on this Mac before
+/// its command or handover could run.
+pub(crate) const NOTHING_RAN: &str = "Link is off on that Mac — nothing ran.";
+
+/// What this Mac's user hears when Link off kept a command or handover
+/// from going out.
+pub(crate) const NOTHING_SENT: &str = "Link is off on this Mac — nothing was sent.";
+
+/// How a question to this Mac's user ended.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Answer {
+    Allowed,
+    /// Denied, or no answer in time.
+    Denied,
+    /// Link is going off or off: nobody was asked.
+    LinkOff,
+}
+
 /// A control command from an "Ask each time" machine, waiting for this
 /// Mac's user to Allow or Deny it.
 #[derive(Debug)]
@@ -456,31 +485,53 @@ struct PendingPrompt {
     respond: std::sync::mpsc::Sender<bool>,
 }
 
+/// The questions waiting, and whether new ones may be asked (not while
+/// Link is going off or off: one would hold the off for its 20 s).
+#[derive(Debug, Default)]
+struct PromptQueue {
+    waiting: Vec<PendingPrompt>,
+    closed: bool,
+}
+
 /// The waiting prompts, and the next prompt id.
 #[derive(Debug, Default, Clone)]
 struct Prompts {
-    pending: Arc<Mutex<Vec<PendingPrompt>>>,
+    pending: Arc<Mutex<PromptQueue>>,
     next: Arc<std::sync::atomic::AtomicU64>,
 }
 
 impl Prompts {
     /// Answers every question still waiting "no" and drops them.
-    fn deny_all(&self) {
+    /// Closes the queue and answers every question still waiting "no":
+    /// none waits, and none can be asked until it opens again.
+    fn close(&self) {
         if let Ok(mut pending) = self.pending.lock() {
-            for prompt in pending.drain(..) {
+            pending.closed = true;
+            for prompt in pending.waiting.drain(..) {
                 let _ = prompt.respond.send(false);
             }
+        }
+    }
+
+    /// Lets questions be asked again (Link is on).
+    fn open(&self) {
+        if let Ok(mut pending) = self.pending.lock() {
+            pending.closed = false;
         }
     }
 
     /// Asks this Mac's user; blocks the command (never the runtime) for
     /// at most [`PROMPT_TIMEOUT`]. Anything but an explicit Allow is a
     /// Deny.
-    fn ask(&self, peer_label: &str, action: &str) -> bool {
+    fn ask(&self, peer_label: &str, action: &str) -> Answer {
         let (respond, decision) = std::sync::mpsc::channel();
         let id = self.next.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
         if let Ok(mut pending) = self.pending.lock() {
-            pending.push(PendingPrompt {
+            // Link going off or off: refused without asking.
+            if pending.closed {
+                return Answer::LinkOff;
+            }
+            pending.waiting.push(PendingPrompt {
                 id,
                 peer_label: peer_label.to_owned(),
                 action: action.to_owned(),
@@ -492,9 +543,13 @@ impl Prompts {
         let allowed =
             tokio::task::block_in_place(|| decision.recv_timeout(PROMPT_TIMEOUT)).unwrap_or(false);
         if let Ok(mut pending) = self.pending.lock() {
-            pending.retain(|prompt| prompt.id != id);
+            pending.waiting.retain(|prompt| prompt.id != id);
         }
-        allowed
+        if allowed {
+            Answer::Allowed
+        } else {
+            Answer::Denied
+        }
     }
 }
 
@@ -813,16 +868,19 @@ impl NodeHandler for AppNode {
             let label = crate::fleet::peer_label(&state, &peer.machine_id)
                 .unwrap_or_else(|| "A paired machine".to_owned());
             let what = here::describe_action(&state, action);
-            if !self.prompts.ask(&label, &what) {
-                return Err(reject(
-                    "not_confirmed",
-                    "Not allowed on that Mac — nothing ran.",
-                ));
+            match self.prompts.ask(&label, &what) {
+                Answer::Allowed => {}
+                Answer::Denied => {
+                    return Err(reject(
+                        "not_confirmed",
+                        "Not allowed on that Mac — nothing ran.",
+                    ));
+                }
+                Answer::LinkOff => return Err(reject("link_off", NOTHING_RAN)),
             }
         }
         // Held through the action, never through the question above.
-        let _open = link_open(&state, self.run)
-            .ok_or_else(|| reject("link_off", "Link is off on that Mac — nothing ran."))?;
+        let _open = link_open(&state, self.run).ok_or_else(|| reject("link_off", NOTHING_RAN))?;
         match action {
             proto::control_command::Action::StopInstance(stop) => {
                 let known = state
@@ -900,17 +958,20 @@ impl NodeHandler for AppNode {
             let label = crate::fleet::peer_label(&state, &peer.machine_id)
                 .unwrap_or_else(|| "A paired machine".to_owned());
             let what = here::describe_action(&state, action);
-            if !self.prompts.ask(&label, &what) {
-                return Err(refuse(
-                    "not_confirmed",
-                    "Not allowed on that Mac — nothing ran.",
-                ));
+            match self.prompts.ask(&label, &what) {
+                Answer::Allowed => {}
+                Answer::Denied => {
+                    return Err(refuse(
+                        "not_confirmed",
+                        "Not allowed on that Mac — nothing ran.",
+                    ));
+                }
+                Answer::LinkOff => return Err(refuse("link_off", NOTHING_RAN)),
             }
         }
         // Held through the take (Link going off waits for it), never
         // through the question above.
-        let _open = link_open(&state, self.run)
-            .ok_or_else(|| refuse("link_off", "Link is off on that Mac — nothing ran."))?;
+        let _open = link_open(&state, self.run).ok_or_else(|| refuse("link_off", NOTHING_RAN))?;
         crate::crossmachine::take_handover_here(&state, peer, action, bundle)
     }
 
@@ -1309,6 +1370,7 @@ fn start(state: &Arc<AppState>) -> AppResult<()> {
         ticker,
         watches,
     });
+    manager.prompts.open();
     if let Ok(mut open) = manager.open.write() {
         *open = run;
     }
@@ -1357,7 +1419,7 @@ fn stop(state: &Arc<AppState>) {
     // A question a peer's command is waiting on is answered "no" now:
     // the command ends at once (it would wait up to 20 s), and an answer
     // after Link is on again can't let it run.
-    manager.prompts.deny_all();
+    manager.prompts.close();
     // What this console started on other machines: a command it still
     // waits on ends, and a handover it is pushing is cancelled.
     let outbound: Vec<_> = manager
@@ -1950,6 +2012,7 @@ pub fn prompts_impl(state: &Arc<AppState>) -> Vec<FleetPromptInfo> {
         .lock()
         .map(|pending| {
             pending
+                .waiting
                 .iter()
                 .map(|prompt| FleetPromptInfo {
                     id: prompt.id,
@@ -1965,7 +2028,7 @@ pub fn prompts_impl(state: &Arc<AppState>) -> Vec<FleetPromptInfo> {
 /// Core: this Mac's user allows or denies a waiting command.
 pub fn prompt_decide_impl(state: &Arc<AppState>, id: u64, allow: bool) {
     if let Ok(pending) = state.link.prompts.pending.lock()
-        && let Some(prompt) = pending.iter().find(|prompt| prompt.id == id)
+        && let Some(prompt) = pending.waiting.iter().find(|prompt| prompt.id == id)
     {
         let _ = prompt.respond.send(allow);
     }
@@ -2187,16 +2250,105 @@ mod unfinished_pairing_tests {
         );
         let runtime = tokio::runtime::Runtime::new().unwrap();
         let sent = runtime.block_on(run_outbound(&state, async { 1 })).unwrap();
-        assert_eq!(sent, None, "Link off: nothing goes out");
+        assert_eq!(sent, Outbound::NotSent, "Link off: nothing goes out");
         if let Ok(mut open) = state.link.open.write() {
             *open = 2;
         }
         assert_eq!(
             runtime.block_on(run_outbound(&state, async { 1 })).unwrap(),
-            Some(1)
+            Outbound::Done(1)
         );
         assert!(link_open(&state, 1).is_none(), "an earlier run's effect");
         assert!(link_open(&state, 2).is_some());
         assert!(link_open(&state, 0).is_none());
+    }
+
+    /// Once Link is going off, a question a peer's command would ask is
+    /// answered "no" without waiting (one asked between the drain and the
+    /// node's end would hold the off for its 20 s); once on again, it is
+    /// asked.
+    #[test]
+    fn a_closed_queue_answers_no_without_asking() {
+        let prompts = Prompts::default();
+        prompts.close();
+        let started = std::time::Instant::now();
+        assert_eq!(prompts.ask("Laptop", "stop a session"), Answer::LinkOff);
+        assert!(started.elapsed() < Duration::from_secs(1));
+        assert!(prompts.pending.lock().unwrap().waiting.is_empty());
+
+        prompts.open();
+        let asking = {
+            let prompts = prompts.clone();
+            std::thread::spawn(move || prompts.ask("Laptop", "stop a session"))
+        };
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        loop {
+            let waiting = prompts
+                .pending
+                .lock()
+                .unwrap()
+                .waiting
+                .first()
+                .map(|prompt| prompt.respond.clone());
+            if let Some(respond) = waiting {
+                respond.send(true).unwrap();
+                break;
+            }
+            assert!(std::time::Instant::now() < deadline, "never asked");
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert_eq!(
+            asking.join().unwrap(),
+            Answer::Allowed,
+            "asked again once on"
+        );
+    }
+
+    /// A peer's "Ask each time" command arriving while Link goes off is
+    /// refused as Link off ("nothing ran"), not as a "no" nobody said.
+    #[test]
+    fn a_question_refused_by_link_off_says_link_off() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = Arc::new(
+            AppState::init_with_registry(
+                dir.path().join("app-data"),
+                juggler_adapter::AdapterRegistry::new(),
+            )
+            .unwrap(),
+        );
+        let peer_key = juggler_link::MachineIdentity::load_or_create(&dir.path().join("peer"))
+            .unwrap()
+            .public()
+            .to_bytes();
+        let candidate = PairCandidate {
+            machine_id: "m-peer".to_owned(),
+            label: "Laptop".to_owned(),
+            key: peer_key,
+            reach: None,
+            fingerprint: juggler_link::fingerprint_of(&peer_key),
+        };
+        let _ = crate::fleet::pin_candidate(&state, &candidate, Permission::Control);
+        crate::fleet::fleet_set_permission_impl(&state, "m-peer", "control", true).unwrap();
+        let prompts = Prompts::default();
+        prompts.close();
+        let node = AppNode {
+            state: Arc::downgrade(&state),
+            live: tokio::sync::broadcast::channel(1).0,
+            prompts,
+            run: 1,
+        };
+        let refused = node
+            .execute(
+                &PeerAccess {
+                    machine_id: "m-peer".to_owned(),
+                    permission: Permission::Control,
+                },
+                &proto::control_command::Action::StopInstance(proto::StopInstance {
+                    instance_id: "s1".to_owned(),
+                }),
+            )
+            .unwrap_err();
+        assert_eq!(refused.reason_code, "link_off");
+        assert_eq!(refused.message, NOTHING_RAN);
     }
 }

@@ -37,6 +37,8 @@ x25519-dalek = { version = "3", features = ["static_secrets"] }
 x509-parser = "0.18"
 
 [dev-dependencies]
+# Load budgets measured as this thread's CPU time, as juggler-app's tests do.
+cpu-time = "1"
 protox = "0.10"
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 tempfile = "3.27.0"

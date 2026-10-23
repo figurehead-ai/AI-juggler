@@ -190,5 +190,6 @@
 | fixes-0.0.16 | PASS5 | 2026-10-22 | [manifest](fixes-0.0.16/manifest.md) |
 | fixes-0.0.17 | PASS6 | 2026-10-22 | [manifest](fixes-0.0.17/manifest.md) |
 | fixes-0.0.18 | PASS13 | 2026-10-22 | [manifest](fixes-0.0.18/manifest.md) |
+| fixes-0.0.19 | PASS5 | 2026-10-22 | [manifest](fixes-0.0.19/manifest.md) |
 | fixes | PASS7 | 2026-10-21 | [manifest](fixes/manifest.md) |
 | walks | (no claims yet) | 2026-10-21 | [manifest](walks/manifest.md) |
