@@ -147,7 +147,6 @@ fn invoke_path(name: &str) -> String {
 #[test]
 fn every_write_and_unknown_command_is_refused_with_403() {
     let config = config(4321);
-    let rate = RateLimit::new();
     let mut names: Vec<String> = COMMANDS
         .iter()
         .filter(|(_, access)| *access == CommandAccess::Write)
@@ -169,6 +168,10 @@ fn every_write_and_unknown_command_is_refused_with_403() {
         .map(String::from),
     );
     for name in names {
+        // Its own limiter each: the refusal is what's tested here, and
+        // the commands outnumber one limiter's burst (the limit has its
+        // own test).
+        let rate = RateLimit::new();
         let headers = headers(&config, &[]);
         let admitted = admit(&Method::POST, &invoke_path(&name), &headers, &config, &rate);
         let Rejection {

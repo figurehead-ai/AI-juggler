@@ -10,6 +10,8 @@ juggler-core = []
 juggler-account = []
 juggler-stats = []
 juggler-scap-init = []
+# D-26: the audited SMAppService shim (open at login); depends on nothing of ours.
+juggler-login-item = []
 juggler-adapter = ["juggler-core"]
 juggler-adapters = ["juggler-adapter", "juggler-core"]
 juggler-supervisor = ["juggler-adapter", "juggler-core"]
@@ -22,6 +24,7 @@ juggler-app = [
   "juggler-core",
   "juggler-handover",
   "juggler-link",
+  "juggler-login-item",
   "juggler-scap-init",
   "juggler-stats",
   "juggler-supervisor",

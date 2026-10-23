@@ -770,6 +770,7 @@ fn handed_to_another(stderr: &str) -> bool {
     other
 }
 
+#[cfg(target_os = "macos")]
 /// This launch's process group: (pid, command line) of each member that
 /// still runs (a zombie waiting to be reaped isn't one).
 fn group_members(pgid: u32) -> Vec<(u32, String)> {
@@ -789,6 +790,7 @@ fn group_members(pgid: u32) -> Vec<(u32, String)> {
         .collect()
 }
 
+#[cfg(target_os = "macos")]
 fn wait_for(what: &str, limit: Duration, mut done: impl FnMut() -> bool) {
     let until = Instant::now() + limit;
     while !done() {
@@ -863,6 +865,7 @@ fn killed_outright_ai_juggler_comes_back_by_itself() {
     }
 }
 
+#[cfg(target_os = "macos")]
 /// Kills one process, not its group.
 fn kill_pid(pid: u32) {
     let _ = Command::new("kill")
@@ -873,6 +876,7 @@ fn kill_pid(pid: u32) {
 /// AJ-E1509: after a quit as asked (the run marked clean), the watchdog
 /// sees the app gone and ends by itself — it starts nothing.
 #[test]
+#[cfg(target_os = "macos")]
 fn the_watchdog_ends_with_a_clean_quit_and_starts_nothing() {
     if !binary_is_this_builds() {
         return;
