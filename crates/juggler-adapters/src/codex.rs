@@ -209,12 +209,14 @@ pub fn refuse_option_like(session_id: &str) -> Result<(), AdapterError> {
     Ok(())
 }
 
-/// `CODEX_HOME=` assignments in the shell rc files under `home`.
+/// `CODEX_HOME=` assignments in the shell rc files under `home`, then the
+/// ones other managers' profiles set (AJ-E1519).
 #[must_use]
 pub fn codex_aliases(home: &Path) -> Vec<juggler_adapter::environment::AliasHint> {
     let (hints, _) = crate::scan_signals::scan_rc_assignments(home);
     hints
         .into_iter()
+        .chain(crate::other_managers::aliases(home))
         .filter(|hint| hint.variable == ENV_CODEX_HOME)
         .collect()
 }

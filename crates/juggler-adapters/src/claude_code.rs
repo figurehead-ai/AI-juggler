@@ -224,7 +224,8 @@ impl HarnessAdapter for ClaudeCodeAdapter {
     }
 
     /// AJ-E302 S5: rc assignments for THIS harness's variable only
-    /// (`CODEX_HOME` belongs to the codex adapter).
+    /// (`CODEX_HOME` belongs to the codex adapter), then the ones other
+    /// managers' profiles set (AJ-E1519).
     fn scan_shell_aliases(&self) -> Vec<juggler_adapter::environment::AliasHint> {
         let Some(home) = home_dir() else {
             return Vec::new();
@@ -232,6 +233,7 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         let (hints, _) = crate::scan_signals::scan_rc_assignments(&home);
         hints
             .into_iter()
+            .chain(crate::other_managers::aliases(&home))
             .filter(|hint| hint.variable == ENV_CONFIG_DIR)
             .collect()
     }
