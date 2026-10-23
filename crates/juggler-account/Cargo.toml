@@ -23,3 +23,6 @@ ureq = { version = "3.4", default-features = false, features = ["rustls-no-provi
 
 [target.'cfg(target_os = "macos")'.dependencies]
 security-framework = "3"
+
+[dev-dependencies]
+cpu-time = "1"

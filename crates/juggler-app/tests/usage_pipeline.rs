@@ -924,3 +924,196 @@ fn a_compaction_counted_twice_by_an_older_build_is_read_again() {
         ])
     );
 }
+
+/// P21's leftovers, once per Codex account: a copy of another thread's
+/// call that an older build stored, in a thread whose rollout is gone,
+/// goes on the next pass; the check isn't made again after.
+#[test]
+fn a_gone_threads_copy_of_a_stored_call_goes_once() {
+    const PARENT: &str = "00000000-0000-4000-8000-00000000000a";
+    const GONE: &str = "00000000-0000-4000-8000-00000000000b";
+    const LATER: &str = "00000000-0000-4000-8000-00000000000c";
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    let home = dir.path().join("codex-home");
+    let day = home.join("sessions/2026/10/21");
+    std::fs::create_dir_all(&day).unwrap();
+    // Only the parent's rollout is still here.
+    std::fs::write(
+        day.join(format!("rollout-2026-10-21T10-00-00-{PARENT}.jsonl")),
+        "",
+    )
+    .unwrap();
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .accounts()
+        .insert(&Account {
+            id: AccountId::new("acc-codex"),
+            harness: HarnessId::new("codex"),
+            label: "codex".into(),
+            plan: None,
+            state_dir: home,
+            cleanup_opt_in: false,
+            renewal_date: None,
+            preview_opt_in: false,
+            import_source_path: None,
+            import_origin: None,
+            imported_at: None,
+            in_place: false,
+        })
+        .unwrap();
+    let row = |session: &str, key: String, input: u64| juggler_core::quota::UsageEvent {
+        account: "acc-codex".into(),
+        session: Some(session.into()),
+        ts: 1_792_576_801_000,
+        model: None,
+        tokens: juggler_core::model::TokenCounts {
+            input,
+            ..Default::default()
+        },
+        credits: None,
+        usd_est: None,
+        source: juggler_core::quota::UsageSource::Rollout,
+        confidence: juggler_core::model::Confidence::Measured,
+        msg_uuid: Some(key),
+    };
+    let store = |rows: &[juggler_core::quota::UsageEvent]| {
+        state
+            .storage
+            .lock()
+            .unwrap()
+            .usage()
+            .store_events(rows)
+            .unwrap();
+    };
+    let keys = || -> Vec<String> {
+        state
+            .storage
+            .lock()
+            .unwrap()
+            .usage()
+            .events_for_account("acc-codex", 0)
+            .unwrap()
+            .into_iter()
+            .map(|event| event.msg_uuid.unwrap())
+            .collect()
+    };
+    store(&[
+        row(PARENT, format!("{PARENT}/tp/r-compact"), 136_658),
+        row(GONE, format!("{GONE}/compacted/1792576804000/1"), 136_658),
+    ]);
+
+    usage_pipeline::ingest_pass(&state, 0);
+    assert_eq!(keys(), [format!("{PARENT}/tp/r-compact")]);
+
+    // Once: a copy that turns up later isn't looked for again.
+    store(&[row(
+        LATER,
+        format!("{LATER}/compacted/1792576809000/1"),
+        136_658,
+    )]);
+    usage_pipeline::ingest_pass(&state, 0);
+    assert_eq!(keys().len(), 2, "the check ran once");
+}
+
+/// The check is made only from a listing with rollouts in it: a sessions
+/// folder that is missing or empty (unmounted, or not readable yet) would
+/// make every thread look gone. It deletes nothing, isn't marked done, and
+/// a later pass that lists the rollouts makes it.
+#[test]
+fn no_rollouts_listed_means_no_check_until_they_are() {
+    const PARENT: &str = "00000000-0000-4000-8000-00000000000a";
+    const GONE: &str = "00000000-0000-4000-8000-00000000000b";
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    let home = dir.path().join("codex-home");
+    std::fs::create_dir_all(&home).unwrap();
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .accounts()
+        .insert(&Account {
+            id: AccountId::new("acc-codex"),
+            harness: HarnessId::new("codex"),
+            label: "codex".into(),
+            plan: None,
+            state_dir: home.clone(),
+            cleanup_opt_in: false,
+            renewal_date: None,
+            preview_opt_in: false,
+            import_source_path: None,
+            import_origin: None,
+            imported_at: None,
+            in_place: false,
+        })
+        .unwrap();
+    let row = |session: &str, key: String| juggler_core::quota::UsageEvent {
+        account: "acc-codex".into(),
+        session: Some(session.into()),
+        ts: 1_792_576_801_000,
+        model: None,
+        tokens: juggler_core::model::TokenCounts {
+            input: 136_658,
+            ..Default::default()
+        },
+        credits: None,
+        usd_est: None,
+        source: juggler_core::quota::UsageSource::Rollout,
+        confidence: juggler_core::model::Confidence::Measured,
+        msg_uuid: Some(key),
+    };
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .usage()
+        .store_events(&[
+            row(PARENT, format!("{PARENT}/tp/r-compact")),
+            row(GONE, format!("{GONE}/compacted/1792576804000/1")),
+        ])
+        .unwrap();
+    let rows = || {
+        state
+            .storage
+            .lock()
+            .unwrap()
+            .usage()
+            .events_for_account("acc-codex", 0)
+            .unwrap()
+            .len()
+    };
+    let checked = || {
+        let blob = state
+            .storage
+            .lock()
+            .unwrap()
+            .app_settings()
+            .get("usage_ingest_state")
+            .unwrap()
+            .unwrap_or_default();
+        blob.contains("acc-codex") && blob.contains("compactions_checked\":[\"acc-codex\"]")
+    };
+
+    // No sessions folder at all, then an empty one: nothing goes.
+    usage_pipeline::ingest_pass(&state, 0);
+    assert_eq!(rows(), 2, "missing folder: nothing deleted");
+    assert!(!checked(), "missing folder: not marked done");
+    let day = home.join("sessions/2026/10/21");
+    std::fs::create_dir_all(&day).unwrap();
+    usage_pipeline::ingest_pass(&state, 4);
+    assert_eq!(rows(), 2, "empty folder: nothing deleted");
+    assert!(!checked(), "empty folder: not marked done");
+
+    // The rollouts are listed again: the check is made.
+    std::fs::write(
+        day.join(format!("rollout-2026-10-21T10-00-00-{PARENT}.jsonl")),
+        "",
+    )
+    .unwrap();
+    usage_pipeline::ingest_pass(&state, 8);
+    assert_eq!(rows(), 1, "the copy went");
+    assert!(checked());
+}

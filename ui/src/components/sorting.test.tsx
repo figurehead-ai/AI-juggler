@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { InstanceBoard, ROW_HEIGHT, SessionRow } from "./WorkflowRail";
 import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
+import { cpuTimed } from "../test/cpuTime";
 import {
   chipCounts,
   filterSessions,
@@ -153,12 +154,13 @@ describe("AJ-E404 Needs-me sort (default)", () => {
 
   it("sort+filter of 200 rows stays inside one frame (<16 ms)", () => {
     const rows = Array.from({ length: 200 }, (_, i) => mk(`t${i}`, { started_at_ms: NOW - i * 1_000 }));
-    const start = performance.now();
-    const filtered = filterSessions(rows, { chips: ["running"], provider: null, account: null, project: null, machine: null }, "", PROJECTS);
-    const sorted = sortSessions(filtered, "needs", {}, NOW, PROJECTS);
-    const elapsed = performance.now() - start;
+    // CPU time, so a busy machine's other programs don't count against it.
+    const { result: sorted, cpuMs, wallMs } = cpuTimed(() => {
+      const filtered = filterSessions(rows, { chips: ["running"], provider: null, account: null, project: null, machine: null }, "", PROJECTS);
+      return sortSessions(filtered, "needs", {}, NOW, PROJECTS);
+    });
     expect(sorted.length).toBe(200);
-    expect(elapsed).toBeLessThan(16);
+    expect(cpuMs, `${cpuMs.toFixed(1)} ms CPU (wall ${wallMs.toFixed(1)} ms)`).toBeLessThan(16);
   });
 });
 

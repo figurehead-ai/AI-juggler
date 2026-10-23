@@ -647,3 +647,130 @@
   The budgets of a second or more (session launch, preview, cancel,
   revocation) are left alone. None was seen to flake; a repeat would
   make them the next ones.
+- **Flake record, 2026-10-22 (open; a test-design weakness).** In #143's
+  verify (5c3c4446), at load 34, with many Claude Code sessions running
+  on this Mac,
+  `load_budgets :: monitoring_beside_a_busy_claude_app` failed
+  "read at the listings only: 7125 for 12 listings of 543 processes":
+  the bound is 12 × (543 + 30) = 6,876. The observed trees include this
+  Mac's real AI tools. Their size is taken once, at the end of the
+  simulated minute, while other sessions' builds start and end processes
+  in them during it, so the end size understates what each listing read.
+  Alone it passed 3 of 3 (8,905–10,591 read), and the rerun was green.
+  Fix proposed to the coordinator: bound each listing by the trees' size
+  at that listing (or the largest seen), not the size at the end.
+- **Fixed, 2026-10-22 (fix/load-budget-listings).** The load_budgets
+  flake above, plus two p95 budgets the first timing sweep missed (it
+  looked for `elapsed() <`, not for percentiles):
+  - `load_budgets :: monitoring_beside_a_busy_claude_app` now bounds
+    each listing by the observed trees' size at that listing:
+    `read ≤ trees + 30`, the same slack as before. The simulated minute
+    records each listing's reads and trees between ticks, outside the
+    CPU time it measures. The failing run read 7,125 against
+    12 × (543 + 30) = 6,876 from the end size. A read every tick would
+    still fail: each listing would show about twice its trees.
+  - `commands :: session_info_join_p95_under_budget_at_50_instances`:
+    the join runs on the test thread, so its p95 is now this thread's
+    CPU time, with wall time in the message. It read 25.7 ms of wall
+    time at load 36, for a join that takes under 1 ms.
+  - `transport :: mutual_tls_with_pinned_keys_connects_and_serves`: the
+    heartbeat RTT p95 (50 ms, across threads) stays wall time, as the
+    best of up to three rounds of 40.
+- **Fixed, 2026-10-22 (fix/load-budget-listings).** #143's `ui` CI job
+  failed `first-run-access-reopen :: back from System Settings: the
+  window's focus checks again at once` with "Unable to find
+  role=status" after 1,012 ms. The test raced its 1 s wait against the
+  1.5 s poll, and on a loaded runner the focus-driven check itself took
+  over 1 s. The poll's interval is now faked before the component
+  mounts and never advanced, so it can't fire, and only the focus can
+  turn the card to Allowed. The wait can be generous (5 s) without
+  weakening the proof. With the focus listener removed, the test fails;
+  it passed 3 of 3, and the whole UI suite passes.
+- **Changed, 2026-10-22 (fix/timing-budgets-2).** A sweep for the rest
+  of the timing budgets that read wall time. None was seen failing; each
+  budget keeps its number.
+  - On this thread's CPU time, with wall time beside it (the work runs
+    on the test thread):
+    - `fleet_switch`: the cross-machine target list (500 ms).
+    - `session_lifecycle`: archive plus unarchive (1 s) and transcript
+      search over 1,000 sessions (500 ms).
+    - `triage_lifecycle`: mark reviewed (200 ms).
+    - `load_budgets`: This Mac at 50 Instances, the median of 5
+      (200 ms). It reads the collector's snapshots and storage on the
+      test thread; nothing is listed or spawned.
+    - `juggler-account` `vault`: 25 MB seal plus open.
+  - Wall time, best of 3 (the work spans processes):
+    - `identity_guard`: launch with the identity probe (1 s), the best
+      of the test's three launches, which already each run the probe.
+    - `load_budgets`: terminal echo, the median of 20 (50 ms), in up to
+      three rounds.
+  - UI:
+    - Sort plus filter of 200 rows (16 ms) and render 50 sessions
+      (300 ms) use `process.cpuUsage()` (user plus system) around the
+      synchronous work, through `ui/src/test/cpuTime.ts`.
+    - The privacy card render with its async loads (200 ms) is the
+      median of 5 renders.
+- **Checked and left, 2026-10-22.** These read wall time too. They stay
+  as they are until one flakes:
+  - `juggler-stats` `record()`: a median under 1 µs.
+  - `juggler-link` `registry`: unpair under 2 s.
+  - The preview (`preview.rs`, `preview_real.rs`) and `transport.rs`
+    handshake budgets.
+  - Budgets of 2 s or more:
+    - `desktop.rs`;
+    - transport reconnects;
+    - the `load_budgets` startup;
+    - `overnight_summary`;
+    - `parked_reset`;
+    - `fleet_switch` and `fleet_sync` end to end;
+    - guards of 5 s and over.
+  - UI `findBy` waits with short timeouts in `first-run` and
+    `settings-screen`.
+  - The Playwright load gate (`load.spec.ts`), which has its own
+    baseline rule.
+- **Flake record, 2026-10-23 (open).** In #145's gates after merging
+  main (129ec800), at a 1-minute load of about 20 on 30 cores,
+  `reconciler :: fifty_instance_soak_and_construction_regression`
+  failed its tick budget: p95 1,621 ms against 100 ms. Its quarantine
+  only applies above one load per core, so the wall-time gate was on.
+  Alone it passed 3 of 3, with p95 36, 61 and 37 ms (the third run was
+  quarantined at load 69). This PR doesn't touch the supervisor; the
+  budget is the next one to move off wall time.
+- **Fixed, 2026-10-23 (fix/soak-tick-cpu).** The reconciler soak flake
+  above. The tick runs on the test thread: `sysinfo` without its thread
+  pool (rayon isn't in the build), `netstat2` and SQLite in-process. Its
+  100 ms p95 budget is now this thread's CPU time (user plus system), with
+  wall time printed beside it. The load quarantine is gone, so the gate
+  holds on a busy machine too.
+  - Alone: CPU p95 32–40 ms, wall p95 36–54 ms.
+  - Beside 45 `yes` on 30 cores (load 30–44): CPU p95 48–54 ms, while
+    wall p95 read 297, 132 and 100 ms, which would have failed the
+    old gate.
+- **Flake record, 2026-10-23 (open, a fourth time).** In this branch's
+  `just verify`, at load 48, `processes ::
+  orphan_stop_refuses_a_pid_the_journal_never_recorded` failed "processes
+  command never saw the child". It's the same fixture race as the
+  `processes_command_reports_tree_orphans_and_stops` records above: the
+  test has to see the child during the fake harness's life (3 turns of
+  300 ms), and a loaded machine spends that before the first ticks. It
+  passed 3 of 3 alone, and the whole workspace passed with
+  `--no-fail-fast` (1,217 tests, 0 failed). Proposed fix: the fixture
+  keeps its root alive until the test has seen the child, not for a
+  fixed time.
+- **Fixed, 2026-10-23 (fix/idle-fixture).** #147's Linux CI failed
+  `guardrails :: idle_nudge_fires_exactly_once_per_orphan`: "never
+  idle-eligible: state orphaned, age 37,140 ms, cpu 3.85 %".
+  - **Cause:** the fixture (`trap_helper.py`) waited out its 5-minute
+    life in a 0.2 s poll, so it woke 5 times a second.
+  - Linux charges CPU in whole 10 ms clock ticks, and the test samples
+    about every 250 ms. 3.85 % is exactly one tick in a 260 ms window: one
+    wake was charged a tick.
+  - macOS accounts precisely, so it doesn't show there: run side by side
+    for 20 s at load 58, both versions read 0.00 s CPU and 0 of 74 samples
+    at 1 % or more.
+  - **Fix:** the fixture now sleeps in one blocking call, with no wakes.
+    A signal still interrupts it and the handler runs at once; after a
+    logged-and-ignored TERM, Python sleeps out the rest. The idle
+    threshold is unchanged.
+  - **Checked:** guardrails 10 of 10, and the supervisor's collateral,
+    observed and reaper suites pass.
