@@ -1888,6 +1888,10 @@ brought in where they are, with redacted labels (7 of 7 signed in).
   - That copy ("the whole session moves, with its subagents and file history") is the
     transplant's, and the Codex replay gets it too, under "Not carried: subagent state".
   - The words should follow the mechanism.
+  - It isn't the added record's doing. The preflight's label comes from
+    `pipeline::preflight`, fed only by the tool pair (`base_dispositions`) and the real
+    transcript's compaction. On 2026-10-22 the list's same-tool rows were raised to F3;
+    the screen's path still computes F1.
 - **P24 — the set-up list repeats each claude.ai skill.** The 9 skills sit in `skills/synced`
   under two folders, and each becomes its own item. The Codex list has 19 rows for 10 skills,
   "doesn't have 19 things", and the duplicates share an offer id (ticks are keyed by it). The
