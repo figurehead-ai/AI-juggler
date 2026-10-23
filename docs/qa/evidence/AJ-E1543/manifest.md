@@ -45,6 +45,49 @@ the failing cell's one-level drop, `advertised_ceiling_number`),
 register's "Switch rows show" column regenerated; the preview's matrix
 and default preflight follow.
 
+## Req.4: the screen on real data, up to Confirm (`ff7970c6`, 2026-10-23)
+
+QA walked the switch screen in a Dev build on the real setup, through the read-only Dev bridge (#153
+serves `switch_targets`, `switch_preflight` with secret previews masked, and `switch_setup_check`).
+The full record is walk batch 28 in `docs/qa/evidence/walks/2026-10-21-real-readonly.md` on
+`claude/qa-real-walk-clean` (`e878e5f9`, `18fa9d89`).
+
+- **Setup:** the real setups were brought in where they are, with redacted labels. The screen opens
+  from AI Juggler's own sessions, and the real setup has none, so one finished session record was
+  added to AI Juggler Dev's own data for a real Claude Code conversation (`tests/qa_switch_session.rs`).
+  No process ran and nothing was launched; the record was removed afterwards.
+- **The walk:** Target, What's carried and Confirm, to another Claude Code account and to Codex.
+  Switch stayed disabled, as no secrets choice was saved, and was never pressed. The real folders were
+  unchanged.
+- **What holds:**
+  - the list's rows;
+  - the carried, rebuilt and not-carried lists;
+  - the required secrets choice, with 2 detected `sk-key` items whose previews read "•••";
+  - the freeze choice ("The source is at rest", finish this turn by default);
+  - the set-up list's verdicts and reasons;
+  - Codex's headroom (70%, the rollouts' own reading).
+- **What doesn't (left below):** the screen's label for a Claude Code → Claude Code switch, and
+  duplicate rows in the set-up list.
+
+The switch itself is proven live in the labs (AJ-E1539, labs 9–11). This walk adds the screen on real
+data, up to Confirm.
+
 ## Left
 
-- **Req.4 once on the real lab.** The switch screen still has to be walked in the real Dev app during a live switch. The lab drives the same commands without the screen.
+- **P23 — the screen names a same-tool switch "Full story, fresh start".**
+  - Real data, Claude Code → Claude Code: the list says "Same conversation, new account · Beta · Not
+    proven yet".
+  - `switch_preflight` returns `mechanism: transplant` with `fidelity: F1` and
+    `fidelity_words: "Full story, fresh start"`. So Target and Confirm say "Full story, fresh start",
+    with "Fidelity is F1: something would translate or drop".
+  - The preflight's label comes from `pipeline::preflight` (the tool pair's dispositions and the
+    transcript's compaction). It still lands on F1, where the list's same-tool rows were raised to F3
+    on 2026-10-22.
+  - Its `experimental_copy` ("the whole session moves, with its subagents and file history") is the
+    transplant's, and the Codex replay shows it too, beside "Not carried: subagent state".
+- **P24 — the set-up list repeats each claude.ai skill.**
+  - The 9 skills in `skills/synced` sit under two folders, and each becomes its own item.
+  - To Codex: 19 rows for 10 skills, "doesn't have 19 things", with duplicate offer ids.
+  - To Claude Code: "already there" counts 18.
+- **Wording:** "fidelity 1" and "Fidelity is F1" mean nothing to a user. "Doesn't carry" in the
+  list and "Not carried (stays on the source)" on the screen say one thing two ways.
