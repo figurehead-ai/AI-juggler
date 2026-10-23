@@ -346,3 +346,48 @@ fn identity_is_the_account_id_masked_never_a_token() {
     ));
     assert_eq!(probe(None), IdentityProbe::SignedOut);
 }
+
+/// AJ-E1520: `spawn_agent` calls, named by their output, ended by a
+/// `wait_agent` status or `close_agent`; a spawn that gave no agent failed.
+#[test]
+fn subagents_are_read_from_spawn_wait_and_close() {
+    use juggler_adapters::{SubtaskState, subtasks_of};
+    let log = subtasks_of(&fixture("codex/rollout-subagents.jsonl"));
+    let seen: Vec<(&str, &str, Option<&str>, SubtaskState)> = log
+        .subtasks()
+        .iter()
+        .map(|item| {
+            (
+                item.id.as_str(),
+                item.label.as_str(),
+                item.kind.as_deref(),
+                item.state,
+            )
+        })
+        .collect();
+    assert_eq!(
+        seen,
+        vec![
+            (
+                "call_a",
+                "Map the parsers",
+                Some("explorer"),
+                SubtaskState::Done
+            ),
+            (
+                "call_b",
+                "Review error handling",
+                Some("worker"),
+                SubtaskState::Done
+            ),
+            ("call_c", "Run the slow suite", None, SubtaskState::Failed),
+            (
+                "call_d",
+                "Write tests for the tail reader",
+                Some("worker"),
+                SubtaskState::Running
+            ),
+        ]
+    );
+    assert_eq!(log.running(), 1);
+}

@@ -241,3 +241,56 @@ mod running_model_fixtures {
         assert!(models.iter().all(Option::is_none));
     }
 }
+
+/// AJ-E1520: the subagents a session started (Task, and Agent in later
+/// versions) and what became of each; other tool calls aren't counted.
+#[test]
+fn subagents_are_read_from_task_and_agent_calls() {
+    use juggler_adapters::{SubtaskState, subtasks_of};
+    let log = subtasks_of(&fixture("session-subagents.jsonl"));
+    let seen: Vec<(&str, &str, Option<&str>, SubtaskState)> = log
+        .subtasks()
+        .iter()
+        .map(|item| {
+            (
+                item.id.as_str(),
+                item.label.as_str(),
+                item.kind.as_deref(),
+                item.state,
+            )
+        })
+        .collect();
+    assert_eq!(
+        seen,
+        vec![
+            (
+                "toolu_explore",
+                "Map the parsers",
+                Some("Explore"),
+                SubtaskState::Done
+            ),
+            (
+                "toolu_review",
+                "Review error handling",
+                Some("code-reviewer"),
+                SubtaskState::Failed
+            ),
+            // Started in the background: this transcript doesn't say when
+            // it ends.
+            (
+                "toolu_bg",
+                "Run the slow suite",
+                Some("general-purpose"),
+                SubtaskState::Running
+            ),
+            // No description: the prompt's first line.
+            (
+                "toolu_tests",
+                "Write tests for the tail reader.",
+                Some("general-purpose"),
+                SubtaskState::Running
+            ),
+        ]
+    );
+    assert_eq!(log.running(), 2);
+}
