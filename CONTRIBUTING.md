@@ -38,7 +38,8 @@ change looks like.
 | `crates/juggler-link` | Fleet: discovery, pairing and the encrypted link between your Macs. |
 | `crates/juggler-account` | The optional Figurehead account client. |
 | `crates/juggler-stats` | Opt-in usage statistics, counted on the Mac. |
-| `crates/juggler-scap-init` | The one audited `unsafe` call the screen-capture path needs (decision D-17). |
+| `crates/juggler-scap-init` | The audited `unsafe` call the screen-capture path needs (decision D-17). |
+| `crates/juggler-login-item` | Open at login: macOS's login-item calls, `unsafe` in their bindings, behind a safe API (decision D-26). |
 | `crates/juggler-app` | The Tauri app: the typed commands the UI calls. |
 | `ui/` | React + TypeScript webview UI. `ui/src/lib/bridge.ts` is the only place that talks to the backend; it serves deterministic mocks in a plain browser. |
 | `docs/` | Proposal, spec, ADRs, decision log, task board, research, QA evidence. |
@@ -85,8 +86,8 @@ pnpm --dir ui exec playwright test       # visual states + a11y (for UI changes)
 ```
 
 - **Rust:** typed errors, no `unwrap`/`expect`/`panic!` in production
-  paths, documented public items, `unsafe` is forbidden (one audited
-  exception, recorded as D-17). Rustdoc runs with warnings as errors —
+  paths, documented public items, `unsafe` is forbidden (two audited
+  exceptions, each its own small crate: D-17 and D-26). Rustdoc runs with warnings as errors —
   don't leave a bare `<X>` in a `///` comment.
 - **UI:** both themes (Light and Dark) are first-class, colours come only
   from the tokens in `ui/src/styles.css`, and small text uses
